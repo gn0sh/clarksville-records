@@ -14,7 +14,11 @@
 | 2026-11-07 | backend-engineer | opus/high | M0 parse spike | done, a9e1262: 95.8% Verified (138/144), 0 wrong of 380 hand-labelled votes |
 | 2026-11-07 | software-architect | opus/high | M1 design, ADR 0001, tasks, schema | done, 2db2bde |
 | 2026-11-07 | frontend-engineer | sonnet/high | F1-F5 site generator | done, 157e789 |
-| 2026-11-07 | backend-engineer | opus/high | B1-B4 collector + full corpus run | running |
+| 2026-11-07 | backend-engineer | opus/high | B1-B4 collector | done, b956334 (full corpus blocked by dev2 403) |
+| 2026-11-07 | deep-researcher | sonnet/medium | find 2025-26 county + post-2024 city minutes | found prod clerk page + CivicClerk |
+| 2026-11-07 | qa-engineer | sonnet/high | test plan + spot-check + site checks | done, 2a377d3 |
+| 2026-11-07 | backend-engineer | opus/high | prod discovery, 2022-26 corpus, review fixes | running |
+| 2026-11-07 | code-reviewer | opus/high | review collector | request changes: 4 must-fix, 4 should-fix |
 | 2026-11-07 | code-reviewer | opus/medium | review F1-F5 | request changes: 1 high, 2 medium, 4 low, 1 nit |
 | 2026-11-07 | frontend-engineer | opus/high (stepped up) | fix review findings | done, 98c98c0 |
 | 2026-11-07 | code-reviewer | opus/medium | delta re-review | request changes: neutrality 2nd hit, about page copy |
@@ -31,6 +35,10 @@
 | verified-gate | 1 (review) | motion-over-hidden |
 | escape | 1 (review) | unsafe-url-scheme |
 | contract | 1 (review) | no-referential-check |
+| attribution | 1 (review) | motion-ignores-context, item-link-unchecked, name-pairing-no-margin, one-entry-per-official |
+| item-history | 1 (review) | consent-reprint-duplicates, consent-pulled |
+| politeness | 1 (review) | redirect-bypass |
+| idempotence | 1 (review) | superseded-source |
 
 ## Skipped panels
 - Architect recommended a 3-member Brain Trust on the facts schema and id scheme; skipped for today's preview (private, data regenerated from source each run, so the schema is cheap to change before public launch). Revisit at M1.5.
