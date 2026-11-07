@@ -1,0 +1,44 @@
+{% extends "base.html.j2" %}
+{% block main %}
+<h1>Review (internal)</h1>
+<p class="banner-inline">Internal page. Not part of a public build. Facts listed here are held back and are not shown anywhere else on the site.</p>
+
+<section aria-labelledby="gates">
+  <h2 id="gates">Gate results</h2>
+  {% if report_json %}
+  <pre class="report">{{ report_json }}</pre>
+  {% else %}
+  <p>No report.json found next to this build.</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="held">
+  <h2 id="held">Held-back facts</h2>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Held-back facts">
+  <table class="review">
+    <thead><tr><th scope="col">Kind</th><th scope="col">Fact id</th><th scope="col">Text</th><th scope="col">Failed checks</th><th scope="col">Source</th></tr></thead>
+    <tbody>
+    {% for u in unverified %}
+      <tr>
+        <td>{{ u.kind }}</td>
+        <td><code>{{ u.id }}</code></td>
+        <td>{{ u.where }}</td>
+        <td>
+          <ul>
+          {% for c in u.failed %}
+            <li><code>{{ c.check }}</code>{% if c.get("detail") %}: {{ c.detail }}{% endif %}</li>
+          {% else %}
+            <li>None recorded</li>
+          {% endfor %}
+          </ul>
+        </td>
+        <td><a href="{{ u.src.url }}" target="_blank" rel="noopener noreferrer">{% if u.src.page %}p. {{ u.src.page }}, {% endif %}fetched {{ u.src.fetched }}</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5">Nothing is held back.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}

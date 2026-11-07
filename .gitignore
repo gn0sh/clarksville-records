@@ -5,6 +5,8 @@ data/raw/
 data/text/
 data/ocr/
 data/out/
+build/
 __pycache__/
+*.pyc
 .pytest_cache/
 .ruff_cache/
