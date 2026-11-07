@@ -20,6 +20,8 @@
 | 2026-11-07 | backend-engineer | opus/high | prod discovery, 2022-26 corpus, review fixes | done, e80ec75: 64 meetings, 336/413 verified |
 | 2026-11-07 | code-reviewer | opus/high | fresh review e80ec75 | request changes: consent reprints not fixed (2nd item-history hit) |
 | 2026-11-07 | software-architect | opus/high | one-vote invariant + fix (loop rule) | running |
+| 2026-11-07 | qa-engineer | sonnet/high | final QA + spot check on 5b09728 | FAIL: 19/20 (OCR name in motion text), consent dupes, 81.4% verified |
+| 2026-11-07 | frontend-engineer | sonnet/high | hide unverified motion text + raw outcome text | running |
 | 2026-11-07 | code-reviewer | opus/high | review collector | request changes: 4 must-fix, 4 should-fix |
 | 2026-11-07 | code-reviewer | opus/medium | review F1-F5 | request changes: 1 high, 2 medium, 4 low, 1 nit |
 | 2026-11-07 | frontend-engineer | opus/high (stepped up) | fix review findings | done, 98c98c0 |
@@ -34,7 +36,7 @@
 | Family | Hits | Keys |
 |---|---|---|
 | neutrality | 2 (review, delta): architect states invariant | held-count-by-resolved-id, under-review-mislabelled |
-| verified-gate | 1 (review) | motion-over-hidden |
+| verified-gate | 2 (review, QA motion-text-names): manager decision, show motion type only when unverified | motion-over-hidden |
 | escape | 1 (review) | unsafe-url-scheme |
 | contract | 1 (review) | no-referential-check |
 | attribution | 1 (review) | motion-ignores-context, item-link-unchecked, name-pairing-no-margin, one-entry-per-official |
