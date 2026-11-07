@@ -3,6 +3,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = REPO_ROOT / "schema" / "facts.schema.json"
+CHANGES_SCHEMA_PATH = REPO_ROOT / "schema" / "changes.schema.json"
 TEMPLATE_DIR = REPO_ROOT / "site" / "templates"
 STATIC_DIR = REPO_ROOT / "site" / "static"
 
@@ -11,7 +12,7 @@ SITE_NAME = "Clarksville Records"
 # CEO decision G1 (2026-11-07): every page names the operator. The CEO supplies the real text; a public build
 # (M1.5) refuses to run while this is still the placeholder.
 OPERATOR_PLACEHOLDER = "[OPERATOR NAME - CEO to confirm]"
-OPERATOR_NAME = OPERATOR_PLACEHOLDER
+OPERATOR_NAME = "Brian Zacharias"  # confirmed by the CEO, 2026-11-07
 
 MAX_FILES = 250
 
@@ -25,3 +26,6 @@ EVENT_TYPE_LABELS = {
     "other": "Other",
 }
 OUTCOME_LABELS = {"passed": "Passed", "failed": "Failed", "other": "Other"}
+
+# Source URLs must use this scheme; anything else fails the build.
+ALLOWED_URL_SCHEMES = ("https",)

@@ -35,6 +35,7 @@ data/                 committed: names.yml, manifest.json, facts.json, changes.j
                       not committed: data/store/ (PDF bytes; path overridable by RECORDS_STORE)
 build/                not committed: site/, report.json, run-log.json, name-candidates.json
 schema/facts.schema.json   the parser/verifier -> sitegen contract
+schema/changes.schema.json one line of data/changes.jsonl (collector -> sitegen); source_url must be https://
 ```
 
 ### Polite fetcher (`collector/fetch.py`)
@@ -89,10 +90,60 @@ Sets `verification.status` to `verified` or `unverified` with a list of named ch
   means yes <= no; anything else is held back).
 - Motion checks: `mover_resolves`, `seconder_resolves` (null is allowed only when the minutes name none), both present at
   the meeting, mover differs from seconder. A failed motion check holds back the Moved/Seconded attribution only.
-- G4 skew: per official, `eligible` = roll calls at meetings whose attendance lists them, `held` = the unverified ones.
-  Gate fails if any official's held rate > `SKEW_FACTOR` x max(median rate, `SKEW_FLOOR`) with `SKEW_FACTOR = 2.0`,
+- G4 skew: per official, `eligible` = roll calls at meetings whose **verified** attendance lists them, `held` = the
+  unverified ones; roll calls anywhere else go into one unattributed count. Exact rule in "Invariant: held-back counts"
+  below. Gate fails if any official's held rate > `SKEW_FACTOR` x max(median rate, `SKEW_FLOOR`) with `SKEW_FACTOR = 2.0`,
   `SKEW_FLOOR = 0.02` (both provisional, set after M0). Also gates `verified_rate >= 0.90` (AC-P1). Results go to
   `build/report.json` and the internal review page. The manager publishes only when both gates pass.
+
+### Invariant: held-back counts (problem family `neutrality/held-count`)
+Stated after the family's second review hit (2026-11-07). Placing a person at a meeting by name matching gave
+different counts to officials at the same meeting (a name that OCRs badly everywhere got 0, a shared alias counted
+people who were not there), so held roll calls are now placed only by verified attendance.
+
+Definitions, for one facts file: a meeting's attendance is **shown** when `attendance_status == "extracted"` and the
+meeting is `verified`. `listed(m)` = the distinct resolved `official_id`s in that attendance, present **and** absent.
+A **held** roll call is one whose `verification.status` is `unverified`. A held roll call at meeting `m` is
+**attributed** when `m`'s attendance is shown and `listed(m)` is not empty, and **uniform** otherwise.
+
+Invariant (each line is a test in `tests/test_held_counts.py`):
+1. Same meeting, same count: for any two officials both in `listed(m)` of a shown meeting `m`, each held roll call at
+   `m` counts for both or for neither (in fact, for both: it counts for exactly `listed(m)`).
+2. No name matching: no held roll call is ever attributed through a raw name, alias or merge rule. Replacing every raw
+   name and alias in the facts changes no held count.
+3. Exactly once: every held roll call in the period is counted once, either in the per-official sentences (once for
+   each official in `listed(m)`) or in the uniform count U, never both and never neither. U is site-wide, so the
+   uniform clause is word-for-word the same on every official's page. Check: (number of held roll calls at meetings
+   with attributed holds) + U = the sum of the meeting pages' held numbers = the number of held roll calls.
+
+Consumers (every one must follow the definitions above; none may place a person by name):
+| Consumer | Where | What it shows |
+|---|---|---|
+| Official page totals sentences | `sitegen/views.py` `held_attribution`, `held_counts`, `totals_sentences` | per-official N, plus the uniform clause when U > 0 |
+| Meeting page held sentence | `views.meeting` `held_roll_calls_text` | held roll calls at that meeting (no person) |
+| Item page held line | `views._event`, `items_year.html.j2` | "1 roll call is under review and not shown" per held event |
+| Internal review page | `views.review`, `review.html.j2` | every held roll call, with failed checks; G4 results from `report.json` |
+| G4 gate and per-official held-back rates | `collector/verify.py` (being written) -> `build/report.json` | eligible, held and rate per official; unattributed count |
+| Export held-back counts | `collector/export.py` -> `build/site/data/facts.json` | held-back counts, if per official then by the same rule |
+| About page explanation | `site/templates/about.html.j2` "Verified and held-back facts" | the rule in words (exact text tested) |
+
+**Rule for the collector's G4 code** (`collector/verify.py`, and `collector/export.py` if it writes counts):
+- For each meeting compute `shown(m)` and `listed(m)` exactly as defined above. Use only the resolved `official_id`
+  on the verified attendance entries; never call the name normaliser, aliases or merge rules for G4.
+- Per official `o`: `eligible(o)` = roll calls (verified or not) at meetings with `shown(m)` and `o in listed(m)`;
+  `held(o)` = the unverified ones among them; `rate(o) = held(o) / eligible(o)`. An official with `eligible(o) == 0`
+  has no rate and is left out of the median and the gate.
+- Every roll call at a meeting with `not shown(m)` or empty `listed(m)` goes to `eligible_unattributed`, and the
+  unverified ones to `held_unattributed`. They are added to no official.
+- Holds the spec's G4 excludes as source-document errors are excluded per roll call (from every official listed
+  there alike), and only from the rates; they still count in `held(o)` and `held_unattributed` as shown on the site.
+- Write to `build/report.json`: `g4.per_official = {id: {eligible, held, rate}}`, `g4.held_unattributed`,
+  `g4.eligible_unattributed`, `g4.held_total`. Before writing, assert
+  `held_total == held_unattributed + (held roll calls at meetings with attributed holds, each counted once)` and
+  `held_total == number of unverified roll calls`; a failed assertion is a bug (raise), not a gate result.
+- The site's per-official N must equal `g4.per_official[id].held` and the site's U must equal `g4.held_unattributed`
+  for the same facts file (a cross-module test once both exist). A large `held_unattributed` means G4 cannot see
+  skew there; the `verified_rate >= 0.90` gate (AC-P1) bounds it.
 
 ### Facts assembly (`collector/facts.py`)
 Writes `data/facts.json` (committed, all facts including unverified, so git history is the change history). Lists are
@@ -122,8 +173,12 @@ Neutrality enforced by construction:
   Attendance is Present or Absent. No other derived labels exist.
 - **N3/P4/AC2.3:** totals are fixed sentences filled from one function, e.g. "Recorded absent at 4 of 61 meetings with
   an extracted attendance section, 2020-01-06 to 2024-12-09." Denominator = meetings whose extracted attendance lists
-  the official. Also "N roll calls in this period are not shown because they are under review." and "N meetings in this
-  period have no extracted attendance section and are not counted." No percentages, no sort by count, no highlight.
+  the official. Also "N roll calls in this period are not shown because they are under review." (N = the G4 `held`
+  count, per "Invariant: held-back counts"; when U > 0 the same sentence goes on with the uniform clause "A further U
+  roll calls under review are at meetings whose attendance is not shown, and are not counted for any one member."),
+  "N meetings in this period have no extracted attendance section and are not counted." and
+  "N meetings in this period have an attendance section that is under review and are not counted." No percentages, no
+  sort by count, no highlight.
 - **Ordering:** people always alphabetical by surname; history rows by date (newest first), ties by source page then
   position. A lint test fails on `sort(attribute=` with any count field and on banned words in templates
   (`rank`, `score`, `grade`, `missed`, `percent`, `%`, `best`, `worst`).

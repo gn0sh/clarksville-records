@@ -42,6 +42,8 @@
     </div>
   </form>
   <p id="no-match" hidden role="status">No rows match these filters.</p>
+  {# The explicit table roles are kept on purpose: style.css sets display:block on this table at phone width, which
+     removes native table semantics in Chromium and WebKit. The roles restore them. #}
   <div class="table-scroll" tabindex="0" role="region" aria-label="History table">
   <table class="history stack" id="history" role="table">
     <thead role="rowgroup">
