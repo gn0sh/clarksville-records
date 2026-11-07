@@ -12,6 +12,8 @@ patterns:
   - '^consent\W*agenda'
   - '^(the )?(amended )?resolutions?$'  # a bare "Resolution" / "Amended Resolution" with no number
   - '^(the )?amendments?$'
+  - '^(the )?(amended )?resolution\b.*\bamended\b'   # "Resolution, As Amended": every meeting has one
+  - '^(the )?(friendly |amended )?amendments?\b'      # "Friendly Amendment", "Amendment, made by ..."
   - '^(the )?motion\b'
   - '^invocation\b'
   - '^pledge\b'

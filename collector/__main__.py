@@ -143,8 +143,11 @@ def documents_report(parsed_docs: list, b: Builder) -> list[dict]:
             mid = f"{m.meeting_date}-{m.kind}" if m.meeting_date else None
             found.append({"meeting_id": mid, "pages": [m.segment.page, m.segment.end_page], "role": m.segment.role,
                           "boundaries_certain": m.segment.certain, "date_read": m.segment.date_how,
-                          "roll_calls": len(m.roll_calls),
-                          "verified": sum(r.status == "Verified" for r in m.roll_calls),
+                          "vote_tables": len(m.roll_calls),
+                          # a used meeting counts its votes (consent reprints are one vote); an unused copy its tables
+                          "roll_calls": used[(sid, mid)]["roll_calls"] if (sid, mid) in used else len(m.roll_calls),
+                          "verified": (used[(sid, mid)]["verified"] if (sid, mid) in used else
+                                       sum(r.status == "Verified" for r in m.roll_calls)),
                           "used": (sid, mid) in used})
         own = [f["meeting_id"] for f in found if f["role"] == "own"]
         out.append({"source_id": sid, "label": pd.source.get("label"), "label_month": label_hint,

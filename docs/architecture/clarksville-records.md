@@ -81,8 +81,8 @@ schema/changes.schema.json one line of data/changes.jsonl (collector -> sitegen)
   segment's roll calls. `collector/meetings.py` keeps one copy per date + kind (own minutes > for approval >
   attached, then certain bounds, more tables, more pages, lower hash; never by how many verify) and logs each
   choice in `report.json` `meeting_copies`.
-- Consent reprints (2020-2022 layout): identical consent tables over the same item set are one roll call; each reprint
-  is an item event pointing at it, and a reprint that reads differently fails `reprints_agree`.
+- Consent reprints (2020-2022 layout): every printing of a meeting's consent vote is one roll call. Rule and
+  consumers in "Invariant: one vote, one roll call" below.
 `parse_minutes(pdf_path, source) -> ParsedMinutes` (in `minutes.py`) holds raw fragments with names as raw strings,
 no `official_id` and no fact-level `verification`. Deterministic: same bytes in, same fragments out. Scanned PDFs with
 no usable text layer return `text_layer: "none"` and no fragments (AC-P4: "not extracted").
@@ -101,7 +101,14 @@ no usable text layer return `text_layer: "none"` and no fragments (AC-P4: "not e
   covered. A list whose heading cannot be read is not expanded; such roll calls are listed in `build/report.json`
   (`consent_roll_calls_not_expanded`).
 - Item numbers: an OCR split such as "20-3-1 1" is joined only when the joined number is on that meeting's agenda;
-  otherwise the line gives no number (never guessed).
+  otherwise the line gives no number (never guessed). Inside a comma-separated consent list the commas delimit the
+  numbers, so spaces and l/I/| for 1 inside a token are OCR noise ("20-1 0-10" is 20-10-10); a token still unread is
+  matched only against the meeting's agenda numbers ("2 l-2-5j" is 21-2-5 when 21-2-5 is on the agenda), never
+  guessed (`minutes.list_numbers`, `agenda_numbers_in`). Case numbers take the same glyph rule ("CZ-l1-2022",
+  "AB-7-2 023"). Pulled sentences in the inline layout ("Resolution 2 1-2-6 was pulled ...") remove the item.
+- Item titles: a motion or outcome sentence is never an item title (`facts.is_sentence`). A numbered item takes the
+  agenda's title for its number, else the number alone; an unnumbered one with no other title is "(untitled)" and is
+  never title-linked.
 
 ### Names and merge rules (`collector/names.py`, `data/names.yml`)
 `data/names.yml` is the roster: one entry per official, curated by the team from the county's published commissioner
@@ -190,6 +197,49 @@ Consumers (every one must follow the definitions above; none may place a person 
 - The site's per-official N must equal `g4.per_official[id].held` and the site's U must equal `g4.held_unattributed`
   for the same facts file (a cross-module test once both exist). A large `held_unattributed` means G4 cannot see
   skew there; the `verified_rate >= 0.90` gate (AC-P1) bounds it.
+
+### Invariant: one vote, one roll call (problem family `item-history`)
+Stated after the family's second hit (2026-11-07, review of e80ec75). The 2020-2022 minutes reprint the consent vote
+after every consent resolution (up to 18 printings per meeting). Grouping printings by an exact item-number set
+failed because OCR garbles numbers in some printings ("20-1 0-10", "22l-6"), so 2020-10-12 published 6 identical
+verified consent roll calls and items got the same vote 2 to 9 times.
+
+Invariant (each line is checked by `collector/invariants.py` `one_vote_violations` on every facts file the tests
+build and on the committed `data/facts.json`; `python -m collector.invariants` prints it for a run):
+1. One vote, one roll call: each vote taken at a meeting appears as exactly one `roll_calls` entry. All printings of
+   one vote are one roll call; the others are recorded only in `report.json` `consent_reprints` (printing id -> roll
+   call id).
+2. One row per official: an official has at most one vote row in a roll call (two table entries that resolve to one
+   official fail `one_entry_per_official` and hold the roll call).
+3. One event per (item, roll call): each item gets at most one `roll_call` item event per roll call, however many
+   times the vote is printed or listed. The event kept is the printing nearest the item (the table itself, or the
+   reprint right after the item's own resolution), else its first consent-list entry.
+4. Disagreement holds, never splits: printings of one vote that read differently on any member's Yes/No/Abstain or on
+   the stated tally fail `reprints_agree` and hold the one roll call. They never become two votes.
+
+Rule that decides "printings of one vote" (`collector/facts.py` `consent_groups`, written, the same for every
+meeting): within one meeting's minutes, consent-agenda tables are printings of one consent vote unless their motions
+name different movers or seconders, as resolved against that meeting's own roster. Item lists, tallies and raw name
+spellings are not part of the key (OCR garbles all three). A printing whose motion is unread joins the one vote it is
+compatible with; if it fits two or more, it stays its own roll call and is held (`consent_printing_placed`). Tables
+inside an earlier meeting's attached minutes are never grouped with this meeting's. The first printing that verifies
+(else the first) is the roll call. The vote covers the union of the item numbers on every printing's list, minus any
+number a printing names as pulled; unnumbered entries come from the first printing's list only.
+
+Consumers (each counts or shows roll calls and item events, so each relies on the invariant; none may re-derive
+votes from printings):
+| Consumer | Where | Relies on |
+|---|---|---|
+| Facts assembly | `collector/facts.py` `Builder.add` | writes one roll call per vote, one event per (item, roll call) |
+| Verifier and AC-P1 rate | `collector/verify.py` `gates` (`roll_calls`, `verified`, `verified_rate`) | each vote counted once in numerator and denominator |
+| G4 eligible and held counts | `verify.gates` per official, `held_unattributed` | a reprint never adds an eligible or held roll call |
+| Run report | `collector/__main__.py` `documents[].meetings_found[].roll_calls` (votes) vs `vote_tables` (tables), `consent_reprints`, `consent_roll_calls_not_expanded` | documents count votes, not printings |
+| Official pages | `sitegen/views.py` vote rows, totals sentences, held counts | one row per vote per official |
+| Item pages | `views` item history, `items_year.html.j2` | one roll-call event per vote per item |
+| Meeting pages | `views.meeting` roll call list and held sentence | each vote listed once |
+| CSV export | `collector/export.py` `roll_calls`, `votes`, `item_events` CSVs | one row per vote, one vote row per official |
+| QA spot check sampling | `qa/spot_check.py` `candidates` | a vote is sampled once, not once per printing |
+| Hand-label comparison | `collector/compare_labels.py` | a labelled reprint page resolves to its roll call through the kept reprint event |
 
 ### Run report (`build/report.json`, written by `python -m collector run`)
 ```

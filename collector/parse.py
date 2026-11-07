@@ -354,7 +354,7 @@ TABLE_HEAD = re.compile(r"District\s+Commissioner\s+Vote", re.I)
 TALLY = re.compile(r"Yes\w*\s*[^\w\n]*\s*(\w{1,3})\s*No\w*\s*[^\w\n]*\s*(\w{1,3})\s*Abst\w*\s*[^\w\n]*\s*(\w{1,3})",
                    re.I)
 ITEM_RE = re.compile(r"(?<![\w-])(\d{2}\s?[-~_—–]\s?[\dIlO]{1,2}\s?[-~_—–]\s?[\dIlO]{1,2}"   # 24-12-1
-                     r"|[A-Z]{1,3}\s?-\s?\d{1,3}\s?-\s?\d{4})(?![\w-])")                       # AB-4-2024
+                     r"|[A-Z]{1,3}\s?-\s?[\dIlO]{1,3}\s?-\s?\d(?:\s?\d){3})(?![\w-])")      # AB-4-2024, CZ-l1-2022, AB-7-2 023
 # outcome word: the one at most two lowercase words before "by the following roll call"
 OUTCOME_RE = re.compile(r"((?i:Adopted|Approved|Failed|Defeated|Denied|Amended|Deferred|Withdrawn|Postponed"
                         r"|Tabled|Elected|Suspended))"
@@ -371,6 +371,10 @@ def norm_item(s: str) -> str:
         s = s.replace("I", "1").replace("l", "1").replace("O", "0")
         a, b, c = s.split("-")
         s = f"{int(a)}-{int(b)}-{int(c)}"
+    elif re.fullmatch(r"[A-Z]{1,3}-[\dIlO]{1,3}-\d{4}", s):
+        # a case number (CZ-11-2022): the same glyph rule for its number part ("CZ-l1-2022")
+        a, b, c = s.split("-")
+        s = f"{a}-{b.replace('I', '1').replace('l', '1').replace('O', '0')}-{c}"
     return s
 
 
