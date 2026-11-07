@@ -87,6 +87,9 @@ class Attendance:
     vacant: list[str]
     verified: bool
     reasons: list[str]
+    # header name -> other spellings of the same official (names.yml name and aliases), filled in by the caller when
+    # the header name resolves exactly (collector.minutes); used only to pair vote-table cells with header names
+    spellings: dict = field(default_factory=dict)
 
 
 DATE_RE = re.compile(r"\b(" + "|".join(MONTHS) + r")\s+(\d{1,2})\s*[,.]?\s*(\d{4})", re.I)
@@ -471,7 +474,7 @@ def chunk_row(line: str) -> list[str]:
     return out
 
 
-def parse_table_rows(rows: list[str], roster: list[str]) -> tuple[list[Cell], list[str]]:
+def parse_table_rows(rows: list[str], roster: list[str], spellings: dict | None = None) -> tuple[list[Cell], list[str]]:
     cells: list[Cell] = []
     problems: list[str] = []
     for row in rows:
@@ -497,22 +500,29 @@ def parse_table_rows(rows: list[str], roster: list[str]) -> tuple[list[Cell], li
                     cells[-1].tokens.append(ch)       # unknown short token: counts against the cell
                 else:
                     problems.append(f"stray token {ch!r}")
-    assign_names(cells, roster)
+    assign_names(cells, roster, spellings)
     return cells, problems
 
 
 ASSIGN_MIN = 0.75       # 'Jerry Allbert' vs 'Randy Allbert' scores 0.70: two people, never paired
 
 
-def assign_names(cells: list[Cell], roster: list[str]) -> None:
+def assign_names(cells: list[Cell], roster: list[str], spellings: dict | None = None) -> None:
     """Written merge rule (G2): the table lists each roster member once, so OCR'd table names are
     matched to roster names one-to-one, best pairs first. A pair below ASSIGN_MIN is not matched
     (the roll call then fails P2). A cell whose best roster name is already taken is not matched.
     A cell is matched only when its best roster name beats its second best by NAME_MATCH_MARGIN ("R. Allbert"
     scores the same against Randy and Jerry Allbert: not matched). Names already matched to another cell drop out
-    of that comparison, so cells are matched in rounds, clearest first, until no cell can be matched."""
+    of that comparison, so cells are matched in rounds, clearest first, until no cell can be matched.
+    A header name that names.yml resolves exactly also counts as its official's names.yml name and aliases
+    (`spellings`): a cell "John Gannon" pairs with the header's OCR spelling "JoIm Gaimon" through the curated alias,
+    under the same threshold and margin."""
     todo = [c for c in cells if c.member is None]
-    sim = {(i, r): name_similarity(c.raw_name, r) for i, c in enumerate(todo) for r in roster}
+    spellings = spellings or {}
+
+    def similarity(raw: str, r: str) -> float:
+        return max(name_similarity(raw, x) for x in [r] + list(spellings.get(r, ())))
+    sim = {(i, r): similarity(c.raw_name, r) for i, c in enumerate(todo) for r in roster}
     used_cells, used_names = set(), set()
     changed = True
     while changed:
@@ -539,13 +549,13 @@ def assign_names(cells: list[Cell], roster: list[str]) -> None:
         if not c.member:
             continue
         for r in roster:
-            if r != c.member and name_similarity(c.raw_name, r) > c.score and holder.get(r) \
+            if r != c.member and similarity(c.raw_name, r) > c.score and holder.get(r) \
                     and holder[r].score < 0.9:
                 c.member = None          # its closest roster name went to another weak match
                 break
     for i, c in enumerate(todo):
         if i not in used_cells:
-            c.score = max((name_similarity(c.raw_name, r) for r in roster), default=0.0)
+            c.score = max((similarity(c.raw_name, r) for r in roster), default=0.0)
 
 
 def _outcome_class(word: str | None) -> str | None:
@@ -584,7 +594,8 @@ def table_heads(lines: list[str]) -> list[int]:
     return [i for i, l in enumerate(lines) if TABLE_HEAD.search(l)]
 
 
-def read_table(lines: list[str], h: int, nxt: int, roster: list[str], source: str) -> tuple[Reading, int]:
+def read_table(lines: list[str], h: int, nxt: int, roster: list[str], source: str,
+               spellings: dict | None = None) -> tuple[Reading, int]:
     """Read the vote table whose header is lines[h]; nxt bounds the search. Returns the reading
     and the index of the last line used."""
     reasons: list[str] = []
@@ -645,7 +656,7 @@ def read_table(lines: list[str], h: int, nxt: int, roster: list[str], source: st
                 tally = tuple(rest if v is None else v for v in vals)
         if tally is None:
             reasons.append(f"tally unreadable {g}")
-    cells, problems = parse_table_rows(rows, roster)
+    cells, problems = parse_table_rows(rows, roster, spellings)
     reasons.extend(problems)
     clean: dict[str, bool] = {}
     votes = cells_to_votes(cells, roster, reasons, clean)
@@ -840,7 +851,7 @@ def find_rollcalls(pages: list[str], source: str, att: Attendance | None,
             roster = (att_h.present + att_h.absent) if att_h else []
             seg_lo = seg.start
             nxt = min(nxt, seg.end) if seg.end > h else nxt
-        reading, last = read_table(lines, h, nxt, roster, "text-layer")
+        reading, last = read_table(lines, h, nxt, roster, "text-layer", att_h.spellings if att_h else None)
         ctx_reasons: list[str] = []
         ctx_start = max(prev_end, h - 40, seg_lo)
         ctx = " ".join(" ".join(lines[ctx_start:h]).split())

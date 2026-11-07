@@ -180,3 +180,26 @@ def test_outcome_regex_reads_minutes_variants():
         assert list(P.OUTCOME_RE.finditer(ctx))[-1].group(1) == word, ctx
     # a capitalised word that is not an item list still ends the match
     assert not list(P.OUTCOME_RE.finditer("was Deferred to the July 10, 2023 Formal Meeting by the following roll call"))
+
+
+# ------------------------------------------------------------------ curated spellings for table pairing
+
+def test_table_cell_pairs_with_garbled_header_name_through_names_yml():
+    """2025-02-10: the header prints "JoIm Gaimon" (an alias of john-gannon in names.yml), the table "John Gannon"
+    (similarity 0.58, below the pairing threshold). The official's curated name pairs them; the threshold and the
+    margin against every other header name still apply."""
+    from collector.minutes import name_spellings
+    from collector.names import NAMES, load_roster
+    roster = ["JoIm Gaimon", "Jason Knight", "Joe Smith"]
+    att = P.Attendance("2025-02-10", 1, roster[:2], ["Joe Smith"], 2, 1, [], True, [])
+    sp = name_spellings(att, load_roster(NAMES))
+    assert "John Gannon" in sp["JoIm Gaimon"]
+    lines = ["District Commissioner Vote", "1  John Gannon  Y", "2  Jason Knight  Y", "3  Joe Smith  ---",
+             "Yeses - 2 Noes - 0 Abstentions - 0", "ABSENT: Joe Smith (1)"]
+    without, _ = P.read_table(lines, 0, len(lines), roster, "text-layer")
+    assert any("name not matched" in x for x in without.reasons)
+    r, _ = P.read_table(lines, 0, len(lines), roster, "text-layer", sp)
+    assert r.reasons == [] and r.votes["JoIm Gaimon"] == "Yes"
+    # an unknown header name gets no spellings: nothing is merged by edit distance
+    att2 = P.Attendance("2025-02-10", 1, ["Jxhn Gxnnon"], [], 1, 0, [], True, [])
+    assert name_spellings(att2, load_roster(NAMES)) == {}

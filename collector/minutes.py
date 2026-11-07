@@ -387,7 +387,24 @@ def _other_spans(owner: list, index: int) -> list[tuple[int, int]]:
     return spans
 
 
-def parse_minutes(pdf_path: Path, source: dict, use_ocr: bool = True, text_cache: Path = TEXT_CACHE) -> ParsedDocument:
+def name_spellings(att: P.Attendance | None, officials: list[dict]) -> dict:
+    """{header name: [names.yml name and aliases of the official it resolves to exactly]} (names rules 1-2 only). Lets
+    a vote-table cell spelled like the official's curated name pair with an OCR-garbled header spelling."""
+    from .names import Resolver
+    if att is None:
+        return {}
+    r = Resolver(officials)
+    by_id = {o["id"]: o for o in officials}
+    out = {}
+    for nm in att.present + att.absent:
+        oid = r.exact_match(nm)
+        if oid:
+            out[nm] = [by_id[oid]["name"]] + [a["alias"] for a in by_id[oid]["aliases"]]
+    return out
+
+
+def parse_minutes(pdf_path: Path, source: dict, use_ocr: bool = True, text_cache: Path = TEXT_CACHE,
+                  officials: list[dict] | None = None) -> ParsedDocument:
     pdf_path = Path(pdf_path)
     pages = cached_pages(pdf_path, text_cache)
     if len(pages) > MAX_PAGES:
@@ -402,8 +419,12 @@ def parse_minutes(pdf_path: Path, source: dict, use_ocr: bool = True, text_cache
         for i in range(sg.start, sg.end):
             owner[i] = sg.index
     atts, titles = {}, {}
+    if officials is None:
+        from .names import NAMES, load_roster
+        officials = load_roster(NAMES)
     for sg in segs:
         atts[sg.index] = _attendance(lines, page_of, sg)
+        atts[sg.index].spellings = name_spellings(atts[sg.index], officials)
         # the document's own minutes read titles from the agenda at the front of the document, as in M0
         titles[sg.index] = (P.item_titles(pages) if sg.role == "own" and sg.page <= 3 else
                             P.item_titles(pages[sg.page - 1:sg.page + 5]))
