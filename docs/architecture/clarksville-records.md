@@ -150,37 +150,46 @@ Sets `verification.status` to `verified` or `unverified` with a list of named ch
   `build/report.json` and the internal review page. The manager publishes only when both gates pass.
 
 ### Invariant: held-back counts (problem family `neutrality/held-count`)
-Stated after the family's second review hit (2026-11-07). Placing a person at a meeting by name matching gave
-different counts to officials at the same meeting (a name that OCRs badly everywhere got 0, a shared alias counted
-people who were not there), so held roll calls are now placed only by verified attendance.
+Rewritten 2026-11-07 for the CEO's decision (docs/status.md, "Decisions (Brian, 2026-11-07 3:54 PM ET)"): unverified
+roll calls are no longer held back on public pages. They are shown, marked "*" with the fixed text "Not confirmed: this
+page was hard to read. Read it yourself", linked to the exact source page (`<url>#page=<n>`, as N4). P2 still decides
+"confirmed"; G4 is still computed and reported (rule below). The earlier attendance-based placement of held counts is
+retired, because no count is held back any more.
 
-Definitions, for one facts file: a meeting's attendance is **shown** when `attendance_status == "extracted"` and the
-meeting is `verified`. `listed(m)` = the distinct resolved `official_id`s in that attendance, present **and** absent.
-A **held** roll call is one whose `verification.status` is `unverified`. A held roll call at meeting `m` is
-**attributed** when `m`'s attendance is shown and `listed(m)` is not empty, and **uniform** otherwise.
+Definitions, for one facts file: a roll call is **confirmed** when its `verification.status` is `verified`, and
+**unconfirmed** otherwise. A vote is **resolved** when its `official_id` names an official in the facts file. Unresolved
+votes are never placed under a person: no name, alias or merge rule is consulted by any consumer below.
 
 Invariant (each line is a test in `tests/test_held_counts.py`):
-1. Same meeting, same count: for any two officials both in `listed(m)` of a shown meeting `m`, each held roll call at
-   `m` counts for both or for neither (in fact, for both: it counts for exactly `listed(m)`).
-2. No name matching: no held roll call is ever attributed through a raw name, alias or merge rule. Replacing every raw
-   name and alias in the facts changes no held count.
-3. Exactly once: every held roll call in the period is counted once, either in the per-official sentences (once for
-   each official in `listed(m)`) or in the uniform count U, never both and never neither. U is site-wide, so the
-   uniform clause is word-for-word the same on every official's page. Check: (number of held roll calls at meetings
-   with attributed holds) + U = the sum of the meeting pages' held numbers = the number of held roll calls.
+1. Confirmed only from confirmed: an official's confirmed counts (Yes, No, Abstain, Other) come only from their resolved
+   votes in confirmed roll calls. Changing, adding or removing any unconfirmed roll call changes no confirmed count.
+2. Unconfirmed only from their own resolved id: an official's unconfirmed counts come only from unconfirmed roll calls in
+   which their resolved `official_id` has a vote. No name matching: rewriting every raw name and alias changes no count.
+3. Same meeting, same treatment: whether a roll call is shown, and how it is marked, depends only on the roll call, never
+   on the official. Every official with a resolved vote in a roll call gets that vote on their page, with the same mark.
+4. Exactly once: every vote is counted once, either under its resolved official (confirmed or unconfirmed part) or in
+   the site-wide unmatched count V, which reads word for word the same on every official's page. V votes appear only on
+   the meeting and item views, as "Name not matched*" with the source link, never on an official's page.
+5. No raw text: an unconfirmed roll call shows Passed/Failed/Other, a tally counted from its votes and vote labels from
+   the fixed mapping; never `outcome_text`, raw names or unlisted raw vote wording (`tests/test_site_raw_leaks.py`).
+6. Motions: an unverified motion keeps "Attribution under review" unless both names resolve (to two different
+   officials) and a roll call on that motion is unconfirmed; then "Moved by X, seconded by Y*". Same text everywhere.
 
 Consumers (every one must follow the definitions above; none may place a person by name):
 | Consumer | Where | What it shows |
 |---|---|---|
-| Official page totals sentences | `sitegen/views.py` `held_attribution`, `held_counts`, `totals_sentences` | per-official N, plus the uniform clause when U > 0 |
-| Meeting page held sentence | `views.meeting` `held_roll_calls_text` | held roll calls at that meeting (no person) |
-| Item page held line | `views._event`, `items_year.html.j2` | "1 roll call is under review and not shown" per held event |
-| Internal review page | `views.review`, `review.html.j2` | every held roll call, with failed checks; G4 results from `report.json` |
-| G4 gate and per-official held-back rates | `collector/verify.py` (being written) -> `build/report.json` | eligible, held and rate per official; unattributed count |
-| Export held-back counts | `collector/export.py` -> `build/site/data/facts.json` | held-back counts, if per official then by the same rule |
-| About page explanation | `site/templates/about.html.j2` "Verified and held-back facts" | the rule in words (exact text tested) |
+| Official page totals | `sitegen/views.py` `vote_counts`, `totals_sentences`; `official.html.j2` | "Roll call votes: a Yes, b No, c Abstain, d Other confirmed; e Yes*, ... not confirmed." and the site-wide V sentence |
+| Official page history rows | `views.official`; `official.html.j2` | one row per resolved vote; unconfirmed rows "Yes*" with the source link; Moved*/Seconded* rows only for rule 6 motions |
+| Meeting page | `views.meeting`, `_roll_call_block`, `_vote_rows`; `meeting.html.j2`, `_macros.html.j2` | every roll call in document order; unconfirmed ones marked, unresolved votes "Name not matched*" |
+| Item pages | `views._event`; `items_year.html.j2` | the same roll call block; no raw event label for motion or roll call events |
+| Outcome and tally | `Index.outcome` | label and tally counted from that roll call's own votes, starred when unconfirmed |
+| Internal review page | `views.review`, `review.html.j2` | every unverified fact with failed checks; G4 results from `report.json` |
+| G4 gate | `collector/verify.py` -> `build/report.json` | eligible, held and rate per official by verified attendance (rule below); unchanged |
+| Export | `collector/export.py` -> `build/site/data/` | every roll call and vote with `confirmed`; motions with `confirmed` and attribution only as rule 6; no raw fields |
+| About page | `about.html.j2` "Verified and not confirmed facts" | the rule in words (exact text tested) |
+| Tests | `tests/test_held_counts.py`, `test_site_raw_leaks.py`, `test_site_links.py`, `test_site_neutrality.py`, `collector/tests/test_run.py`, `collector/tests/test_verify.py` | the lines above |
 
-**Rule for the collector's G4 code** (`collector/verify.py`, and `collector/export.py` if it writes counts):
+**Rule for the collector's G4 code** (`collector/verify.py`; G4 is a quality gate on the report, not a site count):
 - For each meeting compute `shown(m)` and `listed(m)` exactly as defined above. Use only the resolved `official_id`
   on the verified attendance entries; never call the name normaliser, aliases or merge rules for G4.
 - Per official `o`: `eligible(o)` = roll calls (verified or not) at meetings with `shown(m)` and `o in listed(m)`;
@@ -194,9 +203,8 @@ Consumers (every one must follow the definitions above; none may place a person 
   `g4.eligible_unattributed`, `g4.held_total`. Before writing, assert
   `held_total == held_unattributed + (held roll calls at meetings with attributed holds, each counted once)` and
   `held_total == number of unverified roll calls`; a failed assertion is a bug (raise), not a gate result.
-- The site's per-official N must equal `g4.per_official[id].held` and the site's U must equal `g4.held_unattributed`
-  for the same facts file (a cross-module test once both exist). A large `held_unattributed` means G4 cannot see
-  skew there; the `verified_rate >= 0.90` gate (AC-P1) bounds it.
+- `g4.held_total` must equal the number of roll calls the site shows as not confirmed (a cross-module test). A large
+  `held_unattributed` means G4 cannot see skew there; the `verified_rate >= 0.90` gate (AC-P1) bounds it.
 
 ### Invariant: one vote, one roll call (problem family `item-history`)
 Stated after the family's second hit (2026-11-07, review of e80ec75). The 2020-2022 minutes reprint the consent vote
@@ -278,11 +286,11 @@ Pages (count estimate for 2020-2024 in brackets; the whole site must stay under 
 |---|---|
 | `index.html` | Officials index, alphabetical by surname then given name. Names only: no counts, no badges. [1] |
 | `officials/<id>.html` | One date-ordered history: votes, attendance, Moved, Seconded; type and year filters. [~40] |
-| `meetings/<meeting_id>.html` | Attendance table, then every motion and verified roll call in document order. [~60-120] |
+| `meetings/<meeting_id>.html` | Attendance table, then every motion and roll call in document order (unconfirmed marked *). [~60-120] |
 | `items/<yyyy>.html#<item_id>` | One section per item: every appearance in date order. Bucketed by year so the file count stays small. [5] |
 | `about.html` | Operator, data rules, merge rules (rendered from names.yml), neutrality rules, how to report errors, exports. [1] |
 | `changes.html` | Public change history from `data/changes.jsonl`. [1] |
-| `review.html` | Internal only (`--internal`): held-back facts with failed checks, gate results. Never in a public build. [1] |
+| `review.html` | Internal only (`--internal`): unverified facts with failed checks, gate results. Never in a public build. [1] |
 | `data/*.csv`, `data/facts.json` | Open-data export (G5) of shown facts plus sources. [~10] |
 
 Neutrality enforced by construction:
@@ -293,10 +301,10 @@ Neutrality enforced by construction:
   Attendance is Present or Absent. No other derived labels exist.
 - **N3/P4/AC2.3:** totals are fixed sentences filled from one function, e.g. "Recorded absent at 4 of 61 meetings with
   an extracted attendance section, 2020-01-06 to 2024-12-09." Denominator = meetings whose extracted attendance lists
-  the official. Also "N roll calls in this period are not shown because they are under review." (N = the G4 `held`
-  count, per "Invariant: held-back counts"; when U > 0 the same sentence goes on with the uniform clause "A further U
-  roll calls under review are at meetings whose attendance is not shown, and are not counted for any one member."),
-  "N meetings in this period have no extracted attendance section and are not counted." and
+  the official. Also "Roll call votes, 2020-01-06 to 2024-12-09: 12 Yes, 3 No, 0 Abstain, 0 Other confirmed; 2 Yes*,
+  0 No*, 0 Abstain*, 0 Other* not confirmed." (confirmed and unconfirmed never added together, per "Invariant: held-back
+  counts"), the site-wide "V votes in this period have a name that could not be matched to an official and are not
+  counted for any member.", "N meetings in this period have no extracted attendance section and are not counted." and
   "N meetings in this period have an attendance section that is under review and are not counted." No percentages, no
   sort by count, no highlight.
 - **Ordering:** people always alphabetical by surname; history rows by date (newest first), ties by source page then
@@ -313,10 +321,13 @@ Neutrality enforced by construction:
   phone width (16 px gutter, tables scroll inside their own box, never the page).
 
 ### Export (`collector/export.py`, G5)
-Writes into `build/site/data/`: `facts.json` (verified facts only, plus sources and held-back counts),
+Writes into `build/site/data/`: `facts.json` (every roll call and vote with a `confirmed` boolean, motions with
+`confirmed`, verified attendance only, plus sources),
 `officials.csv`, `meetings.csv`, `attendance.csv`, `roll_calls.csv`, `votes.csv`, `motions.csv`, `items.csv`,
-`item_events.csv`, `sources.csv`. Every row carries `source_url, source_sha256, page, fetched_at`. Unverified facts are
-never exported: a guessed value under a named person is the harm P3 prevents.
+`item_events.csv`, `sources.csv`. Every row carries `source_url, source_sha256, page, fetched_at`. Unconfirmed roll
+calls are exported with `confirmed: false`; an unresolved vote has `official_id: null` and no name, so no value is ever
+placed under a guessed person (P3). Raw OCR fields (`raw_name`, `raw_value`, `outcome_text`, motion `text`, motion and
+roll call event labels) are in internal builds only.
 
 ## Data model
 Full field list and enums: `schema/facts.schema.json`. Summary:

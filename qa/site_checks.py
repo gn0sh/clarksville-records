@@ -9,9 +9,10 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   links       every internal href resolves to a file, every #fragment to an id on the target page, assets exist
   sources     every link to a minutes PDF carries #page=N with 1 <= N <= the source's page count (and, when the PDF
               is cached locally, <= the real page count from pdfinfo); no other external links
-  unverified  no unverified fact (ids, outcome text) appears anywhere in the build but review.html; a public build
-              has no review.html and nothing links to it; every fact id on a page is a shown fact; every shown
-              fact appears on its official's page
+  unverified  no held fact (unverified attendance, held motion attribution, outcome text) appears anywhere in the
+              build but review.html; a public build has no review.html and nothing links to it; every fact id on a
+              page is a shown fact; every shown fact appears on its official's page; every page that shows an
+              unconfirmed roll call carries the "Not confirmed" note (invariant: held-back counts)
   index       one index entry per official in the facts, alphabetical by surname (AC1.1)
   layout      every official page has the same headings and column headers (AC1.5, N1)
   totals      "Recorded absent at X of Y meetings" equals a recount from the meeting pages (AC2.2)
@@ -225,23 +226,31 @@ def unverified_tokens(facts: dict) -> list[tuple[str, str]]:
     # prove a leak: boilerplate such as "...Adopted by the following roll call vote:" repeats across roll calls.
     benign = [r["outcome_text"] for r in facts["roll_calls"] if r["verification"]["status"] == "verified"]
     benign += [m["text"] for m in facts["motions"]] + [e["label"] for e in facts["item_events"]] + [i["title"] for i in facts["items"]]
+    # Unconfirmed roll calls are shown, marked (CEO, 2026-11-07); their raw outcome text never is.
     toks = []
-    unv_rc = {r["id"] for r in facts["roll_calls"] if r["verification"]["status"] == "unverified"}
     for r in facts["roll_calls"]:
-        if r["id"] in unv_rc:
-            toks.append((r["id"], "unverified roll call id"))
+        if r["verification"]["status"] == "unverified":
             if len(r["outcome_text"]) > 12 and not any(r["outcome_text"] in b for b in benign):
                 toks.append((r["outcome_text"], f"unverified roll call {r['id']} outcome text"))
-    for e in facts["item_events"]:
-        if e.get("ref") in unv_rc:
-            toks.append((e["id"], "event of an unverified roll call"))
     for m in facts["meetings"]:
         if m["verification"]["status"] == "unverified":
             toks.append((f"{m['id']}/att", "unverified attendance"))
     for mo in facts["motions"]:
-        if mo["verification"]["status"] == "unverified":
-            toks += [(f"{mo['id']}/moved", "unverified motion attribution"), (f"{mo['id']}/seconded", "unverified motion attribution")]
+        if not attribution_shown(facts, mo):
+            toks += [(f"{mo['id']}/moved", "held motion attribution"), (f"{mo['id']}/seconded", "held motion attribution")]
     return toks
+
+
+def attribution_shown(facts: dict, mo: dict) -> bool:
+    """Rule 6 of the invariant, restated here on purpose (an independent check, not a call into sitegen): a verified
+    motion shows its resolved names; an unverified one only when both resolve to two different officials and one of
+    its roll calls is unverified."""
+    if mo["verification"]["status"] == "verified":
+        return True
+    ids = [(mo.get(k) or {}).get("official_id") for k in ("moved_by", "seconded_by")]
+    unconfirmed_rc = any(r["motion_id"] == mo["id"] and r["verification"]["status"] == "unverified"
+                         for r in facts["roll_calls"])
+    return all(ids) and ids[0] != ids[1] and unconfirmed_rc
 
 
 def _contains(body: str, tok: str, why: str) -> bool:
@@ -257,7 +266,7 @@ def shown_fact_ids(facts: dict) -> tuple[set[str], set[str]]:
     for r in facts["roll_calls"]:
         for v in r["votes"]:
             if v.get("official_id"):
-                (shown if r["verification"]["status"] == "verified" else hidden).add(f"{r['id']}/{v['official_id']}")
+                shown.add(f"{r['id']}/{v['official_id']}")  # confirmed or not: unconfirmed rows are shown, marked
     for m in facts["meetings"]:
         ok = m["verification"]["status"] == "verified" and m["attendance_status"] == "extracted"
         for a in m["attendance"]:
@@ -267,7 +276,7 @@ def shown_fact_ids(facts: dict) -> tuple[set[str], set[str]]:
         for who, key in (("moved_by", "moved"), ("seconded_by", "seconded")):
             p = mo.get(who)
             if p and p.get("official_id"):
-                (shown if mo["verification"]["status"] == "verified" else hidden).add(f"{mo['id']}/{key}")
+                (shown if attribution_shown(facts, mo) else hidden).add(f"{mo['id']}/{key}")
     return shown, hidden
 
 
@@ -306,6 +315,14 @@ def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: 
                 on_official.add(fid)
     for fid in sorted(shown - on_official):
         problems.append(f"shown fact {fid} is on no official page")
+    # every page showing an unconfirmed roll call carries the fixed note with its link
+    unconfirmed = {r["id"] for r in facts["roll_calls"] if r["verification"]["status"] == "unverified"}
+    note = "Not confirmed: this page was hard to read."
+    for rel, pg in pages.items():
+        if rel == "review.html":
+            continue
+        if any(fid.split("/")[0] in unconfirmed for fid in pg.fact_ids) and note not in html.unescape("".join(pg.text)):
+            problems.append(f"{rel}: shows an unconfirmed roll call without the 'Not confirmed' note")
     return problems
 
 

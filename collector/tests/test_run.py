@@ -24,6 +24,9 @@ def public_schema():
     for k, f in (("vote", "raw_value"), ("roll_call", "outcome_text")):
         s["$defs"][k]["required"] = [r for r in s["$defs"][k]["required"] if r != f]
     s["$defs"]["motion"]["properties"]["type_label"] = {"type": "string"}
+    for k in ("motion", "roll_call", "vote"):
+        s["$defs"][k]["properties"]["confirmed"] = {"type": "boolean"}
+        s["$defs"][k]["required"] = s["$defs"][k]["required"] + ["confirmed"]
     return s
 
 
@@ -31,21 +34,36 @@ def committed_facts():
     return json.loads((ROOT / "data" / "facts.json").read_text())
 
 
-def test_export_contains_no_unverified_fact(tmp_path):
+def test_export_marks_unconfirmed_and_places_no_guessed_name(tmp_path):
+    """Invariant: held-back counts. Every roll call and vote is exported with `confirmed`; an unresolved vote has no
+    official; held motion attribution and unverified attendance are left out."""
+    from sitegen.views import Index
     facts = committed_facts()
     export(facts, tmp_path)
     out = json.loads((tmp_path / "data" / "facts.json").read_text())
     jsonschema.validate(out, public_schema())
-    for key in ("roll_calls", "motions"):
-        assert all(x["verification"]["status"] == "verified" for x in out[key])
+    assert len(out["roll_calls"]) == len(facts["roll_calls"])
+    unconfirmed = 0
+    for r, src in zip(out["roll_calls"], facts["roll_calls"]):
+        assert r["confirmed"] == (src["verification"]["status"] == "verified")
+        assert all(v["confirmed"] == r["confirmed"] for v in r["votes"])
+        assert [v["official_id"] for v in r["votes"]] == [v["official_id"] for v in src["votes"]]
+        unconfirmed += not r["confirmed"]
+    assert unconfirmed, "the committed facts have unconfirmed roll calls to test against"
+    ix = Index(facts)
+    for m, src in zip(out["motions"], facts["motions"]):
+        att = ix.attribution(src)
+        assert (m["moved_by"] is not None) == bool(att["mover"]) and (m["seconded_by"] is not None) == bool(att["seconder"])
     for m in out["meetings"]:
         if m["verification"]["status"] != "verified":
             assert m["attendance"] == []
-    held = {x["id"] for k in ("roll_calls", "motions") for x in facts[k] if x["verification"]["status"] != "verified"}
-    assert held, "the committed facts have held-back roll calls to test against"
+    held_att = {f"{m['id']}/att/" for m in facts["meetings"] if m["verification"]["status"] != "verified"}
+    votes = (tmp_path / "data" / "votes.csv").read_text().splitlines()
+    assert "confirmed" in votes[0].split(",")
+    assert len(votes) - 1 == sum(len(r["votes"]) for r in facts["roll_calls"])
     for name in CSV_FILES:
         text = (tmp_path / "data" / f"{name}.csv").read_text()
-        assert not any(h in text for h in held), name
+        assert not any(h in text for h in held_att), name
         header = text.splitlines()[0]
         if name not in ("officials", "sources"):
             assert all(c in header for c in ("source_url", "source_sha256", "page", "fetched_at")), name

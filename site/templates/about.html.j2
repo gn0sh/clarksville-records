@@ -14,8 +14,8 @@
 </section>
 
 <section aria-labelledby="verified">
-  <h2 id="verified">Verified and held-back facts</h2>
-  <p>A computer program can misread a page, so each extracted fact is checked automatically before it is shown. For a roll call the checks are: every member present has exactly one recorded vote; the Yes, No and Abstain totals equal the totals the minutes state; the recorded outcome agrees with the votes; and every name matches the roster for that meeting. A fact that passes every check is <em>verified</em> and is shown. A fact that fails any check is <em>held back</em>: it is not shown, and nothing is guessed in its place. For a motion the checks are that the people named as moving and seconding it match the roster, were present, and are two different people; if any of these fails, the two names are held back and the motion is marked &ldquo;Attribution under review&rdquo;. The minutes' own sentence for a motion, and the names exactly as the program read them, are never shown on these pages or included in the data files below, because the program can misread names in them. Each motion is shown as its kind, such as &ldquo;Motion to adopt&rdquo;, and, when verified, &ldquo;Moved by&rdquo; and &ldquo;seconded by&rdquo; the officials named on this site. A roll call shows its outcome as Passed, Failed or Other with a tally counted from the votes shown on the page, never the minutes' own outcome sentence. Each official's page states how many held-back roll calls are at meetings whose verified attendance lists that person, present or absent. Held-back roll calls at meetings whose attendance is not shown are counted once, in one sentence that is the same on every official's page. Scanned minutes with no readable text are shown as &ldquo;Attendance not extracted for this meeting.&rdquo;</p>
+  <h2 id="verified">Verified and not confirmed facts</h2>
+  <p>A computer program can misread a page, so each extracted fact is checked automatically before it is shown. For a roll call the checks are: every member present has exactly one recorded vote; the Yes, No and Abstain totals equal the totals the minutes state; the recorded outcome agrees with the votes; and every name matches the roster for that meeting. A roll call that passes every check is <em>confirmed</em>. A roll call that fails any check is still shown, marked with an asterisk (*) and &ldquo;Not confirmed: this page was hard to read. Read it yourself&rdquo;, with a link to that page of the minutes. Confirmed and not confirmed votes are always counted separately, for example &ldquo;12 Yes, 3 No confirmed; 2 Yes* not confirmed&rdquo;, and a not confirmed vote never changes a confirmed total. A vote whose name could not be matched to an official is never placed under anyone: it appears only on the meeting page, as &ldquo;Name not matched*&rdquo;, and is counted once, in one sentence that is the same on every official's page. For a motion the checks are that the people named as moving and seconding it match the roster, were present, and are two different people; if any of these fails, the motion is marked &ldquo;Attribution under review&rdquo;, unless both names match two officials and the motion's roll call is shown as not confirmed, in which case it reads &ldquo;Moved by&rdquo; and &ldquo;seconded by&rdquo; those officials, with an asterisk. The minutes' own sentence for a motion, and the names exactly as the program read them, are never shown on these pages or included in the data files below, because the program can misread names in them. Each motion is shown as its kind, such as &ldquo;Motion to adopt&rdquo;. A roll call shows its outcome as Passed, Failed or Other with a tally counted from the votes shown on the page, never the minutes' own outcome sentence. Attendance that fails its checks is not shown. Scanned minutes with no readable text are shown as &ldquo;Attendance not extracted for this meeting.&rdquo;</p>
 </section>
 
 <section aria-labelledby="merge-rules">
@@ -25,7 +25,7 @@
     <li>Normalise the name from the minutes: remove a leading title (Commissioner, Comm., Chairman, Chairwoman, Mayor, Mr., Mrs., Ms., Dr.), remove periods and commas, collapse spaces, ignore capitalisation.</li>
     <li>Match the result exactly against each official's name and listed variants (below).</li>
     <li>Match on surname alone only when exactly one official at that meeting has that surname.</li>
-    <li>Anything else is unmatched, and the fact is held back. Names are never matched by closeness of spelling. A variant is added to the table below only by a recorded change.</li>
+    <li>Anything else is unmatched: the name is shown as &ldquo;Name not matched&rdquo; and the fact is not confirmed. Names are never matched by closeness of spelling. A variant is added to the table below only by a recorded change.</li>
   </ol>
   <h3 id="aliases">Name variants merged into each official</h3>
   <div class="table-scroll" tabindex="0" role="region" aria-label="Name variants">
@@ -47,7 +47,7 @@
   <h2 id="neutrality">Neutrality rules</h2>
   <ol>
     <li>Every official is shown with the same layout, the same fields and the same order. People are listed alphabetically by surname.</li>
-    <li>Only facts are shown. Attendance is Present or Absent as the minutes record it. A vote is Yes, No or Abstain, or Other with the minutes' own wording (for example &ldquo;Recused&rdquo;). Nothing is turned into a judgment.</li>
+    <li>Only facts are shown. Attendance is Present or Absent as the minutes record it. A vote is Yes, No or Abstain, or Other, with the minutes' wording only when it is one of Recused, Absent, Not voting or Present. Nothing is turned into a judgment.</li>
     <li>Counts appear only as plain totals, with the number of meetings they come from and the date range stated, worded the same way for everyone. Nothing is sorted by a count or highlighted for one.</li>
     <li>Every fact shows a link to its source document and page, and the date it was fetched.</li>
     <li>Every fact has a way to report a mistake (see below).</li>
@@ -63,7 +63,7 @@
 
 <section aria-labelledby="exports">
   <h2 id="exports">Open data</h2>
-  <p>All shown facts, with their sources, are available as files so this site is not the only copy. The files carry the same facts as the pages: official ids and names, each motion's kind, and links to the source pages, but not the program's raw reading of names or motion sentences.</p>
+  <p>All shown facts, with their sources, are available as files so this site is not the only copy. The files carry the same facts as the pages: official ids and names, each motion's kind, whether each roll call and vote is confirmed, and links to the source pages, but not the program's raw reading of names, vote wording or motion sentences.</p>
   <ul>
     <li><a href="{{ root }}data/facts.json">facts.json</a> (all shown facts and sources)</li>
     <li><a href="{{ root }}data/officials.csv">officials.csv</a></li>

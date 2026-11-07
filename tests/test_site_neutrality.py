@@ -15,6 +15,7 @@ def normalise_totals(s: str) -> str:
     """Numbers to N, and singular forms to plural: only grammatical number may vary with a count."""
     s = re.sub(r"\d+", "N", s)
     return (s.replace("roll call in", "roll calls in").replace("meeting in", "meetings in")
+            .replace("N vote in", "N votes in")
             .replace(" is not shown because it is ", " are not shown because they are ")
             .replace("period is ", "period are ").replace("period has ", "period have ")
             .replace("and is not", "and are not").replace("roll call under review is", "roll calls under review are"))
@@ -70,7 +71,7 @@ def test_totals_wording_is_fixed(pages, facts):
     texts = set()
     for o in facts["officials"]:
         t = views.totals_sentences(views.Index(facts), o["id"])
-        assert len(t) == 4
+        assert len(t) == 5
         norm = [normalise_totals(s) for s in t]
         texts.add(tuple(norm))
     assert len(texts) == 1

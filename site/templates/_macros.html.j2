@@ -4,6 +4,11 @@
 <a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">p. {{ src.page }}, fetched {{ src.fetched }}<span class="sr-only"> (opens the {{ src.kind }} PDF in a new tab)</span></a>
 {%- endmacro %}
 
+{# Shown beside every fact whose automatic checks did not pass (invariant: held-back counts). Links to the exact page. #}
+{% macro not_confirmed(src) -%}
+<span class="unconfirmed">* Not confirmed: this page was hard to read. <a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">Read it yourself<span class="sr-only"> (p. {{ src.page }} of the {{ src.kind }} PDF, opens in a new tab)</span></a>.</span>
+{%- endmacro %}
+
 {% macro report(root, fact_id) -%}
 <a href="{{ root }}about.html#corrections" aria-label="Report an error in {{ fact_id }}">Report an error</a>
 {%- endmacro %}
@@ -26,7 +31,7 @@
   <thead><tr><th scope="col">Member</th><th scope="col">Recorded vote</th></tr></thead>
   <tbody>
   {% for v in votes %}
-    <tr><th scope="row">{{ person(v.who, root) }}</th><td>{{ v.label }}</td></tr>
+    <tr><th scope="row">{{ person(v.who, root) }}{% if v.star %}*{% endif %}</th><td>{{ v.label }}{% if v.star %}*{% endif %}</td></tr>
   {% endfor %}
   </tbody>
 </table>
@@ -34,18 +39,20 @@
 {% endmacro %}
 
 {# A motion or roll call as one block. Used on meeting pages and item pages.
-   A failed motion check holds back who moved and seconded it and the minutes' sentence: only the motion type is shown. #}
+   The minutes' sentence is never shown: only the motion type, and who moved and seconded it when the rule allows. #}
 {% macro motion_block(b, root) %}
 <p><strong>{{ b.text }}.</strong></p>
 {% if b.attribution_held %}
 <p class="held">Attribution under review.</p>
 {% else %}
-<p>{% if b.moved_by %}Moved by {{ person(b.moved_by, root) }}{% endif %}{% if b.moved_by and b.seconded_by %}, {% endif %}{% if b.seconded_by %}{% if b.moved_by %}seconded{% else %}Seconded{% endif %} by {{ person(b.seconded_by, root) }}{% endif %}.</p>
+<p>{% if b.moved_by %}Moved by {{ person(b.moved_by, root) }}{% endif %}{% if b.moved_by and b.seconded_by %}, {% endif %}{% if b.seconded_by %}{% if b.moved_by %}seconded{% else %}Seconded{% endif %} by {{ person(b.seconded_by, root) }}{% endif %}{% if b.star %}*{% endif %}.</p>
+{% if b.star %}<p>{{ not_confirmed(b.src) }}</p>{% endif %}
 {% endif %}
 {% endmacro %}
 
 {% macro roll_call_block(b, root) %}
-{% if b.motion_label %}<p><strong>{{ b.motion_label }}.</strong> {% if b.motion_by %}{{ b.motion_by }}.{% else %}Attribution under review.{% endif %}</p>{% endif %}
+{% if not b.confirmed %}<p>{{ not_confirmed(b.src) }}</p>{% endif %}
+{% if b.motion_label %}<p><strong>{{ b.motion_label }}.</strong> {% if b.motion_by %}{{ b.motion_by }}{% if b.motion_by_star %}*{% endif %}.{% else %}Attribution under review.{% endif %}</p>{% endif %}
 {{ vote_table(b.votes, root) }}
-<p><strong>Outcome:</strong> {{ b.outcome.label }} ({{ b.outcome.tally }}).</p>
+<p><strong>Outcome{% if not b.confirmed %}*{% endif %}:</strong> {{ b.outcome.label }} ({{ b.outcome.tally }}).</p>
 {% endmacro %}

@@ -78,8 +78,8 @@ def test_missing_footer_is_caught(site):
     assert "footer" in failed(run(site))
 
 
-def test_unverified_fact_id_in_public_page_is_caught(site):
-    edit(site / "items" / "2024.html", "</main>", f"<p>{UNVERIFIED_RC['id']}</p></main>")
+def test_unverified_outcome_text_in_public_page_is_caught(site):
+    edit(site / "items" / "2024.html", "</main>", f"<p>{UNVERIFIED_RC['outcome_text']}</p></main>")
     assert "unverified" in failed(run(site))
 
 
@@ -89,9 +89,17 @@ def test_unverified_outcome_text_in_export_is_caught(site):
     assert "unverified" in failed(run(site))
 
 
-def test_hidden_vote_row_is_caught(site):
-    victim = f"{UNVERIFIED_RC['id']}/{UNVERIFIED_RC['votes'][0]['official_id']}"
-    edit(site / "officials" / f"{UNVERIFIED_RC['votes'][0]['official_id']}.html", 'data-type="vote"', f'data-fact-id="{victim}" data-type="vote"')
+def test_vote_row_for_someone_not_in_the_roll_call_is_caught(site):
+    voters = {v["official_id"] for v in UNVERIFIED_RC["votes"]}
+    other = next(o["id"] for o in FACTS["officials"] if o["id"] not in voters)
+    victim = f"{UNVERIFIED_RC['id']}/{other}"
+    edit(site / "officials" / f"{other}.html", '<tbody role="rowgroup">', f'<tbody role="rowgroup"><tr data-fact-id="{victim}"><td>x</td></tr>')
+    assert "unverified" in failed(run(site))
+
+
+def test_unconfirmed_roll_call_without_its_note_is_caught(site):
+    page = site / "meetings" / f"{UNVERIFIED_RC['meeting_id']}.html"
+    edit(page, "Not confirmed: this page was hard to read.", "", count=-1)
     assert "unverified" in failed(run(site))
 
 

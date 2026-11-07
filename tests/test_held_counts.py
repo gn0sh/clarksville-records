@@ -1,151 +1,196 @@
 """Invariant: held-back counts (docs/architecture/clarksville-records.md). Problem family neutrality/held-count.
 
-1. Same meeting, same count: two officials both listed in a meeting's verified attendance get the same held roll
-   calls from that meeting (both or neither).
-2. No name matching: no held roll call is attributed through a raw name or alias. Rewriting every raw name and alias
-   changes no count.
-3. Exactly once: every held roll call in the period is counted once, either in the per-official sentences (for every
-   official the verified attendance lists) or in the one uniform clause, which reads the same on every page.
+CEO decision 2026-11-07: unverified roll calls are shown, marked "*", and counted apart from confirmed ones.
+1. Confirmed only from confirmed: changing any unconfirmed roll call changes no confirmed count.
+2. Unconfirmed only from the official's own resolved id; rewriting every raw name and alias changes no count.
+3. Same meeting, same treatment: every official with a resolved vote in a roll call gets it, with the same mark.
+4. Exactly once: every vote counts once, under its resolved official or in the one site-wide unmatched sentence;
+   an unmatched vote is on no official's page and shows "Name not matched*" on the meeting page.
+6. Unverified motions: "Moved by X, seconded by Y*" only when both resolve and the roll call is unconfirmed.
 """
 import copy
 import random
 import re
 
+from html import unescape
+
 from markupsafe import escape
 
 from sitegen import views
-from test_site_review_fixes import MEETING_DEC, MEETING_NOV, MEETING_OCT, RC_HELD, build_pages, by_id, unverify
+from test_site_review_fixes import (MEETING_DEC, MEETING_NOV, MO_SHOWN, RC_HELD, RC_SHOWN, build_pages, by_id,
+                                    public, unverify)
 
-UNIFORM = re.compile(r"A further (\d+) roll calls? under review")
+MO_HELD = "mo-314626e6-p15-2"  # the motion of RC_HELD: moved e-fixture, seconded c-placeholder
+VOTES = re.compile(r"Roll call votes, [0-9-]+ to [0-9-]+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other confirmed; "
+                   r"(\d+) Yes\*, (\d+) No\*, (\d+) Abstain\*, (\d+) Other\* not confirmed\.")
+UNMATCHED = re.compile(r"(\d+) votes? in this period (?:has|have) a name that could not be matched")
+NOTE = "Not confirmed: this page was hard to read."
 
 
-def held_parts(facts):
-    """{official_id: (per-official number, uniform number or 0, full held sentence)} as the pages show them."""
+def parts(facts):
+    """{official_id: ((confirmed y, n, a, o), (unconfirmed y, n, a, o), unmatched, unmatched sentence)}."""
     ix = views.Index(facts)
     out = {}
     for o in facts["officials"]:
-        s = views.totals_sentences(ix, o["id"])[1]
-        u = UNIFORM.search(s)
-        out[o["id"]] = (int(re.match(r"(\d+) roll call", s).group(1)), int(u.group(1)) if u else 0, s)
+        s = views.totals_sentences(ix, o["id"])
+        m = VOTES.fullmatch(s[1])
+        assert m, s[1]
+        n = [int(x) for x in m.groups()]
+        out[o["id"]] = (tuple(n[:4]), tuple(n[4:]), int(UNMATCHED.match(s[2]).group(1)), s[2])
     return out
 
 
-def uniform_clause(s):
-    i = s.find(" A further ")
-    return s[i:] if i >= 0 else ""
-
-
-def put_under_review(f, meeting_id):
-    unverify(by_id(f, "meetings", meeting_id), "absent_count_matches_stated")
-    for rc in f["roll_calls"]:
-        if rc["meeting_id"] == meeting_id:
-            unverify(rc, "roster_available")
-
-
-def mangle_everywhere(f, official_id, garbled):
-    """The official's name OCRs badly in every raw form: attendance, votes, Moved/Seconded. Attendance keeps its
-    resolved id only where the verifier resolved it; votes and motions lose theirs."""
-    for m in f["meetings"]:
-        for a in m["attendance"]:
-            if a["official_id"] == official_id:
-                a["raw_name"] = garbled
-    for rc in f["roll_calls"]:
+def recount(facts, official_id, verified):
+    c = {"yes": 0, "no": 0, "abstain": 0, "other": 0}
+    for rc in facts["roll_calls"]:
+        if views.is_verified(rc) != verified:
+            continue
         for v in rc["votes"]:
             if v["official_id"] == official_id:
-                v.update(official_id=None, raw_name=garbled)
-    for mo in f["motions"]:
-        for ref in (mo["moved_by"], mo["seconded_by"]):
-            if ref is not None and ref["official_id"] == official_id:
-                ref.update(official_id=None, raw_name=garbled)
+                c[v["value"]] += 1
+    return tuple(c[k] for k in ("yes", "no", "abstain", "other"))
+
+
+def text_of(html, fact_id, key="id"):
+    """The text of the element carrying key="fact_id", in document order, tags removed."""
+    at = html.index(f'{key}="{fact_id}"')
+    start = html.rindex("<", 0, at)
+    tag = re.match(r"<(\w+)", html[start:]).group(1)
+    end = html.index(f"</{tag}>", at)
+    return " ".join(unescape(re.sub(r"<[^>]+>", "", html[start:end])).split())
 
 
 # --- targeted cases -------------------------------------------------------------------------------------------------
 
 
-def test_mangled_name_at_under_review_meeting_gives_everyone_the_same_count(facts):
-    """neutrality/held-count: an official whose name OCRs badly everywhere at a meeting whose attendance is under
-    review does not get 0 while colleagues get 1. Those roll calls go into the uniform clause for everyone."""
+def test_fixture_counts_confirmed_and_unconfirmed_apart(facts):
+    p = parts(facts)
+    # a-example: Yes in the three verified roll calls; Yes in the unverified December one.
+    assert p["a-example"][:2] == ((3, 0, 0, 0), (1, 0, 0, 0))
+    assert views.totals_sentences(views.Index(facts), "a-example")[1] == (
+        "Roll call votes, 2024-10-07 to 2024-12-09: 3 Yes, 0 No, 0 Abstain, 0 Other confirmed; "
+        "1 Yes*, 0 No*, 0 Abstain*, 0 Other* not confirmed.")
+    assert p["c-placeholder"][:2] == ((2, 0, 0, 1), (0, 1, 0, 0))
+    assert {x[2] for x in p.values()} == {0}
+
+
+def test_unconfirmed_roll_call_never_changes_a_confirmed_total(facts):
+    """Rule 1: flipping, adding or dropping unconfirmed votes changes only the starred part."""
+    before = parts(facts)
     f = copy.deepcopy(facts)
-    put_under_review(f, MEETING_DEC)
-    mangle_everywhere(f, "a-example", "A. Exarnple")
-    parts = held_parts(f)
-    assert {p[0] for p in parts.values()} == {0}
-    assert {p[1] for p in parts.values()} == {2}  # both December roll calls are held
-    assert len({p[2] for p in parts.values()}) == 1  # the whole sentence is identical on every page
-    assert parts["a-example"][2] == ("0 roll calls in this period are not shown because they are under review. "
-                                     "A further 2 roll calls under review are at meetings whose attendance is not "
-                                     "shown, and are not counted for any one member.")
+    rc = by_id(f, "roll_calls", RC_HELD)
+    for v in rc["votes"]:
+        v["value"] = "no"
+    rc["votes"].append({"official_id": "b-sample", "raw_name": "B. Sample", "value": "yes", "raw_value": "Y"})
+    after = parts(f)
+    for oid in before:
+        assert after[oid][0] == before[oid][0], oid
+    assert after["a-example"][1] == (0, 1, 0, 0)
+    assert after["b-sample"][1] == (1, 0, 0, 0)
 
 
-def test_mangled_vote_name_at_shown_meeting_still_counts_for_the_listed_official(facts):
-    """neutrality/held-count: with verified attendance, the listed official counts whatever their vote OCR'd as."""
+def test_unconfirmed_vote_shows_starred_with_the_page_link(tmp_path, facts):
+    pages = build_pages(tmp_path, copy.deepcopy(facts))
+    rc = by_id(facts, "roll_calls", RC_HELD)
+    link = f'href="https://example.invalid/fixture/minutes-2024-12.pdf#page={rc["page"]}"'
+    for v in rc["votes"]:
+        html = pages[f"officials/{v['official_id']}.html"]
+        row = text_of(html, f"{RC_HELD}/{v['official_id']}", "data-fact-id")
+        assert views.vote_label(v["value"], v["raw_value"]) + "*" in row and NOTE in row and "Read it yourself" in row
+        assert link in html
+    block = text_of(pages[f"meetings/{MEETING_DEC}.html"], RC_HELD)
+    assert NOTE in block and "Read it yourself" in block and "Outcome*:" in block
+    assert link in pages[f"meetings/{MEETING_DEC}.html"]
+    assert "1 roll call at this meeting is not confirmed and marked *." in pages[f"meetings/{MEETING_DEC}.html"]
+    # A confirmed roll call carries no star.
+    assert NOTE not in text_of(pages[f"meetings/{MEETING_DEC}.html"], RC_SHOWN)
+
+
+def test_unmatched_vote_is_on_no_official_page_and_unnamed_on_the_meeting_page(tmp_path, facts):
+    """Rule 4: never guess a name."""
     f = copy.deepcopy(facts)
-    mangle_everywhere(f, "a-example", "A. Exarnple")
-    parts = held_parts(f)
-    assert {oid: p[:2] for oid, p in parts.items()} == {o["id"]: (1, 0) for o in f["officials"]}
-
-
-def test_shared_alias_counts_no_one_who_was_not_listed(facts):
-    """neutrality/held-count: an alias two officials share never places either of them at a meeting."""
-    f = copy.deepcopy(facts)
-    f["officials"].append({"id": "f-other", "name": "F. Other", "surname": "Other", "given": "F.",
-                           "title": "Commissioner", "aliases": ["A Example"]})
-    by_id(f, "officials", "b-sample")["aliases"].append("A Example")
     for v in by_id(f, "roll_calls", RC_HELD)["votes"]:
         if v["official_id"] == "a-example":
-            v.update(official_id=None, raw_name="A Example")
-    # Shown attendance: the five listed officials count, f-other (not listed, shares the alias) does not.
-    parts = held_parts(f)
-    assert parts["f-other"][:2] == (0, 0)
-    assert {parts[a["official_id"]][:2] for a in by_id(f, "meetings", MEETING_DEC)["attendance"]} == {(1, 0)}
-    # Attendance under review: nobody is placed by the alias; every page shows the same uniform clause.
-    put_under_review(f, MEETING_DEC)
-    parts = held_parts(f)
-    assert {p[:2] for p in parts.values()} == {(0, 2)}
-
-
-def test_attendance_not_extracted_goes_to_the_uniform_clause(tmp_path, facts):
-    """neutrality/held-count: no attendance section, so nobody is placed; one clause, same number on every page, and
-    the meeting page states the same held roll calls."""
-    f = copy.deepcopy(facts)
-    m = by_id(f, "meetings", MEETING_DEC)
-    m.update(attendance_status="not_extracted", attendance=[], stated_absent_count=None)
-    unverify(m, "roster_available")
-    for rc in f["roll_calls"]:
-        if rc["meeting_id"] == MEETING_DEC:
-            unverify(rc, "roster_available")
-    parts = held_parts(f)
-    assert {p[:2] for p in parts.values()} == {(0, 2)}
-    clause = ("A further 2 roll calls under review are at meetings whose attendance is not shown, "
-              "and are not counted for any one member.")
+            v.update(official_id=None, raw_name="Qq A. Exarnple")
+    p = parts(f)
+    assert p["a-example"][1] == (0, 0, 0, 0) and p["a-example"][0] == (3, 0, 0, 0)
+    assert {x[2] for x in p.values()} == {1} and len({x[3] for x in p.values()}) == 1
     pages = build_pages(tmp_path, f)
+    assert f"{RC_HELD}/a-example" not in pages["officials/a-example.html"]
+    block = text_of(pages[f"meetings/{MEETING_DEC}.html"], RC_HELD)
+    assert "Name not matched*" in block
+    sentence = "1 vote in this period has a name that could not be matched to an official and is not counted for any member."
     for o in f["officials"]:
-        assert str(escape(clause)) in pages[f"officials/{o['id']}.html"]
-    assert "2 roll calls at this meeting are under review and not shown." in pages[f"meetings/{MEETING_DEC}.html"]
+        assert str(escape(sentence)) in pages[f"officials/{o['id']}.html"]
+    for name, html in public(pages).items():
+        assert "Qq A. Exarnple" not in html and "Exarnple" not in html, name
 
 
-def test_about_page_explains_the_held_count_rule(pages):
-    """copy/about-corrupted: the held-back paragraph reads as intended, with nothing spliced into it."""
-    para = next(p for p in re.findall(r"<p>(.*?)</p>", pages["about.html"], re.S) if "held back" in p)
+def test_unverified_motion_with_both_names_and_unconfirmed_roll_call_is_starred(tmp_path, facts):
+    """Rule 6."""
+    f = copy.deepcopy(facts)
+    unverify(by_id(f, "motions", MO_HELD), "mover_present")
+    pages = build_pages(tmp_path, f)
+    names = {o["id"]: o["name"] for o in f["officials"]}
+    expected = f"Moved by {names['e-fixture']}, seconded by {names['c-placeholder']}*"
+    assert expected in text_of(pages[f"meetings/{MEETING_DEC}.html"], RC_HELD)
+    assert expected in text_of(pages[f"meetings/{MEETING_DEC}.html"], MO_HELD)
+    assert f"{MO_HELD}/moved" in pages["officials/e-fixture.html"]
+    row = text_of(pages["officials/e-fixture.html"], f"{MO_HELD}/moved", "data-fact-id")
+    assert NOTE in row
+
+
+def test_unverified_motion_keeps_attribution_under_review_otherwise(tmp_path, facts):
+    """Rule 6: one name unresolved, or the roll call confirmed, or the same person twice: under review."""
+    cases = []
+    f = copy.deepcopy(facts)  # one name unresolved
+    mo = by_id(f, "motions", MO_HELD)
+    unverify(mo, "seconder_resolves")
+    mo["seconded_by"] = {"official_id": None, "raw_name": "Qq Raw Seconder"}
+    cases.append((f, MO_HELD, RC_HELD))
+    f = copy.deepcopy(facts)  # the motion's roll call is confirmed
+    unverify(by_id(f, "motions", MO_SHOWN), "mover_present")
+    cases.append((f, MO_SHOWN, RC_SHOWN))
+    f = copy.deepcopy(facts)  # same person twice
+    mo = by_id(f, "motions", MO_HELD)
+    unverify(mo, "mover_differs_from_seconder")
+    mo["seconded_by"] = dict(mo["moved_by"])
+    cases.append((f, MO_HELD, RC_HELD))
+    for n, (f, mo_id, rc_id) in enumerate(cases):
+        (tmp_path / str(n)).mkdir()
+        pages = build_pages(tmp_path / str(n), f)
+        for fid in (mo_id, rc_id):
+            text = text_of(pages[f"meetings/{MEETING_DEC}.html"], fid)
+            assert "Attribution under review" in text and "Moved by" not in text and "Seconded by" not in text, (n, fid)
+        for name, html in public(pages).items():
+            assert f"{mo_id}/moved" not in html and f"{mo_id}/seconded" not in html, (n, name)
+            assert "Qq Raw" not in html, (n, name)
+
+
+def test_about_page_explains_the_rule(pages):
+    """copy/about-corrupted: the paragraph reads as intended, with nothing spliced into it."""
+    para = next(p for p in re.findall(r"<p>(.*?)</p>", pages["about.html"], re.S) if "not confirmed" in p)
     expected = (
         "A computer program can misread a page, so each extracted fact is checked automatically before it is shown. "
         "For a roll call the checks are: every member present has exactly one recorded vote; the Yes, No and Abstain "
         "totals equal the totals the minutes state; the recorded outcome agrees with the votes; and every name matches "
-        "the roster for that meeting. A fact that passes every check is <em>verified</em> and is shown. A fact that "
-        "fails any check is <em>held back</em>: it is not shown, and nothing is guessed in its place. For a motion the "
-        "checks are that the people named as moving and seconding it match the roster, were present, and are two "
-        "different people; if any of these fails, the two names are held back and the motion is marked "
-        "&ldquo;Attribution under review&rdquo;. The minutes' own sentence for a motion, and the names exactly as the "
-        "program read them, are never shown on these pages or included in the data files below, because the program "
-        "can misread names in them. Each motion is shown as its kind, such as "
-        "&ldquo;Motion to adopt&rdquo;, and, when verified, &ldquo;Moved by&rdquo; and &ldquo;seconded by&rdquo; "
-        "the officials named on this site. A roll call shows "
-        "its outcome as Passed, Failed or Other with a tally counted from the votes shown on the page, never the "
-        "minutes' own outcome sentence. Each official's page states how many held-back roll "
-        "calls are at meetings whose verified attendance lists that person, present or absent. Held-back roll calls "
-        "at meetings whose attendance is not shown are counted once, in one sentence that is the same on every "
-        "official's page. Scanned minutes with no readable text are shown as &ldquo;Attendance not extracted for "
-        "this meeting.&rdquo;")
+        "the roster for that meeting. A roll call that passes every check is <em>confirmed</em>. A roll call that "
+        "fails any check is still shown, marked with an asterisk (*) and &ldquo;Not confirmed: this page was hard to "
+        "read. Read it yourself&rdquo;, with a link to that page of the minutes. Confirmed and not confirmed votes are "
+        "always counted separately, for example &ldquo;12 Yes, 3 No confirmed; 2 Yes* not confirmed&rdquo;, and a not "
+        "confirmed vote never changes a confirmed total. A vote whose name could not be matched to an official is "
+        "never placed under anyone: it appears only on the meeting page, as &ldquo;Name not matched*&rdquo;, and is "
+        "counted once, in one sentence that is the same on every official's page. For a motion the checks are that "
+        "the people named as moving and seconding it match the roster, were present, and are two different people; "
+        "if any of these fails, the motion is marked &ldquo;Attribution under review&rdquo;, unless both names match "
+        "two officials and the motion's roll call is shown as not confirmed, in which case it reads &ldquo;Moved "
+        "by&rdquo; and &ldquo;seconded by&rdquo; those officials, with an asterisk. The minutes' own sentence for a "
+        "motion, and the names exactly as the program read them, are never shown on these pages or included in the "
+        "data files below, because the program can misread names in them. Each motion is shown as its kind, such as "
+        "&ldquo;Motion to adopt&rdquo;. A roll call shows its outcome as Passed, Failed or Other with a tally counted "
+        "from the votes shown on the page, never the minutes' own outcome sentence. Attendance that fails its checks "
+        "is not shown. Scanned minutes with no readable text are shown as &ldquo;Attendance not extracted for this "
+        "meeting.&rdquo;")
     assert para == expected
 
 
@@ -153,24 +198,9 @@ def test_about_page_explains_the_held_count_rule(pages):
 
 
 def random_facts(facts, rnd):
-    """A random but contract-shaped variation: each meeting's attendance state, who is listed, which roll calls are
-    held, extra roll calls at any meeting, and garbled raw names."""
+    """A random but contract-shaped variation: which roll calls are verified, extra roll calls at any meeting, vote
+    values, and votes whose name did not resolve."""
     f = copy.deepcopy(facts)
-    ids = [o["id"] for o in f["officials"]]
-    for m in f["meetings"]:
-        state = rnd.choice(["shown", "under_review", "not_extracted"])
-        if state == "not_extracted":
-            m.update(attendance_status="not_extracted", attendance=[], stated_absent_count=None)
-            unverify(m, "roster_available")
-            continue
-        listed = rnd.sample(ids, rnd.randint(0, len(ids)))
-        m.update(attendance_status="extracted", attendance=[
-            {"official_id": oid, "raw_name": by_id(f, "officials", oid)["name"], "page": 1,
-             "status": rnd.choice(["present", "absent"])} for oid in listed])
-        if state == "shown":
-            m["verification"] = {"status": "verified", "checks": [{"check": "names_resolve", "ok": True}]}
-        else:
-            unverify(m, "absent_count_matches_stated")
     template = f["roll_calls"][0]
     for n in range(rnd.randint(0, 6)):
         rc = copy.deepcopy(template)
@@ -182,6 +212,7 @@ def random_facts(facts, rnd):
         else:
             rc["verification"] = {"status": "verified", "checks": [{"check": "names_resolve", "ok": True}]}
         for v in rc["votes"]:
+            v["value"] = rnd.choice(["yes", "no", "abstain", "other"])
             if rnd.random() < 0.3:
                 v.update(official_id=None, raw_name=rnd.choice(["A Example", "Comm. B. Sample", "X. Garbled", "?"]))
     return f
@@ -207,59 +238,37 @@ def rewrite_names(f, rnd):
     return g
 
 
-def test_held_count_invariant_holds_for_random_variations(facts):
+def test_count_invariant_holds_for_random_variations(facts):
     for seed in range(300):
         rnd = random.Random(seed)
         f = random_facts(facts, rnd)
+        p = parts(f)
         ix = views.Index(f)
-        attribution = views.held_attribution(ix)
-        held_ids = {rc["id"] for rc in f["roll_calls"] if not views.is_verified(rc)}
-        parts = held_parts(f)
-
-        # Exactly once: every held roll call has one entry; nothing verified is in it.
-        assert set(attribution) == held_ids, seed
-        for rc_id, people in attribution.items():
-            m = ix.meetings[ix.roll_calls[rc_id]["meeting_id"]]
-            listed = {a["official_id"] for a in m["attendance"]}
-            if views.attendance_shown(m) and listed:
-                assert people == listed, seed  # 1: everyone listed, present or absent, and no one else
-            else:
-                assert people is None, seed  # goes to the uniform clause
-
-        # Per-official sentences and the uniform clause match the attribution.
-        uniform = sum(1 for p in attribution.values() if p is None)
-        for oid, (n, u, _) in parts.items():
-            assert n == sum(1 for p in attribution.values() if p and oid in p), seed
-            assert u == uniform, seed
-        assert len({uniform_clause(s) for _, _, s in parts.values()}) == 1, seed
-
-        # 1: two officials listed in the same verified attendance get identical counts from that meeting.
-        for m in f["meetings"]:
-            if not views.attendance_shown(m):
-                continue
-            at_m = [p for rc_id, p in attribution.items() if ix.roll_calls[rc_id]["meeting_id"] == m["id"]]
-            for a in m["attendance"]:
-                for b in m["attendance"]:
-                    assert all((a["official_id"] in p) == (b["official_id"] in p) for p in at_m), seed
-
-        # 3: the parts add up to the meeting pages' held sentences and to the period's held total.
-        by_meeting = {m["id"]: views.meeting(m["id"], ix)["held_roll_calls"] for m in f["meetings"]}
-        attributed = sum(by_meeting[m["id"]] for m in f["meetings"]
-                         if views.attendance_shown(m) and m["attendance"])
-        assert attributed + uniform == sum(by_meeting.values()) == len(held_ids), seed
-
+        for oid, (conf, unconf, _, _) in p.items():
+            assert conf == recount(f, oid, True), seed     # 1: confirmed only from verified roll calls
+            assert unconf == recount(f, oid, False), seed  # 2: unconfirmed only from their own resolved id
+        # 4: every vote exactly once; one unmatched sentence, the same everywhere.
+        total = sum(len(rc["votes"]) for rc in f["roll_calls"])
+        unmatched = {x[2] for x in p.values()}
+        assert len(unmatched) == 1 and len({x[3] for x in p.values()}) == 1, seed
+        assert sum(sum(c) + sum(u) for c, u, _, _ in p.values()) + unmatched.pop() == total, seed
+        # 3: same roll call, same treatment: each resolved vote has a row on its official's page, marked as its
+        # roll call is, and no official has a row for a vote that is not theirs.
+        for o in f["officials"]:
+            rows = {r["fact_id"]: r["confirmed"] for r in views.official(o["id"], ix)["rows"] if r["type"] == "vote"}
+            want = {f"{rc['id']}/{o['id']}": views.is_verified(rc) for rc in f["roll_calls"]
+                    for v in rc["votes"] if v["official_id"] == o["id"]}
+            assert rows == want, seed
         # 2: no name matching. Noise in every raw name and alias, and a shared alias, change no count.
-        g = rewrite_names(f, rnd)
-        assert held_parts(g) == parts, seed
+        assert parts(rewrite_names(f, rnd)) == p, seed
 
 
-def test_unlisted_official_sees_the_same_uniform_clause(facts):
-    """An official listed nowhere gets 0 and the same uniform clause as everyone else."""
+def test_official_with_no_votes_sees_zeros_and_the_same_unmatched_sentence(facts):
     f = copy.deepcopy(facts)
-    put_under_review(f, MEETING_NOV)
     f["officials"].append({"id": "z-nobody", "name": "Z. Nobody", "surname": "Nobody", "given": "Z.",
                            "title": "Commissioner", "aliases": []})
-    parts = held_parts(f)
-    assert parts["z-nobody"][:2] == (0, 2)  # both November roll calls
-    assert {uniform_clause(p[2]) for p in parts.values()} == {uniform_clause(parts["z-nobody"][2])}
-    assert by_id(f, "meetings", MEETING_OCT)["attendance_status"] == "not_extracted"  # no roll calls there
+    unverify(by_id(f, "roll_calls", "rc-99d3ff29-p8-1"))
+    p = parts(f)
+    assert p["z-nobody"][:2] == ((0, 0, 0, 0), (0, 0, 0, 0))
+    assert {x[3] for x in p.values()} == {p["z-nobody"][3]}
+    assert by_id(f, "meetings", MEETING_NOV)["attendance_status"] == "extracted"

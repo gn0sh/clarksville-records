@@ -255,14 +255,13 @@ def test_every_consent_roll_call_reaches_the_items_it_covered():
     assert expanded >= 0.8 * len(consent)
 
 
-def test_site_held_numbers_equal_the_g4_report():
-    """Cross-module (Invariant: held-back counts): the site's per-official N equals g4.per_official[id].held and its
-    uniform U equals g4.held_unattributed, on the real facts and on the fixture."""
+def test_site_unconfirmed_numbers_equal_the_g4_report():
+    """Cross-module (Invariant: held-back counts): the roll calls the meeting pages show as not confirmed are exactly
+    the G4 held total, on the real facts and on the fixture. G4 is still computed although nothing is held back."""
     from sitegen import views
     for path in (ROOT / "data" / "facts.json", ROOT / "site" / "fixtures" / "facts.sample.json"):
         facts = json.loads(path.read_text())
         g = V.gates(facts, set())["g4"]
-        held, uniform = views.held_counts(views.Index(facts))
-        assert uniform == g["held_unattributed"], path
-        for o in facts["officials"]:
-            assert held.get(o["id"], 0) == g["per_official"][o["id"]]["held"], (path, o["id"])
+        ix = views.Index(facts)
+        shown = sum(views.meeting(m["id"], ix)["unconfirmed_roll_calls"] for m in facts["meetings"])
+        assert shown == g["held_total"], path

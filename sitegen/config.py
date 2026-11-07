@@ -27,6 +27,15 @@ EVENT_TYPE_LABELS = {
 }
 OUTCOME_LABELS = {"passed": "Passed", "failed": "Failed", "other": "Other"}
 
+# raw-ocr-leak/vote-raw-value: an `other` vote shows the minutes' wording only when it normalises (lower case,
+# letters and spaces only) to one of these keys; the value on the right is what is printed. Anything else is "Other".
+OTHER_VOTE_WORDS = {
+    "recused": "Recused", "recuse": "Recused",
+    "absent": "Absent",
+    "not voting": "Not voting", "notvoting": "Not voting", "nv": "Not voting",
+    "present": "Present",
+}
+
 # Plain-words motion type for a motion whose attribution is under review. The facts file has no motion-type field,
 # so the type is read from the motion text by this fixed, ordered list; only the label on the right is ever printed,
 # never any of the sentence. Anything not matched is plain "Motion".
