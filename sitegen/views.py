@@ -115,7 +115,8 @@ class Index:
             o = self.officials.get(ref["official_id"]) if ref and ref.get("official_id") else None
             names.append(o["name"] if o else None)
         parts = [f"{w} by {n}" for w, n in zip(("Moved", "seconded"), names) if n]
-        return ", ".join(parts) or None
+        out = ", ".join(parts)
+        return (out[0].upper() + out[1:]) if out else None
 
     # -- generic builders ------------------------------------------------------------------------------------
     def src(self, source_id: str, page: int) -> dict:
@@ -136,7 +137,14 @@ class Index:
         oid = ref["official_id"]
         if oid and oid in self.officials:
             return {"name": self.officials[oid]["name"], "href": f"officials/{oid}.html"}
-        return {"name": ref["raw_name"], "href": None}
+        return {"name": "Name not matched", "href": None}  # never the raw OCR name on a public page
+
+    def resolved_person(self, ref: dict | None) -> dict | None:
+        """The linked official, or None when the reference is absent or its official_id does not resolve."""
+        oid = ref.get("official_id") if ref else None
+        if oid and oid in self.officials:
+            return self.person(ref)
+        return None
 
     def item_ref(self, item_id: str) -> dict:
         it = self.items.get(item_id)
@@ -346,13 +354,14 @@ def _motion_block(ix: Index, mo: dict) -> dict:
     """A failed motion check holds back the motion's attribution. The minutes' sentence is OCR text that can carry
     misread names, so when held it is not shown at all: only the motion's type in plain words, and a fixed sentence
     in place of the two names."""
-    held = not is_verified(mo)
+    mover, seconder = ix.resolved_person(mo["moved_by"]), ix.resolved_person(mo["seconded_by"])
+    held = not is_verified(mo) or not (mover or seconder)
     return {
         "kind": "motion", "id": mo["id"], "item": ix.item_ref(mo["item_id"]),
         "text": motion_type_label(mo["text"]),
         "attribution_held": held,
-        "moved_by": None if held else ix.person(mo["moved_by"]),
-        "seconded_by": None if held else ix.person(mo["seconded_by"]),
+        "moved_by": None if held else mover,
+        "seconded_by": None if held else seconder,
         "src": ix.src(mo["source_id"], mo["page"]),
     }
 
