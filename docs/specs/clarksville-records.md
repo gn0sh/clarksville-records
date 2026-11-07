@@ -36,6 +36,15 @@ per-member votes, and paywalls video and transcripts.
 - N5. A correction-report path exists on every fact page, and reports are visible to Brian.
 - N6. No campaign link, no ads, no tracking of individual visitors beyond what Brian approves.
 
+## Operator and governance (Brain Trust 2026-11-07, `docs/reviews/brain-trust-spec.md`)
+- G1. **Who runs it:** the site says plainly who operates it. Wording and placement are the CEO's decision, made before design of the public pages (open question 1).
+- G2. **Mechanical rules, no case-by-case calls:** held-back roll calls, name merges and corrections follow written rules applied identically to every official. The source document wins. Every change is logged in a public change history.
+- G3. **The owner's own record**, if he holds office, appears under exactly the same rules.
+- G4. **Skew check:** the held-back rate per official is measured each run; release is blocked if any official's rate is more than 2x the median (threshold provisional, set after the parse spike).
+- G5. **Open data:** all facts are exportable (CSV/JSON) with their sources, so the site is not the only copy.
+- G6. **Before any public URL (hard stop):** G1 decided; a check with the Tennessee Registry of Election Finance on whether a candidate-operated records site has campaign-finance implications (the panel asserted no rule; this is something to check, owned by the CEO); correction intake working.
+- G7. The private preview has no public URL (no public static hosting until G6).
+
 ## User stories and acceptance criteria (Milestone 1)
 Tests use the 2020-2024 minutes corpus unless stated.
 
@@ -67,10 +76,10 @@ Tests use the 2020-2024 minutes corpus unless stated.
 - AC5.1 Every vote, attendance and agenda result page has a "Report an error" control that records the fact id and a free-text note without an account.
 - AC5.2 A report reaches Brian within one collection cycle; a corrected fact shows "Corrected on <date>" and the old value stays in the change history.
 
-**US6. As a resident, I want to click an elected official and see their whole vote and comment history, so that I can see what they did and said.** (Brian, 2026-11-07)
-- AC6.1 The official's page (US1) also lists their recorded comments: statements, motions and seconds attributed to them by name in the minutes, quoted verbatim with meeting date, item and source page. No paraphrase, no AI summary, no selection by tone.
-- AC6.2 Comments, votes and attendance sit in one date-ordered history on the page, filterable by type and year; the same layout for every official (N1).
-- AC6.3 If the minutes summarise discussion without naming speakers, nothing is attributed. Video transcripts are a later source (Later list) and, when added, are labelled as transcripts with a timestamp link.
+**US6. As a resident, I want to click an elected official and see their whole record, so that I can see what they did.** (Brian, 2026-11-07: "vote and comment history")
+- AC6.1 The official's page (US1) lists, in one date-ordered history, their recorded votes, attendance, and the motions and seconds the minutes attribute to them by name, labelled exactly "Moved" or "Seconded", with meeting date, item and source page. It is never labelled "comments": the county minutes record no spoken comments or discussion (platform-facts).
+- AC6.2 Filterable by type and year; the same layout for every official (N1).
+- AC6.3 Spoken comments need meeting video transcripts (Later list). If added, every line is labelled "transcript", links to its moment in the video, and is never paraphrased or summarised.
 
 **US7. As a resident, I want to click a specific item and see its entire history, so that I can follow it from start to finish.** (Brian, 2026-11-07)
 - AC7.1 An item page groups every appearance of the same item (resolution or ordinance number, e.g. "AB-4-2024", or the agenda item when unnumbered): each agenda listing, committee referral, reading, amendment, comment and roll call, in date order, each with its source page.
@@ -81,7 +90,7 @@ Tests use the 2020-2024 minutes corpus unless stated.
 ## Parse accuracy and uncertain parses (top product risk)
 A parse that misstates an official's vote or attendance is the worst failure. Rules:
 - P1. Each extracted roll call is **Verified** (passes all automatic checks) or **Unverified** (any check fails or low confidence). Only Verified facts are shown as facts.
-- P2. Checks per roll call: every member present has exactly one vote or an explicit non-vote; Yes/No/Abstain tallies equal the tally the minutes state; the passed/failed outcome agrees with the tally; names match the roster for that date.
+- P2. Checks per roll call: every member present has exactly one vote or an explicit non-vote; Yes/No/Abstain tallies equal the tally the minutes state; the passed/failed outcome agrees with the tally; names match the roster for that date. The roster comes from a source other than the vote being checked: the county's published commissioner list and terms where available, otherwise the same meeting's attendance header, with OCR name variants mapped by the written merge rules (G2).
 - P3. **Unverified roll calls are held back** from commissioner pages and listed on an internal review page for Brian. They are never shown with a guessed value. (Decision: hold back rather than show with an "unverified" label, because a wrong vote under a named person is the harm. Revisit if too many are held back; see AC-P1.)
 - P4. Each commissioner page states how many roll calls in the covered period are not shown because they are under review, with identical wording for everyone.
 - AC-P1 The run reports Verified and held-back counts. For M1 to be done, at least 90% of roll calls are Verified; below that, parsing improves before anything widens.
@@ -90,7 +99,9 @@ A parse that misstates an official's vote or attendance is the worst failure. Ru
 - AC-P4 Scanned or image-only minutes are detected and marked "not extracted"; OCR output is shown only if it passes P2.
 
 ## Milestones
-- **M1 (thin slice, real data):** Montgomery County Commission attendance and roll-call votes per commissioner from 2020-2024 minutes, every vote linked to the minutes PDF and page; searchable commission agendas; fully automated collection; private preview. Includes official pages with vote and comment history (US6) and item history pages (US7). Done when Brian picks a commissioner and sees every shown vote and comment with its source, opens an item and sees its full history, and the 20-vote spot check (AC-P2) all match.
+- **M0 (parse spike):** about 10 county minutes PDFs across 2020-2024, deterministic parsing (no per-page LLM calls). Measure the Verified rate (P2) and held-back rate per official (G4). Below 90% Verified or skewed: back to the CEO before more build.
+- **M1 (thin slice, real data, after M0 passes):** batch ingest of 2020-2024 commission minutes; official pages with votes, attendance, motions and seconds (US1, US2, US6) and item history pages (US7); every fact linked to its PDF page; automated scheduled collection (US4); private preview (G7). Done when Brian picks a commissioner and sees every shown vote with its source, opens an item and sees its full history, and the 20-vote spot check (AC-P2) all match.
+- **M1.5 (before any public launch):** agenda search (US3), public correction intake (US5), find the 2025-2026 minutes, G6 checks.
 - **M2:** County budgets (approved budget books) and audits (TN Comptroller): what, how much, linked to page.
 - **M3:** County contracts: Bonfire awards, commission resolutions with dollar amounts, and which committee approved each.
 - **M4:** City Council and committees from the clarksvilletn.gov Agenda Center (10 s crawl delay), same neutral display; find where post-May-2024 council records live.
@@ -113,7 +124,7 @@ Public launch is a separate decision by Brian after the private preview, not a m
 - Zero manual steps in a normal collection run; the collector never requests a robots-disallowed path (test-enforced).
 
 ## Open questions (change the goal)
-None. Non-blocking, with defaults: (1) hold back vs label uncertain votes: default hold back (P3); (2) private-preview access: architect proposes the cheapest no-spend option.
+1. How the site says who runs it (G1): CEO's decision, asked 2026-11-07. Non-blocking, with defaults: (1) hold back vs label uncertain votes: default hold back (P3); (2) private-preview access: architect proposes the cheapest no-spend option.
 
 ## Later (not scheduled)
-Video links, committee assignments, linking a vote to its budget line, Spanish-language view, CSV export.
+Video links and transcripts (for spoken comments), committee assignments, handoff to a nonpartisan steward, linking a vote to its budget line, Spanish-language view, CSV export.
