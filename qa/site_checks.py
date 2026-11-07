@@ -1,0 +1,492 @@
+# ruff: noqa: E501
+"""Black-box checks of a BUILT site directory (reads only the files in it, plus the facts file it was built from).
+
+    python -m qa.site_checks --site build/site --facts data/facts.json            # public build (default)
+    python -m qa.site_checks --site build/site --facts data/facts.json --internal # build made with --internal
+    python -m qa.site_checks --site build/site --facts site/fixtures/facts.sample.json --no-export   # fixture
+
+Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
+  links       every internal href resolves to a file, every #fragment to an id on the target page, assets exist
+  sources     every link to a minutes PDF carries #page=N with 1 <= N <= the source's page count (and, when the PDF
+              is cached locally, <= the real page count from pdfinfo); no other external links
+  unverified  no unverified fact (ids, outcome text) appears anywhere in the build but review.html; a public build
+              has no review.html and nothing links to it; every fact id on a page is a shown fact; every shown
+              fact appears on its official's page
+  index       one index entry per official in the facts, alphabetical by surname (AC1.1)
+  layout      every official page has the same headings and column headers (AC1.5, N1)
+  totals      "Recorded absent at X of Y meetings" equals a recount from the meeting pages (AC2.2)
+  footer      "Run by Brian Zacharias" on every page
+  external    no third-party scripts, styles, images or fonts (N6)
+  files       fewer than 250 files
+  hscroll     no horizontal scroll at 390 px for the 4 page types (index, official, meeting, items); needs Playwright (node)
+"""
+from __future__ import annotations
+
+import argparse
+import html
+import json
+import os
+import re
+import subprocess
+import sys
+import tempfile
+from html.parser import HTMLParser
+from pathlib import Path
+from urllib.parse import unquote, urlsplit
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from qa.common import OPERATOR, ROOT, find_pdf, load_facts, pdf_page_count  # noqa: E402
+
+MAX_FILES = 250
+VIEWPORT = 390
+
+
+class Page(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.ids, self.hrefs, self.fact_ids, self.resources, self.text = set(), [], [], [], []
+        self.fact_hrefs = []          # hrefs inside an element carrying data-fact-id
+        self._stack, self._fact_depth = [], None
+
+    def handle_endtag(self, tag):
+        if tag in self.VOID or tag not in self._stack:
+            return
+        while self._stack:
+            if self._stack.pop() == tag:
+                break
+        if self._fact_depth is not None and len(self._stack) < self._fact_depth:
+            self._fact_depth = None
+
+    VOID = {"meta", "link", "br", "img", "input", "hr", "source", "area", "base", "col", "embed", "wbr"}
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        if tag not in self.VOID:
+            self._stack.append(tag)
+            if "data-fact-id" in a and self._fact_depth is None:
+                self._fact_depth = len(self._stack)
+        if tag == "a" and "href" in a and self._fact_depth is not None:
+            self.fact_hrefs.append(a["href"] or "")
+        if a.get("id"):
+            self.ids.add(a["id"])
+        if tag == "a" and a.get("name"):
+            self.ids.add(a["name"])
+        if tag == "a" and "href" in a:
+            self.hrefs.append(a["href"] or "")
+        if "data-fact-id" in a:
+            self.fact_ids.append(a["data-fact-id"])
+        if tag == "script" and a.get("src"):
+            self.resources.append((tag, a["src"]))
+        if tag == "link" and a.get("href"):
+            self.resources.append((tag, a["href"]))
+        if tag in ("img", "source", "iframe", "video", "audio") and a.get("src"):
+            self.resources.append((tag, a["src"]))
+        if tag == "form" and a.get("action"):
+            self.resources.append((tag, a["action"]))
+
+    def handle_data(self, d):
+        self.text.append(d)
+
+
+def parse(path: Path) -> Page:
+    p = Page()
+    p.feed(path.read_text(encoding="utf-8"))
+    return p
+
+
+class Report:
+    def __init__(self):
+        self.results: list[tuple[str, bool, list[str], str]] = []
+
+    def add(self, name: str, problems: list[str], note: str = ""):
+        self.results.append((name, not problems, problems, note))
+
+    def skip(self, name: str, why: str):
+        self.results.append((name, True, [], f"SKIPPED: {why}"))
+
+    @property
+    def ok(self) -> bool:
+        return all(r[1] for r in self.results)
+
+    def render(self, limit=15) -> str:
+        out = []
+        for name, ok, problems, note in self.results:
+            out.append(f"{'PASS' if ok else 'FAIL'}  {name}" + (f"  ({note})" if note else ""))
+            for p in problems[:limit]:
+                out.append(f"      - {p}")
+            if len(problems) > limit:
+                out.append(f"      ... {len(problems) - limit} more")
+        return "\n".join(out)
+
+
+def resolve(page_rel: str, href: str) -> str | None:
+    """Site-relative path an internal href points at, or None if it leaves the site."""
+    u = urlsplit(href)
+    path = unquote(u.path)
+    if not path:
+        return page_rel
+    parts = [] if path.startswith("/") else list(Path(page_rel).parent.parts)
+    for seg in path.split("/"):
+        if seg in ("", "."):
+            continue
+        if seg == "..":
+            if not parts:
+                return None
+            parts.pop()
+        else:
+            parts.append(seg)
+    rel = "/".join(parts)
+    return rel + "index.html" if path.endswith("/") and not rel else (rel + "/index.html" if path.endswith("/") else rel)
+
+
+# ---------------------------------------------------------------- the checks
+
+def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str]:
+    problems = []
+    for rel, pg in pages.items():
+        for href in pg.hrefs:
+            u = urlsplit(href)
+            if u.scheme in ("http", "https"):
+                continue
+            if u.scheme or href.startswith("//"):
+                problems.append(f"{rel}: href with scheme {href!r}")
+                continue
+            target = resolve(rel, href)
+            if target is None:
+                problems.append(f"{rel}: href {href!r} leaves the site")
+                continue
+            if no_export and target.startswith("data/") and not (site / "data").exists():
+                continue
+            f = site / target
+            if not f.is_file():
+                problems.append(f"{rel}: {href!r} -> missing file {target}")
+                continue
+            if u.fragment and target.endswith(".html"):
+                ids = pages[target].ids if target in pages else parse(f).ids
+                if u.fragment not in ids:
+                    problems.append(f"{rel}: {href!r} -> no #{u.fragment} on {target}")
+        # static assets referenced by <link>/<script>
+        for tag, src in pg.resources:
+            if urlsplit(src).scheme or src.startswith("//"):
+                continue
+            target = resolve(rel, src)
+            if target is None or not (site / target).is_file():
+                problems.append(f"{rel}: <{tag}> {src!r} not found")
+    return problems
+
+
+def check_sources(site: Path, pages: dict[str, Page], facts: dict, store_extra) -> tuple[list[str], str]:
+    problems = []
+    by_url = {}
+    for s in facts["sources"]:
+        by_url[s["url"]] = s
+        by_url[unquote(s["url"])] = s
+    real_pages: dict[str, int | None] = {}
+    seen = doc_level = 0
+    for rel, pg in pages.items():
+        for href in pg.hrefs:
+            if urlsplit(href).scheme not in ("http", "https"):
+                continue
+            base, _, frag = href.partition("#")
+            src = by_url.get(base) or by_url.get(unquote(base))
+            if src is None:
+                problems.append(f"{rel}: external link {href!r} is not a known source document")
+                continue
+            seen += 1
+            m = re.fullmatch(r"page=(\d+)", frag)
+            if not m:
+                if href in pg.fact_hrefs:
+                    problems.append(f"{rel}: fact-row source link {href!r} has no #page=N")
+                else:
+                    doc_level += 1      # e.g. the meeting page header "minutes PDF, 25 pages": names the document, not a fact
+                continue
+            n = int(m.group(1))
+            if not 1 <= n <= src["pages"]:
+                problems.append(f"{rel}: {href!r}: page {n} outside 1..{src['pages']}")
+                continue
+            if src["id"] not in real_pages:
+                pdf = find_pdf(src["sha256"], store_extra)
+                real_pages[src["id"]] = pdf_page_count(pdf) if pdf else None
+                if real_pages[src["id"]] is not None and real_pages[src["id"]] != src["pages"]:
+                    problems.append(f"source {src['id']}: facts say {src['pages']} pages, PDF has {real_pages[src['id']]}")
+            rp = real_pages[src["id"]]
+            if rp is not None and n > rp:
+                problems.append(f"{rel}: {href!r}: page {n} beyond the real PDF ({rp} pages)")
+    checked = sum(1 for v in real_pages.values() if v is not None)
+    return problems, (f"{seen} source links ({doc_level} document-level links without #page, outside fact rows); "
+                      f"{checked} of {len(real_pages)} PDFs cross-checked with pdfinfo")
+
+
+def unverified_tokens(facts: dict) -> list[tuple[str, str]]:
+    """(token, why) pairs that must not appear anywhere in a public build."""
+    # Free text that is legitimately shown elsewhere (verified outcomes, motion text, event labels, item titles) cannot
+    # prove a leak: boilerplate such as "...Adopted by the following roll call vote:" repeats across roll calls.
+    benign = [r["outcome_text"] for r in facts["roll_calls"] if r["verification"]["status"] == "verified"]
+    benign += [m["text"] for m in facts["motions"]] + [e["label"] for e in facts["item_events"]] + [i["title"] for i in facts["items"]]
+    toks = []
+    unv_rc = {r["id"] for r in facts["roll_calls"] if r["verification"]["status"] == "unverified"}
+    for r in facts["roll_calls"]:
+        if r["id"] in unv_rc:
+            toks.append((r["id"], "unverified roll call id"))
+            if len(r["outcome_text"]) > 12 and not any(r["outcome_text"] in b for b in benign):
+                toks.append((r["outcome_text"], f"unverified roll call {r['id']} outcome text"))
+    for e in facts["item_events"]:
+        if e.get("ref") in unv_rc:
+            toks.append((e["id"], "event of an unverified roll call"))
+    for m in facts["meetings"]:
+        if m["verification"]["status"] == "unverified":
+            toks.append((f"{m['id']}/att", "unverified attendance"))
+    for mo in facts["motions"]:
+        if mo["verification"]["status"] == "unverified":
+            toks += [(f"{mo['id']}/moved", "unverified motion attribution"), (f"{mo['id']}/seconded", "unverified motion attribution")]
+    return toks
+
+
+def _contains(body: str, tok: str, why: str) -> bool:
+    """Ids match on id boundaries (ev-x-p9-1 is not inside ev-x-p9-13); free text matches as a substring."""
+    if " text" in why:
+        return tok in body
+    return re.search(r"(?<![A-Za-z0-9_/-])" + re.escape(tok) + r"(?![A-Za-z0-9_-])", body) is not None
+
+
+def shown_fact_ids(facts: dict) -> tuple[set[str], set[str]]:
+    """(votes+attendance+moved/seconded that must be shown, and those that must not be)."""
+    shown, hidden = set(), set()
+    for r in facts["roll_calls"]:
+        for v in r["votes"]:
+            if v.get("official_id"):
+                (shown if r["verification"]["status"] == "verified" else hidden).add(f"{r['id']}/{v['official_id']}")
+    for m in facts["meetings"]:
+        ok = m["verification"]["status"] == "verified" and m["attendance_status"] == "extracted"
+        for a in m["attendance"]:
+            if a.get("official_id"):
+                (shown if ok else hidden).add(f"{m['id']}/att/{a['official_id']}")
+    for mo in facts["motions"]:
+        for who, key in (("moved_by", "moved"), ("seconded_by", "seconded")):
+            p = mo.get(who)
+            if p and p.get("official_id"):
+                (shown if mo["verification"]["status"] == "verified" else hidden).add(f"{mo['id']}/{key}")
+    return shown, hidden
+
+
+def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: bool) -> list[str]:
+    problems = []
+    has_review = "review.html" in pages
+    if not internal:
+        if has_review:
+            problems.append("review.html is in a public build")
+        for rel, pg in pages.items():
+            if any(urlsplit(h).path.endswith("review.html") for h in pg.hrefs):
+                problems.append(f"{rel}: links to review.html in a public build")
+    # token scan over every text file (html, csv, json, js, css) except the internal review page
+    toks = unverified_tokens(facts)
+    for f in sorted(site.rglob("*")):
+        rel = f.relative_to(site).as_posix()
+        if not f.is_file() or rel == "review.html" or f.suffix not in (".html", ".csv", ".json", ".js", ".css", ".txt", ".md"):
+            continue
+        body = f.read_text(encoding="utf-8", errors="replace")
+        body = body + "\n" + html.unescape(body)
+        for tok, why in toks:
+            if _contains(body, tok, why):
+                problems.append(f"{rel}: contains {tok!r} ({why})")
+    # every fact id on a page is a shown fact; every shown fact is on its official's page
+    shown, hidden = shown_fact_ids(facts)
+    on_official: set[str] = set()
+    known = ({r["id"] for r in facts["roll_calls"]} | {m["id"] for m in facts["motions"]} | {e["id"] for e in facts["item_events"]}
+             | {m["id"] for m in facts["meetings"]})
+    for rel, pg in pages.items():
+        for fid in pg.fact_ids:
+            if fid in hidden:
+                problems.append(f"{rel}: shows hidden fact {fid}")
+            elif fid not in shown and fid not in known and not rel == "review.html":
+                problems.append(f"{rel}: fact id {fid} is not in the facts file")
+            if rel.startswith("officials/"):
+                on_official.add(fid)
+    for fid in sorted(shown - on_official):
+        problems.append(f"shown fact {fid} is on no official page")
+    return problems
+
+
+def check_index(site: Path, pages: dict[str, Page], facts: dict) -> tuple[list[str], str]:
+    """AC1.1: one index entry per official in the facts, alphabetical by surname (N1)."""
+    problems = []
+    index = pages.get("index.html")
+    if index is None:
+        return ["no index.html"], ""
+    linked = [m.group(1) for h in index.hrefs if (m := re.fullmatch(r"officials/([^/#?]+)\.html", h))]
+    ids = [o["id"] for o in facts["officials"]]
+    for i in sorted(set(ids) - set(linked)):
+        problems.append(f"official {i} is not listed on the index")
+    for i in sorted(set(linked) - set(ids)):
+        problems.append(f"index lists {i}, who is not in the facts")
+    for i in sorted({x for x in linked if linked.count(x) > 1}):
+        problems.append(f"index lists {i} more than once")
+    order = {o["id"]: (o["surname"].casefold(), o["given"].casefold()) for o in facts["officials"]}
+    keyed = [order[i] for i in linked if i in order]
+    if keyed != sorted(keyed):
+        problems.append("index is not alphabetical by surname, then given name")
+    for i in ids:
+        if f"officials/{i}.html" not in pages:
+            problems.append(f"no page officials/{i}.html")
+    return problems, f"{len(set(linked))} officials listed"
+
+
+def _skeleton(html_text: str) -> list[str]:
+    """Headings and column headers of an official page, minus the name: the layout N1/AC1.5 says must be identical."""
+    body = html_text.split("<h1", 1)[-1]
+    return [re.sub(r"\s+", " ", "".join(m)).strip()
+            for m in re.findall(r"<(?:h2|h3)[^>]*>(.*?)</(?:h2|h3)>|<th[^>]*>(.*?)</th>", body, re.S)]
+
+
+def check_layout(site: Path, facts: dict) -> tuple[list[str], str]:
+    skel = {o["id"]: _skeleton((site / "officials" / f"{o['id']}.html").read_text(encoding="utf-8"))
+            for o in facts["officials"] if (site / "officials" / f"{o['id']}.html").is_file()}
+    if not skel:
+        return ["no official pages"], ""
+    ref_id, ref = next(iter(skel.items()))
+    return [f"officials/{i}.html differs in headings/columns from officials/{ref_id}.html" for i, k in skel.items() if k != ref], \
+        f"{len(skel)} official pages, same {len(ref)} headings and column headers"
+
+
+def check_totals(site: Path, pages: dict[str, Page], facts: dict) -> tuple[list[str], str]:
+    """AC2.2: each 'Recorded absent at X of Y meetings' equals a recount from the built meeting pages."""
+    counts: dict[str, list[int]] = {}
+    for rel in pages:
+        if not rel.startswith("meetings/"):
+            continue
+        t = (site / rel).read_text(encoding="utf-8")
+        for m in re.finditer(r'data-fact-id="[^"]+/att/([^"]+)"[^>]*>\s*<th[^>]*>.*?</th>\s*<td[^>]*>(.*?)</td>', t, re.S):
+            c = counts.setdefault(m.group(1), [0, 0])
+            c[0] += 1
+            c[1] += re.sub(r"<[^>]+>", "", m.group(2)).strip() == "Absent"
+    problems = []
+    for o in facts["officials"]:
+        f = site / "officials" / f"{o['id']}.html"
+        if not f.is_file():
+            continue
+        m = re.search(r"Recorded absent at (\d+) of (\d+) meetings", f.read_text(encoding="utf-8"))
+        listed, absent = counts.get(o["id"], [0, 0])
+        if not m:
+            problems.append(f"officials/{o['id']}.html: no 'Recorded absent at X of Y meetings' sentence")
+        elif (int(m.group(1)), int(m.group(2))) != (absent, listed):
+            problems.append(f"officials/{o['id']}.html: page says {m.group(1)} of {m.group(2)}, meeting pages recount {absent} of {listed}")
+    return problems, f"{len(facts['officials'])} officials recounted"
+
+
+def check_footer(pages: dict[str, Page], operator: str) -> list[str]:
+    needle = re.compile(r"Run by\s+" + re.escape(operator))
+    return [f"{rel}: no 'Run by {operator}' footer" for rel, pg in pages.items() if not needle.search(" ".join(pg.text))]
+
+
+def check_external(pages: dict[str, Page]) -> list[str]:
+    problems = []
+    for rel, pg in pages.items():
+        for tag, src in pg.resources:
+            if urlsplit(src).scheme or src.startswith("//"):
+                problems.append(f"{rel}: third-party <{tag}> {src!r}")
+    return problems
+
+
+def page_type(rel: str) -> str | None:
+    if rel == "index.html":
+        return "index"
+    head = rel.split("/")[0]
+    return {"officials": "official", "meetings": "meeting", "items": "items"}.get(head)
+
+
+def check_hscroll(site: Path, pages: dict[str, Page], all_pages: bool, sample: int) -> tuple[list[str], str]:
+    by_type: dict[str, list[str]] = {}
+    for rel in sorted(pages):
+        t = page_type(rel)
+        if t:
+            by_type.setdefault(t, []).append(rel)
+    chosen = []
+    for t, rels in by_type.items():
+        rels = sorted(rels, key=lambda r: (site / r).stat().st_size)
+        pick = rels if all_pages or len(rels) <= sample else [rels[-1], rels[len(rels) // 2], rels[0]][:sample]
+        chosen += pick
+    missing = {"index", "official", "meeting", "items"} - set(by_type)
+    if missing:
+        return [f"no page of type {sorted(missing)} in the site"], ""
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
+        json.dump([{"name": r, "path": str((site / r).resolve())} for r in chosen], tf)
+    try:
+        env = dict(os.environ)
+        if "NODE_PATH" not in env:
+            try:
+                env["NODE_PATH"] = subprocess.run(["npm", "root", "-g"], capture_output=True, text=True, timeout=30).stdout.strip()
+            except (OSError, subprocess.SubprocessError):
+                pass
+        r = subprocess.run(["node", str(Path(__file__).with_name("hscroll.js")), tf.name, str(VIEWPORT)],
+                           capture_output=True, text=True, timeout=600, env=env)
+    finally:
+        os.unlink(tf.name)
+    if r.returncode != 0:
+        raise RuntimeError("browser check could not run: " + (r.stderr.strip().splitlines() or ["?"])[-1])
+    results = json.loads(r.stdout)
+    problems = [f"{x['name']}: scrollWidth {x['scrollWidth']} > {x['width']}; offenders: {', '.join(x['offenders']) or 'none found'}"
+                for x in results if x["overflow"]]
+    return problems, f"{len(results)} pages at {VIEWPORT}px: " + ", ".join(f"{t} x{sum(1 for c in chosen if page_type(c) == t)}" for t in by_type)
+
+
+# ---------------------------------------------------------------- driver
+
+def run_checks(site: Path, facts: dict, internal=False, no_export=False, operator=OPERATOR, browser=True,
+               all_pages=False, sample=3, store_extra=()) -> Report:
+    rep = Report()
+    files = [f for f in site.rglob("*") if f.is_file()]
+    pages = {f.relative_to(site).as_posix(): parse(f) for f in files if f.suffix == ".html"}
+    if not pages:
+        rep.add("site", [f"no HTML files under {site}"])
+        return rep
+    rep.add("files", [f"{len(files)} files, limit {MAX_FILES - 1}"] if len(files) >= MAX_FILES else [], f"{len(files)} files, {len(pages)} pages")
+    rep.add("links", check_links(site, pages, no_export), "internal links, #anchors and assets" + ("; data/ skipped" if no_export and not (site / "data").exists() else ""))
+    problems, note = check_sources(site, pages, facts, store_extra)
+    rep.add("sources", problems, note)
+    rep.add("unverified", check_unverified(site, pages, facts, internal), "internal build" if internal else "public build")
+    problems, note = check_index(site, pages, facts)
+    rep.add("index", problems, "AC1.1: " + note)
+    problems, note = check_layout(site, facts)
+    rep.add("layout", problems, "AC1.5/N1: " + note)
+    problems, note = check_totals(site, pages, facts)
+    rep.add("totals", problems, "AC2.2: " + note)
+    rep.add("footer", check_footer(pages, operator), f"'Run by {operator}' on {len(pages)} pages")
+    rep.add("external", check_external(pages))
+    if browser:
+        try:
+            problems, note = check_hscroll(site, pages, all_pages, sample)
+            rep.add("hscroll", problems, note)
+        except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
+            rep.add("hscroll", [str(exc)])
+    else:
+        rep.skip("hscroll", "--no-browser")
+    return rep
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(prog="python -m qa.site_checks", description=__doc__.split("\n\n")[0])
+    ap.add_argument("--site", default=str(ROOT / "build" / "site"))
+    ap.add_argument("--facts", default=str(ROOT / "data" / "facts.json"))
+    ap.add_argument("--internal", action="store_true", help="the build was made with --internal (review.html allowed)")
+    ap.add_argument("--no-export", action="store_true", help="the build has no data/ export (sitegen only, e.g. the fixture)")
+    ap.add_argument("--operator", default=OPERATOR)
+    ap.add_argument("--no-browser", action="store_true", help="skip the 390 px check")
+    ap.add_argument("--all-pages", action="store_true", help="390 px check on every page, not a sample of 3 per type")
+    ap.add_argument("--store", action="append", default=[], help="extra directory holding <sha256>.pdf (repeatable)")
+    ap.add_argument("--out", default=str(ROOT / "build" / "qa" / "site_checks.txt"))
+    a = ap.parse_args(argv)
+    rep = run_checks(Path(a.site), load_facts(a.facts), a.internal, a.no_export, a.operator, not a.no_browser, a.all_pages,
+                     store_extra=a.store)
+    text = rep.render()
+    print(text)
+    out = Path(a.out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text + "\n", encoding="utf-8")
+    print("RESULT: " + ("PASS" if rep.ok else "FAIL"))
+    return 0 if rep.ok else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
