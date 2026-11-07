@@ -1,8 +1,11 @@
-"""Open-data export (G5): build/site/data/facts.json and CSVs, verified facts only.
+"""Open-data export (G5): build/site/data/facts.json and CSVs, the facts the public pages show.
 
-A guessed value under a named person is the harm P3 prevents, so nothing unverified is exported: held-back roll
-calls and motions are left out, attendance of a meeting whose attendance check failed is left out, and the meeting
-rows carry the held-back counts instead. Every fact row carries source_url, source_sha256, page and fetched_at.
+Invariant: held-back counts (architecture). Every roll call and vote is exported with `confirmed` (true when the roll
+call passed its checks). A vote whose name did not resolve has `official_id: null` and no name, so no value is placed
+under a guessed person (P3). Motions carry `confirmed` and only the attribution the pages show. Attendance of a meeting
+whose attendance check failed is left out. Every fact row carries source_url, source_sha256, page and fetched_at.
+Raw OCR fields (raw names, raw vote wording, outcome text, motion text, motion and roll call event labels) are in
+internal builds only.
 """
 from __future__ import annotations
 
@@ -30,28 +33,36 @@ def strip_raw(facts: dict, internal: bool = False) -> dict:
     out["motions"] = [dict({k: v for k, v in m.items() if internal or k != "text"}, type_label=motion_type_label(m["text"]),
                            moved_by=clean(m["moved_by"]), seconded_by=clean(m["seconded_by"]))
                       for m in facts["motions"]]
-    out["roll_calls"] = [dict(clean(r, ("outcome_text",)), votes=[clean(v, ("raw_name", "raw_value")) for v in r["votes"]])
+    out["roll_calls"] = [dict(clean(r, ("outcome_text",)), confirmed=is_verified(r),
+                              votes=[dict(clean(v, ("raw_name", "raw_value")), confirmed=is_verified(r))
+                                     for v in r["votes"]])
                          for r in facts["roll_calls"]]
+    out["item_events"] = [e if internal or e["type"] not in ("motion", "roll_call") else dict(e, label="")
+                          for e in facts["item_events"]]
     out["meetings"] = [dict(m, attendance=[clean(a) for a in m["attendance"]]) for m in facts["meetings"]]
     return out
 
 
-def verified_subset(facts: dict) -> dict:
-    rcs = [r for r in facts["roll_calls"] if is_verified(r)]
-    mos = [m for m in facts["motions"] if is_verified(m)]
-    keep_refs = {r["id"] for r in rcs} | {m["id"] for m in mos}
-    events = [e for e in facts["item_events"] if e["ref"] is None or e["ref"] in keep_refs]
-    item_ids = {e["item_id"] for e in events} | {r["item_id"] for r in rcs} | {m["item_id"] for m in mos}
+def public_subset(facts: dict, internal: bool = False) -> dict:
+    """What the public pages show: every roll call and motion; motion attribution only as `Index.attribution` allows
+    (the same rule as the pages); attendance only when verified."""
+    from sitegen.views import Index
+
+    ix = Index(facts)
+    mos = []
+    for m in facts["motions"]:
+        att = ix.attribution(m)
+        mos.append(dict(m, confirmed=is_verified(m),
+                        moved_by=m["moved_by"] if internal or att["mover"] else None,
+                        seconded_by=m["seconded_by"] if internal or att["seconder"] else None))
     meetings = []
     for m in facts["meetings"]:
         m = dict(m)
         if not is_verified(m):
             m["attendance"] = []
         meetings.append(m)
-    rcs = [dict(r, motion_id=r["motion_id"] if r["motion_id"] in keep_refs else None) for r in rcs]
     out = dict(facts)
-    out.update(meetings=meetings, roll_calls=rcs, motions=mos, item_events=events,
-               items=[i for i in facts["items"] if i["id"] in item_ids])
+    out.update(meetings=meetings, motions=mos)
     return out
 
 
@@ -74,19 +85,19 @@ def tables(facts: dict, all_facts: dict, internal: bool = False) -> dict[str, st
         s = src[source_id]
         return {"source_url": s["url"], "source_sha256": s["sha256"], "page": page, "fetched_at": s["fetched_at"]}
 
-    held = {}
+    unconfirmed = {}
     for r in all_facts["roll_calls"]:
         if not is_verified(r):
-            held[r["meeting_id"]] = held.get(r["meeting_id"], 0) + 1
+            unconfirmed[r["meeting_id"]] = unconfirmed.get(r["meeting_id"], 0) + 1
     names = {o["id"]: o["name"] for o in facts["officials"]}
     out = {}
     out["officials"] = _csv([dict(o, aliases="; ".join(o["aliases"])) for o in facts["officials"]],
                             ["id", "name", "surname", "given", "title", "aliases"])
-    out["meetings"] = _csv([dict(m, held_back_roll_calls=held.get(m["id"], 0),
+    out["meetings"] = _csv([dict(m, unconfirmed_roll_calls=unconfirmed.get(m["id"], 0),
                                  attendance_verified=is_verified(m), **cite(m["source_id"], 1))
                             for m in facts["meetings"]],
                            ["id", "body", "date", "kind", "attendance_status", "attendance_verified",
-                            "stated_absent_count", "held_back_roll_calls"] + SRC_COLS)
+                            "stated_absent_count", "unconfirmed_roll_calls"] + SRC_COLS)
     out["attendance"] = _csv([dict(a, meeting_id=m["id"], date=m["date"], official_name=names.get(a["official_id"]),
                                    fact_id=f"{m['id']}/att/{a['official_id']}", **cite(m["source_id"], a["page"]))
                               for m in facts["meetings"] for a in m["attendance"]],
@@ -95,20 +106,21 @@ def tables(facts: dict, all_facts: dict, internal: bool = False) -> dict[str, st
     out["roll_calls"] = _csv([dict(r, yes=(r["stated_tally"] or {}).get("yes"), no=(r["stated_tally"] or {}).get("no"),
                                    abstain=(r["stated_tally"] or {}).get("abstain"), **cite(r["source_id"], r["page"]))
                               for r in facts["roll_calls"]],
-                             ["id", "meeting_id", "item_id", "motion_id", "outcome"] + (["outcome_text"] if internal else []) + ["yes", "no",
-                              "abstain"] + SRC_COLS)
+                             ["id", "meeting_id", "item_id", "motion_id", "confirmed", "outcome"]
+                             + (["outcome_text"] if internal else []) + ["yes", "no", "abstain"] + SRC_COLS)
     out["votes"] = _csv([dict(v, fact_id=f"{r['id']}/{v['official_id']}", roll_call_id=r["id"],
                               meeting_id=r["meeting_id"], item_id=r["item_id"],
                               official_name=names.get(v["official_id"]), **cite(r["source_id"], r["page"]))
                          for r in facts["roll_calls"] for v in r["votes"]],
                         ["fact_id", "roll_call_id", "meeting_id", "item_id", "official_id", "official_name"]
-                        + (["raw_name"] if internal else []) + ["value"] + (["raw_value"] if internal else []) + SRC_COLS)
+                        + (["raw_name"] if internal else []) + ["value"] + (["raw_value"] if internal else [])
+                        + ["confirmed"] + SRC_COLS)
     out["motions"] = _csv([dict(m, moved_by=(m["moved_by"] or {}).get("official_id"),
                                 seconded_by=(m["seconded_by"] or {}).get("official_id"),
                                 moved_by_raw=(m["moved_by"] or {}).get("raw_name"),
                                 seconded_by_raw=(m["seconded_by"] or {}).get("raw_name"),
                                 **cite(m["source_id"], m["page"])) for m in facts["motions"]],
-                          ["id", "meeting_id", "item_id", "type_label", "moved_by", "seconded_by"]
+                          ["id", "meeting_id", "item_id", "type_label", "confirmed", "moved_by", "seconded_by"]
                           + (["text", "moved_by_raw", "seconded_by_raw"] if internal else []) + SRC_COLS)
     first = {}
     for e in sorted(facts["item_events"], key=lambda e: (e["date"], e["page"], e["order"])):
@@ -127,7 +139,7 @@ def tables(facts: dict, all_facts: dict, internal: bool = False) -> dict[str, st
 def export(facts: dict, out_dir: Path, internal: bool = False) -> list[Path]:
     out_dir = Path(out_dir) / "data"
     out_dir.mkdir(parents=True, exist_ok=True)
-    sub = strip_raw(verified_subset(facts), internal)
+    sub = strip_raw(public_subset(facts, internal), internal)
     written = []
     p = out_dir / "facts.json"
     p.write_text(json.dumps(sub, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")

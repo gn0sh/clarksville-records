@@ -2,7 +2,8 @@
 
 Neutrality (N1-N3): there is one function per page type, used for every official, meeting and item. Nothing here
 takes an official-specific flag, ranks by a count, or derives a label other than the fixed mappings in config.py.
-Only verified facts reach a public page; unverified facts appear only in `review()`.
+Invariant: held-back counts (architecture): verified roll calls are "confirmed"; unverified ones are shown too, marked
+"*" with a link to the source page, and are never added to a confirmed count. Raw OCR text never reaches a public page.
 """
 from __future__ import annotations
 
@@ -22,14 +23,16 @@ def plural(n: int, one: str, many: str) -> str:
 
 
 def vote_label(value: str, raw_value: str) -> str:
-    """N2: one mapping. `other` keeps the minutes' own wording."""
+    """N2: one mapping. `other` shows the minutes' wording only when it is one of the fixed words in config
+    (raw-ocr-leak/vote-raw-value: raw_value is OCR text); anything else is plain "Other"."""
     if value == "yes":
         return "Yes"
     if value == "no":
         return "No"
     if value == "abstain":
         return "Abstain"
-    return f"Other: {raw_value}"
+    word = config.OTHER_VOTE_WORDS.get(" ".join(re.sub(r"[^a-z ]", " ", raw_value.casefold()).split()))
+    return f"Other: {word}" if word else "Other"
 
 
 def name_key(o: dict) -> tuple:
@@ -75,7 +78,13 @@ class Index:
         self.events_by_item: dict[str, list] = defaultdict(list)
         for e in facts["item_events"]:
             self.events_by_item[e["item_id"]].append(e)
-        self.rc_by_motion = {r["motion_id"]: r for r in facts["roll_calls"] if r["motion_id"] and is_verified(r)}
+        # A motion's roll call: the confirmed one when there is one, otherwise an unconfirmed one (shown marked).
+        self.rc_by_motion = {}
+        for r in sorted(facts["roll_calls"], key=is_verified):
+            if r["motion_id"]:
+                self.rc_by_motion[r["motion_id"]] = r
+        self.unconfirmed_rc_motions = {r["motion_id"] for r in facts["roll_calls"]
+                                       if r["motion_id"] and not is_verified(r)}
         self.coverage = facts["coverage"]
         self.fixture = bool(facts.get("fixture"))
 
@@ -96,27 +105,34 @@ class Index:
             absent = sum(1 for a in m["attendance"] if a["status"] == "absent" and a["official_id"] not in voted)
             if absent:
                 parts.append(f"{absent} absent")
-        return {"label": config.OUTCOME_LABELS[rc["outcome"]], "tally": ", ".join(parts)}
+        return {"label": config.OUTCOME_LABELS[rc["outcome"]], "tally": ", ".join(parts),
+                "confirmed": is_verified(rc), "src": self.src(rc["source_id"], rc["page"])}
+
+    def attribution(self, mo: dict) -> dict:
+        """Who moved and seconded a motion, as shown everywhere (invariant rule 6). Resolved officials only, never the
+        raw OCR names. Returns {"mover", "seconder"} as person dicts or None, and "star".
+        - Verified motion: whichever names resolve, unstarred.
+        - Unverified motion: both names only when both resolve to two different officials and a roll call on this
+          motion is shown as unconfirmed; then starred. Otherwise nothing ("Attribution under review")."""
+        mover, seconder = self.resolved_person(mo["moved_by"]), self.resolved_person(mo["seconded_by"])
+        if is_verified(mo):
+            return {"mover": mover, "seconder": seconder, "star": False}
+        if (mover and seconder and mo["moved_by"]["official_id"] != mo["seconded_by"]["official_id"]
+                and mo["id"] in self.unconfirmed_rc_motions):
+            return {"mover": mover, "seconder": seconder, "star": True}
+        return {"mover": None, "seconder": None, "star": False}
 
     def motion_for(self, rc: dict) -> dict:
-        """What a roll call may say about its motion: the verbatim text only when the motion is verified, otherwise
-        just the motion's type in plain words (the template adds the fixed attribution sentence)."""
+        """What a roll call may say about its motion: the motion's type in plain words (never its sentence) and
+        'Moved by A, seconded by B' from the resolved officials' display names, starred when unconfirmed."""
         mo = self.motions.get(rc["motion_id"]) if rc["motion_id"] else None
         if mo is None:
-            return {"motion_text": None, "motion_label": None, "motion_by": None}
-        return {"motion_text": None, "motion_label": motion_type_label(mo["text"]),
-                "motion_by": None if not is_verified(mo) else self.moved_seconded(mo)}
-
-    def moved_seconded(self, mo: dict) -> str | None:
-        """'Moved by A, seconded by B' from the resolved officials' display names, never the raw OCR names."""
-        names = []
-        for key in ("moved_by", "seconded_by"):
-            ref = mo.get(key)
-            o = self.officials.get(ref["official_id"]) if ref and ref.get("official_id") else None
-            names.append(o["name"] if o else None)
-        parts = [f"{w} by {n}" for w, n in zip(("Moved", "seconded"), names) if n]
+            return {"motion_text": None, "motion_label": None, "motion_by": None, "motion_by_star": False}
+        att = self.attribution(mo)
+        parts = [f"{w} by {p['name']}" for w, p in (("Moved", att["mover"]), ("seconded", att["seconder"])) if p]
         out = ", ".join(parts)
-        return (out[0].upper() + out[1:]) if out else None
+        return {"motion_text": None, "motion_label": motion_type_label(mo["text"]),
+                "motion_by": (out[0].upper() + out[1:]) if out else None, "motion_by_star": att["star"]}
 
     # -- generic builders ------------------------------------------------------------------------------------
     def src(self, source_id: str, page: int) -> dict:
@@ -201,63 +217,51 @@ def officials_index(facts) -> dict:
     }
 
 
-def held_attribution(ix: Index) -> dict[str, frozenset | None]:
-    """Invariant: held-back counts (architecture). For every unverified roll call: the set of officials it counts for,
-    or None when it goes into the one uniform clause.
-    - The meeting's attendance is shown (extracted and verified) and lists at least one official: it counts for every
-      official listed there, present or absent, and for no one else.
-    - Otherwise (attendance not extracted, under review, or listing no one): None.
-    Names are never matched here. Only the verified attendance's resolved ids place a person at a meeting, so two
-    officials listed at the same meeting always get the same held roll calls from it."""
-    out: dict[str, frozenset | None] = {}
+VOTE_VALUES = ("yes", "no", "abstain", "other")
+VOTE_WORDS = {"yes": "Yes", "no": "No", "abstain": "Abstain", "other": "Other"}
+
+
+def vote_counts(ix: Index) -> tuple[dict, int]:
+    """Invariant: held-back counts. Returns ({official_id: {"confirmed": {value: n}, "unconfirmed": {value: n}}},
+    unmatched). Each vote is counted exactly once: under its resolved official_id (confirmed when its roll call is
+    verified, unconfirmed otherwise), or in the site-wide unmatched count. Names are never matched here."""
+    counts: dict[str, dict] = {}
+    unmatched = 0
     for rc in ix.facts["roll_calls"]:
-        if is_verified(rc):
-            continue
-        m = ix.meetings[rc["meeting_id"]]
-        listed = frozenset(a["official_id"] for a in m["attendance"]
-                           if a["official_id"] in ix.officials) if attendance_shown(m) else frozenset()
-        out[rc["id"]] = listed or None
-    return out
-
-
-def held_counts(ix: Index) -> tuple[dict, int]:
-    """Returns ({official_id: held roll calls attributed to them}, uniform count). Every held roll call is in exactly
-    one of the two parts: the per-official counts (once for each listed official) or the uniform count."""
-    held: dict[str, int] = defaultdict(int)
-    uniform = 0
-    for people in held_attribution(ix).values():
-        if people is None:
-            uniform += 1
-        for oid in people or ():
-            held[oid] += 1
-    return held, uniform
+        part = "confirmed" if is_verified(rc) else "unconfirmed"
+        for v in rc["votes"]:
+            oid = v["official_id"]
+            if not oid or oid not in ix.officials:
+                unmatched += 1
+                continue
+            c = counts.setdefault(oid, {"confirmed": dict.fromkeys(VOTE_VALUES, 0),
+                                        "unconfirmed": dict.fromkeys(VOTE_VALUES, 0)})
+            c[part][v["value"]] += 1
+    return counts, unmatched
 
 
 def totals_sentences(ix: Index, official_id: str) -> list[str]:
-    """N3/P4/AC2.3: four fixed sentences, same wording and order for everyone. Only the numbers differ."""
+    """N3/P4/AC2.3: five fixed sentences, same wording and order for everyone. Only the numbers differ."""
     cov = ix.coverage
     listed = [m for m in ix.facts["meetings"]
               if attendance_shown(m) and any(a["official_id"] == official_id for a in m["attendance"])]
     absent = sum(1 for m in listed
                  if any(a["official_id"] == official_id and a["status"] == "absent" for a in m["attendance"]))
-    held, uniform = held_counts(ix)
-    held_rc = held.get(official_id, 0)
+    counts, unmatched = vote_counts(ix)
+    zero = dict.fromkeys(VOTE_VALUES, 0)
+    c = counts.get(official_id, {"confirmed": zero, "unconfirmed": zero})
+    confirmed = ", ".join(f"{c['confirmed'][k]} {VOTE_WORDS[k]}" for k in VOTE_VALUES)
+    unconfirmed = ", ".join(f"{c['unconfirmed'][k]} {VOTE_WORDS[k]}*" for k in VOTE_VALUES)
     states = [attendance_state(m) for m in ix.facts["meetings"]]
     not_extracted = states.count("not_extracted")
     under_review = states.count("under_review")
-    held_sentence = (
-        f"{held_rc} {plural(held_rc, 'roll call', 'roll calls')} in this period "
-        f"{plural(held_rc, 'is', 'are')} not shown because {plural(held_rc, 'it is', 'they are')} under review.")
-    if uniform:
-        # A site-wide number: the same clause, with the same number, on every official's page.
-        held_sentence += (
-            f" A further {uniform} {plural(uniform, 'roll call', 'roll calls')} under review "
-            f"{plural(uniform, 'is', 'are')} at meetings whose attendance is not shown, and "
-            f"{plural(uniform, 'is', 'are')} not counted for any one member.")
     return [
         f"Recorded absent at {absent} of {len(listed)} meetings with an extracted attendance section, "
         f"{cov['from']} to {cov['to']}.",
-        held_sentence,
+        f"Roll call votes, {cov['from']} to {cov['to']}: {confirmed} confirmed; {unconfirmed} not confirmed.",
+        # A site-wide number: the same sentence, with the same number, on every official's page.
+        f"{unmatched} {plural(unmatched, 'vote', 'votes')} in this period {plural(unmatched, 'has', 'have')} a name "
+        f"that could not be matched to an official and {plural(unmatched, 'is', 'are')} not counted for any member.",
         f"{not_extracted} {plural(not_extracted, 'meeting', 'meetings')} in this period "
         f"{plural(not_extracted, 'has', 'have')} no extracted attendance section and "
         f"{plural(not_extracted, 'is', 'are')} not counted.",
@@ -278,20 +282,20 @@ def official(official_id: str, facts) -> dict:
             "type": kind, "type_label": config.TYPE_LABELS[kind], "date": m["date"], "year": m["date"][:4],
             "meeting_label": ix.meeting_label(m), "meeting_href": f"meetings/{meeting_id}.html{anchor}",
             "fact_id": fact_id, "src": ix.src(source_id, page), "page": page,
-            "item": None, "motion_text": None, "motion_label": None, "motion_by": None, "record": "", "outcome": None, "pos": 0,
+            "item": None, "motion_text": None, "motion_label": None, "motion_by": None, "motion_by_star": False,
+            "record": "", "outcome": None, "pos": 0, "confirmed": True,
         }
 
     for rc in ix.facts["roll_calls"]:
-        if not is_verified(rc):
-            continue
         for v in rc["votes"]:
-            if v["official_id"] != official_id:
+            if v["official_id"] != official_id:  # resolved id only: an unmatched vote is on no official's page
                 continue
             r = base("vote", rc["meeting_id"], f"{rc['id']}/{official_id}", rc["source_id"], rc["page"],
                      f"#{rc['id']}")
             r["item"] = ix.item_ref(rc["item_id"])
             r.update(ix.motion_for(rc))
             r["record"] = vote_label(v["value"], v["raw_value"])
+            r["confirmed"] = is_verified(rc)
             r["outcome"] = ix.outcome(rc)
             r["pos"] = ix.position(rc)[1]
             rows.append(r)
@@ -307,14 +311,15 @@ def official(official_id: str, facts) -> dict:
             rows.append(r)
 
     for mo in ix.facts["motions"]:
-        if not is_verified(mo):
-            continue
-        for role, kind, ref in (("moved", "moved", mo["moved_by"]), ("seconded", "seconded", mo["seconded_by"])):
-            if ref is None or ref["official_id"] != official_id:
+        att = ix.attribution(mo)  # the same rule as the meeting and item pages
+        for role, kind, ref, shown in (("moved", "moved", mo["moved_by"], att["mover"]),
+                                       ("seconded", "seconded", mo["seconded_by"], att["seconder"])):
+            if shown is None or ref["official_id"] != official_id:
                 continue
             r = base(kind, mo["meeting_id"], f"{mo['id']}/{role}", mo["source_id"], mo["page"], f"#{mo['id']}")
             r["item"] = ix.item_ref(mo["item_id"])
             r["record"] = motion_type_label(mo["text"])  # the type only, never the minutes' sentence
+            r["confirmed"] = not att["star"]
             rc = ix.rc_by_motion.get(mo["id"])
             if rc:
                 r["outcome"] = ix.outcome(rc)
@@ -342,26 +347,29 @@ def official(official_id: str, facts) -> dict:
 
 
 def _vote_rows(ix: Index, rc: dict) -> list[dict]:
-    def key(v):
+    """Members alphabetically; votes whose name did not match come last as "Name not matched" (never the raw name).
+    In an unconfirmed roll call every row is starred."""
+    def key(iv):
+        i, v = iv
         o = ix.officials.get(v["official_id"])
-        return name_key(o) if o else (v["raw_name"].casefold(), "", "")
+        return (0, *name_key(o)) if o else (1, "", "", str(i))
 
+    star = not is_verified(rc)
     return [{"who": ix.person({"official_id": v["official_id"], "raw_name": v["raw_name"]}),
-             "label": vote_label(v["value"], v["raw_value"])} for v in sorted(rc["votes"], key=key)]
+             "label": vote_label(v["value"], v["raw_value"]), "star": star}
+            for _, v in sorted(enumerate(rc["votes"]), key=key)]
 
 
 def _motion_block(ix: Index, mo: dict) -> dict:
-    """A failed motion check holds back the motion's attribution. The minutes' sentence is OCR text that can carry
-    misread names, so when held it is not shown at all: only the motion's type in plain words, and a fixed sentence
-    in place of the two names."""
-    mover, seconder = ix.resolved_person(mo["moved_by"]), ix.resolved_person(mo["seconded_by"])
-    held = not is_verified(mo) or not (mover or seconder)
+    """The minutes' sentence is OCR text that can carry misread names, so it is never shown: only the motion's type
+    in plain words, and the resolved names by `Index.attribution`, or a fixed sentence in their place."""
+    att = ix.attribution(mo)
+    held = not (att["mover"] or att["seconder"])
     return {
         "kind": "motion", "id": mo["id"], "item": ix.item_ref(mo["item_id"]),
         "text": motion_type_label(mo["text"]),
         "attribution_held": held,
-        "moved_by": None if held else mover,
-        "seconded_by": None if held else seconder,
+        "moved_by": att["mover"], "seconded_by": att["seconder"], "star": att["star"],
         "src": ix.src(mo["source_id"], mo["page"]),
     }
 
@@ -369,6 +377,7 @@ def _motion_block(ix: Index, mo: dict) -> dict:
 def _roll_call_block(ix: Index, rc: dict) -> dict:
     return {
         "kind": "roll_call", "id": rc["id"], "item": ix.item_ref(rc["item_id"]),
+        "confirmed": is_verified(rc),
         **ix.motion_for(rc),
         "votes": _vote_rows(ix, rc),
         "outcome": ix.outcome(rc),
@@ -398,18 +407,19 @@ def meeting(meeting_id: str, facts) -> dict:
     motions = [mo for mo in ix.facts["motions"] if mo["meeting_id"] == m["id"]]
     rcs = [rc for rc in ix.facts["roll_calls"] if rc["meeting_id"] == m["id"]]
     shown = [(ix.position(mo), _motion_block(ix, mo)) for mo in motions]
-    shown += [(ix.position(rc), _roll_call_block(ix, rc)) for rc in rcs if is_verified(rc)]
+    shown += [(ix.position(rc), _roll_call_block(ix, rc)) for rc in rcs]
     shown.sort(key=lambda t: t[0])
-    held_rc = sum(1 for rc in rcs if not is_verified(rc))
+    unconfirmed = sum(1 for rc in rcs if not is_verified(rc))
     return {
         "meeting": m, "label": ix.meeting_label(m),
         "kind_label": config.KIND_LABELS[m["kind"]],
         "doc": {"url": src["url"], "kind": src["kind"], "fetched": src["fetched_at"], "pages": src["pages"]},
         "attendance_state": att_state, "attendance": attendance,
         "blocks": [b for _, b in shown],
-        "held_roll_calls": held_rc,
-        "held_roll_calls_text": (f"{held_rc} {plural(held_rc, 'roll call', 'roll calls')} at this meeting "
-                                 f"{plural(held_rc, 'is', 'are')} under review and not shown." if held_rc else ""),
+        "unconfirmed_roll_calls": unconfirmed,
+        "unconfirmed_text": (f"{unconfirmed} {plural(unconfirmed, 'roll call', 'roll calls')} at this meeting "
+                             f"{plural(unconfirmed, 'is', 'are')} not confirmed and marked *."
+                             if unconfirmed else ""),
     }
 
 
@@ -418,22 +428,18 @@ def _event(ix: Index, e: dict) -> dict:
         "id": e["id"], "date": e["date"], "type_label": config.EVENT_TYPE_LABELS[e["type"]], "type": e["type"],
         "label": e["label"], "meeting_href": f"meetings/{e['meeting_id']}.html",
         "meeting_label": ix.meeting_label(ix.meetings[e["meeting_id"]]),
-        "src": ix.src(e["source_id"], e["page"]), "held_back": False, "motion": None, "roll_call": None,
+        "src": ix.src(e["source_id"], e["page"]), "motion": None, "roll_call": None,
     }
     ref = e["ref"]
+    if e["type"] in ("roll_call", "motion"):
+        out["label"] = None  # the event label is the raw OCR sentence (it can carry misread names); the block shows it
     if e["type"] == "roll_call" and ref in ix.roll_calls:
         rc = ix.roll_calls[ref]
-        if " ".join((e["label"] or "").split()) == " ".join(rc["outcome_text"].split()):
-            out["label"] = None  # the event label is the raw outcome sentence; the block shows label and tally
-        if is_verified(rc):
-            out["roll_call"] = _roll_call_block(ix, rc)
-            out["meeting_href"] += f"#{rc['id']}"
-        else:
-            out.update(held_back=True, id=None, label=None)
+        out["roll_call"] = _roll_call_block(ix, rc)  # marked * inside the block when unconfirmed
+        out["meeting_href"] += f"#{rc['id']}"
     elif e["type"] == "motion" and ref in ix.motions:
         mo = ix.motions[ref]
         out["motion"] = _motion_block(ix, mo)  # attribution held inside the block when the motion is unverified
-        out["label"] = None  # the event label is the raw motion sentence; the block shows type and movers
         out["meeting_href"] += f"#{mo['id']}"
     return out
 

@@ -18,12 +18,6 @@
   <p class="muted">{{ it.basis }}</p>
   <ol class="events">
   {% for e in it.events %}
-    {% if e.held_back %}
-    <li class="event held">
-      <p class="event-head"><span class="date">{{ e.date }}</span> <span class="type">{{ e.type_label }}</span></p>
-      <p>1 {{ "roll call" if e.type == "roll_call" else "motion" }} is under review and not shown.</p>
-    </li>
-    {% else %}
     <li class="event fact" data-fact-id="{{ e.id }}">
       <p class="event-head"><span class="date"><a href="{{ root }}{{ e.meeting_href }}">{{ e.date }}</a></span> <span class="type">{{ e.type_label }}</span></p>
       {% if e.label %}<p class="label">{{ e.label }}</p>{% endif %}
@@ -31,7 +25,6 @@
       {% if e.motion %}{{ motion_block(e.motion, root) }}{% endif %}
       <p class="meta">{{ source(e.src) }} <span class="sep" aria-hidden="true">&middot;</span> {{ fact_meta(root, e.id) }}</p>
     </li>
-    {% endif %}
   {% endfor %}
   </ol>
 </section>

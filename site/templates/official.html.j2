@@ -1,5 +1,5 @@
 {% extends "base.html.j2" %}
-{% from "_macros.html.j2" import source, fact_meta, item_link %}
+{% from "_macros.html.j2" import source, fact_meta, item_link, not_confirmed %}
 {% block main %}
 <h1>{{ official.name }}</h1>
 <p class="title-line">{{ official.title }}</p>
@@ -16,6 +16,7 @@
     <li>{{ t }}</li>
   {% endfor %}
   </ul>
+  <p class="muted">* Not confirmed: the page in the minutes was hard to read, so the automatic checks could not confirm it. Each such row below links to the page. Confirmed and not confirmed votes are never added together.</p>
 </section>
 
 <section aria-labelledby="history-h">
@@ -63,10 +64,10 @@
         <td role="cell" data-label="Type"><div>{{ r.type_label }}</div></td>
         <td role="cell" data-label="Item"><div>
           {% if r.item %}{{ item_link(r.item, root) }}{% else %}<a href="{{ root }}{{ r.meeting_href }}">{{ r.meeting_label }}</a>{% endif %}
-          {% if r.motion_label %}<br><small>{{ r.motion_label }}. {% if r.motion_by %}{{ r.motion_by }}.{% else %}Attribution under review.{% endif %}</small>{% endif %}
+          {% if r.motion_label %}<br><small>{{ r.motion_label }}. {% if r.motion_by %}{{ r.motion_by }}{% if r.motion_by_star %}*{% endif %}.{% else %}Attribution under review.{% endif %}</small>{% endif %}
         </div></td>
-        <td role="cell" data-label="Record"><div>{{ r.record }}</div></td>
-        <td role="cell" data-label="Outcome"><div>{% if r.outcome %}{{ r.outcome.label }}<br><small>{{ r.outcome.tally }}</small>{% else %}<span class="muted">Not shown</span>{% endif %}</div></td>
+        <td role="cell" data-label="Record"><div>{{ r.record }}{% if not r.confirmed %}*<br><small>{{ not_confirmed(r.src) }}</small>{% endif %}</div></td>
+        <td role="cell" data-label="Outcome"><div>{% if r.outcome %}{{ r.outcome.label }}{% if not r.outcome.confirmed %}*{% endif %}<br><small>{{ r.outcome.tally }}</small>{% if r.confirmed and not r.outcome.confirmed %}<br><small>{{ not_confirmed(r.outcome.src) }}</small>{% endif %}{% else %}<span class="muted">Not shown</span>{% endif %}</div></td>
         <td role="cell" data-label="Source"><div>{{ source(r.src) }}<br><small>{{ fact_meta(root, r.fact_id) }}</small></div></td>
       </tr>
     {% else %}

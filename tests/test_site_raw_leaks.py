@@ -105,6 +105,23 @@ def test_internal_export_keeps_raw_fields(tmp_path, facts):
     assert "Qqoutcome" in next(p for p in files if p.name == "roll_calls.csv").read_text(encoding="utf-8")
 
 
+def test_junk_raw_vote_value_never_reaches_public_html(tmp_path, facts):
+    """raw-ocr-leak/vote-raw-value: an `other` vote prints the minutes' wording only from the fixed list; anything else
+    is plain "Other". Confirmed and unconfirmed roll calls alike."""
+    from sitegen.views import vote_label
+    f = copy.deepcopy(facts)
+    for rc in f["roll_calls"]:
+        rc["votes"][0].update(value="other", raw_value="Qqjunk Smitl1 C0mm")
+        rc["votes"][1].update(value="other", raw_value=" recused. ")
+    pages = build_pages(tmp_path, f)
+    for name, html in public(pages).items():
+        assert "Qqjunk" not in html and "Smitl1" not in html, name
+    assert "Other: Recused" in pages[f"meetings/{MEETING_DEC}.html"]
+    assert vote_label("other", "Qqjunk") == "Other"
+    assert [vote_label("other", w) for w in ("Recused", "ABSENT", "Not Voting", "present")] == [
+        "Other: Recused", "Other: Absent", "Other: Not voting", "Other: Present"]
+
+
 def test_public_html_never_prints_outcome_text(tmp_path, facts):
     f = _raw_facts(facts)
     pages = build_pages(tmp_path, f)

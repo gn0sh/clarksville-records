@@ -62,28 +62,25 @@ def test_attendance_totals_match_meeting_pages(pages, facts):
         assert (int(m.group(1)), int(m.group(2))) == (absent, listed), o["id"]
 
 
-def test_unverified_facts_only_on_review_page(pages, facts):
-    # Unverified motions are not secret: only their attribution is held back (tests/test_site_review_fixes.py).
-    secret = []
-    for f in facts["roll_calls"]:
-        if f["verification"]["status"] == "unverified":
-            secret.append(f["id"])
-            secret += [e["id"] for e in facts["item_events"] if e["ref"] == f["id"]]
-    for m in facts["meetings"]:
-        if m["verification"]["status"] == "unverified":
-            secret.append(f"{m['id']}/att")
-    assert secret
-    for name, html in pages.items():
-        for s in secret:
-            if name == "review.html":
-                continue
-            assert s not in html, f"{name} shows unverified fact {s}"
-    assert all(s in pages["review.html"] for s in secret if not s.startswith("ev-"))
-    # Held-back roll call: only a fixed sentence with a count, on the meeting and item pages.
-    assert "1 roll call at this meeting is under review and not shown." in pages["meetings/2024-12-09-formal.html"]
-    assert "1 roll call is under review and not shown." in pages["items/2024.html"]
-    # The unverified roll call's votes (3 yes in the parse) are not in any public page: its tally text is absent.
-    assert "parsed 3 yes" not in "".join(v for k, v in pages.items() if k != "review.html")
+def test_unverified_roll_calls_are_shown_marked(pages, facts):
+    """CEO decision 2026-11-07: an unverified roll call is shown on its meeting page, item page and each resolved
+    voter's page, marked "Not confirmed" with a link to the exact page; still listed on review.html."""
+    note = "Not confirmed: this page was hard to read."
+    unverified = [r for r in facts["roll_calls"] if r["verification"]["status"] == "unverified"]
+    assert unverified
+    src = {s["id"]: s for s in facts["sources"]}
+    for rc in unverified:
+        link = f'href="{src[rc["source_id"]]["url"]}#page={rc["page"]}"'
+        meeting = pages[f"meetings/{rc['meeting_id']}.html"]
+        assert f'id="{rc["id"]}"' in meeting and note in meeting and link in meeting
+        assert "1 roll call at this meeting is not confirmed and marked *." in meeting
+        for e in (e for e in facts["item_events"] if e["ref"] == rc["id"]):
+            assert f'data-fact-id="{e["id"]}"' in pages["items/2024.html"]
+        for v in rc["votes"]:
+            page = pages[f"officials/{v['official_id']}.html"]
+            assert f'data-fact-id="{rc["id"]}/{v["official_id"]}"' in page and note in page and link in page
+        assert rc["id"] in pages["review.html"]
+        assert rc["outcome_text"] not in "".join(v for k, v in pages.items() if k != "review.html")
 
 
 def test_internal_links_resolve(built, pages):

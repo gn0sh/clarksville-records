@@ -44,27 +44,7 @@ def totals(facts):
     return {o["id"]: views.totals_sentences(ix, o["id"]) for o in facts["officials"]}
 
 
-def held_number(sentences):
-    return int(re.match(r"(\d+) roll call", sentences[1]).group(1))
-
-
-# --- neutrality/held-count-by-resolved-id --------------------------------------------------------------------------
-
-
-def test_held_count_uses_attendance_not_vote_ids(facts):
-    """neutrality/held-count-by-resolved-id: a vote whose name failed to resolve still counts for the official the
-    meeting's attendance lists (G4 eligibility), so OCR misses do not lower one person's held count."""
-    f = copy.deepcopy(facts)
-    for v in by_id(f, "roll_calls", RC_HELD)["votes"]:
-        if v["official_id"] == "a-example":
-            v.update(official_id=None, raw_name="A. Exarnple")
-    t = totals(f)
-    # Everyone the December attendance lists (present or absent) is eligible for the held roll call there.
-    assert {oid: held_number(s) for oid, s in t.items()} == {o["id"]: 1 for o in f["officials"]}
-    assert t["a-example"][1] == "1 roll call in this period is not shown because it is under review."
-
-
-# The rest of the held-count rule (neutrality/held-count) is covered in tests/test_held_counts.py.
+# The confirmed / not confirmed count rule (neutrality/held-count) is covered in tests/test_held_counts.py.
 
 
 # --- neutrality/under-review-mislabelled --------------------------------------------------------------------------
@@ -78,7 +58,7 @@ def test_not_extracted_and_under_review_are_separate_sentences(tmp_path, facts):
     t = totals(f)
     not_ext = "1 meeting in this period has no extracted attendance section and is not counted."
     review = "1 meeting in this period has an attendance section that is under review and is not counted."
-    assert {(s[2], s[3]) for s in t.values()} == {(not_ext, review)}
+    assert {(s[3], s[4]) for s in t.values()} == {(not_ext, review)}
     pages = build_pages(tmp_path, f)
     for o in f["officials"]:
         html = pages[f"officials/{o['id']}.html"]
@@ -89,8 +69,8 @@ def test_not_extracted_and_under_review_are_separate_sentences(tmp_path, facts):
 def test_fixture_counts_each_attendance_state(facts):
     """neutrality/under-review-mislabelled: the fixture has one not-extracted meeting and none under review."""
     s = totals(facts)["a-example"]
-    assert s[2].startswith("1 meeting in this period has no extracted attendance section")
-    assert s[3].startswith("0 meetings in this period have an attendance section that is under review")
+    assert s[3].startswith("1 meeting in this period has no extracted attendance section")
+    assert s[4].startswith("0 meetings in this period have an attendance section that is under review")
 
 
 # --- verified-gate/motion-over-hidden ------------------------------------------------------------------------------
