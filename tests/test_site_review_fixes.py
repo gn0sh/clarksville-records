@@ -97,7 +97,8 @@ def test_fixture_counts_each_attendance_state(facts):
 
 
 def test_failed_motion_check_holds_back_only_attribution(tmp_path, facts):
-    """verified-gate/motion-over-hidden: the motion text and its verified roll call stay; only Moved/Seconded go."""
+    """verified-gate/motion-over-hidden + motion-text-names: the verified roll call stays; the unverified motion shows
+    only its type in plain words, never its sentence; Moved/Seconded go."""
     f = copy.deepcopy(facts)
     mo = by_id(f, "motions", MO_SHOWN)
     unverify(mo, "seconder_resolves")
@@ -108,17 +109,19 @@ def test_failed_motion_check_holds_back_only_attribution(tmp_path, facts):
     meeting = parse(pages[f"meetings/{MEETING_DEC}.html"])
     block = next(n for n in meeting.walk() if n.attrs.get("id") == MO_SHOWN)
     text = " ".join(block.all_text().split())
-    assert mo["text"] in text
+    assert "Motion to approve" in text and mo["text"] not in text
     assert text.count("Attribution under review") == 2
     rc_block = next(n for n in meeting.walk() if n.attrs.get("id") == RC_SHOWN)
-    assert mo["text"] in rc_block.all_text()
+    assert "Motion to approve" in rc_block.all_text() and "Attribution under review" in rc_block.all_text()
+    assert mo["text"] not in rc_block.all_text()
 
     items = pages["items/2024.html"]
-    assert mo["text"] in items and "Attribution under review" in items
-    # The vote rows for the verified roll call still show the motion text verbatim.
+    assert mo["text"] not in items and "Attribution under review" in items
+    # The vote rows for the verified roll call show the type and the fixed sentence, not the raw motion text.
     a_page = pages["officials/a-example.html"]
     row = next(n for n in parse(a_page).walk() if n.attrs.get("data-fact-id") == f"{RC_SHOWN}/a-example")
-    assert mo["text"] in row.all_text()
+    assert "Motion to approve" in row.all_text() and "Attribution under review" in row.all_text()
+    assert mo["text"] not in row.all_text()
     # No Moved/Seconded rows from the held motion, and the unresolved names appear nowhere public.
     for name, html in public(pages).items():
         assert f"{MO_SHOWN}/moved" not in html and f"{MO_SHOWN}/seconded" not in html, name
@@ -203,7 +206,7 @@ def test_dangling_reference_fails_the_build(tmp_path, facts, mutate, missing):
 
 def test_unverified_text_fields_appear_on_no_public_page(tmp_path, facts):
     """Unverified roll calls' outcome text, raw names and raw vote wording, and the raw names of attendance under
-    review, are on no public page. (Unverified motion text is shown on purpose: only the attribution is held.)"""
+    review, are on no public page."""
     f = copy.deepcopy(facts)
     rc = by_id(f, "roll_calls", RC_HELD)
     rc["outcome_text"] = "Qq held outcome text"
@@ -268,3 +271,39 @@ def test_source_link_names_the_document_kind(tmp_path, facts):
     nov = pages[f"meetings/{MEETING_NOV}.html"]
     assert "(opens the agenda PDF in a new tab)" in nov and "(opens the minutes PDF in a new tab)" not in nov
     assert "(opens the minutes PDF in a new tab)" in pages[f"meetings/{MEETING_DEC}.html"]
+
+
+# --- verified-gate/motion-text-names: no raw OCR sentence of an unverified motion, no raw outcome text -------------
+
+
+def test_no_unverified_motion_text_and_no_outcome_text_on_any_public_page(tmp_path, facts):
+    """Every public page: no raw sentence of an unverified motion (it can carry misread names) and no roll call's
+    outcome_text. The outcome reads Passed/Failed/Other with a tally counted from the votes. Both stay on review.html."""
+    f = copy.deepcopy(facts)
+    for mo in f["motions"]:
+        unverify(mo, "seconder_resolves")
+        mo["text"] = f"On Motion to Adopt by Commissioner Qq{mo['id']} Beat, seconded by Commissioner Smitl1, the foregoing"
+    for rc in f["roll_calls"]:
+        rc["outcome_text"] = f"Qqoutcome Com\u00b1issionerGannon {rc['id']}"
+    pages = build_pages(tmp_path, f)
+    pub = public(pages)
+    for name, html in pub.items():
+        assert "Beat, seconded" not in html and "Smitl1" not in html and "Qqoutcome" not in html, name
+        for mo in f["motions"]:
+            assert mo["text"] not in html, name
+        for rc in f["roll_calls"]:
+            assert rc["outcome_text"] not in html, name
+    assert "Motion to adopt" in pages[f"meetings/{MEETING_DEC}.html"]
+    assert "Qqoutcome" in pages["review.html"] and "Smitl1" in pages["review.html"]
+
+
+def test_outcome_shows_label_and_tally_counted_from_votes(tmp_path, facts):
+    f = copy.deepcopy(facts)
+    rc = by_id(f, "roll_calls", RC_SHOWN)
+    yes = sum(v["value"] == "yes" for v in rc["votes"])
+    no = sum(v["value"] == "no" for v in rc["votes"])
+    rc["outcome_text"] = "Qqoutcome raw"
+    pages = build_pages(tmp_path, f)
+    block = next(n for n in parse(pages[f"meetings/{MEETING_DEC}.html"]).walk() if n.attrs.get("id") == RC_SHOWN)
+    text = " ".join(block.all_text().split())
+    assert f"Passed ({yes} yes, {no} no" in text and "Qqoutcome" not in text
