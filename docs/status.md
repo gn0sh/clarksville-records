@@ -31,6 +31,10 @@
 | 2026-11-07 | code-reviewer | opus/high | delta re-review of consent fix 92213e8 | approve; nit: identical same-mover reconsideration would merge (no live case) |
 | 2026-11-07 | frontend-engineer | sonnet/medium | verified motions show type + resolved Moved/Seconded names (0719820) | done, 262 tests pass |
 | 2026-11-07 | code-reviewer | sonnet/medium | review 0719820 | request changes: leak-path/data-downloads, leak-path/raw-name-fallback, partial attribution, tests |
+| 2026-11-07 | code-reviewer | sonnet/medium | delta re-review of leak fixes 07f990e | request changes: raw-ocr-leak/vote-raw-value |
+| 2026-11-07 | ux-designer | opus/medium | visual refresh spec | done, docs/design/visual-refresh.md |
+| 2026-11-07 | frontend-engineer | opus/high | unconfirmed votes shown with asterisk + invariant rewrite (a991a10) | done, 270 pass |
+| 2026-11-07 | code-reviewer | opus/high | review a991a10 | request changes: 1 must-fix raw-ocr-leak/verification-detail; neutrality/held-count (3rd hit, attribution rule 6: decided unconfirmed motions never show names); raw-ocr-leak/qa-outcome-benign |
 
 ## Decisions
 - 2026-11-07 G1: footer line on every page + About page naming the operator (CEO, card).
