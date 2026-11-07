@@ -351,7 +351,10 @@ EDGE_NOISE = ",.;:'‘’`~|[](){}!\"“”*•=«»"
 # letter, e.g. "¥", "YY", "Y¥" (tesseract reads the scanned Y this way). Mixed letters stay unknown.
 VOTE_GLYPHS = {"y": set("Yy¥"), "n": set("Nn"), "a": set("Aa")}
 TABLE_HEAD = re.compile(r"District\s+Commissioner\s+Vote", re.I)
-TALLY = re.compile(r"Yes\w*\s*[^\w\n]*\s*(\w{1,3})\s*No\w*\s*[^\w\n]*\s*(\w{1,3})\s*Abst\w*\s*[^\w\n]*\s*(\w{1,3})",
+ABSENT_REASON = re.compile(r"ABSENT|absent name not on roster")   # a reading's ABSENT-line problems
+# a count may be blank ("Yeses - 20 Noes -  Abstentions - 1": the clerk printed no number); read_table derives a
+# single blank count from the roster, never a garbled one
+TALLY = re.compile(r"Yes\w*\s*[^\w\n]*\s*(\w{1,3})?\s*No\w*\s*[^\w\n]*\s*(\w{1,3})?\s*Abst\w*\s*[^\w\n]*\s*(\w{1,3})?",
                    re.I)
 ITEM_RE = re.compile(r"(?<![\w-])(\d{2}\s?[-~_—–]\s?[\dIlO]{1,2}\s?[-~_—–]\s?[\dIlO]{1,2}"   # 24-12-1
                      r"|[A-Z]{1,3}\s?-\s?[\dIlO]{1,3}\s?-\s?\d(?:\s?\d){3})(?![\w-])")      # AB-4-2024, CZ-l1-2022, AB-7-2 023
@@ -586,14 +589,15 @@ def read_table(lines: list[str], h: int, nxt: int, roster: list[str], source: st
     rows_end = tally_i if tally_i is not None else min(nxt, h + 10)
     rows = [l for l in lines[h + 1:rows_end] if l.strip() and not l.startswith("=====")]
     tally = None
+    g = vals = None
     if tally_i is None:
         reasons.append("stated tally not found")
     else:
         g = TALLY.search(lines[tally_i]).groups()
-        vals = tuple(_int(x) for x in g)
-        if None in vals:
+        vals = tuple(_int(x) if x is not None else None for x in g)
+        if any(x is not None and v is None for x, v in zip(g, vals)) or sum(x is None for x in g) > 1:
             reasons.append(f"tally unreadable {g}")
-        else:
+        elif None not in vals:
             tally = vals
     last = tally_i if tally_i is not None else rows_end
     absent: list[str] = []
@@ -627,6 +631,17 @@ def read_table(lines: list[str], h: int, nxt: int, roster: list[str], source: st
         break
     if not found_absent:
         reasons.append("ABSENT line not found")
+    if tally is None and g is not None and sum(x is None for x in g) == 1 and not any(
+            x is not None and v is None for x, v in zip(g, vals)):
+        # Written rule: exactly one count printed blank. With every present member voting once (checked below), the
+        # three counts sum to the roster minus the absent, so the blank one is that remainder. Derived only from a
+        # read ABSENT line whose names all resolve; a garbled count is never derived.
+        if found_absent and roster and not any(ABSENT_REASON.search(x) for x in reasons):
+            rest = len(roster) - len(set(absent)) - sum(v for v in vals if v is not None)
+            if rest >= 0:
+                tally = tuple(rest if v is None else v for v in vals)
+        if tally is None:
+            reasons.append(f"tally unreadable {g}")
     cells, problems = parse_table_rows(rows, roster)
     reasons.extend(problems)
     clean: dict[str, bool] = {}
@@ -714,9 +729,6 @@ def disagreements(a: Reading, b: Reading) -> list[str]:
     if a.tally and b.tally and a.tally != b.tally:
         out.append(f"sources disagree on stated tally: {a.tally} vs {b.tally}")
     return out
-
-
-ABSENT_REASON = re.compile(r"ABSENT|absent name not on roster")
 
 
 def combine(readings: list[Reading], roster: list[str]) -> Reading | None:

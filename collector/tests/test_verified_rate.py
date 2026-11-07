@@ -122,3 +122,46 @@ def test_outcome_regex_reads_a_comma_phrase_before_by():
     assert list(P.OUTCOME_RE.finditer(ctx))[-1].group(1) == "Adopted"
     # still never a capitalised sentence in between
     assert not list(P.OUTCOME_RE.finditer("was Adopted. The Board then voted by the following roll call vote"))
+
+
+# ------------------------------------------------------------------ blank tally count
+
+ROSTER_SEP2022 = ["Joshua Beal", "David Harper", "Rickey Ray", "Nathan Burkholder", "Jason Knight", "David Shelton",
+                  "Carmelle Chandler", "Michael Lankford", "Autumn Simmons", "Joe Creek", "RashidahLeverett",
+                  "Joe Smith", "Billy Frye", "Jorge Padro", "Tangi Smith", "Ryan Gallant", "Lisa Prichard",
+                  "Jeremiah Walker", "John Gannon", "Chris Rasnic", "Walker Woodruff"]
+
+
+def test_blank_noes_count_is_derived_from_the_roster():
+    """2022-09-12 p12: "Yeses -21 Noes - Abstentions -0" (no number printed for Noes; checked on the page image).
+    Every present member votes once, so the blank count is the roster minus the absent minus the other two."""
+    r = reading("rc_sep2022_p12_blank_noes.txt", "text-layer", ROSTER_SEP2022)
+    assert r.reasons == [], r.reasons
+    assert r.tally == (21, 0, 0) and r.absent == []
+    assert all(v == "Yes" for v in r.votes.values()) and len(r.votes) == 21
+
+
+def _table(tally_line: str, absent_line: str = "ABSENT: None") -> list[str]:
+    return ["District Commissioner Vote", "1  Ann Alpha   Y", "2  Bob Bravo   N", "3  Cy Charlie  ---",
+            tally_line, absent_line]
+
+
+def test_blank_count_rules():
+    roster = ["Ann Alpha", "Bob Bravo", "Cy Charlie"]
+
+    def rd(lines):
+        return P.read_table(lines, 0, len(lines), roster, "text-layer")[0]
+    r = rd(_table("Yeses - 1 Noes - Abstentions - 0", "ABSENT: Cy Charlie (1)"))
+    assert r.tally == (1, 1, 0) and r.reasons == []
+    # two blanks: never derived
+    r = rd(_table("Yeses - 1 Noes - Abstentions -", "ABSENT: Cy Charlie (1)"))
+    assert r.tally is None and any("tally unreadable" in x for x in r.reasons)
+    # a garbled count is not a blank one
+    r = rd(_table("Yeses - S Noes - 1 Abstentions - 0", "ABSENT: Cy Charlie (1)"))
+    assert r.tally is None and any("tally unreadable" in x for x in r.reasons)
+    # an ABSENT line that does not resolve gives nothing to derive from
+    r = rd(_table("Yeses - 1 Noes - Abstentions - 0", "ABSENT: Zed Zulu (1)"))
+    assert r.tally is None
+    # the derived count is still checked: Cy Charlie is absent per the table but the ABSENT line says None
+    r = rd(_table("Yeses - 1 Noes - Abstentions - 0"))
+    assert r.tally == (1, 2, 0) and any(x.startswith("counted") for x in r.reasons)
