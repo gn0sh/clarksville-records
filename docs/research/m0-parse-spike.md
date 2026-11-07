@@ -182,6 +182,8 @@ G4 rule (more than 2x median) flags all eight.
 
 ## Reproduce
 
+(M1 note, 2026-11-07: `spike_fetch` and `run_spike` were replaced by `python -m collector run`; `python -m collector.compare_labels` now reads `data/facts.json`.)
+
 ```
 pip install pytest ruff            # tests and lint only; the collector is stdlib-only
 apt-get install -y poppler-utils tesseract-ocr

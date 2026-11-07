@@ -1,11 +1,10 @@
 """Polite fetcher tests: robots.txt obeyed, 10 s per host, stop on 403/429. No network."""
 import io
-import json
 import urllib.error
 
 import pytest
 
-from collector.fetch import HostBlocked, PoliteFetcher, RobotsDisallowed, cache_download
+from collector.fetch import HostBlocked, HostRefused, PoliteFetcher, ProxyRefused, RobotsDisallowed
 
 
 class FakeResp(io.BytesIO):
@@ -30,6 +29,8 @@ class FakeNet:
         url = req.full_url
         self.calls.append((url, req.get_header("User-agent")))
         status, body = self.routes.get(url, (404, b""))
+        if status == "tunnel":
+            raise urllib.error.URLError(OSError("Tunnel connection failed: 403 Forbidden"))
         if status >= 400:
             raise urllib.error.HTTPError(url, status, "x", {}, io.BytesIO(body))
         return FakeResp(body, status)
@@ -48,9 +49,11 @@ class Clock:
         self.t += s
 
 
-def make(routes):
+def make(routes, proxy_failures=None):
     net, clock = FakeNet(routes), Clock()
-    return PoliteFetcher(opener=net, clock=clock.now, sleep=clock.sleep), net, clock
+    f = PoliteFetcher(opener=net, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: proxy_failures or [],
+                      allowed_hosts=("h.example", "g.example", "clarksvilletn.gov", "cityofclarksville.com"))
+    return f, net, clock
 
 
 def test_robots_404_means_no_rules_and_delay_between_requests():
@@ -84,12 +87,92 @@ def test_403_or_429_stops_the_host(code):
     assert len(net.calls) == n            # no further request to that host
 
 
-def test_cache_download_writes_manifest_and_skips_cached(tmp_path):
-    f, net, _ = make({"https://h.example/m.pdf": (200, b"%PDF-xyz")})
-    man = tmp_path / "manifest.json"
-    e = cache_download(f, "https://h.example/m.pdf", tmp_path / "raw", man, {"label": "M"})
-    assert (tmp_path / "raw" / e["file"]).read_bytes() == b"%PDF-xyz"
-    assert json.loads(man.read_text())[0]["sha256"] == e["sha256"]
+def test_delay_is_never_skipped_across_many_requests_and_hosts():
+    routes = {f"https://h.example/{i}": (200, b"x") for i in range(5)}
+    routes.update({f"https://g.example/{i}": (200, b"x") for i in range(3)})
+    f, net, clock = make(routes)
+    times = {}
+    orig = net.__call__
+
+    def timed(req, timeout):
+        host = req.full_url.split("/")[2]
+        times.setdefault(host, []).append(clock.t)
+        return orig(req, timeout)
+    f.opener = timed
+    for i in range(3):
+        f.get(f"https://h.example/{i}")
+        f.get(f"https://g.example/{i}")
+    for host, ts in times.items():
+        gaps = [b - a for a, b in zip(ts, ts[1:])]
+        assert gaps and min(gaps) >= 10.0, (host, gaps)
+
+
+def test_clarksvilletn_floor_and_robots_crawl_delay_larger_wins():
+    f, _, clock = make({"https://clarksvilletn.gov/robots.txt": (200, b"User-agent: *\nCrawl-delay: 12\n"),
+                        "https://clarksvilletn.gov/AgendaCenter/a": (200, b"x")})
+    f.get("https://clarksvilletn.gov/AgendaCenter/a")
+    assert clock.slept == [12.0]
+    assert f.delay_for("clarksvilletn.gov") == 12.0
+    assert f.delay_for("h.example") == 10.0
+
+
+@pytest.mark.parametrize("url", ["https://cityofclarksville.com/x", "https://www.cityofclarksville.com/robots.txt"])
+def test_cityofclarksville_is_refused_without_any_request(url):
+    f, net, _ = make({})
+    with pytest.raises(HostRefused):
+        f.get(url)
+    assert net.calls == []
+
+
+def test_host_not_on_allowlist_is_refused():
+    f, net, _ = make({})
+    with pytest.raises(HostRefused):
+        f.get("https://elsewhere.example/a")
+    assert net.calls == []
+
+
+def test_proxy_tunnel_refusal_does_not_block_the_host():
+    f, net, _ = make({"https://h.example/a": ("tunnel", b""), "https://h.example/b": (200, b"ok")})
+    with pytest.raises(ProxyRefused):
+        f.get("https://h.example/a")
+    assert "h.example" not in f._blocked
+    assert f.get("https://h.example/b")[1] == b"ok"
+    assert [e["event"] for e in f.log].count("proxy_refused") == 1
+
+
+def test_403_recorded_by_the_proxy_is_a_proxy_refusal_not_a_site_block():
+    rec = [{"ts": "2999-01-01T00:00:00.000Z", "kind": "connect_rejected", "host": "h.example:443",
+            "detail": "gateway answered 403 to CONNECT (policy denial or upstream failure)"}]
+    f, _, _ = make({"https://h.example/a": (403, b"denied"), "https://h.example/b": (200, b"ok")}, rec)
+    with pytest.raises(ProxyRefused):
+        f.get("https://h.example/a")
+    assert f.get("https://h.example/b")[1] == b"ok"
+
+
+def test_unattributed_403_is_the_sites_block():
+    old = [{"ts": "2000-01-01T00:00:00.000Z", "host": "h.example:443", "detail": "gateway answered 403 to CONNECT"}]
+    f, net, _ = make({"https://h.example/a": (403, b"no"), "https://h.example/b": (200, b"x")}, old)
+    with pytest.raises(HostBlocked):
+        f.get("https://h.example/a")
+    with pytest.raises(HostBlocked):
+        f.get("https://h.example/b")
+    assert "https://h.example/b" not in [u for u, _ in net.calls]
+
+
+def test_repeated_proxy_refusals_skip_the_host_for_the_run():
+    f, net, _ = make({f"https://h.example/{i}": ("tunnel", b"") for i in range(5)})
+    for i in range(3):
+        with pytest.raises(ProxyRefused):
+            f.get(f"https://h.example/{i}")
     n = len(net.calls)
-    cache_download(f, "https://h.example/m.pdf", tmp_path / "raw", man)
+    with pytest.raises(ProxyRefused):
+        f.get("https://h.example/4")
     assert len(net.calls) == n
+
+
+def test_server_error_is_retried_once_after_the_delay():
+    f, net, clock = make({"https://h.example/a": (503, b"busy")})
+    status, _, _ = f.get("https://h.example/a")
+    assert status == 503
+    assert [u for u, _ in net.calls].count("https://h.example/a") == 2
+    assert clock.slept == [10.0, 10.0]

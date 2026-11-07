@@ -43,12 +43,18 @@ schema/changes.schema.json one line of data/changes.jsonl (collector -> sitegen)
   (later `clarksvilletn.gov`). `cityofclarksville.com` is hard-denied in code, whatever the allowlist says.
 - Per host: fetch and cache `robots.txt` once per run (`urllib.robotparser`; 404 means allow all, per RFC 9309; any other
   error means stop that host). `can_fetch(UA, url)` is checked before every request.
-- Delay per host = max(robots Crawl-delay, host floor). Floors: `clarksvilletn.gov` 10 s, every other host 5 s.
-  Enforced by one `HostClock` per host with an injectable clock, so tests run without sleeping.
-- User-Agent: `clarksville-records/0.1 (private research preview)`. One plain GET, no header tricks.
-- HTTP 403, 429 or a robots disallow raise `HostBlocked`: the host is skipped for the rest of the run, logged, and
-  never retried by another host, header or proxy (AC4.3). 5xx: one retry after the delay, then logged as failed.
-- Transport is injected (`requests.Session` by default) so tests use a fake.
+- Delay per host = max(robots Crawl-delay, host floor). Floor: 10 s on every host (M1 build, 2026-11-07; was 5 s
+  except `clarksvilletn.gov`). Enforced per host with an injectable clock, so tests run without sleeping.
+- User-Agent: the M0 string `clarksville-records research collector (+https://github.com/gn0sh/clarksville-records;
+  polite, 10s/host)`, unchanged so the sites see one consistent client. One plain GET, no header tricks.
+- HTTP 403 or 429 **from the site** raises `HostBlocked`: the host is skipped for the rest of the run, logged, and
+  never retried by another host, header or proxy (AC4.3). A robots disallow raises `RobotsDisallowed` for that URL.
+  5xx: one retry after the delay, then logged as failed.
+- Sandbox egress proxy refusals are not site blocks: a rejected CONNECT (`Tunnel connection failed: 403`, which the
+  site never sees) or a 403 that the local proxy's status page (`$HTTPS_PROXY/__agentproxy/status`) records for that
+  host since the request started raises `ProxyRefused`; the host is skipped after 3 in one run. Any 403 that cannot
+  be attributed to the proxy is the site's.
+- Transport is injected (stdlib `urllib` opener by default; no `requests` dependency) so tests use a fake.
 
 ### Document store and manifest (`collector/store.py`)
 - Bytes stored at `data/store/<sha256>.pdf`. `data/manifest.json` (committed) has one entry per URL:
@@ -57,14 +63,31 @@ schema/changes.schema.json one line of data/changes.jsonl (collector -> sitegen)
   for the same URL becomes a new source (the old one stays, so old facts keep their citation) and is logged in
   `data/changes.jsonl`. "Last checked" times go only to `build/run-log.json`, so a run with nothing new leaves every
   committed file byte-identical (AC4.5).
-- The store is a cache: if `data/store/` is empty (a fresh container), `fetch` re-downloads politely. At 5 s per
-  request about 60 minutes PDFs take about 5 minutes.
+- The store is a cache: if `data/store/` is empty (a fresh container), `fetch` re-downloads politely. At 10 s per
+  request about 60 minutes PDFs take about 10 minutes. Manifest entries also carry `label` (the index link text).
+- `data/changes.jsonl` lines follow `schema/changes.schema.json` (date, fact_id `src-<sha12>` of the replaced
+  source, field `sha256`, old, new, note, source_url, page null).
 
-### Parser (`collector/parse/`, from M0)
-Contract only; the M0 spike owns the code. `parse_minutes(pdf_path, source) -> ParsedMinutes`, where `ParsedMinutes`
-holds raw fragments in the shapes of `schema/facts.schema.json` but with names as raw strings (`raw_name`), no
-`official_id` and no `verification`. Deterministic: same bytes in, same fragments out. Scanned PDFs with no usable text
-layer return `text_layer: "none"` and no fragments (AC-P4: "not extracted").
+### Parser (`collector/parse.py` from M0, wrapped by `collector/minutes.py`)
+`parse_minutes(pdf_path, source) -> ParsedMinutes` (in `minutes.py`) holds raw fragments with names as raw strings,
+no `official_id` and no fact-level `verification`. Deterministic: same bytes in, same fragments out. Scanned PDFs with
+no usable text layer return `text_layer: "none"` and no fragments (AC-P4: "not extracted").
+- Two readings (M0): text layer first; every roll call that fails P2 gets a tesseract reading of its pages (300 dpi,
+  `--psm 6`), pages OCRed in parallel on all cores (`OMP_THREAD_LIMIT=1` each), cached in `data/ocr/`.
+- Motion type: the motion sentence and the outcome clause are kept verbatim (`motions.text`, `roll_calls.outcome_text`,
+  e.g. "The foregoing Motion to Defer was Approved by the following roll call vote:"), so a Yes on a motion to table,
+  defer or suspend the rules is always shown with that wording, never as a Yes on the resolution. The parser's kind tag
+  (`consent`, `resolution`, `amendment`, `suspend-rules`, `procedural`, `nominations`, `minutes`) is heuristic and is
+  not shown.
+- Consent agenda: the list "... Adopted and Approved as part of the Consent Agenda:" (2023-2024 layout) or a
+  "Consent Agenda" line with comma-separated numbers just above the motion (2020-2022 layout) is paired with the next
+  consent roll call at that meeting. Each listed item, minus items named as pulled or removed, gets a `roll_call`
+  item event whose label is the list's verbatim heading (so it reads as a consent-agenda vote) and whose `ref` is
+  that roll call. The roll call's own item is a per-meeting "Consent Agenda" item whose `other` events list what it
+  covered. A list whose heading cannot be read is not expanded; such roll calls are listed in `build/report.json`
+  (`consent_roll_calls_not_expanded`).
+- Item numbers: an OCR split such as "20-3-1 1" is joined only when the joined number is on that meeting's agenda;
+  otherwise the line gives no number (never guessed).
 
 ### Names and merge rules (`collector/names.py`, `data/names.yml`)
 `data/names.yml` is the roster: one entry per official, curated by the team from the county's published commissioner
@@ -74,9 +97,18 @@ to every official and printed on the About page (AC1.1, G2):
 1. Normalise: NFKC, trim, drop leading titles from a fixed list (`Commissioner`, `Comm.`, `Chairman`, `Chairwoman`,
    `Mayor`, `Mr.`, `Mrs.`, `Ms.`, `Dr.`), drop `.` and `,`, collapse spaces, casefold.
 2. Exact match of the normalised string against each official's normalised name and aliases.
-3. Surname-only match, only when exactly one official on that meeting's roster has that surname.
+3. Surname-only match, only when exactly one official on that meeting's roster has that surname. "J. Smith" (one
+   initial plus surname) matches only when exactly one official on the roster has that surname and initial. Used
+   for Moved/Seconded names only; attendance header names need rule 2.
 4. Anything else is unmatched: the fact fails its name check and is held back. No fuzzy auto-merge, ever. The verifier
    writes edit-distance suggestions to `build/name-candidates.json`; a person adds an alias by PR, which is the log.
+
+Display names (M1, recorded in each entry's `name_source`): the county's commissioner list at
+https://montgomerytn.gov/commission where the person is on it (it lists the current term only, so it covers 12 of the
+2020-2024 commissioners); otherwise the spelling printed in the minutes' attendance header, read by eye from the page
+image (`collector/hand_labels.json` rosters). No terms are recorded yet, so `roster_matches_terms` is not checked.
+Vote-table cells are paired one-to-one with that meeting's header names by the M0 parser (P2); only header names and
+motion names go through rules 1-4.
 
 ### Verifier (`collector/verify.py`)
 Sets `verification.status` to `verified` or `unverified` with a list of named checks, each `ok` true/false.
@@ -144,6 +176,30 @@ Consumers (every one must follow the definitions above; none may place a person 
 - The site's per-official N must equal `g4.per_official[id].held` and the site's U must equal `g4.held_unattributed`
   for the same facts file (a cross-module test once both exist). A large `held_unattributed` means G4 cannot see
   skew there; the `verified_rate >= 0.90` gate (AC-P1) bounds it.
+
+### Run report (`build/report.json`, written by `python -m collector run`)
+```
+{generated_for {coverage, sources},
+ pass,                                   # verified_rate_gate.pass and g4.pass ("review needed" does not block)
+ gates {roll_calls, verified, held_back, held_back_source_error, verified_rate,
+        verified_rate_gate {min, pass},
+        g4 {rule, skew_factor, skew_floor, min_roll_calls, flagged[], pass, status "pass"|"review needed"|"fail",
+            review_needed, uniform_share, uniform_share_review_above (0.25),
+            meetings_attendance_not_shown [{meeting_id, attendance not_extracted|under_review|lists_no_official,
+                                            held_roll_calls[]}],
+            per_official {id: {eligible, held, held_source_error, rate|null, peer_median|null}},
+            held_total, held_unattributed, eligible_unattributed}},
+ held_back_roll_calls [{id, meeting_id, page, source_error, failed[check names]}],
+ meetings_attendance_unverified [], consent_roll_calls_not_expanded [], motions_held_back,
+ documents [{source_id, label, meeting_id, pages, roll_calls, verified, attendance, image_only_pages}],
+ problems []}
+```
+`build/run-log.json`: started_at, finished_at, offline, found, new[], fetched {status: n}, failures[], parsed,
+held_back, facts_changed, fetch_log[]. `build/name-candidates.json`: unmatched raw names with counts, examples and
+edit-distance suggestions (never applied), and every merge in `names.yml`.
+
+Source-document errors (G4): a hold is caused by the source itself when at least two independent readings agree on
+every vote and on the tally and each reports the same member with a vote mark who is on that roll call's ABSENT line.
 
 ### Facts assembly (`collector/facts.py`)
 Writes `data/facts.json` (committed, all facts including unverified, so git history is the change history). Lists are

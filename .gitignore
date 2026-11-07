@@ -5,6 +5,7 @@ data/raw/
 data/text/
 data/ocr/
 data/out/
+data/store/
 build/
 __pycache__/
 *.pyc

@@ -1,0 +1,196 @@
+"""python -m collector {fetch,build,run,names} [--offline] [--internal]
+
+run: discover -> fetch new (polite) -> parse -> resolve names -> verify -> data/facts.json -> sitegen -> export ->
+build/report.json, build/run-log.json. Exit 0 ok, 2 on fetch/parse failures, 3 on a gate failure. On 2 or 3 it
+prints the `gh issue create` command it would run (wiring the issue is task D1).
+--offline skips discovery and fetching and uses the store (data/store/, or RECORDS_STORE).
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import shlex
+import sys
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+from .config import YEARS
+from .discover import DiscoveryError, classify, discover, fetch_index
+from .facts import Builder, dumps, load_procedural, write_if_changed
+from .fetch import FetchFailed, HostBlocked, HostRefused, PoliteFetcher, ProxyRefused, RobotsDisallowed
+from .names import NAMES, Resolver, load_roster
+from .store import MANIFEST, Store, fetch_into_store
+from .verify import gates
+
+ROOT = Path(__file__).resolve().parent.parent
+FACTS = ROOT / "data" / "facts.json"
+BUILD = ROOT / "build"
+REPO = "gn0sh/clarksville-records"
+
+
+def doc_date(e: dict) -> str:
+    return e.get("meeting_date") or (classify(e.get("label") or "") or {}).get("meeting_date") or ""
+
+
+def in_range(e: dict) -> bool:
+    d = doc_date(e)
+    return e.get("kind", "minutes") == "minutes" and d[:4].isdigit() and int(d[:4]) in YEARS
+
+
+# ------------------------------------------------------------------ fetch
+def cmd_fetch(store: Store, log: dict, fetcher: PoliteFetcher | None = None) -> None:
+    f = fetcher or PoliteFetcher()
+    try:
+        page = fetch_index(f)
+        found, skipped = discover(page)
+    except (DiscoveryError, HostBlocked, HostRefused, ProxyRefused, RobotsDisallowed, FetchFailed) as e:
+        log["failures"].append({"stage": "discover", "error": f"{type(e).__name__}: {e}"})
+        log["fetch_log"] = f.log
+        return
+    log["found"] = len(found)
+    log["skipped_links"] = skipped
+    for d in found:
+        try:
+            entry, status = fetch_into_store(f, store, d["url"], {"kind": "minutes", "meeting_date": d["meeting_date"],
+                                                                  "label": d["label"]})
+            log["fetched"][status] = log["fetched"].get(status, 0) + 1
+            if status in ("new", "changed"):
+                log["new"].append(d["url"])
+        except (HostBlocked, HostRefused, ProxyRefused, RobotsDisallowed, FetchFailed) as e:
+            log["failures"].append({"stage": "fetch", "url": d["url"], "error": f"{type(e).__name__}: {e}"})
+    store.save()
+    log["fetch_log"] = f.log
+
+
+# ------------------------------------------------------------------ build
+def cmd_build(store: Store, log: dict, use_ocr: bool = True) -> tuple[dict, dict, Builder]:
+    from .minutes import parse_minutes
+    roster = load_roster(NAMES)
+    b = Builder(Resolver(roster), load_procedural())
+    docs = sorted((e for e in store.entries if in_range(e)), key=lambda e: (doc_date(e), e["url"]))
+    for e in docs:
+        p = store.path_for(e["sha256"])
+        if not p.exists():
+            log["failures"].append({"stage": "parse", "url": e["url"], "error": "not in the store (run without --offline)"})
+            continue
+        t0 = time.time()
+        try:
+            pm = parse_minutes(p, e, use_ocr=use_ocr)
+        except Exception as ex:          # one bad document must not stop the run; it is logged and alerted
+            log["failures"].append({"stage": "parse", "url": e["url"], "error": f"{type(ex).__name__}: {ex}"})
+            continue
+        b.add(pm)
+        log["parsed"] += 1
+        print(f"  parsed {e.get('label') or e['url']}: {len(pm.roll_calls)} roll calls, "
+              f"{sum(r.status == 'Verified' for r in pm.roll_calls)} verified ({time.time() - t0:.0f} s)", flush=True)
+    if not log["parsed"]:
+        log["failures"].append({"stage": "parse", "error": "no minutes documents parsed"})
+    for p in b.problems:
+        log["failures"].append({"stage": "assemble", **p})
+    facts = b.facts(roster)
+    g = gates(facts, b.source_errors)
+    log["held_back"] = g["held_back"]
+    report = {
+        "generated_for": {"coverage": facts["coverage"], "sources": len(facts["sources"])},
+        "gates": g,
+        "pass": g["verified_rate_gate"]["pass"] and g["g4"]["pass"],
+        "held_back_roll_calls": [
+            {"id": r["id"], "meeting_id": r["meeting_id"], "page": r["page"],
+             "source_error": r["id"] in b.source_errors,
+             "failed": [c["check"] for c in r["verification"]["checks"] if not c["ok"]]}
+            for r in facts["roll_calls"] if r["verification"]["status"] != "verified"],
+        "meetings_attendance_unverified": [m["id"] for m in facts["meetings"]
+                                           if m["verification"]["status"] != "verified"],
+        "consent_roll_calls_not_expanded": sorted(b.consent_unexpanded),
+        "motions_held_back": sum(m["verification"]["status"] != "verified" for m in facts["motions"]),
+        "documents": b.doc_summary,
+        "problems": b.problems,
+    }
+    return facts, report, b
+
+
+def name_candidates(b: Builder, roster: list[dict]) -> dict:
+    r = Resolver(roster)
+    return {
+        "rules": "names.yml merge rules 1-4 (collector/names.py). Suggestions are never applied automatically.",
+        "unmatched": [{"raw_name": k, "count": v["count"], "examples": v["examples"], "suggestions": r.suggestions(k)}
+                      for k, v in sorted(b.unresolved.items(), key=lambda kv: (-kv[1]["count"], kv[0]))],
+        "merges": [{"official_id": o["id"], "name": o["name"], "alias": a["alias"], "reason": a.get("reason"),
+                    "example": a.get("example")} for o in roster for a in o["aliases"]],
+    }
+
+
+def issue_command(code: int, log: dict, report: dict | None) -> str:
+    title = "Collector run failed" if code == 2 else "Collector gates failed"
+    body = {"exit": code, "failures": log["failures"][:20],
+            "gates": (report or {}).get("gates", {}).get("verified_rate_gate"),
+            "g4_flagged": (report or {}).get("gates", {}).get("g4", {}).get("flagged")}
+    return (f"gh issue create --repo {REPO} --title {shlex.quote(title)} "
+            f"--body {shlex.quote(json.dumps(body, indent=1))}")
+
+
+def cmd_run(args) -> int:
+    started = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    log = {"started_at": started, "offline": args.offline, "found": None, "new": [], "fetched": {}, "failures": [],
+           "parsed": 0, "held_back": None}
+    store = Store(MANIFEST)
+    if not args.offline:
+        print("collector: discover and fetch (10 s between requests per host)", flush=True)
+        cmd_fetch(store, log)
+    print("collector: parse, verify, assemble", flush=True)
+    facts, report, b = cmd_build(store, log, use_ocr=not args.no_ocr)
+    changed = write_if_changed(FACTS, dumps(facts))
+    BUILD.mkdir(parents=True, exist_ok=True)
+    write_if_changed(BUILD / "report.json", dumps(report))
+    write_if_changed(BUILD / "name-candidates.json", dumps(name_candidates(b, load_roster(NAMES))))
+    site = BUILD / "site"
+    try:
+        from sitegen.build import build as site_build, write_publish_manifest
+    except ImportError:
+        print("collector: sitegen is not installed in this checkout; skipping the site step", flush=True)
+        site_build = None
+    from .export import export
+    if site_build:
+        site_build(FACTS, site, internal=args.internal, report_path=BUILD / "report.json")
+    export(facts, site)
+    if site_build:
+        write_publish_manifest(site)
+    log["finished_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    log["facts_changed"] = changed
+    (BUILD / "run-log.json").write_text(dumps(log))
+    g = report["gates"]
+    print(f"collector: {log['parsed']} documents parsed, {g['roll_calls']} roll calls, {g['verified']} verified "
+          f"({100 * g['verified_rate']:.1f}%), {g['held_back']} held back "
+          f"({g['held_back_source_error']} by source errors); G4 {g['g4']['status']} "
+          f"(uniform share {g['g4']['uniform_share']}); "
+          f"failures {len(log['failures'])}", flush=True)
+    code = 2 if log["failures"] else (0 if report["pass"] else 3)
+    if code:
+        for fl in log["failures"][:10]:
+            print("  failure:", json.dumps(fl)[:300])
+        print("collector: would open an internal issue (D1 wires this):")
+        print("  " + issue_command(code, log, report))
+    return code
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(prog="python -m collector")
+    ap.add_argument("command", choices=["run", "fetch", "build"])
+    ap.add_argument("--offline", action="store_true", help="skip discovery and fetching; use the store")
+    ap.add_argument("--internal", action="store_true", help="build the internal review page too")
+    ap.add_argument("--no-ocr", action="store_true", help="text layer only (no tesseract second reading)")
+    args = ap.parse_args(argv)
+    if args.command == "fetch":
+        log = {"found": None, "new": [], "fetched": {}, "failures": []}
+        store = Store(MANIFEST)
+        cmd_fetch(store, log)
+        print(json.dumps({k: v for k, v in log.items() if k != "fetch_log"}, indent=1))
+        return 2 if log["failures"] else 0
+    if args.command == "build":
+        args.offline = True
+    return cmd_run(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

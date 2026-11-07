@@ -221,6 +221,12 @@ class RollCall:
     ordinal_on_page: int = 0
     context_reasons: list = field(default_factory=list)
     readings: list = field(default_factory=list)
+    motion_text: str | None = None       # verbatim motion sentence, whitespace collapsed
+    outcome_clause: str | None = None    # verbatim, e.g. "the foregoing Motion to Table was Approved by ..."
+    raw_item: str | None = None          # item number as written, before normalisation
+    raw_mover: str | None = None
+    raw_seconder: str | None = None
+    in_attached_minutes: bool = False
 
 
 def classify_token(tok: str) -> tuple[str, str]:
@@ -346,6 +352,7 @@ class Reading:
     tally: tuple | None
     absent: list
     reasons: list
+    raw_names: dict = field(default_factory=dict)    # member -> table cell text as read
 
 
 def _lines_with_pages(pages: list[str]) -> tuple[list[str], list[int]]:
@@ -414,7 +421,8 @@ def read_table(lines: list[str], h: int, nxt: int, roster: list[str], source: st
     reasons.extend(problems)
     votes = cells_to_votes(cells, roster, reasons)
     check_votes(votes, set(absent), tally, roster, reasons)
-    return Reading(source, votes, tally, sorted(set(absent)), reasons), last
+    raw_names = {c.member: c.raw_name for c in cells if c.member and c.member != "__vacant__"}
+    return Reading(source, votes, tally, sorted(set(absent)), reasons, raw_names), last
 
 
 def cells_to_votes(cells: list[Cell], roster: list[str], reasons: list[str]) -> dict:
@@ -534,10 +542,11 @@ def find_rollcalls(pages: list[str], source: str, att: Attendance | None,
         outcome_word = om.group(1) if om else None
         motions = list(MOTION_RE.finditer(ctx))
         mot = motions[-1] if motions else None
+        motion_text, outcome_clause = motion_clauses(ctx, mot, om)
         kind = "resolution"
         if re.search(r"foregoing\s+Amendment", ctx[-400:], re.I):
             kind = "amendment"
-        elif re.search(r"Consent\s+Agenda\s+items", ctx[-400:], re.I):
+        elif re.search(r"Consent\W{0,3}Agenda\s+items", ctx[-400:], re.I):
             kind = "consent"
         elif re.search(r"Rules\s+were\s+Suspended|Suspend\s+the\s+Rules\s+\w+\s+by", ctx[-400:], re.I):
             kind = "suspend-rules"
@@ -547,14 +556,14 @@ def find_rollcalls(pages: list[str], source: str, att: Attendance | None,
             kind = "nominations"
         elif re.search(r"Minutes[^.]{0,200}(Approved|Adopted)", ctx[-400:], re.I):
             kind = "minutes"
-        item = None
+        item = raw_item = None
         if kind == "consent":
             item = "Consent Agenda"
         else:
             for j in range(h - 1, ctx_start - 1, -1):
-                ims = ITEM_RE.findall(lines[j])
-                if ims:
-                    item = norm_item(ims[0])
+                found = item_number_in(lines[j], titles)
+                if found:
+                    raw_item, item = found
                     break
             # the vote on the resolution right after its amendment vote carries no number of its own
             if item is None and out and out[-1].kind == "amendment" and h - prev_end < 12:
@@ -576,12 +585,66 @@ def find_rollcalls(pages: list[str], source: str, att: Attendance | None,
                       motion=(mot.group(1) or "") if mot else None, mover=mover, seconder=seconder,
                       votes={}, tally=None, absent=[])
         rc.ordinal_on_page = sum(1 for x in heads[:hi] if page_of[x] == page_of[h])
+        rc.motion_text, rc.outcome_clause, rc.raw_item = motion_text, outcome_clause, raw_item
+        rc.raw_mover = mot.group(2).strip() if mot else None
+        rc.raw_seconder = mot.group(3).strip() if mot else None
+        rc.in_attached_minutes = any(a <= h < b for a, b in spans)
         rc.context_reasons = ctx_reasons
         rc.readings = [reading]
         decide(rc)
         out.append(rc)
         prev_end = last + 1
     return out
+
+
+NUMBER_PATTERNS = (re.compile(r"^\d{2}-\d{1,2}-\d{1,3}$"), re.compile(r"^[A-Z]{1,4}-\d{1,3}-\d{4}$"))
+
+
+def valid_number(n: str | None) -> bool:
+    return bool(n) and any(p.match(n) for p in NUMBER_PATTERNS)
+
+
+def item_number_in(line: str, titles: dict | None = None) -> tuple[str, str] | None:
+    """First item number on a line -> (raw, normalised), or None.
+
+    Written rule for OCR splits ("20-3-1 1"): when the number is followed by one space and one digit, the joined
+    form is used only if it is on this meeting's agenda list; if it is not, the number is ambiguous and the line
+    gives no number (never guessed). A normalised number matching no known pattern is no number."""
+    for m in ITEM_RE.finditer(line):
+        raw = m.group(1)
+        n = norm_item(raw)
+        tail = re.match(r" (\d)(?![\w-])", line[m.end():])
+        if tail:
+            joined = n + tail.group(1)
+            if titles and joined in titles:
+                return raw + " " + tail.group(1), joined
+            return None
+        if valid_number(n):
+            return raw, n
+    return None
+
+
+def motion_clauses(ctx: str, mot, om) -> tuple[str | None, str | None]:
+    """Verbatim motion sentence and outcome clause just before a vote table (ctx is whitespace-collapsed)."""
+    if om is None:
+        return None, None
+    end = len(ctx)
+    start = None
+    if mot is not None and mot.start() < om.start():
+        start = mot.start()
+        on = ctx.rfind("On ", max(0, start - 4), start + 1)
+        if on != -1:
+            start = on
+    if start is None:
+        start = max(ctx.rfind(". ", 0, om.start()) + 2, 0) if ". " in ctx[:om.start()] else 0
+    motion_text = ctx[start:end].strip()
+    outcome = None
+    if mot is not None and mot.start() < om.start():
+        rest = ctx[mot.end():end].strip()
+        outcome = rest
+    else:
+        outcome = motion_text
+    return motion_text or None, (outcome or None)
 
 
 def resolve_commissioner(text: str, roster: list[str]) -> str | None:
