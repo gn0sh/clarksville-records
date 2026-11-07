@@ -1,0 +1,830 @@
+{
+  "corrections": [],
+  "coverage": {
+    "body": "Montgomery County Commission",
+    "from": "2024-10-07",
+    "to": "2024-12-09"
+  },
+  "fixture": true,
+  "item_events": [
+    {
+      "date": "2024-12-09",
+      "id": "ev-314626e6-p10-1",
+      "item_id": "AB-91-2024",
+      "label": "FIXTURE: Roll call vote",
+      "meeting_id": "2024-12-09-formal",
+      "order": 1,
+      "page": 10,
+      "ref": "rc-314626e6-p10-1",
+      "source_id": "src-314626e69a4d",
+      "type": "roll_call"
+    },
+    {
+      "date": "2024-12-09",
+      "id": "ev-314626e6-p15-1",
+      "item_id": "24-12-91",
+      "label": "FIXTURE: Resolution 24-12-91, A Resolution Approving a Road Name Change",
+      "meeting_id": "2024-12-09-formal",
+      "order": 1,
+      "page": 15,
+      "ref": null,
+      "source_id": "src-314626e69a4d",
+      "type": "listed"
+    },
+    {
+      "date": "2024-12-09",
+      "id": "ev-314626e6-p15-2",
+      "item_id": "24-12-91",
+      "label": "FIXTURE: Motion to approve",
+      "meeting_id": "2024-12-09-formal",
+      "order": 2,
+      "page": 15,
+      "ref": "mo-314626e6-p15-2",
+      "source_id": "src-314626e69a4d",
+      "type": "motion"
+    },
+    {
+      "date": "2024-12-09",
+      "id": "ev-314626e6-p16-1",
+      "item_id": "24-12-91",
+      "label": "FIXTURE: Roll call vote",
+      "meeting_id": "2024-12-09-formal",
+      "order": 1,
+      "page": 16,
+      "ref": "rc-314626e6-p16-1",
+      "source_id": "src-314626e69a4d",
+      "type": "roll_call"
+    },
+    {
+      "date": "2024-12-09",
+      "id": "ev-314626e6-p4-1",
+      "item_id": "t-2552cea929",
+      "label": "FIXTURE: Report of the County Clerk on Notary Public Applications",
+      "meeting_id": "2024-12-09-formal",
+      "order": 1,
+      "page": 4,
+      "ref": null,
+      "source_id": "src-314626e69a4d",
+      "type": "listed"
+    },
+    {
+      "date": "2024-12-09",
+      "id": "ev-314626e6-p9-1",
+      "item_id": "AB-91-2024",
+      "label": "FIXTURE: Second reading of Ordinance AB-91-2024",
+      "meeting_id": "2024-12-09-formal",
+      "order": 1,
+      "page": 9,
+      "ref": null,
+      "source_id": "src-314626e69a4d",
+      "type": "reading"
+    },
+    {
+      "date": "2024-12-09",
+      "id": "ev-314626e6-p9-2",
+      "item_id": "AB-91-2024",
+      "label": "FIXTURE: Motion to approve on second reading",
+      "meeting_id": "2024-12-09-formal",
+      "order": 2,
+      "page": 9,
+      "ref": "mo-314626e6-p9-2",
+      "source_id": "src-314626e69a4d",
+      "type": "motion"
+    },
+    {
+      "date": "2024-11-04",
+      "id": "ev-99d3ff29-p12-1",
+      "item_id": "AB-91-2024",
+      "label": "FIXTURE: First reading of Ordinance AB-91-2024",
+      "meeting_id": "2024-11-04-formal",
+      "order": 1,
+      "page": 12,
+      "ref": null,
+      "source_id": "src-99d3ff2945a5",
+      "type": "reading"
+    },
+    {
+      "date": "2024-11-04",
+      "id": "ev-99d3ff29-p12-2",
+      "item_id": "AB-91-2024",
+      "label": "FIXTURE: Motion to approve on first reading",
+      "meeting_id": "2024-11-04-formal",
+      "order": 2,
+      "page": 12,
+      "ref": "mo-99d3ff29-p12-2",
+      "source_id": "src-99d3ff2945a5",
+      "type": "motion"
+    },
+    {
+      "date": "2024-11-04",
+      "id": "ev-99d3ff29-p13-1",
+      "item_id": "AB-91-2024",
+      "label": "FIXTURE: Roll call vote",
+      "meeting_id": "2024-11-04-formal",
+      "order": 1,
+      "page": 13,
+      "ref": "rc-99d3ff29-p13-1",
+      "source_id": "src-99d3ff2945a5",
+      "type": "roll_call"
+    },
+    {
+      "date": "2024-11-04",
+      "id": "ev-99d3ff29-p5-1",
+      "item_id": "t-2552cea929",
+      "label": "FIXTURE: Report of the County Clerk on Notary Public Applications",
+      "meeting_id": "2024-11-04-formal",
+      "order": 1,
+      "page": 5,
+      "ref": null,
+      "source_id": "src-99d3ff2945a5",
+      "type": "listed"
+    },
+    {
+      "date": "2024-11-04",
+      "id": "ev-99d3ff29-p7-1",
+      "item_id": "24-11-91",
+      "label": "FIXTURE: Resolution 24-11-91, A Resolution Appropriating Funds for Library Roof Repairs",
+      "meeting_id": "2024-11-04-formal",
+      "order": 1,
+      "page": 7,
+      "ref": null,
+      "source_id": "src-99d3ff2945a5",
+      "type": "listed"
+    },
+    {
+      "date": "2024-11-04",
+      "id": "ev-99d3ff29-p7-2",
+      "item_id": "24-11-91",
+      "label": "FIXTURE: Motion to approve",
+      "meeting_id": "2024-11-04-formal",
+      "order": 2,
+      "page": 7,
+      "ref": "mo-99d3ff29-p7-2",
+      "source_id": "src-99d3ff2945a5",
+      "type": "motion"
+    },
+    {
+      "date": "2024-11-04",
+      "id": "ev-99d3ff29-p8-1",
+      "item_id": "24-11-91",
+      "label": "FIXTURE: Roll call vote",
+      "meeting_id": "2024-11-04-formal",
+      "order": 1,
+      "page": 8,
+      "ref": "rc-99d3ff29-p8-1",
+      "source_id": "src-99d3ff2945a5",
+      "type": "roll_call"
+    }
+  ],
+  "items": [
+    {
+      "id": "24-11-91",
+      "link_basis": "number",
+      "number": "24-11-91",
+      "title": "FIXTURE: A Resolution Appropriating Funds for Library Roof Repairs",
+      "year": 2024
+    },
+    {
+      "id": "24-12-91",
+      "link_basis": "number",
+      "number": "24-12-91",
+      "title": "FIXTURE: A Resolution Approving a Road Name Change",
+      "year": 2024
+    },
+    {
+      "id": "AB-91-2024",
+      "link_basis": "number",
+      "number": "AB-91-2024",
+      "title": "FIXTURE: An Ordinance Amending the Zoning Resolution for Parcel 000-000",
+      "year": 2024
+    },
+    {
+      "id": "t-2552cea929",
+      "link_basis": "title",
+      "number": null,
+      "title": "FIXTURE: Report of the County Clerk on Notary Public Applications",
+      "year": 2024
+    }
+  ],
+  "meetings": [
+    {
+      "attendance": [],
+      "attendance_status": "not_extracted",
+      "body": "Montgomery County Commission",
+      "date": "2024-10-07",
+      "id": "2024-10-07-formal",
+      "kind": "formal",
+      "source_id": "src-14f3298444b4",
+      "stated_absent_count": null,
+      "verification": {
+        "checks": [
+          {
+            "check": "text_layer_present",
+            "detail": "FIXTURE: scanned PDF with no text layer",
+            "ok": false
+          }
+        ],
+        "status": "unverified"
+      }
+    },
+    {
+      "attendance": [
+        {
+          "official_id": "a-example",
+          "page": 2,
+          "raw_name": "A. Example",
+          "status": "present"
+        },
+        {
+          "official_id": "b-sample",
+          "page": 2,
+          "raw_name": "B. Sample",
+          "status": "present"
+        },
+        {
+          "official_id": "c-placeholder",
+          "page": 2,
+          "raw_name": "C. Placeholder",
+          "status": "present"
+        },
+        {
+          "official_id": "d-testperson",
+          "page": 2,
+          "raw_name": "D. Testperson",
+          "status": "present"
+        },
+        {
+          "official_id": "e-fixture",
+          "page": 2,
+          "raw_name": "E. Fixture",
+          "status": "absent"
+        }
+      ],
+      "attendance_status": "extracted",
+      "body": "Montgomery County Commission",
+      "date": "2024-11-04",
+      "id": "2024-11-04-formal",
+      "kind": "formal",
+      "source_id": "src-99d3ff2945a5",
+      "stated_absent_count": 1,
+      "verification": {
+        "checks": [
+          {
+            "check": "names_resolve",
+            "ok": true
+          },
+          {
+            "check": "absent_count_matches_stated",
+            "ok": true
+          },
+          {
+            "check": "roster_matches_terms",
+            "ok": true
+          }
+        ],
+        "status": "verified"
+      }
+    },
+    {
+      "attendance": [
+        {
+          "official_id": "a-example",
+          "page": 2,
+          "raw_name": "A. Example",
+          "status": "present"
+        },
+        {
+          "official_id": "b-sample",
+          "page": 2,
+          "raw_name": "B. Sample",
+          "status": "absent"
+        },
+        {
+          "official_id": "c-placeholder",
+          "page": 2,
+          "raw_name": "C. Placeholder",
+          "status": "present"
+        },
+        {
+          "official_id": "d-testperson",
+          "page": 2,
+          "raw_name": "D. Testperson",
+          "status": "present"
+        },
+        {
+          "official_id": "e-fixture",
+          "page": 2,
+          "raw_name": "E. Fixture",
+          "status": "present"
+        }
+      ],
+      "attendance_status": "extracted",
+      "body": "Montgomery County Commission",
+      "date": "2024-12-09",
+      "id": "2024-12-09-formal",
+      "kind": "formal",
+      "source_id": "src-314626e69a4d",
+      "stated_absent_count": 1,
+      "verification": {
+        "checks": [
+          {
+            "check": "names_resolve",
+            "ok": true
+          },
+          {
+            "check": "absent_count_matches_stated",
+            "ok": true
+          },
+          {
+            "check": "roster_matches_terms",
+            "ok": true
+          }
+        ],
+        "status": "verified"
+      }
+    }
+  ],
+  "motions": [
+    {
+      "id": "mo-314626e6-p15-2",
+      "item_id": "24-12-91",
+      "meeting_id": "2024-12-09-formal",
+      "moved_by": {
+        "official_id": "e-fixture",
+        "raw_name": "E. Fixture"
+      },
+      "page": 15,
+      "seconded_by": {
+        "official_id": "c-placeholder",
+        "raw_name": "C. Placeholder"
+      },
+      "source_id": "src-314626e69a4d",
+      "text": "FIXTURE: Motion to approve Resolution 24-12-91",
+      "verification": {
+        "checks": [
+          {
+            "check": "mover_resolves",
+            "ok": true
+          },
+          {
+            "check": "seconder_resolves",
+            "ok": true
+          },
+          {
+            "check": "mover_seconder_present",
+            "ok": true
+          }
+        ],
+        "status": "verified"
+      }
+    },
+    {
+      "id": "mo-314626e6-p9-2",
+      "item_id": "AB-91-2024",
+      "meeting_id": "2024-12-09-formal",
+      "moved_by": {
+        "official_id": "d-testperson",
+        "raw_name": "D. Testperson"
+      },
+      "page": 9,
+      "seconded_by": {
+        "official_id": "a-example",
+        "raw_name": "A. Example"
+      },
+      "source_id": "src-314626e69a4d",
+      "text": "FIXTURE: Motion to approve on second reading",
+      "verification": {
+        "checks": [
+          {
+            "check": "mover_resolves",
+            "ok": true
+          },
+          {
+            "check": "seconder_resolves",
+            "ok": true
+          },
+          {
+            "check": "mover_seconder_present",
+            "ok": true
+          }
+        ],
+        "status": "verified"
+      }
+    },
+    {
+      "id": "mo-99d3ff29-p12-2",
+      "item_id": "AB-91-2024",
+      "meeting_id": "2024-11-04-formal",
+      "moved_by": {
+        "official_id": "c-placeholder",
+        "raw_name": "C. Placeholder"
+      },
+      "page": 12,
+      "seconded_by": {
+        "official_id": "d-testperson",
+        "raw_name": "D. Testperson"
+      },
+      "source_id": "src-99d3ff2945a5",
+      "text": "FIXTURE: Motion to approve on first reading",
+      "verification": {
+        "checks": [
+          {
+            "check": "mover_resolves",
+            "ok": true
+          },
+          {
+            "check": "seconder_resolves",
+            "ok": true
+          },
+          {
+            "check": "mover_seconder_present",
+            "ok": true
+          }
+        ],
+        "status": "verified"
+      }
+    },
+    {
+      "id": "mo-99d3ff29-p7-2",
+      "item_id": "24-11-91",
+      "meeting_id": "2024-11-04-formal",
+      "moved_by": {
+        "official_id": "a-example",
+        "raw_name": "A. Example"
+      },
+      "page": 7,
+      "seconded_by": {
+        "official_id": "b-sample",
+        "raw_name": "B. Sample"
+      },
+      "source_id": "src-99d3ff2945a5",
+      "text": "FIXTURE: Motion to approve Resolution 24-11-91",
+      "verification": {
+        "checks": [
+          {
+            "check": "mover_resolves",
+            "ok": true
+          },
+          {
+            "check": "seconder_resolves",
+            "ok": true
+          },
+          {
+            "check": "mover_seconder_present",
+            "ok": true
+          }
+        ],
+        "status": "verified"
+      }
+    }
+  ],
+  "officials": [
+    {
+      "aliases": [
+        "Commissioner A. Example",
+        "A Example"
+      ],
+      "given": "A.",
+      "id": "a-example",
+      "name": "A. Example",
+      "surname": "Example",
+      "title": "Commissioner"
+    },
+    {
+      "aliases": [
+        "Comm. B. Sample"
+      ],
+      "given": "B.",
+      "id": "b-sample",
+      "name": "B. Sample",
+      "surname": "Sample",
+      "title": "Commissioner"
+    },
+    {
+      "aliases": [],
+      "given": "C.",
+      "id": "c-placeholder",
+      "name": "C. Placeholder",
+      "surname": "Placeholder",
+      "title": "Commissioner"
+    },
+    {
+      "aliases": [
+        "D. Test-person"
+      ],
+      "given": "D.",
+      "id": "d-testperson",
+      "name": "D. Testperson",
+      "surname": "Testperson",
+      "title": "Commissioner"
+    },
+    {
+      "aliases": [],
+      "given": "E.",
+      "id": "e-fixture",
+      "name": "E. Fixture",
+      "surname": "Fixture",
+      "title": "Commissioner"
+    }
+  ],
+  "roll_calls": [
+    {
+      "id": "rc-314626e6-p10-1",
+      "item_id": "AB-91-2024",
+      "meeting_id": "2024-12-09-formal",
+      "motion_id": "mo-314626e6-p9-2",
+      "outcome": "passed",
+      "outcome_text": "FIXTURE: 2 Ayes, 1 Nay, 1 Recused. Ordinance adopted on second reading.",
+      "page": 10,
+      "source_id": "src-314626e69a4d",
+      "stated_tally": {
+        "abstain": 0,
+        "no": 1,
+        "yes": 2
+      },
+      "verification": {
+        "checks": [
+          {
+            "check": "roster_available",
+            "ok": true
+          },
+          {
+            "check": "names_resolve",
+            "ok": true
+          },
+          {
+            "check": "one_vote_per_present_member",
+            "ok": true
+          },
+          {
+            "check": "tally_matches_stated",
+            "ok": true
+          },
+          {
+            "check": "outcome_consistent",
+            "ok": true
+          }
+        ],
+        "status": "verified"
+      },
+      "votes": [
+        {
+          "official_id": "a-example",
+          "raw_name": "A. Example",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "c-placeholder",
+          "raw_name": "C. Placeholder",
+          "raw_value": "Recused",
+          "value": "other"
+        },
+        {
+          "official_id": "d-testperson",
+          "raw_name": "D. Testperson",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "e-fixture",
+          "raw_name": "E. Fixture",
+          "raw_value": "N",
+          "value": "no"
+        }
+      ]
+    },
+    {
+      "id": "rc-314626e6-p16-1",
+      "item_id": "24-12-91",
+      "meeting_id": "2024-12-09-formal",
+      "motion_id": "mo-314626e6-p15-2",
+      "outcome": "passed",
+      "outcome_text": "FIXTURE: 2 Ayes, 1 Nay. Resolution adopted.",
+      "page": 16,
+      "source_id": "src-314626e69a4d",
+      "stated_tally": {
+        "abstain": 0,
+        "no": 1,
+        "yes": 2
+      },
+      "verification": {
+        "checks": [
+          {
+            "check": "roster_available",
+            "ok": true
+          },
+          {
+            "check": "names_resolve",
+            "ok": true
+          },
+          {
+            "check": "one_vote_per_present_member",
+            "ok": true
+          },
+          {
+            "check": "tally_matches_stated",
+            "detail": "FIXTURE: parsed 3 yes 1 no; minutes state 2 yes 1 no",
+            "ok": false
+          },
+          {
+            "check": "outcome_consistent",
+            "ok": true
+          }
+        ],
+        "status": "unverified"
+      },
+      "votes": [
+        {
+          "official_id": "a-example",
+          "raw_name": "A. Example",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "c-placeholder",
+          "raw_name": "C. Placeholder",
+          "raw_value": "N",
+          "value": "no"
+        },
+        {
+          "official_id": "d-testperson",
+          "raw_name": "D. Testperson",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "e-fixture",
+          "raw_name": "E. Fixture",
+          "raw_value": "Y",
+          "value": "yes"
+        }
+      ]
+    },
+    {
+      "id": "rc-99d3ff29-p13-1",
+      "item_id": "AB-91-2024",
+      "meeting_id": "2024-11-04-formal",
+      "motion_id": "mo-99d3ff29-p12-2",
+      "outcome": "passed",
+      "outcome_text": "FIXTURE: 3 Ayes, 1 Nay. Approved on first reading.",
+      "page": 13,
+      "source_id": "src-99d3ff2945a5",
+      "stated_tally": {
+        "abstain": 0,
+        "no": 1,
+        "yes": 3
+      },
+      "verification": {
+        "checks": [
+          {
+            "check": "roster_available",
+            "ok": true
+          },
+          {
+            "check": "names_resolve",
+            "ok": true
+          },
+          {
+            "check": "one_vote_per_present_member",
+            "ok": true
+          },
+          {
+            "check": "tally_matches_stated",
+            "ok": true
+          },
+          {
+            "check": "outcome_consistent",
+            "ok": true
+          }
+        ],
+        "status": "verified"
+      },
+      "votes": [
+        {
+          "official_id": "a-example",
+          "raw_name": "A. Example",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "b-sample",
+          "raw_name": "B. Sample",
+          "raw_value": "N",
+          "value": "no"
+        },
+        {
+          "official_id": "c-placeholder",
+          "raw_name": "C. Placeholder",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "d-testperson",
+          "raw_name": "D. Testperson",
+          "raw_value": "Y",
+          "value": "yes"
+        }
+      ]
+    },
+    {
+      "id": "rc-99d3ff29-p8-1",
+      "item_id": "24-11-91",
+      "meeting_id": "2024-11-04-formal",
+      "motion_id": "mo-99d3ff29-p7-2",
+      "outcome": "passed",
+      "outcome_text": "FIXTURE: 4 Ayes, 0 Nays. Resolution adopted.",
+      "page": 8,
+      "source_id": "src-99d3ff2945a5",
+      "stated_tally": {
+        "abstain": 0,
+        "no": 0,
+        "yes": 4
+      },
+      "verification": {
+        "checks": [
+          {
+            "check": "roster_available",
+            "ok": true
+          },
+          {
+            "check": "names_resolve",
+            "ok": true
+          },
+          {
+            "check": "one_vote_per_present_member",
+            "ok": true
+          },
+          {
+            "check": "tally_matches_stated",
+            "ok": true
+          },
+          {
+            "check": "outcome_consistent",
+            "ok": true
+          }
+        ],
+        "status": "verified"
+      },
+      "votes": [
+        {
+          "official_id": "a-example",
+          "raw_name": "A. Example",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "b-sample",
+          "raw_name": "B. Sample",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "c-placeholder",
+          "raw_name": "C. Placeholder",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "d-testperson",
+          "raw_name": "D. Testperson",
+          "raw_value": "Y",
+          "value": "yes"
+        }
+      ]
+    }
+  ],
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "fetched_at": "2026-11-07",
+      "id": "src-14f3298444b4",
+      "kind": "minutes",
+      "meeting_date": "2024-10-07",
+      "pages": 14,
+      "sha256": "14f3298444b419710cd4833957e28b0019aae3d3eb910616bf20ab9e940dda24",
+      "text_layer": "none",
+      "url": "https://example.invalid/fixture/minutes-2024-10.pdf"
+    },
+    {
+      "fetched_at": "2026-11-07",
+      "id": "src-314626e69a4d",
+      "kind": "minutes",
+      "meeting_date": "2024-12-09",
+      "pages": 25,
+      "sha256": "314626e69a4dfe2f9f0d56e6fff6f0c5d7401bd6878ec40b7507f4f69cbd1d99",
+      "text_layer": "ocr",
+      "url": "https://example.invalid/fixture/minutes-2024-12.pdf"
+    },
+    {
+      "fetched_at": "2026-11-07",
+      "id": "src-99d3ff2945a5",
+      "kind": "minutes",
+      "meeting_date": "2024-11-04",
+      "pages": 22,
+      "sha256": "99d3ff2945a5f2143aed9f4a67429c6a9a6db0f8f9729889f7c8ecaf05bc3452",
+      "text_layer": "ocr",
+      "url": "https://example.invalid/fixture/minutes-2024-11.pdf"
+    }
+  ]
+}

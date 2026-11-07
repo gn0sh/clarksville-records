@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "clarksville-records/facts/1.0",
+  "title": "clarksville-records facts file",
+  "description": "Contract between collector (parser + verifier) and sitegen. data/facts.json holds all facts; the export (build/site/data/facts.json) holds verified facts only. Lists are sorted by id. Dates are ISO yyyy-mm-dd.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "coverage", "sources", "officials", "meetings", "items", "item_events", "motions", "roll_calls", "corrections"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "fixture": { "type": "boolean", "description": "true only in fixture files; sitegen shows a FIXTURE banner on every page" },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["body", "from", "to"],
+      "properties": {
+        "body": { "type": "string" },
+        "from": { "$ref": "#/$defs/date" },
+        "to": { "$ref": "#/$defs/date" }
+      }
+    },
+    "sources": { "type": "array", "items": { "$ref": "#/$defs/source" } },
+    "officials": { "type": "array", "items": { "$ref": "#/$defs/official" } },
+    "meetings": { "type": "array", "items": { "$ref": "#/$defs/meeting" } },
+    "items": { "type": "array", "items": { "$ref": "#/$defs/item" } },
+    "item_events": { "type": "array", "items": { "$ref": "#/$defs/item_event" } },
+    "motions": { "type": "array", "items": { "$ref": "#/$defs/motion" } },
+    "roll_calls": { "type": "array", "items": { "$ref": "#/$defs/roll_call" } },
+    "corrections": { "type": "array", "items": { "$ref": "#/$defs/correction" }, "description": "reserved; empty in M1" }
+  },
+  "$defs": {
+    "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "page": { "type": "integer", "minimum": 1 },
+    "source_id": { "type": "string", "pattern": "^src-[0-9a-f]{12}$" },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "checks"],
+      "properties": {
+        "status": { "enum": ["verified", "unverified"] },
+        "checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["check", "ok"],
+            "properties": {
+              "check": { "type": "string", "description": "e.g. roster_available, names_resolve, one_vote_per_present_member, tally_matches_stated, outcome_consistent, absent_count_matches_stated, roster_matches_terms, mover_resolves, seconder_resolves" },
+              "ok": { "type": "boolean" },
+              "detail": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "person_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["official_id", "raw_name"],
+      "properties": {
+        "official_id": { "type": ["string", "null"], "description": "null when the name did not resolve (fact is then unverified)" },
+        "raw_name": { "type": "string", "description": "exactly as in the source text layer" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "url", "sha256", "kind", "meeting_date", "fetched_at", "pages", "text_layer"],
+      "properties": {
+        "id": { "$ref": "#/$defs/source_id" },
+        "url": { "type": "string", "format": "uri" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "kind": { "enum": ["minutes", "agenda"] },
+        "meeting_date": { "$ref": "#/$defs/date" },
+        "fetched_at": { "$ref": "#/$defs/date", "description": "first fetch of this hash" },
+        "pages": { "$ref": "#/$defs/page" },
+        "text_layer": { "enum": ["text", "ocr", "none"] }
+      }
+    },
+    "official": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "surname", "given", "title", "aliases"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "name": { "type": "string" },
+        "surname": { "type": "string" },
+        "given": { "type": "string" },
+        "title": { "type": "string" },
+        "aliases": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "attendance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["official_id", "raw_name", "status", "page"],
+      "properties": {
+        "official_id": { "type": ["string", "null"] },
+        "raw_name": { "type": "string" },
+        "status": { "enum": ["present", "absent"] },
+        "page": { "$ref": "#/$defs/page" }
+      }
+    },
+    "meeting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "body", "date", "kind", "source_id", "attendance_status", "attendance", "stated_absent_count", "verification"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}-(formal|informal|special)(-\\d)?$" },
+        "body": { "type": "string" },
+        "date": { "$ref": "#/$defs/date" },
+        "kind": { "enum": ["formal", "informal", "special"] },
+        "source_id": { "$ref": "#/$defs/source_id" },
+        "attendance_status": { "enum": ["extracted", "not_extracted"] },
+        "attendance": { "type": "array", "items": { "$ref": "#/$defs/attendance" } },
+        "stated_absent_count": { "type": ["integer", "null"], "minimum": 0 },
+        "verification": { "$ref": "#/$defs/verification", "description": "verification of the attendance section" }
+      }
+    },
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "number", "title", "link_basis", "year"],
+      "properties": {
+        "id": { "type": "string", "description": "normalised number (e.g. 24-12-1, AB-4-2024) or t-<sha1(normalised title)[:10]>" },
+        "number": { "type": ["string", "null"] },
+        "title": { "type": "string", "description": "verbatim from first appearance" },
+        "link_basis": { "enum": ["number", "title"] },
+        "year": { "type": "integer", "description": "year of first appearance; selects items/<year>.html" }
+      }
+    },
+    "item_event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "item_id", "meeting_id", "date", "type", "label", "ref", "source_id", "page", "order"],
+      "properties": {
+        "id": { "type": "string", "description": "ev-<source sha8>-p<page>-<n>" },
+        "item_id": { "type": "string" },
+        "meeting_id": { "type": "string" },
+        "date": { "$ref": "#/$defs/date" },
+        "type": { "enum": ["listed", "referral", "reading", "amendment", "motion", "roll_call", "postponed", "withdrawn", "other"] },
+        "label": { "type": "string", "description": "verbatim wording from the source" },
+        "ref": { "type": ["string", "null"], "description": "motion or roll call id when type is motion or roll_call" },
+        "source_id": { "$ref": "#/$defs/source_id" },
+        "page": { "$ref": "#/$defs/page" },
+        "order": { "type": "integer", "minimum": 0, "description": "position on the page" }
+      }
+    },
+    "motion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "meeting_id", "item_id", "text", "moved_by", "seconded_by", "source_id", "page", "verification"],
+      "properties": {
+        "id": { "type": "string", "description": "mo-<source sha8>-p<page>-<n>" },
+        "meeting_id": { "type": "string" },
+        "item_id": { "type": "string" },
+        "text": { "type": "string" },
+        "moved_by": { "oneOf": [{ "$ref": "#/$defs/person_ref" }, { "type": "null" }] },
+        "seconded_by": { "oneOf": [{ "$ref": "#/$defs/person_ref" }, { "type": "null" }] },
+        "source_id": { "$ref": "#/$defs/source_id" },
+        "page": { "$ref": "#/$defs/page" },
+        "verification": { "$ref": "#/$defs/verification" }
+      }
+    },
+    "vote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["official_id", "raw_name", "value", "raw_value"],
+      "properties": {
+        "official_id": { "type": ["string", "null"] },
+        "raw_name": { "type": "string" },
+        "value": { "enum": ["yes", "no", "abstain", "other"] },
+        "raw_value": { "type": "string", "description": "as in the minutes, e.g. Y, N, A, Recused" }
+      }
+    },
+    "roll_call": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "meeting_id", "item_id", "motion_id", "votes", "stated_tally", "outcome", "outcome_text", "source_id", "page", "verification"],
+      "properties": {
+        "id": { "type": "string", "description": "rc-<source sha8>-p<page>-<n>" },
+        "meeting_id": { "type": "string" },
+        "item_id": { "type": "string" },
+        "motion_id": { "type": ["string", "null"] },
+        "votes": { "type": "array", "items": { "$ref": "#/$defs/vote" } },
+        "stated_tally": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["yes", "no", "abstain"],
+              "properties": {
+                "yes": { "type": "integer", "minimum": 0 },
+                "no": { "type": "integer", "minimum": 0 },
+                "abstain": { "type": "integer", "minimum": 0 }
+              }
+            },
+            { "type": "null" }
+          ]
+        },
+        "outcome": { "enum": ["passed", "failed", "other"] },
+        "outcome_text": { "type": "string" },
+        "source_id": { "$ref": "#/$defs/source_id" },
+        "page": { "$ref": "#/$defs/page" },
+        "verification": { "$ref": "#/$defs/verification" }
+      }
+    },
+    "correction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fact_id", "on", "field", "old", "new", "source_id", "page"],
+      "properties": {
+        "fact_id": { "type": "string" },
+        "on": { "$ref": "#/$defs/date" },
+        "field": { "type": "string" },
+        "old": {},
+        "new": {},
+        "source_id": { "$ref": "#/$defs/source_id" },
+        "page": { "$ref": "#/$defs/page" }
+      }
+    }
+  }
+}
