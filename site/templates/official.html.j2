@@ -73,9 +73,14 @@
   </form>
   <p id="no-match" hidden role="status">No rows match these filters.</p>
   {# The explicit table roles are kept on purpose: style.css sets display:block on this table at phone width, which
-     removes native table semantics in Chromium and WebKit. The roles restore them. #}
-  <div class="table-scroll" tabindex="0" role="region" aria-label="History table">
-  <table class="history stack" id="history" role="table">
+     removes native table semantics in Chromium and WebKit. The roles restore them. One table per year, each in a
+     <details> (newest year open); filter.js filters the rows across all of them. #}
+  <div id="history">
+  {% for g in row_groups %}
+  <details class="year-group" data-year="{{ g.year }}"{% if loop.first %} open{% endif %}>
+  <summary><span class="year-label">{{ g.year or "No rows" }}</span> <span class="muted">({{ g.rows|length }} {{ "row" if g.rows|length == 1 else "rows" }})</span></summary>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="History table, {{ g.year }}">
+  <table class="history stack" role="table">
     <thead role="rowgroup">
       <tr role="row">
         <th scope="col" role="columnheader">Date</th>
@@ -87,7 +92,7 @@
       </tr>
     </thead>
     <tbody role="rowgroup">
-    {% for r in rows %}
+    {% for r in g.rows %}
       <tr role="row" class="fact{% if not r.confirmed %} nc{% endif %}" data-type="{{ r.type }}" data-year="{{ r.year }}" data-fact-id="{{ r.fact_id }}">
         <td role="cell" data-label="Date"><div><a class="date" href="{{ root }}{{ r.meeting_href }}">{{ r.date }}</a></div></td>
         <td role="cell" data-label="Type"><div><span class="chip chip-type">{{ r.type_label }}</span></div></td>
@@ -104,6 +109,9 @@
     {% endfor %}
     </tbody>
   </table>
+  </div>
+  </details>
+  {% endfor %}
   </div>
 </section>
 {% endblock %}

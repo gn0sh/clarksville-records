@@ -131,3 +131,15 @@ def test_not_confirmed_roll_calls_carry_the_asterisk_words_and_page_link(tmp_pat
     assert len(unmatched) == 1 and not [a for a in unmatched[0].walk() if a.tag == "a"]
     assert all("*" in li.all_text() for li in names)
     assert "Exarnple" not in html
+
+
+def test_nav_lists_every_items_year_newest_first(pages, facts):
+    """UX pass: the Items dropdown and the phone Menu each link every items year page, newest first."""
+    import re
+    years = sorted({i["year"] for i in facts["items"]}, reverse=True)
+    assert years
+    html = pages["index.html"]
+    for label in ('aria-label="Main"', 'aria-label="Main (menu)"'):
+        nav = html[html.index(label):]
+        nav = nav[:nav.index("</nav>")]
+        assert [int(y) for y in re.findall(r'href="items/(\d{4})\.html"', nav)] == years, label

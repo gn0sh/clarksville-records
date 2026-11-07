@@ -19,6 +19,13 @@
       if (ok) { shown++; }
     }
     none.hidden = !(rows.length > 0 && shown === 0);
+    // Year groups (<details>): hide a group with no matching rows; open the group when a year is chosen.
+    var groups = table.querySelectorAll("details.year-group");
+    for (var g = 0; g < groups.length; g++) {
+      var any = groups[g].querySelector("tbody tr:not([hidden])");
+      groups[g].hidden = !any;
+      if (y && any) { groups[g].open = true; }
+    }
   }
   typeSel.addEventListener("change", apply);
   yearSel.addEventListener("change", apply);

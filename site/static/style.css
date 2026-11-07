@@ -94,7 +94,7 @@ a:focus-visible, [tabindex]:focus-visible, select:focus-visible {
 .site-name { margin: 0; font-family: var(--font-head); font-weight: 600; font-size: 1.6rem; line-height: 1.15; letter-spacing: .005em; }
 .site-name a, .site-name a:visited { color: var(--band-fg); text-decoration: none; }
 .kicker { margin: 4px 0 0; color: var(--band-muted); font-size: var(--t-sm); }
-.site-header nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0 18px; }
+.site-header nav > ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0 18px; }
 .site-header nav a, .site-header nav a:visited {
   display: inline-block; padding: 8px 0 6px; color: var(--band-fg); text-decoration: none; font-size: var(--t-sm);
   border-bottom: 2px solid transparent;
@@ -232,6 +232,7 @@ small { font-size: var(--t-sm); }
 .year-nav a:visited { color: var(--fg); }
 .year-nav a:hover { background: var(--surface-2); }
 h3[id^="y"] { margin-top: 1.4em; font-variant-numeric: tabular-nums lining-nums; scroll-margin-top: 12px; }
+ol.meetings[id^="y"] { scroll-margin-top: 48px; }
 
 /* ---- Official page ----------------------------------------------------------------------------------------- */
 .official-head { display: flex; gap: 16px; align-items: center; margin: 6px 0 4px; padding: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
@@ -355,7 +356,6 @@ pre.report { background: var(--surface); border: 1px solid var(--border); border
 @media (max-width: 480px) {
   .masthead { padding-top: 14px; }
   .site-name { font-size: 1.4rem; }
-  .site-header nav ul { gap: 0 14px; }
   .glance { padding: 16px 16px 12px; }
   .block { padding-left: 12px; padding-right: 12px; }
   .vote-grid { grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0 12px; }
@@ -378,3 +378,48 @@ table.history td:last-child, table.history th:last-child { min-width: 13rem; }
   table.attendance th, table.attendance td { padding: 0; border: 0; }
   table.attendance td.cite { grid-column: 1 / -1; }
 }
+
+/* ---- Dropdowns (native <details>, no script) ---------------------------------------------------------------- */
+details.menu > summary {
+  list-style: none; cursor: pointer; display: inline-block; padding: 8px 0 6px; font-size: var(--t-sm);
+  border-bottom: 2px solid transparent; user-select: none;
+}
+details.menu > summary::-webkit-details-marker { display: none; }
+details.menu > summary::after { content: ""; display: inline-block; margin-left: 6px; width: 6px; height: 6px;
+  border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-3px) rotate(45deg); }
+details.menu[open] > summary::after { transform: translateY(0) rotate(225deg); }
+.menu-list { list-style: none; margin: 0; padding: 4px 0; background: var(--surface); color: var(--fg);
+  border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 6px 16px rgba(0,0,0,.25); min-width: 9rem; }
+.menu-list a, .menu-list a:visited { display: block; padding: 8px 16px; min-height: 40px; color: var(--fg); text-decoration: none; font-size: var(--t-sm); border: 0; }
+.menu-list a:hover { background: var(--surface-2); }
+.menu-list a[aria-current="page"] { font-weight: 600; box-shadow: inset 3px 0 0 var(--link); }
+.menu-list a:focus-visible, details.menu > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
+.site-header details.menu > summary { color: var(--band-fg); }
+.site-header details.menu > summary:hover, .site-header details.menu[open] > summary { border-bottom-color: var(--band-muted); }
+.site-header details.menu > summary.current { border-bottom-color: var(--band-fg); font-weight: 600; }
+.site-header details.menu > summary:focus-visible { outline: 3px solid var(--band-fg); outline-offset: 1px; }
+.site-header .menu-list a, .site-header .menu-list a:visited { color: var(--fg); }
+.site-header .menu-list a:focus-visible { outline-color: var(--focus); outline-offset: -3px; }
+.nav-drop { position: relative; }
+.nav-drop .menu-list { position: absolute; z-index: 20; top: 100%; left: 0; }
+.nav-narrow { display: none; }
+@media (max-width: 640px) {
+  .nav-wide { display: none; }
+  .nav-narrow { display: block; width: 100%; }
+  .nav-narrow .menu-list { margin-top: 6px; }
+}
+/* Page dropdown: jump to a year */
+details.year-jump { margin: 10px 0 4px; }
+details.year-jump > summary { padding: 6px 14px; min-height: 36px; border: 1px solid var(--mark); border-radius: 999px; background: var(--surface); color: var(--fg); }
+details.year-jump .menu-list { display: inline-block; margin-top: 6px; min-width: 8rem; }
+details.year-jump .menu-list a { font-variant-numeric: tabular-nums; }
+/* Collapsible groups: meetings by year, history by year, item contents by month */
+details.year-group { margin: 0.6em 0; }
+details.year-group > summary, details.toc-group > summary { cursor: pointer; padding: 6px 0; }
+details.year-group > summary h3, details.year-group > summary .year-label { display: inline; margin: 0; font-variant-numeric: tabular-nums lining-nums; }
+details.toc-group { border-top: 1px solid var(--border); }
+details.toc-group:last-child { border-bottom: 1px solid var(--border); }
+details.toc-group > summary { font-weight: 600; }
+details.toc-group .toc { margin: 0.2em 0 0.8em; }
+details.year-group[hidden] { display: none; }
+details.year-group > summary .year-label { font-family: var(--font-head); font-size: var(--t-lg); font-weight: 600; }

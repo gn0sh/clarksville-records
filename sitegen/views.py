@@ -204,6 +204,7 @@ def site_context(facts) -> dict:
         "data_as_of": ix.data_as_of(),
         "fixture": ix.fixture,
         "item_years": ix.item_years(),
+        "item_years_desc": sorted(ix.item_years(), reverse=True),  # nav dropdown: newest first
         "coverage": ix.coverage,
         "show_unconfirmed_values": config.SHOW_UNCONFIRMED_VALUES,
         "internal": False,
@@ -457,6 +458,9 @@ def official(official_id: str, facts) -> dict:
         "coverage_sentence": f"Shows {cov['body']} records from {cov['from']} to {cov['to']}. {ix.fetched_sentence()}",
         "totals": totals_sentences(ix, official_id),
         "rows": rows,
+        # one group per year, newest first; with no rows at all, one empty group so the page keeps its skeleton
+        "row_groups": ([{"year": y, "rows": [r for r in rows if r["year"] == y]} for y in years]
+                       or [{"year": "", "rows": []}]),
         "years": years,
         "types": [(t, config.TYPE_LABELS[t]) for t in config.HISTORY_TYPES],
     }
@@ -577,6 +581,23 @@ def _event(ix: Index, e: dict) -> dict:
     return out
 
 
+MONTH_NAMES = ("January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+               "November", "December")
+
+
+def _toc_groups(entries: list[dict]) -> list[dict]:
+    """Table of contents grouped by the month of each item's first appearance, oldest first (entries are already in
+    that order). An item with no appearance goes in a last "No appearance listed" group. Collapsed on the page."""
+    groups: list[dict] = []
+    for it in entries:
+        key = it["first"][:7]
+        if not groups or groups[-1]["key"] != key:
+            label = f"{MONTH_NAMES[int(key[5:7]) - 1]} {key[:4]}" if key else "No appearance listed"
+            groups.append({"key": key, "label": label, "entries": []})
+        groups[-1]["entries"].append(it)
+    return groups
+
+
 def items_year(year: int, facts) -> dict:
     ix = _ix(facts)
     entries = []
@@ -591,7 +612,7 @@ def items_year(year: int, facts) -> dict:
             "first": events[0]["date"] if events else "",
         })
     entries.sort(key=lambda i: (i["first"], (i["number"] or i["title"]).casefold(), i["id"]))
-    return {"year": year, "items": entries}
+    return {"year": year, "items": entries, "toc_groups": _toc_groups(entries)}
 
 
 # ---------------------------------------------------------------------------------------------------------------
