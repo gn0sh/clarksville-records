@@ -63,7 +63,7 @@
         <td role="cell" data-label="Type"><div>{{ r.type_label }}</div></td>
         <td role="cell" data-label="Item"><div>
           {% if r.item %}{{ item_link(r.item, root) }}{% else %}<a href="{{ root }}{{ r.meeting_href }}">{{ r.meeting_label }}</a>{% endif %}
-          {% if r.motion_text %}<br><small>Motion: {{ r.motion_text }}</small>{% elif r.motion_label %}<br><small>{{ r.motion_label }}. Attribution under review.</small>{% endif %}
+          {% if r.motion_label %}<br><small>{{ r.motion_label }}. {% if r.motion_by %}{{ r.motion_by }}.{% else %}Attribution under review.{% endif %}</small>{% endif %}
         </div></td>
         <td role="cell" data-label="Record"><div>{{ r.record }}</div></td>
         <td role="cell" data-label="Outcome"><div>{% if r.outcome %}{{ r.outcome.label }}<br><small>{{ r.outcome.tally }}</small>{% else %}<span class="muted">Not shown</span>{% endif %}</div></td>

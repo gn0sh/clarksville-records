@@ -103,10 +103,19 @@ class Index:
         just the motion's type in plain words (the template adds the fixed attribution sentence)."""
         mo = self.motions.get(rc["motion_id"]) if rc["motion_id"] else None
         if mo is None:
-            return {"motion_text": None, "motion_label": None}
-        if is_verified(mo):
-            return {"motion_text": mo["text"], "motion_label": None}
-        return {"motion_text": None, "motion_label": motion_type_label(mo["text"])}
+            return {"motion_text": None, "motion_label": None, "motion_by": None}
+        return {"motion_text": None, "motion_label": motion_type_label(mo["text"]),
+                "motion_by": None if not is_verified(mo) else self.moved_seconded(mo)}
+
+    def moved_seconded(self, mo: dict) -> str | None:
+        """'Moved by A, seconded by B' from the resolved officials' display names, never the raw OCR names."""
+        names = []
+        for key in ("moved_by", "seconded_by"):
+            ref = mo.get(key)
+            o = self.officials.get(ref["official_id"]) if ref and ref.get("official_id") else None
+            names.append(o["name"] if o else None)
+        parts = [f"{w} by {n}" for w, n in zip(("Moved", "seconded"), names) if n]
+        return ", ".join(parts) or None
 
     # -- generic builders ------------------------------------------------------------------------------------
     def src(self, source_id: str, page: int) -> dict:
@@ -261,7 +270,7 @@ def official(official_id: str, facts) -> dict:
             "type": kind, "type_label": config.TYPE_LABELS[kind], "date": m["date"], "year": m["date"][:4],
             "meeting_label": ix.meeting_label(m), "meeting_href": f"meetings/{meeting_id}.html{anchor}",
             "fact_id": fact_id, "src": ix.src(source_id, page), "page": page,
-            "item": None, "motion_text": None, "motion_label": None, "record": "", "outcome": None, "pos": 0,
+            "item": None, "motion_text": None, "motion_label": None, "motion_by": None, "record": "", "outcome": None, "pos": 0,
         }
 
     for rc in ix.facts["roll_calls"]:
@@ -297,7 +306,7 @@ def official(official_id: str, facts) -> dict:
                 continue
             r = base(kind, mo["meeting_id"], f"{mo['id']}/{role}", mo["source_id"], mo["page"], f"#{mo['id']}")
             r["item"] = ix.item_ref(mo["item_id"])
-            r["record"] = mo["text"]
+            r["record"] = motion_type_label(mo["text"])  # the type only, never the minutes' sentence
             rc = ix.rc_by_motion.get(mo["id"])
             if rc:
                 r["outcome"] = ix.outcome(rc)
@@ -340,7 +349,7 @@ def _motion_block(ix: Index, mo: dict) -> dict:
     held = not is_verified(mo)
     return {
         "kind": "motion", "id": mo["id"], "item": ix.item_ref(mo["item_id"]),
-        "text": motion_type_label(mo["text"]) if held else mo["text"],
+        "text": motion_type_label(mo["text"]),
         "attribution_held": held,
         "moved_by": None if held else ix.person(mo["moved_by"]),
         "seconded_by": None if held else ix.person(mo["seconded_by"]),
@@ -415,8 +424,7 @@ def _event(ix: Index, e: dict) -> dict:
     elif e["type"] == "motion" and ref in ix.motions:
         mo = ix.motions[ref]
         out["motion"] = _motion_block(ix, mo)  # attribution held inside the block when the motion is unverified
-        if not is_verified(mo):
-            out["label"] = None  # the event label is the raw motion sentence
+        out["label"] = None  # the event label is the raw motion sentence; the block shows type and movers
         out["meeting_href"] += f"#{mo['id']}"
     return out
 
