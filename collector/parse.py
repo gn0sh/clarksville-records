@@ -481,8 +481,11 @@ def parse_table_rows(rows: list[str], roster: list[str], spellings: dict | None 
         chunks = chunk_row(row)
         for ci, ch in enumerate(chunks):
             kind, val = classify_token(ch)
-            if kind == "unknown" and ci + 1 < len(chunks) and classify_token(chunks[ci + 1])[0] == "name":
-                continue                       # district position (just before a name): "‘J", "]"
+            before_name = ci + 1 < len(chunks) and classify_token(chunks[ci + 1])[0] == "name"
+            if before_name and (kind == "unknown" or (kind in ("vote", "absent") and ci == 0)):
+                # district position (just before a name): "‘J", "]"; and a row's first chunk read as a vote mark
+                # ("y)" for the district number 2) is never a vote of the previous row's last member
+                continue
             if kind in ("vote", "absent"):
                 if not cells:
                     problems.append(f"vote token {ch!r} before any name")

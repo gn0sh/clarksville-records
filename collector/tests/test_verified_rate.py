@@ -203,3 +203,18 @@ def test_table_cell_pairs_with_garbled_header_name_through_names_yml():
     # an unknown header name gets no spellings: nothing is merged by edit distance
     att2 = P.Attendance("2025-02-10", 1, ["Jxhn Gxnnon"], [], 1, 0, [], True, [])
     assert name_spellings(att2, load_roster(NAMES)) == {}
+
+
+def test_district_number_read_as_vote_mark_is_not_a_vote():
+    """2024-07-15 p14 (tesseract): district "2" at the start of a row is read "y)". It sat in the district column, so it
+    is not a second vote of the previous row's last member (David Harper, 'conflicting vote marks')."""
+    roster = ["John Gannon", "Tangi Smith", "David Harper", "Jason Knight", "Jorge Padro", "Lisa Prichard"]
+    lines = ["District Commissioner Vote | District Commissioner Vote | District Commissioner Vote",
+             "1        John Gannon                 y           g        Tangi Smith                 Y         15       David Harper             Y",
+             "y)       Jason Knight                N          9        Jorge Padro                 Y         16       Lisa Prichard             N",
+             "Yeses—4 Noes—2 Abstentions — 0", "ABSENT: None"]
+    r, _ = P.read_table(lines, 0, len(lines), roster, "tesseract")
+    assert r.reasons == [], r.reasons
+    assert r.votes["David Harper"] == "Yes" and r.votes["Jason Knight"] == "No"
+    # a vote mark after a name in the middle of a row still belongs to that name
+    assert r.votes["Tangi Smith"] == "Yes"
