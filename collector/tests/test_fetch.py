@@ -1,6 +1,5 @@
 """Polite fetcher tests: robots.txt obeyed, 10 s per host, stop on 403/429. No network."""
 import io
-import json
 import urllib.error
 
 import pytest

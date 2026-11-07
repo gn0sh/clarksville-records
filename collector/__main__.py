@@ -90,13 +90,11 @@ def cmd_build(store: Store, log: dict, use_ocr: bool = True) -> tuple[dict, dict
         log["failures"].append({"stage": "assemble", **p})
     facts = b.facts(roster)
     g = gates(facts, b.source_errors)
-    held_by_official = {oid: s["held"] + s["held_source_error"] for oid, s in g["g4"]["per_official"].items()}
     log["held_back"] = g["held_back"]
     report = {
         "generated_for": {"coverage": facts["coverage"], "sources": len(facts["sources"])},
         "gates": g,
         "pass": g["verified_rate_gate"]["pass"] and g["g4"]["pass"],
-        "held_back_by_official": held_by_official,
         "held_back_roll_calls": [
             {"id": r["id"], "meeting_id": r["meeting_id"], "page": r["page"],
              "source_error": r["id"] in b.source_errors,
@@ -104,6 +102,7 @@ def cmd_build(store: Store, log: dict, use_ocr: bool = True) -> tuple[dict, dict
             for r in facts["roll_calls"] if r["verification"]["status"] != "verified"],
         "meetings_attendance_unverified": [m["id"] for m in facts["meetings"]
                                            if m["verification"]["status"] != "verified"],
+        "consent_roll_calls_not_expanded": sorted(b.consent_unexpanded),
         "motions_held_back": sum(m["verification"]["status"] != "verified" for m in facts["motions"]),
         "documents": b.doc_summary,
         "problems": b.problems,
@@ -163,7 +162,8 @@ def cmd_run(args) -> int:
     g = report["gates"]
     print(f"collector: {log['parsed']} documents parsed, {g['roll_calls']} roll calls, {g['verified']} verified "
           f"({100 * g['verified_rate']:.1f}%), {g['held_back']} held back "
-          f"({g['held_back_source_error']} by source errors); G4 {'pass' if g['g4']['pass'] else 'FAIL'}; "
+          f"({g['held_back_source_error']} by source errors); G4 {g['g4']['status']} "
+          f"(uniform share {g['g4']['uniform_share']}); "
           f"failures {len(log['failures'])}", flush=True)
     code = 2 if log["failures"] else (0 if report["pass"] else 3)
     if code:

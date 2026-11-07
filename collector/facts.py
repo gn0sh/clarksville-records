@@ -56,6 +56,7 @@ class Builder:
         self.unresolved: dict[str, dict] = {}       # raw header/motion name -> {count, examples}
         self.problems: list[dict] = []
         self.doc_summary: list[dict] = []
+        self.consent_unexpanded: list[str] = []     # consent roll calls whose item list could not be read
 
     # ------------------------------------------------------------ items
     def is_procedural(self, title: str) -> bool:
@@ -224,6 +225,10 @@ class Builder:
                     ev(nxt[2], "other", e.label, None, e.page, e.order, 4)
                 else:
                     ev(iid, "other", cl.label, None, e.page, e.order, 3)
+
+        paired = {e["ref"] for e in events if e["type"] == "roll_call"
+                  and any(e["ref"] == rid and e["item_id"] != iid for _, rid, iid in consent_rcs)}
+        self.consent_unexpanded += [rid for _, rid, _ in consent_rcs if rid not in paired]
 
         # ids: ev-<sha8>-p<page>-<n>, n by position on the page
         events.sort(key=lambda x: (x["page"], x["order"], x["_rank"], x["item_id"]))

@@ -171,7 +171,7 @@ def inline_consent_lists(lines: list[str], page_of: list[int], rcs, titles: dict
         if rc.kind != "consent":
             continue
         head = next((j for j in range(rc.line - 1, max(rc.line - 30, -1), -1)
-                     if re.fullmatch(r"Consent\W{0,3}Agenda:?", lines[j].strip(), re.I)), None)
+                     if re.fullmatch(r"Consent\W{0,3}Agenda[\s:.\-—–]*", lines[j].strip(), re.I)), None)
         if head is None:
             continue
         cl = ConsentList(page_of[head], _line_order(page_of, head), head, " ".join(lines[head].split()))

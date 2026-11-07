@@ -1,5 +1,6 @@
 """Verifier checks, consent-list expansion, item numbers, G4 gate, and the hand-labelled set (AC-P3)."""
 import json
+import re
 from pathlib import Path
 
 import jsonschema
@@ -135,21 +136,26 @@ def test_title_normalisation_is_conservative():
 
 # ------------------------------------------------------------------ G4
 
-def _facts(held_ids, meetings):
-    rcs, mts = [], []
+def _facts(held_ids, meetings, unshown=()):
+    """meetings: [(id, [official ids], n roll calls)]; ids in `unshown` get attendance under review."""
+    rcs, mts, people = [], [], set()
     for mid, members, n_rc in meetings:
-        mts.append({"id": mid, "attendance": [{"official_id": m} for m in members]})
+        people |= set(members)
+        mts.append({"id": mid, "attendance_status": "extracted",
+                    "verification": {"status": "unverified" if mid in unshown else "verified", "checks": []},
+                    "attendance": [{"official_id": m, "raw_name": m.upper(), "status": "present"} for m in members]})
         for k in range(n_rc):
             rid = f"{mid}-{k}"
             rcs.append({"id": rid, "meeting_id": mid,
                         "verification": {"status": "unverified" if rid in held_ids else "verified"}})
-    return {"roll_calls": rcs, "meetings": mts}
+    return {"roll_calls": rcs, "meetings": mts, "officials": [{"id": p} for p in sorted(people)]}
 
 
 def test_g4_passes_when_holds_are_shared_by_everyone_present():
     facts = _facts({"m1-0", "m1-1"}, [("m1", ["a", "b", "c"], 30), ("m2", ["a", "b", "c"], 30)])
-    g = V.gates(facts, set())
-    assert g["g4"]["pass"] and g["g4"]["flagged"] == []
+    g = V.gates(facts, set())["g4"]
+    assert g["pass"] and g["flagged"] == [] and g["status"] == "pass"
+    assert {o: s["held"] for o, s in g["per_official"].items()} == {"a": 2, "b": 2, "c": 2}
 
 
 def test_g4_flags_an_official_whose_meetings_are_held_far_more_than_peers():
@@ -157,18 +163,54 @@ def test_g4_flags_an_official_whose_meetings_are_held_far_more_than_peers():
     # rate is 0, so c's 10/60 is more than 2 x max(0, floor)
     facts = _facts({f"m3-{k}" for k in range(10)},
                    [("m3", ["c", "d"], 30), ("m4", ["a", "b", "c"], 30), ("m5", ["a", "b"], 30)])
-    g = V.gates(facts, set())
-    assert g["g4"]["per_official"]["c"]["eligible"] == 60
-    assert g["g4"]["flagged"] == ["c"] and not g["g4"]["pass"]
+    g = V.gates(facts, set())["g4"]
+    assert g["per_official"]["c"]["eligible"] == 60
+    assert g["flagged"] == ["c"] and not g["pass"] and g["status"] == "fail"
 
 
-def test_g4_ignores_officials_under_the_minimum_and_source_errors():
-    facts = _facts({"m1-0", "m1-1", "m1-2"}, [("m1", ["a", "b"], 10)])
+def test_g4_ignores_officials_under_the_minimum_and_source_errors_only_leave_the_rate():
+    g = V.gates(_facts({"m1-0", "m1-1", "m1-2"}, [("m1", ["a", "b"], 10)]), set())["g4"]
+    assert g["pass"] and g["per_official"]["a"]["peer_median"] is None
+    g = V.gates(_facts({"m1-0"}, [("m1", ["a", "b"], 60)]), {"m1-0"})["g4"]
+    a = g["per_official"]["a"]
+    assert a["held"] == 1 and a["held_source_error"] == 1 and a["rate"] == 0.0   # still counted as shown
+
+
+def test_g4_never_places_a_person_by_name_and_unshown_meetings_are_unattributed():
+    facts = _facts({"m1-0", "m2-0", "m2-1"}, [("m1", ["a", "b"], 5), ("m2", ["a", "b"], 5)], unshown={"m2"})
+    g = V.gates(facts, set())["g4"]
+    assert g["per_official"]["a"] == g["per_official"]["b"] | {}
+    assert g["per_official"]["a"]["held"] == 1 and g["per_official"]["a"]["eligible"] == 5
+    assert g["held_unattributed"] == 2 and g["eligible_unattributed"] == 5 and g["held_total"] == 3
+    for m in facts["meetings"]:                  # rewriting every raw name changes nothing
+        for x in m["attendance"]:
+            x["raw_name"] = "garbled"
+    assert V.gates(facts, set())["g4"]["per_official"] == g["per_official"]
+
+
+def test_g4_official_with_no_shown_meeting_has_no_rate():
+    facts = _facts({"m1-0"}, [("m1", ["a"], 5), ("m2", ["z"], 5)], unshown={"m2"})
+    g = V.gates(facts, set())["g4"]
+    assert g["per_official"]["z"] == {"eligible": 0, "held": 0, "held_source_error": 0, "rate": None,
+                                      "peer_median": None}
+
+
+def test_g4_review_needed_when_the_uniform_share_is_large():
+    facts = _facts({"m1-0", "m2-0", "m2-1"}, [("m1", ["a", "b"], 10), ("m2", ["a", "b"], 10)], unshown={"m2"})
+    g = V.gates(facts, set())["g4"]
+    assert g["uniform_share"] == round(2 / 3, 4) and g["review_needed"] and g["status"] == "review needed"
+    assert g["pass"]                             # not a hard fail
+    assert g["meetings_attendance_not_shown"] == [
+        {"meeting_id": "m2", "attendance": "under_review", "held_roll_calls": ["m2-0", "m2-1"]}]
+    g = V.gates(_facts({"m1-0"}, [("m1", ["a"], 10)]), set())["g4"]
+    assert g["uniform_share"] == 0.0 and g["status"] == "pass"
+
+
+def test_held_total_equals_unverified_count_on_committed_facts():
+    facts = json.loads((ROOT / "data" / "facts.json").read_text())
     g = V.gates(facts, set())
-    assert g["g4"]["pass"] and g["g4"]["per_official"]["a"]["peer_median"] is None
-    facts = _facts({"m1-0"}, [("m1", ["a", "b"], 60)])
-    g = V.gates(facts, {"m1-0"})
-    assert g["g4"]["per_official"]["a"]["held_source_error"] == 1 and g["g4"]["per_official"]["a"]["held"] == 0
+    unverified = sum(r["verification"]["status"] != "verified" for r in facts["roll_calls"])
+    assert g["g4"]["held_total"] == g["held_back"] == unverified
 
 
 def test_verified_rate_gate():
@@ -202,8 +244,24 @@ def test_every_consent_roll_call_reaches_the_items_it_covered():
     items = {i["id"]: i for i in facts["items"]}
     consent = [r for r in facts["roll_calls"] if items[r["item_id"]]["title"] == "Consent Agenda"]
     assert consent
+    expanded = 0
     for r in consent:
         covered = [e for e in facts["item_events"] if e["type"] == "roll_call" and e["ref"] == r["id"]
                    and e["item_id"] != r["item_id"]]
-        assert covered, r["id"]
-        assert all("Consent Agenda" in e["label"] for e in covered)
+        expanded += bool(covered)
+        assert all(re.search(r"Consent\W{0,3}Agenda", e["label"]) for e in covered)
+    # a list whose heading OCRs as garbage is not expanded (listed in build/report.json), never guessed
+    assert expanded >= 0.8 * len(consent)
+
+
+def test_site_held_numbers_equal_the_g4_report():
+    """Cross-module (Invariant: held-back counts): the site's per-official N equals g4.per_official[id].held and its
+    uniform U equals g4.held_unattributed, on the real facts and on the fixture."""
+    from sitegen import views
+    for path in (ROOT / "data" / "facts.json", ROOT / "site" / "fixtures" / "facts.sample.json"):
+        facts = json.loads(path.read_text())
+        g = V.gates(facts, set())["g4"]
+        held, uniform = views.held_counts(views.Index(facts))
+        assert uniform == g["held_unattributed"], path
+        for o in facts["officials"]:
+            assert held.get(o["id"], 0) == g["per_official"][o["id"]]["held"], (path, o["id"])

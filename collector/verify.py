@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from statistics import median
 
-from .config import MIN_ROLL_CALLS_FOR_SKEW, SKEW_FACTOR, SKEW_FLOOR, VERIFIED_RATE_MIN
+from .config import MIN_ROLL_CALLS_FOR_SKEW, SKEW_FACTOR, SKEW_FLOOR, UNIFORM_SHARE_REVIEW, VERIFIED_RATE_MIN
 
 # parser reason text -> named check (first matching pattern wins)
 REASON_CHECKS = [
@@ -107,64 +107,121 @@ def motion_verification(mover, seconder, present_ids: set, motion_named: bool) -
 
 # ------------------------------------------------------------------ gates
 
+class HeldCountError(AssertionError):
+    """The held-back count invariant failed: a bug, never a gate result."""
+
+
+def attendance_shown(m: dict) -> bool:
+    return m["attendance_status"] == "extracted" and m["verification"]["status"] == "verified"
+
+
+def listed(m: dict, official_ids: set) -> frozenset:
+    """Architecture "Invariant: held-back counts": the distinct resolved official ids in a shown attendance, present
+    and absent. Only the resolved ids are used; no name normalising, aliases or merge rules."""
+    if not attendance_shown(m):
+        return frozenset()
+    return frozenset(a["official_id"] for a in m["attendance"] if a["official_id"] in official_ids)
+
+
 def gates(facts: dict, source_error_ids: set) -> dict:
-    """AC-P1 verified rate and G4 skew. Returns the gate block of build/report.json."""
+    """AC-P1 verified rate and G4 skew, following "Invariant: held-back counts". Returns the gate block of
+    build/report.json."""
     rcs = facts["roll_calls"]
     n = len(rcs)
     verified = sum(r["verification"]["status"] == "verified" for r in rcs)
     rate = verified / n if n else 0.0
-    meetings = {m["id"]: m for m in facts["meetings"]}
-    listed: dict[str, set] = {}
-    for m in facts["meetings"]:
-        for a in m["attendance"]:
-            if a["official_id"]:
-                listed.setdefault(a["official_id"], set()).add(m["id"])
+    oids = {o["id"] for o in facts["officials"]}
+    listed_by_meeting = {m["id"]: listed(m, oids) for m in facts["meetings"]}
+    meetings_of: dict[str, set] = {o: set() for o in sorted(oids)}
+    for mid, people in listed_by_meeting.items():
+        for o in people:
+            meetings_of[o].add(mid)
     rc_by_meeting: dict[str, list] = {}
     for r in rcs:
         rc_by_meeting.setdefault(r["meeting_id"], []).append(r)
 
-    def stats(oid: str, meeting_ids: set) -> tuple[int, int, int]:
-        elig = held = src = 0
-        for mid in meeting_ids & listed.get(oid, set()):
-            for r in rc_by_meeting.get(mid, []):
-                elig += 1
-                if r["verification"]["status"] != "verified":
-                    if r["id"] in source_error_ids:
-                        src += 1
-                    else:
-                        held += 1
-        return elig, held, src
+    def is_held(r):
+        return r["verification"]["status"] != "verified"
 
+    eligible_unattributed = held_unattributed = 0
+    held_attributed_once = 0
+    for mid, group in rc_by_meeting.items():
+        if listed_by_meeting.get(mid):
+            held_attributed_once += sum(is_held(r) for r in group)
+        else:
+            eligible_unattributed += len(group)
+            held_unattributed += sum(is_held(r) for r in group)
+
+    def stats(o: str, within: set) -> tuple[int, int, int, int]:
+        """(eligible, held, eligible for the rate, held for the rate) over o's shown meetings in `within`.
+        Source-document-error holds are left out of the rate only, for everyone listed alike."""
+        el = he = rel = rhe = 0
+        for mid in meetings_of[o] & within:
+            for r in rc_by_meeting.get(mid, []):
+                el += 1
+                he += is_held(r)
+                if r["id"] not in source_error_ids:
+                    rel += 1
+                    rhe += is_held(r)
+        return el, he, rel, rhe
+
+    everywhere = set(listed_by_meeting)
     per = {}
-    for oid in sorted(listed):
-        elig, held, src = stats(oid, listed[oid])
-        counted = elig - src
-        per[oid] = {"eligible": elig, "held": held, "held_source_error": src,
-                    "rate": round(held / counted, 4) if counted else 0.0}
+    for o in sorted(oids):
+        el, he, rel, rhe = stats(o, everywhere)
+        per[o] = {"eligible": el, "held": he, "held_source_error": he - rhe,
+                  "rate": round(rhe / rel, 4) if rel else None, "peer_median": None}
     flagged = []
-    for oid, s in per.items():
-        if s["eligible"] < MIN_ROLL_CALLS_FOR_SKEW:
-            s["peer_median"] = None
+    for o, st in per.items():
+        if st["eligible"] < MIN_ROLL_CALLS_FOR_SKEW or st["rate"] is None:
             continue
-        peers = [p for p in listed if p != oid and listed[p] & listed[oid]]
         rates = []
-        for p in peers:
-            e, h, sr = stats(p, listed[oid])
-            if e - sr:
-                rates.append(h / (e - sr))
+        for p in sorted(oids - {o}):
+            if per[p]["eligible"] == 0 or not (meetings_of[p] & meetings_of[o]):
+                continue
+            _, _, rel, rhe = stats(p, meetings_of[o])
+            if rel:
+                rates.append(rhe / rel)
         med = median(rates) if rates else 0.0
-        s["peer_median"] = round(med, 4)
-        if s["rate"] > SKEW_FACTOR * max(med, SKEW_FLOOR):
-            flagged.append(oid)
-    _ = meetings
+        st["peer_median"] = round(med, 4)
+        if st["rate"] > SKEW_FACTOR * max(med, SKEW_FLOOR):
+            flagged.append(o)
+    held_total = n - verified
+    if held_total != held_unattributed + held_attributed_once:
+        raise HeldCountError(f"held_total {held_total} != unattributed {held_unattributed} + attributed "
+                             f"{held_attributed_once}")
+    for mid, people in listed_by_meeting.items():
+        h = sum(is_held(r) for r in rc_by_meeting.get(mid, []))
+        if any(stats(o, {mid})[1] != h for o in people):
+            raise HeldCountError(f"officials listed at {mid} got different held counts")
+    held_src = sum(1 for r in rcs if r["id"] in source_error_ids and is_held(r))
+    # holds at meetings whose attendance is not shown count for no official, so G4 cannot see them: report how
+    # large that share is and which meetings carry it (reviewer finding neutrality/g4-blind-to-uniform)
+    uniform_share = round(held_unattributed / held_total, 4) if held_total else 0.0
+    unshown = []
+    for m in sorted(facts["meetings"], key=lambda m: m["id"]):
+        if listed_by_meeting.get(m["id"]):
+            continue
+        held_here = sorted(r["id"] for r in rc_by_meeting.get(m["id"], []) if is_held(r))
+        unshown.append({"meeting_id": m["id"],
+                        "attendance": "not_extracted" if m["attendance_status"] != "extracted" else
+                        ("under_review" if not attendance_shown(m) else "lists_no_official"),
+                        "held_roll_calls": held_here})
+    review_needed = uniform_share > UNIFORM_SHARE_REVIEW
+    status = "fail" if flagged else ("review needed" if review_needed else "pass")
     return {
-        "roll_calls": n, "verified": verified, "held_back": n - verified,
-        "held_back_source_error": len([i for i in source_error_ids if any(r["id"] == i for r in rcs)]),
+        "roll_calls": n, "verified": verified, "held_back": held_total, "held_back_source_error": held_src,
         "verified_rate": round(rate, 4),
         "verified_rate_gate": {"min": VERIFIED_RATE_MIN, "pass": rate >= VERIFIED_RATE_MIN},
-        "g4": {"rule": (f"block if an official with >= {MIN_ROLL_CALLS_FOR_SKEW} roll calls has a held-back rate > "
-                        f"{SKEW_FACTOR} x max(median rate of officials who sat in the same meetings, {SKEW_FLOOR}); "
-                        "holds caused by source-document errors are excluded and reported separately"),
+        "g4": {"rule": (f"block if an official with >= {MIN_ROLL_CALLS_FOR_SKEW} eligible roll calls has a held-back "
+                        f"rate > {SKEW_FACTOR} x max(median rate of officials who sat in the same meetings, "
+                        f"{SKEW_FLOOR}). Eligible = roll calls at meetings whose verified attendance lists the "
+                        "official (architecture 'Invariant: held-back counts'); source-document-error holds are left "
+                        "out of the rates only"),
                "skew_factor": SKEW_FACTOR, "skew_floor": SKEW_FLOOR, "min_roll_calls": MIN_ROLL_CALLS_FOR_SKEW,
-               "flagged": flagged, "pass": not flagged, "per_official": per},
+               "flagged": flagged, "pass": not flagged, "status": status, "review_needed": review_needed,
+               "uniform_share": uniform_share, "uniform_share_review_above": UNIFORM_SHARE_REVIEW,
+               "meetings_attendance_not_shown": unshown, "per_official": per,
+               "held_total": held_total, "held_unattributed": held_unattributed,
+               "eligible_unattributed": eligible_unattributed},
     }
