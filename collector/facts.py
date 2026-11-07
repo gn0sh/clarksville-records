@@ -59,7 +59,7 @@ def subject_of(clause: str | None) -> str | None:
 
 def _reading_of(rc):
     """The reading that supplied rc's votes (or a stand-in built from them)."""
-    for r in rc.readings:
+    for r in rc.readings + ([rc.combined] if getattr(rc, "combined", None) else []):
         if r.votes is rc.votes:
             return r
     return P.Reading("parsed", rc.votes, rc.tally, list(rc.absent), [])
@@ -255,7 +255,8 @@ class Builder:
                 continue                 # a reprint of one consent vote: an event below, not another roll call
             rid = rid_of[k]
             order = order_of(rc)
-            best = next((r for r in rc.readings if r.votes is rc.votes), rc.readings[0] if rc.readings else None)
+            best = next((r for r in rc.readings + ([rc.combined] if getattr(rc, "combined", None) else [])
+                         if r.votes is rc.votes), rc.readings[0] if rc.readings else None)
             votes = []
             for member, v in sorted(rc.votes.items()):
                 raw = best.raw_names.get(member, member) if best else member
