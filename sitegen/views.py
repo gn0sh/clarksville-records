@@ -7,8 +7,6 @@ Only verified facts reach a public page; unverified facts appear only in `review
 from __future__ import annotations
 
 import json
-import re
-import unicodedata
 from collections import defaultdict
 
 from . import config
@@ -53,21 +51,6 @@ def attendance_state(meeting: dict) -> str:
     return "shown" if is_verified(meeting) else "under_review"
 
 
-def normalise_name(raw: str) -> str:
-    """Merge rule 1 (architecture, Names and merge rules): NFKC, trim, drop leading titles, drop `.` and `,`,
-    collapse spaces, casefold."""
-    s = unicodedata.normalize("NFKC", raw).strip()
-    dropped = True
-    while dropped:
-        dropped = False
-        for title in config.NAME_TITLES:
-            if s.casefold().startswith(title.casefold()) and (len(s) == len(title) or s[len(title)].isspace()):
-                s, dropped = s[len(title):].lstrip(), True
-                break
-    s = s.replace(".", "").replace(",", "")
-    return re.sub(r"\s+", " ", s).strip().casefold()
-
-
 class Index:
     """Lookup tables over one facts dict."""
 
@@ -84,12 +67,6 @@ class Index:
         for e in facts["item_events"]:
             self.events_by_item[e["item_id"]].append(e)
         self.rc_by_motion = {r["motion_id"]: r for r in facts["roll_calls"] if r["motion_id"] and is_verified(r)}
-        # Merge rules 1-2 only (exact match after normalising). Used to place a raw name at a meeting for the
-        # G4 held-back count; never used to attribute a shown fact.
-        self.official_by_name: dict[str, set] = defaultdict(set)
-        for o in facts["officials"]:
-            for n in [o["name"], *o["aliases"]]:
-                self.official_by_name[normalise_name(n)].add(o["id"])
         self.coverage = facts["coverage"]
         self.fixture = bool(facts.get("fixture"))
 
@@ -169,43 +146,36 @@ def officials_index(facts) -> dict:
     }
 
 
-def meeting_people(ix: Index, m: dict) -> set:
-    """Officials who appear at a meeting in any raw form: an attendance entry, a vote or a Moved/Seconded name, by
-    resolved id or by a raw name that matches a name or listed variant exactly after normalising (merge rules 1-2).
-    Used only for the G4 held-back count when the meeting's attendance is not usable."""
-    refs = list(m["attendance"])
-    refs += [v for r in ix.facts["roll_calls"] if r["meeting_id"] == m["id"] for v in r["votes"]]
-    refs += [p for mo in ix.facts["motions"] if mo["meeting_id"] == m["id"]
-             for p in (mo["moved_by"], mo["seconded_by"]) if p is not None]
-    people = set()
-    for ref in refs:
-        if ref["official_id"] in ix.officials:
-            people.add(ref["official_id"])
-        people |= ix.official_by_name.get(normalise_name(ref["raw_name"]), set())
-    return people
-
-
-def held_eligibility(ix: Index) -> tuple[dict, int]:
-    """G4 eligibility (architecture, Verifier): an unverified roll call counts for an official when the meeting's
-    attendance lists them, whatever names the roll call's own votes resolved to. When that meeting's attendance is not
-    usable (not extracted, or under review), it counts for every official who appears there in any raw form. When no
-    official can be placed at the meeting at all, it goes into one site-wide total instead.
-    Returns ({official_id: held count}, unplaced count)."""
-    held: dict[str, int] = defaultdict(int)
-    unplaced = 0
+def held_attribution(ix: Index) -> dict[str, frozenset | None]:
+    """Invariant: held-back counts (architecture). For every unverified roll call: the set of officials it counts for,
+    or None when it goes into the one uniform clause.
+    - The meeting's attendance is shown (extracted and verified) and lists at least one official: it counts for every
+      official listed there, present or absent, and for no one else.
+    - Otherwise (attendance not extracted, under review, or listing no one): None.
+    Names are never matched here. Only the verified attendance's resolved ids place a person at a meeting, so two
+    officials listed at the same meeting always get the same held roll calls from it."""
+    out: dict[str, frozenset | None] = {}
     for rc in ix.facts["roll_calls"]:
         if is_verified(rc):
             continue
         m = ix.meetings[rc["meeting_id"]]
-        if attendance_shown(m):
-            people = {a["official_id"] for a in m["attendance"]}
-        else:
-            people = meeting_people(ix, m)
-        if not people:
-            unplaced += 1
-        for oid in people:
+        listed = frozenset(a["official_id"] for a in m["attendance"]
+                           if a["official_id"] in ix.officials) if attendance_shown(m) else frozenset()
+        out[rc["id"]] = listed or None
+    return out
+
+
+def held_counts(ix: Index) -> tuple[dict, int]:
+    """Returns ({official_id: held roll calls attributed to them}, uniform count). Every held roll call is in exactly
+    one of the two parts: the per-official counts (once for each listed official) or the uniform count."""
+    held: dict[str, int] = defaultdict(int)
+    uniform = 0
+    for people in held_attribution(ix).values():
+        if people is None:
+            uniform += 1
+        for oid in people or ():
             held[oid] += 1
-    return held, unplaced
+    return held, uniform
 
 
 def totals_sentences(ix: Index, official_id: str) -> list[str]:
@@ -215,7 +185,7 @@ def totals_sentences(ix: Index, official_id: str) -> list[str]:
               if attendance_shown(m) and any(a["official_id"] == official_id for a in m["attendance"])]
     absent = sum(1 for m in listed
                  if any(a["official_id"] == official_id and a["status"] == "absent" for a in m["attendance"]))
-    held, unplaced = held_eligibility(ix)
+    held, uniform = held_counts(ix)
     held_rc = held.get(official_id, 0)
     states = [attendance_state(m) for m in ix.facts["meetings"]]
     not_extracted = states.count("not_extracted")
@@ -223,12 +193,12 @@ def totals_sentences(ix: Index, official_id: str) -> list[str]:
     held_sentence = (
         f"{held_rc} {plural(held_rc, 'roll call', 'roll calls')} in this period "
         f"{plural(held_rc, 'is', 'are')} not shown because {plural(held_rc, 'it is', 'they are')} under review.")
-    if unplaced:
+    if uniform:
         # A site-wide number: the same clause, with the same number, on every official's page.
         held_sentence += (
-            f" A further {unplaced} {plural(unplaced, 'roll call', 'roll calls')} under review "
-            f"{plural(unplaced, 'is', 'are')} at meetings where no member's name could be read, and "
-            f"{plural(unplaced, 'is', 'are')} not counted for anyone.")
+            f" A further {uniform} {plural(uniform, 'roll call', 'roll calls')} under review "
+            f"{plural(uniform, 'is', 'are')} at meetings whose attendance is not shown, and "
+            f"{plural(uniform, 'is', 'are')} not counted for any one member.")
     return [
         f"Recorded absent at {absent} of {len(listed)} meetings with an extracted attendance section, "
         f"{cov['from']} to {cov['to']}.",

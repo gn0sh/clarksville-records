@@ -27,8 +27,5 @@ EVENT_TYPE_LABELS = {
 }
 OUTCOME_LABELS = {"passed": "Passed", "failed": "Failed", "other": "Other"}
 
-# Merge rule 1: leading titles dropped before a name is matched (architecture, Names and merge rules).
-NAME_TITLES = ("Commissioner", "Comm.", "Chairman", "Chairwoman", "Mayor", "Mr.", "Mrs.", "Ms.", "Dr.")
-
 # Source URLs must use this scheme; anything else fails the build.
 ALLOWED_URL_SCHEMES = ("https",)

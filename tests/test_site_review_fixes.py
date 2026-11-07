@@ -4,7 +4,6 @@ import json
 import re
 
 import pytest
-from markupsafe import escape
 
 from conftest import parse
 from sitegen import views
@@ -65,49 +64,7 @@ def test_held_count_uses_attendance_not_vote_ids(facts):
     assert t["a-example"][1] == "1 roll call in this period is not shown because it is under review."
 
 
-def test_held_count_when_attendance_not_usable_uses_raw_names(facts):
-    """neutrality/held-count-by-resolved-id: when the meeting's attendance is not usable, the roll call counts for every
-    official whose name appears at that meeting in any raw form, matched by the published merge rules 1-2."""
-    f = copy.deepcopy(facts)
-    m = by_id(f, "meetings", MEETING_DEC)
-    m.update(attendance_status="not_extracted", attendance=[], stated_absent_count=None)
-    unverify(m, "roster_available")
-    for rc in f["roll_calls"]:
-        if rc["meeting_id"] == MEETING_DEC:
-            unverify(rc, "roster_available")
-            for v in rc["votes"]:
-                v["official_id"] = None
-                if v["raw_name"] == "A. Example":
-                    v["raw_name"] = "Commissioner A Example,"  # title, missing period, comma: rule 1 normalises
-    for mo in f["motions"]:
-        if mo["meeting_id"] == MEETING_DEC:
-            unverify(mo, "mover_resolves")
-            for ref in (mo["moved_by"], mo["seconded_by"]):
-                ref["official_id"] = None
-                if ref["raw_name"] == "A. Example":
-                    ref["raw_name"] = "A. Exarnple"  # never fuzzy-matched
-    held = {oid: held_number(s) for oid, s in totals(f).items()}
-    # b-sample appears nowhere in December's raw text; the other four do.
-    assert held == {"a-example": 2, "b-sample": 0, "c-placeholder": 2, "d-testperson": 2, "e-fixture": 2}
-
-
-def test_unplaced_roll_calls_get_one_site_wide_clause(tmp_path, facts):
-    """neutrality/held-count-by-resolved-id: a held roll call where no official can be placed is not silently dropped;
-    every official's page says so in the same words with the same number."""
-    f = copy.deepcopy(facts)
-    src = by_id(f, "meetings", MEETING_OCT)["source_id"]
-    rc = copy.deepcopy(by_id(f, "roll_calls", RC_HELD))
-    rc.update(id="rc-14f32984-p3-1", meeting_id=MEETING_OCT, motion_id=None, source_id=src, page=3,
-              votes=[{"official_id": None, "raw_name": "X. Garbled", "value": "yes", "raw_value": "Y"}])
-    unverify(rc, "roster_available")
-    f["roll_calls"].append(rc)
-    t = totals(f)
-    clause = ("A further 1 roll call under review is at meetings where no member's name could be read, "
-              "and is not counted for anyone.")
-    assert all(s[1].endswith(clause) for s in t.values())
-    pages = build_pages(tmp_path, f)
-    for o in f["officials"]:
-        assert str(escape(clause)) in pages[f"officials/{o['id']}.html"]
+# The rest of the held-count rule (neutrality/held-count) is covered in tests/test_held_counts.py.
 
 
 # --- neutrality/under-review-mislabelled --------------------------------------------------------------------------
@@ -311,11 +268,3 @@ def test_source_link_names_the_document_kind(tmp_path, facts):
     nov = pages[f"meetings/{MEETING_NOV}.html"]
     assert "(opens the agenda PDF in a new tab)" in nov and "(opens the minutes PDF in a new tab)" not in nov
     assert "(opens the minutes PDF in a new tab)" in pages[f"meetings/{MEETING_DEC}.html"]
-
-
-@pytest.mark.parametrize("raw,expected", [
-    ("A. Example", "a example"), ("Commissioner A. Example,", "a example"), ("Comm. Dr. A Example", "a example"),
-    ("  MRS.  B.  Sample ", "b sample"), ("Mrsmith", "mrsmith"), ("Ａ. Example", "a example"),
-])
-def test_normalise_name_follows_merge_rule_1(raw, expected):
-    assert views.normalise_name(raw) == expected
