@@ -1,0 +1,20 @@
+{% extends "base.html.j2" %}
+{% block main %}
+<h1>Officials</h1>
+<p class="lede">{{ coverage.body }} records, {{ coverage.from }} to {{ coverage.to }}. Choose a name to see that person's recorded votes, attendance, motions and seconds. Every fact links to the county's own minutes.</p>
+<ul class="names" aria-label="Officials, alphabetical by surname">
+{% for o in officials %}
+  <li><a href="{{ o.href }}">{{ o.name }}</a> <span class="muted">{{ o.title }}</span></li>
+{% endfor %}
+</ul>
+
+<h2 id="meetings">Meetings</h2>
+<p>Newest first. Each meeting page shows attendance, motions and roll calls.</p>
+<ul class="names" aria-label="Meetings">
+{% for m in meetings %}
+  <li><a href="{{ m.href }}">{{ m.label }}</a></li>
+{% else %}
+  <li>No meetings are available yet.</li>
+{% endfor %}
+</ul>
+{% endblock %}

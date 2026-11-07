@@ -1,0 +1,80 @@
+{% extends "base.html.j2" %}
+{% block main %}
+<h1>About this site and its data rules</h1>
+
+<section aria-labelledby="operator">
+  <h2 id="operator">Who runs this site</h2>
+  <p>This site is run by {{ site.operator }}. The site is a private preview and has no public address yet.</p>
+</section>
+
+<section aria-labelledby="collected">
+  <h2 id="collected">What is collected, and from where</h2>
+  <p>The site reads the official minutes of the {{ coverage.body }}, as published by the county, for {{ coverage.from }} to {{ coverage.to }}. Each minutes PDF is downloaded politely (it follows the site's robots rules and waits between requests) and kept unchanged. A computer program reads the text of each PDF. The county's minutes record motions, seconds, roll call votes and attendance. They do not record spoken comments, so none are shown.</p>
+  <p>Every fact on this site links to the minutes PDF, opened at the page where the fact appears, and shows the date the PDF was fetched.</p>
+</section>
+
+<section aria-labelledby="verified">
+  <h2 id="verified">Verified and held-back facts</h2>
+  <p>A computer program can misread a page, so each extracted fact is checked automatically before it is shown. For a roll call the checks are: every member present has exactly one recorded vote; the Yes, No and Abstain totals equal the totals the minutes state; the recorded outcome agrees with the votes; and every name matches the roster for that meeting. A fact that passes every check is <em>verified</em> and is shown. A fact that fails any check is <em>held back</em>: it is not shown, and nothing is guessed in its place. Each official's page states how many roll calls in the period are held back. Scanned minutes with no readable text are shown as &ldquo;Attendance not extracted for this meeting.&rdquo;</p>
+</section>
+
+<section aria-labelledby="merge-rules">
+  <h2 id="merge-rules">How names are matched</h2>
+  <p>The same four rules apply to every person:</p>
+  <ol>
+    <li>Normalise the name from the minutes: remove a leading title (Commissioner, Comm., Chairman, Chairwoman, Mayor, Mr., Mrs., Ms., Dr.), remove periods and commas, collapse spaces, ignore capitalisation.</li>
+    <li>Match the result exactly against each official's name and listed variants (below).</li>
+    <li>Match on surname alone only when exactly one official at that meeting has that surname.</li>
+    <li>Anything else is unmatched, and the fact is held back. Names are never matched by closeness of spelling. A variant is added to the table below only by a recorded change.</li>
+  </ol>
+  <h3 id="aliases">Name variants merged into each official</h3>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Name variants">
+  <table class="aliases">
+    <thead><tr><th scope="col">Official</th><th scope="col">Variants seen in the minutes</th></tr></thead>
+    <tbody>
+    {% for o in officials %}
+      <tr>
+        <th scope="row">{{ o.name }}</th>
+        <td>{% if o.aliases %}{{ o.aliases | join("; ") }}{% else %}None recorded{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section aria-labelledby="neutrality">
+  <h2 id="neutrality">Neutrality rules</h2>
+  <ol>
+    <li>Every official is shown with the same layout, the same fields and the same order. People are listed alphabetically by surname.</li>
+    <li>Only facts are shown. Attendance is Present or Absent as the minutes record it. A vote is Yes, No or Abstain, or Other with the minutes' own wording (for example &ldquo;Recused&rdquo;). Nothing is turned into a judgment.</li>
+    <li>Counts appear only as plain totals, with the number of meetings they come from and the date range stated, worded the same way for everyone. Nothing is sorted by a count or highlighted for one.</li>
+    <li>Every fact shows a link to its source document and page, and the date it was fetched.</li>
+    <li>Every fact has a way to report a mistake (see below).</li>
+    <li>There are no advertisements, campaign links, outside scripts, outside fonts or visitor tracking.</li>
+  </ol>
+</section>
+
+<section aria-labelledby="corrections">
+  <h2 id="corrections">Report an error</h2>
+  <p>Comment on the page and quote the fact id shown on the row. The source document wins: when a fix is made, the change is recorded on the <a href="{{ root }}changes.html">Changes</a> page.</p>
+  <p>A vote's fact id is the roll call id, a slash, and the official's id. An attendance fact id is the meeting id, <code>/att/</code>, and the official's id. A Moved or Seconded fact id is the motion id, a slash, and <code>moved</code> or <code>seconded</code>.</p>
+</section>
+
+<section aria-labelledby="exports">
+  <h2 id="exports">Open data</h2>
+  <p>All shown facts, with their sources, are available as files so this site is not the only copy.</p>
+  <ul>
+    <li><a href="{{ root }}data/facts.json">facts.json</a> (all shown facts and sources)</li>
+    <li><a href="{{ root }}data/officials.csv">officials.csv</a></li>
+    <li><a href="{{ root }}data/meetings.csv">meetings.csv</a></li>
+    <li><a href="{{ root }}data/attendance.csv">attendance.csv</a></li>
+    <li><a href="{{ root }}data/roll_calls.csv">roll_calls.csv</a></li>
+    <li><a href="{{ root }}data/votes.csv">votes.csv</a></li>
+    <li><a href="{{ root }}data/motions.csv">motions.csv</a></li>
+    <li><a href="{{ root }}data/items.csv">items.csv</a></li>
+    <li><a href="{{ root }}data/item_events.csv">item_events.csv</a></li>
+    <li><a href="{{ root }}data/sources.csv">sources.csv</a></li>
+  </ul>
+</section>
+{% endblock %}

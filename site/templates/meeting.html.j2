@@ -1,0 +1,50 @@
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import source, fact_meta, person, item_link, motion_block, roll_call_block %}
+{% block main %}
+<h1>{{ kind_label }}, <span class="nowrap">{{ meeting.date }}</span></h1>
+<p>{{ meeting.body }}. Source: <a href="{{ doc.url }}" target="_blank" rel="noopener noreferrer">{{ doc.kind }} PDF, {{ doc.pages }} pages<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ doc.fetched }}.</p>
+
+<section aria-labelledby="attendance">
+  <h2 id="attendance">Attendance</h2>
+  {% if attendance_state == "shown" %}
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Attendance table">
+  <table class="attendance">
+    <thead><tr><th scope="col">Member</th><th scope="col">Recorded</th><th scope="col">Source</th></tr></thead>
+    <tbody>
+    {% for a in attendance %}
+      <tr class="fact" data-fact-id="{{ a.fact_id }}">
+        <th scope="row">{{ person(a.who, root) }}</th>
+        <td>{{ a.status }}</td>
+        <td>{{ source(a.src) }}<br><small>{{ fact_meta(root, a.fact_id) }}</small></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% elif attendance_state == "under_review" %}
+  <p>Attendance for this meeting is under review and is not shown.</p>
+  {% else %}
+  <p>Attendance not extracted for this meeting.</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="motions">
+  <h2 id="motions">Motions and roll calls</h2>
+  <p>In the order they appear in the minutes.</p>
+  {% for b in blocks %}
+  <article class="fact block" id="{{ b.id }}" data-fact-id="{{ b.id }}">
+    <h3>{{ "Roll call" if b.kind == "roll_call" else "Motion" }}: {{ item_link(b.item, root) }}</h3>
+    {% if b.kind == "roll_call" %}
+    {{ roll_call_block(b, root) }}
+    {% else %}
+    {{ motion_block(b, root) }}
+    {% endif %}
+    <p class="meta">{{ source(b.src) }} <span class="sep" aria-hidden="true">&middot;</span> {{ fact_meta(root, b.id) }}</p>
+  </article>
+  {% else %}
+  <p>No motions or roll calls are shown for this meeting.</p>
+  {% endfor %}
+  {% if held_roll_calls_text %}<p class="held">{{ held_roll_calls_text }}</p>{% endif %}
+  {% if held_motions_text %}<p class="held">{{ held_motions_text }}</p>{% endif %}
+</section>
+{% endblock %}

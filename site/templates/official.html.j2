@@ -1,0 +1,80 @@
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import source, fact_meta, item_link %}
+{% block main %}
+<h1>{{ official.name }}</h1>
+<p class="title-line">{{ official.title }}</p>
+
+<section aria-labelledby="coverage-h">
+  <h2 id="coverage-h">Period covered</h2>
+  <p>{{ coverage_sentence }}</p>
+</section>
+
+<section aria-labelledby="totals-h">
+  <h2 id="totals-h">Totals</h2>
+  <ul class="totals">
+  {% for t in totals %}
+    <li>{{ t }}</li>
+  {% endfor %}
+  </ul>
+</section>
+
+<section aria-labelledby="history-h">
+  <h2 id="history-h">History</h2>
+  <p>Votes, attendance, and motions and seconds the minutes attribute to this person, newest first.</p>
+  <form id="filters" class="filters" hidden>
+    <div>
+      <label for="filter-type">Type</label>
+      <select id="filter-type">
+        <option value="">All types</option>
+        {% for value, label in types %}
+        <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="filter-year">Year</label>
+      <select id="filter-year">
+        <option value="">All years</option>
+        {% for y in years %}
+        <option value="{{ y }}">{{ y }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+  <p id="no-match" hidden role="status">No rows match these filters.</p>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="History table">
+  <table class="history stack" id="history" role="table">
+    <thead role="rowgroup">
+      <tr role="row">
+        <th scope="col" role="columnheader">Date</th>
+        <th scope="col" role="columnheader">Type</th>
+        <th scope="col" role="columnheader">Item</th>
+        <th scope="col" role="columnheader">Record</th>
+        <th scope="col" role="columnheader">Outcome</th>
+        <th scope="col" role="columnheader">Source</th>
+      </tr>
+    </thead>
+    <tbody role="rowgroup">
+    {% for r in rows %}
+      <tr role="row" class="fact" data-type="{{ r.type }}" data-year="{{ r.year }}" data-fact-id="{{ r.fact_id }}">
+        <td role="cell" data-label="Date"><div><a href="{{ root }}{{ r.meeting_href }}">{{ r.date }}</a></div></td>
+        <td role="cell" data-label="Type"><div>{{ r.type_label }}</div></td>
+        <td role="cell" data-label="Item"><div>
+          {% if r.item %}{{ item_link(r.item, root) }}{% else %}<a href="{{ root }}{{ r.meeting_href }}">{{ r.meeting_label }}</a>{% endif %}
+          {% if r.motion_text %}<br><small>Motion: {{ r.motion_text }}</small>{% endif %}
+        </div></td>
+        <td role="cell" data-label="Record"><div>{{ r.record }}</div></td>
+        <td role="cell" data-label="Outcome"><div>{% if r.outcome %}{{ r.outcome.label }}<br><small>&ldquo;{{ r.outcome.text }}&rdquo;</small>{% else %}<span class="muted">Not shown</span>{% endif %}</div></td>
+        <td role="cell" data-label="Source"><div>{{ source(r.src) }}<br><small>{{ fact_meta(root, r.fact_id) }}</small></div></td>
+      </tr>
+    {% else %}
+      <tr role="row" class="empty"><td role="cell" colspan="6">No votes, attendance, motions or seconds are shown for this person in this period.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script src="{{ root }}static/filter.js" defer></script>
+{% endblock %}
