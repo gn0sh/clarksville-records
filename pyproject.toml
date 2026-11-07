@@ -9,7 +9,7 @@ dependencies = []          # stdlib only; system tools: poppler-utils (pdftotext
 dev = ["pytest", "ruff"]
 
 [tool.pytest.ini_options]
-testpaths = ["collector/tests"]
+testpaths = ["collector/tests", "tests"]
 
 [tool.ruff]
 line-length = 125
