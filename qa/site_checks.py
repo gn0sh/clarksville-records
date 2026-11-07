@@ -282,7 +282,10 @@ def shown_fact_ids(facts: dict) -> tuple[set[str], set[str]]:
     return shown, hidden
 
 
-def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: bool) -> list[str]:
+def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: bool,
+                     show_values: bool | None = None) -> list[str]:
+    if show_values is None:  # the build's switch; the rule itself is restated here, not called from sitegen
+        from sitegen.config import SHOW_UNCONFIRMED_VALUES as show_values
     problems = []
     has_review = "review.html" in pages
     if not internal:
@@ -335,7 +338,21 @@ def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: 
                 problems.append(f"{rel}: {fid} shows an unconfirmed roll call without the 'Not confirmed' note")
             elif rc in confirmed and (note in text or "*" in text):
                 problems.append(f"{rel}: {fid} shows a confirmed roll call with a '*' or the 'Not confirmed' note")
+            if rc in unconfirmed and not show_values and (m := PARSED_VALUE.search(text)):
+                problems.append(f"{rel}: {fid} shows a parsed value {m.group(0)!r} of an unconfirmed roll call")
+    # SHOW_UNCONFIRMED_VALUES off: the public export carries no value, outcome or tally of an unconfirmed roll call
+    export = site / "data" / "facts.json"
+    if not internal and not show_values and export.is_file():
+        for r in json.loads(export.read_text(encoding="utf-8")).get("roll_calls", []):
+            if r["id"] in unconfirmed and (r.get("outcome") is not None or r.get("stated_tally") is not None
+                                           or any(v.get("value") is not None for v in r.get("votes", []))):
+                problems.append(f"data/facts.json: unconfirmed roll call {r['id']} carries a parsed value")
     return problems
+
+
+# A vote word or outcome followed by the "*" mark, or a tally: what an unconfirmed roll call must not show when
+# SHOW_UNCONFIRMED_VALUES is off (the block reads "Not confirmed*" instead).
+PARSED_VALUE = re.compile(r"\b(?:Yes|No|Abstain|Other(?:: [A-Za-z ]+)?|Passed|Failed)\s*\*|\b\d+ (?:yes|no|abstain)\b")
 
 
 def check_index(site: Path, pages: dict[str, Page], facts: dict) -> tuple[list[str], str]:

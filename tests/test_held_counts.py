@@ -20,6 +20,17 @@ from sitegen import views
 from test_site_review_fixes import (MEETING_DEC, MEETING_NOV, MO_SHOWN, RC_HELD, RC_SHOWN, build_pages, by_id,
                                     public, unverify)
 
+import pytest
+
+from sitegen import config
+
+
+@pytest.fixture(autouse=True)
+def show_unconfirmed_values(monkeypatch):
+    """This module tests SHOW_UNCONFIRMED_VALUES = True (values shown, starred); False is in test_unconfirmed_values.py."""
+    monkeypatch.setattr(config, "SHOW_UNCONFIRMED_VALUES", True)
+
+
 MO_HELD = "mo-314626e6-p15-2"  # the motion of RC_HELD: moved e-fixture, seconded c-placeholder
 VOTES = re.compile(r"Roll call votes, [0-9-]+ to [0-9-]+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other confirmed; "
                    r"(\d+) Yes\*, (\d+) No\*, (\d+) Abstain\*, (\d+) Other\* not confirmed\.")
@@ -191,8 +202,9 @@ def test_unverified_motion_keeps_attribution_under_review_otherwise(tmp_path, fa
             assert "Qq Raw" not in html, (n, name)
 
 
-def test_about_page_explains_the_rule(pages):
-    """copy/about-corrupted: the paragraph reads as intended, with nothing spliced into it."""
+def test_about_page_explains_the_rule(tmp_path, facts):
+    """copy/about-corrupted: the paragraph reads as intended, with nothing spliced into it (values shown)."""
+    pages = build_pages(tmp_path, copy.deepcopy(facts))
     para = next(p for p in re.findall(r"<p>(.*?)</p>", pages["about.html"], re.S) if "not confirmed" in p)
     expected = (
         "A computer program can misread a page, so each extracted fact is checked automatically before it is shown. "

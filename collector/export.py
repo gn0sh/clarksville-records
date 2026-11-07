@@ -1,7 +1,8 @@
 """Open-data export (G5): build/site/data/facts.json and CSVs, the facts the public pages show.
 
 Invariant: held-back counts (architecture). Every roll call and vote is exported with `confirmed` (true when the roll
-call passed its checks). A vote whose name did not resolve has `official_id: null` and no name, so no value is placed
+call passed its checks); while sitegen.config.SHOW_UNCONFIRMED_VALUES is off (the default, CEO 2026-11-07) an
+unconfirmed roll call carries no parsed value (vote `value`, `outcome`, `stated_tally` are null). A vote whose name did not resolve has `official_id: null` and no name, so no value is placed
 under a guessed person (P3). Motions carry `confirmed` and only the attribution the pages show. Attendance of a meeting
 whose attendance check failed is left out. Every fact row carries source_url, source_sha256, page and fetched_at.
 Raw OCR fields (raw names, raw vote wording, outcome text, motion text, motion and roll call event labels, and each
@@ -30,6 +31,7 @@ def public_verification(v: dict) -> dict:
 def strip_raw(facts: dict, internal: bool = False) -> dict:
     """The public export carries no raw OCR text: ids, resolved official ids, verified status, check names, type label
     and source links only. Raw name, motion-text and check-detail fields exist only in internal builds."""
+    from sitegen import config
     from sitegen.views import motion_type_label
 
     def clean(row, drop=("raw_name",)):
@@ -43,9 +45,19 @@ def strip_raw(facts: dict, internal: bool = False) -> dict:
                            type_label=motion_type_label(m["text"]),
                            moved_by=clean(m["moved_by"]), seconded_by=clean(m["seconded_by"]))
                       for m in facts["motions"]]
-    out["roll_calls"] = [dict(ver(clean(r, ("outcome_text",))), confirmed=is_verified(r),
-                              votes=[dict(clean(v, ("raw_name", "raw_value")), confirmed=is_verified(r))
-                                     for v in r["votes"]])
+    def values(r, row):
+        """An unconfirmed roll call's parsed values (each vote's value, the outcome, the stated tally) are left out
+        of the public export unless sitegen.config.SHOW_UNCONFIRMED_VALUES is on: the same rule as the pages."""
+        if internal or is_verified(r) or config.SHOW_UNCONFIRMED_VALUES:
+            return row
+        if "votes" in row:
+            return dict(row, outcome=None, stated_tally=None)
+        return dict(row, value=None)
+
+    out["roll_calls"] = [values(r, dict(ver(clean(r, ("outcome_text",))), confirmed=is_verified(r),
+                                        votes=[values(r, dict(clean(v, ("raw_name", "raw_value")),
+                                                              confirmed=is_verified(r)))
+                                               for v in r["votes"]]))
                          for r in facts["roll_calls"]]
     out["item_events"] = [e if internal or e["type"] not in ("motion", "roll_call") else dict(e, label="")
                           for e in facts["item_events"]]

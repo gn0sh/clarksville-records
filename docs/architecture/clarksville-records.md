@@ -156,22 +156,32 @@ page was hard to read. Read it yourself", linked to the exact source page (`<url
 "confirmed"; G4 is still computed and reported (rule below). The earlier attendance-based placement of held counts is
 retired, because no count is held back any more.
 
+**Link only (Brain Trust round 2, `docs/reviews/brain-trust-round2.md`; CEO confirmed 2026-11-07).** Behind one switch,
+`sitegen/config.py` `SHOW_UNCONFIRMED_VALUES`, default `False`. A roll call's values (each vote's value, the outcome,
+the tally, the bar) are **shown** when it is confirmed or the switch is on (`views.values_shown`). With the switch off
+an unconfirmed roll call is still listed in every place below, with the note and link, but every vote and the outcome
+read "Not confirmed*", there is no bar and no tally, an official page gives a count of unconfirmed roll calls
+("N roll calls not confirmed*, see each page") and no Yes/No breakdown, and the public export has `value: null` on its
+votes and `outcome: null`, `stated_tally: null` on the roll call. review.html and `--internal` exports show everything.
+With the switch on, unconfirmed values are shown starred, as the rest of this section describes.
+
 Definitions, for one facts file: a roll call is **confirmed** when its `verification.status` is `verified`, and
 **unconfirmed** otherwise. A vote is **resolved** when its `official_id` names an official in the facts file. Unresolved
 votes are never placed under a person: no name, alias or merge rule is consulted by any consumer below.
 
-Invariant (each line is a test in `tests/test_held_counts.py`):
+Invariant (each line is a test in `tests/test_held_counts.py`, which runs with the switch on; the switch-off
+behaviour is `tests/test_unconfirmed_values.py`, both settings):
 1. Confirmed only from confirmed: an official's confirmed counts (Yes, No, Abstain, Other) come only from their resolved
    votes in confirmed roll calls. Changing, adding or removing any unconfirmed roll call changes no confirmed count.
-2. Unconfirmed only from their own resolved id: an official's unconfirmed counts come only from unconfirmed roll calls in
-   which their resolved `official_id` has a vote. No name matching: rewriting every raw name and alias changes no count.
+2. Unconfirmed only from their own resolved id: an official's unconfirmed counts (switch off: the one count of
+   unconfirmed roll calls) come only from unconfirmed roll calls in which their resolved `official_id` has a vote. No name matching: rewriting every raw name and alias changes no count.
 3. Same meeting, same treatment: whether a roll call is shown, and how it is marked, depends only on the roll call, never
    on the official. Every official with a resolved vote in a roll call gets that vote on their page, with the same mark.
 4. Exactly once: every vote is counted once, either under its resolved official (confirmed or unconfirmed part) or in
    the site-wide unmatched count V, which reads word for word the same on every official's page. V votes appear only on
    the meeting and item views, as "Name not matched*" with the source link, never on an official's page.
-5. No raw text: an unconfirmed roll call shows Passed/Failed/Other, a tally counted from its votes and vote labels from
-   the fixed mapping; never `outcome_text`, raw names or unlisted raw vote wording (`tests/test_site_raw_leaks.py`).
+5. No raw text: an unconfirmed roll call shows (switch on) Passed/Failed/Other, a tally counted from its votes and vote
+   labels from the fixed mapping, or (switch off) only "Not confirmed*"; never `outcome_text`, raw names or unlisted raw vote wording (`tests/test_site_raw_leaks.py`).
 6. Motions: an unverified motion never names anyone: every page shows its type label and "Attribution under review",
    whatever its roll call's status (manager decision 2026-11-07, review of a991a10). A verified motion shows its
    resolved names, unstarred. No "*" ever follows a name or a Moved/Seconded line, and a confirmed roll call's block or
@@ -180,17 +190,17 @@ Invariant (each line is a test in `tests/test_held_counts.py`):
 Consumers (every one must follow the definitions above; none may place a person by name):
 | Consumer | Where | What it shows |
 |---|---|---|
-| Official page totals | `sitegen/views.py` `vote_counts`, `totals_sentences`; `official.html.j2` | "Roll call votes: a Yes, b No, c Abstain, d Other confirmed; e Yes*, ... not confirmed." and the site-wide V sentence |
-| Official page history rows | `views.official`; `official.html.j2` | one row per resolved vote; unconfirmed rows "Yes*" with the source link; Moved/Seconded rows only for verified motions |
-| Meeting page | `views.meeting`, `_roll_call_block`, `_vote_rows`; `meeting.html.j2`, `_macros.html.j2` | every roll call in document order; unconfirmed ones marked, unresolved votes "Name not matched*" |
+| Official page totals | `sitegen/views.py` `vote_counts`, `totals_sentences`; `official.html.j2` | "Roll call votes: a Yes, b No, c Abstain, d Other confirmed; N roll calls not confirmed*, see each page." (switch on: "e Yes*, ... not confirmed") and the site-wide V sentence; the unconfirmed Yes/No legend only with the switch on |
+| Official page history rows | `views.official`; `official.html.j2` | one row per resolved vote; unconfirmed rows "Not confirmed*" (switch on: "Yes*") with the source link; Moved/Seconded rows only for verified motions |
+| Meeting page | `views.meeting`, `_roll_call_block`, `_vote_rows`; `meeting.html.j2`, `_macros.html.j2` | every roll call in document order; unconfirmed ones marked, every vote and the outcome "Not confirmed*" and no bar (switch on: values starred), unresolved votes "Name not matched*" |
 | Item pages | `views._event`; `items_year.html.j2` | the same roll call block; no raw event label for motion or roll call events |
-| Outcome and tally | `Index.outcome` | label and tally counted from that roll call's own votes, starred when unconfirmed |
+| Outcome and tally | `Index.outcome` | label and tally counted from that roll call's own votes, starred when unconfirmed; `hidden`, label "Not confirmed", no tally or counts when `values_shown` is false |
 | Internal review page | `views.review`, `review.html.j2` | every unverified fact with failed checks; G4 results from `report.json` |
-| QA site checks | `qa/site_checks.py` `attribution_shown`, `check_unverified` | rule 6 restated independently; the note inside each unconfirmed row or block, no "*" in a confirmed one; outcome-text scan with only item titles and non-motion/roll call event labels as benign |
+| QA site checks | `qa/site_checks.py` `attribution_shown`, `check_unverified` | rule 6 restated independently; the note inside each unconfirmed row or block, no "*" in a confirmed one; switch off: no vote word, outcome or tally (`PARSED_VALUE`) in an unconfirmed row or block, and no value in the public `data/facts.json`; outcome-text scan with only item titles and non-motion/roll call event labels as benign |
 | G4 gate | `collector/verify.py` -> `build/report.json` | eligible, held and rate per official by verified attendance (rule below); unchanged |
-| Export | `collector/export.py` -> `build/site/data/` | every roll call and vote with `confirmed`; motions with `confirmed` and attribution only as rule 6; `verification` as status plus check names and ok flags (no `detail`); no raw fields |
+| Export | `collector/export.py` -> `build/site/data/` | every roll call and vote with `confirmed`; motions with `confirmed` and attribution only as rule 6; switch off: an unconfirmed roll call's vote `value`, `outcome` and `stated_tally` are null; `verification` as status plus check names and ok flags (no `detail`); no raw fields |
 | About page | `about.html.j2` "Verified and not confirmed facts" | the rule in words (exact text tested) |
-| Tests | `tests/test_held_counts.py`, `test_site_raw_leaks.py`, `test_site_links.py`, `test_site_neutrality.py`, `test_qa_tools.py`, `collector/tests/test_run.py`, `collector/tests/test_verify.py` | the lines above |
+| Tests | `tests/test_held_counts.py`, `test_site_raw_leaks.py`, `test_site_links.py`, `test_site_neutrality.py`, `test_qa_tools.py`, `test_unconfirmed_values.py`, `test_visual_refresh.py`, `collector/tests/test_run.py`, `collector/tests/test_verify.py` | the lines above |
 
 **Rule for the collector's G4 code** (`collector/verify.py`; G4 is a quality gate on the report, not a site count):
 - For each meeting compute `shown(m)` and `listed(m)` exactly as defined above. Use only the resolved `official_id`
@@ -328,7 +338,8 @@ Writes into `build/site/data/`: `facts.json` (every roll call and vote with a `c
 `confirmed`, verified attendance only, plus sources),
 `officials.csv`, `meetings.csv`, `attendance.csv`, `roll_calls.csv`, `votes.csv`, `motions.csv`, `items.csv`,
 `item_events.csv`, `sources.csv`. Every row carries `source_url, source_sha256, page, fetched_at`. Unconfirmed roll
-calls are exported with `confirmed: false`; an unresolved vote has `official_id: null` and no name, so no value is ever
+calls are exported with `confirmed: false` and, while `SHOW_UNCONFIRMED_VALUES` is off, with no parsed value
+(vote `value`, `outcome`, `stated_tally` null); an unresolved vote has `official_id: null` and no name, so no value is ever
 placed under a guessed person (P3). Raw OCR fields (`raw_name`, `raw_value`, `outcome_text`, motion `text`, motion and
 roll call event labels, and each verification check's `detail`) are in internal builds only; the public `verification`
 is `{status, checks: [{check, ok}]}`.

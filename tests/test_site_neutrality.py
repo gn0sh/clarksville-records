@@ -14,7 +14,7 @@ COUNT_WORDS = re.compile(r"count|total|num|len|size|absent|present|yes|no\b|vote
 def normalise_totals(s: str) -> str:
     """Numbers to N, and singular forms to plural: only grammatical number may vary with a count."""
     s = re.sub(r"\d+", "N", s)
-    return (s.replace("roll call in", "roll calls in").replace("meeting in", "meetings in")
+    return (s.replace("roll call in", "roll calls in").replace("N roll call not", "N roll calls not").replace("meeting in", "meetings in")
             .replace("N vote in", "N votes in")
             .replace(" is not shown because it is ", " are not shown because they are ")
             .replace("period is ", "period are ").replace("period has ", "period have ")

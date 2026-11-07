@@ -43,6 +43,12 @@ def is_verified(fact: dict) -> bool:
     return fact["verification"]["status"] == "verified"
 
 
+def values_shown(rc: dict) -> bool:
+    """Whether a roll call's parsed values (each vote, the outcome, the tally, the bar) may be shown on a public page:
+    always for a confirmed roll call; for an unconfirmed one only when config.SHOW_UNCONFIRMED_VALUES is on."""
+    return is_verified(rc) or config.SHOW_UNCONFIRMED_VALUES
+
+
 def attendance_shown(meeting: dict) -> bool:
     """Attendance is shown (and counted) only when extracted and verified."""
     return meeting["attendance_status"] == "extracted" and is_verified(meeting)
@@ -88,7 +94,11 @@ class Index:
 
     def outcome(self, rc: dict) -> dict:
         """Passed/Failed/Other plus the tally counted from the verified votes (never the minutes' raw outcome text).
-        Absent = members the meeting's verified attendance lists as absent who have no vote on this roll call."""
+        Absent = members the meeting's verified attendance lists as absent who have no vote on this roll call.
+        When the roll call's values are not shown (`values_shown`), only "Not confirmed": no label, tally or counts."""
+        if not values_shown(rc):
+            return {"label": config.NOT_CONFIRMED_LABEL, "tally": None, "counts": None, "hidden": True,
+                    "confirmed": False, "src": self.src(rc["source_id"], rc["page"])}
         counts = {"yes": 0, "no": 0, "abstain": 0, "other": 0}
         for v in rc["votes"]:
             counts[v["value"]] += 1
@@ -107,7 +117,7 @@ class Index:
         # `counts` feeds the roll call's bar: the same numbers as the tally string. A roll call has no "no vote
         # recorded" segment of its own, so that one is always 0 here.
         return {"label": config.OUTCOME_LABELS[rc["outcome"]], "tally": ", ".join(parts),
-                "counts": {**counts, "absent": absent, "novote": 0},
+                "counts": {**counts, "absent": absent, "novote": 0}, "hidden": False,
                 "confirmed": is_verified(rc), "src": self.src(rc["source_id"], rc["page"])}
 
     def attribution(self, mo: dict) -> dict:
@@ -195,6 +205,7 @@ def site_context(facts) -> dict:
         "fixture": ix.fixture,
         "item_years": ix.item_years(),
         "coverage": ix.coverage,
+        "show_unconfirmed_values": config.SHOW_UNCONFIRMED_VALUES,
         "internal": False,
     }
 
@@ -331,14 +342,18 @@ def totals_sentences(ix: Index, official_id: str) -> list[str]:
     c = official_counts(ix, official_id)
     unmatched = unmatched_votes(ix)
     confirmed = ", ".join(f"{c[k]} {VOTE_WORDS[k]}" for k in VOTE_VALUES)
-    unconfirmed = ", ".join(f"{c[k + '_nc']} {VOTE_WORDS[k]}*" for k in VOTE_VALUES)
+    if config.SHOW_UNCONFIRMED_VALUES:
+        unconfirmed = ", ".join(f"{c[k + '_nc']} {VOTE_WORDS[k]}*" for k in VOTE_VALUES) + " not confirmed"
+    else:  # a count of roll calls only, never a Yes/No breakdown of unconfirmed votes
+        n = c["rc_voted_nc"]
+        unconfirmed = f"{n} {plural(n, 'roll call', 'roll calls')} not confirmed*, see each page"
     states = [attendance_state(m) for m in ix.facts["meetings"]]
     not_extracted = states.count("not_extracted")
     under_review = states.count("under_review")
     return [
         f"Recorded absent at {c['absent']} of {c['meetings_listed']} meetings with an extracted attendance section, "
         f"{cov['from']} to {cov['to']}.",
-        f"Roll call votes, {cov['from']} to {cov['to']}: {confirmed} confirmed; {unconfirmed} not confirmed.",
+        f"Roll call votes, {cov['from']} to {cov['to']}: {confirmed} confirmed; {unconfirmed}.",
         # A site-wide number: the same sentence, with the same number, on every official's page.
         f"{unmatched} {plural(unmatched, 'vote', 'votes')} in this period {plural(unmatched, 'has', 'have')} a name "
         f"that could not be matched to an official and {plural(unmatched, 'is', 'are')} not counted for any member.",
@@ -390,8 +405,9 @@ def official(official_id: str, facts) -> dict:
                      f"#{rc['id']}")
             r["item"] = ix.item_ref(rc["item_id"])
             r.update(ix.motion_for(rc))
-            r["record"] = vote_label(v["value"], v["raw_value"])
-            r["key"] = v["value"]
+            shown = values_shown(rc)
+            r["record"] = vote_label(v["value"], v["raw_value"]) if shown else config.NOT_CONFIRMED_LABEL
+            r["key"] = v["value"] if shown else None
             r["confirmed"] = is_verified(rc)
             r["outcome"] = ix.outcome(rc)
             r["pos"] = ix.position(rc)[1]
@@ -434,7 +450,9 @@ def official(official_id: str, facts) -> dict:
         "official": o, "initials": initials(o), "stats": c,
         "attendance_bar": bar(c, ATTENDANCE_SEGMENTS),
         "vote_bar": bar(_vote_segment_counts(c, ""), BAR_SEGMENTS),
-        "vote_legend_nc": bar(_vote_segment_counts(c, "_nc"), BAR_SEGMENTS),  # text only: no bar for these
+        # text only, no bar; and no breakdown at all unless unconfirmed values are shown
+        "vote_legend_nc": (bar(_vote_segment_counts(c, "_nc"), BAR_SEGMENTS) if config.SHOW_UNCONFIRMED_VALUES
+                           else None),
         "coverage": cov,
         "coverage_sentence": f"Shows {cov['body']} records from {cov['from']} to {cov['to']}. {ix.fetched_sentence()}",
         "totals": totals_sentences(ix, official_id),
@@ -450,15 +468,16 @@ def official(official_id: str, facts) -> dict:
 
 def _vote_rows(ix: Index, rc: dict) -> list[dict]:
     """Members alphabetically; votes whose name did not match come last as "Name not matched" (never the raw name).
-    In an unconfirmed roll call every row is starred."""
+    In an unconfirmed roll call every row is starred, and reads "Not confirmed" unless its values are shown."""
     def key(iv):
         i, v = iv
         o = ix.officials.get(v["official_id"])
         return (0, *name_key(o)) if o else (1, "", "", str(i))
 
-    star = not is_verified(rc)
+    star, shown = not is_verified(rc), values_shown(rc)
     return [{"who": ix.person({"official_id": v["official_id"], "raw_name": v["raw_name"]}),
-             "label": vote_label(v["value"], v["raw_value"]), "key": v["value"], "star": star}
+             "label": vote_label(v["value"], v["raw_value"]) if shown else config.NOT_CONFIRMED_LABEL,
+             "key": v["value"] if shown else "nc", "star": star}
             for _, v in sorted(enumerate(rc["votes"]), key=key)]
 
 
@@ -484,7 +503,7 @@ def _roll_call_block(ix: Index, rc: dict) -> dict:
         **ix.motion_for(rc),
         "votes": _vote_rows(ix, rc),
         "outcome": outcome,
-        "bar": bar(outcome["counts"], BAR_SEGMENTS),
+        "bar": bar(outcome["counts"], BAR_SEGMENTS) if outcome["counts"] else None,
         "src": ix.src(rc["source_id"], rc["page"]),
     }
 
