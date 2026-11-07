@@ -4,6 +4,7 @@
 **Stage:** M0 passed. Build M1 (backend B1-B4, frontend F1-F5). **Pace:** top priority today (Brian 2026-11-07 18:52Z), normal pace, 2-3 agents in parallel.
 
 ## Waiting on the CEO
+- Show the parsed vote on unconfirmed roll calls? (Link only, no vote = recommended / Show Yes*) | card in thread "Build local government documents dashboard" | tap an option | asked 2026-11-07 | default: link only
 (none)
 
 ## Run ledger
@@ -35,6 +36,8 @@
 | 2026-11-07 | ux-designer | opus/medium | visual refresh spec | done, docs/design/visual-refresh.md |
 | 2026-11-07 | frontend-engineer | opus/high | unconfirmed votes shown with asterisk + invariant rewrite (a991a10) | done, 270 pass |
 | 2026-11-07 | code-reviewer | opus/high | review a991a10 | request changes: 1 must-fix raw-ocr-leak/verification-detail; neutrality/held-count (3rd hit, attribution rule 6: decided unconfirmed motions never show names); raw-ocr-leak/qa-outcome-benign |
+| 2026-11-07 | frontend-engineer | sonnet/high | visual refresh build (ca700ea) | done, 276 pass |
+| 2026-11-07 | brain-trust x6 | opus/high (api) | round 2, corrected operator facts | 6 Fix First; unanimous: unconfirmed rows show no vote value (CEO card open) |
 
 ## Decisions
 - 2026-11-07 G1: footer line on every page + About page naming the operator (CEO, card).
