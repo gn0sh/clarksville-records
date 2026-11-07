@@ -16,7 +16,9 @@
 | 2026-11-07 | frontend-engineer | sonnet/high | F1-F5 site generator | done, 157e789 |
 | 2026-11-07 | backend-engineer | opus/high | B1-B4 collector + full corpus run | running |
 | 2026-11-07 | code-reviewer | opus/medium | review F1-F5 | request changes: 1 high, 2 medium, 4 low, 1 nit |
-| 2026-11-07 | frontend-engineer | opus/high (stepped up) | fix review findings | running |
+| 2026-11-07 | frontend-engineer | opus/high (stepped up) | fix review findings | done, 98c98c0 |
+| 2026-11-07 | code-reviewer | opus/medium | delta re-review | request changes: neutrality 2nd hit, about page copy |
+| 2026-11-07 | software-architect | opus/high | held-count invariant + fix (loop rule) | running |
 
 ## Decisions
 - 2026-11-07 G1: footer line on every page + About page naming the operator (CEO, card).
@@ -24,7 +26,7 @@
 ## Problem keys
 | Family | Hits | Keys |
 |---|---|---|
-| neutrality | 1 (review) | held-count-by-resolved-id, under-review-mislabelled |
+| neutrality | 2 (review, delta): architect states invariant | held-count-by-resolved-id, under-review-mislabelled |
 | verified-gate | 1 (review) | motion-over-hidden |
 | escape | 1 (review) | unsafe-url-scheme |
 | contract | 1 (review) | no-referential-check |
