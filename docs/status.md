@@ -68,3 +68,6 @@
 - Brian 2026-11-07 4:47 PM ET: unconfirmed roll calls show NO vote value, link only (card). SHOW_UNCONFIRMED_VALUES stays False.
 
 - 2026-11-07 ~5:25 PM ET: preview republished (version 2) at https://claude.ai/artifact/QkxSRXNSMiWXpHUoLj8ynj: visual refresh, 64 meetings 2020-02-10 to 2026-05-11, link-only unconfirmed roll calls, public data export. QA at 95e1235: 20/20 spot check, site checks pass, CEO decision holds; FAIL only on AC-P1 (82.3% verified < 90%), which gates public launch, not the private preview. Next: raise verified rate (backend; start with outcome_consistent failures, e.g. rc-09962951-p101-1), then M1.5.
+
+## Next after votes (Brian, 2026-11-07 5:32 PM ET)
+Once votes and voting records are done: finance. Revenue and expenditures, who got contracts and for how much, capital projects, and links to every related city and county document. Goal in his words: give residents "every opportunity" to dig in themselves. The site stays neutral: data, totals, source links and open downloads, never accusations. This is M2 (budgets/finance) + M3 (contracts) + capital projects; product-manager to fold it into the spec when M2 starts. Known gap: county minutes don't name vendors; award sources (Bonfire, purchasing archive, budget books, comptroller audits) still to verify.
