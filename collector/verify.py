@@ -18,9 +18,9 @@ REASON_CHECKS = [
     (r"sources disagree", "readings_agree"),
     (r"name not matched|roster members not found|matched \d+ times|absent name not on roster", "names_resolve"),
     (r"no vote read|listed absent but has vote|conflicting vote|unrecognised token", "one_vote_per_present_member"),
+    (r"^outcome", "outcome_consistent"),
     (r"tally|counted", "tally_matches_stated"),
     (r"ABSENT", "absent_line_consistent"),
-    (r"outcome", "outcome_consistent"),
     (r"token .* before any name|stray token|matching table not found|OCR failed", "table_read"),
 ]
 RC_CHECKS = ("roster_available", "in_meeting_record", "names_resolve", "one_vote_per_present_member",

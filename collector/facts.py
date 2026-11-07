@@ -211,9 +211,13 @@ class Builder:
         # consent lists: each listed item gets the consent roll call as an event on its own history
         for cl in pm.consent_lists:
             nxt = next(((rc, rid, iid) for rc, rid, iid in consent_rcs if rc.line > cl.line), None)
+            if nxt and any(cl.line < c.line < nxt[0].line for c in pm.consent_lists):
+                nxt = None                       # another list sits between this one and the vote: do not pair
+            seen = set()
             for e in cl.entries:
-                if e.number and e.number in cl.pulled:
+                if e.number and (e.number in cl.pulled or e.number in seen):
                     continue
+                seen.add(e.number)
                 iid = self.item_for(e.number, e.title, (date, e.page, e.order), f"{sid}-p{e.page}-{e.order}")
                 if nxt:
                     ev(iid, "roll_call", cl.label, nxt[1], e.page, e.order, 3)

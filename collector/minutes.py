@@ -163,6 +163,35 @@ def consent_lists(lines: list[str], page_of: list[int], spans) -> list[ConsentLi
     return out
 
 
+def inline_consent_lists(lines: list[str], page_of: list[int], rcs, titles: dict) -> list[ConsentList]:
+    """2021-2022 layout: a "Consent Agenda" line, then the item numbers separated by commas and one line per other
+    item, then "On Motion ... the foregoing Consent Agenda items were Adopted ..." and the table."""
+    out = []
+    for rc in rcs:
+        if rc.kind != "consent":
+            continue
+        head = next((j for j in range(rc.line - 1, max(rc.line - 30, -1), -1)
+                     if re.fullmatch(r"Consent\W{0,3}Agenda:?", lines[j].strip(), re.I)), None)
+        if head is None:
+            continue
+        cl = ConsentList(page_of[head], _line_order(page_of, head), head, " ".join(lines[head].split()))
+        for j in range(head + 1, rc.line):
+            x = lines[j].strip()
+            if re.search(r"\bMotion\b", x):
+                break
+            if not x or re.fullmatch(r"[-—–_~•.]+", x):
+                continue
+            nums = [P.norm_item(t) if P.ITEM_RE.fullmatch(t) else None for t in re.split(r"\s*,\s*", x.rstrip(","))]
+            if nums and all(P.valid_number(n) for n in nums):
+                for n in nums:
+                    cl.entries.append(Entry(n, n, titles.get(n) or n, n, page_of[j], _line_order(page_of, j)))
+            else:
+                cl.entries.append(Entry(None, None, x, x, page_of[j], _line_order(page_of, j)))
+        if cl.entries:
+            out.append(cl)
+    return out
+
+
 def agenda_entries(lines: list[str], page_of: list[int], spans, max_page: int = 6) -> list[Entry]:
     """Numbered items on the agenda printed at the front of the minutes (not attached earlier minutes)."""
     out = []
@@ -232,5 +261,7 @@ def parse_minutes(pdf_path: Path, source: dict, use_ocr: bool = True, text_cache
         jobs = sorted({(str(pdf_path), p, source["sha256"]) for rc in failing for p in range(rc.page, rc.end_page + 1)})
         ocr_pages_parallel(jobs)
         rcs = [reverify(rc, pdf_path, source["sha256"], att) if rc.status != "Verified" else rc for rc in rcs]
-    return ParsedMinutes(source, len(pages), "text", img, att, rcs, consent_lists(lines, page_of, spans),
+    cls = sorted(consent_lists(lines, page_of, spans) + inline_consent_lists(lines, page_of, rcs, titles),
+                 key=lambda c: c.line)
+    return ParsedMinutes(source, len(pages), "text", img, att, rcs, cls,
                          agenda_entries(lines, page_of, spans), titles, page_of)
