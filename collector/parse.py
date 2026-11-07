@@ -358,12 +358,15 @@ TALLY = re.compile(r"Yes\w*\s*[^\w\n]*\s*(\w{1,3})?\s*No\w*\s*[^\w\n]*\s*(\w{1,3
                    re.I)
 ITEM_RE = re.compile(r"(?<![\w-])(\d{2}\s?[-~_—–]\s?[\dIlO]{1,2}\s?[-~_—–]\s?[\dIlO]{1,2}"   # 24-12-1
                      r"|[A-Z]{1,3}\s?-\s?[\dIlO]{1,3}\s?-\s?\d(?:\s?\d){3})(?![\w-])")      # AB-4-2024, CZ-l1-2022, AB-7-2 023
-# outcome word: the one at most two lowercase words before "by the following roll call", optionally followed by
-# one comma-enclosed lowercase phrase ("was Adopted, in its original state, by the following roll call vote")
+# outcome word: the one at most two lowercase words before "by the following roll call". Between them the minutes may
+# also print one comma-enclosed phrase ("was Adopted, in its original state, by", "Adopted, as Amended, by") or, after
+# Suspended, the items the rules were suspended for ("Suspended for Resolutions 25-4-9 and 25-4-10 by"). OCR variants
+# of "the" and "roll call" ("by th~ following", "rail call", "roll catl") are read as those words.
 OUTCOME_RE = re.compile(r"((?i:Adopted|Approved|Failed|Defeated|Denied|Amended|Deferred|Withdrawn|Postponed"
                         r"|Tabled|Elected|Suspended))"
-                        r"(?:\s*,(?:\s+[a-z]+){1,5}\s*,)?"
-                        r"(?:\s+[^\sA-Z]\S*){0,2}\s+by\s+the\s+f\S{4,8}\s+(?i:roll\s+call)", re.S)
+                        r"(?:\s*,(?:\s+[A-Za-z]+){1,5}\s*,)?"
+                        r"(?:\s+for\s+(?:Resolutions?\s+)?[\w-]+(?:\s*(?:,|and)\s*[\w-]+)*)?"
+                        r"(?:\s+[^\sA-Z]\S*){0,2}\s+by\s+t\S{1,2}\s+f\S{4,8}\s+(?i:r\S{2,3}\s+c\S{2,3})", re.S)
 MOTION_RE = re.compile(r"Motion(?:\s+to\s+([A-Za-z]+(?:\s+[A-Za-z]+)?))?\s+by\s+~?Commissioner\s+"
                        r"([A-Z][\w.'’ ]{1,30}?)\s*,\s*"
                        r"seconded\s+by\s+~?Commissioner\s+([A-Z][\w.'’ ]{1,30}?)\s*[,.;]", re.S)

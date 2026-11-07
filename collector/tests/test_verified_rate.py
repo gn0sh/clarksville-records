@@ -165,3 +165,18 @@ def test_blank_count_rules():
     # the derived count is still checked: Cy Charlie is absent per the table but the ABSENT line says None
     r = rd(_table("Yeses - 1 Noes - Abstentions - 0"))
     assert r.tally == (1, 2, 0) and any(x.startswith("counted") for x in r.reasons)
+
+
+def test_outcome_regex_reads_minutes_variants():
+    cases = {
+        "The foregoing Resolution was Adopted, as Amended, by the following roll call vote:": "Adopted",
+        "the Rules were Suspended for Resolution 25-1-7 by the following roll call vote:": "Suspended",
+        "the Rules were Suspended for Resolutions 25-4-9 and 25-4-10 by the following roll call vote:": "Suspended",
+        "The Motion Failed by th~ following roll call vote:": "Failed",
+        "the foregoing Consent Agenda items were Adopted and Approved by the following rail call vote:": "Approved",
+        "The foregoing Resotution was Adopted by the following roll catl vote:": "Adopted",
+    }
+    for ctx, word in cases.items():
+        assert list(P.OUTCOME_RE.finditer(ctx))[-1].group(1) == word, ctx
+    # a capitalised word that is not an item list still ends the match
+    assert not list(P.OUTCOME_RE.finditer("was Deferred to the July 10, 2023 Formal Meeting by the following roll call"))
