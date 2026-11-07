@@ -1,0 +1,269 @@
+officials:
+- id: arnold-hodges
+  name: Arnold Hodges
+  given: Arnold
+  surname: Hodges
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases: []
+- id: autumn-simmons
+  name: Autumn Simmons
+  given: Autumn
+  surname: Simmons
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases:
+  - alias: Autunm Simmons
+    reason: OCR misreading of the printed name in the minutes header
+    example: src-356002f0c616 p1
+- id: billy-frye
+  name: Billy Frye
+  given: Billy
+  surname: Frye
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases: []
+- id: brandon-butts
+  name: Brandon Butts
+  given: Brandon
+  surname: Butts
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases:
+  - alias: Brandon Buns
+    reason: OCR misreading of the printed name in the minutes header
+    example: src-7325525d58ca p1
+- id: carmelle-chandler
+  name: Carmelle Chandler
+  given: Carmelle
+  surname: Chandler
+  title: County Commissioner
+  name_source: county commissioner list, https://montgomerytn.gov/commission (fetched 2026-11-07)
+  aliases: []
+- id: charles-keene
+  name: Charles Keene
+  given: Charles
+  surname: Keene
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases: []
+- id: chris-rasnic
+  name: Chris Rasnic
+  given: Chris
+  surname: Rasnic
+  title: County Commissioner
+  name_source: county commissioner list, https://montgomerytn.gov/commission (fetched 2026-11-07)
+  aliases: []
+- id: david-harper
+  name: David Harper
+  given: David
+  surname: Harper
+  title: County Commissioner
+  name_source: county commissioner list, https://montgomerytn.gov/commission (fetched 2026-11-07)
+  aliases: []
+- id: david-shelton
+  name: David Shelton
+  given: David
+  surname: Shelton
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases: []
+- id: garland-johnson
+  name: Garland Johnson
+  given: Garland
+  surname: Johnson
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases: []
+- id: james-lewis
+  name: James R. Lewis
+  given: James
+  surname: Lewis
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases:
+  - alias: James Lewis
+    reason: middle initial as printed in the minutes header
+    example: collector/hand_labels.json rosters
+- id: jason-knight
+  name: Jason Knight
+  given: Jason
+  surname: Knight
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases:
+  - alias: Jason D. Knight
+    reason: middle initial as printed in the minutes header
+    example: collector/hand_labels.json rosters
+- id: jeremiah-walker
+  name: Jeremiah Walker
+  given: Jeremiah
+  surname: Walker
+  title: County Commissioner
+  name_source: county commissioner list, https://montgomerytn.gov/commission (fetched 2026-11-07)
+  aliases: []
+- id: jerry-allbert
+  name: Jerry Allbert
+  given: Jerry
+  surname: Allbert
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases:
+  - alias: Jerry Alibert
+    reason: OCR misreading of the printed name in the minutes header
+    example: src-66f87bb7fd4f p1
+  - alias: Jerry Ailbert
+    reason: OCR misreading of the printed name in the minutes header
+    example: src-ae8150f52f55 p1
+- id: joe-creek
+  name: Joe Creek
+  given: Joe
+  surname: Creek
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases:
+  - alias: Joe L. Creek
+    reason: middle initial as printed in the minutes header
+    example: collector/hand_labels.json rosters
+- id: joe-smith
+  name: Joe Smith
+  given: Joe
+  surname: Smith
+  title: County Commissioner
+  name_source: county commissioner list, https://montgomerytn.gov/commission (fetched 2026-11-07)
+  aliases: []
+- id: john-gannon
+  name: John Gannon
+  given: John
+  surname: Gannon
+  title: County Commissioner
+  name_source: county commissioner list, https://montgomerytn.gov/commission (fetched 2026-11-07)
+  aliases:
+  - alias: John M. Gannon
+    reason: middle initial as printed in the minutes header
+    example: collector/hand_labels.json rosters
+  - alias: John M. Gaimon
+    reason: OCR misreading of the printed name in the minutes header
+    example: src-9b7e32b905d0 p1
+- id: jorge-padro
+  name: Jorge Padro
+  given: Jorge
+  surname: Padro
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases: []
+- id: joshua-beal
+  name: Joshua Beal
+  given: Joshua
+  surname: Beal
+  title: County Commissioner
+  name_source: county commissioner list, https://montgomerytn.gov/commission (fetched 2026-11-07)
+  aliases: []
+- id: larry-rocconi
+  name: Larry Rocconi
+  given: Larry
+  surname: Rocconi
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases: []
+- id: lisa-prichard
+  name: Lisa Prichard
+  given: Lisa
+  surname: Prichard
+  title: County Commissioner
+  name_source: county commissioner list, https://montgomerytn.gov/commission (fetched 2026-11-07)
+  aliases:
+  - alias: Lisa L. Prichard
+    reason: middle initial as printed in the minutes header
+    example: collector/hand_labels.json rosters
+- id: loretta-bryant
+  name: Loretta J. Bryant
+  given: Loretta
+  surname: Bryant
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases:
+  - alias: Loretta Bryant
+    reason: middle initial as printed in the minutes header
+    example: collector/hand_labels.json rosters
+- id: michael-lankford
+  name: Michael Lankford
+  given: Michael
+  surname: Lankford
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases: []
+- id: nathan-burkholder
+  name: Nathan Burkholder
+  given: Nathan
+  surname: Burkholder
+  title: County Commissioner
+  name_source: county commissioner list, https://montgomerytn.gov/commission (fetched 2026-11-07)
+  aliases: []
+- id: randy-allbert
+  name: Randy Allbert
+  given: Randy
+  surname: Allbert
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases:
+  - alias: Randy Alibert
+    reason: OCR misreading of the printed name in the minutes header
+    example: src-ae8150f52f55 p1
+  - alias: Randy Ailbert
+    reason: OCR misreading of the printed name in the minutes header
+    example: src-9b7e32b905d0 p1
+- id: rashidah-leverett
+  name: Rashidah Leverett
+  given: Rashidah
+  surname: Leverett
+  title: County Commissioner
+  name_source: county commissioner list, https://montgomerytn.gov/commission (fetched 2026-11-07)
+  aliases:
+  - alias: Rashidah A. Leverett
+    reason: middle initial as printed in the minutes header
+    example: collector/hand_labels.json rosters
+- id: rickey-ray
+  name: Rickey Ray
+  given: Rickey
+  surname: Ray
+  title: County Commissioner
+  name_source: county commissioner list, https://montgomerytn.gov/commission (fetched 2026-11-07)
+  aliases: []
+- id: robert-sigler
+  name: Robert Sigler
+  given: Robert
+  surname: Sigler
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases: []
+- id: ryan-gallant
+  name: Ryan Gallant
+  given: Ryan
+  surname: Gallant
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases: []
+- id: tangi-smith
+  name: Tangi Smith
+  given: Tangi
+  surname: Smith
+  title: County Commissioner
+  name_source: minutes attendance header, read by eye (collector/hand_labels.json)
+  aliases:
+  - alias: Tangi C. Smith
+    reason: middle initial as printed in the minutes header
+    example: collector/hand_labels.json rosters
+- id: walker-woodruff
+  name: Walker Woodruff
+  given: Walker
+  surname: Woodruff
+  title: County Commissioner
+  name_source: county commissioner list, https://montgomerytn.gov/commission (fetched 2026-11-07)
+  aliases:
+  - alias: Walker R. Woodruff
+    reason: middle initial as printed in the minutes header
+    example: collector/hand_labels.json rosters
+  - alias: Walker R. Woo~lrnff
+    reason: OCR misreading of the printed name in the minutes header
+    example: src-ae8150f52f55 p1

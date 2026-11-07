@@ -16,6 +16,8 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .fetch import FetchFailed
+
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "data" / "manifest.json"
 CHANGES = ROOT / "data" / "changes.jsonl"
@@ -85,8 +87,10 @@ class Store:
         }
         self.entries.append(entry)
         if prev:
-            self._log_change({"on": entry["first_fetched_at"][:10], "type": "source_changed", "url": url,
-                              "old_sha256": prev["sha256"], "new_sha256": digest})
+            self._log_change({"date": entry["first_fetched_at"][:10], "fact_id": f"src-{prev['sha256'][:12]}",
+                              "field": "sha256", "old": prev["sha256"], "new": digest,
+                              "note": "the county replaced this document; the old version stays as its own source",
+                              "source_url": url, "page": None})
         return entry, "changed" if prev else "new"
 
     def _log_change(self, rec: dict) -> None:
@@ -103,12 +107,8 @@ class Store:
             self.manifest_path.write_text(text)
 
 
-def fetch_into_store(fetcher, store: Store, url: str, meta: dict | None = None,
-                     fetch_url: str | None = None) -> tuple[dict, str]:
-    """Return the stored entry for url, downloading only when its bytes are not in the store.
-
-    `fetch_url` lets the caller request the same document on the same host by https when the index lists
-    it as http (the sandbox proxy carries HTTPS only); the manifest records `url`."""
+def fetch_into_store(fetcher, store: Store, url: str, meta: dict | None = None) -> tuple[dict, str]:
+    """Return the stored entry for url, downloading only when its bytes are not in the store."""
     known = store.latest(url)
     if known and store.has_bytes(known["sha256"]):
         changed = False
@@ -116,12 +116,10 @@ def fetch_into_store(fetcher, store: Store, url: str, meta: dict | None = None,
             if meta and meta.get(k) and known.get(k) != meta[k]:
                 known[k] = meta[k]
                 changed = True
-        return known, "cached" if not changed else "cached"
-    status, body, headers = fetcher.get(fetch_url or url)
+        return known, "cached-meta" if changed else "cached"
+    status, body, headers = fetcher.get(url)
     if status != 200:
-        from .fetch import FetchFailed
         raise FetchFailed(f"HTTP {status} for {url}")
     if body[:4] != b"%PDF":
-        from .fetch import FetchFailed
         raise FetchFailed(f"not a PDF: {url} ({headers.get('Content-Type')})")
     return store.put(url, body, headers, meta)
