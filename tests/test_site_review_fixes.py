@@ -110,7 +110,7 @@ def test_failed_motion_check_holds_back_only_attribution(tmp_path, facts):
     block = next(n for n in meeting.walk() if n.attrs.get("id") == MO_SHOWN)
     text = " ".join(block.all_text().split())
     assert "Motion to approve" in text and mo["text"] not in text
-    assert text.count("Attribution under review") == 2
+    assert text.count("Attribution under review") == 1
     rc_block = next(n for n in meeting.walk() if n.attrs.get("id") == RC_SHOWN)
     assert "Motion to approve" in rc_block.all_text() and "Attribution under review" in rc_block.all_text()
     assert mo["text"] not in rc_block.all_text()
@@ -295,6 +295,28 @@ def test_no_unverified_motion_text_and_no_outcome_text_on_any_public_page(tmp_pa
             assert rc["outcome_text"] not in html, name
     assert "Motion to adopt" in pages[f"meetings/{MEETING_DEC}.html"]
     assert "Qqoutcome" in pages["review.html"] and "Smitl1" in pages["review.html"]
+
+
+def test_no_raw_motion_text_even_when_verified(tmp_path, facts):
+    """Verified motions show the type label and 'Moved by <display name>, seconded by <display name>' from the
+    resolved officials, never the raw sentence or raw OCR names. The raw text stays on review.html."""
+    f = copy.deepcopy(facts)
+    for mo in f["motions"]:
+        mo["text"] = f"On Motion to Adopt by Commissioner Qq{mo['id']} Beat, seconded by Commissioner Smitl1, the foregoing"
+        for k in ("moved_by", "seconded_by"):
+            mo[k]["raw_name"] = f"Qqraw {mo['id']} {k}"
+    pages = build_pages(tmp_path, f)
+    for name, html in public(pages).items():
+        assert "Beat, seconded" not in html and "Smitl1" not in html and "Qqraw" not in html, name
+        for mo in f["motions"]:
+            assert mo["text"] not in html, name
+    mo = by_id(f, "motions", MO_SHOWN)
+    names = {o["id"]: o["name"] for o in f["officials"]}
+    import re
+    html = pages[f"meetings/{MEETING_DEC}.html"]
+    text = " ".join(re.sub(r"<[^>]+>", "", html).split())
+    assert "Motion to adopt." in text
+    assert f"Moved by {names[mo['moved_by']['official_id']]}, seconded by {names[mo['seconded_by']['official_id']]}" in text
 
 
 def test_outcome_shows_label_and_tally_counted_from_votes(tmp_path, facts):

@@ -36,20 +36,16 @@
 {# A motion or roll call as one block. Used on meeting pages and item pages.
    A failed motion check holds back who moved and seconded it and the minutes' sentence: only the motion type is shown. #}
 {% macro motion_block(b, root) %}
-{% if b.attribution_held %}<p><strong>{{ b.text }}</strong></p>{% else %}<p><strong>Motion:</strong> {{ b.text }}</p>{% endif %}
-<dl class="people">
-  {% if b.attribution_held %}
-  <dt>Moved</dt><dd class="held">Attribution under review</dd>
-  <dt>Seconded</dt><dd class="held">Attribution under review</dd>
-  {% else %}
-  <dt>Moved</dt><dd>{{ person(b.moved_by, root) }}</dd>
-  <dt>Seconded</dt><dd>{{ person(b.seconded_by, root) }}</dd>
-  {% endif %}
-</dl>
+<p><strong>{{ b.text }}.</strong></p>
+{% if b.attribution_held %}
+<p class="held">Attribution under review.</p>
+{% else %}
+<p>Moved by {{ person(b.moved_by, root) }}, seconded by {{ person(b.seconded_by, root) }}.</p>
+{% endif %}
 {% endmacro %}
 
 {% macro roll_call_block(b, root) %}
-{% if b.motion_text %}<p><strong>Motion:</strong> {{ b.motion_text }}</p>{% elif b.motion_label %}<p><strong>{{ b.motion_label }}.</strong> Attribution under review.</p>{% endif %}
+{% if b.motion_label %}<p><strong>{{ b.motion_label }}.</strong> {% if b.motion_by %}{{ b.motion_by }}.{% else %}Attribution under review.{% endif %}</p>{% endif %}
 {{ vote_table(b.votes, root) }}
 <p><strong>Outcome:</strong> {{ b.outcome.label }} ({{ b.outcome.tally }}).</p>
 {% endmacro %}
