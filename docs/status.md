@@ -35,3 +35,4 @@
 ## Skipped panels
 - Architect recommended a 3-member Brain Trust on the facts schema and id scheme; skipped for today's preview (private, data regenerated from source each run, so the schema is cheap to change before public launch). Revisit at M1.5.
 - M0 note: first index request got a 403 from the sandbox egress proxy (allowlist not yet live), not from the county; the engineer retried once. Fetcher must tell proxy CONNECT refusals apart from server 403s (B1).
+- Private preview artifact: https://claude.ai/artifact/QkxSRXNSMiWXpHUoLj8ynj (v1 draft with 11 meetings, published from build/publish/index.html + build/site files; republish same path).
