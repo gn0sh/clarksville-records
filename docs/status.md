@@ -71,3 +71,7 @@
 
 ## Next after votes (Brian, 2026-11-07 5:32 PM ET)
 Once votes and voting records are done: finance. Revenue and expenditures, who got contracts and for how much, capital projects, and links to every related city and county document. Goal in his words: give residents "every opportunity" to dig in themselves. The site stays neutral: data, totals, source links and open downloads, never accusations. This is M2 (budgets/finance) + M3 (contracts) + capital projects; product-manager to fold it into the spec when M2 starts. Known gap: county minutes don't name vendors; award sources (Bonfire, purchasing archive, budget books, comptroller audits) still to verify.
+
+## Design constraint (Brian, 2026-11-07 5:38 PM ET)
+Keep in mind while coding: a possible future free app where anyone enters a ZIP code and gets the same (or configurable) information for their locality. Do NOTHING toward it now; just avoid hard-coding Clarksville/Montgomery assumptions where a config value or per-source adapter costs the same (body names, rosters, URLs, branding text in config, sources as adapters). Reviewers flag new hard-coding.
+- 2026-11-07 ~5:40 PM ET: preview v3 published (dropdown menus, collapsed years, Esc/outside-click close). UX pass reviewed (approve after delta).
