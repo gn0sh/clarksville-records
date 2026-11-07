@@ -67,6 +67,17 @@ Tests use the 2020-2024 minutes corpus unless stated.
 - AC5.1 Every vote, attendance and agenda result page has a "Report an error" control that records the fact id and a free-text note without an account.
 - AC5.2 A report reaches Brian within one collection cycle; a corrected fact shows "Corrected on <date>" and the old value stays in the change history.
 
+**US6. As a resident, I want to click an elected official and see their whole vote and comment history, so that I can see what they did and said.** (Brian, 2026-11-07)
+- AC6.1 The official's page (US1) also lists their recorded comments: statements, motions and seconds attributed to them by name in the minutes, quoted verbatim with meeting date, item and source page. No paraphrase, no AI summary, no selection by tone.
+- AC6.2 Comments, votes and attendance sit in one date-ordered history on the page, filterable by type and year; the same layout for every official (N1).
+- AC6.3 If the minutes summarise discussion without naming speakers, nothing is attributed. Video transcripts are a later source (Later list) and, when added, are labelled as transcripts with a timestamp link.
+
+**US7. As a resident, I want to click a specific item and see its entire history, so that I can follow it from start to finish.** (Brian, 2026-11-07)
+- AC7.1 An item page groups every appearance of the same item (resolution or ordinance number, e.g. "AB-4-2024", or the agenda item when unnumbered): each agenda listing, committee referral, reading, amendment, comment and roll call, in date order, each with its source page.
+- AC7.2 Each roll call on the item page shows every member's recorded vote and the outcome.
+- AC7.3 Items are linked by their official number; unnumbered items are linked only on an exact title match and show "linked by title" so a resident can judge it. Uncertain links are not made.
+- AC7.4 Every vote row and comment on an official's page links to its item page.
+
 ## Parse accuracy and uncertain parses (top product risk)
 A parse that misstates an official's vote or attendance is the worst failure. Rules:
 - P1. Each extracted roll call is **Verified** (passes all automatic checks) or **Unverified** (any check fails or low confidence). Only Verified facts are shown as facts.
@@ -79,7 +90,7 @@ A parse that misstates an official's vote or attendance is the worst failure. Ru
 - AC-P4 Scanned or image-only minutes are detected and marked "not extracted"; OCR output is shown only if it passes P2.
 
 ## Milestones
-- **M1 (thin slice, real data):** Montgomery County Commission attendance and roll-call votes per commissioner from 2020-2024 minutes, every vote linked to the minutes PDF and page; searchable commission agendas; fully automated collection; private preview. Done when Brian picks a commissioner and sees every shown vote with its source, and the 20-vote spot check (AC-P2) all match.
+- **M1 (thin slice, real data):** Montgomery County Commission attendance and roll-call votes per commissioner from 2020-2024 minutes, every vote linked to the minutes PDF and page; searchable commission agendas; fully automated collection; private preview. Includes official pages with vote and comment history (US6) and item history pages (US7). Done when Brian picks a commissioner and sees every shown vote and comment with its source, opens an item and sees its full history, and the 20-vote spot check (AC-P2) all match.
 - **M2:** County budgets (approved budget books) and audits (TN Comptroller): what, how much, linked to page.
 - **M3:** County contracts: Bonfire awards, commission resolutions with dollar amounts, and which committee approved each.
 - **M4:** City Council and committees from the clarksvilletn.gov Agenda Center (10 s crawl delay), same neutral display; find where post-May-2024 council records live.
