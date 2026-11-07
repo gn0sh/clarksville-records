@@ -6,7 +6,7 @@ CEO decision 2026-11-07: unverified roll calls are shown, marked "*", and counte
 3. Same meeting, same treatment: every official with a resolved vote in a roll call gets it, with the same mark.
 4. Exactly once: every vote counts once, under its resolved official or in the one site-wide unmatched sentence;
    an unmatched vote is on no official's page and shows "Name not matched*" on the meeting page.
-6. Unverified motions: "Moved by X, seconded by Y*" only when both resolve and the roll call is unconfirmed.
+6. Unverified motions never name anyone: type label plus "Attribution under review" everywhere.
 """
 import copy
 import random
@@ -19,6 +19,17 @@ from markupsafe import escape
 from sitegen import views
 from test_site_review_fixes import (MEETING_DEC, MEETING_NOV, MO_SHOWN, RC_HELD, RC_SHOWN, build_pages, by_id,
                                     public, unverify)
+
+import pytest
+
+from sitegen import config
+
+
+@pytest.fixture(autouse=True)
+def show_unconfirmed_values(monkeypatch):
+    """This module tests SHOW_UNCONFIRMED_VALUES = True (values shown, starred); False is in test_unconfirmed_values.py."""
+    monkeypatch.setattr(config, "SHOW_UNCONFIRMED_VALUES", True)
+
 
 MO_HELD = "mo-314626e6-p15-2"  # the motion of RC_HELD: moved e-fixture, seconded c-placeholder
 VOTES = re.compile(r"Roll call votes, [0-9-]+ to [0-9-]+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other confirmed; "
@@ -126,18 +137,42 @@ def test_unmatched_vote_is_on_no_official_page_and_unnamed_on_the_meeting_page(t
         assert "Qq A. Exarnple" not in html and "Exarnple" not in html, name
 
 
-def test_unverified_motion_with_both_names_and_unconfirmed_roll_call_is_starred(tmp_path, facts):
-    """Rule 6."""
+def test_unverified_motion_never_names_anyone_even_with_an_unconfirmed_roll_call(tmp_path, facts):
+    """Rule 6 (manager decision 2026-11-07): both names resolve and the roll call is unconfirmed, still no names."""
     f = copy.deepcopy(facts)
     unverify(by_id(f, "motions", MO_HELD), "mover_present")
     pages = build_pages(tmp_path, f)
     names = {o["id"]: o["name"] for o in f["officials"]}
-    expected = f"Moved by {names['e-fixture']}, seconded by {names['c-placeholder']}*"
-    assert expected in text_of(pages[f"meetings/{MEETING_DEC}.html"], RC_HELD)
-    assert expected in text_of(pages[f"meetings/{MEETING_DEC}.html"], MO_HELD)
-    assert f"{MO_HELD}/moved" in pages["officials/e-fixture.html"]
-    row = text_of(pages["officials/e-fixture.html"], f"{MO_HELD}/moved", "data-fact-id")
-    assert NOTE in row
+    meeting = pages[f"meetings/{MEETING_DEC}.html"]
+    for fid in (RC_HELD, MO_HELD):
+        text = text_of(meeting, fid)
+        assert "Attribution under review" in text and "Moved by" not in text and "Seconded by" not in text, fid
+    ev = next(e["id"] for e in f["item_events"] if e["ref"] == MO_HELD)
+    assert "Attribution under review" in text_of(pages["items/2024.html"], ev, "data-fact-id")
+    for v in by_id(f, "roll_calls", RC_HELD)["votes"]:
+        row = text_of(pages[f"officials/{v['official_id']}.html"], f"{RC_HELD}/{v['official_id']}", "data-fact-id")
+        assert "Attribution under review" in row and "Moved by" not in row, v["official_id"]
+    for name, html in public(pages).items():
+        assert f"{MO_HELD}/moved" not in html and f"{MO_HELD}/seconded" not in html, name
+        assert f"seconded by {names['c-placeholder']}*" not in html, name
+
+
+def test_confirmed_roll_call_shows_no_star_anywhere(tmp_path, facts):
+    """Rule 3/6: a confirmed roll call's block, item event and official rows carry no "*" and no note, even when its
+    motion is unverified or one vote's name is unmatched."""
+    f = copy.deepcopy(facts)
+    unverify(by_id(f, "motions", MO_SHOWN), "mover_present")
+    rc = by_id(f, "roll_calls", RC_SHOWN)
+    rc["votes"][0].update(official_id=None, raw_name="Qq Unmatched")
+    pages = build_pages(tmp_path, f)
+    block = text_of(pages[f"meetings/{MEETING_DEC}.html"], RC_SHOWN)
+    assert "*" not in block and NOTE not in block and "Outcome:" in block and "Name not matched" in block
+    ev = next(e["id"] for e in f["item_events"] if e["ref"] == RC_SHOWN)
+    event = text_of(pages["items/2024.html"], ev, "data-fact-id")
+    assert "*" not in event and NOTE not in event
+    for v in rc["votes"][1:]:
+        row = text_of(pages[f"officials/{v['official_id']}.html"], f"{RC_SHOWN}/{v['official_id']}", "data-fact-id")
+        assert "*" not in row and NOTE not in row, v["official_id"]
 
 
 def test_unverified_motion_keeps_attribution_under_review_otherwise(tmp_path, facts):
@@ -167,8 +202,9 @@ def test_unverified_motion_keeps_attribution_under_review_otherwise(tmp_path, fa
             assert "Qq Raw" not in html, (n, name)
 
 
-def test_about_page_explains_the_rule(pages):
-    """copy/about-corrupted: the paragraph reads as intended, with nothing spliced into it."""
+def test_about_page_explains_the_rule(tmp_path, facts):
+    """copy/about-corrupted: the paragraph reads as intended, with nothing spliced into it (values shown)."""
+    pages = build_pages(tmp_path, copy.deepcopy(facts))
     para = next(p for p in re.findall(r"<p>(.*?)</p>", pages["about.html"], re.S) if "not confirmed" in p)
     expected = (
         "A computer program can misread a page, so each extracted fact is checked automatically before it is shown. "
@@ -179,12 +215,12 @@ def test_about_page_explains_the_rule(pages):
         "read. Read it yourself&rdquo;, with a link to that page of the minutes. Confirmed and not confirmed votes are "
         "always counted separately, for example &ldquo;12 Yes, 3 No confirmed; 2 Yes* not confirmed&rdquo;, and a not "
         "confirmed vote never changes a confirmed total. A vote whose name could not be matched to an official is "
-        "never placed under anyone: it appears only on the meeting page, as &ldquo;Name not matched*&rdquo;, and is "
+        "never placed under anyone: it appears only on the meeting and item pages, as &ldquo;Name not matched*&rdquo;, "
+        "and is "
         "counted once, in one sentence that is the same on every official's page. For a motion the checks are that "
         "the people named as moving and seconding it match the roster, were present, and are two different people; "
-        "if any of these fails, the motion is marked &ldquo;Attribution under review&rdquo;, unless both names match "
-        "two officials and the motion's roll call is shown as not confirmed, in which case it reads &ldquo;Moved "
-        "by&rdquo; and &ldquo;seconded by&rdquo; those officials, with an asterisk. The minutes' own sentence for a "
+        "if any of these fails, the motion is marked &ldquo;Attribution under review&rdquo; and no one is named as "
+        "moving or seconding it, even when its roll call is shown. The minutes' own sentence for a "
         "motion, and the names exactly as the program read them, are never shown on these pages or included in the "
         "data files below, because the program can misread names in them. Each motion is shown as its kind, such as "
         "&ldquo;Motion to adopt&rdquo;. A roll call shows its outcome as Passed, Failed or Other with a tally counted "

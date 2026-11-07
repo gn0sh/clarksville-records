@@ -13,6 +13,9 @@ from test_site_neutrality import skeleton
 BAR_ORDER = ["yes", "no", "abstain", "other", "absent", "novote"]
 VOTES = re.compile(r"Roll call votes, [0-9-]+ to [0-9-]+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other confirmed; "
                    r"(\d+) Yes\*, (\d+) No\*, (\d+) Abstain\*, (\d+) Other\* not confirmed\.")
+# SHOW_UNCONFIRMED_VALUES = False (the default): a count of unconfirmed roll calls, no breakdown
+VOTES_HIDDEN = re.compile(r"Roll call votes, [0-9-]+ to [0-9-]+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other "
+                          r"confirmed; (\d+) roll calls? not confirmed\*, see each page\.")
 
 
 def test_official_counts_sum_and_agree_with_the_totals_sentences(facts):
@@ -26,8 +29,12 @@ def test_official_counts_sum_and_agree_with_the_totals_sentences(facts):
         assert c["present"] + c["absent"] == c["meetings_listed"], o["id"]
         t = views.totals_sentences(ix, o["id"])
         assert f"Recorded absent at {c['absent']} of {c['meetings_listed']} meetings" in t[0]
-        n = [int(x) for x in VOTES.fullmatch(t[1]).groups()]
-        assert n == [c[k] for k in views.VOTE_VALUES] + [c[k + "_nc"] for k in views.VOTE_VALUES], o["id"]
+        if views.config.SHOW_UNCONFIRMED_VALUES:
+            n = [int(x) for x in VOTES.fullmatch(t[1]).groups()]
+            assert n == [c[k] for k in views.VOTE_VALUES] + [c[k + "_nc"] for k in views.VOTE_VALUES], o["id"]
+        else:
+            n = [int(x) for x in VOTES_HIDDEN.fullmatch(t[1]).groups()]
+            assert n == [c[k] for k in views.VOTE_VALUES] + [c["rc_voted_nc"]], o["id"]
         page = views.official(o["id"], ix)
         assert [s["n"] for s in page["vote_bar"]] == [c[k] for k in views.VOTE_VALUES] + [c["rc_absent"], c["rc_novote"]]
         assert [s["key"] for s in page["vote_bar"]] == BAR_ORDER
@@ -55,6 +62,11 @@ def test_roll_call_bar_segments_match_the_tally(pages, facts):
         tree = parse(pages[f"meetings/{m['id']}.html"])
         for rc in (r for r in facts["roll_calls"] if r["meeting_id"] == m["id"]):
             block = next(n for n in tree.walk() if n.attrs.get("id") == rc["id"])
+            if not views.values_shown(rc):  # SHOW_UNCONFIRMED_VALUES off: no bar, no tally for an unconfirmed one
+                assert not any("bar" in n.attrs.get("class", "").split() for n in block.walk()), rc["id"]
+                assert ix.outcome(rc)["counts"] is None and ix.outcome(rc)["tally"] is None
+                seen += 1
+                continue
             bar = next(n for n in block.walk() if "bar" in n.attrs.get("class", "").split())
             segs = [(s.attrs["class"].split()[-1], int(re.search(r"--n: (\d+)", s.attrs["style"]).group(1)))
                     for s in bar.children]

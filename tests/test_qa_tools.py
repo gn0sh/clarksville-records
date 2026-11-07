@@ -103,6 +103,34 @@ def test_unconfirmed_roll_call_without_its_note_is_caught(site):
     assert "unverified" in failed(run(site))
 
 
+def test_note_outside_its_row_is_caught(site):
+    """The note must sit in the row or block it belongs to; the same text elsewhere on the page does not count."""
+    voter = next(v["official_id"] for v in UNVERIFIED_RC["votes"] if v["official_id"])
+    edit(site / "officials" / f"{voter}.html", "Not confirmed: this page was hard to read.", "", count=-1)
+    edit(site / "officials" / f"{voter}.html", "</main>", "<p>Not confirmed: this page was hard to read.</p></main>")
+    rep = run(site)
+    assert "unverified" in failed(rep)
+    assert f"{UNVERIFIED_RC['id']}/{voter} shows an unconfirmed roll call without" in rep.render()
+
+
+def test_star_on_a_confirmed_roll_call_is_caught(site):
+    rc = next(r for r in FACTS["roll_calls"] if r["verification"]["status"] == "verified")
+    page = site / "meetings" / f"{rc['meeting_id']}.html"
+    edit(page, '<strong class="label">Outcome:</strong>', '<strong class="label">Outcome*:</strong>')
+    assert "unverified" in failed(run(site))
+
+
+def test_outcome_text_matching_a_roll_call_event_label_is_still_caught(site):
+    """raw-ocr-leak/qa-outcome-benign: motion and roll call event labels are raw OCR no page shows, so an outcome text
+    that also appears in one is still a leak."""
+    facts = json.loads(json.dumps(FACTS))
+    ev = next(e for e in facts["item_events"] if e["ref"] == UNVERIFIED_RC["id"])
+    ev["label"] = "On roll call: " + UNVERIFIED_RC["outcome_text"]
+    edit(site / "items" / "2024.html", "</main>", f"<p>{UNVERIFIED_RC['outcome_text']}</p></main>")
+    rep = site_checks.run_checks(site, facts, browser=False, no_export=True)
+    assert "unverified" in failed(rep)
+
+
 def test_shown_fact_missing_from_official_page_is_caught(site):
     page = site / "officials" / "a-example.html"
     t = page.read_text(encoding="utf-8")

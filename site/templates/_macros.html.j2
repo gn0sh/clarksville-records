@@ -77,16 +77,15 @@
 {% if b.attribution_held %}
 <p class="held">Attribution under review.</p>
 {% else %}
-<p>{% if b.moved_by %}Moved by {{ person(b.moved_by, root) }}{% endif %}{% if b.moved_by and b.seconded_by %}, {% endif %}{% if b.seconded_by %}{% if b.moved_by %}seconded{% else %}Seconded{% endif %} by {{ person(b.seconded_by, root) }}{% endif %}{% if b.star %}{{ nc_mark() }}{% endif %}.</p>
-{% if b.star %}<p class="nc-note">{{ not_confirmed(b.src) }}</p>{% endif %}
+<p>{% if b.moved_by %}Moved by {{ person(b.moved_by, root) }}{% endif %}{% if b.moved_by and b.seconded_by %}, {% endif %}{% if b.seconded_by %}{% if b.moved_by %}seconded{% else %}Seconded{% endif %} by {{ person(b.seconded_by, root) }}{% endif %}.</p>
 {% endif %}
 {% endmacro %}
 
 {% macro roll_call_block(b, root) %}
 {% if not b.confirmed %}<p class="nc-note">{{ not_confirmed(b.src) }}</p>{% endif %}
-<p class="outcome"><strong class="label">Outcome{% if not b.confirmed %}*{% endif %}:</strong> <span class="chip chip-outcome">{{ b.outcome.label }}</span> ({{ b.outcome.tally }}).</p>
-{{ bar(b.bar) }}
-{% if b.motion_label %}<p class="motion-line"><strong>{{ b.motion_label }}.</strong> {% if b.motion_by %}{{ b.motion_by }}{% if b.motion_by_star %}{{ nc_mark() }}{% endif %}.{% else %}Attribution under review.{% endif %}</p>{% endif %}
+<p class="outcome"><strong class="label">Outcome{% if not b.confirmed and not b.outcome.hidden %}*{% endif %}:</strong> <span class="chip chip-outcome">{{ b.outcome.label }}{% if b.outcome.hidden %}{{ nc_mark() }}{% endif %}</span>{% if b.outcome.tally %} ({{ b.outcome.tally }}){% endif %}.</p>
+{% if b.bar %}{{ bar(b.bar) }}{% endif %}
+{% if b.motion_label %}<p class="motion-line"><strong>{{ b.motion_label }}.</strong> {% if b.motion_by %}{{ b.motion_by }}.{% else %}Attribution under review.{% endif %}</p>{% endif %}
 <p class="label votes-label">Votes, alphabetical</p>
 {{ vote_grid(b.votes, root) }}
 {% endmacro %}

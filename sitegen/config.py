@@ -27,6 +27,15 @@ EVENT_TYPE_LABELS = {
 }
 OUTCOME_LABELS = {"passed": "Passed", "failed": "Failed", "other": "Other"}
 
+# Brain Trust round 2 (docs/reviews/brain-trust-round2.md); False confirmed by the CEO, 2026-11-07 (link only).
+# False: an unconfirmed roll call
+# shows no parsed value on any public page or in the public export: every vote and the outcome read "Not confirmed*"
+# with the source-page link, there is no bar and no tally, and official pages count unconfirmed roll calls without a
+# Yes/No breakdown. True: unconfirmed values are shown, marked "*" (the CEO decision of 2026-11-07). review.html and
+# --internal exports show everything either way.
+SHOW_UNCONFIRMED_VALUES = False
+NOT_CONFIRMED_LABEL = "Not confirmed"
+
 # raw-ocr-leak/vote-raw-value: an `other` vote shows the minutes' wording only when it normalises (lower case,
 # letters and spaces only) to one of these keys; the value on the right is what is printed. Anything else is "Other".
 OTHER_VOTE_WORDS = {

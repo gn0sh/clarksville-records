@@ -27,6 +27,10 @@ def public_schema():
     for k in ("motion", "roll_call", "vote"):
         s["$defs"][k]["properties"]["confirmed"] = {"type": "boolean"}
         s["$defs"][k]["required"] = s["$defs"][k]["required"] + ["confirmed"]
+    # SHOW_UNCONFIRMED_VALUES off: an unconfirmed roll call's outcome and each of its votes' value are null
+    for k, f in (("vote", "value"), ("roll_call", "outcome")):
+        p = s["$defs"][k]["properties"][f]
+        s["$defs"][k]["properties"][f] = {"anyOf": [p, {"type": "null"}]}
     return s
 
 
@@ -48,6 +52,10 @@ def test_export_marks_unconfirmed_and_places_no_guessed_name(tmp_path):
         assert r["confirmed"] == (src["verification"]["status"] == "verified")
         assert all(v["confirmed"] == r["confirmed"] for v in r["votes"])
         assert [v["official_id"] for v in r["votes"]] == [v["official_id"] for v in src["votes"]]
+        if r["confirmed"]:
+            assert [v["value"] for v in r["votes"]] == [v["value"] for v in src["votes"]] and r["outcome"]
+        else:  # SHOW_UNCONFIRMED_VALUES = False (default, CEO 2026-11-07): link only, no parsed value
+            assert all(v["value"] is None for v in r["votes"]) and r["outcome"] is None and r["stated_tally"] is None
         unconfirmed += not r["confirmed"]
     assert unconfirmed, "the committed facts have unconfirmed roll calls to test against"
     ix = Index(facts)
