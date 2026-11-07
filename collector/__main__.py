@@ -217,7 +217,7 @@ def cmd_run(args) -> int:
     from .export import export
     if site_build:
         site_build(FACTS, site, internal=args.internal, report_path=BUILD / "report.json")
-    export(facts, site)
+    export(facts, site, internal=args.internal)
     if site_build:
         write_publish_manifest(site)
     log["finished_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")

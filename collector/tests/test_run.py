@@ -1,4 +1,5 @@
 """CLI run: export holds no unverified fact, a re-run changes no committed file (AC4.5), exit codes 0/2/3."""
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -14,6 +15,18 @@ ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = json.loads((ROOT / "schema" / "facts.schema.json").read_text())
 
 
+def public_schema():
+    """The facts schema minus the raw OCR fields, which the public export drops (plus the motion's type_label)."""
+    s = copy.deepcopy(SCHEMA)
+    for k in ("motion", "person_ref", "attendance", "vote"):
+        d = s["$defs"][k]
+        d["required"] = [r for r in d["required"] if r not in ("text", "raw_name")]
+    for k, f in (("vote", "raw_value"), ("roll_call", "outcome_text")):
+        s["$defs"][k]["required"] = [r for r in s["$defs"][k]["required"] if r != f]
+    s["$defs"]["motion"]["properties"]["type_label"] = {"type": "string"}
+    return s
+
+
 def committed_facts():
     return json.loads((ROOT / "data" / "facts.json").read_text())
 
@@ -22,7 +35,7 @@ def test_export_contains_no_unverified_fact(tmp_path):
     facts = committed_facts()
     export(facts, tmp_path)
     out = json.loads((tmp_path / "data" / "facts.json").read_text())
-    jsonschema.validate(out, SCHEMA)
+    jsonschema.validate(out, public_schema())
     for key in ("roll_calls", "motions"):
         assert all(x["verification"]["status"] == "verified" for x in out[key])
     for m in out["meetings"]:

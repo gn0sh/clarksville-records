@@ -312,7 +312,6 @@ def test_no_raw_motion_text_even_when_verified(tmp_path, facts):
             assert mo["text"] not in html, name
     mo = by_id(f, "motions", MO_SHOWN)
     names = {o["id"]: o["name"] for o in f["officials"]}
-    import re
     html = pages[f"meetings/{MEETING_DEC}.html"]
     text = " ".join(re.sub(r"<[^>]+>", "", html).split())
     assert "Motion to adopt." in text

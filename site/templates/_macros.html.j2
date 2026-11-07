@@ -40,7 +40,7 @@
 {% if b.attribution_held %}
 <p class="held">Attribution under review.</p>
 {% else %}
-<p>Moved by {{ person(b.moved_by, root) }}, seconded by {{ person(b.seconded_by, root) }}.</p>
+<p>{% if b.moved_by %}Moved by {{ person(b.moved_by, root) }}{% endif %}{% if b.moved_by and b.seconded_by %}, {% endif %}{% if b.seconded_by %}{% if b.moved_by %}seconded{% else %}Seconded{% endif %} by {{ person(b.seconded_by, root) }}{% endif %}.</p>
 {% endif %}
 {% endmacro %}
 
