@@ -37,6 +37,9 @@
 | 2026-11-07 | code-reviewer | opus/high | review a991a10 | request changes: 1 must-fix raw-ocr-leak/verification-detail; neutrality/held-count (3rd hit, attribution rule 6: decided unconfirmed motions never show names); raw-ocr-leak/qa-outcome-benign |
 | 2026-11-07 | frontend-engineer | sonnet/high | visual refresh build (ca700ea) | done, 276 pass |
 | 2026-11-07 | brain-trust x6 | opus/high (api) | round 2, corrected operator facts | 6 Fix First; unanimous: unconfirmed rows show no vote value (CEO card open) |
+| 2026-11-07 | backend-engineer | opus/high | fix a991a10 findings + link-only switch (07be770) | done, 299 pass |
+| 2026-11-07 | frontend-engineer | sonnet/low | not-confirmed chip style (95e1235) | done |
+| 2026-11-07 | code-reviewer | opus/high | delta re-review 16ee1fc | approve with nits (doc drift fixed) |
 
 ## Decisions
 - 2026-11-07 G1: footer line on every page + About page naming the operator (CEO, card).

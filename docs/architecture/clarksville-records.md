@@ -297,7 +297,7 @@ relative links. Works from a file system, a zip, any static host, or a private c
 Pages (count estimate for 2020-2024 in brackets; the whole site must stay under 250 files):
 | File | Content |
 |---|---|
-| `index.html` | Officials index, alphabetical by surname then given name. Names only: no counts, no badges. [1] |
+| `index.html` | Officials index, alphabetical by surname then given name. Cards with the same identical-colour initials badge and the same fixed count lines for everyone (docs/design/visual-refresh.md 3.2); no sorting by count, no highlight. [1] |
 | `officials/<id>.html` | One date-ordered history: votes, attendance, Moved, Seconded; type and year filters. [~40] |
 | `meetings/<meeting_id>.html` | Attendance table, then every motion and roll call in document order (unconfirmed marked *). [~60-120] |
 | `items/<yyyy>.html#<item_id>` | One section per item: every appearance in date order. Bucketed by year so the file count stays small. [5] |
