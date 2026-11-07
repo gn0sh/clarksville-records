@@ -1,3 +1,15 @@
+# Roster of officials (architecture "Names and merge rules"; spec G2). Curated by the team; Brian never edits it.
+# Merge rules, applied identically to every official (collector/names.py):
+#  1. Normalise: NFKC, trim, drop leading titles (Commissioner, Comm., Chairman, Chairwoman, Mayor, Mr., Mrs., Ms.,
+#     Dr.), drop "." and ",", collapse spaces, casefold.
+#  2. Exact match of the normalised string against an official's name or one of the aliases below.
+#  3. Moved/Seconded names only: surname (or initial + surname) when exactly one official on that meeting's
+#     attendance has it.
+#  4. Anything else is unmatched and its facts are held back. No fuzzy auto-merge, ever: build/name-candidates.json
+#     lists suggestions, and a person adds an alias here by PR (git history is the log).
+# Display name: the county commissioner list (https://montgomerytn.gov/commission, fetched 2026-11-07) where the
+# person is on it; otherwise the spelling printed in the minutes header, read by eye from the page image.
+# Every alias states its reason and an example source page (src-<sha12> p<page>, see data/facts.json sources).
 officials:
 - id: arnold-hodges
   name: Arnold Hodges
