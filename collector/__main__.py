@@ -18,6 +18,7 @@ from pathlib import Path
 from .config import YEARS
 from .discover import DiscoveryError, classify, discover, fetch_index
 from .facts import Builder, dumps, load_procedural, write_if_changed
+from .meetings import choose
 from .fetch import FetchFailed, HostBlocked, HostRefused, PoliteFetcher, ProxyRefused, RobotsDisallowed
 from .names import NAMES, Resolver, load_roster
 from .store import MANIFEST, Store, fetch_into_store
@@ -68,24 +69,40 @@ def cmd_build(store: Store, log: dict, use_ocr: bool = True) -> tuple[dict, dict
     from .minutes import parse_minutes
     roster = load_roster(NAMES)
     b = Builder(Resolver(roster), load_procedural())
-    docs = sorted((e for e in store.entries if in_range(e)), key=lambda e: (doc_date(e), e["url"]))
-    for e in docs:
+    # only the latest version of each URL is read; replaced versions stay in the manifest for citations only
+    entries = sorted((e for e in store.current() if in_range(e)), key=lambda e: (doc_date(e), e["url"]))
+    log["superseded"] = [{"url": e["url"], "sha256": e["sha256"], "superseded_by": e.get("superseded_by")}
+                         for e in store.superseded()]
+    seen_sha: set[str] = set()
+    parsed_docs = []
+    for e in entries:
+        if e["sha256"] in seen_sha:
+            continue                     # the same bytes listed under two URLs: one document
+        seen_sha.add(e["sha256"])
         p = store.path_for(e["sha256"])
         if not p.exists():
             log["failures"].append({"stage": "parse", "url": e["url"], "error": "not in the store (run without --offline)"})
             continue
         t0 = time.time()
         try:
-            pm = parse_minutes(p, e, use_ocr=use_ocr)
+            pd = parse_minutes(p, e, use_ocr=use_ocr)
         except Exception as ex:          # one bad document must not stop the run; it is logged and alerted
             log["failures"].append({"stage": "parse", "url": e["url"], "error": f"{type(ex).__name__}: {ex}"})
             continue
-        b.add(pm)
+        parsed_docs.append(pd)
         log["parsed"] += 1
-        print(f"  parsed {e.get('label') or e['url']}: {len(pm.roll_calls)} roll calls, "
-              f"{sum(r.status == 'Verified' for r in pm.roll_calls)} verified ({time.time() - t0:.0f} s)", flush=True)
+        rcs = [r for m in pd.meetings for r in m.roll_calls]
+        print(f"  parsed {e.get('label') or e['url']}: meetings "
+              f"{', '.join(f'{m.meeting_date} ({m.segment.role})' for m in pd.meetings) or 'none'}; {len(rcs)} roll "
+              f"calls, {sum(r.status == 'Verified' for r in rcs)} verified ({time.time() - t0:.0f} s)", flush=True)
     if not log["parsed"]:
         log["failures"].append({"stage": "parse", "error": "no minutes documents parsed"})
+    chosen, copies, undated = choose(parsed_docs)
+    for pm in chosen:
+        b.add(pm)
+    for u in undated:
+        b.problems.append({"source": u["source_id"], "problem": f"minutes on pp{u['pages'][0]}-{u['pages'][1]}: "
+                                                                f"{u['problem']} ({u['date_how']})"})
     for p in b.problems:
         log["failures"].append({"stage": "assemble", **p})
     facts = b.facts(roster)
@@ -104,10 +121,54 @@ def cmd_build(store: Store, log: dict, use_ocr: bool = True) -> tuple[dict, dict
                                            if m["verification"]["status"] != "verified"],
         "consent_roll_calls_not_expanded": sorted(b.consent_unexpanded),
         "motions_held_back": sum(m["verification"]["status"] != "verified" for m in facts["motions"]),
-        "documents": b.doc_summary,
+        "documents": documents_report(parsed_docs, b),
+        "meetings_by_year": meetings_by_year(facts),
+        "meeting_copies": copies,
+        "consent_reprints": dict(sorted(b.consent_reprints.items())),
+        "superseded_sources": log.get("superseded", []),
         "problems": b.problems,
     }
     return facts, report, b
+
+
+def documents_report(parsed_docs: list, b: Builder) -> list[dict]:
+    """Per document: its index label (a hint only), the meetings found in its text and which of them it supplies."""
+    used = {(d["source_id"], d["meeting_id"]): d for d in b.doc_summary}
+    out = []
+    for pd in parsed_docs:
+        sid = f"src-{pd.source['sha256'][:12]}"
+        label_hint = (classify(pd.source.get("label") or "") or {}).get("meeting_date")
+        found = []
+        for m in pd.meetings:
+            mid = f"{m.meeting_date}-{m.kind}" if m.meeting_date else None
+            found.append({"meeting_id": mid, "pages": [m.segment.page, m.segment.end_page], "role": m.segment.role,
+                          "boundaries_certain": m.segment.certain, "date_read": m.segment.date_how,
+                          "roll_calls": len(m.roll_calls),
+                          "verified": sum(r.status == "Verified" for r in m.roll_calls),
+                          "used": (sid, mid) in used})
+        own = [f["meeting_id"] for f in found if f["role"] == "own"]
+        out.append({"source_id": sid, "label": pd.source.get("label"), "label_month": label_hint,
+                    "label_matches_text": bool(own and label_hint and own[0] and own[0].startswith(label_hint)),
+                    "pages": pd.pages, "image_only_pages": len(pd.image_only_pages),
+                    "vote_tables_outside_minutes": pd.tables_outside_minutes, "meetings_found": found})
+    return sorted(out, key=lambda d: ((d["meetings_found"] or [{}])[0].get("meeting_id") or "", d["source_id"]))
+
+
+def meetings_by_year(facts: dict) -> dict:
+    """Actual meeting dates covered, per year, with roll-call counts (coverage is these dates, not a range)."""
+    out: dict[str, dict] = {}
+    by_m: dict[str, list] = {}
+    for r in facts["roll_calls"]:
+        by_m.setdefault(r["meeting_id"], []).append(r)
+    for m in sorted(facts["meetings"], key=lambda m: m["id"]):
+        y = out.setdefault(m["date"][:4], {"meetings": [], "roll_calls": 0, "verified": 0})
+        rs = by_m.get(m["id"], [])
+        y["meetings"].append(m["id"])
+        y["roll_calls"] += len(rs)
+        y["verified"] += sum(r["verification"]["status"] == "verified" for r in rs)
+    for y in out.values():
+        y["verified_rate"] = round(y["verified"] / y["roll_calls"], 4) if y["roll_calls"] else None
+    return out
 
 
 def name_candidates(b: Builder, roster: list[dict]) -> dict:

@@ -104,44 +104,84 @@ def parse_attendance(pages: list[str]) -> Attendance | None:
     for pno, text in enumerate(pages[:3], 1):
         if not re.search(r"BE\s+IT\s+REMEMBERED", text, re.I):
             continue
-        reasons: list[str] = []
-        m = DATE_RE.search(text[text.upper().find("REMEMBERED"):])
-        date = None
-        if m:
-            date = f"{m.group(3)}-{MONTHS.index(m.group(1).lower()) + 1:02d}-{int(m.group(2)):02d}"
-        lines = text.splitlines()
-        start = next((i for i, l in enumerate(lines) if re.search(r"\w*ssioners\s*:\s*$", l, re.I)), None)
-        pidx = next((i for i, l in enumerate(lines) if re.match(r"\s*PRESENT\s*:", l)), None)
-        if start is None or pidx is None:
-            return Attendance(date, pno, [], [], None, None, [], False, ["header layout not recognised"])
-        present = []
-        for l in lines[start + 1:pidx]:
-            for cell in re.split(r"\s{2,}", l.strip()):
-                cell = cell.strip().rstrip("*").rstrip("1").strip()   # "* Present via Webex" marker, "Smith1"
-                if len(_letters(cell)) >= 4 and not re.match(r"\*", cell):
-                    present.append(cell)
-        pm = re.match(r"\s*PRESENT\s*:\s*(\S+)", lines[pidx])
-        present_count = _int(pm.group(1)) if pm else None
-        rest = "\n".join(lines[pidx + 1:])
-        am = re.search(r"ABSENT\s*:\s*(.*?)(?:\n\s*\n|VACANT|When and where)", rest, re.S)
-        absent, absent_count = [], None
-        if am:
-            raw = " ".join(am.group(1).split())
-            cm = re.search(r"\((\s*\w+\s*)\)", raw)
-            absent_count = _int(cm.group(1)) if cm else None
-            absent = [] if re.match(r"none", raw, re.I) else split_name_list(raw)
-            if absent_count is None and not absent:
-                absent_count = 0
-        else:
-            reasons.append("ABSENT line not found")
-        vacant = re.findall(r"VACANT\s*:\s*(.+)", rest)
-        if present_count is None or present_count != len(present):
-            reasons.append(f"PRESENT count {present_count} != {len(present)} names read")
-        if absent_count is not None and absent_count != len(absent):
-            reasons.append(f"ABSENT count {absent_count} != {len(absent)} names read")
-        return Attendance(date, pno, present, absent, present_count, absent_count,
-                          [v.strip() for v in vacant], not reasons, reasons)
+        return attendance_from_text(text, pno)
     return None
+
+
+def name_cells(rows: list[str]) -> list[list[str]]:
+    """Split the header's name table into cells.
+
+    Written layout rule: cells are separated by two or more spaces. Where the text layer closed a column gap to one
+    space ("Nathan Burkholder Jason Knight"), the row is also cut at a column start: an offset (within one character)
+    where a cell starts in at least two other rows of the same table, when a word starts there after a single space."""
+    starts: list[list[int]] = []
+    for r in rows:
+        starts.append([m.start() for m in re.finditer(r"(?:(?<=\s\s)|^)\S", r)])
+    out = []
+    for k, r in enumerate(rows):
+        others = [c for j, cs in enumerate(starts) if j != k for c in cs]
+        cols = sorted({c for c in others if sum(abs(c - o) <= 1 for o in others) >= 2})
+        cuts = set()
+        for c in cols:
+            for w in (c, c - 1, c + 1):
+                if 0 < w < len(r) and r[w] != " " and r[w - 1] == " " and (w < 2 or r[w - 2] != " "):
+                    cuts.add(w)
+                    break
+        pieces, a = [], 0
+        for w in sorted(cuts):
+            pieces.append(r[a:w])
+            a = w
+        pieces.append(r[a:])
+        out.append([c for piece in pieces for c in re.split(r"\s{2,}", piece.strip()) if c.strip()])
+    return out
+
+
+COMMISSIONERS_LINE = re.compile(r"\w*ssion\S{0,3}rs\s*:\s*$|following\s+Comm\S*\s*:\s*$", re.I)
+
+
+def attendance_from_text(text: str, pno: int) -> Attendance:
+    """Read one 'BE IT REMEMBERED' attendance header from text that starts at (or before) it."""
+    reasons: list[str] = []
+    k = text.upper().find("REMEMBERED")
+    m = DATE_RE.search(text[k if k >= 0 else 0:])
+    date = None
+    if m:
+        date = f"{m.group(3)}-{MONTHS.index(m.group(1).lower()) + 1:02d}-{int(m.group(2)):02d}"
+    lines = text.splitlines()
+    # "and the following Commissioners:" ends the preamble; OCR garbles letters ("Commissionçrs:")
+    start = next((i for i, l in enumerate(lines) if COMMISSIONERS_LINE.search(l)), None)
+    pidx = next((i for i, l in enumerate(lines) if re.match(r"\s*PRESENT\s*:", l)), None)
+    if start is None or pidx is None:
+        return Attendance(date, pno, [], [], None, None, [], False, ["header layout not recognised"])
+    present = []
+    for l in name_cells(lines[start + 1:pidx]):
+        for cell in l:
+            cell = cell.strip().rstrip("*").rstrip("1").strip()   # "* Present via Webex" marker, "Smith1"
+            if len(_letters(cell)) >= 4 and not re.match(r"\*", cell):
+                present.append(cell)
+    pm = re.match(r"\s*PRESENT\s*:\s*(\S+)", lines[pidx])
+    present_count = _int(pm.group(1)) if pm else None
+    rest = "\n".join(lines[pidx + 1:])
+    am = re.search(r"ABSENT\s*:\s*(.*?)(?:\n\s*\n|VACANT|When and where)", rest, re.S)
+    absent, absent_count = [], None
+    if am:
+        raw = " ".join(am.group(1).split())
+        cm = re.search(r"\((\s*\w+\s*)\)", raw)
+        absent_count = _int(cm.group(1)) if cm else None
+        absent = [] if re.match(r"none", raw, re.I) else split_name_list(raw)
+        if absent_count is None and not absent:
+            absent_count = 0
+    elif present_count == len(present) == FULL_BODY:
+        absent_count = 0             # written rule: all 21 seats present and named, no ABSENT line printed (May 2025)
+    else:
+        reasons.append("ABSENT line not found")
+    vacant = re.findall(r"VACANT\s*:\s*(.+)", rest)
+    if present_count is None or present_count != len(present):
+        reasons.append(f"PRESENT count {present_count} != {len(present)} names read")
+    if absent_count is not None and absent_count != len(absent):
+        reasons.append(f"ABSENT count {absent_count} != {len(absent)} names read")
+    return Attendance(date, pno, present, absent, present_count, absent_count,
+                      [v.strip() for v in vacant], not reasons, reasons)
 
 
 def embedded_spans(lines: list[str]) -> list[tuple[int, int]]:
@@ -155,6 +195,150 @@ def embedded_spans(lines: list[str]) -> list[tuple[int, int]]:
                     if re.search(r"Board was adjourned", lines[j], re.I)), None)
         spans.append((h, end if end is not None else h + 1))
     return spans
+
+
+# ---------------------------------------------------------------- meetings inside one document
+
+# "BE IT REMEMBERED that the Board of Commissioners ..."; the OCR layer garbles the word ("REM1EI~4BEREDthat",
+# "REIVIEIVIBERED that the Board of C6mmissioners"), so a garbled RE... word counts when "that the Board of C..."
+# follows. "BE IT RESOLVED that the Board of Montgomery County Commissioners" (resolution texts) never counts.
+HEADER_RE = re.compile(r"BE\s+IT\s+REMEMBERED|BE\s+IT\s+RE(?!SOLV)\S*?\s*that\s+the\s+Board(?:\s+of\s+C|\s+of\s*$|\s*$)",
+                       re.I)
+WEEKDAYS = "monday tuesday wednesday thursday friday saturday sunday".split()
+LOOSE_DATE_RE = re.compile(r"(?:\b(" + "|".join(WEEKDAYS) + r")\s*,?\s+)?\b(" + "|".join(MONTHS) +
+                           r")\s+([\dIilO|]{1,2})\s*[,.]?\s*(\d{4})", re.I)
+ADJOURN_RE = re.compile(r"Board\s+was\s+adjourn", re.I)
+SESSION_RE = re.compile(r"met\s+in\s+(?:an?\s+)?([A-Za-z]+)(?:\s+called)?\s+session", re.I)
+SUBMITTED_RE = re.compile(r"FOR\s+APPROVAL", re.I)      # "SUBMITTED" is often garbled ("SUBMIIYI'ED")
+BANNER_RE = re.compile(r"MINUTES\s+FOR\s+(" + "|".join(MONTHS) + r")\s+(\d{1,2})\s*[,.]?\s*(\d{4})", re.I)
+SESSION_KIND = {"regular": "formal", "special": "special", "adjourned": "formal"}
+
+
+@dataclass
+class Segment:
+    """One meeting's minutes inside a document: from its 'BE IT REMEMBERED' header to 'The Board was adjourned'.
+
+    Written rules (the same for every document):
+    - The meeting date and kind come from the header text ("met in regular session, on Monday, December 9, 2024";
+      "special session" -> special, otherwise formal), or from the "MINUTES FOR <date>" banner above it. Never from
+      the index link label.
+    - Headers and adjournment lines pair like brackets: minutes attached inside another meeting's minutes (the
+      previous meeting's minutes, approved on the consent agenda) close before the outer minutes do.
+    - A second header with the same date and session as the open one is a duplicate of it (Aug 2021 page 2).
+    - A header that never closes is marked closed=False; its roll calls are held back (boundaries uncertain).
+    - Lines outside every segment (an agenda packet's agenda and resolution texts) belong to no meeting and are
+      never read as votes.
+    role: "own" (top level, the document's record of the meeting), "for_approval" (top level under a "SUBMITTED FOR
+    APPROVAL" banner, e.g. last month's minutes in an agenda packet), "attached" (nested in another meeting's minutes).
+    """
+    index: int
+    start: int                 # line of the header
+    end: int                   # line after the adjournment line (exclusive); len(lines) if not closed
+    page: int
+    end_page: int
+    date: str | None
+    session: str | None
+    kind: str
+    role: str
+    parent: int | None
+    closed: bool
+    date_from: str             # header | banner | none
+    date_how: str = ""         # how the date was read (header_date)
+    certain: bool = True       # False when it or a meeting it sits in never closed
+
+    def contains(self, i: int) -> bool:
+        return self.start <= i < self.end
+
+
+def _date_iso(m) -> str:
+    return f"{m.group(3)}-{MONTHS.index(m.group(1).lower()) + 1:02d}-{int(m.group(2)):02d}"
+
+
+def header_date(text: str) -> tuple[str | None, str]:
+    """Meeting date in a header sentence ("on Monday, December Ii, 2023") -> (ISO date or None, how).
+
+    Written rule: digits read as such are taken as printed. A day the OCR layer garbled (I, i, l, O, |) is mapped to
+    digits only when the header also names the weekday and that weekday matches the mapped date; otherwise no date."""
+    import datetime as _dt
+    for m in LOOSE_DATE_RE.finditer(text):
+        wd, mon, day_raw, year = m.groups()
+        day = _int(day_raw.replace("i", "1").replace("|", "1"))
+        if day is None or not 1 <= day <= 31:
+            continue
+        try:
+            d = _dt.date(int(year), MONTHS.index(mon.lower()) + 1, day)
+        except ValueError:
+            continue
+        weekday_ok = wd is not None and WEEKDAYS[d.weekday()] == wd.lower()
+        if day_raw.isdigit():
+            if wd is not None and not weekday_ok:
+                return None, f"weekday {wd} does not match {d.isoformat()}"
+            return d.isoformat(), "digits" + (", weekday matches" if weekday_ok else "")
+        if weekday_ok:
+            return d.isoformat(), f"day {day_raw!r} read as {day} (weekday matches)"
+        return None, f"day {day_raw!r} unreadable and no matching weekday"
+    return None, "no date"
+
+
+def minutes_segments(lines: list[str], page_of: list[int]) -> list[Segment]:
+    events = []
+    for i, l in enumerate(lines):
+        if HEADER_RE.search(l):
+            events.append((i, "head"))
+        elif ADJOURN_RE.search(l):
+            events.append((i, "end"))
+    segs: list[Segment] = []
+    stack: list[Segment] = []
+    for i, what in events:
+        if what == "head":
+            window = " ".join(" ".join(lines[i:i + 8]).split())
+            window = window[HEADER_RE.search(window).start():]
+            sm = SESSION_RE.search(window[:400])
+            if not sm and not re.search(r"BE\s+IT\s+REMEMBERED", lines[i], re.I):
+                continue                               # a garbled match without "met in ... session": not a header
+            above = " ".join(" ".join(lines[max(0, i - 14):i]).split())
+            bm = None
+            for bm in BANNER_RE.finditer(above):
+                pass
+            # the date in the header sentence, after "met in ... session"
+            date, how = header_date(window[sm.end():sm.end() + 120] if sm else window[:300])
+            date_from = "header" if date else "none"
+            if date is None and bm and bm.group(2).isdigit():
+                date, date_from = _date_iso(bm), "banner"
+            session = sm.group(1).lower() if sm else None
+            kind = SESSION_KIND.get(session or "", "formal")
+            if stack and stack[-1].date == date and stack[-1].session == session:
+                continue                               # duplicate of the open meeting's own header
+            role = "attached" if stack else ("for_approval" if SUBMITTED_RE.search(above) else "own")
+            sg = Segment(len(segs), i, len(lines), page_of[i], page_of[-1] if page_of else 1, date, session, kind,
+                         role, stack[-1].index if stack else None, False, date_from, how)
+            segs.append(sg)
+            stack.append(sg)
+        elif stack:
+            sg = stack.pop()
+            sg.end, sg.end_page, sg.closed = i + 1, page_of[i], True
+    for sg in segs:
+        # The document's own minutes (top level, header on its first pages) may run to the end of the document
+        # when its adjournment line is not read. Any other header left open is uncertain, and so is every meeting
+        # nested in an open one: the adjournment line that closed it may have been the outer meeting's.
+        a = sg
+        while a is not None:
+            open_ok = a.role == "own" and a.parent is None and a.page <= 3 and a is segs_top_last(segs)
+            if not a.closed and not (a is sg and open_ok):
+                sg.certain = False
+                break
+            a = segs[a.parent] if a.parent is not None else None
+    return segs
+
+
+def segs_top_last(segs: list[Segment]) -> Segment | None:
+    top = [s for s in segs if s.parent is None]
+    return top[-1] if top else None
+
+
+def innermost(segs: list[Segment], i: int) -> Segment | None:
+    inside = [s for s in segs if s.contains(i)]
+    return max(inside, key=lambda s: s.start) if inside else None
 
 
 # ---------------------------------------------------------------- roll calls
@@ -227,6 +411,9 @@ class RollCall:
     raw_mover: str | None = None
     raw_seconder: str | None = None
     in_attached_minutes: bool = False
+    segment: int | None = None           # index of the meeting (Segment) whose minutes hold this table
+    motion_linked: bool = False          # the motion sentence leads straight into this vote's outcome clause
+    follows_item: str | None = None      # consent tables: the resolution heading just before the consent list
 
 
 def classify_token(tok: str) -> tuple[str, str]:
@@ -306,19 +493,33 @@ ASSIGN_MIN = 0.75       # 'Jerry Allbert' vs 'Randy Allbert' scores 0.70: two pe
 def assign_names(cells: list[Cell], roster: list[str]) -> None:
     """Written merge rule (G2): the table lists each roster member once, so OCR'd table names are
     matched to roster names one-to-one, best pairs first. A pair below ASSIGN_MIN is not matched
-    (the roll call then fails P2). A cell whose best roster name is already taken is not matched."""
+    (the roll call then fails P2). A cell whose best roster name is already taken is not matched.
+    A cell is matched only when its best roster name beats its second best by NAME_MATCH_MARGIN ("R. Allbert"
+    scores the same against Randy and Jerry Allbert: not matched). Names already matched to another cell drop out
+    of that comparison, so cells are matched in rounds, clearest first, until no cell can be matched."""
     todo = [c for c in cells if c.member is None]
-    pairs = sorted(((name_similarity(c.raw_name, r), i, r) for i, c in enumerate(todo) for r in roster),
-                   reverse=True)
+    sim = {(i, r): name_similarity(c.raw_name, r) for i, c in enumerate(todo) for r in roster}
     used_cells, used_names = set(), set()
-    for score, i, r in pairs:
-        if i in used_cells or r in used_names:
-            continue
-        if score < ASSIGN_MIN:
-            break
-        todo[i].member, todo[i].score = r, score
-        used_cells.add(i)
-        used_names.add(r)
+    changed = True
+    while changed:
+        changed = False
+        free = [r for r in roster if r not in used_names]
+        ranked = []
+        for i in range(len(todo)):
+            if i in used_cells:
+                continue
+            sc = sorted(((sim[(i, r)], r) for r in free), reverse=True)
+            if not sc or sc[0][0] < ASSIGN_MIN:
+                continue
+            margin = sc[0][0] - sc[1][0] if len(sc) > 1 else 1.0
+            if margin >= NAME_MATCH_MARGIN:
+                ranked.append((sc[0][0], -i, sc[0][1]))
+        if ranked:
+            score, neg_i, r = max(ranked)
+            todo[-neg_i].member, todo[-neg_i].score = r, score
+            used_cells.add(-neg_i)
+            used_names.add(r)
+            changed = True
     holder = {c.member: c for c in todo if c.member}
     for c in todo:
         if not c.member:
@@ -522,19 +723,36 @@ def decide(rc: "RollCall") -> None:
 
 
 def find_rollcalls(pages: list[str], source: str, att: Attendance | None,
-                   titles: dict | None = None) -> list[RollCall]:
+                   titles: dict | None = None, segments: list | None = None) -> list[RollCall]:
+    """Every vote table -> RollCall. With segments ([(Segment, Attendance|None, titles)], from minutes_segments), each
+    table is read against the roster of the meeting whose minutes hold it, and a table outside every meeting's
+    minutes (an agenda packet's agenda or resolution pages) is not a roll call at all. Without segments (M0 mode),
+    one attendance header serves the whole document and attached earlier minutes are held back."""
     lines, page_of = _lines_with_pages(pages)
-    spans = embedded_spans(lines)
-    roster = (att.present + att.absent) if att else []
-    titles = titles or {}
+    spans = embedded_spans(lines) if segments is None else []
+    segs = [s for s, _, _ in segments] if segments is not None else None
+    roster0 = (att.present + att.absent) if att else []
+    titles0 = titles or {}
     heads = table_heads(lines)
     out: list[RollCall] = []
     prev_end = 0
     for hi, h in enumerate(heads):
         nxt = heads[hi + 1] if hi + 1 < len(heads) else len(lines)
+        seg_lo = 0
+        if segs is None:
+            seg, att_h, roster, titles = None, att, roster0, titles0
+        else:
+            seg = innermost(segs, h)
+            if seg is None:
+                continue                     # not inside any meeting's minutes: not a vote of any meeting
+            _, att_h, titles = segments[seg.index]
+            titles = titles or {}
+            roster = (att_h.present + att_h.absent) if att_h else []
+            seg_lo = seg.start
+            nxt = min(nxt, seg.end) if seg.end > h else nxt
         reading, last = read_table(lines, h, nxt, roster, "text-layer")
         ctx_reasons: list[str] = []
-        ctx_start = max(prev_end, h - 40)
+        ctx_start = max(prev_end, h - 40, seg_lo)
         ctx = " ".join(" ".join(lines[ctx_start:h]).split())
         om = None
         for om in OUTCOME_RE.finditer(ctx):
@@ -542,7 +760,10 @@ def find_rollcalls(pages: list[str], source: str, att: Attendance | None,
         outcome_word = om.group(1) if om else None
         motions = list(MOTION_RE.finditer(ctx))
         mot = motions[-1] if motions else None
-        motion_text, outcome_clause = motion_clauses(ctx, mot, om)
+        linked = motion_linked(ctx, mot, om)
+        motion_text, outcome_clause = motion_clauses(ctx, mot if linked else None, om)
+        if mot is not None and not linked:
+            motion_text = " ".join(mot.group(0).split())          # the motion as written, kept apart from this vote
         kind = "resolution"
         if re.search(r"foregoing\s+Amendment", ctx[-400:], re.I):
             kind = "amendment"
@@ -562,23 +783,26 @@ def find_rollcalls(pages: list[str], source: str, att: Attendance | None,
         else:
             for j in range(h - 1, ctx_start - 1, -1):
                 found = item_number_in(lines[j], titles)
-                if found:
+                if found and item_link_ok(lines[j], found, titles):
                     raw_item, item = found
                     break
             # the vote on the resolution right after its amendment vote carries no number of its own
-            if item is None and out and out[-1].kind == "amendment" and h - prev_end < 12:
+            if item is None and out and out[-1].kind == "amendment" and h - prev_end < 12 \
+                    and out[-1].segment == (seg.index if seg else None):
                 item = out[-1].item
         if not roster:
             ctx_reasons.append("no roster for this meeting")
-        if att is None or not att.verified:
+        if att_h is None or not att_h.verified:
             ctx_reasons.append("meeting attendance header not verified")
         if any(a <= h < b for a, b in spans):
             ctx_reasons.append("inside an earlier meeting's attached minutes")
+        if seg is not None and not seg.certain:
+            ctx_reasons.append("meeting minutes boundaries uncertain (an adjournment line was not read)")
         mover = seconder = None
         if mot:
             mover = resolve_commissioner(mot.group(2), roster)
             seconder = resolve_commissioner(mot.group(3), roster)
-        rc = RollCall(source=source, meeting_date=att.date if att else None, page=page_of[h],
+        rc = RollCall(source=source, meeting_date=(seg.date if seg else (att.date if att else None)), page=page_of[h],
                       end_page=page_of[min(len(lines) - 1, last)], line=h,
                       item=item, item_title=titles.get(item) if item else None, kind=kind,
                       outcome_text=outcome_word,
@@ -586,9 +810,11 @@ def find_rollcalls(pages: list[str], source: str, att: Attendance | None,
                       votes={}, tally=None, absent=[])
         rc.ordinal_on_page = sum(1 for x in heads[:hi] if page_of[x] == page_of[h])
         rc.motion_text, rc.outcome_clause, rc.raw_item = motion_text, outcome_clause, raw_item
+        rc.motion_linked = linked
         rc.raw_mover = mot.group(2).strip() if mot else None
         rc.raw_seconder = mot.group(3).strip() if mot else None
         rc.in_attached_minutes = any(a <= h < b for a, b in spans)
+        rc.segment = seg.index if seg else None
         rc.context_reasons = ctx_reasons
         rc.readings = [reading]
         decide(rc)
@@ -622,6 +848,31 @@ def item_number_in(line: str, titles: dict | None = None) -> tuple[str, str] | N
         if valid_number(n):
             return raw, n
     return None
+
+
+def motion_linked(ctx: str, mot, om) -> bool:
+    """Written rule: a motion belongs to a roll call only when its sentence runs straight into that roll call's
+    outcome clause ("On Motion ... by Commissioner A, seconded by Commissioner B, the foregoing Resolution was
+    Adopted by the following roll call vote"): the motion comes before the outcome word, ends with a comma or
+    semicolon (not a full stop), and no sentence ends and no voice vote sits between them. Anything else (the last
+    motion in the window belonging to an earlier voice vote) is not this vote's motion."""
+    if mot is None or om is None or mot.start() >= om.start():
+        return False
+    if mot.group(0).rstrip()[-1:] == ".":
+        return False
+    gap = ctx[mot.end():om.start()]
+    return len(gap) <= 200 and not re.search(r"\.\s+[A-Z]|voice\s+vote", gap)
+
+
+def item_link_ok(line: str, found: tuple[str, str], titles: dict) -> bool:
+    """Written rule: a roll call links to an item number only when the number is on this meeting's agenda, or the
+    line is the resolution's own heading (the number alone on its line, or the number then two spaces and a title,
+    as the resolution and agenda pages print it). A number cited inside running text does not link."""
+    raw, n = found
+    if titles and n in titles:
+        return True
+    t = line.strip()
+    return t == raw.strip() or bool(re.match(re.escape(raw.strip()) + r"\*?(?:\s{2,}\S|$)", t))
 
 
 def motion_clauses(ctx: str, mot, om) -> tuple[str | None, str | None]:

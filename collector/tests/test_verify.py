@@ -147,7 +147,8 @@ def _facts(held_ids, meetings, unshown=()):
         for k in range(n_rc):
             rid = f"{mid}-{k}"
             rcs.append({"id": rid, "meeting_id": mid,
-                        "verification": {"status": "unverified" if rid in held_ids else "verified"}})
+                        "verification": {"status": "unverified" if rid in held_ids else "verified",
+                                         "checks": [{"check": "tally_matches_stated", "ok": rid not in held_ids}]}})
     return {"roll_calls": rcs, "meetings": mts, "officials": [{"id": p} for p in sorted(people)]}
 
 

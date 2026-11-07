@@ -28,11 +28,12 @@ class FakeNet:
     def __call__(self, req, timeout):
         url = req.full_url
         self.calls.append((url, req.get_header("User-agent")))
-        status, body = self.routes.get(url, (404, b""))
+        status, body, *rest = self.routes.get(url, (404, b""))
+        headers = rest[0] if rest else {}
         if status == "tunnel":
             raise urllib.error.URLError(OSError("Tunnel connection failed: 403 Forbidden"))
-        if status >= 400:
-            raise urllib.error.HTTPError(url, status, "x", {}, io.BytesIO(body))
+        if status >= 300:                 # the real opener raises for 3xx too (automatic redirects are off)
+            raise urllib.error.HTTPError(url, status, "x", headers, io.BytesIO(body))
         return FakeResp(body, status)
 
 
@@ -116,9 +117,14 @@ def test_clarksvilletn_floor_and_robots_crawl_delay_larger_wins():
     assert f.delay_for("h.example") == 10.0
 
 
-@pytest.mark.parametrize("url", ["https://cityofclarksville.com/x", "https://www.cityofclarksville.com/robots.txt"])
-def test_cityofclarksville_is_refused_without_any_request(url):
+@pytest.mark.parametrize("url", ["https://cityofclarksville.com/x", "https://www.cityofclarksville.com/robots.txt",
+                                 "https://dev2.montgomerytn.gov/clerk/county-commission-minutes",
+                                 "http://dev2.montgomerytn.gov/robots.txt"])
+def test_denied_hosts_are_refused_without_any_request(url):
+    """cityofclarksville.com blocks tools; dev2.montgomerytn.gov answered 403 from the site (2026-11-07): stopped
+    for good, even though montgomerytn.gov itself stays allowed."""
     f, net, _ = make({})
+    f.allowed_hosts = f.allowed_hosts + ("montgomerytn.gov",)
     with pytest.raises(HostRefused):
         f.get(url)
     assert net.calls == []
@@ -176,3 +182,52 @@ def test_server_error_is_retried_once_after_the_delay():
     assert status == 503
     assert [u for u, _ in net.calls].count("https://h.example/a") == 2
     assert clock.slept == [10.0, 10.0]
+
+
+# ------------------------------------------------------------------ redirects (politeness/redirect-bypass)
+
+def test_redirect_goes_through_get_with_robots_and_delay():
+    f, net, clock = make({"https://h.example/a": (302, b"", {"Location": "https://g.example/b.pdf"}),
+                          "https://g.example/b.pdf": (200, b"%PDF-1")})
+    assert f.get("https://h.example/a")[1] == b"%PDF-1"
+    assert [u for u, _ in net.calls] == ["https://h.example/robots.txt", "https://h.example/a",
+                                         "https://g.example/robots.txt", "https://g.example/b.pdf"]
+    assert any(e["event"] == "redirect" for e in f.log)
+
+
+def test_redirect_on_the_same_host_waits_the_host_delay():
+    f, net, clock = make({"https://h.example/a": (301, b"", {"Location": "/b.pdf"}),
+                          "https://h.example/b.pdf": (200, b"%PDF-1")})
+    assert f.get("https://h.example/a")[1] == b"%PDF-1"
+    assert clock.slept == [10.0, 10.0]          # robots -> a -> b, 10 s apart
+
+
+@pytest.mark.parametrize("target", ["https://www.cityofclarksville.com/x.pdf", "https://dev2.montgomerytn.gov/m",
+                                    "https://unlisted.example/x.pdf"])
+def test_redirect_to_a_denied_or_unlisted_host_is_refused_without_a_request(target):
+    f, net, _ = make({"https://h.example/a": (302, b"", {"Location": target})})
+    with pytest.raises(HostRefused):
+        f.get("https://h.example/a")
+    assert all(not u.startswith(target.split("/x")[0].split("/m")[0]) for u, _ in net.calls)
+
+
+def test_redirect_to_a_robots_disallowed_path_is_refused():
+    f, net, _ = make({"https://h.example/a": (302, b"", {"Location": "https://g.example/private/x.pdf"}),
+                      "https://g.example/robots.txt": (200, b"User-agent: *\nDisallow: /private/\n")})
+    with pytest.raises(RobotsDisallowed):
+        f.get("https://h.example/a")
+    assert "https://g.example/private/x.pdf" not in [u for u, _ in net.calls]
+
+
+def test_redirect_loop_fails():
+    from collector.fetch import FetchFailed
+    f, net, _ = make({"https://h.example/a": (302, b"", {"Location": "https://h.example/a"})})
+    with pytest.raises(FetchFailed):
+        f.get("https://h.example/a")
+
+
+def test_real_opener_does_not_follow_redirects():
+    import urllib.request
+    from collector import fetch as F
+    assert any(isinstance(h, F._NoRedirect) for h in F._OPENER.handlers)
+    assert not any(type(h) is urllib.request.HTTPRedirectHandler for h in F._OPENER.handlers)
