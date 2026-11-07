@@ -72,7 +72,7 @@ def consent_print(heading: str | None, table: str = TABLE) -> str:
             " foregoing Consent Agenda items were Adopted and Approved by the following roll call vote:\n\n" + table)
 
 
-def test_reprinted_consent_vote_is_one_roll_call_with_one_event_per_printing(tmp_path):
+def test_reprinted_consent_vote_is_one_roll_call_with_one_event_per_item(tmp_path):
     pages = [HEADER_DEC + consent_print(None), consent_print("24-12-1"), consent_print("24-12-2") + ADJOURN]
     b, facts = build(doc(tmp_path, pages))
     (rc,) = facts["roll_calls"]
@@ -81,7 +81,7 @@ def test_reprinted_consent_vote_is_one_roll_call_with_one_event_per_printing(tmp
     for item in ("24-12-1", "24-12-2"):
         evs = [e for e in facts["item_events"] if e["item_id"] == item and e["type"] == "roll_call"]
         assert all(e["ref"] == rc["id"] for e in evs)
-        assert len(evs) == 2                     # the list on p1, and the printing after its own resolution
+        assert len(evs) == 1                     # item-history/reprint-double-event: one per (item, roll call)
     g = V.gates(facts, set())
     assert g["roll_calls"] == 1 and g["held_back"] == 0
 

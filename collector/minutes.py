@@ -190,6 +190,61 @@ def consent_lists(lines: list[str], page_of: list[int], spans) -> list[ConsentLi
     return out
 
 
+GLYPH_RUN = re.compile(r"[\dIl|O](?:[\dIl|O~_—–\s-]*[\dIl|O])?")
+
+
+def agenda_numbers_in(text: str, titles: dict) -> list:
+    """Agenda numbers in OCR-garbled text, in order of appearance ("2 l-2-5j" -> 21-2-5 when 21-2-5 is on the agenda).
+
+    Written rule (items/consent-ocr-number): a run of digits, dashes, spaces and the glyphs l, I, |, O is read with
+    the spaces dropped, l/I/| as 1 and O as 0; it gives a number only when that reading contains a number on this
+    meeting's agenda with no digit or dash touching it. Anything else gives no number: a number that is not on the
+    agenda is never guessed."""
+    out = []
+    agenda = [n for n in (titles or {}) if re.fullmatch(r"\d{1,2}-\d{1,2}-\d{1,3}", n)]
+    for m in GLYPH_RUN.finditer(text):
+        c = re.sub(r"\s", "", m.group(0))
+        c = re.sub(r"[~_—–]", "-", c.replace("l", "1").replace("I", "1").replace("|", "1").replace("O", "0"))
+        hits = []
+        for n in agenda:
+            for k in [i for i in range(len(c)) if c.startswith(n, i)]:
+                before, after = c[k - 1:k], c[k + len(n):k + len(n) + 1]
+                if not re.match(r"[\d-]", before) and not re.match(r"[\d-]", after):
+                    hits.append((k, n))
+        out += [n for _, n in sorted(hits)]
+    return out
+
+
+def list_numbers(line: str, titles: dict | None = None) -> list:
+    """One line of a comma-separated list of item numbers -> per comma token, its normalised numbers ([] for a
+    token that gives none).
+
+    Written rule: in such a list the commas delimit the numbers, so a space inside a token is OCR noise
+    ("20-10-1 1", "20-1 0-10" are 20-10-11 and 20-10-10), and so is l, I or | read for the digit 1 inside it. A
+    leading "Resolution(s)" word is dropped. A token that still matches no number pattern is read by
+    agenda_numbers_in (only numbers on this meeting's agenda, e.g. "2 l-2-5j 21-2-6" -> 21-2-5, 21-2-6)."""
+    x = re.sub(r"^\s*Resolutions?\s+", "", line.strip(), flags=re.I).rstrip(",")
+    out = []
+    for t in re.split(r"\s*,\s*", x):
+        j = re.sub(r"\s+", "", t)
+        if re.fullmatch(r"\d{2}-[\dIl|O]{1,2}-[\dIl|O]{1,3}", j):
+            j = j.replace("|", "1")
+        n = P.norm_item(j) if P.ITEM_RE.fullmatch(j) else None
+        out.append([n] if P.valid_number(n) else agenda_numbers_in(t, titles or {}))
+    return out
+
+
+def number_line(line: str, titles: dict | None = None) -> list | None:
+    """The numbers of a comma-separated number line, or None when the line is not one (a title such as "Clerk's
+    Report"). A line is a number line when most of its comma tokens give a number; a token that gives none is
+    skipped, never guessed."""
+    toks = list_numbers(line, titles)
+    good = sum(bool(t) for t in toks)
+    if not toks or good * 2 < len(toks) or good == 0:
+        return None
+    return [n for t in toks for n in t]
+
+
 def inline_consent_lists(lines: list[str], page_of: list[int], rcs, titles: dict) -> list[ConsentList]:
     """2021-2022 layout: a "Consent Agenda" line, then the item numbers separated by commas and one line per other
     item, then "On Motion ... the foregoing Consent Agenda items were Adopted ..." and the table."""
@@ -198,7 +253,8 @@ def inline_consent_lists(lines: list[str], page_of: list[int], rcs, titles: dict
         if rc.kind != "consent":
             continue
         head = next((j for j in range(rc.line - 1, max(rc.line - 30, -1), -1)
-                     if re.fullmatch(r"Consent\W{0,3}Agenda[\s:.\-—–]*", lines[j].strip(), re.I)), None)
+                     if re.fullmatch(r"Consent\W{0,3}Agenda[\s:.\-—–]*(?:\s{3,}[Il|1])?", lines[j].strip(), re.I)),
+                    None)                       # ("Consent Agenda      I": a stray mark at the right margin)
         if head is None:
             continue
         cl = ConsentList(page_of[head], _line_order(page_of, head), head, " ".join(lines[head].split()))
@@ -208,8 +264,14 @@ def inline_consent_lists(lines: list[str], page_of: list[int], rcs, titles: dict
                 break
             if not x or re.fullmatch(r"[-—–_~•.]+", x):
                 continue
-            nums = [P.norm_item(t) if P.ITEM_RE.fullmatch(t) else None for t in re.split(r"\s*,\s*", x.rstrip(","))]
-            if nums and all(P.valid_number(n) for n in nums):
+            if PULLED.search(x):                # "Resolution 2 1-2-6 was pulled from the Consent Agenda ..."
+                sent = " ".join(lines[j:min(j + 3, rc.line)])
+                sent = sent[:sent.find(".", PULLED.search(sent).end()) + 1 or None]
+                found = [P.norm_item(r) for r in P.ITEM_RE.findall(sent)] + agenda_numbers_in(sent, titles)
+                cl.pulled += [n for n in dict.fromkeys(found) if P.valid_number(n) and n not in cl.pulled]
+                continue
+            nums = number_line(x, titles)
+            if nums:
                 for n in nums:
                     cl.entries.append(Entry(n, n, titles.get(n) or n, n, page_of[j], _line_order(page_of, j)))
             else:
