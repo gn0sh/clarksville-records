@@ -11,8 +11,9 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               is cached locally, <= the real page count from pdfinfo); no other external links
   unverified  no held fact (unverified attendance, held motion attribution, outcome text) appears anywhere in the
               build but review.html; a public build has no review.html and nothing links to it; every fact id on a
-              page is a shown fact; every shown fact appears on its official's page; every page that shows an
-              unconfirmed roll call carries the "Not confirmed" note (invariant: held-back counts)
+              page is a shown fact; every shown fact appears on its official's page; every fact row or block of an
+              unconfirmed roll call carries the "Not confirmed" note, and one of a confirmed roll call has no note and
+              no "*" (invariant: held-back counts)
   index       one index entry per official in the facts, alphabetical by surname (AC1.1)
   layout      every official page has the same headings and column headers (AC1.5, N1)
   totals      "Recorded absent at X of Y meetings" equals a recount from the meeting pages (AC2.2)
@@ -49,7 +50,8 @@ class Page(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.ids, self.hrefs, self.fact_ids, self.resources, self.text = set(), [], [], [], []
         self.fact_hrefs = []          # hrefs inside an element carrying data-fact-id
-        self._stack, self._fact_depth = [], None
+        self.fact_texts: list[tuple[str, str]] = []   # (fact id, text) of each outermost data-fact-id element
+        self._stack, self._fact_depth, self._fact_buf = [], None, None
 
     def handle_endtag(self, tag):
         if tag in self.VOID or tag not in self._stack:
@@ -59,6 +61,8 @@ class Page(HTMLParser):
                 break
         if self._fact_depth is not None and len(self._stack) < self._fact_depth:
             self._fact_depth = None
+            self.fact_texts.append(self._fact_buf)
+            self._fact_buf = None
 
     VOID = {"meta", "link", "br", "img", "input", "hr", "source", "area", "base", "col", "embed", "wbr"}
 
@@ -68,6 +72,7 @@ class Page(HTMLParser):
             self._stack.append(tag)
             if "data-fact-id" in a and self._fact_depth is None:
                 self._fact_depth = len(self._stack)
+                self._fact_buf = (a["data-fact-id"], "")
         if tag == "a" and "href" in a and self._fact_depth is not None:
             self.fact_hrefs.append(a["href"] or "")
         if a.get("id"):
@@ -89,6 +94,8 @@ class Page(HTMLParser):
 
     def handle_data(self, d):
         self.text.append(d)
+        if self._fact_buf is not None:
+            self._fact_buf = (self._fact_buf[0], self._fact_buf[1] + d)
 
 
 def parse(path: Path) -> Page:
@@ -222,10 +229,11 @@ def check_sources(site: Path, pages: dict[str, Page], facts: dict, store_extra) 
 
 def unverified_tokens(facts: dict) -> list[tuple[str, str]]:
     """(token, why) pairs that must not appear anywhere in a public build."""
-    # Free text that is legitimately shown elsewhere (verified outcomes, motion text, event labels, item titles) cannot
-    # prove a leak: boilerplate such as "...Adopted by the following roll call vote:" repeats across roll calls.
-    benign = [r["outcome_text"] for r in facts["roll_calls"] if r["verification"]["status"] == "verified"]
-    benign += [m["text"] for m in facts["motions"]] + [e["label"] for e in facts["item_events"]] + [i["title"] for i in facts["items"]]
+    # Free text that a public page legitimately shows (item titles, and event labels other than motion and roll call
+    # ones) cannot prove a leak. Outcome text, motion text and motion/roll call event labels are raw OCR that no public
+    # page shows, so they are not benign (raw-ocr-leak/qa-outcome-benign).
+    benign = [e["label"] for e in facts["item_events"] if e["type"] not in ("motion", "roll_call")]
+    benign += [i["title"] for i in facts["items"]]
     # Unconfirmed roll calls are shown, marked (CEO, 2026-11-07); their raw outcome text never is.
     toks = []
     for r in facts["roll_calls"]:
@@ -243,14 +251,8 @@ def unverified_tokens(facts: dict) -> list[tuple[str, str]]:
 
 def attribution_shown(facts: dict, mo: dict) -> bool:
     """Rule 6 of the invariant, restated here on purpose (an independent check, not a call into sitegen): a verified
-    motion shows its resolved names; an unverified one only when both resolve to two different officials and one of
-    its roll calls is unverified."""
-    if mo["verification"]["status"] == "verified":
-        return True
-    ids = [(mo.get(k) or {}).get("official_id") for k in ("moved_by", "seconded_by")]
-    unconfirmed_rc = any(r["motion_id"] == mo["id"] and r["verification"]["status"] == "unverified"
-                         for r in facts["roll_calls"])
-    return all(ids) and ids[0] != ids[1] and unconfirmed_rc
+    motion shows its resolved names; an unverified one never shows any name ("Attribution under review")."""
+    return mo["verification"]["status"] == "verified"
 
 
 def _contains(body: str, tok: str, why: str) -> bool:
@@ -298,6 +300,8 @@ def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: 
         body = f.read_text(encoding="utf-8", errors="replace")
         body = body + "\n" + html.unescape(body)
         for tok, why in toks:
+            if internal and rel.startswith("data/") and " text" in why:
+                continue    # an --internal export carries raw outcome text by design; its pages still must not
             if _contains(body, tok, why):
                 problems.append(f"{rel}: contains {tok!r} ({why})")
     # every fact id on a page is a shown fact; every shown fact is on its official's page
@@ -315,14 +319,22 @@ def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: 
                 on_official.add(fid)
     for fid in sorted(shown - on_official):
         problems.append(f"shown fact {fid} is on no official page")
-    # every page showing an unconfirmed roll call carries the fixed note with its link
+    # every fact row or block showing an unconfirmed roll call carries the fixed note inside that row or block, and a
+    # row or block of a confirmed roll call carries neither the note nor a "*"
     unconfirmed = {r["id"] for r in facts["roll_calls"] if r["verification"]["status"] == "unverified"}
+    confirmed = {r["id"] for r in facts["roll_calls"] if r["verification"]["status"] == "verified"}
+    rc_event = {e["id"]: e["ref"] for e in facts["item_events"] if e["type"] == "roll_call"}
     note = "Not confirmed: this page was hard to read."
     for rel, pg in pages.items():
         if rel == "review.html":
             continue
-        if any(fid.split("/")[0] in unconfirmed for fid in pg.fact_ids) and note not in html.unescape("".join(pg.text)):
-            problems.append(f"{rel}: shows an unconfirmed roll call without the 'Not confirmed' note")
+        for fid, text in pg.fact_texts:
+            rc = rc_event.get(fid, fid.split("/")[0])
+            text = html.unescape(text)
+            if rc in unconfirmed and note not in text:
+                problems.append(f"{rel}: {fid} shows an unconfirmed roll call without the 'Not confirmed' note")
+            elif rc in confirmed and (note in text or "*" in text):
+                problems.append(f"{rel}: {fid} shows a confirmed roll call with a '*' or the 'Not confirmed' note")
     return problems
 
 

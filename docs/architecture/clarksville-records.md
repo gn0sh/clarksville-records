@@ -172,22 +172,25 @@ Invariant (each line is a test in `tests/test_held_counts.py`):
    the meeting and item views, as "Name not matched*" with the source link, never on an official's page.
 5. No raw text: an unconfirmed roll call shows Passed/Failed/Other, a tally counted from its votes and vote labels from
    the fixed mapping; never `outcome_text`, raw names or unlisted raw vote wording (`tests/test_site_raw_leaks.py`).
-6. Motions: an unverified motion keeps "Attribution under review" unless both names resolve (to two different
-   officials) and a roll call on that motion is unconfirmed; then "Moved by X, seconded by Y*". Same text everywhere.
+6. Motions: an unverified motion never names anyone: every page shows its type label and "Attribution under review",
+   whatever its roll call's status (manager decision 2026-11-07, review of a991a10). A verified motion shows its
+   resolved names, unstarred. No "*" ever follows a name or a Moved/Seconded line, and a confirmed roll call's block or
+   row carries no "*" and no note.
 
 Consumers (every one must follow the definitions above; none may place a person by name):
 | Consumer | Where | What it shows |
 |---|---|---|
 | Official page totals | `sitegen/views.py` `vote_counts`, `totals_sentences`; `official.html.j2` | "Roll call votes: a Yes, b No, c Abstain, d Other confirmed; e Yes*, ... not confirmed." and the site-wide V sentence |
-| Official page history rows | `views.official`; `official.html.j2` | one row per resolved vote; unconfirmed rows "Yes*" with the source link; Moved*/Seconded* rows only for rule 6 motions |
+| Official page history rows | `views.official`; `official.html.j2` | one row per resolved vote; unconfirmed rows "Yes*" with the source link; Moved/Seconded rows only for verified motions |
 | Meeting page | `views.meeting`, `_roll_call_block`, `_vote_rows`; `meeting.html.j2`, `_macros.html.j2` | every roll call in document order; unconfirmed ones marked, unresolved votes "Name not matched*" |
 | Item pages | `views._event`; `items_year.html.j2` | the same roll call block; no raw event label for motion or roll call events |
 | Outcome and tally | `Index.outcome` | label and tally counted from that roll call's own votes, starred when unconfirmed |
 | Internal review page | `views.review`, `review.html.j2` | every unverified fact with failed checks; G4 results from `report.json` |
+| QA site checks | `qa/site_checks.py` `attribution_shown`, `check_unverified` | rule 6 restated independently; the note inside each unconfirmed row or block, no "*" in a confirmed one; outcome-text scan with only item titles and non-motion/roll call event labels as benign |
 | G4 gate | `collector/verify.py` -> `build/report.json` | eligible, held and rate per official by verified attendance (rule below); unchanged |
-| Export | `collector/export.py` -> `build/site/data/` | every roll call and vote with `confirmed`; motions with `confirmed` and attribution only as rule 6; no raw fields |
+| Export | `collector/export.py` -> `build/site/data/` | every roll call and vote with `confirmed`; motions with `confirmed` and attribution only as rule 6; `verification` as status plus check names and ok flags (no `detail`); no raw fields |
 | About page | `about.html.j2` "Verified and not confirmed facts" | the rule in words (exact text tested) |
-| Tests | `tests/test_held_counts.py`, `test_site_raw_leaks.py`, `test_site_links.py`, `test_site_neutrality.py`, `collector/tests/test_run.py`, `collector/tests/test_verify.py` | the lines above |
+| Tests | `tests/test_held_counts.py`, `test_site_raw_leaks.py`, `test_site_links.py`, `test_site_neutrality.py`, `test_qa_tools.py`, `collector/tests/test_run.py`, `collector/tests/test_verify.py` | the lines above |
 
 **Rule for the collector's G4 code** (`collector/verify.py`; G4 is a quality gate on the report, not a site count):
 - For each meeting compute `shown(m)` and `listed(m)` exactly as defined above. Use only the resolved `official_id`
@@ -327,7 +330,8 @@ Writes into `build/site/data/`: `facts.json` (every roll call and vote with a `c
 `item_events.csv`, `sources.csv`. Every row carries `source_url, source_sha256, page, fetched_at`. Unconfirmed roll
 calls are exported with `confirmed: false`; an unresolved vote has `official_id: null` and no name, so no value is ever
 placed under a guessed person (P3). Raw OCR fields (`raw_name`, `raw_value`, `outcome_text`, motion `text`, motion and
-roll call event labels) are in internal builds only.
+roll call event labels, and each verification check's `detail`) are in internal builds only; the public `verification`
+is `{status, checks: [{check, ok}]}`.
 
 ## Data model
 Full field list and enums: `schema/facts.schema.json`. Summary:

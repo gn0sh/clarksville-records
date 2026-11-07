@@ -2,8 +2,14 @@
 or data file. Raw fields live only in internal builds (review.html, --internal exports)."""
 import copy
 import json
+import re
+from html import unescape
+from pathlib import Path
+
+import pytest
 
 from collector.export import export
+from sitegen.build import build
 from conftest import parse
 from test_site_review_fixes import (MEETING_DEC, MO_SHOWN, RC_SHOWN, build_pages, by_id, public, unverify)
 
@@ -127,3 +133,67 @@ def test_public_html_never_prints_outcome_text(tmp_path, facts):
     pages = build_pages(tmp_path, f)
     for name, html in public(pages).items():
         assert "Qqoutcome" not in html, name
+
+
+# --- raw-ocr-leak/verification-detail: the REAL committed facts, built and exported as a public site ---------------
+
+REAL = Path(__file__).resolve().parent.parent / "data" / "facts.json"
+
+
+@pytest.fixture(scope="module")
+def real_public(tmp_path_factory):
+    """The committed data/facts.json, built without --internal and exported the public way: {path: text}."""
+    out = tmp_path_factory.mktemp("real") / "build" / "site"
+    build(REAL, out, internal=False)
+    export(json.loads(REAL.read_text(encoding="utf-8")), out)
+    files = {p.relative_to(out).as_posix(): p.read_text(encoding="utf-8")
+             for p in out.rglob("*") if p.is_file() and p.suffix in (".html", ".csv", ".json", ".js", ".txt")}
+    assert "review.html" not in files and "data/facts.json" in files
+    return files
+
+
+def _real_facts():
+    return json.loads(REAL.read_text(encoding="utf-8"))
+
+
+def test_real_public_export_has_status_and_check_names_only(real_public):
+    data = json.loads(real_public["data/facts.json"])
+    for coll in ("roll_calls", "motions", "meetings"):
+        for x in data[coll]:
+            v = x["verification"]
+            assert set(v) == {"status", "checks"}, (coll, x["id"])
+            assert all(set(c) == {"check", "ok"} for c in v["checks"]), (coll, x["id"])
+
+
+def test_real_public_files_carry_no_check_detail(real_public):
+    f = _real_facts()
+    details = {c["detail"] for coll in ("roll_calls", "motions", "meetings") for x in f[coll]
+               for c in x["verification"]["checks"] if len(c.get("detail") or "") >= 8}
+    assert any("unmatched" in d for d in details), "the committed facts have raw-name details to test against"
+    for name, text in real_public.items():
+        body = text + "\n" + unescape(text)
+        for d in details:
+            assert d not in body, (name, d)
+
+
+def test_real_public_files_carry_no_unmatched_raw_name(real_public):
+    """Every name the program read that matched no official ("R. Ailbert", "T. Smitl1") appears in no public file,
+    except where it is an official's own name, surname or listed variant (the About page and officials.csv)."""
+    f = _real_facts()
+    refs = [v for r in f["roll_calls"] for v in r["votes"]] + [a for m in f["meetings"] for a in m["attendance"]]
+    refs += [m[k] for m in f["motions"] for k in ("moved_by", "seconded_by") if m[k]]
+    raw = sorted({x["raw_name"] for x in refs if not x["official_id"] and x["raw_name"].strip()}, key=len, reverse=True)
+    assert raw, "the committed facts have unmatched names to test against"
+    shown = sorted({n for o in f["officials"] for n in [o["name"], o["surname"], *o["aliases"]]}, key=len, reverse=True)
+    mask = re.compile("|".join(map(re.escape, shown)))
+    rx = re.compile(r"(?<!\w)(" + "|".join(map(re.escape, raw)) + r")(?!\w)")
+    for name, text in real_public.items():
+        body = mask.sub(" ", text + "\n" + unescape(text))
+        hit = rx.search(body)
+        assert hit is None, (name, hit and hit.group(1))
+
+
+def test_internal_export_keeps_check_detail(tmp_path):
+    export(_real_facts(), tmp_path, internal=True)
+    data = json.loads((tmp_path / "data" / "facts.json").read_text(encoding="utf-8"))
+    assert any(c.get("detail") for r in data["roll_calls"] for c in r["verification"]["checks"])

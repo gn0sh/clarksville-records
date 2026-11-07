@@ -45,14 +45,13 @@
 {% if b.attribution_held %}
 <p class="held">Attribution under review.</p>
 {% else %}
-<p>{% if b.moved_by %}Moved by {{ person(b.moved_by, root) }}{% endif %}{% if b.moved_by and b.seconded_by %}, {% endif %}{% if b.seconded_by %}{% if b.moved_by %}seconded{% else %}Seconded{% endif %} by {{ person(b.seconded_by, root) }}{% endif %}{% if b.star %}*{% endif %}.</p>
-{% if b.star %}<p>{{ not_confirmed(b.src) }}</p>{% endif %}
+<p>{% if b.moved_by %}Moved by {{ person(b.moved_by, root) }}{% endif %}{% if b.moved_by and b.seconded_by %}, {% endif %}{% if b.seconded_by %}{% if b.moved_by %}seconded{% else %}Seconded{% endif %} by {{ person(b.seconded_by, root) }}{% endif %}.</p>
 {% endif %}
 {% endmacro %}
 
 {% macro roll_call_block(b, root) %}
 {% if not b.confirmed %}<p>{{ not_confirmed(b.src) }}</p>{% endif %}
-{% if b.motion_label %}<p><strong>{{ b.motion_label }}.</strong> {% if b.motion_by %}{{ b.motion_by }}{% if b.motion_by_star %}*{% endif %}.{% else %}Attribution under review.{% endif %}</p>{% endif %}
+{% if b.motion_label %}<p><strong>{{ b.motion_label }}.</strong> {% if b.motion_by %}{{ b.motion_by }}.{% else %}Attribution under review.{% endif %}</p>{% endif %}
 {{ vote_table(b.votes, root) }}
 <p><strong>Outcome{% if not b.confirmed %}*{% endif %}:</strong> {{ b.outcome.label }} ({{ b.outcome.tally }}).</p>
 {% endmacro %}

@@ -83,8 +83,6 @@ class Index:
         for r in sorted(facts["roll_calls"], key=is_verified):
             if r["motion_id"]:
                 self.rc_by_motion[r["motion_id"]] = r
-        self.unconfirmed_rc_motions = {r["motion_id"] for r in facts["roll_calls"]
-                                       if r["motion_id"] and not is_verified(r)}
         self.coverage = facts["coverage"]
         self.fixture = bool(facts.get("fixture"))
 
@@ -110,29 +108,24 @@ class Index:
 
     def attribution(self, mo: dict) -> dict:
         """Who moved and seconded a motion, as shown everywhere (invariant rule 6). Resolved officials only, never the
-        raw OCR names. Returns {"mover", "seconder"} as person dicts or None, and "star".
-        - Verified motion: whichever names resolve, unstarred.
-        - Unverified motion: both names only when both resolve to two different officials and a roll call on this
-          motion is shown as unconfirmed; then starred. Otherwise nothing ("Attribution under review")."""
-        mover, seconder = self.resolved_person(mo["moved_by"]), self.resolved_person(mo["seconded_by"])
-        if is_verified(mo):
-            return {"mover": mover, "seconder": seconder, "star": False}
-        if (mover and seconder and mo["moved_by"]["official_id"] != mo["seconded_by"]["official_id"]
-                and mo["id"] in self.unconfirmed_rc_motions):
-            return {"mover": mover, "seconder": seconder, "star": True}
-        return {"mover": None, "seconder": None, "star": False}
+        raw OCR names. Returns {"mover", "seconder"} as person dicts or None.
+        - Verified motion: whichever names resolve.
+        - Unverified motion: never any name; every page shows its type and "Attribution under review"."""
+        if not is_verified(mo):
+            return {"mover": None, "seconder": None}
+        return {"mover": self.resolved_person(mo["moved_by"]), "seconder": self.resolved_person(mo["seconded_by"])}
 
     def motion_for(self, rc: dict) -> dict:
         """What a roll call may say about its motion: the motion's type in plain words (never its sentence) and
-        'Moved by A, seconded by B' from the resolved officials' display names, starred when unconfirmed."""
+        'Moved by A, seconded by B' from the resolved officials' display names when the motion is verified."""
         mo = self.motions.get(rc["motion_id"]) if rc["motion_id"] else None
         if mo is None:
-            return {"motion_text": None, "motion_label": None, "motion_by": None, "motion_by_star": False}
+            return {"motion_text": None, "motion_label": None, "motion_by": None}
         att = self.attribution(mo)
         parts = [f"{w} by {p['name']}" for w, p in (("Moved", att["mover"]), ("seconded", att["seconder"])) if p]
         out = ", ".join(parts)
         return {"motion_text": None, "motion_label": motion_type_label(mo["text"]),
-                "motion_by": (out[0].upper() + out[1:]) if out else None, "motion_by_star": att["star"]}
+                "motion_by": (out[0].upper() + out[1:]) if out else None}
 
     # -- generic builders ------------------------------------------------------------------------------------
     def src(self, source_id: str, page: int) -> dict:
@@ -282,7 +275,7 @@ def official(official_id: str, facts) -> dict:
             "type": kind, "type_label": config.TYPE_LABELS[kind], "date": m["date"], "year": m["date"][:4],
             "meeting_label": ix.meeting_label(m), "meeting_href": f"meetings/{meeting_id}.html{anchor}",
             "fact_id": fact_id, "src": ix.src(source_id, page), "page": page,
-            "item": None, "motion_text": None, "motion_label": None, "motion_by": None, "motion_by_star": False,
+            "item": None, "motion_text": None, "motion_label": None, "motion_by": None,
             "record": "", "outcome": None, "pos": 0, "confirmed": True,
         }
 
@@ -319,7 +312,6 @@ def official(official_id: str, facts) -> dict:
             r = base(kind, mo["meeting_id"], f"{mo['id']}/{role}", mo["source_id"], mo["page"], f"#{mo['id']}")
             r["item"] = ix.item_ref(mo["item_id"])
             r["record"] = motion_type_label(mo["text"])  # the type only, never the minutes' sentence
-            r["confirmed"] = not att["star"]
             rc = ix.rc_by_motion.get(mo["id"])
             if rc:
                 r["outcome"] = ix.outcome(rc)
@@ -369,7 +361,7 @@ def _motion_block(ix: Index, mo: dict) -> dict:
         "kind": "motion", "id": mo["id"], "item": ix.item_ref(mo["item_id"]),
         "text": motion_type_label(mo["text"]),
         "attribution_held": held,
-        "moved_by": att["mover"], "seconded_by": att["seconder"], "star": att["star"],
+        "moved_by": att["mover"], "seconded_by": att["seconder"],
         "src": ix.src(mo["source_id"], mo["page"]),
     }
 

@@ -4,8 +4,8 @@ Invariant: held-back counts (architecture). Every roll call and vote is exported
 call passed its checks). A vote whose name did not resolve has `official_id: null` and no name, so no value is placed
 under a guessed person (P3). Motions carry `confirmed` and only the attribution the pages show. Attendance of a meeting
 whose attendance check failed is left out. Every fact row carries source_url, source_sha256, page and fetched_at.
-Raw OCR fields (raw names, raw vote wording, outcome text, motion text, motion and roll call event labels) are in
-internal builds only.
+Raw OCR fields (raw names, raw vote wording, outcome text, motion text, motion and roll call event labels, and each
+verification check's `detail`) are in internal builds only.
 """
 from __future__ import annotations
 
@@ -21,25 +21,35 @@ def is_verified(x: dict) -> bool:
     return x.get("verification", {}).get("status") == "verified"
 
 
+def public_verification(v: dict) -> dict:
+    """Status plus each check's name and ok flag. A check's `detail` quotes what the program read (raw OCR names such
+    as "unmatched: 'R. Ailbert'"), so it is internal only (raw-ocr-leak/verification-detail)."""
+    return {"status": v["status"], "checks": [{"check": c["check"], "ok": c["ok"]} for c in v["checks"]]}
+
+
 def strip_raw(facts: dict, internal: bool = False) -> dict:
-    """The public export carries no raw OCR text: ids, resolved official ids, verified status, type label and
-    source links only. Raw name and motion-text fields exist only in internal builds."""
+    """The public export carries no raw OCR text: ids, resolved official ids, verified status, check names, type label
+    and source links only. Raw name, motion-text and check-detail fields exist only in internal builds."""
     from sitegen.views import motion_type_label
 
     def clean(row, drop=("raw_name",)):
         return row if internal or not row else {k: v for k, v in row.items() if k not in drop}
 
+    def ver(x):
+        return x if internal else dict(x, verification=public_verification(x["verification"]))
+
     out = dict(facts)
-    out["motions"] = [dict({k: v for k, v in m.items() if internal or k != "text"}, type_label=motion_type_label(m["text"]),
+    out["motions"] = [dict(ver({k: v for k, v in m.items() if internal or k != "text"}),
+                           type_label=motion_type_label(m["text"]),
                            moved_by=clean(m["moved_by"]), seconded_by=clean(m["seconded_by"]))
                       for m in facts["motions"]]
-    out["roll_calls"] = [dict(clean(r, ("outcome_text",)), confirmed=is_verified(r),
+    out["roll_calls"] = [dict(ver(clean(r, ("outcome_text",))), confirmed=is_verified(r),
                               votes=[dict(clean(v, ("raw_name", "raw_value")), confirmed=is_verified(r))
                                      for v in r["votes"]])
                          for r in facts["roll_calls"]]
     out["item_events"] = [e if internal or e["type"] not in ("motion", "roll_call") else dict(e, label="")
                           for e in facts["item_events"]]
-    out["meetings"] = [dict(m, attendance=[clean(a) for a in m["attendance"]]) for m in facts["meetings"]]
+    out["meetings"] = [dict(ver(m), attendance=[clean(a) for a in m["attendance"]]) for m in facts["meetings"]]
     return out
 
 
