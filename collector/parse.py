@@ -364,12 +364,14 @@ ITEM_RE = re.compile(r"(?<![\w-])(\d{2}\s?[-~_—–]\s?[\dIlO]{1,2}\s?[-~_—�
 # outcome word: the one at most two lowercase words before "by the following roll call". Between them the minutes may
 # also print one comma-enclosed phrase ("was Adopted, in its original state, by", "Adopted, as Amended, by") or, after
 # Suspended, the items the rules were suspended for ("Suspended for Resolutions 25-4-9 and 25-4-10 by"). OCR variants
-# of "the" and "roll call" ("by th~ following", "rail call", "roll catl") are read as those words.
+# of "the" and "roll call" ("by th~ following", "rail call", "roll catl") and a lost space ("was electedby the") are
+# read as those words; "by the following two-thirds (2/3) vote" heads a roll call table too.
 OUTCOME_RE = re.compile(r"((?i:Adopted|Approved|Failed|Defeated|Denied|Amended|Deferred|Withdrawn|Postponed"
                         r"|Tabled|Elected|Suspended))"
                         r"(?:\s*,(?:\s+[A-Za-z]+){1,5}\s*,)?"
                         r"(?:\s+for\s+(?:Resolutions?\s+)?[\w-]+(?:\s*(?:,|and)\s*[\w-]+)*)?"
-                        r"(?:\s+[^\sA-Z]\S*){0,2}\s+by\s+t\S{1,2}\s+f\S{4,8}\s+(?i:r\S{2,3}\s+c\S{2,3})", re.S)
+                        r"(?:\s+[^\sA-Z]\S*){0,2}\s*by\s+t\S{1,2}\s+f\S{4,8}\s+"
+                        r"(?i:r\S{2,3}\s+c\S{2,3}|two-thirds\s*\(2/3\)\s+vote)", re.S)
 MOTION_RE = re.compile(r"Motion(?:\s+to\s+([A-Za-z]+(?:\s+[A-Za-z]+)?))?\s+by\s+~?Commissioner\s+"
                        r"([A-Z][\w.'’ ]{1,30}?)\s*,\s*"
                        r"seconded\s+by\s+~?Commissioner\s+([A-Z][\w.'’ ]{1,30}?)\s*[,.;]", re.S)

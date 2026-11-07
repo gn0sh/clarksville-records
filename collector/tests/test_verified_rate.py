@@ -218,3 +218,12 @@ def test_district_number_read_as_vote_mark_is_not_a_vote():
     assert r.votes["David Harper"] == "Yes" and r.votes["Jason Knight"] == "No"
     # a vote mark after a name in the middle of a row still belongs to that name
     assert r.votes["Tangi Smith"] == "Yes"
+
+
+def test_outcome_regex_glued_by_and_two_thirds_vote():
+    ctx = "Commissioner John Gannon was electedby the following roll call vote:"
+    assert list(P.OUTCOME_RE.finditer(ctx))[-1].group(1) == "elected"
+    ctx = "The foregoing Motion was Approved by the following two-thirds (2/3) vote:"
+    assert list(P.OUTCOME_RE.finditer(ctx))[-1].group(1) == "Approved"
+    # a 2/3 vote that failed on a simple majority is still held: the check is not relaxed
+    assert P.check_outcome("Failed", (11, 10, 0))
