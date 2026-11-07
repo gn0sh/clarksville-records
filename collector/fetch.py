@@ -1,13 +1,20 @@
 """Polite HTTP fetcher.
 
-Rules (CLAUDE.md, spec): obey robots.txt per host, at least MIN_DELAY seconds between
-requests to the same host (robots.txt fetch included), a clear User-Agent, and stop for a
-host on 403/429 without retrying by any other route.
+Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
+- only hosts on ALLOWED_HOSTS; `cityofclarksville.com` is refused in code, whatever the allowlist says;
+- robots.txt read once per host per run, `can_fetch` checked before every request;
+- at least HOST_FLOOR seconds between requests to one host (robots.txt fetch included), more if robots
+  Crawl-delay says so;
+- one plain GET with a clear User-Agent, no header tricks;
+- a 403 or 429 sent by the site stops that host for the rest of the run, with no retry by another
+  host, header or proxy. A refusal by the sandbox's own egress proxy (a rejected CONNECT, which the
+  site never sees) is a different case: it is logged as ProxyRefused and does not mark the site as
+  having blocked us. A 403 that cannot be attributed to the proxy is treated as the site's.
 """
 from __future__ import annotations
 
-import hashlib
 import json
+import os
 import time
 import urllib.error
 import urllib.parse
@@ -15,37 +22,97 @@ import urllib.request
 import urllib.robotparser
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
 
 USER_AGENT = ("clarksville-records research collector "
               "(+https://github.com/gn0sh/clarksville-records; polite, 10s/host)")
-MIN_DELAY = 10.0
+MIN_DELAY = 10.0                 # seconds between requests on every host (brief: 10 s everywhere)
+HOST_FLOORS = {"clarksvilletn.gov": 10.0}
+ALLOWED_HOSTS = ("montgomerytn.gov", "mcgtn.org", "d6.mcgtn.org", "dev2.montgomerytn.gov",
+                 "montgomeryminutes.bisonline.com", "clarksvilletn.gov")
+DENIED_HOSTS = ("cityofclarksville.com",)     # blocks automated tools: never collect from it
+MAX_BYTES = 50 * 1024 * 1024
+PROXY_REFUSALS_BEFORE_SKIP = 3
 
 
 class HostBlocked(Exception):
-    """The host answered 403/429 (or is already marked blocked). Do not retry it."""
+    """The site answered 403/429 (or the host is already marked blocked). Do not retry it this run."""
 
 
 class RobotsDisallowed(Exception):
     pass
 
 
+class HostRefused(Exception):
+    """The host is denied in code or not on the allowlist. No request was made."""
+
+
+class ProxyRefused(Exception):
+    """The sandbox egress proxy refused the connection; the site never saw the request."""
+
+
+class FetchFailed(Exception):
+    """Server error after one retry, a too-large body, or a network error."""
+
+
+def _host_matches(host: str, names) -> bool:
+    host = host.lower().split(":")[0]
+    return any(host == n or host.endswith("." + n) for n in names)
+
+
+def proxy_status_failures() -> list[dict]:
+    """Recent relay failures from the local agent proxy's status page (empty if there is no proxy)."""
+    proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+    if not proxy:
+        return []
+    try:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(proxy.rstrip("/") + "/__agentproxy/status", timeout=5) as r:
+            return json.loads(r.read()).get("recentRelayFailures", [])
+    except Exception:            # status page missing: nothing can be attributed to the proxy
+        return []
+
+
+def _is_tunnel_refusal(err: BaseException) -> bool:
+    """http.client raises OSError('Tunnel connection failed: 403 ...') when the proxy rejects CONNECT."""
+    e = err.reason if isinstance(err, urllib.error.URLError) and not isinstance(err, urllib.error.HTTPError) else err
+    return isinstance(e, OSError) and "Tunnel connection failed" in str(e)
+
+
 @dataclass
 class PoliteFetcher:
     min_delay: float = MIN_DELAY
     user_agent: str = USER_AGENT
-    timeout: float = 60.0
+    timeout: float = 120.0
     sleep: object = time.sleep
     clock: object = time.monotonic
     opener: object = None                            # injectable for tests
+    proxy_failures: object = proxy_status_failures  # injectable for tests
+    wall: object = lambda: datetime.now(timezone.utc)
+    allowed_hosts: tuple = ALLOWED_HOSTS
+    max_bytes: int = MAX_BYTES
     _last: dict = field(default_factory=dict)        # host -> clock() of last request
     _robots: dict = field(default_factory=dict)      # host -> RobotFileParser
-    _blocked: dict = field(default_factory=dict)     # host -> reason
+    _blocked: dict = field(default_factory=dict)     # host -> reason (site said 403/429)
+    _proxy_refused: dict = field(default_factory=dict)  # host -> count
     _delay: dict = field(default_factory=dict)       # host -> delay (robots Crawl-delay may raise it)
+    log: list = field(default_factory=list)          # [{event, host, url, detail}]
+
+    # ------------------------------------------------------------ policy
+    def check_host(self, host: str) -> None:
+        if _host_matches(host, DENIED_HOSTS):
+            self.log.append({"event": "refused", "host": host, "detail": "denied host"})
+            raise HostRefused(f"{host}: denied in code (cityofclarksville.com is never collected)")
+        if not _host_matches(host, self.allowed_hosts):
+            self.log.append({"event": "refused", "host": host, "detail": "not on allowlist"})
+            raise HostRefused(f"{host}: not on the allowlist")
+
+    def delay_for(self, host: str) -> float:
+        floor = max([self.min_delay] + [v for k, v in HOST_FLOORS.items() if _host_matches(host, (k,))])
+        return max(floor, self._delay.get(host, 0.0))
 
     def _wait(self, host: str) -> None:
         last = self._last.get(host)
-        delay = max(self.min_delay, self._delay.get(host, 0.0))
+        delay = self.delay_for(host)
         if last is not None:
             gap = self.clock() - last
             if gap < delay:
@@ -57,22 +124,58 @@ class PoliteFetcher:
             return self.opener(req, self.timeout)
         return urllib.request.urlopen(req, timeout=self.timeout)
 
-    def _raw_get(self, url: str) -> tuple[int, bytes, dict]:
+    def _proxy_said_403(self, host: str, since: datetime) -> bool:
+        for f in self.proxy_failures() or []:
+            fh = str(f.get("host", "")).split(":")[0].lower()
+            try:
+                ts = datetime.fromisoformat(str(f.get("ts", "")).replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if fh == host.lower() and ts >= since and "403" in str(f.get("detail", "")):
+                return True
+        return False
+
+    def _note_proxy_refusal(self, host: str, url: str, detail: str):
+        self._proxy_refused[host] = self._proxy_refused.get(host, 0) + 1
+        self.log.append({"event": "proxy_refused", "host": host, "url": url, "detail": detail})
+        return ProxyRefused(f"{host}: sandbox egress proxy refused ({detail}); the site did not see it")
+
+    # ------------------------------------------------------------ requests
+    def _raw_get(self, url: str, _retry: bool = True) -> tuple[int, bytes, dict]:
         host = urllib.parse.urlsplit(url).netloc
+        self.check_host(host)
         if host in self._blocked:
             raise HostBlocked(f"{host}: {self._blocked[host]}")
+        if self._proxy_refused.get(host, 0) >= PROXY_REFUSALS_BEFORE_SKIP:
+            raise ProxyRefused(f"{host}: skipped after {PROXY_REFUSALS_BEFORE_SKIP} proxy refusals this run")
         self._wait(host)
+        started = self.wall()
         req = urllib.request.Request(url, headers={"User-Agent": self.user_agent})
         try:
             with self._open(req) as r:
-                return r.status, r.read(), dict(r.headers)
+                body = r.read(self.max_bytes + 1)
+                if len(body) > self.max_bytes:
+                    raise FetchFailed(f"{url}: larger than {self.max_bytes} bytes")
+                self.log.append({"event": "get", "host": host, "url": url, "detail": str(r.status)})
+                return r.status, body, dict(r.headers)
         except urllib.error.HTTPError as e:
             if e.code in (403, 429):
+                if e.code == 403 and self._proxy_said_403(host, started):
+                    raise self._note_proxy_refusal(host, url, "HTTP 403 recorded by the proxy") from None
                 snippet = (e.read() or b"")[:200].decode("utf-8", "replace")
-                self._blocked[host] = (f"HTTP {e.code} on {url} server={e.headers.get('Server')!r} "
+                self._blocked[host] = (f"HTTP {e.code} from the site on {url} server={e.headers.get('Server')!r} "
                                        f"body={snippet!r}")
+                self.log.append({"event": "blocked", "host": host, "url": url, "detail": self._blocked[host]})
                 raise HostBlocked(self._blocked[host]) from None
+            if e.code >= 500 and _retry:
+                self.log.append({"event": "retry", "host": host, "url": url, "detail": f"HTTP {e.code}"})
+                return self._raw_get(url, _retry=False)
             return e.code, (e.read() or b""), dict(e.headers or {})
+        except (urllib.error.URLError, OSError) as e:
+            if _is_tunnel_refusal(e):
+                raise self._note_proxy_refusal(host, url, str(getattr(e, "reason", e))) from None
+            self.log.append({"event": "error", "host": host, "url": url, "detail": str(e)})
+            raise FetchFailed(f"{url}: {e}") from None
 
     def robots(self, host: str, scheme: str = "https") -> urllib.robotparser.RobotFileParser:
         if host not in self._robots:
@@ -92,31 +195,9 @@ class PoliteFetcher:
 
     def get(self, url: str) -> tuple[int, bytes, dict]:
         parts = urllib.parse.urlsplit(url)
+        self.check_host(parts.netloc)
         rp = self.robots(parts.netloc, parts.scheme)
         if not rp.can_fetch(self.user_agent, url):
+            self.log.append({"event": "robots_disallowed", "host": parts.netloc, "url": url, "detail": ""})
             raise RobotsDisallowed(url)
         return self._raw_get(url)
-
-
-def cache_download(fetcher: PoliteFetcher, url: str, raw_dir: Path, manifest_path: Path,
-                   meta: dict | None = None) -> dict:
-    """Download url into raw_dir (named by sha256) unless the manifest already has it."""
-    manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else []
-    for entry in manifest:
-        if entry["url"] == url and (raw_dir / entry["file"]).exists():
-            return entry
-    status, body, headers = fetcher.get(url)
-    if status != 200:
-        raise RuntimeError(f"HTTP {status} for {url}")
-    digest = hashlib.sha256(body).hexdigest()
-    ext = ".pdf" if body[:4] == b"%PDF" else ".bin"
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    (raw_dir / f"{digest}{ext}").write_bytes(body)
-    entry = {"url": url, "sha256": digest, "file": f"{digest}{ext}", "bytes": len(body),
-             "content_type": headers.get("Content-Type", ""),
-             "fetched_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-             **(meta or {})}
-    manifest = [e for e in manifest if e["url"] != url] + [entry]
-    manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
-    return entry
