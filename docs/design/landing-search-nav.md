@@ -670,10 +670,10 @@ CSV / JSON", generated in the browser from the records already loaded (no server
 6. **First-party scripts.** Recommended: architect amends N6 to "first-party scripts from `static/` only, no
    third-party" so `nav.js`, `map.js` and `search.js` are allowed. Without it, the drawer falls back to the footer
    list and search is unavailable.
-7. **Boundary files.** Recommended: use the county's published GIS district boundaries (current and pre-2022) if
-   their terms allow reuse, fetched politely like other sources and cited on the map caption; city wards wait for M4
-   and must not come from `cityofclarksville.com`. Architect or backend verifies source and licence; if none is
-   usable, the landing shows the list without the map (3.4).
+7. **Boundary files.** Recommended: APSU GIS MontElections layers 2 (districts) and 1 (wards), fetched once and
+   cached with source URL and fetch date (research doc); old lines link to PDFs only. Neither service states reuse
+   terms: treat as public record for the private preview; confirming reuse before public launch would need an email
+   from Brian (hard stop 4), so raise it at the G6 check, not now.
 8. **"Find my district" by address.** Recommended: not now (needs a geocoder, which is a third-party request or a
    large local dataset). Add a plain link to the county election commission's own lookup page if one exists.
 9. **Focus Group.** Recommended: skip while the preview is for the CEO only (playbook); run one on the landing and
