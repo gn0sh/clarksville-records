@@ -27,5 +27,19 @@ EVENT_TYPE_LABELS = {
 }
 OUTCOME_LABELS = {"passed": "Passed", "failed": "Failed", "other": "Other"}
 
+# Plain-words motion type for a motion whose attribution is under review. The facts file has no motion-type field,
+# so the type is read from the motion text by this fixed, ordered list; only the label on the right is ever printed,
+# never any of the sentence. Anything not matched is plain "Motion".
+UNVERIFIED_MOTION_TYPES = [
+    (r"\bmotion to amend|\bto amend\b|\bamendment\b", "Motion to amend"),
+    (r"\bmotion to defer|\bto defer\b", "Motion to defer"),
+    (r"\bmotion to table|\bto table\b", "Motion to table"),
+    (r"\bmotion to postpone|\bto postpone\b", "Motion to postpone"),
+    (r"\bmotion to approve|\bto approve\b", "Motion to approve"),
+    (r"\bmotion to adopt|\bforegoing\b.*\bwas adopted\b", "Motion to adopt"),
+    (r"\brules were suspended|\bsuspend the rules", "Motion to suspend the rules"),
+]
+UNVERIFIED_MOTION_DEFAULT = "Motion"
+
 # Source URLs must use this scheme; anything else fails the build.
 ALLOWED_URL_SCHEMES = ("https",)

@@ -7,6 +7,7 @@ Only verified facts reach a public page; unverified facts appear only in `review
 from __future__ import annotations
 
 import json
+import re
 from collections import defaultdict
 
 from . import config
@@ -51,6 +52,14 @@ def attendance_state(meeting: dict) -> str:
     return "shown" if is_verified(meeting) else "under_review"
 
 
+def motion_type_label(text: str) -> str:
+    """Plain-words type of a motion, from the fixed list in config. Never returns any part of `text`."""
+    for pattern, label in config.UNVERIFIED_MOTION_TYPES:
+        if re.search(pattern, text, re.I | re.S):
+            return label
+    return config.UNVERIFIED_MOTION_DEFAULT
+
+
 class Index:
     """Lookup tables over one facts dict."""
 
@@ -69,6 +78,35 @@ class Index:
         self.rc_by_motion = {r["motion_id"]: r for r in facts["roll_calls"] if r["motion_id"] and is_verified(r)}
         self.coverage = facts["coverage"]
         self.fixture = bool(facts.get("fixture"))
+
+    def outcome(self, rc: dict) -> dict:
+        """Passed/Failed/Other plus the tally counted from the verified votes (never the minutes' raw outcome text).
+        Absent = members the meeting's verified attendance lists as absent who have no vote on this roll call."""
+        counts = {"yes": 0, "no": 0, "abstain": 0, "other": 0}
+        for v in rc["votes"]:
+            counts[v["value"]] += 1
+        parts = [f"{counts['yes']} yes", f"{counts['no']} no"]
+        if counts["abstain"]:
+            parts.append(f"{counts['abstain']} abstain")
+        if counts["other"]:
+            parts.append(f"{counts['other']} other")
+        m = self.meetings[rc["meeting_id"]]
+        if attendance_shown(m):
+            voted = {v["official_id"] for v in rc["votes"]}
+            absent = sum(1 for a in m["attendance"] if a["status"] == "absent" and a["official_id"] not in voted)
+            if absent:
+                parts.append(f"{absent} absent")
+        return {"label": config.OUTCOME_LABELS[rc["outcome"]], "tally": ", ".join(parts)}
+
+    def motion_for(self, rc: dict) -> dict:
+        """What a roll call may say about its motion: the verbatim text only when the motion is verified, otherwise
+        just the motion's type in plain words (the template adds the fixed attribution sentence)."""
+        mo = self.motions.get(rc["motion_id"]) if rc["motion_id"] else None
+        if mo is None:
+            return {"motion_text": None, "motion_label": None}
+        if is_verified(mo):
+            return {"motion_text": mo["text"], "motion_label": None}
+        return {"motion_text": None, "motion_label": motion_type_label(mo["text"])}
 
     # -- generic builders ------------------------------------------------------------------------------------
     def src(self, source_id: str, page: int) -> dict:
@@ -223,7 +261,7 @@ def official(official_id: str, facts) -> dict:
             "type": kind, "type_label": config.TYPE_LABELS[kind], "date": m["date"], "year": m["date"][:4],
             "meeting_label": ix.meeting_label(m), "meeting_href": f"meetings/{meeting_id}.html{anchor}",
             "fact_id": fact_id, "src": ix.src(source_id, page), "page": page,
-            "item": None, "motion_text": None, "record": "", "outcome": None, "pos": 0,
+            "item": None, "motion_text": None, "motion_label": None, "record": "", "outcome": None, "pos": 0,
         }
 
     for rc in ix.facts["roll_calls"]:
@@ -235,10 +273,9 @@ def official(official_id: str, facts) -> dict:
             r = base("vote", rc["meeting_id"], f"{rc['id']}/{official_id}", rc["source_id"], rc["page"],
                      f"#{rc['id']}")
             r["item"] = ix.item_ref(rc["item_id"])
-            mo = ix.motions.get(rc["motion_id"]) if rc["motion_id"] else None
-            r["motion_text"] = mo["text"] if mo else None  # a failed motion check holds back only the attribution
+            r.update(ix.motion_for(rc))
             r["record"] = vote_label(v["value"], v["raw_value"])
-            r["outcome"] = {"label": config.OUTCOME_LABELS[rc["outcome"]], "text": rc["outcome_text"]}
+            r["outcome"] = ix.outcome(rc)
             r["pos"] = ix.position(rc)[1]
             rows.append(r)
 
@@ -263,7 +300,7 @@ def official(official_id: str, facts) -> dict:
             r["record"] = mo["text"]
             rc = ix.rc_by_motion.get(mo["id"])
             if rc:
-                r["outcome"] = {"label": config.OUTCOME_LABELS[rc["outcome"]], "text": rc["outcome_text"]}
+                r["outcome"] = ix.outcome(rc)
             r["pos"] = ix.position(mo)[1]
             rows.append(r)
 
@@ -297,11 +334,13 @@ def _vote_rows(ix: Index, rc: dict) -> list[dict]:
 
 
 def _motion_block(ix: Index, mo: dict) -> dict:
-    """Architecture (Verifier): a failed motion check holds back the Moved/Seconded attribution only. The motion text
-    is shown verbatim either way; when held, both names are replaced by one fixed sentence."""
+    """A failed motion check holds back the motion's attribution. The minutes' sentence is OCR text that can carry
+    misread names, so when held it is not shown at all: only the motion's type in plain words, and a fixed sentence
+    in place of the two names."""
     held = not is_verified(mo)
     return {
-        "kind": "motion", "id": mo["id"], "item": ix.item_ref(mo["item_id"]), "text": mo["text"],
+        "kind": "motion", "id": mo["id"], "item": ix.item_ref(mo["item_id"]),
+        "text": motion_type_label(mo["text"]) if held else mo["text"],
         "attribution_held": held,
         "moved_by": None if held else ix.person(mo["moved_by"]),
         "seconded_by": None if held else ix.person(mo["seconded_by"]),
@@ -310,12 +349,11 @@ def _motion_block(ix: Index, mo: dict) -> dict:
 
 
 def _roll_call_block(ix: Index, rc: dict) -> dict:
-    mo = ix.motions.get(rc["motion_id"]) if rc["motion_id"] else None
     return {
         "kind": "roll_call", "id": rc["id"], "item": ix.item_ref(rc["item_id"]),
-        "motion_text": mo["text"] if mo else None,  # verbatim even when the motion's attribution is held back
+        **ix.motion_for(rc),
         "votes": _vote_rows(ix, rc),
-        "outcome": {"label": config.OUTCOME_LABELS[rc["outcome"]], "text": rc["outcome_text"]},
+        "outcome": ix.outcome(rc),
         "src": ix.src(rc["source_id"], rc["page"]),
     }
 
@@ -367,6 +405,8 @@ def _event(ix: Index, e: dict) -> dict:
     ref = e["ref"]
     if e["type"] == "roll_call" and ref in ix.roll_calls:
         rc = ix.roll_calls[ref]
+        if " ".join((e["label"] or "").split()) == " ".join(rc["outcome_text"].split()):
+            out["label"] = None  # the event label is the raw outcome sentence; the block shows label and tally
         if is_verified(rc):
             out["roll_call"] = _roll_call_block(ix, rc)
             out["meeting_href"] += f"#{rc['id']}"
@@ -375,6 +415,8 @@ def _event(ix: Index, e: dict) -> dict:
     elif e["type"] == "motion" and ref in ix.motions:
         mo = ix.motions[ref]
         out["motion"] = _motion_block(ix, mo)  # attribution held inside the block when the motion is unverified
+        if not is_verified(mo):
+            out["label"] = None  # the event label is the raw motion sentence
         out["meeting_href"] += f"#{mo['id']}"
     return out
 
