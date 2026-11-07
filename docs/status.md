@@ -40,6 +40,7 @@
 | 2026-11-07 | backend-engineer | opus/high | fix a991a10 findings + link-only switch (07be770) | done, 299 pass |
 | 2026-11-07 | frontend-engineer | sonnet/low | not-confirmed chip style (95e1235) | done |
 | 2026-11-07 | code-reviewer | opus/high | delta re-review 16ee1fc | approve with nits (doc drift fixed) |
+| 2026-11-07 | qa-engineer | sonnet/medium | M1 QA at 95e1235 | FAIL on AC-P1 only (82.3%); spot check 20/20; key parse-accuracy/verified-rate |
 
 ## Decisions
 - 2026-11-07 G1: footer line on every page + About page naming the operator (CEO, card).
@@ -65,3 +66,5 @@
 - Unverified roll calls are no longer held back. They are shown with an asterisk, "not confirmed", and a link to the exact PDF page. Totals split confirmed and unconfirmed. Unmatched names are never guessed. Supersedes the hold-back display rule (P2 still decides "confirmed"); G4 skew check still reported.
 
 - Brian 2026-11-07 4:47 PM ET: unconfirmed roll calls show NO vote value, link only (card). SHOW_UNCONFIRMED_VALUES stays False.
+
+- 2026-11-07 ~5:25 PM ET: preview republished (version 2) at https://claude.ai/artifact/QkxSRXNSMiWXpHUoLj8ynj: visual refresh, 64 meetings 2020-02-10 to 2026-05-11, link-only unconfirmed roll calls, public data export. QA at 95e1235: 20/20 spot check, site checks pass, CEO decision holds; FAIL only on AC-P1 (82.3% verified < 90%), which gates public launch, not the private preview. Next: raise verified rate (backend; start with outcome_consistent failures, e.g. rc-09962951-p101-1), then M1.5.
