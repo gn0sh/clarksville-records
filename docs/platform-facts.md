@@ -13,6 +13,7 @@
   Items carry numbers like 24-12-1 or AB-4-2024. The PDFs are scans with an OCR text layer, which has errors (verify numbers and names).
 - Budget: https://montgomerytn.gov/account-budget (FY2025, FY2027 approved budget books). Audits: TN Comptroller, 2001-02 on.
 - Purchasing: bids on https://mcgtn.bonfirehub.com/portal/ and https://montgomerytn.gov/purchasing/archive. Award visibility: unverified.
+- Operator: Brian Zacharias serves on Clarksville City Council until the end of 2026 and leaves it after the new year (Brian, 2026-11-07). He is not a candidate.
 - Video: YouTube. Brian (2026-11-07): the chair calls on each speaker by name; on City Council video the members' names are visible on screen (county unverified).
 
 ## City of Clarksville, TN
