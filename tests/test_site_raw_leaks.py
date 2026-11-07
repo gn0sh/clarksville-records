@@ -80,6 +80,8 @@ def _raw_facts(facts):
     for rc in f["roll_calls"]:
         for v in rc["votes"]:
             v["raw_name"] = "Qqraw voter"
+            v["raw_value"] = "Qqrawvalue"
+        rc["outcome_text"] = "Qqoutcome"
     return f
 
 
@@ -88,7 +90,7 @@ def test_public_data_files_have_no_raw_ocr_fields(tmp_path, facts):
     assert {p.name for p in files} >= {"facts.json", "motions.csv", "votes.csv", "attendance.csv"}
     for p in files:
         text = p.read_text(encoding="utf-8")
-        for token in ("Qqraw", "Qqtext", "Smitl1", "moved_by_raw", "seconded_by_raw", "raw_name"):
+        for token in ("Qqraw", "Qqtext", "Qqrawvalue", "Qqoutcome", "outcome_text", "raw_value", "Smitl1", "moved_by_raw", "seconded_by_raw", "raw_name"):
             assert token not in text, (p.name, token)
     header = (tmp_path / "data" / "motions.csv").read_text(encoding="utf-8").splitlines()[0].split(",")
     assert "text" not in header and "type_label" in header
@@ -100,3 +102,11 @@ def test_internal_export_keeps_raw_fields(tmp_path, facts):
     files = export(_raw_facts(facts), tmp_path, internal=True)
     text = next(p for p in files if p.name == "motions.csv").read_text(encoding="utf-8")
     assert "moved_by_raw" in text and "Qqtext" in text
+    assert "Qqoutcome" in next(p for p in files if p.name == "roll_calls.csv").read_text(encoding="utf-8")
+
+
+def test_public_html_never_prints_outcome_text(tmp_path, facts):
+    f = _raw_facts(facts)
+    pages = build_pages(tmp_path, f)
+    for name, html in public(pages).items():
+        assert "Qqoutcome" not in html, name

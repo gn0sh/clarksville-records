@@ -21,6 +21,8 @@ def public_schema():
     for k in ("motion", "person_ref", "attendance", "vote"):
         d = s["$defs"][k]
         d["required"] = [r for r in d["required"] if r not in ("text", "raw_name")]
+    for k, f in (("vote", "raw_value"), ("roll_call", "outcome_text")):
+        s["$defs"][k]["required"] = [r for r in s["$defs"][k]["required"] if r != f]
     s["$defs"]["motion"]["properties"]["type_label"] = {"type": "string"}
     return s
 

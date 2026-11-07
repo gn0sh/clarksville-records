@@ -23,14 +23,15 @@ def strip_raw(facts: dict, internal: bool = False) -> dict:
     source links only. Raw name and motion-text fields exist only in internal builds."""
     from sitegen.views import motion_type_label
 
-    def clean(row):
-        return row if internal or not row else {k: v for k, v in row.items() if k != "raw_name"}
+    def clean(row, drop=("raw_name",)):
+        return row if internal or not row else {k: v for k, v in row.items() if k not in drop}
 
     out = dict(facts)
     out["motions"] = [dict({k: v for k, v in m.items() if internal or k != "text"}, type_label=motion_type_label(m["text"]),
                            moved_by=clean(m["moved_by"]), seconded_by=clean(m["seconded_by"]))
                       for m in facts["motions"]]
-    out["roll_calls"] = [dict(r, votes=[clean(v) for v in r["votes"]]) for r in facts["roll_calls"]]
+    out["roll_calls"] = [dict(clean(r, ("outcome_text",)), votes=[clean(v, ("raw_name", "raw_value")) for v in r["votes"]])
+                         for r in facts["roll_calls"]]
     out["meetings"] = [dict(m, attendance=[clean(a) for a in m["attendance"]]) for m in facts["meetings"]]
     return out
 
@@ -94,14 +95,14 @@ def tables(facts: dict, all_facts: dict, internal: bool = False) -> dict[str, st
     out["roll_calls"] = _csv([dict(r, yes=(r["stated_tally"] or {}).get("yes"), no=(r["stated_tally"] or {}).get("no"),
                                    abstain=(r["stated_tally"] or {}).get("abstain"), **cite(r["source_id"], r["page"]))
                               for r in facts["roll_calls"]],
-                             ["id", "meeting_id", "item_id", "motion_id", "outcome", "outcome_text", "yes", "no",
+                             ["id", "meeting_id", "item_id", "motion_id", "outcome"] + (["outcome_text"] if internal else []) + ["yes", "no",
                               "abstain"] + SRC_COLS)
     out["votes"] = _csv([dict(v, fact_id=f"{r['id']}/{v['official_id']}", roll_call_id=r["id"],
                               meeting_id=r["meeting_id"], item_id=r["item_id"],
                               official_name=names.get(v["official_id"]), **cite(r["source_id"], r["page"]))
                          for r in facts["roll_calls"] for v in r["votes"]],
                         ["fact_id", "roll_call_id", "meeting_id", "item_id", "official_id", "official_name"]
-                        + (["raw_name"] if internal else []) + ["value", "raw_value"] + SRC_COLS)
+                        + (["raw_name"] if internal else []) + ["value"] + (["raw_value"] if internal else []) + SRC_COLS)
     out["motions"] = _csv([dict(m, moved_by=(m["moved_by"] or {}).get("official_id"),
                                 seconded_by=(m["seconded_by"] or {}).get("official_id"),
                                 moved_by_raw=(m["moved_by"] or {}).get("raw_name"),
