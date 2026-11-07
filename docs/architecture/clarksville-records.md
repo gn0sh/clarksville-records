@@ -88,6 +88,19 @@ no `official_id` and no fact-level `verification`. Deterministic: same bytes in,
 no usable text layer return `text_layer: "none"` and no fragments (AC-P4: "not extracted").
 - Two readings (M0): text layer first; every roll call that fails P2 gets a tesseract reading of its pages (300 dpi,
   `--psm 6`), pages OCRed in parallel on all cores (`OMP_THREAD_LIMIT=1` each), cached in `data/ocr/`.
+- Combined reading (`parse.combine`, 2026-11-07, key `parse-accuracy/verified-rate`): when no reading passes P2 alone,
+  the readings are read cell by cell. A member's vote is a Yes/No/Abstain that some reading read cleanly in that
+  member's own cell (one vote token, nothing else), with no reading reading a different vote or an explicit "---"
+  there; a member with no clean vote has none when a reading read the cell cleanly blank or "---"; else unreadable.
+  The stated tally and the ABSENT names must be read alike. The result passes only through the same P2 checks
+  (`check_votes`); `reading_used` then reads "text-layer+tesseract".
+- Blank tally count: "Yeses - 21 Noes -  Abstentions - 0" (no number printed) gives the one blank count as roster
+  minus absent minus the other two, only from an ABSENT line whose names all resolve; a garbled count or two blanks
+  stay unreadable.
+- Table cells pair with a header name also through that official's `names.yml` name and aliases when the header name
+  resolves exactly (rules 1-2), under the same threshold and margin (header "JoIm Gaimon", table "John Gannon").
+- A row's first chunk read as a vote mark just before a name is the district column (tesseract reads "2" as "y)"),
+  never a vote of the previous row's last member.
 - Motion type: the motion sentence and the outcome clause are kept verbatim (`motions.text`, `roll_calls.outcome_text`,
   e.g. "The foregoing Motion to Defer was Approved by the following roll call vote:"), so a Yes on a motion to table,
   defer or suspend the rules is always shown with that wording, never as a Yes on the resolution. The parser's kind tag
