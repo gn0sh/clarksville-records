@@ -148,6 +148,7 @@ def test_invalid_facts_fail_the_build(tmp_path):
         sitegen_build.build(bad, tmp_path / "out")
 
 
-def test_placeholder_operator_warns(tmp_path, capsys):
+def test_placeholder_operator_warns(tmp_path, capsys, monkeypatch):
+    monkeypatch.setattr(config, "OPERATOR_NAME", config.OPERATOR_PLACEHOLDER)
     sitegen_build.build(config.REPO_ROOT / "site" / "fixtures" / "facts.sample.json", tmp_path / "b" / "site")
     assert "placeholder" in capsys.readouterr().err
