@@ -423,3 +423,7 @@ details.toc-group > summary { font-weight: 600; }
 details.toc-group .toc { margin: 0.2em 0 0.8em; }
 details.year-group[hidden] { display: none; }
 details.year-group > summary .year-label { font-family: var(--font-head); font-size: var(--t-lg); font-weight: 600; }
+.site-header .menu-list a, .site-header .menu-list a:visited { padding: 8px 16px; border: 0; }
+.site-header .menu-list a:hover, .site-header .menu-list a[aria-current="page"] { border: 0; }
+.site-header .menu-list a:hover { background: var(--surface-2); }
+.site-header .menu-list a[aria-current="page"] { font-weight: 600; box-shadow: inset 3px 0 0 var(--link); }

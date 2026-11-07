@@ -611,7 +611,8 @@ def items_year(year: int, facts) -> dict:
             "events": [_event(ix, e) for e in events],
             "first": events[0]["date"] if events else "",
         })
-    entries.sort(key=lambda i: (i["first"], (i["number"] or i["title"]).casefold(), i["id"]))
+    # Items with no appearance (first == "") go last, so their group is last too.
+    entries.sort(key=lambda i: (i["first"] == "", i["first"], (i["number"] or i["title"]).casefold(), i["id"]))
     return {"year": year, "items": entries, "toc_groups": _toc_groups(entries)}
 
 

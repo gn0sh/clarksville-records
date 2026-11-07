@@ -1,5 +1,23 @@
-/* Type and year filter for the official history table. Vanilla JS, no dependencies.
+/* Dropdown menus: Escape or a click outside closes any open nav/year menu. Then the history filter (official pages). Vanilla JS, no dependencies.
    Without JavaScript the form stays hidden and the full table is shown. */
+(function () {
+  var menus = document.querySelectorAll("details.menu");
+  function closeMenus(except) {
+    for (var i = 0; i < menus.length; i++) { if (menus[i] !== except) { menus[i].open = false; } }
+  }
+  if (menus.length) {
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape") { return; }
+      for (var i = 0; i < menus.length; i++) {
+        if (menus[i].open) { menus[i].open = false; menus[i].querySelector("summary").focus(); break; }
+      }
+    });
+    document.addEventListener("click", function (e) {
+      var inside = e.target.closest ? e.target.closest("details.menu") : null;
+      closeMenus(inside);
+    });
+  }
+})();
 (function () {
   var form = document.getElementById("filters");
   var table = document.getElementById("history");
@@ -25,6 +43,7 @@
       var any = groups[g].querySelector("tbody tr:not([hidden])");
       groups[g].hidden = !any;
       if (y && any) { groups[g].open = true; }
+      else if (!y && !t) { groups[g].open = (g === 0); }  // filter cleared: back to newest year open
     }
   }
   typeSel.addEventListener("change", apply);

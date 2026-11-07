@@ -41,7 +41,7 @@
 </details>
 {% for g in meetings_by_year %}
 <details class="year-group"{% if loop.first %} open{% endif %}>
-<summary><h3>{{ g.year }}</h3></summary>
+<summary><span class="year-label">{{ g.year }}</span></summary>
 <ol class="timeline meetings" id="y{{ g.year }}" aria-label="Meetings in {{ g.year }}">
   {% for m in g.meetings %}
   <li class="ev-meeting">
