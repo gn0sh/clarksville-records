@@ -35,6 +35,7 @@ data/                 committed: names.yml, manifest.json, facts.json, changes.j
                       not committed: data/store/ (PDF bytes; path overridable by RECORDS_STORE)
 build/                not committed: site/, report.json, run-log.json, name-candidates.json
 schema/facts.schema.json   the parser/verifier -> sitegen contract
+schema/changes.schema.json one line of data/changes.jsonl (collector -> sitegen); source_url must be https://
 ```
 
 ### Polite fetcher (`collector/fetch.py`)
@@ -122,8 +123,13 @@ Neutrality enforced by construction:
   Attendance is Present or Absent. No other derived labels exist.
 - **N3/P4/AC2.3:** totals are fixed sentences filled from one function, e.g. "Recorded absent at 4 of 61 meetings with
   an extracted attendance section, 2020-01-06 to 2024-12-09." Denominator = meetings whose extracted attendance lists
-  the official. Also "N roll calls in this period are not shown because they are under review." and "N meetings in this
-  period have no extracted attendance section and are not counted." No percentages, no sort by count, no highlight.
+  the official. Also "N roll calls in this period are not shown because they are under review." (N = the G4 `held`
+  count: unverified roll calls at meetings whose attendance lists the official, or, where that attendance is not
+  usable, where their name appears in any raw form by merge rules 1-2; roll calls no official can be placed at add one
+  site-wide clause, "A further M roll calls under review are at meetings where no member's name could be read, and are
+  not counted for anyone."), "N meetings in this period have no extracted attendance section and are not counted." and
+  "N meetings in this period have an attendance section that is under review and are not counted." No percentages, no
+  sort by count, no highlight.
 - **Ordering:** people always alphabetical by surname; history rows by date (newest first), ties by source page then
   position. A lint test fails on `sort(attribute=` with any count field and on banned words in templates
   (`rank`, `score`, `grade`, `missed`, `percent`, `%`, `best`, `worst`).

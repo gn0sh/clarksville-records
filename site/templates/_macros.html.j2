@@ -1,7 +1,7 @@
 {# Shared pieces. N4: every fact shows a source link with the page. N5: every fact shows its id and a report link. #}
 
 {% macro source(src) -%}
-<a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">p. {{ src.page }}, fetched {{ src.fetched }}<span class="sr-only"> (opens the minutes PDF in a new tab)</span></a>
+<a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">p. {{ src.page }}, fetched {{ src.fetched }}<span class="sr-only"> (opens the {{ src.kind }} PDF in a new tab)</span></a>
 {%- endmacro %}
 
 {% macro report(root, fact_id) -%}
@@ -33,12 +33,18 @@
 </div>
 {% endmacro %}
 
-{# A motion or roll call as one block. Used on meeting pages and item pages. #}
+{# A motion or roll call as one block. Used on meeting pages and item pages.
+   A failed motion check holds back only who moved and seconded it: the text is still shown, with one fixed sentence. #}
 {% macro motion_block(b, root) %}
 <p><strong>Motion:</strong> {{ b.text }}</p>
 <dl class="people">
+  {% if b.attribution_held %}
+  <dt>Moved</dt><dd class="held">Attribution under review</dd>
+  <dt>Seconded</dt><dd class="held">Attribution under review</dd>
+  {% else %}
   <dt>Moved</dt><dd>{{ person(b.moved_by, root) }}</dd>
   <dt>Seconded</dt><dd>{{ person(b.seconded_by, root) }}</dd>
+  {% endif %}
 </dl>
 {% endmacro %}
 

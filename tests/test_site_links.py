@@ -6,7 +6,7 @@ from urllib.parse import unquote, urlparse
 
 import pytest
 
-from conftest import ROOT, parse
+from conftest import parse
 from sitegen import build as sitegen_build, config
 
 
@@ -63,12 +63,12 @@ def test_attendance_totals_match_meeting_pages(pages, facts):
 
 
 def test_unverified_facts_only_on_review_page(pages, facts):
+    # Unverified motions are not secret: only their attribution is held back (tests/test_site_review_fixes.py).
     secret = []
-    for coll in ("roll_calls", "motions"):
-        for f in facts[coll]:
-            if f["verification"]["status"] == "unverified":
-                secret.append(f["id"])
-                secret += [e["id"] for e in facts["item_events"] if e["ref"] == f["id"]]
+    for f in facts["roll_calls"]:
+        if f["verification"]["status"] == "unverified":
+            secret.append(f["id"])
+            secret += [e["id"] for e in facts["item_events"] if e["ref"] == f["id"]]
     for m in facts["meetings"]:
         if m["verification"]["status"] == "unverified":
             secret.append(f"{m['id']}/att")
