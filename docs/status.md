@@ -4,7 +4,6 @@
 **Stage:** M0 passed. Build M1 (backend B1-B4, frontend F1-F5). **Pace:** top priority today (Brian 2026-11-07 18:52Z), normal pace, 2-3 agents in parallel.
 
 ## Waiting on the CEO
-- Show the parsed vote on unconfirmed roll calls? (Link only, no vote = recommended / Show Yes*) | card in thread "Build local government documents dashboard" | tap an option | asked 2026-11-07 | default: link only
 (none)
 
 ## Run ledger
@@ -61,3 +60,5 @@
 
 ## Decisions (Brian, 2026-11-07 3:54 PM ET)
 - Unverified roll calls are no longer held back. They are shown with an asterisk, "not confirmed", and a link to the exact PDF page. Totals split confirmed and unconfirmed. Unmatched names are never guessed. Supersedes the hold-back display rule (P2 still decides "confirmed"); G4 skew check still reported.
+
+- Brian 2026-11-07 4:47 PM ET: unconfirmed roll calls show NO vote value, link only (card). SHOW_UNCONFIRMED_VALUES stays False.
