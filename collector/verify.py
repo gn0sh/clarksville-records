@@ -14,7 +14,7 @@ from .config import MIN_ROLL_CALLS_FOR_SKEW, SKEW_FACTOR, SKEW_FLOOR, UNIFORM_SH
 # parser reason text -> named check (first matching pattern wins)
 REASON_CHECKS = [
     (r"no roster|attendance header not verified", "roster_available"),
-    (r"inside an earlier meeting", "in_meeting_record"),
+    (r"inside an earlier meeting|boundaries uncertain", "in_meeting_record"),
     (r"sources disagree", "readings_agree"),
     (r"name not matched|roster members not found|matched \d+ times|absent name not on roster", "names_resolve"),
     (r"no vote read|listed absent but has vote|conflicting vote|unrecognised token", "one_vote_per_present_member"),
@@ -90,8 +90,11 @@ def source_inconsistent(rc) -> bool:
     return all(s == sets[0] for s in sets)
 
 
-def motion_verification(mover, seconder, present_ids: set, motion_named: bool) -> dict:
-    checks = []
+def motion_verification(mover, seconder, present_ids: set, motion_named: bool, context: dict | None = None) -> dict:
+    """context (attribution/motion-ignores-context): {"attendance_verified", "in_meeting_record",
+    "motion_precedes_vote"} -> (ok, detail). A motion is verified only when its meeting's attendance is verified,
+    its vote sits in that meeting's own minutes, and its sentence leads straight into the vote it is filed with."""
+    checks = [_check(name, ok, detail) for name, (ok, detail) in sorted((context or {}).items())]
     for role, ref in (("mover", mover), ("seconder", seconder)):
         if ref is None:
             checks.append(_check(f"{role}_resolves", not motion_named, None if not motion_named else "not read"))
@@ -187,9 +190,15 @@ def gates(facts: dict, source_error_ids: set) -> dict:
         if st["rate"] > SKEW_FACTOR * max(med, SKEW_FLOOR):
             flagged.append(o)
     held_total = n - verified
-    if held_total != held_unattributed + held_attributed_once:
-        raise HeldCountError(f"held_total {held_total} != unattributed {held_unattributed} + attributed "
-                             f"{held_attributed_once}")
+    # cross-checks (not restatements of the sums above): every roll call belongs to a meeting in the facts, and
+    # the held count recounted from the checks themselves equals the count from the status field
+    orphans = sorted(r["id"] for r in rcs if r["meeting_id"] not in listed_by_meeting)
+    if orphans:
+        raise HeldCountError(f"roll calls of no meeting in the facts: {orphans[:5]}")
+    held_by_checks = sum(1 for r in rcs if not r["verification"]["checks"]
+                         or not all(c["ok"] for c in r["verification"]["checks"]))
+    if held_by_checks != held_total:
+        raise HeldCountError(f"status says {held_total} held, the checks say {held_by_checks}")
     for mid, people in listed_by_meeting.items():
         h = sum(is_held(r) for r in rc_by_meeting.get(mid, []))
         if any(stats(o, {mid})[1] != h for o in people):

@@ -6,4 +6,4 @@ MIN_ROLL_CALLS_FOR_SKEW = 50  # G4 (recalibrated 2026-11-07): only officials wit
 VERIFIED_RATE_MIN = 0.90     # AC-P1
 UNIFORM_SHARE_REVIEW = 0.25  # G4 "review needed" (not a fail) when more holds than this sit outside it
 BODY = "Montgomery County Commission"
-YEARS = range(2020, 2025)
+YEARS = range(2020, 2027)     # 2020-2021 from the M0 store; 2022 to May 2026 from the production page

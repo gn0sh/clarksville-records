@@ -39,8 +39,12 @@ schema/changes.schema.json one line of data/changes.jsonl (collector -> sitegen)
 ```
 
 ### Polite fetcher (`collector/fetch.py`)
-- Host allowlist: `montgomerytn.gov`, `mcgtn.org`, `d6.mcgtn.org`, `dev2.montgomerytn.gov`, `montgomeryminutes.bisonline.com`
-  (later `clarksvilletn.gov`). `cityofclarksville.com` is hard-denied in code, whatever the allowlist says.
+- Host allowlist: `montgomerytn.gov`, `mcgtn.org`, `d6.mcgtn.org`, `montgomeryminutes.bisonline.com`
+  (later `clarksvilletn.gov`). `cityofclarksville.com` and `dev2.montgomerytn.gov` (403 from the site, 2026-11-07) are
+  hard-denied in code, whatever the allowlist says. Discovery reads the production index
+  `https://montgomerytn.gov/clerk/county-commission-minutes`; link labels are hints only.
+- Redirects are not followed automatically: each `Location` goes back through `get()` (allowlist, denied hosts,
+  robots, per-host delay), at most 5 hops, or the fetch fails (politeness/redirect-bypass).
 - Per host: fetch and cache `robots.txt` once per run (`urllib.robotparser`; 404 means allow all, per RFC 9309; any other
   error means stop that host). `can_fetch(UA, url)` is checked before every request.
 - Delay per host = max(robots Crawl-delay, host floor). Floor: 10 s on every host (M1 build, 2026-11-07; was 5 s
@@ -61,7 +65,8 @@ schema/changes.schema.json one line of data/changes.jsonl (collector -> sitegen)
   `url, sha256, bytes, content_type, kind ("minutes"|"agenda"), meeting_date, first_fetched_at, etag, last_modified`.
 - A document keeps its `first_fetched_at` while its hash is unchanged; that is the "fetch date" shown (N4). A new hash
   for the same URL becomes a new source (the old one stays, so old facts keep their citation) and is logged in
-  `data/changes.jsonl`. "Last checked" times go only to `build/run-log.json`, so a run with nothing new leaves every
+  `data/changes.jsonl`. The replaced entry is marked `superseded_by`; builds read only the latest source per URL, and a
+  missing old blob never fails a run (idempotence/superseded-source). "Last checked" times go only to `build/run-log.json`, so a run with nothing new leaves every
   committed file byte-identical (AC4.5).
 - The store is a cache: if `data/store/` is empty (a fresh container), `fetch` re-downloads politely. At 10 s per
   request about 60 minutes PDFs take about 10 minutes. Manifest entries also carry `label` (the index link text).
@@ -69,6 +74,15 @@ schema/changes.schema.json one line of data/changes.jsonl (collector -> sitegen)
   source, field `sha256`, old, new, note, source_url, page null).
 
 ### Parser (`collector/parse.py` from M0, wrapped by `collector/minutes.py`)
+- Meetings are dated from each "BE IT REMEMBERED ... met in <x> session, on <weekday>, <date>" header, never from the
+  link label. One PDF can hold several meetings: headers pair with "Board was adjourned" lines; a nested header
+  (an earlier meeting's minutes attached for approval) is its own segment, and its roll calls belong to it. Vote tables
+  outside every segment (agenda or resolution pages in a packet) are not parsed as votes. Uncertain bounds hold the
+  segment's roll calls. `collector/meetings.py` keeps one copy per date + kind (own minutes > for approval >
+  attached, then certain bounds, more tables, more pages, lower hash; never by how many verify) and logs each
+  choice in `report.json` `meeting_copies`.
+- Consent reprints (2020-2022 layout): identical consent tables over the same item set are one roll call; each reprint
+  is an item event pointing at it, and a reprint that reads differently fails `reprints_agree`.
 `parse_minutes(pdf_path, source) -> ParsedMinutes` (in `minutes.py`) holds raw fragments with names as raw strings,
 no `official_id` and no fact-level `verification`. Deterministic: same bytes in, same fragments out. Scanned PDFs with
 no usable text layer return `text_layer: "none"` and no fragments (AC-P4: "not extracted").

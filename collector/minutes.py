@@ -1,7 +1,13 @@
-"""parse_minutes(pdf_path, source) -> ParsedMinutes: the M0 parser plus what M1 needs around it.
+"""parse_minutes(pdf_path, source) -> ParsedDocument: the M0 parser plus what M1 needs around it.
+
+A document can hold the minutes of more than one meeting: its own meeting's minutes, the previous meeting's minutes
+attached for approval, or (an agenda packet) only an earlier meeting's minutes "submitted for approval" plus the
+next meeting's agenda and resolution texts. collector.parse.minutes_segments splits the document into meetings by
+their own header text; each becomes one ParsedMinutes with its own date, kind, attendance and roll calls. Pages
+outside every meeting's minutes (a packet's agenda) are never read as votes or listings.
 
 Raw fragments only (names as written, no official ids, no verification status beyond the parser's P2 readings):
-- attendance header and roll calls (collector.parse, the M0 spike code);
+- per meeting: attendance header and roll calls (collector.parse, the M0 spike code);
 - a second reading by tesseract for every roll call that fails on the text layer, pages OCRed in parallel;
 - consent-agenda lists ("... Adopted and Approved as part of the Consent Agenda:"), so one consent roll call
   becomes a vote event on each item it covered, minus items pulled for separate votes;
@@ -21,7 +27,7 @@ from .extract import cached_pages, image_only_pages
 
 ROOT = Path(__file__).resolve().parent.parent
 TEXT_CACHE = ROOT / "data" / "text"
-MAX_PAGES = 500
+MAX_PAGES = 1000          # the Aug 2024 minutes run to 621 pages
 OCR_WORKERS = 4
 
 
@@ -48,6 +54,7 @@ class ConsentList:
 
 @dataclass
 class ParsedMinutes:
+    """One meeting's minutes inside a document."""
     source: dict              # manifest entry
     pages: int
     text_layer: str           # text | none
@@ -57,6 +64,26 @@ class ParsedMinutes:
     consent_lists: list       # [ConsentList]
     agenda: list              # [Entry]
     titles: dict
+    page_of_line: list
+    segment: P.Segment | None = None
+
+    @property
+    def meeting_date(self) -> str | None:
+        return self.segment.date if self.segment else (self.attendance.date if self.attendance else None)
+
+    @property
+    def kind(self) -> str:
+        return self.segment.kind if self.segment else "formal"
+
+
+@dataclass
+class ParsedDocument:
+    source: dict
+    pages: int
+    text_layer: str
+    image_only_pages: list
+    meetings: list                 # [ParsedMinutes], in document order
+    tables_outside_minutes: list   # pages of vote-table headings outside every meeting's minutes (not read)
     page_of_line: list
 
 
@@ -192,10 +219,10 @@ def inline_consent_lists(lines: list[str], page_of: list[int], rcs, titles: dict
     return out
 
 
-def agenda_entries(lines: list[str], page_of: list[int], spans, max_page: int = 6) -> list[Entry]:
+def agenda_entries(lines: list[str], page_of: list[int], spans, max_page: int = 6, start: int = 0) -> list[Entry]:
     """Numbered items on the agenda printed at the front of the minutes (not attached earlier minutes)."""
     out = []
-    i = 0
+    i = start
     while i < len(lines) and page_of[i] <= max_page:
         if any(a <= i < b for a, b in spans):
             i += 1
@@ -214,6 +241,35 @@ def agenda_entries(lines: list[str], page_of: list[int], spans, max_page: int = 
             continue
         i += 1
     return out
+
+
+def pair_consent(cls: list, rcs: list) -> dict:
+    """{index in rcs of a consent roll call: its ConsentList}. A list pairs with the next consent roll call after
+    it, unless another list sits between them."""
+    out = {}
+    consent = [(k, rc) for k, rc in enumerate(rcs) if rc.kind == "consent"]
+    for cl in cls:
+        nxt = next(((k, rc) for k, rc in consent if rc.line > cl.line), None)
+        if nxt is None or any(cl.line < c.line < nxt[1].line for c in cls):
+            continue
+        out.setdefault(nxt[0], cl)
+    return out
+
+
+def consent_numbers(cl) -> frozenset:
+    """The item numbers a consent list covers, minus those pulled for separate votes."""
+    return frozenset(e.number for e in (cl.entries if cl else []) if e.number and e.number not in cl.pulled)
+
+
+def heading_before(lines: list[str], i: int, lo: int) -> str | None:
+    """The nearest resolution heading (an item number alone on its line) above line i, not above line lo."""
+    for j in range(i - 1, max(lo, 0) - 1, -1):
+        t = lines[j].strip().rstrip("*")
+        if t and P.ITEM_RE.fullmatch(t):
+            n = P.norm_item(t)
+            if P.valid_number(n):
+                return n
+    return None
 
 
 # ------------------------------------------------------------------ OCR second reading
@@ -241,7 +297,35 @@ def ocr_pages_parallel(jobs: list[tuple[str, int, str]], workers: int = OCR_WORK
     return errors
 
 
-def parse_minutes(pdf_path: Path, source: dict, use_ocr: bool = True, text_cache: Path = TEXT_CACHE) -> ParsedMinutes:
+def _attendance(lines: list[str], page_of: list[int], sg: P.Segment) -> P.Attendance:
+    """The segment's own header, read from its header line to the end of that page (and the next page when the
+    PRESENT line is not on it)."""
+    pno = page_of[sg.start]
+    j = sg.start
+    while j < len(lines) and page_of[j] == pno:
+        j += 1
+    text = "\n".join(lines[sg.start:j])
+    if not re.search(r"^\s*PRESENT\s*:", text, re.M):
+        k = j
+        while k < len(lines) and page_of[k] == pno + 1:
+            k += 1
+        text = "\n".join(lines[sg.start:k])
+    return P.attendance_from_text(text, pno)
+
+
+def _other_spans(owner: list, index: int) -> list[tuple[int, int]]:
+    """Line ranges NOT owned by segment `index` (owner[i] = innermost segment of line i, or None)."""
+    spans, a = [], None
+    for i, o in enumerate(owner + [index]):
+        if o != index and a is None:
+            a = i
+        elif o == index and a is not None:
+            spans.append((a, i))
+            a = None
+    return spans
+
+
+def parse_minutes(pdf_path: Path, source: dict, use_ocr: bool = True, text_cache: Path = TEXT_CACHE) -> ParsedDocument:
     pdf_path = Path(pdf_path)
     pages = cached_pages(pdf_path, text_cache)
     if len(pages) > MAX_PAGES:
@@ -249,19 +333,47 @@ def parse_minutes(pdf_path: Path, source: dict, use_ocr: bool = True, text_cache
     img = image_only_pages(pages)
     lines, page_of = P._lines_with_pages(pages)
     if len(img) == len(pages):
-        return ParsedMinutes(source, len(pages), "none", img, None, [], [], [], {}, page_of)
-    spans = P.embedded_spans(lines)
-    att = P.parse_attendance(pages)
-    titles = P.item_titles(pages)
+        return ParsedDocument(source, len(pages), "none", img, [], [], page_of)
+    segs = P.minutes_segments(lines, page_of)
+    owner: list = [None] * len(lines)
+    for sg in sorted(segs, key=lambda x: x.start):          # inner (later) segments overwrite outer ones
+        for i in range(sg.start, sg.end):
+            owner[i] = sg.index
+    atts, titles = {}, {}
+    for sg in segs:
+        atts[sg.index] = _attendance(lines, page_of, sg)
+        # the document's own minutes read titles from the agenda at the front of the document, as in M0
+        titles[sg.index] = (P.item_titles(pages) if sg.role == "own" and sg.page <= 3 else
+                            P.item_titles(pages[sg.page - 1:sg.page + 5]))
     label = source.get("label") or source["sha256"][:12]
-    rcs = P.find_rollcalls(pages, label, att, titles)
+    rcs = P.find_rollcalls(pages, label, None, None,
+                           segments=[(sg, atts[sg.index], titles[sg.index]) for sg in segs])
     if use_ocr:
         from .ocr import reverify
         failing = [rc for rc in rcs if rc.status != "Verified"]
         jobs = sorted({(str(pdf_path), p, source["sha256"]) for rc in failing for p in range(rc.page, rc.end_page + 1)})
         ocr_pages_parallel(jobs)
-        rcs = [reverify(rc, pdf_path, source["sha256"], att) if rc.status != "Verified" else rc for rc in rcs]
-    cls = sorted(consent_lists(lines, page_of, spans) + inline_consent_lists(lines, page_of, rcs, titles),
-                 key=lambda c: c.line)
-    return ParsedMinutes(source, len(pages), "text", img, att, rcs, cls,
-                         agenda_entries(lines, page_of, spans), titles, page_of)
+        rcs = [reverify(rc, pdf_path, source["sha256"], atts[rc.segment]) if rc.status != "Verified" else rc
+               for rc in rcs]
+    outside = sorted({page_of[h] for h in P.table_heads(lines) if owner[h] is None})
+    meetings = []
+    for sg in segs:
+        spans = _other_spans(owner, sg.index)
+        mine = [rc for rc in rcs if rc.segment == sg.index]
+        cls = sorted(consent_lists(lines, page_of, spans) + inline_consent_lists(lines, page_of, mine, titles[sg.index]),
+                     key=lambda c: c.line)
+        # 2020-2022 layout: the consent vote is reprinted after each consent resolution; note which resolution each
+        # printing follows (its heading, between the previous vote table and the reprinted consent list)
+        prev_end = sg.start
+        pairs = pair_consent(cls, mine)
+        for k, rc in enumerate(mine):
+            cl = pairs.get(k)
+            if rc.kind == "consent" and cl is not None:
+                rc.follows_item = heading_before(lines, cl.line, max(prev_end, cl.line - 120))
+            prev_end = rc.line + 1
+        # agenda listings only from a document's own minutes (a packet's agenda is another meeting's)
+        agenda = (agenda_entries(lines, page_of, spans, max_page=sg.page + 5,
+                                 start=0 if sg.page == 1 else sg.start + 1) if sg.role == "own" else [])
+        meetings.append(ParsedMinutes(source, len(pages), "text", img, atts[sg.index], mine, cls, agenda,
+                                      titles[sg.index], page_of, sg))
+    return ParsedDocument(source, len(pages), "text", img, meetings, outside, page_of)

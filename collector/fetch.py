@@ -6,6 +6,8 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
 - at least HOST_FLOOR seconds between requests to one host (robots.txt fetch included), more if robots
   Crawl-delay says so;
 - one plain GET with a clear User-Agent, no header tricks;
+- no automatic redirects: each Location goes through get() again (allowlist, denied hosts, robots, per-host
+  delay), at most MAX_REDIRECTS hops, or the fetch fails;
 - a 403 or 429 sent by the site stops that host for the rest of the run, with no retry by another
   host, header or proxy. A refusal by the sandbox's own egress proxy (a rejected CONNECT, which the
   site never sees) is a different case: it is logged as ProxyRefused and does not mark the site as
@@ -27,11 +29,25 @@ USER_AGENT = ("clarksville-records research collector "
               "(+https://github.com/gn0sh/clarksville-records; polite, 10s/host)")
 MIN_DELAY = 10.0                 # seconds between requests on every host (brief: 10 s everywhere)
 HOST_FLOORS = {"clarksvilletn.gov": 10.0}
-ALLOWED_HOSTS = ("montgomerytn.gov", "mcgtn.org", "d6.mcgtn.org", "dev2.montgomerytn.gov",
+ALLOWED_HOSTS = ("montgomerytn.gov", "mcgtn.org", "d6.mcgtn.org",
                  "montgomeryminutes.bisonline.com", "clarksvilletn.gov")
-DENIED_HOSTS = ("cityofclarksville.com",)     # blocks automated tools: never collect from it
+# cityofclarksville.com blocks automated tools: never collect from it. dev2.montgomerytn.gov (the M0 index host)
+# answered 403 from the site on 2026-11-07: stopped for good, never retried by another route.
+DENIED_HOSTS = ("cityofclarksville.com", "dev2.montgomerytn.gov")
 MAX_BYTES = 50 * 1024 * 1024
 PROXY_REFUSALS_BEFORE_SKIP = 3
+MAX_REDIRECTS = 5
+REDIRECT_CODES = (301, 302, 303, 307, 308)
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    """urllib follows redirects by default; this makes every 3xx come back as an HTTPError we handle ourselves."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect())
 
 
 class HostBlocked(Exception):
@@ -101,7 +117,7 @@ class PoliteFetcher:
     def check_host(self, host: str) -> None:
         if _host_matches(host, DENIED_HOSTS):
             self.log.append({"event": "refused", "host": host, "detail": "denied host"})
-            raise HostRefused(f"{host}: denied in code (cityofclarksville.com is never collected)")
+            raise HostRefused(f"{host}: denied in code (never collected)")
         if not _host_matches(host, self.allowed_hosts):
             self.log.append({"event": "refused", "host": host, "detail": "not on allowlist"})
             raise HostRefused(f"{host}: not on the allowlist")
@@ -122,7 +138,7 @@ class PoliteFetcher:
     def _open(self, req):
         if self.opener is not None:
             return self.opener(req, self.timeout)
-        return urllib.request.urlopen(req, timeout=self.timeout)
+        return _OPENER.open(req, timeout=self.timeout)
 
     def _proxy_said_403(self, host: str, since: datetime) -> bool:
         for f in self.proxy_failures() or []:
@@ -180,7 +196,14 @@ class PoliteFetcher:
     def robots(self, host: str, scheme: str = "https") -> urllib.robotparser.RobotFileParser:
         if host not in self._robots:
             rp = urllib.robotparser.RobotFileParser()
-            status, body, _ = self._raw_get(f"{scheme}://{host}/robots.txt")
+            url = f"{scheme}://{host}/robots.txt"
+            status, body, headers = self._raw_get(url)
+            hops = 0
+            while status in REDIRECT_CODES and hops < MAX_REDIRECTS:
+                nxt = self._location(url, headers)       # raises HostRefused for a denied or unlisted host
+                hops += 1
+                url = nxt
+                status, body, headers = self._raw_get(url)
             if status == 200:
                 rp.parse(body.decode("utf-8", "replace").splitlines())
             elif 400 <= status < 500:
@@ -193,11 +216,26 @@ class PoliteFetcher:
                 self._delay[host] = float(delay)
         return self._robots[host]
 
-    def get(self, url: str) -> tuple[int, bytes, dict]:
+    def _location(self, url: str, headers: dict) -> str:
+        loc = next((v for k, v in (headers or {}).items() if k.lower() == "location"), None)
+        if not loc:
+            raise FetchFailed(f"{url}: redirect without a Location header")
+        nxt = urllib.parse.urljoin(url, loc)
+        host = urllib.parse.urlsplit(nxt).netloc
+        self.log.append({"event": "redirect", "host": urllib.parse.urlsplit(url).netloc, "url": url, "detail": nxt})
+        self.check_host(host)
+        return nxt
+
+    def get(self, url: str, _hops: int = 0) -> tuple[int, bytes, dict]:
         parts = urllib.parse.urlsplit(url)
         self.check_host(parts.netloc)
         rp = self.robots(parts.netloc, parts.scheme)
         if not rp.can_fetch(self.user_agent, url):
             self.log.append({"event": "robots_disallowed", "host": parts.netloc, "url": url, "detail": ""})
             raise RobotsDisallowed(url)
-        return self._raw_get(url)
+        status, body, headers = self._raw_get(url)
+        if status in REDIRECT_CODES:
+            if _hops >= MAX_REDIRECTS:
+                raise FetchFailed(f"{url}: more than {MAX_REDIRECTS} redirects")
+            return self.get(self._location(url, headers), _hops + 1)
+        return status, body, headers

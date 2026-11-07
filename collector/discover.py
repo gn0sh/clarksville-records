@@ -1,7 +1,14 @@
-"""Minutes discovery: list County Commission minutes PDFs for 2020-2024 from the county's index page.
+"""Minutes discovery: list County Commission minutes PDFs from the county clerk's production page.
 
-The index sits on a dev host (spec A4). If the page moves, answers with no minutes links, or is blocked, discovery
-fails loudly (DiscoveryError, non-zero exit). It never guesses other hosts or URL patterns.
+The page (https://montgomerytn.gov/clerk/county-commission-minutes) lists minutes from January 2022 on; older
+minutes are only in BIS Online's search, so 2020-2021 documents come from the store (fetched in M0). The dev host
+that M0 used (dev2.montgomerytn.gov) now answers 403 from the site and is denied in collector/fetch.py.
+
+A link's label is only a hint: "December 2025 Minutes" held the Dec 8, 2025 packet with the Nov 10, 2025 minutes
+inside it. Meeting dates come from the document text (collector/facts.py), never from the label.
+
+If the page moves, answers with no minutes links, or is blocked, discovery fails loudly (DiscoveryError, non-zero
+exit). It never guesses other hosts or URL patterns (spec A4).
 """
 from __future__ import annotations
 
@@ -9,9 +16,10 @@ import html
 import re
 import urllib.parse
 
-INDEX_URL = "https://dev2.montgomerytn.gov/clerk/county-commission-minutes"
+from .config import YEARS
+
+INDEX_URL = "https://montgomerytn.gov/clerk/county-commission-minutes"
 VIEWER_HOST = "montgomeryminutes.bisonline.com"
-YEARS = range(2020, 2025)
 MONTHS = ("january february march april may june july august september october "
           "november december").split()
 LINK_RE = re.compile(r'<a[^>]+href="([^"]*bisonline\.com/viewpdf\.php\?id=[^"]+)"[^>]*>(.*?)</a>', re.S | re.I)

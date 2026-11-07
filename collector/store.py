@@ -38,6 +38,8 @@ def _norm_entry(e: dict) -> dict:
     out = {k: e.get(k) for k in FIELDS}
     out["first_fetched_at"] = e.get("first_fetched_at") or e.get("fetched_at")
     out["kind"] = e.get("kind") or "minutes"
+    if e.get("superseded_by"):
+        out["superseded_by"] = e["superseded_by"]      # only on replaced entries, so others stay byte-identical
     return out
 
 
@@ -61,6 +63,14 @@ class Store:
     def latest(self, url: str) -> dict | None:
         cands = [e for e in self.entries if e["url"] == url]
         return max(cands, key=lambda e: e["first_fetched_at"] or "") if cands else None
+
+    def current(self) -> list[dict]:
+        """The latest entry per URL: what a build reads. Older entries stay in the manifest for citations only
+        (marked superseded_by); their bytes are not needed, so a missing old blob never fails a run."""
+        return [e for e in self.entries if self.latest(e["url"]) is e]
+
+    def superseded(self) -> list[dict]:
+        return [e for e in self.entries if self.latest(e["url"]) is not e]
 
     # ------------------------------------------------------------ writes
     def put(self, url: str, body: bytes, headers: dict | None = None, meta: dict | None = None) -> tuple[dict, str]:
@@ -87,6 +97,7 @@ class Store:
         }
         self.entries.append(entry)
         if prev:
+            prev["superseded_by"] = digest
             self._log_change({"date": entry["first_fetched_at"][:10], "fact_id": f"src-{prev['sha256'][:12]}",
                               "field": "sha256", "old": prev["sha256"], "new": digest,
                               "note": "the county replaced this document; the old version stays as its own source",

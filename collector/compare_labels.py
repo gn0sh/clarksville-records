@@ -26,6 +26,14 @@ def compare(facts: dict, labels: dict, store: Store, resolver: Resolver) -> dict
         sha = by_label.get(lab["source"])
         rid = f"rc-{sha[:8]}-p{lab['page']}-{lab['ordinal']}" if sha else None
         rc = rcs.get(rid)
+        if rc is None and sha:
+            # a reprinted consent vote is one roll call; its printing on this page is an event pointing at it
+            refs = {e["ref"] for e in facts["item_events"] if e["type"] == "roll_call" and e["ref"] in rcs
+                    and e["id"].startswith(f"ev-{sha[:8]}-p{lab['page']}-")
+                    and rcs[e["ref"]]["page"] != lab["page"]}
+            if len(refs) == 1:
+                rid = refs.pop()
+                rc = rcs[rid]
         if rc is None:
             out["missing"].append(f"{lab['source']} p{lab['page']}#{lab['ordinal']}")
             continue

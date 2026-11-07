@@ -69,3 +69,40 @@ def test_new_bytes_for_known_url_become_a_new_source_and_are_logged(tmp_path):
 def test_non_pdf_body_is_a_failure(tmp_path):
     with pytest.raises(FetchFailed):
         fetch_into_store(FakeFetcher(b"<html>"), make(tmp_path), "https://h/a")
+
+
+# ------------------------------------------------------------------ idempotence/superseded-source
+
+def test_replaced_document_marks_the_old_entry_superseded_and_builds_read_only_the_latest(tmp_path):
+    st = make(tmp_path)
+    old, _ = st.put("https://h/a", b"%PDF-old", {}, {"meeting_date": "2024-12"})
+    st.now = lambda: "2026-11-08T00:00:00+00:00"
+    new, status = st.put("https://h/a", b"%PDF-new", {}, {"meeting_date": "2024-12"})
+    st.save()
+    assert status == "changed" and old["superseded_by"] == new["sha256"] and "superseded_by" not in new
+    assert st.current() == [new] and st.superseded() == [old]
+    again = Store(tmp_path / "manifest.json", root=tmp_path / "store")
+    assert [e["sha256"] for e in again.current()] == [new["sha256"]]
+    assert again.superseded()[0]["superseded_by"] == new["sha256"]
+
+
+def test_a_missing_superseded_blob_does_not_fail_the_build(tmp_path, monkeypatch):
+    from collector import __main__ as M
+    from collector import minutes
+    st = make(tmp_path)
+    meta = {"meeting_date": "2024-12-09", "label": "December 2024 Minutes"}
+    old, _ = st.put("https://h/a", b"%PDF-old", {}, meta)
+    st.now = lambda: "2026-11-08T00:00:00+00:00"
+    new, _ = st.put("https://h/a", b"%PDF-new", {}, meta)
+    st.path_for(old["sha256"]).unlink()                       # the old bytes are gone (a fresh container)
+    read = []
+
+    def fake_parse(path, entry, use_ocr=True):
+        read.append(entry["sha256"])
+        return minutes.ParsedDocument(entry, 1, "text", [], [], [], [1])
+    monkeypatch.setattr(minutes, "parse_minutes", fake_parse)
+    log = {"failures": [], "parsed": 0, "held_back": None}
+    M.cmd_build(st, log, use_ocr=False)
+    assert read == [new["sha256"]]
+    assert not [f for f in log["failures"] if f.get("url") == "https://h/a"]
+    assert log["superseded"] == [{"url": "https://h/a", "sha256": old["sha256"], "superseded_by": new["sha256"]}]

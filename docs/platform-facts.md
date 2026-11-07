@@ -4,8 +4,10 @@
 - Site montgomerytn.gov (also mcgtn.org, d6.mcgtn.org for old files). robots.txt: `User-agent: * / Disallow:` (allows all). Verified by fetch.
 - Commission agendas and resolutions: https://montgomerytn.gov/commission/agenda, monthly informal + formal PDFs, 2006 to 2026.
   Pattern (2016+): `mcgtn.org/storage/departments/commission/agendas-and-resolutions/YYYY/mon-informal.pdf` / `mon-formal.pdf`. Some links on the page are wrong (e.g. Oct 2023 formal points to informal).
-- Commission minutes: listed at https://dev2.montgomerytn.gov/clerk/county-commission-minutes (dev host) for 2020-2024, files on
-  `montgomeryminutes.bisonline.com/viewpdf.php?id=<encoded>`; pre-2020 via that site's search. 2025-2026 minutes: location unknown.
+- Commission minutes: listed at https://montgomerytn.gov/clerk/county-commission-minutes (production) for 2022 to May 2026
+  (55 links on 2026-11-07), files on `montgomeryminutes.bisonline.com/viewpdf.php?id=<encoded>`; pre-2020 via that site's
+  search. The dev2 host listed 2020-2024 but now answers 403 (see below). In the 59 documents read, every link label matched
+  the meeting dated in the text; each 2022-2026 document also nests the previous meeting's minutes for approval.
 - Minutes record roll-call votes per commissioner by name (e.g. "Rickey Ray Y") and absences ("ABSENT: ... (2)"). Verified on Dec 2024 minutes.
   Minutes do not name vendor awards. They name who moved and seconded each item, but record no spoken comments or discussion.
   Items carry numbers like 24-12-1 or AB-4-2024. The PDFs are scans with an OCR text layer, which has errors (verify numbers and names).
