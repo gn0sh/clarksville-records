@@ -1,0 +1,19 @@
+[project]
+name = "clarksville-records-collector"
+version = "0.0.1"
+requires-python = ">=3.11"
+description = "Collector and parser for Clarksville / Montgomery County public records (M0 spike)"
+dependencies = []          # stdlib only; system tools: poppler-utils (pdftotext, pdftoppm), tesseract-ocr
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
+
+[tool.pytest.ini_options]
+testpaths = ["collector/tests"]
+
+[tool.ruff]
+line-length = 125
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E741"]          # `l` for a text line in short comprehensions
