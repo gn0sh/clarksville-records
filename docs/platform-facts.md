@@ -7,7 +7,8 @@
 - Commission minutes: listed at https://dev2.montgomerytn.gov/clerk/county-commission-minutes (dev host) for 2020-2024, files on
   `montgomeryminutes.bisonline.com/viewpdf.php?id=<encoded>`; pre-2020 via that site's search. 2025-2026 minutes: location unknown.
 - Minutes record roll-call votes per commissioner by name (e.g. "Rickey Ray Y") and absences ("ABSENT: ... (2)"). Verified on Dec 2024 minutes.
-  Minutes do not name vendor awards.
+  Minutes do not name vendor awards. They name who moved and seconded each item, but record no spoken comments or discussion.
+  Items carry numbers like 24-12-1 or AB-4-2024. The PDFs are scans with an OCR text layer, which has errors (verify numbers and names).
 - Budget: https://montgomerytn.gov/account-budget (FY2025, FY2027 approved budget books). Audits: TN Comptroller, 2001-02 on.
 - Purchasing: bids on https://mcgtn.bonfirehub.com/portal/ and https://montgomerytn.gov/purchasing/archive. Award visibility: unverified.
 - Video: YouTube.
