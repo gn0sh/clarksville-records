@@ -12,7 +12,7 @@ SITE_NAME = "Clarksville Records"
 # CEO decision G1 (2026-11-07): every page names the operator. The CEO supplies the real text; a public build
 # (M1.5) refuses to run while this is still the placeholder.
 OPERATOR_PLACEHOLDER = "[OPERATOR NAME - CEO to confirm]"
-OPERATOR_NAME = OPERATOR_PLACEHOLDER
+OPERATOR_NAME = "Brian Zacharias"  # confirmed by the CEO, 2026-11-07
 
 MAX_FILES = 250
 
