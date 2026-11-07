@@ -98,12 +98,16 @@ class Index:
         if counts["other"]:
             parts.append(f"{counts['other']} other")
         m = self.meetings[rc["meeting_id"]]
+        absent = 0
         if attendance_shown(m):
             voted = {v["official_id"] for v in rc["votes"]}
             absent = sum(1 for a in m["attendance"] if a["status"] == "absent" and a["official_id"] not in voted)
             if absent:
                 parts.append(f"{absent} absent")
+        # `counts` feeds the roll call's bar: the same numbers as the tally string. A roll call has no "no vote
+        # recorded" segment of its own, so that one is always 0 here.
         return {"label": config.OUTCOME_LABELS[rc["outcome"]], "tally": ", ".join(parts),
+                "counts": {**counts, "absent": absent, "novote": 0},
                 "confirmed": is_verified(rc), "src": self.src(rc["source_id"], rc["page"])}
 
     def attribution(self, mo: dict) -> dict:
@@ -190,6 +194,7 @@ def site_context(facts) -> dict:
         "data_as_of": ix.data_as_of(),
         "fixture": ix.fixture,
         "item_years": ix.item_years(),
+        "coverage": ix.coverage,
         "internal": False,
     }
 
@@ -198,58 +203,140 @@ def site_context(facts) -> dict:
 # F2: officials index and official page
 
 
-def officials_index(facts) -> dict:
-    ix = _ix(facts)
-    officials = sorted(ix.facts["officials"], key=name_key)
-    meetings = sorted(ix.facts["meetings"], key=lambda m: (m["date"], m["id"]), reverse=True)
-    return {
-        "officials": [{"name": o["name"], "title": o["title"], "href": f"officials/{o['id']}.html"} for o in officials],
-        "meetings": [{"label": ix.meeting_label(m), "date": m["date"], "href": f"meetings/{m['id']}.html"}
-                     for m in meetings],
-        "coverage": ix.coverage,
-    }
-
-
 VOTE_VALUES = ("yes", "no", "abstain", "other")
 VOTE_WORDS = {"yes": "Yes", "no": "No", "abstain": "Abstain", "other": "Other"}
 
 
-def vote_counts(ix: Index) -> tuple[dict, int]:
-    """Invariant: held-back counts. Returns ({official_id: {"confirmed": {value: n}, "unconfirmed": {value: n}}},
-    unmatched). Each vote is counted exactly once: under its resolved official_id (confirmed when its roll call is
-    verified, unconfirmed otherwise), or in the site-wide unmatched count. Names are never matched here."""
-    counts: dict[str, dict] = {}
-    unmatched = 0
+def unmatched_votes(ix: Index) -> int:
+    """Invariant: held-back counts. Votes whose official_id does not resolve: counted once, site-wide, never
+    under a name."""
+    return sum(1 for rc in ix.facts["roll_calls"] for v in rc["votes"]
+               if not v["official_id"] or v["official_id"] not in ix.officials)
+
+
+def _zero_votes() -> dict:
+    return {"rc_voted": 0, "yes": 0, "no": 0, "abstain": 0, "other": 0, "rc_absent": 0, "rc_novote": 0, "rc_total": 0}
+
+
+def official_counts(ix: Index, official_id: str) -> dict:
+    """The one place every per-official number is counted (visual-refresh section 6), so the home cards, the
+    official page, the bars and the totals sentences cannot drift apart.
+
+    Attendance: `meetings_listed` (shown attendance that lists the person), `absent` (listed absent), `present`
+    (the rest), plus `moved` and `seconded` (motions whose attribution is shown).
+    Votes, counted twice: confirmed (`yes`, `no`, ..., `rc_total`) and not confirmed (the same names ending `_nc`).
+    `rc_voted` is the votes recorded under this official's resolved id; `rc_absent` and `rc_novote` are the roll calls
+    at a meeting whose shown attendance lists the person absent / present with no vote for them. So
+    `rc_total = rc_voted + rc_absent + rc_novote` and the bar's segments add up to it. No name is ever matched."""
+    listed = absent = 0
+    status: dict[str, str] = {}  # meeting id -> "present" or "absent" (absent wins when a meeting lists both)
+    for m in ix.facts["meetings"]:
+        if not attendance_shown(m):
+            continue
+        entries = [a["status"] for a in m["attendance"] if a["official_id"] == official_id]
+        if entries:
+            listed += 1
+            status[m["id"]] = "absent" if "absent" in entries else "present"
+            absent += status[m["id"]] == "absent"
+    out = {"meetings_listed": listed, "absent": absent, "present": listed - absent}
+
+    parts = {"": _zero_votes(), "_nc": _zero_votes()}
     for rc in ix.facts["roll_calls"]:
-        part = "confirmed" if is_verified(rc) else "unconfirmed"
-        for v in rc["votes"]:
-            oid = v["official_id"]
-            if not oid or oid not in ix.officials:
-                unmatched += 1
-                continue
-            c = counts.setdefault(oid, {"confirmed": dict.fromkeys(VOTE_VALUES, 0),
-                                        "unconfirmed": dict.fromkeys(VOTE_VALUES, 0)})
-            c[part][v["value"]] += 1
-    return counts, unmatched
+        c = parts["" if is_verified(rc) else "_nc"]
+        mine = [v for v in rc["votes"] if v["official_id"] == official_id]
+        if mine:
+            for v in mine:
+                c[v["value"]] += 1
+                c["rc_voted"] += 1
+                c["rc_total"] += 1
+        elif status.get(rc["meeting_id"]) == "absent":
+            c["rc_absent"] += 1
+            c["rc_total"] += 1
+        elif status.get(rc["meeting_id"]) == "present":
+            c["rc_novote"] += 1
+            c["rc_total"] += 1
+    for suffix, c in parts.items():
+        for k, n in c.items():
+            out[k + suffix] = n
+
+    moved = seconded = 0
+    for mo in ix.facts["motions"]:
+        att = ix.attribution(mo)  # the same rule as the meeting and item pages
+        moved += att["mover"] is not None and mo["moved_by"]["official_id"] == official_id
+        seconded += att["seconder"] is not None and mo["seconded_by"]["official_id"] == official_id
+    out.update(moved=moved, seconded=seconded)
+    return out
+
+
+def initials(o: dict) -> str:
+    return (o["given"][:1] + o["surname"][:1]).upper()
+
+
+def officials_index(facts) -> dict:
+    ix = _ix(facts)
+    officials = sorted(ix.facts["officials"], key=name_key)
+    meetings = sorted(ix.facts["meetings"], key=lambda m: (m["date"], m["id"]), reverse=True)
+    rcs, motions = ix.facts["roll_calls"], ix.facts["motions"]
+    states = [attendance_state(m) for m in ix.facts["meetings"]]
+    confirmed = sum(1 for rc in rcs if is_verified(rc))
+    glance = {
+        "meetings": len(ix.facts["meetings"]),
+        "rc_confirmed": confirmed, "rc_unconfirmed": len(rcs) - confirmed, "rc_total": len(rcs),
+        "motions_held": sum(1 for mo in motions if not is_verified(mo)),
+        "att_not_shown": sum(1 for s in states if s != "shown"),
+        "from": ix.coverage["from"], "to": ix.coverage["to"],
+    }
+
+    cards = []
+    for o in officials:
+        c = official_counts(ix, o["id"])
+        cards.append({"name": o["name"], "title": o["title"], "href": f"officials/{o['id']}.html",
+                      "initials": initials(o), "present": c["present"], "listed": c["meetings_listed"],
+                      "rc_voted": c["rc_voted"], "rc_voted_nc": c["rc_voted_nc"]})
+
+    rc_by_meeting: dict[str, list] = defaultdict(list)
+    for rc in rcs:
+        rc_by_meeting[rc["meeting_id"]].append(rc)
+    motions_by_meeting: dict[str, int] = defaultdict(int)
+    for mo in motions:
+        motions_by_meeting[mo["meeting_id"]] += 1
+
+    by_year: dict[str, list] = {}
+    for m in meetings:  # newest first, by date only
+        group = rc_by_meeting[m["id"]]
+        shown = attendance_shown(m)
+        by_year.setdefault(m["date"][:4], []).append({
+            "label": ix.meeting_label(m), "date": m["date"], "href": f"meetings/{m['id']}.html",
+            "kind_label": config.KIND_LABELS[m["kind"]],
+            "rc_confirmed": sum(1 for rc in group if is_verified(rc)),
+            "rc_unconfirmed": sum(1 for rc in group if not is_verified(rc)),
+            "motions": motions_by_meeting[m["id"]],
+            "att_state": attendance_state(m),
+            "present": sum(1 for a in m["attendance"] if a["status"] == "present") if shown else 0,
+            "listed": len(m["attendance"]) if shown else 0,
+        })
+    return {
+        "officials": cards,
+        "meetings": [{"label": ix.meeting_label(m), "date": m["date"], "href": f"meetings/{m['id']}.html"}
+                     for m in meetings],
+        "meetings_by_year": [{"year": y, "meetings": ms} for y, ms in by_year.items()],
+        "glance": glance,
+        "coverage": ix.coverage,
+    }
 
 
 def totals_sentences(ix: Index, official_id: str) -> list[str]:
     """N3/P4/AC2.3: five fixed sentences, same wording and order for everyone. Only the numbers differ."""
     cov = ix.coverage
-    listed = [m for m in ix.facts["meetings"]
-              if attendance_shown(m) and any(a["official_id"] == official_id for a in m["attendance"])]
-    absent = sum(1 for m in listed
-                 if any(a["official_id"] == official_id and a["status"] == "absent" for a in m["attendance"]))
-    counts, unmatched = vote_counts(ix)
-    zero = dict.fromkeys(VOTE_VALUES, 0)
-    c = counts.get(official_id, {"confirmed": zero, "unconfirmed": zero})
-    confirmed = ", ".join(f"{c['confirmed'][k]} {VOTE_WORDS[k]}" for k in VOTE_VALUES)
-    unconfirmed = ", ".join(f"{c['unconfirmed'][k]} {VOTE_WORDS[k]}*" for k in VOTE_VALUES)
+    c = official_counts(ix, official_id)
+    unmatched = unmatched_votes(ix)
+    confirmed = ", ".join(f"{c[k]} {VOTE_WORDS[k]}" for k in VOTE_VALUES)
+    unconfirmed = ", ".join(f"{c[k + '_nc']} {VOTE_WORDS[k]}*" for k in VOTE_VALUES)
     states = [attendance_state(m) for m in ix.facts["meetings"]]
     not_extracted = states.count("not_extracted")
     under_review = states.count("under_review")
     return [
-        f"Recorded absent at {absent} of {len(listed)} meetings with an extracted attendance section, "
+        f"Recorded absent at {c['absent']} of {c['meetings_listed']} meetings with an extracted attendance section, "
         f"{cov['from']} to {cov['to']}.",
         f"Roll call votes, {cov['from']} to {cov['to']}: {confirmed} confirmed; {unconfirmed} not confirmed.",
         # A site-wide number: the same sentence, with the same number, on every official's page.
@@ -264,6 +351,22 @@ def totals_sentences(ix: Index, official_id: str) -> list[str]:
     ]
 
 
+BAR_SEGMENTS = (("yes", "Yes"), ("no", "No"), ("abstain", "Abstain"), ("other", "Other"), ("absent", "Absent"),
+                ("novote", "No vote recorded"))
+ATTENDANCE_SEGMENTS = (("present", "Present"), ("absent", "Absent"))
+
+
+def _vote_segment_counts(c: dict, suffix: str) -> dict:
+    """official_counts keys -> the vote bar's segment keys (confirmed: suffix "", not confirmed: "_nc")."""
+    return {**{k: c[k + suffix] for k in VOTE_VALUES}, "absent": c["rc_absent" + suffix],
+            "novote": c["rc_novote" + suffix]}
+
+
+def bar(counts: dict, spec) -> list[dict]:
+    """Every segment of the bar type, always, in the fixed order, so the markup is identical for everyone."""
+    return [{"key": k, "label": label, "n": counts[k]} for k, label in spec]
+
+
 def official(official_id: str, facts) -> dict:
     ix = _ix(facts)
     o = ix.officials[official_id]
@@ -276,7 +379,7 @@ def official(official_id: str, facts) -> dict:
             "meeting_label": ix.meeting_label(m), "meeting_href": f"meetings/{meeting_id}.html{anchor}",
             "fact_id": fact_id, "src": ix.src(source_id, page), "page": page,
             "item": None, "motion_text": None, "motion_label": None, "motion_by": None,
-            "record": "", "outcome": None, "pos": 0, "confirmed": True,
+            "record": "", "key": None, "outcome": None, "pos": 0, "confirmed": True,
         }
 
     for rc in ix.facts["roll_calls"]:
@@ -288,6 +391,7 @@ def official(official_id: str, facts) -> dict:
             r["item"] = ix.item_ref(rc["item_id"])
             r.update(ix.motion_for(rc))
             r["record"] = vote_label(v["value"], v["raw_value"])
+            r["key"] = v["value"]
             r["confirmed"] = is_verified(rc)
             r["outcome"] = ix.outcome(rc)
             r["pos"] = ix.position(rc)[1]
@@ -301,6 +405,7 @@ def official(official_id: str, facts) -> dict:
                 continue
             r = base("attendance", m["id"], f"{m['id']}/att/{official_id}", m["source_id"], a["page"], "#attendance")
             r["record"] = "Present" if a["status"] == "present" else "Absent"
+            r["key"] = a["status"]
             rows.append(r)
 
     for mo in ix.facts["motions"]:
@@ -324,8 +429,13 @@ def official(official_id: str, facts) -> dict:
 
     cov = ix.coverage
     years = sorted({r["year"] for r in rows}, reverse=True)
+    c = official_counts(ix, official_id)
     return {
-        "official": o,
+        "official": o, "initials": initials(o), "stats": c,
+        "attendance_bar": bar(c, ATTENDANCE_SEGMENTS),
+        "vote_bar": bar(_vote_segment_counts(c, ""), BAR_SEGMENTS),
+        "vote_legend_nc": bar(_vote_segment_counts(c, "_nc"), BAR_SEGMENTS),  # text only: no bar for these
+        "coverage": cov,
         "coverage_sentence": f"Shows {cov['body']} records from {cov['from']} to {cov['to']}. {ix.fetched_sentence()}",
         "totals": totals_sentences(ix, official_id),
         "rows": rows,
@@ -348,7 +458,7 @@ def _vote_rows(ix: Index, rc: dict) -> list[dict]:
 
     star = not is_verified(rc)
     return [{"who": ix.person({"official_id": v["official_id"], "raw_name": v["raw_name"]}),
-             "label": vote_label(v["value"], v["raw_value"]), "star": star}
+             "label": vote_label(v["value"], v["raw_value"]), "key": v["value"], "star": star}
             for _, v in sorted(enumerate(rc["votes"]), key=key)]
 
 
@@ -367,12 +477,14 @@ def _motion_block(ix: Index, mo: dict) -> dict:
 
 
 def _roll_call_block(ix: Index, rc: dict) -> dict:
+    outcome = ix.outcome(rc)
     return {
         "kind": "roll_call", "id": rc["id"], "item": ix.item_ref(rc["item_id"]),
         "confirmed": is_verified(rc),
         **ix.motion_for(rc),
         "votes": _vote_rows(ix, rc),
-        "outcome": ix.outcome(rc),
+        "outcome": outcome,
+        "bar": bar(outcome["counts"], BAR_SEGMENTS),
         "src": ix.src(rc["source_id"], rc["page"]),
     }
 
@@ -402,8 +514,18 @@ def meeting(meeting_id: str, facts) -> dict:
     shown += [(ix.position(rc), _roll_call_block(ix, rc)) for rc in rcs]
     shown.sort(key=lambda t: t[0])
     unconfirmed = sum(1 for rc in rcs if not is_verified(rc))
+    shown_att = att_state == "shown"
+    stats = {
+        "present": sum(1 for a in m["attendance"] if a["status"] == "present") if shown_att else 0,
+        "listed": len(m["attendance"]) if shown_att else 0,
+        "motions": len(motions),
+        "rc_confirmed": len(rcs) - unconfirmed, "rc_unconfirmed": unconfirmed,
+        # votes in this meeting's roll calls whose name did not resolve to an official: never guessed, never shown raw
+        "unmatched": sum(1 for rc in rcs for v in rc["votes"]
+                         if not v["official_id"] or v["official_id"] not in ix.officials),
+    }
     return {
-        "meeting": m, "label": ix.meeting_label(m),
+        "stats": stats, "meeting": m, "label": ix.meeting_label(m),
         "kind_label": config.KIND_LABELS[m["kind"]],
         "doc": {"url": src["url"], "kind": src["kind"], "fetched": src["fetched_at"], "pages": src["pages"]},
         "attendance_state": att_state, "attendance": attendance,

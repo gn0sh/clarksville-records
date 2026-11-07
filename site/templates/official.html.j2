@@ -1,12 +1,40 @@
 {% extends "base.html.j2" %}
-{% from "_macros.html.j2" import source, fact_meta, item_link, not_confirmed %}
+{% from "_macros.html.j2" import source, fact_meta, item_link, not_confirmed, nc_mark, chip, bar, legend, stat, badge %}
 {% block main %}
-<h1>{{ official.name }}</h1>
-<p class="title-line">{{ official.title }}</p>
+<header class="official-head">
+  {{ badge(initials, true) }}
+  <div class="official-id">
+    <h1>{{ official.name }}</h1>
+    <p class="title-line">{{ official.title }}</p>
+    <p class="muted coverage">{{ coverage_sentence }}</p>
+  </div>
+</header>
+<ul class="stats stats-official">
+  {{ stat(stats.meetings_listed, "meetings with attendance shown") }}
+  {{ stat(stats.present, "recorded present") }}
+  {{ stat(stats.rc_voted, "confirmed roll calls with a recorded vote") }}
+  {{ stat(stats.rc_voted_nc, "not confirmed* roll calls with a recorded vote") }}
+  {{ stat(stats.moved, "motions moved") }}
+  {{ stat(stats.seconded, "motions seconded") }}
+</ul>
 
-<section aria-labelledby="coverage-h">
-  <h2 id="coverage-h">Period covered</h2>
-  <p>{{ coverage_sentence }}</p>
+<section aria-labelledby="attendance-h">
+  <h2 id="attendance-h">Attendance</h2>
+  <p>Recorded present at {{ stats.present }} and absent at {{ stats.absent }} of {{ stats.meetings_listed }} meetings with attendance shown, {{ coverage.from }} to {{ coverage.to }}.</p>
+  {{ bar(attendance_bar) }}
+  {{ legend(attendance_bar) }}
+</section>
+
+<section aria-labelledby="votes-h">
+  <h2 id="votes-h">Roll-call votes</h2>
+  <h3>Confirmed roll calls</h3>
+  <p>{{ stats.rc_total }} confirmed roll {{ 'call' if stats.rc_total == 1 else 'calls' }} at meetings where this person is listed in the attendance, or where a vote is recorded for them. The bar shows confirmed roll calls only.</p>
+  {{ bar(vote_bar) }}
+  {{ legend(vote_bar) }}
+  <h3>Not confirmed roll calls*</h3>
+  <p>{{ stats.rc_total_nc }} not confirmed roll {{ 'call' if stats.rc_total_nc == 1 else 'calls' }} at meetings where this person is listed in the attendance, or where a vote is recorded for them.</p>
+  {{ legend(vote_legend_nc, true) }}
+  <p class="muted">* Shown as printed in the minutes; they did not pass the automatic checks. Each row in the history links to its page. Confirmed and not confirmed roll calls are never added together.</p>
 </section>
 
 <section aria-labelledby="totals-h">
@@ -22,7 +50,7 @@
 <section aria-labelledby="history-h">
   <h2 id="history-h">History</h2>
   <p>Votes, attendance, and motions and seconds the minutes attribute to this person, newest first.</p>
-  <form id="filters" class="filters" hidden>
+  <form id="filters" class="filters toolbar" hidden>
     <div>
       <label for="filter-type">Type</label>
       <select id="filter-type">
@@ -59,16 +87,16 @@
     </thead>
     <tbody role="rowgroup">
     {% for r in rows %}
-      <tr role="row" class="fact" data-type="{{ r.type }}" data-year="{{ r.year }}" data-fact-id="{{ r.fact_id }}">
-        <td role="cell" data-label="Date"><div><a href="{{ root }}{{ r.meeting_href }}">{{ r.date }}</a></div></td>
-        <td role="cell" data-label="Type"><div>{{ r.type_label }}</div></td>
+      <tr role="row" class="fact{% if not r.confirmed %} nc{% endif %}" data-type="{{ r.type }}" data-year="{{ r.year }}" data-fact-id="{{ r.fact_id }}">
+        <td role="cell" data-label="Date"><div><a class="date" href="{{ root }}{{ r.meeting_href }}">{{ r.date }}</a></div></td>
+        <td role="cell" data-label="Type"><div><span class="chip chip-type">{{ r.type_label }}</span></div></td>
         <td role="cell" data-label="Item"><div>
           {% if r.item %}{{ item_link(r.item, root) }}{% else %}<a href="{{ root }}{{ r.meeting_href }}">{{ r.meeting_label }}</a>{% endif %}
           {% if r.motion_label %}<br><small>{{ r.motion_label }}. {% if r.motion_by %}{{ r.motion_by }}.{% else %}Attribution under review.{% endif %}</small>{% endif %}
         </div></td>
-        <td role="cell" data-label="Record"><div>{{ r.record }}{% if not r.confirmed %}*<br><small>{{ not_confirmed(r.src) }}</small>{% endif %}</div></td>
-        <td role="cell" data-label="Outcome"><div>{% if r.outcome %}{{ r.outcome.label }}{% if not r.outcome.confirmed %}*{% endif %}<br><small>{{ r.outcome.tally }}</small>{% if r.confirmed and not r.outcome.confirmed %}<br><small>{{ not_confirmed(r.outcome.src) }}</small>{% endif %}{% else %}<span class="muted">Not shown</span>{% endif %}</div></td>
-        <td role="cell" data-label="Source"><div>{{ source(r.src) }}<br><small>{{ fact_meta(root, r.fact_id) }}</small></div></td>
+        <td role="cell" data-label="Record"><div>{% if r.key %}{{ chip(r.record, r.key, not r.confirmed) }}{% else %}{{ r.record }}{% if not r.confirmed %}{{ nc_mark() }}{% endif %}{% endif %}{% if not r.confirmed %}<br><small>{{ not_confirmed(r.src) }}</small>{% endif %}</div></td>
+        <td role="cell" data-label="Outcome"><div>{% if r.outcome %}<span class="chip chip-outcome">{{ r.outcome.label }}{% if not r.outcome.confirmed %}{{ nc_mark() }}{% endif %}</span><br><small>{{ r.outcome.tally }}</small>{% if r.confirmed and not r.outcome.confirmed %}<br><small>{{ not_confirmed(r.outcome.src) }}</small>{% endif %}{% else %}<span class="muted">Not shown</span>{% endif %}</div></td>
+        <td role="cell" data-label="Source"><div class="cite">{{ source(r.src) }}<br><small>{{ fact_meta(root, r.fact_id) }}</small></div></td>
       </tr>
     {% else %}
       <tr role="row" class="empty"><td role="cell" colspan="6">No votes, attendance, motions or seconds are shown for this person in this period.</td></tr>

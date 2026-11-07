@@ -14,21 +14,27 @@
 <div class="banner" role="note"><strong>FIXTURE.</strong> This page shows made-up test data, not real records.</div>
 {% endif %}
 <header class="site-header">
-  <p class="site-name"><a href="{{ root }}index.html">{{ site.site_name }}</a></p>
-  <nav aria-label="Main">
-    <ul>
-      <li><a href="{{ root }}index.html">Officials</a></li>
-      {% for y in site.item_years %}
-      <li><a href="{{ root }}items/{{ y }}.html">Items {{ y }}</a></li>
-      {% endfor %}
-      <li><a href="{{ root }}about.html">About</a></li>
-      <li><a href="{{ root }}changes.html">Changes</a></li>
-      {% if site.internal %}
-      <li><a href="{{ root }}review.html">Review (internal)</a></li>
-      {% endif %}
-    </ul>
-  </nav>
+  <div class="masthead">
+    <div class="brand">
+      <p class="site-name"><a href="{{ root }}index.html">{{ site.site_name }}</a></p>
+      <p class="kicker">{{ site.coverage.body }} minutes, <span class="nowrap">{{ site.coverage.from }}</span> to <span class="nowrap">{{ site.coverage.to }}</span></p>
+    </div>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="{{ root }}index.html"{% if page_name == "Officials" %} aria-current="page"{% endif %}>Officials</a></li>
+        {% for y in site.item_years %}
+        <li><a href="{{ root }}items/{{ y }}.html"{% if page_name == "Items " ~ y %} aria-current="page"{% endif %}>Items {{ y }}</a></li>
+        {% endfor %}
+        <li><a href="{{ root }}about.html"{% if page_name == "About" %} aria-current="page"{% endif %}>About</a></li>
+        <li><a href="{{ root }}changes.html"{% if page_name == "Changes" %} aria-current="page"{% endif %}>Changes</a></li>
+        {% if site.internal %}
+        <li><a href="{{ root }}review.html"{% if page_name == "Review (internal)" %} aria-current="page"{% endif %}>Review (internal)</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
 </header>
+<div class="rule-double" aria-hidden="true"></div>
 <main id="main">
 {% block main %}{% endblock %}
 </main>

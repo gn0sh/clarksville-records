@@ -1,8 +1,8 @@
 {% extends "base.html.j2" %}
-{% from "_macros.html.j2" import source, fact_meta, motion_block, roll_call_block %}
+{% from "_macros.html.j2" import source, fact_meta, cite, motion_block, roll_call_block %}
 {% block main %}
 <h1>Items first seen in {{ year }}</h1>
-<p>Each item shows every appearance in the minutes, oldest first. Items are linked by their official number; items without a number are linked only when the title matches exactly, and say so.</p>
+<p class="lede">Each item shows every appearance in the minutes, oldest first. Items are linked by their official number; items without a number are linked only when the title matches exactly, and say so.</p>
 <nav aria-label="Items in {{ year }}">
   <ul class="toc">
   {% for it in items %}
@@ -13,17 +13,17 @@
 
 {% for it in items %}
 <section class="item" id="{{ it.id }}" aria-labelledby="h-{{ it.id }}">
-  <h2 id="h-{{ it.id }}">{% if it.number %}{{ it.number }}{% else %}{{ it.title }}{% endif %}</h2>
-  {% if it.number %}<p class="item-title">{{ it.title }}</p>{% endif %}
-  <p class="muted">{{ it.basis }}</p>
-  <ol class="events">
+  {% if it.number %}<p class="item-num">{{ it.number }}</p>{% endif %}
+  <h2 id="h-{{ it.id }}" class="item-h">{{ it.title }}</h2>
+  <p class="item-basis"><span class="chip chip-type">{{ it.basis }}</span></p>
+  <ol class="events timeline">
   {% for e in it.events %}
-    <li class="event fact" data-fact-id="{{ e.id }}">
-      <p class="event-head"><span class="date"><a href="{{ root }}{{ e.meeting_href }}">{{ e.date }}</a></span> <span class="type">{{ e.type_label }}</span></p>
+    <li class="event fact ev-{{ e.type }}{% if e.roll_call and not e.roll_call.confirmed %} nc{% endif %}" data-fact-id="{{ e.id }}">
+      <p class="event-head"><span class="date"><a href="{{ root }}{{ e.meeting_href }}">{{ e.date }}</a></span> <span class="chip chip-type">{{ e.type_label }}</span>{% if e.roll_call and not e.roll_call.confirmed %} <span class="chip chip-status"><span aria-hidden="true">*</span> Not confirmed</span>{% endif %}</p>
       {% if e.label %}<p class="label">{{ e.label }}</p>{% endif %}
       {% if e.roll_call %}{{ roll_call_block(e.roll_call, root) }}{% endif %}
       {% if e.motion %}{{ motion_block(e.motion, root) }}{% endif %}
-      <p class="meta">{{ source(e.src) }} <span class="sep" aria-hidden="true">&middot;</span> {{ fact_meta(root, e.id) }}</p>
+      {{ cite(e.src, root, e.id) }}
     </li>
   {% endfor %}
   </ol>

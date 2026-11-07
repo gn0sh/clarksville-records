@@ -1,20 +1,55 @@
 {% extends "base.html.j2" %}
+{% from "_macros.html.j2" import stat, badge %}
 {% block main %}
 <h1>Officials</h1>
 <p class="lede">{{ coverage.body }} records, {{ coverage.from }} to {{ coverage.to }}. Choose a name to see that person's recorded votes, attendance, motions and seconds. Every fact links to the county's own minutes.</p>
-<ul class="names" aria-label="Officials, alphabetical by surname">
+
+<section class="glance" aria-label="The record at a glance">
+  <ul class="stats">
+    {{ stat(glance.meetings, "meetings in the record") }}
+    {{ stat(glance.rc_confirmed, "roll calls confirmed") }}
+    {{ stat(glance.rc_unconfirmed, "roll calls shown but not confirmed*") }}
+    <li class="stat stat-dates"><span class="stat-num"><span class="nowrap">{{ glance.from }}</span> to <span class="nowrap">{{ glance.to }}</span></span><span class="stat-label">dates covered</span></li>
+  </ul>
+  <p class="glance-note">{{ glance.rc_confirmed }} of {{ glance.rc_total }} roll calls are confirmed; the other {{ glance.rc_unconfirmed }} are shown with an asterisk and a link to the page of the minutes. {{ glance.motions_held }} motion {{ "attribution is" if glance.motions_held == 1 else "attributions are" }} under review. {{ glance.att_not_shown }} {{ "meeting has" if glance.att_not_shown == 1 else "meetings have" }} no attendance shown. See the <a href="about.html">data rules</a>.</p>
+</section>
+
+<ul class="cards" aria-label="Officials, alphabetical by surname">
 {% for o in officials %}
-  <li><a href="{{ o.href }}">{{ o.name }}</a> <span class="muted">{{ o.title }}</span></li>
+  <li class="card">
+    {{ badge(o.initials) }}
+    <div class="card-body">
+      <a class="card-name" href="{{ o.href }}">{{ o.name }}</a>
+      <span class="card-title">{{ o.title }}</span>
+      <span class="card-line">Present at {{ o.present }} of {{ o.listed }} {{ "meeting" if o.listed == 1 else "meetings" }} with attendance shown</span>
+      <span class="card-line">Recorded vote on {{ o.rc_voted }} confirmed and {{ o.rc_voted_nc }} not confirmed* roll {{ "call" if o.rc_voted + o.rc_voted_nc == 1 else "calls" }}</span>
+    </div>
+  </li>
 {% endfor %}
 </ul>
 
 <h2 id="meetings">Meetings</h2>
 <p>Newest first. Each meeting page shows attendance, motions and roll calls.</p>
-<ul class="names" aria-label="Meetings">
-{% for m in meetings %}
-  <li><a href="{{ m.href }}">{{ m.label }}</a></li>
-{% else %}
-  <li>No meetings are available yet.</li>
+{% if meetings_by_year %}
+<nav class="year-nav" aria-label="Meeting years">
+  <ul>
+  {% for g in meetings_by_year %}
+    <li><a href="#y{{ g.year }}">{{ g.year }}</a></li>
+  {% endfor %}
+  </ul>
+</nav>
+{% for g in meetings_by_year %}
+<h3 id="y{{ g.year }}">{{ g.year }}</h3>
+<ol class="timeline meetings" aria-label="Meetings in {{ g.year }}">
+  {% for m in g.meetings %}
+  <li class="ev-meeting">
+    <p class="tl-head"><a class="date" href="{{ m.href }}">{{ m.date }}</a> <span class="tl-kind">{{ m.kind_label }}</span></p>
+    <p class="tl-sub">{{ m.rc_confirmed + m.rc_unconfirmed }} roll {{ "call" if m.rc_confirmed + m.rc_unconfirmed == 1 else "calls" }} ({{ m.rc_unconfirmed }} not confirmed*) <span class="sep" aria-hidden="true">&middot;</span> {{ m.motions }} {{ "motion" if m.motions == 1 else "motions" }} <span class="sep" aria-hidden="true">&middot;</span> {% if m.att_state == "shown" %}{{ m.present }} of {{ m.listed }} members present{% else %}attendance not shown{% endif %}</p>
+  </li>
+  {% endfor %}
+</ol>
 {% endfor %}
-</ul>
+{% else %}
+<p>No meetings are available yet.</p>
+{% endif %}
 {% endblock %}

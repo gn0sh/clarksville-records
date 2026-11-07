@@ -35,6 +35,7 @@ def pages(built):
 class Node:
     def __init__(self, tag, attrs, parent):
         self.tag, self.attrs, self.parent, self.children, self.text = tag, dict(attrs), parent, [], []
+        self.parts = []  # text and child nodes in document order
 
     def walk(self):
         yield self
@@ -42,7 +43,8 @@ class Node:
             yield from c.walk()
 
     def all_text(self):
-        return "".join(self.text) + "".join(c.all_text() for c in self.children)
+        """Text of this element and everything inside it, in document order."""
+        return "".join(p if isinstance(p, str) else p.all_text() for p in self.parts)
 
 
 VOID = {"meta", "link", "br", "img", "input", "hr"}
@@ -57,6 +59,7 @@ class _Tree(HTMLParser):
     def handle_starttag(self, tag, attrs):
         n = Node(tag, attrs, self.cur)
         self.cur.children.append(n)
+        self.cur.parts.append(n)
         if tag not in VOID:
             self.cur = n
 
@@ -69,6 +72,7 @@ class _Tree(HTMLParser):
 
     def handle_data(self, data):
         self.cur.text.append(data)
+        self.cur.parts.append(data)
 
 
 def parse(html: str) -> Node:
