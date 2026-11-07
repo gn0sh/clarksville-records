@@ -37,7 +37,7 @@ per-member votes, and paywalls video and transcripts.
 - N6. No campaign link, no ads, no tracking of individual visitors beyond what Brian approves.
 
 ## Operator and governance (Brain Trust 2026-11-07, `docs/reviews/brain-trust-spec.md`)
-- G1. **Who runs it:** the site says plainly who operates it. Wording and placement are the CEO's decision, made before design of the public pages (open question 1).
+- G1. **Who runs it:** every page has a footer line naming the operator, linking to an About page that names him and states the data rules (CEO decision, 2026-11-07).
 - G2. **Mechanical rules, no case-by-case calls:** held-back roll calls, name merges and corrections follow written rules applied identically to every official. The source document wins. Every change is logged in a public change history.
 - G3. **The owner's own record**, if he holds office, appears under exactly the same rules.
 - G4. **Skew check:** the held-back rate per official is measured each run; release is blocked if any official's rate is more than 2x the median (threshold provisional, set after the parse spike).
@@ -124,7 +124,7 @@ Public launch is a separate decision by Brian after the private preview, not a m
 - Zero manual steps in a normal collection run; the collector never requests a robots-disallowed path (test-enforced).
 
 ## Open questions (change the goal)
-1. How the site says who runs it (G1): CEO's decision, asked 2026-11-07. Non-blocking, with defaults: (1) hold back vs label uncertain votes: default hold back (P3); (2) private-preview access: architect proposes the cheapest no-spend option.
+None (G1 decided 2026-11-07). Non-blocking, with defaults: (1) hold back vs label uncertain votes: default hold back (P3); (2) private-preview access: architect proposes the cheapest no-spend option.
 
 ## Later (not scheduled)
 Video links and transcripts (for spoken comments), committee assignments, handoff to a nonpartisan steward, linking a vote to its budget line, Spanish-language view, CSV export.
