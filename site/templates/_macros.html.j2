@@ -1,0 +1,49 @@
+{# Shared pieces. N4: every fact shows a source link with the page. N5: every fact shows its id and a report link. #}
+
+{% macro source(src) -%}
+<a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">p. {{ src.page }}, fetched {{ src.fetched }}<span class="sr-only"> (opens the minutes PDF in a new tab)</span></a>
+{%- endmacro %}
+
+{% macro report(root, fact_id) -%}
+<a href="{{ root }}about.html#corrections" aria-label="Report an error in {{ fact_id }}">Report an error</a>
+{%- endmacro %}
+
+{% macro fact_meta(root, fact_id) -%}
+<span class="fact-id">Fact id <code>{{ fact_id }}</code></span> <span class="sep" aria-hidden="true">&middot;</span> {{ report(root, fact_id) }}
+{%- endmacro %}
+
+{% macro person(p, root) -%}
+{% if p is none %}<span class="muted">Not recorded</span>{% elif p.href %}<a href="{{ root }}{{ p.href }}">{{ p.name }}</a>{% else %}{{ p.name }}{% endif %}
+{%- endmacro %}
+
+{% macro item_link(item, root) -%}
+{% if item.href %}<a href="{{ root }}{{ item.href }}">{% if item.number %}<strong>{{ item.number }}</strong> {% endif %}{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}
+{%- endmacro %}
+
+{% macro vote_table(votes, root) %}
+<div class="table-scroll" tabindex="0" role="region" aria-label="Votes by member">
+<table class="votes">
+  <thead><tr><th scope="col">Member</th><th scope="col">Recorded vote</th></tr></thead>
+  <tbody>
+  {% for v in votes %}
+    <tr><th scope="row">{{ person(v.who, root) }}</th><td>{{ v.label }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endmacro %}
+
+{# A motion or roll call as one block. Used on meeting pages and item pages. #}
+{% macro motion_block(b, root) %}
+<p><strong>Motion:</strong> {{ b.text }}</p>
+<dl class="people">
+  <dt>Moved</dt><dd>{{ person(b.moved_by, root) }}</dd>
+  <dt>Seconded</dt><dd>{{ person(b.seconded_by, root) }}</dd>
+</dl>
+{% endmacro %}
+
+{% macro roll_call_block(b, root) %}
+{% if b.motion_text %}<p><strong>Motion:</strong> {{ b.motion_text }}</p>{% endif %}
+{{ vote_table(b.votes, root) }}
+<p><strong>Outcome:</strong> {{ b.outcome.label }}. Minutes: &ldquo;{{ b.outcome.text }}&rdquo;</p>
+{% endmacro %}

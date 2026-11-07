@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>{{ site.site_name }} | {{ page_name }}</title>
+<link rel="stylesheet" href="{{ root }}static/style.css">
+{% block head %}{% endblock %}
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+{% if site.fixture %}
+<div class="banner" role="note"><strong>FIXTURE.</strong> This page shows made-up test data, not real records.</div>
+{% endif %}
+<header class="site-header">
+  <p class="site-name"><a href="{{ root }}index.html">{{ site.site_name }}</a></p>
+  <nav aria-label="Main">
+    <ul>
+      <li><a href="{{ root }}index.html">Officials</a></li>
+      {% for y in site.item_years %}
+      <li><a href="{{ root }}items/{{ y }}.html">Items {{ y }}</a></li>
+      {% endfor %}
+      <li><a href="{{ root }}about.html">About</a></li>
+      <li><a href="{{ root }}changes.html">Changes</a></li>
+      {% if site.internal %}
+      <li><a href="{{ root }}review.html">Review (internal)</a></li>
+      {% endif %}
+    </ul>
+  </nav>
+</header>
+<main id="main">
+{% block main %}{% endblock %}
+</main>
+<footer class="site-footer">
+  <p>Run by {{ site.operator }}. <a href="{{ root }}about.html">About this site and its data rules.</a></p>
+  <p>Data as of {{ site.data_as_of }}</p>
+</footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>
