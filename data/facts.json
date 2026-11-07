@@ -34,7 +34,7 @@
       "date": "2024-10-14",
       "id": "ev-09962951-p101-2",
       "item_id": "24-10-7",
-      "label": "roll_call",
+      "label": "The foregoing Resolution was Adopted, as Amended, by the following roll call vote:",
       "meeting_id": "2024-10-14-formal",
       "order": 33,
       "page": 101,
@@ -562,7 +562,7 @@
       "date": "2024-07-15",
       "id": "ev-0d17f063-p16-1",
       "item_id": "t-30c8f8fb35",
-      "label": "roll_call",
+      "label": "The Motion Failed by th~ following roll call vote:",
       "meeting_id": "2024-07-15-special",
       "order": 21,
       "page": 16,
@@ -1690,7 +1690,7 @@
       "date": "2025-01-13",
       "id": "ev-1fc41c86-p149-0",
       "item_id": "25-1-7",
-      "label": "Motion by Commissioner Shelton, seconded by Commissioner Gannon,",
+      "label": "On Motion by Commissioner Shelton, seconded by Commissioner Gannon, the Rules were Suspended for Resolution 25-1-7 by the following roll call vote:",
       "meeting_id": "2025-01-13-formal",
       "order": 6,
       "page": 149,
@@ -1702,7 +1702,7 @@
       "date": "2025-01-13",
       "id": "ev-1fc41c86-p149-1",
       "item_id": "25-1-7",
-      "label": "roll_call",
+      "label": "the Rules were Suspended for Resolution 25-1-7 by the following roll call vote:",
       "meeting_id": "2025-01-13-formal",
       "order": 7,
       "page": 149,
@@ -2638,7 +2638,7 @@
       "date": "2025-09-08",
       "id": "ev-23b90a7b-p79-0",
       "item_id": "25-9-11",
-      "label": "roll_call",
+      "label": "Suspend the Rules 25-9-11 and 25-9-12 On Motion by CommIssioner Gannon, seconded by Commissioner Padro, the Rules were Suspended for Resolutions 25-9-11 and 25-9-12 by the following roll call vote:",
       "meeting_id": "2025-09-08-formal",
       "order": 8,
       "page": 79,
@@ -4485,7 +4485,7 @@
     {
       "date": "2022-06-13",
       "id": "ev-3a926fac-p134-0",
-      "item_id": "t-ed738e418e",
+      "item_id": "t-5b734f9295",
       "label": "Motion by Commissioner Chandler, seconded by Commissioner Rasnic.",
       "meeting_id": "2022-06-13-formal",
       "order": 3,
@@ -4497,8 +4497,8 @@
     {
       "date": "2022-06-13",
       "id": "ev-3a926fac-p134-1",
-      "item_id": "t-ed738e418e",
-      "label": "roll_call",
+      "item_id": "t-5b734f9295",
+      "label": "The foregoing Resolution was Adopted, in its original state, by the following roll call vote:",
       "meeting_id": "2022-06-13-formal",
       "order": 4,
       "page": 134,
@@ -6513,8 +6513,8 @@
     {
       "date": "2022-12-12",
       "id": "ev-57360144-p64-2",
-      "item_id": "t-0f04f1bcc6",
-      "label": "roll_call",
+      "item_id": "t-4620f3eb7b",
+      "label": "The foregoing Resolution was Adopted, As Amended, by the following roll call vote:",
       "meeting_id": "2022-12-12-formal",
       "order": 24,
       "page": 64,
@@ -8122,7 +8122,7 @@
       "date": "2022-11-14",
       "id": "ev-64224653-p68-0",
       "item_id": "t-acba4e63c0",
-      "label": "Motion to Adopt by Commissioner Walker, seconded by Commissioner Prichard,",
+      "label": "On Motion to Adopt by Commissioner Walker, seconded by Commissioner Prichard, the foregoing Consent Agenda items were Adopted and Approved by the following rail call vote:",
       "meeting_id": "2022-11-14-formal",
       "order": 3,
       "page": 68,
@@ -8134,7 +8134,7 @@
       "date": "2022-11-14",
       "id": "ev-64224653-p68-1",
       "item_id": "t-acba4e63c0",
-      "label": "roll_call",
+      "label": "the foregoing Consent Agenda items were Adopted and Approved by the following rail call vote:",
       "meeting_id": "2022-11-14-formal",
       "order": 4,
       "page": 68,
@@ -11050,7 +11050,7 @@
       "date": "2025-10-20",
       "id": "ev-7335f41b-p97-0",
       "item_id": "25-10-8",
-      "label": "Motion by Commissioner Smith, seconded by Commissioner Prichard,",
+      "label": "On Motion by Commissioner Smith, seconded by Commissioner Prichard, the Rules were Suspended for Resolution 25-10-8 by the following roll call vote:",
       "meeting_id": "2025-10-20-formal",
       "order": 7,
       "page": 97,
@@ -11062,7 +11062,7 @@
       "date": "2025-10-20",
       "id": "ev-7335f41b-p97-1",
       "item_id": "25-10-8",
-      "label": "roll_call",
+      "label": "the Rules were Suspended for Resolution 25-10-8 by the following roll call vote:",
       "meeting_id": "2025-10-20-formal",
       "order": 8,
       "page": 97,
@@ -16510,7 +16510,7 @@
       "date": "2024-09-09",
       "id": "ev-a2761d17-p6-0",
       "item_id": "t-b36b72f8a1",
-      "label": "Motion by Commissioner Gannon, seconded by Commissioner Ray,",
+      "label": "On Motion by Commissioner Gannon, seconded by Commissioner Ray, Commissioner John Gannon was electedby the following roll call vote:",
       "meeting_id": "2024-09-09-formal",
       "order": 9,
       "page": 6,
@@ -16522,7 +16522,7 @@
       "date": "2024-09-09",
       "id": "ev-a2761d17-p6-1",
       "item_id": "t-b36b72f8a1",
-      "label": "roll_call",
+      "label": "Commissioner John Gannon was electedby the following roll call vote:",
       "meeting_id": "2024-09-09-formal",
       "order": 10,
       "page": 6,
@@ -16582,7 +16582,7 @@
       "date": "2024-09-09",
       "id": "ev-a2761d17-p68-2",
       "item_id": "24-9-4",
-      "label": "roll_call",
+      "label": "The foregoing Resolution was Adopted, as Amended, by the following roll call vote:",
       "meeting_id": "2024-09-09-formal",
       "order": 25,
       "page": 68,
@@ -16690,7 +16690,7 @@
       "date": "2024-09-09",
       "id": "ev-a2761d17-p71-0",
       "item_id": "24-9-5",
-      "label": "roll_call",
+      "label": "The foregoing Resolution was Adopted, as Amended, by the following roll call vote:",
       "meeting_id": "2024-09-09-formal",
       "order": 11,
       "page": 71,
@@ -16702,7 +16702,7 @@
       "date": "2024-09-09",
       "id": "ev-a2761d17-p72-0",
       "item_id": "24-9-7",
-      "label": "Motion by Commissioner Harper, seconded by Commissioner Walker,",
+      "label": "On Motion by Commissioner Harper, seconded by Commissioner Walker, the Rules were Suspended for Resolution 24-9-7 by the following roll call vote:",
       "meeting_id": "2024-09-09-formal",
       "order": 6,
       "page": 72,
@@ -16714,7 +16714,7 @@
       "date": "2024-09-09",
       "id": "ev-a2761d17-p72-1",
       "item_id": "24-9-7",
-      "label": "roll_call",
+      "label": "the Rules were Suspended for Resolution 24-9-7 by the following roll call vote:",
       "meeting_id": "2024-09-09-formal",
       "order": 7,
       "page": 72,
@@ -16774,7 +16774,7 @@
       "date": "2025-02-10",
       "id": "ev-a3651056-p104-0",
       "item_id": "25-2-4",
-      "label": "Motion by Commissioner Shelton, seconded by Commissioner Walker,",
+      "label": "On Motion by Commissioner Shelton, seconded by Commissioner Walker, the Rules were Suspended for Resolution 25-2-4 by the following roll call vote:",
       "meeting_id": "2025-02-10-formal",
       "order": 7,
       "page": 104,
@@ -16786,7 +16786,7 @@
       "date": "2025-02-10",
       "id": "ev-a3651056-p104-1",
       "item_id": "25-2-4",
-      "label": "roll_call",
+      "label": "the Rules were Suspended for Resolution 25-2-4 by the following roll call vote:",
       "meeting_id": "2025-02-10-formal",
       "order": 8,
       "page": 104,
@@ -19198,7 +19198,7 @@
       "date": "2023-06-12",
       "id": "ev-b325a18d-p109-2",
       "item_id": "23-6-6",
-      "label": "roll_call",
+      "label": "The foregoing Motion was Approved by the following two-thirds (2/3) vote:",
       "meeting_id": "2023-06-12-formal",
       "order": 24,
       "page": 109,
@@ -19730,110 +19730,14 @@
       "meeting_id": "2022-08-08-formal",
       "order": 6,
       "page": 34,
-      "ref": "rc-ba7d4c92-p36-0",
+      "ref": "rc-ba7d4c92-p34-0",
       "source_id": "src-ba7d4c9267e5",
       "type": "roll_call"
     },
     {
       "date": "2022-08-08",
       "id": "ev-ba7d4c92-p34-1",
-      "item_id": "22-8-3",
-      "label": "Consent Agenda",
-      "meeting_id": "2022-08-08-formal",
-      "order": 6,
-      "page": 34,
-      "ref": "rc-ba7d4c92-p36-0",
-      "source_id": "src-ba7d4c9267e5",
-      "type": "roll_call"
-    },
-    {
-      "date": "2022-08-08",
-      "id": "ev-ba7d4c92-p34-10",
-      "item_id": "t-5795f0ce9e",
-      "label": "Consent Agenda",
-      "meeting_id": "2022-08-08-formal",
-      "order": 12,
-      "page": 34,
-      "ref": "rc-ba7d4c92-p36-0",
-      "source_id": "src-ba7d4c9267e5",
-      "type": "roll_call"
-    },
-    {
-      "date": "2022-08-08",
-      "id": "ev-ba7d4c92-p34-11",
-      "item_id": "t-27f58de9e8",
-      "label": "Nominating Committee Nomination",
-      "meeting_id": "2022-08-08-formal",
-      "order": 12,
-      "page": 34,
-      "ref": null,
-      "source_id": "src-ba7d4c9267e5",
-      "type": "other"
-    },
-    {
-      "date": "2022-08-08",
-      "id": "ev-ba7d4c92-p34-12",
-      "item_id": "t-b21f257974",
-      "label": "Consent Agenda",
-      "meeting_id": "2022-08-08-formal",
-      "order": 13,
-      "page": 34,
-      "ref": "rc-ba7d4c92-p36-0",
-      "source_id": "src-ba7d4c9267e5",
-      "type": "roll_call"
-    },
-    {
-      "date": "2022-08-08",
-      "id": "ev-ba7d4c92-p34-13",
-      "item_id": "t-27f58de9e8",
-      "label": "MayorNominations and Appointments",
-      "meeting_id": "2022-08-08-formal",
-      "order": 13,
-      "page": 34,
-      "ref": null,
-      "source_id": "src-ba7d4c9267e5",
-      "type": "other"
-    },
-    {
-      "date": "2022-08-08",
-      "id": "ev-ba7d4c92-p34-14",
-      "item_id": "t-2a6382a828",
-      "label": "Consent Agenda",
-      "meeting_id": "2022-08-08-formal",
-      "order": 14,
-      "page": 34,
-      "ref": "rc-ba7d4c92-p36-0",
-      "source_id": "src-ba7d4c9267e5",
-      "type": "roll_call"
-    },
-    {
-      "date": "2022-08-08",
-      "id": "ev-ba7d4c92-p34-15",
-      "item_id": "t-27f58de9e8",
-      "label": "Highway Dept. 2022 First and Second Quarter Road List",
-      "meeting_id": "2022-08-08-formal",
-      "order": 14,
-      "page": 34,
-      "ref": null,
-      "source_id": "src-ba7d4c9267e5",
-      "type": "other"
-    },
-    {
-      "date": "2022-08-08",
-      "id": "ev-ba7d4c92-p34-16",
-      "item_id": "t-27f58de9e8",
-      "label": "the foregoing Consent Agenda items were Adopted and Approved by the following roll call vote:",
-      "meeting_id": "2022-08-08-formal",
-      "order": 20,
-      "page": 34,
-      "ref": "rc-ba7d4c92-p36-0",
-      "source_id": "src-ba7d4c9267e5",
-      "type": "roll_call"
-    },
-    {
-      "date": "2022-08-08",
-      "id": "ev-ba7d4c92-p34-2",
-      "item_id": "t-27f58de9e8",
+      "item_id": "t-952b1d7ece",
       "label": "22-8-1",
       "meeting_id": "2022-08-08-formal",
       "order": 6,
@@ -19844,8 +19748,92 @@
     },
     {
       "date": "2022-08-08",
-      "id": "ev-ba7d4c92-p34-3",
-      "item_id": "t-27f58de9e8",
+      "id": "ev-ba7d4c92-p34-10",
+      "item_id": "t-952b1d7ece",
+      "label": "Nominating Committee Nomination",
+      "meeting_id": "2022-08-08-formal",
+      "order": 12,
+      "page": 34,
+      "ref": null,
+      "source_id": "src-ba7d4c9267e5",
+      "type": "other"
+    },
+    {
+      "date": "2022-08-08",
+      "id": "ev-ba7d4c92-p34-11",
+      "item_id": "t-b21f257974",
+      "label": "Consent Agenda",
+      "meeting_id": "2022-08-08-formal",
+      "order": 13,
+      "page": 34,
+      "ref": "rc-ba7d4c92-p34-0",
+      "source_id": "src-ba7d4c9267e5",
+      "type": "roll_call"
+    },
+    {
+      "date": "2022-08-08",
+      "id": "ev-ba7d4c92-p34-12",
+      "item_id": "t-952b1d7ece",
+      "label": "MayorNominations and Appointments",
+      "meeting_id": "2022-08-08-formal",
+      "order": 13,
+      "page": 34,
+      "ref": null,
+      "source_id": "src-ba7d4c9267e5",
+      "type": "other"
+    },
+    {
+      "date": "2022-08-08",
+      "id": "ev-ba7d4c92-p34-13",
+      "item_id": "t-2a6382a828",
+      "label": "Consent Agenda",
+      "meeting_id": "2022-08-08-formal",
+      "order": 14,
+      "page": 34,
+      "ref": "rc-ba7d4c92-p34-0",
+      "source_id": "src-ba7d4c9267e5",
+      "type": "roll_call"
+    },
+    {
+      "date": "2022-08-08",
+      "id": "ev-ba7d4c92-p34-14",
+      "item_id": "t-952b1d7ece",
+      "label": "Highway Dept. 2022 First and Second Quarter Road List",
+      "meeting_id": "2022-08-08-formal",
+      "order": 14,
+      "page": 34,
+      "ref": null,
+      "source_id": "src-ba7d4c9267e5",
+      "type": "other"
+    },
+    {
+      "date": "2022-08-08",
+      "id": "ev-ba7d4c92-p34-15",
+      "item_id": "t-952b1d7ece",
+      "label": "On Motion to Adopt by Commissioner J. Ailbert, seconded by Commissioner Ray, the foregoing Consent Agenda items were Adopted and Approved by the following roll call vote:",
+      "meeting_id": "2022-08-08-formal",
+      "order": 19,
+      "page": 34,
+      "ref": "mo-ba7d4c92-p34-0",
+      "source_id": "src-ba7d4c9267e5",
+      "type": "motion"
+    },
+    {
+      "date": "2022-08-08",
+      "id": "ev-ba7d4c92-p34-16",
+      "item_id": "t-952b1d7ece",
+      "label": "the foregoing Consent Agenda items were Adopted and Approved by the following roll call vote:",
+      "meeting_id": "2022-08-08-formal",
+      "order": 20,
+      "page": 34,
+      "ref": "rc-ba7d4c92-p34-0",
+      "source_id": "src-ba7d4c9267e5",
+      "type": "roll_call"
+    },
+    {
+      "date": "2022-08-08",
+      "id": "ev-ba7d4c92-p34-2",
+      "item_id": "t-952b1d7ece",
       "label": "22-8-3",
       "meeting_id": "2022-08-08-formal",
       "order": 6,
@@ -19856,8 +19844,8 @@
     },
     {
       "date": "2022-08-08",
-      "id": "ev-ba7d4c92-p34-4",
-      "item_id": "t-27f58de9e8",
+      "id": "ev-ba7d4c92-p34-3",
+      "item_id": "t-952b1d7ece",
       "label": "22-8-5",
       "meeting_id": "2022-08-08-formal",
       "order": 6,
@@ -19868,8 +19856,8 @@
     },
     {
       "date": "2022-08-08",
-      "id": "ev-ba7d4c92-p34-5",
-      "item_id": "t-27f58de9e8",
+      "id": "ev-ba7d4c92-p34-4",
+      "item_id": "t-952b1d7ece",
       "label": "22-8-6",
       "meeting_id": "2022-08-08-formal",
       "order": 6,
@@ -19880,20 +19868,20 @@
     },
     {
       "date": "2022-08-08",
-      "id": "ev-ba7d4c92-p34-6",
+      "id": "ev-ba7d4c92-p34-5",
       "item_id": "t-d7faca1d4d",
       "label": "Consent Agenda",
       "meeting_id": "2022-08-08-formal",
       "order": 7,
       "page": 34,
-      "ref": "rc-ba7d4c92-p36-0",
+      "ref": "rc-ba7d4c92-p34-0",
       "source_id": "src-ba7d4c9267e5",
       "type": "roll_call"
     },
     {
       "date": "2022-08-08",
-      "id": "ev-ba7d4c92-p34-7",
-      "item_id": "t-27f58de9e8",
+      "id": "ev-ba7d4c92-p34-6",
+      "item_id": "t-952b1d7ece",
       "label": "Minutes July 11, 2022",
       "meeting_id": "2022-08-08-formal",
       "order": 7,
@@ -19904,20 +19892,20 @@
     },
     {
       "date": "2022-08-08",
-      "id": "ev-ba7d4c92-p34-8",
+      "id": "ev-ba7d4c92-p34-7",
       "item_id": "t-6da70eba06",
       "label": "Consent Agenda",
       "meeting_id": "2022-08-08-formal",
       "order": 11,
       "page": 34,
-      "ref": "rc-ba7d4c92-p36-0",
+      "ref": "rc-ba7d4c92-p34-0",
       "source_id": "src-ba7d4c9267e5",
       "type": "roll_call"
     },
     {
       "date": "2022-08-08",
-      "id": "ev-ba7d4c92-p34-9",
-      "item_id": "t-27f58de9e8",
+      "id": "ev-ba7d4c92-p34-8",
+      "item_id": "t-952b1d7ece",
       "label": "Clerk’s Report",
       "meeting_id": "2022-08-08-formal",
       "order": 11,
@@ -19928,15 +19916,27 @@
     },
     {
       "date": "2022-08-08",
-      "id": "ev-ba7d4c92-p36-0",
-      "item_id": "t-27f58de9e8",
-      "label": "On Motion to Adopt by Commissioner J. Ailbert, seconded by Commissioner Ray, the foregoing Consent Agenda items were Adopted and Approved by the following roll call vote:",
+      "id": "ev-ba7d4c92-p34-9",
+      "item_id": "t-5795f0ce9e",
+      "label": "Consent Agenda",
       "meeting_id": "2022-08-08-formal",
-      "order": 19,
-      "page": 36,
-      "ref": "mo-ba7d4c92-p36-0",
+      "order": 12,
+      "page": 34,
+      "ref": "rc-ba7d4c92-p34-0",
       "source_id": "src-ba7d4c9267e5",
-      "type": "motion"
+      "type": "roll_call"
+    },
+    {
+      "date": "2022-08-08",
+      "id": "ev-ba7d4c92-p36-0",
+      "item_id": "22-8-3",
+      "label": "the foregoing Consent Agenda items were Adopted and Approved by the following roll call vote:",
+      "meeting_id": "2022-08-08-formal",
+      "order": 20,
+      "page": 36,
+      "ref": "rc-ba7d4c92-p34-0",
+      "source_id": "src-ba7d4c9267e5",
+      "type": "roll_call"
     },
     {
       "date": "2022-08-08",
@@ -19946,7 +19946,7 @@
       "meeting_id": "2022-08-08-formal",
       "order": 20,
       "page": 38,
-      "ref": "rc-ba7d4c92-p36-0",
+      "ref": "rc-ba7d4c92-p34-0",
       "source_id": "src-ba7d4c9267e5",
       "type": "roll_call"
     },
@@ -19958,7 +19958,7 @@
       "meeting_id": "2022-08-08-formal",
       "order": 20,
       "page": 40,
-      "ref": "rc-ba7d4c92-p36-0",
+      "ref": "rc-ba7d4c92-p34-0",
       "source_id": "src-ba7d4c9267e5",
       "type": "roll_call"
     },
@@ -22858,7 +22858,7 @@
       "date": "2025-04-14",
       "id": "ev-d654cc03-p83-0",
       "item_id": "25-4-9",
-      "label": "Motion by Commissioner Shelton, seconded by Commissioner Gannon,",
+      "label": "On Motion by Commissioner Shelton, seconded by Commissioner Gannon, the Rules were Suspended for Resolutions 25-4-9 and 25-4-10 by the following roll call vote:",
       "meeting_id": "2025-04-14-formal",
       "order": 5,
       "page": 83,
@@ -22870,7 +22870,7 @@
       "date": "2025-04-14",
       "id": "ev-d654cc03-p83-1",
       "item_id": "25-4-9",
-      "label": "roll_call",
+      "label": "the Rules were Suspended for Resolutions 25-4-9 and 25-4-10 by the following roll call vote:",
       "meeting_id": "2025-04-14-formal",
       "order": 6,
       "page": 83,
@@ -24538,7 +24538,7 @@
       "date": "2023-09-11",
       "id": "ev-eff15282-p96-1",
       "item_id": "23-9-8",
-      "label": "roll_call",
+      "label": "The foregoing Resotution was Adopted by the following roll catl vote:",
       "meeting_id": "2023-09-11-formal",
       "order": 10,
       "page": 96,
@@ -29147,13 +29147,6 @@
       "year": 2023
     },
     {
-      "id": "t-0f04f1bcc6",
-      "link_basis": "title",
-      "number": null,
-      "title": "(untitled)",
-      "year": 2022
-    },
-    {
       "id": "t-0fc006bda8",
       "link_basis": "title",
       "number": null,
@@ -29369,13 +29362,6 @@
       "number": null,
       "title": "Consent Agenda",
       "year": 2024
-    },
-    {
-      "id": "t-27f58de9e8",
-      "link_basis": "title",
-      "number": null,
-      "title": "Consent Agenda",
-      "year": 2022
     },
     {
       "id": "t-28ee9eb075",
@@ -29644,6 +29630,13 @@
       "year": 2021
     },
     {
+      "id": "t-4620f3eb7b",
+      "link_basis": "title",
+      "number": null,
+      "title": "Resolution",
+      "year": 2022
+    },
+    {
       "id": "t-4669f99b8a",
       "link_basis": "title",
       "number": null,
@@ -29817,6 +29810,13 @@
       "number": null,
       "title": "County Clerk’s Report",
       "year": 2024
+    },
+    {
+      "id": "t-5b734f9295",
+      "link_basis": "title",
+      "number": null,
+      "title": "Resolution",
+      "year": 2022
     },
     {
       "id": "t-5be958757f",
@@ -30195,6 +30195,13 @@
       "number": null,
       "title": "Consent Agenda",
       "year": 2026
+    },
+    {
+      "id": "t-952b1d7ece",
+      "link_basis": "title",
+      "number": null,
+      "title": "Consent Agenda",
+      "year": 2022
     },
     {
       "id": "t-9759dc2ded",
@@ -30916,13 +30923,6 @@
       "number": null,
       "title": "Commission Minutes October 9, 2023",
       "year": 2023
-    },
-    {
-      "id": "t-ed738e418e",
-      "link_basis": "title",
-      "number": null,
-      "title": "(untitled)",
-      "year": 2022
     },
     {
       "id": "t-ee66a44218",
@@ -42260,7 +42260,7 @@
         "raw_name": "Gannon"
       },
       "source_id": "src-1fc41c8674e0",
-      "text": "Motion by Commissioner Shelton, seconded by Commissioner Gannon,",
+      "text": "On Motion by Commissioner Shelton, seconded by Commissioner Gannon, the Rules were Suspended for Resolution 25-1-7 by the following roll call vote:",
       "verification": {
         "checks": [
           {
@@ -42273,8 +42273,7 @@
           },
           {
             "check": "motion_precedes_vote",
-            "detail": "the motion sentence does not lead into this vote's outcome clause",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -42297,7 +42296,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -44433,7 +44432,7 @@
     },
     {
       "id": "mo-3a926fac-p134-0",
-      "item_id": "t-ed738e418e",
+      "item_id": "t-5b734f9295",
       "meeting_id": "2022-06-13-formal",
       "moved_by": {
         "official_id": "carmelle-chandler",
@@ -46837,7 +46836,7 @@
         "raw_name": "Prichard"
       },
       "source_id": "src-642246539ab0",
-      "text": "Motion to Adopt by Commissioner Walker, seconded by Commissioner Prichard,",
+      "text": "On Motion to Adopt by Commissioner Walker, seconded by Commissioner Prichard, the foregoing Consent Agenda items were Adopted and Approved by the following rail call vote:",
       "verification": {
         "checks": [
           {
@@ -46850,8 +46849,7 @@
           },
           {
             "check": "motion_precedes_vote",
-            "detail": "the motion sentence does not lead into this vote's outcome clause",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -46874,7 +46872,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -49157,7 +49155,7 @@
         "raw_name": "Prichard"
       },
       "source_id": "src-7335f41b4ea6",
-      "text": "Motion by Commissioner Smith, seconded by Commissioner Prichard,",
+      "text": "On Motion by Commissioner Smith, seconded by Commissioner Prichard, the Rules were Suspended for Resolution 25-10-8 by the following roll call vote:",
       "verification": {
         "checks": [
           {
@@ -49170,8 +49168,7 @@
           },
           {
             "check": "motion_precedes_vote",
-            "detail": "the motion sentence does not lead into this vote's outcome clause",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -49194,7 +49191,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -51834,7 +51831,7 @@
         "raw_name": "Ray"
       },
       "source_id": "src-a2761d17b968",
-      "text": "Motion by Commissioner Gannon, seconded by Commissioner Ray,",
+      "text": "On Motion by Commissioner Gannon, seconded by Commissioner Ray, Commissioner John Gannon was electedby the following roll call vote:",
       "verification": {
         "checks": [
           {
@@ -51847,8 +51844,7 @@
           },
           {
             "check": "motion_precedes_vote",
-            "detail": "the motion sentence does not lead into this vote's outcome clause",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -51871,7 +51867,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -52049,7 +52045,7 @@
         "raw_name": "Walker"
       },
       "source_id": "src-a2761d17b968",
-      "text": "Motion by Commissioner Harper, seconded by Commissioner Walker,",
+      "text": "On Motion by Commissioner Harper, seconded by Commissioner Walker, the Rules were Suspended for Resolution 24-9-7 by the following roll call vote:",
       "verification": {
         "checks": [
           {
@@ -52062,8 +52058,7 @@
           },
           {
             "check": "motion_precedes_vote",
-            "detail": "the motion sentence does not lead into this vote's outcome clause",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -52086,7 +52081,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -52202,7 +52197,7 @@
         "raw_name": "Walker"
       },
       "source_id": "src-a365105618bd",
-      "text": "Motion by Commissioner Shelton, seconded by Commissioner Walker,",
+      "text": "On Motion by Commissioner Shelton, seconded by Commissioner Walker, the Rules were Suspended for Resolution 25-2-4 by the following roll call vote:",
       "verification": {
         "checks": [
           {
@@ -52215,8 +52210,7 @@
           },
           {
             "check": "motion_precedes_vote",
-            "detail": "the motion sentence does not lead into this vote's outcome clause",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -52239,7 +52233,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -54306,14 +54300,14 @@
       }
     },
     {
-      "id": "mo-ba7d4c92-p36-0",
-      "item_id": "t-27f58de9e8",
+      "id": "mo-ba7d4c92-p34-0",
+      "item_id": "t-952b1d7ece",
       "meeting_id": "2022-08-08-formal",
       "moved_by": {
         "official_id": null,
         "raw_name": "J. Ailbert"
       },
-      "page": 36,
+      "page": 34,
       "seconded_by": {
         "official_id": "rickey-ray",
         "raw_name": "Ray"
@@ -56434,7 +56428,7 @@
         "raw_name": "Gannon"
       },
       "source_id": "src-d654cc03e2f1",
-      "text": "Motion by Commissioner Shelton, seconded by Commissioner Gannon,",
+      "text": "On Motion by Commissioner Shelton, seconded by Commissioner Gannon, the Rules were Suspended for Resolutions 25-4-9 and 25-4-10 by the following roll call vote:",
       "verification": {
         "checks": [
           {
@@ -56447,8 +56441,7 @@
           },
           {
             "check": "motion_precedes_vote",
-            "detail": "the motion sentence does not lead into this vote's outcome clause",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -56471,7 +56464,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -58519,8 +58512,8 @@
       "item_id": "24-10-7",
       "meeting_id": "2024-10-14-formal",
       "motion_id": null,
-      "outcome": "other",
-      "outcome_text": "",
+      "outcome": "passed",
+      "outcome_text": "The foregoing Resolution was Adopted, as Amended, by the following roll call vote:",
       "page": 101,
       "source_id": "src-099629519af0",
       "stated_tally": {
@@ -58552,8 +58545,7 @@
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not stated or not recognised (None)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -58577,7 +58569,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -58911,11 +58903,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: David Harper; [text-layer] no vote read for present member: Lisa Prichard; [text-layer] no vote read for present member: Ryan Gallant; [text-layer] no vote read for present member: Billy Frye; [text-layer] no vote read for present member: Autumn Simmons; [text-layer] no vote read for present member: David Shelton; [tesseract] unrecognised token(s) ['ae'] for Tangi Smith",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -58932,16 +58928,39 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (13, 0, 0) != stated (19, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
+          "official_id": "autumn-simmons",
+          "raw_name": "Autumn Simmons",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "billy-frye",
+          "raw_name": "Billy Frye",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "carmelle-chandler",
           "raw_name": "Carmelle Chandler",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "david-harper",
+          "raw_name": "David Harper",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "david-shelton",
+          "raw_name": "David Shelton",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -58988,6 +59007,12 @@
           "value": "yes"
         },
         {
+          "official_id": "lisa-prichard",
+          "raw_name": "Lisa Prichard",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "michael-lankford",
           "raw_name": "Michael Lankford",
           "raw_value": "Y",
@@ -59008,6 +59033,12 @@
         {
           "official_id": "rickey-ray",
           "raw_name": "Rickey Ray",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "ryan-gallant",
+          "raw_name": "Ryan Gallant",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -59427,11 +59458,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: Tangi Smith; [tesseract] conflicting vote marks ['y', 'y'] for David Harper",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "tesseract",
             "ok": true
           },
           {
@@ -59448,11 +59483,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (16, 4, 0) != stated (17, 4, 0); [tesseract] counted (16, 4, 0) != stated (17, 4, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -59566,6 +59600,12 @@
         {
           "official_id": "ryan-gallant",
           "raw_name": "Ryan Gallant",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "tangi-smith",
+          "raw_name": "Tangi Smith",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -59968,8 +60008,8 @@
       "item_id": "t-30c8f8fb35",
       "meeting_id": "2024-07-15-special",
       "motion_id": "mo-0d17f063-p16-0",
-      "outcome": "other",
-      "outcome_text": "",
+      "outcome": "failed",
+      "outcome_text": "The Motion Failed by th~ following roll call vote:",
       "page": 16,
       "source_id": "src-0d17f063af14",
       "stated_tally": {
@@ -60001,7 +60041,7 @@
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not stated or not recognised (None)",
+            "detail": "outcome Failed disagrees with tally (11, 10, 0)",
             "ok": false
           },
           {
@@ -60947,8 +60987,7 @@
         "checks": [
           {
             "check": "absent_line_consistent",
-            "detail": "[tesseract] ABSENT line not found",
-            "ok": false
+            "ok": true
           },
           {
             "check": "in_meeting_record",
@@ -60956,8 +60995,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "[tesseract] name not matched to roster: 'Yeses—2] Noes—0 Abstentions' (0.28); [tesseract] name not matched to roster: 'ABSENT: None' (0.40)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -60965,11 +61003,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: Carmelle Chandler; [tesseract] conflicting vote marks ['y', 'y'] for David Harper",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -60986,11 +61028,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (20, 0, 0) != stated (21, 0, 0); [tesseract] stated tally not found",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -61002,6 +61043,12 @@
         {
           "official_id": "billy-frye",
           "raw_name": "Billy Frye",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "carmelle-chandler",
+          "raw_name": "Carmelle Chandler",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -63451,11 +63498,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: Tãngi Smith; [tesseract] unrecognised token(s) ['ry'] for Ryan Gallant; [tesseract] no vote read for present member: Ryan Gallant",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -63472,11 +63523,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (18, 0, 0) != stated (19, 0, 0); [tesseract] counted (18, 0, 0) != stated (19, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -63578,6 +63628,12 @@
         {
           "official_id": "ryan-gallant",
           "raw_name": "Ryan Gallant",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "tangi-smith",
+          "raw_name": "Tangi Smith",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -64371,11 +64427,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: David Harper; [text-layer] no vote read for present member: Lisa Prichard; [text-layer] no vote read for present member: Chris Rasnic; [text-layer] no vote read for present member: Ryan Gallant; [text-layer] no vote read for present member: Billy Frye; [text-layer] no vote read for present member: Autumn Simmons; [text-layer] no vote read for present member: David Shelton; [tesseract] conflicting vote marks ['y', 'y'] for David Harper; [tesseract] un",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -64392,16 +64452,45 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (13, 0, 0) != stated (20, 0, 0); [tesseract] counted (19, 0, 0) != stated (20, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
+          "official_id": "autumn-simmons",
+          "raw_name": "Autumn Simmons",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "billy-frye",
+          "raw_name": "Billy Frye",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "carmelle-chandler",
           "raw_name": "Carmelle Chandler",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "chris-rasnic",
+          "raw_name": "Chris Rasnic",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "david-harper",
+          "raw_name": "David Harper",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "david-shelton",
+          "raw_name": "David Shelton",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -64442,6 +64531,12 @@
           "value": "yes"
         },
         {
+          "official_id": "lisa-prichard",
+          "raw_name": "Lisa Prichard",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "michael-lankford",
           "raw_name": "Michael Lankford",
           "raw_value": "Y",
@@ -64466,6 +64561,12 @@
           "value": "yes"
         },
         {
+          "official_id": "ryan-gallant",
+          "raw_name": "Ryan Gallant",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "tangi-smith",
           "raw_name": "Tangi Smith",
           "raw_value": "Y",
@@ -64484,8 +64585,8 @@
       "item_id": "25-1-7",
       "meeting_id": "2025-01-13-formal",
       "motion_id": "mo-1fc41c86-p149-0",
-      "outcome": "other",
-      "outcome_text": "",
+      "outcome": "passed",
+      "outcome_text": "the Rules were Suspended for Resolution 25-1-7 by the following roll call vote:",
       "page": 149,
       "source_id": "src-1fc41c8674e0",
       "stated_tally": {
@@ -64517,8 +64618,7 @@
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not stated or not recognised (None)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -64542,7 +64642,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -66738,8 +66838,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "[tesseract] name not matched to roster: 'looy' (0.38)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -66747,11 +66846,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: Nathan Burkholder; [tesseract] no vote read for present member: John Gannon",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -66768,11 +66871,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (9, 9, 0) != stated (10, 9, 0); [tesseract] counted (9, 9, 0) != stated (10, 9, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -66860,6 +66962,12 @@
           "value": "yes"
         },
         {
+          "official_id": "nathan-burkholder",
+          "raw_name": "Nathan Burkholder",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "rashidah-leverett",
           "raw_name": "Rashidah Leverett",
           "raw_value": "N",
@@ -66890,8 +66998,8 @@
       "item_id": "25-9-11",
       "meeting_id": "2025-09-08-formal",
       "motion_id": null,
-      "outcome": "other",
-      "outcome_text": "",
+      "outcome": "passed",
+      "outcome_text": "Suspend the Rules 25-9-11 and 25-9-12 On Motion by CommIssioner Gannon, seconded by Commissioner Padro, the Rules were Suspended for Resolutions 25-9-11 and 25-9-12 by the following roll call vote:",
       "page": 79,
       "source_id": "src-23b90a7b3727",
       "stated_tally": {
@@ -66919,11 +67027,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: John Gannon; [text-layer] no vote read for present member: Joe Creek; [text-layer] no vote read for present member: Ryan Gallant; [tesseract] unrecognised token(s) ['-+'] for Lisa Prichard; [tesseract] unrecognised token(s) ['a+'] for Autumn Simmons",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -66940,11 +67052,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (16, 0, 0) != stated (19, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -66990,8 +67101,20 @@
           "value": "yes"
         },
         {
+          "official_id": "joe-creek",
+          "raw_name": "Joe Creek",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "joe-smith",
           "raw_name": "Joe Smith",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "john-gannon",
+          "raw_name": "John Gannon",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -67034,6 +67157,12 @@
         {
           "official_id": "rickey-ray",
           "raw_name": "Rickey Ray",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "ryan-gallant",
+          "raw_name": "Ryan Gallant",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -69962,8 +70091,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "[text-layer] name not matched to roster: 'Joim Gaimon' (0.58); [text-layer] roster members not found in table: ['John Gannon']",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -69971,7 +70099,7 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] listed absent but has vote Yes: Jason Knight; [text-layer] no vote read for present member: Joe Smith; [tesseract] conflicting vote marks ['y', 'y'] for David Harper; [tesseract] unrecognised token(s) ['nee'] for Jeremiah Walker; [tesseract] listed absent but has vote Yes: Jason Knight; [tesseract] no vote read for present member: Joe Smith",
+            "detail": "[text-layer] listed absent but has vote Yes: Jason Knight; [text-layer] no vote read for present member: Joe Smith; [tesseract] unrecognised token(s) ['nee'] for Jeremiah Walker; [tesseract] listed absent but has vote Yes: Jason Knight; [tesseract] no vote read for present member: Joe Smith",
             "ok": false
           },
           {
@@ -69997,8 +70125,7 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (18, 0, 0) != stated (19, 0, 0); [tesseract] counted (18, 0, 0) != stated (19, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
         "status": "unverified"
@@ -70049,6 +70176,12 @@
         {
           "official_id": "joe-creek",
           "raw_name": "Joe Creek",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "john-gannon",
+          "raw_name": "Joim Gaimon",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -73419,11 +73552,11 @@
     },
     {
       "id": "rc-3a926fac-p134-0",
-      "item_id": "t-ed738e418e",
+      "item_id": "t-5b734f9295",
       "meeting_id": "2022-06-13-formal",
       "motion_id": "mo-3a926fac-p134-0",
-      "outcome": "other",
-      "outcome_text": "",
+      "outcome": "passed",
+      "outcome_text": "The foregoing Resolution was Adopted, in its original state, by the following roll call vote:",
       "page": 134,
       "source_id": "src-3a926fac623a",
       "stated_tally": {
@@ -73455,8 +73588,7 @@
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not stated or not recognised (None)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -73480,7 +73612,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -73818,8 +73950,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "[text-layer] name not matched to roster: 'JolmM.Gannon' (0.72); [text-layer] roster members not found in table: ['John M. Gannon']",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -73827,11 +73958,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: Joe Smith; [text-layer] no vote read for present member: Joe L. Creek; [text-layer] no vote read for present member: Jerry Allbert; [text-layer] no vote read for present member: Larry Rocconi; [tesseract] unrecognised token(s) ['oo'] for Brandon Butts",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -73848,11 +73983,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (15, 0, 0) != stated (20, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -73892,8 +74026,38 @@
           "value": "yes"
         },
         {
+          "official_id": "jerry-allbert",
+          "raw_name": "Jerry Allbert",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "joe-creek",
+          "raw_name": "Joe L. Creek",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "joe-smith",
+          "raw_name": "Joe Smith",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "john-gannon",
+          "raw_name": "JolmM.Gannon",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "joshua-beal",
           "raw_name": "Joshua Beal",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "larry-rocconi",
+          "raw_name": "Larry Rocconi",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -74361,7 +74525,7 @@
           },
           {
             "check": "reading_used",
-            "detail": "tesseract",
+            "detail": "text-layer",
             "ok": true
           },
           {
@@ -74456,25 +74620,25 @@
         },
         {
           "official_id": "larry-rocconi",
-          "raw_name": "Larry Rocconi",
+          "raw_name": "Larry Roeconi",
           "raw_value": "Y",
           "value": "yes"
         },
         {
           "official_id": "loretta-bryant",
-          "raw_name": "LorettaJ. Bryant",
+          "raw_name": "Loretta J. Bryant",
           "raw_value": "Y",
           "value": "yes"
         },
         {
           "official_id": "randy-allbert",
-          "raw_name": "Randy Allbert",
+          "raw_name": "Randy Alibert",
           "raw_value": "Y",
           "value": "yes"
         },
         {
           "official_id": "rashidah-leverett",
-          "raw_name": "Rashidah A, Leverett",
+          "raw_name": "Rashidah A. Leverett",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -77366,11 +77530,11 @@
     },
     {
       "id": "rc-57360144-p64-1",
-      "item_id": "t-0f04f1bcc6",
+      "item_id": "t-4620f3eb7b",
       "meeting_id": "2022-12-12-formal",
       "motion_id": null,
-      "outcome": "other",
-      "outcome_text": "",
+      "outcome": "passed",
+      "outcome_text": "The foregoing Resolution was Adopted, As Amended, by the following roll call vote:",
       "page": 64,
       "source_id": "src-573601442606",
       "stated_tally": {
@@ -77402,8 +77566,7 @@
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not stated or not recognised (None)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -77427,7 +77590,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -83164,8 +83327,8 @@
       "item_id": "t-acba4e63c0",
       "meeting_id": "2022-11-14-formal",
       "motion_id": "mo-64224653-p68-0",
-      "outcome": "other",
-      "outcome_text": "",
+      "outcome": "passed",
+      "outcome_text": "the foregoing Consent Agenda items were Adopted and Approved by the following rail call vote:",
       "page": 68,
       "source_id": "src-642246539ab0",
       "stated_tally": {
@@ -83197,8 +83360,7 @@
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not stated or not recognised (None)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -83222,7 +83384,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -83381,11 +83543,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: David Harper; [text-layer] no vote read for present member: Lisa Prichard; [text-layer] no vote read for present member: Chris Rasnic; [text-layer] no vote read for present member: Ryan Gallant; [text-layer] no vote read for present member: Billy Frye; [text-layer] no vote read for present member: Autumn Simmons; [text-layer] no vote read for present member: David Shelton; [tesseract] conflicting vote marks ['y', 'y'] for David Harper",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "tesseract",
             "ok": true
           },
           {
@@ -83402,16 +83568,45 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (13, 0, 0) != stated (20, 0, 0); [tesseract] counted (19, 0, 0) != stated (20, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
+          "official_id": "autumn-simmons",
+          "raw_name": "Autumn Simmons",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "billy-frye",
+          "raw_name": "Billy Frye",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "carmelle-chandler",
           "raw_name": "Carmelle Chandler",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "chris-rasnic",
+          "raw_name": "Chris Rasnic",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "david-harper",
+          "raw_name": "David Harper",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "david-shelton",
+          "raw_name": "David Shelton",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -83458,6 +83653,12 @@
           "value": "yes"
         },
         {
+          "official_id": "lisa-prichard",
+          "raw_name": "Lisa Prichard",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "michael-lankford",
           "raw_name": "Michael Lankford",
           "raw_value": "Y",
@@ -83478,6 +83679,12 @@
         {
           "official_id": "rickey-ray",
           "raw_name": "Rickey Ray",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "ryan-gallant",
+          "raw_name": "Ryan Gallant",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -83523,11 +83730,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: Billy Frye; [text-layer] no vote read for present member: Autumn Simmons; [text-layer] no vote read for present member: David Shelton; [tesseract] conflicting vote marks ['y', 'y'] for David Harper",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "tesseract",
             "ok": true
           },
           {
@@ -83544,13 +83755,24 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (16, 1, 0) != stated (19, 1, 0); [tesseract] counted (18, 1, 0) != stated (19, 1, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
+        {
+          "official_id": "autumn-simmons",
+          "raw_name": "Autumn Simmons",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "billy-frye",
+          "raw_name": "Billy Frye",
+          "raw_value": "Y",
+          "value": "yes"
+        },
         {
           "official_id": "carmelle-chandler",
           "raw_name": "Carmelle Chandler",
@@ -83565,7 +83787,13 @@
         },
         {
           "official_id": "david-harper",
-          "raw_name": "David Ha~er",
+          "raw_name": "David Harper",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "david-shelton",
+          "raw_name": "David Shelton",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -92352,8 +92580,8 @@
       "item_id": "25-10-8",
       "meeting_id": "2025-10-20-formal",
       "motion_id": "mo-7335f41b-p97-0",
-      "outcome": "other",
-      "outcome_text": "",
+      "outcome": "passed",
+      "outcome_text": "the Rules were Suspended for Resolution 25-10-8 by the following roll call vote:",
       "page": 97,
       "source_id": "src-7335f41b4ea6",
       "stated_tally": {
@@ -92381,11 +92609,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] unrecognised token(s) ['+'] for David Harper; [text-layer] no vote read for present member: David Harper; [tesseract] unrecognised token(s) ['a--'] for Jorge Padro",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -92402,11 +92634,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (16, 0, 0) != stated (17, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -92430,6 +92661,12 @@
         {
           "official_id": "chris-rasnic",
           "raw_name": "Chris Rasnic",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "david-harper",
+          "raw_name": "David Harper",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -94179,13 +94416,16 @@
       "outcome_text": "the foregoing Resolution was Adopted by the following roll call Vote:",
       "page": 12,
       "source_id": "src-8419efe1acc7",
-      "stated_tally": null,
+      "stated_tally": {
+        "abstain": 0,
+        "no": 0,
+        "yes": 21
+      },
       "verification": {
         "checks": [
           {
             "check": "absent_line_consistent",
-            "detail": "[tesseract] ABSENT line not found",
-            "ok": false
+            "ok": true
           },
           {
             "check": "in_meeting_record",
@@ -94193,8 +94433,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "[text-layer] name not matched to roster: 'Yeses —21 Noes' (0.32); [text-layer] name not matched to roster: 'Abstentions' (0.50); [tesseract] name not matched to roster: 'Yeses—21 Noes— Abstentions' (0.28); [tesseract] name not matched to roster: 'ABSENT: None' (0.40)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -94206,6 +94445,11 @@
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer",
             "ok": true
           },
           {
@@ -94222,11 +94466,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] stated tally not found; [tesseract] stated tally not found",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -94366,13 +94609,16 @@
       "outcome_text": "the foregoing Consent Agenda items were Adopted and Approved by the following roll call vote:",
       "page": 16,
       "source_id": "src-8419efe1acc7",
-      "stated_tally": null,
+      "stated_tally": {
+        "abstain": 0,
+        "no": 0,
+        "yes": 21
+      },
       "verification": {
         "checks": [
           {
             "check": "absent_line_consistent",
-            "detail": "[tesseract] ABSENT line not found",
-            "ok": false
+            "ok": true
           },
           {
             "check": "in_meeting_record",
@@ -94380,8 +94626,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "[text-layer] name not matched to roster: 'Yeses —21 Noes' (0.32); [text-layer] name not matched to roster: 'Abstentions' (0.50); [tesseract] name not matched to roster: 'Yeses—21 Noes— Abstentions' (0.28); [tesseract] name not matched to roster: 'ABSENT: None' (0.40)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -94393,6 +94638,11 @@
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer",
             "ok": true
           },
           {
@@ -94413,11 +94663,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] stated tally not found; [tesseract] stated tally not found",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -94750,13 +94999,16 @@
       "outcome_text": "Commissioner John Gannon was elected by the following roll call vote:",
       "page": 5,
       "source_id": "src-8419efe1acc7",
-      "stated_tally": null,
+      "stated_tally": {
+        "abstain": 1,
+        "no": 0,
+        "yes": 20
+      },
       "verification": {
         "checks": [
           {
             "check": "absent_line_consistent",
-            "detail": "[tesseract] ABSENT line not found",
-            "ok": false
+            "ok": true
           },
           {
             "check": "in_meeting_record",
@@ -94764,8 +95016,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "[text-layer] name not matched to roster: 'Yeses' (0.31); [text-layer] name not matched to roster: 'Noes' (0.50); [text-layer] name not matched to roster: 'Abstentions' (0.50); [tesseract] name not matched to roster: 'Yeses—20 Noes— Abstentions—' (0.28)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -94794,7 +95045,7 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] stated tally not found; [tesseract] stated tally not found",
+            "detail": "[text-layer] counted (19, 0, 1) != stated (20, 0, 1); [tesseract] counted (19, 0, 1) != stated (20, 0, 1)",
             "ok": false
           }
         ],
@@ -94932,13 +95183,16 @@
       "outcome_text": "the foregoing Resolution was Adopted by the following roll call Vote:",
       "page": 7,
       "source_id": "src-8419efe1acc7",
-      "stated_tally": null,
+      "stated_tally": {
+        "abstain": 0,
+        "no": 0,
+        "yes": 21
+      },
       "verification": {
         "checks": [
           {
             "check": "absent_line_consistent",
-            "detail": "[tesseract] ABSENT line not found",
-            "ok": false
+            "ok": true
           },
           {
             "check": "in_meeting_record",
@@ -94946,8 +95200,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "[text-layer] name not matched to roster: 'Yeses —21 Noes' (0.32); [text-layer] name not matched to roster: 'Abstentions' (0.50); [tesseract] name not matched to roster: 'Yeses—21 Noes— Abstentions' (0.28); [tesseract] name not matched to roster: 'ABSENT: None' (0.40)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -94959,6 +95212,11 @@
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer",
             "ok": true
           },
           {
@@ -94975,11 +95233,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] stated tally not found; [tesseract] stated tally not found",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -95119,13 +95376,16 @@
       "outcome_text": "the foregoing Resolution was Adopted by the following roll call Vote:",
       "page": 9,
       "source_id": "src-8419efe1acc7",
-      "stated_tally": null,
+      "stated_tally": {
+        "abstain": 0,
+        "no": 0,
+        "yes": 21
+      },
       "verification": {
         "checks": [
           {
             "check": "absent_line_consistent",
-            "detail": "[tesseract] ABSENT line not found",
-            "ok": false
+            "ok": true
           },
           {
             "check": "in_meeting_record",
@@ -95133,8 +95393,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "[text-layer] name not matched to roster: 'Yeses —21 Noes' (0.32); [text-layer] name not matched to roster: 'Abstentions' (0.50); [tesseract] name not matched to roster: 'Yeses—21 Noes— Abstentions' (0.28); [tesseract] name not matched to roster: 'ABSENT: None' (0.40)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -95142,11 +95401,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[tesseract] conflicting vote marks ['y', 'y'] for David Harper",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer",
             "ok": true
           },
           {
@@ -95163,11 +95426,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] stated tally not found; [tesseract] stated tally not found",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -95706,11 +95968,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: David Harper; [text-layer] no vote read for present member: Lisa Prichard; [text-layer] no vote read for present member: Chris Rasnic; [text-layer] no vote read for present member: Ryan Gallant; [text-layer] no vote read for present member: Billy Frye; [text-layer] no vote read for present member: David Shelton; [tesseract] conflicting vote marks ['y', 'a'] for Jason Knight",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -95727,16 +95993,39 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (14, 0, 0) != stated (20, 0, 0); [tesseract] counted (19, 0, 0) != stated (20, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
+          "official_id": "billy-frye",
+          "raw_name": "Billy Frye",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "carmelle-chandler",
           "raw_name": "Carmelle Chandler",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "chris-rasnic",
+          "raw_name": "Chris Rasnic",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "david-harper",
+          "raw_name": "David Harper",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "david-shelton",
+          "raw_name": "David Shelton",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -95789,6 +96078,12 @@
           "value": "yes"
         },
         {
+          "official_id": "lisa-prichard",
+          "raw_name": "Lisa Prichard",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "michael-lankford",
           "raw_name": "Michael Lankford",
           "raw_value": "Y",
@@ -95809,6 +96104,12 @@
         {
           "official_id": "rickey-ray",
           "raw_name": "Rickey Ray",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "ryan-gallant",
+          "raw_name": "Ryan Gallant",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -98105,7 +98406,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "[text-layer] name not matched to roster: 'Yeses' (0.31); [text-layer] name not matched to roster: 'Noes —0 Ab~tentions—0' (0.35); [tesseract] name not matched to roster: 'Yeses—19 Noes—0 Abitentions' (0.28); [tesseract] name not matched to roster: 'ABSENT: Jason Knight and Joe Creek' (0.44)",
+            "detail": "[text-layer] name not matched to roster: 'Yeses' (0.31); [text-layer] name not matched to roster: 'Noes —0 Ab~tentions—0' (0.36); [tesseract] name not matched to roster: 'Yeses—19 Noes—0 Abitentions' (0.29); [tesseract] name not matched to roster: 'ABSENT: Jason Knight and Joe Creek' (0.44)",
             "ok": false
           },
           {
@@ -102375,7 +102676,7 @@
           },
           {
             "check": "reading_used",
-            "detail": "tesseract",
+            "detail": "text-layer",
             "ok": true
           },
           {
@@ -102424,7 +102725,7 @@
         },
         {
           "official_id": "chris-rasnic",
-          "raw_name": "Chris Rasnic",
+          "raw_name": "ChrisRasnic",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -102442,7 +102743,7 @@
         },
         {
           "official_id": "james-lewis",
-          "raw_name": "James R. Lewis",
+          "raw_name": "JamesR.Lewis",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -102454,25 +102755,25 @@
         },
         {
           "official_id": "jerry-allbert",
-          "raw_name": "Jerry Allbert",
+          "raw_name": "Jerry Ailbert",
           "raw_value": "Y",
           "value": "yes"
         },
         {
           "official_id": "joe-creek",
-          "raw_name": "Joe L. Creek",
+          "raw_name": "JoeL. Creek",
           "raw_value": "Y",
           "value": "yes"
         },
         {
           "official_id": "joe-smith",
-          "raw_name": "Joe Smith",
+          "raw_name": "JoeSmith",
           "raw_value": "Y",
           "value": "yes"
         },
         {
           "official_id": "john-gannon",
-          "raw_name": "John M. Gannon",
+          "raw_name": "JoIm M. Gaimon",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -102496,7 +102797,7 @@
         },
         {
           "official_id": "loretta-bryant",
-          "raw_name": "LorettaJ.Bryant",
+          "raw_name": "Loretta J. Bryant",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -103503,7 +103804,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "[text-layer] absent name not on roster: 'Arnold Hodges'; [text-layer] absent name not on roster: 'Larry Rocconi'; [text-layer] name not matched to roster: 'Charles Keene' (0.42); [text-layer] name not matched to roster: 'Loretta I. Bryant' (0.41); [text-layer] name not matched to roster: 'JainesR.Le’wis' (0.32); [text-layer] name not matched to roster: 'Garland Johnson' (0.37); [text-layer] name not matched to roster: 'Arnold Hodges' (0.42); [text-layer] name not matched to roster: 'Jerry Ailber",
+            "detail": "[text-layer] absent name not on roster: 'Arnold Hodges'; [text-layer] absent name not on roster: 'Larry Rocconi'; [text-layer] name not matched to roster: 'Charles Keene' (0.43); [text-layer] name not matched to roster: 'Loretta I. Bryant' (0.41); [text-layer] name not matched to roster: 'JainesR.Le’wis' (0.32); [text-layer] name not matched to roster: 'Garland Johnson' (0.37); [text-layer] name not matched to roster: 'Arnold Hodges' (0.42); [text-layer] name not matched to roster: 'Jerry Ailber",
             "ok": false
           },
           {
@@ -103624,8 +103925,8 @@
       "item_id": "t-b36b72f8a1",
       "meeting_id": "2024-09-09-formal",
       "motion_id": "mo-a2761d17-p6-0",
-      "outcome": "other",
-      "outcome_text": "",
+      "outcome": "passed",
+      "outcome_text": "Commissioner John Gannon was electedby the following roll call vote:",
       "page": 6,
       "source_id": "src-a2761d17b968",
       "stated_tally": {
@@ -103645,8 +103946,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "[tesseract] name not matched to roster: 'ones' (0.50)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -103654,11 +103954,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: Ryan Gallant; [text-layer] no vote read for present member: Billy Frye; [tesseract] unrecognised token(s) ['Yo'] for Jeremiah Walker; [tesseract] no vote read for present member: Jeremiah Walker",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -103675,16 +103979,21 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (18, 0, 0) != stated (20, 0, 0); [tesseract] counted (19, 0, 0) != stated (20, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
           "official_id": "autumn-simmons",
           "raw_name": "Autumn Simmons",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "billy-frye",
+          "raw_name": "Billy Frye",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -103775,6 +104084,12 @@
         {
           "official_id": "rickey-ray",
           "raw_name": "Rickey Ray",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "ryan-gallant",
+          "raw_name": "Ryan Gallant",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -104171,8 +104486,8 @@
       "item_id": "24-9-4",
       "meeting_id": "2024-09-09-formal",
       "motion_id": null,
-      "outcome": "other",
-      "outcome_text": "",
+      "outcome": "passed",
+      "outcome_text": "The foregoing Resolution was Adopted, as Amended, by the following roll call vote:",
       "page": 68,
       "source_id": "src-a2761d17b968",
       "stated_tally": {
@@ -104204,8 +104519,7 @@
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not stated or not recognised (None)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -104229,7 +104543,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -104546,8 +104860,8 @@
       "item_id": "24-9-5",
       "meeting_id": "2024-09-09-formal",
       "motion_id": null,
-      "outcome": "other",
-      "outcome_text": "",
+      "outcome": "passed",
+      "outcome_text": "The foregoing Resolution was Adopted, as Amended, by the following roll call vote:",
       "page": 71,
       "source_id": "src-a2761d17b968",
       "stated_tally": {
@@ -104579,8 +104893,7 @@
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not stated or not recognised (None)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -104604,7 +104917,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -104734,8 +105047,8 @@
       "item_id": "24-9-7",
       "meeting_id": "2024-09-09-formal",
       "motion_id": "mo-a2761d17-p72-0",
-      "outcome": "other",
-      "outcome_text": "",
+      "outcome": "passed",
+      "outcome_text": "the Rules were Suspended for Resolution 24-9-7 by the following roll call vote:",
       "page": 72,
       "source_id": "src-a2761d17b968",
       "stated_tally": {
@@ -104767,8 +105080,7 @@
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not stated or not recognised (None)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -104792,7 +105104,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -105130,8 +105442,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "[text-layer] name not matched to roster: 'John Gannon' (0.58); [text-layer] roster members not found in table: ['JoIm Gaimon']; [tesseract] name not matched to roster: 'John Gannon' (0.58); [tesseract] roster members not found in table: ['JoIm Gaimon']",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -105143,6 +105454,11 @@
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer",
             "ok": true
           },
           {
@@ -105159,11 +105475,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (19, 0, 0) != stated (20, 0, 0); [tesseract] counted (19, 0, 0) != stated (20, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -105205,6 +105520,12 @@
         {
           "official_id": "jeremiah-walker",
           "raw_name": "Jeremiah Walker",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "john-gannon",
+          "raw_name": "John Gannon",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -105287,8 +105608,8 @@
       "item_id": "25-2-4",
       "meeting_id": "2025-02-10-formal",
       "motion_id": "mo-a3651056-p104-0",
-      "outcome": "other",
-      "outcome_text": "",
+      "outcome": "passed",
+      "outcome_text": "the Rules were Suspended for Resolution 25-2-4 by the following roll call vote:",
       "page": 104,
       "source_id": "src-a365105618bd",
       "stated_tally": {
@@ -105308,8 +105629,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "[text-layer] name not matched to roster: 'John Gannon' (0.58); [text-layer] roster members not found in table: ['JoIm Gaimon']; [tesseract] name not matched to roster: 'John Gannon' (0.58); [tesseract] roster members not found in table: ['JoIm Gaimon']",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -105317,11 +105637,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[tesseract] conflicting vote marks ['y', 'y'] for David Harper",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer",
             "ok": true
           },
           {
@@ -105338,11 +105662,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (19, 0, 0) != stated (20, 0, 0); [tesseract] counted (18, 0, 0) != stated (20, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -105384,6 +105707,12 @@
         {
           "official_id": "jeremiah-walker",
           "raw_name": "Jeremiah Walker",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "john-gannon",
+          "raw_name": "John Gannon",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -105487,8 +105816,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "[text-layer] name not matched to roster: 'John Gannon' (0.58); [text-layer] roster members not found in table: ['JoIm Gaimon']; [tesseract] name not matched to roster: 'John Gannon' (0.58); [tesseract] roster members not found in table: ['JoIm Gaimon']",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -105496,11 +105824,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[tesseract] unrecognised token(s) ['oY'] for Carmelle Chandler; [tesseract] no vote read for present member: Carmelle Chandler",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer",
             "ok": true
           },
           {
@@ -105517,11 +105849,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (19, 0, 0) != stated (20, 0, 0); [tesseract] counted (18, 0, 0) != stated (20, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -105563,6 +105894,12 @@
         {
           "official_id": "jeremiah-walker",
           "raw_name": "Jeremiah Walker",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "john-gannon",
+          "raw_name": "John Gannon",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -105849,11 +106186,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: David Harper; [text-layer] no vote read for present member: Lisa Prichard; [text-layer] no vote read for present member: Chris Rasnic; [text-layer] no vote read for present member: Ryan Gallant; [text-layer] no vote read for present member: Billy Frye; [text-layer] no vote read for present member: Autumn Simmons; [text-layer] no vote read for present member: David Shelton; [tesseract] unrecognised token(s) ['iY'] for Michael Lankford; [tesseract] no ",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -105870,16 +106211,45 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (11, 0, 0) != stated (18, 0, 0); [tesseract] counted (17, 0, 0) != stated (18, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
+          "official_id": "autumn-simmons",
+          "raw_name": "Autumn Simmons",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "billy-frye",
+          "raw_name": "Billy Frye",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "carmelle-chandler",
           "raw_name": "Carmelle Chandler",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "chris-rasnic",
+          "raw_name": "Chris Rasnic",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "david-harper",
+          "raw_name": "David Harper",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "david-shelton",
+          "raw_name": "David Shelton",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -105914,6 +106284,12 @@
           "value": "yes"
         },
         {
+          "official_id": "lisa-prichard",
+          "raw_name": "Lisa Prichard",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "michael-lankford",
           "raw_name": "Michael Lankford",
           "raw_value": "Y",
@@ -105934,6 +106310,12 @@
         {
           "official_id": "rickey-ray",
           "raw_name": "Rickey Ray",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "ryan-gallant",
+          "raw_name": "Ryan Gallant",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -106129,7 +106511,11 @@
       "outcome_text": "the foregoing Resolution Failed by the following roll call vote:",
       "page": 64,
       "source_id": "src-adbd2896a91a",
-      "stated_tally": null,
+      "stated_tally": {
+        "abstain": 0,
+        "no": 9,
+        "yes": 9
+      },
       "verification": {
         "checks": [
           {
@@ -106150,11 +106536,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[tesseract] listed absent but has vote Abstain: Joe Smith",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer",
             "ok": true
           },
           {
@@ -106171,11 +106561,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] tally unreadable ('9', '9', 's'); [tesseract] counted (9, 9, 1) != stated (9, 9, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -111456,8 +111845,8 @@
       "item_id": "23-6-6",
       "meeting_id": "2023-06-12-formal",
       "motion_id": null,
-      "outcome": "other",
-      "outcome_text": "",
+      "outcome": "passed",
+      "outcome_text": "The foregoing Motion was Approved by the following two-thirds (2/3) vote:",
       "page": 109,
       "source_id": "src-b325a18d7786",
       "stated_tally": {
@@ -111489,8 +111878,7 @@
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not stated or not recognised (None)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -111514,7 +111902,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -111824,11 +112212,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: Ryan Gallant; [tesseract] conflicting vote marks ['---', 'y'] for David Harper; [tesseract] unrecognised token(s) ['noe'] for Jason Knight; [tesseract] unrecognised token(s) ['m+'] for Rashidah Leverett; [tesseract] listed absent but has vote ?: David Harper",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -111845,11 +112237,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (16, 0, 0) != stated (17, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -111937,6 +112328,12 @@
           "value": "yes"
         },
         {
+          "official_id": "ryan-gallant",
+          "raw_name": "Ryan Gallant",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "tangi-smith",
           "raw_name": "Tangi Smith",
           "raw_value": "Y",
@@ -111984,11 +112381,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: Lisa Prichard; [text-layer] no vote read for present member: Chris Rasnic; [text-layer] no vote read for present member: Ryan Gallant; [text-layer] no vote read for present member: Billy Frye; [text-layer] no vote read for present member: Autumn Simmons; [text-layer] no vote read for present member: David Shelton; [tesseract] unrecognised token(s) ['wor'] for Rashidah Leverett",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -112005,16 +112406,39 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (8, 3, 0) != stated (14, 3, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
+          "official_id": "autumn-simmons",
+          "raw_name": "Autumn Simmons",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "billy-frye",
+          "raw_name": "Billy Frye",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "carmelle-chandler",
           "raw_name": "Carmelle Chandler",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "chris-rasnic",
+          "raw_name": "Chris Rasnic",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "david-shelton",
+          "raw_name": "David Shelton",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -112049,6 +112473,12 @@
           "value": "no"
         },
         {
+          "official_id": "lisa-prichard",
+          "raw_name": "Lisa Prichard",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "michael-lankford",
           "raw_name": "Michael Lankford",
           "raw_value": "Y",
@@ -112063,6 +112493,12 @@
         {
           "official_id": "rickey-ray",
           "raw_name": "Rickey Ray",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "ryan-gallant",
+          "raw_name": "Ryan Gallant",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -112758,11 +113194,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: Chris Rasnic; [text-layer] no vote read for present member: Robert Sigler; [text-layer] no vote read for present member: Garland Johnson; [text-layer] no vote read for present member: Jerry Ailbert; [text-layer] no vote read for present member: Larry Rocconi; [tesseract] unrecognised token(s) ['ue'] for John M. Gannon",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -112779,11 +113219,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (13, 0, 0) != stated (18, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -112805,14 +113244,32 @@
           "value": "yes"
         },
         {
+          "official_id": "chris-rasnic",
+          "raw_name": "Chris Rasnic",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "david-harper",
           "raw_name": "David Harper",
           "raw_value": "Y",
           "value": "yes"
         },
         {
+          "official_id": "garland-johnson",
+          "raw_name": "Garland Johnson",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "james-lewis",
           "raw_name": "James R. Lewis",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "jerry-allbert",
+          "raw_name": "Jerry Allbert",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -112825,6 +113282,12 @@
         {
           "official_id": "joshua-beal",
           "raw_name": "Joshua Beal",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "larry-rocconi",
+          "raw_name": "Larry Rocconi",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -112859,6 +113322,12 @@
           "value": "yes"
         },
         {
+          "official_id": "robert-sigler",
+          "raw_name": "Robert Sigler",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "walker-woodruff",
           "raw_name": "Walker R. Woodruff",
           "raw_value": "Y",
@@ -112867,13 +113336,13 @@
       ]
     },
     {
-      "id": "rc-ba7d4c92-p36-0",
-      "item_id": "t-27f58de9e8",
+      "id": "rc-ba7d4c92-p34-0",
+      "item_id": "t-952b1d7ece",
       "meeting_id": "2022-08-08-formal",
-      "motion_id": "mo-ba7d4c92-p36-0",
+      "motion_id": "mo-ba7d4c92-p34-0",
       "outcome": "passed",
       "outcome_text": "the foregoing Consent Agenda items were Adopted and Approved by the following roll call vote:",
-      "page": 36,
+      "page": 34,
       "source_id": "src-ba7d4c9267e5",
       "stated_tally": {
         "abstain": 1,
@@ -112908,7 +113377,7 @@
           },
           {
             "check": "reading_used",
-            "detail": "tesseract",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -112979,7 +113448,7 @@
         },
         {
           "official_id": "jerry-allbert",
-          "raw_name": "Jerry Allbert",
+          "raw_name": "Jerry Alibert",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -113039,7 +113508,7 @@
         },
         {
           "official_id": "walker-woodruff",
-          "raw_name": "Walker R. Woodruff",
+          "raw_name": "Walker R. Woodrpff",
           "raw_value": "Y",
           "value": "yes"
         }
@@ -113254,11 +113723,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: James R. Lewis; [tesseract] unrecognised token(s) ['=<'] for Joe Smith",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -113275,11 +113748,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (3, 14, 0) != stated (4, 14, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -113317,6 +113789,12 @@
           "raw_name": "Garland Johnson",
           "raw_value": "N",
           "value": "no"
+        },
+        {
+          "official_id": "james-lewis",
+          "raw_name": "James R. Lewis",
+          "raw_value": "Y",
+          "value": "yes"
         },
         {
           "official_id": "jerry-allbert",
@@ -113726,11 +114204,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] unrecognised token(s) ['V'] for Charles Keene; [text-layer] unrecognised token(s) ['V'] for Carmelle Chandler; [text-layer] unrecognised token(s) ['V'] for James R. Lewis; [text-layer] unrecognised token(s) ['V'] for Rickey Ray; [text-layer] unrecognised token(s) ['V'] for Joe L. Creek; [text-layer] unrecognised token(s) ['V'] for Lisa L. Prichard; [text-layer] unrecognised token(s) ['V'] for Randy Ailbert; [text-layer] unrecognised token(s) ['V'] for Walker R. Woodruff; [text-layer",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -113747,16 +114229,117 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (1, 0, 0) != stated (18, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
+          "official_id": "brandon-butts",
+          "raw_name": "Brandon Butts",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "carmelle-chandler",
+          "raw_name": "Carmelle Chandler",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "charles-keene",
+          "raw_name": "Charles Keene",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "chris-rasnic",
+          "raw_name": "Chris Rasnic",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "david-harper",
+          "raw_name": "David Harper",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "garland-johnson",
+          "raw_name": "Garland Johnson",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "james-lewis",
+          "raw_name": "James R. Lewis",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "jerry-allbert",
+          "raw_name": "Jerry Allbert",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "joe-creek",
+          "raw_name": "Joe L. Creek",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "joshua-beal",
+          "raw_name": "Joshua Beal",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "larry-rocconi",
+          "raw_name": "Larry Rocconi",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "lisa-prichard",
+          "raw_name": "Lisa L. Prichard",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "loretta-bryant",
+          "raw_name": "Loretta J. Bryant",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "randy-allbert",
+          "raw_name": "Randy Allbert",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "rashidah-leverett",
           "raw_name": "Rashidah A. Leverett",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "rickey-ray",
+          "raw_name": "Rickey Ray",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "robert-sigler",
+          "raw_name": "Robert Sigler",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "walker-woodruff",
+          "raw_name": "Walker R. Woodruff",
           "raw_value": "Y",
           "value": "yes"
         }
@@ -116510,7 +117093,7 @@
           },
           {
             "check": "reading_used",
-            "detail": "tesseract",
+            "detail": "text-layer",
             "ok": true
           },
           {
@@ -121851,8 +122434,8 @@
       "item_id": "25-4-9",
       "meeting_id": "2025-04-14-formal",
       "motion_id": "mo-d654cc03-p83-0",
-      "outcome": "other",
-      "outcome_text": "",
+      "outcome": "passed",
+      "outcome_text": "the Rules were Suspended for Resolutions 25-4-9 and 25-4-10 by the following roll call vote:",
       "page": 83,
       "source_id": "src-d654cc03e2f1",
       "stated_tally": {
@@ -121884,8 +122467,7 @@
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not stated or not recognised (None)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -121909,7 +122491,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -122460,11 +123042,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: John Gannon; [tesseract] unrecognised token(s) ['ane'] for Jeremiah Walker",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -122481,11 +123067,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (19, 0, 0) != stated (20, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -122539,6 +123124,12 @@
         {
           "official_id": "joe-smith",
           "raw_name": "Joe Smith",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "john-gannon",
+          "raw_name": "John Gannon",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -124792,11 +125383,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] no vote read for present member: David Harper; [text-layer] no vote read for present member: Lisa Prichard; [text-layer] no vote read for present member: Chris Rasnic; [text-layer] no vote read for present member: Ryan Gallant; [text-layer] no vote read for present member: Billy Frye; [text-layer] no vote read for present member: Autunm Simmons; [text-layer] no vote read for present member: David Shelton; [tesseract] unrecognised token(s) ['wos'] for Jeremiah Walker",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -124813,16 +125408,45 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] counted (13, 0, 0) != stated (20, 0, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
+          "official_id": "autumn-simmons",
+          "raw_name": "Autumn Simmons",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "billy-frye",
+          "raw_name": "Billy Frye",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "carmelle-chandler",
           "raw_name": "Carmelle Chandler",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "chris-rasnic",
+          "raw_name": "Chris Rasnic",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "david-harper",
+          "raw_name": "David Harper",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "david-shelton",
+          "raw_name": "David Shelton",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -124869,6 +125493,12 @@
           "value": "yes"
         },
         {
+          "official_id": "lisa-prichard",
+          "raw_name": "Lisa Prichard",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
           "official_id": "michael-lankford",
           "raw_name": "Michael Lankford",
           "raw_value": "Y",
@@ -124889,6 +125519,12 @@
         {
           "official_id": "rickey-ray",
           "raw_name": "Rickey Ray",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "ryan-gallant",
+          "raw_name": "Ryan Gallant",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -125850,7 +126486,11 @@
       "outcome_text": "the foregoing Resolution was Adopted by the following roll call vote:",
       "page": 102,
       "source_id": "src-eff152821896",
-      "stated_tally": null,
+      "stated_tally": {
+        "abstain": 0,
+        "no": 5,
+        "yes": 16
+      },
       "verification": {
         "checks": [
           {
@@ -125871,11 +126511,15 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "[text-layer] unrecognised token(s) ['V'] for Ryan Gallant; [text-layer] unrecognised token(s) ['V'] for David Shelton; [text-layer] no vote read for present member: Ryan Gallant; [text-layer] no vote read for present member: David Shelton; [tesseract] unrecognised token(s) ['N°:'] for Joe Smith; [tesseract] no vote read for present member: Joe Smith",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -125892,11 +126536,10 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] tally unreadable ('16', 'S', '0'); [tesseract] counted (16, 4, 0) != stated (16, 5, 0)",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -125926,6 +126569,12 @@
         {
           "official_id": "david-harper",
           "raw_name": "David Harper",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "david-shelton",
+          "raw_name": "David Shelton",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -125998,6 +126647,12 @@
         {
           "official_id": "rickey-ray",
           "raw_name": "Rickey Ray",
+          "raw_value": "Y",
+          "value": "yes"
+        },
+        {
+          "official_id": "ryan-gallant",
+          "raw_name": "Ryan Gallant",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -128529,8 +129184,8 @@
       "item_id": "23-9-8",
       "meeting_id": "2023-09-11-formal",
       "motion_id": "mo-eff15282-p96-0",
-      "outcome": "other",
-      "outcome_text": "",
+      "outcome": "passed",
+      "outcome_text": "The foregoing Resotution was Adopted by the following roll catl vote:",
       "page": 96,
       "source_id": "src-eff152821896",
       "stated_tally": {
@@ -128562,8 +129217,7 @@
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not stated or not recognised (None)",
-            "ok": false
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -128587,7 +129241,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
