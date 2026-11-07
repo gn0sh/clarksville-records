@@ -1,21 +1,38 @@
 {% extends "base.html.j2" %}
-{% from "_macros.html.j2" import source, fact_meta, person, item_link, motion_block, roll_call_block %}
+{% from "_macros.html.j2" import source, fact_meta, cite, person, item_link, motion_block, roll_call_block, chip, nc_mark, stat %}
 {% block main %}
-<h1>{{ kind_label }}, <span class="nowrap">{{ meeting.date }}</span></h1>
-<p>{{ meeting.body }}. Source: <a href="{{ doc.url }}" target="_blank" rel="noopener noreferrer">{{ doc.kind }} PDF, {{ doc.pages }} pages<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ doc.fetched }}.</p>
+<header class="meeting-head">
+  <p class="kind-line"><span class="chip chip-kind">{{ kind_label }}</span></p>
+  <h1>{{ kind_label }}, <span class="nowrap">{{ meeting.date }}</span></h1>
+  <p class="source-line">{{ meeting.body }}. Source: <a href="{{ doc.url }}" target="_blank" rel="noopener noreferrer">{{ doc.kind }} PDF, {{ doc.pages }} pages<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ doc.fetched }}.</p>
+  <ul class="stats stats-meeting">
+    {% if attendance_state == "shown" %}
+    {{ stat(stats.present ~ " of " ~ stats.listed, "members present") }}
+    {% elif attendance_state == "under_review" %}
+    {{ stat("n/a", "attendance under review, not shown") }}
+    {% else %}
+    {{ stat("n/a", "attendance not extracted, not shown") }}
+    {% endif %}
+    {{ stat(stats.motions, "motions") }}
+    {{ stat(stats.rc_confirmed, "roll calls confirmed") }}
+    {{ stat(stats.rc_unconfirmed, "roll calls not confirmed*") }}
+    {{ stat(stats.unmatched, "names not matched to an official") }}
+  </ul>
+</header>
 
 <section aria-labelledby="attendance">
   <h2 id="attendance">Attendance</h2>
   {% if attendance_state == "shown" %}
   <div class="table-scroll" tabindex="0" role="region" aria-label="Attendance table">
-  <table class="attendance">
-    <thead><tr><th scope="col">Member</th><th scope="col">Recorded</th><th scope="col">Source</th></tr></thead>
-    <tbody>
+  {# Explicit roles: style.css makes this table a grid at phone width, which removes native table semantics. #}
+  <table class="attendance" role="table">
+    <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Member</th><th scope="col" role="columnheader">Recorded</th><th scope="col" role="columnheader">Source</th></tr></thead>
+    <tbody role="rowgroup">
     {% for a in attendance %}
-      <tr class="fact" data-fact-id="{{ a.fact_id }}">
-        <th scope="row">{{ person(a.who, root) }}</th>
-        <td>{{ a.status }}</td>
-        <td>{{ source(a.src) }}<br><small>{{ fact_meta(root, a.fact_id) }}</small></td>
+      <tr role="row" class="fact" data-fact-id="{{ a.fact_id }}">
+        <th scope="row" role="rowheader">{{ person(a.who, root) }}</th>
+        <td role="cell">{{ chip(a.status, a.status | lower) }}</td>
+        <td role="cell" class="cite">{{ source(a.src) }}<br><small>{{ fact_meta(root, a.fact_id) }}</small></td>
       </tr>
     {% endfor %}
     </tbody>
@@ -31,19 +48,19 @@
 <section aria-labelledby="motions">
   <h2 id="motions">Motions and roll calls</h2>
   <p>In the order they appear in the minutes.</p>
+  {% if unconfirmed_text %}<p class="nc-summary">{{ unconfirmed_text }}</p>{% endif %}
   {% for b in blocks %}
-  <article class="fact block" id="{{ b.id }}" data-fact-id="{{ b.id }}">
-    <h3>{{ "Roll call" if b.kind == "roll_call" else "Motion" }}: {{ item_link(b.item, root) }}</h3>
+  <article class="fact block {{ 'block-roll' if b.kind == 'roll_call' else 'block-motion' }}{% if b.kind == 'roll_call' and not b.confirmed %} nc{% endif %}" id="{{ b.id }}" data-fact-id="{{ b.id }}">
+    <h3>{{ "Roll call" if b.kind == "roll_call" else "Motion" }}: {{ item_link(b.item, root) }}{% if b.kind == "roll_call" and not b.confirmed %} <span class="chip chip-status"><span aria-hidden="true">*</span> Not confirmed</span>{% endif %}</h3>
     {% if b.kind == "roll_call" %}
     {{ roll_call_block(b, root) }}
     {% else %}
     {{ motion_block(b, root) }}
     {% endif %}
-    <p class="meta">{{ source(b.src) }} <span class="sep" aria-hidden="true">&middot;</span> {{ fact_meta(root, b.id) }}</p>
+    {{ cite(b.src, root, b.id) }}
   </article>
   {% else %}
   <p>No motions or roll calls are shown for this meeting.</p>
   {% endfor %}
-  {% if unconfirmed_text %}<p class="held">{{ unconfirmed_text }}</p>{% endif %}
 </section>
 {% endblock %}
