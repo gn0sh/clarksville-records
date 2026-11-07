@@ -9,12 +9,22 @@
 <span class="unconfirmed">* Not confirmed: this page was hard to read. <a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">Read it yourself<span class="sr-only"> (p. {{ src.page }} of the {{ src.kind }} PDF, opens in a new tab)</span></a>.</span>
 {%- endmacro %}
 
+{# The asterisk, so screen readers say the words rather than "star" (design 2.6). #}
+{% macro nc_mark() -%}
+<span class="nc-mark" aria-hidden="true">*</span><span class="sr-only"> (not confirmed)</span>
+{%- endmacro %}
+
 {% macro report(root, fact_id) -%}
 <a href="{{ root }}about.html#corrections" aria-label="Report an error in {{ fact_id }}">Report an error</a>
 {%- endmacro %}
 
 {% macro fact_meta(root, fact_id) -%}
 <span class="fact-id">Fact id <code>{{ fact_id }}</code></span> <span class="sep" aria-hidden="true">&middot;</span> {{ report(root, fact_id) }}
+{%- endmacro %}
+
+{# The citation line under every fact. #}
+{% macro cite(src, root, fact_id) -%}
+<p class="meta"><span class="cite-label">Source:</span> {{ source(src) }} <span class="sep" aria-hidden="true">&middot;</span> {{ fact_meta(root, fact_id) }}</p>
 {%- endmacro %}
 
 {% macro person(p, root) -%}
@@ -25,17 +35,39 @@
 {% if item.href %}<a href="{{ root }}{{ item.href }}">{% if item.number %}<strong>{{ item.number }}</strong> {% endif %}{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}
 {%- endmacro %}
 
-{% macro vote_table(votes, root) %}
-<div class="table-scroll" tabindex="0" role="region" aria-label="Votes by member">
-<table class="votes">
-  <thead><tr><th scope="col">Member</th><th scope="col">Recorded vote</th></tr></thead>
-  <tbody>
+{# A vote or attendance chip: swatch (pattern, never colour) plus the word. key is yes/no/abstain/other/present/absent. #}
+{% macro chip(label, key, star=false) -%}
+<span class="chip"><span class="key seg-{{ key }}" aria-hidden="true"></span><span>{{ label }}{% if star %}{{ nc_mark() }}{% endif %}</span></span>
+{%- endmacro %}
+
+{# The stacked bar: every segment, always, in the order views.py gives, with --n the only inline style. #}
+{% macro bar(segments) -%}
+<div class="bar" aria-hidden="true">{% for s in segments %}<span class="seg seg-{{ s.key }}" style="--n: {{ s.n }}"></span>{% endfor %}</div>
+{%- endmacro %}
+
+{% macro legend(segments, star=false) -%}
+<ul class="legend">
+{% for s in segments %}
+  <li><span class="key seg-{{ s.key }}" aria-hidden="true"></span>{{ s.label }}{% if star %}*{% endif %}: {{ s.n }}</li>
+{% endfor %}
+</ul>
+{%- endmacro %}
+
+{% macro stat(number, label) -%}
+<li class="stat"><span class="stat-num">{{ number }}</span><span class="stat-label">{{ label }}</span></li>
+{%- endmacro %}
+
+{% macro badge(initials, big=false) -%}
+<span class="badge{% if big %} badge-lg{% endif %}" aria-hidden="true">{{ initials }}</span>
+{%- endmacro %}
+
+{# Votes by member, alphabetical as views.py orders them. A name that did not match shows the fixed text only. #}
+{% macro vote_grid(votes, root) %}
+<ul class="vote-grid" aria-label="Votes by member">
   {% for v in votes %}
-    <tr><th scope="row">{{ person(v.who, root) }}{% if v.star %}*{% endif %}</th><td>{{ v.label }}{% if v.star %}*{% endif %}</td></tr>
+  <li><span class="vname">{{ person(v.who, root) }}{% if v.star and not v.who.href %}{{ nc_mark() }}{% endif %}</span> {{ chip(v.label, v.key, v.star) }}</li>
   {% endfor %}
-  </tbody>
-</table>
-</div>
+</ul>
 {% endmacro %}
 
 {# A motion or roll call as one block. Used on meeting pages and item pages.
@@ -45,14 +77,16 @@
 {% if b.attribution_held %}
 <p class="held">Attribution under review.</p>
 {% else %}
-<p>{% if b.moved_by %}Moved by {{ person(b.moved_by, root) }}{% endif %}{% if b.moved_by and b.seconded_by %}, {% endif %}{% if b.seconded_by %}{% if b.moved_by %}seconded{% else %}Seconded{% endif %} by {{ person(b.seconded_by, root) }}{% endif %}{% if b.star %}*{% endif %}.</p>
-{% if b.star %}<p>{{ not_confirmed(b.src) }}</p>{% endif %}
+<p>{% if b.moved_by %}Moved by {{ person(b.moved_by, root) }}{% endif %}{% if b.moved_by and b.seconded_by %}, {% endif %}{% if b.seconded_by %}{% if b.moved_by %}seconded{% else %}Seconded{% endif %} by {{ person(b.seconded_by, root) }}{% endif %}{% if b.star %}{{ nc_mark() }}{% endif %}.</p>
+{% if b.star %}<p class="nc-note">{{ not_confirmed(b.src) }}</p>{% endif %}
 {% endif %}
 {% endmacro %}
 
 {% macro roll_call_block(b, root) %}
-{% if not b.confirmed %}<p>{{ not_confirmed(b.src) }}</p>{% endif %}
-{% if b.motion_label %}<p><strong>{{ b.motion_label }}.</strong> {% if b.motion_by %}{{ b.motion_by }}{% if b.motion_by_star %}*{% endif %}.{% else %}Attribution under review.{% endif %}</p>{% endif %}
-{{ vote_table(b.votes, root) }}
-<p><strong>Outcome{% if not b.confirmed %}*{% endif %}:</strong> {{ b.outcome.label }} ({{ b.outcome.tally }}).</p>
+{% if not b.confirmed %}<p class="nc-note">{{ not_confirmed(b.src) }}</p>{% endif %}
+<p class="outcome"><strong class="label">Outcome{% if not b.confirmed %}*{% endif %}:</strong> <span class="chip chip-outcome">{{ b.outcome.label }}</span> ({{ b.outcome.tally }}).</p>
+{{ bar(b.bar) }}
+{% if b.motion_label %}<p class="motion-line"><strong>{{ b.motion_label }}.</strong> {% if b.motion_by %}{{ b.motion_by }}{% if b.motion_by_star %}{{ nc_mark() }}{% endif %}.{% else %}Attribution under review.{% endif %}</p>{% endif %}
+<p class="label votes-label">Votes, alphabetical</p>
+{{ vote_grid(b.votes, root) }}
 {% endmacro %}

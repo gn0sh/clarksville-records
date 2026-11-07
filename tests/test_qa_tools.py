@@ -117,7 +117,12 @@ def test_review_page_in_public_build_is_caught(site, built):
 
 
 def test_missing_or_misordered_index_entry_is_caught(site):
-    edit(site / "index.html", '<li><a href="officials/b-sample.html">B. Sample</a> <span class="muted">Commissioner</span></li>', "")
+    import re
+    index = site / "index.html"
+    t = index.read_text(encoding="utf-8")
+    t2 = re.sub(r'<li class="card">(?:(?!</li>).)*?officials/b-sample\.html.*?</li>', "", t, count=1, flags=re.S)
+    assert t2 != t, "the b-sample card was not found on the index"
+    index.write_text(t2, encoding="utf-8")
     assert "index" in failed(run(site))
 
 
