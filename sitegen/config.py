@@ -3,6 +3,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = REPO_ROOT / "schema" / "facts.schema.json"
+CHANGES_SCHEMA_PATH = REPO_ROOT / "schema" / "changes.schema.json"
 TEMPLATE_DIR = REPO_ROOT / "site" / "templates"
 STATIC_DIR = REPO_ROOT / "site" / "static"
 
@@ -25,3 +26,9 @@ EVENT_TYPE_LABELS = {
     "other": "Other",
 }
 OUTCOME_LABELS = {"passed": "Passed", "failed": "Failed", "other": "Other"}
+
+# Merge rule 1: leading titles dropped before a name is matched (architecture, Names and merge rules).
+NAME_TITLES = ("Commissioner", "Comm.", "Chairman", "Chairwoman", "Mayor", "Mr.", "Mrs.", "Ms.", "Dr.")
+
+# Source URLs must use this scheme; anything else fails the build.
+ALLOWED_URL_SCHEMES = ("https",)

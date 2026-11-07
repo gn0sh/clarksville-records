@@ -11,6 +11,15 @@ BANNED = re.compile(r"\b(rank|score|grade|missed|percent|best|worst)|%", re.IGNO
 COUNT_WORDS = re.compile(r"count|total|num|len|size|absent|present|yes|no\b|vote|n_", re.IGNORECASE)
 
 
+def normalise_totals(s: str) -> str:
+    """Numbers to N, and singular forms to plural: only grammatical number may vary with a count."""
+    s = re.sub(r"\d+", "N", s)
+    return (s.replace("roll call in", "roll calls in").replace("meeting in", "meetings in")
+            .replace(" is not shown because it is ", " are not shown because they are ")
+            .replace("period is ", "period are ").replace("period has ", "period have ")
+            .replace("and is not", "and are not").replace("roll call under review is", "roll calls under review are"))
+
+
 def skeleton(html: str) -> list:
     """Tag names, ids, heading and column-header text, in order. Row data and the contents of the year list are
     data, so tbody contents and year options are skipped."""
@@ -61,13 +70,8 @@ def test_totals_wording_is_fixed(pages, facts):
     texts = set()
     for o in facts["officials"]:
         t = views.totals_sentences(views.Index(facts), o["id"])
-        assert len(t) == 3
-        norm = [re.sub(r"\d+", "N", s) for s in t]
-        # Only grammatical number may vary with the count; the sentence is otherwise identical.
-        norm = [s.replace("roll call in", "roll calls in").replace("meeting in", "meetings in")
-                .replace(" is not shown because it is ", " are not shown because they are ")
-                .replace("period is ", "period are ").replace("period has ", "period have ")
-                .replace("and is not", "and are not") for s in norm]
+        assert len(t) == 4
+        norm = [normalise_totals(s) for s in t]
         texts.add(tuple(norm))
     assert len(texts) == 1
 

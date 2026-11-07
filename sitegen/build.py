@@ -5,9 +5,10 @@ import json
 import shutil
 import sys
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import jinja2
-from jsonschema import Draft202012Validator
+from jsonschema import Draft202012Validator, FormatChecker
 
 from . import config, views
 
@@ -16,13 +17,91 @@ class BuildError(Exception):
     pass
 
 
+FORMAT_CHECKER = FormatChecker()
+
+
+@FORMAT_CHECKER.checks("uri")
+def _is_https_uri(value) -> bool:
+    """`format: uri` in our schemas means an absolute https URL with a host and no whitespace, quotes or angle
+    brackets. jsonschema's own uri check needs an optional package, so the rule is defined here, in one place."""
+    if not isinstance(value, str):
+        return True
+    if any(c.isspace() or c in "\"'<>`\\" or ord(c) < 32 for c in value):
+        return False
+    u = urlsplit(value)
+    return u.scheme.lower() in config.ALLOWED_URL_SCHEMES and bool(u.netloc) and value.lower().startswith("https://")
+
+
+def _validator(schema_path: Path) -> Draft202012Validator:
+    schema = json.loads(Path(schema_path).read_text(encoding="utf-8"))
+    return Draft202012Validator(schema, format_checker=FORMAT_CHECKER)
+
+
+def _schema_errors(validator: Draft202012Validator, doc) -> list[str]:
+    errors = sorted(validator.iter_errors(doc), key=lambda e: list(e.absolute_path))
+
+    def message(e) -> str:
+        if e.validator == "format" and e.validator_value == "uri":
+            return f"{e.instance!r} is not allowed: source links must be https:// URLs"
+        return e.message
+
+    return [f"  {'/'.join(str(p) for p in e.absolute_path) or '(root)'}: {message(e)}" for e in errors[:20]]
+
+
+def check_references(facts: dict) -> None:
+    """Every id a fact points at must exist. Raises BuildError naming the first missing id and where it was used."""
+    ids = {k: {x["id"] for x in facts[k]} for k in ("sources", "officials", "meetings", "items", "motions", "roll_calls")}
+
+    def need(kind: str, value, where: str) -> None:
+        if value not in ids[kind]:
+            raise BuildError(f"{where} refers to {kind[:-1]} id {value!r}, which is not in the facts file")
+
+    def need_official(ref, where: str) -> None:
+        if ref is not None and ref["official_id"] is not None:
+            need("officials", ref["official_id"], where)
+
+    for m in facts["meetings"]:
+        need("sources", m["source_id"], f"meeting {m['id']}")
+        for a in m["attendance"]:
+            need_official(a, f"meeting {m['id']} attendance")
+    for e in facts["item_events"]:
+        where = f"item event {e['id']}"
+        need("items", e["item_id"], where)
+        need("meetings", e["meeting_id"], where)
+        need("sources", e["source_id"], where)
+        if e["ref"] is not None:
+            if e["type"] == "motion":
+                need("motions", e["ref"], where)
+            elif e["type"] == "roll_call":
+                need("roll_calls", e["ref"], where)
+            elif e["ref"] not in ids["motions"] | ids["roll_calls"]:
+                raise BuildError(f"{where} refers to motion or roll call id {e['ref']!r}, which is not in the facts file")
+    for mo in facts["motions"]:
+        where = f"motion {mo['id']}"
+        need("meetings", mo["meeting_id"], where)
+        need("items", mo["item_id"], where)
+        need("sources", mo["source_id"], where)
+        need_official(mo["moved_by"], where + " moved_by")
+        need_official(mo["seconded_by"], where + " seconded_by")
+    for rc in facts["roll_calls"]:
+        where = f"roll call {rc['id']}"
+        need("meetings", rc["meeting_id"], where)
+        need("items", rc["item_id"], where)
+        need("sources", rc["source_id"], where)
+        if rc["motion_id"] is not None:
+            need("motions", rc["motion_id"], where)
+        for v in rc["votes"]:
+            need_official(v, where + " vote")
+    for c in facts["corrections"]:
+        need("sources", c["source_id"], f"correction of {c['fact_id']}")
+
+
 def load_facts(facts_path: Path) -> dict:
     facts = json.loads(Path(facts_path).read_text(encoding="utf-8"))
-    schema = json.loads(config.SCHEMA_PATH.read_text(encoding="utf-8"))
-    errors = sorted(Draft202012Validator(schema).iter_errors(facts), key=lambda e: list(e.absolute_path))
-    if errors:
-        lines = [f"  {'/'.join(str(p) for p in e.absolute_path) or '(root)'}: {e.message}" for e in errors[:20]]
+    lines = _schema_errors(_validator(config.SCHEMA_PATH), facts)
+    if lines:
         raise BuildError(f"{facts_path} does not match schema/facts.schema.json:\n" + "\n".join(lines))
+    check_references(facts)
     return facts
 
 
@@ -39,14 +118,19 @@ def make_env() -> jinja2.Environment:
 def read_changes(path: Path | None) -> list[dict]:
     if path is None or not Path(path).is_file():
         return []
+    validator = _validator(config.CHANGES_SCHEMA_PATH)
     entries = []
     for n, line in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), 1):
         if not line.strip():
             continue
         try:
-            entries.append(json.loads(line))
+            entry = json.loads(line)
         except json.JSONDecodeError as exc:
             raise BuildError(f"{path} line {n}: not valid JSON ({exc})") from exc
+        problems = _schema_errors(validator, entry)
+        if problems:
+            raise BuildError(f"{path} line {n} does not match schema/changes.schema.json:\n" + "\n".join(problems))
+        entries.append(entry)
     return entries
 
 
