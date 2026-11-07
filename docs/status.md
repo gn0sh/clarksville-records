@@ -18,7 +18,8 @@
 | 2026-11-07 | code-reviewer | opus/medium | review F1-F5 | request changes: 1 high, 2 medium, 4 low, 1 nit |
 | 2026-11-07 | frontend-engineer | opus/high (stepped up) | fix review findings | done, 98c98c0 |
 | 2026-11-07 | code-reviewer | opus/medium | delta re-review | request changes: neutrality 2nd hit, about page copy |
-| 2026-11-07 | software-architect | opus/high | held-count invariant + fix (loop rule) | running |
+| 2026-11-07 | software-architect | opus/high | held-count invariant + fix (loop rule) | done, a8154fa |
+| 2026-11-07 | code-reviewer | opus/medium | delta re-review x2 | approve (1 low passed to backend: g4-blind-to-uniform) |
 
 ## Decisions
 - 2026-11-07 G1: footer line on every page + About page naming the operator (CEO, card).
