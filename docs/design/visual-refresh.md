@@ -462,3 +462,11 @@ New tests (frontend-engineer adds):
 - Folded in by ux-designer: the CEO decision above is now designed in sections 2.6, 3.1-3.3, 4.3-4.5, 5.1, 5.3,
   5.4 and 6; the not-confirmed counts on the official page are text only, outside the bar.
 - Risk 1 decision: keep the attendance line on cards. Participation is the CEO's stated goal, the line is a plain count with its denominator, the order is alphabetical and nothing is highlighted. code-reviewer checks it.
+
+## UX pass: dropdowns and collapsed groups (2026-11-07)
+
+CEO: "we've got some work to do as far as UX", "consider using dropdowns to keep menus clean". Native `<details>`/`<summary>` and CSS only; N6 still allows one script (`filter.js`).
+- **Masthead:** Officials, an "Items" dropdown (years newest first) and a "More" dropdown (About, Changes, Review when internal). At 640px and narrower the wide nav is hidden and a single "Menu" dropdown shows instead (two `<nav>`s, CSS picks one, so assistive tech reads only the visible one). The two wide dropdowns share `name="main-nav"` so opening one closes the other where supported.
+- **Home:** the year buttons became a "Jump to year" dropdown; meetings sit in one `<details>` per year, newest open. The jump link's id is on the list inside the group so the browser opens the group on navigation.
+- **Items year pages:** the table of contents is grouped by month of the item's first appearance (my call: months give about 5 to 20 links per group, meetings would give many tiny groups), all collapsed. Grouping lives in `views._toc_groups`.
+- **Official history:** one table per year inside a `<details>` (newest open); `views.official` returns `row_groups`. `filter.js` filters rows across all tables, hides groups with no match and opens the chosen year. The year label is a `<span>`, not a heading, so the page skeleton stays identical for every official (N1 test).

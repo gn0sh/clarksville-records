@@ -31,16 +31,18 @@
 <h2 id="meetings">Meetings</h2>
 <p>Newest first. Each meeting page shows attendance, motions and roll calls.</p>
 {% if meetings_by_year %}
-<nav class="year-nav" aria-label="Meeting years">
-  <ul>
+<details class="menu year-jump">
+  <summary>Jump to year</summary>
+  <ul class="menu-list" aria-label="Meeting years">
   {% for g in meetings_by_year %}
     <li><a href="#y{{ g.year }}">{{ g.year }}</a></li>
   {% endfor %}
   </ul>
-</nav>
+</details>
 {% for g in meetings_by_year %}
-<h3 id="y{{ g.year }}">{{ g.year }}</h3>
-<ol class="timeline meetings" aria-label="Meetings in {{ g.year }}">
+<details class="year-group"{% if loop.first %} open{% endif %}>
+<summary><span class="year-label">{{ g.year }}</span></summary>
+<ol class="timeline meetings" id="y{{ g.year }}" aria-label="Meetings in {{ g.year }}">
   {% for m in g.meetings %}
   <li class="ev-meeting">
     <p class="tl-head"><a class="date" href="{{ m.href }}">{{ m.date }}</a> <span class="tl-kind">{{ m.kind_label }}</span></p>
@@ -48,6 +50,7 @@
   </li>
   {% endfor %}
 </ol>
+</details>
 {% endfor %}
 {% else %}
 <p>No meetings are available yet.</p>
