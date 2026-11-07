@@ -1,2 +1,10 @@
 .claude/worktrees/
 .worktrees/
+# collector caches (downloads and derived text are not committed; data/manifest.json is)
+data/raw/
+data/text/
+data/ocr/
+data/out/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
