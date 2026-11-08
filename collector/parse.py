@@ -87,6 +87,9 @@ class Attendance:
     vacant: list[str]
     verified: bool
     reasons: list[str]
+    # header name -> other spellings of the same official (names.yml name and aliases), filled in by the caller when
+    # the header name resolves exactly (collector.minutes); used only to pair vote-table cells with header names
+    spellings: dict = field(default_factory=dict)
 
 
 DATE_RE = re.compile(r"\b(" + "|".join(MONTHS) + r")\s+(\d{1,2})\s*[,.]?\s*(\d{4})", re.I)
@@ -351,14 +354,24 @@ EDGE_NOISE = ",.;:'‘’`~|[](){}!\"“”*•=«»"
 # letter, e.g. "¥", "YY", "Y¥" (tesseract reads the scanned Y this way). Mixed letters stay unknown.
 VOTE_GLYPHS = {"y": set("Yy¥"), "n": set("Nn"), "a": set("Aa")}
 TABLE_HEAD = re.compile(r"District\s+Commissioner\s+Vote", re.I)
-TALLY = re.compile(r"Yes\w*\s*[^\w\n]*\s*(\w{1,3})\s*No\w*\s*[^\w\n]*\s*(\w{1,3})\s*Abst\w*\s*[^\w\n]*\s*(\w{1,3})",
+ABSENT_REASON = re.compile(r"ABSENT|absent name not on roster")   # a reading's ABSENT-line problems
+# a count may be blank ("Yeses - 20 Noes -  Abstentions - 1": the clerk printed no number); read_table derives a
+# single blank count from the roster, never a garbled one
+TALLY = re.compile(r"Yes\w*\s*[^\w\n]*\s*(\w{1,3})?\s*No\w*\s*[^\w\n]*\s*(\w{1,3})?\s*Abst\w*\s*[^\w\n]*\s*(\w{1,3})?",
                    re.I)
 ITEM_RE = re.compile(r"(?<![\w-])(\d{2}\s?[-~_—–]\s?[\dIlO]{1,2}\s?[-~_—–]\s?[\dIlO]{1,2}"   # 24-12-1
                      r"|[A-Z]{1,3}\s?-\s?[\dIlO]{1,3}\s?-\s?\d(?:\s?\d){3})(?![\w-])")      # AB-4-2024, CZ-l1-2022, AB-7-2 023
-# outcome word: the one at most two lowercase words before "by the following roll call"
+# outcome word: the one at most two lowercase words before "by the following roll call". Between them the minutes may
+# also print one comma-enclosed phrase ("was Adopted, in its original state, by", "Adopted, as Amended, by") or, after
+# Suspended, the items the rules were suspended for ("Suspended for Resolutions 25-4-9 and 25-4-10 by"). OCR variants
+# of "the" and "roll call" ("by th~ following", "rail call", "roll catl") and a lost space ("was electedby the") are
+# read as those words; "by the following two-thirds (2/3) vote" heads a roll call table too.
 OUTCOME_RE = re.compile(r"((?i:Adopted|Approved|Failed|Defeated|Denied|Amended|Deferred|Withdrawn|Postponed"
                         r"|Tabled|Elected|Suspended))"
-                        r"(?:\s+[^\sA-Z]\S*){0,2}\s+by\s+the\s+f\S{4,8}\s+(?i:roll\s+call)", re.S)
+                        r"(?:\s*,(?:\s+[A-Za-z]+){1,5}\s*,)?"
+                        r"(?:\s+for\s+(?:Resolutions?\s+)?[\w-]+(?:\s*(?:,|and)\s*[\w-]+)*)?"
+                        r"(?:\s+[^\sA-Z]\S*){0,2}\s*by\s+t\S{1,2}\s+f\S{4,8}\s+"
+                        r"(?i:r\S{2,3}\s+c\S{2,3}|two-thirds\s*\(2/3\)\s+vote)", re.S)
 MOTION_RE = re.compile(r"Motion(?:\s+to\s+([A-Za-z]+(?:\s+[A-Za-z]+)?))?\s+by\s+~?Commissioner\s+"
                        r"([A-Z][\w.'’ ]{1,30}?)\s*,\s*"
                        r"seconded\s+by\s+~?Commissioner\s+([A-Z][\w.'’ ]{1,30}?)\s*[,.;]", re.S)
@@ -418,6 +431,8 @@ class RollCall:
     segment: int | None = None           # index of the meeting (Segment) whose minutes hold this table
     motion_linked: bool = False          # the motion sentence leads straight into this vote's outcome clause
     follows_item: str | None = None      # consent tables: the resolution heading just before the consent list
+    roster: list = field(default_factory=list)   # the meeting's header names the table was read against
+    combined: "Reading | None" = None    # set by decide when the votes come from combine()
 
 
 def classify_token(tok: str) -> tuple[str, str]:
@@ -461,15 +476,18 @@ def chunk_row(line: str) -> list[str]:
     return out
 
 
-def parse_table_rows(rows: list[str], roster: list[str]) -> tuple[list[Cell], list[str]]:
+def parse_table_rows(rows: list[str], roster: list[str], spellings: dict | None = None) -> tuple[list[Cell], list[str]]:
     cells: list[Cell] = []
     problems: list[str] = []
     for row in rows:
         chunks = chunk_row(row)
         for ci, ch in enumerate(chunks):
             kind, val = classify_token(ch)
-            if kind == "unknown" and ci + 1 < len(chunks) and classify_token(chunks[ci + 1])[0] == "name":
-                continue                       # district position (just before a name): "‘J", "]"
+            before_name = ci + 1 < len(chunks) and classify_token(chunks[ci + 1])[0] == "name"
+            if before_name and (kind == "unknown" or (kind in ("vote", "absent") and ci == 0)):
+                # district position (just before a name): "‘J", "]"; and a row's first chunk read as a vote mark
+                # ("y)" for the district number 2) is never a vote of the previous row's last member
+                continue
             if kind in ("vote", "absent"):
                 if not cells:
                     problems.append(f"vote token {ch!r} before any name")
@@ -487,22 +505,29 @@ def parse_table_rows(rows: list[str], roster: list[str]) -> tuple[list[Cell], li
                     cells[-1].tokens.append(ch)       # unknown short token: counts against the cell
                 else:
                     problems.append(f"stray token {ch!r}")
-    assign_names(cells, roster)
+    assign_names(cells, roster, spellings)
     return cells, problems
 
 
 ASSIGN_MIN = 0.75       # 'Jerry Allbert' vs 'Randy Allbert' scores 0.70: two people, never paired
 
 
-def assign_names(cells: list[Cell], roster: list[str]) -> None:
+def assign_names(cells: list[Cell], roster: list[str], spellings: dict | None = None) -> None:
     """Written merge rule (G2): the table lists each roster member once, so OCR'd table names are
     matched to roster names one-to-one, best pairs first. A pair below ASSIGN_MIN is not matched
     (the roll call then fails P2). A cell whose best roster name is already taken is not matched.
     A cell is matched only when its best roster name beats its second best by NAME_MATCH_MARGIN ("R. Allbert"
     scores the same against Randy and Jerry Allbert: not matched). Names already matched to another cell drop out
-    of that comparison, so cells are matched in rounds, clearest first, until no cell can be matched."""
+    of that comparison, so cells are matched in rounds, clearest first, until no cell can be matched.
+    A header name that names.yml resolves exactly also counts as its official's names.yml name and aliases
+    (`spellings`): a cell "John Gannon" pairs with the header's OCR spelling "JoIm Gaimon" through the curated alias,
+    under the same threshold and margin."""
     todo = [c for c in cells if c.member is None]
-    sim = {(i, r): name_similarity(c.raw_name, r) for i, c in enumerate(todo) for r in roster}
+    spellings = spellings or {}
+
+    def similarity(raw: str, r: str) -> float:
+        return max(name_similarity(raw, x) for x in [r] + list(spellings.get(r, ())))
+    sim = {(i, r): similarity(c.raw_name, r) for i, c in enumerate(todo) for r in roster}
     used_cells, used_names = set(), set()
     changed = True
     while changed:
@@ -529,13 +554,13 @@ def assign_names(cells: list[Cell], roster: list[str]) -> None:
         if not c.member:
             continue
         for r in roster:
-            if r != c.member and name_similarity(c.raw_name, r) > c.score and holder.get(r) \
+            if r != c.member and similarity(c.raw_name, r) > c.score and holder.get(r) \
                     and holder[r].score < 0.9:
                 c.member = None          # its closest roster name went to another weak match
                 break
     for i, c in enumerate(todo):
         if i not in used_cells:
-            c.score = max((name_similarity(c.raw_name, r) for r in roster), default=0.0)
+            c.score = max((similarity(c.raw_name, r) for r in roster), default=0.0)
 
 
 def _outcome_class(word: str | None) -> str | None:
@@ -558,6 +583,7 @@ class Reading:
     absent: list
     reasons: list
     raw_names: dict = field(default_factory=dict)    # member -> table cell text as read
+    clean: dict = field(default_factory=dict)        # member -> True when its cell read cleanly (see cells_to_votes)
 
 
 def _lines_with_pages(pages: list[str]) -> tuple[list[str], list[int]]:
@@ -573,7 +599,8 @@ def table_heads(lines: list[str]) -> list[int]:
     return [i for i, l in enumerate(lines) if TABLE_HEAD.search(l)]
 
 
-def read_table(lines: list[str], h: int, nxt: int, roster: list[str], source: str) -> tuple[Reading, int]:
+def read_table(lines: list[str], h: int, nxt: int, roster: list[str], source: str,
+               spellings: dict | None = None) -> tuple[Reading, int]:
     """Read the vote table whose header is lines[h]; nxt bounds the search. Returns the reading
     and the index of the last line used."""
     reasons: list[str] = []
@@ -581,14 +608,15 @@ def read_table(lines: list[str], h: int, nxt: int, roster: list[str], source: st
     rows_end = tally_i if tally_i is not None else min(nxt, h + 10)
     rows = [l for l in lines[h + 1:rows_end] if l.strip() and not l.startswith("=====")]
     tally = None
+    g = vals = None
     if tally_i is None:
         reasons.append("stated tally not found")
     else:
         g = TALLY.search(lines[tally_i]).groups()
-        vals = tuple(_int(x) for x in g)
-        if None in vals:
+        vals = tuple(_int(x) if x is not None else None for x in g)
+        if any(x is not None and v is None for x, v in zip(g, vals)) or sum(x is None for x in g) > 1:
             reasons.append(f"tally unreadable {g}")
-        else:
+        elif None not in vals:
             tally = vals
     last = tally_i if tally_i is not None else rows_end
     absent: list[str] = []
@@ -622,17 +650,33 @@ def read_table(lines: list[str], h: int, nxt: int, roster: list[str], source: st
         break
     if not found_absent:
         reasons.append("ABSENT line not found")
-    cells, problems = parse_table_rows(rows, roster)
+    if tally is None and g is not None and sum(x is None for x in g) == 1 and not any(
+            x is not None and v is None for x, v in zip(g, vals)):
+        # Written rule: exactly one count printed blank. With every present member voting once (checked below), the
+        # three counts sum to the roster minus the absent, so the blank one is that remainder. Derived only from a
+        # read ABSENT line whose names all resolve; a garbled count is never derived.
+        if found_absent and roster and not any(ABSENT_REASON.search(x) for x in reasons):
+            rest = len(roster) - len(set(absent)) - sum(v for v in vals if v is not None)
+            if rest >= 0:
+                tally = tuple(rest if v is None else v for v in vals)
+        if tally is None:
+            reasons.append(f"tally unreadable {g}")
+    cells, problems = parse_table_rows(rows, roster, spellings)
     reasons.extend(problems)
-    votes = cells_to_votes(cells, roster, reasons)
+    clean: dict[str, bool] = {}
+    votes = cells_to_votes(cells, roster, reasons, clean)
     check_votes(votes, set(absent), tally, roster, reasons)
     raw_names = {c.member: c.raw_name for c in cells if c.member and c.member != "__vacant__"}
-    return Reading(source, votes, tally, sorted(set(absent)), reasons, raw_names), last
+    return Reading(source, votes, tally, sorted(set(absent)), reasons, raw_names, clean), last
 
 
-def cells_to_votes(cells: list[Cell], roster: list[str], reasons: list[str]) -> dict:
+def cells_to_votes(cells: list[Cell], roster: list[str], reasons: list[str], clean: dict | None = None) -> dict:
+    """Cell tokens -> {member: Yes|No|Abstain|---|none|?}. `clean` (optional, filled in) marks a member whose one cell
+    holds exactly one vote token, or only absent marks, or nothing, and no other token: a cell another reading may
+    rely on (combine)."""
     votes: dict[str, str] = {}
     seen: dict[str, int] = {}
+    clean = {} if clean is None else clean
     for c in cells:
         if c.member is None:
             reasons.append(f"name not matched to roster: {c.raw_name!r} ({c.score:.2f})")
@@ -655,9 +699,11 @@ def cells_to_votes(cells: list[Cell], roster: list[str], reasons: list[str]) -> 
             votes[c.member] = "---"
         else:
             votes[c.member] = "none"
+        clean[c.member] = not other and votes[c.member] != "?" and not (vt and weak)
     for m, n in seen.items():
         if n > 1:
             reasons.append(f"matched {n} times: {m}")
+            clean[m] = False
     missing = [r for r in roster if r not in seen]
     if missing:
         reasons.append(f"roster members not found in table: {missing}")
@@ -704,15 +750,71 @@ def disagreements(a: Reading, b: Reading) -> list[str]:
     return out
 
 
+def combine(readings: list[Reading], roster: list[str]) -> Reading | None:
+    """Written rule (parse-accuracy/verified-rate): two or more readings of one table, none clean on its own, are
+    read cell by cell. A member's vote is the Yes/No/Abstain that a reading read cleanly in that member's cell (one
+    vote token and nothing else) when no other reading read a different vote and no other reading read an explicit
+    absent mark ("---") there; a member with no clean vote in any reading has no vote when some reading read the
+    cell cleanly as blank or "---"; anything else is unreadable. The stated tally is the one every reading that read
+    a tally agrees on, and the ABSENT names the ones every reading that read its ABSENT line without a problem agrees
+    on. The result is checked like any reading (check_votes: every present member exactly one vote, no absent member
+    a vote, counted equals stated, stated plus absent equals the roster), and verifies only with no reason left.
+    Each vote therefore rests on at least one clean reading of its own cell and no reading against it, and the
+    stated tally checks the whole table. Returns None with fewer than two readings."""
+    if len(readings) < 2:
+        return None
+    reasons: list[str] = []
+    tallies = {r.tally for r in readings if r.tally}
+    tally = next(iter(tallies)) if len(tallies) == 1 else None
+    if tally is None:
+        reasons.append("stated tally not read alike by any reading" if not tallies else
+                       f"readings disagree on stated tally {sorted(tallies)}")
+    abs_ok = [r for r in readings if not any(ABSENT_REASON.search(x) for x in r.reasons)]
+    absents = {tuple(r.absent) for r in abs_ok}
+    absent = list(next(iter(absents))) if len(absents) == 1 else []
+    if len(absents) != 1:
+        reasons.append("ABSENT line not read alike by any reading")
+    votes: dict[str, str] = {}
+    raw: dict[str, str] = {}
+    for m in roster:
+        cells = [(r, r.votes[m]) for r in readings if m in r.votes]
+        if not cells:
+            reasons.append(f"roster members not found in table: {[m]}")
+            continue
+        clean = [(r, v) for r, v in cells if r.clean.get(m)]
+        said = {v for _, v in clean if v in ("Yes", "No", "Abstain")}
+        if len(said) == 1 and not any(v == "---" for _, v in clean):
+            v = next(iter(said))
+            r = next(r for r, x in clean if x == v)
+        elif not said and clean:
+            r, v = clean[0]
+        else:
+            r, v = cells[0][0], "?"
+            reasons.append(f"no clean reading of the vote for {m}")
+        votes[m] = v
+        if m in r.raw_names:
+            raw[m] = r.raw_names[m]
+    check_votes(votes, set(absent), tally, roster, reasons)
+    return Reading("+".join(r.source for r in readings), votes, tally, sorted(set(absent)), reasons, raw,
+                   {m: True for m in votes})
+
+
 def decide(rc: "RollCall") -> None:
-    """Verified when the context checks pass, at least one reading passes P2, and no two readings
-    disagree on any vote. The passing reading supplies the votes."""
+    """Verified when the context checks pass, at least one reading passes P2 (or, when none does, their cell-by-cell
+    combination passes it: combine), and no two readings disagree on any vote. The passing reading supplies the
+    votes."""
     good = [r for r in rc.readings if not r.reasons]
     conflicts = []
     for i in range(len(rc.readings)):
         for j in range(i + 1, len(rc.readings)):
             conflicts += disagreements(rc.readings[i], rc.readings[j])
     reasons = list(rc.context_reasons) + conflicts
+    rc.combined = None
+    if not good:
+        comb = combine(rc.readings, rc.roster or sorted({m for r in rc.readings for m in r.votes}))
+        if comb is not None and not comb.reasons:
+            rc.combined = comb
+            good = [comb]
     if good:
         best = good[0]
         reasons += check_outcome(rc.outcome_text, best.tally)
@@ -754,7 +856,7 @@ def find_rollcalls(pages: list[str], source: str, att: Attendance | None,
             roster = (att_h.present + att_h.absent) if att_h else []
             seg_lo = seg.start
             nxt = min(nxt, seg.end) if seg.end > h else nxt
-        reading, last = read_table(lines, h, nxt, roster, "text-layer")
+        reading, last = read_table(lines, h, nxt, roster, "text-layer", att_h.spellings if att_h else None)
         ctx_reasons: list[str] = []
         ctx_start = max(prev_end, h - 40, seg_lo)
         ctx = " ".join(" ".join(lines[ctx_start:h]).split())
@@ -820,6 +922,7 @@ def find_rollcalls(pages: list[str], source: str, att: Attendance | None,
         rc.in_attached_minutes = any(a <= h < b for a, b in spans)
         rc.segment = seg.index if seg else None
         rc.context_reasons = ctx_reasons
+        rc.roster = list(roster)
         rc.readings = [reading]
         decide(rc)
         out.append(rc)

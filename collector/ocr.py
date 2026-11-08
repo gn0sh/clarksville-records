@@ -61,7 +61,7 @@ def reverify(rc: RollCall, pdf: Path, sha: str, att) -> RollCall:
     idx = heads.index(on_first[rc.ordinal_on_page])
     h = heads[idx]
     nxt = heads[idx + 1] if idx + 1 < len(heads) else len(lines)
-    reading, _ = read_table(lines, h, nxt, roster, "tesseract")
+    reading, _ = read_table(lines, h, nxt, roster, "tesseract", att.spellings if att else None)
     rc.readings = rc.readings + [reading]
     decide(rc)
     return rc
