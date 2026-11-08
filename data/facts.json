@@ -28381,616 +28381,2682 @@
       "link_basis": "number",
       "number": "CZ-01-2024",
       "title": "CZ-01-2024",
-      "year": 2024
+      "year": 2024,
+      "zoning": {
+        "acreage": {
+          "page": 5,
+          "source_id": "src-505a509b28f7",
+          "value": 2.32
+        },
+        "applicant": null,
+        "from_zoning": {
+          "page": 5,
+          "source_id": "src-505a509b28f7",
+          "value": [
+            "R-3"
+          ]
+        },
+        "location": {
+          "page": 5,
+          "source_id": "src-505a509b28f7",
+          "value": "A parcel located at the northwest corner of Oakwood Rd. & Wine Ln."
+        },
+        "to_zoning": {
+          "page": 5,
+          "source_id": "src-505a509b28f7",
+          "value": [
+            "C-5"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-02-2024",
       "link_basis": "number",
       "number": "CZ-02-2024",
       "title": "CZ-02-2024",
-      "year": 2024
+      "year": 2024,
+      "zoning": {
+        "acreage": {
+          "page": 7,
+          "source_id": "src-2149fe00d2e6",
+          "value": 1.29
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-2149fe00d2e6",
+          "value": "Gary Thomas Mosley"
+        },
+        "from_zoning": {
+          "page": 7,
+          "source_id": "src-2149fe00d2e6",
+          "value": [
+            "R-1"
+          ]
+        },
+        "location": {
+          "page": 7,
+          "source_id": "src-2149fe00d2e6",
+          "value": "Property fronting on the south frontage of Highway 149, 1,560 +/- feet west of the Highway 149 & Belle Rd. intersection"
+        },
+        "to_zoning": {
+          "page": 7,
+          "source_id": "src-2149fe00d2e6",
+          "value": [
+            "C-2"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-03-2024",
       "link_basis": "number",
       "number": "CZ-03-2024",
       "title": "CZ-03-2024",
-      "year": 2024
+      "year": 2024,
+      "zoning": {
+        "acreage": {
+          "page": 17,
+          "source_id": "src-2149fe00d2e6",
+          "value": 1.13
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-2149fe00d2e6",
+          "value": "Phillip Traylor"
+        },
+        "from_zoning": {
+          "page": 17,
+          "source_id": "src-2149fe00d2e6",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": {
+          "page": 19,
+          "source_id": "src-2149fe00d2e6",
+          "value": "A portion of two parcel fronting on the east frontage of Hwy. 12, 915 +/- feet south of the Hwy 12 & Shady Grove Rd. intersection"
+        },
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-04-2024",
       "link_basis": "number",
       "number": "CZ-04-2024",
       "title": "CZ-04-2024",
-      "year": 2024
+      "year": 2024,
+      "zoning": {
+        "acreage": {
+          "page": 27,
+          "source_id": "src-2149fe00d2e6",
+          "value": 2.34
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-2149fe00d2e6",
+          "value": "Entersource Properties"
+        },
+        "from_zoning": {
+          "page": 27,
+          "source_id": "src-2149fe00d2e6",
+          "value": [
+            "C-2"
+          ]
+        },
+        "location": {
+          "page": 27,
+          "source_id": "src-2149fe00d2e6",
+          "value": "A parcel of land located at the southwest corner of the Hwy. 149 & River Rd. intersection"
+        },
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-2149fe00d2e6",
+          "value": [
+            "C-5"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-05-2024",
       "link_basis": "number",
       "number": "CZ-05-2024",
       "title": "CZ-05-2024",
-      "year": 2024
+      "year": 2024,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-2149fe00d2e6",
+          "value": "Industrial Development Board"
+        },
+        "from_zoning": {
+          "page": 37,
+          "source_id": "src-2149fe00d2e6",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": {
+          "page": 39,
+          "source_id": "src-2149fe00d2e6",
+          "value": "A parcel of land fronting on the south frontage of Dunlop Lane, 1,050 +/- feet east of the Dunlop Ln. & Michaela Cir. intersection"
+        },
+        "to_zoning": {
+          "page": 37,
+          "source_id": "src-2149fe00d2e6",
+          "value": [
+            "M-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-06-2024",
       "link_basis": "number",
       "number": "CZ-06-2024",
       "title": "CZ-06-2024",
-      "year": 2024
+      "year": 2024,
+      "zoning": {
+        "acreage": {
+          "page": 5,
+          "source_id": "src-31a1097ce81b",
+          "value": 0.35
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-31a1097ce81b",
+          "value": "Johnathan Blick"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-31a1097ce81b",
+          "value": [
+            "RM-1"
+          ]
+        },
+        "location": {
+          "page": 5,
+          "source_id": "src-31a1097ce81b",
+          "value": "A parcel of land fronting on the west frontage of Center Rd. 200 +/- feet south of the Britton Springs Rd. & Center Rd. intersection"
+        },
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-31a1097ce81b",
+          "value": [
+            "R-4"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-09-2024",
       "link_basis": "number",
       "number": "CZ-09-2024",
       "title": "Application of Analeasa Harper from AG to B-I",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-1fc41c8674e0",
+          "value": "Analeasa Harper"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-1fc41c8674e0",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-1-2021",
       "link_basis": "number",
       "number": "CZ-1-2021",
       "title": "Application of Felipe Martin from AG to R-1",
-      "year": 2021
+      "year": 2021,
+      "zoning": {
+        "acreage": {
+          "page": 9,
+          "source_id": "src-9e291a55986d",
+          "value": 1.08
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-9e291a55986d",
+          "value": "Felipe Martin"
+        },
+        "from_zoning": {
+          "page": 9,
+          "source_id": "src-9e291a55986d",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": {
+          "page": 9,
+          "source_id": "src-9e291a55986d",
+          "value": "Property fronts on the southeast corner of Trough Springs Road and Granite Trail"
+        },
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-9e291a55986d",
+          "value": [
+            "R-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-1-2022",
       "link_basis": "number",
       "number": "CZ-1-2022",
       "title": "Application ofDana Mahoney and Lillian C. Mahoney Goad from AG to C-5",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-ade826342018",
+          "value": "Dana Mahoney and Lillian C. Mahoney Goad"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-ade826342018",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-ade826342018",
+          "value": [
+            "C-5"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-10-2022",
       "link_basis": "number",
       "number": "CZ-10-2022",
       "title": "Application ofSunikumar Arunagirl from R- I to R-3",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 8,
+          "source_id": "src-3a926fac623a",
+          "value": 1.0
+        },
+        "applicant": {
+          "page": 8,
+          "source_id": "src-3a926fac623a",
+          "value": "Sunikumar Arunagirl"
+        },
+        "from_zoning": {
+          "page": 8,
+          "source_id": "src-3a926fac623a",
+          "value": [
+            "R-1"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 8,
+          "source_id": "src-3a926fac623a",
+          "value": [
+            "R-3"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-10-2023",
       "link_basis": "number",
       "number": "CZ-10-2023",
       "title": "CZ-10-2023",
-      "year": 2023
+      "year": 2023,
+      "zoning": {
+        "acreage": {
+          "page": 4,
+          "source_id": "src-59d6ad382cde",
+          "value": 2.8
+        },
+        "applicant": null,
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-59d6ad382cde",
+          "value": [
+            "C-1"
+          ]
+        },
+        "location": {
+          "page": 4,
+          "source_id": "src-59d6ad382cde",
+          "value": "A parcel fronting on the west frontage of Old Highway 48, directly west of the Old Highway 48 & Liverworth Rd. intersection"
+        },
+        "to_zoning": {
+          "page": 4,
+          "source_id": "src-59d6ad382cde",
+          "value": [
+            "AG"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-10-2025",
       "link_basis": "number",
       "number": "CZ-10-2025",
       "title": "CZ-10-2025",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-62b420d656b2",
+          "value": "Julia Rabba"
+        },
+        "from_zoning": null,
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-62b420d656b2",
+          "value": [
+            "AG"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-11-2022",
       "link_basis": "number",
       "number": "CZ-11-2022",
       "title": "Application ofDGTF Clark Enterprises LLC from C-5/AG to R-4/C-5",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-3a926fac623a",
+          "value": "DGTF Clark Enterprises LLC"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-3a926fac623a",
+          "value": [
+            "C-5",
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-3a926fac623a",
+          "value": [
+            "R-4",
+            "C-5"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-11-2025",
       "link_basis": "number",
       "number": "CZ-11-2025",
       "title": "CZ-11-2025",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-62b420d656b2",
+          "value": "Jerry Wayne Trotter"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-62b420d656b2",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-12-2020",
       "link_basis": "number",
       "number": "CZ-12-2020",
       "title": "CZ-12-2020",
-      "year": 2020
+      "year": 2020,
+      "zoning": {
+        "acreage": {
+          "page": 5,
+          "source_id": "src-66f87bb7fd4f",
+          "value": 230.0
+        },
+        "applicant": null,
+        "from_zoning": {
+          "page": 5,
+          "source_id": "src-66f87bb7fd4f",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 5,
+          "source_id": "src-66f87bb7fd4f",
+          "value": [
+            "E-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-12-2023",
       "link_basis": "number",
       "number": "CZ-12-2023",
       "title": "CZ-12-2023",
-      "year": 2023
+      "year": 2023,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 6,
+          "source_id": "src-adbd2896a91a",
+          "value": "Mark Deering & Chris Steffen"
+        },
+        "from_zoning": null,
+        "location": null,
+        "to_zoning": {
+          "page": 6,
+          "source_id": "src-adbd2896a91a",
+          "value": [
+            "R-2D"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-12-2025",
       "link_basis": "number",
       "number": "CZ-12-2025",
       "title": "CZ-12-2025",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-62b420d656b2",
+          "value": "James Joseph Smigiel"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-62b420d656b2",
+          "value": [
+            "RM-2"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-62b420d656b2",
+          "value": [
+            "C-5"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-13-2022",
       "link_basis": "number",
       "number": "CZ-13-2022",
       "title": "Application ofAnthony W. Outlaw Sr. from AG to R-I",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 10,
+          "source_id": "src-3dee31b10e2d",
+          "value": 0.85
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-3dee31b10e2d",
+          "value": "Anthony W. Outlaw Sr"
+        },
+        "from_zoning": {
+          "page": 10,
+          "source_id": "src-3dee31b10e2d",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": {
+          "page": 10,
+          "source_id": "src-3dee31b10e2d",
+          "value": "A tract fronting on the east frontage of Dotsonville Rd., 360 +/- feet north of the Dotsonville Rd. & Wooten Rd. intersection"
+        },
+        "to_zoning": {
+          "page": 10,
+          "source_id": "src-3dee31b10e2d",
+          "value": [
+            "R-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-13-2023",
       "link_basis": "number",
       "number": "CZ-13-2023",
       "title": "CZ-13-2023",
-      "year": 2023
+      "year": 2023,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 11,
+          "source_id": "src-eff152821896",
+          "value": "Reda Home Builders Inc"
+        },
+        "from_zoning": null,
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-13-2025",
       "link_basis": "number",
       "number": "CZ-13-2025",
       "title": "CZ-13-2025",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-62b420d656b2",
+          "value": "Jane Moseley"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-62b420d656b2",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-14-2022",
       "link_basis": "number",
       "number": "CZ-14-2022",
       "title": "Application ofM Ireland LLC from R-I to C-S",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 19,
+          "source_id": "src-ba7d4c9267e5",
+          "value": 11.2
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-ba7d4c9267e5",
+          "value": "M Ireland LLC"
+        },
+        "from_zoning": {
+          "page": 19,
+          "source_id": "src-ba7d4c9267e5",
+          "value": [
+            "R-1"
+          ]
+        },
+        "location": {
+          "page": 19,
+          "source_id": "src-ba7d4c9267e5",
+          "value": "on the south frontage of Hwy 79/Dover Rd. 1,600 +/- feet west of the Hwy 79/Dover Rd. & Liberty Church Rd. intersection"
+        },
+        "to_zoning": {
+          "page": 19,
+          "source_id": "src-ba7d4c9267e5",
+          "value": [
+            "C-5"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-14-2023",
       "link_basis": "number",
       "number": "CZ-14-2023",
       "title": "CZ-14-2023",
-      "year": 2023
+      "year": 2023,
+      "zoning": {
+        "acreage": null,
+        "applicant": null,
+        "from_zoning": null,
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-14-2025",
       "link_basis": "number",
       "number": "CZ-14-2025",
       "title": "Application of Billy Riggins 11 from AG to R-1",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": null,
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-facc1d25c043",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-facc1d25c043",
+          "value": [
+            "R-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-15-2022",
       "link_basis": "number",
       "number": "CZ-15-2022",
       "title": "Application ofKevin & Gwen Griffy from R-l to AbC",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 22,
+          "source_id": "src-ba7d4c9267e5",
+          "value": 5.0
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-ba7d4c9267e5",
+          "value": "Kevin & Gwen Griffy"
+        },
+        "from_zoning": {
+          "page": 22,
+          "source_id": "src-ba7d4c9267e5",
+          "value": [
+            "R-1"
+          ]
+        },
+        "location": {
+          "page": 22,
+          "source_id": "src-ba7d4c9267e5",
+          "value": "on the south frontage of Keese Rd. 2,315 +/- feet west (following the ROW) of the River Rd, & Keese Rd. intersection"
+        },
+        "to_zoning": {
+          "page": 22,
+          "source_id": "src-ba7d4c9267e5",
+          "value": [
+            "AGC"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-15-2023",
       "link_basis": "number",
       "number": "CZ-15-2023",
       "title": "CZ-15-2023",
-      "year": 2023
+      "year": 2023,
+      "zoning": {
+        "acreage": {
+          "page": 6,
+          "source_id": "src-c4992c9e270f",
+          "value": 0.99
+        },
+        "applicant": null,
+        "from_zoning": {
+          "page": 6,
+          "source_id": "src-c4992c9e270f",
+          "value": [
+            "R-4"
+          ]
+        },
+        "location": {
+          "page": 6,
+          "source_id": "src-c4992c9e270f",
+          "value": "A portion of property fronting on the south frontage of US Highway 79 / Dover Rd. 3,220 +/- feet east of the US Highway 79 / Dover Rd & Liberty Church Rd. intersection"
+        },
+        "to_zoning": {
+          "page": 6,
+          "source_id": "src-c4992c9e270f",
+          "value": [
+            "C-5"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-15-2025",
       "link_basis": "number",
       "number": "CZ-15-2025",
       "title": "Application of J&N Enterprises from AG to R-1",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": null,
+        "from_zoning": null,
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-16-2022",
       "link_basis": "number",
       "number": "CZ-16-2022",
       "title": "Application ofRussell Allen from M-2 to AG",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 6,
+          "source_id": "src-8419efe1acc7",
+          "value": 10.0
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-8419efe1acc7",
+          "value": "Russell Allen"
+        },
+        "from_zoning": {
+          "page": 6,
+          "source_id": "src-8419efe1acc7",
+          "value": [
+            "M-2"
+          ]
+        },
+        "location": {
+          "page": 6,
+          "source_id": "src-8419efe1acc7",
+          "value": "Property fronting on the north/east frontage of Marion Rd., 915 +/- feet south/east of the Marion Rd. & Conaster Rd. intersection"
+        },
+        "to_zoning": {
+          "page": 6,
+          "source_id": "src-8419efe1acc7",
+          "value": [
+            "AG"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-16-2023",
       "link_basis": "number",
       "number": "CZ-16-2023",
       "title": "CZ-16-2023",
-      "year": 2023
+      "year": 2023,
+      "zoning": {
+        "acreage": {
+          "page": 5,
+          "source_id": "src-4d802d50d1a3",
+          "value": 4.04
+        },
+        "applicant": {
+          "page": 5,
+          "source_id": "src-4d802d50d1a3",
+          "value": "Stiltz Iron Inc.- Cooper Boudreau"
+        },
+        "from_zoning": {
+          "page": 5,
+          "source_id": "src-4d802d50d1a3",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 5,
+          "source_id": "src-4d802d50d1a3",
+          "value": [
+            "M-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-16-2025",
       "link_basis": "number",
       "number": "CZ-16-2025",
       "title": "CZ-16-2025",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-7d6c8e270ce1",
+          "value": "Thoung Pham"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-7d6c8e270ce1",
+          "value": [
+            "R-1"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-7d6c8e270ce1",
+          "value": [
+            "C-5"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-17-2020",
       "link_basis": "number",
       "number": "CZ-17-2020",
       "title": "CZ-17-2020",
-      "year": 2020
+      "year": 2020,
+      "zoning": {
+        "acreage": {
+          "page": 20,
+          "source_id": "src-66f87bb7fd4f",
+          "value": 2.78
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-66f87bb7fd4f",
+          "value": "Stephen Corlew"
+        },
+        "from_zoning": {
+          "page": 20,
+          "source_id": "src-66f87bb7fd4f",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 20,
+          "source_id": "src-66f87bb7fd4f",
+          "value": [
+            "E-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-17-2022",
       "link_basis": "number",
       "number": "CZ-17-2022",
       "title": "Application ofTim Roby from M-2 to AG",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 8,
+          "source_id": "src-8419efe1acc7",
+          "value": 8.92
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-8419efe1acc7",
+          "value": "Tim Roby"
+        },
+        "from_zoning": {
+          "page": 8,
+          "source_id": "src-8419efe1acc7",
+          "value": [
+            "M-2"
+          ]
+        },
+        "location": {
+          "page": 8,
+          "source_id": "src-8419efe1acc7",
+          "value": "A tract of land fronting on the north frontage of Cumberland City Rd., at the Montgomery County & Stewart County line"
+        },
+        "to_zoning": {
+          "page": 8,
+          "source_id": "src-8419efe1acc7",
+          "value": [
+            "AG"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-17-2023",
       "link_basis": "number",
       "number": "CZ-17-2023",
       "title": "CZ-17-2023",
-      "year": 2023
+      "year": 2023,
+      "zoning": {
+        "acreage": {
+          "page": 16,
+          "source_id": "src-c4992c9e270f",
+          "value": 6.44
+        },
+        "applicant": {
+          "page": 16,
+          "source_id": "src-c4992c9e270f",
+          "value": "Run-A-Muck Outfitters LLC"
+        },
+        "from_zoning": null,
+        "location": {
+          "page": 16,
+          "source_id": "src-c4992c9e270f",
+          "value": "A tract of land bound by the Red River on the south & fronting on the east frontage of Port Royal Rd, 800 +/- feet north of the Port Royal Rd. & Old Clarksville Springfield Rd. intersection"
+        },
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-17-2025",
       "link_basis": "number",
       "number": "CZ-17-2025",
       "title": "CZ-17-2025",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": null,
+        "from_zoning": null,
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-18-2020",
       "link_basis": "number",
       "number": "CZ-18-2020",
       "title": "CZ-18-2020",
-      "year": 2020
+      "year": 2020,
+      "zoning": {
+        "acreage": {
+          "page": 29,
+          "source_id": "src-66f87bb7fd4f",
+          "value": 1.0
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-66f87bb7fd4f",
+          "value": "David W Adkins"
+        },
+        "from_zoning": {
+          "page": 29,
+          "source_id": "src-66f87bb7fd4f",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": {
+          "page": 29,
+          "source_id": "src-66f87bb7fd4f",
+          "value": "property fronting on the east frontage of Pace Rd., 1,100 +/- feet south of the Shady Grove Rd. & Pace Rd. intersection"
+        },
+        "to_zoning": {
+          "page": 29,
+          "source_id": "src-66f87bb7fd4f",
+          "value": [
+            "E-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-18-2023",
       "link_basis": "number",
       "number": "CZ-18-2023",
       "title": "CZ-18-2023",
-      "year": 2023
+      "year": 2023,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-4d802d50d1a3",
+          "value": "Jack Frazier, Joe Frazier, Jason Frazier"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-4d802d50d1a3",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-18-2025",
       "link_basis": "number",
       "number": "CZ-18-2025",
       "title": "CZ-18-2025",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-7d6c8e270ce1",
+          "value": "Thomas B. Black"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-7d6c8e270ce1",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-7d6c8e270ce1",
+          "value": [
+            "E-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-19-2020",
       "link_basis": "number",
       "number": "CZ-19-2020",
       "title": "CZ-19-2020",
-      "year": 2020
+      "year": 2020,
+      "zoning": {
+        "acreage": {
+          "page": 38,
+          "source_id": "src-66f87bb7fd4f",
+          "value": 6.1
+        },
+        "applicant": null,
+        "from_zoning": null,
+        "location": {
+          "page": 38,
+          "source_id": "src-66f87bb7fd4f",
+          "value": "property fronting on the north frontage of Dover Rd. (US 79). 1,585 +/- feet east of the Dover Rd. (US 79) & Liberty Church Rd. intersection"
+        },
+        "to_zoning": {
+          "page": 38,
+          "source_id": "src-66f87bb7fd4f",
+          "value": [
+            "R-4"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-19-2022",
       "link_basis": "number",
       "number": "CZ-19-2022",
       "title": "Application of H & H Sheet Metal Fabrications, Inc. from AG to C-5",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 4,
+          "source_id": "src-64d40410a4ed",
+          "value": 21.75
+        },
+        "applicant": null,
+        "from_zoning": {
+          "page": 4,
+          "source_id": "src-64d40410a4ed",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 4,
+          "source_id": "src-64d40410a4ed",
+          "value": [
+            "C-5"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-19-2023",
       "link_basis": "number",
       "number": "CZ-19-2023",
       "title": "CZ-19-2023",
-      "year": 2023
+      "year": 2023,
+      "zoning": {
+        "acreage": {
+          "page": 27,
+          "source_id": "src-4d802d50d1a3",
+          "value": 1.88
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-4d802d50d1a3",
+          "value": "Johnny Goad"
+        },
+        "from_zoning": {
+          "page": 27,
+          "source_id": "src-4d802d50d1a3",
+          "value": [
+            "R-1"
+          ]
+        },
+        "location": {
+          "page": 27,
+          "source_id": "src-4d802d50d1a3",
+          "value": "A parcel of land located at the southwest corner of the Dover Rd. & Old Dover Rd."
+        },
+        "to_zoning": {
+          "page": 27,
+          "source_id": "src-4d802d50d1a3",
+          "value": [
+            "C-5"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-19-2025",
       "link_basis": "number",
       "number": "CZ-19-2025",
       "title": "Application of DRG Family Partnership from AG to C-5/R-4",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-84fcd6d8eaf4",
+          "value": "DRG Family Partnership"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-84fcd6d8eaf4",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-84fcd6d8eaf4",
+          "value": [
+            "C-5",
+            "R-4"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-2-2020",
       "link_basis": "number",
       "number": "CZ-2-2020",
       "title": "Application ofMathieu Poag from AG to F-i",
-      "year": 2020
+      "year": 2020,
+      "zoning": {
+        "acreage": {
+          "page": 24,
+          "source_id": "src-7325525d58ca",
+          "value": 1.1
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-7325525d58ca",
+          "value": "Mathieu Poag"
+        },
+        "from_zoning": {
+          "page": 24,
+          "source_id": "src-7325525d58ca",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": {
+          "page": 24,
+          "source_id": "src-7325525d58ca",
+          "value": "Property fronting on the north frontage of Antioch Rd., 1,600 +/- feet east of the Palmyra Rd. & Antioch Rd. intersection"
+        },
+        "to_zoning": {
+          "page": 24,
+          "source_id": "src-7325525d58ca",
+          "value": [
+            "E-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-2-2021",
       "link_basis": "number",
       "number": "CZ-2-2021",
       "title": "Application of John Daigle from C-2 to B-I",
-      "year": 2021
+      "year": 2021,
+      "zoning": {
+        "acreage": {
+          "page": 11,
+          "source_id": "src-9e291a55986d",
+          "value": 1.4
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-9e291a55986d",
+          "value": "John Daigle"
+        },
+        "from_zoning": {
+          "page": 11,
+          "source_id": "src-9e291a55986d",
+          "value": [
+            "C-2"
+          ]
+        },
+        "location": {
+          "page": 11,
+          "source_id": "src-9e291a55986d",
+          "value": "Property is located at the southwest corner of Lylewood Road and John Taylor Road"
+        },
+        "to_zoning": {
+          "page": 11,
+          "source_id": "src-9e291a55986d",
+          "value": [
+            "E-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-2-2022",
       "link_basis": "number",
       "number": "CZ-2-2022",
       "title": "Application ofUlrich B Ankersoc and Lauren B Ankersoc from AG to R-1",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 4,
+          "source_id": "src-c2d86df5cc5d",
+          "value": 22.2
+        },
+        "applicant": {
+          "page": 4,
+          "source_id": "src-c2d86df5cc5d",
+          "value": "Ulrich E. Ankersoc Lauren E. Ankersoc"
+        },
+        "from_zoning": {
+          "page": 4,
+          "source_id": "src-c2d86df5cc5d",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": {
+          "page": 4,
+          "source_id": "src-c2d86df5cc5d",
+          "value": "Property fronting on the north frontage of Sango Rd., 1,550 +/- feet east of the Sango Rd. & S. Woodson Rd. intersection"
+        },
+        "to_zoning": {
+          "page": 4,
+          "source_id": "src-c2d86df5cc5d",
+          "value": [
+            "R-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-2-2023",
       "link_basis": "number",
       "number": "CZ-2-2023",
       "title": "Application of Reda Home Builders, Inc. from AG to R-l (deferred from May)",
-      "year": 2023
+      "year": 2023,
+      "zoning": {
+        "acreage": {
+          "page": 30,
+          "source_id": "src-caa80a4a1ddc",
+          "value": 11.01
+        },
+        "applicant": {
+          "page": 30,
+          "source_id": "src-caa80a4a1ddc",
+          "value": "Reda Home Builders, Inc"
+        },
+        "from_zoning": {
+          "page": 30,
+          "source_id": "src-caa80a4a1ddc",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 72,
+          "source_id": "src-59d6ad382cde",
+          "value": [
+            "R-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-2-2025",
       "link_basis": "number",
       "number": "CZ-2-2025",
       "title": "Application of Carolyn Jackson Houston from AG to R-1",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-624a3777502f",
+          "value": "Carolyn Jackson Houston"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-624a3777502f",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-624a3777502f",
+          "value": [
+            "R-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-2-2026",
       "link_basis": "number",
       "number": "CZ-2-2026",
       "title": "Application of Knox B. Thomas, III & Shirley Thomas from AG/C-S to M-1",
-      "year": 2026
+      "year": 2026,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-92adf0a4c84f",
+          "value": "Knox B. Thomas, III & Shirley Thomas"
+        },
+        "from_zoning": null,
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-92adf0a4c84f",
+          "value": [
+            "M-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-20-2022",
       "link_basis": "number",
       "number": "CZ-20-2022",
       "title": "Application of William Macon Marshall from AG to R-1A",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 5,
+          "source_id": "src-642246539ab0",
+          "value": 9.91
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-642246539ab0",
+          "value": "William Macon Marshall"
+        },
+        "from_zoning": {
+          "page": 5,
+          "source_id": "src-642246539ab0",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 5,
+          "source_id": "src-642246539ab0",
+          "value": [
+            "R-1A"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-20-2023",
       "link_basis": "number",
       "number": "CZ-20-2023",
       "title": "CZ-20-2023",
-      "year": 2024
+      "year": 2024,
+      "zoning": {
+        "acreage": null,
+        "applicant": null,
+        "from_zoning": {
+          "page": 6,
+          "source_id": "src-ca24948f8efa",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": {
+          "page": 6,
+          "source_id": "src-ca24948f8efa",
+          "value": "A parcel of land fronting on the southeast frontage of Indian Mound Rd., 970 +/- feet southwest of the Indian mound Rd. & Caps Rd. intersection"
+        },
+        "to_zoning": {
+          "page": 6,
+          "source_id": "src-ca24948f8efa",
+          "value": [
+            "E-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-21-2021",
       "link_basis": "number",
       "number": "CZ-21-2021",
       "title": "Application of Steven and Marcia Causey from C-S to R-l",
-      "year": 2021
+      "year": 2021,
+      "zoning": {
+        "acreage": {
+          "page": 8,
+          "source_id": "src-ae8150f52f55",
+          "value": 3.35
+        },
+        "applicant": {
+          "page": 3,
+          "source_id": "src-ae8150f52f55",
+          "value": "Steven and Marcia Causey"
+        },
+        "from_zoning": {
+          "page": 8,
+          "source_id": "src-ae8150f52f55",
+          "value": [
+            "C-5"
+          ]
+        },
+        "location": {
+          "page": 8,
+          "source_id": "src-ae8150f52f55",
+          "value": "Property fronting on the south frontage of Woodlawn Rd., 1,895 +/- feet west of the Woodlawn Rd. & Hwy 79 (Dover Rd.) intersection"
+        },
+        "to_zoning": {
+          "page": 8,
+          "source_id": "src-ae8150f52f55",
+          "value": [
+            "R-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-21-2022",
       "link_basis": "number",
       "number": "CZ-21-2022",
       "title": "Application of Benton Walker from AG to R-l",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 8,
+          "source_id": "src-64d40410a4ed",
+          "value": 9.75
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-64d40410a4ed",
+          "value": "Benton Walker"
+        },
+        "from_zoning": {
+          "page": 8,
+          "source_id": "src-64d40410a4ed",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 8,
+          "source_id": "src-64d40410a4ed",
+          "value": [
+            "R-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-21-2023",
       "link_basis": "number",
       "number": "CZ-21-2023",
       "title": "CZ-21-2023",
-      "year": 2024
+      "year": 2024,
+      "zoning": {
+        "acreage": {
+          "page": 16,
+          "source_id": "src-ca24948f8efa",
+          "value": 43.7
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-ca24948f8efa",
+          "value": "Carolyn Jackson Houston"
+        },
+        "from_zoning": {
+          "page": 16,
+          "source_id": "src-ca24948f8efa",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-ca24948f8efa",
+          "value": [
+            "R-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-21-2025",
       "link_basis": "number",
       "number": "CZ-21-2025",
       "title": "CZ-21-2025",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-7d6c8e270ce1",
+          "value": "Paul Collins"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-7d6c8e270ce1",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-22-2021",
       "link_basis": "number",
       "number": "CZ-22-2021",
       "title": "CZ-22-2021",
-      "year": 2021
+      "year": 2021,
+      "zoning": {
+        "acreage": {
+          "page": 10,
+          "source_id": "src-ae8150f52f55",
+          "value": 0.91
+        },
+        "applicant": {
+          "page": 10,
+          "source_id": "src-ae8150f52f55",
+          "value": "Mark Ireland"
+        },
+        "from_zoning": {
+          "page": 10,
+          "source_id": "src-ae8150f52f55",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 10,
+          "source_id": "src-ae8150f52f55",
+          "value": [
+            "R-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-22-2022",
       "link_basis": "number",
       "number": "CZ-22-2022",
       "title": "Application of Clarksville-Montgomery County Industrial Development Board (1DB) from M-2 to C-5",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 7,
+          "source_id": "src-642246539ab0",
+          "value": 63.5
+        },
+        "applicant": null,
+        "from_zoning": {
+          "page": 7,
+          "source_id": "src-642246539ab0",
+          "value": [
+            "M-2"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-642246539ab0",
+          "value": [
+            "C-5"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-22-2023",
       "link_basis": "number",
       "number": "CZ-22-2023",
       "title": "CZ-22-2023",
-      "year": 2024
+      "year": 2024,
+      "zoning": {
+        "acreage": {
+          "page": 26,
+          "source_id": "src-ca24948f8efa",
+          "value": 0.91
+        },
+        "applicant": {
+          "page": 26,
+          "source_id": "src-ca24948f8efa",
+          "value": "Arnold Gebers"
+        },
+        "from_zoning": {
+          "page": 26,
+          "source_id": "src-ca24948f8efa",
+          "value": [
+            "R-3"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 26,
+          "source_id": "src-ca24948f8efa",
+          "value": [
+            "O-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-22-2025",
       "link_basis": "number",
       "number": "CZ-22-2025",
       "title": "CZ-22-2025",
-      "year": 2026
+      "year": 2026,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-a1dfefd4af7f",
+          "value": "John & Diane Daigle"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-a1dfefd4af7f",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-a1dfefd4af7f",
+          "value": [
+            "C-5"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-23-2025",
       "link_basis": "number",
       "number": "CZ-23-2025",
       "title": "Application of Marvin Pitts from AG/C-S to C-5/M-1",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-84fcd6d8eaf4",
+          "value": "Marvin Pitts"
+        },
+        "from_zoning": null,
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-84fcd6d8eaf4",
+          "value": [
+            "C-5",
+            "M-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-24-2022",
       "link_basis": "number",
       "number": "CZ-24-2022",
       "title": "Application ofKrystal McNallie from R-1 to AG",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 4,
+          "source_id": "src-573601442606",
+          "value": 10.5
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-573601442606",
+          "value": "Krystal McNallie"
+        },
+        "from_zoning": {
+          "page": 4,
+          "source_id": "src-573601442606",
+          "value": [
+            "R-1"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 4,
+          "source_id": "src-573601442606",
+          "value": [
+            "AG"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-24-2025",
       "link_basis": "number",
       "number": "CZ-24-2025",
       "title": "CZ-24-2025",
-      "year": 2026
+      "year": 2026,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-a1dfefd4af7f",
+          "value": "Bryan Cogdill"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-a1dfefd4af7f",
+          "value": [
+            "C-2"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-a1dfefd4af7f",
+          "value": [
+            "AG"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-25-2020",
       "link_basis": "number",
       "number": "CZ-25-2020",
       "title": "Application ofJ & N Enterprises, mc, Jonathan Ross, from R-1 to R-4",
-      "year": 2021
+      "year": 2021,
+      "zoning": {
+        "acreage": {
+          "page": 4,
+          "source_id": "src-9e291a55986d",
+          "value": 19.6
+        },
+        "applicant": null,
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-9e291a55986d",
+          "value": [
+            "R-1"
+          ]
+        },
+        "location": {
+          "page": 4,
+          "source_id": "src-9e291a55986d",
+          "value": "Property located north of Dover Rd. (US HWY 79) and east of N. Liberty Church Rd"
+        },
+        "to_zoning": {
+          "page": 4,
+          "source_id": "src-9e291a55986d",
+          "value": [
+            "R-4"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-25-2022",
       "link_basis": "number",
       "number": "CZ-25-2022",
       "title": "Application of Bhavna Pate! from AG to R-1A",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": null,
+        "applicant": null,
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-573601442606",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-573601442606",
+          "value": [
+            "R-1A"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-26-2020",
       "link_basis": "number",
       "number": "CZ-26-2020",
       "title": "Application ofM. Ireland LLC from AG to R-1",
-      "year": 2021
+      "year": 2021,
+      "zoning": {
+        "acreage": {
+          "page": 6,
+          "source_id": "src-9e291a55986d",
+          "value": 102.81
+        },
+        "applicant": {
+          "page": 6,
+          "source_id": "src-9e291a55986d",
+          "value": "M. Ireland L L C"
+        },
+        "from_zoning": {
+          "page": 6,
+          "source_id": "src-9e291a55986d",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 6,
+          "source_id": "src-9e291a55986d",
+          "value": [
+            "R-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-26-2022",
       "link_basis": "number",
       "number": "CZ-26-2022",
       "title": "CZ-26-2022",
-      "year": 2023
+      "year": 2023,
+      "zoning": {
+        "acreage": {
+          "page": 6,
+          "source_id": "src-c66ef694615a",
+          "value": 18.31
+        },
+        "applicant": {
+          "page": 6,
+          "source_id": "src-c66ef694615a",
+          "value": "Hunter Winn Vernon Weakley"
+        },
+        "from_zoning": {
+          "page": 6,
+          "source_id": "src-c66ef694615a",
+          "value": [
+            "R-1"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 6,
+          "source_id": "src-c66ef694615a",
+          "value": [
+            "R-4"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-3-2020",
       "link_basis": "number",
       "number": "CZ-3-2020",
       "title": "Application of Alfred Jones from R-3 to EMI",
-      "year": 2020
+      "year": 2020,
+      "zoning": {
+        "acreage": {
+          "page": 26,
+          "source_id": "src-7325525d58ca",
+          "value": 1.4
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-7325525d58ca",
+          "value": "Alfred Jones"
+        },
+        "from_zoning": {
+          "page": 26,
+          "source_id": "src-7325525d58ca",
+          "value": [
+            "R-3"
+          ]
+        },
+        "location": {
+          "page": 26,
+          "source_id": "src-7325525d58ca",
+          "value": "Properties directly east of the Guthrie Rd. & Johnson St. intersection & west of Batchelor St."
+        },
+        "to_zoning": {
+          "page": 26,
+          "source_id": "src-7325525d58ca",
+          "value": [
+            "EM-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-3-2022",
       "link_basis": "number",
       "number": "CZ-3-2022",
       "title": "Application ofBryce Powers from C-5 to M-2",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 6,
+          "source_id": "src-c2d86df5cc5d",
+          "value": 2.37
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-c2d86df5cc5d",
+          "value": "Bryce Powers"
+        },
+        "from_zoning": {
+          "page": 6,
+          "source_id": "src-c2d86df5cc5d",
+          "value": [
+            "C-5"
+          ]
+        },
+        "location": {
+          "page": 6,
+          "source_id": "src-c2d86df5cc5d",
+          "value": "Property fronting on the northeast frontage of Highway 41, 1,930 +/- feet southeast of the 41 & Pineywoods Rd. intersection"
+        },
+        "to_zoning": {
+          "page": 6,
+          "source_id": "src-c2d86df5cc5d",
+          "value": [
+            "M-2"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-3-2023",
       "link_basis": "number",
       "number": "CZ-3-2023",
       "title": "Application ofJeffrey L. Winningham from AG to B-i",
-      "year": 2023
+      "year": 2023,
+      "zoning": {
+        "acreage": {
+          "page": 4,
+          "source_id": "src-6caf17ab1e6a",
+          "value": 1.12
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-6caf17ab1e6a",
+          "value": "Jeffrey L. Winningham"
+        },
+        "from_zoning": {
+          "page": 4,
+          "source_id": "src-6caf17ab1e6a",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 4,
+          "source_id": "src-6caf17ab1e6a",
+          "value": [
+            "E-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-3-2025",
       "link_basis": "number",
       "number": "CZ-3-2025",
       "title": "Application of Leonard & Angela Carter from R-2 to C-2",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-624a3777502f",
+          "value": "Leonard & Angela Carter"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-624a3777502f",
+          "value": [
+            "R-2"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-624a3777502f",
+          "value": [
+            "C-2"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-3-2026",
       "link_basis": "number",
       "number": "CZ-3-2026",
       "title": "Application of Arthur Clark from AG to C-S",
-      "year": 2026
+      "year": 2026,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-92adf0a4c84f",
+          "value": "Arthur Clark"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-92adf0a4c84f",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-33-2021",
       "link_basis": "number",
       "number": "CZ-33-2021",
       "title": "Application ofJolie Bunks GP from R-1 to R-4",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 4,
+          "source_id": "src-9b7e32b905d0",
+          "value": 1.26
+        },
+        "applicant": null,
+        "from_zoning": {
+          "page": 4,
+          "source_id": "src-9b7e32b905d0",
+          "value": [
+            "R-1"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 4,
+          "source_id": "src-9b7e32b905d0",
+          "value": [
+            "R-4"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-34-2021",
       "link_basis": "number",
       "number": "CZ-34-2021",
       "title": "Application ofJames Black from AG to C-I",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-9b7e32b905d0",
+          "value": "James Black"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-9b7e32b905d0",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-35-2021",
       "link_basis": "number",
       "number": "CZ-35-2021",
       "title": "CZ-35-2021",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 8,
+          "source_id": "src-9b7e32b905d0",
+          "value": 1.03
+        },
+        "applicant": {
+          "page": 8,
+          "source_id": "src-9b7e32b905d0",
+          "value": "Evan Ellis"
+        },
+        "from_zoning": {
+          "page": 8,
+          "source_id": "src-9b7e32b905d0",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 8,
+          "source_id": "src-9b7e32b905d0",
+          "value": [
+            "E-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-4-2022",
       "link_basis": "number",
       "number": "CZ-4-2022",
       "title": "CZ-4-2022",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": null,
+        "applicant": null,
+        "from_zoning": null,
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-4-2023",
       "link_basis": "number",
       "number": "CZ-4-2023",
       "title": "CZ-4-2023",
-      "year": 2023
+      "year": 2023,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 6,
+          "source_id": "src-9df60d351a49",
+          "value": "Real Life Church"
+        },
+        "from_zoning": {
+          "page": 6,
+          "source_id": "src-9df60d351a49",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": {
+          "page": 6,
+          "source_id": "src-9df60d351a49",
+          "value": "a tract of land fronting on the north frontage of Sango Rd. 315+/- feet west of the Sango Rd. & Sheas Way intersection"
+        },
+        "to_zoning": {
+          "page": 6,
+          "source_id": "src-9df60d351a49",
+          "value": [
+            "C-2"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-4-2025",
       "link_basis": "number",
       "number": "CZ-4-2025",
       "title": "Application of Wanda 0. Darnell from E-1 to EM-l",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": null,
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-277b12058180",
+          "value": [
+            "E-1"
+          ]
+        },
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-5-2022",
       "link_basis": "number",
       "number": "CZ-5-2022",
       "title": "Application ofReda Home Builders, Inc. from R-l/R-3 to C-2",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 7,
+          "source_id": "src-ade826342018",
+          "value": 1.1
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-ade826342018",
+          "value": "Reda Home Builders, Inc"
+        },
+        "from_zoning": {
+          "page": 7,
+          "source_id": "src-ade826342018",
+          "value": [
+            "R-1",
+            "R-3"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 7,
+          "source_id": "src-ade826342018",
+          "value": [
+            "C-2"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-5-2023",
       "link_basis": "number",
       "number": "CZ-5-2023",
       "title": "CZ-5-2023",
-      "year": 2023
+      "year": 2023,
+      "zoning": {
+        "acreage": {
+          "page": 8,
+          "source_id": "src-9df60d351a49",
+          "value": 1.06
+        },
+        "applicant": null,
+        "from_zoning": {
+          "page": 8,
+          "source_id": "src-9df60d351a49",
+          "value": [
+            "R-3"
+          ]
+        },
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-5-2025",
       "link_basis": "number",
       "number": "CZ-5-2025",
       "title": "Application of Ben Mimms Portion from AG to C-4",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": null,
+        "from_zoning": null,
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-6-2022",
       "link_basis": "number",
       "number": "CZ-6-2022",
       "title": "Application of Byard & Mabry Holdings LLC from AG to R-1",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-ade826342018",
+          "value": "Byard & Mabry Holdings LLC"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-ade826342018",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-ade826342018",
+          "value": [
+            "R-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-6-2023",
       "link_basis": "number",
       "number": "CZ-6-2023",
       "title": "Application of Sunilkumar Arunagiri from R-l to R-3",
-      "year": 2023
+      "year": 2023,
+      "zoning": {
+        "acreage": {
+          "page": 4,
+          "source_id": "src-b325a18d7786",
+          "value": 1.0
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-b325a18d7786",
+          "value": "Sunilkumar Arunagiri"
+        },
+        "from_zoning": {
+          "page": 4,
+          "source_id": "src-b325a18d7786",
+          "value": [
+            "R-1"
+          ]
+        },
+        "location": {
+          "page": 4,
+          "source_id": "src-b325a18d7786",
+          "value": "A portion of the parcel fronting on the south frontage of Highway 41-A South, 935 +/-feet east of the Highway 41-A South & Malkowski Rd. intersection"
+        },
+        "to_zoning": {
+          "page": 4,
+          "source_id": "src-b325a18d7786",
+          "value": [
+            "R-3"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-6-2025",
       "link_basis": "number",
       "number": "CZ-6-2025",
       "title": "Application of Linda Wortham, etal, from AG to R- 1",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": null,
+        "from_zoning": null,
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-7-2022",
       "link_basis": "number",
       "number": "CZ-7-2022",
       "title": "Application of Dwayne & Beckye Glasner from 0-1 to AG",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 11,
+          "source_id": "src-ade826342018",
+          "value": 178.8
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-ade826342018",
+          "value": "Dwayne & Beckye Glasner"
+        },
+        "from_zoning": {
+          "page": 11,
+          "source_id": "src-ade826342018",
+          "value": [
+            "O-1"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 11,
+          "source_id": "src-ade826342018",
+          "value": [
+            "AG"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-7-2023",
       "link_basis": "number",
       "number": "CZ-7-2023",
       "title": "Application of Benjamin Stanley, Danel & CarbI Smith from AG to C-21M-1",
-      "year": 2023
+      "year": 2023,
+      "zoning": {
+        "acreage": {
+          "page": 8,
+          "source_id": "src-eff152821896",
+          "value": 50.81
+        },
+        "applicant": {
+          "page": 8,
+          "source_id": "src-eff152821896",
+          "value": "Benjamin Stanley Darrel & Carol Smith"
+        },
+        "from_zoning": {
+          "page": 8,
+          "source_id": "src-eff152821896",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": {
+          "page": 8,
+          "source_id": "src-eff152821896",
+          "value": "Property fronting on the north frontage of Dunlop Lane, 2,800 +/- feet west of the Dunlop Ln. & Rollow Ln. intersection"
+        },
+        "to_zoning": {
+          "page": 8,
+          "source_id": "src-eff152821896",
+          "value": [
+            "C-2",
+            "M-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-7-2025",
       "link_basis": "number",
       "number": "CZ-7-2025",
       "title": "Application of Thomas Oliver, Jr. and Teresa Oliver from AG to M-2",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-d681a048c3e7",
+          "value": "Thomas Oliver, Jr. and Teresa Oliver"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-d681a048c3e7",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-d681a048c3e7",
+          "value": [
+            "M-2"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-8-2022",
       "link_basis": "number",
       "number": "CZ-8-2022",
       "title": "Application ofJohn McConnell from AG to E-1",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 14,
+          "source_id": "src-ade826342018",
+          "value": 1.2
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-ade826342018",
+          "value": "John McConnell"
+        },
+        "from_zoning": {
+          "page": 14,
+          "source_id": "src-ade826342018",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": {
+          "page": 14,
+          "source_id": "src-ade826342018",
+          "value": [
+            "E-1"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-8-2023",
       "link_basis": "number",
       "number": "CZ-8-2023",
       "title": "Application of DGTF Clark Enterprises, LLC from C-5 lAG to R-41C-5",
-      "year": 2023
+      "year": 2023,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 7,
+          "source_id": "src-b325a18d7786",
+          "value": "DGTF Clark Enterprises LLC"
+        },
+        "from_zoning": {
+          "page": 7,
+          "source_id": "src-b325a18d7786",
+          "value": [
+            "C-5",
+            "AG"
+          ]
+        },
+        "location": {
+          "page": 7,
+          "source_id": "src-b325a18d7786",
+          "value": "Property located at the northwest corner of the Guthrie Hwy. & Spring Creek Village Rd."
+        },
+        "to_zoning": {
+          "page": 7,
+          "source_id": "src-b325a18d7786",
+          "value": [
+            "R-4",
+            "C-5"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-8-2025",
       "link_basis": "number",
       "number": "CZ-8-2025",
       "title": "Application of Vision Home Builders, LLC from Rd to R-lA",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-d681a048c3e7",
+          "value": "Vision Home Builders, LLC"
+        },
+        "from_zoning": null,
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZ-9-2022",
       "link_basis": "number",
       "number": "CZ-9-2022",
       "title": "Application ofRossvicw Farms, LLC from 0-1/AG/B-i to MXU-PUD",
-      "year": 2022
+      "year": 2022,
+      "zoning": {
+        "acreage": {
+          "page": 25,
+          "source_id": "src-19ac962e4270",
+          "value": 307.4
+        },
+        "applicant": null,
+        "from_zoning": {
+          "page": 25,
+          "source_id": "src-19ac962e4270",
+          "value": [
+            "O-1",
+            "AG",
+            "E-1"
+          ]
+        },
+        "location": {
+          "page": 25,
+          "source_id": "src-19ac962e4270",
+          "value": "Property fronting on the south frontage of Rossview Rd., south of the Rossview Rd. & Kirkwood Rd. intersection"
+        },
+        "to_zoning": {
+          "page": 25,
+          "source_id": "src-19ac962e4270",
+          "value": [
+            "MXU-PUD"
+          ]
+        }
+      }
     },
     {
       "id": "CZ-9-2025",
       "link_basis": "number",
       "number": "CZ-9-2025",
       "title": "Applicationof David Phillips from AG to C-S",
-      "year": 2025
+      "year": 2025,
+      "zoning": {
+        "acreage": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-d681a048c3e7",
+          "value": "David Phillips"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-d681a048c3e7",
+          "value": [
+            "AG"
+          ]
+        },
+        "location": null,
+        "to_zoning": null
+      }
     },
     {
       "id": "CZO-1-2023",

@@ -483,6 +483,9 @@ Full field list and enums: `schema/facts.schema.json`. Summary:
   (`present`|`absent`), `page`}, `stated_absent_count`, `verification`.
 - **items**: `id` (normalised official number, e.g. `24-12-1`, `AB-4-2024`; or `t-<sha1(normalised title)[:10]>`),
   `number` (or null), `title` (verbatim, from first appearance), `link_basis` (`number` | `title`), `year`.
+  Rezoning cases (prefixes in `config/localities/<locality>/zoning.yml`) also carry `zoning` {`applicant`,
+  `location`, `acreage`, `from_zoning`, `to_zoning`}, each {`value`, `source_id`, `page`} or null: published only when
+  two independent readings (printing x engine) agree and none disagrees (`collector/zoning.py`). Search indexes them as `z`.
 - **item_events**: every appearance of an item: `id`, `item_id`, `meeting_id`, `date`, `type` (`listed`,
   `referral`, `reading`, `amendment`, `motion`, `roll_call`, `postponed`, `withdrawn`, `other`), `label` (verbatim),
   `ref` (motion or roll call id, when the type is one), `source_id`, `page`, `order`.
