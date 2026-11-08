@@ -1,58 +1,51 @@
 {% extends "base.html.j2" %}
-{% from "_macros.html.j2" import stat, badge %}
+{% from "_map.html.j2" import county_map %}
 {% block main %}
-<h1>Officials</h1>
-<p class="lede">{{ coverage.body }} records, {{ coverage.from }} to {{ coverage.to }}. Choose a name to see that person's recorded votes, attendance, motions and seconds. Every fact links to the county's own minutes.</p>
+{# Landing (design 3): purpose, search, layer switch, map, district list. Nothing else. #}
+<div class="landing">
+  <h1 class="purpose">{{ site.cfg.purpose }}</h1>
+  <p class="muted purpose-sub"><span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>. {{ site.cfg.city_coming }}</p>
 
-<section class="glance" aria-label="The record at a glance">
-  <ul class="stats">
-    {{ stat(glance.meetings, "meetings in the record") }}
-    {{ stat(glance.rc_confirmed, "roll calls confirmed") }}
-    {{ stat(glance.rc_unconfirmed, "roll calls shown but not confirmed*") }}
-    <li class="stat stat-dates"><span class="stat-num"><span class="nowrap">{{ glance.from }}</span> to <span class="nowrap">{{ glance.to }}</span></span><span class="stat-label">dates covered</span></li>
-  </ul>
-  <p class="glance-note">{{ glance.rc_confirmed }} of {{ glance.rc_total }} roll calls are confirmed; the other {{ glance.rc_unconfirmed }} are shown with an asterisk and a link to the page of the minutes. {{ glance.motions_held }} motion {{ "attribution is" if glance.motions_held == 1 else "attributions are" }} under review. {{ glance.att_not_shown }} {{ "meeting has" if glance.att_not_shown == 1 else "meetings have" }} no attendance shown. See the <a href="about.html">data rules</a>.</p>
-</section>
-
-<ul class="cards" aria-label="Officials, alphabetical by surname">
-{% for o in officials %}
-  <li class="card">
-    {{ badge(o.initials) }}
-    <div class="card-body">
-      <a class="card-name" href="{{ o.href }}">{{ o.name }}</a>
-      <span class="card-title">{{ o.title }}</span>
-      <span class="card-line">Present at {{ o.present }} of {{ o.listed }} {{ "meeting" if o.listed == 1 else "meetings" }} with attendance shown</span>
-      <span class="card-line">Recorded vote on {{ o.rc_voted }} confirmed and {{ o.rc_voted_nc }} not confirmed* roll {{ "call" if o.rc_voted + o.rc_voted_nc == 1 else "calls" }}</span>
+  <form class="landing-search" action="search.html" method="get" role="search">
+    <label for="landing-q">Search records</label>
+    <div class="search-row">
+      <input id="landing-q" name="q" type="search" placeholder="Item title, number, name or street">
+      <button type="submit">Search</button>
     </div>
-  </li>
-{% endfor %}
-</ul>
+  </form>
 
-<h2 id="meetings">Meetings</h2>
-<p>Newest first. Each meeting page shows attendance, motions and roll calls.</p>
-{% if meetings_by_year %}
-<details class="menu year-jump">
-  <summary>Jump to year</summary>
-  <ul class="menu-list" aria-label="Meeting years">
-  {% for g in meetings_by_year %}
-    <li><a href="#y{{ g.year }}">{{ g.year }}</a></li>
-  {% endfor %}
-  </ul>
-</details>
-{% for g in meetings_by_year %}
-<details class="year-group"{% if loop.first %} open{% endif %}>
-<summary><span class="year-label">{{ g.year }}</span></summary>
-<ol class="timeline meetings" id="y{{ g.year }}" aria-label="Meetings in {{ g.year }}">
-  {% for m in g.meetings %}
-  <li class="ev-meeting">
-    <p class="tl-head"><a class="date" href="{{ m.href }}">{{ m.date }}</a> <span class="tl-kind">{{ m.kind_label }}</span></p>
-    <p class="tl-sub">{{ m.rc_confirmed + m.rc_unconfirmed }} roll {{ "call" if m.rc_confirmed + m.rc_unconfirmed == 1 else "calls" }} ({{ m.rc_unconfirmed }} not confirmed*) <span class="sep" aria-hidden="true">&middot;</span> {{ m.motions }} {{ "motion" if m.motions == 1 else "motions" }} <span class="sep" aria-hidden="true">&middot;</span> {% if m.att_state == "shown" %}{{ m.present }} of {{ m.listed }} members present{% else %}attendance not shown{% endif %}</p>
-  </li>
-  {% endfor %}
-</ol>
-</details>
-{% endfor %}
-{% else %}
-<p>No meetings are available yet.</p>
-{% endif %}
+  <div class="landing-grid">
+    <div class="landing-map">
+      <fieldset class="layer-switch">
+        <legend>Map shows</legend>
+        <label><input type="radio" name="layer" id="show-districts" value="districts" checked> County commission districts</label>
+        <label><input type="radio" name="layer" id="show-wards" value="wards"> City wards (coming)</label>
+      </fieldset>
+      <p class="wards-note note">{{ site.cfg.city_name }} wards are coming. The city's records have not been collected yet.</p>
+      {% if map %}
+      <p class="sr-only">Map of {{ site.cfg.county_name }}'s {{ district_count }} commission districts. The same districts are listed after the map.</p>
+      {{ county_map(map, root, site.cfg, links=true) }}
+      <p class="map-caption">Current district lines, in use since {{ map.effective }}. Boundaries: <a data-ext="map" href="{{ map.source_url }}" target="_blank" rel="noopener noreferrer">{{ map.source_title }}<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ map.fetched }}. Old district lines (before {{ site.cfg.lines_effective }}): {% if site.cfg.old_lines_map_url %}<a data-ext="county" href="{{ site.cfg.old_lines_map_url }}" target="_blank" rel="noopener noreferrer">map (PDF)</a>{% else %}the map has not been found yet; <a data-ext="county" href="{{ site.cfg.redistricting_page }}" target="_blank" rel="noopener noreferrer">county redistricting page</a>{% endif %}.</p>
+      {% else %}
+      <div class="map-placeholder" role="note"><p>The map is not available yet. Districts are listed by number.</p></div>
+      {% endif %}
+    </div>
+
+    <div class="landing-list">
+      <details class="district-list"{% if not map %} open{% endif %} data-open-wide>
+        <summary>All {{ district_count }} districts, by number</summary>
+        <nav aria-label="County commission districts">
+          <ol class="districts">
+            {% for r in rows %}
+            <li data-district="{{ r.number }}"><a href="{{ r.href }}"><span class="d-label">{{ r.label }}</span>{% if r.holder %} <span class="d-holder">{{ r.holder }}</span>{% endif %}</a></li>
+            {% endfor %}
+          </ol>
+        </nav>
+        <h2 class="list-h">City wards</h2>
+        <p>City ward pages are coming.</p>
+      </details>
+    </div>
+  </div>
+</div>
 {% endblock %}
+{% block scripts %}{% if map %}<script src="{{ root }}static/map.js" defer></script>{% endif %}{% endblock %}

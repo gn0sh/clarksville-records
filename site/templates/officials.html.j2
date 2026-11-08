@@ -1,0 +1,40 @@
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import badge, seat %}
+{% macro cards(list, label) %}
+<ul class="cards" aria-label="{{ label }}">
+{% for o in list %}
+  <li class="card" data-official="{{ o.id }}">
+    {{ badge(o.initials) }}
+    <div class="card-body">
+      <span class="card-name-line"><a class="card-name" href="{{ o.href }}">{{ o.name }}</a>{% if o.seat %}<span class="seat">, {{ o.seat }}</span>{% endif %}</span>
+      <span class="card-title">{{ o.title }}</span>
+      <span class="card-line">Present at {{ o.present }} of {{ o.listed }} {{ "meeting" if o.listed == 1 else "meetings" }} with attendance shown</span>
+      <span class="card-line">Recorded vote on {{ o.rc_voted }} confirmed and {{ o.rc_voted_nc }} not confirmed* roll {{ "call" if o.rc_voted + o.rc_voted_nc == 1 else "calls" }}</span>
+    </div>
+  </li>
+{% endfor %}
+</ul>
+{% endmacro %}
+{% block main %}
+<h1>Officials</h1>
+{% if seats_loaded %}
+<p class="lede">Current members of the {{ site.cfg.county_body }}, by district number. Then everyone who served previously, by surname. Choose a name to see that person's recorded votes, attendance, motions and seconds.</p>
+{% for s in sections %}
+<details class="officials-section" id="{{ s.key }}" data-order="{{ s.order }}"{% if s.key == "current" %} open{% endif %}>
+  <summary><h2>{{ s.heading }}{% if s.key != "current" %} ({{ s.cards | length }}){% endif %}</h2></summary>
+  {% if s.cards %}
+  {{ cards(s.cards, s.heading ~ (", by seat" if s.order == "seat" else ", alphabetical by surname")) }}
+  {% else %}
+  <p>No one is listed here.</p>
+  {% endif %}
+</details>
+{% endfor %}
+{% else %}
+<p class="lede">{{ site.coverage.body }} records, {{ site.coverage.from }} to {{ site.coverage.to }}. Choose a name to see that person's recorded votes, attendance, motions and seconds. Every fact links to the county's own minutes.</p>
+{% for s in sections %}
+<div class="officials-section" id="{{ s.key }}" data-order="{{ s.order }}">
+{{ cards(s.cards, "Officials, alphabetical by surname") }}
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

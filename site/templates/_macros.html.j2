@@ -27,8 +27,13 @@
 <p class="meta"><span class="cite-label">Source:</span> {{ source(src) }} <span class="sep" aria-hidden="true">&middot;</span> {{ fact_meta(root, fact_id) }}</p>
 {%- endmacro %}
 
+{# Design 6A.2: the seat held on that date, as plain text after the name, the same style for everyone. #}
 {% macro person(p, root) -%}
-{% if p is none %}<span class="muted">Not recorded</span>{% elif p.href %}<a href="{{ root }}{{ p.href }}">{{ p.name }}</a>{% else %}{{ p.name }}{% endif %}
+{% if p is none %}<span class="muted">Not recorded</span>{% elif p.href %}<a href="{{ root }}{{ p.href }}">{{ p.name }}</a>{% if p.seat %}<span class="seat">, {{ p.seat }}</span>{% endif %}{% else %}{{ p.name }}{% endif %}
+{%- endmacro %}
+
+{% macro seat(text) -%}
+{% if text %}<span class="seat">{{ text }}</span>{% endif %}
 {%- endmacro %}
 
 {% macro item_link(item, root) -%}

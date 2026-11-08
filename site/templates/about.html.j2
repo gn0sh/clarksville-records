@@ -1,4 +1,5 @@
 {% extends "base.html.j2" %}
+{% from "_macros.html.j2" import stat %}
 {% block main %}
 <h1>About this site and its data rules</h1>
 
@@ -11,6 +12,19 @@
   <h2 id="collected">What is collected, and from where</h2>
   <p>The site reads the official minutes of the {{ coverage.body }}, as published by the county, for {{ coverage.from }} to {{ coverage.to }}. Each minutes PDF is downloaded politely (it follows the site's robots rules and waits between requests) and kept unchanged. A computer program reads the text of each PDF. The county's minutes record motions, seconds, roll call votes and attendance. They do not record spoken comments, so none are shown.</p>
   <p>Every fact on this site links to the minutes PDF, opened at the page where the fact appears, and shows the date the PDF was fetched.</p>
+</section>
+
+<section aria-labelledby="the-record">
+  <h2 id="the-record">The record</h2>
+  <div class="glance">
+  <ul class="stats">
+    {{ stat(glance.meetings, "meetings in the record") }}
+    {{ stat(glance.rc_confirmed, "roll calls confirmed") }}
+    {{ stat(glance.rc_unconfirmed, "roll calls shown but not confirmed*") }}
+    <li class="stat stat-dates"><span class="stat-num"><span class="nowrap">{{ glance.from }}</span> to <span class="nowrap">{{ glance.to }}</span></span><span class="stat-label">dates covered</span></li>
+  </ul>
+  <p class="glance-note">{{ glance.rc_confirmed }} of {{ glance.rc_total }} roll calls are confirmed; the other {{ glance.rc_unconfirmed }} are shown with an asterisk and a link to the page of the minutes. {{ glance.motions_held }} motion {{ "attribution is" if glance.motions_held == 1 else "attributions are" }} under review. {{ glance.att_not_shown }} {{ "meeting has" if glance.att_not_shown == 1 else "meetings have" }} no attendance shown. See the <a href="#verified">data rules</a>.</p>
+  </div>
 </section>
 
 <section aria-labelledby="verified">
@@ -43,15 +57,35 @@
   </div>
 </section>
 
+<section aria-labelledby="seats">
+  <h2 id="seats">Seats, current members and those who served previously</h2>
+  <p>Each seat ({{ site.cfg.district_label }} 1 to {{ site.cfg.district_count }}{% for o in site.cfg.other_seats %}, {{ o.label }}{% endfor %}) has a list of holder records: who held it, from when, to when, and the source that says so. A record is <em>current</em> when it has no end date, or its end date is after the latest meeting in the record. Everyone else with a record served previously. A person with no record yet is listed under &ldquo;Seat not yet recorded&rdquo;: nobody is placed in a seat by guess. The seat shown next to a name on a meeting page is the seat that person held on that meeting's date. District lines were redrawn in 2022; votes before {{ site.cfg.lines_effective }} are listed under &ldquo;Old district lines&rdquo; and never added to votes under the current lines.</p>
+</section>
+
+<section aria-labelledby="item-types">
+  <h2 id="item-types">How item types are decided</h2>
+  <p>The same rule for every item. An item has a type when its number starts with one of the prefixes below, or its title, as printed in the minutes, contains one of the words (any capitalisation). An item can have more than one type. An item with none of them is &ldquo;Other&rdquo;.</p>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Item type rule">
+  <table class="aliases">
+    <thead><tr><th scope="col">Type</th><th scope="col">Number starts with</th><th scope="col">Title contains</th></tr></thead>
+    <tbody>
+    {% for t in site.cfg.item_types %}
+      <tr><th scope="row">{{ t.label }}</th><td>{{ t.prefixes | join(", ") or "None" }}</td><td>{{ t.words | join(", ") }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
 <section aria-labelledby="neutrality">
   <h2 id="neutrality">Neutrality rules</h2>
   <ol>
-    <li>Every official is shown with the same layout, the same fields and the same order. People are listed alphabetically by surname.</li>
+    <li>Every official is shown with the same layout, the same fields and the same order. People are listed alphabetically by surname, except current members, who are listed by seat number. Nothing is ever ordered by a count.</li>
     <li>Only facts are shown. Attendance is Present or Absent as the minutes record it. A vote is Yes, No or Abstain, or Other, with the minutes' wording only when it is one of Recused, Absent, Not voting or Present. Nothing is turned into a judgment.</li>
     <li>Counts appear only as plain totals, with the number of meetings they come from and the date range stated, worded the same way for everyone. Nothing is sorted by a count or highlighted for one.</li>
     <li>Every fact shows a link to its source document and page, and the date it was fetched.</li>
     <li>Every fact has a way to report a mistake (see below).</li>
-    <li>There are no advertisements, campaign links, outside scripts, outside fonts or visitor tracking.</li>
+    <li>There are no advertisements, campaign links, outside scripts, outside fonts or visitor tracking. The site's own small scripts (menu, map and search) make no network requests.</li>
   </ol>
 </section>
 

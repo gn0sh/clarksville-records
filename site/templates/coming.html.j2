@@ -1,0 +1,11 @@
+{% extends "base.html.j2" %}
+{% block main %}
+{# Design 6: no numbers, no sample chart, no placeholder table, no example values. #}
+<h1>{{ page.title }} <span class="chip chip-coming">Coming</span></h1>
+<p class="lede">{{ page.lede }}</p>
+<h2>What is planned</h2>
+<ul>
+{% for p in page.planned %}<li>{{ p }}</li>{% endfor %}
+</ul>
+<p>See the <a href="{{ root }}about.html">data rules on the About page</a>.</p>
+{% endblock %}

@@ -15,57 +15,13 @@
 {% endif %}
 <header class="site-header">
   <div class="masthead">
+    {# Design 2.1: without JS this is a link to the full list in the footer; static/nav.js swaps it for a button that
+       opens the drawer (a native <dialog> built from that same list, so the footer list is the single source). #}
+    <a id="nav-open" class="menu-btn" href="#site-nav"><span class="menu-icon" aria-hidden="true"></span><span class="menu-word">Menu</span></a>
     <div class="brand">
       <p class="site-name"><a href="{{ root }}index.html">{{ site.site_name }}</a></p>
-      <p class="kicker">{{ site.coverage.body }} minutes, <span class="nowrap">{{ site.coverage.from }}</span> to <span class="nowrap">{{ site.coverage.to }}</span></p>
+      {% if page_name != "Map" %}<p class="kicker">{{ site.coverage.body }} minutes, <span class="nowrap">{{ site.coverage.from }}</span> to <span class="nowrap">{{ site.coverage.to }}</span></p>{% endif %}
     </div>
-    {% set items_current = page_name.startswith("Items ") %}
-    {% set more_current = page_name in ("About", "Changes", "Review (internal)") %}
-    {# Wide screens: Officials plus two dropdowns. Phones: one Menu dropdown. Native <details>, no script; CSS shows
-       one of the two navs. #}
-    <nav aria-label="Main" class="nav-wide">
-      <ul>
-        <li><a href="{{ root }}index.html"{% if page_name == "Officials" %} aria-current="page"{% endif %}>Officials</a></li>
-        <li class="nav-drop">
-          <details class="menu" name="main-nav">
-            <summary{% if items_current %} class="current"{% endif %}>Items</summary>
-            <ul class="menu-list">
-              {% for y in site.item_years_desc %}
-              <li><a href="{{ root }}items/{{ y }}.html"{% if page_name == "Items " ~ y %} aria-current="page"{% endif %}>Items {{ y }}</a></li>
-              {% endfor %}
-            </ul>
-          </details>
-        </li>
-        <li class="nav-drop">
-          <details class="menu" name="main-nav">
-            <summary{% if more_current %} class="current"{% endif %}>More</summary>
-            <ul class="menu-list">
-              <li><a href="{{ root }}about.html"{% if page_name == "About" %} aria-current="page"{% endif %}>About</a></li>
-              <li><a href="{{ root }}changes.html"{% if page_name == "Changes" %} aria-current="page"{% endif %}>Changes</a></li>
-              {% if site.internal %}
-              <li><a href="{{ root }}review.html"{% if page_name == "Review (internal)" %} aria-current="page"{% endif %}>Review (internal)</a></li>
-              {% endif %}
-            </ul>
-          </details>
-        </li>
-      </ul>
-    </nav>
-    <nav aria-label="Main (menu)" class="nav-narrow">
-      <details class="menu">
-        <summary>Menu</summary>
-        <ul class="menu-list">
-          <li><a href="{{ root }}index.html"{% if page_name == "Officials" %} aria-current="page"{% endif %}>Officials</a></li>
-          {% for y in site.item_years_desc %}
-          <li><a href="{{ root }}items/{{ y }}.html"{% if page_name == "Items " ~ y %} aria-current="page"{% endif %}>Items {{ y }}</a></li>
-          {% endfor %}
-          <li><a href="{{ root }}about.html"{% if page_name == "About" %} aria-current="page"{% endif %}>About</a></li>
-          <li><a href="{{ root }}changes.html"{% if page_name == "Changes" %} aria-current="page"{% endif %}>Changes</a></li>
-          {% if site.internal %}
-          <li><a href="{{ root }}review.html"{% if page_name == "Review (internal)" %} aria-current="page"{% endif %}>Review (internal)</a></li>
-          {% endif %}
-        </ul>
-      </details>
-    </nav>
   </div>
 </header>
 <div class="rule-double" aria-hidden="true"></div>
@@ -73,9 +29,31 @@
 {% block main %}{% endblock %}
 </main>
 <footer class="site-footer">
-  <p>Run by {{ site.operator }}. <a href="{{ root }}about.html">About this site and its data rules.</a></p>
-  <p>Data as of {{ site.data_as_of }}</p>
+  <p>Provided as a free service by {{ site.operator }}.{% if site.support_url %} <a data-ext="support" href="{{ site.support_url }}" rel="noopener noreferrer">{{ site.support_label }}</a>{% endif %}</p>
+  <p><a href="{{ root }}about.html">About this site and its data rules.</a> Data as of {{ site.data_as_of }}</p>
+  <nav id="site-nav" class="site-nav" aria-label="All pages" data-root="{{ root }}" data-search="{{ root }}search.html">
+    <h2 class="site-nav-h">All pages</h2>
+    <ul class="nav-list">
+      {% for e in site.nav %}
+      {% if e.href %}
+      <li><a href="{{ root }}{{ e.href }}"{% if page_name == e.page or page_name.startswith(e.page ~ " ") %} aria-current="page"{% endif %}>{{ e.label }}{% if e.coming %} <span class="chip chip-coming">Coming</span>{% endif %}</a></li>
+      {% else %}
+      <li><span class="nav-group">{{ e.label }}</span>
+        <ul class="nav-years" aria-label="{{ e.label }} by year">
+          {% for y in site.item_years_desc %}
+          <li><a href="{{ root }}items/{{ y }}.html"{% if page_name == "Items " ~ y %} aria-current="page"{% endif %}>{{ y }}</a></li>
+          {% endfor %}
+        </ul>
+      </li>
+      {% endif %}
+      {% endfor %}
+      {% if site.internal %}
+      <li><a href="{{ root }}review.html"{% if page_name == "Review (internal)" %} aria-current="page"{% endif %}>Review (internal)</a></li>
+      {% endif %}
+    </ul>
+  </nav>
 </footer>
+<script src="{{ root }}static/nav.js" defer></script>
 <script src="{{ root }}static/filter.js" defer></script>
 {% block scripts %}{% endblock %}
 </body>
