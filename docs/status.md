@@ -59,8 +59,8 @@
 | 2026-11-08 | code-reviewer | sonnet/medium | review rezoning fields | request changes: parse-accuracy/single-engine-misread-agrees, malformed-dissent-dropped; 3 nits |
 | 2026-11-08 | software-architect | opus/medium | independent-readings invariant (loop rule, parse-accuracy 2nd hit) | done, e9c7502 |
 | 2026-11-08 | backend-engineer | opus/high | independent-readings fixes | running |
-| 2026-11-08 | code-reviewer | opus/high | delta re-review of landing fixes | running |
-| 2026-11-08 | qa-engineer | sonnet/medium | re-test landing bugs | running |
+| 2026-11-08 | code-reviewer | opus/high | delta re-review of landing fixes | approve with nits: a11y-headings/officials-sections; provenance/acreage-not-as-printed (3rd provenance hit, fresh review next); provenance/open-run-latest-mismatch (latent) |
+| 2026-11-08 | qa-engineer | sonnet/medium | re-test landing bugs | PASS all; site_checks PASS incl. layout, provenance |
 | 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
 
 ## Decisions
@@ -77,7 +77,7 @@
 | item-history | 2 (review x2): architect states invariant | consent-reprint-duplicates, consent-pulled |
 | politeness | 1 (review) | redirect-bypass |
 | idempotence | 1 (review) | superseded-source |
-| provenance | 2 (review 11-08 x2): architect states invariant | derived-count-shown-as-stated, derived-seat-dates-shown-as-term |
+| provenance | 3 (review 11-08 x2, delta): invariant stated (2c9dba6); fresh review on next fix | derived-count-shown-as-stated, derived-seat-dates-shown-as-term, acreage-not-as-printed, open-run-latest-mismatch |
 | parse-accuracy | 2 (review 11-08, rezoning review): architect states invariant | verified-rate, combine-ignores-unclean-dissent, outcome-crosses-clause, two-thirds-majority |
 
 ## Skipped panels
