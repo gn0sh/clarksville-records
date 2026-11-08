@@ -20,3 +20,6 @@ Nits
 Checked and sound: scan guard (read + build), shared URLs link-only, held totals, robots/Bonfire/403 handling, 316 links -> 295 documents, printed order, no cross-solicitation sums, banned-words lint, no locality literals, autoescape, determinism.
 
 Manager decision: finding 5 deferred to slice 1a.2 (reading text award letters is new extraction); recorded in the spec and status.
+
+## Delta re-review at 118b5e5: APPROVE WITH NITS
+All fixes in place with tests (1020 passed). Should-fix provenance/held-sentence-misstates (_macros.html.j2:9): held bid-tab totals say "hard to read"; need check-specific sentences (amount-format, total-parts). Nits: coverage_sentence docstring; _doc_link index on duplicate URL. MAX_FILES 600 exceeds the 511-file artifact limit; set 500.
