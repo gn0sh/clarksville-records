@@ -90,13 +90,27 @@ no usable text layer return `text_layer: "none"` and no fragments (AC-P4: "not e
   `--psm 6`), pages OCRed in parallel on all cores (`OMP_THREAD_LIMIT=1` each), cached in `data/ocr/`.
 - Combined reading (`parse.combine`, 2026-11-07, key `parse-accuracy/verified-rate`): when no reading passes P2 alone,
   the readings are read cell by cell. A member's vote is a Yes/No/Abstain that some reading read cleanly in that
-  member's own cell (one vote token, nothing else), with no reading reading a different vote or an explicit "---"
-  there; a member with no clean vote has none when a reading read the cell cleanly blank or "---"; else unreadable.
+  member's own cell (one vote token, nothing else), with no reading, clean or not, reading a different vote, an
+  explicit "---" or conflicting marks ("?") there (2026-11-08, `parse-accuracy/combine-ignores-unclean-dissent`); a
+  member no reading read a vote for has none when a reading read the cell cleanly blank or "---" and none read "?";
+  else unreadable.
   The stated tally and the ABSENT names must be read alike. The result passes only through the same P2 checks
   (`check_votes`); `reading_used` then reads "text-layer+tesseract".
 - Blank tally count: "Yeses - 21 Noes -  Abstentions - 0" (no number printed) gives the one blank count as roster
   minus absent minus the other two, only from an ABSENT line whose names all resolve; a garbled count or two blanks
-  stay unreadable.
+  stay unreadable. Printed blank means only spaces and dashes between the label and the next label (or the line
+  end); any other mark there ("Abstentions — |", "]") is a garbled count. The derived number is used only for the
+  checks: the exported `stated_tally` carries `null` for that count (2026-11-08,
+  `neutrality/derived-count-shown-as-stated`; see Export).
+- Outcome word: one comma-enclosed phrase may sit between the outcome word and "by the following roll call", only
+  from the list `OUTCOME_COMMA_PHRASES` in `collector/config.py` ("as amended", "in its original state"), so the
+  match never crosses a clause ("Approved, and the main motion, failed by ..." is not Approved;
+  `parse-accuracy/outcome-crosses-clause`).
+- Two-thirds tables ("Approved by the following two-thirds (2/3) vote"): the minutes do not say two-thirds of what
+  (the Rules of Procedure state "members present and voting" only for rescinding, and nothing for calling the
+  question), so `check_outcome` tests the outcome against two-thirds of each possible base (votes cast Yes+No, members
+  present, the full body of 21) and passes only when every base gives the stated outcome; when they differ the roll
+  call is held (`parse-accuracy/two-thirds-majority`).
 - Table cells pair with a header name also through that official's `names.yml` name and aliases when the header name
   resolves exactly (rules 1-2), under the same threshold and margin (header "JoIm Gaimon", table "John Gannon").
 - A row's first chunk read as a vote mark just before a name is the district column (tesseract reads "2" as "y)"),
@@ -350,7 +364,9 @@ Neutrality enforced by construction:
 Writes into `build/site/data/`: `facts.json` (every roll call and vote with a `confirmed` boolean, motions with
 `confirmed`, verified attendance only, plus sources),
 `officials.csv`, `meetings.csv`, `attendance.csv`, `roll_calls.csv`, `votes.csv`, `motions.csv`, `items.csv`,
-`item_events.csv`, `sources.csv`. Every row carries `source_url, source_sha256, page, fetched_at`. Unconfirmed roll
+`item_events.csv`, `sources.csv`. Every row carries `source_url, source_sha256, page, fetched_at`. `stated_tally` holds only
+counts the minutes print: a count printed blank is `null` (in `facts.json` and the `roll_calls.csv` `yes`/`no`/
+`abstain` columns) even though the check used the number derived from the roster. Unconfirmed roll
 calls are exported with `confirmed: false` and, while `SHOW_UNCONFIRMED_VALUES` is off, with no parsed value
 (vote `value`, `outcome`, `stated_tally` null); an unresolved vote has `official_id: null` and no name, so no value is ever
 placed under a guessed person (P3). Raw OCR fields (`raw_name`, `raw_value`, `outcome_text`, motion `text`, motion and
@@ -373,7 +389,7 @@ Full field list and enums: `schema/facts.schema.json`. Summary:
 - **motions**: `id`, `meeting_id`, `item_id`, `text` (verbatim), `moved_by` / `seconded_by` {`official_id`,
   `raw_name`} or null, `source_id`, `page`, `verification`.
 - **roll_calls**: `id`, `meeting_id`, `item_id`, `motion_id`, `votes[]` {`official_id`, `raw_name`, `value`
-  (`yes`|`no`|`abstain`|`other`), `raw_value`}, `stated_tally` {yes,no,abstain} or null, `outcome`
+  (`yes`|`no`|`abstain`|`other`), `raw_value`}, `stated_tally` {yes,no,abstain} (each a printed count, or null when printed blank) or null, `outcome`
   (`passed`|`failed`|`other`), `outcome_text` (verbatim), `source_id`, `page`, `verification`.
 - **verification** (on meetings' attendance, motions, roll calls): `status` (`verified`|`unverified`),
   `checks[]` {`check`, `ok`, `detail`}.

@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field, asdict
 from difflib import SequenceMatcher
+from .config import OUTCOME_COMMA_PHRASES
 
 # ---------------------------------------------------------------- names
 
@@ -356,19 +357,24 @@ VOTE_GLYPHS = {"y": set("Yy¥"), "n": set("Nn"), "a": set("Aa")}
 TABLE_HEAD = re.compile(r"District\s+Commissioner\s+Vote", re.I)
 ABSENT_REASON = re.compile(r"ABSENT|absent name not on roster")   # a reading's ABSENT-line problems
 # a count may be blank ("Yeses - 20 Noes -  Abstentions - 1": the clerk printed no number); read_table derives a
-# single blank count from the roster, never a garbled one
-TALLY = re.compile(r"Yes\w*\s*[^\w\n]*\s*(\w{1,3})?\s*No\w*\s*[^\w\n]*\s*(\w{1,3})?\s*Abst\w*\s*[^\w\n]*\s*(\w{1,3})?",
+# single blank count from the roster, never a garbled one. Groups: (marks, count) for Yes, No, Abstain; the marks
+# between a label and its count decide whether a missing count is printed blank (TALLY_BLANK) or garbled.
+TALLY = re.compile(r"Yes\w*([^\w\n]*)(\w{1,3})?\s*No\w*([^\w\n]*)(\w{1,3})?\s*Abst\w*([^\w\n]*)(\w{1,3})?",
                    re.I)
+TALLY_BLANK = re.compile(r"[\s\-—–~]*")         # only spaces and dashes: no number printed
+TALLY_MARKS = re.compile(r"[\s\-—–~.,:;'’]*")    # what may sit before a printed count; "|", "]", "!" may be a digit
 ITEM_RE = re.compile(r"(?<![\w-])(\d{2}\s?[-~_—–]\s?[\dIlO]{1,2}\s?[-~_—–]\s?[\dIlO]{1,2}"   # 24-12-1
                      r"|[A-Z]{1,3}\s?-\s?[\dIlO]{1,3}\s?-\s?\d(?:\s?\d){3})(?![\w-])")      # AB-4-2024, CZ-l1-2022, AB-7-2 023
 # outcome word: the one at most two lowercase words before "by the following roll call". Between them the minutes may
-# also print one comma-enclosed phrase ("was Adopted, in its original state, by", "Adopted, as Amended, by") or, after
+# also print one comma-enclosed phrase from config.OUTCOME_COMMA_PHRASES ("was Adopted, in its original state, by",
+# "Adopted, as Amended, by"; a fixed list, so the match never crosses a clause) or, after
 # Suspended, the items the rules were suspended for ("Suspended for Resolutions 25-4-9 and 25-4-10 by"). OCR variants
 # of "the" and "roll call" ("by th~ following", "rail call", "roll catl") and a lost space ("was electedby the") are
 # read as those words; "by the following two-thirds (2/3) vote" heads a roll call table too.
 OUTCOME_RE = re.compile(r"((?i:Adopted|Approved|Failed|Defeated|Denied|Amended|Deferred|Withdrawn|Postponed"
                         r"|Tabled|Elected|Suspended))"
-                        r"(?:\s*,(?:\s+[A-Za-z]+){1,5}\s*,)?"
+                        r"(?:\s*,\s+(?i:" + "|".join(r"\s+".join(map(re.escape, p.split()))
+                                                     for p in OUTCOME_COMMA_PHRASES) + r")\s*,)?"
                         r"(?:\s+for\s+(?:Resolutions?\s+)?[\w-]+(?:\s*(?:,|and)\s*[\w-]+)*)?"
                         r"(?:\s+[^\sA-Z]\S*){0,2}\s*by\s+t\S{1,2}\s+f\S{4,8}\s+"
                         r"(?i:r\S{2,3}\s+c\S{2,3}|two-thirds\s*\(2/3\)\s+vote)", re.S)
@@ -433,6 +439,10 @@ class RollCall:
     follows_item: str | None = None      # consent tables: the resolution heading just before the consent list
     roster: list = field(default_factory=list)   # the meeting's header names the table was read against
     combined: "Reading | None" = None    # set by decide when the votes come from combine()
+    # rc.tally as the minutes print it: a count printed blank is None (rc.tally holds the derived number, used only for
+    # the checks; facts.stated_tally publishes this one). Set by decide.
+    printed_tally: tuple | None = None
+    two_thirds: bool = False             # the table is headed "by the following two-thirds (2/3) vote" (check_outcome)
 
 
 def classify_token(tok: str) -> tuple[str, str]:
@@ -584,6 +594,9 @@ class Reading:
     reasons: list
     raw_names: dict = field(default_factory=dict)    # member -> table cell text as read
     clean: dict = field(default_factory=dict)        # member -> True when its cell read cleanly (see cells_to_votes)
+    # the counts as the minutes print them: equal to tally, except that a count printed blank (derived from the
+    # roster for the checks only) is None here. None (the default) means "same as tally".
+    printed: tuple | None = None
 
 
 def _lines_with_pages(pages: list[str]) -> tuple[list[str], list[int]]:
@@ -612,10 +625,18 @@ def read_table(lines: list[str], h: int, nxt: int, roster: list[str], source: st
     if tally_i is None:
         reasons.append("stated tally not found")
     else:
-        g = TALLY.search(lines[tally_i]).groups()
+        gm = TALLY.search(lines[tally_i]).groups()
+        marks, g = gm[0::2], gm[1::2]
         vals = tuple(_int(x) if x is not None else None for x in g)
-        if any(x is not None and v is None for x, v in zip(g, vals)) or sum(x is None for x in g) > 1:
+        # a count is garbled when it does not read as a number, or a mark that may be (part of) a digit stands in
+        # front of it or in place of it; only a count with nothing but spaces and dashes before the next label is
+        # printed blank (neutrality/derived-count-shown-as-stated)
+        garbled = [(x is not None and v is None) or not (TALLY_MARKS if x is not None else TALLY_BLANK).fullmatch(mk)
+                   for x, v, mk in zip(g, vals, marks)]
+        g = tuple(x if not bad else f"{mk.strip()}{x or ''}" for x, mk, bad in zip(g, marks, garbled))
+        if any(garbled) or sum(x is None for x in g) > 1:
             reasons.append(f"tally unreadable {g}")
+            g = None
         elif None not in vals:
             tally = vals
     last = tally_i if tally_i is not None else rows_end
@@ -650,8 +671,8 @@ def read_table(lines: list[str], h: int, nxt: int, roster: list[str], source: st
         break
     if not found_absent:
         reasons.append("ABSENT line not found")
-    if tally is None and g is not None and sum(x is None for x in g) == 1 and not any(
-            x is not None and v is None for x, v in zip(g, vals)):
+    printed = tally
+    if tally is None and g is not None and sum(x is None for x in g) == 1:
         # Written rule: exactly one count printed blank. With every present member voting once (checked below), the
         # three counts sum to the roster minus the absent, so the blank one is that remainder. Derived only from a
         # read ABSENT line whose names all resolve; a garbled count is never derived.
@@ -659,6 +680,7 @@ def read_table(lines: list[str], h: int, nxt: int, roster: list[str], source: st
             rest = len(roster) - len(set(absent)) - sum(v for v in vals if v is not None)
             if rest >= 0:
                 tally = tuple(rest if v is None else v for v in vals)
+                printed = vals            # the blank count stays None: it is not stated (export: null)
         if tally is None:
             reasons.append(f"tally unreadable {g}")
     cells, problems = parse_table_rows(rows, roster, spellings)
@@ -667,7 +689,7 @@ def read_table(lines: list[str], h: int, nxt: int, roster: list[str], source: st
     votes = cells_to_votes(cells, roster, reasons, clean)
     check_votes(votes, set(absent), tally, roster, reasons)
     raw_names = {c.member: c.raw_name for c in cells if c.member and c.member != "__vacant__"}
-    return Reading(source, votes, tally, sorted(set(absent)), reasons, raw_names, clean), last
+    return Reading(source, votes, tally, sorted(set(absent)), reasons, raw_names, clean, printed), last
 
 
 def cells_to_votes(cells: list[Cell], roster: list[str], reasons: list[str], clean: dict | None = None) -> dict:
@@ -710,6 +732,11 @@ def cells_to_votes(cells: list[Cell], roster: list[str], reasons: list[str], cle
     return votes
 
 
+def printed_counts(r: "Reading") -> tuple | None:
+    """r's counts as the minutes print them (None for a count printed blank); None when r read no tally."""
+    return r.printed if r.printed is not None else r.tally
+
+
 def check_votes(votes: dict, absent: set, tally: tuple | None, roster: list[str], reasons: list[str]) -> None:
     """Spec P2: one vote per present member, none for absent members, tallies equal stated."""
     for m, v in votes.items():
@@ -726,15 +753,29 @@ def check_votes(votes: dict, absent: set, tally: tuple | None, roster: list[str]
             reasons.append(f"stated tally {sum(tally)} + absent {len(absent)} != roster {len(roster)}")
 
 
-def check_outcome(outcome_word: str | None, tally: tuple | None) -> list[str]:
+def check_outcome(outcome_word: str | None, tally: tuple | None, two_thirds: bool = False) -> list[str]:
+    """The stated outcome against the stated tally. A table headed "by the following two-thirds (2/3) vote"
+    (two_thirds) is tested against two-thirds, but the minutes never say two-thirds of what (the Rules of Procedure
+    name "members present and voting" only for rescinding a vote), so it is tested against every base the rule could
+    mean: the votes cast Yes or No, the members present (every one votes, checked by check_votes), and the full body.
+    It passes only when every base gives the stated outcome; otherwise the roll call is held
+    (parse-accuracy/two-thirds-majority)."""
     if not tally:
         return []
     oc = _outcome_class(outcome_word)
     if oc is None:
         return [f"outcome not stated or not recognised ({outcome_word})"]
-    passes = tally[0] > tally[1] and tally[0] >= FULL_BODY // 2 + 1
+    if two_thirds:
+        bases = (tally[0] + tally[1], sum(tally), FULL_BODY)
+        results = {3 * tally[0] >= 2 * b for b in bases}
+        if len(results) > 1:
+            return [f"two-thirds vote: the minutes do not say two-thirds of what, and the bases {bases} give "
+                    f"different outcomes for tally {tally}"]
+        passes = results.pop()
+    else:
+        passes = tally[0] > tally[1] and tally[0] >= FULL_BODY // 2 + 1
     if (oc == "pass") != passes:
-        return [f"outcome {outcome_word} disagrees with tally {tally}"]
+        return [f"outcome {outcome_word} disagrees with tally {tally}" + (" (two-thirds)" if two_thirds else "")]
     return []
 
 
@@ -753,10 +794,10 @@ def disagreements(a: Reading, b: Reading) -> list[str]:
 def combine(readings: list[Reading], roster: list[str]) -> Reading | None:
     """Written rule (parse-accuracy/verified-rate): two or more readings of one table, none clean on its own, are
     read cell by cell. A member's vote is the Yes/No/Abstain that a reading read cleanly in that member's cell (one
-    vote token and nothing else) when no other reading read a different vote and no other reading read an explicit
-    absent mark ("---") there; a member with no clean vote in any reading has no vote when some reading read the
-    cell cleanly as blank or "---"; anything else is unreadable. The stated tally is the one every reading that read
-    a tally agrees on, and the ABSENT names the ones every reading that read its ABSENT line without a problem agrees
+    vote token and nothing else) when no other reading, clean or not, read a different vote, an explicit absent mark
+    ("---") or conflicting marks ("?") there; a member with no vote read by any reading has no vote when some reading
+    read the cell cleanly as blank or "---" and none read "?" there; anything else is unreadable. The stated tally is
+    the one every reading that read a tally agrees on, and the ABSENT names the ones every reading that read its ABSENT line without a problem agrees
     on. The result is checked like any reading (check_votes: every present member exactly one vote, no absent member
     a vote, counted equals stated, stated plus absent equals the roster), and verifies only with no reason left.
     Each vote therefore rests on at least one clean reading of its own cell and no reading against it, and the
@@ -783,10 +824,16 @@ def combine(readings: list[Reading], roster: list[str]) -> Reading | None:
             continue
         clean = [(r, v) for r, v in cells if r.clean.get(m)]
         said = {v for _, v in clean if v in ("Yes", "No", "Abstain")}
-        if len(said) == 1 and not any(v == "---" for _, v in clean):
+        # dissent counts from every reading, clean or not: a "?" (two marks in one cell, typical of a row read out
+        # of line), a different vote, or a "---" in any reading leaves the clean vote unsupported
+        said_any = {v for _, v in cells if v in ("Yes", "No", "Abstain")}
+        if any(v == "?" for _, v in cells):
+            r, v = cells[0][0], "?"
+            reasons.append(f"a reading read conflicting marks for {m}")
+        elif len(said) == 1 and said_any == said and not any(v == "---" for _, v in cells):
             v = next(iter(said))
             r = next(r for r, x in clean if x == v)
-        elif not said and clean:
+        elif not said_any and clean:
             r, v = clean[0]
         else:
             r, v = cells[0][0], "?"
@@ -795,8 +842,13 @@ def combine(readings: list[Reading], roster: list[str]) -> Reading | None:
         if m in r.raw_names:
             raw[m] = r.raw_names[m]
     check_votes(votes, set(absent), tally, roster, reasons)
+    # a count is printed when some reading that read this tally read it printed (the others may have read it blank)
+    printed = None
+    if tally is not None:
+        ps = [printed_counts(r) for r in readings if r.tally == tally]
+        printed = tuple(tally[i] if any(p[i] is not None for p in ps) else None for i in range(3))
     return Reading("+".join(r.source for r in readings), votes, tally, sorted(set(absent)), reasons, raw,
-                   {m: True for m in votes})
+                   {m: True for m in votes}, printed)
 
 
 def decide(rc: "RollCall") -> None:
@@ -817,12 +869,13 @@ def decide(rc: "RollCall") -> None:
             good = [comb]
     if good:
         best = good[0]
-        reasons += check_outcome(rc.outcome_text, best.tally)
+        reasons += check_outcome(rc.outcome_text, best.tally, rc.two_thirds)
     else:
         best = rc.readings[0]
         for r in rc.readings:
             reasons += [f"[{r.source}] {x}" for x in r.reasons]
     rc.votes, rc.tally, rc.absent = best.votes, best.tally, best.absent
+    rc.printed_tally = printed_counts(best)
     rc.verified_by = best.source if good else None
     rc.reasons = reasons
     rc.status = "Verified" if good and not reasons else "Unverified"
@@ -917,6 +970,7 @@ def find_rollcalls(pages: list[str], source: str, att: Attendance | None,
         rc.ordinal_on_page = sum(1 for x in heads[:hi] if page_of[x] == page_of[h])
         rc.motion_text, rc.outcome_clause, rc.raw_item = motion_text, outcome_clause, raw_item
         rc.motion_linked = linked
+        rc.two_thirds = bool(om and re.search(r"two-thirds", om.group(0), re.I))
         rc.raw_mover = mot.group(2).strip() if mot else None
         rc.raw_seconder = mot.group(3).strip() if mot else None
         rc.in_attached_minutes = any(a <= h < b for a, b in spans)
