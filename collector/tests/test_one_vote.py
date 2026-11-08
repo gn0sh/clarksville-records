@@ -236,3 +236,13 @@ def test_a_numbered_vote_without_an_agenda_title_is_titled_by_its_number(tmp_pat
     (rc,) = facts["roll_calls"]
     assert rc["item_id"] == "CZ-2-2023"
     assert next(i for i in facts["items"] if i["id"] == "CZ-2-2023")["title"] == "CZ-2-2023"
+
+
+def test_feb2026_amendment_and_resolution_as_amended_are_two_roll_calls():
+    """February 9, 2026 p138 (item 26-2-6) prints two tables: the amendment's vote and the vote on the resolution as
+    amended. Both are real roll calls, not one table read twice; the stated outcome clause tells them apart."""
+    facts = json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8"))
+    a, b = (next(r for r in facts["roll_calls"] if r["id"] == f"rc-90320418-p138-{n}") for n in (0, 1))
+    assert a["item_id"] == b["item_id"] == "26-2-6"
+    assert "The foregoing Amendment was Adopted" in a["outcome_text"]
+    assert b["outcome_text"].startswith("The foregoing Resolution, As Amended, was Adopted")
