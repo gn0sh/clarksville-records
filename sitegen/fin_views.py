@@ -16,6 +16,10 @@ T = config.FIN_TEXT
 C = T["contracts"]
 
 
+# The CSV/JSON download links on the index wait for the export files (finance-contracts F8): set True there.
+EXPORTS_READY = False
+
+
 class FinanceError(Exception):
     pass
 
@@ -175,7 +179,11 @@ def _tab_state(fx: Finance, sol: dict) -> dict | None:
     out = {"kind": tab["tab_type"], "doc": _doc_link(fx, doc), "reason": None, "bidders": [], "awardee": None,
            "bid_date": None, "award_date": None}
     if tab["tab_type"] != "lump_sum":
-        out["reason"] = C["not_read"][tab["not_read_reason"]]
+        reason = tab["not_read_reason"]
+        if reason not in C["not_read"]:  # no silent default: a new reason needs its own sentence first
+            raise FinanceError(f"solicitation {sol['id']} has not_read_reason {reason!r}, which has no sentence in "
+                               "config/finance_text.yml (contracts.not_read)")
+        out["reason"] = C["not_read"][reason]
         return out
     held = _held_fields(sol)
     sid = doc["source_id"]
@@ -197,9 +205,11 @@ def _tab_state(fx: Finance, sol: dict) -> dict | None:
     else:
         state = {"not_a_listed_bidder": C["awardee_not_listed"], "ambiguous": C["awardee_ambiguous"]}.get(
             tab["awardee_match"])
+        if not tab["awardee_page"]:
+            raise FinanceError(f"solicitation {sol['id']} names an awardee but no page for it (awardee_page)")
         lead, _, tail = C["awardee"].partition("{name}")
         out["awardee"] = {"sentence": None, "lead": lead, "tail": tail, "who": fx.person(tab["awardee_text"]),
-                          "src": fx.src(sid, tab["awardee_page"] or 1), "state": state, "held": awardee_held}
+                          "src": fx.src(sid, tab["awardee_page"]), "state": state, "held": awardee_held}
     return out
 
 
@@ -256,7 +266,8 @@ def contracts_index(fx: Finance) -> dict:
     depts = sorted({r["dept_key"] for r in rows}, key=str.casefold)
     years = sorted({r["year"] for r in rows if r["year"] is not None}, reverse=True)
     return {"rows": rows, "depts": depts, "years": years, "coverage_sentence": coverage_sentence(fx.coverage),
-            "notes": notes(), "c": C, "words": _words(C["words"]), "disclosure": False}
+            "notes": notes(), "c": C, "words": _words(C["words"]), "disclosure": False,
+            "exports": EXPORTS_READY}
 
 
 def solicitation(sol_id: str, fx: Finance) -> dict:

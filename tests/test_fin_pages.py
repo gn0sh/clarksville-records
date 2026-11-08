@@ -264,6 +264,8 @@ def test_each_not_read_reason_has_its_own_neutral_sentence():
 def test_not_a_listed_bidder_and_documents_differ_states(fpages):
     salt = main_of(fpages["contracts/road-salt-fixture.html"])
     assert C["awardee_not_listed"] in salt
+    idx_row = next(r for r in rows(fpages["contracts/index.html"]) if r.attrs["data-fact-id"] == "sol-road-salt-fixture")
+    assert C["awardee_not_listed"] in idx_row.all_text()  # the index cell carries the match state too
     roof = main_of(fpages["contracts/roof-repair-fixture.html"])
     note = roof[roof.index('class="note differ"'):]
     note = note[:note.index("</div>")]
@@ -443,3 +445,18 @@ def test_every_not_read_reason_has_its_fixed_sentence():
     schema = json.loads(config.FINANCE_SCHEMA_PATH.read_text(encoding="utf-8"))
     reasons = {r for r in schema["$defs"]["bid_tab"]["properties"]["not_read_reason"]["enum"] if r}
     assert reasons == set(C["not_read"]) and "not_pdf" in reasons
+
+
+def test_export_links_hidden_until_the_files_exist(fpages):
+    assert "solicitations.csv" not in fpages["contracts/index.html"]
+
+
+def test_unknown_not_read_reason_and_missing_awardee_page_fail_the_build(tmp_path, fin):
+    f = copy.deepcopy(fin)
+    next(s for s in f["solicitations"] if s["id"] == "sol-paving-unit-prices-fixture")["bid_tab"]["not_read_reason"] = "x"
+    with pytest.raises(Exception, match="not_read_reason|no sentence"):
+        build_with(tmp_path / "a", fin=f)
+    g = copy.deepcopy(fin)
+    next(s for s in g["solicitations"] if s["id"] == "sol-roof-repair-fixture")["bid_tab"]["awardee_page"] = None
+    with pytest.raises(Exception):
+        build_with(tmp_path / "b", fin=g)
