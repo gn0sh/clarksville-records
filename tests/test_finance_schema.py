@@ -127,7 +127,7 @@ def test_not_pdf_reason_and_date_pages(validator, fin):
     assert sitegen_build._schema_errors(validator, f) == []
     lump = _tab(fin, "lump_sum")["bid_tab"]
     assert lump["bid_date_text"] and lump["bid_date_page"] >= 1 and lump["award_date_page"] >= 1
-    assert set(fin["coverage"]["n_tab_not_read"]) == {"layout", "scan", "shared_url", "not_pdf"}
+    assert set(fin["coverage"]["n_tab_not_read"]) == {"layout", "scan", "shared_url", "not_pdf", "not_fetched"}
 
 
 @pytest.mark.parametrize("edit", [

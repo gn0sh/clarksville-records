@@ -16,6 +16,8 @@ import re
 from .config import FIN_PARITY_HIGH, FIN_PARITY_LOW, FIN_PARITY_MIN_ROWS
 
 NOT_STATED = "not stated"
+# bid_tab.not_read_reason (schema enum): not_fetched = a dead link or a link-only host (Bonfire, off the allowlist)
+NOT_READ_REASONS = ("layout", "scan", "shared_url", "not_pdf", "not_fetched")
 AWARD_LETTER_STAGES = ("award_letter", "partial_award")
 
 
@@ -210,7 +212,7 @@ def coverage(fin: dict) -> dict:
     """Live counts for every page and the report (schema coverage)."""
     sols, docs = fin["solicitations"], fin["documents"]
     tabs = [s["bid_tab"] for s in sols if s["bid_tab"]]
-    not_read = {"layout": 0, "scan": 0, "shared_url": 0, "not_pdf": 0}
+    not_read = dict.fromkeys(NOT_READ_REASONS, 0)
     for t in tabs:
         if t["tab_type"] == "not_read":
             not_read[t["not_read_reason"]] += 1

@@ -83,7 +83,7 @@
       "properties": {
         "document_id": { "$ref": "#/$defs/document_id", "description": "UX awardee_source, with awardee_page" },
         "tab_type": { "enum": ["lump_sum", "not_read"], "description": "unit-price and itemised layouts are not_read in 1a (link only, counted in coverage)" },
-        "not_read_reason": { "enum": ["layout", "scan", "shared_url", "not_pdf", null], "description": "null when lump_sum; feeds coverage.n_tab_not_read. not_pdf: the link is a .docx or its bytes are not a PDF (document status not_pdf), so nothing is read" },
+        "not_read_reason": { "enum": ["layout", "scan", "shared_url", "not_pdf", "not_fetched", null], "description": "null when lump_sum; feeds coverage.n_tab_not_read. not_pdf: the link is a .docx or its bytes are not a PDF (document status not_pdf), so nothing is read. not_fetched: the link was dead at fetch or is link only (a bid site or a host off the allowlist), so there are no bytes to read" },
         "project_text": { "type": ["string", "null"] },
         "bid_date_text": { "type": ["string", "null"] },
         "bid_date_page": { "oneOf": [{ "$ref": "#/$defs/page" }, { "type": "null" }], "description": "page of bid_date_text in document_id; null when bid_date_text is null" },
@@ -298,12 +298,13 @@
         "n_tab_not_read": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["layout", "scan", "shared_url", "not_pdf"],
+          "required": ["layout", "scan", "shared_url", "not_pdf", "not_fetched"],
           "properties": {
             "layout": { "$ref": "#/$defs/count" },
             "scan": { "$ref": "#/$defs/count" },
             "shared_url": { "$ref": "#/$defs/count" },
-            "not_pdf": { "$ref": "#/$defs/count" }
+            "not_pdf": { "$ref": "#/$defs/count" },
+            "not_fetched": { "$ref": "#/$defs/count" }
           }
         },
         "n_award_letters": { "$ref": "#/$defs/count" },

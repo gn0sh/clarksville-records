@@ -195,9 +195,10 @@ def build(store, cfg: FinanceConfig, status_path: Path | None = None, meta_cache
                           "not_fetched": f"document {d['status']}"}[why]
             if why == "not_fetched" and d["status"] == "not_pdf":
                 why, detail = "not_pdf", "a .docx link or non-PDF bytes: not read"
-            reason = {"not_fetched": "layout"}.get(why, why)      # schema enum: a dead or link-only tab is not read
+            # a dead or link-only tab is not_fetched, never "layout": we have no bytes to judge a layout by
+            # (award-source/not-read-reason-misstated)
             census.append(Census(lk.url, sid, "scan" if why == "scan" else "not_read", f"{why}: {detail}"))
-            first_not_read = first_not_read or (d["id"], reason)
+            first_not_read = first_not_read or (d["id"], why)
         bid_tab = department = differ = None
         if reads:
             did, res = reads[0]
