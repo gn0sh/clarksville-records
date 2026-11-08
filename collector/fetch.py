@@ -70,6 +70,10 @@ class FetchFailed(Exception):
     """Server error after one retry, a too-large body, or a network error."""
 
 
+class NotPdf(FetchFailed):
+    """The body is not a PDF (e.g. a .docx behind a document link). Nothing was stored."""
+
+
 def _host_matches(host: str, names) -> bool:
     host = host.lower().split(":")[0]
     return any(host == n or host.endswith("." + n) for n in names)
@@ -105,6 +109,7 @@ class PoliteFetcher:
     proxy_failures: object = proxy_status_failures  # injectable for tests
     wall: object = lambda: datetime.now(timezone.utc)
     allowed_hosts: tuple = ALLOWED_HOSTS
+    extra_denied: tuple = ()                         # hosts denied for this run, e.g. finance.yml bonfire_hosts
     max_bytes: int = MAX_BYTES
     _last: dict = field(default_factory=dict)        # host -> clock() of last request
     _robots: dict = field(default_factory=dict)      # host -> RobotFileParser
@@ -118,6 +123,9 @@ class PoliteFetcher:
         if _host_matches(host, DENIED_HOSTS):
             self.log.append({"event": "refused", "host": host, "detail": "denied host"})
             raise HostRefused(f"{host}: denied in code (never collected)")
+        if _host_matches(host, self.extra_denied):
+            self.log.append({"event": "refused", "host": host, "detail": "denied by config"})
+            raise HostRefused(f"{host}: denied by config (never collected)")
         if not _host_matches(host, self.allowed_hosts):
             self.log.append({"event": "refused", "host": host, "detail": "not on allowlist"})
             raise HostRefused(f"{host}: not on the allowlist")

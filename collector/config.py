@@ -12,3 +12,9 @@ YEARS = range(2020, 2027)     # 2020-2021 from the M0 store; 2022 to May 2026 fr
 # ("Approved, and the main motion, failed by ...", parse-accuracy/outcome-crosses-clause). Add a phrase here when a
 # new one is seen on a page.
 OUTCOME_COMMA_PHRASES = ("as amended", "in its original state")
+# AC-F16 coverage parity (architecture A5, provisional): a department with at least FIN_PARITY_MIN_ROWS archive rows
+# whose bid-tab read share is outside FIN_PARITY_LOW x .. FIN_PARITY_HIGH x the overall share is flagged; a flag sets
+# "review needed", which blocks release until the manager records the reason in docs/status.md.
+FIN_PARITY_MIN_ROWS = 5
+FIN_PARITY_LOW = 0.5
+FIN_PARITY_HIGH = 2.0

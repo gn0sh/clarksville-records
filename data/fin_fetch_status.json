@@ -1,0 +1,17 @@
+{
+  "https://montgomerytn.gov/storage/departments/purchasing/BID/Bid%20Tab%20-%20Auctioneer%20Services.docx": {
+    "date": "2026-11-08",
+    "detail": ".docx file: not requested (only PDFs are read)",
+    "status": "not_pdf"
+  },
+  "https://montgomerytn.gov/storage/departments/purchasing/BID/Bid%20Tab%20-%20Metal%20Pipe%20%26%20Bands%20FY27.docx": {
+    "date": "2026-11-08",
+    "detail": ".docx file: not requested (only PDFs are read)",
+    "status": "not_pdf"
+  },
+  "https://montgomerytn.gov/storage/departments/purchasing/BID/Lone%20Oak%20HVAC%20Replacement%20Project%20-%20Notice%20of%20Intent%20to%20Award%20(Executed).pdf": {
+    "date": "2026-11-08",
+    "detail": "not a PDF: https://montgomerytn.gov/storage/departments/purchasing/BID/Lone%20Oak%20HVAC%20Replacement%20Project%20-%20Notice%20of%20Intent%20to%20Award%20(Executed).pdf (application/pdf)",
+    "status": "not_pdf"
+  }
+}
