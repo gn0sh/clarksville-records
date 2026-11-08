@@ -1,0 +1,42 @@
+{# Finance and contracts pieces (design finance-contracts 2-5). Every value's source link names the document and
+   page; the fetch date, fact id and "Report an error" sit in the Details toggle, as source_cell does. #}
+{% from "_macros.html.j2" import fact_meta %}
+
+{% macro fin_link(src) -%}
+<a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">{{ src.label }}<span class="sr-only"> (opens the {{ src.kind }} in a new tab)</span></a>
+{%- endmacro %}
+
+{# Several sources for one row (index: archive page, then the bid tab page). #}
+{% macro fin_cites(cites, root, fact_id, extra="") -%}
+{% for s in cites %}{{ fin_link(s) }}{% if not loop.last %}<span class="sep" aria-hidden="true"> &middot; </span>{% endif %}{% endfor %}
+<details class="row-details"><summary>Details</summary><div class="row-details-body">{{ extra }}{% for s in cites %}<p>{{ s.label | capitalize }} fetched {{ s.fetched }}.</p>{% endfor %}<p>{{ fact_meta(root, fact_id) }}</p></div></details>
+{%- endmacro %}
+
+{# The inline citation after a value in running text: "(bid tab p. 1, fetched 2026-11-07)". #}
+{% macro fin_cite(src) -%}
+<span class="cite">(<a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">{{ src.label }}, fetched {{ src.fetched }}<span class="sr-only"> (opens the {{ src.kind }} in a new tab)</span></a>)</span>
+{%- endmacro %}
+
+{# A document link with its stage word and state words. `long` = the detail page wording for scans. #}
+{% macro doc_link(d, c, text, long=false) -%}
+{% if d.href %}<a href="{{ d.href }}" target="_blank" rel="noopener noreferrer">{{ text }}</a>{% else %}{{ text }}{% endif %}
+{%- if d.scanned %} <span class="chip chip-status">{% if long %}{{ c.scanned_row }}{% else %}{{ c.scanned_mark }}{% endif %}</span>{% endif %}
+{%- if d.note %} <span class="doc-note">{{ d.note }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro notes_ab(notes) -%}
+<p class="note">{{ notes.a }}</p>
+<p class="note">{{ notes.b }}</p>
+{%- endmacro %}
+
+{# Design 3: a collapsed "Words used on this page", the glossary's own text. #}
+{% macro words_toggle(words, c, root) -%}
+<details class="words">
+  <summary>{{ c.words_toggle }}</summary>
+  <dl>
+  {% for w in words %}
+    <dt><a href="{{ root }}glossary.html#{{ w.id }}">{{ w.term }}</a></dt><dd>{{ w.text }}</dd>
+  {% endfor %}
+  </dl>
+</details>
+{%- endmacro %}

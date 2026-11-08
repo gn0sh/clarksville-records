@@ -37,7 +37,7 @@
     <ul class="nav-list">
       {% for e in site.nav %}
       {% if e.href %}
-      <li><a href="{{ root }}{{ e.href }}"{% if page_name == e.page or page_name.startswith(e.page ~ " ") %} aria-current="page"{% endif %}>{{ e.label }}{% if e.coming %} <span class="chip chip-coming">Coming</span>{% endif %}</a></li>
+      <li><a href="{{ root }}{{ e.href }}"{% if page_name == e.page or page_name.startswith(e.page ~ " ") or page_name.startswith(e.page ~ ":") %} aria-current="page"{% endif %}>{{ e.label }}{% if e.coming %} <span class="chip chip-coming">Coming</span>{% endif %}</a></li>
       {% else %}
       <li><span class="nav-group">{{ e.label }}</span>
         <ul class="nav-years" aria-label="{{ e.label }} by year">

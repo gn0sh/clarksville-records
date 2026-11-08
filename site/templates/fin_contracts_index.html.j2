@@ -1,0 +1,77 @@
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import clamp, not_confirmed, person %}
+{% from "_fin_macros.html.j2" import fin_cites, doc_link, notes_ab, words_toggle %}
+{% block main %}
+{# Design finance-contracts 4. One row layout for every solicitation; order by date or name only (AC-F8). Without
+   scripts the form stays hidden and every row shows; static/contracts.js filters, sorts and pages the rows and keeps
+   the choices in the address (URL state, like search). #}
+<h1>{{ c.title }}</h1>
+<p class="coverage">{{ coverage_sentence }}</p>
+{{ notes_ab(notes) }}
+<p class="note note-wide">{{ notes.c }}</p>
+<details class="note note-phone"><summary>{{ notes.c_short }} <span class="more-word">More</span></summary><p>{{ notes.c }}</p></details>
+<form id="sol-filters" class="filters toolbar sol-filters" action="index.html" method="get" hidden>
+  <div class="f-q">
+    <label for="f-q">Vendor or title</label>
+    <input id="f-q" name="q" type="search">
+  </div>
+  <div>
+    <label for="f-dept">Department</label>
+    <select id="f-dept" name="dept"><option value="">Any</option>{% for d in depts %}<option value="{{ d }}">{{ d }}</option>{% endfor %}</select>
+  </div>
+  <div>
+    <label for="f-year">Year</label>
+    <select id="f-year" name="year"><option value="">Any</option>{% for y in years %}<option value="{{ y }}">{{ y }}</option>{% endfor %}</select>
+  </div>
+  <div>
+    <label for="f-docs">Documents</label>
+    <select id="f-docs" name="docs">{% for o in c.docs_filter %}<option value="{{ o.key }}">{{ o.label }}</option>{% endfor %}</select>
+  </div>
+  <div>
+    <label for="f-order">Order</label>
+    <select id="f-order" name="order">{% for o in c.sorts %}<option value="{{ o.key }}">{{ o.label }}</option>{% endfor %}</select>
+  </div>
+  <div class="f-actions">
+    <button type="submit">Apply</button>
+    <button type="button" id="f-clear">{{ c.clear_filters }}</button>
+  </div>
+</form>
+<p id="sol-count" class="count" role="status" aria-live="polite"></p>
+<p id="sol-none" class="empty-note" hidden>{{ c.empty_filter }} <button type="button" id="sol-none-clear">{{ c.clear_filters }}</button></p>
+<div class="table-scroll fin-scroll">
+<table class="fin-stack sol-index" id="sol-table" data-page="{{ c.page_size }}">
+  <caption class="sr-only">{{ c.title }}</caption>
+  <thead>
+    <tr>
+      <th scope="col">Date</th>
+      <th scope="col">Solicitation</th>
+      <th scope="col">Department</th>
+      <th scope="col">Documents</th>
+      <th scope="col"><a href="{{ root }}glossary.html#bid-tab">Bid tab</a></th>
+      <th scope="col">Awardee as printed</th>
+      <th scope="col">Source</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr class="fact" data-fact-id="{{ r.id }}" data-date="{{ r.date or '' }}" data-title="{{ r.title }}" data-dept="{{ r.dept_key }}" data-year="{{ r.year or '' }}" data-tab="{{ 'tab' if r.has_tab else 'notab' }}" data-search="{{ r.search }}">
+      <td class="c-date" data-label="Date"><span class="date">{{ r.date or r.date_text }}</span></td>
+      <th scope="row" class="c-title" data-label="Solicitation">{% call clamp(2) %}<a href="{{ root }}{{ r.href }}">{{ r.title }}</a>{% endcall %}</th>
+      <td class="c-dept" data-label="Department">{% if r.dept and r.dept.held %}{{ not_confirmed(r.dept.src) }}{% elif r.dept %}{{ r.dept.text }}{% else %}<span class="muted">{{ c.no_department }}</span>{% endif %}</td>
+      <td class="c-docs" data-label="Documents"><ul class="doc-links">{% for d in r.docs %}<li>{{ doc_link(d, c, d.stage_label) }}</li>{% endfor %}</ul></td>
+      <td class="c-tab" data-label="Bid tab">{{ c.has_tab if r.has_tab else c.no_tab }}</td>
+      <td class="c-awardee" data-label="Awardee">{% if r.awardee and r.awardee.held %}{{ not_confirmed(r.awardee.src) }}{% elif r.awardee %}{{ person(r.awardee.who, root) }}{% endif %}</td>
+      <td class="c-source cite" data-label="Source">{{ fin_cites(r.cites, root, r.id) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<button type="button" id="sol-more" class="more-btn" hidden>{{ c.more }}</button>
+<p class="exports">Download: <a href="{{ root }}data/solicitations.csv">CSV</a> <span class="sep" aria-hidden="true">&middot;</span> <a href="{{ root }}data/finance.json">JSON</a></p>
+{{ words_toggle(words, c, root) }}
+{% if disclosure %}{% include "_disclosure.html.j2" %}{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ root }}static/contracts.js" defer></script>
+{% endblock %}

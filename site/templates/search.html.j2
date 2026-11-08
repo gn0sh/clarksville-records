@@ -18,6 +18,7 @@
         <label><input type="checkbox" name="kind" value="vote"> Votes</label>
         <label><input type="checkbox" name="kind" value="meeting"> Meetings</label>
         <label><input type="checkbox" name="kind" value="person"> People and districts</label>
+        {% if contracts_kind %}<label><input type="checkbox" name="kind" value="sol"> {{ contracts_kind }}</label>{% endif %}
       </fieldset>
       <fieldset>
         <legend>Body</legend>

@@ -676,3 +676,73 @@ table.attendance td.cite details.row-details { display: inline-block; }
   table.history tr.fact td.c-item, table.history tr.fact td.c-source { grid-column: 1 / -1; grid-template-columns: 4rem 1fr; gap: 8px; }
   table.history { table-layout: auto; min-width: 0; }
 }
+
+/* ---- Bids and awards (design finance-contracts 4-5) --------------------------------------------------------- */
+/* State is words only: no colour or icon marks a row good or bad. Notes are plain bordered blocks, never tooltips. */
+.coverage { margin: 4px 0 12px; font-weight: 600; max-width: 48rem; }
+.note { max-width: 48rem; margin: 8px 0; }
+.note-phone { display: none; }
+.note-phone > summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
+.note-phone .more-word { text-decoration: underline; color: var(--link); }
+@media (max-width: 640px) { .note-wide { display: none; } .note-phone { display: block; } }
+.sol-filters { align-items: flex-end; margin: 12px 0 4px; }
+.sol-filters input[type="search"] {
+  font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--mark); border-radius: var(--radius);
+  padding: 8px 10px; min-height: 44px; width: 100%;
+}
+.sol-filters .f-q { flex: 1 1 14rem; }
+.sol-filters select { min-width: 8rem; }
+.sol-filters button, .more-btn, .empty-note button {
+  min-height: 44px; padding: 8px 14px; border: 1px solid var(--mark); border-radius: var(--radius);
+  background: var(--surface); color: var(--fg); cursor: pointer;
+}
+.sol-filters button[type="submit"] { background: var(--link); border-color: var(--link); color: var(--band-fg); }
+.sol-filters button:focus-visible, .more-btn:focus-visible, .empty-note button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.f-actions { display: flex; gap: 8px; }
+.more-btn { margin: 8px 0; }
+.exports { font-size: var(--t-sm); }
+.crumb { margin: 0 0 4px; font-size: var(--t-sm); }
+.sol-meta { margin: 2px 0; font-size: var(--t-sm); }
+.sol-meta .cite, .awardee .cite { font-size: var(--t-xs); }
+.doc-links { list-style: none; margin: 0; padding: 0; }
+.doc-links li { margin: 0 0 2px; }
+.doc-note { font-size: var(--t-xs); color: var(--muted); }
+table.fin-stack { table-layout: auto; }
+table.fin-stack th[scope="row"] { font-weight: 500; text-align: left; }
+table.fin-stack caption { text-align: left; font-weight: 600; padding: 8px 12px; }
+table.fin-stack .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.sol-index td.c-date { white-space: nowrap; }
+table.sol-index td.c-source { min-width: 9rem; }
+@media (min-width: 641px) { table.fin-stack tbody tr:nth-child(even) { background: var(--surface); } }
+details.words { margin: 16px 0; font-size: var(--t-sm); }
+details.words > summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
+table.sol-index th.c-title { min-width: 11rem; }
+details.words dt, dl.glossary dt { font-weight: 600; margin-top: 8px; }
+details.words dd, dl.glossary dd { margin: 2px 0 0; max-width: 44rem; }
+dl.glossary dt:target { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Phone: each row is a card over the same markup (one DOM, so reading order matches); no sideways scrolling. */
+@media (max-width: 640px) {
+  .fin-scroll { border: 0; background: transparent; overflow: visible; }
+  table.fin-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  table.fin-stack, table.fin-stack tbody { display: block; }
+  table.fin-stack caption { display: block; padding: 4px 0; }
+  table.fin-stack tbody tr {
+    display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; padding: 8px 10px; margin: 0 0 8px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  table.fin-stack tr[hidden] { display: none; }
+  table.fin-stack tbody th, table.fin-stack tbody td { display: block; padding: 1px 0; border: 0; grid-column: 1 / -1; min-width: 0; }
+  table.fin-stack .num { text-align: left; white-space: normal; }
+  /* index card: date and department on one line, then title, documents, bid tab state beside the source Details */
+  table.sol-index tbody tr { grid-auto-flow: row dense; }
+  table.sol-index tbody td.c-date { grid-column: 1; }
+  table.sol-index tbody td.c-dept { grid-column: 2; color: var(--muted); }
+  table.sol-index tbody td.c-tab { grid-column: 1; }
+  table.sol-index tbody td.c-source { grid-column: 2; min-width: 0; }
+  table.sol-index tbody td.c-awardee:empty { display: none; }
+  table.sol-index tbody td.c-awardee::before { content: "Awardee as printed: "; color: var(--muted); }
+  table.sol-index .doc-links { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+  table.sol-docs tbody th.c-stage { font-size: var(--t-xs); font-variant-caps: all-small-caps; letter-spacing: .05em; color: var(--muted); }
+  table.sol-docs tbody td.c-date::before, table.sol-bidders tbody td.c-total::before { content: attr(data-label) ": "; color: var(--muted); }
+}

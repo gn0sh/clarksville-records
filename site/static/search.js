@@ -15,7 +15,7 @@
   var IX = window.SEARCH_INDEX;
   var PAGE = 50;
   var shown = PAGE;
-  var KIND = { item: "Item", vote: "Roll call", meeting: "Meeting", person: "Person or district" };
+  var KIND = { item: "Item", vote: "Roll call", meeting: "Meeting", person: "Person or district", sol: "Bids and awards" };
   var OUTCOME = { passed: "Passed", failed: "Failed", other: "Other" };
   var VOTE = { yes: "Yes", no: "No", abstain: "Abstain", other: "Other" };
   var MULTI = ["kind", "type", "outcome"];
@@ -91,7 +91,8 @@
   }
 
   // ---- matching
-  function hay(r) { return (r.n + " " + r.t + " " + (r.st || "") + " " + (r.z || "")).toLowerCase(); }
+  // r.x: a solicitation's department and every bidder name (finance-contracts F7)
+  function hay(r) { return (r.n + " " + r.t + " " + (r.st || "") + " " + (r.z || "") + " " + (r.x || "")).toLowerCase(); }
   function baseMatch(r, st, toks) {  // every filter except official, vote and outcome
     if (st.kind.length && st.kind.indexOf(r.k) < 0) { return false; }
     if (st.from || st.to) {
@@ -135,7 +136,8 @@
     var html = '<li class="result"><p class="r-kind">' + esc(parts.join(" · ")) + "</p>";
     html += '<p class="r-title"><a href="' + esc(r.h) + '">' + (r.n ? "<strong>" + mark(r.n, toks) + "</strong> " : "") +
       mark(r.t, toks) + "</a>" + (r.st ? ' <span class="seat">' + (r.ho ? '<a href="officials/' + esc(r.ho) + '.html">' + mark(r.st, toks) + "</a>" : mark(r.st, toks)) + "</span>" : "") + "</p>" +
-      (r.z ? '<p class="r-zoning">' + mark(r.z, toks) + "</p>" : "");
+      (r.z ? '<p class="r-zoning">' + mark(r.z, toks) + "</p>" : "") +
+      (r.x ? '<p class="r-zoning">' + mark(r.x, toks) + "</p>" : "");
     var meta = "";
     if (r.k === "item") {
       meta = r.a ? "Appears " + r.a + (r.a === 1 ? " time" : " times") + ", " + esc(r.d) + (r.d2 !== r.d ? " to " + esc(r.d2) : "")
@@ -148,7 +150,7 @@
           ' · Source: <a href="' + esc(r.s.u) + '" target="_blank" rel="noopener noreferrer">minutes p. ' + esc(r.s.p) +
           ", fetched " + esc(r.s.f) + "</a>";
       }
-    } else if (r.k === "meeting") {
+    } else if (r.k === "meeting" || r.k === "sol") {
       meta = esc(r.d);
     }
     return html + (meta ? '<p class="r-meta">' + meta + "</p>" : "") + "</li>";
