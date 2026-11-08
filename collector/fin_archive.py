@@ -87,10 +87,17 @@ class _Table(HTMLParser):
             self._a["text"] += d
 
 
+LINK_SCHEMES = ("http", "https")
+
+
 def absolute(base: str, href: str) -> str:
     """The link as a request URL: joined to the archive URL, path characters percent-encoded once (existing %XX kept;
-    a quote mark, which the schema's uri rule refuses, becomes %27), fragment dropped."""
+    a quote mark, which the schema's uri rule refuses, becomes %27), fragment dropped. Only an http(s) link is a
+    document: any other scheme (javascript:, data:, mailto:) raises StructureChanged, so it never reaches a page's
+    href and is never silently dropped from the row (provenance/href-scheme)."""
     u = urllib.parse.urlsplit(urllib.parse.urljoin(base, href.strip()))
+    if u.scheme.lower() not in LINK_SCHEMES or not u.netloc:
+        raise StructureChanged(f"archive link {href!r} is not an http(s) URL")
     path = urllib.parse.quote(u.path, safe="/%()&+,;=~:@!$*-._")
     return urllib.parse.urlunsplit((u.scheme.lower(), u.netloc.lower(), path, u.query, ""))
 

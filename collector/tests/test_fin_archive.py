@@ -139,3 +139,16 @@ def test_absolute_keeps_existing_escapes_and_quotes_spaces():
     assert absolute(base, "https://Other.Example/x") == "https://other.example/x"
     assert absolute(base, "/storage/Bid%20-%20Sheriff's%20Office.pdf") == (
         f"https://{CFG.archive_host}/storage/Bid%20-%20Sheriff%27s%20Office.pdf")
+
+
+@pytest.mark.parametrize("href", ["javascript:alert(1)", " JavaScript:alert(1)", "data:text/html,<b>x</b>",
+                                  "mailto:purchasing@example.invalid", "ftp://example.invalid/a.pdf"])
+def test_a_link_that_is_not_http_s_raises(href):
+    """provenance/href-scheme: only http(s) links become documents (and page hrefs); any other scheme fails the parse
+    loudly rather than reach an href or drop out of the row."""
+    with pytest.raises(StructureChanged, match="not an http"):
+        absolute(CFG.archive_url, href)
+    html = HTML.replace('href="/storage/departments/purchasing/BID/Bid%20Tab%20Sheet.pdf"', f'href="{href}"', 1)
+    with pytest.raises(StructureChanged, match="not an http"):
+        parse_archive(html, CFG)
+    assert absolute(CFG.archive_url, "http://other.example/a.pdf") == "http://other.example/a.pdf"
