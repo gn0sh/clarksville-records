@@ -1,0 +1,29 @@
+# Current county seats as printed in the Montgomery County Election Commission's "Officials of Montgomery County"
+# list (Elected Officials List.pdf; PDF created 2026-02-03, fetched 2026-11-08). Names and seats only: the list's
+# addresses and phone numbers are never copied here. Used by tools/seat_check.py to cross-check config/seats.yml.
+source: "https://montgomerytn.gov/storage/departments/election/Elected%20Officials%20List.pdf"
+fetched: "2026-11-08"
+source_created: "2026-02-03"
+seats:
+  district-1: {official_id: john-gannon, name: John Gannon, page: 7}
+  district-2: {official_id: jason-knight, name: Jason Knight, page: 7}
+  district-3: {official_id: joe-smith, name: Joe Smith, page: 7}
+  district-4: {official_id: rickey-ray, name: Rickey Ray, page: 7}
+  district-5: {official_id: rashidah-leverett, name: Rashidah A. Leverett, page: 7}
+  district-6: {official_id: clayton-rudder, name: Clayton M. Rudder, page: 7, note: "Appointed 1/26 to serve unexpired term"}
+  district-7: {official_id: nathan-burkholder, name: Nathan Burkholder, page: 7}
+  district-8: {official_id: latonia-brown, name: LaTonia Brown, page: 7, note: "Appointed 3/25 to serve unexpired term"}
+  district-9: {official_id: jorge-padro, name: Jorge Padro, page: 8}
+  district-10: {official_id: jeremiah-walker, name: Jeremiah Walker, page: 8}
+  district-11: {official_id: joe-creek, name: Joe L. Creek, page: 8}
+  district-12: {official_id: carmelle-chandler, name: Carmelle Chandler, page: 8}
+  district-13: {official_id: walker-woodruff, name: Walker R. Woodruff, page: 8}
+  district-14: {official_id: joshua-beal, name: Joshua Beal, page: 8}
+  district-15: {official_id: david-harper, name: David L. Harper, page: 8}
+  district-16: {official_id: lisa-prichard, name: Lisa Prichard, page: 8}
+  district-17: {official_id: chris-rasnic, name: Chris Rasnic, page: 9}
+  district-18: {official_id: ryan-gallant, name: Ryan Gallant, page: 9}
+  district-19: {official_id: billy-frye, name: William "Billy" Frye, page: 9}
+  district-20: {official_id: autumn-simmons, name: Autumn Simmons, page: 9}
+  district-21: {official_id: david-shelton, name: David Wayne Shelton, page: 9}
+  county-mayor: {official_id: wes-golden, name: Wes Golden, page: 6, note: "Term 2022-2026"}

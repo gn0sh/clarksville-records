@@ -7,6 +7,7 @@ dependencies = ["pyyaml", "jsonschema", "jinja2"]   # system tools: poppler-util
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff"]
+maps = ["pdfplumber", "shapely"]   # tools/extract_pdf_map.py only; the site build never needs them
 
 [tool.pytest.ini_options]
 testpaths = ["collector/tests", "tests"]
