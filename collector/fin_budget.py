@@ -366,6 +366,8 @@ def _line(spec, page, r: _Row, statement, fund_no, fund_name, sc: _Scopes, rules
     if not label:                              # amounts with no label: kept verbatim, never shown as a value
         label = " ".join([code or ""] + [w.text for _, ws in sorted(r.tokens.items()) for w in ws]).strip()
         held = HELD_ALIGN
+        for c in cells:                        # held means no dollars (budget-reconcile/held-labelless-dollars)
+            c["dollars"] = None
     role, level, scope = "detail", None, []
     if code is None and label in rules.subtotal_labels:
         cls = rules.subtotal_labels[label]

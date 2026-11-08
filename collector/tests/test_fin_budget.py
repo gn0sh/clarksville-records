@@ -327,3 +327,14 @@ def test_derived_band_forms_and_real_pages_hold_nothing():
     for book, pages in (("fy2027-approved", [36, 37, 105, 107, 108]), ("fy2025-approved", [31, 33, 36, 98, 99, 103])):
         _, lines = read(book, pages)
         assert not any(x["held"] for x in lines.values()), book
+
+
+def test_a_held_row_with_no_label_keeps_no_dollars():
+    """A row of amounts with no label is kept verbatim and held: none of its cells has dollars (1b nit 6)."""
+    def no_label(words):
+        row_y = next(w.yc for w in words if w.text == "40125")
+        return [w for w in words if not (abs(w.yc - row_y) < 3 and w.x1 < 300 and w.text != "40125")]
+    _, lines = read("fy2027-approved", [105], no_label)
+    x = next(x for x in lines.values() if x["label_as_printed"].startswith("40125 1,604"))
+    assert x["held"] == "column-align" and values(x) == [None, None, None]
+    assert [c["as_printed"] for c in x["cells"]] == ["1,604", "-", "-"]
