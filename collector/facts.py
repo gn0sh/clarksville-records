@@ -325,8 +325,8 @@ class Builder:
                 "id": rid, "meeting_id": mid, "item_id": iid, "motion_id": moid, "votes": votes,
                 # the counts as printed: a count printed blank is null, never the number derived for the check
                 # (neutrality/derived-count-shown-as-stated)
-                "stated_tally": (dict(zip(("yes", "no", "abstain"), rc.printed_tally or rc.tally))
-                                 if rc.tally else None),
+                "stated_tally": (dict(zip(("yes", "no", "abstain"), rc.printed_tally))
+                                 if rc.printed_tally is not None else None),
                 "outcome": {"pass": "passed", "fail": "failed"}.get(oc, "other"),
                 "outcome_text": " ".join(clause.split()), "source_id": sid, "page": rc.page, "verification": rver})
             ev(iid, "roll_call", clause, rid, rc.page, order, 2)
