@@ -58,7 +58,8 @@
 | 2026-11-08 | backend-engineer | opus/medium | (mis-resumed finished map-seats agent) | waste:duplicate |
 | 2026-11-08 | code-reviewer | sonnet/medium | review rezoning fields | request changes: parse-accuracy/single-engine-misread-agrees, malformed-dissent-dropped; 3 nits |
 | 2026-11-08 | software-architect | opus/medium | independent-readings invariant (loop rule, parse-accuracy 2nd hit) | done, e9c7502 |
-| 2026-11-08 | backend-engineer | opus/high | independent-readings fixes | running |
+| 2026-11-08 | backend-engineer | opus/high | independent-readings fixes + acreage printed + open-run check | done, ddf84e2..475bb60: verified 351/390 (0.900, gate passes, no headroom), zoning fields 289->218, 0 vote values changed, 458 pass |
+| 2026-11-08 | frontend-engineer | sonnet/medium | merge readings fix, render acreage.printed, officials headings | running |
 | 2026-11-08 | code-reviewer | opus/high | delta re-review of landing fixes | approve with nits: a11y-headings/officials-sections; provenance/acreage-not-as-printed (3rd provenance hit, fresh review next); provenance/open-run-latest-mismatch (latent) |
 | 2026-11-08 | qa-engineer | sonnet/medium | re-test landing bugs | PASS all; site_checks PASS incl. layout, provenance |
 | 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
@@ -113,3 +114,5 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - Backlog (from frontend, 2026-11-08): rezoning items (CZ-) before 2026 carry only the case number as their title, so searching by applicant name finds only the newer ones. backend-engineer to pull applicant and street from the item text. This is the owner's named search use case.
 - 2026-11-08 manager decisions: a name on a date with no roster record is labelled "seat not recorded". Seats are published as seats.csv. Zoning codes are not glyph-corrected (misread codes stay null).
 - Open parser finding (item-history family): the 2024-09-09 minutes on p50 reprint a 2020 roll call as an exhibit, and it is filed as a 2024 unverified roll call. The architect must restate the invariant before the fix.
+- 2026-11-08: the independent-readings rule took verified roll calls to 351/390, exactly 90.0%. It passes AC-P1 with no headroom. Manager decisions: a lone "-" beside a vote stays non-malformed, because the invariant does not list it (counting it would give 0.846). The reprint gap is queued for the architect: a printing held only because of its tesseract reading does not veto a reprint of the same table.
+- Next to win back headroom: the mid-row district-token misread (rc-84fcd6d8-p70-0) and the tesseract-garbled stated tallies (6 roll calls).
