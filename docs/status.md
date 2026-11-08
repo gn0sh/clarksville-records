@@ -64,7 +64,7 @@
 | 2026-11-08 | backend-engineer | opus/high | reprint dissent + acreage fixes, then headroom by better readings | done, b2d0d0f..42d763e: 347/390 after fixes, 354/390 (0.908) after headroom; 0 verified values changed; 26-2-6 p138 = 2 real roll calls; 0 titles fixed (glue not seen by both engines); 499 pass |
 | 2026-11-08 | code-reviewer | opus/high | delta re-review of 42d763e | approve with nits: glyph-scope, narrow-pattern-drops-veto, schema-printed-null |
 | 2026-11-08 | backend-engineer | opus/medium | 3 review nits | running |
-| 2026-11-08 | frontend-engineer | sonnet/medium | name links site-wide + table row heights + not-confirmed chip | running |
+| 2026-11-08 | frontend-engineer | sonnet/medium | name links site-wide + table row heights + not-confirmed chip + vote-on label | done, 8a50f58: 44,100 name links checked; row-height check at 4 widths; final full suite and site_checks not re-run after last tweak |
 | 2026-11-08 | code-reviewer | opus/high | delta re-review of landing fixes | approve with nits: a11y-headings/officials-sections; provenance/acreage-not-as-printed (3rd provenance hit, fresh review next); provenance/open-run-latest-mismatch (latent) |
 | 2026-11-08 | qa-engineer | sonnet/medium | re-test landing bugs | PASS all; site_checks PASS incl. layout, provenance |
 | 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
