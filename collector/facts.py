@@ -57,6 +57,28 @@ def subject_of(clause: str | None) -> str | None:
     return m.group(1).strip(" ,") if m else None
 
 
+def _printing_readings(rc) -> list:
+    """Every reading of one printing of a vote: each engine's reading and their combination (when decide made one)."""
+    rs = rc.readings + ([rc.combined] if getattr(rc, "combined", None) else [])
+    return rs or [_reading_of(rc)]
+
+
+def reprint_dissent(rc, reprints: list) -> list[str]:
+    """Written rule (architecture, "Invariant: independent readings"): a consent reprint never corroborates, but any
+    reading of it, of any engine, dissents. P.disagreements runs over every pair of readings across the roll call's own
+    printing and its reprints (all engines and the combination), except pairs inside the roll call's own printing,
+    which decide already checks (parse-accuracy/reprint-dissent-unchecked). Returns one reason per dissent."""
+    pool = [(rc.page, r, True) for r in _printing_readings(rc)]
+    pool += [(g.page, r, False) for g in reprints for r in _printing_readings(g)]
+    out = []
+    for i, (pa, a, own_a) in enumerate(pool):
+        for pb, b, own_b in pool[i + 1:]:
+            if own_a and own_b:
+                continue
+            out += [f"p{pa} {a.source} vs p{pb} {b.source}: {d}" for d in P.disagreements(a, b)]
+    return out
+
+
 def _reading_of(rc):
     """The reading that supplied rc's votes (or a stand-in built from them)."""
     for r in rc.readings + ([rc.combined] if getattr(rc, "combined", None) else []):
@@ -284,8 +306,7 @@ class Builder:
                 extra.append({"check": "consent_printing_placed", "ok": False,
                               "detail": "a consent table whose motion is unread fits more than one consent vote here"})
             if group:
-                clash = [f"p{rcs[g].page}: {d}" for g in group
-                         for d in P.disagreements(_reading_of(rc), _reading_of(rcs[g]))]
+                clash = reprint_dissent(rc, [rcs[g] for g in group])
                 extra.append({"check": "reprints_agree", "ok": not clash,
                               **({"detail": "; ".join(clash)[:500]} if clash else {})})
             rver = verification(rver["checks"] + extra)
