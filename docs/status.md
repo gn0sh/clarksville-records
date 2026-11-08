@@ -62,7 +62,8 @@
 | 2026-11-08 | frontend-engineer | sonnet/medium | merge readings fix, render acreage.printed, officials headings | done, 3471566: 487 pass, site_checks PASS |
 | 2026-11-08 | code-reviewer | opus/high | fresh review d251fcb (readings + acreage) | request changes: must-fix parse-accuracy/reprint-dissent-unchecked (rate to 0.890), provenance/acreage-printed-uncorroborated; should-fix tests-miss-new-dissent, registry-walk-skips-dicts; nit a11y |
 | 2026-11-08 | backend-engineer | opus/high | reprint dissent + acreage fixes, then headroom by better readings | done, b2d0d0f..42d763e: 347/390 after fixes, 354/390 (0.908) after headroom; 0 verified values changed; 26-2-6 p138 = 2 real roll calls; 0 titles fixed (glue not seen by both engines); 499 pass |
-| 2026-11-08 | code-reviewer | opus/high | delta re-review of 42d763e | running |
+| 2026-11-08 | code-reviewer | opus/high | delta re-review of 42d763e | approve with nits: glyph-scope, narrow-pattern-drops-veto, schema-printed-null |
+| 2026-11-08 | backend-engineer | opus/medium | 3 review nits | running |
 | 2026-11-08 | frontend-engineer | sonnet/medium | name links site-wide + table row heights + not-confirmed chip | running |
 | 2026-11-08 | code-reviewer | opus/high | delta re-review of landing fixes | approve with nits: a11y-headings/officials-sections; provenance/acreage-not-as-printed (3rd provenance hit, fresh review next); provenance/open-run-latest-mismatch (latent) |
 | 2026-11-08 | qa-engineer | sonnet/medium | re-test landing bugs | PASS all; site_checks PASS incl. layout, provenance |
@@ -122,3 +123,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - Next to win back headroom: the mid-row district-token misread (rc-84fcd6d8-p70-0) and the tesseract-garbled stated tallies (6 roll calls).
 - 2026-11-08 ~9:50 PM ET: preview v4 published at https://claude.ai/artifact/QkxSRXNSMiWXpHUoLj8ynj (map landing, drawer, seats, search, rezoning fields, public build, review.html removed). It was built from data/facts.json at d251fcb with sitegen plus collector.export; the publish recipe is build/publish/index.html (head/body stripped) plus a files map of build/site/*.
 - 2026-11-08 manager decision: apply the independent-readings rule fully, including dissent from reprints, even though the verified rate drops to about 0.890, below the AC-P1 gate. The gate only blocks going public, not the private preview. Headroom is to be won back only by more correct readings, never by relaxing checks.
+- Queued for the architect: a rule for glued title words ("ofthe"; 61 titles). Neither engine sees the break, so the shown-form rule can't fix it. Also queued: whether derived coverage.from/to may use "from/to" wording.
