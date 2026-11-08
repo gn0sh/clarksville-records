@@ -733,9 +733,9 @@ def check_footer(pages: dict[str, Page], operator: str) -> list[str]:
             if not needle.search(" ".join(pg.text))]
 
 
-ADDR_CONFIG = re.compile(r'<script type="application/json" id="addr-config">(.*?)</script>', re.S)
 ADDRESS_JS = re.compile(r"(^|/)static/address\.js$")
-CSP_FIXED = {"default-src": ["'self'"], "connect-src": ["'none'"], "object-src": ["'none'"], "base-uri": ["'none'"]}
+CSP_FIXED = {"default-src": ["'self'"], "connect-src": ["'none'"], "object-src": ["'none'"], "base-uri": ["'none'"],
+             "frame-src": ["'self'"], "img-src": ["'self'", "data:"], "form-action": ["'self'"]}
 HASH_SRC = re.compile(r"'sha256-[A-Za-z0-9+/]{43}='")
 
 
@@ -806,17 +806,6 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
             digest = base64.b64encode(hashlib.sha256(frame.encode("utf-8")).digest()).decode("ascii")
             if f"'sha256-{digest}'" not in scripts:
                 problems.append(f"{rel}: CSP script hash is not the address box's frame script")
-    return problems
-    want = (cfg or {}).get("geocoder_url") or None
-    for rel in pages:
-        for raw in ADDR_CONFIG.findall((site / rel).read_text(encoding="utf-8")):
-            try:
-                got = json.loads(raw).get("geocoder")
-            except (ValueError, AttributeError):
-                problems.append(f"{rel}: address box settings are not a JSON object")
-                continue
-            if not want or got != want:
-                problems.append(f"{rel}: address box geocoder {got!r} is not config geocoder_url {want!r}")
     return problems
 
 

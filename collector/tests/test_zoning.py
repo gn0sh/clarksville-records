@@ -346,7 +346,7 @@ def test_any_garbled_plus_minus_in_a_resolution_still_reads_its_number(rules, ga
     assert Z.decide(pooled(by_case(both, "CZ-01-2024") + [a]))["acreage"] is None
 
 
-@pytest.mark.parametrize("printed", ["21,780 SF", "2 lots", "10 sq.ft", "0.5 AC"])
+@pytest.mark.parametrize("printed", ["21,780 SF", "2 lots", "10 sq.ft", "10 sq-ft", "0.5 AC"])
 def test_a_unit_word_after_the_acreage_is_not_a_garbled_plus_minus(rules, printed):
     """parse-accuracy/suffix-swallows-unit: any short token after the number counted as a garbled "+/-", so
     "21,780 SF" read as a clean 21780 acres. A suffix must hold +, /, - or ±; a unit word stays in the value, which is

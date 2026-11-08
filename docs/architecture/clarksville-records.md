@@ -462,7 +462,7 @@ malformed value never matched and the printing gave no reading: "2.82 ±" on a s
 - A value's own check decides clean or malformed, never the pattern. Acreage: `zoning.ACREAGE_NUMBER` (a comma only
   between thousands), so "0,99", "4. 7598", "I.4", "lo" and every range ("2.32-2.5", "2.32 - 2.5", "2.32 to 2.5") are
   malformed. Its suffix is a known "+/-" form (printed form kept) or any other short token that is not itself a number
-  and holds at least one of +, /, - or ± ("4/-", "*/-", "+1..", "-++/-"): the number then agrees or vetoes, and
+  and holds at least one of +, /, - or ± and no two letters in a row ("4/-", "*/-", "+1..", "-++/-"; "sq-ft" is a unit): the number then agrees or vetoes, and
   `as_printed` is false so no printed form is stated. A token without one ("SF", "lots", "sq.ft", "AC") is a unit
   word, not a garble: it stays in the value, so the reading is malformed and vetoes. District codes and names: `_zoning`, named mode wherever a printing can print names.
 
@@ -598,7 +598,8 @@ Neutrality enforced by construction:
   is removed after each answer or the 8 s timeout; no referrer (iframe, script and meta); the parent hears only that
   iframe's `postMessage`, parses it as JSON data, validates its shape and shows it as text only. This site stores and
   logs nothing; the Census receives the address, IP and browser under its own policy, which the privacy line under
-  the box links (`geocoder_privacy_url`). If the geocoder cannot load, the box points to the official lookup.
+  the box links (`geocoder_privacy_url`). If the geocoder cannot load, the box points to the official lookup. A hostile geocoder answer that loops forever can freeze that
+  browser tab (the sandboxed frame shares the page's thread); accepted, no data is exposed.
   `python -m sitegen --no-geocoder` builds without the box (the claude.ai preview). `qa/site_checks.py` (external)
   holds the box's geocoder setting and the CSP to that exact config value, and fails a page that loads `address.js`
   without its settings block.

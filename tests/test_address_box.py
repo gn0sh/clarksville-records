@@ -209,12 +209,13 @@ def test_site_checks_fail_address_js_without_its_settings_block(real_map_site, t
     assert any(p.startswith("about.html: loads static/address.js") for p in site_checks.check_external(pages, site, cfg))
 
 
-@pytest.mark.parametrize("edit", ["drop", "geocoder-other", "hash-other", "wild", "connect"])
+@pytest.mark.parametrize("edit", ["drop", "geocoder-other", "hash-other", "wild", "connect",
+                                  "frame-src", "img-src", "form-action", "frame-src-gone"])
 def test_site_checks_hold_every_page_to_the_csp(real_map_site, tmp_path, edit):
     cfg = site_checks._site_cfg()
     site = tmp_path / "c"
     _site_copy(real_map_site, site)
-    target = site / ("about.html" if edit in ("drop", "wild", "connect") else "index.html")
+    target = site / ("about.html" if edit in ("drop", "wild", "connect", "frame-src", "img-src", "form-action", "frame-src-gone") else "index.html")
     html = target.read_text(encoding="utf-8")
     if edit == "drop":
         new = re.sub(r'<meta http-equiv="Content-Security-Policy"[^>]*>', "", html)
@@ -225,6 +226,14 @@ def test_site_checks_hold_every_page_to_the_csp(real_map_site, tmp_path, edit):
         new = re.sub(r"&#39;sha256-[A-Za-z0-9+/]{43}=&#39;", "&#39;sha256-" + "A" * 43 + "=&#39;", html)
     elif edit == "wild":
         new = html.replace("script-src &#39;self&#39;;", "script-src &#39;self&#39; https:;")
+    elif edit == "frame-src":
+        new = html.replace("frame-src &#39;self&#39;", "frame-src &#39;self&#39; https://evil.example")
+    elif edit == "img-src":
+        new = html.replace("img-src &#39;self&#39; data:", "img-src &#39;self&#39;")
+    elif edit == "form-action":
+        new = html.replace("form-action &#39;self&#39;", "form-action https:")
+    elif edit == "frame-src-gone":
+        new = html.replace("frame-src &#39;self&#39;", "")
     else:
         new = html.replace("connect-src &#39;none&#39;", "connect-src *")
     assert new != html, edit

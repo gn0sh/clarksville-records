@@ -57,6 +57,7 @@ ANSWERS = {
     "two_districts": _match(_pt("franklin-2nd"), _pt("rossview-wilma")),
     "two_one_near": _match(_pt("slayden-hwy13"), _pt("hwy48-loneoak")),          # both District 6, one near a line
     "two_in_and_out": _match(_pt("franklin-2nd"), [-87.44, 36.665]),
+    "twenty": _match(*([_pt("franklin-2nd")] * 20)),
     "many": _match(*([_pt("franklin-2nd")] * 21)),
     "two_one_bad": {"result": {"addressMatches": [_match(*_pt("franklin-2nd"))["result"]["addressMatches"][0],
                                                   {"coordinates": {"x": None, "y": 36.5}}]}},
@@ -107,6 +108,7 @@ def test_classify_more_than_one_match(run):
     assert a["two_outside"]["kind"] == "outside"
     for k in ("two_districts", "two_one_near", "two_in_and_out"):
         assert a[k] == {"kind": "ambiguous", "count": 2}, k
+    assert a["twenty"]["kind"] == "district" and a["twenty"]["district"] == 5
     assert a["many"] == {"kind": "ambiguous", "count": 21}
     assert a["two_one_bad"] == {"kind": "error"}
 
