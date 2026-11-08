@@ -168,7 +168,8 @@ def write_publish_manifest(out: Path) -> dict:
 DEFAULT = object()
 
 
-SITE_URL_KEYS = ("redistricting_page", "old_lines_map_url", "swap_source", "support_url")
+SITE_URL_KEYS = ("redistricting_page", "old_lines_map_url", "swap_source", "support_url",
+                "district_lookup_url")
 
 
 def site_url_problems(cfg: dict) -> list[str]:

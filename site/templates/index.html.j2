@@ -30,6 +30,9 @@
       {% else %}
       <div class="map-placeholder" role="note"><p>The map is not available yet. Districts are listed by number.</p></div>
       {% endif %}
+      {% if site.cfg.district_lookup_url %}
+      <p class="district-lookup note">Not sure of your district? <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">Look it up on GoVoteTN</a>.</p>
+      {% endif %}
     </div>
 
     <div class="landing-list">

@@ -57,7 +57,7 @@ VIEWPORT = 390
 
 # External links that are not minutes PDFs but are allowed: a holder record's roster source, the map's boundary source,
 # the county redistricting page / old-lines map, and the footer support link. Each must be marked data-ext and https.
-EXT_KINDS = {"roster", "map", "county", "support"}
+EXT_KINDS = {"roster", "map", "county", "support", "lookup"}
 
 
 def _site_cfg() -> dict:
@@ -86,7 +86,7 @@ def read_roster(path: Path | None) -> list[dict]:
 def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | None) -> set[str]:
     """Exact URLs (qa-weakened/ext-link-any-host): config/site.yml links, the map's source_url, every roster row's
     source and last_source, and the support link only when it is switched on."""
-    out = {cfg[k] for k in ("redistricting_page", "old_lines_map_url", "swap_source") if cfg.get(k)}
+    out = {cfg[k] for k in ("redistricting_page", "old_lines_map_url", "swap_source", "district_lookup_url") if cfg.get(k)}
     if cfg.get("support_enabled") is True and cfg.get("support_url"):
         out.add(cfg["support_url"])
     if districts_path is not None and Path(districts_path).is_file():

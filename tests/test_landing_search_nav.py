@@ -293,6 +293,19 @@ def test_item_type_rule_is_mechanical_and_on_the_about_page(pages):
     assert "How item types are decided" in about and "CZ-" in about
 
 
+def test_landing_district_lookup_line_is_a_plain_config_link_and_vanishes_when_empty(pages, monkeypatch, tmp_path):
+    url = config.SITE["district_lookup_url"]
+    assert url == "https://web.go-vote-tn.elections.tn.gov/"
+    html = pages["index.html"]
+    assert f'<a data-ext="lookup" href="{url}" rel="noopener">Look it up on GoVoteTN</a>' in html
+    assert "Not sure of your district? Look it up on GoVoteTN." in main_text(html)
+    assert url not in "".join(h for k, h in pages.items() if k != "index.html")
+    assert sitegen_build.site_url_problems({**config.SITE, "district_lookup_url": "http://x.example"})
+    empty = {**config.SITE, "district_lookup_url": ""}
+    monkeypatch.setattr(config, "SITE", empty)
+    assert "district-lookup" not in build_pages(tmp_path, json.loads(FIXTURE.read_text(encoding="utf-8")))["index.html"]
+
+
 # ---- 5. Footer -----------------------------------------------------------------------------------------------------
 
 def test_footer_has_no_support_link_while_switched_off(pages):
