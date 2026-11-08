@@ -1,0 +1,71 @@
+# Finance and contracts sources for Montgomery County, TN (collector/fin_config.py loads and checks this file).
+# Architecture: docs/architecture/finance-contracts.md (A2). Every URL, label, word list and heading rule the finance
+# adapters use lives here; the code holds no locality literal (AC-F12). A missing or malformed key fails the load.
+
+# ---------------------------------------------------------------- purchasing archive (adapter 1, fin_archive.py)
+# One HTML table; row 1 is the header, checked by exact text (a change raises StructureChanged).
+archive_url: https://montgomerytn.gov/purchasing/archive
+archive_header: ["Bid Name", "Bid Documents", "Award Date"]
+
+# Award Date cell words that are a status, not a date (matched whole, any case; stored as printed).
+status_words: ["Currently Under Review", "No Award", "NOT AWARDED", "UNDER REVIEW"]
+
+# strptime formats for the Award Date cell, tried in order. Only two mechanical repairs are applied before parsing:
+# spaces inside a month word ("F EBRUARY") are closed, and "." before the year becomes "," ("OCTOBER 30. 2025").
+date_formats: ["%B %d, %Y"]
+
+# Stage of each archive link, from its label (ordered; the first regex that matches wins; case-insensitive; the
+# label's whitespace, no-break spaces included, is collapsed first). Specific rules come before general ones:
+# "Partial Award Letter 1" is a partial award, "Bid Advertisement" an advertisement, "Addenda Acknowledgement" a form.
+stage_rules:
+  - [bid_tab, '\bbid\s*tab']
+  - [partial_award, '\bpartial\s+award']
+  - [notice_of_intent, '\bintent\s+to\s+award']
+  - [notice_of_award, '\bnotice\s+of\s+award']
+  - [award_letter, '\baward\b']
+  - [qa, '\bquestions?\b|\bq\s*&\s*as?\b']
+  - [forms, '\bforms?\b|\backnowle']
+  - [addendum, '\baddendum\b']
+  - [advertisement, '\badvertis|\binvitation\b|\bad\b']
+  - [drawings, '\bdrawings?\b']
+  - [rfp, '\brfp\b|\brequest\s+for\s+proposals?\b']
+  - [rfq, '\brfq\b|\brequest\s+for\s+quotes?\b']
+  - [bid, '\bbid\b|\brequest\s+for\s+bid\b']
+  - [other, '.']
+
+# Bid sites the county links to. Never requested (robots.txt disallows all); the fetcher hard-denies these hosts and
+# their links are kept as link-only documents.
+bonfire_hosts: ["mcgtn.bonfirehub.com"]
+
+# PDF Creator/Producer values that mean the file came from a scanner. Such a file's text, if any, is OCR: no value
+# is read from it (scan-values/*). Regexes, case-insensitive.
+scan_producers: ['KONICA MINOLTA', '^KM_', 'bizhub', 'Paper Capture', 'ScanSnap', 'RICOH', 'Xerox', 'Canon iR',
+                 'HP Digital Sending', 'SHARP MX', 'Kyocera', 'TASKalfa', 'Lexmark', 'OCR']
+
+# ---------------------------------------------------------------- bid tabs (adapter 2, fin_bidtab.py)
+bidtab:
+  # Field labels at the start of a line; the value is the rest of the line with "_" fill removed.
+  fields:
+    project: "Bid Project"
+    department: "Department"
+    bid_date: "Bid Date"
+    awardee: "Bid Awarded to"
+    award_date: "Date Bid Awarded"
+  # The bidder table's header line: these columns exactly (optional ones may be absent). Any other header word
+  # means another layout (itemised, unit price): the tab is not read.
+  columns:
+    name: "Bidder Name"
+    total: "Total"
+  optional_columns: ["Notes"]
+  # A line starting with one of these ends the bidder table (as does any field label).
+  table_end: ["Notes:"]
+
+# ---------------------------------------------------------------- budget books (adapter 3, slice 1b, task F9)
+budget:
+  books: []
+  page_titles: {}
+  kind_words: {}
+  rows: {}
+  tags: {}
+  fund_balance_labels: []
+capital_fund: null
