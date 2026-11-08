@@ -45,7 +45,8 @@
 | 2026-11-07 | backend-engineer | opus/high | raise verified rate | done, 345d497: 362/390 verified (92.8%), AC-P1 passes, 315 tests pass |
 | 2026-11-07 | deep-researcher | sonnet/medium | district/ward map data | done, docs/research/district-ward-map-data.md (GIS hosts blocked by egress; used county vector PDFs) |
 | 2026-11-07 | ux-designer | opus/medium | landing map, drawer, search, current/former officials | done, a85e0e6 docs/design/landing-search-nav.md |
-| 2026-11-08 | code-reviewer | opus/high | review efbf38f..345d497 | running |
+| 2026-11-08 | code-reviewer | opus/high | review efbf38f..345d497 | request changes: 1 must-fix parse-accuracy/combine-ignores-unclean-dissent; should-fix outcome-crosses-clause, neutrality/derived-count-shown-as-stated; nit two-thirds |
+| 2026-11-08 | backend-engineer | opus/high | fix review findings | running |
 | 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | running |
 | 2026-11-08 | frontend-engineer | opus/medium | landing, drawer, officials split, search, footer | running |
 
@@ -55,7 +56,7 @@
 ## Problem keys
 | Family | Hits | Keys |
 |---|---|---|
-| neutrality | 2 (review, delta): architect states invariant | held-count-by-resolved-id, under-review-mislabelled |
+| neutrality | 3 (review, delta, review 11-08): architect states invariant | held-count-by-resolved-id, under-review-mislabelled, derived-count-shown-as-stated |
 | verified-gate | 2 (review, QA motion-text-names): manager decision, show motion type only when unverified | motion-over-hidden |
 | escape | 1 (review) | unsafe-url-scheme |
 | contract | 1 (review) | no-referential-check |
@@ -63,6 +64,7 @@
 | item-history | 2 (review x2): architect states invariant | consent-reprint-duplicates, consent-pulled |
 | politeness | 1 (review) | redirect-bypass |
 | idempotence | 1 (review) | superseded-source |
+| parse-accuracy | 1 (review) | verified-rate, combine-ignores-unclean-dissent, outcome-crosses-clause, two-thirds-majority |
 
 ## Skipped panels
 - Architect recommended a 3-member Brain Trust on the facts schema and id scheme; skipped for today's preview (private, data regenerated from source each run, so the schema is cheap to change before public launch). Revisit at M1.5.
