@@ -52,7 +52,7 @@
 | 2026-11-08 | code-reviewer | opus/high | review landing/search/seats at a552cd4 | request changes: must-fix provenance/derived-seat-dates-shown-as-term; should-fix qa-weakened/ext-link-any-host, qa-tool/layout-counts-year-tables (pre-existing), locality/hard-coded-text; 4 nits |
 | 2026-11-08 | software-architect | opus/high | provenance invariant + consumer list (loop rule, 2nd hit) | running |
 | 2026-11-08 | backend-engineer | opus/medium | rezoning applicant/location fields + search | running |
-| 2026-11-08 | qa-engineer | sonnet/medium | QA landing/search/seats + spot-check newly verified | running |
+| 2026-11-08 | qa-engineer | sonnet/medium | QA landing/search/seats + spot-check newly verified | FAIL: landing/one-screen (phone 706px, desktop 913px below fold), attribution/seat-label-missing-former, attribution/seat-label-missing-meeting-history; AC-P1 361/390 PASS; spot-check 10/10 |
 | 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
 
 ## Decisions
@@ -65,7 +65,7 @@
 | verified-gate | 2 (review, QA motion-text-names): manager decision, show motion type only when unverified | motion-over-hidden |
 | escape | 1 (review) | unsafe-url-scheme |
 | contract | 1 (review) | no-referential-check |
-| attribution | 1 (review) | motion-ignores-context, item-link-unchecked, name-pairing-no-margin, one-entry-per-official |
+| attribution | 2 (review, QA 11-08) | motion-ignores-context, item-link-unchecked, name-pairing-no-margin, one-entry-per-official |
 | item-history | 2 (review x2): architect states invariant | consent-reprint-duplicates, consent-pulled |
 | politeness | 1 (review) | redirect-bypass |
 | idempotence | 1 (review) | superseded-source |
@@ -103,3 +103,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-08: the county district map is traced from the county's own vector PDF (Redistricting20211018.pdf), with numbers 19 and 20 swapped per the 2021-11-08 amendment. The swap was verified against the 2026 roster and the per-district maps. City wards are unavailable: the city PDF is raster. The fallback is the APSU layer once that host is allowed.
 - Open parser finding (item-history family, 3rd hit): the 2024-09-09 minutes on p50 reprint the 2020 roll call for item 20-9-14 as an exhibit. It is filed as a 2024 unverified roll call. The architect must restate the invariant before the fix (loop rule). Seat derivation uses verified roll calls only, so seats are unaffected.
 - Backlog (from frontend, 2026-11-08): rezoning items (CZ-) before 2026 carry only the case number as their title, so searching by applicant name finds only the newer ones. backend-engineer to pull applicant and street from the item text. This is the owner's named search use case.
+- 2026-11-08 manager decision (QA bug 2): a name on a date with no roster record is labelled "seat not recorded". The label is never guessed.
