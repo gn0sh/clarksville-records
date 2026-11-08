@@ -6,6 +6,7 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = REPO_ROOT / "schema" / "facts.schema.json"
 CHANGES_SCHEMA_PATH = REPO_ROOT / "schema" / "changes.schema.json"
+FINANCE_SCHEMA_PATH = REPO_ROOT / "schema" / "finance.schema.json"
 TEMPLATE_DIR = REPO_ROOT / "site" / "templates"
 STATIC_DIR = REPO_ROOT / "site" / "static"
 
