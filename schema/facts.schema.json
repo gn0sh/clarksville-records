@@ -129,7 +129,7 @@
         "year": { "type": "integer", "description": "year of first appearance; selects items/<year>.html" },
         "zoning": {
           "type": "object",
-          "description": "rezoning cases only (collector/zoning.py): each field as the minutes print it, with its source page, only where two independent readings agree and none disagrees; else null",
+          "description": "rezoning cases only (collector/zoning.py): each field as the minutes print it, with its source page, only where clean readings from both engines (text layer, tesseract) agree and none dissents; else null",
           "additionalProperties": false,
           "required": ["applicant", "location", "acreage", "from_zoning", "to_zoning"],
           "properties": {
@@ -151,8 +151,10 @@
     "zoning_acreage": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["value", "source_id", "page"],
-      "properties": { "value": { "type": "number", "exclusiveMinimum": 0 }, "source_id": { "$ref": "#/$defs/source_id" }, "page": { "$ref": "#/$defs/page" } }
+      "required": ["value", "printed", "source_id", "page"],
+      "properties": { "value": { "type": "number", "exclusiveMinimum": 0 },
+                      "printed": { "type": "string", "minLength": 1, "description": "the acreage as the minutes print it, with its words (\"2.320 +/- acres\", \"approximately .91 acres\")" },
+                      "source_id": { "$ref": "#/$defs/source_id" }, "page": { "$ref": "#/$defs/page" } }
     },
     "zoning_codes": {
       "type": "object",

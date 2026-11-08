@@ -7,25 +7,30 @@ approved") and the planning staff's review sheet. The printings and the county's
 config (config/localities/<locality>/zoning.yml); this module holds only the rule.
 
 The agreement rule (written, the same for every case and field):
-1. Every match of a printing's pattern is one reading of each field it names, from one engine: the PDF's text layer,
-   or tesseract's reading of the same page (a second, independent reading).
-2. A reading counts only if it is well formed: a name or location of plain characters and a sane length, an acreage
+1. Every match of a printing's pattern is one reading of each field it names, from one engine: the PDF's text layer
+   (the county's own OCR, one engine wherever it appears) or tesseract's reading of the same page.
+2. A reading is clean when it is well formed: a name or location of plain characters and a sane length, an acreage
    that is a number, zoning made only of the configured district codes exactly as printed (spaces around a dash
    dropped, nothing else changed) and, where the district's name is printed after its code, that district's name.
-   Nothing is corrected: a misread is dropped, never repaired.
+   A reading whose pattern matched but whose value fails that check is malformed: it is kept (key MALFORMED) and
+   vetoes the field. Nothing is corrected or dropped: a misread is never repaired, and an over-wide pattern is fixed
+   in zoning.yml. A group that did not match, or an engine that did not run, gives no reading at all.
 3. Readings agree when they are equal after case, spaces and punctuation are ignored (names and locations), as
    numbers (acreage), or code for code (zoning).
-4. Independent readings are counted by (printing, engine): the same printing in two documents (an agenda packet and
-   the minutes carry the same pages) counts once, so a misprint copied into both never agrees with itself.
-5. One printing read by both engines with different results was misread by one of them: that printing counts
-   neither for nor against any value, and the other printings decide. A printing only one engine read counts as is.
-6. A field takes a value only when every remaining reading agrees and they are at least two independent readings.
-   Any dissent leaves it null: on CZ-01-2024 the text layer reads the printed "Johnathan Blick" as "Buck" in two of
-   three places, so a majority would have published the wrong name. Readings of every document that cites the
-   case are pooled.
-7. The value shown is one of the agreeing readings as printed (mixed case over capitals, "+/-" over its misread
-   "+1-", then the one with the most word breaks, since the text layer drops spaces but never adds them), with its
-   source page.
+4. Independent readings are counted by engine (architecture, "Invariant: independent readings"). A second printing,
+   a reprint or the same pages in another document, read by the same engine, repeat that engine's glyph confusions,
+   so they never corroborate: on CZ-01-2024 the text layer reads the printed "Johnathan Blick" as "Buck" in two of
+   three places.
+5. A field takes a value only when clean readings from both engines agree and no reading of any engine, printing or
+   document dissents (a clean reading with another key, or a malformed one). One dissent leaves it null; there is
+   no majority, ever. With --no-ocr or a failed OCR page there is one engine, so nothing is published from it.
+   Readings of every document that cites the case are pooled.
+6. The value shown, with its source page: a form both engines read character for character (whitespace collapsed);
+   else the characters of the best-ranked reading (mixed case over capitals, "+/-" over its misread "+1-", no odd
+   capitals like "BUck") with a word break only where at least one reading of each engine has one. The text layer
+   drops spaces and tesseract adds them ("Mc Donald"), so a break only one engine saw is not shown. An acreage
+   also keeps its printed form by the same rule (`printed`: "2.320 +/- acres", where the printing wraps the number
+   in `acreage_printed`), beside the number, so "+/-", "approximately" and trailing zeros are not lost.
 """
 from __future__ import annotations
 
@@ -42,7 +47,7 @@ FIELDS = ("applicant", "location", "acreage", "from_zoning", "to_zoning")
 ENGINES = ("text-layer", "tesseract")
 NAME_OK = re.compile(r"[A-Za-z0-9 .,&'’()/-]+")
 LOCATION_OK = re.compile(r"[A-Za-z0-9 .,&'’()/#+:-]+")
-MIN_AGREE = 2
+MALFORMED = "\x00malformed"   # key of a reading whose pattern matched but whose value failed its check
 
 
 def locality() -> str:
@@ -81,7 +86,7 @@ def load_rules(path: Path | None = None) -> Rules | None:
 class Reading:
     case: str
     field: str
-    value: object               # str (applicant, location), float (acreage), tuple of codes (zoning)
+    value: object               # str (applicant, location), float (acreage), tuple of codes (zoning); None if malformed
     shown: str                  # the reading as printed, whitespace collapsed
     key: str
     printing: str
@@ -147,13 +152,17 @@ def _zoning(raw: str, rules: Rules, named: bool):
         # "C-5 Highway & Arterial Commercial District / AG Agricultural", "C-2 - - General Commercial"
         parts = re.split(r"\s+District\s*(?:/|and|&)\s*|\s*/\s*", s)
         for part in parts:
-            m = re.fullmatch(r"([A-Z][A-Za-z0-9]*(?:\s?-\s?[A-Za-z0-9]+)*)\s*(?:[-–—]\s*)*(.*)", part.strip())
-            if not m:
+            # the code and the name are split where a configured code (spaces around its dashes allowed) is followed
+            # by that district's name, so "C-5 - Highway & Arterial" is not read as the code "C-5-Highway"
+            hits = []
+            for code, names in rules.districts.items():
+                pat = r"\s?-\s?".join(map(re.escape, code.split("-")))
+                m = re.fullmatch(pat + r"(?![A-Za-z0-9])\s*(?:[-–—]\s*)*(.*)", part.strip())
+                if m and (not m.group(1) or _name_key(m.group(1)) in names):
+                    hits.append(code)
+            if len(hits) != 1:
                 return None
-            code = _code(m.group(1), rules)
-            if code is None or (m.group(2) and _name_key(m.group(2)) not in rules.districts[code]):
-                return None
-            codes.append(code)
+            codes.append(hits[0])
     else:
         for part in s.split("/"):
             code = _code(part, rules)
@@ -192,13 +201,16 @@ def page_case(text: str, rules: Rules) -> str | None:
 def _match_fields(text: str, pr: dict, rules: Rules, case: str, engine: str, page: int, first: int = 0) -> list[Reading]:
     out = []
     for k, m in enumerate(pr["regex"].finditer(text)):
-        for field, raw in m.groupdict().items():
+        gd = m.groupdict()
+        for field, raw in gd.items():
             if field not in FIELDS or raw is None:
                 continue
             got = _value(field, raw, rules, pr["named_districts"])
-            if got:
-                value, shown, key = got
-                out.append(Reading(case, field, value, shown, key, pr["name"], engine, page, first + k))
+            # matched but malformed: kept as a reading that vetoes the field (rule 2), never dropped
+            value, shown, key = got if got else (None, _squash(raw), MALFORMED)
+            if got and field == "acreage" and gd.get("acreage_printed"):
+                shown = _squash(gd["acreage_printed"])        # "2.320 +/- acres", "approximately .91 acres"
+            out.append(Reading(case, field, value, shown, key, pr["name"], engine, page, first + k))
     return out
 
 
@@ -272,33 +284,82 @@ def _shown_rank(r: Reading) -> tuple:
     s = r.shown if isinstance(r.shown, str) else str(r.shown)
     odd = len(re.findall(r"\b[A-Z]{2,}[a-z]", s))                      # "BUck": a misread capital
     misread = len(re.findall(r"\+\s?[1!lI]\s?-", s))                    # "+1-" for the printed "+/-"
-    return (s != s.upper() or not re.search(r"[A-Za-z]", s), -misread, -odd, s.count(" "), r.engine == "text-layer")
+    return (s != s.upper() or not re.search(r"[A-Za-z]", s), -misread, -odd, r.engine == "text-layer")
+
+
+def _units(s: str) -> tuple[list[tuple[int, int]], set[int]]:
+    """The spans of s that make up its key (_text_key: a letter, digit, "&", or one "+/-" form) and the set of unit
+    positions k > 0 with whitespace between unit k-1 and unit k (a word break)."""
+    spans, breaks, i, gap = [], set(), 0, False
+    while i < len(s):
+        m = PLUS_MINUS.match(s, i)
+        j = m.end() if m else i + 1
+        if m or re.fullmatch(r"[a-z0-9&]", s[i].casefold()):
+            if gap and spans:
+                breaks.add(len(spans))
+            spans.append((i, j))
+            gap = False
+        elif s[i].isspace():
+            gap = True
+        i = j
+    return spans, breaks
+
+
+def _with_breaks(s: str, allowed: set[int]) -> str:
+    """s with its own whitespace removed and one space put before each key unit in `allowed`: where s had a space in
+    that gap, there; else just before the unit."""
+    spans, _ = _units(s)
+    out, prev = [], 0
+    for k, (a, b) in enumerate(spans):
+        gap = s[prev:a]
+        if k > 0 and k in allowed:
+            ws = re.search(r"\s", gap)
+            gap = re.sub(r"\s+", "", gap[:ws.start()]) + " " + re.sub(r"\s+", "", gap[ws.start():]) if ws else \
+                re.sub(r"\s+", "", gap) + " "
+        elif k > 0:
+            gap = re.sub(r"\s+", "", gap)
+        out += [gap, s[a:b]]
+        prev = b
+    return "".join(out) + s[prev:]
+
+
+def _order(x) -> tuple:
+    return tuple(-v for v in _shown_rank(x[0])), x[2], x[0].page, x[1]
+
+
+def _shown(g: list):
+    """(shown form, the reading that supplies the page) among agreeing readings g (rule 6)."""
+    forms: dict[str, set] = {}
+    for r, _, _ in g:
+        forms.setdefault(_squash(str(r.shown)), set()).add(r.engine)
+    both = [x for x in g if forms[_squash(str(x[0].shown))] >= set(ENGINES)]
+    if both:
+        best = min(both, key=_order)
+        return _squash(str(best[0].shown)), best
+    best = min(g, key=_order)
+    s = _squash(str(best[0].shown))
+    n = len(_units(s)[0])
+    per_engine = {e: set() for e in ENGINES}
+    for r, _, _ in g:
+        spans, breaks = _units(_squash(str(r.shown)))
+        if len(spans) == n:                          # letters align by position (equal keys)
+            per_engine[r.engine] |= breaks
+    return _with_breaks(s, set.intersection(*per_engine.values())), best
 
 
 def decide(readings: list) -> dict:
-    """readings: [(Reading, source_id, date)] for one case -> {field: {"value", "source_id", "page"} | None}."""
+    """readings: [(Reading, source_id, date)] for one case -> {field: {"value", "source_id", "page"} | None}.
+    Rules 4-6: clean readings from both engines with one key and no dissent, or null."""
     out = {}
     for field in FIELDS:
-        # rule 5a: one printing read by both engines with different results is a misread by one of them; that
-        # printing then counts neither way (the other printings decide). A printing only one engine read counts as is.
-        printings: dict[tuple, list] = {}
-        for x in readings:
-            r = x[0]
-            if r.field == field:
-                printings.setdefault((r.printing, x[1], r.page, r.nth), []).append(x)
-        groups: dict[str, list] = {}
-        for xs in printings.values():
-            if len({x[0].engine for x in xs}) > 1 and len({x[0].key for x in xs}) > 1:
-                continue
-            for x in xs:
-                groups.setdefault(x[0].key, []).append(x)
-        units = {k: {(r.printing, r.engine) for r, _, _ in g} for k, g in groups.items()}
-        if len(groups) != 1 or len(units[next(iter(groups))]) < MIN_AGREE:
+        g = [x for x in readings if x[0].field == field]
+        keys = {x[0].key for x in g}
+        if len(keys) != 1 or MALFORMED in keys or not set(ENGINES) <= {x[0].engine for x in g}:
             out[field] = None
             continue
-        g = next(iter(groups.values()))
-        best = min(g, key=lambda x: (tuple(-v for v in _shown_rank(x[0])), x[2], x[0].page, x[1]))
-        r, sid, _ = best
-        value = list(r.value) if isinstance(r.value, tuple) else r.value
+        shown, (r, sid, _) = _shown(g)
+        value = list(r.value) if isinstance(r.value, tuple) else (shown if isinstance(r.value, str) else r.value)
         out[field] = {"value": value, "source_id": sid, "page": r.page}
+        if field == "acreage":                          # the number as printed, with its words (rule 6)
+            out[field] = {"value": value, "printed": shown, "source_id": sid, "page": r.page}
     return out

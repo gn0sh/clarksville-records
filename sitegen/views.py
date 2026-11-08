@@ -735,7 +735,7 @@ def zoning_rows(ix: Index, item: dict) -> list[dict]:
         if f is None:
             continue
         v = f["value"]
-        text = ", ".join(v) if isinstance(v, list) else (f"{v:g} acres" if key == "acreage" else str(v))
+        text = ", ".join(v) if isinstance(v, list) else (f["printed"] if key == "acreage" else str(v))
         rows.append({"key": key, "label": label, "value": text, "src": ix.src(f["source_id"], f["page"])})
     return rows
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from statistics import median
 
+from . import parse as P
 from .config import MIN_ROLL_CALLS_FOR_SKEW, SKEW_FACTOR, SKEW_FLOOR, UNIFORM_SHARE_REVIEW, VERIFIED_RATE_MIN
 
 # parser reason text -> named check (first matching pattern wins)
@@ -76,10 +77,16 @@ def roll_call_verification(rc, roster_unresolved: list[str]) -> dict:
 def source_inconsistent(rc) -> bool:
     """Written rule for G4: a hold is caused by the source document itself when at least two independent readings
     agree on every vote and on the stated tally, and each reports the same contradiction between a member's vote
-    mark and the roll call's own ABSENT line. Such holds are reported separately and not counted in G4."""
+    mark and the roll call's own ABSENT line (agreement by parse.disagreements). Such holds are reported separately
+    and not counted in G4."""
     if rc.status == "Verified" or len(rc.readings) < 2:
         return False
     if any("sources disagree" in r for r in rc.reasons):
+        return False
+    # "agree on every vote" is the dissent rule itself (parse.cell_dissent, through parse.disagreements): no cell,
+    # tally or ABSENT-line dissent between any two readings. This only reclassifies a hold; it never publishes.
+    rs = rc.readings
+    if any(P.disagreements(rs[i], b) for i in range(len(rs)) for b in rs[i + 1:]):
         return False
     sets = []
     for rd in rc.readings:

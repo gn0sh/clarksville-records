@@ -565,9 +565,10 @@ ol.districts li.is-lit { background: var(--surface-2); }
 .seat { color: var(--muted); font-weight: 400; }
 .seat-line { margin: 2px 0 0; }
 details.officials-section > summary { cursor: pointer; list-style-position: inside; }
-/* the section name is the summary itself (no heading inside <summary>), styled as a section heading */
-details.officials-section > summary.section-summary { font-family: var(--font-head); font-size: var(--t-xl); font-weight: 600;
-  line-height: 1.2; margin: 1.4em 0 0.4em; padding: 4px 0 6px; border-bottom: 1px solid var(--border); min-height: 44px; }
+/* the section name is an h2 before the <details>; the summary is a small show/hide toggle under it */
+h2.section-h { font-family: var(--font-head); font-size: var(--t-xl); font-weight: 600; line-height: 1.2; margin: 1.4em 0 0.2em; }
+details.officials-section > summary.section-summary { font-size: var(--t-sm); color: var(--muted); min-height: 44px;
+  display: flex; align-items: center; border-bottom: 1px solid var(--border); }
 .basis { font-size: var(--t-sm); margin: 4px 0; }
 .holder-row { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
 table.holders { min-width: 30rem; }

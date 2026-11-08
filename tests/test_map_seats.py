@@ -218,3 +218,25 @@ def test_extractor_groups_digits_into_numbers():
     class Page:
         chars = [ch("1", 312), ch("0", 321), ch("1", 400), ch("7", 409), ch("2", 430), ch("0", 439), ch("9", 600, 50)]
     assert [n for n, *_ in ex._numbers(Page(), r"[1-9]\d?")] == [9, 10, 17, 20]
+
+
+def test_a_run_is_open_only_when_it_reaches_the_latest_meeting_in_the_facts():
+    """provenance/open-run-latest-mismatch: the site says "to L, the latest meeting collected" with L from the facts,
+    so a run whose last reading is earlier keeps its end."""
+    held = {"2023-01-09": {1: "b"}, "2023-02-13": {1: "b"}}
+    cite = {(d, "b", 1): ("s", 3) for d in held}
+    src = {"s": {"url": "https://x.test/m.pdf"}}
+    assert derive_seats.runs(held, cite, src, "2022-09-01", 1)[0]["end"] is None
+    assert derive_seats.runs(held, cite, src, "2022-09-01", 1, latest="2023-03-13")[0]["end"] == "2023-02-13"
+    assert derive_seats.latest_meeting(_facts(("2023-01-09", "b"), ("2023-03-13", "c"))) == "2023-03-13"
+
+
+def test_check_flags_an_open_run_not_seen_at_the_latest_meeting():
+    facts = _facts(("2023-02-13", "b"), ("2023-03-13", "b"))
+    facts["sources"] = [{"id": "s", "url": "https://x.test/m.pdf"}]
+    facts["roll_calls"][0].update(source_id="s", page=3)
+    facts["roll_calls"][1].update(source_id="s", page=9)
+    row = dict(_row("b", "district-1", "2023-02-13"), dates="observed", last_source="https://x.test/m.pdf#page=3")
+    assert any("not at the latest meeting collected (2023-03-13)" in x for x in seat_check.check(facts, [row]))
+    row["last_source"] = "https://x.test/m.pdf#page=9"
+    assert seat_check.check(facts, [row]) == []

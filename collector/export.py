@@ -57,7 +57,6 @@ PROVENANCE: dict[str, str] = {
     "motions.seconded_by_raw": "stated",
     "items.id": "derived: id", "items.number": "stated", "items.title": "stated",
     "items.link_basis": "derived: item linking rule", "items.year": "derived: year the item is first seen",
-    "items.zoning": "stated",  # each field as printed with its page; null unless two readings agree
     "item_events.id": "derived: content position", "item_events.item_id": "derived: item linking rule",
     "item_events.meeting_id": "derived: id", "item_events.date": "stated",
     "item_events.type": "derived: fixed patterns", "item_events.label": "stated", "item_events.ref": "derived: id",
@@ -100,7 +99,14 @@ _J = {
                 "seconded_by": "derived: name resolution", "page": _CITE["page"], "source_id": "derived: id",
                 "text": "stated", "verification": _VER, "type_label": PROVENANCE["motions.type_label"],
                 "confirmed": _VER},
-    "items": {k: PROVENANCE[f"items.{k}"] for k in ("id", "link_basis", "number", "title", "year", "zoning")},
+    "items": {**{k: PROVENANCE[f"items.{k}"] for k in ("id", "link_basis", "number", "title", "year")},
+              # rezoning cases (collector/zoning.py): each field as printed on one cited page, or null
+              "zoning": "stated"},
+    # items.zoning.<field>: the value as the minutes print it (applicant, location verbatim; acreage the number with
+    # `printed` its printed form; from/to zoning the printed district codes), with the cited source page
+    **{f"items.zoning.{f}": {"value": "stated", "source_id": "derived: id", "page": _CITE["page"],
+                             **({"printed": "stated"} if f == "acreage" else {})}
+       for f in ("applicant", "location", "acreage", "from_zoning", "to_zoning")},
     "item_events": {"date": "stated", "id": "derived: content position", "item_id": PROVENANCE["item_events.item_id"],
                     "label": "stated", "meeting_id": "derived: id", "order": PROVENANCE["item_events.order"],
                     "page": _CITE["page"], "ref": "derived: id", "source_id": "derived: id",
