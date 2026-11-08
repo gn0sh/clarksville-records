@@ -25,7 +25,8 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               official's page (standing rule), except in <title>, <option>, the footer operator line and on the
               official's own page
   footer      "Provided as a free service by Brian Zacharias." on every page
-  external    no third-party scripts, styles, images or fonts (N6)
+  external    no third-party scripts, styles, images or fonts (N6); the landing address box's geocoder (called
+              only on submit) is exactly config/site.yml geocoder_url
   files       fewer than 250 files
   row-height  no table row (or vote / result list item) taller than 60% of the viewport, with long text clamped and row
               details collapsed, at 375x667, 768x1024, 1000x800 and 1280x800; needs Playwright (node)
@@ -712,12 +713,29 @@ def check_footer(pages: dict[str, Page], operator: str) -> list[str]:
             if not needle.search(" ".join(pg.text))]
 
 
-def check_external(pages: dict[str, Page]) -> list[str]:
+ADDR_CONFIG = re.compile(r'<script type="application/json" id="addr-config">(.*?)</script>', re.S)
+
+
+def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict | None = None) -> list[str]:
+    """No third-party resource in the HTML. The one runtime call out, the landing address box's geocoder (only on
+    submit), may go only to config/site.yml geocoder_url, exactly."""
     problems = []
     for rel, pg in pages.items():
         for tag, src in pg.resources:
             if urlsplit(src).scheme or src.startswith("//"):
                 problems.append(f"{rel}: third-party <{tag}> {src!r}")
+    if site is None:
+        return problems
+    want = (cfg or {}).get("geocoder_url") or None
+    for rel in pages:
+        for raw in ADDR_CONFIG.findall((site / rel).read_text(encoding="utf-8")):
+            try:
+                got = json.loads(raw).get("geocoder")
+            except (ValueError, AttributeError):
+                problems.append(f"{rel}: address box settings are not a JSON object")
+                continue
+            if not want or got != want:
+                problems.append(f"{rel}: address box geocoder {got!r} is not config geocoder_url {want!r}")
     return problems
 
 
@@ -835,7 +853,7 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     problems, note = check_name_links(site, facts, read_roster(seats_path))
     rep.add("name-links", problems, note)
     rep.add("footer", check_footer(pages, operator), f"'Provided as a free service by {operator}.' on {len(pages)} pages")
-    rep.add("external", check_external(pages))
+    rep.add("external", check_external(pages, site, cfg))
     if browser:
         try:
             problems, note = check_hscroll(site, pages, all_pages, sample)

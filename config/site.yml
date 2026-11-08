@@ -4,12 +4,16 @@ locality: montgomery-tn
 site_name: Clarksville Records
 operator: Brian Zacharias          # confirmed by the CEO, 2026-11-07 (G1)
 
-# Footer support link (CEO, 2026-11-07). Rendered only when support_enabled is true AND support_url is set; it stays
-# false until the pre-public ethics check (G6: Brian sits on Council until January).
 # "Not sure of your district?" lookup link on the landing (the state elections site). Empty renders nothing; another
 # locality sets its own. The site sends nothing there: it is a plain link the visitor chooses to follow.
 district_lookup_url: https://web.go-vote-tn.elections.tn.gov/
+district_lookup_label: GoVoteTN
+# Landing address box ("Find your district"): the Census one-line address geocoder, called by JSONP only when the
+# visitor submits an address (static/address.js adds the query). Empty renders no address box. Base URL only, no query.
+geocoder_url: https://geocoding.geo.census.gov/geocoder/locations/onelineaddress
 
+# Footer support link (CEO, 2026-11-07). Rendered only when support_enabled is true AND support_url is set; it stays
+# false until the pre-public ethics check (G6: Brian sits on Council until January).
 support_url: https://www.buymeacoffee.com/gnoshcodes
 support_label: Buy Me a Coffee
 support_enabled: false

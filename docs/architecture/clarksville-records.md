@@ -586,6 +586,11 @@ Neutrality enforced by construction:
 - **N6** (amended 2026-11-08, manager decision Q6): no third-party scripts, fonts, analytics or campaign links. First-party
   scripts from `static/` only (`filter.js`, `nav.js`, `map.js`, `search.js`, and the generated `search-index.js`),
   vanilla, making no network requests and storing nothing about the visitor. Every page works without them.
+  One exception (address pin M2, manager decision 2026-11-08, docs/research/address-lookup.md): the landing's
+  `address.js` (with `georef.js`) sends the address the visitor typed to `config/site.yml` `geocoder_url` (the Census
+  one-line geocoder, JSONP), only on submit, with a privacy line under the box; nothing is stored or logged, and if
+  the script cannot load the box points to the official lookup. `qa/site_checks.py` (external) holds the page's
+  geocoder setting to that exact config value.
 - **G1:** `base.html.j2` footer on every page: "Provided as a free service by {{ operator }}." (CEO, 2026-11-07), then
   "About this site and its data rules." and the full nav list. The operator and all locality and branding text live in
   `config/site.yml`. The optional support link (`support_url`, `support_label`) renders only when `support_enabled` is

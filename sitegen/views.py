@@ -936,11 +936,26 @@ def swap_context() -> dict | None:
             "link": "Elected Officials List", "after": f" ({source_label(cfg['swap_source'])})."}
 
 
-def landing(facts, districts: dict | None) -> dict:
+def address_context(districts: dict | None, georef: dict | None) -> dict | None:
+    """The landing address box's settings (static/address.js), or None when there is no map, no georef fitted to it
+    or no geocoder configured: then no box is drawn. Emitted into the page as JSON; the district shapes themselves
+    are read from the map the page draws, so the lookup and the map can never disagree."""
+    cfg = config.SITE
+    if districts is None or georef is None or not cfg.get("geocoder_url"):
+        return None
+    return {"georef": {"projection": georef["projection"], "affine": georef["affine"],
+                       "boundary_margin_m": georef["boundary_margin_m"]},
+            "geocoder": cfg["geocoder_url"], "county": cfg["county_name"], "district_label": cfg["district_label"],
+            "lookup_url": cfg.get("district_lookup_url") or "",
+            "lookup_label": cfg.get("district_lookup_label") or "GoVoteTN"}
+
+
+def landing(facts, districts: dict | None, georef: dict | None = None) -> dict:
     ix = _ix(facts)
     return {"rows": district_rows(ix), "map": map_context(districts), "coverage": ix.coverage,
             "district_count": config.SITE["district_count"],
-            "basis": observed_basis(ix) if ix.seats.loaded else None}
+            "basis": observed_basis(ix) if ix.seats.loaded else None,
+            "address": address_context(districts, georef)}
 
 
 def _day_before(date: str) -> str:

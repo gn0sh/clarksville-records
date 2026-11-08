@@ -296,3 +296,20 @@ def test_row_height_check_passes_clean_and_catches_a_tall_row(site):
          '<td role="cell" class="c-item" data-label="Item"><div><div style="height:900px"></div>')
     rep = run(site, browser=True, all_pages=True)
     assert "row-height" in failed(rep), rep.render()
+
+
+def test_allowed_external_has_the_district_lookup_url():
+    cfg = site_checks._site_cfg()
+    assert cfg["district_lookup_url"] in site_checks.allowed_external(cfg, None, None)
+    assert cfg["district_lookup_url"] not in site_checks.allowed_external({**cfg, "district_lookup_url": ""}, None, None)
+    assert cfg["geocoder_url"] not in site_checks.allowed_external(cfg, None, None)   # never a link, only the box's call
+
+
+def test_lookup_link_to_another_url_is_caught(site):
+    """data-ext="lookup" excuses only the configured district_lookup_url, exactly."""
+    from sitegen import config
+    url = config.SITE["district_lookup_url"]
+    edit(site / "about.html", "</main>", f'<p><a data-ext="lookup" href="{url}">ok</a></p></main>')
+    assert "sources" not in failed(run(site))
+    edit(site / "about.html", "</main>", f'<p><a data-ext="lookup" href="{url}x/">lookalike</a></p></main>')
+    assert "sources" in failed(run(site))

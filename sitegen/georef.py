@@ -163,6 +163,21 @@ def district_for(lon: float, lat: float, districts: dict | None = None, georef: 
     return out
 
 
+def load_for_map(districts_path, districts: dict | None) -> dict | None:
+    """georef.json next to the map file, or None when there is no map or no georef (the landing then has no address
+    box). A georef fitted to another source PDF is an error, never a silent fallback."""
+    if districts is None or districts_path is None:
+        return None
+    path = Path(districts_path).parent / "georef.json"
+    if not path.is_file():
+        return None
+    g = json.loads(path.read_text(encoding="utf-8"))
+    if g.get("source_sha256") != districts.get("source_sha256"):
+        raise ValueError(f"{path}: fitted to a different source PDF than {districts_path}")
+    project(-86.0, 35.0, g["projection"])      # unsupported method -> ValueError at build time, not in the browser
+    return g
+
+
 def _locality_files() -> tuple[dict, dict]:
     from sitegen.config import DISTRICTS_PATH
     return (json.loads(Path(DISTRICTS_PATH).read_text(encoding="utf-8")),
