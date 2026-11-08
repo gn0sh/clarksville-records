@@ -28661,12 +28661,7 @@
       "title": "Application ofSunikumar Arunagirl from R- I to R-3",
       "year": 2022,
       "zoning": {
-        "acreage": {
-          "page": 8,
-          "printed": "1.00-i-I-acres",
-          "source_id": "src-3a926fac623a",
-          "value": 1.0
-        },
+        "acreage": null,
         "applicant": {
           "page": 8,
           "source_id": "src-3a926fac623a",
@@ -76259,7 +76254,8 @@
           },
           {
             "check": "reprints_agree",
-            "ok": true
+            "detail": "p13 text-layer vs p90 tesseract: sources disagree on stated tally: (18, 0, 1) vs None (a count read garbled); p15 text-layer vs p90 tesseract: sources disagree on stated tally: (18, 0, 1) vs None (a count read garbled); p15 tesseract vs p90 tesseract: sources disagree on stated tally: (18, 0, 1) vs None (a count read garbled); p18 text-layer vs p90 tesseract: sources disagree on stated tally: (18, 0, 1) vs None (a count read garbled); p20 text-layer vs p90 tesseract: sources disagree on stated t",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -76274,7 +76270,7 @@
             "ok": true
           }
         ],
-        "status": "verified"
+        "status": "unverified"
       },
       "votes": [
         {
@@ -86223,7 +86219,8 @@
           },
           {
             "check": "reprints_agree",
-            "ok": true
+            "detail": "p32 text-layer vs p143 tesseract: sources disagree for Ryan Gallant: text-layer=Yes tesseract=? (malformed cell); p122 text-layer vs p143 tesseract: sources disagree for Ryan Gallant: text-layer=Yes tesseract=? (malformed cell); p125 text-layer vs p143 tesseract: sources disagree for Ryan Gallant: text-layer=Yes tesseract=? (malformed cell); p129 text-layer vs p143 tesseract: sources disagree for Ryan Gallant: text-layer=Yes tesseract=? (malformed cell); p137 text-layer vs p143 tesseract: source",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -86238,7 +86235,7 @@
             "ok": true
           }
         ],
-        "status": "verified"
+        "status": "unverified"
       },
       "votes": [
         {
@@ -104574,7 +104571,8 @@
           },
           {
             "check": "reprints_agree",
-            "ok": true
+            "detail": "p59 text-layer vs p99 text-layer: sources disagree for Larry Rocconi: text-layer=Yes text-layer=---; p65 text-layer vs p99 text-layer: sources disagree for Larry Rocconi: text-layer=Yes text-layer=---; p65 tesseract vs p99 text-layer: sources disagree for Larry Rocconi: tesseract=Yes text-layer=---; p70 text-layer vs p99 text-layer: sources disagree for Larry Rocconi: text-layer=Yes text-layer=---; p91 text-layer vs p99 text-layer: sources disagree for Larry Rocconi: text-layer=Yes text-layer=--",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -104589,7 +104587,7 @@
             "ok": true
           }
         ],
-        "status": "verified"
+        "status": "unverified"
       },
       "votes": [
         {
@@ -116479,7 +116477,8 @@
           },
           {
             "check": "reprints_agree",
-            "ok": true
+            "detail": "p17 text-layer vs p15 text-layer: sources disagree on stated tally: (21, 0, 0) vs None (a count read garbled); p17 text-layer vs p74 text-layer: sources disagree on stated tally: (21, 0, 0) vs None (a count read garbled); p15 text-layer vs p15 tesseract: sources disagree on stated tally: None vs (21, 0, 0) (a count read garbled); p15 text-layer vs p20 text-layer: sources disagree on stated tally: None vs (21, 0, 0) (a count read garbled); p15 text-layer vs p20 tesseract: sources disagree on stat",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -116494,7 +116493,7 @@
             "ok": true
           }
         ],
-        "status": "verified"
+        "status": "unverified"
       },
       "votes": [
         {
