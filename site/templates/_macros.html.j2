@@ -22,6 +22,16 @@
 <span class="fact-id">Fact id <code>{{ fact_id }}</code></span> <span class="sep" aria-hidden="true">&middot;</span> {{ report(root, fact_id) }}
 {%- endmacro %}
 
+{# A table cell's source: only the page link shows; fetch date, fact id and "Report an error" sit in a small Details
+   toggle. `extra` is further per-row text (the not-confirmed explanation) shown first in the toggle. #}
+{% macro source_cell(src, root, fact_id, extra="") -%}
+<a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">p. {{ src.page }}<span class="sr-only"> (opens the {{ src.kind }} PDF in a new tab)</span></a>
+<details class="row-details"><summary>Details</summary><div class="row-details-body">{{ extra }}<p>Fetched {{ src.fetched }}.</p><p>{{ fact_meta(root, fact_id) }}</p></div></details>
+{%- endmacro %}
+
+{# Long text clamped to ~2-3 lines when scripts run (static/clamp.js adds the Show more button); the full text is always in the page. #}
+{% macro clamp(lines=2) -%}<span class="clamp" data-lines="{{ lines }}">{{ caller() }}</span>{%- endmacro %}
+
 {# The citation line under every fact. #}
 {% macro cite(src, root, fact_id) -%}
 <p class="meta"><span class="cite-label">Source:</span> {{ source(src) }} <span class="sep" aria-hidden="true">&middot;</span> {{ fact_meta(root, fact_id) }}</p>
@@ -30,6 +40,11 @@
 {# Design 6A.2: the seat held on that date, as plain text after the name, the same style for everyone. #}
 {% macro person(p, root) -%}
 {% if p is none %}<span class="muted">Not recorded</span>{% elif p.href %}<a href="{{ root }}{{ p.href }}">{{ p.name }}</a>{% if p.seat %}<span class="seat">, {{ p.seat }}</span>{% endif %}{% else %}{{ p.name }}{% endif %}
+{%- endmacro %}
+
+{# "Moved by A (seat), seconded by B": every name links to that official's page (standing rule). parts from views.motion_for. #}
+{% macro motion_by(parts, root) -%}
+{% for p in parts %}{% if loop.first %}{{ p.word | capitalize }}{% else %}{{ p.word }}{% endif %} by <a href="{{ root }}{{ p.href }}">{{ p.name }}</a>{% if p.seat %} ({{ p.seat }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
 {%- endmacro %}
 
 {% macro seat(text) -%}
@@ -90,7 +105,7 @@
 {% if not b.confirmed %}<p class="nc-note">{{ not_confirmed(b.src) }}</p>{% endif %}
 <p class="outcome"><strong class="label">Outcome{% if not b.confirmed and not b.outcome.hidden %}*{% endif %}:</strong> <span class="chip chip-outcome">{{ b.outcome.label }}{% if b.outcome.hidden %}{{ nc_mark() }}{% endif %}</span>{% if b.outcome.tally %} ({{ b.outcome.tally }}){% endif %}.</p>
 {% if b.bar %}{{ bar(b.bar) }}{% endif %}
-{% if b.motion_label %}<p class="motion-line"><strong>{{ b.motion_label }}.</strong> {% if b.motion_by %}{{ b.motion_by }}.{% else %}Attribution under review.{% endif %}</p>{% endif %}
+{% if b.motion_label %}<p class="motion-line"><strong>{{ b.motion_label }}.</strong> {% if b.motion_by %}{{ motion_by(b.motion_by, root) }}.{% else %}Attribution under review.{% endif %}</p>{% endif %}
 <p class="label votes-label">Votes, alphabetical</p>
 {{ vote_grid(b.votes, root) }}
 {% endmacro %}

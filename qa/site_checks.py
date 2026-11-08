@@ -21,6 +21,9 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   provenance  derived seat dates are worded as seen in roll calls; no term wording, no inferred cutover date;
               the cutover is immaterial (architecture, invariant `provenance`)
   totals      "Recorded absent at X of Y meetings" equals a recount from the meeting pages (AC2.2)
+  name-links  every occurrence of an official's display name in the visible text of a page is inside an <a> to that
+              official's page (standing rule), except in <title>, <option>, the footer operator line and on the
+              official's own page
   footer      "Provided as a free service by Brian Zacharias." on every page
   external    no third-party scripts, styles, images or fonts (N6)
   files       fewer than 250 files
@@ -414,7 +417,7 @@ def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: 
 PARSED_VALUE = re.compile(r"\b(?:Yes|No|Abstain|Other(?:: [A-Za-z ]+)?|Passed|Failed)\s*\*|\b\d+ (?:yes|no|abstain)\b")
 
 
-def check_index(site: Path, pages: dict[str, Page], facts: dict) -> tuple[list[str], str]:
+def check_index(site: Path, pages: dict[str, Page], facts: dict, roster_only: tuple = ()) -> tuple[list[str], str]:
     """AC1.1 / design 6A.3: officials.html lists each official once. Sections marked data-order="surname" are
     alphabetical by surname then given name; data-order="seat" lists districts by number, then other seats (N1)."""
     problems = []
@@ -448,7 +451,7 @@ def check_index(site: Path, pages: dict[str, Page], facts: dict) -> tuple[list[s
                 seats.append((0, int(m.group(1))) if m else (1, 0))
             if seats != sorted(seats):
                 problems.append(f"officials.html section {i + 1} (Current) is not in seat order")
-    ids = [o["id"] for o in facts["officials"]]
+    ids = [o["id"] for o in facts["officials"]] + [i for i in roster_only if i not in order]  # roster-only: a page, no facts
     for i in sorted(set(ids) - set(linked)):
         problems.append(f"official {i} is not listed on officials.html")
     for i in sorted(set(linked) - set(ids)):
@@ -644,6 +647,63 @@ def check_totals(site: Path, pages: dict[str, Page], facts: dict) -> tuple[list[
     return problems, f"{len(facts['officials'])} officials recounted"
 
 
+class NameLinks(HTMLParser):
+    """Visible text nodes of one page with whether each sits inside an <a> and where that <a> points."""
+    SKIP = {"script", "style", "title", "option", "head"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.stack: list[tuple[str, str | None, bool]] = []   # (tag, href for <a>, skip this subtree)
+        self.nodes: list[tuple[str, str | None]] = []          # (text, enclosing <a> href or None)
+
+    def handle_starttag(self, tag, attrs):
+        if tag in Page.VOID:
+            return
+        a = dict(attrs)
+        # data-variants: the cell listing the spellings merged into an official (not a display of the name)
+        self.stack.append((tag, a.get("href") if tag == "a" else None, tag in self.SKIP or "data-variants" in a))
+
+    def handle_endtag(self, tag):
+        for i in range(len(self.stack) - 1, -1, -1):
+            if self.stack[i][0] == tag:
+                del self.stack[i:]
+                return
+
+    def handle_data(self, d):
+        if not d.strip() or any(skip for _, _, skip in self.stack):
+            return
+        href = next((h for t, h, _ in reversed(self.stack) if t == "a" and h is not None), None)
+        self.nodes.append((d, href))
+
+
+def check_name_links(site: Path, facts: dict, roster: list[dict]) -> tuple[list[str], str]:
+    """Standing rule: wherever an elected official's name is shown, it links to officials/<id>.html."""
+    names = {o["id"]: o["name"] for o in facts["officials"]}
+    for r in roster:
+        if r.get("official_id") and r["official_id"] not in names:
+            names[r["official_id"]] = r.get("name") or " ".join(w.capitalize() for w in r["official_id"].split("-"))
+    by_name = {n: oid for oid, n in names.items()}
+    pat = re.compile(r"(?<!\w)(" + "|".join(re.escape(n) for n in sorted(by_name, key=len, reverse=True)) + r")(?!\w)")
+    problems, checked = [], 0
+    pages = sorted(site.rglob("*.html"))
+    for f in pages:
+        rel = f.relative_to(site).as_posix()
+        p = NameLinks()
+        p.feed(f.read_text(encoding="utf-8"))
+        for text, href in p.nodes:
+            if "Provided as a free service by" in text:
+                continue
+            for m in pat.finditer(text):
+                oid = by_name[m.group(1)]
+                if rel == f"officials/{oid}.html":
+                    continue   # a person's own page names them in its heading
+                checked += 1
+                target = resolve(rel, href) if href is not None else None
+                if target != f"officials/{oid}.html":
+                    problems.append(f"{rel}: {names[oid]!r} is not linked to officials/{oid}.html (in {text.strip()[:60]!r})")
+    return problems, f"{checked} name links checked on {len(pages)} pages"
+
+
 def check_footer(pages: dict[str, Page], operator: str) -> list[str]:
     needle = re.compile(r"Provided as a free service by\s+" + re.escape(operator) + r"\.")
     return [f"{rel}: no 'Provided as a free service by {operator}.' footer" for rel, pg in pages.items()
@@ -722,7 +782,9 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     problems, note = check_sources(site, pages, facts, store_extra, allowed_external(cfg, seats_path, districts_path))
     rep.add("sources", problems, note)
     rep.add("unverified", check_unverified(site, pages, facts, internal), "internal build" if internal else "public build")
-    problems, note = check_index(site, pages, facts)
+    fact_ids = {o["id"] for o in facts["officials"]}
+    roster_only = tuple(sorted({r["official_id"] for r in read_roster(seats_path) if r.get("official_id")} - fact_ids))
+    problems, note = check_index(site, pages, facts, roster_only)
     rep.add("index", problems, "AC1.1: " + note)
     problems, note = check_layout(site, facts)
     rep.add("layout", problems, "AC1.5/N1: " + note)
@@ -730,6 +792,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("totals", problems, "AC2.2: " + note)
     problems, note = check_provenance(site, pages, facts, read_roster(seats_path), cfg)
     rep.add("provenance", problems, note)
+    problems, note = check_name_links(site, facts, read_roster(seats_path))
+    rep.add("name-links", problems, note)
     rep.add("footer", check_footer(pages, operator), f"'Provided as a free service by {operator}.' on {len(pages)} pages")
     rep.add("external", check_external(pages))
     if browser:

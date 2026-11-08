@@ -9,7 +9,7 @@
 {% macro holder_blocks(blocks) %}
 {% for b in blocks %}
 <section class="holder" aria-labelledby="h-{{ b.period }}-{{ loop.index }}">
-  <h3 id="h-{{ b.period }}-{{ loop.index }}">{{ b.heading }}</h3>
+  <h3 id="h-{{ b.period }}-{{ loop.index }}"><a href="{{ root }}{{ b.href }}">{{ b.name }}</a>, {{ b.heading_rest }}</h3>
   <p class="totals-line">{{ b.sentence }}</p>
   {% if b.has_rows %}
   {{ history_groups(b.row_groups, root) }}

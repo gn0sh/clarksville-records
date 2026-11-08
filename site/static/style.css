@@ -625,3 +625,28 @@ mark { background: var(--banner-bg); color: var(--banner-fg); padding: 0 1px; }
 @media (max-width: 480px) { .zoning-row { grid-template-columns: 1fr; } }
 .zoning-row dt { font-weight: 600; }
 .zoning-row dd { margin: 0; overflow-wrap: anywhere; }
+
+/* ---- Table sizing and long text (owner feedback: no entry taller than the screen) ---------------------------- */
+.table-scroll table { overflow-wrap: anywhere; }
+table.history { table-layout: fixed; min-width: 44rem; }
+table.history col.c-date { width: 6.6rem; }
+table.history col.c-type { width: 6.4rem; }
+table.history col.c-record { width: 7.4rem; }
+table.history col.c-outcome { width: 8rem; }
+table.history col.c-source { width: 6.4rem; }
+table.history td:last-child, table.history th:last-child { min-width: 0; }
+table.history td.c-date, table.history td.c-date .date { overflow-wrap: normal; }
+/* the cut-off text: only when script runs (.js-clamp), otherwise the whole text shows */
+.js-clamp .clamp.is-clamped { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--lines, 2); line-clamp: var(--lines, 2); overflow: hidden; }
+.clamp-btn { display: inline-block; margin: 2px 0 0; padding: 0 4px; min-height: 24px; font: inherit; font-size: var(--t-xs); color: var(--link, inherit); background: transparent; border: 0; text-decoration: underline; cursor: pointer; }
+.clamp-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* a row's fine print: one small toggle instead of three wrapped lines */
+details.row-details { margin-top: 2px; font-size: var(--t-xs); }
+details.row-details > summary { cursor: pointer; color: var(--muted); display: inline-block; min-height: 24px; }
+.row-details-body { padding: 4px 0; }
+.row-details-body p { margin: 2px 0; }
+table.attendance td.cite details.row-details { display: inline-block; }
+@media (max-width: 640px) {
+  table.history colgroup { display: none; }
+  table.history { table-layout: auto; min-width: 0; }
+}

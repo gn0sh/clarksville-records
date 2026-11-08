@@ -149,11 +149,11 @@ class Index:
         if mo is None:
             return {"motion_text": None, "motion_label": None, "motion_by": None}
         att = self.attribution(mo)
-        parts = [f"{w} by {p['name']}" + (f" ({p['seat']})" if p.get("seat") else "")
+        # structured, so every page links each name to its official page (standing rule: a name is a link)
+        parts = [{"word": w, "name": p["name"], "href": p["href"], "seat": p.get("seat")}
                  for w, p in (("Moved", att["mover"]), ("seconded", att["seconder"])) if p]
-        out = ", ".join(parts)
         return {"motion_text": None, "motion_label": motion_type_label(mo["text"]),
-                "motion_by": (out[0].upper() + out[1:]) if out else None}
+                "motion_by": parts or None}
 
     # -- generic builders ------------------------------------------------------------------------------------
     def src(self, source_id: str, page: int) -> dict:
@@ -378,8 +378,8 @@ def _card(ix: Index, o: dict) -> dict:
     """One card template for everyone, current or former (design 6A.3: the section heading is the only difference).
     A roster-only person (in config/seats.yml, not in the facts) has no page and no counts: the fixed sentence."""
     if o["id"] in ix.seats.roster_only:
-        return {"id": o["id"], "name": o["name"], "title": o["title"], "href": None, "initials": initials(o),
-                "seat": ix.seats.seat_text(o["id"]), "roster_only": True}
+        return {"id": o["id"], "name": o["name"], "title": o["title"], "href": f"officials/{o['id']}.html",
+                "initials": initials(o), "seat": ix.seats.seat_text(o["id"]), "roster_only": True}
     c = official_counts(ix, o["id"])
     return {"id": o["id"], "name": o["name"], "title": o["title"], "href": f"officials/{o['id']}.html",
             "initials": initials(o), "present": c["present"], "listed": c["meetings_listed"],
@@ -588,6 +588,18 @@ def official(official_id: str, facts) -> dict:
     }
 
 
+def roster_official(official_id: str, facts) -> dict:
+    """The page of a person who is in config/seats.yml but has no facts (e.g. the County Mayor): no votes or
+    attendance are recorded for them, so the page says so, with their seat, the term as the source prints it, and the
+    source. The same wording rules as every seat (invariant `provenance`)."""
+    ix = _ix(facts)
+    o = ix.seats.roster_only[official_id]
+    return {"official": o, "initials": initials(o),
+            "records": [ix.seats.view(r) for r in ix.seats.of(official_id)],
+            "coverage_sentence": f"Shows {ix.coverage['body']} records from {ix.coverage['from']} to "
+                                 f"{ix.coverage['to']}. {ix.fetched_sentence()}"}
+
+
 # ---------------------------------------------------------------------------------------------------------------
 # F3: meeting and item pages
 
@@ -784,7 +796,7 @@ def about(facts) -> dict:
     return {
         "motion_kinds": motion_kind_rule(), "motion_default": config.UNVERIFIED_MOTION_DEFAULT,
         "swap": swap_context(),
-        "officials": [{"name": o["name"], "title": o["title"], "aliases": o["aliases"]} for o in officials],
+        "officials": [{"id": o["id"], "name": o["name"], "title": o["title"], "aliases": o["aliases"]} for o in officials],
         "coverage": ix.coverage,
         "has_items": bool(ix.facts["items"]),
     }
@@ -833,7 +845,7 @@ def district_rows(ix: Index) -> list[dict]:
     cfg = config.SITE
     rows = []
     for n in range(1, cfg["district_count"] + 1):
-        holder = None
+        holder = holder_href = None
         if ix.seats.loaded:
             rec = ix.seats.current_of_seat(_district_seat(n))
             if rec is None:
@@ -841,8 +853,11 @@ def district_rows(ix: Index) -> list[dict]:
             elif rec["official_id"] is None:
                 holder = "Seat vacant"
             else:
-                holder = ix.officials[rec["official_id"]]["name"]
+                oid = rec["official_id"]
+                holder = (ix.officials.get(oid) or ix.seats.roster_only[oid])["name"]
+                holder_href = f"officials/{oid}.html"
         rows.append({"number": n, "label": f"{cfg['district_label']} {n}", "holder": holder,
+                     "holder_href": holder_href, "holder_id": rec["official_id"] if holder_href else None,
                      "href": f"districts/{n:02d}.html"})
     return rows
 
@@ -945,7 +960,7 @@ def _holder_block(ix: Index, cache: dict, rec: dict, start: str, end: str | None
     label = rec["label"]
     return {
         "name": o["name"], "href": f"officials/{o['id']}.html", "seat": label, "period": period,
-        "heading": f"{o['name']}, {label}: roll calls {first} to {last}",
+        "heading_rest": f"{label}: roll calls {first} to {last}",
         "sentence": vote_sentence(c, first, last),
         "row_groups": [{"year": y, "rows": [r for r in rows if r["year"] == y]} for y in years],
         "has_rows": bool(rows),
@@ -966,7 +981,8 @@ def district(n: int, facts, districts: dict | None) -> dict:
     def holder_row(r):
         who = ({"name": ix.officials[r["official_id"]]["name"], "href": f"officials/{r['official_id']}.html"}
                if r["official_id"] and r["official_id"] in ix.officials else
-               ({"name": ix.seats.roster_only[r["official_id"]]["name"], "href": None} if r["official_id"] else None))
+               ({"name": ix.seats.roster_only[r["official_id"]]["name"], "href": f"officials/{r['official_id']}.html"}
+                if r["official_id"] else None))
         lines = r.get("lines")
         if lines is None:
             lines = "old" if r["end"] is not None and r["end"] < eff else ("current" if r["start"] >= eff else "both")
@@ -1095,9 +1111,13 @@ def search_index(facts) -> dict:
     for o in officials:
         records.append({"k": "person", "id": o["id"], "n": "", "t": o["name"], "st": ix.seats.seat_text(o["id"]) or "",
                         "d": "", "y": [], "ty": [], "b": body, "h": f"officials/{o['id']}.html"})
+    for o in sorted(ix.seats.roster_only.values(), key=name_key):  # no votes, but a page and a name to find
+        records.append({"k": "person", "id": o["id"], "n": "", "t": o["name"], "st": ix.seats.seat_text(o["id"]) or "",
+                        "d": "", "y": [], "ty": [], "b": body, "h": f"officials/{o['id']}.html"})
     for row in district_rows(ix):
         records.append({"k": "person", "id": f"district-{row['number']}", "n": "",
                         "t": f"{cfg['district_page_title']} {row['number']}", "st": row["holder"] or "",
+                        "ho": row["holder_id"] or "",
                         "d": "", "y": [], "ty": [], "b": body, "h": row["href"]})
     years = sorted({y for r in records for y in r["y"]})
     # Compact: seat_on[date][official] is an index into seat_labels, for the officials with a vote on that date.

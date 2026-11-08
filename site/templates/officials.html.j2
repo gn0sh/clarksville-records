@@ -7,7 +7,7 @@
     {{ badge(o.initials) }}
     <div class="card-body">
       {% if o.roster_only %}
-      <span class="card-name-line"><span class="card-name">{{ o.name }}</span>{% if o.seat %}<span class="seat">, {{ o.seat }}</span>{% endif %}</span>
+      <span class="card-name-line"><a class="card-name" href="{{ o.href }}">{{ o.name }}</a>{% if o.seat %}<span class="seat">, {{ o.seat }}</span>{% endif %}</span>
       {% if o.title %}<span class="card-title">{{ o.title }}</span>{% endif %}
       <span class="card-line">No votes or attendance are recorded for this person in the minutes collected so far.</span>
       {% else %}
@@ -28,7 +28,7 @@
 {% for s in sections %}
 <h2 class="section-h" id="{{ s.key }}-h">{{ s.heading }}{% if s.key != "current" %} ({{ s.cards | length }}){% endif %}</h2>
 <details class="officials-section" id="{{ s.key }}" data-order="{{ s.order }}"{% if s.key == "current" %} open{% endif %}>
-  <summary class="section-summary">Show or hide the list</summary>
+  <summary class="section-summary" id="{{ s.key }}-toggle">Show or hide the list: {{ s.heading }}</summary>
   {% for b in s.get("basis") or [] %}<p class="basis muted">{{ b }}.</p>{% endfor %}
   {% if s.cards %}
   {{ cards(s.cards, s.heading ~ (", by seat" if s.order == "seat" else ", alphabetical by surname")) }}

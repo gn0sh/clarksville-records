@@ -1,5 +1,5 @@
 {% extends "base.html.j2" %}
-{% from "_macros.html.j2" import source, fact_meta, cite, person, item_link, motion_block, roll_call_block, chip, nc_mark, stat %}
+{% from "_macros.html.j2" import source, source_cell, fact_meta, cite, person, item_link, motion_block, roll_call_block, chip, nc_mark, stat %}
 {% block main %}
 <header class="meeting-head">
   <p class="kind-line"><span class="chip chip-kind">{{ kind_label }}</span></p>
@@ -32,7 +32,7 @@
       <tr role="row" class="fact" data-fact-id="{{ a.fact_id }}">
         <th scope="row" role="rowheader">{{ person(a.who, root) }}</th>
         <td role="cell">{{ chip(a.status, a.status | lower) }}</td>
-        <td role="cell" class="cite">{{ source(a.src) }}<br><small>{{ fact_meta(root, a.fact_id) }}</small></td>
+        <td role="cell" class="cite">{{ source_cell(a.src, root, a.fact_id) }}</td>
       </tr>
     {% endfor %}
     </tbody>

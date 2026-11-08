@@ -39,7 +39,7 @@
         <nav aria-label="{{ dl.label }}">
           <ol class="districts">
             {% for r in rows %}
-            <li data-district="{{ r.number }}"><a href="{{ r.href }}"><span class="d-label">{{ r.label }}</span>{% if r.holder %} <span class="d-holder">{{ r.holder }}</span>{% endif %}</a></li>
+            <li data-district="{{ r.number }}"><a href="{{ r.href }}"><span class="d-label">{{ r.label }}</span></a>{% if r.holder %} <span class="d-holder">{% if r.holder_href %}<a href="{{ r.holder_href }}">{{ r.holder }}</a>{% else %}{{ r.holder }}{% endif %}</span>{% endif %}</li>
             {% endfor %}
           </ol>
         </nav>
