@@ -359,26 +359,32 @@ def record_glance(ix: Index) -> dict:
     }
 
 
-def _card_basis(ix: Index, o: dict, section_basis: str | None) -> str | None:
-    """A current card's own basis line, only when it differs from the one its section shows (same rule for all)."""
-    for r in ix.seats.of(o["id"]):
-        if r["current"] and ix.seats.basis(r) != section_basis:
-            return ix.seats.basis(r)
-    return None
+def current_basis_lines(ix: Index, people: list[dict]) -> list[str]:
+    """The basis of "Current" for a section, one line per kind of basis (same for everyone, so the cards stay
+    identical): the roll-call one, then each seat whose current record is a term from a source."""
+    lines, sourced = [], []
+    for o in people:
+        for r in ix.seats.of(o["id"]):
+            if r["current"] and r["dates"] == "observed" and not lines:
+                lines.append(ix.seats.basis(r))
+            elif r["current"] and r["dates"] == "sourced" and r["label"] not in sourced:
+                sourced.append(r["label"])
+    if sourced:
+        lines.append(f"{' and '.join(sourced)}: the source prints no end to the term")
+    return lines
 
 
-def _card(ix: Index, o: dict, section_basis: str | None = None) -> dict:
+def _card(ix: Index, o: dict) -> dict:
     """One card template for everyone, current or former (design 6A.3: the section heading is the only difference).
     A roster-only person (in config/seats.yml, not in the facts) has no page and no counts: the fixed sentence."""
     if o["id"] in ix.seats.roster_only:
         return {"id": o["id"], "name": o["name"], "title": o["title"], "href": None, "initials": initials(o),
-                "seat": ix.seats.seat_text(o["id"]), "roster_only": True,
-                "basis": _card_basis(ix, o, section_basis)}
+                "seat": ix.seats.seat_text(o["id"]), "roster_only": True}
     c = official_counts(ix, o["id"])
     return {"id": o["id"], "name": o["name"], "title": o["title"], "href": f"officials/{o['id']}.html",
             "initials": initials(o), "present": c["present"], "listed": c["meetings_listed"],
             "rc_voted": c["rc_voted"], "rc_voted_nc": c["rc_voted_nc"], "seat": ix.seats.seat_text(o["id"]),
-            "roster_only": False, "basis": _card_basis(ix, o, section_basis)}
+            "roster_only": False}
 
 
 def observed_basis(ix: Index) -> str:
@@ -409,10 +415,9 @@ def officials_page(facts) -> dict:
         return (min(seat_order(r["seat"]) for r in ix.seats.of(o["id"]) if r["current"]), *name_key(o))
 
     current.sort(key=seat_key)
-    basis = observed_basis(ix)
     sections = [
-        {"key": "current", "heading": "Current", "order": "seat", "basis": basis,
-         "cards": [_card(ix, o, basis) for o in current]},
+        {"key": "current", "heading": "Current", "order": "seat", "basis": current_basis_lines(ix, current),
+         "cards": [_card(ix, o) for o in current]},
         {"key": "previous", "heading": "Served previously", "order": "surname", "cards": [_card(ix, o) for o in former]},
     ]
     if unseated:
@@ -1148,6 +1153,7 @@ EXPORT_FILES = (
     ("items.csv", "One row per agenda item."),
     ("item_events.csv", "Each appearance of an item at a meeting."),
     ("sources.csv", "Every source document, with its address and fetch date."),
+    ("seats.csv", "Seat holder records: first and last meetings seen in roll calls, or a term as its source prints it."),
 )
 
 

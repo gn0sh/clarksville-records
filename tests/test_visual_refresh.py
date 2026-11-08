@@ -113,7 +113,7 @@ def test_officials_cards_follow_the_seat_rule_and_share_one_skeleton(pages, fact
         assert re.search(r"Recorded vote on \d+ confirmed and \d+ not confirmed\* roll calls?", text), text
     assert not [n for n in tree.walk() if "bar" in n.attrs.get("class", "").split()]
     text = " ".join(tree.all_text().split())
-    assert "A. Example, District 1" in text and "B. Sample, District 2, 2020-09-01 to 2024-10-31" in text
+    assert "A. Example, District 1" in text and "B. Sample, District 2 (seen in roll calls 2024-11-04 to 2024-11-04)" in text
     assert "C. Placeholder, County Mayor" in text
 
 

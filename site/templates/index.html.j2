@@ -33,7 +33,7 @@
     </div>
 
     <div class="landing-list">
-      <details class="district-list">
+      <details class="district-list"{% if not map %} open{% endif %}>
         <summary>All {{ district_count }} districts, by number</summary>
         {% if basis %}<p class="basis muted">{{ basis }}.</p>{% endif %}
         <nav aria-label="{{ dl.label }}">

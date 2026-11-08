@@ -9,12 +9,10 @@
       {% if o.roster_only %}
       <span class="card-name-line"><span class="card-name">{{ o.name }}</span>{% if o.seat %}<span class="seat">, {{ o.seat }}</span>{% endif %}</span>
       {% if o.title %}<span class="card-title">{{ o.title }}</span>{% endif %}
-      {% if o.basis %}<span class="card-line basis">{{ o.basis }}.</span>{% endif %}
       <span class="card-line">No votes or attendance are recorded for this person in the minutes collected so far.</span>
       {% else %}
       <span class="card-name-line"><a class="card-name" href="{{ o.href }}">{{ o.name }}</a>{% if o.seat %}<span class="seat">, {{ o.seat }}</span>{% endif %}</span>
       <span class="card-title">{{ o.title }}</span>
-      {% if o.basis %}<span class="card-line basis">{{ o.basis }}.</span>{% endif %}
       <span class="card-line">Present at {{ o.present }} of {{ o.listed }} {{ "meeting" if o.listed == 1 else "meetings" }} with attendance shown</span>
       <span class="card-line">Recorded vote on {{ o.rc_voted }} confirmed and {{ o.rc_voted_nc }} not confirmed* roll {{ "call" if o.rc_voted + o.rc_voted_nc == 1 else "calls" }}</span>
       {% endif %}
@@ -30,7 +28,7 @@
 {% for s in sections %}
 <details class="officials-section" id="{{ s.key }}" data-order="{{ s.order }}"{% if s.key == "current" %} open{% endif %}>
   <summary class="section-summary" id="{{ s.key }}-h">{{ s.heading }}{% if s.key != "current" %} ({{ s.cards | length }}){% endif %}</summary>
-  {% if s.basis %}<p class="basis muted">{{ s.basis }}.</p>{% endif %}
+  {% for b in s.get("basis") or [] %}<p class="basis muted">{{ b }}.</p>{% endfor %}
   {% if s.cards %}
   {{ cards(s.cards, s.heading ~ (", by seat" if s.order == "seat" else ", alphabetical by surname")) }}
   {% else %}

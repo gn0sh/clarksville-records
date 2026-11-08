@@ -556,6 +556,11 @@ def dates_worded(text: str) -> list[str]:
     return bad
 
 
+def _day_before(d: str) -> str:
+    import datetime as _dt
+    return (_dt.date.fromisoformat(d) - _dt.timedelta(days=1)).isoformat()
+
+
 def cutover_problems(facts: dict, roster: list[dict], effective: str) -> list[str]:
     """Check 4: the inferred cutover is immaterial. No meeting lies between the last roll-call meeting before it and
     the first on or after it, and every observed row's `lines` agrees with its meeting dates."""
@@ -563,9 +568,11 @@ def cutover_problems(facts: dict, roster: list[dict], effective: str) -> list[st
     rc_dates = sorted({by_id[r["meeting_id"]] for r in facts["roll_calls"]})
     before = [d for d in rc_dates if d < effective]
     after = [d for d in rc_dates if d >= effective]
-    lo, hi = (before[-1] if before else ""), (after[0] if after else "9999")
+    # with only one side collected there is no boundary to straddle: rows are judged against the split key itself
+    lo = before[-1] if before else _day_before(effective)
+    hi = after[0] if after else effective
     problems = [f"meeting on {d} lies between the cutover meetings {lo} and {hi}"
-                for d in sorted(by_id.values()) if lo < d < hi]
+                for d in sorted(by_id.values()) if before and after and lo < d < hi]
     for r in roster:
         if r.get("dates") != "observed" or not str(r.get("seat", "")).startswith("district-"):
             continue
