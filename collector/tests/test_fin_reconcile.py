@@ -67,7 +67,8 @@ def test_p47_trustees_office_amended_does_not_add_up():
 def test_run_report_counts_every_state():
     lines, counts = lines_of([36, 37, 47, 107, 108])
     assert counts == fin_checks.reconcile_counts(list(lines.values()))
-    assert all(counts[s] > 0 for s in fin_checks.RECONCILE_STATES)
+    assert all(counts[s] > 0 for s in fin_checks.RECONCILE_STATES if s != fin_checks.NOT_CHECKED)
+    assert counts[fin_checks.NOT_CHECKED] == 0                  # nothing held on these pages
     assert sum(counts.values()) == sum(1 for x in lines.values() if x["row_role"] != "detail")
 
 
@@ -109,8 +110,25 @@ def test_held_scope_line_holds_the_total():
     a, b = mk("b1/p1/r1", "detail", [None], held="column-align"), mk("b1/p1/r2", "detail", [6])
     t = mk("b1/p1/r3", "total", [6], [a["id"], b["id"]])
     fin_checks.reconcile([a, b, t])
-    assert t["held"] == fin_checks.SCOPE_HELD and t["check"]["state"] == "does_not_add_up"
+    assert t["held"] == fin_checks.SCOPE_HELD and t["check"]["state"] == fin_checks.NOT_CHECKED
     assert a["check"] is None and t["cells"][0]["dollars"] == 6
+
+
+def test_held_totals_are_not_checked_and_not_counted_as_book_errors():
+    """budget-reconcile/held-counted-as-book-error: a held total (or one over a held line) is not_checked, counted
+    apart; coverage n_flag counts does_not_add_up only."""
+    a = mk("b1/p1/r1", "detail", [4])
+    t = mk("b1/p1/r2", "total", [None], [a["id"]], held="column-align")
+    b = mk("b1/p1/r3", "detail", [None], held="column-align")
+    u = mk("b1/p1/r4", "total", [9], [b["id"]])
+    e = mk("b1/p1/r5", "total", [9], [])                         # empty scope: still a book error
+    lines = [a, t, b, u, e]
+    counts = fin_checks.reconcile(lines)
+    assert t["check"]["state"] == u["check"]["state"] == fin_checks.NOT_CHECKED
+    assert e["check"]["state"] == "does_not_add_up"
+    assert counts == {"exact": 0, "within_rounding": 0, "does_not_add_up": 1, "not_checked": 2}
+    cov = fin_checks.coverage({"solicitations": [], "documents": [], "budget_lines": lines, "books": []})
+    assert cov["n_flag"] == 1
 
 
 def test_no_sum_of_budget_lines_outside_fin_checks():

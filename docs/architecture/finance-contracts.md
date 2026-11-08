@@ -103,7 +103,7 @@ content_type, creator`.
   (revenue | expenditure | fund_balance), `heading_as_printed`, `department` (expenditure heading or null),
   `account_code` or null, `label_as_printed`, `row_role` (detail | subtotal | total), `tags[]`, `cells[]`
   {`header_as_printed`, `fiscal_year`, `kind`, `as_printed`, `dollars` (int or null)}, `page`, `scope_line_ids[]`
-  (subtotal/total only), `check` {`state` exact | within_rounding | does_not_add_up, `per_cell[]` {`printed`, `sum`,
+  (subtotal/total only), `check` {`state` exact | within_rounding | does_not_add_up | not_checked, `per_cell[]` {`printed`, `sum`,
   `diff`}} or null, `edition_differs` [line ids in other books] , `held` (check name) or null.
 - **coverage** (one function, every page and the report): `n_total`, `n_bid_tab_links`, `n_tab_read`, `n_tab_not_read`
   by reason, `n_award_letters`, `n_award_scanned`, `n_docs`, `n_docs_scanned`, `n_lines`, `n_books`, `n_flag`,
@@ -118,7 +118,8 @@ UX field map (design section 10): `doc_date` = `doc_date_text` (mostly null, see
 - **budget-reconcile/***: every subtotal and total gets a check over exactly its `scope_line_ids`; printed values are
   never altered; `exact` when sum = printed in every cell; `within_rounding` when |diff| <= floor((n+1)/2) dollars for n
   detail rows (each printed line is rounded to the dollar; the book's actuals are rounded from cents); otherwise
-  `does_not_add_up`, shown as printed with its lines. A total with no detail rows in scope is `does_not_add_up`. No
+  `does_not_add_up`, shown as printed with its lines. A total with no detail rows in scope is `does_not_add_up`.
+  A held total, or one over a held line, is `not_checked` (we could not read it; counted apart, never in `n_flag`). No
   county-wide or cross-fund sum exists in code (lint: no `sum(` over lines outside `fin_checks.py`).
 - **award-source/***: an awardee, bidder or total is shown only from a `bid_tab` document with a text layer, with its
   page; `awardee_match` compares names after one normalisation (casefold, collapse whitespace, remove spaces around

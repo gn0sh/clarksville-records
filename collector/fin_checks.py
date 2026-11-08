@@ -90,7 +90,8 @@ def awardee_match(awardee_text: str | None, bidder_names: list[str]) -> str:
 
 
 # ------------------------------------------------------------------ budget reconciliation (budget-reconcile/*)
-RECONCILE_STATES = ("exact", "within_rounding", "does_not_add_up")
+RECONCILE_STATES = ("exact", "within_rounding", "does_not_add_up", "not_checked")
+NOT_CHECKED = "not_checked"      # a held total or a total over a held line: we could not read it, not a book error
 
 
 def rounding_bound(n: int) -> int:
@@ -102,8 +103,9 @@ def rounding_bound(n: int) -> int:
 def check_total(line: dict, scope: list[dict]) -> dict:
     """The check of one subtotal or total over exactly its scope lines. Printed values are never altered. Per cell:
     printed = the total's dollars, sum = the scope lines' dollars in that column (blank or held = not added),
-    diff = printed - sum (null when printed is null). State: does_not_add_up when the scope is empty, a scope line or
-    the total is held (the line is then held too and shown as Not confirmed*, see reconcile), a blank total has lines
+    diff = printed - sum (null when printed is null). State: not_checked when the total or a scope line is held (the
+    line is then held too and shown as Not confirmed*, see reconcile; counted apart, never as a book error,
+    budget-reconcile/held-counted-as-book-error); does_not_add_up when the scope is empty, a blank total has lines
     with dollars, or some |diff| exceeds the rounding bound; within_rounding when every |diff| is within it and one is
     not 0; else exact."""
     per_cell = []
@@ -112,8 +114,9 @@ def check_total(line: dict, scope: list[dict]) -> dict:
         p = c["dollars"]
         per_cell.append({"printed": p, "sum": s, "diff": None if p is None else p - s})
     bound = rounding_bound(len(scope))
-    if (not scope or line["held"] or any(x["held"] for x in scope)
-            or any(pc["printed"] is None and pc["sum"] != 0 for pc in per_cell)):
+    if line["held"] or any(x["held"] for x in scope):
+        state = NOT_CHECKED
+    elif not scope or any(pc["printed"] is None and pc["sum"] != 0 for pc in per_cell):
         state = "does_not_add_up"
     elif all(pc["diff"] in (0, None) for pc in per_cell):
         state = "exact"

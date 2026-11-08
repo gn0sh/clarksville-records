@@ -255,7 +255,7 @@
               "required": ["state", "per_cell"],
               "description": "UX subtotal_check = check + scope_line_ids",
               "properties": {
-                "state": { "enum": ["exact", "within_rounding", "does_not_add_up"] },
+                "state": { "enum": ["exact", "within_rounding", "does_not_add_up", "not_checked"], "description": "not_checked: the total or a scope line is held (Not confirmed*), counted apart from does_not_add_up" },
                 "per_cell": {
                   "type": "array",
                   "items": {
