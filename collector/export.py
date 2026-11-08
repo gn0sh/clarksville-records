@@ -116,7 +116,20 @@ _J = {
                 "sha256": _CITE["source_sha256"], "text_layer": PROVENANCE["sources.text_layer"],
                 "url": _CITE["source_url"]},
 }
+# keys inside dict values, at any depth (provenance/registry-walk-skips-dicts): the test walks every one
+_J.update({
+    "coverage": {"body": PROVENANCE["meetings.body"], "from": "derived: first meeting date collected",
+                 "to": "derived: last meeting date collected"},
+    "items.zoning": {f: "stated" for f in ("applicant", "location", "acreage", "from_zoning", "to_zoning")},
+    "roll_calls.stated_tally": {k: "stated" for k in ("yes", "no", "abstain")},
+    **{f"{x}.{who}": {"official_id": "derived: name resolution", "raw_name": "stated"}
+       for x in ("motions",) for who in ("moved_by", "seconded_by")},
+    **{f"{x}.verification": {"status": _VER, "checks": _VER} for x in ("meetings", "roll_calls", "motions")},
+    **{f"{x}.verification.checks": {"check": _VER, "ok": _VER, "detail": _VER}
+       for x in ("meetings", "roll_calls", "motions")},
+})
 PROVENANCE.update({f"facts.json:{lst}.{k}": v for lst, keys in _J.items() for k, v in keys.items()})
+PROVENANCE["facts.json:schema_version"] = "derived: version of the export format"
 
 
 def is_verified(x: dict) -> bool:
