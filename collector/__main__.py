@@ -30,6 +30,14 @@ BUILD = ROOT / "build"
 REPO = "gn0sh/clarksville-records"
 
 
+def load_seat_rows() -> list[dict] | None:
+    """The seat holder rows for the export's seats.csv (none when the locality has no seats file yet)."""
+    import yaml
+    from sitegen import config
+    p = Path(config.SEATS_PATH)
+    return (yaml.safe_load(p.read_text(encoding="utf-8")) or []) if p.is_file() else None
+
+
 def doc_date(e: dict) -> str:
     return e.get("meeting_date") or (classify(e.get("label") or "") or {}).get("meeting_date") or ""
 
@@ -219,7 +227,7 @@ def cmd_run(args) -> int:
     from .export import export
     if site_build:
         site_build(FACTS, site, internal=args.internal, report_path=BUILD / "report.json")
-    export(facts, site, internal=args.internal)
+    export(facts, site, internal=args.internal, seats=load_seat_rows())
     if site_build:
         write_publish_manifest(site)
     log["finished_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
