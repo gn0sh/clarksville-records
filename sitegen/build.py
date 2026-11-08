@@ -168,6 +168,15 @@ def write_publish_manifest(out: Path) -> dict:
 DEFAULT = object()
 
 
+SITE_URL_KEYS = ("redistricting_page", "old_lines_map_url", "swap_source", "support_url")
+
+
+def site_url_problems(cfg: dict) -> list[str]:
+    """Every link in config/site.yml must be https (N4); an empty value means "not set" and is never rendered."""
+    return [f"{k} must be an https link, got {cfg[k]!r}" for k in SITE_URL_KEYS
+            if cfg.get(k) and not _is_https_uri(cfg[k])]
+
+
 def build(facts_path, out_dir, internal: bool = False, changes_path=None, report_path=None,
           seats_path=DEFAULT, districts_path=DEFAULT) -> dict:
     """`seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
@@ -185,6 +194,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         districts = seats_mod.load_districts(districts_path)
     except seats_mod.SeatsError as exc:
         raise BuildError(str(exc)) from exc
+    bad = site_url_problems(config.SITE)
+    if bad:
+        raise BuildError("config/site.yml: " + "; ".join(bad))
     ix = views.Index(facts, seat_rows)
     env = make_env()
 

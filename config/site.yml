@@ -15,6 +15,10 @@ county_body: Montgomery County Commission
 city_name: City of Clarksville
 city_body: Clarksville City Council
 city_label: Clarksville             # the one place label drawn on the map
+county_key: county                  # search index body key ("b") for county records
+# Map layer names (landing layer switch and list headings). `short` is the phone-width form.
+district_layer: {label: County commission districts, short: Districts}
+ward_layer: {label: City wards, short: Wards, coming: true}
 # Landing purpose line (h1). Neutral: what the site holds, no claim about anyone.
 purpose: Votes and records of the Montgomery County Commission, linked to the county's own minutes.
 city_coming: City of Clarksville records are coming.
@@ -36,6 +40,9 @@ other_seats:
 # September 12, 2022 minutes (County Clerk's Report, "Oaths of Elected County Officials", p. 37) print the oath date
 # 08/30/2022 for every commissioner, Districts 1 to 21, elected under the 2021 lines. No collected meeting falls
 # between the oath and the first meeting under the new lines (2022-09-12), so the split is the same either side.
+# Pages name the change as the county's own page titles it, linked (`redistricting_label`), and the observed
+# boundary meetings either side; the split date itself is never rendered.
+redistricting_label: 2021 redistricting
 lines_effective: "2022-08-30"
 lines_effective_printed: "08/30/2022"
 lines_effective_source: "https://montgomeryminutes.bisonline.com/viewpdf.php?id=FlxXhUdsfwtztei0qxriLVjqyEFob9wSXd89%2BeNh7GQ%3D#page=37"

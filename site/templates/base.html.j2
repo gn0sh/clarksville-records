@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="{{ root }}static/style.css">
 {% block head %}{% endblock %}
 </head>
-<body>
+<body{% if page_name == "Map" %} class="page-landing"{% endif %}>
 <a class="skip" href="#main">Skip to content</a>
 {% if site.fixture %}
 <div class="banner" role="note"><strong>FIXTURE.</strong> This page shows made-up test data, not real records.</div>

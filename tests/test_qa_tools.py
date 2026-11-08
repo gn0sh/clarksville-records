@@ -229,3 +229,31 @@ def test_spot_check_picks_are_stable_for_the_fixture():
     assert a == b and a
     assert not any(f.startswith(UNVERIFIED_RC["id"] + "/") for f in a)
     json.dumps(a)
+
+
+def test_marked_external_link_to_an_unlisted_url_is_caught(site):
+    """qa-weakened/ext-link-any-host: data-ext excuses only the exact URLs from the config, map and roster."""
+    edit(site / "about.html", "</main>",
+         '<p><a data-ext="county" href="https://evil.example.org/page">x</a></p></main>')
+    assert "sources" in failed(run(site))
+
+
+def test_one_allowed_link_does_not_excuse_an_unmarked_copy(site):
+    """Each <a> is judged on its own: the same URL without data-ext on the same page still fails."""
+    from sitegen import config
+    url = config.SITE["redistricting_page"]
+    edit(site / "about.html", "</main>", f'<p><a href="{url}">again</a></p></main>')
+    assert "sources" in failed(run(site))
+
+
+def test_layout_ignores_how_many_year_tables_a_page_has(site):
+    """qa-tool/layout-counts-year-tables: one more year table with the same columns is the same layout; a changed
+    column header is not."""
+    page = site / "officials" / "a-example.html"
+    t = page.read_text(encoding="utf-8")
+    start = t.index('<details class="year-group"')
+    end = t.index("</details>", start) + len("</details>")
+    page.write_text(t[:end] + t[start:end].replace(" open", "") + t[end:], encoding="utf-8")
+    assert "layout" not in failed(run(site))
+    edit(page, ">Outcome</th>", ">Result</th>")
+    assert "layout" in failed(run(site))

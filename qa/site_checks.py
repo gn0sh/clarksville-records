@@ -9,7 +9,7 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   links       every internal href resolves to a file, every #fragment to an id on the target page, assets exist
   sources     every link to a minutes PDF carries #page=N with 1 <= N <= the source's page count (and, when the PDF
               is cached locally, <= the real page count from pdfinfo); no other external links, except https links
-              marked data-ext (roster source, map source, county page, support link)
+              marked data-ext whose exact URL is in config/site.yml, the map's source_url or a roster row
   unverified  no held fact (unverified attendance, held motion attribution, outcome text) appears anywhere in the
               build but review.html; a public build has no review.html and nothing links to it; every fact id on a
               page is a shown fact; every shown fact appears on its official's page; every fact row or block of an
@@ -17,7 +17,9 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               no "*" (invariant: held-back counts)
   index       officials.html lists every official in the facts exactly once; "surname" sections alphabetical by
               surname, "seat" (Current) sections by district number, then other seats (AC1.1, design 6A.3)
-  layout      every official page has the same headings and column headers (AC1.5, N1)
+  layout      every official page has the same headings and the same distinct column-header sets (AC1.5, N1)
+  provenance  derived seat dates are worded as seen in roll calls; no term wording, no inferred cutover date;
+              the cutover is immaterial (architecture, invariant `provenance`)
   totals      "Recorded absent at X of Y meetings" equals a recount from the meeting pages (AC2.2)
   footer      "Provided as a free service by Brian Zacharias." on every page
   external    no third-party scripts, styles, images or fonts (N6)
@@ -53,12 +55,49 @@ VIEWPORT = 390
 EXT_KINDS = {"roster", "map", "county", "support"}
 
 
+def _site_cfg() -> dict:
+    import yaml
+    return yaml.safe_load((ROOT / "config" / "site.yml").read_text(encoding="utf-8"))
+
+
+def default_inputs(facts: dict) -> tuple[Path | None, Path | None]:
+    """(roster, map) files the build read: the fixture's for a fixture facts file, else the locality's."""
+    if facts.get("fixture"):
+        fx = ROOT / "site" / "fixtures"
+        return fx / "seats.sample.yml", fx / "districts.sample.json"
+    loc = ROOT / "config" / "localities" / _site_cfg()["locality"]
+    seats = loc / "seats.yml" if (loc / "seats.yml").is_file() else ROOT / "config" / "seats.yml"
+    return seats, loc / "districts.json"
+
+
+def read_roster(path: Path | None) -> list[dict]:
+    import yaml
+    if path is None or not Path(path).is_file():
+        return []
+    raw = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or []
+    return raw.get("seats", []) if isinstance(raw, dict) else raw
+
+
+def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | None) -> set[str]:
+    """Exact URLs (qa-weakened/ext-link-any-host): config/site.yml links, the map's source_url, every roster row's
+    source and last_source, and the support link only when it is switched on."""
+    out = {cfg[k] for k in ("redistricting_page", "old_lines_map_url", "swap_source") if cfg.get(k)}
+    if cfg.get("support_enabled") is True and cfg.get("support_url"):
+        out.add(cfg["support_url"])
+    if districts_path is not None and Path(districts_path).is_file():
+        out.add(json.loads(Path(districts_path).read_text(encoding="utf-8"))["source_url"])
+    for r in read_roster(seats_path):
+        out |= {r[k] for k in ("source", "last_source") if r.get(k)}
+    return out
+
+
 class Page(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.ids, self.hrefs, self.fact_ids, self.resources, self.text = set(), [], [], [], []
         self.fact_hrefs = []          # hrefs inside an element carrying data-fact-id
         self.ext_hrefs = []           # <a data-ext="roster|map|county|support">: a sourced link that is not a minutes PDF
+        self.links: list[tuple[str, str | None]] = []   # every <a href>, one entry per element: (href, data-ext)
         self.fact_texts: list[tuple[str, str]] = []   # (fact id, text) of each outermost data-fact-id element
         self._stack, self._fact_depth, self._fact_buf = [], None, None
 
@@ -90,6 +129,7 @@ class Page(HTMLParser):
             self.ids.add(a["name"])
         if tag == "a" and "href" in a:
             self.hrefs.append(a["href"] or "")
+            self.links.append((a["href"] or "", a.get("data-ext")))
             if a.get("data-ext") in EXT_KINDS:
                 self.ext_hrefs.append(a["href"] or "")
         if "data-fact-id" in a:
@@ -196,7 +236,10 @@ def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str
     return problems
 
 
-def check_sources(site: Path, pages: dict[str, Page], facts: dict, store_extra) -> tuple[list[str], str]:
+def check_sources(site: Path, pages: dict[str, Page], facts: dict, store_extra,
+                  allowed: set[str] | None = None) -> tuple[list[str], str]:
+    """`allowed`: the exact external URLs a page may link that are not minutes PDFs (allowed_external)."""
+    allowed = set() if allowed is None else allowed
     problems = []
     by_url = {}
     for s in facts["sources"]:
@@ -205,17 +248,18 @@ def check_sources(site: Path, pages: dict[str, Page], facts: dict, store_extra) 
     real_pages: dict[str, int | None] = {}
     seen = doc_level = 0
     for rel, pg in pages.items():
-        for href in pg.hrefs:
+        for href, ext in pg.links:   # each <a> on its own: one allowed link never excuses another
             if urlsplit(href).scheme not in ("http", "https"):
                 continue
             base, _, frag = href.partition("#")
             src = by_url.get(base) or by_url.get(unquote(base))
-            if src is None and href in pg.ext_hrefs:
-                if not href.startswith("https://"):
-                    problems.append(f"{rel}: marked external link {href!r} is not https")
-                continue
             if src is None:
-                problems.append(f"{rel}: external link {href!r} is not a known source document")
+                if ext not in EXT_KINDS:
+                    problems.append(f"{rel}: external link {href!r} is not a known source document")
+                elif not href.startswith("https://"):
+                    problems.append(f"{rel}: marked external link {href!r} is not https")
+                elif href not in allowed:
+                    problems.append(f"{rel}: marked external link {href!r} is not a URL from the config, map or roster")
                 continue
             seen += 1
             m = re.fullmatch(r"page=(\d+)", frag)
@@ -398,8 +442,9 @@ def check_index(site: Path, pages: dict[str, Page], facts: dict) -> tuple[list[s
                 problems.append(f"officials.html section {i + 1} is not alphabetical by surname, then given name")
         else:
             seats = []
+            word = re.escape(_site_cfg()["district_label"])   # the configured label form, "District N"
             for x, c in ids:
-                m = re.search(r'class="seat">,\s*District (\d+)', c)
+                m = re.search(r'class="seat">,\s*' + word + r' (\d+)', c)
                 seats.append((0, int(m.group(1))) if m else (1, 0))
             if seats != sorted(seats):
                 problems.append(f"officials.html section {i + 1} (Current) is not in seat order")
@@ -416,11 +461,19 @@ def check_index(site: Path, pages: dict[str, Page], facts: dict) -> tuple[list[s
     return problems, f"{len(set(linked))} officials listed"
 
 
-def _skeleton(html_text: str) -> list[str]:
-    """Headings and column headers of an official page, minus the name: the layout N1/AC1.5 says must be identical."""
+def _clean_text(fragment: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", fragment)).strip()
+
+
+def _skeleton(html_text: str) -> tuple:
+    """Headings and column headers of an official page, minus the name: the layout N1/AC1.5 says must be identical.
+    Headings in order; column headers as the set of distinct header rows (one history table per year, so a count
+    of tables would differ by how many years a person has, qa-tool/layout-counts-year-tables)."""
     body = html_text.split("<h1", 1)[-1]
-    return [re.sub(r"\s+", " ", "".join(m)).strip()
-            for m in re.findall(r"<(?:h2|h3)[^>]*>(.*?)</(?:h2|h3)>|<th[^>]*>(.*?)</th>", body, re.S)]
+    heads = [_clean_text(x) for _, x in re.findall(r"<(h2|h3)\b[^>]*>(.*?)</\1>", body, re.S)]
+    tables = {tuple(_clean_text(th) for th in re.findall(r"<th\b[^>]*>(.*?)</th>", t, re.S))
+              for t in re.findall(r"<thead\b.*?</thead>", body, re.S)}
+    return (tuple(heads), frozenset(tables))
 
 
 def check_layout(site: Path, facts: dict) -> tuple[list[str], str]:
@@ -430,7 +483,140 @@ def check_layout(site: Path, facts: dict) -> tuple[list[str], str]:
         return ["no official pages"], ""
     ref_id, ref = next(iter(skel.items()))
     return [f"officials/{i}.html differs in headings/columns from officials/{ref_id}.html" for i, k in skel.items() if k != ref], \
-        f"{len(skel)} official pages, same {len(ref)} headings and column headers"
+        f"{len(skel)} official pages, same {len(ref[0])} headings and {len(ref[1])} column header set(s)"
+
+
+# ---------------------------------------------------------------- provenance (derived vs stated)
+# Restated from the architecture's invariant `provenance`, not imported from sitegen.
+DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+DATE_PHRASES = ("seen in roll calls", "shown as vacant in roll calls", "roll calls")
+SOURCE_TERM = "as the source prints it"
+BANNED = ("Held this seat", "vacant since", "to present", "in use since")
+
+
+class SeatTexts(HTMLParser):
+    """Text of each element that shows a holder record: .seat, .seat-line, .holder-row, table.holders and
+    section.holder h3 (outermost only)."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.stack: list[tuple[str, bool]] = []   # (tag, opened a collected element)
+        self.depth = 0                             # > 0 while inside a collected element
+        self.buf, self.out = "", []
+        self.in_holder_section = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in Page.VOID:
+            return
+        a = dict(attrs)
+        cls = (a.get("class") or "").split()
+        if tag == "section" and "holder" in cls:
+            self.in_holder_section += 1
+        hit = (bool({"seat", "seat-line", "holder-row"} & set(cls)) or (tag == "table" and "holders" in cls)
+               or (tag == "h3" and self.in_holder_section > 0))
+        opened = hit and self.depth == 0
+        if opened:
+            self.buf = ""
+        if self.depth or opened:
+            self.depth += 1
+        self.stack.append((tag, opened, tag == "section" and "holder" in cls))
+
+    def handle_endtag(self, tag):
+        if tag in Page.VOID or not any(t == tag for t, _, _ in self.stack):
+            return
+        while self.stack:
+            t, opened, sec = self.stack.pop()
+            if self.depth:
+                self.depth -= 1
+            if opened:
+                self.out.append(" ".join(self.buf.split()))
+                self.depth = 0
+            if sec:
+                self.in_holder_section -= 1
+            if t == tag:
+                break
+
+    def handle_data(self, d):
+        if self.depth:
+            self.buf += d
+
+
+def dates_worded(text: str) -> list[str]:
+    """Dates in `text` that do not sit in a phrase starting one of DATE_PHRASES (same clause: no . ; ( ) between)."""
+    if SOURCE_TERM in text:
+        return []
+    bad = []
+    low = text.lower()
+    for m in DATE.finditer(text):
+        before = low[:m.start()]
+        starts = [before.rfind(ph) for ph in DATE_PHRASES]
+        k = max(starts)
+        if k < 0 or re.search(r"[.;()]", before[k:]):
+            bad.append(m.group(0))
+    return bad
+
+
+def _day_before(d: str) -> str:
+    import datetime as _dt
+    return (_dt.date.fromisoformat(d) - _dt.timedelta(days=1)).isoformat()
+
+
+def cutover_problems(facts: dict, roster: list[dict], effective: str) -> list[str]:
+    """Check 4: the inferred cutover is immaterial. No meeting lies between the last roll-call meeting before it and
+    the first on or after it, and every observed row's `lines` agrees with its meeting dates."""
+    by_id = {m["id"]: m["date"] for m in facts["meetings"]}
+    rc_dates = sorted({by_id[r["meeting_id"]] for r in facts["roll_calls"]})
+    before = [d for d in rc_dates if d < effective]
+    after = [d for d in rc_dates if d >= effective]
+    # with only one side collected there is no boundary to straddle: rows are judged against the split key itself
+    lo = before[-1] if before else _day_before(effective)
+    hi = after[0] if after else effective
+    problems = [f"meeting on {d} lies between the cutover meetings {lo} and {hi}"
+                for d in sorted(by_id.values()) if before and after and lo < d < hi]
+    for r in roster:
+        if r.get("dates") != "observed" or not str(r.get("seat", "")).startswith("district-"):
+            continue
+        start, end = str(r["start"]), (str(r["end"]) if r.get("end") else None)
+        if r.get("lines") == "old" and (end is None or end > lo):
+            problems.append(f"{r.get('official_id')} {r['seat']}: old-lines row ends {end}, after {lo}")
+        if r.get("lines") == "current" and start < hi:
+            problems.append(f"{r.get('official_id')} {r['seat']}: current-lines row starts {start}, before {hi}")
+    return problems
+
+
+def check_provenance(site: Path, pages: dict[str, Page], facts: dict, roster: list[dict], cfg: dict) -> tuple[list[str], str]:
+    problems = []
+    eff = cfg["lines_effective"]
+    import datetime as _dt
+    banned = BANNED + (eff, (_dt.date.fromisoformat(eff) - _dt.timedelta(days=1)).isoformat())
+    texts = 0
+    for rel in sorted(pages):
+        body = (site / rel).read_text(encoding="utf-8")
+        plain = html.unescape(body)
+        for b in banned:
+            if b in plain:
+                problems.append(f"{rel}: contains banned {b!r}")
+        p = SeatTexts()
+        p.feed(body)
+        for t in p.out:
+            texts += 1
+            for d in dates_worded(t):
+                problems.append(f"{rel}: seat text dates {d} without 'seen in roll calls' wording: {t[:90]!r}")
+    idx_file = site / "static" / "search-index.js"
+    if idx_file.is_file():
+        raw = idx_file.read_text(encoding="utf-8")
+        for b in banned:
+            if b in raw:
+                problems.append(f"static/search-index.js: contains banned {b!r}")
+        ix = json.loads(raw[raw.index("{"):raw.rindex("}") + 1])
+        seat_strings = ([r.get("st") or "" for r in ix.get("records", []) if r.get("k") == "person"]
+                        + [o["label"] for o in ix.get("officials", [])] + list(ix.get("seat_labels", [])))
+        for t in seat_strings:
+            texts += 1
+            for d in dates_worded(t):
+                problems.append(f"static/search-index.js: seat text dates {d} without 'seen in roll calls' wording: {t[:90]!r}")
+    problems += cutover_problems(facts, roster, eff)
+    return problems, f"{texts} seat texts checked; lines split key {eff} immaterial"
 
 
 def check_totals(site: Path, pages: dict[str, Page], facts: dict) -> tuple[list[str], str]:
@@ -521,8 +707,11 @@ def check_hscroll(site: Path, pages: dict[str, Page], all_pages: bool, sample: i
 # ---------------------------------------------------------------- driver
 
 def run_checks(site: Path, facts: dict, internal=False, no_export=False, operator=OPERATOR, browser=True,
-               all_pages=False, sample=3, store_extra=()) -> Report:
+               all_pages=False, sample=3, store_extra=(), seats_path=None, districts_path=None) -> Report:
     rep = Report()
+    d_seats, d_map = default_inputs(facts)
+    seats_path, districts_path = seats_path or d_seats, districts_path or d_map
+    cfg = _site_cfg()
     files = [f for f in site.rglob("*") if f.is_file()]
     pages = {f.relative_to(site).as_posix(): parse(f) for f in files if f.suffix == ".html"}
     if not pages:
@@ -530,7 +719,7 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
         return rep
     rep.add("files", [f"{len(files)} files, limit {MAX_FILES - 1}"] if len(files) >= MAX_FILES else [], f"{len(files)} files, {len(pages)} pages")
     rep.add("links", check_links(site, pages, no_export), "internal links, #anchors and assets" + ("; data/ skipped" if no_export and not (site / "data").exists() else ""))
-    problems, note = check_sources(site, pages, facts, store_extra)
+    problems, note = check_sources(site, pages, facts, store_extra, allowed_external(cfg, seats_path, districts_path))
     rep.add("sources", problems, note)
     rep.add("unverified", check_unverified(site, pages, facts, internal), "internal build" if internal else "public build")
     problems, note = check_index(site, pages, facts)
@@ -539,6 +728,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("layout", problems, "AC1.5/N1: " + note)
     problems, note = check_totals(site, pages, facts)
     rep.add("totals", problems, "AC2.2: " + note)
+    problems, note = check_provenance(site, pages, facts, read_roster(seats_path), cfg)
+    rep.add("provenance", problems, note)
     rep.add("footer", check_footer(pages, operator), f"'Provided as a free service by {operator}.' on {len(pages)} pages")
     rep.add("external", check_external(pages))
     if browser:
@@ -562,10 +753,12 @@ def main(argv=None) -> int:
     ap.add_argument("--no-browser", action="store_true", help="skip the 390 px check")
     ap.add_argument("--all-pages", action="store_true", help="390 px check on every page, not a sample of 3 per type")
     ap.add_argument("--store", action="append", default=[], help="extra directory holding <sha256>.pdf (repeatable)")
+    ap.add_argument("--seats", help="the roster the build read (default: the locality's, or the fixture's)")
+    ap.add_argument("--districts", help="the map file the build read (default: the locality's, or the fixture's)")
     ap.add_argument("--out", default=str(ROOT / "build" / "qa" / "site_checks.txt"))
     a = ap.parse_args(argv)
     rep = run_checks(Path(a.site), load_facts(a.facts), a.internal, a.no_export, a.operator, not a.no_browser, a.all_pages,
-                     store_extra=a.store)
+                     store_extra=a.store, seats_path=a.seats, districts_path=a.districts)
     text = rep.render()
     print(text)
     out = Path(a.out)

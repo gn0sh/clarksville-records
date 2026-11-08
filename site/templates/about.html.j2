@@ -59,7 +59,8 @@
 
 <section aria-labelledby="seats">
   <h2 id="seats">Seats, current members and those who served previously</h2>
-  <p>Each seat ({{ site.cfg.district_label }} 1 to {{ site.cfg.district_count }}{% for o in site.cfg.other_seats %}, {{ o.label }}{% endfor %}) has a list of holder records: who held it, from when, to when, and the source that says so. A record is <em>current</em> when it has no end date, or its end date is after the latest meeting in the record. Everyone else with a record served previously. A person with no record yet is listed under &ldquo;Seat not yet recorded&rdquo;: nobody is placed in a seat by guess. The seat shown next to a name on a meeting page is the seat that person held on that meeting's date. District lines were redrawn in 2022; votes before {{ site.cfg.lines_effective }} are listed under &ldquo;Old district lines&rdquo; and never added to votes under the current lines.</p>
+  <p>Each seat ({{ site.cfg.district_label }} 1 to {{ site.cfg.district_count }}{% for o in site.cfg.other_seats %}, {{ o.label }}{% endfor %}) has a list of holder records. For the commission districts, a holder record gives the first and last meetings whose roll-call tables print that person in that seat, with links to both pages, worded &ldquo;seen in roll calls&rdquo;. These are not term dates: a term is shown only when a source prints it, in its own words (&ldquo;term 2022-2026, as the source prints it&rdquo;). &ldquo;Current&rdquo; means seen in the roll calls of the latest meeting collected (or, for a term from a source, that the source prints no end), and is always shown with that basis. Everyone else with a record served previously. A person with no record yet is listed under &ldquo;Seat not yet recorded&rdquo;, and a name on a meeting date that no record covers reads &ldquo;seat not recorded&rdquo;: nobody is placed in a seat by guess. The seat shown next to a name on a meeting page is the one that meeting's roll-call table prints, or, between two meetings that print the same seat, that seat.</p>
+  <p>District lines changed with the county's <a data-ext="county" href="{{ site.cfg.redistricting_page }}" target="_blank" rel="noopener noreferrer">{{ site.cfg.redistricting_label }}<span class="sr-only"> (opens in a new tab)</span></a>. The exact day the new lines took effect is not printed in any source collected, so the site splits votes at the change between two meetings: the last roll call under the old lines and the first under the current lines, both named on each seat page. Votes under the old lines are listed under &ldquo;Old district lines&rdquo; and never added to votes under the current lines.{% if swap %} {{ swap.before }}<a data-ext="county" href="{{ swap.url }}" target="_blank" rel="noopener noreferrer">{{ swap.link }}<span class="sr-only"> (opens in a new tab)</span></a>{{ swap.after }}{% endif %}</p>
 </section>
 
 <section aria-labelledby="item-types">
@@ -71,6 +72,21 @@
     <tbody>
     {% for t in site.cfg.item_types %}
       <tr><th scope="row">{{ t.label }}</th><td>{{ t.prefixes | join(", ") or "None" }}</td><td>{{ t.words | join(", ") }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section aria-labelledby="motion-kinds">
+  <h2 id="motion-kinds">How motion kinds are decided</h2>
+  <p>The same rule for every motion. The kind shown (for example &ldquo;Motion to adopt&rdquo;) is decided by the team, not printed in the minutes: the motion's text is searched for the phrases below, in this order, and the first match gives the kind (any capitalisation; &ldquo;...&rdquo; stands for any words in between). A motion with none of them is &ldquo;{{ motion_default }}&rdquo;. Only the kind is shown, never the minutes' sentence.</p>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Motion kind rule">
+  <table class="aliases">
+    <thead><tr><th scope="col">Kind</th><th scope="col">Text contains</th></tr></thead>
+    <tbody>
+    {% for k in motion_kinds %}
+      <tr><th scope="row">{{ k.label }}</th><td>{{ k.phrases | join("; ") }}</td></tr>
     {% endfor %}
     </tbody>
   </table>

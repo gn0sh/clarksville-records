@@ -38,13 +38,20 @@
     });
   }
   function tokens(q) { return q.toLowerCase().split(/\s+/).filter(Boolean); }
+  // Highlight on the raw text, then escape each piece, so a match never splits an entity like &amp;.
   function mark(text, toks) {
-    var out = esc(text);
-    if (!toks.length) { return out; }
-    var re = new RegExp("(" + toks.map(function (t) {
-      return esc(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    }).join("|") + ")", "gi");
-    return out.replace(re, "<mark>$1</mark>");
+    text = String(text);
+    if (!toks.length) { return esc(text); }
+    var re = new RegExp(toks.map(function (t) {
+      return t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }).join("|"), "gi");
+    var out = "", last = 0, m;
+    while ((m = re.exec(text)) !== null) {
+      if (!m[0].length) { re.lastIndex++; continue; }
+      out += esc(text.slice(last, m.index)) + "<mark>" + esc(m[0]) + "</mark>";
+      last = m.index + m[0].length;
+    }
+    return out + esc(text.slice(last));
   }
 
   // ---- state <-> URL <-> controls
@@ -112,6 +119,12 @@
     return s;
   }
 
+  // The seat an official held on a roll-call date (design 6A.2); the fixed words when no record covers it.
+  function seatOn(d, id) {
+    var day = IX.seat_on && IX.seat_on[d];
+    return day && (id in day) ? IX.seat_labels[day[id]] : "seat not recorded";
+  }
+
   // ---- rendering
   function row(r, st, toks) {
     var parts = [KIND[r.k]];
@@ -130,7 +143,8 @@
     } else if (r.k === "vote") {
       meta = esc(r.d) + " · Outcome: " + (r.c && r.o ? esc(OUTCOME[r.o]) : 'Not confirmed<span aria-hidden="true">*</span><span class="sr-only"> (not confirmed)</span>, see the page');
       if (st.official && st.vote && r.v && r.s) {
-        meta += '<br>' + esc(IX.names[st.official]) + ": " + esc(VOTE[r.v[st.official]]) +
+        meta += '<br>' + esc(IX.names[st.official]) + '<span class="seat">, ' + esc(seatOn(r.d, st.official)) + "</span>: " +
+          esc(VOTE[r.v[st.official]]) +
           ' · Source: <a href="' + esc(r.s.u) + '" target="_blank" rel="noopener noreferrer">minutes p. ' + esc(r.s.p) +
           ", fetched " + esc(r.s.f) + "</a>";
       }

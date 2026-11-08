@@ -57,6 +57,7 @@ PROVENANCE: dict[str, str] = {
     "motions.seconded_by_raw": "stated",
     "items.id": "derived: id", "items.number": "stated", "items.title": "stated",
     "items.link_basis": "derived: item linking rule", "items.year": "derived: year the item is first seen",
+    "items.zoning": "stated",  # each field as printed with its page; null unless two readings agree
     "item_events.id": "derived: content position", "item_events.item_id": "derived: item linking rule",
     "item_events.meeting_id": "derived: id", "item_events.date": "stated",
     "item_events.type": "derived: fixed patterns", "item_events.label": "stated", "item_events.ref": "derived: id",
@@ -99,7 +100,7 @@ _J = {
                 "seconded_by": "derived: name resolution", "page": _CITE["page"], "source_id": "derived: id",
                 "text": "stated", "verification": _VER, "type_label": PROVENANCE["motions.type_label"],
                 "confirmed": _VER},
-    "items": {k: PROVENANCE[f"items.{k}"] for k in ("id", "link_basis", "number", "title", "year")},
+    "items": {k: PROVENANCE[f"items.{k}"] for k in ("id", "link_basis", "number", "title", "year", "zoning")},
     "item_events": {"date": "stated", "id": "derived: content position", "item_id": PROVENANCE["item_events.item_id"],
                     "label": "stated", "meeting_id": "derived: id", "order": PROVENANCE["item_events.order"],
                     "page": _CITE["page"], "ref": "derived: id", "source_id": "derived: id",

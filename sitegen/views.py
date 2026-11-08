@@ -14,7 +14,10 @@ from collections import defaultdict
 from . import config
 import datetime as dt
 
-from .seats import Seats, seat_order
+from .seats import Seats, basis_text, seat_order, source_label
+
+# Shown after a name on a meeting date that no holder record covers (manager decision, attribution family).
+SEAT_NOT_RECORDED = "seat not recorded"
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -123,7 +126,8 @@ class Index:
                 parts.append(f"{absent} absent")
         # `counts` feeds the roll call's bar: the same numbers as the tally string. A roll call has no "no vote
         # recorded" segment of its own, so that one is always 0 here.
-        return {"label": config.OUTCOME_LABELS[rc["outcome"]], "tally": ", ".join(parts),
+        # Derived, so worded as counted (invariant `provenance`): never where a printed tally would read.
+        return {"label": config.OUTCOME_LABELS[rc["outcome"]], "tally": "counted: " + ", ".join(parts),
                 "counts": {**counts, "absent": absent, "novote": 0}, "hidden": False,
                 "confirmed": is_verified(rc), "src": self.src(rc["source_id"], rc["page"])}
 
@@ -170,8 +174,11 @@ class Index:
             return None
         oid = ref["official_id"]
         if oid and oid in self.officials:
-            return {"name": self.officials[oid]["name"], "href": f"officials/{oid}.html",
-                    "seat": self.seats.on(oid, date) if date else None}
+            seat = None
+            if date and self.seats.loaded:
+                # the seat held on that date, or the fixed words when no holder record covers it (never guessed)
+                seat = self.seats.on(oid, date) or SEAT_NOT_RECORDED
+            return {"name": self.officials[oid]["name"], "href": f"officials/{oid}.html", "seat": seat}
         return {"name": "Name not matched", "href": None, "seat": None}  # never the raw OCR name on a public page
 
     def resolved_person(self, ref: dict | None, date: str | None = None) -> dict | None:
@@ -352,6 +359,21 @@ def record_glance(ix: Index) -> dict:
     }
 
 
+def current_basis_lines(ix: Index, people: list[dict]) -> list[str]:
+    """The basis of "Current" for a section, one line per kind of basis (same for everyone, so the cards stay
+    identical): the roll-call one, then each seat whose current record is a term from a source."""
+    lines, sourced = [], []
+    for o in people:
+        for r in ix.seats.of(o["id"]):
+            if r["current"] and r["dates"] == "observed" and not lines:
+                lines.append(ix.seats.basis(r))
+            elif r["current"] and r["dates"] == "sourced" and r["label"] not in sourced:
+                sourced.append(r["label"])
+    if sourced:
+        lines.append(f"{' and '.join(sourced)}: the source prints no end to the term")
+    return lines
+
+
 def _card(ix: Index, o: dict) -> dict:
     """One card template for everyone, current or former (design 6A.3: the section heading is the only difference).
     A roster-only person (in config/seats.yml, not in the facts) has no page and no counts: the fixed sentence."""
@@ -363,6 +385,11 @@ def _card(ix: Index, o: dict) -> dict:
             "initials": initials(o), "present": c["present"], "listed": c["meetings_listed"],
             "rc_voted": c["rc_voted"], "rc_voted_nc": c["rc_voted_nc"], "seat": ix.seats.seat_text(o["id"]),
             "roster_only": False}
+
+
+def observed_basis(ix: Index) -> str:
+    """The basis line of "Current" for a record seen in roll calls (the common case), shown with every "Current"."""
+    return basis_text({"dates": "observed"}, ix.latest)
 
 
 def officials_page(facts) -> dict:
@@ -389,7 +416,8 @@ def officials_page(facts) -> dict:
 
     current.sort(key=seat_key)
     sections = [
-        {"key": "current", "heading": "Current", "order": "seat", "cards": [_card(ix, o) for o in current]},
+        {"key": "current", "heading": "Current", "order": "seat", "basis": current_basis_lines(ix, current),
+         "cards": [_card(ix, o) for o in current]},
         {"key": "previous", "heading": "Served previously", "order": "surname", "cards": [_card(ix, o) for o in former]},
     ]
     if unseated:
@@ -693,6 +721,25 @@ def _toc_groups(entries: list[dict]) -> list[dict]:
     return groups
 
 
+ZONING_FIELDS = (("applicant", "Applicant"), ("location", "Location"), ("acreage", "Acreage"),
+                 ("from_zoning", "From zoning"), ("to_zoning", "To zoning"))
+
+
+def zoning_rows(ix: Index, item: dict) -> list[dict]:
+    """A rezoning case's fields (collector/zoning.py), each as the minutes print it with its source page. A null
+    field (no two readings agreed) is left out, never filled in."""
+    z = item.get("zoning") or {}
+    rows = []
+    for key, label in ZONING_FIELDS:
+        f = z.get(key)
+        if f is None:
+            continue
+        v = f["value"]
+        text = ", ".join(v) if isinstance(v, list) else (f"{v:g} acres" if key == "acreage" else str(v))
+        rows.append({"key": key, "label": label, "value": text, "src": ix.src(f["source_id"], f["page"])})
+    return rows
+
+
 def items_year(year: int, facts) -> dict:
     ix = _ix(facts)
     entries = []
@@ -703,6 +750,7 @@ def items_year(year: int, facts) -> dict:
         entries.append({
             "id": it["id"], "number": it["number"], "title": it["title"],
             "basis": "Linked by number" if it["link_basis"] == "number" else "Linked by title",
+            "zoning": zoning_rows(ix, it),
             "events": [_event(ix, e) for e in events],
             "first": events[0]["date"] if events else "",
         })
@@ -715,10 +763,27 @@ def items_year(year: int, facts) -> dict:
 # F4: about, changes, review
 
 
+def motion_kind_rule() -> list[dict]:
+    """The motion-kind patterns (config.UNVERIFIED_MOTION_TYPES) in plain words for the About page: each phrase the
+    motion text is searched for, in the fixed order; the first match wins. Read from the same list the code uses."""
+    rows = []
+    for pattern, label in config.UNVERIFIED_MOTION_TYPES:
+        phrases = []
+        for alt in pattern.split("|"):
+            words = re.sub(r"\\b", "", alt).replace(".*", " ... ").replace("\\", "")
+            words = " ".join(words.split())
+            if words not in phrases:
+                phrases.append(words)
+        rows.append({"label": label, "phrases": phrases})
+    return rows
+
+
 def about(facts) -> dict:
     ix = _ix(facts)
     officials = sorted(ix.facts["officials"], key=name_key)
     return {
+        "motion_kinds": motion_kind_rule(), "motion_default": config.UNVERIFIED_MOTION_DEFAULT,
+        "swap": swap_context(),
         "officials": [{"name": o["name"], "title": o["title"], "aliases": o["aliases"]} for o in officials],
         "coverage": ix.coverage,
         "has_items": bool(ix.facts["items"]),
@@ -783,7 +848,8 @@ def district_rows(ix: Index) -> list[dict]:
 
 
 def map_context(districts: dict | None, highlight: int | None = None) -> dict | None:
-    """The inline SVG's data. Every district path gets the same class; the fill never encodes anything (design 3.2)."""
+    """The inline SVG's data. Every district path gets the same class; the fill never encodes anything (design 3.2).
+    No date of the lines is passed: the cutover is inferred and never rendered (invariant `provenance`)."""
     if districts is None:
         return None
     wards = districts.get("wards") or {}
@@ -801,19 +867,60 @@ def map_context(districts: dict | None, highlight: int | None = None) -> dict | 
                   for w in sorted(wards.get("wards") or [], key=lambda w: w["number"])],
         "wards_status": wards.get("status", config.SITE["wards_status"]),
         "source_url": districts["source_url"], "source_title": districts.get("source_title") or "county map",
-        "fetched": districts["fetched"], "effective": districts.get("effective") or config.SITE["lines_effective"],
-        "note": districts.get("note"),
+        "fetched": districts["fetched"],
+        "swap": swap_context(),
     }
+
+
+def swap_context() -> dict | None:
+    """The 19/20 numbering line (derived: the map PDF prints them the other way round), linked to its source."""
+    cfg = config.SITE
+    sw = cfg.get("swapped_districts") or []
+    if len(sw) != 2 or not cfg.get("swap_source"):
+        return None
+    word = cfg["district_label"]
+    return {"numbers": sw, "url": cfg["swap_source"],
+            "before": f"The map PDF prints {word}s {sw[0]} and {sw[1]} the other way round; this site uses the "
+                      f"numbers printed in the roll-call tables and the county's ",
+            "link": "Elected Officials List", "after": f" ({source_label(cfg['swap_source'])})."}
 
 
 def landing(facts, districts: dict | None) -> dict:
     ix = _ix(facts)
     return {"rows": district_rows(ix), "map": map_context(districts), "coverage": ix.coverage,
-            "district_count": config.SITE["district_count"]}
+            "district_count": config.SITE["district_count"],
+            "basis": observed_basis(ix) if ix.seats.loaded else None}
 
 
 def _day_before(date: str) -> str:
     return (dt.date.fromisoformat(date) - dt.timedelta(days=1)).isoformat()
+
+
+def cutover_meetings(ix: Index) -> tuple[str | None, str | None]:
+    """The observed boundary around the inferred cutover: the last roll-call meeting before `lines_effective` and the
+    first on or after it. Pages name these, never the inferred day (cutover rule)."""
+    eff = config.SITE["lines_effective"]
+    dates = sorted(set(roll_call_dates(ix)))
+    before = [d for d in dates if d < eff]
+    after = [d for d in dates if d >= eff]
+    return (before[-1] if before else None), (after[0] if after else None)
+
+
+def cutover_sentence(old_last: str | None, cur_first: str | None) -> str:
+    """The observed boundary in words, for whichever sides the minutes collected have."""
+    sides = []
+    if old_last:
+        sides.append(f"roll calls under the old lines run to {old_last}")
+    if cur_first:
+        sides.append(f"roll calls under the current lines start {cur_first}")
+    if not sides:
+        return "No roll calls are in the minutes collected yet."
+    return ("In the minutes collected, " + " and ".join(sides) + "."
+            + (" Votes under the old district lines are listed separately." if old_last else ""))
+
+
+def roll_call_dates(ix: Index) -> list[str]:
+    return sorted({ix.meetings[rc["meeting_id"]]["date"] for rc in ix.facts["roll_calls"]})
 
 
 def _official_rows(ix: Index, cache: dict, official_id: str) -> list[dict]:
@@ -822,10 +929,15 @@ def _official_rows(ix: Index, cache: dict, official_id: str) -> list[dict]:
     return cache[official_id]
 
 
-def _holder_block(ix: Index, cache: dict, rec: dict, start: str, end: str | None, period: str) -> dict:
-    """One holder record inside one line period (design 4.3 item 5): totals scoped to its dates, its vote rows."""
+def _holder_block(ix: Index, cache: dict, rec: dict, start: str, end: str | None, period: str) -> dict | None:
+    """One holder record inside one line period (design 4.3 item 5): totals scoped to its dates, its vote rows.
+    The block names its own first and last roll-call meetings, never the clip date (cutover rule). None when no
+    roll-call meeting falls in the period."""
     o = ix.officials[rec["official_id"]]
-    shown_end = end or ix.latest
+    dates = [d for d in roll_call_dates(ix) if _in_range(d, start, end)]
+    if not dates:
+        return None
+    first, last = dates[0], dates[-1]
     c = official_counts(ix, o["id"], start, end)
     rows = [r for r in _official_rows(ix, cache, o["id"])
             if r["type"] == "vote" and _in_range(r["date"], start, end)]
@@ -833,33 +945,34 @@ def _holder_block(ix: Index, cache: dict, rec: dict, start: str, end: str | None
     label = rec["label"]
     return {
         "name": o["name"], "href": f"officials/{o['id']}.html", "seat": label, "period": period,
-        "heading": f"{o['name']}, {label}, {start} to {'present' if end is None and rec['current'] else shown_end}",
-        "sentence": vote_sentence(c, start, shown_end),
+        "heading": f"{o['name']}, {label}: roll calls {first} to {last}",
+        "sentence": vote_sentence(c, first, last),
         "row_groups": [{"year": y, "rows": [r for r in rows if r["year"] == y]} for y in years],
         "has_rows": bool(rows),
     }
 
 
 def district(n: int, facts, districts: dict | None) -> dict:
-    """districts/<nn>.html (design 4). One template and one function for all seats (N1); order is by date only."""
+    """districts/<nn>.html (design 4). One template and one function for all seats (N1); order is by date only.
+    Holder rows carry only `dates_text` and their sources: no seat start/end reaches the template."""
     ix = _ix(facts)
     cfg = config.SITE
     seat = _district_seat(n)
-    eff = cfg["lines_effective"]
+    eff = cfg["lines_effective"]  # internal split key only; never rendered (pages name the observed boundary)
     recs = ix.seats.for_seat(seat)
     cur = ix.seats.current_of_seat(seat)
+    old_last, cur_first = cutover_meetings(ix)
 
     def holder_row(r):
         who = ({"name": ix.officials[r["official_id"]]["name"], "href": f"officials/{r['official_id']}.html"}
-               if r["official_id"] else None)
-        if r["end"] is not None and r["end"] < eff:
-            lines = "Old district lines"
-        elif r["start"] >= eff:
-            lines = "Current district lines"
-        else:
-            lines = "Old and current district lines"
-        return {"who": who, "start": r["start"], "end": r["end"], "lines": lines, "source": r["source"],
-                "src_label": r["src_label"], "label": r["label"]}
+               if r["official_id"] and r["official_id"] in ix.officials else
+               ({"name": ix.seats.roster_only[r["official_id"]]["name"], "href": None} if r["official_id"] else None))
+        lines = r.get("lines")
+        if lines is None:
+            lines = "old" if r["end"] is not None and r["end"] < eff else ("current" if r["start"] >= eff else "both")
+        lines_text = {"old": "Old district lines", "current": "Current district lines",
+                      "both": "Old and current district lines"}[lines]
+        return {**ix.seats.view(r), "who": who, "lines_text": lines_text}
 
     # every earlier holder record, newest first by end date (a seat's own timeline, design 4.3 item 4)
     previous = sorted((r for r in recs if r is not cur), key=lambda r: (r["end"] or "9999", r["start"]), reverse=True)
@@ -867,30 +980,37 @@ def district(n: int, facts, districts: dict | None) -> dict:
     current_blocks, old_blocks = [], []
     lo, hi = ix.coverage["from"], ix.latest
     for r in sorted(recs, key=lambda r: r["start"], reverse=True):  # newest first, by date only
-        if r["official_id"] is None:
+        if r["official_id"] is None or r["official_id"] not in ix.officials:
             continue
         end = r["end"]
         # current lines: [max(start, eff), end]; old lines: [start, min(end, eff - 1 day)]; clipped to the data
         if end is None or end >= eff:
             s0 = max(r["start"], eff, lo)
             if end is None or s0 <= end:
-                current_blocks.append(_holder_block(ix, cache, r, s0, end, "current"))
+                b = _holder_block(ix, cache, r, s0, end, "current")
+                if b:
+                    current_blocks.append(b)
         if r["start"] < eff:
             e0 = min(end, _day_before(eff)) if end else _day_before(eff)
             s0 = max(r["start"], lo)
             if s0 <= e0 and s0 <= hi:
-                old_blocks.append(_holder_block(ix, cache, r, s0, min(e0, hi), "old"))
-    swapped = cfg.get("swapped_districts") or []
+                b = _holder_block(ix, cache, r, s0, min(e0, hi), "old")
+                if b:
+                    old_blocks.append(b)
+    word = cfg["district_label"]
+    swap = swap_context()
     return {
         "n": n, "nn": f"{n:02d}", "title": f"{cfg['district_page_title']} {n}",
-        "label": f"{cfg['district_label']} {n}",
+        "label": f"{word} {n}",
         "seats_loaded": ix.seats.loaded, "has_records": bool(recs),
-        "notice": (f"District lines were redrawn in 2022. Before {eff}, {cfg['district_label']} {n} covered a "
-                   f"different area. Votes under the old district lines are listed separately."),
-        "swap_line": (f"Under the new map, {cfg['district_label']} {swapped[0]} and {cfg['district_label']} "
-                      f"{swapped[1]} swapped numbers." if n in swapped and len(swapped) == 2 else None),
-        "eff": eff, "old_map_url": cfg.get("old_lines_map_url") or "", "redistricting_page": cfg["redistricting_page"],
+        # Observed boundary wording (cutover rule): the last and first roll-call meetings either side of the change.
+        "redistricting_label": cfg["redistricting_label"],
+        "notice": f"{word} {n} covered a different area before the change. " + cutover_sentence(old_last, cur_first),
+        "old_last": old_last, "cur_first": cur_first,
+        "swap": swap if swap and n in swap["numbers"] else None,
+        "old_map_url": cfg.get("old_lines_map_url") or "", "redistricting_page": cfg["redistricting_page"],
         "current": holder_row(cur) if cur else None,
+        "basis": ix.seats.basis(cur) if cur else None,
         "previous": [holder_row(r) for r in previous],
         "current_blocks": current_blocks, "old_blocks": old_blocks,
         "map": map_context(districts, highlight=n),
@@ -944,19 +1064,20 @@ def search_index(facts) -> dict:
     carry no outcome and no votes, so a vote or outcome filter can never match one (invariant rules 1 and 5)."""
     ix = _ix(facts)
     cfg = config.SITE
+    body = cfg["county_key"]
     records = []
     for it in ix.facts["items"]:
         evs = sorted(ix.events_by_item[it["id"]], key=lambda e: e["date"])
         dates = [e["date"] for e in evs]
         records.append({"k": "item", "id": it["id"], "n": it["number"] or "", "t": it["title"],
                         "d": dates[0] if dates else "", "d2": dates[-1] if dates else "", "a": len(evs),
-                        "y": sorted({int(d[:4]) for d in dates} or {it["year"]}), "ty": item_types(it), "b": "county",
+                        "y": sorted({int(d[:4]) for d in dates} or {it["year"]}), "ty": item_types(it), "b": body,
                         "h": f"items/{it['year']}.html#{it['id']}", "z": zoning_search_text(it)})
     for rc in ix.facts["roll_calls"]:
         m = ix.meetings[rc["meeting_id"]]
         it = ix.items.get(rc["item_id"], {})
         rec = {"k": "vote", "id": rc["id"], "n": it.get("number") or "", "t": it.get("title") or rc["item_id"],
-               "d": m["date"], "y": [int(m["date"][:4])], "ty": item_types(it) if it else ["other"], "b": "county",
+               "d": m["date"], "y": [int(m["date"][:4])], "ty": item_types(it) if it else ["other"], "b": body,
                "h": f"meetings/{m['id']}.html#{rc['id']}", "c": is_verified(rc), "o": None, "v": None, "s": None,
                "z": zoning_search_text(it)}
         if values_shown(rc) and is_verified(rc):  # confirmed only, whatever the display switch says
@@ -968,23 +1089,41 @@ def search_index(facts) -> dict:
         records.append(rec)
     for m in ix.facts["meetings"]:
         records.append({"k": "meeting", "id": m["id"], "n": "", "t": f"{ix.meeting_label(m)}, {m['body']}",
-                        "d": m["date"], "y": [int(m["date"][:4])], "ty": [], "b": "county",
+                        "d": m["date"], "y": [int(m["date"][:4])], "ty": [], "b": body,
                         "h": f"meetings/{m['id']}.html"})
     officials = sorted(ix.facts["officials"], key=name_key)
     for o in officials:
         records.append({"k": "person", "id": o["id"], "n": "", "t": o["name"], "st": ix.seats.seat_text(o["id"]) or "",
-                        "d": "", "y": [], "ty": [], "b": "county", "h": f"officials/{o['id']}.html"})
+                        "d": "", "y": [], "ty": [], "b": body, "h": f"officials/{o['id']}.html"})
     for row in district_rows(ix):
         records.append({"k": "person", "id": f"district-{row['number']}", "n": "",
                         "t": f"{cfg['district_page_title']} {row['number']}", "st": row["holder"] or "",
-                        "d": "", "y": [], "ty": [], "b": "county", "h": row["href"]})
+                        "d": "", "y": [], "ty": [], "b": body, "h": row["href"]})
     years = sorted({y for r in records for y in r["y"]})
+    # Compact: seat_on[date][official] is an index into seat_labels, for the officials with a vote on that date.
+    seat_labels: list[str] = []
+    seat_on: dict[str, dict[str, int]] = {}
+    if ix.seats.loaded:
+        for rc in ix.facts["roll_calls"]:
+            d = ix.meetings[rc["meeting_id"]]["date"]
+            for v in rc["votes"]:
+                oid = v["official_id"]
+                if not oid or oid not in ix.officials or oid in seat_on.get(d, {}):
+                    continue
+                label = ix.seats.on(oid, d) or SEAT_NOT_RECORDED
+                if label not in seat_labels:
+                    seat_labels.append(label)
+                seat_on.setdefault(d, {})[oid] = seat_labels.index(label)
     return {
         "records": records,
-        # alphabetical by surname, no counts (design 5.2, N3); the seat label is the current one
+        # alphabetical by surname, no counts (design 5.2, N3); everyone with a holder record carries their seat
+        # label, current ("District 7") or former ("District 7 (seen in roll calls X to Y)"), design 6A.2
         "officials": [{"id": o["id"], "label": _search_name(o) + (f" ({ix.seats.seat_text(o['id'])})"
-                                                                  if ix.seats.is_current(o["id"]) else "")}
+                                                                  if ix.seats.seat_text(o["id"]) else "")}
                       for o in officials],
+        # The seat each official held on each roll-call date (vote filter rows, design 6A.2): labels only, never a
+        # holder record's dates. An official with no record covering a date reads "seat not recorded".
+        "seat_labels": seat_labels, "seat_on": seat_on,
         "names": {o["id"]: o["name"] for o in officials},
         "years": years,
         "types": [{"key": t["key"], "label": t["label"]} for t in cfg["item_types"]] + [{"key": "other", "label": "Other"}],
@@ -1014,6 +1153,7 @@ EXPORT_FILES = (
     ("items.csv", "One row per agenda item."),
     ("item_events.csv", "Each appearance of an item at a meeting."),
     ("sources.csv", "Every source document, with its address and fetch date."),
+    ("seats.csv", "Seat holder records: first and last meetings seen in roll calls, or a term as its source prints it."),
 )
 
 

@@ -307,4 +307,4 @@ def test_outcome_shows_label_and_tally_counted_from_votes(tmp_path, facts):
     pages = build_pages(tmp_path, f)
     block = next(n for n in parse(pages[f"meetings/{MEETING_DEC}.html"]).walk() if n.attrs.get("id") == RC_SHOWN)
     text = " ".join(block.all_text().split())
-    assert f"Passed ({yes} yes, {no} no" in text and "Qqoutcome" not in text
+    assert f"Passed (counted: {yes} yes, {no} no" in text and "Qqoutcome" not in text

@@ -130,33 +130,37 @@ def test_seat_label_follows_the_name_on_meeting_pages_by_that_meetings_date(page
     for m in facts["meetings"]:
         html = pages[f"meetings/{m['id']}.html"]
         for o in facts["officials"]:
-            want = ix.seats.on(o["id"], m["date"])
+            # the seat on that date, or the fixed words when no record covers it (manager decision; never guessed)
+            want = ix.seats.on(o["id"], m["date"]) or "seat not recorded"
             link = f'officials/{o["id"]}.html">{o["name"]}</a>'
             if link not in html:
                 continue
-            if want:
-                assert f'{link}<span class="seat">, {want}</span>' in html, (m["id"], o["id"])
-            else:
-                assert f'{link}<span class="seat">' not in html, (m["id"], o["id"])
-    # b-sample held District 2 to 2024-10-31, d-testperson from 2024-11-01: the label is by date, never guessed
-    assert ix.seats.on("b-sample", "2024-10-07") == "District 2"
+            assert f'{link}<span class="seat">, {want}</span>' in html, (m["id"], o["id"])
+    # b-sample seen in District 2 on 2024-11-04 only, d-testperson from 2024-12-09: by date, never guessed
+    assert ix.seats.on("b-sample", "2024-11-04") == "District 2"
     assert ix.seats.on("b-sample", "2024-12-09") is None
+    assert ix.seats.on("d-testperson", "2024-11-04") is None
     assert ix.seats.on("d-testperson", "2024-12-09") == "District 2"
     assert ix.seats.on("a-example", "2021-01-01") is None
     assert ix.seats.on("e-fixture", "2024-12-09") is None
 
 
 def test_official_page_header_carries_the_seat(pages):
-    assert "District 1, from 2022-09-01" in text(pages["officials/a-example.html"])
-    assert "District 2, 2020-09-01 to 2024-10-31" in text(pages["officials/b-sample.html"])
+    assert ("District 1, seen in roll calls from 2024-11-04 to 2024-12-09, the latest meeting collected"
+            in text(pages["officials/a-example.html"]))
+    assert "District 2, seen in roll calls 2024-11-04 to 2024-11-04" in text(pages["officials/b-sample.html"])
     assert "Seat not yet recorded" in text(pages["officials/e-fixture.html"])
 
 
 def test_old_lines_label_before_the_2022_lines():
-    f = json.loads(FIXTURE.read_text(encoding="utf-8"))
-    ix = views.Index(f, load_rows(FIXTURE_SEATS))
-    assert ix.seats.on("b-sample", "2021-05-01") == "District 2 (old lines)"
-    assert ix.seats.on("b-sample", "2023-05-01") == "District 2"
+    from sitegen.seats import Seats
+    base = {"official_id": "x", "seat": "district-2", "dates": "observed", "source": "https://e/a#page=1",
+            "last_source": "https://e/b#page=2", "printed": None, "note": None, "name": None}
+    s = Seats([{**base, "start": "2020-03-09", "end": "2022-08-08", "lines": "old"},
+               {**base, "start": "2022-09-12", "end": None, "lines": "current"}], {"x": {}}, "2024-12-09")
+    assert s.on("x", "2021-05-01") == "District 2 (old lines)"
+    assert s.on("x", "2023-05-01") == "District 2"
+    assert s.on("x", "2022-08-20") is None   # between the two runs: no record covers it
 
 
 def test_district_pages_exist_for_every_seat_with_one_skeleton(pages):
@@ -167,22 +171,25 @@ def test_district_pages_exist_for_every_seat_with_one_skeleton(pages):
     h2 = {n: [x.all_text().strip() for x in parse(pages[n]).walk() if x.tag == "h2" and x.attrs.get("id")]
           for n in names}
     assert len({tuple(v) for v in h2.values()}) == 1
-    assert h2["districts/01.html"] == ["Current", "Served previously", "Current district lines (from 2022-08-30)",
-                                       "Old district lines (before 2022-08-30)"]
+    assert h2["districts/01.html"] == ["Current", "Served previously",
+                                       "Current district lines: roll calls from 2024-11-04", "Old district lines"]
 
 
 def test_district_page_current_previous_and_periods(pages):
     t = text(pages["districts/02.html"])
-    assert "District lines were redrawn in 2022. Before 2022-08-30, District 2 covered a different area." in t
-    assert "Current D. Testperson District 2 from 2024-11-01" in t
+    assert "District 2 covered a different area before the change." in t
+    assert "redrawn" not in t and config.SITE["lines_effective"] not in t
+    assert ("Current D. Testperson District 2, seen in roll calls from 2024-12-09 to 2024-12-09, the latest meeting "
+            "collected.") in t
     prev = next(n for n in parse(pages["districts/02.html"]).walk() if n.tag == "table")
-    assert "B. Sample 2020-09-01 to 2024-10-31 Old and current district lines p. 1" in " ".join(prev.all_text().split())
-    # a record that spans the 2022 lines is split: no total adds across periods; data starts 2024-10-07
-    assert "B. Sample, District 2, 2024-10-07 to 2024-10-31" in t
-    assert "D. Testperson, District 2, 2024-11-01 to present" in t
-    assert re.search(r"Roll call votes, 2024-11-01 to 2024-12-09: \d+ Yes", t)
+    assert ("B. Sample seen in roll calls 2024-11-04 to 2024-11-04 Current district lines Source: first, p. 1 (opens in a new tab); "
+            "last, p. 2 (opens in a new tab)") in " ".join(prev.all_text().split())
+    # each block names its own first and last roll-call meetings, never a clip date
+    assert "B. Sample, District 2: roll calls 2024-11-04 to 2024-11-04" in t
+    assert "D. Testperson, District 2: roll calls 2024-12-09 to 2024-12-09" in t
+    assert re.search(r"Roll call votes, 2024-12-09 to 2024-12-09: \d+ Yes", t)
     t3 = text(pages["districts/03.html"])
-    assert "Seat vacant since 2024-01-01" in t3
+    assert "Seat vacant, shown as vacant in roll calls from 2024-11-04 to 2024-12-09" in t3
     assert "No votes are recorded for District 3 in the minutes collected so far." in t3
     assert "No earlier holders are recorded for this seat." in t3
     t4 = text(pages["districts/04.html"])
@@ -201,20 +208,20 @@ def test_district_scoped_totals_never_mix_confirmed_and_unconfirmed(pages, facts
 
 def test_swapped_district_line_on_19_and_20_only(pages):
     for n in range(1, config.SITE["district_count"] + 1):
-        has = "Under the new map, District 19 and District 20 swapped numbers." in pages[f"districts/{n:02d}.html"]
+        has = ("The map PDF prints Districts 19 and 20 the other way round; this site uses the numbers printed in the "
+               "roll-call tables" in pages[f"districts/{n:02d}.html"])
         assert has == (n in (19, 20)), n
 
 
 def test_officials_card_seat_text_does_not_repeat_the_same_seat():
     from sitegen.seats import Seats
-    rows = [{"official_id": "x", "seat": "district-1", "start": "2020-01-01", "end": "2022-08-08", "source": "https://e/x",
-             "note": None, "name": None},
-            {"official_id": "x", "seat": "district-1", "start": "2022-09-12", "end": None, "source": "https://e/x",
-             "note": None, "name": None},
-            {"official_id": "x", "seat": "district-9", "start": "2018-01-01", "end": "2019-12-31", "source": "https://e/x",
-             "note": None, "name": None}]
+    base = {"official_id": "x", "dates": "observed", "source": "https://e/x", "last_source": "https://e/y",
+            "printed": None, "note": None, "name": None}
+    rows = [{**base, "seat": "district-1", "start": "2020-01-01", "end": "2022-08-08"},
+            {**base, "seat": "district-1", "start": "2022-09-12", "end": None},
+            {**base, "seat": "district-9", "start": "2018-01-01", "end": "2019-12-31"}]
     s = Seats(rows, {"x": {}}, "2024-12-09")
-    assert s.seat_text("x") == "District 1; District 9, 2018-01-01 to 2019-12-31"
+    assert s.seat_text("x") == "District 1; District 9 (seen in roll calls 2018-01-01 to 2019-12-31)"
 
 
 def test_seats_rows_need_an_https_source(tmp_path):
@@ -258,9 +265,11 @@ def test_official_filter_is_alphabetical_by_surname_with_no_counts(index, facts)
     assert [o["id"] for o in index["officials"]] == want
     labels = {o["id"]: o["label"] for o in index["officials"]}
     assert labels["a-example"] == "Example, A. (District 1)"
-    assert labels["b-sample"] == "Sample, B."  # served previously: no current seat in the option
-    for label in labels.values():
-        assert not re.search(r"\d", re.sub(r"\((District|Ward) \d+(; [^)]*)?\)", "", label)), label
+    # served previously: the former seat with its roll-call dates (design 6A.2)
+    assert labels["b-sample"] == "Sample, B. (District 2 (seen in roll calls 2024-11-04 to 2024-11-04))"
+    assert labels["e-fixture"] == "Fixture, E."   # no record: no seat, never guessed
+    for label in labels.values():   # no counts: any digit is inside the seat part
+        assert not re.search(r"\d", re.sub(r" \(.*\)$", "", label)), label
 
 
 def test_search_page_controls_and_no_js_state(pages):

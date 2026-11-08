@@ -24,10 +24,11 @@
 {% block main %}
 <h1>Officials</h1>
 {% if seats_loaded %}
-<p class="lede">Current members of the {{ site.cfg.county_body }}, by district number. Then everyone who served previously, by surname. Choose a name to see that person's recorded votes, attendance, motions and seconds.</p>
+<p class="lede">Members of the {{ site.cfg.county_body }} seen in the latest roll calls collected, by district number. Then everyone who served previously, by surname. Choose a name to see that person's recorded votes, attendance, motions and seconds.</p>
 {% for s in sections %}
 <details class="officials-section" id="{{ s.key }}" data-order="{{ s.order }}"{% if s.key == "current" %} open{% endif %}>
-  <summary><h2>{{ s.heading }}{% if s.key != "current" %} ({{ s.cards | length }}){% endif %}</h2></summary>
+  <summary class="section-summary" id="{{ s.key }}-h">{{ s.heading }}{% if s.key != "current" %} ({{ s.cards | length }}){% endif %}</summary>
+  {% for b in s.get("basis") or [] %}<p class="basis muted">{{ b }}.</p>{% endfor %}
   {% if s.cards %}
   {{ cards(s.cards, s.heading ~ (", by seat" if s.order == "seat" else ", alphabetical by surname")) }}
   {% else %}
