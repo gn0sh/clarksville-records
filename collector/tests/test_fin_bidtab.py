@@ -172,3 +172,13 @@ def test_words_in_the_notes_column_mean_not_read():
     r = read_bidtab(words(note), RULES)
     assert r.tab_type == "not_read" and "optional column" in r.reason and r.bidders == []
     assert read_bidtab(words(WHEEL), RULES).tab_type == "lump_sum"        # an empty Notes column is fine
+
+
+def test_a_name_line_far_below_its_bidder_means_not_read():
+    """award-source/name-gap-table: in the table layout a name continuation line must be adjacent (NAME_GAP word
+    heights, same page) to the line above it, so a stray line is never joined to a bidder's name (1a nit 8)."""
+    far = WHEEL.replace('yMin="301.194960" xMax="124.192428" yMax="319.980480">Forestry',
+                        'yMin="401.194960" xMax="124.192428" yMax="419.980480">Forestry')
+    r = read_bidtab(words(far), RULES)
+    assert r.tab_type == "not_read" and "not adjacent" in r.reason
+    assert read_bidtab(words(WHEEL), RULES).bidders[0].name == "McCoy Construction & Forestry"   # 17 pt apart: joined
