@@ -231,6 +231,39 @@ def cmd_census(store: Store, cfg: FinanceConfig, status_path: Path = FETCH_STATU
     return 0
 
 
+def run_step(store: Store, log: dict, offline: bool, fetcher: PoliteFetcher | None = None,
+             cfg: FinanceConfig | None = None, finance_path: Path | None = None, report_path: Path | None = None,
+             status_path: Path = FETCH_STATUS, progress=print, **kw) -> int:
+    """The finance steps of `python -m collector run` (A1), after the votes steps: fin fetch (skipped when offline;
+    the same polite fetcher as the votes fetch, so the 10 s per host floor holds across both) then fin build.
+    A stopped or failed fetch is logged (stage fin_fetch) and the build still runs from the store; a build that
+    cannot run or writes nothing is logged (stage fin_build). -> the fin build exit code: 0 ok, 2 problems (nothing
+    written), 3 parity 'review needed' (written)."""
+    from . import fin_config
+    try:
+        cfg = cfg or fin_config.load()
+    except fin_config.FinanceConfigError as e:
+        log["failures"].append({"stage": "fin_build", "error": f"FinanceConfigError: {e}"})
+        return 2
+    if not offline:
+        print("collector: finance fetch (10 s between requests per host)", flush=True)
+        fl = cmd_fetch(store, cfg, fetcher=fetcher, status_path=status_path, progress=progress)
+        log["fin_fetch"] = {k: v for k, v in fl.items() if k != "fetch_log"}
+        if fl["stopped"]:
+            log["failures"].append({"stage": "fin_fetch", "error": f"STOPPED, not retried: {fl['stopped']}"})
+        log["failures"] += [{"stage": "fin_fetch", **x} for x in fl["failures"]]
+    print("collector: finance build", flush=True)
+    try:
+        code = cmd_build(store, cfg, finance_path=finance_path, report_path=report_path, status_path=status_path, **kw)
+    except FileNotFoundError as e:                       # no archive page in the store yet
+        log["failures"].append({"stage": "fin_build", "error": f"FileNotFoundError: {e}"})
+        return 2
+    log["fin_build"] = code
+    if code == 2:
+        log["failures"].append({"stage": "fin_build", "error": "schema or scan-guard problems: finance.json not written"})
+    return code
+
+
 def main(argv=None) -> int:
     import argparse
     import sys
