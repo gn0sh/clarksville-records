@@ -93,7 +93,7 @@ no usable text layer return `text_layer: "none"` and no fragments (AC-P4: "not e
   member's own cell (one vote token, nothing else), with no reading, clean or not, reading a different vote, an
   explicit "---" or conflicting marks ("?") there (2026-11-08, `parse-accuracy/combine-ignores-unclean-dissent`); a
   member no reading read a vote for has none when a reading read the cell cleanly blank or "---" and none read "?";
-  else unreadable.
+  else unreadable. Which readings count and what dissents: "Invariant: independent readings".
   The stated tally and the ABSENT names must be read alike. The result passes only through the same P2 checks
   (`check_votes`); `reading_used` then reads "text-layer+tesseract".
 - Blank tally count: "Yeses - 21 Noes -  Abstentions - 0" (no number printed) gives the one blank count as roster
@@ -352,6 +352,7 @@ Consumers and producers (every place a derived value is made or reaches a page, 
 | Map shapes, label positions | `districts.json` `path`, `label_xy` | stated (traced from the cited PDF) | caption with source and fetch date | none |
 | Roll call stated tally | `collector/parse.py` `printed_counts`; `collector/facts.py`:328 `stated_tally`; `export.py` `roll_calls.csv` `yes,no,abstain` | stated (hit 1: blank count -> null) | CSV columns `yes,no,abstain` | drop the fallbacks to the derived tally (`printed_counts` `else r.tally`, facts.py `or rc.tally`); rename columns `stated_yes,stated_no,stated_abstain` |
 | Tally on pages | `Index.outcome` `tally`; `_macros.html.j2`:91, `_history.html.j2`:29, `votes_year.html.j2`:13 | derived (counted from shown votes; "absent" from attendance) | "(12 yes, 3 no, 2 absent)" where a printed tally would sit | "(counted: 12 yes, 3 no, 2 absent)" |
+| Zoning case fields | `collector/zoning.py` `decide`; item `zoning`; search `z` | stated (as printed, one source page) | value with page link | none here; reading rule in "Invariant: independent readings" |
 | Outcome | `facts.py` `_outcome_class`; `Index.outcome` label; export `outcome`; search `o` | stated (printed word, fixed mapping) | Passed/Failed/Other | none |
 | Item types | `config/site.yml` `item_types`; `views.item_types`; search `ty` and filter | derived by rule | filter, linked to `about.html#item-types` | none; any new place that shows a type links the rule |
 | Motion kind | `views.motion_type_label`; export `type_label` | derived by fixed patterns | "Motion to adopt"; About gives no rule | About lists the pattern table, as for item types |
@@ -377,6 +378,71 @@ Seats are not in the public export today; if added, each row carries `dates` and
 5. Export registry: `collector/export.py` `PROVENANCE = {"<file>.<column>": "stated" | "derived: <how>"}`; every CSV
    column and facts.json row key must be listed; a derived column name never starts `stated_`; a `stated_` value is
    never filled from a derived one (hit-1 test kept).
+
+### Invariant: independent readings (problem family `parse-accuracy`)
+Stated after the family's second hit (2026-11-08). Hit 1 (fixed in 50b4bbf): `parse.combine` ignored another
+reading's "?" or unclean "---" in a member's cell. Hit 2 (review of e4dadf3): `zoning.decide` counted two printings
+read by the text layer as two independent readings, so with tesseract off or failed the two "Buck" misreads of
+"Johnathan Blick" (CZ-01-2024) would agree and publish; and `zoning._match_fields` dropped a reading whose pattern
+matched but whose value failed the format check, so it neither agreed nor dissented.
+
+Terms.
+- **Reading**: one engine's (`text-layer` | `tesseract`) reading of one printing (one table, entry line, resolution
+  or staff sheet on one page) of one field, cell or count. It is **clean** (one well-formed value), **malformed**
+  (the pattern or cell was found but the value fails its check: "?" or two vote marks, an unrecognised token with a
+  vote, a zoning value that fails `_applicant`/`_location`/`_acreage`/`_zoning`, an ABSENT line with a problem), or
+  **none** (nothing found there: the group did not match, the cell is empty, the engine did not run or failed).
+- **Independent**: two readings are independent only when their **engines differ**. The same engine on a second
+  printing, a reprint, or the same pages in another document is not independent: it repeats the engine's glyph
+  confusions (CZ-01-2024: "Buck" in two of three printings, same engine), and agenda packets reuse the minutes' pages.
+  The PDF text layer is the county's own OCR, so it is one engine wherever it appears. A same-engine reading can
+  veto; it never corroborates.
+- **Dissent**: any other reading of the same field or cell, of any engine or printing, that is clean with a different
+  value (by the field's agreement key; for a vote cell, a different vote or an explicit "---"; for a tally or ABSENT
+  line, different numbers or names) or is malformed. "None" is not dissent. One dissent leaves the field null or
+  holds the roll call; there is no majority, ever.
+
+**Minimum corroboration.**
+- A free-text or number value with no printed checksum (zoning applicant, location, acreage, from/to zoning): clean
+  readings from **both engines** with equal keys, and no dissent. `--no-ocr` or a failed OCR page therefore publishes
+  no zoning value from that page's printings.
+- A vote, a stated tally and the ABSENT names of a roll call: either (i) one reading passes P2 on its own, or (ii) the
+  cell-by-cell combination passes P2 (`combine`), and in both cases no reading of that table (other engine or a
+  consent reprint) dissents on any cell, the tally or the ABSENT line. P2 is the corroboration here: counted must equal
+  the printed tally and tally plus ABSENT must equal the roster, so a single misread breaks it; the residual case is
+  two compensating misreads in one table (judgment call, medium confidence; tracked by QA's spot check).
+- An outcome word: one reading, accepted only when `check_outcome` agrees with that P2-checked tally.
+- A name: one reading resolved by `names.yml` rules 1-4 (closed set, exact match, no fuzzy merge). Not a combination
+  of readings, so outside this rule except where two readings of the same cell resolve to different officials, which
+  is dissent.
+
+**Shown form.** Among agreeing readings of a value: (1) a form read character for character (whitespace collapsed) by
+both engines; else (2) the characters of the best-ranked reading (mixed case over capitals, "+/-" over "+1-", no odd
+capitals like "BUck") with a word break only where at least one reading of each engine has one (letters align by
+position, since the keys are equal). A break only one engine saw is not shown: the text layer drops spaces, tesseract
+adds them ("Mc Donald"). Never rank by most spaces.
+
+Consumers (every place readings are combined or one reading is checked against another):
+| Consumer | Complies? | Required change |
+|---|---|---|
+| `zoning.decide` (zoning.py:278-304) | no (hit 2a) | count units by **engine**, not (printing, engine): publish only with clean readings from both engines; drop rule 5 (a printing the engines read differently is dissent, so null, not neutral); shown form per the rule above, replacing `_shown_rank`'s space count (nit). Rewrite the module docstring rules 4-7 to match. |
+| `zoning._match_fields` + `_applicant`/`_location`/`_acreage`/`_zoning` (zoning.py:192-202, 109-166) | no (hit 2b) | when a group matched (`raw` not None) and `_value` returns None, emit a malformed `Reading` (sentinel key) that vetoes that field for that case; a pattern overrun ("whereas", "resolution") is malformed too, so fix over-wide patterns in `zoning.yml`, never by dropping |
+| `minutes.zoning_readings` tesseract filter (minutes.py:487) | yes | none: a tesseract reading on a page where it reads another case number cannot be placed, so it is "none"; a misplaced text-layer reading still needs the other engine to publish |
+| `parse.combine` (parse.py:794-851) | partly (hit 1 fixed for cells) | readings whose ABSENT line has a problem (`abs_ok` filter) are malformed: they hold the combination instead of being skipped; a tally read by one reading and garbled in another (a "?" or unread count where the line matched) is dissent |
+| `parse.decide` / `disagreements` (parse.py:782-792, 854-881) | no | `disagreements` must report every dissent as defined: different vote, "---" vs a vote, "?" vs a vote, different tally, different ABSENT names; `decide` holds on any of them even when one reading passes P2. Put the cell rule in one helper (`cell_dissent(a, b, member)`) used by `combine`, `disagreements` and `source_inconsistent` |
+| consent reprints `reprints_agree` (facts.py:286-290) | partly | uses `P.disagreements`, so it gains "---"/"?" dissent from the helper; reprints never corroborate (already: the first verified printing is the roll call) |
+| `verify.source_inconsistent` (verify.py:76-90) | partly | "agree on every vote" must use the helper, not only the absence of "sources disagree" (it reclassifies a hold for G4; it never publishes) |
+| `check_outcome` / `_outcome_class` (parse.py:756) | yes | none (outcome checked against the P2 tally) |
+| attendance (`parse.attendance_from_text`, `names.py`) | yes | none: one reading, closed-set exact match, checked against the printed ABSENT count |
+| `parse.assign_names` header pairing, motion mover/seconder | yes | none: one reading matched to a closed set |
+| `meetings.py` copy choice, `minutes.list_numbers` agenda match | yes | none: selection and closed-set lookup, no value published from agreement |
+
+Tests (`tests/test_independent_readings.py`, restated by QA): CZ-01-2024 applicant is null with OCR on and with
+`--no-ocr`; two text-layer printings that agree publish nothing alone; one malformed reading nulls a field both
+engines otherwise agree on; a "---" or "?" in the text layer holds a roll call tesseract reads cleanly; the shown form
+of "McDonald"/"Mc Donald" readings is "McDonald". The fix reports the before/after verified rate and zoning field
+count in its PR; if the rate falls below the 0.90 gate, the engineer stops and reports to the manager, and the rule is
+not loosened in code.
 
 ### Run report (`build/report.json`, written by `python -m collector run`)
 ```
@@ -485,7 +551,8 @@ Full field list and enums: `schema/facts.schema.json`. Summary:
   `number` (or null), `title` (verbatim, from first appearance), `link_basis` (`number` | `title`), `year`.
   Rezoning cases (prefixes in `config/localities/<locality>/zoning.yml`) also carry `zoning` {`applicant`,
   `location`, `acreage`, `from_zoning`, `to_zoning`}, each {`value`, `source_id`, `page`} or null: published only when
-  two independent readings (printing x engine) agree and none disagrees (`collector/zoning.py`). Search indexes them as `z`.
+  readings from both engines agree and none dissents, per "Invariant: independent readings" (`collector/zoning.py`).
+  They are stated values (shown as printed, with source page): see "Invariant: derived vs stated". Search indexes them as `z`.
 - **item_events**: every appearance of an item: `id`, `item_id`, `meeting_id`, `date`, `type` (`listed`,
   `referral`, `reading`, `amendment`, `motion`, `roll_call`, `postponed`, `withdrawn`, `other`), `label` (verbatim),
   `ref` (motion or roll call id, when the type is one), `source_id`, `page`, `order`.
