@@ -48,7 +48,9 @@
 | 2026-11-08 | code-reviewer | opus/high | review efbf38f..345d497 | request changes: 1 must-fix parse-accuracy/combine-ignores-unclean-dissent; should-fix outcome-crosses-clause, neutrality/derived-count-shown-as-stated; nit two-thirds |
 | 2026-11-08 | backend-engineer | opus/high | fix review findings | done, 50b4bbf/0464107: 361/390 (92.6%), 327 pass |
 | 2026-11-08 | code-reviewer | opus/high | delta re-review 0464107 | approve |
-| 2026-11-08 | frontend-engineer | opus/medium | landing, drawer, officials, search, footer | running |
+| 2026-11-08 | frontend-engineer | opus/medium | landing, drawer, officials, search, footer | done, 864b7e1: 412 pass; gaps: votes[].district, pre-2026 CZ titles lack applicant names |
+| 2026-11-08 | code-reviewer | opus/high | review landing/search/seats at a552cd4 | running |
+| 2026-11-08 | qa-engineer | sonnet/medium | QA landing/search/seats + spot-check newly verified | running |
 | 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
 
 ## Decisions
@@ -97,3 +99,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - Map source: the GIS hosts are blocked by the sandbox egress, and the allowlist prompt failed twice and was dropped. Boundaries are extracted from the county's own vector redistricting PDFs on mcgtn.org.
 - 2026-11-08: the county district map is traced from the county's own vector PDF (Redistricting20211018.pdf), with numbers 19 and 20 swapped per the 2021-11-08 amendment. The swap was verified against the 2026 roster and the per-district maps. City wards are unavailable: the city PDF is raster. The fallback is the APSU layer once that host is allowed.
 - Open parser finding (item-history family, 3rd hit): the 2024-09-09 minutes on p50 reprint the 2020 roll call for item 20-9-14 as an exhibit. It is filed as a 2024 unverified roll call. The architect must restate the invariant before the fix (loop rule). Seat derivation uses verified roll calls only, so seats are unaffected.
+- Backlog (from frontend, 2026-11-08): rezoning items (CZ-) before 2026 carry only the case number as their title, so searching by applicant name finds only the newer ones. backend-engineer to pull applicant and street from the item text. This is the owner's named search use case.
