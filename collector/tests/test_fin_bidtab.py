@@ -163,3 +163,12 @@ def test_property_no_value_cites_a_non_text_source(tmp_path, monkeypatch, seed):
             assert src[d["source_id"]]["text_layer"] == "text" and not d["shared_by"]
         elif t:
             assert t["bidders"] == [] and s["department"] is None
+
+
+def test_words_in_the_notes_column_mean_not_read():
+    """A word in an optional column (Notes) was dropped unseen; now the tab is not read (1a nit 7)."""
+    note = WHEEL.replace(">$211,887.00</word>", '>$211,887.00</word><word xMin="440.0" yMin="318.83" xMax="470.0" '
+                         'yMax="337.62">late</word>')
+    r = read_bidtab(words(note), RULES)
+    assert r.tab_type == "not_read" and "optional column" in r.reason and r.bidders == []
+    assert read_bidtab(words(WHEEL), RULES).tab_type == "lump_sum"        # an empty Notes column is fine
