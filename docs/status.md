@@ -42,6 +42,13 @@
 | 2026-11-07 | code-reviewer | opus/high | delta re-review 16ee1fc | approve with nits (doc drift fixed) |
 | 2026-11-07 | qa-engineer | sonnet/medium | M1 QA at 95e1235 | FAIL on AC-P1 only (82.3%); spot check 20/20; key parse-accuracy/verified-rate |
 
+| 2026-11-07 | backend-engineer | opus/high | raise verified rate | done, 345d497: 362/390 verified (92.8%), AC-P1 passes, 315 tests pass |
+| 2026-11-07 | deep-researcher | sonnet/medium | district/ward map data | done, docs/research/district-ward-map-data.md (GIS hosts blocked by egress; used county vector PDFs) |
+| 2026-11-07 | ux-designer | opus/medium | landing map, drawer, search, current/former officials | done, a85e0e6 docs/design/landing-search-nav.md |
+| 2026-11-08 | code-reviewer | opus/high | review efbf38f..345d497 | running |
+| 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | running |
+| 2026-11-08 | frontend-engineer | opus/medium | landing, drawer, officials split, search, footer | running |
+
 ## Decisions
 - 2026-11-07 G1: footer line on every page + About page naming the operator (CEO, card).
 
@@ -75,3 +82,13 @@ Once votes and voting records are done: finance. Revenue and expenditures, who g
 ## Design constraint (Brian, 2026-11-07 5:38 PM ET)
 Keep in mind while coding: a possible future free app where anyone enters a ZIP code and gets the same (or configurable) information for their locality. Do NOTHING toward it now; just avoid hard-coding Clarksville/Montgomery assumptions where a config value or per-source adapter costs the same (body names, rosters, URLs, branding text in config, sources as adapters). Reviewers flag new hard-coding.
 - 2026-11-07 ~5:40 PM ET: preview v3 published (dropdown menus, collapsed years, Esc/outside-click close). UX pass reviewed (approve after delta).
+
+## UX direction (Brian, 2026-11-07 5:54-6:00 PM ET)
+- Landing is one screen: a map of the county commission districts and city wards. Clicking a seat shows everyone who held it and how they voted.
+- Search must have filters, because people will search for rezoning applicants.
+- The menu reserves space for Finance and Capital projects. A finance-over-time chart explorer (county against city and other counties) comes later.
+- The main menu is a top-left navigation drawer.
+- Current members are shown apart from former ones, and every name carries a seat label (District N, Ward N, Mayor).
+- Footer reads "Provided as a free service by Brian Zacharias." The Buy Me a Coffee link stays in config and is empty until Brian sends his page URL. The ethics check (G6) runs before the link goes public, because he sits on Council until January.
+- Manager decisions on the design questions: Q3 uses a first-party JSON search index (no Pagefind yet, to keep under the file budget). Q6 amends N6 to allow first-party static scripts. Q10 orders current officials by seat number. Q9 skips the focus group while the site is private.
+- Map source: the GIS hosts are blocked by the sandbox egress, and the allowlist prompt failed twice and was dropped. Boundaries are extracted from the county's own vector redistricting PDFs on mcgtn.org.
