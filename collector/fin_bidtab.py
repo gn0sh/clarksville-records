@@ -10,10 +10,11 @@ Bidder table: the header line holds the `columns` labels ("Bidder Name", "Total"
 bands come from the header words' x-positions (boundaries halfway across the gaps); a word belongs to the band that
 holds its centre. Rows run from the header to the first line that starts with a field label or a `table_end`
 label. A line with name-band words and a Total-band token starts a bidder; a following line with name-band words and
-no total continues its name ("McCoy Construction &" / "Forestry"). A Total token that is not one amount is kept as
-printed and its value held (check amount-format). Anything else (a total with no name, a name line before any total,
-no bidder, words with no digit in the Total column) means the layout is not the one these rules read: not_read. No
-value is ever guessed.
+no total continues its name ("McCoy Construction &" / "Forestry"). A Total cell that is one token with a digit but
+not a well-formed amount ("$3990.63", "$211,887.0O"), or a lone "$" and one token ("$ 765,790.00"), is kept as printed
+and its value held (check amount-format). Anything else (a total with no name, a name line before any total, no
+bidder, words in the Total column such as "$330.00 per load" or notes running into it) means the layout is not the
+one these rules read: not_read (unit-price and noted layouts are not read in 1a). No value is ever guessed.
 """
 from __future__ import annotations
 
@@ -155,9 +156,11 @@ def read_bidtab(words: list[Word], rules: BidTabRules) -> BidTabRead:
             return BidTabRead("not_read", f"a total with no bidder name on page {ln.page}: {text!r}")
         if total:
             token = " ".join(w.text for w in total)
-            if not any(c.isdigit() for c in token):
-                return BidTabRead("not_read", f"words, not an amount, in the Total column on page {ln.page}: {text!r}")
-            value = cents(token) if len(total) == 1 else None
+            parts = [w.text for w in total]
+            one_token = len(parts) == 1 or (len(parts) == 2 and parts[0] == "$")     # "$ 765,790.00": held below
+            if not one_token or not any(c.isdigit() for c in token):
+                return BidTabRead("not_read", f"words, not one amount, in the Total column on page {ln.page}: {text!r}")
+            value = cents(token) if len(parts) == 1 else None
             n = len(bidders) + 1
             if value is None:
                 held.append((f"bid_tab.bidders[{n - 1}].total_cents", "amount-format"))

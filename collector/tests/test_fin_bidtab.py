@@ -39,12 +39,20 @@ def test_bidders_keep_printed_order_not_amount_order():
     (WHEEL.replace(">Notes</word>", ">Unit</word>").replace(">Total</word>", ">Price</word>"), "no bidder table"),
     (WHEEL.replace(">McCoy</word>", "></word>").replace(">Construction</word>", "></word>", 1)
      .replace(">&amp;</word>", "></word>", 1), "total with no bidder name"),
-    (WHEEL.replace(">$211,887.00</word>", ">see</word>"), "words, not an amount"),
+    (WHEEL.replace(">$211,887.00</word>", ">see</word>"), "words, not one amount"),
+    (WHEEL.replace(">$211,887.00</word>", '>$211,887.00</word><word xMin="308.0" yMin="318.83" xMax="330.0" '
+                   'yMax="337.62">per</word>'), "words, not one amount"),             # "$330.00 per load"
     (WHEEL.replace(">Bidder</word>", ">Vendor</word>"), "no bidder table"),
 ])
 def test_other_layouts_are_not_read(bbox, why):
     r = read_bidtab(words(bbox), RULES)
     assert r.tab_type == "not_read" and why in r.reason and r.bidders == []
+
+
+def test_dollar_sign_apart_from_the_number_is_held():
+    r = read_bidtab(words(WHEEL.replace(">$211,887.00</word>", ">$ 211,887.00</word>")), RULES)
+    assert r.tab_type == "lump_sum" and r.bidders[1].total_as_printed == "$ 211,887.00"
+    assert r.bidders[1].total_cents is None and r.held == [("bid_tab.bidders[1].total_cents", "amount-format")]
 
 
 def test_a_bad_amount_token_holds_the_value():
