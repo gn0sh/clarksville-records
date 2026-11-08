@@ -1,6 +1,7 @@
 """Content-addressed document store and data/manifest.json (architecture "Document store and manifest").
 
-- Bytes live at <store>/<sha256>.pdf (default data/store/, overridable by RECORDS_STORE). Not committed.
+- Bytes live at <store>/<sha256>.pdf (default data/store/, overridable by RECORDS_STORE). Not committed. The name is
+  content-addressed only: the purchasing archive HTML (kind archive_index) lives there too.
 - data/manifest.json (committed) has one entry per (url, sha256): url, sha256, bytes, content_type, kind,
   meeting_date, label, first_fetched_at, etag, last_modified.
 - An entry keeps its first_fetched_at while its hash is unchanged (the "fetch date" shown, N4). New bytes for a
@@ -16,7 +17,7 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .fetch import FetchFailed
+from .fetch import FetchFailed, NotPdf
 
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / "data" / "manifest.json"
@@ -118,8 +119,20 @@ class Store:
             self.manifest_path.write_text(text)
 
 
-def fetch_into_store(fetcher, store: Store, url: str, meta: dict | None = None) -> tuple[dict, str]:
-    """Return the stored entry for url, downloading only when its bytes are not in the store."""
+def _looks_html(body: bytes, headers: dict) -> bool:
+    ctype = next((v for k, v in (headers or {}).items() if k.lower() == "content-type"), "") or ""
+    head = body[:512].lstrip().lower()
+    return "text/html" in ctype.lower() or head.startswith((b"<!doctype html", b"<html"))
+
+
+def fetch_into_store(fetcher, store: Store, url: str, meta: dict | None = None,
+                     expect: str = "pdf") -> tuple[dict, str]:
+    """Return the stored entry for url, downloading only when its bytes are not in the store.
+
+    expect="pdf" (minutes, finance documents): a body that is not a PDF raises NotPdf (a FetchFailed) and is not
+    stored. expect="html" (the purchasing archive page): the body must be an HTML page, stored as a source."""
+    if expect not in ("pdf", "html"):
+        raise ValueError(f"expect must be 'pdf' or 'html', not {expect!r}")
     known = store.latest(url)
     if known and store.has_bytes(known["sha256"]):
         changed = False
@@ -131,6 +144,9 @@ def fetch_into_store(fetcher, store: Store, url: str, meta: dict | None = None) 
     status, body, headers = fetcher.get(url)
     if status != 200:
         raise FetchFailed(f"HTTP {status} for {url}")
-    if body[:4] != b"%PDF":
-        raise FetchFailed(f"not a PDF: {url} ({headers.get('Content-Type')})")
+    if expect == "html":
+        if not _looks_html(body, headers):
+            raise FetchFailed(f"not an HTML page: {url} ({headers.get('Content-Type')})")
+    elif body[:4] != b"%PDF":
+        raise NotPdf(f"not a PDF: {url} ({headers.get('Content-Type')})")
     return store.put(url, body, headers, meta)
