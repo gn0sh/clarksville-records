@@ -67,7 +67,7 @@
 | item-history | 2 (review x2): architect states invariant | consent-reprint-duplicates, consent-pulled |
 | politeness | 1 (review) | redirect-bypass |
 | idempotence | 1 (review) | superseded-source |
-| parse-accuracy | 1 (review) | verified-rate, combine-ignores-unclean-dissent, outcome-crosses-clause, two-thirds-majority |
+| parse-accuracy | 2 (review 11-08, rezoning review): architect states invariant | verified-rate, combine-ignores-unclean-dissent, outcome-crosses-clause, two-thirds-majority |
 
 ## Skipped panels
 - Architect recommended a 3-member Brain Trust on the facts schema and id scheme; skipped for today's preview (private, data regenerated from source each run, so the schema is cheap to change before public launch). Revisit at M1.5.
