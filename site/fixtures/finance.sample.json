@@ -1031,6 +1031,7 @@
   "n_lines": 19,
   "n_tab_not_read": {
    "layout": 1,
+   "not_pdf": 0,
    "scan": 0,
    "shared_url": 0
   },
@@ -1215,10 +1216,12 @@
    "archive_source_id": "src-b7aa79793fb3",
    "archive_status": null,
    "bid_tab": {
+    "award_date_page": null,
     "award_date_text": null,
     "awardee_match": null,
     "awardee_page": null,
     "awardee_text": null,
+    "bid_date_page": null,
     "bid_date_text": null,
     "bidders": [],
     "document_id": "doc-1e4afb2617",
@@ -1245,10 +1248,12 @@
    "archive_source_id": "src-b7aa79793fb3",
    "archive_status": null,
    "bid_tab": {
+    "award_date_page": 1,
     "award_date_text": "2-2-26",
     "awardee_match": "bidder:1",
     "awardee_page": 1,
     "awardee_text": "Alpha Turf &Equipment Co.",
+    "bid_date_page": 1,
     "bid_date_text": "1-20-26",
     "bidders": [
      {
@@ -1297,10 +1302,12 @@
    "archive_source_id": "src-b7aa79793fb3",
    "archive_status": null,
    "bid_tab": {
+    "award_date_page": 2,
     "award_date_text": "10-14-26",
     "awardee_match": "not_a_listed_bidder",
     "awardee_page": 2,
     "awardee_text": "Gamma Minerals LLC",
+    "bid_date_page": 1,
     "bid_date_text": "9-30-26",
     "bidders": [
      {
@@ -1359,10 +1366,12 @@
    "archive_source_id": "src-b7aa79793fb3",
    "archive_status": null,
    "bid_tab": {
+    "award_date_page": 1,
     "award_date_text": "3-10-26",
     "awardee_match": "bidder:2",
     "awardee_page": 1,
     "awardee_text": "Eta Roofing Inc.",
+    "bid_date_page": 1,
     "bid_date_text": "2-24-26",
     "bidders": [
      {
