@@ -21,6 +21,16 @@
   {% if it.number %}<p class="item-num">{{ it.number }}</p>{% endif %}
   <h2 id="h-{{ it.id }}" class="item-h">{{ it.title }}</h2>
   <p class="item-basis"><span class="chip chip-type">{{ it.basis }}</span></p>
+  {% if it.zoning %}
+  <div class="zoning">
+    <p class="zoning-h">Case details, as printed in the minutes</p>
+    <dl class="zoning-list">
+    {% for z in it.zoning %}
+      <div class="zoning-row" data-zoning="{{ z.key }}"><dt>{{ z.label }}</dt><dd>{{ z.value }} <span class="cite">{{ source(z.src) }}</span></dd></div>
+    {% endfor %}
+    </dl>
+  </div>
+  {% endif %}
   <ol class="events timeline">
   {% for e in it.events %}
     <li class="event fact ev-{{ e.type }}{% if e.roll_call and not e.roll_call.confirmed %} nc{% endif %}" data-fact-id="{{ e.id }}">

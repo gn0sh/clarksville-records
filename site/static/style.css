@@ -583,6 +583,7 @@ ol.result-list { list-style: none; margin: 0; padding: 0; }
 li.result { padding: 10px 0; border-top: 1px solid var(--border); }
 .r-kind { margin: 0; font-size: var(--t-xs); color: var(--muted); font-variant-caps: all-small-caps; letter-spacing: .05em; }
 .r-title { margin: 2px 0; }
+.r-zoning { margin: 2px 0; font-size: var(--t-sm); color: var(--fg); overflow-wrap: anywhere; }
 .r-meta { margin: 0; font-size: var(--t-sm); color: var(--muted); }
 mark { background: var(--banner-bg); color: var(--banner-fg); padding: 0 1px; }
 #more { margin-top: 12px; }
@@ -593,3 +594,12 @@ mark { background: var(--banner-bg); color: var(--banner-fg); padding: 0 1px; }
 @media (max-width: 899px) { .wide-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } }
 .narrow-only { display: none; }
 @media (max-width: 899px) { .narrow-only { display: inline; } }
+
+/* Rezoning case details on item pages: each value as printed, with its source page */
+.zoning { margin: 8px 0 12px; padding: 8px 12px; background: var(--surface); border-left: 3px solid var(--mark-soft); }
+.zoning-h { margin: 0 0 4px; font-size: var(--t-sm); font-weight: 600; }
+.zoning-list { margin: 0; }
+.zoning-row { display: grid; grid-template-columns: 8.5rem minmax(0, 1fr); gap: 2px 10px; padding: 3px 0; font-size: var(--t-sm); }
+@media (max-width: 480px) { .zoning-row { grid-template-columns: 1fr; } }
+.zoning-row dt { font-weight: 600; }
+.zoning-row dd { margin: 0; overflow-wrap: anywhere; }

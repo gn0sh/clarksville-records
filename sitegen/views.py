@@ -716,6 +716,25 @@ def _toc_groups(entries: list[dict]) -> list[dict]:
     return groups
 
 
+ZONING_FIELDS = (("applicant", "Applicant"), ("location", "Location"), ("acreage", "Acreage"),
+                 ("from_zoning", "From zoning"), ("to_zoning", "To zoning"))
+
+
+def zoning_rows(ix: Index, item: dict) -> list[dict]:
+    """A rezoning case's fields (collector/zoning.py), each as the minutes print it with its source page. A null
+    field (no two readings agreed) is left out, never filled in."""
+    z = item.get("zoning") or {}
+    rows = []
+    for key, label in ZONING_FIELDS:
+        f = z.get(key)
+        if f is None:
+            continue
+        v = f["value"]
+        text = ", ".join(v) if isinstance(v, list) else (f"{v:g} acres" if key == "acreage" else str(v))
+        rows.append({"key": key, "label": label, "value": text, "src": ix.src(f["source_id"], f["page"])})
+    return rows
+
+
 def items_year(year: int, facts) -> dict:
     ix = _ix(facts)
     entries = []
@@ -726,6 +745,7 @@ def items_year(year: int, facts) -> dict:
         entries.append({
             "id": it["id"], "number": it["number"], "title": it["title"],
             "basis": "Linked by number" if it["link_basis"] == "number" else "Linked by title",
+            "zoning": zoning_rows(ix, it),
             "events": [_event(ix, e) for e in events],
             "first": events[0]["date"] if events else "",
         })
@@ -881,6 +901,19 @@ def cutover_meetings(ix: Index) -> tuple[str | None, str | None]:
     return (before[-1] if before else None), (after[0] if after else None)
 
 
+def cutover_sentence(old_last: str | None, cur_first: str | None) -> str:
+    """The observed boundary in words, for whichever sides the minutes collected have."""
+    sides = []
+    if old_last:
+        sides.append(f"roll calls under the old lines run to {old_last}")
+    if cur_first:
+        sides.append(f"roll calls under the current lines start {cur_first}")
+    if not sides:
+        return "No roll calls are in the minutes collected yet."
+    return ("In the minutes collected, " + " and ".join(sides) + "."
+            + (" Votes under the old district lines are listed separately." if old_last else ""))
+
+
 def roll_call_dates(ix: Index) -> list[str]:
     return sorted({ix.meetings[rc["meeting_id"]]["date"] for rc in ix.facts["roll_calls"]})
 
@@ -967,9 +1000,7 @@ def district(n: int, facts, districts: dict | None) -> dict:
         "seats_loaded": ix.seats.loaded, "has_records": bool(recs),
         # Observed boundary wording (cutover rule): the last and first roll-call meetings either side of the change.
         "redistricting_label": cfg["redistricting_label"],
-        "notice": (f"{word} {n} covered a different area before the change. In the minutes collected, roll calls under "
-                   f"the old lines run to {old_last} and under the current lines from {cur_first}. Votes under the "
-                   f"old district lines are listed separately."),
+        "notice": f"{word} {n} covered a different area before the change. " + cutover_sentence(old_last, cur_first),
         "old_last": old_last, "cur_first": cur_first,
         "swap": swap if swap and n in swap["numbers"] else None,
         "old_map_url": cfg.get("old_lines_map_url") or "", "redistricting_page": cfg["redistricting_page"],
