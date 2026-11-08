@@ -31,11 +31,20 @@ other_seats:
   - {seat: county-mayor, label: County Mayor}
   - {seat: city-mayor, label: City Mayor}
 
-# 2022 redistricting (design 4.2). Lines approved 2021-11-08, first used for the seats filled on this date.
-lines_effective: "2022-09-01"
+# 2022 redistricting (design 4.2). Lines approved 2021-11-08. lines_effective is the internal split key between old
+# and current lines (architecture, "Invariant: derived vs stated", cutover rule); pages never render it. Stated: the
+# September 12, 2022 minutes (County Clerk's Report, "Oaths of Elected County Officials", p. 37) print the oath date
+# 08/30/2022 for every commissioner, Districts 1 to 21, elected under the 2021 lines. No collected meeting falls
+# between the oath and the first meeting under the new lines (2022-09-12), so the split is the same either side.
+lines_effective: "2022-08-30"
+lines_effective_printed: "08/30/2022"
+lines_effective_source: "https://montgomeryminutes.bisonline.com/viewpdf.php?id=FlxXhUdsfwtztei0qxriLVjqyEFob9wSXd89%2BeNh7GQ%3D#page=37"
 old_lines_map_url: ""             # the old county map PDF has not been found yet
 redistricting_page: https://montgomerytn.gov/election/2021-redistricting
 swapped_districts: [19, 20]
+# The county's Elected Officials List prints Districts 19 and 20 with the numbers the roll-call tables use (the map
+# PDF prints them the other way round). Cited by the map caption and the seat 19/20 pages.
+swap_source: "https://montgomerytn.gov/storage/departments/election/Elected%20Officials%20List.pdf#page=9"
 
 # Item type rule (design 5.4), mechanical and the same for every item; rendered on the About page. An item matches a
 # type when its number starts with one of the prefixes, or its verbatim title contains one of the words (any case).

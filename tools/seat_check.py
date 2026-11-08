@@ -1,4 +1,4 @@
-"""Check config/seats.yml against the facts and the current roster (docs/design/landing-search-nav.md 4.1).
+"""Check config/localities/<locality>/seats.yml against the facts and the current roster (docs/design/landing-search-nav.md 4.1).
 
 Checks, the same for everyone:
   1. every official with a vote in any roll call holds exactly one seat on that meeting's date;
@@ -70,12 +70,13 @@ def main(argv=None) -> int:
     import argparse
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--facts", default=str(ROOT / "data" / "facts.json"))
-    ap.add_argument("--seats", default=str(ROOT / "config" / "seats.yml"))
+    ap.add_argument("--seats", default=None, help="default: config/localities/<locality>/seats.yml")
     ap.add_argument("--roster", default=None, help="default: config/localities/<locality>/roster-current.yml")
     a = ap.parse_args(argv)
     roster_path = Path(a.roster) if a.roster else ROOT / "config" / "localities" / locality() / "roster-current.yml"
     facts = json.loads(Path(a.facts).read_text(encoding="utf-8"))
-    rows = yaml.safe_load(Path(a.seats).read_text(encoding="utf-8")) or []
+    seats_path = Path(a.seats) if a.seats else ROOT / "config" / "localities" / locality() / "seats.yml"
+    rows = yaml.safe_load(seats_path.read_text(encoding="utf-8")) or []
     roster = yaml.safe_load(roster_path.read_text(encoding="utf-8")) if roster_path.is_file() else None
     problems = check(facts, rows, roster)
     for p in problems:

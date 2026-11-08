@@ -17,7 +17,7 @@ SITE = yaml.safe_load(SITE_CONFIG_PATH.read_text(encoding="utf-8"))
 LOCALITY = SITE["locality"]
 # Holder records (design 4.1) and the landing map's geometry (design 3.2). Both optional: without them the site
 # shows no seat labels, one officials list, and the district list without a map.
-SEATS_PATH = CONFIG_DIR / "seats.yml"
+SEATS_PATH = CONFIG_DIR / "localities" / LOCALITY / "seats.yml"
 DISTRICTS_PATH = CONFIG_DIR / "localities" / LOCALITY / "districts.json"
 
 SITE_NAME = SITE["site_name"]

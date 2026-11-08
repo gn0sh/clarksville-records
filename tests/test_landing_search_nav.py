@@ -167,13 +167,13 @@ def test_district_pages_exist_for_every_seat_with_one_skeleton(pages):
     h2 = {n: [x.all_text().strip() for x in parse(pages[n]).walk() if x.tag == "h2" and x.attrs.get("id")]
           for n in names}
     assert len({tuple(v) for v in h2.values()}) == 1
-    assert h2["districts/01.html"] == ["Current", "Served previously", "Current district lines (from 2022-09-01)",
-                                       "Old district lines (before 2022-09-01)"]
+    assert h2["districts/01.html"] == ["Current", "Served previously", "Current district lines (from 2022-08-30)",
+                                       "Old district lines (before 2022-08-30)"]
 
 
 def test_district_page_current_previous_and_periods(pages):
     t = text(pages["districts/02.html"])
-    assert "District lines were redrawn in 2022. Before 2022-09-01, District 2 covered a different area." in t
+    assert "District lines were redrawn in 2022. Before 2022-08-30, District 2 covered a different area." in t
     assert "Current D. Testperson District 2 from 2024-11-01" in t
     prev = next(n for n in parse(pages["districts/02.html"]).walk() if n.tag == "table")
     assert "B. Sample 2020-09-01 to 2024-10-31 Old and current district lines p. 1" in " ".join(prev.all_text().split())
