@@ -35,7 +35,7 @@ FIN_TEXT = yaml.safe_load(FIN_TEXT_PATH.read_text(encoding="utf-8"))
 OPERATOR_PLACEHOLDER = "[OPERATOR NAME - CEO to confirm]"
 OPERATOR_NAME = SITE["operator"]  # "Brian Zacharias", confirmed by the CEO, 2026-11-07
 
-MAX_FILES = 250
+MAX_FILES = 600  # 244 files today (91 contract pages); room for the finance fund and department pages
 
 # Fixed lists, the same for every official (neutrality N1/N2).
 HISTORY_TYPES = ("vote", "attendance", "moved", "seconded")

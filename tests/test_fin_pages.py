@@ -460,3 +460,11 @@ def test_unknown_not_read_reason_and_missing_awardee_page_fail_the_build(tmp_pat
     next(s for s in g["solicitations"] if s["id"] == "sol-roof-repair-fixture")["bid_tab"]["awardee_page"] = None
     with pytest.raises(Exception):
         build_with(tmp_path / "b", fin=g)
+
+
+def test_document_link_text_is_the_rows_own_label(tmp_path, fin):
+    f = copy.deepcopy(fin)
+    sol = next(s for s in f["solicitations"] if s["id"] == "sol-road-salt-fixture")
+    sol["document_labels"][0] = "Row Own Label"
+    html = build_with(tmp_path, fin=f)["contracts/road-salt-fixture.html"]
+    assert "Row Own Label" in html
