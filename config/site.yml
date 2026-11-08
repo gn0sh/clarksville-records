@@ -1,0 +1,59 @@
+# Locality and branding text for the site. Templates read every place name, body name and branding line from here,
+# so another locality is a new copy of this file plus its own config/localities/<locality>/ (docs/status.md, ZIP note).
+locality: montgomery-tn
+site_name: Clarksville Records
+operator: Brian Zacharias          # confirmed by the CEO, 2026-11-07 (G1)
+
+# Footer support link (CEO, 2026-11-07). Rendered only when support_enabled is true AND support_url is set; it stays
+# false until the pre-public ethics check (G6: Brian sits on Council until January).
+support_url: https://www.buymeacoffee.com/gnoshcodes
+support_label: Buy Me a Coffee
+support_enabled: false
+
+county_name: Montgomery County
+county_body: Montgomery County Commission
+city_name: City of Clarksville
+city_body: Clarksville City Council
+city_label: Clarksville             # the one place label drawn on the map
+# Landing purpose line (h1). Neutral: what the site holds, no claim about anyone.
+purpose: Votes and records of the Montgomery County Commission, linked to the county's own minutes.
+city_coming: City of Clarksville records are coming.
+
+# County commission seats drawn on the map and given a page each (districts/<nn>.html).
+district_count: 21
+district_label: District          # "District 7"
+district_page_title: County Commission District   # "County Commission District 7"
+ward_count: 12
+ward_label: Ward
+wards_status: coming              # ward pages are M4; until then the landing shows a notice
+# Seats other than numbered districts and wards, in the fixed order the Officials page lists them after the districts.
+other_seats:
+  - {seat: county-mayor, label: County Mayor}
+  - {seat: city-mayor, label: City Mayor}
+
+# 2022 redistricting (design 4.2). Lines approved 2021-11-08, first used for the seats filled on this date.
+lines_effective: "2022-09-01"
+old_lines_map_url: ""             # the old county map PDF has not been found yet
+redistricting_page: https://montgomerytn.gov/election/2021-redistricting
+swapped_districts: [19, 20]
+
+# Item type rule (design 5.4), mechanical and the same for every item; rendered on the About page. An item matches a
+# type when its number starts with one of the prefixes, or its verbatim title contains one of the words (any case).
+# AB- is not mapped: its meaning is still to be confirmed from the agendas (design Q4).
+item_types:
+  - {key: rezoning, label: Rezoning, prefixes: ["CZ-", "CZO-"], words: ["rezone", "rezoning", "zoning"]}
+  - {key: budget, label: Budget and finance, prefixes: [], words: ["budget", "appropriat"]}
+  - {key: resolution, label: Resolution, prefixes: [], words: ["resolution"]}
+  - {key: ordinance, label: Ordinance, prefixes: [], words: ["ordinance"]}
+  - {key: appointment, label: Appointment, prefixes: [], words: ["appoint", "nominat"]}
+
+# "Coming" pages (design 6). No numbers, no sample charts, no example values.
+coming:
+  - slug: finance
+    title: Finance
+    lede: "Coming. County budget books and audits (TN Comptroller) are planned. Nothing is shown here until it is collected from the source documents, and every figure will link to its page."
+    planned: ["Approved county budgets", "Audited financial statements (TN Comptroller)", "Contracts"]
+  - slug: capital-projects
+    title: Capital projects
+    lede: "Coming. Capital projects named in county budget books and commission resolutions are planned. Nothing is shown here until it is collected from the source documents, and every project will link to its page."
+    planned: ["Projects named in approved budgets", "Commission resolutions that fund or change a project"]
