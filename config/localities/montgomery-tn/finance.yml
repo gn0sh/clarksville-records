@@ -31,7 +31,7 @@ stage_rules:
   - [rfp, '\brfp\b|\brequest\s+for\s+proposals?\b']
   - [rfq, '\brfq\b|\brequest\s+for\s+quotes?\b']
   - [bid, '\bbid\b|\brequest\s+for\s+bid\b']
-  - [other, '.']
+  - [other, '^']               # catch-all, an empty label included
 
 # Bid sites the county links to. Never requested (robots.txt disallows all); the fetcher hard-denies these hosts and
 # their links are kept as link-only documents.
