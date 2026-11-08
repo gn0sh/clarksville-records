@@ -49,7 +49,9 @@
 | 2026-11-08 | backend-engineer | opus/high | fix review findings | done, 50b4bbf/0464107: 361/390 (92.6%), 327 pass |
 | 2026-11-08 | code-reviewer | opus/high | delta re-review 0464107 | approve |
 | 2026-11-08 | frontend-engineer | opus/medium | landing, drawer, officials, search, footer | done, 864b7e1: 412 pass; gaps: votes[].district, pre-2026 CZ titles lack applicant names |
-| 2026-11-08 | code-reviewer | opus/high | review landing/search/seats at a552cd4 | running |
+| 2026-11-08 | code-reviewer | opus/high | review landing/search/seats at a552cd4 | request changes: must-fix provenance/derived-seat-dates-shown-as-term; should-fix qa-weakened/ext-link-any-host, qa-tool/layout-counts-year-tables (pre-existing), locality/hard-coded-text; 4 nits |
+| 2026-11-08 | software-architect | opus/high | provenance invariant + consumer list (loop rule, 2nd hit) | running |
+| 2026-11-08 | backend-engineer | opus/medium | rezoning applicant/location fields + search | running |
 | 2026-11-08 | qa-engineer | sonnet/medium | QA landing/search/seats + spot-check newly verified | running |
 | 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
 
@@ -67,6 +69,7 @@
 | item-history | 2 (review x2): architect states invariant | consent-reprint-duplicates, consent-pulled |
 | politeness | 1 (review) | redirect-bypass |
 | idempotence | 1 (review) | superseded-source |
+| provenance | 2 (review 11-08 x2): architect states invariant | derived-count-shown-as-stated, derived-seat-dates-shown-as-term |
 | parse-accuracy | 1 (review) | verified-rate, combine-ignores-unclean-dissent, outcome-crosses-clause, two-thirds-majority |
 
 ## Skipped panels
