@@ -8,19 +8,22 @@
 Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   links       every internal href resolves to a file, every #fragment to an id on the target page, assets exist
   sources     every link to a minutes PDF carries #page=N with 1 <= N <= the source's page count (and, when the PDF
-              is cached locally, <= the real page count from pdfinfo); no other external links
+              is cached locally, <= the real page count from pdfinfo); no other external links, except https links
+              marked data-ext (roster source, map source, county page, support link)
   unverified  no held fact (unverified attendance, held motion attribution, outcome text) appears anywhere in the
               build but review.html; a public build has no review.html and nothing links to it; every fact id on a
               page is a shown fact; every shown fact appears on its official's page; every fact row or block of an
               unconfirmed roll call carries the "Not confirmed" note, and one of a confirmed roll call has no note and
               no "*" (invariant: held-back counts)
-  index       one index entry per official in the facts, alphabetical by surname (AC1.1)
+  index       officials.html lists every official in the facts exactly once; "surname" sections alphabetical by
+              surname, "seat" (Current) sections by district number, then other seats (AC1.1, design 6A.3)
   layout      every official page has the same headings and column headers (AC1.5, N1)
   totals      "Recorded absent at X of Y meetings" equals a recount from the meeting pages (AC2.2)
-  footer      "Run by Brian Zacharias" on every page
+  footer      "Provided as a free service by Brian Zacharias." on every page
   external    no third-party scripts, styles, images or fonts (N6)
   files       fewer than 250 files
-  hscroll     no horizontal scroll at 390 px for the 4 page types (index, official, meeting, items); needs Playwright (node)
+  hscroll     no horizontal scroll at 390 px for the page types (index, official, meeting, items, and when present
+              officials, district, search, votes); needs Playwright (node)
 """
 from __future__ import annotations
 
@@ -45,11 +48,17 @@ MAX_FILES = 250
 VIEWPORT = 390
 
 
+# External links that are not minutes PDFs but are allowed: a holder record's roster source, the map's boundary source,
+# the county redistricting page / old-lines map, and the footer support link. Each must be marked data-ext and https.
+EXT_KINDS = {"roster", "map", "county", "support"}
+
+
 class Page(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.ids, self.hrefs, self.fact_ids, self.resources, self.text = set(), [], [], [], []
         self.fact_hrefs = []          # hrefs inside an element carrying data-fact-id
+        self.ext_hrefs = []           # <a data-ext="roster|map|county|support">: a sourced link that is not a minutes PDF
         self.fact_texts: list[tuple[str, str]] = []   # (fact id, text) of each outermost data-fact-id element
         self._stack, self._fact_depth, self._fact_buf = [], None, None
 
@@ -81,6 +90,8 @@ class Page(HTMLParser):
             self.ids.add(a["name"])
         if tag == "a" and "href" in a:
             self.hrefs.append(a["href"] or "")
+            if a.get("data-ext") in EXT_KINDS:
+                self.ext_hrefs.append(a["href"] or "")
         if "data-fact-id" in a:
             self.fact_ids.append(a["data-fact-id"])
         if tag == "script" and a.get("src"):
@@ -199,6 +210,10 @@ def check_sources(site: Path, pages: dict[str, Page], facts: dict, store_extra) 
                 continue
             base, _, frag = href.partition("#")
             src = by_url.get(base) or by_url.get(unquote(base))
+            if src is None and href in pg.ext_hrefs:
+                if not href.startswith("https://"):
+                    problems.append(f"{rel}: marked external link {href!r} is not https")
+                continue
             if src is None:
                 problems.append(f"{rel}: external link {href!r} is not a known source document")
                 continue
@@ -356,23 +371,45 @@ PARSED_VALUE = re.compile(r"\b(?:Yes|No|Abstain|Other(?:: [A-Za-z ]+)?|Passed|Fa
 
 
 def check_index(site: Path, pages: dict[str, Page], facts: dict) -> tuple[list[str], str]:
-    """AC1.1: one index entry per official in the facts, alphabetical by surname (N1)."""
+    """AC1.1 / design 6A.3: officials.html lists each official once. Sections marked data-order="surname" are
+    alphabetical by surname then given name; data-order="seat" lists districts by number, then other seats (N1)."""
     problems = []
-    index = pages.get("index.html")
-    if index is None:
-        return ["no index.html"], ""
-    linked = [m.group(1) for h in index.hrefs if (m := re.fullmatch(r"officials/([^/#?]+)\.html", h))]
+    f = site / "officials.html"
+    if not f.is_file():
+        return ["no officials.html"], ""
+    text = f.read_text(encoding="utf-8")
+    order = {o["id"]: (o["surname"].casefold(), o["given"].casefold()) for o in facts["officials"]}
+    linked: list[str] = []
+    starts = [(m.start(), m.group(1)) for m in re.finditer(r'data-order="(seat|surname)"', text)]
+    if not starts:
+        problems.append("officials.html has no section marked data-order")
+    for i, (pos, kind) in enumerate(starts):
+        chunk = text[pos:starts[i + 1][0] if i + 1 < len(starts) else len(text)]
+        cards = re.findall(r'<li class="card"[^>]*>(.*?)</li>', chunk, re.S)
+        ids = []
+        for c in cards:
+            m = re.search(r'href="officials/([^/#?"]+)\.html"', c)
+            if m:
+                ids.append((m.group(1), c))
+        linked += [x for x, _ in ids]
+        if kind == "surname":
+            keyed = [order[x] for x, _ in ids if x in order]
+            if keyed != sorted(keyed):
+                problems.append(f"officials.html section {i + 1} is not alphabetical by surname, then given name")
+        else:
+            seats = []
+            for x, c in ids:
+                m = re.search(r'class="seat">,\s*District (\d+)', c)
+                seats.append((0, int(m.group(1))) if m else (1, 0))
+            if seats != sorted(seats):
+                problems.append(f"officials.html section {i + 1} (Current) is not in seat order")
     ids = [o["id"] for o in facts["officials"]]
     for i in sorted(set(ids) - set(linked)):
-        problems.append(f"official {i} is not listed on the index")
+        problems.append(f"official {i} is not listed on officials.html")
     for i in sorted(set(linked) - set(ids)):
-        problems.append(f"index lists {i}, who is not in the facts")
+        problems.append(f"officials.html lists {i}, who is not in the facts")
     for i in sorted({x for x in linked if linked.count(x) > 1}):
-        problems.append(f"index lists {i} more than once")
-    order = {o["id"]: (o["surname"].casefold(), o["given"].casefold()) for o in facts["officials"]}
-    keyed = [order[i] for i in linked if i in order]
-    if keyed != sorted(keyed):
-        problems.append("index is not alphabetical by surname, then given name")
+        problems.append(f"officials.html lists {i} more than once")
     for i in ids:
         if f"officials/{i}.html" not in pages:
             problems.append(f"no page officials/{i}.html")
@@ -422,8 +459,9 @@ def check_totals(site: Path, pages: dict[str, Page], facts: dict) -> tuple[list[
 
 
 def check_footer(pages: dict[str, Page], operator: str) -> list[str]:
-    needle = re.compile(r"Run by\s+" + re.escape(operator))
-    return [f"{rel}: no 'Run by {operator}' footer" for rel, pg in pages.items() if not needle.search(" ".join(pg.text))]
+    needle = re.compile(r"Provided as a free service by\s+" + re.escape(operator) + r"\.")
+    return [f"{rel}: no 'Provided as a free service by {operator}.' footer" for rel, pg in pages.items()
+            if not needle.search(" ".join(pg.text))]
 
 
 def check_external(pages: dict[str, Page]) -> list[str]:
@@ -438,8 +476,11 @@ def check_external(pages: dict[str, Page]) -> list[str]:
 def page_type(rel: str) -> str | None:
     if rel == "index.html":
         return "index"
+    if rel in ("officials.html", "search.html"):
+        return rel[:-5]
     head = rel.split("/")[0]
-    return {"officials": "official", "meetings": "meeting", "items": "items"}.get(head)
+    return {"officials": "official", "meetings": "meeting", "items": "items", "districts": "district",
+            "votes": "votes"}.get(head)
 
 
 def check_hscroll(site: Path, pages: dict[str, Page], all_pages: bool, sample: int) -> tuple[list[str], str]:
@@ -498,7 +539,7 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("layout", problems, "AC1.5/N1: " + note)
     problems, note = check_totals(site, pages, facts)
     rep.add("totals", problems, "AC2.2: " + note)
-    rep.add("footer", check_footer(pages, operator), f"'Run by {operator}' on {len(pages)} pages")
+    rep.add("footer", check_footer(pages, operator), f"'Provided as a free service by {operator}.' on {len(pages)} pages")
     rep.add("external", check_external(pages))
     if browser:
         try:

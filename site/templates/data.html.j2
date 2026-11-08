@@ -1,0 +1,10 @@
+{% extends "base.html.j2" %}
+{% block main %}
+<h1>Data downloads</h1>
+<p class="lede">Every shown fact, with its source, as files: so this site is not the only copy. The files carry what the pages show, and none of the program's raw reading of names, vote wording or motion sentences.</p>
+<ul class="data-files">
+{% for f in files %}
+  <li><a href="{{ root }}data/{{ f.name }}">{{ f.name }}</a>: {{ f.about }}</li>
+{% endfor %}
+</ul>
+{% endblock %}

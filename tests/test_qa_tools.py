@@ -49,7 +49,7 @@ def test_clean_fixture_build_passes(site):
 
 
 def test_broken_internal_link_is_caught(site):
-    edit(site / "index.html", 'href="officials/a-example.html"', 'href="officials/nobody.html"')
+    edit(site / "officials.html", 'href="officials/a-example.html"', 'href="officials/nobody.html"')
     assert "links" in failed(run(site))
 
 
@@ -74,7 +74,7 @@ def test_unknown_external_link_is_caught(site):
 
 
 def test_missing_footer_is_caught(site):
-    edit(site / "meetings" / "2024-12-09-formal.html", "Run by Brian Zacharias", "Run by someone")
+    edit(site / "meetings" / "2024-12-09-formal.html", "Provided as a free service by Brian Zacharias", "Provided by someone")
     assert "footer" in failed(run(site))
 
 
@@ -146,19 +146,40 @@ def test_review_page_in_public_build_is_caught(site, built):
 
 def test_missing_or_misordered_index_entry_is_caught(site):
     import re
-    index = site / "index.html"
+    index = site / "officials.html"
     t = index.read_text(encoding="utf-8")
-    t2 = re.sub(r'<li class="card">(?:(?!</li>).)*?officials/b-sample\.html.*?</li>', "", t, count=1, flags=re.S)
-    assert t2 != t, "the b-sample card was not found on the index"
+    t2 = re.sub(r'<li class="card"[^>]*>(?:(?!</li>).)*?officials/b-sample\.html.*?</li>', "", t, count=1, flags=re.S)
+    assert t2 != t, "the b-sample card was not found on officials.html"
     index.write_text(t2, encoding="utf-8")
     assert "index" in failed(run(site))
 
 
 def test_index_order_is_checked(site):
-    t = (site / "index.html").read_text(encoding="utf-8")
-    a, b = "officials/a-example.html", "officials/b-sample.html"
-    (site / "index.html").write_text(t.replace(a, "@@").replace(b, a).replace("@@", b), encoding="utf-8")
+    """Current is in seat order (a-example District 1 before d-testperson District 2): swapping them is caught."""
+    t = (site / "officials.html").read_text(encoding="utf-8")
+    a, b = "officials/a-example.html", "officials/d-testperson.html"
+    import re
+    cards = re.findall(r'<li class="card"[^>]*>.*?</li>', t, re.S)
+    ca = next(c for c in cards if a in c)
+    cb = next(c for c in cards if b in c)
+    (site / "officials.html").write_text(t.replace(ca, "@@").replace(cb, ca).replace("@@", cb), encoding="utf-8")
     assert "index" in failed(run(site))
+
+
+def test_alphabetical_section_order_is_checked(tmp_path, facts):
+    """Without a roster, one alphabetical list: swapping two names is caught."""
+    from sitegen.build import build
+    out = tmp_path / "plain"
+    build(FIXTURE, out)
+    t = (out / "officials.html").read_text(encoding="utf-8")
+    a, b = "officials/a-example.html", "officials/b-sample.html"
+    (out / "officials.html").write_text(t.replace(a, "@@").replace(b, a).replace("@@", b), encoding="utf-8")
+    assert "index" in failed(run(out))
+
+
+def test_unmarked_or_insecure_external_link_is_caught(site):
+    edit(site / "districts" / "01.html", 'data-ext="roster" href="https://', 'href="https://')
+    assert "sources" in failed(run(site))
 
 
 def test_official_page_with_a_different_layout_is_caught(site):
@@ -172,7 +193,7 @@ def test_wrong_attendance_total_is_caught(site):
 
 
 def test_third_party_script_is_caught(site):
-    edit(site / "index.html", "</head>", '<script src="https://cdn.example/x.js"></script></head>')
+    edit(site / "search.html", "</head>", '<script src="https://cdn.example/x.js"></script></head>')
     assert "external" in failed(run(site))
 
 

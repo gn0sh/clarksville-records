@@ -1,0 +1,20 @@
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import source, fact_meta, item_link, not_confirmed, nc_mark %}
+{% block main %}
+<h1>Votes, {{ year }}</h1>
+<p class="lede">Every roll call in {{ year }}, newest first. Each links to its meeting page, where every member's vote is shown.</p>
+<nav class="year-nav" aria-label="Votes by year"><ul>
+{% for y in years %}<li><a href="{{ y }}.html"{% if y == year %} aria-current="page"{% endif %}>{{ y }}</a></li>{% endfor %}
+</ul></nav>
+<ol class="vote-list">
+{% for r in rows %}
+  <li class="fact{% if not r.confirmed %} nc{% endif %}" data-fact-id="{{ r.id }}">
+    <p class="tl-head"><a class="date" href="{{ root }}{{ r.meeting_href }}">{{ r.date }}</a> {{ item_link(r.item, root) }}</p>
+    <p class="tl-sub">Outcome: <span class="chip chip-outcome">{{ r.outcome.label }}{% if not r.confirmed %}{{ nc_mark() }}{% endif %}</span>{% if r.outcome.tally %} ({{ r.outcome.tally }}){% endif %}{% if not r.confirmed %} {{ not_confirmed(r.src) }}{% endif %}</p>
+    <p class="meta"><span class="cite-label">Source:</span> {{ source(r.src) }} <span class="sep" aria-hidden="true">&middot;</span> {{ fact_meta(root, r.id) }}</p>
+  </li>
+{% else %}
+  <li>No roll calls are recorded for {{ year }}.</li>
+{% endfor %}
+</ol>
+{% endblock %}

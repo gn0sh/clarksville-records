@@ -1,0 +1,40 @@
+{% from "_macros.html.j2" import source, fact_meta, item_link, not_confirmed, nc_mark, chip %}
+{# The history table, one per year in a <details> (newest open). Used by official pages and seat pages. #}
+{% macro history_groups(row_groups, root, empty="No votes, attendance, motions or seconds are shown for this person in this period.") %}
+  {% for g in row_groups %}
+  <details class="year-group" data-year="{{ g.year }}"{% if loop.first %} open{% endif %}>
+  <summary><span class="year-label">{{ g.year or "No rows" }}</span> <span class="muted">({{ g.rows|length }} {{ "row" if g.rows|length == 1 else "rows" }})</span></summary>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="History table, {{ g.year }}">
+  <table class="history stack" role="table">
+    <thead role="rowgroup">
+      <tr role="row">
+        <th scope="col" role="columnheader">Date</th>
+        <th scope="col" role="columnheader">Type</th>
+        <th scope="col" role="columnheader">Item</th>
+        <th scope="col" role="columnheader">Record</th>
+        <th scope="col" role="columnheader">Outcome</th>
+        <th scope="col" role="columnheader">Source</th>
+      </tr>
+    </thead>
+    <tbody role="rowgroup">
+    {% for r in g.rows %}
+      <tr role="row" class="fact{% if not r.confirmed %} nc{% endif %}" data-type="{{ r.type }}" data-year="{{ r.year }}" data-fact-id="{{ r.fact_id }}">
+        <td role="cell" data-label="Date"><div><a class="date" href="{{ root }}{{ r.meeting_href }}">{{ r.date }}</a></div></td>
+        <td role="cell" data-label="Type"><div><span class="chip chip-type">{{ r.type_label }}</span></div></td>
+        <td role="cell" data-label="Item"><div>
+          {% if r.item %}{{ item_link(r.item, root) }}{% else %}<a href="{{ root }}{{ r.meeting_href }}">{{ r.meeting_label }}</a>{% endif %}
+          {% if r.motion_label %}<br><small>{{ r.motion_label }}. {% if r.motion_by %}{{ r.motion_by }}.{% else %}Attribution under review.{% endif %}</small>{% endif %}
+        </div></td>
+        <td role="cell" data-label="Record"><div>{% if r.key %}{{ chip(r.record, r.key, not r.confirmed) }}{% else %}{{ r.record }}{% if not r.confirmed %}{{ nc_mark() }}{% endif %}{% endif %}{% if not r.confirmed %}<br><small>{{ not_confirmed(r.src) }}</small>{% endif %}</div></td>
+        <td role="cell" data-label="Outcome"><div>{% if r.outcome %}<span class="chip chip-outcome">{{ r.outcome.label }}{% if not r.outcome.confirmed %}{{ nc_mark() }}{% endif %}</span>{% if r.outcome.tally %}<br><small>{{ r.outcome.tally }}</small>{% endif %}{% if r.confirmed and not r.outcome.confirmed %}<br><small>{{ not_confirmed(r.outcome.src) }}</small>{% endif %}{% else %}<span class="muted">Not shown</span>{% endif %}</div></td>
+        <td role="cell" data-label="Source"><div class="cite">{{ source(r.src) }}<br><small>{{ fact_meta(root, r.fact_id) }}</small></div></td>
+      </tr>
+    {% else %}
+      <tr role="row" class="empty"><td role="cell" colspan="6">{{ empty }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  </details>
+  {% endfor %}
+{% endmacro %}

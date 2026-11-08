@@ -1,0 +1,33 @@
+{# The county map as inline SVG (design 3.2). aria-hidden: the district list is the accessible equivalent, and the
+   links take tabindex="-1" so nothing is announced or focused twice (D4). Every district path has the same class
+   and no inline fill: the fill never encodes anything (design 10). `links=false` draws the small outline map of a
+   seat page, with that one district hatched. #}
+{% macro county_map(map, root, cfg, links=true) %}
+<svg class="county-map{% if not links %} county-map-small{% endif %}" viewBox="{{ map.viewBox }}" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  {% if not links %}<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="hatch-line" width="2" height="6"/></pattern></defs>{% endif %}
+  {% if map.outline %}<path class="county-outline" d="{{ map.outline }}"/>{% endif %}
+  <g id="layer-districts" font-size="{{ map.label_size }}" stroke-width="{{ map.label_halo }}">
+    {% for d in map.districts %}
+    {% if links %}
+    <a href="{{ root }}{{ d.href }}" tabindex="-1" data-district="{{ d.number }}"><path class="district" d="{{ d.path }}"/></a>
+    {% else %}
+    <path class="district{% if d.this %} is-this{% endif %}" d="{{ d.path }}"/>
+    {% endif %}
+    {% endfor %}
+    {% if links %}
+    {% for d in map.districts %}
+    <text class="district-num" x="{{ d.x }}" y="{{ d.y }}">{{ d.number }}</text>
+    {% endfor %}
+    {% endif %}
+  </g>
+  {% if links %}
+  <g id="layer-wards" font-size="{{ map.label_size }}">
+    {% for w in map.wards %}
+    <path class="ward" d="{{ w.path }}"/>
+    <text class="ward-num" x="{{ w.x }}" y="{{ w.y }}">{{ w.number }}</text>
+    {% endfor %}
+  </g>
+  {% endif %}
+  {% if map.river %}<path class="river" d="{{ map.river }}"/>{% endif %}
+</svg>
+{% endmacro %}

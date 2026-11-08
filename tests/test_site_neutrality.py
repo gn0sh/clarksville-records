@@ -58,7 +58,9 @@ def test_official_with_no_data_has_same_skeleton(pages, facts):
     lonely = copy.deepcopy(facts)
     lonely["officials"].append(
         {"id": "z-nobody", "name": "Z. Nobody", "surname": "Nobody", "given": "Z.", "title": "Commissioner", "aliases": []})
-    ix = views.Index(lonely)
+    from conftest import FIXTURE_SEATS
+    from sitegen.seats import load_rows
+    ix = views.Index(lonely, load_rows(FIXTURE_SEATS))  # the session build has the fixture roster
     from sitegen.build import make_env
     site = dict(views.site_context(ix), internal=True)  # the session-built pages are internal builds
     html = make_env().get_template("official.html.j2").render(

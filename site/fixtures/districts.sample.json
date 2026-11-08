@@ -1,0 +1,15 @@
+{
+  "source_url": "https://example.org/fixture/districts.pdf",
+  "source_title": "FIXTURE district map",
+  "fetched": "2026-11-07",
+  "note": "FIXTURE for tests only: three made-up squares, not real boundaries.",
+  "effective": "2022-09-01",
+  "viewBox": "0 0 300 100",
+  "outline_path": "M0 0H300V100H0Z",
+  "districts": [
+    {"number": 1, "path": "M0 0H100V100H0Z", "label_xy": [50, 50]},
+    {"number": 2, "path": "M100 0H200V100H100Z", "label_xy": [150, 50]},
+    {"number": 3, "path": "M200 0H300V100H200Z", "label_xy": [250, 50]}
+  ],
+  "wards": {"status": "coming", "note": "fixture"}
+}

@@ -1,0 +1,74 @@
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import seat %}
+{% from "_history.html.j2" import history_groups %}
+{% from "_map.html.j2" import county_map %}
+{% macro holder_blocks(blocks) %}
+{% for b in blocks %}
+<section class="holder" aria-labelledby="h-{{ b.period }}-{{ loop.index }}">
+  <h3 id="h-{{ b.period }}-{{ loop.index }}">{{ b.heading }}</h3>
+  <p class="totals-line">{{ b.sentence }}</p>
+  {% if b.has_rows %}
+  {{ history_groups(b.row_groups, root) }}
+  {% else %}
+  <p>No roll call votes in this period.</p>
+  {% endif %}
+  <p><a href="{{ root }}{{ b.href }}">All of {{ b.name }}'s records</a></p>
+</section>
+{% endfor %}
+{% endmacro %}
+{% block main %}
+{# Seat page (design 4). One template for every seat: the same sections, fixed sentences and order by date (N1). #}
+<h1>{{ title }}</h1>
+<p class="note">{{ notice }}{% if swap_line %} {{ swap_line }}{% endif %}</p>
+{% if map %}
+<p class="sr-only">{{ label }} is shown on the county map.</p>
+{{ county_map(map, root, site.cfg, links=false) }}
+<p class="map-caption">Current district lines. Boundaries: <a data-ext="map" href="{{ map.source_url }}" target="_blank" rel="noopener noreferrer">{{ map.source_title }}<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ map.fetched }}.</p>
+{% endif %}
+
+<section aria-labelledby="current-h">
+  <h2 id="current-h">Current</h2>
+  {% if current and current.who %}
+  <p class="holder-row"><a href="{{ root }}{{ current.who.href }}">{{ current.who.name }}</a> {{ seat(current.label) }} <span class="nowrap">from {{ current.start }}</span> <span class="cite">Source: <a data-ext="roster" href="{{ current.source }}" target="_blank" rel="noopener noreferrer">{{ current.src_label }}<span class="sr-only"> (opens in a new tab)</span></a></span></p>
+  {% elif current %}
+  <p class="holder-row">Seat vacant since {{ current.start }} <span class="cite">Source: <a data-ext="roster" href="{{ current.source }}" target="_blank" rel="noopener noreferrer">{{ current.src_label }}<span class="sr-only"> (opens in a new tab)</span></a></span></p>
+  {% else %}
+  <p class="holder-row">Current member not yet recorded</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="previous-h">
+  <h2 id="previous-h">Served previously</h2>
+  {% if previous %}
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Earlier holders of this seat">
+  <table class="holders">
+    <thead><tr><th scope="col">Person</th><th scope="col">Held this seat</th><th scope="col">Lines</th><th scope="col">Source</th></tr></thead>
+    <tbody>
+    {% for r in previous %}
+      <tr>
+        <td>{% if r.who %}<a href="{{ root }}{{ r.who.href }}">{{ r.who.name }}</a>{% else %}Seat vacant{% endif %}</td>
+        <td class="nowrap">{{ r.start }} to {{ r.end or "present" }}</td>
+        <td>{{ r.lines }}</td>
+        <td class="cite"><a data-ext="roster" href="{{ r.source }}" target="_blank" rel="noopener noreferrer">{{ r.src_label }}<span class="sr-only"> (opens in a new tab)</span></a></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p>No earlier holders are recorded for this seat.</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="lines-current-h">
+  <h2 id="lines-current-h">Current district lines (from {{ eff }})</h2>
+  {% if current_blocks %}{{ holder_blocks(current_blocks) }}{% else %}<p>No votes are recorded for {{ label }} in the minutes collected so far.</p>{% endif %}
+</section>
+
+<section aria-labelledby="lines-old-h">
+  <h2 id="lines-old-h">Old district lines (before {{ eff }})</h2>
+  <p>{% if old_map_url %}<a data-ext="county" href="{{ old_map_url }}" target="_blank" rel="noopener noreferrer">Map of the old district lines (PDF)<span class="sr-only"> (opens in a new tab)</span></a>{% else %}The map of the old district lines has not been found yet. County redistricting page: <a data-ext="county" href="{{ redistricting_page }}" target="_blank" rel="noopener noreferrer">{{ redistricting_page }}<span class="sr-only"> (opens in a new tab)</span></a>{% endif %}</p>
+  {% if old_blocks %}{{ holder_blocks(old_blocks) }}{% else %}<p>No votes are recorded for {{ label }} in the minutes collected so far.</p>{% endif %}
+</section>
+<p class="muted">Holder records come from a roster with a source for every row. Wrong or missing? <a href="{{ root }}about.html#corrections">Report an error</a>.</p>
+{% endblock %}

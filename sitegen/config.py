@@ -1,18 +1,31 @@
 """Site-wide constants. The operator name is read from here for the footer and the About page (spec G1)."""
 from pathlib import Path
 
+import yaml
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCHEMA_PATH = REPO_ROOT / "schema" / "facts.schema.json"
 CHANGES_SCHEMA_PATH = REPO_ROOT / "schema" / "changes.schema.json"
 TEMPLATE_DIR = REPO_ROOT / "site" / "templates"
 STATIC_DIR = REPO_ROOT / "site" / "static"
 
-SITE_NAME = "Clarksville Records"
+# Locality and branding text (config/site.yml): body and place names, purpose line, footer support link, seat
+# labels, item type rule and the "coming" pages. Templates take these from `site.cfg`, never as literals.
+CONFIG_DIR = REPO_ROOT / "config"
+SITE_CONFIG_PATH = CONFIG_DIR / "site.yml"
+SITE = yaml.safe_load(SITE_CONFIG_PATH.read_text(encoding="utf-8"))
+LOCALITY = SITE["locality"]
+# Holder records (design 4.1) and the landing map's geometry (design 3.2). Both optional: without them the site
+# shows no seat labels, one officials list, and the district list without a map.
+SEATS_PATH = CONFIG_DIR / "seats.yml"
+DISTRICTS_PATH = CONFIG_DIR / "localities" / LOCALITY / "districts.json"
+
+SITE_NAME = SITE["site_name"]
 
 # CEO decision G1 (2026-11-07): every page names the operator. The CEO supplies the real text; a public build
 # (M1.5) refuses to run while this is still the placeholder.
 OPERATOR_PLACEHOLDER = "[OPERATOR NAME - CEO to confirm]"
-OPERATOR_NAME = "Brian Zacharias"  # confirmed by the CEO, 2026-11-07
+OPERATOR_NAME = SITE["operator"]  # "Brian Zacharias", confirmed by the CEO, 2026-11-07
 
 MAX_FILES = 250
 

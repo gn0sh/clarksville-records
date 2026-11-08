@@ -324,7 +324,13 @@ relative links. Works from a file system, a zip, any static host, or a private c
 Pages (count estimate for 2020-2024 in brackets; the whole site must stay under 250 files):
 | File | Content |
 |---|---|
-| `index.html` | Officials index, alphabetical by surname then given name. Cards with the same identical-colour initials badge and the same fixed count lines for everyone (docs/design/visual-refresh.md 3.2); no sorting by count, no highlight. [1] |
+| `index.html` | Landing (docs/design/landing-search-nav.md 3): purpose line, search box, inline SVG district map from `config/localities/<locality>/districts.json` (a list and a "map is not available yet" note when absent), district list with each seat's current holder. [1] |
+| `officials.html` | Officials (design 6A.3). With `config/seats.yml`: Current by seat (districts by number, then the configured other seats), Served previously and Seat not yet recorded alphabetical by surname; one card template, a seat label after every name. Without the roster: one alphabetical list, no labels. No sorting by count. [1] |
+| `meetings.html` | Meetings timeline, newest first (moved from the old home page). [1] |
+| `districts/<nn>.html` | Seat page per county commission district (design 4): Current, Served previously, then holder records split into current and old district lines, each with its own totals sentence and vote rows. [21] |
+| `votes/<yyyy>.html` | Every roll call by year, newest first; unconfirmed ones "Not confirmed*" with the page link. [~7] |
+| `search.html` + `static/search-index.js` | Search with filters in the URL (manager decision Q3: one first-party index written as a script, so it also works from files; no Pagefind for now). Unconfirmed roll calls carry no outcome or votes in the index. [1 + 1] |
+| `finance.html`, `capital-projects.html`, `data.html` | "Coming" pages with no numbers; the export file list. [3] |
 | `officials/<id>.html` | One date-ordered history: votes, attendance, Moved, Seconded; type and year filters. [~40] |
 | `meetings/<meeting_id>.html` | Attendance table, then every motion and roll call in document order (unconfirmed marked *). [~60-120] |
 | `items/<yyyy>.html#<item_id>` | One section per item: every appearance in date order. Bucketed by year so the file count stays small. [5] |
@@ -353,8 +359,13 @@ Neutrality enforced by construction:
 - **N4:** every fact row has a source link `<url>#page=<n>` (opens in a new tab), "p. n", and "fetched <date>".
 - **N5:** every fact row shows its fact id and a "Report an error" link to `about.html#corrections`. In the preview,
   the About page tells Brian to comment on the page quoting the fact id; the public intake form is M1.5.
-- **N6:** no third-party scripts, fonts, analytics or campaign links. Only `static/filter.js` (vanilla, ~50 lines).
-- **G1:** `base.html.j2` footer on every page: "Run by {{ OPERATOR_NAME }}. About this site and its data rules."
+- **N6** (amended 2026-11-08, manager decision Q6): no third-party scripts, fonts, analytics or campaign links. First-party
+  scripts from `static/` only (`filter.js`, `nav.js`, `map.js`, `search.js`, and the generated `search-index.js`),
+  vanilla, making no network requests and storing nothing about the visitor. Every page works without them.
+- **G1:** `base.html.j2` footer on every page: "Provided as a free service by {{ operator }}." (CEO, 2026-11-07), then
+  "About this site and its data rules." and the full nav list. The operator and all locality and branding text live in
+  `config/site.yml`. The optional support link (`support_url`, `support_label`) renders only when `support_enabled` is
+  true; it stays false until the pre-public ethics check (G6).
   `OPERATOR_NAME` defaults to `"[OPERATOR NAME - CEO to confirm]"`; the build prints a warning while it is the
   placeholder, and a public build (`--public`, M1.5) refuses to run with it.
 - CSS: colour tokens on `:root` with a `prefers-color-scheme: dark` variant, explicit `body` background, readable at

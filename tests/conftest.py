@@ -12,6 +12,8 @@ if str(ROOT) not in sys.path:
 from sitegen.build import build  # noqa: E402
 
 FIXTURE = ROOT / "site" / "fixtures" / "facts.sample.json"
+FIXTURE_SEATS = ROOT / "site" / "fixtures" / "seats.sample.yml"
+FIXTURE_DISTRICTS = ROOT / "site" / "fixtures" / "districts.sample.json"
 
 
 @pytest.fixture(scope="session")
@@ -21,9 +23,9 @@ def facts():
 
 @pytest.fixture(scope="session")
 def built(tmp_path_factory):
-    """The fixture site, built once with --internal so review.html exists."""
+    """The fixture site, built once with --internal so review.html exists, with the fixture roster and map."""
     out = tmp_path_factory.mktemp("site") / "build" / "site"
-    build(FIXTURE, out, internal=True)
+    build(FIXTURE, out, internal=True, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS)
     return out
 
 

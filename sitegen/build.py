@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 import jinja2
 from jsonschema import Draft202012Validator, FormatChecker
 
-from . import config, views
+from . import config, seats as seats_mod, views
 
 
 class BuildError(Exception):
@@ -145,7 +145,7 @@ def _clean(out: Path) -> None:
     out.mkdir(parents=True, exist_ok=True)
     for p in out.glob("*.html"):
         p.unlink()
-    for d in ("officials", "meetings", "items", "static"):
+    for d in ("officials", "meetings", "items", "static", "districts", "votes"):
         shutil.rmtree(out / d, ignore_errors=True)
 
 
@@ -161,10 +161,27 @@ def write_publish_manifest(out: Path) -> dict:
     return manifest
 
 
-def build(facts_path, out_dir, internal: bool = False, changes_path=None, report_path=None) -> dict:
+DEFAULT = object()
+
+
+def build(facts_path, out_dir, internal: bool = False, changes_path=None, report_path=None,
+          seats_path=DEFAULT, districts_path=DEFAULT) -> dict:
+    """`seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
+    config/localities/<locality>/districts.json; a fixture facts file reads neither (made-up people must never be
+    joined to the real roster), so tests pass their own fixture files. None means: no such file."""
     facts_path, out = Path(facts_path), Path(out_dir)
     facts = load_facts(facts_path)
-    ix = views.Index(facts)
+    fixture = bool(facts.get("fixture"))
+    if seats_path is DEFAULT:
+        seats_path = None if fixture else config.SEATS_PATH
+    if districts_path is DEFAULT:
+        districts_path = None if fixture else config.DISTRICTS_PATH
+    try:
+        seat_rows = seats_mod.load_rows(seats_path)
+        districts = seats_mod.load_districts(districts_path)
+    except seats_mod.SeatsError as exc:
+        raise BuildError(str(exc)) from exc
+    ix = views.Index(facts, seat_rows)
     env = make_env()
 
     if config.OPERATOR_NAME == config.OPERATOR_PLACEHOLDER:
@@ -190,7 +207,18 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         target.write_text(html, encoding="utf-8")
         written.append(rel)
 
-    render("index.html.j2", "index.html", "Officials", **views.officials_index(ix))
+    render("index.html.j2", "index.html", "Map", **views.landing(ix, districts))
+    render("officials.html.j2", "officials.html", "Officials", **views.officials_page(ix))
+    render("meetings_index.html.j2", "meetings.html", "Meetings", **views.meetings_page(ix))
+    for n in range(1, config.SITE["district_count"] + 1):
+        ctx = views.district(n, ix, districts)
+        render("district.html.j2", f"districts/{n:02d}.html", ctx["title"], **ctx)
+    for year in site["vote_years_desc"]:
+        render("votes_year.html.j2", f"votes/{year}.html", f"Votes {year}", **views.votes_year(year, ix))
+    render("search.html.j2", "search.html", "Search", **views.search_page(ix))
+    for c in config.SITE["coming"]:
+        render("coming.html.j2", f"{c['slug']}.html", c["title"], **views.coming(c["slug"]))
+    render("data.html.j2", "data.html", "Data downloads", **views.data_page())
     for o in facts["officials"]:
         ctx = views.official(o["id"], ix)
         render("official.html.j2", f"officials/{o['id']}.html", o["name"], **ctx)
@@ -199,12 +227,16 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         render("meeting.html.j2", f"meetings/{m['id']}.html", f"Meeting {m['date']}", **ctx)
     for year in ix.item_years():
         render("items_year.html.j2", f"items/{year}.html", f"Items {year}", **views.items_year(year, ix))
-    render("about.html.j2", "about.html", "About", **views.about(ix))
+    render("about.html.j2", "about.html", "About", **views.about(ix), glance=views.record_glance(ix))
     render("changes.html.j2", "changes.html", "Changes", **views.changes(read_changes(changes_path)))
     if internal:
         render("review.html.j2", "review.html", "Review (internal)",
                **views.review(ix, read_report(report_path)))
 
     shutil.copytree(config.STATIC_DIR, out / "static")
+    # A script, not a JSON file, so search also works when the site is opened from files or a zip (no fetch).
+    index_js = "window.SEARCH_INDEX = " + json.dumps(views.search_index(ix), separators=(",", ":"),
+                                                     ensure_ascii=True) + ";\n"
+    (out / "static" / "search-index.js").write_text(index_js, encoding="utf-8")
     manifest = write_publish_manifest(out)
     return {"pages": written, "files": len(manifest) + 1}

@@ -1,0 +1,91 @@
+{% extends "base.html.j2" %}
+{% block main %}
+{# Search (design 5). Filters live in the URL so a search can be shared or bookmarked; nothing is stored about the
+   visitor (N6). The index is static/search-index.js, built with the site; static/search.js filters it. #}
+<h1>Search records</h1>
+<form id="search-form" class="search-form" role="search" action="search.html" method="get">
+  <label for="q" class="sr-only">Search records</label>
+  <div class="search-row">
+    <input id="q" name="q" type="search" placeholder="Item title, number, name or street">
+    <button type="submit">Search</button>
+  </div>
+  <div class="search-layout">
+    <details class="filter-panel" id="filter-panel" data-open-wide>
+      <summary>Filters <span id="filter-count"></span></summary>
+      <fieldset>
+        <legend>Show</legend>
+        <label><input type="checkbox" name="kind" value="item"> Items</label>
+        <label><input type="checkbox" name="kind" value="vote"> Votes</label>
+        <label><input type="checkbox" name="kind" value="meeting"> Meetings</label>
+        <label><input type="checkbox" name="kind" value="person"> People and districts</label>
+      </fieldset>
+      <fieldset>
+        <legend>Body</legend>
+        <label><input type="checkbox" name="body" value="county" checked disabled> {{ site.cfg.county_body }}</label>
+        <label><input type="checkbox" name="body" value="city" disabled> {{ site.cfg.city_body }} (coming)</label>
+      </fieldset>
+      <fieldset class="years">
+        <legend>Years</legend>
+        <label for="from">From</label>
+        <select id="from" name="from"><option value="">Any</option>{% for y in years %}<option value="{{ y }}">{{ y }}</option>{% endfor %}</select>
+        <label for="to">To</label>
+        <select id="to" name="to"><option value="">Any</option>{% for y in years %}<option value="{{ y }}">{{ y }}</option>{% endfor %}</select>
+      </fieldset>
+      <fieldset>
+        <legend>Item type</legend>
+        {% for t in types %}<label><input type="checkbox" name="type" value="{{ t.key }}"> {{ t.label }}</label>{% endfor %}
+        <p class="hint"><a href="{{ root }}about.html#item-types">How item types are decided</a></p>
+      </fieldset>
+      <fieldset>
+        <legend>Official</legend>
+        <label for="official" class="sr-only">Official</label>
+        <select id="official" name="official"><option value="">Anyone</option>{% for o in officials %}<option value="{{ o.id }}">{{ o.label }}</option>{% endfor %}</select>
+      </fieldset>
+      <fieldset id="vote-set" aria-describedby="vote-hint">
+        <legend>How they voted</legend>
+        <p class="hint" id="vote-hint">Choose an official first. Confirmed roll calls only.</p>
+        <label><input type="radio" name="vote" value="" checked> Any</label>
+        <label><input type="radio" name="vote" value="yes"> Yes</label>
+        <label><input type="radio" name="vote" value="no"> No</label>
+        <label><input type="radio" name="vote" value="abstain"> Abstain</label>
+        <label><input type="radio" name="vote" value="other"> Other</label>
+      </fieldset>
+      <fieldset>
+        <legend>Outcome</legend>
+        <p class="hint">Confirmed roll calls only.</p>
+        <label><input type="checkbox" name="outcome" value="passed"> Passed</label>
+        <label><input type="checkbox" name="outcome" value="failed"> Failed</label>
+        <label><input type="checkbox" name="outcome" value="other"> Other</label>
+      </fieldset>
+      <button type="button" id="apply" class="apply">Apply</button>
+    </details>
+    <div class="results-col">
+      <div class="results-bar">
+        <label for="order">Order</label>
+        <select id="order" name="order"><option value="">Relevance</option><option value="new">Newest first</option><option value="old">Oldest first</option></select>
+        <button type="button" id="clear">Clear all filters</button>
+        <button type="button" id="copy">Copy link to this search</button>
+        <span id="copied" role="status" class="muted"></span>
+      </div>
+      <ul id="chips" class="chips" aria-label="Active filters"></ul>
+      <p id="confirmed-only" class="note" hidden></p>
+      <p id="count" class="count" role="status" aria-live="polite" tabindex="-1"></p>
+      <div id="results" aria-busy="true">
+        <noscript>
+          <p>Search needs JavaScript. Browse instead: <a href="{{ root }}{{ site.nav[2].href }}">Votes</a>, <a href="{{ root }}meetings.html">Meetings</a>, <a href="{{ root }}officials.html">Officials</a>, {% for y in site.item_years_desc %}<a href="{{ root }}items/{{ y }}.html">Items {{ y }}</a>, {% endfor %}<a href="{{ root }}data.html">Data downloads</a>.</p>
+        </noscript>
+        <p class="js-only" id="loading">Loading search...</p>
+      </div>
+      <button type="button" id="more" hidden>Show more results</button>
+    </div>
+  </div>
+</form>
+<template id="help">
+  <p>Search item titles, numbers, names and streets. Example: an item number like CZ-18-2020, or a street name.</p>
+  <p>Or browse: <a href="{{ root }}{{ site.nav[2].href }}">Votes</a>, <a href="{{ root }}items/{{ site.item_years_desc[0] if site.item_years_desc else '' }}.html">Items by year</a>, <a href="{{ root }}meetings.html">Meetings</a>.</p>
+</template>
+{% endblock %}
+{% block scripts %}
+<script src="{{ root }}static/search-index.js" defer></script>
+<script src="{{ root }}static/search.js" defer></script>
+{% endblock %}
