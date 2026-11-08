@@ -44,7 +44,8 @@ PROVENANCE: dict[str, str] = {
     "attendance.raw_name": "stated", "attendance.status": "stated",
     "roll_calls.id": "derived: content position", "roll_calls.meeting_id": "derived: id",
     "roll_calls.item_id": "derived: item linking rule", "roll_calls.motion_id": "derived: motion linking rule",
-    "roll_calls.confirmed": _VER, "roll_calls.outcome": "stated", "roll_calls.outcome_text": "stated",
+    "roll_calls.confirmed": _VER, "roll_calls.vote_on": "derived: fixed full-match patterns on the outcome clause",
+    "roll_calls.outcome": "stated", "roll_calls.outcome_text": "stated",
     "roll_calls.stated_yes": "stated", "roll_calls.stated_no": "stated", "roll_calls.stated_abstain": "stated",
     "votes.fact_id": "derived: id", "votes.roll_call_id": "derived: id", "votes.meeting_id": "derived: id",
     "votes.item_id": "derived: item linking rule", "votes.official_id": "derived: name resolution",
@@ -90,8 +91,8 @@ _J = {
                             "page": _CITE["page"]},
     "roll_calls": {"id": "derived: content position", "item_id": PROVENANCE["roll_calls.item_id"],
                    "meeting_id": "derived: id", "motion_id": PROVENANCE["roll_calls.motion_id"], "outcome": "stated",
-                   "outcome_text": "stated", "page": _CITE["page"], "source_id": "derived: id",
-                   "stated_tally": "stated", "verification": _VER, "votes": "stated", "confirmed": _VER},
+                   "outcome_text": "stated", "vote_on": PROVENANCE["roll_calls.vote_on"], "page": _CITE["page"],
+                   "source_id": "derived: id", "stated_tally": "stated", "verification": _VER, "votes": "stated", "confirmed": _VER},
     "roll_calls.votes": {"official_id": "derived: name resolution", "raw_name": "stated", "value": "stated",
                          "raw_value": "stated", "confirmed": _VER},
     "motions": {"id": "derived: content position", "item_id": PROVENANCE["motions.item_id"],
@@ -146,7 +147,7 @@ def strip_raw(facts: dict, internal: bool = False) -> dict:
     """The public export carries no raw OCR text: ids, resolved official ids, verified status, check names, type label
     and source links only. Raw name, motion-text and check-detail fields exist only in internal builds."""
     from sitegen import config
-    from sitegen.views import motion_type_label
+    from sitegen.views import motion_type_label, outcome_kind_label
 
     def clean(row, drop=("raw_name",)):
         return row if internal or not row else {k: v for k, v in row.items() if k not in drop}
@@ -169,6 +170,7 @@ def strip_raw(facts: dict, internal: bool = False) -> dict:
         return dict(row, value=None)
 
     out["roll_calls"] = [values(r, dict(ver(clean(r, ("outcome_text",))), confirmed=is_verified(r),
+                                        vote_on=outcome_kind_label(r.get("outcome_text")) if is_verified(r) else None,
                                         votes=[values(r, dict(clean(v, ("raw_name", "raw_value")),
                                                               confirmed=is_verified(r)))
                                                for v in r["votes"]]))
@@ -243,7 +245,7 @@ def tables(facts: dict, all_facts: dict, internal: bool = False, seats: list[dic
     out["roll_calls"] = _csv([dict(r, **{f"stated_{k}": (r["stated_tally"] or {}).get(k) for k in ("yes", "no", "abstain")},
                                    **cite(r["source_id"], r["page"]))
                               for r in facts["roll_calls"]],
-                             ["id", "meeting_id", "item_id", "motion_id", "confirmed", "outcome"]
+                             ["id", "meeting_id", "item_id", "motion_id", "confirmed", "vote_on", "outcome"]
                              + (["outcome_text"] if internal else []) + ["stated_yes", "stated_no", "stated_abstain"]
                              + SRC_COLS)
     out["votes"] = _csv([dict(v, fact_id=f"{r['id']}/{v['official_id']}", roll_call_id=r["id"],

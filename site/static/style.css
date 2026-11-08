@@ -629,8 +629,8 @@ mark { background: var(--banner-bg); color: var(--banner-fg); padding: 0 1px; }
 /* ---- Table sizing and long text (owner feedback: no entry taller than the screen) ---------------------------- */
 .table-scroll table { overflow-wrap: anywhere; }
 table.history { table-layout: fixed; min-width: 44rem; }
-table.history col.c-date { width: 6.6rem; }
-table.history col.c-type { width: 6.4rem; }
+table.history col.c-date { width: 7rem; }
+table.history col.c-type { width: 8rem; }
 table.history col.c-record { width: 7.4rem; }
 table.history col.c-outcome { width: 8rem; }
 table.history col.c-source { width: 6.4rem; }

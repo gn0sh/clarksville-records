@@ -75,6 +75,19 @@ def motion_type_label(text: str) -> str:
     return config.UNVERIFIED_MOTION_DEFAULT
 
 
+def outcome_kind_label(text: str | None) -> str | None:
+    """What a roll call voted on ("Amendment", "Resolution, as amended", ...), derived from the outcome clause by the
+    fixed full-match patterns in config.OUTCOME_KINDS. None unless a pattern matches exactly. Never returns any part
+    of `text`."""
+    if not text:
+        return None
+    t = " ".join(text.split()).lstrip("\u201c\u201d\" ")
+    for pattern, label in config.OUTCOME_KINDS:
+        if re.fullmatch(pattern, t, re.I):
+            return label
+    return None
+
+
 class Index:
     """Lookup tables over one facts dict."""
 
@@ -146,14 +159,15 @@ class Index:
         """What a roll call may say about its motion: the motion's type in plain words (never its sentence) and
         'Moved by A, seconded by B' from the resolved officials' display names when the motion is verified."""
         mo = self.motions.get(rc["motion_id"]) if rc["motion_id"] else None
+        vote_on = outcome_kind_label(rc.get("outcome_text")) if is_verified(rc) else None  # held rolls say nothing read
         if mo is None:
-            return {"motion_text": None, "motion_label": None, "motion_by": None}
+            return {"motion_text": None, "motion_label": None, "motion_by": None, "vote_on": vote_on}
         att = self.attribution(mo)
         # structured, so every page links each name to its official page (standing rule: a name is a link)
         parts = [{"word": w, "name": p["name"], "href": p["href"], "seat": p.get("seat")}
                  for w, p in (("Moved", att["mover"]), ("seconded", att["seconder"])) if p]
         return {"motion_text": None, "motion_label": motion_type_label(mo["text"]),
-                "motion_by": parts or None}
+                "motion_by": parts or None, "vote_on": vote_on}
 
     # -- generic builders ------------------------------------------------------------------------------------
     def src(self, source_id: str, page: int) -> dict:
@@ -515,7 +529,7 @@ def official(official_id: str, facts) -> dict:
             "type": kind, "type_label": config.TYPE_LABELS[kind], "date": m["date"], "year": m["date"][:4],
             "meeting_label": ix.meeting_label(m), "meeting_href": f"meetings/{meeting_id}.html{anchor}",
             "fact_id": fact_id, "src": ix.src(source_id, page), "page": page,
-            "item": None, "motion_text": None, "motion_label": None, "motion_by": None,
+            "item": None, "motion_text": None, "motion_label": None, "motion_by": None, "vote_on": None,
             "record": "", "key": None, "outcome": None, "pos": 0, "confirmed": True,
         }
 
@@ -1053,6 +1067,7 @@ def votes_year(year: str, facts) -> dict:
         rows.append({"id": rc["id"], "date": m["date"], "item": ix.item_ref(rc["item_id"]),
                      "meeting_href": f"meetings/{m['id']}.html#{rc['id']}", "meeting_label": ix.meeting_label(m),
                      "outcome": ix.outcome(rc), "confirmed": is_verified(rc),
+                     "vote_on": ix.motion_for(rc)["vote_on"],
                      "src": ix.src(rc["source_id"], rc["page"]), "pos": ix.position(rc)})
     rows.sort(key=lambda r: r["pos"])
     rows.sort(key=lambda r: r["date"], reverse=True)

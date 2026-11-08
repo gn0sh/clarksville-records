@@ -308,3 +308,20 @@ def test_outcome_shows_label_and_tally_counted_from_votes(tmp_path, facts):
     block = next(n for n in parse(pages[f"meetings/{MEETING_DEC}.html"]).walk() if n.attrs.get("id") == RC_SHOWN)
     text = " ".join(block.all_text().split())
     assert f"Passed (counted: {yes} yes, {no} no" in text and "Qqoutcome" not in text
+
+
+def test_outcome_kind_label_uses_fixed_full_match_patterns_only():
+    """The "Vote on:" label comes from the outcome clause by fixed full-match patterns; anything else gets none."""
+    from sitegen.views import outcome_kind_label as k
+    tail = " by the following roll call vote:"
+    assert k("The foregoing Amendment was Adopted" + tail) == "Amendment"
+    assert k("The foregoing Resolution, As Amended, was Adopted" + tail) == "Resolution, as amended"
+    assert k("The foregoing Resolution was Adopted, as Amended," + tail) == "Resolution, as amended"
+    assert k("the foregoing Resolution Failed by the following roll call Vote:") == "Resolution"
+    assert k("Brown The foregoing Amendment was Approved" + tail) == "Amendment"
+    assert k("The Motion to Defer was Approved" + tail) == "Motion to defer"
+    assert k("the foregoing Consent Agenda items were Adopted and Approved" + tail) == "Consent agenda"
+    # no exact match: no label, and never any of the clause's own words
+    assert k("Mayor Golden was elected by the following roll call vote:") is None
+    assert k("The foregoing Amendment to cut funding for the Assessor's renovation Failed" + tail) is None
+    assert k("") is None and k(None) is None
