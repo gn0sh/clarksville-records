@@ -126,15 +126,17 @@ def _looks_html(body: bytes, headers: dict) -> bool:
 
 
 def fetch_into_store(fetcher, store: Store, url: str, meta: dict | None = None,
-                     expect: str = "pdf") -> tuple[dict, str]:
+                     expect: str = "pdf", refresh: bool = False) -> tuple[dict, str]:
     """Return the stored entry for url, downloading only when its bytes are not in the store.
 
     expect="pdf" (minutes, finance documents): a body that is not a PDF raises NotPdf (a FetchFailed) and is not
-    stored. expect="html" (the purchasing archive page): the body must be an HTML page, stored as a source."""
+    stored. expect="html" (the purchasing archive page): the body must be an HTML page, stored as a source.
+    refresh=True requests the URL even when its bytes are stored (a page that changes in place, like the archive);
+    unchanged bytes still leave the manifest as it was."""
     if expect not in ("pdf", "html"):
         raise ValueError(f"expect must be 'pdf' or 'html', not {expect!r}")
     known = store.latest(url)
-    if known and store.has_bytes(known["sha256"]):
+    if known and store.has_bytes(known["sha256"]) and not refresh:
         changed = False
         for k in ("kind", "meeting_date", "label"):        # discovery metadata may be filled in later
             if meta and meta.get(k) and known.get(k) != meta[k]:

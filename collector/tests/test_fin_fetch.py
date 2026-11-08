@@ -1,6 +1,7 @@
 """F2: the finance hosts go through the same polite fetcher. Bonfire hosts are hard-denied (never requested, not even
 robots.txt); the archive page is stored as HTML; a non-PDF document is recorded and not stored; a CONNECT refusal by
 the sandbox proxy and a 403 from the site stay distinguished on the finance hosts (AC-F11). No network."""
+import json
 import urllib.parse
 
 import pytest
@@ -119,3 +120,66 @@ def test_finance_hosts_carry_no_literal_in_the_fetcher():
     src = (fin_config.ROOT / "collector" / "fetch.py").read_text(encoding="utf-8")
     assert all(h not in src for h in CFG.bonfire_hosts)
     assert urllib.parse.urlsplit(ARCHIVE).path not in src
+
+
+# ------------------------------------------------------------------ fin fetch (collector/fin_run.cmd_fetch)
+FIXTURE_HTML = (fin_config.ROOT / "collector" / "tests" / "fixtures" / "finance" / "archive_trimmed.html").read_bytes()
+
+
+def _links():
+    from collector import fin_run
+    from collector.fin_archive import parse_archive
+    return fin_run.archive_links(parse_archive(FIXTURE_HTML.decode(), CFG))
+
+
+def _fin_fetch(tmp_path, routes):
+    from collector import fin_run
+    net, clock = FakeNet(routes), Clock()
+    f = PoliteFetcher(opener=net, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: [],
+                      extra_denied=CFG.bonfire_hosts)
+    st = store(tmp_path)
+    sp = tmp_path / "fin_fetch_status.json"
+    log = fin_run.cmd_fetch(st, CFG, fetcher=f, status_path=sp, today="2026-11-08", progress=lambda *a, **k: None)
+    return log, net, st, sp
+
+
+def test_fin_fetch_requests_pdfs_only_and_never_bonfire(tmp_path):
+    links = _links()
+    pdfs = [u for u, _, _ in links if not u.endswith(".docx")]
+    routes = {ARCHIVE: (200, FIXTURE_HTML, {"Content-Type": "text/html"})}
+    routes.update({u: (200, b"%PDF-1.7 " + u.encode()) for u in pdfs[1:]})       # the first PDF link is dead (404)
+    log, net, st, sp = _fin_fetch(tmp_path, routes)
+    called = [u for u, _ in net.calls]
+    assert called[:2] == [f"https://{HOST}/robots.txt", ARCHIVE]
+    assert not any("bonfire" in u or u.endswith(".docx") for u in called)
+    assert set(called[2:]) == set(pdfs) and len(called) == len(set(called))
+    assert log["stopped"] is None and log["fetched"] == {"new": len(pdfs) - 1}
+    status = json.loads(sp.read_text())
+    assert {u: v["status"] for u, v in status.items()} == {
+        pdfs[0]: "dead_at_fetch", **{u: "not_pdf" for u, _, _ in links if u.endswith(".docx")}}
+    assert st.latest(ARCHIVE)["kind"] == "archive_index"
+    # a second run: the archive is re-requested, the dead link retried, nothing else; status file unchanged
+    before = sp.read_text()
+    _, net2, _, _ = _fin_fetch(tmp_path, routes)
+    assert [u for u, _ in net2.calls] == [f"https://{HOST}/robots.txt", ARCHIVE, pdfs[0]]
+    assert sp.read_text() == before
+
+
+def test_fin_fetch_stops_on_a_site_403(tmp_path):
+    first = _links()[0][0]
+    routes = {ARCHIVE: (200, FIXTURE_HTML, {"Content-Type": "text/html"}), first: (403, b"no")}
+    log, net, _, _ = _fin_fetch(tmp_path, routes)
+    assert log["stopped"].startswith("HostBlocked")
+    assert [u for u, _ in net.calls][-1] == first             # nothing after the block, no other route
+
+
+def test_fin_fetch_stops_on_a_blocked_archive(tmp_path):
+    log, net, st, _ = _fin_fetch(tmp_path, {ARCHIVE: (403, b"no")})
+    assert log["stopped"].startswith("HostBlocked") and log["links"] == 0
+    assert st.latest(ARCHIVE) is None
+
+
+def test_fin_fetch_refuses_a_fetcher_that_allows_bonfire(tmp_path):
+    from collector import fin_run
+    with pytest.raises(ValueError):
+        fin_run.cmd_fetch(store(tmp_path), CFG, fetcher=PoliteFetcher(), status_path=tmp_path / "s.json")
