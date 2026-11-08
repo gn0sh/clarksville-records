@@ -238,6 +238,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     for o in facts["officials"]:
         ctx = views.official(o["id"], ix)
         render("official.html.j2", f"officials/{o['id']}.html", o["name"], **ctx)
+    for oid in sorted(ix.seats.roster_only):  # in the roster, not in the facts: a page that says nothing is recorded
+        ctx = views.roster_official(oid, ix)
+        render("official_roster.html.j2", f"officials/{oid}.html", ctx["official"]["name"], **ctx)
     for m in facts["meetings"]:
         ctx = views.meeting(m["id"], ix)
         render("meeting.html.j2", f"meetings/{m['id']}.html", f"Meeting {m['date']}", **ctx)

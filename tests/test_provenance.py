@@ -172,7 +172,7 @@ def test_seat_page_uses_observed_boundary_not_the_cutover(pages):
     assert "Seen in roll calls</th>" in p and "Held this seat" not in p
     assert config.SITE["lines_effective"] not in p and "redrawn in" not in p
     assert "Current: in the roll calls of the latest meeting collected, 2024-12-09." in p
-    assert re.search(r"<h3[^>]*>D\. Testperson, District 2: roll calls 2024-12-09 to 2024-12-09</h3>", p)
+    assert re.search(r"<h3[^>]*><a [^>]*>D\. Testperson</a>, District 2: roll calls 2024-12-09 to 2024-12-09</h3>", p)
     assert config.SITE["redistricting_page"] in p
 
 

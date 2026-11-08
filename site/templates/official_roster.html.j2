@@ -1,0 +1,28 @@
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import badge, seat %}
+{# A person from the seat roster with no facts (no votes, attendance, motions or seconds in the minutes collected).
+   The same header as every official page; the sentence below is fixed, never an empty vote history. #}
+{% block main %}
+<header class="official-head">
+  {{ badge(initials, true) }}
+  <div class="official-id">
+    <h1>{{ official.name }}</h1>
+    {% if official.title %}<p class="title-line">{{ official.title }}</p>{% endif %}
+    {% for r in records %}<p class="seat-line">{{ seat(r.label ~ ", " ~ r.dates_text) }}</p>{% endfor %}
+    <p class="muted coverage">{{ coverage_sentence }}</p>
+  </div>
+</header>
+
+<section aria-labelledby="record-h">
+  <h2 id="record-h">Recorded votes and attendance</h2>
+  <p>No votes or attendance are recorded for this person in the minutes collected so far.</p>
+</section>
+
+<section aria-labelledby="seat-h">
+  <h2 id="seat-h">Seat and source</h2>
+  {% for r in records %}
+  <p class="holder-row">{{ r.label }}, {{ r.dates_text }}. <span class="cite">Source: <a data-ext="roster" href="{{ r.src }}" target="_blank" rel="noopener noreferrer">{% if r.last_src %}first, {% endif %}{{ r.src_label }}<span class="sr-only"> (opens in a new tab)</span></a>{% if r.last_src %}; <a data-ext="roster" href="{{ r.last_src }}" target="_blank" rel="noopener noreferrer">last, {{ r.last_src_label }}<span class="sr-only"> (opens in a new tab)</span></a>{% endif %}</span></p>
+  {% if r.basis %}<p class="basis muted">{{ r.basis }}.</p>{% endif %}
+  {% endfor %}
+</section>
+{% endblock %}

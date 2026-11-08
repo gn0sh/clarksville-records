@@ -75,5 +75,30 @@ UNVERIFIED_MOTION_TYPES = [
 ]
 UNVERIFIED_MOTION_DEFAULT = "Motion"
 
+# What a roll call voted on, from the minutes' own outcome clause ("The foregoing Amendment was Adopted by the
+# following roll call vote:"). Derived by fixed patterns, like the motion type: each pattern must match the WHOLE
+# clause (after trimming stray quotes, a leading name and spacing); anything else gets no label. Never shows any part
+# of the clause itself. The first match wins.
+_VERB = r"(?:(?:was|were) )?(?:adopted|approved|failed)(?: and approved)?"
+_TAIL = r" by (?:the|th~) following roll call vote:?\W*"
+OUTCOME_SUBJECTS = [
+    (r"(?:the )?foregoing resolution,? as amended,? " + _VERB, "Resolution, as amended"),
+    (r"(?:the )?foregoing resolution " + _VERB + r", as amended,", "Resolution, as amended"),
+    (r"(?:the )?foregoing amended resolution " + _VERB, "Resolution, as amended"),
+    (r"(?:the )?foregoing zoning resolution " + _VERB, "Zoning resolution"),
+    (r"(?:the )?foregoing resolution " + _VERB, "Resolution"),
+    (r"(?:the )?foregoing amendment " + _VERB, "Amendment"),
+    (r"(?:the )?amendment " + _VERB, "Amendment"),
+    (r"(?:the )?foregoing motion to defer " + _VERB, "Motion to defer"),
+    (r"(?:the )?motion to defer " + _VERB, "Motion to defer"),
+    (r"(?:the )?(?:foregoing )?motion to table " + _VERB, "Motion to table"),
+    (r"(?:the )?motion to reconsider " + _VERB, "Motion to reconsider"),
+    (r"(?:the )?(?:foregoing )?motion " + _VERB, "Motion"),
+    (r"(?:the )?foregoing consent agenda items " + _VERB, "Consent agenda"),
+]
+# Before the clause there may be one stray word (a name) or earlier text that ends in sentence punctuation (an
+# amendment's own wording); that text is never shown.
+OUTCOME_KINDS = [(r"(?:[a-z]+ |.*?[.:;\u201c\u201d\"] )?" + subj + _TAIL, label) for subj, label in OUTCOME_SUBJECTS]
+
 # Source URLs must use this scheme; anything else fails the build.
 ALLOWED_URL_SCHEMES = ("https",)

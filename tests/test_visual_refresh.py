@@ -93,8 +93,8 @@ def test_officials_cards_follow_the_seat_rule_and_share_one_skeleton(pages, fact
                 for a in c.walk() if a.tag == "a"]
 
     assert hrefs(sections["current"]) == ["officials/a-example.html", "officials/d-testperson.html",
-                                          "officials/c-placeholder.html"]  # District 1, District 2, County Mayor
-    # then the roster-only City Mayor (no page, no counts): a card with the fixed sentence, last by seat order
+                                          "officials/c-placeholder.html", "officials/f-rosteronly.html"]  # District 1, District 2, County Mayor, City Mayor
+    # the roster-only City Mayor (a page that says nothing is recorded, no counts): a card with the fixed sentence, last by seat order
     names = [" ".join(c.all_text().split()) for c in sections["current"].walk()
              if c.tag == "li" and c.attrs.get("class") == "card"]
     assert names[-1].startswith("FR F. Rosteronly, City Mayor") and "No votes or attendance are recorded" in names[-1]

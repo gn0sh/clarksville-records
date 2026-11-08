@@ -48,8 +48,8 @@
     <tbody>
     {% for o in officials %}
       <tr>
-        <th scope="row">{{ o.name }}</th>
-        <td>{% if o.aliases %}{{ o.aliases | join("; ") }}{% else %}None recorded{% endif %}</td>
+        <th scope="row"><a href="{{ root }}officials/{{ o.id }}.html">{{ o.name }}</a></th>
+        <td data-variants>{% if o.aliases %}{{ o.aliases | join("; ") }}{% else %}None recorded{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>

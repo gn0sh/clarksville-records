@@ -134,7 +134,7 @@
     }
     var html = '<li class="result"><p class="r-kind">' + esc(parts.join(" · ")) + "</p>";
     html += '<p class="r-title"><a href="' + esc(r.h) + '">' + (r.n ? "<strong>" + mark(r.n, toks) + "</strong> " : "") +
-      mark(r.t, toks) + "</a>" + (r.st ? ' <span class="seat">' + mark(r.st, toks) + "</span>" : "") + "</p>" +
+      mark(r.t, toks) + "</a>" + (r.st ? ' <span class="seat">' + (r.ho ? '<a href="officials/' + esc(r.ho) + '.html">' + mark(r.st, toks) + "</a>" : mark(r.st, toks)) + "</span>" : "") + "</p>" +
       (r.z ? '<p class="r-zoning">' + mark(r.z, toks) + "</p>" : "");
     var meta = "";
     if (r.k === "item") {
@@ -143,7 +143,7 @@
     } else if (r.k === "vote") {
       meta = esc(r.d) + " · Outcome: " + (r.c && r.o ? esc(OUTCOME[r.o]) : 'Not confirmed<span aria-hidden="true">*</span><span class="sr-only"> (not confirmed)</span>, see the page');
       if (st.official && st.vote && r.v && r.s) {
-        meta += '<br>' + esc(IX.names[st.official]) + '<span class="seat">, ' + esc(seatOn(r.d, st.official)) + "</span>: " +
+        meta += '<br><a href="officials/' + esc(st.official) + '.html">' + esc(IX.names[st.official]) + '</a><span class="seat">, ' + esc(seatOn(r.d, st.official)) + "</span>: " +
           esc(VOTE[r.v[st.official]]) +
           ' · Source: <a href="' + esc(r.s.u) + '" target="_blank" rel="noopener noreferrer">minutes p. ' + esc(r.s.p) +
           ", fetched " + esc(r.s.f) + "</a>";

@@ -24,6 +24,7 @@ def public_schema():
     for k, f in (("vote", "raw_value"), ("roll_call", "outcome_text")):
         s["$defs"][k]["required"] = [r for r in s["$defs"][k]["required"] if r != f]
     s["$defs"]["motion"]["properties"]["type_label"] = {"type": "string"}
+    s["$defs"]["roll_call"]["properties"]["vote_on"] = {"type": ["string", "null"]}  # derived label, fixed patterns
     for k in ("motion", "roll_call", "vote"):
         s["$defs"][k]["properties"]["confirmed"] = {"type": "boolean"}
         s["$defs"][k]["required"] = s["$defs"][k]["required"] + ["confirmed"]
