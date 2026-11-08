@@ -129,7 +129,7 @@ def test_a_second_engine_on_the_same_printing_is_an_independent_reading(rules):
     text = by_case(Z.page_readings([resolution()], rules), "CZ-01-2024")
     tess = by_case(Z.page_readings([resolution().replace("+1-", "+/-")], rules, engine="tesseract"), "CZ-01-2024")
     out = Z.decide(pooled(text + tess))
-    assert out["acreage"]["value"] == 2.32
+    assert out["acreage"] == {"value": 2.32, "printed": "2.32 +/- acres", "source_id": "src-505a509b28f7", "page": 1}
     assert out["location"]["value"] == "A parcel located at the northwest corner of Oakwood Rd. & Wine Ln."
     assert out["applicant"] is None                       # Blick in the heading, Buck elsewhere: still a dissent
 
@@ -227,3 +227,23 @@ def test_patterns_do_not_overrun_their_values(rules):
     staff = {r.field: r for r in Z.page_readings([blank], rules)}
     assert "to_zoning" not in staff and staff["from_zoning"].value == ("R-1",)     # a blank reads nothing
     assert Z._zoning("C-5 - Highway & Arterial Commercial", rules, True)[0] == ("C-5",)    # not code "C-5-Highway"
+
+
+def test_acreage_keeps_its_printed_form(rules):
+    """The number alone loses "+/-", "approximately" and trailing zeros; `printed` keeps the form the agreeing readings
+    print (provenance/acreage-not-as-printed)."""
+    page = resolution().replace("containing 2.32 +1- acres", "containing approximately 2.320 +/- acres")
+    rs = by_case(Z.page_readings([page], rules) + Z.page_readings([page], rules, engine="tesseract"), "CZ-01-2024")
+    a = Z.decide(pooled(rs))["acreage"]
+    assert a["value"] == 2.32 and a["printed"] == "approximately 2.320 +/- acres"
+    staff = Z.page_readings([STAFF], rules) + Z.page_readings([STAFF], rules, engine="tesseract")
+    assert Z.decide(pooled(by_case(staff, "CZ-02-2024")))["acreage"]["printed"] == "1.29 +/-"
+
+
+def test_zoning_keys_are_registered_as_stated():
+    from collector.export import PROVENANCE
+    assert PROVENANCE["facts.json:items.zoning"] == "stated"
+    for f in Z.FIELDS:
+        assert PROVENANCE[f"facts.json:items.zoning.{f}.value"] == "stated"
+        assert PROVENANCE[f"facts.json:items.zoning.{f}.page"].startswith("derived: ")
+    assert PROVENANCE["facts.json:items.zoning.acreage.printed"] == "stated"

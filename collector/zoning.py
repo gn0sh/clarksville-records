@@ -28,7 +28,9 @@ The agreement rule (written, the same for every case and field):
 6. The value shown, with its source page: a form both engines read character for character (whitespace collapsed);
    else the characters of the best-ranked reading (mixed case over capitals, "+/-" over its misread "+1-", no odd
    capitals like "BUck") with a word break only where at least one reading of each engine has one. The text layer
-   drops spaces and tesseract adds them ("Mc Donald"), so a break only one engine saw is not shown.
+   drops spaces and tesseract adds them ("Mc Donald"), so a break only one engine saw is not shown. An acreage
+   also keeps its printed form by the same rule (`printed`: "2.320 +/- acres", where the printing wraps the number
+   in `acreage_printed`), beside the number, so "+/-", "approximately" and trailing zeros are not lost.
 """
 from __future__ import annotations
 
@@ -199,12 +201,15 @@ def page_case(text: str, rules: Rules) -> str | None:
 def _match_fields(text: str, pr: dict, rules: Rules, case: str, engine: str, page: int, first: int = 0) -> list[Reading]:
     out = []
     for k, m in enumerate(pr["regex"].finditer(text)):
-        for field, raw in m.groupdict().items():
+        gd = m.groupdict()
+        for field, raw in gd.items():
             if field not in FIELDS or raw is None:
                 continue
             got = _value(field, raw, rules, pr["named_districts"])
             # matched but malformed: kept as a reading that vetoes the field (rule 2), never dropped
             value, shown, key = got if got else (None, _squash(raw), MALFORMED)
+            if got and field == "acreage" and gd.get("acreage_printed"):
+                shown = _squash(gd["acreage_printed"])        # "2.320 +/- acres", "approximately .91 acres"
             out.append(Reading(case, field, value, shown, key, pr["name"], engine, page, first + k))
     return out
 
@@ -355,4 +360,6 @@ def decide(readings: list) -> dict:
         shown, (r, sid, _) = _shown(g)
         value = list(r.value) if isinstance(r.value, tuple) else (shown if isinstance(r.value, str) else r.value)
         out[field] = {"value": value, "source_id": sid, "page": r.page}
+        if field == "acreage":                          # the number as printed, with its words (rule 6)
+            out[field] = {"value": value, "printed": shown, "source_id": sid, "page": r.page}
     return out

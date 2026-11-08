@@ -102,9 +102,10 @@ _J = {
     "items": {**{k: PROVENANCE[f"items.{k}"] for k in ("id", "link_basis", "number", "title", "year")},
               # rezoning cases (collector/zoning.py): each field as printed on one cited page, or null
               "zoning": "stated"},
-    # items.zoning.<field>: the value as the minutes print it (applicant, location verbatim; acreage the number;
-    # from/to zoning the printed district codes), with the cited source page
-    **{f"items.zoning.{f}": {"value": "stated", "source_id": "derived: id", "page": _CITE["page"]}
+    # items.zoning.<field>: the value as the minutes print it (applicant, location verbatim; acreage the number with
+    # `printed` its printed form; from/to zoning the printed district codes), with the cited source page
+    **{f"items.zoning.{f}": {"value": "stated", "source_id": "derived: id", "page": _CITE["page"],
+                             **({"printed": "stated"} if f == "acreage" else {})}
        for f in ("applicant", "location", "acreage", "from_zoning", "to_zoning")},
     "item_events": {"date": "stated", "id": "derived: content position", "item_id": PROVENANCE["item_events.item_id"],
                     "label": "stated", "meeting_id": "derived: id", "order": PROVENANCE["item_events.order"],

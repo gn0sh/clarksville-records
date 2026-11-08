@@ -28385,6 +28385,7 @@
       "zoning": {
         "acreage": {
           "page": 5,
+          "printed": "2.32 +/- acres",
           "source_id": "src-505a509b28f7",
           "value": 2.32
         },
@@ -28413,6 +28414,7 @@
       "zoning": {
         "acreage": {
           "page": 7,
+          "printed": "1.29 acres",
           "source_id": "src-2149fe00d2e6",
           "value": 1.29
         },
@@ -28451,6 +28453,7 @@
       "zoning": {
         "acreage": {
           "page": 17,
+          "printed": "1.13 acres",
           "source_id": "src-2149fe00d2e6",
           "value": 1.13
         },
@@ -28479,6 +28482,7 @@
       "zoning": {
         "acreage": {
           "page": 27,
+          "printed": "2.34 acres",
           "source_id": "src-2149fe00d2e6",
           "value": 2.34
         },
@@ -28537,6 +28541,7 @@
       "zoning": {
         "acreage": {
           "page": 5,
+          "printed": ".35 acres",
           "source_id": "src-31a1097ce81b",
           "value": 0.35
         },
@@ -28595,6 +28600,7 @@
       "zoning": {
         "acreage": {
           "page": 9,
+          "printed": "1.08 acres",
           "source_id": "src-9e291a55986d",
           "value": 1.08
         },
@@ -28657,6 +28663,7 @@
       "zoning": {
         "acreage": {
           "page": 8,
+          "printed": "1.00-i-I-acres",
           "source_id": "src-3a926fac623a",
           "value": 1.0
         },
@@ -28685,6 +28692,7 @@
       "zoning": {
         "acreage": {
           "page": 4,
+          "printed": "2.8 +/- acres",
           "source_id": "src-59d6ad382cde",
           "value": 2.8
         },
@@ -28793,6 +28801,7 @@
       "zoning": {
         "acreage": {
           "page": 5,
+          "printed": "230 acres",
           "source_id": "src-66f87bb7fd4f",
           "value": 230.0
         },
@@ -28871,6 +28880,7 @@
       "zoning": {
         "acreage": {
           "page": 10,
+          "printed": "0.85 +/- acres",
           "source_id": "src-3dee31b10e2d",
           "value": 0.85
         },
@@ -28941,6 +28951,7 @@
       "zoning": {
         "acreage": {
           "page": 19,
+          "printed": "11.2+/- acres",
           "source_id": "src-ba7d4c9267e5",
           "value": 11.2
         },
@@ -29007,6 +29018,7 @@
       "zoning": {
         "acreage": {
           "page": 22,
+          "printed": "5 +/- acres",
           "source_id": "src-ba7d4c9267e5",
           "value": 5.0
         },
@@ -29029,6 +29041,7 @@
       "zoning": {
         "acreage": {
           "page": 6,
+          "printed": "0.99 +/- acres",
           "source_id": "src-c4992c9e270f",
           "value": 0.99
         },
@@ -29061,6 +29074,7 @@
       "zoning": {
         "acreage": {
           "page": 6,
+          "printed": "10.0 +/- acres",
           "source_id": "src-8419efe1acc7",
           "value": 10.0
         },
@@ -29099,6 +29113,7 @@
       "zoning": {
         "acreage": {
           "page": 5,
+          "printed": "4.04 +/- acres",
           "source_id": "src-4d802d50d1a3",
           "value": 4.04
         },
@@ -29153,6 +29168,7 @@
       "zoning": {
         "acreage": {
           "page": 20,
+          "printed": "2.78 acres",
           "source_id": "src-66f87bb7fd4f",
           "value": 2.78
         },
@@ -29181,6 +29197,7 @@
       "zoning": {
         "acreage": {
           "page": 8,
+          "printed": "8.92 +/- acres",
           "source_id": "src-8419efe1acc7",
           "value": 8.92
         },
@@ -29219,6 +29236,7 @@
       "zoning": {
         "acreage": {
           "page": 16,
+          "printed": "6.44 +/- acres",
           "source_id": "src-c4992c9e270f",
           "value": 6.44
         },
@@ -29259,6 +29277,7 @@
       "zoning": {
         "acreage": {
           "page": 29,
+          "printed": "1.0 acres",
           "source_id": "src-66f87bb7fd4f",
           "value": 1.0
         },
@@ -29345,6 +29364,7 @@
       "zoning": {
         "acreage": {
           "page": 38,
+          "printed": "6.10 acres",
           "source_id": "src-66f87bb7fd4f",
           "value": 6.1
         },
@@ -29369,6 +29389,7 @@
       "zoning": {
         "acreage": {
           "page": 4,
+          "printed": "21.75 +/- acres",
           "source_id": "src-64d40410a4ed",
           "value": 21.75
         },
@@ -29393,6 +29414,7 @@
       "zoning": {
         "acreage": {
           "page": 27,
+          "printed": "1.88+/-acres",
           "source_id": "src-4d802d50d1a3",
           "value": 1.88
         },
@@ -29450,6 +29472,7 @@
       "zoning": {
         "acreage": {
           "page": 24,
+          "printed": "1.10 acres",
           "source_id": "src-7325525d58ca",
           "value": 1.1
         },
@@ -29478,6 +29501,7 @@
       "zoning": {
         "acreage": {
           "page": 11,
+          "printed": "1.4 acres",
           "source_id": "src-9e291a55986d",
           "value": 1.4
         },
@@ -29506,6 +29530,7 @@
       "zoning": {
         "acreage": {
           "page": 4,
+          "printed": "22.2 acres",
           "source_id": "src-c2d86df5cc5d",
           "value": 22.2
         },
@@ -29540,6 +29565,7 @@
       "zoning": {
         "acreage": {
           "page": 30,
+          "printed": "11.01 +/- acres",
           "source_id": "src-caa80a4a1ddc",
           "value": 11.01
         },
@@ -29612,6 +29638,7 @@
       "zoning": {
         "acreage": {
           "page": 5,
+          "printed": "9.91 +/- acres",
           "source_id": "src-642246539ab0",
           "value": 9.91
         },
@@ -29670,6 +29697,7 @@
       "zoning": {
         "acreage": {
           "page": 8,
+          "printed": "3.35 acres",
           "source_id": "src-ae8150f52f55",
           "value": 3.35
         },
@@ -29696,6 +29724,7 @@
       "zoning": {
         "acreage": {
           "page": 8,
+          "printed": "9.75 +/- acres",
           "source_id": "src-64d40410a4ed",
           "value": 9.75
         },
@@ -29720,6 +29749,7 @@
       "zoning": {
         "acreage": {
           "page": 16,
+          "printed": "43.7 +/- acres",
           "source_id": "src-ca24948f8efa",
           "value": 43.7
         },
@@ -29772,6 +29802,7 @@
       "zoning": {
         "acreage": {
           "page": 10,
+          "printed": ".91 acres",
           "source_id": "src-ae8150f52f55",
           "value": 0.91
         },
@@ -29796,6 +29827,7 @@
       "zoning": {
         "acreage": {
           "page": 7,
+          "printed": "63.5 +/- acres",
           "source_id": "src-642246539ab0",
           "value": 63.5
         },
@@ -29820,6 +29852,7 @@
       "zoning": {
         "acreage": {
           "page": 26,
+          "printed": "0.91 +/- acres",
           "source_id": "src-ca24948f8efa",
           "value": 0.91
         },
@@ -29893,6 +29926,7 @@
       "zoning": {
         "acreage": {
           "page": 4,
+          "printed": "10.5 +/- acres",
           "source_id": "src-573601442606",
           "value": 10.5
         },
@@ -29947,6 +29981,7 @@
       "zoning": {
         "acreage": {
           "page": 4,
+          "printed": "19.6 acres",
           "source_id": "src-9e291a55986d",
           "value": 19.6
         },
@@ -30001,6 +30036,7 @@
       "zoning": {
         "acreage": {
           "page": 6,
+          "printed": "102.81 acres",
           "source_id": "src-9e291a55986d",
           "value": 102.81
         },
@@ -30029,6 +30065,7 @@
       "zoning": {
         "acreage": {
           "page": 6,
+          "printed": "18.31 +/- acres",
           "source_id": "src-c66ef694615a",
           "value": 18.31
         },
@@ -30047,6 +30084,7 @@
       "zoning": {
         "acreage": {
           "page": 26,
+          "printed": "1.4 acres",
           "source_id": "src-7325525d58ca",
           "value": 1.4
         },
@@ -30079,6 +30117,7 @@
       "zoning": {
         "acreage": {
           "page": 6,
+          "printed": "2.37 acres",
           "source_id": "src-c2d86df5cc5d",
           "value": 2.37
         },
@@ -30185,6 +30224,7 @@
       "zoning": {
         "acreage": {
           "page": 4,
+          "printed": "1.26 acres",
           "source_id": "src-9b7e32b905d0",
           "value": 1.26
         },
@@ -30233,6 +30273,7 @@
       "zoning": {
         "acreage": {
           "page": 8,
+          "printed": "1.03 acres",
           "source_id": "src-9b7e32b905d0",
           "value": 1.03
         },
@@ -30331,6 +30372,7 @@
       "zoning": {
         "acreage": {
           "page": 7,
+          "printed": "1.1 acres",
           "source_id": "src-ade826342018",
           "value": 1.1
         },
@@ -30359,6 +30401,7 @@
       "zoning": {
         "acreage": {
           "page": 8,
+          "printed": "1.06+/- acres",
           "source_id": "src-9df60d351a49",
           "value": 1.06
         },
@@ -30427,6 +30470,7 @@
       "zoning": {
         "acreage": {
           "page": 4,
+          "printed": "1.00 +/- acres",
           "source_id": "src-b325a18d7786",
           "value": 1.0
         },
@@ -30473,6 +30517,7 @@
       "zoning": {
         "acreage": {
           "page": 11,
+          "printed": "178.8 acres",
           "source_id": "src-ade826342018",
           "value": 178.8
         },
@@ -30501,6 +30546,7 @@
       "zoning": {
         "acreage": {
           "page": 8,
+          "printed": "50.81 +/- acres",
           "source_id": "src-eff152821896",
           "value": 50.81
         },
@@ -30559,6 +30605,7 @@
       "zoning": {
         "acreage": {
           "page": 14,
+          "printed": "1.20 acres",
           "source_id": "src-ade826342018",
           "value": 1.2
         },
@@ -30633,6 +30680,7 @@
       "zoning": {
         "acreage": {
           "page": 25,
+          "printed": "307.4 +/- acres",
           "source_id": "src-19ac962e4270",
           "value": 307.4
         },
