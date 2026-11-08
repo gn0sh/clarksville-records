@@ -103,8 +103,8 @@ A parse that misstates an official's vote or attendance is the worst failure. Ru
 - **M0 (parse spike):** about 10 county minutes PDFs across 2020-2024, deterministic parsing (no per-page LLM calls). Measure the Verified rate (P2) and held-back rate per official (G4). Below 90% Verified or skewed: back to the CEO before more build.
 - **M1 (thin slice, real data, after M0 passes):** batch ingest of 2020-2024 commission minutes; official pages with votes, attendance, motions and seconds (US1, US2, US6) and item history pages (US7); every fact linked to its PDF page; automated scheduled collection (US4); private preview (G7). Done when Brian picks a commissioner and sees every shown vote with its source, opens an item and sees its full history, and the 20-vote spot check (AC-P2) all match.
 - **M1.5 (before any public launch):** agenda search (US3), public correction intake (US5), find the 2025-2026 minutes, G6 checks.
-- **M2:** County budgets (approved budget books) and audits (TN Comptroller): what, how much, linked to page.
-- **M3:** County contracts: Bonfire awards, commission resolutions with dollar amounts, and which committee approved each.
+- **M2:** County budgets and capital projects: see `docs/specs/finance-contracts.md` (audits later).
+- **M3:** County contracts (purchasing archive; Bonfire is link-only): see `docs/specs/finance-contracts.md`.
 - **M4:** City Council and committees from the clarksvilletn.gov Agenda Center (10 s crawl delay), same neutral display; find where post-May-2024 council records live.
 - **M5:** Keyword alerts on new documents (any delivery that contacts real people is a hard stop).
 Public launch is a separate decision by Brian after the private preview, not a milestone.
