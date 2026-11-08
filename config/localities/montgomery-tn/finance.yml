@@ -44,21 +44,33 @@ scan_producers: ['KONICA MINOLTA', '^KM_', 'bizhub', 'Paper Capture', 'ScanSnap'
 
 # ---------------------------------------------------------------- bid tabs (adapter 2, fin_bidtab.py)
 bidtab:
-  # Field labels at the start of a line; the value is the rest of the line with "_" fill removed.
+  # Field labels at the start of a line, each field's labels as printed on the real tabs; a ":" right after the
+  # label is part of it ("Department:"). The value is the rest of the line with "_" fill removed.
   fields:
-    project: "Bid Project"
-    department: "Department"
-    bid_date: "Bid Date"
-    awardee: "Bid Awarded to"
-    award_date: "Date Bid Awarded"
-  # The bidder table's header line: these columns exactly (optional ones may be absent). Any other header word
-  # means another layout (itemised, unit price): the tab is not read.
+    project: ["Bid Project", "Bid Tab for"]
+    department: ["Department"]
+    bid_date: ["Bid Date", "Bid Opening Date"]
+    awardee: ["Bid Awarded to"]
+    award_date: ["Date Bid Awarded"]
+  # Layout "table" (one line per bidder): the header line holds a name column and one total column, exactly
+  # (optional ones may be absent). Any other header word means another layout (itemised, unit price): not read.
   columns:
-    name: "Bidder Name"
-    total: "Total"
+    name: ["Bidder Name"]
+    total: ["Lump Sum Bid", "Total Bid", "Total"]
   optional_columns: ["Notes"]
   # A line starting with one of these ends the bidder table (as does any field label).
   table_end: ["Notes:"]
+  # Layout "blocks" (engineering tabs, one block of labelled amounts per bidder): the header line is exactly
+  # `header` (name column first); the lines just above and below it may hold only `header_words` (addendum
+  # columns). Each block starts at `first_label`; every amount has a label ending in ":". A bidder's printed total
+  # is its one `total_labels` amount, or its `first_label` amount when that is its only one. `marks` are the
+  # addendum and bid-bond ticks (a word with no letter or digit counts too).
+  blocks:
+    header: ["Contractor", "Bid Bond", "Bid Amount"]
+    header_words: ["Addendum", "No.", "No"]
+    first_label: "Base Bid:"
+    total_labels: ["Total Bid:", "TOTAL:"]
+    marks: ["P", "N/A"]
 
 # ---------------------------------------------------------------- budget books (adapter 3, fin_budget.py)
 # Layouts checked on both books by `pdfwords` (task F9, 2026-11-08; docs/platform-facts.md). Same page titles,

@@ -399,3 +399,10 @@ def test_index_filter_in_a_browser(tmp_path):
     assert r["title"] == ["sol-office-chairs-fixture", "sol-paving-unit-prices-fixture", "sol-riding-mowers-fixture",
                           "sol-road-salt-fixture", "sol-roof-repair-fixture"]
     assert r["dept"] == ["sol-riding-mowers-fixture"]
+
+
+def test_every_not_read_reason_has_its_fixed_sentence():
+    """Each schema not_read_reason (not_pdf included) has a sentence in config/finance_text.yml."""
+    schema = json.loads(config.FINANCE_SCHEMA_PATH.read_text(encoding="utf-8"))
+    reasons = {r for r in schema["$defs"]["bid_tab"]["properties"]["not_read_reason"]["enum"] if r}
+    assert reasons == set(C["not_read"]) and "not_pdf" in reasons

@@ -193829,6 +193829,20 @@
           "with_tab": 1
         }
       },
+      "CDG": {
+        "2026": {
+          "rows": 1,
+          "tab_read": 1,
+          "with_tab": 1
+        }
+      },
+      "Highway Department": {
+        "2026": {
+          "rows": 2,
+          "tab_read": 2,
+          "with_tab": 2
+        }
+      },
       "Highway Dept": {
         "2025": {
           "rows": 1,
@@ -193841,16 +193855,23 @@
           "with_tab": 1
         }
       },
+      "Sheriﬀ’s Oﬃce": {
+        "2025": {
+          "rows": 2,
+          "tab_read": 2,
+          "with_tab": 2
+        }
+      },
       "not stated": {
         "2025": {
-          "rows": 44,
-          "tab_read": 1,
-          "with_tab": 27
+          "rows": 42,
+          "tab_read": 4,
+          "with_tab": 25
         },
         "2026": {
-          "rows": 34,
-          "tab_read": 1,
-          "with_tab": 25
+          "rows": 31,
+          "tab_read": 4,
+          "with_tab": 22
         },
         "not stated": {
           "rows": 9,
@@ -193868,11 +193889,12 @@
     "n_flag": 27,
     "n_lines": 3846,
     "n_tab_not_read": {
-      "layout": 43,
+      "layout": 30,
+      "not_pdf": 2,
       "scan": 0,
       "shared_url": 8
     },
-    "n_tab_read": 5,
+    "n_tab_read": 16,
     "n_total": 90
   },
   "documents": [
@@ -197753,16 +197775,82 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
-        "awardee_match": null,
+        "awardee_match": "none_named",
         "awardee_page": null,
         "awardee_text": null,
-        "bid_date_text": null,
-        "bidders": [],
+        "bid_date_page": 1,
+        "bid_date_text": "10/08/25",
+        "bidders": [
+          {
+            "name": "Providence Builders",
+            "page": 1,
+            "printed_order": 1,
+            "total_as_printed": "$19,500.00",
+            "total_cents": 1950000
+          },
+          {
+            "name": "Modern Day Wrecking",
+            "page": 1,
+            "printed_order": 2,
+            "total_as_printed": "$23,480.00",
+            "total_cents": 2348000
+          },
+          {
+            "name": "Triple S Contracting",
+            "page": 1,
+            "printed_order": 3,
+            "total_as_printed": "$29,555.00",
+            "total_cents": 2955500
+          },
+          {
+            "name": "Nxt Gen Excavating LLC",
+            "page": 1,
+            "printed_order": 4,
+            "total_as_printed": "$49,347.90",
+            "total_cents": 4934790
+          },
+          {
+            "name": "PLW Construction",
+            "page": 1,
+            "printed_order": 5,
+            "total_as_printed": "$53,000.00",
+            "total_cents": 5300000
+          },
+          {
+            "name": "Tugsun Group",
+            "page": 1,
+            "printed_order": 6,
+            "total_as_printed": "$55,000.00",
+            "total_cents": 5500000
+          },
+          {
+            "name": "Justice Farms LLC",
+            "page": 1,
+            "printed_order": 7,
+            "total_as_printed": "$61,100.00",
+            "total_cents": 6110000
+          },
+          {
+            "name": "Workman General Contractors LLC",
+            "page": 1,
+            "printed_order": 8,
+            "total_as_printed": "$68,665.00",
+            "total_cents": 6866500
+          },
+          {
+            "name": "Magnum Opus Construction",
+            "page": 1,
+            "printed_order": 9,
+            "total_as_printed": "$74,873.00",
+            "total_cents": 7487300
+          }
+        ],
         "document_id": "doc-e83f4d4a38",
-        "not_read_reason": "layout",
-        "project_text": null,
-        "tab_type": "not_read"
+        "not_read_reason": null,
+        "project_text": "Montgomery County 2174 Rossview Road Demolition",
+        "tab_type": "lump_sum"
       },
       "department": null,
       "document_ids": [
@@ -197785,16 +197873,33 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
-        "awardee_match": null,
+        "awardee_match": "none_named",
         "awardee_page": null,
         "awardee_text": null,
-        "bid_date_text": null,
-        "bidders": [],
+        "bid_date_page": 1,
+        "bid_date_text": "7/8/25",
+        "bidders": [
+          {
+            "name": "Modern HCR",
+            "page": 1,
+            "printed_order": 1,
+            "total_as_printed": "$61,950.00",
+            "total_cents": 6195000
+          },
+          {
+            "name": "Eskola",
+            "page": 1,
+            "printed_order": 2,
+            "total_as_printed": "$68,450.00",
+            "total_cents": 6845000
+          }
+        ],
         "document_id": "doc-3bc16c0bd4",
-        "not_read_reason": "layout",
-        "project_text": null,
-        "tab_type": "not_read"
+        "not_read_reason": null,
+        "project_text": "Montgomery County 400 Pageant Ln Roof Restoration",
+        "tab_type": "lump_sum"
       },
       "department": null,
       "document_ids": [
@@ -197817,18 +197922,53 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
-        "awardee_match": null,
+        "awardee_match": "none_named",
         "awardee_page": null,
         "awardee_text": null,
-        "bid_date_text": null,
-        "bidders": [],
+        "bid_date_page": 1,
+        "bid_date_text": "10-1-26 at 10 a.m.",
+        "bidders": [
+          {
+            "name": "Byrne & Jones Construction",
+            "page": 1,
+            "printed_order": 1,
+            "total_as_printed": "$1,203,210.00",
+            "total_cents": 120321000
+          },
+          {
+            "name": "Estes Bros. Const. Inc.",
+            "page": 1,
+            "printed_order": 2,
+            "total_as_printed": "$1,188,243.00",
+            "total_cents": 118824300
+          },
+          {
+            "name": "Martin Paving Company, Inc",
+            "page": 1,
+            "printed_order": 3,
+            "total_as_printed": "$803,500.00",
+            "total_cents": 80350000
+          },
+          {
+            "name": "Mt. Carmel Stabilization Group",
+            "page": 1,
+            "printed_order": 4,
+            "total_as_printed": "$839,460.50",
+            "total_cents": 83946050
+          }
+        ],
         "document_id": "doc-b680fda9f7",
-        "not_read_reason": "layout",
-        "project_text": null,
-        "tab_type": "not_read"
+        "not_read_reason": null,
+        "project_text": "Full Depth Reclamation for Ironhorse Way",
+        "tab_type": "lump_sum"
       },
-      "department": null,
+      "department": {
+        "page": 1,
+        "source_id": "src-f8c93a44eea3",
+        "text": "Highway Department"
+      },
       "document_ids": [
         "doc-6e6500b079",
         "doc-2b2401b853",
@@ -197890,10 +198030,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-84902647c2",
@@ -197922,10 +198064,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-04f2111f4f",
@@ -197996,10 +198140,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-c5b78d1423",
@@ -198028,16 +198174,61 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
-        "awardee_match": null,
+        "awardee_match": "none_named",
         "awardee_page": null,
         "awardee_text": null,
-        "bid_date_text": null,
-        "bidders": [],
+        "bid_date_page": 1,
+        "bid_date_text": "9/1/2026",
+        "bidders": [
+          {
+            "name": "John Bouchard & Sons (JBS)",
+            "page": 1,
+            "printed_order": 1,
+            "total_as_printed": "$324,600.00",
+            "total_cents": 32460000
+          },
+          {
+            "name": "Rubicon Engineering",
+            "page": 1,
+            "printed_order": 2,
+            "total_as_printed": "$383,000.00",
+            "total_cents": 38300000
+          },
+          {
+            "name": "Intech",
+            "page": 1,
+            "printed_order": 3,
+            "total_as_printed": "$399,500.00",
+            "total_cents": 39950000
+          },
+          {
+            "name": "Knight Electric",
+            "page": 1,
+            "printed_order": 4,
+            "total_as_printed": "$495,720.00",
+            "total_cents": 49572000
+          },
+          {
+            "name": "Active Energy Services, LLC",
+            "page": 1,
+            "printed_order": 5,
+            "total_as_printed": "$506,200.00",
+            "total_cents": 50620000
+          },
+          {
+            "name": "Neely Engineering & Contracting",
+            "page": 1,
+            "printed_order": 6,
+            "total_as_printed": "$550,430.75",
+            "total_cents": 55043075
+          }
+        ],
         "document_id": "doc-1ed6748a8f",
-        "not_read_reason": "layout",
-        "project_text": null,
-        "tab_type": "not_read"
+        "not_read_reason": null,
+        "project_text": "Montgomery Courts Center Generator Replacement Project",
+        "tab_type": "lump_sum"
       },
       "department": null,
       "document_ids": [
@@ -198062,10 +198253,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-a441f56506",
@@ -198095,10 +198288,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-7847617c35",
@@ -198148,10 +198343,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-021d9747a5",
@@ -198181,16 +198378,124 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
-        "awardee_match": null,
+        "awardee_match": "none_named",
         "awardee_page": null,
         "awardee_text": null,
-        "bid_date_text": null,
-        "bidders": [],
+        "bid_date_page": 1,
+        "bid_date_text": "12/04/2025",
+        "bidders": [
+          {
+            "name": "C & C Contracting",
+            "page": 1,
+            "printed_order": 1,
+            "total_as_printed": "$3,510,000.00",
+            "total_cents": 351000000
+          },
+          {
+            "name": "Drakes Creek Builders",
+            "page": 1,
+            "printed_order": 2,
+            "total_as_printed": "$3,719,532.25",
+            "total_cents": 371953225
+          },
+          {
+            "name": "Nex-Gen Construction",
+            "page": 1,
+            "printed_order": 3,
+            "total_as_printed": "$3,843,000.00",
+            "total_cents": 384300000
+          },
+          {
+            "name": "Boger Construction",
+            "page": 1,
+            "printed_order": 4,
+            "total_as_printed": "$3,804,000.00",
+            "total_cents": 380400000
+          },
+          {
+            "name": "RG Anderson Company",
+            "page": 1,
+            "printed_order": 5,
+            "total_as_printed": "$3,834,000.00",
+            "total_cents": 383400000
+          },
+          {
+            "name": "The BJC Group Inc",
+            "page": 1,
+            "printed_order": 6,
+            "total_as_printed": "$3,905,113.00",
+            "total_cents": 390511300
+          },
+          {
+            "name": "A & K Construction",
+            "page": 1,
+            "printed_order": 7,
+            "total_as_printed": "$3,970,000.00",
+            "total_cents": 397000000
+          },
+          {
+            "name": "B.R. Miller & Company",
+            "page": 1,
+            "printed_order": 8,
+            "total_as_printed": "$4,010,788.00",
+            "total_cents": 401078800
+          },
+          {
+            "name": "Hughes Construction",
+            "page": 1,
+            "printed_order": 9,
+            "total_as_printed": "$4,107,000.00",
+            "total_cents": 410700000
+          },
+          {
+            "name": "Providence Builders",
+            "page": 1,
+            "printed_order": 10,
+            "total_as_printed": "$4,133,890.00",
+            "total_cents": 413389000
+          },
+          {
+            "name": "The Parent Company",
+            "page": 1,
+            "printed_order": 11,
+            "total_as_printed": "$4,171,000.00",
+            "total_cents": 417100000
+          },
+          {
+            "name": "Centrury Construction Group",
+            "page": 1,
+            "printed_order": 12,
+            "total_as_printed": "$4,228,331.00",
+            "total_cents": 422833100
+          },
+          {
+            "name": "Bangs & Massie Construction",
+            "page": 1,
+            "printed_order": 13,
+            "total_as_printed": "$4,279,653.00",
+            "total_cents": 427965300
+          },
+          {
+            "name": "Scott, Murphy & Daniel",
+            "page": 1,
+            "printed_order": 14,
+            "total_as_printed": "$4,370,798.76",
+            "total_cents": 437079876
+          },
+          {
+            "name": "Fellowship Construction",
+            "page": 1,
+            "printed_order": 15,
+            "total_as_printed": "$4,357,498.00",
+            "total_cents": 435749800
+          }
+        ],
         "document_id": "doc-122d7dd276",
-        "not_read_reason": "layout",
-        "project_text": null,
-        "tab_type": "not_read"
+        "not_read_reason": null,
+        "project_text": "Montgomery County EMS Station 28",
+        "tab_type": "lump_sum"
       },
       "department": null,
       "document_ids": [
@@ -198216,10 +198521,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-e276e26199",
@@ -198250,10 +198557,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-b7205def80",
@@ -198303,11 +198612,13 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": 1,
         "award_date_text": "4-22-25",
         "awardee_match": "bidder:2",
         "awardee_page": 1,
         "awardee_text": "Mt. Carmel Stabilization Group",
-        "bid_date_text": null,
+        "bid_date_page": 1,
+        "bid_date_text": "4-8-25",
         "bidders": [
           {
             "name": "Byrne and Jones",
@@ -198392,10 +198703,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-4e22e35ef5",
@@ -198424,10 +198737,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-7d8c86cf86",
@@ -198457,16 +198772,40 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
-        "awardee_match": null,
+        "awardee_match": "none_named",
         "awardee_page": null,
         "awardee_text": null,
-        "bid_date_text": null,
-        "bidders": [],
+        "bid_date_page": 1,
+        "bid_date_text": "7/01/2026",
+        "bidders": [
+          {
+            "name": "Morton Mechanical",
+            "page": 1,
+            "printed_order": 1,
+            "total_as_printed": "$97,166.00",
+            "total_cents": 9716600
+          },
+          {
+            "name": "Action Air Conditioning Service, Inc.",
+            "page": 1,
+            "printed_order": 2,
+            "total_as_printed": "$108,505.00",
+            "total_cents": 10850500
+          },
+          {
+            "name": "Justice Farms",
+            "page": 1,
+            "printed_order": 3,
+            "total_as_printed": "$125,185.70",
+            "total_cents": 12518570
+          }
+        ],
         "document_id": "doc-e1a99cbe61",
-        "not_read_reason": "layout",
-        "project_text": null,
-        "tab_type": "not_read"
+        "not_read_reason": null,
+        "project_text": "Montgomery County Lone Oak HVAC Replacement Project",
+        "tab_type": "lump_sum"
       },
       "department": null,
       "document_ids": [
@@ -198490,10 +198829,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-7d250869c8",
@@ -198522,10 +198863,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-dbac86c8eb",
@@ -198555,10 +198898,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-6d5079fc0d",
@@ -198589,10 +198934,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-d9ad9ceb4d",
@@ -198667,16 +199014,89 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
-        "awardee_match": null,
+        "awardee_match": "none_named",
         "awardee_page": null,
         "awardee_text": null,
-        "bid_date_text": null,
-        "bidders": [],
+        "bid_date_page": 1,
+        "bid_date_text": "4/22/2025",
+        "bidders": [
+          {
+            "name": "MDI Construction",
+            "page": 1,
+            "printed_order": 1,
+            "total_as_printed": "$324,043.20",
+            "total_cents": 32404320
+          },
+          {
+            "name": "Providence Builders",
+            "page": 1,
+            "printed_order": 2,
+            "total_as_printed": "$385,350.00",
+            "total_cents": 38535000
+          },
+          {
+            "name": "Triple S Contracting",
+            "page": 1,
+            "printed_order": 3,
+            "total_as_printed": "$394,793.00",
+            "total_cents": 39479300
+          },
+          {
+            "name": "B.R. Miller & Company",
+            "page": 1,
+            "printed_order": 4,
+            "total_as_printed": "$416,500.00",
+            "total_cents": 41650000
+          },
+          {
+            "name": "Huges Construction",
+            "page": 1,
+            "printed_order": 5,
+            "total_as_printed": "$418,937.00",
+            "total_cents": 41893700
+          },
+          {
+            "name": "C & C Contracting",
+            "page": 1,
+            "printed_order": 6,
+            "total_as_printed": "$479,750.00",
+            "total_cents": 47975000
+          },
+          {
+            "name": "Nex-Gen Construction",
+            "page": 1,
+            "printed_order": 7,
+            "total_as_printed": "$508,300.00",
+            "total_cents": 50830000
+          },
+          {
+            "name": "Romach Inc",
+            "page": 1,
+            "printed_order": 8,
+            "total_as_printed": "$576,498.00",
+            "total_cents": 57649800
+          },
+          {
+            "name": "Bulley Andrews/Rock City Construction",
+            "page": 1,
+            "printed_order": 9,
+            "total_as_printed": "$619,000.00",
+            "total_cents": 61900000
+          },
+          {
+            "name": "Rubicon Construction",
+            "page": 1,
+            "printed_order": 10,
+            "total_as_printed": "$680,010.31",
+            "total_cents": 68001031
+          }
+        ],
         "document_id": "doc-4e544ab980",
-        "not_read_reason": "layout",
-        "project_text": null,
-        "tab_type": "not_read"
+        "not_read_reason": null,
+        "project_text": "Montgomery County Interior Renovations to Montgomery Co. Purchasing and Building & Codes",
+        "tab_type": "lump_sum"
       },
       "department": null,
       "document_ids": [
@@ -198699,10 +199119,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-b801fa749a",
@@ -198797,11 +199219,13 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": 1,
         "award_date_text": "11-17-25",
         "awardee_match": "bidder:2",
         "awardee_page": 1,
         "awardee_text": "Integrated Protection Services",
-        "bid_date_text": null,
+        "bid_date_page": 1,
+        "bid_date_text": "11-12-25 at 2 p.m.",
         "bidders": [
           {
             "name": "Convergint Technologies",
@@ -198827,10 +199251,14 @@
         ],
         "document_id": "doc-5d7643af1a",
         "not_read_reason": null,
-        "project_text": null,
+        "project_text": "Fire Panel Upgrade",
         "tab_type": "lump_sum"
       },
-      "department": null,
+      "department": {
+        "page": 1,
+        "source_id": "src-ebfcb1b79279",
+        "text": "Sheriﬀ’s Oﬃce"
+      },
       "document_ids": [
         "doc-f727b1a954",
         "doc-83c697ec08",
@@ -198913,18 +199341,53 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
-        "awardee_match": null,
+        "awardee_match": "none_named",
         "awardee_page": null,
         "awardee_text": null,
-        "bid_date_text": null,
-        "bidders": [],
+        "bid_date_page": 1,
+        "bid_date_text": "7-23-26 at 10 a.m.",
+        "bidders": [
+          {
+            "name": "Beech Construction Services",
+            "page": 1,
+            "printed_order": 1,
+            "total_as_printed": "$361,000.00",
+            "total_cents": 36100000
+          },
+          {
+            "name": "Justice Farms LLC",
+            "page": 1,
+            "printed_order": 2,
+            "total_as_printed": "$372,198.80",
+            "total_cents": 37219880
+          },
+          {
+            "name": "Taylor’s Concrete Service",
+            "page": 1,
+            "printed_order": 3,
+            "total_as_printed": "$255,700.00",
+            "total_cents": 25570000
+          },
+          {
+            "name": "Tugsun Group Inc",
+            "page": 1,
+            "printed_order": 4,
+            "total_as_printed": "$341,487.00",
+            "total_cents": 34148700
+          }
+        ],
         "document_id": "doc-d6de23c3f5",
-        "not_read_reason": "layout",
-        "project_text": null,
-        "tab_type": "not_read"
+        "not_read_reason": null,
+        "project_text": "Palmyra Salt Shed Foundation",
+        "tab_type": "lump_sum"
       },
-      "department": null,
+      "department": {
+        "page": 1,
+        "source_id": "src-82d8bc9e7044",
+        "text": "Highway Department"
+      },
       "document_ids": [
         "doc-1f45dfc20a",
         "doc-8d13e54e6f",
@@ -198967,10 +199430,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-98508f1318",
@@ -199000,18 +199465,46 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
-        "award_date_text": null,
-        "awardee_match": null,
-        "awardee_page": null,
-        "awardee_text": null,
-        "bid_date_text": null,
-        "bidders": [],
+        "award_date_page": 1,
+        "award_date_text": "5-28-25",
+        "awardee_match": "bidder:3",
+        "awardee_page": 1,
+        "awardee_text": "Truckers Lighthouse",
+        "bid_date_page": 1,
+        "bid_date_text": "5-13-25 at 10 a.m. CST",
+        "bidders": [
+          {
+            "name": "Columbia CDJR",
+            "page": 1,
+            "printed_order": 1,
+            "total_as_printed": "$89,230.00",
+            "total_cents": 8923000
+          },
+          {
+            "name": "On-Duty Depot",
+            "page": 1,
+            "printed_order": 2,
+            "total_as_printed": "$101,850.00",
+            "total_cents": 10185000
+          },
+          {
+            "name": "Truckers Lighthouse",
+            "page": 1,
+            "printed_order": 3,
+            "total_as_printed": "$77,667.80",
+            "total_cents": 7766780
+          }
+        ],
         "document_id": "doc-7f065e3b12",
-        "not_read_reason": "layout",
-        "project_text": null,
-        "tab_type": "not_read"
+        "not_read_reason": null,
+        "project_text": "Vehicle Equipment",
+        "tab_type": "lump_sum"
       },
-      "department": null,
+      "department": {
+        "page": 1,
+        "source_id": "src-5eef4b2afb63",
+        "text": "Sheriﬀ’s Oﬃce"
+      },
       "document_ids": [
         "doc-992b62a545",
         "doc-f96ae7ac13",
@@ -199033,11 +199526,13 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": "none_named",
         "awardee_page": null,
         "awardee_text": null,
-        "bid_date_text": null,
+        "bid_date_page": 1,
+        "bid_date_text": "4-22-22 at 10 a.m.",
         "bidders": [
           {
             "name": "Justice Farms LLC",
@@ -199063,10 +199558,14 @@
         ],
         "document_id": "doc-1d526851a6",
         "not_read_reason": null,
-        "project_text": null,
+        "project_text": "Sinkhole Repair Bid",
         "tab_type": "lump_sum"
       },
-      "department": null,
+      "department": {
+        "page": 1,
+        "source_id": "src-b6b4a03656f6",
+        "text": "CDG"
+      },
       "document_ids": [
         "doc-a7c913ea96",
         "doc-5c919de647",
@@ -199090,10 +199589,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-823c677459",
@@ -199122,10 +199623,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-bea57ed571",
@@ -199154,10 +199657,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-5b623f756c",
@@ -199186,16 +199691,40 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
-        "awardee_match": null,
+        "awardee_match": "none_named",
         "awardee_page": null,
         "awardee_text": null,
-        "bid_date_text": null,
-        "bidders": [],
+        "bid_date_page": 1,
+        "bid_date_text": "8/25/2026",
+        "bidders": [
+          {
+            "name": "Modern Heating Cooling Roofing",
+            "page": 1,
+            "printed_order": 1,
+            "total_as_printed": "$91,700.00",
+            "total_cents": 9170000
+          },
+          {
+            "name": "Empire Roofing",
+            "page": 1,
+            "printed_order": 2,
+            "total_as_printed": "$99,932.00",
+            "total_cents": 9993200
+          },
+          {
+            "name": "Eskola Roofing",
+            "page": 1,
+            "printed_order": 3,
+            "total_as_printed": "$114,300.00",
+            "total_cents": 11430000
+          }
+        ],
         "document_id": "doc-4bbc6097af",
-        "not_read_reason": "layout",
-        "project_text": null,
-        "tab_type": "not_read"
+        "not_read_reason": null,
+        "project_text": "Montgomery County Veterans Plaza Gutter Replacement Project",
+        "tab_type": "lump_sum"
       },
       "department": null,
       "document_ids": [
@@ -199219,10 +199748,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-bda9e1810e",
@@ -199253,10 +199784,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": 1,
         "award_date_text": "2-26-25",
         "awardee_match": "bidder:1",
         "awardee_page": 1,
         "awardee_text": "McCoy Construction &Forestry",
+        "bid_date_page": 1,
         "bid_date_text": "2-20-25 at 2p.m.",
         "bidders": [
           {
@@ -199304,10 +199837,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-e71c7111b1",
@@ -199358,10 +199893,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-b7205def80",
@@ -199391,10 +199928,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-b7205def80",
@@ -199424,10 +199963,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-b19f3d1791",
@@ -199457,10 +199998,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-1f1e72e3b3",
@@ -199490,10 +200033,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-94f9c9fd16",
@@ -199524,10 +200069,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-3342957da0",
@@ -199558,10 +200105,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-43ff446b5f",
@@ -199591,10 +200140,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-fe4ff90332",
@@ -199625,10 +200176,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-021d9747a5",
@@ -199658,16 +200211,68 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
-        "awardee_match": null,
+        "awardee_match": "none_named",
         "awardee_page": null,
         "awardee_text": null,
-        "bid_date_text": null,
-        "bidders": [],
+        "bid_date_page": 1,
+        "bid_date_text": "6/25/2026",
+        "bidders": [
+          {
+            "name": "Optimal Electric Pro",
+            "page": 1,
+            "printed_order": 1,
+            "total_as_printed": "$39,915.00",
+            "total_cents": 3991500
+          },
+          {
+            "name": "Knight Electric, Inc.",
+            "page": 1,
+            "printed_order": 2,
+            "total_as_printed": "$62,137.00",
+            "total_cents": 6213700
+          },
+          {
+            "name": "Stansell Electric",
+            "page": 1,
+            "printed_order": 3,
+            "total_as_printed": "$65,811.00",
+            "total_cents": 6581100
+          },
+          {
+            "name": "Shelby Electric Company, Inc.",
+            "page": 1,
+            "printed_order": 4,
+            "total_as_printed": "$70,661.73",
+            "total_cents": 7066173
+          },
+          {
+            "name": "Keatts Electric",
+            "page": 1,
+            "printed_order": 5,
+            "total_as_printed": "$79,000.00",
+            "total_cents": 7900000
+          },
+          {
+            "name": "Justice Farms",
+            "page": 1,
+            "printed_order": 6,
+            "total_as_printed": "$115,910.00",
+            "total_cents": 11591000
+          },
+          {
+            "name": "Active Energy Services",
+            "page": 1,
+            "printed_order": 7,
+            "total_as_printed": "$218,357.00",
+            "total_cents": 21835700
+          }
+        ],
         "document_id": "doc-c7f33ad261",
-        "not_read_reason": "layout",
-        "project_text": null,
-        "tab_type": "not_read"
+        "not_read_reason": null,
+        "project_text": "Montgomery County Generator Electrical Alteration",
+        "tab_type": "lump_sum"
       },
       "department": null,
       "document_ids": [
@@ -199690,10 +200295,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": "No Award",
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-a3ff48c437",
@@ -199723,10 +200330,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-202f847cea",
@@ -199759,10 +200368,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-24129ea007",
@@ -199793,14 +200404,16 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-7918eaf9a8",
-        "not_read_reason": "layout",
+        "not_read_reason": "not_pdf",
         "project_text": null,
         "tab_type": "not_read"
       },
@@ -199826,10 +200439,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-2df38bbc0c",
@@ -199860,10 +200475,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-b7205def80",
@@ -199893,14 +200510,16 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-bde288b9d0",
-        "not_read_reason": "layout",
+        "not_read_reason": "not_pdf",
         "project_text": null,
         "tab_type": "not_read"
       },
@@ -200091,10 +200710,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-8f46c2e878",
@@ -200123,10 +200744,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-8f46c2e878",
@@ -200235,10 +200858,12 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": null,
         "award_date_text": null,
         "awardee_match": null,
         "awardee_page": null,
         "awardee_text": null,
+        "bid_date_page": null,
         "bid_date_text": null,
         "bidders": [],
         "document_id": "doc-6ceada3ac4",
@@ -200287,11 +200912,13 @@
       "archive_source_id": "src-f619c49919b9",
       "archive_status": null,
       "bid_tab": {
+        "award_date_page": 1,
         "award_date_text": "3-9-26",
         "awardee_match": "bidder:1",
         "awardee_page": 1,
         "awardee_text": "Byard Construction, LLC",
-        "bid_date_text": null,
+        "bid_date_page": 1,
+        "bid_date_text": "3-6-26 at 2 p.m.",
         "bidders": [
           {
             "name": "Byard Construction, LLC",

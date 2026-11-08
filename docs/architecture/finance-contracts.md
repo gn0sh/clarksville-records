@@ -45,6 +45,13 @@ word x-positions. A line with words in the name band and one amount in the Total
 with name-band words and no amount continue its name (real case: "McCoy Construction &" / "Forestry"). Amount must
 match `^\$?\d{1,3}(,\d{3})*(\.\d{2})?$`, kept as text plus integer cents. `tab_type`: `lump_sum` when the table has
 exactly these columns and every bidder has one amount; anything else `not_read` (link only, counted in coverage).
+Widened in 1a-2 after the census (labels are lists in config; a ":" after a label is part of it): total column
+"Total" | "Total Bid" | "Lump Sum Bid"; and layout `blocks` (`bidtab.blocks`, the engineering tabs "Contractor | Bid
+Bond | Bid Amount"): one block per bidder from its "Base Bid:" line, every amount with a label ending in ":"; the
+bidder's printed total is its one "Total Bid:"/"TOTAL:" amount (last), or its "Base Bid:" amount when that is its
+only one; base plus alternates must add up to that total to the cent, else it is held (check `total-parts`). Words
+in the amount column ("NON RESPONSIVE"), a bidder with alternates and no printed total, or name lines of one block
+more than 1.6 word heights apart: `not_read`. Unit-price and itemised tabs stay `not_read` in 1a.
 
 **Adapter 3, budget book** (`books[]`: id, title, edition, fiscal year, URL, page range). Page role by exact title
 line from `budget.page_titles`: revenue statement, expenditure statement, consolidated (fund-balance block only), or
@@ -80,7 +87,9 @@ content_type, creator`.
   `archive_date_text`, `archive_date` (ISO or null), `archive_status` (or null), `year` (from archive_date, else null),
   `department` {`text`, `source_id`, `page`} or null (bid tab "Department", else null: the archive prints none),
   `number` null in 1a (the archive prints none), `document_ids[]` in archive order, `bid_tab` {`document_id`,
-  `tab_type`, `project_text`, `bid_date_text`, `awardee_text`, `awardee_page`, `award_date_text`, `awardee_match`
+  `tab_type`, `not_read_reason` (`layout` | `scan` | `shared_url` | `not_pdf`: a .docx or non-PDF bytes),
+  `project_text`, `bid_date_text` + `bid_date_page`, `awardee_text`, `awardee_page`, `award_date_text` +
+  `award_date_page` (a page is null exactly when its text is), `awardee_match`
   (`bidder:<n>` | `none_named` | `not_a_listed_bidder` | `ambiguous`), `bidders[]` {`printed_order`, `name`,
   `total_as_printed`, `total_cents`, `page`}} or null, `documents_differ` {`fields[]`, `document_ids[]`} or null,
   `held[]` {`field`, `check`} (values held as Not confirmed*), `row` (archive row index), `archive_source_id`.

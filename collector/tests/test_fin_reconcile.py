@@ -212,3 +212,15 @@ def test_committed_lines_carry_edition_and_tags(committed):
     assert any("transfer" in x["tags"] for x in lines) and any("available_funds" in x["tags"] for x in lines)
     assert all(x["tags"] == ["available_funds"] for x in lines if x["statement"] == "fund_balance")
     assert [x["id"] for x in lines] == sorted(x["id"] for x in lines)
+
+
+def test_committed_ids_sort_numerically_into_book_order(committed):
+    """The frontend orders lines by (book_id, page, r) parsed from the id (schema line_id); that order puts every
+    subtotal and total after all of its scope lines, as printed."""
+    def key(lid):
+        book, page, row = lid.split("/")
+        return book, int(page[1:]), int(row[1:])
+    lines = committed["budget_lines"]
+    assert all(key(x["id"])[1] == x["page"] for x in lines)
+    pos = {x["id"]: n for n, x in enumerate(sorted(lines, key=lambda x: key(x["id"])))}
+    assert all(pos[i] < pos[x["id"]] for x in lines for i in x["scope_line_ids"])

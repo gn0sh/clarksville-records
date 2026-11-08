@@ -106,7 +106,7 @@ def sandbox(tmp_path, monkeypatch):
 
     class B:
         unresolved = {}
-    state = {"report": report, "fail": False}
+    state = {"report": report, "fail": False, "fin_code": 0, "fin_calls": []}
 
     def fake_build(store, log, use_ocr=True):
         log["parsed"] = 1
@@ -114,16 +114,48 @@ def sandbox(tmp_path, monkeypatch):
             log["failures"].append({"stage": "parse", "error": "boom"})
         return facts, state["report"], B()
     monkeypatch.setattr(M, "cmd_build", fake_build)
+
+    def fake_finance(store, log, offline, **kw):
+        state["fin_calls"].append((offline, kw))
+        if state["fin_code"] == 2:
+            log["failures"].append({"stage": "fin_build", "error": "boom"})
+        return state["fin_code"]
+    monkeypatch.setattr(M, "run_finance", fake_finance)
+    monkeypatch.setattr(M, "FINANCE", tmp_path / "finance.json")
     return state
 
 
-@pytest.mark.parametrize("fail,gate_pass,code", [(False, True, 0), (True, True, 2), (False, False, 3)])
-def test_exit_codes(sandbox, capsys, fail, gate_pass, code):
+@pytest.mark.parametrize("fail,gate_pass,fin_code,code", [
+    (False, True, 0, 0), (True, True, 0, 2), (False, False, 0, 3),
+    (False, True, 2, 2),                 # finance fetch or build failure
+    (False, True, 3, 3),                 # finance parity 'review needed' is a gate (A5)
+])
+def test_exit_codes(sandbox, capsys, fail, gate_pass, fin_code, code):
     sandbox["fail"] = fail
     sandbox["report"]["pass"] = gate_pass
+    sandbox["fin_code"] = fin_code
     assert M.main(["run", "--offline"]) == code
     out = capsys.readouterr().out
     assert ("gh issue create --repo gn0sh/clarksville-records" in out) == (code != 0)
+
+
+def test_run_calls_the_finance_steps_after_the_votes_steps(sandbox, tmp_path):
+    """A1: `run` calls fin fetch/build (offline: build only) with the run's paths, after facts.json is written."""
+    M.main(["run", "--offline"])
+    (offline, kw), = sandbox["fin_calls"]
+    assert offline is True and kw["fetcher"] is None
+    assert kw["finance_path"] == tmp_path / "finance.json" and kw["report_path"] == tmp_path / "build" / "report.json"
+    assert (tmp_path / "facts.json").exists()
+
+
+def test_online_run_shares_one_polite_fetcher_that_denies_bonfire(sandbox, monkeypatch):
+    from collector import fin_config
+    seen = {}
+    monkeypatch.setattr(M, "cmd_fetch", lambda store, log, fetcher=None: seen.setdefault("votes", fetcher))
+    M.main(["run"])
+    (offline, kw), = sandbox["fin_calls"]
+    assert offline is False and kw["fetcher"] is seen["votes"]
+    assert set(fin_config.load().bonfire_hosts) <= set(kw["fetcher"].extra_denied)
 
 
 def test_discovery_block_is_a_logged_failure_not_a_crash(monkeypatch):

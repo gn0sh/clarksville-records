@@ -1,10 +1,11 @@
 """python -m collector {fetch,build,run,names} [--offline] [--internal]
 python -m collector fin {fetch,build,census}   (finance and contracts: collector/fin_run.py)
 
-run: discover -> fetch new (polite) -> parse -> resolve names -> verify -> data/facts.json -> sitegen -> export ->
-build/report.json, build/run-log.json. Exit 0 ok, 2 on fetch/parse failures, 3 on a gate failure. On 2 or 3 it
-prints the `gh issue create` command it would run (wiring the issue is task D1).
---offline skips discovery and fetching and uses the store (data/store/, or RECORDS_STORE).
+run: discover -> fetch new (polite) -> parse -> resolve names -> verify -> data/facts.json -> finance fetch and
+build (fin_run.run_step: data/finance.json, build/report.json `finance`) -> sitegen -> export -> build/report.json,
+build/run-log.json. Exit 0 ok, 2 on fetch/parse failures (votes or finance), 3 on a gate failure (votes gates, or
+finance parity 'review needed'). On 2 or 3 it prints the `gh issue create` command it would run (task D1).
+--offline skips discovery and fetching (votes and finance) and uses the store (data/store/, or RECORDS_STORE).
 """
 from __future__ import annotations
 
@@ -27,6 +28,7 @@ from .verify import gates
 
 ROOT = Path(__file__).resolve().parent.parent
 FACTS = ROOT / "data" / "facts.json"
+FINANCE = ROOT / "data" / "finance.json"
 BUILD = ROOT / "build"
 REPO = "gn0sh/clarksville-records"
 
@@ -71,6 +73,18 @@ def cmd_fetch(store: Store, log: dict, fetcher: PoliteFetcher | None = None) -> 
             log["failures"].append({"stage": "fetch", "url": d["url"], "error": f"{type(e).__name__}: {e}"})
     store.save()
     log["fetch_log"] = f.log
+
+
+def finance_fetcher() -> PoliteFetcher:
+    """One polite fetcher for the votes and finance fetches of a run (robots cache and per-host clock shared), which
+    also hard-denies finance.yml bonfire_hosts."""
+    from . import fin_config
+    return PoliteFetcher(extra_denied=fin_config.load().bonfire_hosts)
+
+
+def run_finance(store: Store, log: dict, offline: bool, **kw) -> int:
+    from .fin_run import run_step
+    return run_step(store, log, offline, **kw)
 
 
 # ------------------------------------------------------------------ build
@@ -200,7 +214,8 @@ def issue_command(code: int, log: dict, report: dict | None) -> str:
     title = "Collector run failed" if code == 2 else "Collector gates failed"
     body = {"exit": code, "failures": log["failures"][:20],
             "gates": (report or {}).get("gates", {}).get("verified_rate_gate"),
-            "g4_flagged": (report or {}).get("gates", {}).get("g4", {}).get("flagged")}
+            "g4_flagged": (report or {}).get("gates", {}).get("g4", {}).get("flagged"),
+            "finance_build_exit": log.get("fin_build")}          # 3: parity 'review needed' (A5)
     return (f"gh issue create --repo {REPO} --title {shlex.quote(title)} "
             f"--body {shlex.quote(json.dumps(body, indent=1))}")
 
@@ -210,15 +225,19 @@ def cmd_run(args) -> int:
     log = {"started_at": started, "offline": args.offline, "found": None, "new": [], "fetched": {}, "failures": [],
            "parsed": 0, "held_back": None}
     store = Store(MANIFEST)
+    fetcher = None
     if not args.offline:
+        fetcher = finance_fetcher()
         print("collector: discover and fetch (10 s between requests per host)", flush=True)
-        cmd_fetch(store, log)
+        cmd_fetch(store, log, fetcher=fetcher)
     print("collector: parse, verify, assemble", flush=True)
     facts, report, b = cmd_build(store, log, use_ocr=not args.no_ocr)
     changed = write_if_changed(FACTS, dumps(facts))
     BUILD.mkdir(parents=True, exist_ok=True)
     write_if_changed(BUILD / "report.json", dumps(report))
     write_if_changed(BUILD / "name-candidates.json", dumps(name_candidates(b, load_roster(NAMES))))
+    fin_code = run_finance(store, log, args.offline, fetcher=fetcher, finance_path=FINANCE,
+                           report_path=BUILD / "report.json")
     site = BUILD / "site"
     try:
         from sitegen.build import build as site_build, write_publish_manifest
@@ -240,7 +259,7 @@ def cmd_run(args) -> int:
           f"({g['held_back_source_error']} by source errors); G4 {g['g4']['status']} "
           f"(uniform share {g['g4']['uniform_share']}); "
           f"failures {len(log['failures'])}", flush=True)
-    code = 2 if log["failures"] else (0 if report["pass"] else 3)
+    code = 2 if log["failures"] else (0 if report["pass"] and fin_code == 0 else 3)
     if code:
         for fl in log["failures"][:10]:
             print("  failure:", json.dumps(fl)[:300])

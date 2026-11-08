@@ -25,7 +25,7 @@
     "document_id": { "type": "string", "pattern": "^doc-[0-9a-f]{10}$" },
     "solicitation_id": { "type": "string", "pattern": "^sol-[a-z0-9]+(-[a-z0-9]+)*$" },
     "book_id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
-    "line_id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*/p[1-9][0-9]*/r[0-9]+$" },
+    "line_id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*/p[1-9][0-9]*/r[0-9]+$", "description": "<book_id>/p<page>/r<text line on the page, from 1>. Lists sort by id as text (p100 before p28); book order is (book_id, int page, int r) parsed from the id" },
     "check_name": { "type": "string", "pattern": "^[a-z0-9]+([-_][a-z0-9]+)*$", "description": "the check that held a value, e.g. amount-format, column-align, scan-values, award-source" },
     "tag": { "enum": ["transfer", "non_revenue", "available_funds"] },
     "source": {
@@ -78,17 +78,19 @@
     "bid_tab": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["document_id", "tab_type", "not_read_reason", "project_text", "bid_date_text", "awardee_text", "awardee_page", "award_date_text", "awardee_match", "bidders"],
+      "required": ["document_id", "tab_type", "not_read_reason", "project_text", "bid_date_text", "bid_date_page", "awardee_text", "awardee_page", "award_date_text", "award_date_page", "awardee_match", "bidders"],
       "description": "Values come only from document_id, a text-layer bid tab whose shared_by is empty (award-source/*). UX total_check_ok is not stored: a lump-sum tab has nothing to add.",
       "properties": {
         "document_id": { "$ref": "#/$defs/document_id", "description": "UX awardee_source, with awardee_page" },
         "tab_type": { "enum": ["lump_sum", "not_read"], "description": "unit-price and itemised layouts are not_read in 1a (link only, counted in coverage)" },
-        "not_read_reason": { "enum": ["layout", "scan", "shared_url", null], "description": "null when lump_sum; feeds coverage.n_tab_not_read" },
+        "not_read_reason": { "enum": ["layout", "scan", "shared_url", "not_pdf", null], "description": "null when lump_sum; feeds coverage.n_tab_not_read. not_pdf: the link is a .docx or its bytes are not a PDF (document status not_pdf), so nothing is read" },
         "project_text": { "type": ["string", "null"] },
         "bid_date_text": { "type": ["string", "null"] },
+        "bid_date_page": { "oneOf": [{ "$ref": "#/$defs/page" }, { "type": "null" }], "description": "page of bid_date_text in document_id; null when bid_date_text is null" },
         "awardee_text": { "type": ["string", "null"], "description": "Bid Awarded to, as printed; null when none named or not read" },
         "awardee_page": { "oneOf": [{ "$ref": "#/$defs/page" }, { "type": "null" }] },
         "award_date_text": { "type": ["string", "null"] },
+        "award_date_page": { "oneOf": [{ "$ref": "#/$defs/page" }, { "type": "null" }], "description": "page of award_date_text in document_id; null when award_date_text is null" },
         "awardee_match": {
           "oneOf": [
             { "type": "string", "pattern": "^bidder:[1-9][0-9]*$" },
@@ -102,7 +104,17 @@
         {
           "if": { "properties": { "tab_type": { "const": "lump_sum" } } },
           "then": { "properties": { "not_read_reason": { "const": null }, "bidders": { "minItems": 1 }, "awardee_match": { "type": "string" } } },
-          "else": { "properties": { "not_read_reason": { "type": "string" }, "bidders": { "maxItems": 0 }, "awardee_text": { "const": null }, "awardee_match": { "const": null } } }
+          "else": { "properties": { "not_read_reason": { "type": "string" }, "bidders": { "maxItems": 0 }, "awardee_text": { "const": null }, "awardee_match": { "const": null }, "bid_date_text": { "const": null }, "bid_date_page": { "const": null }, "award_date_text": { "const": null }, "award_date_page": { "const": null } } }
+        },
+        {
+          "if": { "properties": { "bid_date_text": { "const": null } } },
+          "then": { "properties": { "bid_date_page": { "const": null } } },
+          "else": { "properties": { "bid_date_page": { "$ref": "#/$defs/page" } } }
+        },
+        {
+          "if": { "properties": { "award_date_text": { "const": null } } },
+          "then": { "properties": { "award_date_page": { "const": null } } },
+          "else": { "properties": { "award_date_page": { "$ref": "#/$defs/page" } } }
         }
       ]
     },
@@ -285,11 +297,12 @@
         "n_tab_not_read": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["layout", "scan", "shared_url"],
+          "required": ["layout", "scan", "shared_url", "not_pdf"],
           "properties": {
             "layout": { "$ref": "#/$defs/count" },
             "scan": { "$ref": "#/$defs/count" },
-            "shared_url": { "$ref": "#/$defs/count" }
+            "shared_url": { "$ref": "#/$defs/count" },
+            "not_pdf": { "$ref": "#/$defs/count" }
           }
         },
         "n_award_letters": { "$ref": "#/$defs/count" },

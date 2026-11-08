@@ -115,3 +115,36 @@ def test_schema_rejects_contract_breaks(validator, fin, mutate):
     bad = copy.deepcopy(fin)
     mutate(bad)
     assert sitegen_build._schema_errors(validator, bad)
+
+
+def _tab(fin, kind):
+    return next(s for s in fin["solicitations"] if s["bid_tab"] and s["bid_tab"]["tab_type"] == kind)
+
+
+def test_not_pdf_reason_and_date_pages(validator, fin):
+    f = copy.deepcopy(fin)
+    _tab(f, "not_read")["bid_tab"]["not_read_reason"] = "not_pdf"
+    assert sitegen_build._schema_errors(validator, f) == []
+    lump = _tab(fin, "lump_sum")["bid_tab"]
+    assert lump["bid_date_text"] and lump["bid_date_page"] >= 1 and lump["award_date_page"] >= 1
+    assert set(fin["coverage"]["n_tab_not_read"]) == {"layout", "scan", "shared_url", "not_pdf"}
+
+
+@pytest.mark.parametrize("edit", [
+    lambda t: t.update(bid_date_page=None),                    # a date with no page cannot be cited
+    lambda t: t.update(award_date_page=None),
+    lambda t: t.update(bid_date_text=None),                    # a page with no date
+    lambda t: t.pop("bid_date_page"),
+    lambda t: t.update(not_read_reason="docx"),
+])
+def test_date_pages_and_reasons_are_checked(validator, fin, edit):
+    f = copy.deepcopy(fin)
+    edit(_tab(f, "lump_sum")["bid_tab"])
+    assert sitegen_build._schema_errors(validator, f) != []
+
+
+def test_not_read_tab_carries_no_dates(validator, fin):
+    f = copy.deepcopy(fin)
+    t = _tab(f, "not_read")["bid_tab"]
+    t.update(bid_date_text="1-1-26", bid_date_page=1)
+    assert sitegen_build._schema_errors(validator, f) != []
