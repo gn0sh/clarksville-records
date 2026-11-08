@@ -11,7 +11,7 @@ import json
 import re
 from collections import defaultdict
 
-from . import config
+from . import config, fin_views
 import datetime as dt
 
 from .seats import Seats, basis_text, seat_order, source_label
@@ -237,6 +237,7 @@ NAV = (  # design 2.2: fixed order, the same on every page. (label, href, page_n
     ("Officials", "officials.html", "Officials", False),
     ("Items", None, None, False),  # a nested list of years
     ("Finance", "finance.html", "Finance", True),
+    ("Bids and awards", "contracts/index.html", "Bids and awards", False),  # only when finance.json is loaded
     ("Capital projects", "capital-projects.html", "Capital projects", True),
     ("Data downloads", "data.html", "Data downloads", False),
     ("About", "about.html", "About", False),
@@ -244,23 +245,26 @@ NAV = (  # design 2.2: fixed order, the same on every page. (label, href, page_n
 )
 
 
-def _nav(ix: "Index") -> list[dict]:
+def _nav(ix: "Index", contracts: bool = False) -> list[dict]:
     years = sorted({ix.meetings[rc["meeting_id"]]["date"][:4] for rc in ix.facts["roll_calls"]}, reverse=True)
     out = []
     for label, href, page, coming in NAV:
+        if label == "Bids and awards" and not contracts:
+            continue
         if label == "Votes":  # the newest year's page; each votes page links every year
             href = f"votes/{years[0]}.html" if years else "search.html"
         out.append({"label": label, "href": href, "page": page, "coming": coming})
     return out
 
 
-def site_context(facts) -> dict:
+def site_context(facts, contracts: bool = False) -> dict:
+    """`contracts`: finance.json is loaded, so the nav lists Bids and awards (design finance-contracts 1)."""
     ix = _ix(facts)
     cfg = config.SITE
     return {
         "cfg": cfg,
         "csp": csp(),
-        "nav": _nav(ix),
+        "nav": _nav(ix, contracts),
         # the footer link exists only when it is switched on and has an address (CEO, 2026-11-08)
         "support_url": (cfg.get("support_url") or "") if cfg.get("support_enabled") is True else "",
         "support_label": cfg.get("support_label") or "",
@@ -1166,9 +1170,10 @@ def zoning_search_text(item: dict) -> str:
     return " · ".join(parts)
 
 
-def search_index(facts) -> dict:
+def search_index(facts, fin=None) -> dict:
     """The one first-party search index (manager decision Q3), loaded by static/search.js. Unconfirmed roll calls
-    carry no outcome and no votes, so a vote or outcome filter can never match one (invariant rules 1 and 5)."""
+    carry no outcome and no votes, so a vote or outcome filter can never match one (invariant rules 1 and 5).
+    `fin` (a fin_views.Finance) adds the solicitations, type `sol` (finance-contracts F7)."""
     ix = _ix(facts)
     cfg = config.SITE
     body = cfg["county_key"]
@@ -1210,6 +1215,8 @@ def search_index(facts) -> dict:
                         "t": f"{cfg['district_page_title']} {row['number']}", "st": row["holder"] or "",
                         "ho": row["holder_id"] or "",
                         "d": "", "y": [], "ty": [], "b": body, "h": row["href"]})
+    if fin is not None:
+        records += fin_views.search_records(fin, body)
     years = sorted({y for r in records for y in r["y"]})
     # Compact: seat_on[date][official] is an index into seat_labels, for the officials with a vote on that date.
     seat_labels: list[str] = []
@@ -1242,10 +1249,11 @@ def search_index(facts) -> dict:
     }
 
 
-def search_page(facts) -> dict:
+def search_page(facts, fin=None) -> dict:
     ix = _ix(facts)
-    idx = search_index(ix)
-    return {"years": idx["years"], "types": idx["types"], "officials": idx["officials"]}
+    idx = search_index(ix, fin)
+    return {"years": idx["years"], "types": idx["types"], "officials": idx["officials"],
+            "contracts_kind": config.FIN_TEXT["contracts"]["search_kind"] if fin is not None else None}
 
 
 def coming(slug: str) -> dict:

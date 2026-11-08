@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 import jinja2
 from jsonschema import Draft202012Validator, FormatChecker
 
-from . import config, georef as georef_mod, seats as seats_mod, views
+from . import config, fin_views, georef as georef_mod, seats as seats_mod, views
 
 
 class BuildError(Exception):
@@ -110,6 +110,24 @@ def load_facts(facts_path: Path) -> dict:
     return facts
 
 
+def load_finance(finance_path: Path, facts_fixture: bool) -> dict:
+    """data/finance.json (schema/finance.schema.json), reference- and scan-checked (architecture 7). A FIXTURE finance
+    file is never mixed with real facts, nor real finance with fixture facts: made-up vendors must never sit on a
+    real build, and the FIXTURE banner covers every page or none."""
+    fin = json.loads(Path(finance_path).read_text(encoding="utf-8"))
+    lines = _schema_errors(_validator(config.FINANCE_SCHEMA_PATH), fin)
+    if lines:
+        raise BuildError(f"{finance_path} does not match schema/finance.schema.json:\n" + "\n".join(lines))
+    try:
+        fin_views.check_references(fin)
+    except fin_views.FinanceError as exc:
+        raise BuildError(f"{finance_path}: {exc}") from exc
+    if bool(fin.get("fixture")) != facts_fixture:
+        raise BuildError(f"{finance_path}: a {'FIXTURE' if fin.get('fixture') else 'real'} finance file cannot be "
+                         f"built with a {'FIXTURE' if facts_fixture else 'real'} facts file")
+    return fin
+
+
 def make_env() -> jinja2.Environment:
     return jinja2.Environment(
         loader=jinja2.FileSystemLoader(str(config.TEMPLATE_DIR)),
@@ -150,7 +168,7 @@ def _clean(out: Path) -> None:
     out.mkdir(parents=True, exist_ok=True)
     for p in out.glob("*.html"):
         p.unlink()
-    for d in ("officials", "meetings", "items", "static", "districts", "votes"):
+    for d in ("officials", "meetings", "items", "static", "districts", "votes", "contracts"):
         shutil.rmtree(out / d, ignore_errors=True)
 
 
@@ -195,12 +213,15 @@ def site_url_problems(cfg: dict) -> list[str]:
 
 
 def build(facts_path, out_dir, internal: bool = False, changes_path=None, report_path=None,
-          seats_path=DEFAULT, districts_path=DEFAULT, geocoder: bool = True) -> dict:
+          seats_path=DEFAULT, districts_path=DEFAULT, geocoder: bool = True, finance_path=DEFAULT) -> dict:
     """`geocoder=False` (`--no-geocoder`) draws no landing address box and allows no geocoder in the CSP: the build
     for the claude.ai preview, where the box could not reach the geocoder. The plain lookup line shows instead.
     `seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
     config/localities/<locality>/districts.json; a fixture facts file reads neither (made-up people must never be
-    joined to the real roster), so tests pass their own fixture files. None means: no such file."""
+    joined to the real roster), so tests pass their own fixture files. None means: no such file.
+    `finance_path`: finance.json (bids and awards). Left out, a real build reads finance.json next to the facts file
+    when it exists; a fixture facts file reads none. Without it the Bids and awards pages are not written and Finance
+    keeps its "coming" page."""
     facts_path, out = Path(facts_path), Path(out_dir)
     facts = load_facts(facts_path)
     fixture = bool(facts.get("fixture"))
@@ -208,6 +229,13 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         seats_path = None if fixture else config.SEATS_PATH
     if districts_path is DEFAULT:
         districts_path = None if fixture else config.DISTRICTS_PATH
+    if finance_path is DEFAULT:  # the default file is optional; a path given by name must exist
+        finance_path = None if fixture else facts_path.parent / "finance.json"
+        if finance_path is not None and not finance_path.is_file():
+            finance_path = None
+    elif finance_path is not None and not Path(finance_path).is_file():
+        raise BuildError(f"{finance_path}: no such finance file")
+    fin_data = load_finance(finance_path, fixture) if finance_path is not None else None
     try:
         seat_rows = seats_mod.load_rows(seats_path)
         districts = seats_mod.load_districts(districts_path)
@@ -218,6 +246,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     if bad:
         raise BuildError("config/site.yml: " + "; ".join(bad))
     ix = views.Index(facts, seat_rows)
+    fx = fin_views.Finance(fin_data, facts["officials"]) if fin_data is not None else None
     env = make_env()
 
     if config.OPERATOR_NAME == config.OPERATOR_PLACEHOLDER:
@@ -230,7 +259,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         report_path = out.parent / "report.json"
 
     _clean(out)
-    site = views.site_context(ix)
+    site = views.site_context(ix, contracts=fx is not None)
     site["internal"] = internal
     written: list[str] = []
 
@@ -251,10 +280,17 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         render("district.html.j2", f"districts/{n:02d}.html", ctx["title"], **ctx)
     for year in site["vote_years_desc"]:
         render("votes_year.html.j2", f"votes/{year}.html", f"Votes {year}", **views.votes_year(year, ix))
-    render("search.html.j2", "search.html", "Search", **views.search_page(ix))
+    render("search.html.j2", "search.html", "Search", **views.search_page(ix, fx))
     for c in config.SITE["coming"]:
         render("coming.html.j2", f"{c['slug']}.html", c["title"], **views.coming(c["slug"]))
     render("data.html.j2", "data.html", "Data downloads", **views.data_page())
+    if fx is not None:
+        title = config.FIN_TEXT["contracts"]["title"]
+        render("fin_contracts_index.html.j2", "contracts/index.html", title, **fin_views.contracts_index(fx))
+        for sol in fin_data["solicitations"]:
+            ctx = fin_views.solicitation(sol["id"], fx)
+            render("fin_solicitation.html.j2", f"contracts/{sol['slug']}.html", f"{title}: {sol['title']}", **ctx)
+        render("glossary.html.j2", "glossary.html", "Glossary", **fin_views.glossary())
     for o in facts["officials"]:
         ctx = views.official(o["id"], ix)
         render("official.html.j2", f"officials/{o['id']}.html", o["name"], **ctx)
@@ -274,7 +310,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
 
     shutil.copytree(config.STATIC_DIR, out / "static")
     # A script, not a JSON file, so search also works when the site is opened from files or a zip (no fetch).
-    index_js = "window.SEARCH_INDEX = " + json.dumps(views.search_index(ix), separators=(",", ":"),
+    index_js = "window.SEARCH_INDEX = " + json.dumps(views.search_index(ix, fx), separators=(",", ":"),
                                                      ensure_ascii=True) + ";\n"
     (out / "static" / "search-index.js").write_text(index_js, encoding="utf-8")
     manifest = write_publish_manifest(out)

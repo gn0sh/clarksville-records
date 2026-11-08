@@ -1,4 +1,4 @@
-"""python -m sitegen --facts <facts.json> --out build/site [--internal] [--no-geocoder]
+"""python -m sitegen --facts <facts.json> --out build/site [--internal] [--no-geocoder] [--finance <finance.json>]
 
 --no-geocoder: no "Find your district" address box on the landing (and no geocoder in the page's CSP), only the plain
 "Not sure of your district?" lookup line. Use it for the claude.ai preview, where the box cannot reach the geocoder."""
@@ -17,6 +17,8 @@ def main(argv=None) -> int:
     ap.add_argument("--report", help="report.json from the verifier (default: next to --out)")
     ap.add_argument("--seats", help="holder records (default: config/seats.yml; none for a fixture facts file)")
     ap.add_argument("--districts", help="map file (default: config/localities/<locality>/districts.json)")
+    ap.add_argument("--finance", help="finance JSON (schema/finance.schema.json; default: finance.json next to the "
+                    "facts file, none for a fixture facts file). Without it Bids and awards is not built")
     ap.add_argument("--no-geocoder", action="store_true",
                     help="draw no landing address box (the claude.ai preview build); the plain lookup line stays")
     args = ap.parse_args(argv)
@@ -25,6 +27,8 @@ def main(argv=None) -> int:
         extra["seats_path"] = args.seats
     if args.districts:
         extra["districts_path"] = args.districts
+    if args.finance:
+        extra["finance_path"] = args.finance
     try:
         result = build(args.facts, args.out, internal=args.internal,
                        changes_path=args.changes, report_path=args.report,

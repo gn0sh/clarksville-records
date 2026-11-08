@@ -26,6 +26,10 @@ DISTRICTS_PATH = CONFIG_DIR / "localities" / LOCALITY / "districts.json"
 
 SITE_NAME = SITE["site_name"]
 
+# Fixed wording for the finance and contracts pages (design finance-contracts 2-5); exact-string tested.
+FIN_TEXT_PATH = CONFIG_DIR / "finance_text.yml"
+FIN_TEXT = yaml.safe_load(FIN_TEXT_PATH.read_text(encoding="utf-8"))
+
 # CEO decision G1 (2026-11-07): every page names the operator. The CEO supplies the real text; a public build
 # (M1.5) refuses to run while this is still the placeholder.
 OPERATOR_PLACEHOLDER = "[OPERATOR NAME - CEO to confirm]"

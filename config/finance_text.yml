@@ -1,0 +1,97 @@
+# Fixed wording for the finance and contracts pages (docs/design/finance-contracts.md sections 2-5). One source:
+# templates and sitegen/fin_views.py take every sentence from here, and tests check them by exact string. This file and
+# glossary.html are the only places the banned-words lint skips (design 9). {braces} are filled from finance.json's
+# coverage block (fin_checks.coverage), never counted again in sitegen.
+
+coverage_contracts: "{n_tab} of {n_total} solicitations have a bid tab; award letters are scans and are linked, not read."
+coverage_budget: "{n_lines} budget lines from {n_books} books; {n_flag} totals do not add up as printed and are marked."
+
+notes:
+  a: "A bid total is the amount a bidder wrote on the bid tab. It is not the value of any contract."
+  b: "Notice of intent, award letter and commission approval are separate events. Dates are shown per document."
+  c: "This archive covers sealed solicitations only. Other purchases are not here, so nothing on this page adds up to what the county spent."
+  c_short: "Archive covers sealed solicitations only."
+  d: "Capital fund lines are yearly appropriations in the budget book, not the cost of a project."
+  e: "Amounts are whole dollars as printed in the book. Transfers and available funds are listed in their own section and are not revenue or spending. No county-wide total is shown."
+edition_note: "The two books print different figures for this line. Both are shown."
+
+contracts:
+  title: Bids and awards
+  # stage word for each document stage (schema document.stage); the order of `stage_order` breaks date ties (design 5)
+  stages:
+    bid: Bid
+    rfp: Request for proposals
+    rfq: Request for quotes
+    bid_tab: Bid tab
+    notice_of_intent: Notice of intent
+    notice_of_award: Notice of award
+    award_letter: Award letter
+    partial_award: Partial award
+    qa: Questions and answers
+    addendum: Addendum
+    advertisement: Advertisement
+    drawings: Drawings
+    forms: Forms
+    other: Other
+  stage_order: [bid, rfp, rfq, bid_tab, notice_of_intent, notice_of_award, award_letter, partial_award, qa, addendum,
+                advertisement, drawings, forms, other]
+  # glossary entry ids for stage words that have one (first use in a table links to it, design 3)
+  stage_glossary: {bid_tab: bid-tab, notice_of_intent: notice-of-intent, award_letter: award-letter, rfp: rfp}
+  # the word before "p. n" in a source link, per source kind (schema source.kind)
+  source_words: {bid: bid, rfp: request for proposals, bid_tab: bid tab, award_letter: award letter, notice: notice,
+                 other: document, budget_book: budget book}
+  has_tab: Has bid tab
+  no_tab: No bid tab
+  scanned_mark: Scanned
+  scanned_row: "Scanned, read it yourself"
+  scanned_detail: "This document is a scanned image. No amount, name or date has been read from it."
+  dead_link: "Link not available at fetch ({date})"
+  not_pdf: "Not a PDF. Linked, not read."
+  link_only: "Linked, not fetched."
+  shared: "The same link is listed for more than one solicitation, so nothing is read from it."
+  no_date: "No date read"
+  archive_date_empty: "No date printed"
+  archive_link: archive page
+  no_tab_detail: "No bid tab was found for this solicitation. Documents are listed above."
+  tab_heading: "Bidders and totals as printed"
+  not_read:
+    layout: "This bid tab lists prices by item, so its totals are not read here. Read the bid tab itself."
+    scan: "This bid tab is a scanned image. No amount, name or date has been read from it."
+    shared_url: "This bid tab link is listed for more than one solicitation, so nothing is read from it."
+  awardee: "Awardee as printed on the bid tab: {name}."
+  awardee_none: "The bid tab does not name an awardee."
+  awardee_not_listed: "This name is not one of the bidders listed on the bid tab."
+  awardee_ambiguous: "This name matches more than one bidder listed on the bid tab."
+  differ: "Documents differ, read both."
+  differ_fields: {awardee: Awardee, n_bidders: Number of bidders}
+  no_department: "Not stated"
+  empty_filter: "No solicitations match."
+  clear_filters: Clear filters
+  more: Show 25 more
+  page_size: 25
+  # sort choices: date and name only, never an amount or a count (AC-F8)
+  sorts:
+    - {key: new, label: Date newest}
+    - {key: old, label: Date oldest}
+    - {key: title, label: Title A-Z}
+    - {key: dept, label: Department A-Z}
+  docs_filter:
+    - {key: "", label: Any}
+    - {key: tab, label: Has a bid tab}
+    - {key: notab, label: No bid tab}
+  search_kind: Bids and awards
+  words_toggle: Words used on this page
+  # glossary entries shown in the "Words used on this page" toggle on contracts pages
+  words: [award-letter, bid-tab, notice-of-intent, rfp]
+
+# Design 3: alphabetical, one sentence each, no evaluation words. id = the anchor on glossary.html.
+glossary:
+  - {id: actual, term: Actual, text: "The amount the county's books show was received or spent in a finished fiscal year."}
+  - {id: adopted-budget, term: Adopted budget, text: "The budget the commission passed at the start of a fiscal year."}
+  - {id: amended-budget, term: Amended budget, text: "The adopted budget after changes made during the year."}
+  - {id: award-letter, term: Award letter, text: "A letter from the county to the bidder it chose. Most are scanned images and are linked, not read."}
+  - {id: bid-tab, term: Bid tab, text: "A table listing each bidder and the total it bid. Short for bid tabulation."}
+  - {id: capital-project, term: Capital project, text: "A building, road or equipment purchase the budget book lists under the capital projects fund."}
+  - {id: fund, term: Fund, text: "A separate set of accounts the county keeps for one purpose, with its own revenue and spending."}
+  - {id: notice-of-intent, term: Notice of intent, text: "A notice that the county plans to award to a named bidder. It comes before an award letter."}
+  - {id: rfp, term: RFP (request for proposals), text: "A document asking companies to propose how they would do work, and at what price."}
