@@ -81,7 +81,7 @@ def coverage_sentence(cov: dict) -> str:
     {n_tab} is n_bid_tab_links: solicitations with a bid tab (bid_tab not null), read or not. {n_scan} of
     {n_letters} is n_award_scanned of n_award_letters: award-type documents (fin_checks.AWARD_LETTER_STAGES), and of
     those the ones marked scanned (text layer none or a scanner's OCR, document.scanned)."""
-    return T["coverage_contracts"].format(n_tab=cov["n_bid_tab_links"], n_total=cov["n_total"],
+    return T["coverage_contracts"].format(n_tab=cov["n_bid_tab_links"], n_total=cov["n_total"], n_read=cov["n_tab_read"],
                                           n_scan=cov["n_award_scanned"], n_letters=cov["n_award_letters"])
 
 

@@ -3,16 +3,16 @@
 # glossary.html are the only places the banned-words lint skips (design 9). {braces} are filled from finance.json's
 # coverage block (fin_checks.coverage), never counted again in sitegen.
 
-coverage_contracts: "{n_tab} of {n_total} solicitations have a bid tab; {n_scan} of {n_letters} award letters are scanned images. Award letters are linked, not read."
+coverage_contracts: "{n_tab} of {n_total} solicitations have a bid tab; this site reads {n_read} of them; {n_scan} of {n_letters} award letters are scanned images. Award letters are linked, not read."
 coverage_budget: "{n_lines} budget lines from {n_books} books; {n_flag} totals do not add up as printed and are marked."
 
 notes:
-  a: "A bid total is the amount a bidder wrote on the bid tab. It is not the value of any contract."
+  a: "The amount shown is the total printed for each bidder on the bid tab (for some tabs a base bid, or a total including alternates, as labelled there). It is not the value of any contract."
   b: "Notice of intent, award letter and commission approval are separate events. Dates are shown per document."
   c: "This archive covers sealed solicitations only. Other purchases are not here, so nothing on this page adds up to what the county spent."
   c_short: "Archive covers sealed solicitations only."
-  d: "Capital fund lines are yearly appropriations in the budget book, not the cost of a project."
-  e: "Amounts are whole dollars as printed in the book. Transfers and available funds are listed in their own section and are not revenue or spending. No county-wide total is shown."
+  d: "This page shows the lines of the Capital Projects Fund under the headings the budget book uses, by year as printed (actual, amended, budget). A line is not the total cost of a project."
+  e: "Amounts are whole dollars as printed in the book. Transfers and available funds are listed in their own section, and some printed totals include them, as each total says. No county-wide total is shown."
 edition_note: "The two books print different figures for this line. Both are shown."
 
 contracts:
@@ -156,7 +156,7 @@ glossary:
   - {id: amended-budget, term: Amended budget, text: "The adopted budget after changes made during the year."}
   - {id: award-letter, term: Award letter, text: "A letter from the county to the bidder it chose. Most are scanned images and are linked, not read."}
   - {id: bid-tab, term: Bid tab, text: "A table listing each bidder and the total it bid. Short for bid tabulation."}
-  - {id: capital-project, term: Capital project, text: "A building, road or equipment purchase the budget book lists under the capital projects fund."}
+  - {id: capital-project, term: Capital project, text: "A line the budget book lists under the Capital Projects Fund, shown under the heading the book uses. It is not the total cost of a project."}
   - {id: fund, term: Fund, text: "A separate set of accounts the county keeps for one purpose, with its own revenue and spending."}
   - {id: notice-of-intent, term: Notice of intent, text: "A notice that the county plans to award to a named bidder. It comes before an award letter."}
   - {id: rfp, term: RFP (request for proposals), text: "A document asking companies to propose how they would do work, and at what price."}

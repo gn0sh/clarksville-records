@@ -18,7 +18,7 @@ from test_site_neutrality import BANNED, skeleton
 FIN = ROOT / "site" / "fixtures" / "finance.sample.json"
 T = config.FIN_TEXT
 C = T["contracts"]
-COVERAGE = ("4 of 5 solicitations have a bid tab; 1 of 1 award letters are scanned images. "
+COVERAGE = ("4 of 5 solicitations have a bid tab; this site reads 3 of them; 1 of 1 award letters are scanned images. "
             "Award letters are linked, not read.")
 
 
@@ -91,9 +91,9 @@ def test_coverage_sentence_is_the_one_fixed_string_on_every_contracts_page(fpage
 
 def test_coverage_counts_come_from_the_file_not_from_sitegen(tmp_path, fin):
     f = copy.deepcopy(fin)
-    f["coverage"].update(n_bid_tab_links=32, n_total=91, n_award_letters=70, n_award_scanned=42)
+    f["coverage"].update(n_bid_tab_links=32, n_total=91, n_award_letters=70, n_award_scanned=42, n_tab_read=16)
     pages = build_with(tmp_path, fin=f)
-    assert ("32 of 91 solicitations have a bid tab; 42 of 70 award letters are scanned images. "
+    assert ("32 of 91 solicitations have a bid tab; this site reads 16 of them; 42 of 70 award letters are scanned images. "
             "Award letters are linked, not read.") in pages["contracts/index.html"]
 
 
