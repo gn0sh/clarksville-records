@@ -106,6 +106,28 @@ def test_check_states(printed, parts, state):
     assert t["check"]["state"] == state
 
 
+@pytest.mark.parametrize("printed,parts,state", [
+    ([5], [[4], [0], [0]], "within_rounding"),           # "0" is printed (may be rounded): n 3, bound 2
+    ([6], [[4], [0], [0]], "within_rounding"),
+    ([5], [[4], ["-"], ["-"]], "within_rounding"),       # "-" is an exact 0: n 1, bound 1
+    ([6], [[4], ["-"], ["-"]], "does_not_add_up"),
+    ([1], [["-"], ["-"]], "does_not_add_up"),            # n 0, bound 0
+])
+def test_rounding_n_counts_printed_amounts_per_column(printed, parts, state):
+    """budget-reconcile/rounding-n-counts-dashes: a "-" cell (exact 0) and a blank cell do not widen the bound."""
+    def dash(d):
+        return {"header_as_printed": "FY", "fiscal_year": 2025, "kind": "actual", "as_printed": "-", "dollars": 0}
+    lines = []
+    for i, d in enumerate(parts, start=1):
+        x = mk(f"b1/p1/r{i}", "detail", [0 if d == ["-"] else d[0]])
+        if d == ["-"]:
+            x["cells"] = [dash(0)]
+        lines.append(x)
+    t = mk("b1/p1/r9", "total", printed, [x["id"] for x in lines])
+    fin_checks.reconcile(lines + [t])
+    assert t["check"]["state"] == state
+
+
 def test_held_scope_line_holds_the_total():
     a, b = mk("b1/p1/r1", "detail", [None], held="column-align"), mk("b1/p1/r2", "detail", [6])
     t = mk("b1/p1/r3", "total", [6], [a["id"], b["id"]])

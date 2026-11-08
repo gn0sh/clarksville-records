@@ -120,7 +120,7 @@ UX field map (design section 10): `doc_date` = `doc_date_text` (mostly null, see
 ## 4. Checks and invariants (problem-key families for reviewers)
 - **budget-reconcile/***: every subtotal and total gets a check over exactly its `scope_line_ids`; printed values are
   never altered; `exact` when sum = printed in every cell; `within_rounding` when |diff| <= floor((n+1)/2) dollars for n
-  detail rows (each printed line is rounded to the dollar; the book's actuals are rounded from cents); otherwise
+  detail rows with a printed amount in that column (a "-" is an exact 0 and a blank is not printed: neither counts) (each printed line is rounded to the dollar; the book's actuals are rounded from cents); otherwise
   `does_not_add_up`, shown as printed with its lines. A total with no detail rows in scope is `does_not_add_up`.
   A held total, or one over a held line, is `not_checked` (we could not read it; counted apart, never in `n_flag`). No
   county-wide or cross-fund sum exists in code (lint: no `sum(` over lines outside `fin_checks.py`).

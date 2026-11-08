@@ -100,27 +100,33 @@ def rounding_bound(n: int) -> int:
     return (n + 1) // 2
 
 
+def rounded_cells(scope: list[dict], i: int) -> int:
+    """n for column i's rounding bound: the scope lines with a printed amount there. A "-" is an exact 0 and a blank
+    cell is not printed: neither can carry a rounding slip (budget-reconcile/rounding-n-counts-dashes)."""
+    return sum(1 for x in scope if x["cells"][i]["dollars"] is not None and x["cells"][i]["as_printed"] != "-")
+
+
 def check_total(line: dict, scope: list[dict]) -> dict:
     """The check of one subtotal or total over exactly its scope lines. Printed values are never altered. Per cell:
     printed = the total's dollars, sum = the scope lines' dollars in that column (blank or held = not added),
     diff = printed - sum (null when printed is null). State: not_checked when the total or a scope line is held (the
     line is then held too and shown as Not confirmed*, see reconcile; counted apart, never as a book error,
     budget-reconcile/held-counted-as-book-error); does_not_add_up when the scope is empty, a blank total has lines
-    with dollars, or some |diff| exceeds the rounding bound; within_rounding when every |diff| is within it and one is
-    not 0; else exact."""
-    per_cell = []
+    with dollars, or some |diff| exceeds its column's rounding bound (n = rounded_cells); within_rounding when every
+    |diff| is within it and one is not 0; else exact."""
+    per_cell, bounds = [], []
     for i, c in enumerate(line["cells"]):
         s = sum(x["cells"][i]["dollars"] or 0 for x in scope)
         p = c["dollars"]
         per_cell.append({"printed": p, "sum": s, "diff": None if p is None else p - s})
-    bound = rounding_bound(len(scope))
+        bounds.append(rounding_bound(rounded_cells(scope, i)))
     if line["held"] or any(x["held"] for x in scope):
         state = NOT_CHECKED
     elif not scope or any(pc["printed"] is None and pc["sum"] != 0 for pc in per_cell):
         state = "does_not_add_up"
     elif all(pc["diff"] in (0, None) for pc in per_cell):
         state = "exact"
-    elif all(pc["diff"] is None or abs(pc["diff"]) <= bound for pc in per_cell):
+    elif all(pc["diff"] is None or abs(pc["diff"]) <= b for pc, b in zip(per_cell, bounds)):
         state = "within_rounding"
     else:
         state = "does_not_add_up"

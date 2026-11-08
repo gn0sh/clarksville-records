@@ -65,3 +65,7 @@ and stays `projected`. Decision (manager, from review 1b finding 4, column-kind/
 is still stored and shown as printed. An override that matches no header in its book fails the book, so a re-printed
 header cannot silently drop it. Alternative rejected: a global rule "Projection in an approved edition = adopted",
 which would also turn FY2027's "FY 2026 Projections" into an adopted budget.
+
+Same review (nit 7, budget-reconcile/rounding-n-counts-dashes): the rounding bound's n is counted per column over
+the scope lines with a printed amount there; a "-" (an exact 0) and a blank cell no longer widen it. No check in
+either book changed state.
