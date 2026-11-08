@@ -78,7 +78,9 @@
 | 2026-11-08 | frontend-engineer | opus/medium | address pin M2 (box, georef.js, Census JSONP) | done, b470a4f: 614 pass, site_checks PASS; live geocoder untested (blocked here) |
 | 2026-11-08 | code-reviewer | opus/high | address pin 1a54ff0..8233541 | request changes: addr-pin/ambiguous-match, addr-pin/privacy-copy-not-config (medium); n6/jsonp-is-third-party-script, live-endpoint-unverified, geocoder-margin-judgment (low) |
 | 2026-11-08 | security-engineer | opus/high | address lookup 187d5a4..8233541 | pass with conditions: third-party-script/jsonp-runs-in-origin (medium, public gate), no-csp, privacy/promise-incomplete, privacy/preview-csp-report, qa-guard/addr-config-silent-miss (low) |
-| 2026-11-08 | frontend-engineer | opus/high | address pin review + security fixes (sandboxed iframe, CSP, ambiguity) | running |
+| 2026-11-08 | frontend-engineer | opus/high | address pin review + security fixes (sandboxed iframe, CSP, ambiguity) | done, 468e27b: 636 pass, site_checks PASS both builds |
+| 2026-11-08 | security-engineer | opus/high | fresh re-review 8233541..5fc4e82 | PASS; gate jsonp-runs-in-origin cleared (Chromium); low: srcdoc-csp-safari-unverified, frame-src-guard-unpinned, hostile-answer-freezes-tab (accept, document), dead-code |
+| 2026-11-08 | code-reviewer (API agent.py) | opus/medium | delta re-review of address pin fixes | running |
 | 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
 
 ## Decisions
