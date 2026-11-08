@@ -27,6 +27,8 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   footer      "Provided as a free service by Brian Zacharias." on every page
   external    no third-party scripts, styles, images or fonts (N6)
   files       fewer than 250 files
+  row-height  no table row (or vote / result list item) taller than 60% of the viewport, with long text clamped and row
+              details collapsed, at 375x667, 768x1024, 1000x800 and 1280x800; needs Playwright (node)
   hscroll     no horizontal scroll at 390 px for the page types (index, official, meeting, items, and when present
               officials, district, search, votes); needs Playwright (node)
 """
@@ -764,6 +766,44 @@ def check_hscroll(site: Path, pages: dict[str, Page], all_pages: bool, sample: i
     return problems, f"{len(results)} pages at {VIEWPORT}px: " + ", ".join(f"{t} x{sum(1 for c in chosen if page_type(c) == t)}" for t in by_type)
 
 
+ROW_VIEWPORTS = ((375, 667), (768, 1024), (1000, 800), (1280, 800))
+
+
+def check_row_height(site: Path, pages: dict[str, Page], sample: int, all_pages: bool) -> tuple[list[str], str]:
+    """Owner feedback: no single table entry may run past the screen. Measures every table row at four viewports."""
+    by_type: dict[str, list[str]] = {}
+    for rel in sorted(pages):
+        t = page_type(rel)
+        if t:
+            by_type.setdefault(t, []).append(rel)
+    chosen = []
+    for t, rels in by_type.items():
+        rels = sorted(rels, key=lambda r: (site / r).stat().st_size)
+        chosen += rels if all_pages or len(rels) <= sample else [rels[-1], rels[len(rels) // 2], rels[0]][:sample]
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
+        json.dump([{"name": r, "path": str((site / r).resolve())} for r in chosen], tf)
+    env = dict(os.environ)
+    if "NODE_PATH" not in env:
+        try:
+            env["NODE_PATH"] = subprocess.run(["npm", "root", "-g"], capture_output=True, text=True, timeout=30).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            pass
+    problems, rows = [], 0
+    try:
+        for w, h in ROW_VIEWPORTS:
+            r = subprocess.run(["node", str(Path(__file__).with_name("rowheight.js")), tf.name, str(w), str(h), "0.6"],
+                               capture_output=True, text=True, timeout=900, env=env)
+            if r.returncode != 0:
+                raise RuntimeError("row-height check could not run: " + (r.stderr.strip().splitlines() or ["?"])[-1])
+            for x in json.loads(r.stdout):
+                rows += x["rows"]
+                for o in x["offenders"]:
+                    problems.append(f"{x['name']} at {w}x{h}: {o['tag']} is {o['h']}px (limit {int(h * 0.6)}): {o['text']!r}")
+    finally:
+        os.unlink(tf.name)
+    return problems, f"{rows} rows on {len(chosen)} pages at " + ", ".join(f"{w}x{h}" for w, h in ROW_VIEWPORTS)
+
+
 # ---------------------------------------------------------------- driver
 
 def run_checks(site: Path, facts: dict, internal=False, no_export=False, operator=OPERATOR, browser=True,
@@ -802,8 +842,14 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
             rep.add("hscroll", problems, note)
         except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
             rep.add("hscroll", [str(exc)])
+        try:
+            problems, note = check_row_height(site, pages, sample, all_pages)
+            rep.add("row-height", problems, note)
+        except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
+            rep.add("row-height", [str(exc)])
     else:
         rep.skip("hscroll", "--no-browser")
+        rep.skip("row-height", "--no-browser")
     return rep
 
 

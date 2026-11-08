@@ -648,5 +648,10 @@ details.row-details > summary { cursor: pointer; color: var(--muted); display: i
 table.attendance td.cite details.row-details { display: inline-block; }
 @media (max-width: 640px) {
   table.history colgroup { display: none; }
+  /* a compact card: date | type and record | outcome side by side, the item and source full width */
+  table.history tbody tr.fact { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px; }
+  table.history tr.fact td { grid-template-columns: 1fr; gap: 0; padding: 1px 0; }
+  table.history tbody tr.fact { padding: 8px 10px; }
+  table.history tr.fact td.c-item, table.history tr.fact td.c-source { grid-column: 1 / -1; grid-template-columns: 4rem 1fr; gap: 8px; }
   table.history { table-layout: auto; min-width: 0; }
 }

@@ -476,6 +476,26 @@ IDs are derived from content position, not run order (see the schema), so a pars
 ### Static site generator (`sitegen/`)
 `python -m sitegen --facts <facts.json> --out build/site [--internal]` renders Jinja2 templates to plain HTML files with
 relative links. Works from a file system, a zip, any static host, or a private claude.ai page.
+
+**Standing rules for every page (owner, 2026-11-08).**
+1. **A name is a link.** Any time an elected official's name is shown to a reader, it is a hyperlink to that person's
+   vote history, `officials/<id>.html` (relative to the page's depth). This covers meeting, item, votes, seat and
+   officials pages, the landing list, About, search results (`search.js`), "Moved by / seconded by" lines
+   (`Index.motion_for` returns structured parts, rendered by the `motion_by` macro) and anything added later.
+   Exempt: `<title>`, `<option>` (a form control, such as the search Official dropdown), the footer operator line, the
+   cell that lists spelling variants (`data-variants`), a person's own page heading, and a filter chip (a button).
+   Never link the fixed words "seat not recorded". Every holder in `seats.yml` has a page: a person with no facts gets
+   `official_roster.html.j2` ("No votes or attendance are recorded ..."), with the seat, the term as the source prints
+   it, and the source. Enforced by `qa/site_checks.py` check `name-links` (every occurrence of a known display name in
+   visible text is inside an `<a>` to that official's page), with unit tests in `tests/test_qa_tools.py`.
+2. **Tables stay readable.** No table row may be taller than 60% of the viewport (375x667, 768x1024, 1000x800,
+   1280x800). Date, type, record, outcome and source columns are narrow and fixed (`<colgroup>`); the item column takes
+   the rest. Long text uses the `clamp` macro (`static/clamp.js`: about 2 lines, an `aria-expanded` "Show more" button,
+   the full text always in the page and shown in full without script). A row's fine print (fetch date, fact id,
+   "Report an error", the not-confirmed explanation) goes in the row's `source_cell` Details toggle, once per row, never
+   repeated per cell. On a phone the history table is a stacked card. Enforced by check `row-height`
+   (`qa/rowheight.js`).
+
 Pages (count estimate for 2020-2024 in brackets; the whole site must stay under 250 files):
 | File | Content |
 |---|---|

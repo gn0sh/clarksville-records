@@ -257,3 +257,42 @@ def test_layout_ignores_how_many_year_tables_a_page_has(site):
     assert "layout" not in failed(run(site))
     edit(page, ">Outcome</th>", ">Result</th>")
     assert "layout" in failed(run(site))
+
+
+def test_name_links_check_catches_an_unlinked_official_name(site):
+    """Standing rule: an official's name shown anywhere is a link to officials/<id>.html."""
+    page = site / "meetings" / "2024-12-09-formal.html"
+    t = page.read_text(encoding="utf-8")
+    assert '<a href="../officials/a-example.html">A. Example</a>' in t
+    assert "name-links" not in failed(run(site))
+    edit(page, '<a href="../officials/a-example.html">A. Example</a>', "A. Example")
+    assert "name-links" in failed(run(site))
+    edit(page, "A. Example", '<a href="../officials/b-sample.html">A. Example</a>')   # linked, but to the wrong person
+    assert "name-links" in failed(run(site))
+
+
+def test_name_links_check_ignores_title_option_footer_and_own_page(site):
+    edit(site / "about.html", "</main>", "<p hidden></p></main>")
+    page = site / "about.html"
+    t = page.read_text(encoding="utf-8")
+    page.write_text(t.replace("<title>", "<title>A. Example ", 1), encoding="utf-8")
+    edit(page, "</main>", '<select><option>A. Example</option></select></main>')
+    assert "name-links" not in failed(run(site))
+
+
+def test_roster_only_official_has_a_page_that_says_nothing_is_recorded(site):
+    page = (site / "officials" / "f-rosteronly.html").read_text(encoding="utf-8")
+    assert "No votes or attendance are recorded for this person in the minutes collected so far." in page
+    assert "F. Rosteronly" in page and 'data-ext="roster"' in page
+    cards = (site / "officials.html").read_text(encoding="utf-8")
+    assert '<a class="card-name" href="officials/f-rosteronly.html">F. Rosteronly</a>' in cards
+
+
+@pytest.mark.skipif(not _browser_ok(), reason="Playwright (node) not available")
+def test_row_height_check_passes_clean_and_catches_a_tall_row(site):
+    assert "row-height" not in failed(run(site, browser=True))
+    page = site / "officials" / "a-example.html"
+    edit(page, '<td role="cell" class="c-item" data-label="Item"><div>',
+         '<td role="cell" class="c-item" data-label="Item"><div><div style="height:900px"></div>')
+    rep = run(site, browser=True, all_pages=True)
+    assert "row-height" in failed(rep), rep.render()
