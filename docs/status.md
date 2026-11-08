@@ -47,7 +47,7 @@
 | 2026-11-07 | ux-designer | opus/medium | landing map, drawer, search, current/former officials | done, a85e0e6 docs/design/landing-search-nav.md |
 | 2026-11-08 | code-reviewer | opus/high | review efbf38f..345d497 | request changes: 1 must-fix parse-accuracy/combine-ignores-unclean-dissent; should-fix outcome-crosses-clause, neutrality/derived-count-shown-as-stated; nit two-thirds |
 | 2026-11-08 | backend-engineer | opus/high | fix review findings | running |
-| 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | running |
+| 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
 | 2026-11-08 | frontend-engineer | opus/medium | landing, drawer, officials split, search, footer | running |
 
 ## Decisions
@@ -94,3 +94,5 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - Footer reads "Provided as a free service by Brian Zacharias." The Buy Me a Coffee link stays in config and is empty until Brian sends his page URL. The ethics check (G6) runs before the link goes public, because he sits on Council until January.
 - Manager decisions on the design questions: Q3 uses a first-party JSON search index (no Pagefind yet, to keep under the file budget). Q6 amends N6 to allow first-party static scripts. Q10 orders current officials by seat number. Q9 skips the focus group while the site is private.
 - Map source: the GIS hosts are blocked by the sandbox egress, and the allowlist prompt failed twice and was dropped. Boundaries are extracted from the county's own vector redistricting PDFs on mcgtn.org.
+- 2026-11-08: the county district map is traced from the county's own vector PDF (Redistricting20211018.pdf), with numbers 19 and 20 swapped per the 2021-11-08 amendment. The swap was verified against the 2026 roster and the per-district maps. City wards are unavailable: the city PDF is raster. The fallback is the APSU layer once that host is allowed.
+- Open parser finding (item-history family, 3rd hit): the 2024-09-09 minutes on p50 reprint the 2020 roll call for item 20-9-14 as an exhibit. It is filed as a 2024 unverified roll call. The architect must restate the invariant before the fix (loop rule). Seat derivation uses verified roll calls only, so seats are unaffected.
