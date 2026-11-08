@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import posixpath
+import re
 import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
@@ -190,6 +191,14 @@ def cmd_build(store: Store, cfg: FinanceConfig, finance_path: Path | None = None
     return 3 if block["parity"]["status"] != "ok" else 0
 
 
+def reason_class(detail: str) -> str:
+    """A census detail without its page and quoted text: "layout: words, not one amount, in the Total column"."""
+    head, _, rest = detail.partition(": ")
+    if head != "layout":
+        return head
+    return head + ": " + re.split(r" on page|: '|: \"| for '", rest)[0]
+
+
 def census_text(fin: dict, extras: dict) -> str:
     """F5b: each bid tab's layout class and the award-letter scan count."""
     out = ["bid tabs (archive order): class | detail | solicitation | url"]
@@ -205,9 +214,7 @@ def census_text(fin: dict, extras: dict) -> str:
     why: dict[str, int] = {}
     for c in extras["census"]:
         if c.cls != "lump_sum":
-            key = c.detail.split(":")[0] + (": " + c.detail.split(": ", 1)[1].split(" on page")[0]
-                                            if c.detail.startswith("layout") else "")
-            why[key] = why.get(key, 0) + 1
+            why[reason_class(c.detail)] = why.get(reason_class(c.detail), 0) + 1
     out.append("not read, by detail: " + "; ".join(f"{k} {v}" for k, v in sorted(why.items(), key=lambda kv: -kv[1])))
     out.append(f"solicitations: {cov['n_total']}; with a bid tab: {cov['n_bid_tab_links']}; tab read (lump_sum): "
                f"{cov['n_tab_read']}; not read: {json.dumps(cov['n_tab_not_read'], sort_keys=True)}")

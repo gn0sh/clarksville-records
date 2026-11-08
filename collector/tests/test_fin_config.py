@@ -26,7 +26,8 @@ def test_real_config_loads(raw):
 @pytest.mark.parametrize("path", [
     ("archive_url",), ("archive_header",), ("status_words",), ("date_formats",), ("stage_rules",),
     ("bonfire_hosts",), ("scan_producers",), ("bidtab",), ("bidtab", "fields"), ("bidtab", "fields", "awardee"),
-    ("bidtab", "columns"), ("bidtab", "columns", "total"), ("budget",), ("budget", "books"), ("capital_fund",),
+    ("bidtab", "columns"), ("bidtab", "columns", "total"), ("bidtab", "blocks", "first_label"),
+    ("bidtab", "blocks", "total_labels"), ("budget",), ("budget", "books"), ("capital_fund",),
 ])
 def test_missing_key_fails_loudly(raw, path):
     cfg = copy.deepcopy(raw)
@@ -52,6 +53,20 @@ def test_malformed_value_fails_loudly(raw, edit, match):
     edit(cfg)
     with pytest.raises(FinanceConfigError, match=match):
         fin_config.parse(cfg)
+
+
+def test_a_label_or_a_list_of_labels(raw):
+    cfg = copy.deepcopy(raw)
+    cfg["bidtab"]["fields"]["project"] = "Bid Project"
+    assert fin_config.parse(cfg).bidtab.fields["project"] == ("Bid Project",)
+    assert fin_config.load().bidtab.fields["department"] == ("Department",)
+    for bad in ([], [""], 5):
+        cfg["bidtab"]["fields"]["project"] = bad
+        with pytest.raises(FinanceConfigError, match="bidtab.fields.project"):
+            fin_config.parse(cfg)
+    del cfg["bidtab"]["blocks"]
+    cfg["bidtab"]["fields"]["project"] = "Bid Project"
+    assert fin_config.parse(cfg).bidtab.blocks is None          # the blocks layout is optional per locality
 
 
 def test_missing_file_fails(tmp_path):
