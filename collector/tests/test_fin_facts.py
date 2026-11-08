@@ -123,9 +123,10 @@ def test_not_stated_bucket_is_reported_not_flagged():
 def test_report_block(built):
     fin, extras = built
     b = report_block(fin, extras)
-    assert set(b) == {"coverage", "parity", "reconcile", "held", "docs_by_status", "problems"}
+    assert set(b) == {"coverage", "parity", "reconcile", "budget", "held", "docs_by_status", "problems"}
     assert b["coverage"] is fin["coverage"] and b["docs_by_status"]["not_pdf"] == 1
-    assert b["reconcile"] == {"exact": 0, "within_rounding": 0, "does_not_add_up": 0}
+    assert b["reconcile"] == fin_checks.reconcile_counts(fin["budget_lines"]) and sum(b["reconcile"].values()) > 0
+    assert set(b["budget"]) == {x.id for x in CFG.budget.books}
 
 
 def test_cmd_build_writes_finance_and_report_block(fake, monkeypatch, tmp_path, capsys):
@@ -135,7 +136,7 @@ def test_cmd_build_writes_finance_and_report_block(fake, monkeypatch, tmp_path, 
     rep.parent.mkdir()
     rep.write_text(json.dumps({"gates": {"kept": True}}))
     kw = dict(finance_path=out, report_path=rep, status_path=fake.status_path, meta_cache=None,
-              words_for=fake.words_for)
+              words_for=fake.words_for, book_words=fake.book_words)
     code = fin_run.cmd_build(fake.store, CFG, **kw)
     assert code in (0, 3)
     first = out.read_text()

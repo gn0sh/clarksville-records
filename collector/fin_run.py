@@ -209,6 +209,9 @@ def cmd_build(store: Store, cfg: FinanceConfig, finance_path: Path | None = None
     print(f"collector fin: {c['n_total']} solicitations, {c['n_docs']} documents ({c['n_docs_scanned']} scanned), "
           f"bid tabs read {c['n_tab_read']} of {c['n_bid_tab_links']}; parity {block['parity']['status']}; "
           f"finance.json {'changed' if changed else 'unchanged'}")
+    for book_id, b in block["budget"].items():
+        print(f"  budget {book_id}: {b['lines']} lines, funds {' '.join(b['funds'])}, reconcile "
+              f"{json.dumps(b['reconcile'], sort_keys=True)}, held {b['held']}, edition differs {b['edition_differs']}")
     for p in extras["problems"]:
         print("  note:", p)
     return 3 if block["parity"]["status"] != "ok" else 0

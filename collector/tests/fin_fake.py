@@ -75,6 +75,12 @@ class FakeFin:
                                                                          "label": label})
             layer, bbox = next((v for k, v in self.cases.items() if url.endswith(k)), ("text", ""))
             self.by_sha[e["sha256"]] = (layer, bbox)
+        self.books: dict[str, list] = {}
+        for spec in CFG.budget.books:
+            e, _ = self.store.put(spec.url, b"%PDF-1.7 book " + spec.id.encode(), {}, {"kind": fin_run.BOOK_KIND,
+                                                                                      "label": spec.title})
+            self.by_sha[e["sha256"]] = ("text", "")
+            self.books[e["sha256"]] = book_words(spec.id)
         self.store.save()
         self.status_path = self.tmp / "fin_fetch_status.json"
         self.status_path.write_text(json.dumps(status), encoding="utf-8")
@@ -90,7 +96,10 @@ class FakeFin:
     def words_for(self, pdf: Path):
         return words(self.by_sha[pdf.stem][1]) if self.by_sha[pdf.stem][1] else []
 
+    def book_words(self, pdf: Path, first=None, last=None):
+        return self.books[pdf.stem]
+
     def build(self, monkeypatch):
         monkeypatch.setattr(fin_facts, "pdf_meta", self.meta)
         return fin_facts.build(self.store, CFG, status_path=self.status_path, meta_cache=None,
-                               words_for=self.words_for)
+                               words_for=self.words_for, book_words=self.book_words)
