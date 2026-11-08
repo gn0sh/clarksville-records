@@ -81,27 +81,51 @@ def test_roll_call_bar_segments_match_the_tally(pages, facts):
     assert seen == len(facts["roll_calls"]) > 0
 
 
-def test_home_cards_are_alphabetical_and_share_one_skeleton(pages, facts):
-    tree = parse(pages["index.html"])
+def test_officials_cards_follow_the_seat_rule_and_share_one_skeleton(pages, facts):
+    """Design 6A.3 with the fixture roster: Current by seat (districts by number, then mayor), Served previously and
+    Seat not yet recorded alphabetical; every card the same shape, wherever it is."""
+    tree = parse(pages["officials.html"])
+    sections = {n.attrs["id"]: n for n in tree.walk() if "data-order" in n.attrs}
+    assert list(sections) == ["current", "previous", "unseated"]
+
+    def hrefs(sec):
+        return [next(a for a in c.walk() if a.tag == "a").attrs["href"]
+                for c in sec.walk() if c.tag == "li" and c.attrs.get("class") == "card"]
+
+    assert hrefs(sections["current"]) == ["officials/a-example.html", "officials/d-testperson.html",
+                                          "officials/c-placeholder.html"]  # District 1, District 2, County Mayor
+    assert hrefs(sections["previous"]) == ["officials/b-sample.html"]
+    assert hrefs(sections["unseated"]) == ["officials/e-fixture.html"]
     cards = [n for n in tree.walk() if n.tag == "li" and n.attrs.get("class") == "card"]
-    hrefs = [next(a for a in c.walk() if a.tag == "a").attrs["href"] for c in cards]
-    want = [f"officials/{o['id']}.html" for o in sorted(facts["officials"], key=views.name_key)]
-    assert hrefs == want
 
     def shape(n):
-        return (n.tag, n.attrs.get("class", ""), tuple(shape(c) for c in n.children))
+        return (n.tag, n.attrs.get("class", ""), tuple(shape(c) for c in n.children if c.attrs.get("class") != "seat"))  # the seat label is data
 
     assert len({shape(c) for c in cards}) == 1
     for c in cards:
         text = " ".join(c.all_text().split())
         assert re.search(r"Present at \d+ of \d+ meetings? with attendance shown", text), text
         assert re.search(r"Recorded vote on \d+ confirmed and \d+ not confirmed\* roll calls?", text), text
-    # the same two sentences, in the same order, with no bars or meters on the home page
     assert not [n for n in tree.walk() if "bar" in n.attrs.get("class", "").split()]
+    text = " ".join(tree.all_text().split())
+    assert "A. Example, District 1" in text and "B. Sample, District 2, 2020-09-01 to 2024-10-31" in text
+    assert "C. Placeholder, County Mayor" in text
 
 
-def test_home_timeline_lines_have_one_shape(pages):
-    tree = parse(pages["index.html"])
+def test_officials_without_a_roster_are_one_alphabetical_list_with_no_seat_labels(tmp_path, facts):
+    pages = build_pages(tmp_path, facts)  # no seats file
+    tree = parse(pages["officials.html"])
+    sections = [n for n in tree.walk() if "data-order" in n.attrs]
+    assert len(sections) == 1 and sections[0].attrs["data-order"] == "surname"
+    hrefs = [next(a for a in c.walk() if a.tag == "a").attrs["href"]
+             for c in tree.walk() if c.tag == "li" and c.attrs.get("class") == "card"]
+    assert hrefs == [f"officials/{o['id']}.html" for o in sorted(facts["officials"], key=views.name_key)]
+    assert 'class="seat"' not in "".join(pages.values())
+    assert "Current" not in [n.all_text().strip() for n in tree.walk() if n.tag == "h2"]
+
+
+def test_meetings_timeline_lines_have_one_shape(pages):
+    tree = parse(pages["meetings.html"])
     items = [n for n in tree.walk() if n.tag == "li" and n.attrs.get("class") == "ev-meeting"]
     assert items
     for li in items:
@@ -134,12 +158,17 @@ def test_not_confirmed_roll_calls_carry_the_asterisk_words_and_page_link(tmp_pat
 
 
 def test_nav_lists_every_items_year_newest_first(pages, facts):
-    """UX pass: the Items dropdown and the phone Menu each link every items year page, newest first."""
+    """Design 2.2: the one nav list (footer, cloned into the drawer by nav.js) links every items year, newest first,
+    on every page, in the fixed order."""
     import re
     years = sorted({i["year"] for i in facts["items"]}, reverse=True)
     assert years
-    html = pages["index.html"]
-    for label in ('aria-label="Main"', 'aria-label="Main (menu)"'):
-        nav = html[html.index(label):]
+    for name, html in pages.items():
+        nav = html[html.index('<nav id="site-nav"'):]
         nav = nav[:nav.index("</nav>")]
-        assert [int(y) for y in re.findall(r'href="items/(\d{4})\.html"', nav)] == years, label
+        assert [int(y) for y in re.findall(r'href="(?:\.\./)*items/(\d{4})\.html"', nav)] == years, name
+        labels = [" ".join(re.sub(r"<[^>]+>", " ", x).split()) for x in re.findall(r'<li><(?:a [^>]*|span class="nav-group")>(.*?)</(?:a|span)>', nav)]
+        labels = [x for x in labels if not x.isdigit()]
+        want = ["Map (home)", "Search", "Votes", "Meetings", "Officials", "Items", "Finance Coming",
+                "Capital projects Coming", "Data downloads", "About", "Changes", "Review (internal)"]
+        assert labels == want, (name, labels)
