@@ -42,6 +42,126 @@ class BidTabRules:
     blocks: BlockRules | None = None
 
 
+KINDS = ("actual", "amended", "adopted", "projected")      # schema column.kind
+STATEMENTS = ("revenue", "expenditure", "fund_balance")    # schema budget_line.statement
+TAGS = ("transfer", "non_revenue")                         # tags set by rule; available_funds = fund_balance rows
+
+
+@dataclass(frozen=True)
+class BookSpec:
+    id: str
+    title: str
+    edition: str
+    fiscal_year: int
+    url: str
+    first_page: int
+    last_page: int
+    kind_overrides: tuple = ()   # ((header as printed, kind), ...): this book's own meaning of a header
+
+
+@dataclass(frozen=True)
+class BudgetRules:
+    books: tuple                 # BookSpec, ...
+    page_titles: dict            # exact title line -> statement
+    kind_words: tuple            # ((word, kind), ...) first match wins
+    ignore_words: tuple
+    header_words: tuple
+    year: re.Pattern
+    fund_line: re.Pattern
+    account_code: re.Pattern
+    subtotal_labels: dict        # label -> compiled regex on the account codes it adds up
+    total: re.Pattern
+    fund_totals: tuple           # compiled
+    scope_break_after: tuple     # compiled
+    footer: re.Pattern
+    tag_codes: dict              # tag -> frozenset of account codes
+    tag_headings: dict           # tag -> frozenset of casefolded headings
+    fund_balance_labels: tuple   # compiled
+
+
+def _cs_regex(pattern, key: str) -> re.Pattern:
+    """A case-sensitive regex (budget row labels: "Total " is a total, "TOTAL" on a summary page is not read)."""
+    if not isinstance(pattern, str):
+        raise FinanceConfigError(f"finance.yml: {key} must be a regex string")
+    try:
+        return re.compile(pattern)
+    except re.error as e:
+        raise FinanceConfigError(f"finance.yml: {key}: bad regex {pattern!r}: {e}") from None
+
+
+def parse_budget(budget: dict) -> BudgetRules:
+    w = "budget."
+    books = []
+    raw_books = _need(budget, "books", list, w)
+    if not raw_books:
+        raise FinanceConfigError("finance.yml: budget.books is empty")
+    for i, b in enumerate(raw_books):
+        where = f"budget.books[{i}]."
+        for k, t in (("id", str), ("title", str), ("edition", str), ("fiscal_year", int), ("url", str),
+                     ("pages", list)):
+            _need(b, k, t, where)
+        if not re.fullmatch(r"[a-z0-9]+(-[a-z0-9]+)*", b["id"]):
+            raise FinanceConfigError(f"finance.yml: {where}id {b['id']!r} is not a book id")
+        if urllib.parse.urlsplit(b["url"]).scheme != "https":
+            raise FinanceConfigError(f"finance.yml: {where}url must be https")
+        pages = b["pages"]
+        if not (len(pages) == 2 and all(isinstance(p, int) and p >= 1 for p in pages) and pages[0] <= pages[1]):
+            raise FinanceConfigError(f"finance.yml: {where}pages must be [first, last]")
+        over = b.get("kind_overrides", {})
+        if not isinstance(over, dict) or not all(isinstance(k, str) and k.strip() and v in KINDS for k, v in over.items()):
+            raise FinanceConfigError(f"finance.yml: {where}kind_overrides must map headers as printed to one of {KINDS}")
+        books.append(BookSpec(b["id"], b["title"], b["edition"], b["fiscal_year"], b["url"], pages[0], pages[1],
+                              tuple(sorted(over.items()))))
+    if len({b.id for b in books}) != len(books):
+        raise FinanceConfigError("finance.yml: budget.books ids repeat")
+    titles = _need(budget, "page_titles", dict, w)
+    if set(titles) != set(STATEMENTS) or not all(isinstance(v, str) and v.strip() for v in titles.values()):
+        raise FinanceConfigError(f"finance.yml: budget.page_titles must name {', '.join(STATEMENTS)}")
+    kinds = []
+    for i, kw in enumerate(_need(budget, "kind_words", list, w)):
+        if not (isinstance(kw, list) and len(kw) == 2 and all(isinstance(x, str) for x in kw)) or kw[1] not in KINDS:
+            raise FinanceConfigError(f"finance.yml: budget.kind_words[{i}] must be [word, one of {KINDS}]")
+        kinds.append((kw[0], kw[1]))
+    if not kinds:
+        raise FinanceConfigError("finance.yml: budget.kind_words is empty")
+    rows = _need(budget, "rows", dict, w)
+    for k in ("fund_line", "account_code", "subtotal_labels", "total", "fund_totals", "scope_break_after", "footer"):
+        _need(rows, k, None, "budget.rows.")
+    fund_line = _cs_regex(rows["fund_line"], "budget.rows.fund_line")
+    if not {"name", "no"} <= set(fund_line.groupindex):
+        raise FinanceConfigError("finance.yml: budget.rows.fund_line needs groups (?P<name>) and (?P<no>)")
+    subs = _need(rows, "subtotal_labels", dict, "budget.rows.")
+    if not subs or not all(isinstance(k, str) and k.strip() for k in subs):
+        raise FinanceConfigError("finance.yml: budget.rows.subtotal_labels must map labels to account-code regexes")
+    subtotal_labels = {k: _cs_regex(v, f"budget.rows.subtotal_labels.{k}") for k, v in subs.items()}
+    tags = _need(budget, "tags", dict, w)
+    if set(tags) != set(TAGS):
+        raise FinanceConfigError(f"finance.yml: budget.tags must name {', '.join(TAGS)}")
+    tag_codes, tag_headings = {}, {}
+    for t in TAGS:
+        _need(tags[t], "codes", list, f"budget.tags.{t}.")
+        _need(tags[t], "headings", list, f"budget.tags.{t}.")
+        tag_codes[t] = frozenset(_strings(tags[t]["codes"], f"budget.tags.{t}.codes", True))
+        tag_headings[t] = frozenset(h.casefold() for h in _strings(tags[t]["headings"], f"budget.tags.{t}.headings",
+                                                                     True))
+    return BudgetRules(
+        books=tuple(books), page_titles={v: k for k, v in titles.items()}, kind_words=tuple(kinds),
+        ignore_words=_strings(_need(budget, "ignore_words", list, w), "budget.ignore_words"),
+        header_words=_strings(_need(budget, "header_words", list, w), "budget.header_words", True),
+        year=_cs_regex(_need(budget, "year", str, w), "budget.year"),
+        fund_line=fund_line, account_code=_cs_regex(rows["account_code"], "budget.rows.account_code"),
+        subtotal_labels=subtotal_labels,
+        total=_cs_regex(rows["total"], "budget.rows.total"),
+        fund_totals=tuple(_cs_regex(p, "budget.rows.fund_totals") for p in
+                          _strings(rows["fund_totals"], "budget.rows.fund_totals")),
+        scope_break_after=tuple(_cs_regex(p, "budget.rows.scope_break_after") for p in
+                                _strings(rows["scope_break_after"], "budget.rows.scope_break_after", True)),
+        footer=_cs_regex(rows["footer"], "budget.rows.footer"),
+        tag_codes=tag_codes, tag_headings=tag_headings,
+        fund_balance_labels=tuple(_cs_regex(p, "budget.fund_balance_labels") for p in
+                                  _strings(_need(budget, "fund_balance_labels", list, w), "budget.fund_balance_labels")))
+
+
 @dataclass(frozen=True)
 class FinanceConfig:
     archive_url: str
@@ -53,8 +173,8 @@ class FinanceConfig:
     bonfire_hosts: tuple
     scan_producers: tuple        # compiled regexes
     bidtab: BidTabRules
-    budget: dict
-    capital_fund: object
+    budget: BudgetRules
+    capital_fund: str
 
 
 def locality() -> str:
@@ -137,11 +257,10 @@ def parse(cfg: dict) -> FinanceConfig:
                             marks=_strings(_need(b, "marks", list, "bidtab.blocks."), "bidtab.blocks.marks"))
         if len(blocks.header) < 2:
             raise FinanceConfigError("finance.yml: bidtab.blocks.header must name the name column and at least one more")
-    budget = _need(cfg, "budget", dict)
-    for k in ("books", "page_titles", "kind_words", "rows", "tags", "fund_balance_labels"):
-        _need(budget, k, None, "budget.")
-    if "capital_fund" not in cfg:
-        raise FinanceConfigError("finance.yml: missing key capital_fund")
+    budget = parse_budget(_need(cfg, "budget", dict))
+    capital = _need(cfg, "capital_fund", str)
+    if not re.fullmatch(r"\d{3}", capital):
+        raise FinanceConfigError(f"finance.yml: capital_fund must be a 3-digit fund number, not {capital!r}")
     return FinanceConfig(
         archive_url=url, archive_host=parts.netloc.lower(), archive_header=header,
         status_words=_strings(_need(cfg, "status_words", list), "status_words"),
@@ -152,7 +271,7 @@ def parse(cfg: dict) -> FinanceConfig:
         bidtab=BidTabRules(fields=fields, columns=cols,
                            optional_columns=_strings(bt.get("optional_columns", []), "bidtab.optional_columns", True),
                            table_end=_strings(bt.get("table_end", []), "bidtab.table_end", True), blocks=blocks),
-        budget=budget, capital_fund=cfg["capital_fund"])
+        budget=budget, capital_fund=capital)
 
 
 def load(path: Path | None = None) -> FinanceConfig:

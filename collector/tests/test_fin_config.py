@@ -47,6 +47,9 @@ def test_missing_key_fails_loudly(raw, path):
     (lambda c: c.update(status_words=[]), "status_words"),
     (lambda c: c.update(date_formats=["Month D, YYYY"]), "strptime"),
     (lambda c: c.update(bonfire_hosts="mcgtn.bonfirehub.com"), "bonfire_hosts"),
+    (lambda c: c["budget"]["rows"].update(subtotal_labels=["Capital Expenditures"]), "subtotal_labels"),
+    (lambda c: c["budget"]["rows"].update(subtotal_labels={"Capital Expenditures": "("}), "bad regex"),
+    (lambda c: c["budget"]["books"][1].update(kind_overrides={"FY 25 Projection": "budget"}), "kind_overrides"),
 ])
 def test_malformed_value_fails_loudly(raw, edit, match):
     cfg = copy.deepcopy(raw)

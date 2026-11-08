@@ -24,7 +24,8 @@ def step(tmp_path, monkeypatch, offline, routes):
     log = {"failures": []}
     code = fin_run.run_step(ff.store, log, offline, fetcher=f, cfg=CFG, finance_path=tmp_path / "finance.json",
                             report_path=tmp_path / "report.json", status_path=ff.status_path,
-                            progress=lambda *a, **k: None, meta_cache=None, words_for=ff.words_for)
+                            progress=lambda *a, **k: None, meta_cache=None, words_for=ff.words_for,
+                            book_words=ff.book_words)
     return code, log, net
 
 

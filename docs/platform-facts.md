@@ -41,3 +41,24 @@
 - Purchasing archive: https://montgomerytn.gov/purchasing/archive is one HTML table, 90 rows (architect's full count; my first rough count said 91) (2025-2026 dates), each row = solicitation title (e.g. "BID - WHEEL LOADER"), links (BID PDF, RFP PDF, BID TAB, AWARD LETTER, NOTICE OF INTENT TO AWARD, Q&A), and a date. 71 rows with an award-type document, 56 with a bid-tab link (2 are .docx); six file URLs are shared by more than one row. No department or solicitation number is printed. Summary pages and detail pages in the budget book can disagree (p.28 12,690,651 vs p.33 12,690,251); read detail pages.
 - Bid tabs are text PDFs with each bidder and total, "Bid Awarded to" and "Date Bid Awarded" (e.g. Wheel Loader: McCoy Construction & Forestry $189,000.00, Thompson Machinery $211,887.00, awarded 2-26-25). Award letters and notices of intent sampled have NO text layer (scans): OCR needed, same confirmed/not-confirmed rules as votes.
 - robots.txt: montgomerytn.gov allows all; mcgtn.bonfirehub.com `Disallow: /` for all agents, so Bonfire is NOT collected (link to it only); comptroller.tn.gov allows all.
+
+## Budget book layouts (task F9, verified 2026-11-08 by `pdfwords` on every statement page of both books)
+- Both books fetched by the collector's polite fetcher into the store (kind `budget_book`, first fetch 2026-11-08):
+  FY2027 `src-f6538dd0321b` (119 pages, Adobe Acrobat, text layer) and FY2024-25
+  `https://mcgtn.org/storage/departments/account-budget/MONTGOMERY%20COUNTY%202024-2025%20BUDGET%20BOOK%20AS%20APPROVED.pdf`
+  `src-8f2a41668955` (108 pages, Microsoft Print To PDF, text layer; mcgtn.org redirects to montgomerytn.gov, robots allows all).
+- FY2024-25 matches the FY2027 layout in what the parser rests on: the same three page titles ("Estimated Revenue and
+  Available Funds", "Statement of Proposed Expenditures", "... - Consolidated"), fund lines "COUNTY GENERAL FUND 101",
+  5-digit account codes, codeless "Salaries & Benefits", "Other Expenditures" / "Capital Expenditures" subtotals,
+  "Total <section>", "Total Revenues", "Total Revenues <FUND> <no>", "Total Expenditures <FUND> <no>", right-aligned
+  amounts with "-" for zero and parentheses for negatives, capital projects with no heading line.
+- It differs in: two-digit years ("FY 23 Actuals", "FY 24 Amended", "FY 25 Projection"); the budget-year column is
+  headed "Projection", not "Budget" (config maps it to kind `projected` as printed; see the run report); the derived
+  columns are "Increase/Decrease Amount" and "Percentage Change" (FY2027: "Budgeted Difference", "Percent Change");
+  consolidated pages have 3 value columns (FY2027: 4, adding "FY 2026 Projections"; ARPA p. 84 prints "FY 2026
+  Projected"); pp. 33-34 print one carried-over row above the page title; ARPA consolidated p. 76 says "For the Fiscal
+  Year June 30, 2024"; fund 127 is "ARP GRANT FUND" and 266 "WORKER'S COMPENSATION FUND" (FY2027: "RISK MANAGEMENT FUND").
+- Pages: FY2024-25 statement pages 29-108 (66 read: 7 consolidated, rest revenue and expenditure; fund dividers and
+  summary/chart pages skipped), capital fund 171 on pp. 94-104. FY2027: 78 pages read in 28-119, capital fund pp. 103-114.
+- The two books share only fiscal year 2025, as FY2024-25's "FY 25 Projection" and FY2027's "FY 2025 Actuals":
+  different kinds, so the edition compare (same fund, code or label, heading, year and kind) finds no pair to compare.

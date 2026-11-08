@@ -25,7 +25,7 @@
     "document_id": { "type": "string", "pattern": "^doc-[0-9a-f]{10}$" },
     "solicitation_id": { "type": "string", "pattern": "^sol-[a-z0-9]+(-[a-z0-9]+)*$" },
     "book_id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
-    "line_id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*/p[1-9][0-9]*/r[0-9]+$" },
+    "line_id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*/p[1-9][0-9]*/r[0-9]+$", "description": "<book_id>/p<page>/r<text line on the page, from 1>. Lists sort by id as text (p100 before p28); book order is (book_id, int page, int r) parsed from the id" },
     "check_name": { "type": "string", "pattern": "^[a-z0-9]+([-_][a-z0-9]+)*$", "description": "the check that held a value, e.g. amount-format, column-align, scan-values, award-source" },
     "tag": { "enum": ["transfer", "non_revenue", "available_funds"] },
     "source": {
@@ -83,7 +83,7 @@
       "properties": {
         "document_id": { "$ref": "#/$defs/document_id", "description": "UX awardee_source, with awardee_page" },
         "tab_type": { "enum": ["lump_sum", "not_read"], "description": "unit-price and itemised layouts are not_read in 1a (link only, counted in coverage)" },
-        "not_read_reason": { "enum": ["layout", "scan", "shared_url", "not_pdf", null], "description": "null when lump_sum; feeds coverage.n_tab_not_read. not_pdf: the link is a .docx or its bytes are not a PDF (document status not_pdf), so nothing is read" },
+        "not_read_reason": { "enum": ["layout", "scan", "shared_url", "not_pdf", "not_fetched", null], "description": "null when lump_sum; feeds coverage.n_tab_not_read. not_pdf: the link is a .docx or its bytes are not a PDF (document status not_pdf), so nothing is read. not_fetched: the link was dead at fetch or is link only (a bid site or a host off the allowlist), so there are no bytes to read" },
         "project_text": { "type": ["string", "null"] },
         "bid_date_text": { "type": ["string", "null"] },
         "bid_date_page": { "oneOf": [{ "$ref": "#/$defs/page" }, { "type": "null" }], "description": "page of bid_date_text in document_id; null when bid_date_text is null" },
@@ -121,7 +121,7 @@
     "solicitation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "slug", "title", "archive_date_text", "archive_date", "archive_status", "year", "department", "number", "document_ids", "bid_tab", "documents_differ", "held", "row", "archive_source_id"],
+      "required": ["id", "slug", "title", "archive_date_text", "archive_date", "archive_status", "year", "department", "number", "document_ids", "document_labels", "bid_tab", "documents_differ", "held", "row", "archive_source_id"],
       "properties": {
         "id": { "$ref": "#/$defs/solicitation_id", "description": "sol-<slug>; on a slug collision sol-<slug>-<sha1(first doc url)[:6]>" },
         "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
@@ -133,6 +133,7 @@
         "department": { "oneOf": [{ "$ref": "#/$defs/cited_text" }, { "type": "null" }], "description": "bid tab Department only; the archive prints none" },
         "number": { "type": ["string", "null"], "description": "null in 1a: no solicitation number is printed in anything read" },
         "document_ids": { "type": "array", "items": { "$ref": "#/$defs/document_id" }, "description": "archive order; count equals the row's links (doc-completeness/*)" },
+        "document_labels": { "type": "array", "items": { "type": "string" }, "description": "this row's link text verbatim, parallel to document_ids; a shared URL's document.link_label is only its first row's (doc-completeness/label-not-verbatim)" },
         "bid_tab": { "oneOf": [{ "$ref": "#/$defs/bid_tab" }, { "type": "null" }], "description": "null = No bid tab (UX has_bid_tab = bid_tab is not null)" },
         "documents_differ": {
           "oneOf": [
@@ -164,7 +165,7 @@
         "stage": { "enum": ["bid_tab", "award_letter", "partial_award", "notice_of_intent", "notice_of_award", "bid", "rfp", "rfq", "addendum", "qa", "forms", "advertisement", "drawings", "other"] },
         "source_id": { "oneOf": [{ "$ref": "#/$defs/source_id" }, { "type": "null" }], "description": "null when not fetched: Bonfire, non-PDF, dead link" },
         "status": { "enum": ["fetched", "not_pdf", "link_only", "dead_at_fetch"] },
-        "scanned": { "type": "boolean", "description": "true when the source's text_layer is none" },
+        "scanned": { "type": "boolean", "description": "true when the source's text_layer is not text (none, or a scanner's ocr): no value is read from it" },
         "doc_date_text": { "type": ["string", "null"], "description": "UX doc_date: only a text document's own labelled date" },
         "doc_date_page": { "oneOf": [{ "$ref": "#/$defs/page" }, { "type": "null" }] },
         "shared_by": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/solicitation_id" }, "description": "other solicitations linking the same URL; non-empty = link only, no values" },
@@ -255,7 +256,7 @@
               "required": ["state", "per_cell"],
               "description": "UX subtotal_check = check + scope_line_ids",
               "properties": {
-                "state": { "enum": ["exact", "within_rounding", "does_not_add_up"] },
+                "state": { "enum": ["exact", "within_rounding", "does_not_add_up", "not_checked"], "description": "not_checked: the total or a scope line is held (Not confirmed*), counted apart from does_not_add_up" },
                 "per_cell": {
                   "type": "array",
                   "items": {
@@ -297,12 +298,13 @@
         "n_tab_not_read": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["layout", "scan", "shared_url", "not_pdf"],
+          "required": ["layout", "scan", "shared_url", "not_pdf", "not_fetched"],
           "properties": {
             "layout": { "$ref": "#/$defs/count" },
             "scan": { "$ref": "#/$defs/count" },
             "shared_url": { "$ref": "#/$defs/count" },
-            "not_pdf": { "$ref": "#/$defs/count" }
+            "not_pdf": { "$ref": "#/$defs/count" },
+            "not_fetched": { "$ref": "#/$defs/count" }
           }
         },
         "n_award_letters": { "$ref": "#/$defs/count" },

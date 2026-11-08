@@ -18,7 +18,9 @@ a bidder; a following line with name-band words and no total continues its name 
 "Forestry"). A Total cell that is one token with a digit but not a well-formed amount ("$3990.63", "$211,887.0O"), or
 a lone "$" and one token ("$ 765,790.00"), is kept as printed and its value held (check amount-format). Anything else
 (a total with no name, a name line before any total, no bidder, words in the Total column such as "$330.00 per load"
-or notes running into it) means the layout is not the one these rules read: not_read.
+or notes running into it, any word in an optional column such as Notes, which would otherwise be dropped unseen, a
+name continuation line not adjacent to the line above it: same page, within NAME_GAP word heights) means the layout
+is not the one these rules read: not_read.
 
 Layout "blocks" (`blocks`, the engineering tabs: "Contractor | Bid Bond | Bid Amount"): one block of labelled
 amounts per bidder ("Base Bid: $49,124.00", "Add Alternate #1: $25,936.00", "Total Bid: $149,362.00"), the name in
@@ -153,6 +155,14 @@ def _header(line: Line, rules: BidTabRules):
     return bands, None
 
 
+def _adjacent(prev: list[Word], nxt: list[Word]) -> bool:
+    """Two name lines of one bidder: same page and the second within NAME_GAP word heights below the first."""
+    if prev[0].page != nxt[0].page:
+        return False
+    h = min(w.h for w in prev + nxt)
+    return sum(w.yc for w in nxt) / len(nxt) - sum(w.yc for w in prev) / len(prev) <= NAME_GAP * h
+
+
 def _band(w: Word, bands) -> str:
     return next(k for k, lo, hi in bands if lo <= w.xc < hi)
 
@@ -182,6 +192,7 @@ def _read_table(ls: list[Line], header_at: int, bands, rules: BidTabRules) -> tu
     bidders: list[Bidder] = []
     held: list = []
     end = len(ls)
+    last_name: list[Word] = []                          # name words of the line the last bidder's name ends on
     for j in range(header_at + 1, len(ls)):
         ln = ls[j]
         text = clean(ln.text)
@@ -195,6 +206,9 @@ def _read_table(ls: list[Line], header_at: int, bands, rules: BidTabRules) -> tu
             continue                                    # the header repeated on a new page
         name = [w for w in ln.words if _band(w, bands) == "name" and clean(w.text)]
         total = [w for w in ln.words if _band(w, bands) == "total" and clean(w.text)]
+        notes = [w for w in ln.words if _band(w, bands) == "optional" and clean(w.text)]
+        if notes:
+            raise NotRead(f"words in an optional column (not read) on page {ln.page}: {text!r}")
         if total and not name:
             raise NotRead(f"a total with no bidder name on page {ln.page}: {text!r}")
         if total:
@@ -207,10 +221,14 @@ def _read_table(ls: list[Line], header_at: int, bands, rules: BidTabRules) -> tu
             if value is None:
                 held.append((f"bid_tab.bidders[{n - 1}].total_cents", "amount-format"))
             bidders.append(Bidder(n, " ".join(clean(w.text) for w in name), token, value, ln.page))
+            last_name = name
         elif name:
             if not bidders:
                 raise NotRead(f"a name line before any total on page {ln.page}: {text!r}")
+            if not _adjacent(last_name, name):
+                raise NotRead(f"a name line not adjacent to the bidder above it on page {ln.page}: {text!r}")
             bidders[-1].name += " " + " ".join(clean(w.text) for w in name)
+            last_name = name
     return bidders, held, end
 
 

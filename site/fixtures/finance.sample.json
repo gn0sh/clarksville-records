@@ -1031,6 +1031,7 @@
   "n_lines": 19,
   "n_tab_not_read": {
    "layout": 1,
+   "not_fetched": 0,
    "not_pdf": 0,
    "scan": 0,
    "shared_url": 0
@@ -1201,6 +1202,11 @@
     "doc-e1c3736912",
     "doc-cba9e5754a"
    ],
+   "document_labels": [
+    "Addendum 1",
+    "Specifications",
+    "Vendor Forms"
+   ],
    "documents_differ": null,
    "held": [],
    "id": "sol-office-chairs-fixture",
@@ -1232,6 +1238,9 @@
    "department": null,
    "document_ids": [
     "doc-1e4afb2617"
+   ],
+   "document_labels": [
+    "Bid Tab"
    ],
    "documents_differ": null,
    "held": [],
@@ -1286,6 +1295,12 @@
     "doc-3b55539a53",
     "doc-4c5912f33a",
     "doc-25b726266e"
+   ],
+   "document_labels": [
+    "Bid",
+    "Bid Tab",
+    "Award Letter",
+    "Bid on Bonfire"
    ],
    "documents_differ": null,
    "held": [],
@@ -1346,6 +1361,10 @@
     "doc-69bd62ac22",
     "doc-cba9e5754a"
    ],
+   "document_labels": [
+    "BID TAB",
+    "Vendor Forms"
+   ],
    "documents_differ": null,
    "held": [
     {
@@ -1402,6 +1421,10 @@
    "document_ids": [
     "doc-c5d98b0beb",
     "doc-f5ae712dba"
+   ],
+   "document_labels": [
+    "Bid Tab",
+    "Notice of Intent"
    ],
    "documents_differ": {
     "document_ids": [

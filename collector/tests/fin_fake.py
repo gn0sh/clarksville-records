@@ -20,6 +20,21 @@ def words(bbox: str):
     return P.parse_bbox(bbox)[0]
 
 
+def page_words(name: str, page: int) -> list:
+    """Words of a one-page budget-book bbox fixture (`fy2027_p36`), numbered as PDF page `page`."""
+    return [P.Word(page, w.x0, w.x1, w.y0, w.y1, w.text)
+            for w in words((FIX / f"{name}.bbox.html").read_text(encoding="utf-8"))]
+
+
+# budget book id -> fixture pages the fake store serves for it (a statement page with a fund line first)
+BOOK_PAGES = {"fy2027-approved": ("fy2027", (28, 30, 36, 37)), "fy2025-approved": ("fy2025", (31, 33, 36))}
+
+
+def book_words(book_id: str) -> list:
+    prefix, pages = BOOK_PAGES[book_id]
+    return [w for p in pages for w in page_words(f"{prefix}_p{p}", p)]
+
+
 def itemised(bbox: str = WHEEL) -> str:
     """The wheel-loader tab with a unit-price header: another layout."""
     return bbox.replace(">Notes</word>", ">Qty</word>")
@@ -60,6 +75,12 @@ class FakeFin:
                                                                          "label": label})
             layer, bbox = next((v for k, v in self.cases.items() if url.endswith(k)), ("text", ""))
             self.by_sha[e["sha256"]] = (layer, bbox)
+        self.books: dict[str, list] = {}
+        for spec in CFG.budget.books:
+            e, _ = self.store.put(spec.url, b"%PDF-1.7 book " + spec.id.encode(), {}, {"kind": fin_run.BOOK_KIND,
+                                                                                      "label": spec.title})
+            self.by_sha[e["sha256"]] = ("text", "")
+            self.books[e["sha256"]] = book_words(spec.id)
         self.store.save()
         self.status_path = self.tmp / "fin_fetch_status.json"
         self.status_path.write_text(json.dumps(status), encoding="utf-8")
@@ -75,7 +96,10 @@ class FakeFin:
     def words_for(self, pdf: Path):
         return words(self.by_sha[pdf.stem][1]) if self.by_sha[pdf.stem][1] else []
 
+    def book_words(self, pdf: Path, first=None, last=None):
+        return self.books[pdf.stem]
+
     def build(self, monkeypatch):
         monkeypatch.setattr(fin_facts, "pdf_meta", self.meta)
         return fin_facts.build(self.store, CFG, status_path=self.status_path, meta_cache=None,
-                               words_for=self.words_for)
+                               words_for=self.words_for, book_words=self.book_words)

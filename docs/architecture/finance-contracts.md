@@ -58,9 +58,12 @@ line from `budget.page_titles`: revenue statement, expenditure statement, consol
 skipped (synopsis, charts, summaries are linked as pages, never read). Column bands from the header words (two header
 lines joined per band). Each header becomes `{header_as_printed, fiscal_year, kind}` with kind from `kind_words`
 (Actuals -> actual, Amended -> amended, Budget -> adopted in an approved edition, Projections -> projected); an unknown
-word fails the book. "Budgeted Difference" and "Percent Change" are read only to locate bands and are never stored or
+word fails the book. A book may set `kind_overrides` (header as printed -> kind): the FY2025 approved book's
+"FY 25 Projection" is `adopted` (ADR 0002 amendment 2026-11-08). "Budgeted Difference" and "Percent Change" are read only to locate bands and are never stored or
 shown (no year-over-year values; they also carry book sign and rounding slips, see 9). A number whose right edge lies
 in no band, two numbers in one band, or a non-amount token raises check `column-align`: the line is held back.
+A derived band holding two tokens, a token not of the derived forms, or one off its column's right edge raises
+check `derived-spill` (a value spilled out of its own column): the line is held back too.
 "-" is 0 as printed; a blank cell is `null` ("not printed").
 
 **Row roles and scopes** (all positional; labels in config `budget.rows`):
@@ -71,7 +74,8 @@ in no band, two numbers in one band, or a non-amount token raises check `column-
   "Total " (flag `heading_from_total`; labels are truncated and repeat, so they are never keys).
 - `detail`: an account-coded row, or a codeless row not listed below (e.g. "Salaries & Benefits").
 - `subtotal` (labels `Other Expenditures`, `Capital Expenditures`): scope = the coded rows directly above it, back to the
-  previous non-coded row.
+  previous non-coded row, whose account code is in the label's code class (`subtotal_labels` maps each label to a code
+  regex: 53xxx-56xxx and 57xxx; FY2025 p. 103 prints a 53990 row above a Capital Expenditures subtotal that omits it).
 - `total` (`^Total `): scope = every detail row since the scope opened; `Total Revenues`, `Total Revenues <fund>` and
   `Total Expenditures <fund>` scope the whole fund. A detail row is in exactly one scope per level (no double counting).
 - Tags (`budget.tags`, by section heading, department heading or account code): `transfer` (e.g. 49800, 55900,
@@ -86,8 +90,10 @@ content_type, creator`.
 - **solicitations**: `id` (`sol-<slug>`; on a slug collision `-<sha1(first doc url)[:6]>`), `slug`, `title`,
   `archive_date_text`, `archive_date` (ISO or null), `archive_status` (or null), `year` (from archive_date, else null),
   `department` {`text`, `source_id`, `page`} or null (bid tab "Department", else null: the archive prints none),
-  `number` null in 1a (the archive prints none), `document_ids[]` in archive order, `bid_tab` {`document_id`,
-  `tab_type`, `not_read_reason` (`layout` | `scan` | `shared_url` | `not_pdf`: a .docx or non-PDF bytes),
+  `number` null in 1a (the archive prints none), `document_ids[]` in archive order, `document_labels[]` (this row's
+  link text verbatim, parallel to `document_ids`: a shared URL's `link_label` is its first row's only), `bid_tab` {`document_id`,
+  `tab_type`, `not_read_reason` (`layout` | `scan` | `shared_url` | `not_pdf`: a .docx or non-PDF bytes |
+  `not_fetched`: dead at fetch or link only, no bytes),
   `project_text`, `bid_date_text` + `bid_date_page`, `awardee_text`, `awardee_page`, `award_date_text` +
   `award_date_page` (a page is null exactly when its text is), `awardee_match`
   (`bidder:<n>` | `none_named` | `not_a_listed_bidder` | `ambiguous`), `bidders[]` {`printed_order`, `name`,
@@ -95,14 +101,14 @@ content_type, creator`.
   `held[]` {`field`, `check`} (values held as Not confirmed*), `row` (archive row index), `archive_source_id`.
 - **documents**: `id` (`doc-<sha1(url)[:10]>`), `url`, `link_label`, `stage`, `source_id` or null (not fetched:
   Bonfire, non-PDF, dead link), `status` (`fetched` | `not_pdf` | `link_only` | `dead_at_fetch`), `scanned` (bool;
-  true when the source's `text_layer` is `none`, the existing enum), `doc_date_text` + `doc_date_page` (only a text
+  true when the source's `text_layer` is not `text`: `none`, or `ocr` from a scanner), `doc_date_text` + `doc_date_page` (only a text
   document's own labelled date; else null), `shared_by` (other solicitation ids linking the same URL), `fetched_at`.
 - **books**: `id` (e.g. `fy2027-approved`), `title`, `edition`, `fiscal_year`, `source_id`, `pages_read[]`, `columns[]`.
 - **budget_lines**: `id` (`<book_id>/p<page>/r<line index>`), `book_id`, `edition`, `fund_no`, `fund_name`, `statement`
   (revenue | expenditure | fund_balance), `heading_as_printed`, `department` (expenditure heading or null),
   `account_code` or null, `label_as_printed`, `row_role` (detail | subtotal | total), `tags[]`, `cells[]`
   {`header_as_printed`, `fiscal_year`, `kind`, `as_printed`, `dollars` (int or null)}, `page`, `scope_line_ids[]`
-  (subtotal/total only), `check` {`state` exact | within_rounding | does_not_add_up, `per_cell[]` {`printed`, `sum`,
+  (subtotal/total only), `check` {`state` exact | within_rounding | does_not_add_up | not_checked, `per_cell[]` {`printed`, `sum`,
   `diff`}} or null, `edition_differs` [line ids in other books] , `held` (check name) or null.
 - **coverage** (one function, every page and the report): `n_total`, `n_bid_tab_links`, `n_tab_read`, `n_tab_not_read`
   by reason, `n_award_letters`, `n_award_scanned`, `n_docs`, `n_docs_scanned`, `n_lines`, `n_books`, `n_flag`,
@@ -116,8 +122,9 @@ UX field map (design section 10): `doc_date` = `doc_date_text` (mostly null, see
 ## 4. Checks and invariants (problem-key families for reviewers)
 - **budget-reconcile/***: every subtotal and total gets a check over exactly its `scope_line_ids`; printed values are
   never altered; `exact` when sum = printed in every cell; `within_rounding` when |diff| <= floor((n+1)/2) dollars for n
-  detail rows (each printed line is rounded to the dollar; the book's actuals are rounded from cents); otherwise
-  `does_not_add_up`, shown as printed with its lines. A total with no detail rows in scope is `does_not_add_up`. No
+  detail rows with a printed amount in that column (a "-" is an exact 0 and a blank is not printed: neither counts) (each printed line is rounded to the dollar; the book's actuals are rounded from cents); otherwise
+  `does_not_add_up`, shown as printed with its lines. A total with no detail rows in scope is `does_not_add_up`.
+  A held total, or one over a held line, is `not_checked` (we could not read it; counted apart, never in `n_flag`). No
   county-wide or cross-fund sum exists in code (lint: no `sum(` over lines outside `fin_checks.py`).
 - **award-source/***: an awardee, bidder or total is shown only from a `bid_tab` document with a text layer, with its
   page; `awardee_match` compares names after one normalisation (casefold, collapse whitespace, remove spaces around
@@ -183,4 +190,5 @@ determinism (two runs, byte-identical `finance.json`).
    shown per document") needs rewording by UX.
 9. **Design Note E** says transfers "are not revenue or spending", but the book's printed Total Revenues includes 49800
    OPERATING TRANSFERS. Suggest UX wording that the book counts them in its totals and the site tags them.
-10. FY2024-25 book layout is unverified (not sampled). Task 1b-1 checks it before any parser work assumes it matches.
+10. FY2024-25 book layout: checked in F9 (2026-11-08, `docs/platform-facts.md`). Same titles, row forms and bands; two-digit
+    years, "FY 25 Projection" as its budget column and other derived-column words, all handled in `finance.yml`.

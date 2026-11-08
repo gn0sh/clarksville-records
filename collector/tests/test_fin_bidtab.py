@@ -163,3 +163,44 @@ def test_property_no_value_cites_a_non_text_source(tmp_path, monkeypatch, seed):
             assert src[d["source_id"]]["text_layer"] == "text" and not d["shared_by"]
         elif t:
             assert t["bidders"] == [] and s["department"] is None
+
+
+def test_words_in_the_notes_column_mean_not_read():
+    """A word in an optional column (Notes) was dropped unseen; now the tab is not read (1a nit 7)."""
+    note = WHEEL.replace(">$211,887.00</word>", '>$211,887.00</word><word xMin="440.0" yMin="318.83" xMax="470.0" '
+                         'yMax="337.62">late</word>')
+    r = read_bidtab(words(note), RULES)
+    assert r.tab_type == "not_read" and "optional column" in r.reason and r.bidders == []
+    assert read_bidtab(words(WHEEL), RULES).tab_type == "lump_sum"        # an empty Notes column is fine
+
+
+def test_a_name_line_far_below_its_bidder_means_not_read():
+    """award-source/name-gap-table: in the table layout a name continuation line must be adjacent (NAME_GAP word
+    heights, same page) to the line above it, so a stray line is never joined to a bidder's name (1a nit 8)."""
+    far = WHEEL.replace('yMin="301.194960" xMax="124.192428" yMax="319.980480">Forestry',
+                        'yMin="401.194960" xMax="124.192428" yMax="419.980480">Forestry')
+    r = read_bidtab(words(far), RULES)
+    assert r.tab_type == "not_read" and "not adjacent" in r.reason
+    assert read_bidtab(words(WHEEL), RULES).bidders[0].name == "McCoy Construction & Forestry"   # 17 pt apart: joined
+
+
+@pytest.mark.parametrize("state", ["dead_at_fetch", "link_only"])
+def test_a_dead_or_link_only_tab_is_not_fetched_not_layout(tmp_path, monkeypatch, state):
+    """award-source/not-read-reason-misstated: a bid tab with no bytes (dead at fetch, or link only) is not_read with
+    reason not_fetched, never "layout" (nothing was read to judge a layout by); coverage counts it apart."""
+    import json
+
+    from collector import fin_run
+    ff = FakeFin(tmp_path)
+    url = url_ending("Bid%20Tab%20-%20Hwy%20Dept%20Rock%20FY27.pdf")
+    ff.store.path_for(ff.store.latest(url)["sha256"]).unlink()
+    status = json.loads(ff.status_path.read_text())
+    status[url] = {"status": state, "date": "2026-11-08", "detail": "test"}
+    ff.status_path.write_text(json.dumps(status))
+    fin, _ = ff.build(monkeypatch)
+    (s,), did = _sol_with_doc(fin, "Bid%20Tab%20-%20Hwy%20Dept%20Rock%20FY27.pdf")
+    assert s["bid_tab"]["not_read_reason"] == "not_fetched" and s["bid_tab"]["document_id"] == did
+    assert fin["coverage"]["n_tab_not_read"] == {"layout": 0, "scan": 2, "shared_url": 2, "not_pdf": 1,
+                                                 "not_fetched": 1}
+    assert next(d for d in fin["documents"] if d["id"] == did)["status"] == state
+    assert fin_run.validate(fin) == []

@@ -62,6 +62,24 @@ def test_documents_shown_equal_archive_links(built):
     for s in fin["solicitations"]:
         assert len(s["document_ids"]) == len(rows[s["title"]].links), s["title"]
     assert sum(len(s["document_ids"]) for s in fin["solicitations"]) == sum(len(r.links) for r in rows.values())
+    for s in fin["solicitations"]:
+        assert s["document_labels"] == [lk.label for lk in rows[s["title"]].links], s["title"]
+
+
+def test_a_shared_url_keeps_each_rows_own_label(tmp_path, monkeypatch):
+    """doc-completeness/label-not-verbatim: one URL linked as "Bid Tab" in one row and "BID TAB" in another is one
+    document (link_label from its first row) but each solicitation lists its own row's text."""
+    from collector.tests import fin_fake
+    anchor = '<a href="/storage/departments/purchasing/BID/Bid%20Tab%20Sheet.pdf">Bid Tab</a>'
+    html = ARCHIVE_HTML.decode()
+    head, _, tail = html.rpartition(anchor)
+    monkeypatch.setattr(fin_fake, "ARCHIVE_HTML", (head + anchor.replace(">Bid Tab<", ">BID TAB<") + tail).encode())
+    fin, _ = FakeFin(tmp_path).build(monkeypatch)
+    doc = next(d for d in fin["documents"] if d["url"].endswith("Bid%20Tab%20Sheet.pdf"))
+    labels = sorted(lab for s in fin["solicitations"] for i, lab in zip(s["document_ids"], s["document_labels"])
+                    if i == doc["id"])
+    assert labels == ["BID TAB", "Bid Tab"] and doc["link_label"] == "Bid Tab" and len(doc["shared_by"]) == 2
+    assert fin_run.validate(fin) == []
 
 
 def test_document_states(built):
@@ -75,6 +93,24 @@ def test_document_states(built):
     assert {d["stage"] for d in scanned} == {"bid_tab", "award_letter"}
 
 
+def test_ocr_documents_are_marked_scanned(fake, monkeypatch):
+    """scan-values/ocr-not-marked-scanned: a scanner's OCR text layer is a scan for the Scanned chip and the counts,
+    not only an image-only file."""
+    cases = fake.default_cases()
+    cases["Award%20Letter%20-%20Wheel%20Loader.pdf"] = ("ocr", "")
+    ff = FakeFin(fake.tmp / "ocr", cases)
+    fin, _ = ff.build(monkeypatch)
+    src = {s["id"]: s for s in fin["sources"]}
+    by_layer = {}
+    for d in fin["documents"]:
+        if d["source_id"]:
+            by_layer.setdefault(src[d["source_id"]]["text_layer"], set()).add(d["scanned"])
+    assert by_layer["ocr"] == {True} and by_layer["none"] == {True} and by_layer["text"] == {False}
+    paint = next(d for d in fin["documents"] if d["url"].endswith("Bid%20Tab%20-%20Traffic%20Paint%20FY27.pdf"))
+    assert paint["scanned"]
+    assert fin["coverage"]["n_award_scanned"] == 1                  # the OCR letter: 0 if only none were scanned
+
+
 def test_coverage_is_the_one_function(built):
     fin, _ = built
     assert fin["coverage"] == fin_checks.coverage(fin)
@@ -82,7 +118,7 @@ def test_coverage_is_the_one_function(built):
     assert c["n_total"] == 15
     assert c["n_bid_tab_links"] == c["n_tab_read"] + sum(c["n_tab_not_read"].values())
     assert c["n_tab_read"] == 1
-    assert c["n_tab_not_read"] == {"layout": 1, "scan": 2, "shared_url": 2, "not_pdf": 1}
+    assert c["n_tab_not_read"] == {"layout": 1, "scan": 2, "shared_url": 2, "not_pdf": 1, "not_fetched": 0}
     assert c["n_award_scanned"] == 1 and c["n_award_letters"] == 10
     assert c["by_department_year"]["Bi-County SWM"] == {"2025": {"rows": 1, "with_tab": 1, "tab_read": 1}}
     ns = c["by_department_year"][fin_checks.NOT_STATED]
@@ -123,9 +159,10 @@ def test_not_stated_bucket_is_reported_not_flagged():
 def test_report_block(built):
     fin, extras = built
     b = report_block(fin, extras)
-    assert set(b) == {"coverage", "parity", "reconcile", "held", "docs_by_status", "problems"}
+    assert set(b) == {"coverage", "parity", "reconcile", "budget", "held", "docs_by_status", "problems"}
     assert b["coverage"] is fin["coverage"] and b["docs_by_status"]["not_pdf"] == 1
-    assert b["reconcile"] == {"exact": 0, "within_rounding": 0, "does_not_add_up": 0}
+    assert b["reconcile"] == fin_checks.reconcile_counts(fin["budget_lines"]) and sum(b["reconcile"].values()) > 0
+    assert set(b["budget"]) == {x.id for x in CFG.budget.books}
 
 
 def test_cmd_build_writes_finance_and_report_block(fake, monkeypatch, tmp_path, capsys):
@@ -135,7 +172,7 @@ def test_cmd_build_writes_finance_and_report_block(fake, monkeypatch, tmp_path, 
     rep.parent.mkdir()
     rep.write_text(json.dumps({"gates": {"kept": True}}))
     kw = dict(finance_path=out, report_path=rep, status_path=fake.status_path, meta_cache=None,
-              words_for=fake.words_for)
+              words_for=fake.words_for, book_words=fake.book_words)
     code = fin_run.cmd_build(fake.store, CFG, **kw)
     assert code in (0, 3)
     first = out.read_text()
@@ -143,6 +180,22 @@ def test_cmd_build_writes_finance_and_report_block(fake, monkeypatch, tmp_path, 
     assert report["gates"] == {"kept": True} and report["finance"]["coverage"]["n_total"] == 15
     assert fin_run.cmd_build(fake.store, CFG, **kw) == code and out.read_text() == first
     assert "15 solicitations" in capsys.readouterr().out
+
+
+def test_a_missing_budget_book_stops_the_build(fake, monkeypatch, tmp_path, capsys):
+    """provenance/book-missing: a configured book whose bytes are not in the store is a guard problem: exit 2 and
+    nothing written, never a finance.json silently without that book's lines."""
+    from collector import fin_facts
+    monkeypatch.setattr(fin_facts, "pdf_meta", fake.meta)
+    spec = CFG.budget.books[0]
+    fake.store.path_for(fake.store.latest(spec.url)["sha256"]).unlink()
+    out = tmp_path / "finance.json"
+    code = fin_run.cmd_build(fake.store, CFG, finance_path=out, report_path=tmp_path / "report.json",
+                             status_path=fake.status_path, meta_cache=None, words_for=fake.words_for,
+                             book_words=fake.book_words)
+    assert code == 2 and not out.exists()
+    printed = capsys.readouterr().out
+    assert f"book {spec.id}: not in the store" in printed and "nothing written" in printed
 
 
 def test_census_lists_every_bid_tab_link_with_its_class(built):
