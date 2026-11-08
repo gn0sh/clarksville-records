@@ -139,3 +139,32 @@ def test_about_text_follows_the_switch(tmp_path, facts, switch):
               "&ldquo;Not confirmed*&rdquo;, here and in the data files below.")
     assert (hidden in para) != switch
     assert ("2 Yes* not confirmed" in para) == switch
+
+
+CLAUSE = "The foregoing Resolution was Adopted by the following roll call vote:"
+
+
+def test_an_unconfirmed_roll_call_has_no_vote_on(tmp_path, facts, switch):
+    """neutrality/unconfirmed-vote-on-untested: "Vote on" is derived from the outcome clause, which is a value the
+    program read, so a roll call that is not confirmed never shows one, on any page or in the public or internal
+    export, whatever SHOW_UNCONFIRMED_VALUES says. The same clause on a confirmed roll call does show it."""
+    f = copy.deepcopy(facts)
+    for rc in f["roll_calls"]:
+        rc["outcome_text"] = CLAUSE
+    assert views.outcome_kind_label(CLAUSE) == "Resolution"
+    pages = build_pages(tmp_path, f)
+    for where, text in _texts(pages, f).items():
+        assert "Vote on" not in text, where
+    held = by_id(f, "roll_calls", RC_HELD)
+    year = held["meeting_id"][:4]
+    assert "Vote on" not in text_of(pages[f"votes/{year}.html"], RC_HELD, "data-fact-id")
+    assert "Vote on: Resolution." in text_of(pages[f"meetings/{MEETING_DEC}.html"], RC_SHOWN)
+    assert "Vote on: Resolution." in text_of(pages[f"votes/{year}.html"], RC_SHOWN, "data-fact-id")
+    for kind, internal in (("pub", False), ("int", True)):
+        export(copy.deepcopy(f), tmp_path / kind, internal=internal)
+        data = json.loads((tmp_path / kind / "data" / "facts.json").read_text(encoding="utf-8"))
+        assert by_id(data, "roll_calls", RC_HELD)["vote_on"] is None, kind
+        assert by_id(data, "roll_calls", RC_SHOWN)["vote_on"] == "Resolution", kind
+        rows = {r["id"]: r for r in csv.DictReader(io.StringIO(
+            (tmp_path / kind / "data" / "roll_calls.csv").read_text(encoding="utf-8")))}
+        assert rows[RC_HELD]["vote_on"] == "" and rows[RC_SHOWN]["vote_on"] == "Resolution", kind

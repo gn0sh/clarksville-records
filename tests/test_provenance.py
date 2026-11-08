@@ -240,3 +240,31 @@ def test_build_refuses_a_non_https_link_in_site_config():
     assert site_url_problems(config.SITE) == []
     bad = {**config.SITE, "swap_source": "http://example.org/list.pdf#page=9", "old_lines_map_url": ""}
     assert [p for p in site_url_problems(bad) if p.startswith("swap_source")]
+
+
+def test_about_lists_the_vote_on_rule_and_every_label_links_to_it(tmp_path, facts):
+    """provenance/vote-on-rule-unpublished: "Vote on" is derived by config.OUTCOME_SUBJECTS; About lists each form in
+    plain words from the same list, and every "Vote on" words on a page link to about.html#vote-on."""
+    import copy
+    from test_site_review_fixes import RC_SHOWN, build_pages, by_id
+    rows = views.vote_on_rule()
+    assert [r["label"] for r in rows] == [label for _, label in config.OUTCOME_SUBJECTS]
+    for r in rows:      # no pattern syntax left: a new pattern the renderer cannot word fails here
+        assert not re.search(r"\(\?|[|\\?()]|\.\*", r["clause"]), r["clause"]
+        assert r["clause"].endswith(config.OUTCOME_TAIL_WORDS)
+    f = copy.deepcopy(facts)
+    by_id(f, "roll_calls", RC_SHOWN)["outcome_text"] = "The foregoing Amendment was Adopted by the following roll call vote:"
+    pages = build_pages(tmp_path, f)
+    about = pages["about.html"]
+    assert 'id="vote-on"' in about and "How &ldquo;Vote on&rdquo; is decided" in about
+    for r in rows:
+        assert f'<th scope="row">{r["label"]}</th><td>{r["clause"]}</td>' in about
+    shown = 0
+    for name, html in pages.items():
+        if name == "about.html":
+            continue
+        n = len(re.findall(r"Vote on</a>:", html))
+        assert n == html.count("Vote on"), name            # never the words without the link
+        assert n == len(re.findall(r'href="[./]*about\.html#vote-on">Vote on</a>:', html)), name
+        shown += n
+    assert shown >= 3       # the meeting block, the item event and the votes-by-year row at least

@@ -99,6 +99,10 @@ OUTCOME_SUBJECTS = [
 # Before the clause there may be one stray word (a name) or earlier text that ends in sentence punctuation (an
 # amendment's own wording); that text is never shown.
 OUTCOME_KINDS = [(r"(?:[a-z]+ |.*?[.:;\u201c\u201d\"] )?" + subj + _TAIL, label) for subj, label in OUTCOME_SUBJECTS]
+# The same patterns in plain words for the About page (views.vote_on_rule, about.html#vote-on): _VERB and _TAIL as
+# written below, "(?:x )?" as "[x]", ",?" as "[,]". tests/test_site_review_fixes.py checks no pattern syntax is left.
+OUTCOME_VERB_WORDS = "[was or were] adopted, approved or failed [and approved]"
+OUTCOME_TAIL_WORDS = "by the following roll call vote"
 
 # Source URLs must use this scheme; anything else fails the build.
 ALLOWED_URL_SCHEMES = ("https",)

@@ -813,11 +813,24 @@ def motion_kind_rule() -> list[dict]:
     return rows
 
 
+def vote_on_rule() -> list[dict]:
+    """The "Vote on" patterns (config.OUTCOME_SUBJECTS) in plain words for the About page (about.html#vote-on): each
+    form the whole outcome clause must take, in the fixed order; the first match wins. Read from the same list the
+    code uses (provenance/vote-on-rule-unpublished)."""
+    rows = []
+    for pattern, label in config.OUTCOME_SUBJECTS:
+        words = pattern.replace(config._VERB, config.OUTCOME_VERB_WORDS)
+        words = re.sub(r"\(\?:([^()|?]+?) \)\?", r"[\1] ", words).replace(",?", "[,]")
+        rows.append({"label": label, "clause": " ".join(words.split()) + " " + config.OUTCOME_TAIL_WORDS})
+    return rows
+
+
 def about(facts) -> dict:
     ix = _ix(facts)
     officials = sorted(ix.facts["officials"], key=name_key)
     return {
         "motion_kinds": motion_kind_rule(), "motion_default": config.UNVERIFIED_MOTION_DEFAULT,
+        "vote_on_kinds": vote_on_rule(),
         "swap": swap_context(),
         "officials": [{"id": o["id"], "name": o["name"], "title": o["title"], "aliases": o["aliases"]} for o in officials],
         "coverage": ix.coverage,
