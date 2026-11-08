@@ -289,6 +289,95 @@ votes from printings):
 | QA spot check sampling | `qa/spot_check.py` `candidates` | a vote is sampled once, not once per printing |
 | Hand-label comparison | `collector/compare_labels.py` | a labelled reprint page resolves to its roll call through the kept reprint event |
 
+### Invariant: derived vs stated (problem family `provenance`)
+Stated after the family's second hit (2026-11-08). Hit 1 (fixed in 50b4bbf): a tally count the parser derived from
+the roster was published as `stated_tally`. Hit 2 (review of a552cd4): `config/seats.yml` start/end are the first and
+last meetings whose roll-call tables print a name in a district slot (`tools/derive_seats.py`), but pages showed them
+as term dates ("District 1, from 2022-09-12", "Held this seat 2020-03-09 to 2022-08-08") and the About page promised
+"from when, to when, and the source that says so".
+
+Invariant. Every value that reaches a page, `static/search-index.js` or the public export (`build/site/data/`) is one of:
+1. **Stated**: a cited source prints it (as printed, or through a fixed published mapping such as "Adopted" ->
+   Passed), with a link to the page that prints it; or
+2. **Derived**: computed by the team, and shown with words that say how ("seen in roll calls", "counted", "first
+   seen") or next to a link to the rule. A derived value never uses the wording, field name or column name of a
+   stated one ("from", "since", "to present", "term", "held", `stated_*`), and never falls back into a stated field
+   when the stated value is missing (missing stays null).
+A derived value that changes which period or person a fact is placed under must also be shown to be immaterial or
+disclosed (cutover rule below).
+
+**Seat data shape** (`config/seats.yml`, loaded by `sitegen/seats.py` `load_rows`; a row that breaks it is a `SeatsError`):
+```yaml
+- official_id: john-gannon        # observed row (written by tools/derive_seats.py)
+  seat: district-1
+  dates: observed                 # required: observed | sourced
+  start: '2022-09-12'             # first meeting whose roll-call table prints this holder in this slot
+  end: null                       # last such meeting; null = seen at the latest meeting collected
+  source: <first meeting's roll-call page URL#page=n>
+  last_source: <last meeting's roll-call page URL#page=n>   # required for every observed row
+  lines: current
+- official_id: wes-golden         # sourced row (seats-extra.yml)
+  seat: county-mayor
+  dates: sourced
+  printed: "2022-2026"            # required: the source's own term wording, shown verbatim
+  start: '2022-09-01'             # sort and on-date key only; never rendered for a sourced row
+  end: null
+  source: <Elected Officials List URL#page=6>
+```
+`note` stays an internal comment and is never rendered. One function turns a row's dates into words,
+`Seats.dates_text(rec)`; view dicts given to templates and the search index carry `dates_text`, `src`, `last_src`,
+and no seat `start`/`end`, so a template cannot print a bare seat date. Fixed wording (L = latest meeting collected):
+- observed, ended: "seen in roll calls 2020-03-09 to 2022-08-08"
+- observed, open: "seen in roll calls from 2022-09-12 to L, the latest meeting collected"
+- observed vacancy: "shown as vacant in roll calls from X to Y" (Y = end or L)
+- sourced: "term 2022-2026, as the source prints it"
+"Current" stays a derived status (observed: seen at L; sourced: the source gives no end) and is shown only with its
+basis line, "Current: in the roll calls of the latest meeting collected, L".
+
+**Cutover rule.** `lines_effective` (2022-09-01) is inferred (`docs/research/district-ward-map-data.md`: seating date,
+I, medium-high); no collected source prints it. It stays an internal split key and is never rendered. Pages name the
+observed boundary instead: old lines "in roll calls to <last meeting before the cutover>", current lines "in roll calls
+from <first meeting on or after it>". A test asserts the inferred day is immaterial: no meeting lies between those two
+meetings, and every observed row's `lines` agrees with its meeting dates.
+
+Consumers and producers (every place a derived value is made or reaches a page, the index, the export or QA):
+| Value | Where | Stated or derived | Shown now | Required change |
+|---|---|---|---|---|
+| Seat start/end (observed) | producer `tools/derive_seats.py`; `sitegen/seats.py` `seat_text`, `header_text`; `views.district` `holder_row`, `_holder_block`; `district.html.j2`:32, :34, :45, :50; `officials.html.j2` cards; `views.search_index` `st` | derived | as term dates: "from X", "X to present", "Held this seat", "Seat vacant since X" | `dates: observed` + `last_source` rows; all wording through `dates_text`; former `seat_text` "District 1 (seen in roll calls X to Y)", current `seat_text` "District 1" (label only); `header_text` "District 1, seen in roll calls ..."; previous-holders column "Seen in roll calls"; block heading "<name>, District 1: roll calls X to Y" (never "present"); cite first and last pages |
+| Seat dates (sourced, county mayor) | `config/localities/montgomery-tn/seats-extra.yml` | stated as "2022-2026"; the day 09-01 derived | "from 2022-09-01" | `dates: sourced`, `printed`; render `printed` only |
+| "Current" holder | `Seats.records[].current`, `is_current`, `current_of_seat`; `views.officials_page`, `district_rows` (landing list), `district` Current section, search `officials` filter labels | derived (latest meeting) | heading "Current", lede "Current members" | basis line (above) on officials, landing list and seat pages |
+| Seat label on a meeting date | `Seats.on`; `_macros.html.j2` `person` | stated where read in that meeting's table; interpolated inside a run | "District 7 (old lines)" | none in code; About states the basis |
+| Lines cutover 2022-09-01 | `config/site.yml` `lines_effective`; `districts.json` `effective`; `views.district` notice and headings; `district.html.j2`:64, :69; `index.html.j2`:28 | derived (inferred) | "Current district lines (from 2022-09-01)", "Before 2022-09-01", "in use since 2022-09-01", "redrawn in 2022" (adopted 2021-11-08) | observed boundary wording (cutover rule); drop the date and "redrawn in 2022"; immateriality test |
+| District 19/20 numbers on the map | `tools/extract_pdf_map.py` -> `districts.json` (`note`); `_map.html.j2`; map captions | derived (PDF prints them the other way; corrected from the roster and roll calls) | "Boundaries: <PDF>"; seat 19/20 pages: "Under the new map, District 19 and District 20 swapped numbers." (no source) | caption and swap line: "The map PDF prints Districts 19 and 20 the other way round; this site uses the numbers printed in the roll-call tables and the county's Elected Officials List (p. 9)", linked; `swap_source` in `site.yml` |
+| Map shapes, label positions | `districts.json` `path`, `label_xy` | stated (traced from the cited PDF) | caption with source and fetch date | none |
+| Roll call stated tally | `collector/parse.py` `printed_counts`; `collector/facts.py`:328 `stated_tally`; `export.py` `roll_calls.csv` `yes,no,abstain` | stated (hit 1: blank count -> null) | CSV columns `yes,no,abstain` | drop the fallbacks to the derived tally (`printed_counts` `else r.tally`, facts.py `or rc.tally`); rename columns `stated_yes,stated_no,stated_abstain` |
+| Tally on pages | `Index.outcome` `tally`; `_macros.html.j2`:91, `_history.html.j2`:29, `votes_year.html.j2`:13 | derived (counted from shown votes; "absent" from attendance) | "(12 yes, 3 no, 2 absent)" where a printed tally would sit | "(counted: 12 yes, 3 no, 2 absent)" |
+| Outcome | `facts.py` `_outcome_class`; `Index.outcome` label; export `outcome`; search `o` | stated (printed word, fixed mapping) | Passed/Failed/Other | none |
+| Item types | `config/site.yml` `item_types`; `views.item_types`; search `ty` and filter | derived by rule | filter, linked to `about.html#item-types` | none; any new place that shows a type links the rule |
+| Motion kind | `views.motion_type_label`; export `type_label` | derived by fixed patterns | "Motion to adopt"; About gives no rule | About lists the pattern table, as for item types |
+| Item first-seen year, appearance count and range | `facts.py` item `year`; `items_year.html.j2` "first seen"; search `a`, `d`, `d2` "Appears N times"; `items.csv` `year` | derived | count and "first seen" wording | none; registry entry for `items.year` |
+| Counts and totals | `views.official_counts`, `vote_sentence`, `totals_sentences`, `record_glance`, `unmatched_votes`; `meetings.csv` `unconfirmed_roll_calls` | derived | worded as counts over a stated date range | none |
+| Absent count as printed | `meetings.csv` `stated_absent_count` | stated | CSV | none |
+| Verified rate | `collector/__main__.py`, `build/report.json` | derived | internal only | none; never published without "of roll calls collected" |
+| Official title | `collector/names.py`:55 default "County Commissioner" | derived default, same for everyone | cards | none |
+| About seats paragraph | `about.html.j2`:62 | describes the above | "from when, to when, and the source that says so" | rewrite: holder records give the first and last meetings whose roll-call tables print that person in that seat, with links to both pages; they are not term dates; a term is shown only when a source prints it, in its words |
+| QA | `qa/site_checks.py`:402 (parses `class="seat">, District N`); `tools/seat_check.py` | checks | | keep the current label form "District N"; add `check_provenance` (below) |
+
+Seats are not in the public export today; if added, each row carries `dates` and the CSV says "seen_first", "seen_last".
+
+**Mechanical checks** (`tests/test_provenance.py`, `qa/site_checks.py` `check_provenance`, restated independently by QA):
+1. Loader: a row without `dates`, an observed row without `last_source`, or a sourced row without `printed` is a `SeatsError`.
+2. No bare seat dates: view contexts for officials, seat, landing and search carry no seat `start`/`end` key.
+3. Built site and `search-index.js`: inside `.seat`, `.seat-line`, `.holder-row`, `table.holders` and `section.holder h3`,
+   every ISO date sits in a phrase that starts "seen in roll calls", "shown as vacant in roll calls" or "roll calls",
+   or the element contains "as the source prints it". Banned anywhere: "Held this seat", "vacant since", "to present",
+   "in use since", the `lines_effective` value and the day before it (`views.district` clips blocks with
+   `_day_before(eff)`; a block shows its own first and last roll-call dates, never the cutover).
+4. Cutover immaterial (rule above), on the committed `data/facts.json` and `config/seats.yml`.
+5. Export registry: `collector/export.py` `PROVENANCE = {"<file>.<column>": "stated" | "derived: <how>"}`; every CSV
+   column and facts.json row key must be listed; a derived column name never starts `stated_`; a `stated_` value is
+   never filled from a derived one (hit-1 test kept).
+
 ### Run report (`build/report.json`, written by `python -m collector run`)
 ```
 {generated_for {coverage, sources},
