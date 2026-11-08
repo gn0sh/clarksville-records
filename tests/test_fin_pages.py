@@ -2,6 +2,7 @@
 the FIXTURE site/fixtures/finance.sample.json. Problem-key families: coverage-count/*, neutrality/*, provenance/*,
 scan-values/*, award-source/*."""
 import copy
+import html as html_mod
 import json
 import os
 import re
@@ -17,7 +18,8 @@ from test_site_neutrality import BANNED, skeleton
 FIN = ROOT / "site" / "fixtures" / "finance.sample.json"
 T = config.FIN_TEXT
 C = T["contracts"]
-COVERAGE = "4 of 5 solicitations have a bid tab; award letters are scans and are linked, not read."
+COVERAGE = ("4 of 5 solicitations have a bid tab; 1 of 1 award letters are scanned images. "
+            "Award letters are linked, not read.")
 
 
 def build_with(out, facts=None, fin=None, **kw):
@@ -89,10 +91,10 @@ def test_coverage_sentence_is_the_one_fixed_string_on_every_contracts_page(fpage
 
 def test_coverage_counts_come_from_the_file_not_from_sitegen(tmp_path, fin):
     f = copy.deepcopy(fin)
-    f["coverage"]["n_bid_tab_links"], f["coverage"]["n_total"] = 32, 91
+    f["coverage"].update(n_bid_tab_links=32, n_total=91, n_award_letters=70, n_award_scanned=42)
     pages = build_with(tmp_path, fin=f)
-    assert "32 of 91 solicitations have a bid tab; award letters are scans and are linked, not read." in \
-        pages["contracts/index.html"]
+    assert ("32 of 91 solicitations have a bid tab; 42 of 70 award letters are scanned images. "
+            "Award letters are linked, not read.") in pages["contracts/index.html"]
 
 
 def test_notes_are_exact_strings(fpages):
@@ -224,9 +226,46 @@ def test_held_total_is_not_confirmed_with_no_number(fpages):
     assert "1O9,875" not in html and "109,875" not in html
 
 
+def test_held_path_is_a_zero_based_index_into_the_bidders_list(tmp_path, fin):
+    """schema held.field `bid_tab.bidders[i].total_cents`: i counts from 0 over the file's bidders list, so
+    bidders[0] is printed order 1 (the real file, collector/fin_bidtab.py n - 1). A held total with a printed string
+    still in the file is not shown."""
+    f = copy.deepcopy(fin)
+    sol = next(s for s in f["solicitations"] if s["id"] == "sol-road-salt-fixture")
+    sol["held"] = [{"field": "bid_tab.bidders[0].total_cents", "check": "amount-format"}]
+    html = build_with(tmp_path, fin=f)["contracts/road-salt-fixture.html"]
+    by_id = {r.attrs["data-fact-id"]: r.all_text() for r in rows(html)}
+    assert "Not confirmed" in by_id["sol-road-salt-fixture/bidder/1"] and "112,400" not in html
+    assert "Not confirmed" not in by_id["sol-road-salt-fixture/bidder/3"] and "118,020.50" in html
+
+
+def test_fixture_held_path_points_at_the_null_total(fin):
+    sol = next(s for s in fin["solicitations"] if s["held"])
+    (h,) = sol["held"]
+    i = int(re.search(r"\[(\d+)\]", h["field"]).group(1))
+    assert sol["bid_tab"]["bidders"][i]["total_cents"] is None
+
+
+def test_bid_and_award_dates_are_shown_with_their_pages(fpages):
+    html = main_of(fpages["contracts/road-salt-fixture.html"])
+    cite = r' <span class="cite">\(<a href="[^"]+tab-salt\.pdf#page='
+    assert re.search(r"Bid date as printed on the bid tab: 9-30-26" + cite + "1\"", html)
+    assert re.search(r"Award date as printed on the bid tab: 10-14-26" + cite + "2\"", html)
+    assert "Bid date as printed" not in main_of(fpages["contracts/paving-unit-prices-fixture.html"])
+
+
+def test_each_not_read_reason_has_its_own_neutral_sentence():
+    sentences = list(C["not_read"].values())
+    assert len(set(sentences)) == len(sentences)
+    assert "by item" not in " ".join(sentences)
+    assert C["not_read"]["layout"] == "This bid tab's layout is not one this site reads yet; open it to read it."
+
+
 def test_not_a_listed_bidder_and_documents_differ_states(fpages):
     salt = main_of(fpages["contracts/road-salt-fixture.html"])
     assert C["awardee_not_listed"] in salt
+    idx_row = next(r for r in rows(fpages["contracts/index.html"]) if r.attrs["data-fact-id"] == "sol-road-salt-fixture")
+    assert C["awardee_not_listed"] in idx_row.all_text()  # the index cell carries the match state too
     roof = main_of(fpages["contracts/roof-repair-fixture.html"])
     note = roof[roof.index('class="note differ"'):]
     note = note[:note.index("</div>")]
@@ -240,7 +279,7 @@ def test_no_bid_tab_and_not_read_tab_show_words_and_no_amounts(fpages):
     assert C["no_tab_detail"] in chairs and "$" not in chairs
     assert C["dead_link"].format(date="2026-11-07") in chairs and C["not_pdf"] in chairs and C["shared"] in chairs
     paving = main_of(fpages["contracts/paving-unit-prices-fixture.html"])
-    assert C["not_read"]["layout"] in paving and "$" not in paving
+    assert C["not_read"]["layout"] in html_mod.unescape(paving) and "$" not in paving
     idx = parse(fpages["contracts/index.html"])
     tab_cells = {r.attrs["data-fact-id"]: [c for c in r.children if "c-tab" in c.attrs.get("class", "")][0].all_text()
                  for r in idx.walk() if r.tag == "tr" and "data-fact-id" in r.attrs}
@@ -406,3 +445,26 @@ def test_every_not_read_reason_has_its_fixed_sentence():
     schema = json.loads(config.FINANCE_SCHEMA_PATH.read_text(encoding="utf-8"))
     reasons = {r for r in schema["$defs"]["bid_tab"]["properties"]["not_read_reason"]["enum"] if r}
     assert reasons == set(C["not_read"]) and "not_pdf" in reasons
+
+
+def test_export_links_hidden_until_the_files_exist(fpages):
+    assert "solicitations.csv" not in fpages["contracts/index.html"]
+
+
+def test_unknown_not_read_reason_and_missing_awardee_page_fail_the_build(tmp_path, fin):
+    f = copy.deepcopy(fin)
+    next(s for s in f["solicitations"] if s["id"] == "sol-paving-unit-prices-fixture")["bid_tab"]["not_read_reason"] = "x"
+    with pytest.raises(Exception, match="not_read_reason|no sentence"):
+        build_with(tmp_path / "a", fin=f)
+    g = copy.deepcopy(fin)
+    next(s for s in g["solicitations"] if s["id"] == "sol-roof-repair-fixture")["bid_tab"]["awardee_page"] = None
+    with pytest.raises(Exception):
+        build_with(tmp_path / "b", fin=g)
+
+
+def test_document_link_text_is_the_rows_own_label(tmp_path, fin):
+    f = copy.deepcopy(fin)
+    sol = next(s for s in f["solicitations"] if s["id"] == "sol-road-salt-fixture")
+    sol["document_labels"][0] = "Row Own Label"
+    html = build_with(tmp_path, fin=f)["contracts/road-salt-fixture.html"]
+    assert "Row Own Label" in html

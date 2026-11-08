@@ -31,8 +31,8 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               (only beside the address box) one sha256 hash and exactly geocoder_url
   files       fewer than 250 files
   row-height  no table row (or vote / result list item) taller than 60% of the viewport, with long text clamped and row
-              details collapsed, at 375x667, 768x1024, 1000x800 and 1280x800; needs Playwright (node)
-  hscroll     no horizontal scroll at 390 px for the page types (index, official, meeting, items, and when present
+              details collapsed, at 375x667, 768x1024, 1000x800 and 1280x800 (contracts pages also at 360x640); needs Playwright (node)
+  hscroll     no horizontal scroll at 390 px (contracts pages also at 360 px) for the page types (index, official, meeting, items, and when present
               officials, district, search, votes); needs Playwright (node)
 """
 from __future__ import annotations
@@ -57,8 +57,10 @@ if __package__ in (None, ""):
 
 from qa.common import OPERATOR, ROOT, find_pdf, load_facts, pdf_page_count  # noqa: E402
 
-MAX_FILES = 250
+# 600: 244 files today (91 contract pages) plus the finance fund and department pages and the capital page to come
+MAX_FILES = 600
 VIEWPORT = 390
+NARROW = 360  # AC-F10: the Bids and awards pages are also checked at 360 px
 
 
 # External links that are not minutes PDFs but are allowed: a holder record's roster source, the map's boundary source,
@@ -263,12 +265,14 @@ def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str
 
 
 def check_sources(site: Path, pages: dict[str, Page], facts: dict, store_extra,
-                  allowed: set[str] | None = None) -> tuple[list[str], str]:
+                  allowed: set[str] | None = None, fin: dict | None = None) -> tuple[list[str], str]:
     """`allowed`: the exact external URLs a page may link that are not minutes PDFs (allowed_external)."""
     allowed = set() if allowed is None else allowed
     problems = []
+    # a finance document that was never fetched (a .docx, a dead or link-only URL) has no source row but is a listed link
+    doc_urls = {d["url"] for d in (fin or {}).get("documents", []) if d.get("url")}
     by_url = {}
-    for s in facts["sources"]:
+    for s in [*facts["sources"], *(fin or {}).get("sources", [])]:  # finance.json shares the source ids (ADR 0002)
         by_url[s["url"]] = s
         by_url[unquote(s["url"])] = s
     real_pages: dict[str, int | None] = {}
@@ -279,6 +283,8 @@ def check_sources(site: Path, pages: dict[str, Page], facts: dict, store_extra,
                 continue
             base, _, frag = href.partition("#")
             src = by_url.get(base) or by_url.get(unquote(base))
+            if src is None and rel.startswith("contracts/") and base in doc_urls:
+                continue
             if src is None:
                 if ext not in EXT_KINDS:
                     problems.append(f"{rel}: external link {href!r} is not a known source document")
@@ -290,7 +296,9 @@ def check_sources(site: Path, pages: dict[str, Page], facts: dict, store_extra,
             seen += 1
             m = re.fullmatch(r"page=(\d+)", frag)
             if not m:
-                if href in pg.fact_hrefs:
+                if href in pg.fact_hrefs and not rel.startswith("contracts/"):
+                    # contracts pages: a row's document link names a whole document and has no page by design; their
+                    # page citations are held to #page by tests/test_fin_pages.py (provenance/*)
                     problems.append(f"{rel}: fact-row source link {href!r} has no #page=N")
                 else:
                     doc_level += 1      # e.g. the meeting page header "minutes PDF, 25 pages": names the document, not a fact
@@ -367,8 +375,19 @@ def shown_fact_ids(facts: dict) -> tuple[set[str], set[str]]:
     return shown, hidden
 
 
+def finance_fact_ids(fin: dict | None) -> set[str]:
+    """Fact ids the Bids and awards pages may carry (sitegen/fin_views.py): solicitation, its documents, its bidders."""
+    ids: set[str] = set()
+    for s in (fin or {}).get("solicitations", []):
+        ids.add(s["id"])
+        ids |= {f"{s['id']}/{d}" for d in s["document_ids"]}
+        if s["bid_tab"]:
+            ids |= {f"{s['id']}/bidder/{b['printed_order']}" for b in s["bid_tab"]["bidders"]}
+    return ids
+
+
 def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: bool,
-                     show_values: bool | None = None) -> list[str]:
+                     show_values: bool | None = None, fin: dict | None = None) -> list[str]:
     if show_values is None:  # the build's switch; the rule itself is restated here, not called from sitegen
         from sitegen.config import SHOW_UNCONFIRMED_VALUES as show_values
     problems = []
@@ -396,7 +415,7 @@ def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: 
     shown, hidden = shown_fact_ids(facts)
     on_official: set[str] = set()
     known = ({r["id"] for r in facts["roll_calls"]} | {m["id"] for m in facts["motions"]} | {e["id"] for e in facts["item_events"]}
-             | {m["id"] for m in facts["meetings"]})
+             | {m["id"] for m in facts["meetings"]}) | finance_fact_ids(fin)
     for rel, pg in pages.items():
         for fid in pg.fact_ids:
             if fid in hidden:
@@ -815,8 +834,13 @@ def page_type(rel: str) -> str | None:
     if rel in ("officials.html", "search.html"):
         return rel[:-5]
     head = rel.split("/")[0]
+    if head == "contracts":
+        return "contracts_index" if rel == "contracts/index.html" else "contract"
     return {"officials": "official", "meetings": "meeting", "items": "items", "districts": "district",
             "votes": "votes"}.get(head)
+
+
+NARROW_TYPES = ("contracts_index", "contract")
 
 
 def check_hscroll(site: Path, pages: dict[str, Page], all_pages: bool, sample: int) -> tuple[list[str], str]:
@@ -833,28 +857,36 @@ def check_hscroll(site: Path, pages: dict[str, Page], all_pages: bool, sample: i
     missing = {"index", "official", "meeting", "items"} - set(by_type)
     if missing:
         return [f"no page of type {sorted(missing)} in the site"], ""
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
-        json.dump([{"name": r, "path": str((site / r).resolve())} for r in chosen], tf)
-    try:
-        env = dict(os.environ)
-        if "NODE_PATH" not in env:
-            try:
-                env["NODE_PATH"] = subprocess.run(["npm", "root", "-g"], capture_output=True, text=True, timeout=30).stdout.strip()
-            except (OSError, subprocess.SubprocessError):
-                pass
-        r = subprocess.run(["node", str(Path(__file__).with_name("hscroll.js")), tf.name, str(VIEWPORT)],
-                           capture_output=True, text=True, timeout=600, env=env)
-    finally:
-        os.unlink(tf.name)
-    if r.returncode != 0:
-        raise RuntimeError("browser check could not run: " + (r.stderr.strip().splitlines() or ["?"])[-1])
-    results = json.loads(r.stdout)
-    problems = [f"{x['name']}: scrollWidth {x['scrollWidth']} > {x['width']}; offenders: {', '.join(x['offenders']) or 'none found'}"
-                for x in results if x["overflow"]]
-    return problems, f"{len(results)} pages at {VIEWPORT}px: " + ", ".join(f"{t} x{sum(1 for c in chosen if page_type(c) == t)}" for t in by_type)
+    env = dict(os.environ)
+    if "NODE_PATH" not in env:
+        try:
+            env["NODE_PATH"] = subprocess.run(["npm", "root", "-g"], capture_output=True, text=True, timeout=30).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            pass
+    problems, n = [], 0
+    # every chosen page at 390 px; the Bids and awards pages again at 360 px (AC-F10)
+    for width, rels in ((VIEWPORT, chosen), (NARROW, [c for c in chosen if page_type(c) in NARROW_TYPES])):
+        if not rels:
+            continue
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
+            json.dump([{"name": r, "path": str((site / r).resolve())} for r in rels], tf)
+        try:
+            r = subprocess.run(["node", str(Path(__file__).with_name("hscroll.js")), tf.name, str(width)],
+                               capture_output=True, text=True, timeout=600, env=env)
+        finally:
+            os.unlink(tf.name)
+        if r.returncode != 0:
+            raise RuntimeError("browser check could not run: " + (r.stderr.strip().splitlines() or ["?"])[-1])
+        results = json.loads(r.stdout)
+        n += len(results)
+        problems += [f"{x['name']} at {width}px: scrollWidth {x['scrollWidth']} > {x['width']}; offenders: "
+                     f"{', '.join(x['offenders']) or 'none found'}" for x in results if x["overflow"]]
+    return problems, f"{n} page checks at {VIEWPORT}px (contracts also {NARROW}px): " + ", ".join(
+        f"{t} x{sum(1 for c in chosen if page_type(c) == t)}" for t in by_type)
 
 
 ROW_VIEWPORTS = ((375, 667), (768, 1024), (1000, 800), (1280, 800))
+NARROW_ROW = (NARROW, 640)  # AC-F10: 360 px, judged on the Bids and awards pages only
 
 
 def check_row_height(site: Path, pages: dict[str, Page], sample: int, all_pages: bool) -> tuple[list[str], str]:
@@ -878,24 +910,26 @@ def check_row_height(site: Path, pages: dict[str, Page], sample: int, all_pages:
             pass
     problems, rows = [], 0
     try:
-        for w, h in ROW_VIEWPORTS:
+        for w, h in ROW_VIEWPORTS + (NARROW_ROW,):
             r = subprocess.run(["node", str(Path(__file__).with_name("rowheight.js")), tf.name, str(w), str(h), "0.6"],
                                capture_output=True, text=True, timeout=900, env=env)
             if r.returncode != 0:
                 raise RuntimeError("row-height check could not run: " + (r.stderr.strip().splitlines() or ["?"])[-1])
             for x in json.loads(r.stdout):
+                if w == NARROW and page_type(x["name"]) not in NARROW_TYPES:
+                    continue
                 rows += x["rows"]
                 for o in x["offenders"]:
                     problems.append(f"{x['name']} at {w}x{h}: {o['tag']} is {o['h']}px (limit {int(h * 0.6)}): {o['text']!r}")
     finally:
         os.unlink(tf.name)
-    return problems, f"{rows} rows on {len(chosen)} pages at " + ", ".join(f"{w}x{h}" for w, h in ROW_VIEWPORTS)
+    return problems, f"{rows} rows on {len(chosen)} pages at " + ", ".join(f"{w}x{h}" for w, h in ROW_VIEWPORTS + (NARROW_ROW,))
 
 
 # ---------------------------------------------------------------- driver
 
 def run_checks(site: Path, facts: dict, internal=False, no_export=False, operator=OPERATOR, browser=True,
-               all_pages=False, sample=3, store_extra=(), seats_path=None, districts_path=None) -> Report:
+               all_pages=False, sample=3, store_extra=(), seats_path=None, districts_path=None, finance=None) -> Report:
     rep = Report()
     d_seats, d_map = default_inputs(facts)
     seats_path, districts_path = seats_path or d_seats, districts_path or d_map
@@ -907,9 +941,9 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
         return rep
     rep.add("files", [f"{len(files)} files, limit {MAX_FILES - 1}"] if len(files) >= MAX_FILES else [], f"{len(files)} files, {len(pages)} pages")
     rep.add("links", check_links(site, pages, no_export), "internal links, #anchors and assets" + ("; data/ skipped" if no_export and not (site / "data").exists() else ""))
-    problems, note = check_sources(site, pages, facts, store_extra, allowed_external(cfg, seats_path, districts_path))
+    problems, note = check_sources(site, pages, facts, store_extra, allowed_external(cfg, seats_path, districts_path), finance)
     rep.add("sources", problems, note)
-    rep.add("unverified", check_unverified(site, pages, facts, internal), "internal build" if internal else "public build")
+    rep.add("unverified", check_unverified(site, pages, facts, internal, fin=finance), "internal build" if internal else "public build")
     fact_ids = {o["id"] for o in facts["officials"]}
     roster_only = tuple(sorted({r["official_id"] for r in read_roster(seats_path) if r.get("official_id")} - fact_ids))
     problems, note = check_index(site, pages, facts, roster_only)
@@ -953,10 +987,13 @@ def main(argv=None) -> int:
     ap.add_argument("--store", action="append", default=[], help="extra directory holding <sha256>.pdf (repeatable)")
     ap.add_argument("--seats", help="the roster the build read (default: the locality's, or the fixture's)")
     ap.add_argument("--districts", help="the map file the build read (default: the locality's, or the fixture's)")
+    ap.add_argument("--finance", help="finance.json the build read (default: data/finance.json when it exists)")
     ap.add_argument("--out", default=str(ROOT / "build" / "qa" / "site_checks.txt"))
     a = ap.parse_args(argv)
+    fin_path = Path(a.finance) if a.finance else Path(a.facts).with_name("finance.json")
+    fin = load_facts(fin_path) if fin_path.exists() else None
     rep = run_checks(Path(a.site), load_facts(a.facts), a.internal, a.no_export, a.operator, not a.no_browser, a.all_pages,
-                     store_extra=a.store, seats_path=a.seats, districts_path=a.districts)
+                     store_extra=a.store, seats_path=a.seats, districts_path=a.districts, finance=fin)
     text = rep.render()
     print(text)
     out = Path(a.out)

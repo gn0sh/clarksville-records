@@ -16,6 +16,10 @@ T = config.FIN_TEXT
 C = T["contracts"]
 
 
+# The CSV/JSON download links on the index wait for the export files (finance-contracts F8): set True there.
+EXPORTS_READY = False
+
+
 class FinanceError(Exception):
     pass
 
@@ -74,8 +78,10 @@ def check_references(fin: dict) -> None:
 
 def coverage_sentence(cov: dict) -> str:
     """AC-F15: the one coverage sentence, identical on every contracts page, from finance.json's coverage block.
-    {n_tab} is n_bid_tab_links: solicitations with a bid tab link, read or not."""
-    return T["coverage_contracts"].format(n_tab=cov["n_bid_tab_links"], n_total=cov["n_total"])
+    {n_tab} is n_bid_tab_links: solicitations with a bid tab link, read or not. {n_scan} of {n_letters} is
+    n_award_scanned of n_award_letters: award letters with no text layer."""
+    return T["coverage_contracts"].format(n_tab=cov["n_bid_tab_links"], n_total=cov["n_total"],
+                                          n_scan=cov["n_award_scanned"], n_letters=cov["n_award_letters"])
 
 
 def _norm(name: str) -> str:
@@ -135,8 +141,11 @@ def _doc_date(text: str | None) -> str | None:
     return None
 
 
-def _doc_link(fx: Finance, d: dict) -> dict:
+def _doc_link(fx: Finance, d: dict, sol: dict) -> dict:
     """One document link with its state words (design 5 states). `note` is shown beside the link."""
+    # the row's own link text (schema solicitation.document_labels, parallel to document_ids), not the shared
+    # document's first-row label
+    label = sol["document_labels"][sol["document_ids"].index(d["id"])]
     note = None
     if d["status"] == "dead_at_fetch":
         note = C["dead_link"].format(date=d["fetched_at"])
@@ -146,7 +155,7 @@ def _doc_link(fx: Finance, d: dict) -> dict:
         note = C["link_only"]
     elif d["shared_by"]:
         note = C["shared"]
-    return {"id": d["id"], "stage": d["stage"], "stage_label": stage_label(d["stage"]), "label": d["link_label"],
+    return {"id": d["id"], "stage": d["stage"], "stage_label": stage_label(d["stage"]), "label": label,
             "href": None if d["status"] == "dead_at_fetch" else d["url"], "scanned": d["scanned"], "note": note,
             "fetched": d["fetched_at"]}
 
@@ -170,15 +179,25 @@ def _tab_state(fx: Finance, sol: dict) -> dict | None:
     if tab is None:
         return None
     doc = fx.docs[tab["document_id"]]
-    out = {"kind": tab["tab_type"], "doc": _doc_link(fx, doc), "reason": None, "bidders": [], "awardee": None}
+    out = {"kind": tab["tab_type"], "doc": _doc_link(fx, doc, sol), "reason": None, "bidders": [], "awardee": None,
+           "bid_date": None, "award_date": None}
     if tab["tab_type"] != "lump_sum":
-        out["reason"] = C["not_read"][tab["not_read_reason"]]
+        reason = tab["not_read_reason"]
+        if reason not in C["not_read"]:  # no silent default: a new reason needs its own sentence first
+            raise FinanceError(f"solicitation {sol['id']} has not_read_reason {reason!r}, which has no sentence in "
+                               "config/finance_text.yml (contracts.not_read)")
+        out["reason"] = C["not_read"][reason]
         return out
     held = _held_fields(sol)
     sid = doc["source_id"]
-    for b in sorted(tab["bidders"], key=lambda b: b["printed_order"]):  # printed order only (AC-F8)
-        # a held total is null in the file (schema `held`); the held[] path is not used to find it
-        total_held = b["total_cents"] is None or b["total_as_printed"] is None
+    for key, label in (("bid_date", "bid_date"), ("award_date", "award_date")):
+        if tab[key + "_text"]:
+            out[key] = {"label": C[label], "text": tab[key + "_text"], "src": fx.src(sid, tab[key + "_page"])}
+    # schema held.field: `bid_tab.bidders[i].total_cents`, i a 0-based index into the file's bidders list (not the
+    # printed order, which starts at 1); the value is also null in the file
+    held_idx = {int(m.group(1)) for f in held if (m := re.fullmatch(r"bid_tab\.bidders\[(\d+)\]\.total_cents", f))}
+    for i, b in sorted(enumerate(tab["bidders"]), key=lambda ib: ib[1]["printed_order"]):  # printed order only (AC-F8)
+        total_held = i in held_idx or b["total_cents"] is None or b["total_as_printed"] is None
         out["bidders"].append({
             "order": b["printed_order"], "who": fx.person(b["name"]),
             "total": None if total_held else b["total_as_printed"],
@@ -189,9 +208,11 @@ def _tab_state(fx: Finance, sol: dict) -> dict | None:
     else:
         state = {"not_a_listed_bidder": C["awardee_not_listed"], "ambiguous": C["awardee_ambiguous"]}.get(
             tab["awardee_match"])
+        if not tab["awardee_page"]:
+            raise FinanceError(f"solicitation {sol['id']} names an awardee but no page for it (awardee_page)")
         lead, _, tail = C["awardee"].partition("{name}")
         out["awardee"] = {"sentence": None, "lead": lead, "tail": tail, "who": fx.person(tab["awardee_text"]),
-                          "src": fx.src(sid, tab["awardee_page"] or 1), "state": state, "held": awardee_held}
+                          "src": fx.src(sid, tab["awardee_page"]), "state": state, "held": awardee_held}
     return out
 
 
@@ -200,7 +221,7 @@ def _differ(fx: Finance, sol: dict) -> dict | None:
     if d is None:
         return None
     return {"sentence": C["differ"], "fields": [C["differ_fields"][f] for f in d["fields"]],
-            "docs": [_doc_link(fx, fx.docs[i]) for i in d["document_ids"]]}
+            "docs": [_doc_link(fx, fx.docs[i], sol) for i in d["document_ids"]]}
 
 
 def _words(ids: list[str]) -> list[dict]:
@@ -240,7 +261,7 @@ def contracts_index(fx: Finance) -> dict:
             "id": sol["id"], "href": f"contracts/{sol['slug']}.html", "title": sol["title"],
             "date": sol["archive_date"], "date_text": sol["archive_date_text"] or C["archive_date_empty"],
             "year": sol["year"], "dept": dep, "dept_key": dep["text"] if dep else C["no_department"],
-            "docs": [_doc_link(fx, fx.docs[i]) for i in sol["document_ids"]],
+            "docs": [_doc_link(fx, fx.docs[i], sol) for i in sol["document_ids"]],
             "has_tab": tab is not None, "awardee": awardee, "cites": cites,
             # what the "Vendor or title" box matches: title, department and every bidder name (design 11)
             "search": " ".join([sol["title"], dep["text"] if dep else "", *names]).casefold(),
@@ -248,7 +269,8 @@ def contracts_index(fx: Finance) -> dict:
     depts = sorted({r["dept_key"] for r in rows}, key=str.casefold)
     years = sorted({r["year"] for r in rows if r["year"] is not None}, reverse=True)
     return {"rows": rows, "depts": depts, "years": years, "coverage_sentence": coverage_sentence(fx.coverage),
-            "notes": notes(), "c": C, "words": _words(C["words"]), "disclosure": False}
+            "notes": notes(), "c": C, "words": _words(C["words"]), "disclosure": False,
+            "exports": EXPORTS_READY}
 
 
 def solicitation(sol_id: str, fx: Finance) -> dict:
@@ -257,7 +279,7 @@ def solicitation(sol_id: str, fx: Finance) -> dict:
     docs = []
     for n, did in enumerate(sol["document_ids"]):
         d = fx.docs[did]
-        link = _doc_link(fx, d)
+        link = _doc_link(fx, d, sol)
         date_src = fx.src(d["source_id"], d["doc_date_page"]) if d["doc_date_text"] else None
         docs.append(dict(link, date=d["doc_date_text"], date_src=date_src, n=n,
                          row_src=date_src or fx.src(sol["archive_source_id"], None),

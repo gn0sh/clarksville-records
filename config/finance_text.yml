@@ -3,7 +3,7 @@
 # glossary.html are the only places the banned-words lint skips (design 9). {braces} are filled from finance.json's
 # coverage block (fin_checks.coverage), never counted again in sitegen.
 
-coverage_contracts: "{n_tab} of {n_total} solicitations have a bid tab; award letters are scans and are linked, not read."
+coverage_contracts: "{n_tab} of {n_total} solicitations have a bid tab; {n_scan} of {n_letters} award letters are scanned images. Award letters are linked, not read."
 coverage_budget: "{n_lines} budget lines from {n_books} books; {n_flag} totals do not add up as printed and are marked."
 
 notes:
@@ -55,10 +55,13 @@ contracts:
   no_tab_detail: "No bid tab was found for this solicitation. Documents are listed above."
   tab_heading: "Bidders and totals as printed"
   not_read:
-    layout: "This bid tab lists prices by item, so its totals are not read here. Read the bid tab itself."
+    layout: "This bid tab's layout is not one this site reads yet; open it to read it."
     scan: "This bid tab is a scanned image. No amount, name or date has been read from it."
     shared_url: "This bid tab link is listed for more than one solicitation, so nothing is read from it."
+    not_fetched: "This bid tab link was not available to this site when the archive was read, so nothing is read from it. Open the link itself."
     not_pdf: "This bid tab is not a PDF file, so nothing is read from it. Open the file itself."
+  bid_date: "Bid date as printed on the bid tab:"
+  award_date: "Award date as printed on the bid tab:"
   awardee: "Awardee as printed on the bid tab: {name}."
   awardee_none: "The bid tab does not name an awardee."
   awardee_not_listed: "This name is not one of the bidders listed on the bid tab."

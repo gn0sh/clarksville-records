@@ -60,7 +60,7 @@
       <td class="c-dept" data-label="Department">{% if r.dept and r.dept.held %}{{ not_confirmed(r.dept.src) }}{% elif r.dept %}{{ r.dept.text }}{% else %}<span class="muted">{{ c.no_department }}</span>{% endif %}</td>
       <td class="c-docs" data-label="Documents"><ul class="doc-links">{% for d in r.docs %}<li>{{ doc_link(d, c, d.stage_label) }}</li>{% endfor %}</ul></td>
       <td class="c-tab" data-label="Bid tab">{{ c.has_tab if r.has_tab else c.no_tab }}</td>
-      <td class="c-awardee" data-label="Awardee">{% if r.awardee and r.awardee.held %}{{ not_confirmed(r.awardee.src) }}{% elif r.awardee %}{{ person(r.awardee.who, root) }}{% endif %}</td>
+      <td class="c-awardee" data-label="Awardee">{% if r.awardee and r.awardee.held %}{{ not_confirmed(r.awardee.src) }}{% elif r.awardee %}{{ person(r.awardee.who, root) }}{% if r.awardee.state %}<br><small>{{ r.awardee.state }}</small>{% endif %}{% endif %}</td>
       <td class="c-source cite" data-label="Source">{{ fin_cites(r.cites, root, r.id) }}</td>
     </tr>
   {% endfor %}
@@ -68,7 +68,7 @@
 </table>
 </div>
 <button type="button" id="sol-more" class="more-btn" hidden>{{ c.more }}</button>
-<p class="exports">Download: <a href="{{ root }}data/solicitations.csv">CSV</a> <span class="sep" aria-hidden="true">&middot;</span> <a href="{{ root }}data/finance.json">JSON</a></p>
+{% if exports %}<p class="exports">Download: <a href="{{ root }}data/solicitations.csv">CSV</a> <span class="sep" aria-hidden="true">&middot;</span> <a href="{{ root }}data/finance.json">JSON</a></p>{% endif %}
 {{ words_toggle(words, c, root) }}
 {% if disclosure %}{% include "_disclosure.html.j2" %}{% endif %}
 {% endblock %}

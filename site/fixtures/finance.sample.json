@@ -1369,7 +1369,7 @@
    "held": [
     {
      "check": "amount-format",
-     "field": "bid_tab.bidders[2].total_cents"
+     "field": "bid_tab.bidders[1].total_cents"
     }
    ],
    "id": "sol-road-salt-fixture",
