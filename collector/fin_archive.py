@@ -88,10 +88,10 @@ class _Table(HTMLParser):
 
 
 def absolute(base: str, href: str) -> str:
-    """The link as a request URL: joined to the archive URL, path characters percent-encoded once (existing %XX kept),
-    fragment dropped."""
+    """The link as a request URL: joined to the archive URL, path characters percent-encoded once (existing %XX kept;
+    a quote mark, which the schema's uri rule refuses, becomes %27), fragment dropped."""
     u = urllib.parse.urlsplit(urllib.parse.urljoin(base, href.strip()))
-    path = urllib.parse.quote(u.path, safe="/%'()&+,;=~:@!$*-._")
+    path = urllib.parse.quote(u.path, safe="/%()&+,;=~:@!$*-._")
     return urllib.parse.urlunsplit((u.scheme.lower(), u.netloc.lower(), path, u.query, ""))
 
 

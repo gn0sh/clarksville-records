@@ -137,3 +137,5 @@ def test_absolute_keeps_existing_escapes_and_quotes_spaces():
     assert absolute(base, "/storage/a%20b.pdf") == f"https://{CFG.archive_host}/storage/a%20b.pdf"
     assert absolute(base, "/storage/a b.pdf#page=2") == f"https://{CFG.archive_host}/storage/a%20b.pdf"
     assert absolute(base, "https://Other.Example/x") == "https://other.example/x"
+    assert absolute(base, "/storage/Bid%20-%20Sheriff's%20Office.pdf") == (
+        f"https://{CFG.archive_host}/storage/Bid%20-%20Sheriff%27s%20Office.pdf")
