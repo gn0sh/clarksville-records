@@ -50,7 +50,9 @@
 | 2026-11-08 | code-reviewer | opus/high | delta re-review 0464107 | approve |
 | 2026-11-08 | frontend-engineer | opus/medium | landing, drawer, officials, search, footer | done, 864b7e1: 412 pass; gaps: votes[].district, pre-2026 CZ titles lack applicant names |
 | 2026-11-08 | code-reviewer | opus/high | review landing/search/seats at a552cd4 | request changes: must-fix provenance/derived-seat-dates-shown-as-term; should-fix qa-weakened/ext-link-any-host, qa-tool/layout-counts-year-tables (pre-existing), locality/hard-coded-text; 4 nits |
-| 2026-11-08 | software-architect | opus/high | provenance invariant + consumer list (loop rule, 2nd hit) | running |
+| 2026-11-08 | software-architect | opus/high | provenance invariant + consumer list (loop rule, 2nd hit) | done, 2c9dba6 |
+| 2026-11-08 | backend-engineer | opus/medium | provenance B1-B3, seats.csv export, look for seating page | running |
+| 2026-11-08 | frontend-engineer | opus/medium | provenance F1-F6 + review should-fixes + QA bugs | running |
 | 2026-11-08 | backend-engineer | opus/medium | rezoning applicant/location fields + search | running |
 | 2026-11-08 | qa-engineer | sonnet/medium | QA landing/search/seats + spot-check newly verified | FAIL: landing/one-screen (phone 706px, desktop 913px below fold), attribution/seat-label-missing-former, attribution/seat-label-missing-meeting-history; AC-P1 361/390 PASS; spot-check 10/10 |
 | 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
@@ -104,3 +106,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - Open parser finding (item-history family, 3rd hit): the 2024-09-09 minutes on p50 reprint the 2020 roll call for item 20-9-14 as an exhibit. It is filed as a 2024 unverified roll call. The architect must restate the invariant before the fix (loop rule). Seat derivation uses verified roll calls only, so seats are unaffected.
 - Backlog (from frontend, 2026-11-08): rezoning items (CZ-) before 2026 carry only the case number as their title, so searching by applicant name finds only the newer ones. backend-engineer to pull applicant and street from the item text. This is the owner's named search use case.
 - 2026-11-08 manager decision (QA bug 2): a name on a date with no roster record is labelled "seat not recorded". The label is never guessed.
+- 2026-11-08 manager decisions on the architect's gaps: seats go into the public export as seats.csv. lines_effective becomes stated only if the minutes page that seats the 2022 commission is found; otherwise it stays derived.
