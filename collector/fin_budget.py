@@ -8,8 +8,10 @@ finance.yml `budget` (fin_config.BudgetRules); the code holds no locality litera
   the next statement page.
 - Column bands from the header block under the title: words of one header line closer than BAND_GAP form a phrase,
   phrases of the header lines that overlap in x form one band, read top to bottom ("FY 2026" / "Amended" / "Budget").
-  A band's kind is its first kind word, its fiscal year from `year`; a band with an ignore word (derived columns) is
-  only a position. Any other header band fails the book (BookLayoutError).
+  A band's kind is its first kind word, its fiscal year from `year`; a book's `kind_overrides` set the kind of a whole
+  header as printed (the FY2025 approved book's "FY 25 Projection" is its adopted budget year, column-kind/
+  budget-year-kind), and an override that matches no header fails the book. A band with an ignore word (derived
+  columns) is only a position. Any other header band fails the book (BookLayoutError).
 - A word is a cell token when its right edge is at or right of the first band's left edge; band j holds the tokens
   whose right edge lies in [band j left edge, band j+1 left edge). A value band with two tokens, a token that is not
   an amount, or a digit token off its column's right edge by more than ALIGN_TOL holds the line (check
@@ -125,8 +127,10 @@ def _phrases(ln: Line) -> list[list[Word]]:
     return out
 
 
-def header_bands(plines: list[Line], title_at: int, rules: BudgetRules, where: str) -> tuple[list[Band], set]:
-    """(bands left to right, indexes of the header lines). Raises BookLayoutError on an unknown header band."""
+def header_bands(plines: list[Line], title_at: int, rules: BudgetRules, where: str,
+                 kind_overrides: dict | None = None) -> tuple[list[Band], set]:
+    """(bands left to right, indexes of the header lines). Raises BookLayoutError on an unknown header band.
+    `kind_overrides`: header as printed -> kind, for this book (the header is still stored as printed)."""
     idx = []
     for i in range(title_at + 1, len(plines)):
         if _is_header_line(plines[i], rules):
@@ -156,6 +160,8 @@ def header_bands(plines: list[Line], title_at: int, rules: BudgetRules, where: s
             bands.append(Band(g["x0"], g["x1"], header, None, None))
             continue
         kind = next((k for kw, k in rules.kind_words if kw in words), None)
+        if kind is not None and kind_overrides and header in kind_overrides:
+            kind = kind_overrides[header]
         m = rules.year.search(header)
         if kind is None or m is None:
             raise BookLayoutError(f"{where}: header {header!r} has no known kind word and year")
@@ -256,13 +262,14 @@ def read_book(words: list[Word], spec: BookSpec, rules: BudgetRules) -> BookRead
     statement = None
     sc = _Scopes()
     pending_fb: list[ParsedLine] = []          # fund_balance lines waiting for the next statement page's fund
+    overrides = dict(spec.kind_overrides)
     for page in range(spec.first_page, spec.last_page + 1):
         plines = by_page.get(page, [])
         role, title_at = page_role(plines, rules)
         if role is None:
             continue
         where = f"{spec.id} p. {page}"
-        bands, header_idx = header_bands(plines, title_at, rules, where)
+        bands, header_idx = header_bands(plines, title_at, rules, where, overrides)
         pages_read.append(page)
         for b in bands:
             col = {"header_as_printed": b.header, "fiscal_year": b.fiscal_year, "kind": b.kind}
@@ -310,6 +317,9 @@ def read_book(words: list[Word], spec: BookSpec, rules: BudgetRules) -> BookRead
             out.append(pl)
     if pending_fb:
         raise BookLayoutError(f"{spec.id}: fund-balance rows with no statement page after them")
+    unused = set(overrides) - {c["header_as_printed"] for c in columns}
+    if unused:
+        raise BookLayoutError(f"{spec.id}: kind_overrides name no header of the book: {sorted(unused)}")
     return BookRead(spec, columns, pages_read, out)
 
 

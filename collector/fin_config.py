@@ -56,6 +56,7 @@ class BookSpec:
     url: str
     first_page: int
     last_page: int
+    kind_overrides: tuple = ()   # ((header as printed, kind), ...): this book's own meaning of a header
 
 
 @dataclass(frozen=True)
@@ -106,7 +107,11 @@ def parse_budget(budget: dict) -> BudgetRules:
         pages = b["pages"]
         if not (len(pages) == 2 and all(isinstance(p, int) and p >= 1 for p in pages) and pages[0] <= pages[1]):
             raise FinanceConfigError(f"finance.yml: {where}pages must be [first, last]")
-        books.append(BookSpec(b["id"], b["title"], b["edition"], b["fiscal_year"], b["url"], pages[0], pages[1]))
+        over = b.get("kind_overrides", {})
+        if not isinstance(over, dict) or not all(isinstance(k, str) and k.strip() and v in KINDS for k, v in over.items()):
+            raise FinanceConfigError(f"finance.yml: {where}kind_overrides must map headers as printed to one of {KINDS}")
+        books.append(BookSpec(b["id"], b["title"], b["edition"], b["fiscal_year"], b["url"], pages[0], pages[1],
+                              tuple(sorted(over.items()))))
     if len({b.id for b in books}) != len(books):
         raise FinanceConfigError("finance.yml: budget.books ids repeat")
     titles = _need(budget, "page_titles", dict, w)

@@ -55,3 +55,13 @@ disagree with detail pages (architecture section 9).
 - A new locality is a new `finance.yml` plus fixtures; layouts that differ need new rules, not new adapters.
 - Expensive to reverse: the finance schema and id scheme. Recommend a delta review of the schema by the code-reviewer
   once slice 1a's real run output exists, rather than a panel.
+
+## Amendment 2026-11-08: a book's own column kinds
+The column kind comes from the header's words (`kind_words`), but one word can mean different things in different
+books. The approved FY2024-25 book prints its budget-year column as "FY 25 Projection": in an approved book that column
+is the adopted FY2025 budget. The FY2027 approved book's "FY 2026 Projections" is an estimate of the year in progress
+and stays `projected`. Decision (manager, from review 1b finding 4, column-kind/budget-year-kind): a book in
+`finance.yml` may list `kind_overrides` (header as printed -> kind); FY2025 "FY 25 Projection" is `adopted`. The header
+is still stored and shown as printed. An override that matches no header in its book fails the book, so a re-printed
+header cannot silently drop it. Alternative rejected: a global rule "Projection in an approved edition = adopted",
+which would also turn FY2027's "FY 2026 Projections" into an adopted budget.

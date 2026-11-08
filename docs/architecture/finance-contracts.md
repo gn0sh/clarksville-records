@@ -58,7 +58,8 @@ line from `budget.page_titles`: revenue statement, expenditure statement, consol
 skipped (synopsis, charts, summaries are linked as pages, never read). Column bands from the header words (two header
 lines joined per band). Each header becomes `{header_as_printed, fiscal_year, kind}` with kind from `kind_words`
 (Actuals -> actual, Amended -> amended, Budget -> adopted in an approved edition, Projections -> projected); an unknown
-word fails the book. "Budgeted Difference" and "Percent Change" are read only to locate bands and are never stored or
+word fails the book. A book may set `kind_overrides` (header as printed -> kind): the FY2025 approved book's
+"FY 25 Projection" is `adopted` (ADR 0002 amendment 2026-11-08). "Budgeted Difference" and "Percent Change" are read only to locate bands and are never stored or
 shown (no year-over-year values; they also carry book sign and rounding slips, see 9). A number whose right edge lies
 in no band, two numbers in one band, or a non-amount token raises check `column-align`: the line is held back.
 "-" is 0 as printed; a blank cell is `null` ("not printed").

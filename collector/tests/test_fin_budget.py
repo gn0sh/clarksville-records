@@ -110,7 +110,7 @@ def test_fy2025_book_two_digit_years_and_projection_column():
     r, lines = read("fy2025-approved", [31, 33, 36])
     assert r.columns == [{"header_as_printed": "FY 23 Actuals", "fiscal_year": 2023, "kind": "actual"},
                          {"header_as_printed": "FY 24 Amended", "fiscal_year": 2024, "kind": "amended"},
-                         {"header_as_printed": "FY 25 Projection", "fiscal_year": 2025, "kind": "projected"}]
+                         {"header_as_printed": "FY 25 Projection", "fiscal_year": 2025, "kind": "adopted"}]  # override
     assert all(x["edition"] == "approved" and x["book_id"] == "fy2025-approved" for x in lines.values())
 
 
@@ -269,3 +269,24 @@ def test_deterministic():
     a = fin_budget.to_records(read("fy2027-approved", [36, 37])[0], RULES)
     b = fin_budget.to_records(read("fy2027-approved", [36, 37])[0], RULES)
     assert a == b and copy.deepcopy(a) == a
+
+
+# ------------------------------------------------------------------ per-book column kinds (column-kind/budget-year-kind)
+def test_fy2025_budget_year_column_is_adopted_and_keeps_its_header():
+    from collector.tests.fin_fake import CFG as FCFG, book_words
+    books = {b.id: b for b in FCFG.budget.books}
+    r25 = fin_budget.read_book(book_words("fy2025-approved"), books["fy2025-approved"], FCFG.budget)
+    col = next(c for c in r25.columns if c["fiscal_year"] == 2025)
+    assert col == {"header_as_printed": "FY 25 Projection", "fiscal_year": 2025, "kind": "adopted"}
+    r27 = fin_budget.read_book(book_words("fy2027-approved"), books["fy2027-approved"], FCFG.budget)
+    assert {"header_as_printed": "FY 2026 Projections", "fiscal_year": 2026, "kind": "projected"} in r27.columns
+
+
+def test_an_override_that_matches_no_header_fails_the_book():
+    import dataclasses
+
+    from collector.tests.fin_fake import CFG as FCFG, book_words
+    spec = next(b for b in FCFG.budget.books if b.id == "fy2025-approved")
+    bad = dataclasses.replace(spec, kind_overrides=(("FY 25 Projected", "adopted"),))
+    with pytest.raises(fin_budget.BookLayoutError, match="kind_overrides"):
+        fin_budget.read_book(book_words("fy2025-approved"), bad, FCFG.budget)

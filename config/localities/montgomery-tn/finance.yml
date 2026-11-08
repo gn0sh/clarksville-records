@@ -78,6 +78,7 @@ bidtab:
 # budget-year column "FY 25 Projection" and its derived columns "Increase/Decrease Amount" and "Percentage Change".
 budget:
   # pages: the PDF page range searched for statement pages (a page is read only when its title line matches).
+  # kind_overrides (optional): header as printed -> kind, for that book only; one that matches no header fails it.
   books:
     - id: fy2027-approved
       title: "Fiscal Year 2027 Approved Budget"
@@ -91,6 +92,9 @@ budget:
       fiscal_year: 2025
       url: https://mcgtn.org/storage/departments/account-budget/MONTGOMERY%20COUNTY%202024-2025%20BUDGET%20BOOK%20AS%20APPROVED.pdf
       pages: [29, 108]
+      # In this approved book the budget-year column is printed "FY 25 Projection": it is the adopted FY2025 budget,
+      # not an estimate (ADR 0002 amendment 2026-11-08). The header is still stored and shown as printed.
+      kind_overrides: {"FY 25 Projection": adopted}
   # Page role by an exact title line. Consolidated pages: only the fund-balance block is read.
   page_titles:
     revenue: "Estimated Revenue and Available Funds"
