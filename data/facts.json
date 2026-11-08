@@ -74493,7 +74493,7 @@
       "page": 13,
       "source_id": "src-3dee31b10e2d",
       "stated_tally": {
-        "abstain": 1,
+        "abstain": null,
         "no": 0,
         "yes": 18
       },
@@ -94418,7 +94418,7 @@
       "source_id": "src-8419efe1acc7",
       "stated_tally": {
         "abstain": 0,
-        "no": 0,
+        "no": null,
         "yes": 21
       },
       "verification": {
@@ -94611,7 +94611,7 @@
       "source_id": "src-8419efe1acc7",
       "stated_tally": {
         "abstain": 0,
-        "no": 0,
+        "no": null,
         "yes": 21
       },
       "verification": {
@@ -95001,7 +95001,7 @@
       "source_id": "src-8419efe1acc7",
       "stated_tally": {
         "abstain": 1,
-        "no": 0,
+        "no": null,
         "yes": 20
       },
       "verification": {
@@ -95185,7 +95185,7 @@
       "source_id": "src-8419efe1acc7",
       "stated_tally": {
         "abstain": 0,
-        "no": 0,
+        "no": null,
         "yes": 21
       },
       "verification": {
@@ -95378,7 +95378,7 @@
       "source_id": "src-8419efe1acc7",
       "stated_tally": {
         "abstain": 0,
-        "no": 0,
+        "no": null,
         "yes": 21
       },
       "verification": {
@@ -95968,15 +95968,11 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "ok": true
+            "detail": "[text-layer] no vote read for present member: David Harper; [text-layer] no vote read for present member: Lisa Prichard; [text-layer] no vote read for present member: Chris Rasnic; [text-layer] no vote read for present member: Ryan Gallant; [text-layer] no vote read for present member: Billy Frye; [text-layer] no vote read for present member: David Shelton; [tesseract] conflicting vote marks ['y', 'a'] for Jason Knight",
+            "ok": false
           },
           {
             "check": "outcome_consistent",
-            "ok": true
-          },
-          {
-            "check": "reading_used",
-            "detail": "text-layer+tesseract",
             "ok": true
           },
           {
@@ -95993,39 +95989,16 @@
           },
           {
             "check": "tally_matches_stated",
-            "ok": true
+            "detail": "[text-layer] counted (14, 0, 0) != stated (20, 0, 0); [tesseract] counted (19, 0, 0) != stated (20, 0, 0)",
+            "ok": false
           }
         ],
-        "status": "verified"
+        "status": "unverified"
       },
       "votes": [
         {
-          "official_id": "billy-frye",
-          "raw_name": "Billy Frye",
-          "raw_value": "Y",
-          "value": "yes"
-        },
-        {
           "official_id": "carmelle-chandler",
           "raw_name": "Carmelle Chandler",
-          "raw_value": "Y",
-          "value": "yes"
-        },
-        {
-          "official_id": "chris-rasnic",
-          "raw_name": "Chris Rasnic",
-          "raw_value": "Y",
-          "value": "yes"
-        },
-        {
-          "official_id": "david-harper",
-          "raw_name": "David Harper",
-          "raw_value": "Y",
-          "value": "yes"
-        },
-        {
-          "official_id": "david-shelton",
-          "raw_name": "David Shelton",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -96078,12 +96051,6 @@
           "value": "yes"
         },
         {
-          "official_id": "lisa-prichard",
-          "raw_name": "Lisa Prichard",
-          "raw_value": "Y",
-          "value": "yes"
-        },
-        {
           "official_id": "michael-lankford",
           "raw_name": "Michael Lankford",
           "raw_value": "Y",
@@ -96104,12 +96071,6 @@
         {
           "official_id": "rickey-ray",
           "raw_name": "Rickey Ray",
-          "raw_value": "Y",
-          "value": "yes"
-        },
-        {
-          "official_id": "ryan-gallant",
-          "raw_name": "Ryan Gallant",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -106512,7 +106473,7 @@
       "page": 64,
       "source_id": "src-adbd2896a91a",
       "stated_tally": {
-        "abstain": 0,
+        "abstain": null,
         "no": 9,
         "yes": 9
       },
@@ -117061,7 +117022,7 @@
       "page": 93,
       "source_id": "src-c4992c9e270f",
       "stated_tally": {
-        "abstain": 0,
+        "abstain": null,
         "no": 0,
         "yes": 21
       },
@@ -118921,7 +118882,7 @@
           },
           {
             "check": "tally_matches_stated",
-            "detail": "[text-layer] tally unreadable ('S', '10', '0'); [tesseract] counted (7, 10, 1) != stated (8, 10, 0)",
+            "detail": "[text-layer] tally unreadable ('—S', '10', '0'); [tesseract] counted (7, 10, 1) != stated (8, 10, 0)",
             "ok": false
           }
         ],
