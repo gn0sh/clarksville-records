@@ -1,10 +1,18 @@
 {
  "generated_by": "tools/derive_seats.py",
  "meetings": 59,
- "observations": 11494,
+ "observations": 11165,
  "unknown": [],
  "conflicts": [],
  "outvoted_readings": [
+  {
+   "date": "2022-02-14",
+   "official_id": "tangi-smith",
+   "readings": {
+    "8": 5,
+    "3": 1
+   }
+  },
   {
    "date": "2022-05-09",
    "official_id": "tangi-smith",
@@ -48,17 +56,9 @@
   },
   {
    "date": "2022-11-14",
-   "official_id": "autumn-simmons",
-   "readings": {
-    "20": 8,
-    "0": 1
-   }
-  },
-  {
-   "date": "2022-11-14",
    "official_id": "david-shelton",
    "readings": {
-    "21": 7,
+    "21": 6,
     "91": 2
    }
   },
@@ -175,8 +175,8 @@
    "date": "2023-09-11",
    "official_id": "autumn-simmons",
    "readings": {
-    "20": 24,
-    "0": 2,
+    "20": 23,
+    "0": 1,
     "30": 1
    }
   },
@@ -184,9 +184,8 @@
    "date": "2023-09-11",
    "official_id": "david-shelton",
    "readings": {
-    "21": 19,
+    "21": 18,
     "91": 2,
-    "31": 1,
     "71": 1,
     "41": 1
    }
@@ -195,7 +194,7 @@
    "date": "2023-09-11",
    "official_id": "joe-smith",
    "readings": {
-    "3": 26,
+    "3": 24,
     "4": 1
    }
   },
@@ -203,7 +202,7 @@
    "date": "2023-09-11",
    "official_id": "ryan-gallant",
    "readings": {
-    "18": 26,
+    "18": 24,
     "48": 1
    }
   },
@@ -211,7 +210,7 @@
    "date": "2023-09-11",
    "official_id": "tangi-smith",
    "readings": {
-    "8": 23,
+    "8": 21,
     "3": 1
    }
   },
@@ -276,16 +275,8 @@
    "date": "2024-03-11",
    "official_id": "autumn-simmons",
    "readings": {
-    "20": 5,
+    "20": 3,
     "30": 1
-   }
-  },
-  {
-   "date": "2024-03-11",
-   "official_id": "david-shelton",
-   "readings": {
-    "21": 4,
-    "71": 1
    }
   },
   {
@@ -542,7 +533,7 @@
    "date": "2025-05-12",
    "official_id": "autumn-simmons",
    "readings": {
-    "20": 9,
+    "20": 7,
     "30": 1,
     "0": 1
    }
@@ -551,7 +542,7 @@
    "date": "2025-05-12",
    "official_id": "david-shelton",
    "readings": {
-    "21": 9,
+    "21": 7,
     "31": 1,
     "71": 1
    }
@@ -647,23 +638,15 @@
    "date": "2025-11-10",
    "official_id": "autumn-simmons",
    "readings": {
-    "20": 8,
+    "20": 6,
     "30": 1
-   }
-  },
-  {
-   "date": "2025-11-10",
-   "official_id": "david-shelton",
-   "readings": {
-    "21": 8,
-    "71": 1
    }
   },
   {
    "date": "2025-12-08",
    "official_id": "autumn-simmons",
    "readings": {
-    "20": 9,
+    "20": 5,
     "0": 1
    }
   },
@@ -671,9 +654,8 @@
    "date": "2025-12-08",
    "official_id": "david-shelton",
    "readings": {
-    "21": 5,
-    "71": 1,
-    "91": 4
+    "21": 3,
+    "91": 3
    }
   },
   {

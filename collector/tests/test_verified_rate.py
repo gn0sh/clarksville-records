@@ -71,7 +71,7 @@ def test_combine_never_takes_a_vote_against_an_explicit_absent_mark():
     a = _r("text-layer", {"A": "Yes", "B": "---", "C": "No", "D": "---"}, absent=["D"])
     b = _r("tesseract", {"A": "Yes", "B": "Yes", "C": "No", "D": "---"}, absent=["D"])
     c = P.combine([a, b], ROSTER4)
-    assert c.votes["B"] == "?" and any("no clean reading of the vote for B" in x for x in c.reasons)
+    assert c.votes["B"] == "?" and any("readings dissent for B" in x for x in c.reasons)   # cell_dissent: "---" vs a vote
 
 
 def test_combine_ignores_junk_cells_and_needs_a_clean_one():

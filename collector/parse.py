@@ -780,15 +780,66 @@ def check_outcome(outcome_word: str | None, tally: tuple | None, two_thirds: boo
     return []
 
 
+VOTES = ("Yes", "No", "Abstain")
+
+
+def _cell(r: Reading, m: str) -> str | None:
+    """r's reading of m's cell for the dissent rule: a vote, "---", "malformed" ("?": two vote marks or a vote with
+    "---"; or a vote with an unrecognised token, or in a member's second cell), or None ("none": no cell, or read
+    blank). A lone "-" beside a vote is a known weak mark, not malformed (cells_to_votes ignores it; combine still
+    does not rely on that cell alone)."""
+    v = r.votes.get(m)
+    if v is None or v == "none":
+        return None
+    if v == "?" or (v in VOTES and any((x.startswith("unrecognised token") and x.endswith(f" for {m}")) or
+                                       re.fullmatch(rf"matched \d+ times: {re.escape(m)}", x) for x in r.reasons)):
+        return "malformed"
+    return v
+
+
+def cell_dissent(a: Reading, b: Reading, m: str) -> str | None:
+    """Written rule (architecture, "Invariant: independent readings"): readings a and b dissent on member m's cell when
+    either reads it malformed, or both read a value (a vote or an explicit "---") and the values differ. A cell not
+    read, or read blank, is "none" and never dissent. The one cell rule used by combine, disagreements (so decide and
+    the consent reprints) and verify.source_inconsistent. Returns the reason, or None."""
+    ca, cb = _cell(a, m), _cell(b, m)
+    if ca is None and cb is None:
+        return None
+    if "malformed" in (ca, cb):
+        return f"sources disagree for {m}: {a.source}={a.votes.get(m)} {b.source}={b.votes.get(m)} (malformed cell)"
+    if ca is not None and cb is not None and ca != cb:
+        return f"sources disagree for {m}: {a.source}={ca} {b.source}={cb}"
+    return None
+
+
+def tally_malformed(r: Reading) -> bool:
+    """The tally line was found but a count is garbled (read_table: "tally unreadable")."""
+    return any(x.startswith("tally unreadable") for x in r.reasons)
+
+
+def absent_malformed(r: Reading) -> bool:
+    """The ABSENT line was found but has a problem (a name off the roster, a count that does not match the names).
+    "ABSENT line not found" is "none", not malformed."""
+    return any(ABSENT_REASON.search(x) and x != "ABSENT line not found" for x in r.reasons)
+
+
+def absent_read(r: Reading) -> bool:
+    return "ABSENT line not found" not in r.reasons and not absent_malformed(r)
+
+
 def disagreements(a: Reading, b: Reading) -> list[str]:
-    """Members for whom two readings both read a Yes/No/Abstain and they differ."""
-    out = []
-    for m in set(a.votes) & set(b.votes):
-        va, vb = a.votes[m], b.votes[m]
-        if va in ("Yes", "No", "Abstain") and vb in ("Yes", "No", "Abstain") and va != vb:
-            out.append(f"sources disagree for {m}: {a.source}={va} {b.source}={vb}")
+    """Every dissent between two readings of one table: a cell (cell_dissent: a different vote, "---" against a vote,
+    "?" or a malformed cell), a different stated tally or one read garbled, different ABSENT names or an ABSENT line
+    with a problem. One dissent holds the roll call (decide), even when a reading passes P2 on its own."""
+    out = [d for m in sorted(set(a.votes) | set(b.votes)) if (d := cell_dissent(a, b, m))]
     if a.tally and b.tally and a.tally != b.tally:
         out.append(f"sources disagree on stated tally: {a.tally} vs {b.tally}")
+    elif tally_malformed(a) or tally_malformed(b):
+        out.append(f"sources disagree on stated tally: {a.tally} vs {b.tally} (a count read garbled)")
+    if absent_read(a) and absent_read(b) and sorted(a.absent) != sorted(b.absent):
+        out.append(f"sources disagree on ABSENT names: {sorted(a.absent)} vs {sorted(b.absent)}")
+    elif absent_malformed(a) or absent_malformed(b):
+        out.append("sources disagree on the ABSENT line: a reading's ABSENT line has a problem")
     return out
 
 
@@ -802,7 +853,9 @@ def combine(readings: list[Reading], roster: list[str]) -> Reading | None:
     on. The result is checked like any reading (check_votes: every present member exactly one vote, no absent member
     a vote, counted equals stated, stated plus absent equals the roster), and verifies only with no reason left.
     Each vote therefore rests on at least one clean reading of its own cell and no reading against it, and the
-    stated tally checks the whole table. Returns None with fewer than two readings."""
+    stated tally checks the whole table. The cell rule is cell_dissent; a reading whose tally is garbled or whose ABSENT
+    line has a problem is dissent and holds the combination (a reading that found no ABSENT line is "none").
+    Returns None with fewer than two readings."""
     if len(readings) < 2:
         return None
     reasons: list[str] = []
@@ -811,11 +864,14 @@ def combine(readings: list[Reading], roster: list[str]) -> Reading | None:
     if tally is None:
         reasons.append("stated tally not read alike by any reading" if not tallies else
                        f"readings disagree on stated tally {sorted(tallies)}")
-    abs_ok = [r for r in readings if not any(ABSENT_REASON.search(x) for x in r.reasons)]
-    absents = {tuple(r.absent) for r in abs_ok}
+    if any(tally_malformed(r) for r in readings):
+        reasons.append("a reading read the stated tally garbled")
+    absents = {tuple(sorted(r.absent)) for r in readings if absent_read(r)}
     absent = list(next(iter(absents))) if len(absents) == 1 else []
     if len(absents) != 1:
         reasons.append("ABSENT line not read alike by any reading")
+    if any(absent_malformed(r) for r in readings):
+        reasons.append("a reading's ABSENT line has a problem")
     votes: dict[str, str] = {}
     raw: dict[str, str] = {}
     for m in roster:
@@ -824,14 +880,17 @@ def combine(readings: list[Reading], roster: list[str]) -> Reading | None:
             reasons.append(f"roster members not found in table: {[m]}")
             continue
         clean = [(r, v) for r, v in cells if r.clean.get(m)]
-        said = {v for _, v in clean if v in ("Yes", "No", "Abstain")}
-        # dissent counts from every reading, clean or not: a "?" (two marks in one cell, typical of a row read out
-        # of line), a different vote, or a "---" in any reading leaves the clean vote unsupported
-        said_any = {v for _, v in cells if v in ("Yes", "No", "Abstain")}
-        if any(v == "?" for _, v in cells):
+        said = {v for _, v in clean if v in VOTES}
+        # dissent counts from every reading, clean or not (cell_dissent): a "?" (two marks in one cell, typical of a
+        # row read out of line), a vote with another token, a different vote, or a "---" against a vote
+        said_any = {v for _, v in cells if v in VOTES}
+        dissent = next((d for i, a in enumerate(readings) for b in readings[i + 1:] if (d := cell_dissent(a, b, m))),
+                       None)
+        if dissent or any(_cell(r, m) == "malformed" for r, _ in cells):
             r, v = cells[0][0], "?"
-            reasons.append(f"a reading read conflicting marks for {m}")
-        elif len(said) == 1 and said_any == said and not any(v == "---" for _, v in cells):
+            reasons.append(f"a reading read conflicting marks for {m}" if any(x == "?" for _, x in cells) else
+                           f"readings dissent for {m}: {dissent or 'a malformed cell'}")
+        elif len(said) == 1:
             v = next(iter(said))
             r = next(r for r, x in clean if x == v)
         elif not said_any and clean:
@@ -855,8 +914,8 @@ def combine(readings: list[Reading], roster: list[str]) -> Reading | None:
 
 def decide(rc: "RollCall") -> None:
     """Verified when the context checks pass, at least one reading passes P2 (or, when none does, their cell-by-cell
-    combination passes it: combine), and no two readings disagree on any vote. The passing reading supplies the
-    votes."""
+    combination passes it: combine), and no two readings dissent (disagreements: any cell, the tally or the ABSENT
+    line), even when one reading passes P2 on its own. The passing reading supplies the votes."""
     good = [r for r in rc.readings if not r.reasons]
     conflicts = []
     for i in range(len(rc.readings)):

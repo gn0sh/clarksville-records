@@ -4,7 +4,9 @@ Checks, the same for everyone:
   1. every official with a vote in any roll call holds exactly one seat on that meeting's date;
   2. no seat has two holder records on one date, and no official holds two seats on one date;
   3. every seat in the current roster has an open record (no end) for the roster's person, and nobody else holds an
-     open record for it.
+     open record for it;
+  4. every open observed record was seen at L, the latest meeting in the facts (the site's wording "from X to L, the
+     latest meeting collected"): its `last_source` is a roll-call page of that meeting (provenance/open-run-latest).
 Prints the problems and exits 1 when there are any. `python -I tools/seat_check.py`
 """
 from __future__ import annotations
@@ -57,6 +59,19 @@ def check(facts: dict, rows: list[dict], roster: dict | None = None) -> list[str
         for a, b in zip(rs, rs[1:]):
             if a["seat"] != b["seat"] and (a.get("end") is None or str(b["start"]) <= str(a["end"])):
                 problems.append(f"{oid}: holds {a['seat']} and {b['seat']} at once")
+
+    dates_all = [m["date"] for m in facts["meetings"]]
+    latest = max(dates_all) if dates_all else None
+    urls = {s["id"]: s.get("url") for s in facts.get("sources", [])}
+    at = defaultdict(set)                   # "<url>#page=N" -> meeting dates of the roll calls printed there
+    for rc in facts["roll_calls"]:
+        if rc.get("source_id") in urls and rc.get("page"):
+            at[f"{urls[rc['source_id']]}#page={rc['page']}"].add(dates[rc["meeting_id"]])
+    for r in rows:
+        if r.get("dates") == "observed" and r.get("end") is None and latest not in at.get(r.get("last_source"), ()):
+            problems.append(f"{r['seat']}: open record for {r.get('official_id')} was last seen at "
+                            f"{sorted(at.get(r.get('last_source'), ())) or r.get('last_source')}, not at the latest "
+                            f"meeting collected ({latest})")
 
     if roster:
         for seat, who in roster["seats"].items():

@@ -12,8 +12,10 @@ Holder records are runs of meetings where one official holds one district number
 (config/site.yml), so old-lines and current-lines periods are separate rows. Every row is `dates: observed`
 (architecture, "Invariant: derived vs stated"): `start`/`end` are the first and last meeting whose roll-call table
 prints that holder in that slot, never term dates; `source` cites the first meeting's roll-call page and
-`last_source` the last one's. The latest run of a seat that reaches the latest meeting has no end (its
-`last_source` is that latest meeting). The district count and cutover default to config/site.yml.
+`last_source` the last one's. The latest run of a seat that reaches the latest meeting in the facts (the site's
+"L, the latest meeting collected": the latest meeting date in data/facts.json, not the latest one read here) has
+no end, and its `last_source` is a roll-call page of that meeting; a run that stops before it keeps its end, so it
+is never shown as seen at L. The district count and cutover default to config/site.yml.
 
   python -I tools/derive_seats.py --text-dir PATH/data/text --ocr-dir PATH/data/ocr
       (writes config/localities/<locality>/seats.yml and seat-evidence.json there)
@@ -133,9 +135,18 @@ def decide(obs, vac, n_seats: int):
     return held, unknown, conflicts
 
 
-def runs(held: dict, cite: dict, sources: dict, lines_effective: str, n_seats: int, prefix: str = "district"):
+def latest_meeting(facts: dict) -> str | None:
+    """The latest meeting collected, as the site computes it (sitegen.views: max of the meetings' dates)."""
+    dates = [m["date"] for m in facts["meetings"]]
+    return max(dates) if dates else None
+
+
+def runs(held: dict, cite: dict, sources: dict, lines_effective: str, n_seats: int, prefix: str = "district",
+         latest: str | None = None):
+    """Holder runs per seat. `latest` is the latest meeting in the facts (latest_meeting); a run is left open only
+    when it reaches that meeting. Without it, the latest meeting read here."""
     dates = sorted(held)
-    latest = dates[-1] if dates else None
+    latest = latest or (dates[-1] if dates else None)
     rows = []
     for d in range(1, n_seats + 1):
         seq = [(date, held[date][d]) for date in dates if d in held[date]]
@@ -176,7 +187,7 @@ def main(argv=None):
     obs, vac, cite = observe(facts, Path(a.text_dir), Path(a.ocr_dir))
     held, unknown, conflicts = decide(obs, vac, a.seats)
     sources = {s["id"]: s for s in facts["sources"]}
-    rows = runs(held, cite, sources, a.lines_effective, a.seats)
+    rows = runs(held, cite, sources, a.lines_effective, a.seats, latest=latest_meeting(facts))
     import yaml
     if a.extra and Path(a.extra).is_file():
         rows += yaml.safe_load(Path(a.extra).read_text(encoding="utf-8")) or []
