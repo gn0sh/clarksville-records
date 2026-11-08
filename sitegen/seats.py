@@ -10,7 +10,6 @@ from __future__ import annotations
 import datetime as dt
 import json
 import re
-import sys
 from pathlib import Path
 
 import yaml
@@ -82,7 +81,8 @@ def load_rows(path: Path | None) -> list[dict] | None:
         if start is None:
             raise SeatsError(f"{where}: needs a start date")
         rows.append({"official_id": r.get("official_id") or None, "seat": str(r["seat"]), "start": start,
-                     "end": _date(r.get("end"), where), "source": src, "note": r.get("note")})
+                     "end": _date(r.get("end"), where), "source": src, "note": r.get("note"),
+                     "name": r.get("name")})
     return rows
 
 
@@ -115,19 +115,21 @@ class Seats:
         self.loaded = rows is not None
         self.latest = latest
         self.records: list[dict] = []
-        unknown = set()
+        # A roster person with no facts yet (e.g. a mayor, who has no roll call votes): kept, shown by name with their
+        # seat and no history, never linked to a page that does not exist.
+        self.roster_only: dict[str, dict] = {}
         for r in rows or []:
             oid = r["official_id"]
             if oid is not None and oid not in officials:
-                unknown.add(oid)  # a roster person with no facts yet: no page to link, so no record here
-                continue
+                name = r.get("name") or " ".join(w.capitalize() for w in oid.split("-"))
+                parts = name.split()
+                self.roster_only.setdefault(oid, {"id": oid, "name": name, "surname": parts[-1],
+                                                  "given": " ".join(parts[:-1]), "title": "",
+                                                  "aliases": []})
             current = r["end"] is None or r["end"] > latest
             self.records.append({**r, "label": seat_label(r["seat"]), "current": current,
                                  "district": district_number(r["seat"]),
                                  "src_label": source_label(r["source"])})
-        if unknown:
-            print(f"WARNING: config/seats.yml names {len(unknown)} official id(s) not in the facts: "
-                  f"{', '.join(sorted(unknown))}", file=sys.stderr)
         self.records.sort(key=lambda r: (seat_order(r["seat"]), r["start"]))
         self.by_official: dict[str, list[dict]] = {}
         for r in self.records:
@@ -157,11 +159,15 @@ class Seats:
         recs = self.of(official_id)
         if not self.loaded or not recs:
             return None
+        # A current holder shows the current seat; an earlier record of that same seat (e.g. the same district under
+        # the old lines) is not repeated. Other seats held earlier keep their dates. Same rule for everyone.
+        current = {r["label"] for r in recs if r["current"]}
         parts = []
         for r in recs:
             if r["current"]:
-                parts.append(r["label"])
-            else:
+                if r["label"] not in parts:
+                    parts.append(r["label"])
+            elif r["label"] not in current:
                 parts.append(f"{r['label']}, {r['start']} to {r['end']}")
         return "; ".join(parts)
 

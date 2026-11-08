@@ -6,7 +6,7 @@
 <svg class="county-map{% if not links %} county-map-small{% endif %}" viewBox="{{ map.viewBox }}" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
   {% if not links %}<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="hatch-line" width="2" height="6"/></pattern></defs>{% endif %}
   {% if map.outline %}<path class="county-outline" d="{{ map.outline }}"/>{% endif %}
-  <g id="layer-districts">
+  <g id="layer-districts" font-size="{{ map.label_size }}" stroke-width="{{ map.label_halo }}">
     {% for d in map.districts %}
     {% if links %}
     <a href="{{ root }}{{ d.href }}" tabindex="-1" data-district="{{ d.number }}"><path class="district" d="{{ d.path }}"/></a>
@@ -21,7 +21,7 @@
     {% endif %}
   </g>
   {% if links %}
-  <g id="layer-wards">
+  <g id="layer-wards" font-size="{{ map.label_size }}">
     {% for w in map.wards %}
     <path class="ward" d="{{ w.path }}"/>
     <text class="ward-num" x="{{ w.x }}" y="{{ w.y }}">{{ w.number }}</text>

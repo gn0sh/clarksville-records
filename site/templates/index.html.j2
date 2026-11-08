@@ -18,8 +18,8 @@
     <div class="landing-map">
       <fieldset class="layer-switch">
         <legend>Map shows</legend>
-        <label><input type="radio" name="layer" id="show-districts" value="districts" checked> County commission districts</label>
-        <label><input type="radio" name="layer" id="show-wards" value="wards"> City wards (coming)</label>
+        <label><input type="radio" name="layer" id="show-districts" value="districts" checked> <span class="wide-only">County commission districts</span><span class="narrow-only" aria-hidden="true">Districts</span></label>
+        <label><input type="radio" name="layer" id="show-wards" value="wards"> <span class="wide-only">City wards (coming)</span><span class="narrow-only" aria-hidden="true">Wards (coming)</span></label>
       </fieldset>
       <p class="wards-note note">{{ site.cfg.city_name }} wards are coming. The city's records have not been collected yet.</p>
       {% if map %}

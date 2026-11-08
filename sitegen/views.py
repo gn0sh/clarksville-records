@@ -353,11 +353,16 @@ def record_glance(ix: Index) -> dict:
 
 
 def _card(ix: Index, o: dict) -> dict:
-    """One card template for everyone, current or former (design 6A.3: the section heading is the only difference)."""
+    """One card template for everyone, current or former (design 6A.3: the section heading is the only difference).
+    A roster-only person (in config/seats.yml, not in the facts) has no page and no counts: the fixed sentence."""
+    if o["id"] in ix.seats.roster_only:
+        return {"id": o["id"], "name": o["name"], "title": o["title"], "href": None, "initials": initials(o),
+                "seat": ix.seats.seat_text(o["id"]), "roster_only": True}
     c = official_counts(ix, o["id"])
     return {"id": o["id"], "name": o["name"], "title": o["title"], "href": f"officials/{o['id']}.html",
             "initials": initials(o), "present": c["present"], "listed": c["meetings_listed"],
-            "rc_voted": c["rc_voted"], "rc_voted_nc": c["rc_voted_nc"], "seat": ix.seats.seat_text(o["id"])}
+            "rc_voted": c["rc_voted"], "rc_voted_nc": c["rc_voted_nc"], "seat": ix.seats.seat_text(o["id"]),
+            "roster_only": False}
 
 
 def officials_page(facts) -> dict:
@@ -370,7 +375,7 @@ def officials_page(facts) -> dict:
         return {"seats_loaded": False, "sections": [
             {"key": "all", "heading": None, "order": "surname", "cards": [_card(ix, o) for o in officials]}]}
     current, former, unseated = [], [], []
-    for o in officials:
+    for o in sorted([*officials, *ix.seats.roster_only.values()], key=name_key):
         recs = ix.seats.of(o["id"])
         if not recs:
             unseated.append(o)
@@ -782,8 +787,11 @@ def map_context(districts: dict | None, highlight: int | None = None) -> dict | 
     if districts is None:
         return None
     wards = districts.get("wards") or {}
+    width = float(str(districts["viewBox"]).split()[2])
     return {
         "viewBox": districts["viewBox"],
+        # label size in the map's own units, so numbers read the same at any map scale (one size for every district)
+        "label_size": round(width / 42, 1), "label_halo": round(width / 42 / 3.5, 1),
         "outline": districts.get("outline_path"),
         "river": districts.get("river_path"),
         "districts": [{"number": d["number"], "path": d["path"], "x": d["label_xy"][0], "y": d["label_xy"][1],

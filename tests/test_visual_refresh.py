@@ -89,14 +89,19 @@ def test_officials_cards_follow_the_seat_rule_and_share_one_skeleton(pages, fact
     assert list(sections) == ["current", "previous", "unseated"]
 
     def hrefs(sec):
-        return [next(a for a in c.walk() if a.tag == "a").attrs["href"]
-                for c in sec.walk() if c.tag == "li" and c.attrs.get("class") == "card"]
+        return [a.attrs["href"] for c in sec.walk() if c.tag == "li" and c.attrs.get("class") == "card"
+                for a in c.walk() if a.tag == "a"]
 
     assert hrefs(sections["current"]) == ["officials/a-example.html", "officials/d-testperson.html",
                                           "officials/c-placeholder.html"]  # District 1, District 2, County Mayor
+    # then the roster-only City Mayor (no page, no counts): a card with the fixed sentence, last by seat order
+    names = [" ".join(c.all_text().split()) for c in sections["current"].walk()
+             if c.tag == "li" and c.attrs.get("class") == "card"]
+    assert names[-1].startswith("FR F. Rosteronly, City Mayor") and "No votes or attendance are recorded" in names[-1]
     assert hrefs(sections["previous"]) == ["officials/b-sample.html"]
     assert hrefs(sections["unseated"]) == ["officials/e-fixture.html"]
-    cards = [n for n in tree.walk() if n.tag == "li" and n.attrs.get("class") == "card"]
+    cards = [n for n in tree.walk() if n.tag == "li" and n.attrs.get("class") == "card"
+             and n.attrs.get("data-official") != "f-rosteronly"]
 
     def shape(n):
         return (n.tag, n.attrs.get("class", ""), tuple(shape(c) for c in n.children if c.attrs.get("class") != "seat"))  # the seat label is data

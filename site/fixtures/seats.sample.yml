@@ -3,4 +3,5 @@
 - {official_id: b-sample, seat: district-2, start: "2020-09-01", end: "2024-10-31", source: "https://example.org/fixture/roster.pdf#page=1"}
 - {official_id: d-testperson, seat: district-2, start: "2024-11-01", end: null, source: "https://example.org/fixture/minutes.pdf#page=2"}
 - {official_id: c-placeholder, seat: county-mayor, start: "2022-09-01", end: null, source: "https://example.org/fixture/roster.pdf#page=2"}
+- {official_id: f-rosteronly, name: F. Rosteronly, seat: city-mayor, start: "2023-01-01", end: null, source: "https://example.org/fixture/roster.pdf#page=3"}
 - {official_id: null, seat: district-3, start: "2024-01-01", end: null, source: "https://example.org/fixture/minutes.pdf#page=3"}
