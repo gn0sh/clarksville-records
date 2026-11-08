@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -169,7 +170,14 @@ DEFAULT = object()
 
 
 SITE_URL_KEYS = ("redistricting_page", "old_lines_map_url", "swap_source", "support_url",
-                "district_lookup_url", "geocoder_url")
+                "district_lookup_url", "geocoder_url", "geocoder_privacy_url")
+
+# geocoder_url goes into the landing's CSP script-src as a source expression and gets the address box's query added,
+# so it is a plain https base: host and path characters only (no query, fragment, space, quote, ';' or ',').
+_GEOCODER_BASE = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~%!$()*+=:@/-]*)?")
+# Words the address box and the lookup line show, required with the link they name (addr-pin/privacy-copy-not-config).
+SITE_TEXT_FOR = {"geocoder_url": ("geocoder_label", "geocoder_short", "geocoder_privacy_url"),
+                 "district_lookup_url": ("district_lookup_label",)}
 
 
 def site_url_problems(cfg: dict) -> list[str]:
@@ -177,14 +185,20 @@ def site_url_problems(cfg: dict) -> list[str]:
     geocoder_url is a base the address box adds its own query to, so it may carry no query or fragment."""
     out = [f"{k} must be an https link, got {cfg[k]!r}" for k in SITE_URL_KEYS
            if cfg.get(k) and not _is_https_uri(cfg[k])]
-    if cfg.get("geocoder_url") and any(c in str(cfg["geocoder_url"]) for c in "?#&"):
+    if cfg.get("geocoder_url") and not _GEOCODER_BASE.fullmatch(str(cfg["geocoder_url"])):
         out.append(f"geocoder_url must be a base URL with no query or fragment, got {cfg['geocoder_url']!r}")
+    for link, needs in SITE_TEXT_FOR.items():
+        if cfg.get(link):
+            out += [f"{k} must be set when {link} is" for k in needs
+                    if not isinstance(cfg.get(k), str) or not cfg[k].strip()]
     return out
 
 
 def build(facts_path, out_dir, internal: bool = False, changes_path=None, report_path=None,
-          seats_path=DEFAULT, districts_path=DEFAULT) -> dict:
-    """`seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
+          seats_path=DEFAULT, districts_path=DEFAULT, geocoder: bool = True) -> dict:
+    """`geocoder=False` (`--no-geocoder`) draws no landing address box and allows no geocoder in the CSP: the build
+    for the claude.ai preview, where the box could not reach the geocoder. The plain lookup line shows instead.
+    `seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
     config/localities/<locality>/districts.json; a fixture facts file reads neither (made-up people must never be
     joined to the real roster), so tests pass their own fixture files. None means: no such file."""
     facts_path, out = Path(facts_path), Path(out_dir)
@@ -229,7 +243,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         target.write_text(html, encoding="utf-8")
         written.append(rel)
 
-    render("index.html.j2", "index.html", "Map", **views.landing(ix, districts, georef))
+    render("index.html.j2", "index.html", "Map", **views.landing(ix, districts, georef, geocoder))
     render("officials.html.j2", "officials.html", "Officials", **views.officials_page(ix))
     render("meetings_index.html.j2", "meetings.html", "Meetings", **views.meetings_page(ix))
     for n in range(1, config.SITE["district_count"] + 1):

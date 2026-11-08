@@ -10,7 +10,13 @@ district_lookup_url: https://web.go-vote-tn.elections.tn.gov/
 district_lookup_label: GoVoteTN
 # Landing address box ("Find your district"): the Census one-line address geocoder, called by JSONP only when the
 # visitor submits an address (static/address.js adds the query). Empty renders no address box. Base URL only, no query.
+# The box's own words name the geocoder (geocoder_label, geocoder_short) and link its privacy policy; all three are
+# required when geocoder_url is set, as district_lookup_label is when district_lookup_url is. A build with
+# `python -m sitegen --no-geocoder` draws no box (the claude.ai preview), only the plain lookup line.
 geocoder_url: https://geocoding.geo.census.gov/geocoder/locations/onelineaddress
+geocoder_label: the U.S. Census Bureau's geocoder   # "Your address is sent to <label> to find it on the map."
+geocoder_short: Census                               # "The Census places this address in ...", "Census's privacy policy"
+geocoder_privacy_url: https://www.census.gov/about/policies/privacy.html
 
 # Footer support link (CEO, 2026-11-07). Rendered only when support_enabled is true AND support_url is set; it stays
 # false until the pre-public ethics check (G6: Brian sits on Council until January).

@@ -583,14 +583,25 @@ Neutrality enforced by construction:
 - **N4:** every fact row has a source link `<url>#page=<n>` (opens in a new tab), "p. n", and "fetched <date>".
 - **N5:** every fact row shows its fact id and a "Report an error" link to `about.html#corrections`. In the preview,
   the About page tells Brian to comment on the page quoting the fact id; the public intake form is M1.5.
-- **N6** (amended 2026-11-08, manager decision Q6): no third-party scripts, fonts, analytics or campaign links. First-party
-  scripts from `static/` only (`filter.js`, `nav.js`, `map.js`, `search.js`, and the generated `search-index.js`),
-  vanilla, making no network requests and storing nothing about the visitor. Every page works without them.
-  One exception (address pin M2, manager decision 2026-11-08, docs/research/address-lookup.md): the landing's
-  `address.js` (with `georef.js`) sends the address the visitor typed to `config/site.yml` `geocoder_url` (the Census
-  one-line geocoder, JSONP), only on submit, with a privacy line under the box; nothing is stored or logged, and if
-  the script cannot load the box points to the official lookup. `qa/site_checks.py` (external) holds the page's
-  geocoder setting to that exact config value.
+- **N6** (amended 2026-11-08, manager decision Q6; tightened 2026-11-08 after the pin's security review): no
+  third-party scripts, fonts, analytics or campaign links. First-party scripts from `static/` only (`filter.js`,
+  `nav.js`, `clamp.js`, `map.js`, `search.js`, the generated `search-index.js`, and on the landing `georef.js` and
+  `address.js`), vanilla, storing nothing about the visitor. Every page works without them. Every page carries a CSP
+  `<meta>` (`views.csp`): `script-src 'self'`, `connect-src 'none'`, `object-src 'none'`, `base-uri 'none'`,
+  `form-action 'self'`, `frame-src 'self'`, style elements `'self'` (style attributes stay allowed for the bar's `--n`).
+  One exception, the landing address box (address pin M2, manager decision 2026-11-08, docs/research/address-lookup.md):
+  JSONP runs the geocoder's response as script, so it is confined to a hidden `<iframe sandbox="allow-scripts">`
+  built per submit from `srcdoc` without `allow-same-origin` (an opaque origin: no access to this page, its storage or
+  cookies). Bounds: landing only; the exact `config/site.yml` `geocoder_url` base (the landing's CSP script-src names
+  it, plus the sha256 of the iframe's one fixed inline script, `site/templates/_geocode_frame.js`; the srcdoc iframe
+  runs under the same policy, so it can load nothing else); explicit submit only, one request per submit; the iframe
+  is removed after each answer or the 8 s timeout; no referrer (iframe, script and meta); the parent hears only that
+  iframe's `postMessage`, parses it as JSON data, validates its shape and shows it as text only. This site stores and
+  logs nothing; the Census receives the address, IP and browser under its own policy, which the privacy line under
+  the box links (`geocoder_privacy_url`). If the geocoder cannot load, the box points to the official lookup.
+  `python -m sitegen --no-geocoder` builds without the box (the claude.ai preview). `qa/site_checks.py` (external)
+  holds the box's geocoder setting and the CSP to that exact config value, and fails a page that loads `address.js`
+  without its settings block.
 - **G1:** `base.html.j2` footer on every page: "Provided as a free service by {{ operator }}." (CEO, 2026-11-07), then
   "About this site and its data rules." and the full nav list. The operator and all locality and branding text live in
   `config/site.yml`. The optional support link (`support_url`, `support_label`) renders only when `support_enabled` is
