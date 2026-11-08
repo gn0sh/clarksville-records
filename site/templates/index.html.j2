@@ -1,15 +1,17 @@
 {% extends "base.html.j2" %}
 {% from "_map.html.j2" import county_map %}
 {% block main %}
-{# Landing (design 3): purpose, search, layer switch, map, district list. Nothing else. #}
+{# Landing (design 3): purpose, search, layer switch, map, the district list (collapsed: the map is the primary
+   picker) and a small "About this map" disclosure. The whole landing fits one screen on a phone and a desktop. #}
+{% set dl = site.cfg.district_layer %}{% set wl = site.cfg.ward_layer %}
 <div class="landing">
   <h1 class="purpose">{{ site.cfg.purpose }}</h1>
   <p class="muted purpose-sub"><span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>. {{ site.cfg.city_coming }}</p>
 
   <form class="landing-search" action="search.html" method="get" role="search">
-    <label for="landing-q">Search records</label>
+    <label for="landing-q" class="sr-only">Search records</label>
     <div class="search-row">
-      <input id="landing-q" name="q" type="search" placeholder="Item title, number, name or street">
+      <input id="landing-q" name="q" type="search" placeholder="Search: item, number, name or street">
       <button type="submit">Search</button>
     </div>
   </form>
@@ -18,32 +20,38 @@
     <div class="landing-map">
       <fieldset class="layer-switch">
         <legend>Map shows</legend>
-        <label><input type="radio" name="layer" id="show-districts" value="districts" checked> <span class="wide-only">County commission districts</span><span class="narrow-only" aria-hidden="true">Districts</span></label>
-        <label><input type="radio" name="layer" id="show-wards" value="wards"> <span class="wide-only">City wards (coming)</span><span class="narrow-only" aria-hidden="true">Wards (coming)</span></label>
+        <label><input type="radio" name="layer" id="show-districts" value="districts" checked> <span class="wide-only">{{ dl.label }}</span><span class="narrow-only" aria-hidden="true">{{ dl.short }}</span></label>
+        <label><input type="radio" name="layer" id="show-wards" value="wards"> <span class="wide-only">{{ wl.label }}{% if wl.coming %} (coming){% endif %}</span><span class="narrow-only" aria-hidden="true">{{ wl.short }}{% if wl.coming %} (coming){% endif %}</span></label>
       </fieldset>
       <p class="wards-note note">{{ site.cfg.city_name }} wards are coming. The city's records have not been collected yet.</p>
       {% if map %}
       <p class="sr-only">Map of {{ site.cfg.county_name }}'s {{ district_count }} commission districts. The same districts are listed after the map.</p>
       {{ county_map(map, root, site.cfg, links=true) }}
-      <p class="map-caption">Current district lines, in use since {{ map.effective }}. Boundaries: <a data-ext="map" href="{{ map.source_url }}" target="_blank" rel="noopener noreferrer">{{ map.source_title }}<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ map.fetched }}. Old district lines (before {{ site.cfg.lines_effective }}): {% if site.cfg.old_lines_map_url %}<a data-ext="county" href="{{ site.cfg.old_lines_map_url }}" target="_blank" rel="noopener noreferrer">map (PDF)</a>{% else %}the map has not been found yet; <a data-ext="county" href="{{ site.cfg.redistricting_page }}" target="_blank" rel="noopener noreferrer">county redistricting page</a>{% endif %}.</p>
       {% else %}
       <div class="map-placeholder" role="note"><p>The map is not available yet. Districts are listed by number.</p></div>
       {% endif %}
     </div>
 
     <div class="landing-list">
-      <details class="district-list"{% if not map %} open{% endif %} data-open-wide>
+      <details class="district-list">
         <summary>All {{ district_count }} districts, by number</summary>
-        <nav aria-label="County commission districts">
+        {% if basis %}<p class="basis muted">{{ basis }}.</p>{% endif %}
+        <nav aria-label="{{ dl.label }}">
           <ol class="districts">
             {% for r in rows %}
             <li data-district="{{ r.number }}"><a href="{{ r.href }}"><span class="d-label">{{ r.label }}</span>{% if r.holder %} <span class="d-holder">{{ r.holder }}</span>{% endif %}</a></li>
             {% endfor %}
           </ol>
         </nav>
-        <h2 class="list-h">City wards</h2>
-        <p>City ward pages are coming.</p>
+        <h2 class="list-h">{{ wl.label }}</h2>
+        <p>{{ wl.label }} pages are coming.</p>
       </details>
+      {% if map %}
+      <details class="map-about">
+        <summary>About this map</summary>
+        <p class="map-caption">Current district lines. Boundaries: <a data-ext="map" href="{{ map.source_url }}" target="_blank" rel="noopener noreferrer">{{ map.source_title }}<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ map.fetched }}.{% if map.swap %} {{ map.swap.before }}<a data-ext="county" href="{{ map.swap.url }}" target="_blank" rel="noopener noreferrer">{{ map.swap.link }}<span class="sr-only"> (opens in a new tab)</span></a>{{ map.swap.after }}{% endif %} Old district lines: {% if site.cfg.old_lines_map_url %}<a data-ext="county" href="{{ site.cfg.old_lines_map_url }}" target="_blank" rel="noopener noreferrer">map (PDF)<span class="sr-only"> (opens in a new tab)</span></a>{% else %}the map has not been found yet; <a data-ext="county" href="{{ site.cfg.redistricting_page }}" target="_blank" rel="noopener noreferrer">county {{ site.cfg.redistricting_label }} page<span class="sr-only"> (opens in a new tab)</span></a>{% endif %}.</p>
+      </details>
+      {% endif %}
     </div>
   </div>
 </div>

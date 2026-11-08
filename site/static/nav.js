@@ -32,6 +32,8 @@
   btn.setAttribute("aria-expanded", "false");
   btn.setAttribute("aria-haspopup", "dialog");
   link.parentNode.replaceChild(btn, link);
+  // The drawer now carries the full list, so the landing can hide the footer copy and fit one screen.
+  document.documentElement.classList.add("has-drawer");
 
   btn.addEventListener("click", function () {
     dlg.showModal();
@@ -44,10 +46,4 @@
   });
   // A click on the backdrop lands on the <dialog> element itself (the panel fills the dialog's box).
   dlg.addEventListener("click", function (e) { if (e.target === dlg) { dlg.close(); } });
-})();
-/* Desktop: the landing's district list is always open in its side column (design 3.3); phones keep it collapsed. */
-(function () {
-  if (!window.matchMedia || !window.matchMedia("(min-width: 900px)").matches) { return; }
-  var open = document.querySelectorAll("details[data-open-wide]");
-  for (var i = 0; i < open.length; i++) { open[i].open = true; }
 })();

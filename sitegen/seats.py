@@ -1,9 +1,9 @@
 """Seats, holder records and the landing map's geometry (docs/design/landing-search-nav.md 3.2, 4.1, 6A).
 
-Holder records come only from `config/seats.yml` rows, each with a source. Nothing here guesses a seat: an official
+Holder records come only from the roster rows (config.SEATS_PATH), each with a source. Nothing here guesses a seat: an official
 with no row has no seat label and is listed under "Seat not yet recorded". When the file is absent the whole site
 falls back to no labels and one officials list. One rule for everyone (N1): current = no `end`, or `end` after the
-latest meeting in the facts.
+latest meeting in the facts. Current is derived and is shown only with its basis line.
 """
 from __future__ import annotations
 
@@ -60,8 +60,19 @@ def district_number(seat: str) -> int | None:
     return int(m.group(2)) if m and m.group(1) == "district" else None
 
 
+def _https(value, where: str, key: str) -> str:
+    if not (isinstance(value, str) and value.startswith("https://")):
+        raise SeatsError(f"{where}: {key} must be an https link (N4)")
+    return value
+
+
 def load_rows(path: Path | None) -> list[dict] | None:
-    """The roster rows, or None when there is no roster file (the site then shows no seat labels)."""
+    """The roster rows, or None when there is no roster file (the site then shows no seat labels).
+
+    Shape (architecture, invariant `provenance`): every row says `dates: observed | sourced`. An observed row's
+    start/end are the first and last meetings whose roll-call tables print the holder in that slot, and it needs
+    `last_source` (the last meeting's page). A sourced row needs `printed`, the source's own term wording; its
+    start/end are sort keys only and are never shown. A row that breaks this is a SeatsError."""
     if path is None or not Path(path).is_file():
         return None
     raw = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or []
@@ -74,14 +85,27 @@ def load_rows(path: Path | None) -> list[dict] | None:
         where = f"{path} row {n}"
         if not isinstance(r, dict) or "seat" not in r or "source" not in r:
             raise SeatsError(f"{where}: needs seat and source")
-        src = r.get("source") or ""
-        if not (isinstance(src, str) and src.startswith("https://")):
-            raise SeatsError(f"{where}: every holder record needs an https source (N4)")
+        src = _https(r.get("source"), where, "source")
         start = _date(r.get("start"), where)
         if start is None:
             raise SeatsError(f"{where}: needs a start date")
+        kind = r.get("dates")
+        if kind not in ("observed", "sourced"):
+            raise SeatsError(f"{where}: needs dates: observed or dates: sourced")
+        last_src = printed = None
+        if kind == "observed":
+            last_src = _https(r.get("last_source"), where, "last_source")
+        else:
+            printed = r.get("printed")
+            if not (isinstance(printed, str) and printed.strip()):
+                raise SeatsError(f"{where}: a sourced row needs printed (the source's own term wording)")
+            printed = printed.strip()
+        lines = r.get("lines")
+        if lines not in (None, "old", "current"):
+            raise SeatsError(f"{where}: lines must be old or current")
         rows.append({"official_id": r.get("official_id") or None, "seat": str(r["seat"]), "start": start,
-                     "end": _date(r.get("end"), where), "source": src, "note": r.get("note"),
+                     "end": _date(r.get("end"), where), "source": src, "last_source": last_src,
+                     "dates": kind, "printed": printed, "lines": lines, "note": r.get("note"),
                      "name": r.get("name")})
     return rows
 
@@ -108,8 +132,18 @@ def source_label(url: str) -> str:
     return f"p. {m.group(1)}" if m else "source"
 
 
+def basis_text(rec: dict, latest: str) -> str:
+    """The basis of a derived "Current" status, shown wherever "Current" is (architecture, invariant `provenance`)."""
+    if rec["dates"] == "sourced":
+        return "Current: the source prints no end to this term"
+    return f"Current: in the roll calls of the latest meeting collected, {latest}"
+
+
 class Seats:
-    """Holder records over one facts index. `loaded` is False when there is no roster file."""
+    """Holder records over one facts index. `loaded` is False when there is no roster file.
+
+    `dates_text` is the only place a holder record's dates become words. Records keep `start`/`end` for sorting and
+    the on-date lookup, but nothing that leaves this class for a page carries them."""
 
     def __init__(self, rows: list[dict] | None, officials: dict, latest: str):
         self.loaded = rows is not None
@@ -126,15 +160,39 @@ class Seats:
                 self.roster_only.setdefault(oid, {"id": oid, "name": name, "surname": parts[-1],
                                                   "given": " ".join(parts[:-1]), "title": "",
                                                   "aliases": []})
+            # Current is derived: observed = seen at the latest meeting collected (no end); sourced = no end printed.
             current = r["end"] is None or r["end"] > latest
             self.records.append({**r, "label": seat_label(r["seat"]), "current": current,
                                  "district": district_number(r["seat"]),
-                                 "src_label": source_label(r["source"])})
+                                 "src_label": source_label(r["source"]),
+                                 "last_src_label": source_label(r["last_source"]) if r.get("last_source") else None})
         self.records.sort(key=lambda r: (seat_order(r["seat"]), r["start"]))
         self.by_official: dict[str, list[dict]] = {}
         for r in self.records:
             if r["official_id"]:
                 self.by_official.setdefault(r["official_id"], []).append(r)
+
+    # -- the one wording of a record's dates -----------------------------------------------------------------
+    def dates_text(self, rec: dict) -> str:
+        """Fixed wording (architecture, invariant `provenance`); L = the latest meeting collected."""
+        if rec["dates"] == "sourced":
+            return f"term {rec['printed']}, as the source prints it"
+        if rec["official_id"] is None:
+            return f"shown as vacant in roll calls from {rec['start']} to {rec['end'] or self.latest}"
+        if rec["end"] is None:
+            return f"seen in roll calls from {rec['start']} to {self.latest}, the latest meeting collected"
+        return f"seen in roll calls {rec['start']} to {rec['end']}"
+
+    def basis(self, rec: dict) -> str:
+        return basis_text(rec, self.latest)
+
+    def view(self, rec: dict) -> dict:
+        """What a page may know about a record: label, wording and sources, never a bare start/end."""
+        return {"label": rec["label"], "seat": rec["seat"], "dates_text": self.dates_text(rec),
+                "src": rec["source"], "src_label": rec["src_label"],
+                "last_src": rec.get("last_source"), "last_src_label": rec.get("last_src_label"),
+                "current": rec["current"], "basis": self.basis(rec) if rec["current"] else None,
+                "official_id": rec["official_id"], "lines": rec.get("lines")}
 
     def of(self, official_id: str) -> list[dict]:
         """An official's records, newest first by start date."""
@@ -144,23 +202,26 @@ class Seats:
         return any(r["current"] for r in self.by_official.get(official_id, []))
 
     def on(self, official_id: str | None, date: str) -> str | None:
-        """The seat label held on a date ('District 7', or 'District 7 (old lines)' before the 2022 lines)."""
+        """The seat label held on a date ('District 7', or 'District 7 (old lines)' for a record under the old
+        lines). None when no record covers the date (the page then says the seat is not recorded; never guessed)."""
         if not self.loaded or not official_id:
             return None
         for r in self.by_official.get(official_id, []):
             if r["start"] <= date and (r["end"] is None or date <= r["end"]):
-                old = r["district"] is not None and date < config.SITE["lines_effective"]
+                if r.get("lines") is not None:
+                    old = r["district"] is not None and r["lines"] == "old"
+                else:
+                    old = r["district"] is not None and date < config.SITE["lines_effective"]
                 return r["label"] + (" (old lines)" if old else "")
         return None
 
     def seat_text(self, official_id: str) -> str | None:
-        """6A.2: 'District 7' for a current holder; former: 'District 7, 2018-09-01 to 2022-08-31'; several seats
-        newest first, joined by '; '. None when there is no roster or no record (never guessed)."""
+        """6A.2: 'District 7' for a current holder (the label only; its basis is shown where "Current" is); former:
+        'District 7 (seen in roll calls 2020-03-09 to 2022-08-08)'; several seats newest first, joined by '; '.
+        None when there is no roster or no record (never guessed)."""
         recs = self.of(official_id)
         if not self.loaded or not recs:
             return None
-        # A current holder shows the current seat; an earlier record of that same seat (e.g. the same district under
-        # the old lines) is not repeated. Other seats held earlier keep their dates. Same rule for everyone.
         current = {r["label"] for r in recs if r["current"]}
         parts = []
         for r in recs:
@@ -168,18 +229,17 @@ class Seats:
                 if r["label"] not in parts:
                     parts.append(r["label"])
             elif r["label"] not in current:
-                parts.append(f"{r['label']}, {r['start']} to {r['end']}")
+                parts.append(f"{r['label']} ({self.dates_text(r)})")
         return "; ".join(parts)
 
     def header_text(self, official_id: str) -> str | None:
-        """Official page header: 'District 7, from 2022-09-01' (current) or the former form."""
+        """Official page header: 'District 7, seen in roll calls from X to L, the latest meeting collected'."""
         recs = self.of(official_id)
         if not self.loaded:
             return None
         if not recs:
             return "Seat not yet recorded"
-        return "; ".join(f"{r['label']}, from {r['start']}" if r["current"] else f"{r['label']}, {r['start']} to {r['end']}"
-                         for r in recs)
+        return "; ".join(f"{r['label']}, {self.dates_text(r)}" for r in recs)
 
     def for_seat(self, seat: str) -> list[dict]:
         return [r for r in self.records if r["seat"] == seat]

@@ -15,6 +15,10 @@ county_body: Montgomery County Commission
 city_name: City of Clarksville
 city_body: Clarksville City Council
 city_label: Clarksville             # the one place label drawn on the map
+county_key: county                  # search index body key ("b") for county records
+# Map layer names (landing layer switch and list headings). `short` is the phone-width form.
+district_layer: {label: County commission districts, short: Districts}
+ward_layer: {label: City wards, short: Wards, coming: true}
 # Landing purpose line (h1). Neutral: what the site holds, no claim about anyone.
 purpose: Votes and records of the Montgomery County Commission, linked to the county's own minutes.
 city_coming: City of Clarksville records are coming.
@@ -31,11 +35,18 @@ other_seats:
   - {seat: county-mayor, label: County Mayor}
   - {seat: city-mayor, label: City Mayor}
 
-# 2022 redistricting (design 4.2). Lines approved 2021-11-08, first used for the seats filled on this date.
+# Redistricting (design 4.2). The current map was adopted on 2021-11-08 (docs/research/district-ward-map-data.md, from
+# a news report, not a collected source), so pages name the change only as the county's own page titles it, linked:
+# `redistricting_label`. `lines_effective` is INFERRED (the seating date after the 2022 election; no collected source
+# prints it): an internal split key only, never rendered (architecture, invariant `provenance`, cutover rule).
+redistricting_label: 2021 redistricting
 lines_effective: "2022-09-01"
 old_lines_map_url: ""             # the old county map PDF has not been found yet
 redistricting_page: https://montgomerytn.gov/election/2021-redistricting
 swapped_districts: [19, 20]
+# The source for the 19/20 numbering this site uses: the county's Elected Officials List, the page listing
+# Districts 17-21 (the map PDF prints 19 and 20 the other way round).
+swap_source: https://montgomerytn.gov/storage/departments/election/Elected%20Officials%20List.pdf#page=9
 
 # Item type rule (design 5.4), mechanical and the same for every item; rendered on the About page. An item matches a
 # type when its number starts with one of the prefixes, or its verbatim title contains one of the words (any case).
