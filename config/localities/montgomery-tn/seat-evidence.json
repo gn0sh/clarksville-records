@@ -1,0 +1,2041 @@
+{
+ "generated_by": "tools/derive_seats.py",
+ "meetings": 59,
+ "observations": 11494,
+ "unknown": [],
+ "conflicts": [],
+ "outvoted_readings": [
+  {
+   "date": "2022-05-09",
+   "official_id": "tangi-smith",
+   "readings": {
+    "8": 4,
+    "3": 1
+   }
+  },
+  {
+   "date": "2022-09-12",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 7,
+    "90": 1,
+    "30": 1
+   }
+  },
+  {
+   "date": "2022-09-12",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 8,
+    "91": 1
+   }
+  },
+  {
+   "date": "2022-10-10",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 7,
+    "30": 1
+   }
+  },
+  {
+   "date": "2022-10-10",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 7,
+    "91": 1
+   }
+  },
+  {
+   "date": "2022-11-14",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 8,
+    "0": 1
+   }
+  },
+  {
+   "date": "2022-11-14",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 7,
+    "91": 2
+   }
+  },
+  {
+   "date": "2022-12-12",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 8,
+    "30": 1
+   }
+  },
+  {
+   "date": "2022-12-12",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 8,
+    "31": 1
+   }
+  },
+  {
+   "date": "2023-01-09",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 6,
+    "90": 1
+   }
+  },
+  {
+   "date": "2023-04-10",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 3,
+    "30": 1
+   }
+  },
+  {
+   "date": "2023-06-12",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 13,
+    "90": 2,
+    "30": 1
+   }
+  },
+  {
+   "date": "2023-06-12",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 12,
+    "71": 1
+   }
+  },
+  {
+   "date": "2023-07-10",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 15,
+    "30": 2,
+    "90": 1
+   }
+  },
+  {
+   "date": "2023-07-10",
+   "official_id": "david-harper",
+   "readings": {
+    "15": 16,
+    "5": 1
+   }
+  },
+  {
+   "date": "2023-07-10",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 12,
+    "71": 2,
+    "91": 1,
+    "31": 2,
+    "41": 1
+   }
+  },
+  {
+   "date": "2023-07-10",
+   "official_id": "tangi-smith",
+   "readings": {
+    "8": 14,
+    "3": 1
+   }
+  },
+  {
+   "date": "2023-08-14",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 9,
+    "30": 1
+   }
+  },
+  {
+   "date": "2023-08-14",
+   "official_id": "david-harper",
+   "readings": {
+    "15": 9,
+    "5": 1
+   }
+  },
+  {
+   "date": "2023-08-14",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 7,
+    "91": 2
+   }
+  },
+  {
+   "date": "2023-09-11",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 24,
+    "0": 2,
+    "30": 1
+   }
+  },
+  {
+   "date": "2023-09-11",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 19,
+    "91": 2,
+    "31": 1,
+    "71": 1,
+    "41": 1
+   }
+  },
+  {
+   "date": "2023-09-11",
+   "official_id": "joe-smith",
+   "readings": {
+    "3": 26,
+    "4": 1
+   }
+  },
+  {
+   "date": "2023-09-11",
+   "official_id": "ryan-gallant",
+   "readings": {
+    "18": 26,
+    "48": 1
+   }
+  },
+  {
+   "date": "2023-09-11",
+   "official_id": "tangi-smith",
+   "readings": {
+    "8": 23,
+    "3": 1
+   }
+  },
+  {
+   "date": "2023-10-09",
+   "official_id": "tangi-smith",
+   "readings": {
+    "8": 3,
+    "3": 1
+   }
+  },
+  {
+   "date": "2023-11-13",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 13,
+    "30": 2
+   }
+  },
+  {
+   "date": "2023-11-13",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 13,
+    "1": 1
+   }
+  },
+  {
+   "date": "2024-01-08",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 8,
+    "30": 1
+   }
+  },
+  {
+   "date": "2024-01-08",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 8,
+    "91": 1
+   }
+  },
+  {
+   "date": "2024-02-12",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 6,
+    "0": 1
+   }
+  },
+  {
+   "date": "2024-02-12",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 5,
+    "71": 1,
+    "31": 1
+   }
+  },
+  {
+   "date": "2024-03-11",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 5,
+    "30": 1
+   }
+  },
+  {
+   "date": "2024-03-11",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 4,
+    "71": 1
+   }
+  },
+  {
+   "date": "2024-04-01",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 1,
+    "91": 1
+   }
+  },
+  {
+   "date": "2024-04-08",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 5,
+    "30": 1
+   }
+  },
+  {
+   "date": "2024-05-13",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 1,
+    "30": 1
+   }
+  },
+  {
+   "date": "2024-05-13",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 1,
+    "91": 1
+   }
+  },
+  {
+   "date": "2024-06-10",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 7,
+    "90": 1
+   }
+  },
+  {
+   "date": "2024-06-10",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 6,
+    "91": 1
+   }
+  },
+  {
+   "date": "2024-06-10",
+   "official_id": "tangi-smith",
+   "readings": {
+    "8": 7,
+    "3": 1
+   }
+  },
+  {
+   "date": "2024-07-15",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 33,
+    "30": 1
+   }
+  },
+  {
+   "date": "2024-07-15",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 30,
+    "71": 1,
+    "91": 1
+   }
+  },
+  {
+   "date": "2024-07-15",
+   "official_id": "jeremiah-walker",
+   "readings": {
+    "10": 30,
+    "16": 1
+   }
+  },
+  {
+   "date": "2024-07-15",
+   "official_id": "nathan-burkholder",
+   "readings": {
+    "7": 32,
+    "9": 1
+   }
+  },
+  {
+   "date": "2024-07-15",
+   "official_id": "tangi-smith",
+   "readings": {
+    "8": 28,
+    "2": 1
+   }
+  },
+  {
+   "date": "2024-08-12",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 1,
+    "31": 1
+   }
+  },
+  {
+   "date": "2024-09-09",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 14,
+    "30": 1,
+    "90": 1
+   }
+  },
+  {
+   "date": "2024-09-09",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 13,
+    "31": 2
+   }
+  },
+  {
+   "date": "2024-10-14",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 8,
+    "0": 2
+   }
+  },
+  {
+   "date": "2024-10-14",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 8,
+    "91": 1
+   }
+  },
+  {
+   "date": "2024-11-12",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 7,
+    "90": 1,
+    "70": 1,
+    "0": 1
+   }
+  },
+  {
+   "date": "2024-11-12",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 7,
+    "91": 1
+   }
+  },
+  {
+   "date": "2024-12-09",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 12,
+    "30": 1
+   }
+  },
+  {
+   "date": "2024-12-09",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 8,
+    "71": 3,
+    "91": 1
+   }
+  },
+  {
+   "date": "2025-01-13",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 13,
+    "0": 1
+   }
+  },
+  {
+   "date": "2025-01-13",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 10,
+    "91": 1,
+    "31": 1
+   }
+  },
+  {
+   "date": "2025-01-13",
+   "official_id": "joe-smith",
+   "readings": {
+    "3": 13,
+    "4": 1
+   }
+  },
+  {
+   "date": "2025-02-10",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 4,
+    "71": 1
+   }
+  },
+  {
+   "date": "2025-03-17",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "30": 1,
+    "20": 3,
+    "0": 1
+   }
+  },
+  {
+   "date": "2025-03-17",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 3,
+    "71": 1,
+    "31": 1,
+    "91": 1
+   }
+  },
+  {
+   "date": "2025-04-14",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 14,
+    "30": 1
+   }
+  },
+  {
+   "date": "2025-04-14",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 13,
+    "91": 1,
+    "71": 1
+   }
+  },
+  {
+   "date": "2025-04-14",
+   "official_id": "ryan-gallant",
+   "readings": {
+    "18": 12,
+    "12": 1
+   }
+  },
+  {
+   "date": "2025-05-12",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 9,
+    "30": 1,
+    "0": 1
+   }
+  },
+  {
+   "date": "2025-05-12",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 9,
+    "31": 1,
+    "71": 1
+   }
+  },
+  {
+   "date": "2025-06-09",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 16,
+    "30": 2,
+    "90": 1
+   }
+  },
+  {
+   "date": "2025-06-09",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 16,
+    "1": 1,
+    "31": 1,
+    "71": 1
+   }
+  },
+  {
+   "date": "2025-07-14",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 8,
+    "91": 1,
+    "71": 1
+   }
+  },
+  {
+   "date": "2025-08-11",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 5,
+    "0": 1
+   }
+  },
+  {
+   "date": "2025-08-11",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 5,
+    "91": 1
+   }
+  },
+  {
+   "date": "2025-09-08",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 3,
+    "0": 1,
+    "30": 1
+   }
+  },
+  {
+   "date": "2025-09-08",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 3,
+    "91": 1
+   }
+  },
+  {
+   "date": "2025-10-20",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 11,
+    "90": 1,
+    "40": 1
+   }
+  },
+  {
+   "date": "2025-10-20",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 7,
+    "91": 4,
+    "31": 2
+   }
+  },
+  {
+   "date": "2025-10-20",
+   "official_id": "jason-knight",
+   "readings": {
+    "2": 12,
+    "3": 1
+   }
+  },
+  {
+   "date": "2025-11-10",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 8,
+    "30": 1
+   }
+  },
+  {
+   "date": "2025-11-10",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 8,
+    "71": 1
+   }
+  },
+  {
+   "date": "2025-12-08",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 9,
+    "0": 1
+   }
+  },
+  {
+   "date": "2025-12-08",
+   "official_id": "david-shelton",
+   "readings": {
+    "21": 5,
+    "71": 1,
+    "91": 4
+   }
+  },
+  {
+   "date": "2026-02-09",
+   "official_id": "autumn-simmons",
+   "readings": {
+    "20": 6,
+    "30": 1
+   }
+  }
+ ],
+ "held": {
+  "2020-03-09": {
+   "1": "john-gannon",
+   "2": "charles-keene",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "arnold-hodges",
+   "7": "brandon-butts",
+   "8": "tangi-smith",
+   "9": "carmelle-chandler",
+   "10": "james-lewis",
+   "11": "joe-creek",
+   "12": "lisa-prichard",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "loretta-bryant",
+   "17": "chris-rasnic",
+   "18": "jason-knight",
+   "19": "garland-johnson",
+   "20": "jerry-allbert",
+   "21": "larry-rocconi"
+  },
+  "2020-10-12": {
+   "1": "john-gannon",
+   "2": "charles-keene",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "arnold-hodges",
+   "7": "brandon-butts",
+   "8": "tangi-smith",
+   "9": "carmelle-chandler",
+   "10": "james-lewis",
+   "11": "joe-creek",
+   "12": "lisa-prichard",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "loretta-bryant",
+   "17": "chris-rasnic",
+   "18": "jason-knight",
+   "19": "garland-johnson",
+   "20": "jerry-allbert",
+   "21": "larry-rocconi"
+  },
+  "2021-02-08": {
+   "1": "john-gannon",
+   "2": "charles-keene",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "arnold-hodges",
+   "7": "brandon-butts",
+   "8": "tangi-smith",
+   "9": "carmelle-chandler",
+   "10": "james-lewis",
+   "11": "joe-creek",
+   "12": "lisa-prichard",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "loretta-bryant",
+   "17": "chris-rasnic",
+   "18": "jason-knight",
+   "19": "garland-johnson",
+   "20": "jerry-allbert",
+   "21": "larry-rocconi"
+  },
+  "2021-08-09": {
+   "1": "john-gannon",
+   "2": "charles-keene",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "randy-allbert",
+   "7": "brandon-butts",
+   "8": "tangi-smith",
+   "9": "carmelle-chandler",
+   "10": "james-lewis",
+   "11": "joe-creek",
+   "12": "lisa-prichard",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "loretta-bryant",
+   "17": "chris-rasnic",
+   "18": null,
+   "19": "garland-johnson",
+   "20": "jerry-allbert",
+   "21": "larry-rocconi"
+  },
+  "2022-01-10": {
+   "1": "john-gannon",
+   "2": "charles-keene",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "randy-allbert",
+   "7": "brandon-butts",
+   "8": "tangi-smith",
+   "9": "carmelle-chandler",
+   "10": "james-lewis",
+   "11": "joe-creek",
+   "12": "lisa-prichard",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "loretta-bryant",
+   "17": "chris-rasnic",
+   "18": "robert-sigler",
+   "19": "garland-johnson",
+   "20": "jerry-allbert",
+   "21": "larry-rocconi"
+  },
+  "2022-02-14": {
+   "1": "john-gannon",
+   "2": "charles-keene",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "randy-allbert",
+   "7": "brandon-butts",
+   "8": "tangi-smith",
+   "9": "carmelle-chandler",
+   "10": "james-lewis",
+   "11": "joe-creek",
+   "12": "lisa-prichard",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "loretta-bryant",
+   "17": "chris-rasnic",
+   "18": "robert-sigler",
+   "19": "garland-johnson",
+   "20": "jerry-allbert",
+   "21": "larry-rocconi"
+  },
+  "2022-03-14": {
+   "1": "john-gannon",
+   "2": "charles-keene",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "randy-allbert",
+   "7": "brandon-butts",
+   "8": "tangi-smith",
+   "9": "carmelle-chandler",
+   "10": "james-lewis",
+   "11": "joe-creek",
+   "12": "lisa-prichard",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "loretta-bryant",
+   "17": "chris-rasnic",
+   "18": "robert-sigler",
+   "19": "garland-johnson",
+   "20": "jerry-allbert",
+   "21": "larry-rocconi"
+  },
+  "2022-04-11": {
+   "1": "john-gannon",
+   "2": "charles-keene",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "randy-allbert",
+   "7": "brandon-butts",
+   "8": "tangi-smith",
+   "9": "carmelle-chandler",
+   "10": "james-lewis",
+   "11": "joe-creek",
+   "12": "lisa-prichard",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "loretta-bryant",
+   "17": "chris-rasnic",
+   "18": "robert-sigler",
+   "19": "garland-johnson",
+   "20": "jerry-allbert",
+   "21": "larry-rocconi"
+  },
+  "2022-05-09": {
+   "1": "john-gannon",
+   "2": "charles-keene",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "randy-allbert",
+   "7": "brandon-butts",
+   "8": "tangi-smith",
+   "9": "carmelle-chandler",
+   "10": "james-lewis",
+   "11": "joe-creek",
+   "12": "lisa-prichard",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "loretta-bryant",
+   "17": "chris-rasnic",
+   "18": "robert-sigler",
+   "19": "garland-johnson",
+   "20": "jerry-allbert",
+   "21": "larry-rocconi"
+  },
+  "2022-06-13": {
+   "1": "john-gannon",
+   "2": "charles-keene",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "randy-allbert",
+   "7": "brandon-butts",
+   "8": "tangi-smith",
+   "9": "carmelle-chandler",
+   "10": "james-lewis",
+   "11": "joe-creek",
+   "12": "lisa-prichard",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "loretta-bryant",
+   "17": "chris-rasnic",
+   "18": "robert-sigler",
+   "19": "garland-johnson",
+   "20": "jerry-allbert",
+   "21": "larry-rocconi"
+  },
+  "2022-07-11": {
+   "1": "john-gannon",
+   "2": "charles-keene",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "randy-allbert",
+   "7": "brandon-butts",
+   "8": "tangi-smith",
+   "9": "carmelle-chandler",
+   "10": "james-lewis",
+   "11": "joe-creek",
+   "12": "lisa-prichard",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "loretta-bryant",
+   "17": "chris-rasnic",
+   "18": "robert-sigler",
+   "19": "garland-johnson",
+   "20": "jerry-allbert",
+   "21": "larry-rocconi"
+  },
+  "2022-08-08": {
+   "1": "john-gannon",
+   "2": "charles-keene",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "randy-allbert",
+   "7": "brandon-butts",
+   "8": "tangi-smith",
+   "9": "carmelle-chandler",
+   "10": "james-lewis",
+   "11": "joe-creek",
+   "12": "lisa-prichard",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "loretta-bryant",
+   "17": "chris-rasnic",
+   "18": "robert-sigler",
+   "19": "garland-johnson",
+   "20": "jerry-allbert",
+   "21": "larry-rocconi"
+  },
+  "2022-09-12": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2022-10-10": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2022-11-14": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2022-12-12": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2023-01-09": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2023-02-13": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2023-03-13": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2023-04-10": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2023-05-08": {
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2023-06-12": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2023-07-10": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2023-08-14": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2023-09-11": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2023-10-09": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2023-11-13": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2023-12-11": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2024-01-08": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2024-02-12": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2024-03-11": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2024-04-01": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2024-04-08": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2024-05-13": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2024-06-10": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2024-07-08": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2024-07-15": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2024-08-12": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2024-09-09": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2024-10-14": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2024-11-12": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2024-12-09": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2025-01-13": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2025-02-10": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2025-03-17": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "tangi-smith",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2025-04-14": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "latonia-brown",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2025-05-12": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "latonia-brown",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2025-06-09": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "latonia-brown",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2025-07-14": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "latonia-brown",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2025-08-11": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "latonia-brown",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2025-09-08": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "latonia-brown",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2025-10-20": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "latonia-brown",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2025-11-10": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "latonia-brown",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2025-12-08": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "michael-lankford",
+   "7": "nathan-burkholder",
+   "8": "latonia-brown",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2026-01-12": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": null,
+   "7": "nathan-burkholder",
+   "8": "latonia-brown",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2026-02-09": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "clayton-rudder",
+   "7": "nathan-burkholder",
+   "8": "latonia-brown",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2026-03-09": {
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "clayton-rudder",
+   "7": "nathan-burkholder",
+   "8": "latonia-brown",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2026-04-13": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "clayton-rudder",
+   "7": "nathan-burkholder",
+   "8": "latonia-brown",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  },
+  "2026-05-11": {
+   "1": "john-gannon",
+   "2": "jason-knight",
+   "3": "joe-smith",
+   "4": "rickey-ray",
+   "5": "rashidah-leverett",
+   "6": "clayton-rudder",
+   "7": "nathan-burkholder",
+   "8": "latonia-brown",
+   "9": "jorge-padro",
+   "10": "jeremiah-walker",
+   "11": "joe-creek",
+   "12": "carmelle-chandler",
+   "13": "walker-woodruff",
+   "14": "joshua-beal",
+   "15": "david-harper",
+   "16": "lisa-prichard",
+   "17": "chris-rasnic",
+   "18": "ryan-gallant",
+   "19": "billy-frye",
+   "20": "autumn-simmons",
+   "21": "david-shelton"
+  }
+ }
+}
