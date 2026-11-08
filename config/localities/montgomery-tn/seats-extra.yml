@@ -1,6 +1,8 @@
 # Holder records from sources other than the roll-call tables, appended to config/seats.yml by tools/derive_seats.py.
+# `name` is required when official_id is not in facts.json (printed as the source spells it).
 # The county mayor does not vote in the commission's roll calls, so this seat comes from the roster only.
 - official_id: wes-golden
+  name: Wes Golden
   seat: county-mayor
   start: "2022-09-01"
   end: null
