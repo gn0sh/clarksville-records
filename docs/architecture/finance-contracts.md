@@ -174,4 +174,5 @@ determinism (two runs, byte-identical `finance.json`).
    shown per document") needs rewording by UX.
 9. **Design Note E** says transfers "are not revenue or spending", but the book's printed Total Revenues includes 49800
    OPERATING TRANSFERS. Suggest UX wording that the book counts them in its totals and the site tags them.
-10. FY2024-25 book layout is unverified (not sampled). Task 1b-1 checks it before any parser work assumes it matches.
+10. FY2024-25 book layout: checked in F9 (2026-11-08, `docs/platform-facts.md`). Same titles, row forms and bands; two-digit
+    years, "FY 25 Projection" as its budget column and other derived-column words, all handled in `finance.yml`.
