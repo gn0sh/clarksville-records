@@ -84,7 +84,7 @@
   }
 
   // ---- matching
-  function hay(r) { return (r.n + " " + r.t + " " + (r.st || "")).toLowerCase(); }
+  function hay(r) { return (r.n + " " + r.t + " " + (r.st || "") + " " + (r.z || "")).toLowerCase(); }
   function baseMatch(r, st, toks) {  // every filter except official, vote and outcome
     if (st.kind.length && st.kind.indexOf(r.k) < 0) { return false; }
     if (st.from || st.to) {
@@ -121,7 +121,8 @@
     }
     var html = '<li class="result"><p class="r-kind">' + esc(parts.join(" · ")) + "</p>";
     html += '<p class="r-title"><a href="' + esc(r.h) + '">' + (r.n ? "<strong>" + mark(r.n, toks) + "</strong> " : "") +
-      mark(r.t, toks) + "</a>" + (r.st ? ' <span class="seat">' + mark(r.st, toks) + "</span>" : "") + "</p>";
+      mark(r.t, toks) + "</a>" + (r.st ? ' <span class="seat">' + mark(r.st, toks) + "</span>" : "") + "</p>" +
+      (r.z ? '<p class="r-zoning">' + mark(r.z, toks) + "</p>" : "");
     var meta = "";
     if (r.k === "item") {
       meta = r.a ? "Appears " + r.a + (r.a === 1 ? " time" : " times") + ", " + esc(r.d) + (r.d2 !== r.d ? " to " + esc(r.d2) : "")

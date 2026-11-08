@@ -94,6 +94,10 @@ def check_references(facts: dict) -> None:
             need_official(v, where + " vote")
     for c in facts["corrections"]:
         need("sources", c["source_id"], f"correction of {c['fact_id']}")
+    for it in facts["items"]:
+        for name, f in (it.get("zoning") or {}).items():
+            if f is not None:
+                need("sources", f["source_id"], f"item {it['id']} zoning {name}")
 
 
 def load_facts(facts_path: Path) -> dict:

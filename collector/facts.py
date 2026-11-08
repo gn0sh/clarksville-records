@@ -130,6 +130,7 @@ class Builder:
         self.consent_unexpanded: list[str] = []     # consent roll calls whose item list could not be read
         self._ev_count: dict[tuple, int] = {}
         self.consent_reprints: dict[str, str] = {}   # reprinted consent roll call id -> the one vote it reprints
+        self.zoning: dict[str, list] = {}            # case number -> [(zoning.Reading, source_id, meeting date)]
 
     # ------------------------------------------------------------ items
     def is_procedural(self, title: str) -> bool:
@@ -428,9 +429,31 @@ class Builder:
                                                  if k not in reprints),
                                  "attendance": status, "image_only_pages": len(pm.image_only_pages)})
 
+    # ------------------------------------------------------------ zoning cases
+    def add_zoning(self, pd) -> None:
+        """Pool one document's zoning readings (collector.zoning). Only a document cited by the facts counts, so
+        every value links to a source page in `sources`."""
+        sid = f"src-{pd.source['sha256'][:12]}"
+        src = next((s for s in self.sources if s["id"] == sid), None)
+        if src is None:
+            return
+        for r in getattr(pd, "zoning", []):
+            self.zoning.setdefault(r.case, []).append((r, sid, src["meeting_date"]))
+
+    def zoning_facts(self) -> dict:
+        """item id -> its `zoning` object, for every item that is a rezoning case."""
+        from . import zoning as Z
+        rules = Z.load_rules()
+        if rules is None:
+            return {}
+        return {iid: Z.decide(self.zoning.get(iid, [])) for iid, it in self.items.items()
+                if it["number"] and it["number"].split("-")[0] in rules.case_prefixes}
+
     # ------------------------------------------------------------ output
     def facts(self, officials: list[dict]) -> dict:
         dates = [m["date"] for m in self.meetings]
+        zf = self.zoning_facts()
+        items = [dict(it, zoning=zf[it["id"]]) if it["id"] in zf else it for it in self.items.values()]
         return {
             "schema_version": "1.0",
             "coverage": {"body": BODY, "from": min(dates) if dates else "2020-01-01",
@@ -438,7 +461,7 @@ class Builder:
             "sources": sorted(self.sources, key=lambda x: x["id"]),
             "officials": public_officials(officials),
             "meetings": sorted(self.meetings, key=lambda x: x["id"]),
-            "items": sorted(self.items.values(), key=lambda x: x["id"]),
+            "items": sorted(items, key=lambda x: x["id"]),
             "item_events": sorted(self.events, key=lambda x: x["id"]),
             "motions": sorted(self.motions, key=lambda x: x["id"]),
             "roll_calls": sorted(self.roll_calls, key=lambda x: x["id"]),
