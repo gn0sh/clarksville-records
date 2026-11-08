@@ -87,7 +87,7 @@ def test_held_values_are_null(fin):
         for h in s["held"]:
             assert h["field"].startswith("bid_tab.bidders[")
             n = int(h["field"].split("[")[1].split("]")[0])
-            b = next(b for b in s["bid_tab"]["bidders"] if b["printed_order"] == n)
+            b = s["bid_tab"]["bidders"][n]  # a path: 0-based index into the list (collector writes n - 1)
             assert b["total_cents"] is None
 
 

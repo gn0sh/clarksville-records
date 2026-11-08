@@ -74,8 +74,10 @@ def check_references(fin: dict) -> None:
 
 def coverage_sentence(cov: dict) -> str:
     """AC-F15: the one coverage sentence, identical on every contracts page, from finance.json's coverage block.
-    {n_tab} is n_bid_tab_links: solicitations with a bid tab link, read or not."""
-    return T["coverage_contracts"].format(n_tab=cov["n_bid_tab_links"], n_total=cov["n_total"])
+    {n_tab} is n_bid_tab_links: solicitations with a bid tab link, read or not. {n_scan} of {n_letters} is
+    n_award_scanned of n_award_letters: award letters with no text layer."""
+    return T["coverage_contracts"].format(n_tab=cov["n_bid_tab_links"], n_total=cov["n_total"],
+                                          n_scan=cov["n_award_scanned"], n_letters=cov["n_award_letters"])
 
 
 def _norm(name: str) -> str:
@@ -170,15 +172,21 @@ def _tab_state(fx: Finance, sol: dict) -> dict | None:
     if tab is None:
         return None
     doc = fx.docs[tab["document_id"]]
-    out = {"kind": tab["tab_type"], "doc": _doc_link(fx, doc), "reason": None, "bidders": [], "awardee": None}
+    out = {"kind": tab["tab_type"], "doc": _doc_link(fx, doc), "reason": None, "bidders": [], "awardee": None,
+           "bid_date": None, "award_date": None}
     if tab["tab_type"] != "lump_sum":
         out["reason"] = C["not_read"][tab["not_read_reason"]]
         return out
     held = _held_fields(sol)
     sid = doc["source_id"]
-    for b in sorted(tab["bidders"], key=lambda b: b["printed_order"]):  # printed order only (AC-F8)
-        # a held total is null in the file (schema `held`); the held[] path is not used to find it
-        total_held = b["total_cents"] is None or b["total_as_printed"] is None
+    for key, label in (("bid_date", "bid_date"), ("award_date", "award_date")):
+        if tab[key + "_text"]:
+            out[key] = {"label": C[label], "text": tab[key + "_text"], "src": fx.src(sid, tab[key + "_page"])}
+    # schema held.field: `bid_tab.bidders[i].total_cents`, i a 0-based index into the file's bidders list (not the
+    # printed order, which starts at 1); the value is also null in the file
+    held_idx = {int(m.group(1)) for f in held if (m := re.fullmatch(r"bid_tab\.bidders\[(\d+)\]\.total_cents", f))}
+    for i, b in sorted(enumerate(tab["bidders"]), key=lambda ib: ib[1]["printed_order"]):  # printed order only (AC-F8)
+        total_held = i in held_idx or b["total_cents"] is None or b["total_as_printed"] is None
         out["bidders"].append({
             "order": b["printed_order"], "who": fx.person(b["name"]),
             "total": None if total_held else b["total_as_printed"],

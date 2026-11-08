@@ -58,6 +58,8 @@
   </tbody>
 </table>
 </div>
+{% for dt in (tab.bid_date, tab.award_date) if dt %}<p class="tab-date">{{ dt.label }} {{ dt.text }} {{ fin_cite(dt.src) }}</p>
+{% endfor %}
 <p class="awardee">{% if tab.awardee.sentence %}{{ tab.awardee.sentence }}{% elif tab.awardee.held %}{{ not_confirmed(tab.awardee.src) }}{% else %}{{ tab.awardee.lead }}{{ person(tab.awardee.who, root) }}{{ tab.awardee.tail }} Source: {{ fin_link(tab.awardee.src) }}, fetched {{ tab.awardee.src.fetched }}.{% if tab.awardee.state %} {{ tab.awardee.state }}{% endif %}{% endif %}</p>
 {% endif %}
 </section>
