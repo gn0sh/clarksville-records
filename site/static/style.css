@@ -514,7 +514,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--focus); out
 .map-caption { font-size: var(--t-xs); color: var(--muted); margin: 4px 0 0; }
 svg.county-map { display: block; width: 100%; height: auto; max-height: 60vh; }
 @media (max-width: 899px) {
-  svg.county-map:not(.county-map-small) { max-height: 34vh; }
+  svg.county-map:not(.county-map-small) { max-height: 28vh; }
   .purpose { font-size: var(--t-lg); }
   .landing-search { margin: 8px 0; }
   .layer-switch { margin: 0 0 4px; }
