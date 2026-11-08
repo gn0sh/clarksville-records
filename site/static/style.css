@@ -780,4 +780,6 @@ table.budget td.c-source { min-width: 9rem; }
   table.budget tbody tr.b-subtotal, table.budget tbody tr.b-total { border: 2px solid var(--fg); }
   table.budget tr.b-subtotal > *, table.budget tr.b-total > * { border-top: 0; }
   table.budget th.c-line { min-width: 0; }
+  /* the visually hidden header row stays one line tall (row-height check), still read by screen readers */
+  table.budget thead tr { display: block; height: 1px; overflow: hidden; }
 }
