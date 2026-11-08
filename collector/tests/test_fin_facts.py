@@ -62,6 +62,24 @@ def test_documents_shown_equal_archive_links(built):
     for s in fin["solicitations"]:
         assert len(s["document_ids"]) == len(rows[s["title"]].links), s["title"]
     assert sum(len(s["document_ids"]) for s in fin["solicitations"]) == sum(len(r.links) for r in rows.values())
+    for s in fin["solicitations"]:
+        assert s["document_labels"] == [lk.label for lk in rows[s["title"]].links], s["title"]
+
+
+def test_a_shared_url_keeps_each_rows_own_label(tmp_path, monkeypatch):
+    """doc-completeness/label-not-verbatim: one URL linked as "Bid Tab" in one row and "BID TAB" in another is one
+    document (link_label from its first row) but each solicitation lists its own row's text."""
+    from collector.tests import fin_fake
+    anchor = '<a href="/storage/departments/purchasing/BID/Bid%20Tab%20Sheet.pdf">Bid Tab</a>'
+    html = ARCHIVE_HTML.decode()
+    head, _, tail = html.rpartition(anchor)
+    monkeypatch.setattr(fin_fake, "ARCHIVE_HTML", (head + anchor.replace(">Bid Tab<", ">BID TAB<") + tail).encode())
+    fin, _ = FakeFin(tmp_path).build(monkeypatch)
+    doc = next(d for d in fin["documents"] if d["url"].endswith("Bid%20Tab%20Sheet.pdf"))
+    labels = sorted(lab for s in fin["solicitations"] for i, lab in zip(s["document_ids"], s["document_labels"])
+                    if i == doc["id"])
+    assert labels == ["BID TAB", "Bid Tab"] and doc["link_label"] == "Bid Tab" and len(doc["shared_by"]) == 2
+    assert fin_run.validate(fin) == []
 
 
 def test_document_states(built):

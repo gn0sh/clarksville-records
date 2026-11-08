@@ -233,6 +233,8 @@ def build(store, cfg: FinanceConfig, status_path: Path | None = None, meta_cache
             "id": sid, "slug": sid[4:], "title": r.title, "archive_date_text": r.date_text,
             "archive_date": r.date, "archive_status": r.status, "year": int(r.date[:4]) if r.date else None,
             "department": department, "number": None, "document_ids": [doc_id(lk.url) for lk in r.links],
+            # this row's own link text: a URL linked from several rows has one document but a label per row
+            "document_labels": [lk.label for lk in r.links],                 # doc-completeness/label-not-verbatim
             "bid_tab": bid_tab, "documents_differ": differ, "held": held, "row": r.row,
             "archive_source_id": arch_src["id"]})
     books, budget_lines = build_budget(store, cfg, sources, problems, meta_cache, book_words)

@@ -121,7 +121,7 @@
     "solicitation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "slug", "title", "archive_date_text", "archive_date", "archive_status", "year", "department", "number", "document_ids", "bid_tab", "documents_differ", "held", "row", "archive_source_id"],
+      "required": ["id", "slug", "title", "archive_date_text", "archive_date", "archive_status", "year", "department", "number", "document_ids", "document_labels", "bid_tab", "documents_differ", "held", "row", "archive_source_id"],
       "properties": {
         "id": { "$ref": "#/$defs/solicitation_id", "description": "sol-<slug>; on a slug collision sol-<slug>-<sha1(first doc url)[:6]>" },
         "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
@@ -133,6 +133,7 @@
         "department": { "oneOf": [{ "$ref": "#/$defs/cited_text" }, { "type": "null" }], "description": "bid tab Department only; the archive prints none" },
         "number": { "type": ["string", "null"], "description": "null in 1a: no solicitation number is printed in anything read" },
         "document_ids": { "type": "array", "items": { "$ref": "#/$defs/document_id" }, "description": "archive order; count equals the row's links (doc-completeness/*)" },
+        "document_labels": { "type": "array", "items": { "type": "string" }, "description": "this row's link text verbatim, parallel to document_ids; a shared URL's document.link_label is only its first row's (doc-completeness/label-not-verbatim)" },
         "bid_tab": { "oneOf": [{ "$ref": "#/$defs/bid_tab" }, { "type": "null" }], "description": "null = No bid tab (UX has_bid_tab = bid_tab is not null)" },
         "documents_differ": {
           "oneOf": [

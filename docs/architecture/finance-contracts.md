@@ -90,7 +90,8 @@ content_type, creator`.
 - **solicitations**: `id` (`sol-<slug>`; on a slug collision `-<sha1(first doc url)[:6]>`), `slug`, `title`,
   `archive_date_text`, `archive_date` (ISO or null), `archive_status` (or null), `year` (from archive_date, else null),
   `department` {`text`, `source_id`, `page`} or null (bid tab "Department", else null: the archive prints none),
-  `number` null in 1a (the archive prints none), `document_ids[]` in archive order, `bid_tab` {`document_id`,
+  `number` null in 1a (the archive prints none), `document_ids[]` in archive order, `document_labels[]` (this row's
+  link text verbatim, parallel to `document_ids`: a shared URL's `link_label` is its first row's only), `bid_tab` {`document_id`,
   `tab_type`, `not_read_reason` (`layout` | `scan` | `shared_url` | `not_pdf`: a .docx or non-PDF bytes),
   `project_text`, `bid_date_text` + `bid_date_page`, `awardee_text`, `awardee_page`, `award_date_text` +
   `award_date_page` (a page is null exactly when its text is), `awardee_match`
