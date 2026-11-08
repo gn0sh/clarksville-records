@@ -86,19 +86,22 @@ def test_a_majority_that_misreads_the_name_is_not_enough(rules):
     assert out["applicant"] is None
 
 
-def test_agreeing_printings_give_the_value_as_printed_with_its_page(rules):
-    rs = Z.page_readings([AGENDA, resolution(name="Johnathan Blick", name2="Johnathan Blick")], rules)
+def test_agreeing_engines_give_the_value_as_printed_with_its_page(rules):
+    page = resolution(name="Johnathan Blick", name2="Johnathan Blick")
+    rs = Z.page_readings([AGENDA, page], rules)
     rs = [r for r in rs if not (r.printing == "listing")]          # the agenda line says Buck: leave it out here
+    assert Z.decide(pooled(by_case(rs, "CZ-01-2024")))["applicant"] is None     # three printings, one engine
+    rs += Z.page_readings(["", page], rules, engine="tesseract")
     out = Z.decide(pooled(by_case(rs, "CZ-01-2024")))
     assert out["applicant"] == {"value": "Johnathan Blick", "source_id": "src-505a509b28f7", "page": 2}
     assert out["from_zoning"] == {"value": ["R-3"], "source_id": "src-505a509b28f7", "page": 2}
     assert out["to_zoning"]["value"] == ["C-5"]          # the agenda's "C-S" was not counted (it is not a code)
 
 
-def test_a_misread_code_is_dropped_never_corrected(rules):
+def test_a_misread_code_is_kept_as_malformed_never_corrected(rules):
     rs = Z.page_readings([AGENDA], rules)
     to = [r for r in by_case(rs, "CZ-01-2024") if r.field == "to_zoning"]
-    assert to == []                                       # "C-S" is not a district code
+    assert [(r.key, r.value, r.shown) for r in to] == [(Z.MALFORMED, None, "C-S")]      # not a code: it vetoes
     assert Z._zoning("B-i Single-Family Estate", rules, True) is None
     assert Z._zoning("R-1 Light Industrial", rules, True) is None      # code and printed name disagree
     assert Z._zoning("R- 1", rules, False)[0] == ("R-1",)               # only spaces around the dash are dropped
@@ -132,7 +135,7 @@ def test_a_second_engine_on_the_same_printing_is_an_independent_reading(rules):
 
 
 def test_plus_minus_misread_agrees_and_the_printed_form_is_shown(rules):
-    staff = Z.page_readings([STAFF], rules)
+    staff = Z.page_readings([STAFF], rules, engine="tesseract")
     res = Z.page_readings([resolution(case="CZ-02-2024").replace(
         "containing 2.32 +1- acres, situated in Civil District 13,\nlocated A parcel located at the northwest corner of "
         "Oakwood Rd. & Wine Ln.",
@@ -175,7 +178,7 @@ def test_builder_attaches_zoning_only_to_rezoning_items_and_cited_sources(rules)
                              "year": 2024}
     b.items["CZO-1-2024"] = {"id": "CZO-1-2024", "number": "CZO-1-2024", "title": "CZO-1-2024",
                              "link_basis": "number", "year": 2024}
-    rs = Z.page_readings([AGENDA, STAFF], rules)
+    rs = Z.page_readings([AGENDA, STAFF], rules) + Z.page_readings(["", STAFF], rules, engine="tesseract")
     b.add_zoning(Doc("505a509b28f7" + "0" * 52, rs))
     b.add_zoning(Doc("ffffffffffff" + "0" * 52, rs))           # not cited by any fact: ignored
     facts = b.facts(load_roster(NAMES))
@@ -184,7 +187,7 @@ def test_builder_attaches_zoning_only_to_rezoning_items_and_cited_sources(rules)
     z = items["CZ-02-2024"]["zoning"]
     assert set(z) == set(Z.FIELDS)
     assert z["applicant"] == {"value": "Gary Thomas Mosley", "source_id": "src-505a509b28f7", "page": 1}
-    assert z["to_zoning"]["value"] == ["C-2"] and z["location"] is None
+    assert z["to_zoning"]["value"] == ["C-2"] and z["location"]["page"] == 2 and z["acreage"]["value"] == 1.29
     assert all(r[1] == "src-505a509b28f7" for r in b.zoning["CZ-02-2024"])
 
 
@@ -195,14 +198,32 @@ def test_decide_is_deterministic_whatever_the_reading_order(rules):
     assert a == b
 
 
-def test_a_printing_the_two_engines_read_differently_counts_neither_way(rules):
-    """CZ-06-2024 shape: tesseract reads "Blick" where the text layer reads "Buck" in the "submitted by" line; that line
-    is set aside and the printings both engines read alike decide. On CZ-01-2024 the text layer's "Buck" in a line
-    tesseract did not read still dissents."""
+def test_a_printing_the_two_engines_read_differently_is_dissent(rules):
+    """CZ-06-2024 shape: tesseract reads "Blick" where the text layer reads "Buck" in the "submitted by" line. One
+    engine misread it, and nothing says which: that is dissent, so the field is null (the old rule 5 set the printing
+    aside). On CZ-01-2024 the text layer's "Buck" in a line tesseract did not read dissents too."""
     page = resolution(name2="Johnathan Blick")
     text = by_case(Z.page_readings([page], rules), "CZ-01-2024")
     tess = by_case(Z.page_readings([page.replace("by Johnathan Buck", "by Johnathan Blick")], rules,
                                    engine="tesseract"), "CZ-01-2024")
-    assert Z.decide(pooled(text + tess))["applicant"]["value"] == "Johnathan Blick"
+    assert Z.decide(pooled(text + tess))["applicant"] is None
     no_line = [r for r in tess if r.printing != "submitted"]
     assert Z.decide(pooled(text + no_line))["applicant"] is None
+
+
+def test_patterns_do_not_overrun_their_values(rules):
+    """A matched group whose value fails its check vetoes the field, so the patterns keep the marks tesseract reads
+    around a value (fill lines, table rules) and the "and" before WHEREAS outside the group (zoning.yml)."""
+    page = resolution(name="Johnathan Blick =", name2="Johnathan Blick —", upper="| JOHNATHAN BLICK").replace(
+        "Wine Ln.; and", "Wine Ln.; and |")
+    rs = by_case(Z.page_readings([page], rules, engine="tesseract"), "CZ-01-2024")
+    got = {(r.printing, r.field): r.shown for r in rs}
+    assert got[("submitted", "applicant")] == "Johnathan Blick"
+    assert got[("approved", "applicant")] == "Johnathan Blick"
+    assert got[("heading", "applicant")] == "JOHNATHAN BLICK"
+    assert got[("located", "location")] == "A parcel located at the northwest corner of Oakwood Rd. & Wine Ln."
+    assert Z.MALFORMED not in {r.key for r in rs}
+    blank = STAFF.replace("PROPOSED ZONING: C-2", "PROPOSED ZONING: EXTENSION OF ZONING CLASSIFICATION: NO")
+    staff = {r.field: r for r in Z.page_readings([blank], rules)}
+    assert "to_zoning" not in staff and staff["from_zoning"].value == ("R-1",)     # a blank reads nothing
+    assert Z._zoning("C-5 - Highway & Arterial Commercial", rules, True)[0] == ("C-5",)    # not code "C-5-Highway"

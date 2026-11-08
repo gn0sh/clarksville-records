@@ -20133,12 +20133,12 @@
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-0",
-      "item_id": "22-2-1",
+      "item_id": "22-2-2",
       "label": "Consent Agenda",
       "meeting_id": "2022-02-14-formal",
       "order": 1,
       "page": 15,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
@@ -20150,14 +20150,14 @@
       "meeting_id": "2022-02-14-formal",
       "order": 1,
       "page": 15,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-10",
-      "item_id": "t-d73d4a6386",
+      "item_id": "t-510c40f5c7",
       "label": "22-2-9",
       "meeting_id": "2022-02-14-formal",
       "order": 1,
@@ -20169,7 +20169,7 @@
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-11",
-      "item_id": "t-d73d4a6386",
+      "item_id": "t-510c40f5c7",
       "label": "22-2-10",
       "meeting_id": "2022-02-14-formal",
       "order": 1,
@@ -20186,14 +20186,14 @@
       "meeting_id": "2022-02-14-formal",
       "order": 2,
       "page": 15,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-13",
-      "item_id": "t-d73d4a6386",
+      "item_id": "t-510c40f5c7",
       "label": "Minutes January 10, 2022",
       "meeting_id": "2022-02-14-formal",
       "order": 2,
@@ -20210,14 +20210,14 @@
       "meeting_id": "2022-02-14-formal",
       "order": 6,
       "page": 15,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-15",
-      "item_id": "t-d73d4a6386",
+      "item_id": "t-510c40f5c7",
       "label": "Clerk’s Report",
       "meeting_id": "2022-02-14-formal",
       "order": 6,
@@ -20234,14 +20234,14 @@
       "meeting_id": "2022-02-14-formal",
       "order": 7,
       "page": 15,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-17",
-      "item_id": "t-d73d4a6386",
+      "item_id": "t-510c40f5c7",
       "label": "Nominating Committee Nominations",
       "meeting_id": "2022-02-14-formal",
       "order": 7,
@@ -20258,14 +20258,14 @@
       "meeting_id": "2022-02-14-formal",
       "order": 8,
       "page": 15,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-19",
-      "item_id": "t-d73d4a6386",
+      "item_id": "t-510c40f5c7",
       "label": "Mayor Nominations and Appointments",
       "meeting_id": "2022-02-14-formal",
       "order": 8,
@@ -20277,7 +20277,7 @@
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-2",
-      "item_id": "t-d73d4a6386",
+      "item_id": "t-510c40f5c7",
       "label": "22-2-1",
       "meeting_id": "2022-02-14-formal",
       "order": 1,
@@ -20294,14 +20294,14 @@
       "meeting_id": "2022-02-14-formal",
       "order": 9,
       "page": 15,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-21",
-      "item_id": "t-d73d4a6386",
+      "item_id": "t-510c40f5c7",
       "label": "Highway Department 4th Quarter Road Report",
       "meeting_id": "2022-02-14-formal",
       "order": 9,
@@ -20318,14 +20318,14 @@
       "meeting_id": "2022-02-14-formal",
       "order": 10,
       "page": 15,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-23",
-      "item_id": "t-d73d4a6386",
+      "item_id": "t-510c40f5c7",
       "label": "Highway Department 2021 Yearly Road Report",
       "meeting_id": "2022-02-14-formal",
       "order": 10,
@@ -20342,14 +20342,14 @@
       "meeting_id": "2022-02-14-formal",
       "order": 11,
       "page": 15,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-25",
-      "item_id": "t-d73d4a6386",
+      "item_id": "t-510c40f5c7",
       "label": "Highway Department Road System List January 1,2022",
       "meeting_id": "2022-02-14-formal",
       "order": 11,
@@ -20361,31 +20361,19 @@
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-26",
-      "item_id": "t-d73d4a6386",
-      "label": "On Motion to Adopt by Commissioner Sigler, seconded by Commissioner Keene, the foregoing Consent Agenda items were Adopted and Approved by the following roll call vote:",
-      "meeting_id": "2022-02-14-formal",
-      "order": 16,
-      "page": 15,
-      "ref": "mo-c2d86df5-p15-0",
-      "source_id": "src-c2d86df5cc5d",
-      "type": "motion"
-    },
-    {
-      "date": "2022-02-14",
-      "id": "ev-c2d86df5-p15-27",
-      "item_id": "t-d73d4a6386",
+      "item_id": "22-2-1",
       "label": "the foregoing Consent Agenda items were Adopted and Approved by the following roll call vote:",
       "meeting_id": "2022-02-14-formal",
       "order": 17,
       "page": 15,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-3",
-      "item_id": "t-d73d4a6386",
+      "item_id": "t-510c40f5c7",
       "label": "22-2-2",
       "meeting_id": "2022-02-14-formal",
       "order": 1,
@@ -20397,7 +20385,7 @@
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-4",
-      "item_id": "t-d73d4a6386",
+      "item_id": "t-510c40f5c7",
       "label": "22-2-3",
       "meeting_id": "2022-02-14-formal",
       "order": 1,
@@ -20409,7 +20397,7 @@
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-5",
-      "item_id": "t-d73d4a6386",
+      "item_id": "t-510c40f5c7",
       "label": "22-2-4",
       "meeting_id": "2022-02-14-formal",
       "order": 1,
@@ -20421,7 +20409,7 @@
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-6",
-      "item_id": "t-d73d4a6386",
+      "item_id": "t-510c40f5c7",
       "label": "22-2-5",
       "meeting_id": "2022-02-14-formal",
       "order": 1,
@@ -20433,7 +20421,7 @@
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-7",
-      "item_id": "t-d73d4a6386",
+      "item_id": "t-510c40f5c7",
       "label": "22-2-6",
       "meeting_id": "2022-02-14-formal",
       "order": 1,
@@ -20445,7 +20433,7 @@
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-8",
-      "item_id": "t-d73d4a6386",
+      "item_id": "t-510c40f5c7",
       "label": "22-2-7",
       "meeting_id": "2022-02-14-formal",
       "order": 1,
@@ -20457,7 +20445,7 @@
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p15-9",
-      "item_id": "t-d73d4a6386",
+      "item_id": "t-510c40f5c7",
       "label": "22-2-8",
       "meeting_id": "2022-02-14-formal",
       "order": 1,
@@ -20469,12 +20457,24 @@
     {
       "date": "2022-02-14",
       "id": "ev-c2d86df5-p17-0",
-      "item_id": "22-2-2",
+      "item_id": "t-510c40f5c7",
+      "label": "On Motion to Adopt by Commissioner Sigler, seconded by Commissioner Keene, the foregoing Consent Agenda items were Adopted and Approved by the following roll call vote:",
+      "meeting_id": "2022-02-14-formal",
+      "order": 16,
+      "page": 17,
+      "ref": "mo-c2d86df5-p17-0",
+      "source_id": "src-c2d86df5cc5d",
+      "type": "motion"
+    },
+    {
+      "date": "2022-02-14",
+      "id": "ev-c2d86df5-p17-1",
+      "item_id": "t-510c40f5c7",
       "label": "the foregoing Consent Agenda items were Adopted and Approved by the following roll call vote:",
       "meeting_id": "2022-02-14-formal",
       "order": 17,
       "page": 17,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
@@ -20594,7 +20594,7 @@
       "meeting_id": "2022-02-14-formal",
       "order": 17,
       "page": 20,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
@@ -20606,7 +20606,7 @@
       "meeting_id": "2022-02-14-formal",
       "order": 17,
       "page": 23,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
@@ -20666,7 +20666,7 @@
       "meeting_id": "2022-02-14-formal",
       "order": 14,
       "page": 34,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
@@ -20678,7 +20678,7 @@
       "meeting_id": "2022-02-14-formal",
       "order": 14,
       "page": 36,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
@@ -20690,7 +20690,7 @@
       "meeting_id": "2022-02-14-formal",
       "order": 14,
       "page": 38,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
@@ -20702,7 +20702,7 @@
       "meeting_id": "2022-02-14-formal",
       "order": 14,
       "page": 40,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
@@ -20714,7 +20714,7 @@
       "meeting_id": "2022-02-14-formal",
       "order": 17,
       "page": 42,
-      "ref": "rc-c2d86df5-p15-0",
+      "ref": "rc-c2d86df5-p17-0",
       "source_id": "src-c2d86df5cc5d",
       "type": "roll_call"
     },
@@ -28401,13 +28401,7 @@
           "source_id": "src-505a509b28f7",
           "value": "A parcel located at the northwest corner of Oakwood Rd. & Wine Ln."
         },
-        "to_zoning": {
-          "page": 5,
-          "source_id": "src-505a509b28f7",
-          "value": [
-            "C-5"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -28428,7 +28422,7 @@
           "value": "Gary Thomas Mosley"
         },
         "from_zoning": {
-          "page": 7,
+          "page": 2,
           "source_id": "src-2149fe00d2e6",
           "value": [
             "R-1"
@@ -28440,7 +28434,7 @@
           "value": "Property fronting on the south frontage of Highway 149, 1,560 +/- feet west of the Highway 149 & Belle Rd. intersection"
         },
         "to_zoning": {
-          "page": 7,
+          "page": 2,
           "source_id": "src-2149fe00d2e6",
           "value": [
             "C-2"
@@ -28466,17 +28460,13 @@
           "value": "Phillip Traylor"
         },
         "from_zoning": {
-          "page": 17,
+          "page": 2,
           "source_id": "src-2149fe00d2e6",
           "value": [
             "AG"
           ]
         },
-        "location": {
-          "page": 19,
-          "source_id": "src-2149fe00d2e6",
-          "value": "A portion of two parcel fronting on the east frontage of Hwy. 12, 915 +/- feet south of the Hwy 12 & Shady Grove Rd. intersection"
-        },
+        "location": null,
         "to_zoning": null
       }
     },
@@ -28498,24 +28488,14 @@
           "value": "Entersource Properties"
         },
         "from_zoning": {
-          "page": 27,
+          "page": 2,
           "source_id": "src-2149fe00d2e6",
           "value": [
             "C-2"
           ]
         },
-        "location": {
-          "page": 27,
-          "source_id": "src-2149fe00d2e6",
-          "value": "A parcel of land located at the southwest corner of the Hwy. 149 & River Rd. intersection"
-        },
-        "to_zoning": {
-          "page": 2,
-          "source_id": "src-2149fe00d2e6",
-          "value": [
-            "C-5"
-          ]
-        }
+        "location": null,
+        "to_zoning": null
       }
     },
     {
@@ -28526,13 +28506,9 @@
       "year": 2024,
       "zoning": {
         "acreage": null,
-        "applicant": {
-          "page": 2,
-          "source_id": "src-2149fe00d2e6",
-          "value": "Industrial Development Board"
-        },
+        "applicant": null,
         "from_zoning": {
-          "page": 37,
+          "page": 2,
           "source_id": "src-2149fe00d2e6",
           "value": [
             "AG"
@@ -28544,7 +28520,7 @@
           "value": "A parcel of land fronting on the south frontage of Dunlop Lane, 1,050 +/- feet east of the Dunlop Ln. & Michaela Cir. intersection"
         },
         "to_zoning": {
-          "page": 37,
+          "page": 2,
           "source_id": "src-2149fe00d2e6",
           "value": [
             "M-1"
@@ -28564,11 +28540,7 @@
           "source_id": "src-31a1097ce81b",
           "value": 0.35
         },
-        "applicant": {
-          "page": 2,
-          "source_id": "src-31a1097ce81b",
-          "value": "Johnathan Blick"
-        },
+        "applicant": null,
         "from_zoning": {
           "page": 2,
           "source_id": "src-31a1097ce81b",
@@ -28643,13 +28615,7 @@
           "source_id": "src-9e291a55986d",
           "value": "Property fronts on the southeast corner of Trough Springs Road and Granite Trail"
         },
-        "to_zoning": {
-          "page": 2,
-          "source_id": "src-9e291a55986d",
-          "value": [
-            "R-1"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -28699,13 +28665,7 @@
           "source_id": "src-3a926fac623a",
           "value": "Sunikumar Arunagirl"
         },
-        "from_zoning": {
-          "page": 8,
-          "source_id": "src-3a926fac623a",
-          "value": [
-            "R-1"
-          ]
-        },
+        "from_zoning": null,
         "location": null,
         "to_zoning": {
           "page": 8,
@@ -28729,20 +28689,14 @@
           "value": 2.8
         },
         "applicant": null,
-        "from_zoning": {
-          "page": 2,
-          "source_id": "src-59d6ad382cde",
-          "value": [
-            "C-1"
-          ]
-        },
+        "from_zoning": null,
         "location": {
           "page": 4,
           "source_id": "src-59d6ad382cde",
-          "value": "A parcel fronting on the west frontage of Old Highway 48, directly west of the Old Highway 48 & Liverworth Rd. intersection"
+          "value": "A parcel fronting on the west frontage of Old Highway 48, directly west ofthe Old Highway 48 & Liverworth Rd. intersection"
         },
         "to_zoning": {
-          "page": 4,
+          "page": 2,
           "source_id": "src-59d6ad382cde",
           "value": [
             "AG"
@@ -28851,13 +28805,7 @@
           ]
         },
         "location": null,
-        "to_zoning": {
-          "page": 5,
-          "source_id": "src-66f87bb7fd4f",
-          "value": [
-            "E-1"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -28943,13 +28891,7 @@
           "source_id": "src-3dee31b10e2d",
           "value": "A tract fronting on the east frontage of Dotsonville Rd., 360 +/- feet north of the Dotsonville Rd. & Wooten Rd. intersection"
         },
-        "to_zoning": {
-          "page": 10,
-          "source_id": "src-3dee31b10e2d",
-          "value": [
-            "R-1"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -28960,11 +28902,7 @@
       "year": 2023,
       "zoning": {
         "acreage": null,
-        "applicant": {
-          "page": 11,
-          "source_id": "src-eff152821896",
-          "value": "Reda Home Builders Inc"
-        },
+        "applicant": null,
         "from_zoning": null,
         "location": null,
         "to_zoning": null
@@ -29011,25 +28949,13 @@
           "source_id": "src-ba7d4c9267e5",
           "value": "M Ireland LLC"
         },
-        "from_zoning": {
-          "page": 19,
-          "source_id": "src-ba7d4c9267e5",
-          "value": [
-            "R-1"
-          ]
-        },
+        "from_zoning": null,
         "location": {
           "page": 19,
           "source_id": "src-ba7d4c9267e5",
-          "value": "on the south frontage of Hwy 79/Dover Rd. 1,600 +/- feet west of the Hwy 79/Dover Rd. & Liberty Church Rd. intersection"
+          "value": "on the south frontage of Hwy 79/Dover Rd. 1,600 +/- feet west ofthe Hwy 79/Dover Rd. & Liberty Church Rd. intersection"
         },
-        "to_zoning": {
-          "page": 19,
-          "source_id": "src-ba7d4c9267e5",
-          "value": [
-            "C-5"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -29084,30 +29010,14 @@
           "source_id": "src-ba7d4c9267e5",
           "value": 5.0
         },
-        "applicant": {
-          "page": 2,
-          "source_id": "src-ba7d4c9267e5",
-          "value": "Kevin & Gwen Griffy"
-        },
-        "from_zoning": {
-          "page": 22,
-          "source_id": "src-ba7d4c9267e5",
-          "value": [
-            "R-1"
-          ]
-        },
+        "applicant": null,
+        "from_zoning": null,
         "location": {
           "page": 22,
           "source_id": "src-ba7d4c9267e5",
-          "value": "on the south frontage of Keese Rd. 2,315 +/- feet west (following the ROW) of the River Rd, & Keese Rd. intersection"
+          "value": "on the south frontage ofKeese Rd. 2,315 +/- feet west (following the ROW) of the River Rd, & Keese Rd. intersection"
         },
-        "to_zoning": {
-          "page": 22,
-          "source_id": "src-ba7d4c9267e5",
-          "value": [
-            "AGC"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -29123,25 +29033,9 @@
           "value": 0.99
         },
         "applicant": null,
-        "from_zoning": {
-          "page": 6,
-          "source_id": "src-c4992c9e270f",
-          "value": [
-            "R-4"
-          ]
-        },
-        "location": {
-          "page": 6,
-          "source_id": "src-c4992c9e270f",
-          "value": "A portion of property fronting on the south frontage of US Highway 79 / Dover Rd. 3,220 +/- feet east of the US Highway 79 / Dover Rd & Liberty Church Rd. intersection"
-        },
-        "to_zoning": {
-          "page": 6,
-          "source_id": "src-c4992c9e270f",
-          "value": [
-            "C-5"
-          ]
-        }
+        "from_zoning": null,
+        "location": null,
+        "to_zoning": null
       }
     },
     {
@@ -29185,7 +29079,7 @@
         "location": {
           "page": 6,
           "source_id": "src-8419efe1acc7",
-          "value": "Property fronting on the north/east frontage of Marion Rd., 915 +/- feet south/east of the Marion Rd. & Conaster Rd. intersection"
+          "value": "Property fronting on the north/east frontage of Marion Rd., 915 +/- feet south/east ofthe Marion Rd. & Conaster Rd. intersection"
         },
         "to_zoning": {
           "page": 6,
@@ -29208,11 +29102,7 @@
           "source_id": "src-4d802d50d1a3",
           "value": 4.04
         },
-        "applicant": {
-          "page": 5,
-          "source_id": "src-4d802d50d1a3",
-          "value": "Stiltz Iron Inc.- Cooper Boudreau"
-        },
+        "applicant": null,
         "from_zoning": {
           "page": 5,
           "source_id": "src-4d802d50d1a3",
@@ -29221,13 +29111,7 @@
           ]
         },
         "location": null,
-        "to_zoning": {
-          "page": 5,
-          "source_id": "src-4d802d50d1a3",
-          "value": [
-            "M-1"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -29285,13 +29169,7 @@
           ]
         },
         "location": null,
-        "to_zoning": {
-          "page": 20,
-          "source_id": "src-66f87bb7fd4f",
-          "value": [
-            "E-1"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -29353,7 +29231,7 @@
         "location": {
           "page": 16,
           "source_id": "src-c4992c9e270f",
-          "value": "A tract of land bound by the Red River on the south & fronting on the east frontage of Port Royal Rd, 800 +/- feet north of the Port Royal Rd. & Old Clarksville Springfield Rd. intersection"
+          "value": "A tract of land bound by the Red River on the south & fronting on the east frontage of Port Royal Rd, 800 +/- feet north ofthe Port Royal Rd. & Old Clarksville Springfield Rd. intersection"
         },
         "to_zoning": null
       }
@@ -29399,15 +29277,9 @@
         "location": {
           "page": 29,
           "source_id": "src-66f87bb7fd4f",
-          "value": "property fronting on the east frontage of Pace Rd., 1,100 +/- feet south of the Shady Grove Rd. & Pace Rd. intersection"
+          "value": "property fronting on the east frontage of Pace Rd., 1,100 +/- feet south ofthe Shady Grove Rd. & Pace Rd. intersection"
         },
-        "to_zoning": {
-          "page": 29,
-          "source_id": "src-66f87bb7fd4f",
-          "value": [
-            "E-1"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -29478,11 +29350,7 @@
         },
         "applicant": null,
         "from_zoning": null,
-        "location": {
-          "page": 38,
-          "source_id": "src-66f87bb7fd4f",
-          "value": "property fronting on the north frontage of Dover Rd. (US 79). 1,585 +/- feet east of the Dover Rd. (US 79) & Liberty Church Rd. intersection"
-        },
+        "location": null,
         "to_zoning": {
           "page": 38,
           "source_id": "src-66f87bb7fd4f",
@@ -29513,13 +29381,7 @@
           ]
         },
         "location": null,
-        "to_zoning": {
-          "page": 4,
-          "source_id": "src-64d40410a4ed",
-          "value": [
-            "C-5"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -29539,25 +29401,13 @@
           "source_id": "src-4d802d50d1a3",
           "value": "Johnny Goad"
         },
-        "from_zoning": {
-          "page": 27,
-          "source_id": "src-4d802d50d1a3",
-          "value": [
-            "R-1"
-          ]
-        },
+        "from_zoning": null,
         "location": {
           "page": 27,
           "source_id": "src-4d802d50d1a3",
-          "value": "A parcel of land located at the southwest corner of the Dover Rd. & Old Dover Rd."
+          "value": "A parcel ofland located at the southwest corner ofthe Dover Rd. & Old Dover Rd"
         },
-        "to_zoning": {
-          "page": 27,
-          "source_id": "src-4d802d50d1a3",
-          "value": [
-            "C-5"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -29603,11 +29453,7 @@
           "source_id": "src-7325525d58ca",
           "value": 1.1
         },
-        "applicant": {
-          "page": 2,
-          "source_id": "src-7325525d58ca",
-          "value": "Mathieu Poag"
-        },
+        "applicant": null,
         "from_zoning": {
           "page": 24,
           "source_id": "src-7325525d58ca",
@@ -29618,15 +29464,9 @@
         "location": {
           "page": 24,
           "source_id": "src-7325525d58ca",
-          "value": "Property fronting on the north frontage of Antioch Rd., 1,600 +/- feet east of the Palmyra Rd. & Antioch Rd. intersection"
+          "value": "Property fronting on the north frontage ofAntioch Rd., 1,600 +/- feet east ofthe Palmyra Rd. & Antioch Rd. intersection"
         },
-        "to_zoning": {
-          "page": 24,
-          "source_id": "src-7325525d58ca",
-          "value": [
-            "E-1"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -29653,18 +29493,8 @@
             "C-2"
           ]
         },
-        "location": {
-          "page": 11,
-          "source_id": "src-9e291a55986d",
-          "value": "Property is located at the southwest corner of Lylewood Road and John Taylor Road"
-        },
-        "to_zoning": {
-          "page": 11,
-          "source_id": "src-9e291a55986d",
-          "value": [
-            "E-1"
-          ]
-        }
+        "location": null,
+        "to_zoning": null
       }
     },
     {
@@ -29679,11 +29509,7 @@
           "source_id": "src-c2d86df5cc5d",
           "value": 22.2
         },
-        "applicant": {
-          "page": 4,
-          "source_id": "src-c2d86df5cc5d",
-          "value": "Ulrich E. Ankersoc Lauren E. Ankersoc"
-        },
+        "applicant": null,
         "from_zoning": {
           "page": 4,
           "source_id": "src-c2d86df5cc5d",
@@ -29694,7 +29520,7 @@
         "location": {
           "page": 4,
           "source_id": "src-c2d86df5cc5d",
-          "value": "Property fronting on the north frontage of Sango Rd., 1,550 +/- feet east of the Sango Rd. & S. Woodson Rd. intersection"
+          "value": "Property fronting on the north frontage of Sango Rd., 1,550 +/- feet east ofthe Sango Rd. & S. Woodson Rd. intersection"
         },
         "to_zoning": {
           "page": 4,
@@ -29717,26 +29543,10 @@
           "source_id": "src-caa80a4a1ddc",
           "value": 11.01
         },
-        "applicant": {
-          "page": 30,
-          "source_id": "src-caa80a4a1ddc",
-          "value": "Reda Home Builders, Inc"
-        },
-        "from_zoning": {
-          "page": 30,
-          "source_id": "src-caa80a4a1ddc",
-          "value": [
-            "AG"
-          ]
-        },
+        "applicant": null,
+        "from_zoning": null,
         "location": null,
-        "to_zoning": {
-          "page": 72,
-          "source_id": "src-59d6ad382cde",
-          "value": [
-            "R-1"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -29818,13 +29628,7 @@
           ]
         },
         "location": null,
-        "to_zoning": {
-          "page": 5,
-          "source_id": "src-642246539ab0",
-          "value": [
-            "R-1A"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -29846,7 +29650,7 @@
         "location": {
           "page": 6,
           "source_id": "src-ca24948f8efa",
-          "value": "A parcel of land fronting on the southeast frontage of Indian Mound Rd., 970 +/- feet southwest of the Indian mound Rd. & Caps Rd. intersection"
+          "value": "A parcel of land fronting on the southeast frontage ofIndian Mound Rd., 970 +/- feet southwest of the Indian mound Rd. & Caps Rd. intersection"
         },
         "to_zoning": {
           "page": 6,
@@ -29874,25 +29678,13 @@
           "source_id": "src-ae8150f52f55",
           "value": "Steven and Marcia Causey"
         },
-        "from_zoning": {
-          "page": 8,
-          "source_id": "src-ae8150f52f55",
-          "value": [
-            "C-5"
-          ]
-        },
+        "from_zoning": null,
         "location": {
           "page": 8,
           "source_id": "src-ae8150f52f55",
-          "value": "Property fronting on the south frontage of Woodlawn Rd., 1,895 +/- feet west of the Woodlawn Rd. & Hwy 79 (Dover Rd.) intersection"
+          "value": "Property fronting on the south frontage ofWoodlawn Rd., 1,895 +/- feet west ofthe Woodlawn Rd. & Hwy 79 (Dover Rd.) intersection"
         },
-        "to_zoning": {
-          "page": 8,
-          "source_id": "src-ae8150f52f55",
-          "value": [
-            "R-1"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -29907,11 +29699,7 @@
           "source_id": "src-64d40410a4ed",
           "value": 9.75
         },
-        "applicant": {
-          "page": 2,
-          "source_id": "src-64d40410a4ed",
-          "value": "Benton Walker"
-        },
+        "applicant": null,
         "from_zoning": {
           "page": 8,
           "source_id": "src-64d40410a4ed",
@@ -29920,13 +29708,7 @@
           ]
         },
         "location": null,
-        "to_zoning": {
-          "page": 8,
-          "source_id": "src-64d40410a4ed",
-          "value": [
-            "R-1"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -29947,20 +29729,14 @@
           "value": "Carolyn Jackson Houston"
         },
         "from_zoning": {
-          "page": 16,
+          "page": 2,
           "source_id": "src-ca24948f8efa",
           "value": [
             "AG"
           ]
         },
         "location": null,
-        "to_zoning": {
-          "page": 2,
-          "source_id": "src-ca24948f8efa",
-          "value": [
-            "R-1"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -29999,11 +29775,7 @@
           "source_id": "src-ae8150f52f55",
           "value": 0.91
         },
-        "applicant": {
-          "page": 10,
-          "source_id": "src-ae8150f52f55",
-          "value": "Mark Ireland"
-        },
+        "applicant": null,
         "from_zoning": {
           "page": 10,
           "source_id": "src-ae8150f52f55",
@@ -30012,13 +29784,7 @@
           ]
         },
         "location": null,
-        "to_zoning": {
-          "page": 10,
-          "source_id": "src-ae8150f52f55",
-          "value": [
-            "R-1"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -30042,13 +29808,7 @@
           ]
         },
         "location": null,
-        "to_zoning": {
-          "page": 2,
-          "source_id": "src-642246539ab0",
-          "value": [
-            "C-5"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -30063,11 +29823,7 @@
           "source_id": "src-ca24948f8efa",
           "value": 0.91
         },
-        "applicant": {
-          "page": 26,
-          "source_id": "src-ca24948f8efa",
-          "value": "Arnold Gebers"
-        },
+        "applicant": null,
         "from_zoning": {
           "page": 26,
           "source_id": "src-ca24948f8efa",
@@ -30076,13 +29832,7 @@
           ]
         },
         "location": null,
-        "to_zoning": {
-          "page": 26,
-          "source_id": "src-ca24948f8efa",
-          "value": [
-            "O-1"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -30106,13 +29856,7 @@
           ]
         },
         "location": null,
-        "to_zoning": {
-          "page": 2,
-          "source_id": "src-a1dfefd4af7f",
-          "value": [
-            "C-5"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -30152,18 +29896,8 @@
           "source_id": "src-573601442606",
           "value": 10.5
         },
-        "applicant": {
-          "page": 2,
-          "source_id": "src-573601442606",
-          "value": "Krystal McNallie"
-        },
-        "from_zoning": {
-          "page": 4,
-          "source_id": "src-573601442606",
-          "value": [
-            "R-1"
-          ]
-        },
+        "applicant": null,
+        "from_zoning": null,
         "location": null,
         "to_zoning": {
           "page": 4,
@@ -30217,17 +29951,11 @@
           "value": 19.6
         },
         "applicant": null,
-        "from_zoning": {
-          "page": 2,
-          "source_id": "src-9e291a55986d",
-          "value": [
-            "R-1"
-          ]
-        },
+        "from_zoning": null,
         "location": {
           "page": 4,
           "source_id": "src-9e291a55986d",
-          "value": "Property located north of Dover Rd. (US HWY 79) and east of N. Liberty Church Rd"
+          "value": "Property located north ofDover Rd. (US HWY 79) and east of N. Liberty Church Rd."
         },
         "to_zoning": {
           "page": 4,
@@ -30277,17 +30005,11 @@
           "value": 102.81
         },
         "applicant": {
-          "page": 6,
+          "page": 2,
           "source_id": "src-9e291a55986d",
-          "value": "M. Ireland L L C"
+          "value": "M. Ireland LLC"
         },
-        "from_zoning": {
-          "page": 6,
-          "source_id": "src-9e291a55986d",
-          "value": [
-            "AG"
-          ]
-        },
+        "from_zoning": null,
         "location": null,
         "to_zoning": {
           "page": 6,
@@ -30310,26 +30032,10 @@
           "source_id": "src-c66ef694615a",
           "value": 18.31
         },
-        "applicant": {
-          "page": 6,
-          "source_id": "src-c66ef694615a",
-          "value": "Hunter Winn Vernon Weakley"
-        },
-        "from_zoning": {
-          "page": 6,
-          "source_id": "src-c66ef694615a",
-          "value": [
-            "R-1"
-          ]
-        },
+        "applicant": null,
+        "from_zoning": null,
         "location": null,
-        "to_zoning": {
-          "page": 6,
-          "source_id": "src-c66ef694615a",
-          "value": [
-            "R-4"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -30350,7 +30056,7 @@
           "value": "Alfred Jones"
         },
         "from_zoning": {
-          "page": 26,
+          "page": 2,
           "source_id": "src-7325525d58ca",
           "value": [
             "R-3"
@@ -30361,13 +30067,7 @@
           "source_id": "src-7325525d58ca",
           "value": "Properties directly east of the Guthrie Rd. & Johnson St. intersection & west of Batchelor St."
         },
-        "to_zoning": {
-          "page": 26,
-          "source_id": "src-7325525d58ca",
-          "value": [
-            "EM-1"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -30387,17 +30087,11 @@
           "source_id": "src-c2d86df5cc5d",
           "value": "Bryce Powers"
         },
-        "from_zoning": {
-          "page": 6,
-          "source_id": "src-c2d86df5cc5d",
-          "value": [
-            "C-5"
-          ]
-        },
+        "from_zoning": null,
         "location": {
           "page": 6,
           "source_id": "src-c2d86df5cc5d",
-          "value": "Property fronting on the northeast frontage of Highway 41, 1,930 +/- feet southeast of the 41 & Pineywoods Rd. intersection"
+          "value": "Property fronting on the northeast frontage ofHighway 41, 1,930 +/- feet southeast ofthe 41 & Pineywoods Rd. intersection"
         },
         "to_zoning": {
           "page": 6,
@@ -30415,16 +30109,8 @@
       "title": "Application ofJeffrey L. Winningham from AG to B-i",
       "year": 2023,
       "zoning": {
-        "acreage": {
-          "page": 4,
-          "source_id": "src-6caf17ab1e6a",
-          "value": 1.12
-        },
-        "applicant": {
-          "page": 2,
-          "source_id": "src-6caf17ab1e6a",
-          "value": "Jeffrey L. Winningham"
-        },
+        "acreage": null,
+        "applicant": null,
         "from_zoning": {
           "page": 4,
           "source_id": "src-6caf17ab1e6a",
@@ -30433,13 +30119,7 @@
           ]
         },
         "location": null,
-        "to_zoning": {
-          "page": 4,
-          "source_id": "src-6caf17ab1e6a",
-          "value": [
-            "E-1"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -30509,16 +30189,10 @@
           "value": 1.26
         },
         "applicant": null,
-        "from_zoning": {
-          "page": 4,
-          "source_id": "src-9b7e32b905d0",
-          "value": [
-            "R-1"
-          ]
-        },
+        "from_zoning": null,
         "location": null,
         "to_zoning": {
-          "page": 4,
+          "page": 2,
           "source_id": "src-9b7e32b905d0",
           "value": [
             "R-4"
@@ -30562,11 +30236,7 @@
           "source_id": "src-9b7e32b905d0",
           "value": 1.03
         },
-        "applicant": {
-          "page": 8,
-          "source_id": "src-9b7e32b905d0",
-          "value": "Evan Ellis"
-        },
+        "applicant": null,
         "from_zoning": {
           "page": 8,
           "source_id": "src-9b7e32b905d0",
@@ -30621,7 +30291,7 @@
         "location": {
           "page": 6,
           "source_id": "src-9df60d351a49",
-          "value": "a tract of land fronting on the north frontage of Sango Rd. 315+/- feet west of the Sango Rd. & Sheas Way intersection"
+          "value": "a tract ofland fronting on the north frontage of Sango Rd. 315+/-feet west ofthe Sango Rd. & Sheas Way intersection"
         },
         "to_zoning": {
           "page": 6,
@@ -30669,14 +30339,7 @@
           "source_id": "src-ade826342018",
           "value": "Reda Home Builders, Inc"
         },
-        "from_zoning": {
-          "page": 7,
-          "source_id": "src-ade826342018",
-          "value": [
-            "R-1",
-            "R-3"
-          ]
-        },
+        "from_zoning": null,
         "location": null,
         "to_zoning": {
           "page": 7,
@@ -30772,17 +30435,11 @@
           "source_id": "src-b325a18d7786",
           "value": "Sunilkumar Arunagiri"
         },
-        "from_zoning": {
-          "page": 4,
-          "source_id": "src-b325a18d7786",
-          "value": [
-            "R-1"
-          ]
-        },
+        "from_zoning": null,
         "location": {
           "page": 4,
           "source_id": "src-b325a18d7786",
-          "value": "A portion of the parcel fronting on the south frontage of Highway 41-A South, 935 +/-feet east of the Highway 41-A South & Malkowski Rd. intersection"
+          "value": "A portion of the parcel fronting on the south frontage of Highway 41-A South, 935 +/-feet east ofthe Highway 41-A South & Malkowski Rd. intersection"
         },
         "to_zoning": {
           "page": 4,
@@ -30824,13 +30481,7 @@
           "source_id": "src-ade826342018",
           "value": "Dwayne & Beckye Glasner"
         },
-        "from_zoning": {
-          "page": 11,
-          "source_id": "src-ade826342018",
-          "value": [
-            "O-1"
-          ]
-        },
+        "from_zoning": null,
         "location": null,
         "to_zoning": {
           "page": 11,
@@ -30853,11 +30504,7 @@
           "source_id": "src-eff152821896",
           "value": 50.81
         },
-        "applicant": {
-          "page": 8,
-          "source_id": "src-eff152821896",
-          "value": "Benjamin Stanley Darrel & Carol Smith"
-        },
+        "applicant": null,
         "from_zoning": {
           "page": 8,
           "source_id": "src-eff152821896",
@@ -30870,14 +30517,7 @@
           "source_id": "src-eff152821896",
           "value": "Property fronting on the north frontage of Dunlop Lane, 2,800 +/- feet west of the Dunlop Ln. & Rollow Ln. intersection"
         },
-        "to_zoning": {
-          "page": 8,
-          "source_id": "src-eff152821896",
-          "value": [
-            "C-2",
-            "M-1"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -30957,27 +30597,13 @@
           "source_id": "src-b325a18d7786",
           "value": "DGTF Clark Enterprises LLC"
         },
-        "from_zoning": {
-          "page": 7,
-          "source_id": "src-b325a18d7786",
-          "value": [
-            "C-5",
-            "AG"
-          ]
-        },
+        "from_zoning": null,
         "location": {
           "page": 7,
           "source_id": "src-b325a18d7786",
           "value": "Property located at the northwest corner of the Guthrie Hwy. & Spring Creek Village Rd."
         },
-        "to_zoning": {
-          "page": 7,
-          "source_id": "src-b325a18d7786",
-          "value": [
-            "R-4",
-            "C-5"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -31011,27 +30637,13 @@
           "value": 307.4
         },
         "applicant": null,
-        "from_zoning": {
-          "page": 25,
-          "source_id": "src-19ac962e4270",
-          "value": [
-            "O-1",
-            "AG",
-            "E-1"
-          ]
-        },
+        "from_zoning": null,
         "location": {
           "page": 25,
           "source_id": "src-19ac962e4270",
-          "value": "Property fronting on the south frontage of Rossview Rd., south of the Rossview Rd. & Kirkwood Rd. intersection"
+          "value": "Property fronting on the south frontage of Rossview Rd., south ofthe Rossview Rd. & Kirkwood Rd. intersection"
         },
-        "to_zoning": {
-          "page": 25,
-          "source_id": "src-19ac962e4270",
-          "value": [
-            "MXU-PUD"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -31771,6 +31383,13 @@
       "number": null,
       "title": "Nominating Committee Nominations",
       "year": 2025
+    },
+    {
+      "id": "t-510c40f5c7",
+      "link_basis": "title",
+      "number": null,
+      "title": "Consent Agenda",
+      "year": 2022
     },
     {
       "id": "t-513044efa4",
@@ -32849,13 +32468,6 @@
       "number": null,
       "title": "Consent Agenda",
       "year": 2023
-    },
-    {
-      "id": "t-d73d4a6386",
-      "link_basis": "title",
-      "number": null,
-      "title": "Consent Agenda",
-      "year": 2022
     },
     {
       "id": "t-d7faca1d4d",
@@ -56785,14 +56397,14 @@
       }
     },
     {
-      "id": "mo-c2d86df5-p15-0",
-      "item_id": "t-d73d4a6386",
+      "id": "mo-c2d86df5-p17-0",
+      "item_id": "t-510c40f5c7",
       "meeting_id": "2022-02-14-formal",
       "moved_by": {
         "official_id": "robert-sigler",
         "raw_name": "Sigler"
       },
-      "page": 15,
+      "page": 17,
       "seconded_by": {
         "official_id": "charles-keene",
         "raw_name": "Keene"
@@ -61730,7 +61342,8 @@
           },
           {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree on stated tally: None vs (3, 18, 0) (a count read garbled)",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -61745,7 +61358,7 @@
             "ok": true
           }
         ],
-        "status": "verified"
+        "status": "unverified"
       },
       "votes": [
         {
@@ -63053,7 +62666,8 @@
         "checks": [
           {
             "check": "absent_line_consistent",
-            "ok": true
+            "detail": "[tesseract] ABSENT line not found",
+            "ok": false
           },
           {
             "check": "in_meeting_record",
@@ -63061,7 +62675,8 @@
           },
           {
             "check": "names_resolve",
-            "ok": true
+            "detail": "[tesseract] name not matched to roster: 'Yeses—2] Noes—0 Abstentions' (0.29); [tesseract] name not matched to roster: 'ABSENT: None' (0.40)",
+            "ok": false
           },
           {
             "check": "one_entry_per_official",
@@ -63069,20 +62684,17 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "ok": true
+            "detail": "[text-layer] no vote read for present member: Carmelle Chandler",
+            "ok": false
           },
           {
             "check": "outcome_consistent",
             "ok": true
           },
           {
-            "check": "reading_used",
-            "detail": "text-layer+tesseract",
-            "ok": true
-          },
-          {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree on the ABSENT line: a reading's ABSENT line has a problem",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -63094,10 +62706,11 @@
           },
           {
             "check": "tally_matches_stated",
-            "ok": true
+            "detail": "[text-layer] counted (20, 0, 0) != stated (21, 0, 0); [tesseract] stated tally not found",
+            "ok": false
           }
         ],
-        "status": "verified"
+        "status": "unverified"
       },
       "votes": [
         {
@@ -63109,12 +62722,6 @@
         {
           "official_id": "billy-frye",
           "raw_name": "Billy Frye",
-          "raw_value": "Y",
-          "value": "yes"
-        },
-        {
-          "official_id": "carmelle-chandler",
-          "raw_name": "Carmelle Chandler",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -68839,7 +68446,8 @@
           },
           {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree for Rickey Ray: text-layer=? tesseract=Yes (malformed cell)",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -70200,7 +69808,8 @@
           },
           {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree on stated tally: None vs (21, 0, 0) (a count read garbled)",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -70215,7 +69824,7 @@
             "ok": true
           }
         ],
-        "status": "verified"
+        "status": "unverified"
       },
       "votes": [
         {
@@ -71324,7 +70933,8 @@
           },
           {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree for Joe Creek: text-layer=Yes tesseract=Yes (malformed cell)",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -75289,7 +74899,8 @@
           },
           {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree on stated tally: None vs (5, 15, 0) (a count read garbled)",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -75304,7 +74915,7 @@
             "ok": true
           }
         ],
-        "status": "verified"
+        "status": "unverified"
       },
       "votes": [
         {
@@ -78350,7 +77961,8 @@
           },
           {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree on stated tally: None vs (19, 0, 0) (a count read garbled)",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -78365,7 +77977,7 @@
             "ok": true
           }
         ],
-        "status": "verified"
+        "status": "unverified"
       },
       "votes": [
         {
@@ -82973,7 +82585,8 @@
           },
           {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree for Tangi Smith: text-layer=--- tesseract=Abstain",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -85435,7 +85048,8 @@
           },
           {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree for Ryan Gallant: text-layer=Yes tesseract=Yes (malformed cell)",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -85450,7 +85064,7 @@
             "ok": true
           }
         ],
-        "status": "verified"
+        "status": "unverified"
       },
       "votes": [
         {
@@ -87305,7 +86919,8 @@
           },
           {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree for Chris Rasnic: text-layer=--- tesseract=Yes; sources disagree for Rashidah A. Leverett: text-layer=Yes tesseract=? (malformed cell)",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -95971,7 +95586,8 @@
           },
           {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree on stated tally: None vs (19, 0, 0) (a count read garbled)",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -95986,7 +95602,7 @@
             "ok": true
           }
         ],
-        "status": "verified"
+        "status": "unverified"
       },
       "votes": [
         {
@@ -97673,7 +97289,8 @@
           },
           {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree on stated tally: None vs (15, 5, 0) (a count read garbled)",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -97688,7 +97305,7 @@
             "ok": true
           }
         ],
-        "status": "verified"
+        "status": "unverified"
       },
       "votes": [
         {
@@ -98043,7 +97660,8 @@
           },
           {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree for Jason Knight: text-layer=Yes tesseract=? (malformed cell)",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -100451,7 +100069,8 @@
           },
           {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree on the ABSENT line: a reading's ABSENT line has a problem",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -100585,7 +100204,8 @@
           },
           {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree on the ABSENT line: a reading's ABSENT line has a problem",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -100600,7 +100220,7 @@
             "ok": true
           }
         ],
-        "status": "verified"
+        "status": "unverified"
       },
       "votes": [
         {
@@ -101307,7 +100927,8 @@
           },
           {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree on the ABSENT line: a reading's ABSENT line has a problem",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -105848,7 +105469,8 @@
           },
           {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree on the ABSENT line: a reading's ABSENT line has a problem",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -116759,13 +116381,13 @@
       ]
     },
     {
-      "id": "rc-c2d86df5-p15-0",
-      "item_id": "t-d73d4a6386",
+      "id": "rc-c2d86df5-p17-0",
+      "item_id": "t-510c40f5c7",
       "meeting_id": "2022-02-14-formal",
-      "motion_id": "mo-c2d86df5-p15-0",
+      "motion_id": "mo-c2d86df5-p17-0",
       "outcome": "passed",
       "outcome_text": "the foregoing Consent Agenda items were Adopted and Approved by the following roll call vote:",
-      "page": 15,
+      "page": 17,
       "source_id": "src-c2d86df5cc5d",
       "stated_tally": {
         "abstain": 0,
@@ -116800,7 +116422,7 @@
           },
           {
             "check": "reading_used",
-            "detail": "tesseract",
+            "detail": "text-layer",
             "ok": true
           },
           {
@@ -116865,7 +116487,7 @@
         },
         {
           "official_id": "james-lewis",
-          "raw_name": "James R, Lewis",
+          "raw_name": "James R. Lewis",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -116931,7 +116553,7 @@
         },
         {
           "official_id": "rickey-ray",
-          "raw_name": "Rickey Ray",
+          "raw_name": "Riekey Ray",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -120936,7 +120558,8 @@
           },
           {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree on stated tally: None vs (8, 10, 0) (a count read garbled)",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -128513,11 +128136,7 @@
       "outcome_text": "the foregoing Resolution was Adopted by the following roll call vote:",
       "page": 102,
       "source_id": "src-eff152821896",
-      "stated_tally": {
-        "abstain": 0,
-        "no": 5,
-        "yes": 16
-      },
+      "stated_tally": null,
       "verification": {
         "checks": [
           {
@@ -128538,20 +128157,17 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "ok": true
+            "detail": "[text-layer] unrecognised token(s) ['V'] for Ryan Gallant; [text-layer] unrecognised token(s) ['V'] for David Shelton; [text-layer] no vote read for present member: Ryan Gallant; [text-layer] no vote read for present member: David Shelton; [tesseract] unrecognised token(s) ['N°:'] for Joe Smith; [tesseract] no vote read for present member: Joe Smith",
+            "ok": false
           },
           {
             "check": "outcome_consistent",
             "ok": true
           },
           {
-            "check": "reading_used",
-            "detail": "text-layer+tesseract",
-            "ok": true
-          },
-          {
             "check": "readings_agree",
-            "ok": true
+            "detail": "sources disagree on stated tally: None vs (16, 5, 0) (a count read garbled)",
+            "ok": false
           },
           {
             "check": "roster_available",
@@ -128563,10 +128179,11 @@
           },
           {
             "check": "tally_matches_stated",
-            "ok": true
+            "detail": "[text-layer] tally unreadable ('16', '—S', '0'); [tesseract] counted (16, 4, 0) != stated (16, 5, 0)",
+            "ok": false
           }
         ],
-        "status": "verified"
+        "status": "unverified"
       },
       "votes": [
         {
@@ -128596,12 +128213,6 @@
         {
           "official_id": "david-harper",
           "raw_name": "David Harper",
-          "raw_value": "Y",
-          "value": "yes"
-        },
-        {
-          "official_id": "david-shelton",
-          "raw_name": "David Shelton",
           "raw_value": "Y",
           "value": "yes"
         },
@@ -128674,12 +128285,6 @@
         {
           "official_id": "rickey-ray",
           "raw_name": "Rickey Ray",
-          "raw_value": "Y",
-          "value": "yes"
-        },
-        {
-          "official_id": "ryan-gallant",
-          "raw_name": "Ryan Gallant",
           "raw_value": "Y",
           "value": "yes"
         },
