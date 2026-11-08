@@ -146,6 +146,59 @@ def test_the_one_cell_rule_is_shared_by_combine_and_source_inconsistent(body_of_
     assert any("ABSENT line has a problem" in x for x in P.combine([d, b], ROSTER).reasons)
 
 
+def test_a_tally_read_garbled_by_one_engine_is_dissent(body_of_four):
+    """parse-accuracy/tests-miss-new-dissent: tesseract passes P2 alone; the text layer found the tally line but a
+    count is garbled. That is dissent: decide holds, disagreements names it, combine holds."""
+    tess = _reading("tesseract", TESS)
+    text = _reading("text-layer", TESS, tally=None, reasons=["tally unreadable ('?2', '1', '0')"])
+    text.printed = None
+    assert [d for d in P.disagreements(text, tess) if "a count read garbled" in d]
+    rc = _rc([text, tess])
+    assert rc.status == "Unverified" and any("a count read garbled" in x for x in rc.reasons), rc.reasons
+    b = _reading("tesseract", TESS, reasons=["no vote read for present member: A"])
+    assert "a reading read the stated tally garbled" in P.combine([text, b], ROSTER).reasons
+    # a tally line not found at all is "none", not dissent
+    gone = _reading("text-layer", TESS, tally=None, reasons=["stated tally not found"])
+    assert not P.disagreements(gone, tess)
+
+
+def test_different_absent_names_are_dissent(body_of_four):
+    """parse-accuracy/tests-miss-new-dissent: two readings that both read the ABSENT line, with different names."""
+    tess = _reading("tesseract", TESS)
+    text = _reading("text-layer", TESS, absent=("C",),
+                    reasons=["listed absent but has vote No: C", "no vote read for present member: D"])
+    assert [d for d in P.disagreements(text, tess) if "ABSENT names" in d]
+    rc = _rc([text, tess])
+    assert rc.status == "Unverified" and any("ABSENT names" in x for x in rc.reasons), rc.reasons
+    b = _reading("tesseract", TESS, reasons=["no vote read for present member: A"])
+    assert "ABSENT line not read alike by any reading" in P.combine([text, b], ROSTER).reasons
+    # an ABSENT line not found is "none"
+    gone = _reading("text-layer", TESS, absent=(), reasons=["ABSENT line not found"])
+    assert not [d for d in P.disagreements(gone, tess) if "ABSENT" in d]
+
+
+def test_every_reading_of_a_consent_reprint_can_dissent(body_of_four):
+    """parse-accuracy/reprint-dissent-unchecked: a reprint never corroborates, but any of its readings (either engine,
+    or their combination) dissents against any reading of the roll call's own printing (Oct 2022 p143: the reprint's
+    tesseract read "?" for one member while its text layer agreed; Feb 2021 p99: the text layer read "---")."""
+    from types import SimpleNamespace as NS
+    from collector.facts import reprint_dissent
+    own = NS(page=32, readings=[_reading("text-layer", TESS)], combined=None)
+    agree = _reading("text-layer", TESS)
+    query = _reading("tesseract", dict(TESS, B="?"), reasons=["conflicting vote marks ['Y', 'N'] for B"])
+    assert not reprint_dissent(own, [NS(page=122, readings=[agree], combined=None)])
+    out = reprint_dissent(own, [NS(page=143, readings=[agree, query], combined=None)])
+    assert out and all("for B" in d for d in out) and any(d.startswith("p32 text-layer vs p143 tesseract") for d in out)
+    dash = _reading("text-layer", dict(TESS, B="---"), reasons=["no vote read for present member: B"])
+    assert any("for B" in d for d in reprint_dissent(own, [NS(page=99, readings=[dash], combined=None)]))
+    garbled = _reading("tesseract", TESS, tally=None, reasons=["tally unreadable ('2', '?', '0')"])
+    assert any("garbled" in d for d in reprint_dissent(own, [NS(page=90, readings=[agree, garbled], combined=None)]))
+    # pairs inside the roll call's own printing are decide's, not repeated here
+    own2 = NS(page=32, readings=[_reading("text-layer", TESS), query], combined=None)
+    out = reprint_dissent(own2, [NS(page=122, readings=[agree], combined=None)])
+    assert out == [d for d in out if d.startswith("p32 tesseract vs p122 text-layer")] and out
+
+
 # ------------------------------------------------------------------ 5. shown form
 
 def test_shown_form_of_mcdonald_and_mc_donald_is_mcdonald(rules):

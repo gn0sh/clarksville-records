@@ -70,7 +70,7 @@ printings:
     named_districts: true
   - name: identified
     kind: resolution
-    pattern: 'said property is identified as .{0,120}? containing (?P<acreage_printed>(?:approximately )?(?P<acreage>\d[\d,]*(?:\.\d+)?|\.\d+) ?(?:[-+±]\S{0,4} ?)?acres)'
+    pattern: 'said property is identified as .{0,120}? containing (?P<acreage_printed>(?:approximately )?(?P<acreage>\d[\d,]*(?:\.\d+)?|\.\d+) ?(?:(?:\+ ?[/1!lI] ?-|±) ?)?acres)'
   - name: located
     kind: resolution
     pattern: 'situated in ,? ?Civil ,? ?District \S{1,3}?,? (?:located )?(?P<location>.+?)(?:[ ;,]*(?:and\b|[|_=—~°*$‘.]+(?= )))*[ ;,]*(?:[|_=—~°*$‘]+)?W\S{4,8},? said property is described'

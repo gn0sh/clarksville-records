@@ -114,7 +114,13 @@ no usable text layer return `text_layer: "none"` and no fragments (AC-P4: "not e
 - Table cells pair with a header name also through that official's `names.yml` name and aliases when the header name
   resolves exactly (rules 1-2), under the same threshold and margin (header "JoIm Gaimon", table "John Gannon").
 - A row's first chunk read as a vote mark just before a name is the district column (tesseract reads "2" as "y)"),
-  never a vote of the previous row's last member.
+  never a vote of the previous row's last member. Mid-row, a vote letter with edge noise ("a)" for 9) just before a
+  name, after the previous name's own vote mark in that row, is the district column too; a plain letter there still
+  counts against the cell (2026-11-08, hand-checked on December 2025 p70).
+- Count glyphs (`parse._int`): "O", "o", "Q", "D" and "U" read as 0, "I" and "l" as 1. "U" for a printed 0 was
+  hand-checked on five page images (2026-11-08). "S" is not mapped: the text layer reads both 5 and 8 as "S", so it
+  stays a garbled count. The tally label "Abstentions" is also read with its "s" misread ("Abitentions",
+  "Abétentions"); only the label, never a count.
 - Motion type: the motion sentence and the outcome clause are kept verbatim (`motions.text`, `roll_calls.outcome_text`,
   e.g. "The foregoing Motion to Defer was Approved by the following roll call vote:"), so a Yes on a motion to table,
   defer or suspend the rules is always shown with that wording, never as a Yes on the resolution. The parser's kind tag

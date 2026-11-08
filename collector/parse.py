@@ -98,7 +98,10 @@ DATE_RE = re.compile(r"\b(" + "|".join(MONTHS) + r")\s+(\d{1,2})\s*[,.]?\s*(\d{4
 
 def _int(s: str) -> int | None:
     s = s.strip()
-    for a_, b_ in (("O", "0"), ("o", "0"), ("Q", "0"), ("D", "0"), ("I", "1"), ("l", "1")):
+    # glyph rule (written): the text layer's look-alikes of 0 and 1. "U" for 0 was hand-checked on the page images
+    # (Noes "—U" printed "– 0": March 2024 p56, May 2025 p44, November 2025 p47); "S" is not mapped: it stands for
+    # 5 (June 2022 p133) and for 8 (November 2024 p41), so it stays garbled
+    for a_, b_ in (("O", "0"), ("o", "0"), ("Q", "0"), ("D", "0"), ("U", "0"), ("I", "1"), ("l", "1")):
         s = s.replace(a_, b_)
     return int(s) if s.isdigit() else None
 
@@ -359,7 +362,9 @@ ABSENT_REASON = re.compile(r"ABSENT|absent name not on roster")   # a reading's 
 # a count may be blank ("Yeses - 20 Noes -  Abstentions - 1": the clerk printed no number); read_table derives a
 # single blank count from the roster, never a garbled one. Groups: (marks, count) for Yes, No, Abstain; the marks
 # between a label and its count decide whether a missing count is printed blank (TALLY_BLANK) or garbled.
-TALLY = re.compile(r"Yes\w*([^\w\n]*)(\w{1,3})?\s*No\w*([^\w\n]*)(\w{1,3})?\s*Abst\w*([^\w\n]*)(\w{1,3})?",
+# The label "Abstentions" with its "s" misread ("Abitentions", "Abétentions", "Ab~tentions") is the same label: only
+# the label is read this way, never a count.
+TALLY = re.compile(r"Yes\w*([^\w\n]*)(\w{1,3})?\s*No\w*([^\w\n]*)(\w{1,3})?\s*(?:Abst|Ab\Stent)\w*([^\w\n]*)(\w{1,3})?",
                    re.I)
 TALLY_BLANK = re.compile(r"[\s\-—–~]*")         # only spaces and dashes: no number printed
 TALLY_MARKS = re.compile(r"[\s\-—–~.,:;'’]*")    # what may sit before a printed count; "|", "]", "!" may be a digit
@@ -491,6 +496,7 @@ def parse_table_rows(rows: list[str], roster: list[str], spellings: dict | None 
     problems: list[str] = []
     for row in rows:
         chunks = chunk_row(row)
+        voted = named = False            # voted: the cell of the last name in this row already holds a vote mark
         for ci, ch in enumerate(chunks):
             kind, val = classify_token(ch)
             before_name = ci + 1 < len(chunks) and classify_token(chunks[ci + 1])[0] == "name"
@@ -498,6 +504,15 @@ def parse_table_rows(rows: list[str], roster: list[str], spellings: dict | None 
                 # district position (just before a name): "‘J", "]"; and a row's first chunk read as a vote mark
                 # ("y)" for the district number 2) is never a vote of the previous row's last member
                 continue
+            if before_name and kind == "vote" and voted and ch != ch.strip(EDGE_NOISE):
+                # mid-row district column (written rule): a vote letter with edge noise ("a)" for 9), just before a
+                # name, after the previous name's own vote mark in this row, is that name's district number. A plain
+                # letter there ("Y") still counts against the cell, so a printed second mark is never dropped
+                continue
+            if kind == "name":
+                voted, named = False, True
+            elif kind == "vote" and named:
+                voted = True
             if kind in ("vote", "absent"):
                 if not cells:
                     problems.append(f"vote token {ch!r} before any name")

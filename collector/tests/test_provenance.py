@@ -53,21 +53,42 @@ def test_every_csv_column_is_registered(exported, internal):
         assert not missing, f"{name}.csv columns not in export.PROVENANCE: {missing}"
 
 
+def unregistered_keys(pub: dict) -> set[str]:
+    """Every key path in the public facts.json, at any depth, that is not in PROVENANCE: dict values and lists of dicts
+    are walked (provenance/registry-walk-skips-dicts), so coverage.*, items.zoning.*, roll_calls.stated_tally.* and
+    *.verification.* must each say which they are. A list's entries share the list's path."""
+    missing: set[str] = set()
+
+    def walk(path: str, v) -> None:
+        if isinstance(v, list):
+            for x in v:
+                walk(path, x)
+        elif isinstance(v, dict):
+            for k, x in v.items():
+                p = f"{path}.{k}" if path else k
+                if f"facts.json:{p}" not in PROVENANCE:
+                    missing.add(p)
+                walk(p, x)
+
+    for top, v in pub.items():
+        if isinstance(v, (list, dict)):
+            walk(top, v)
+        elif f"facts.json:{top}" not in PROVENANCE:
+            missing.add(top)
+    return missing
+
+
 @pytest.mark.parametrize("internal", [False, True])
 def test_every_facts_json_row_key_is_registered(exported, internal):
     pub = json.loads(exported[internal]["facts.json"].read_text(encoding="utf-8"))
-    missing = set()
-    for lst, rows in pub.items():
-        if not (isinstance(rows, list) and rows and isinstance(rows[0], dict)):
-            continue
-        for r in rows:
-            for k, v in r.items():
-                if f"facts.json:{lst}.{k}" not in PROVENANCE:
-                    missing.add(f"{lst}.{k}")
-                if isinstance(v, list) and v and isinstance(v[0], dict):
-                    missing |= {f"{lst}.{k}.{kk}" for x in v for kk in x
-                                if f"facts.json:{lst}.{k}.{kk}" not in PROVENANCE}
+    missing = unregistered_keys(pub)
     assert not missing, f"facts.json keys not in export.PROVENANCE: {sorted(missing)}"
+
+
+def test_the_registry_walk_reaches_keys_inside_dict_values():
+    pub = {"coverage": {"body": "x", "new_key": 1}, "items": [{"id": "a", "zoning": {"acreage": {"value": 1.0,
+                                                                                               "odd": 2}}}]}
+    assert unregistered_keys(pub) == {"coverage.new_key", "items.zoning.acreage.odd"}
 
 
 def test_roll_call_columns_are_the_stated_counts_only(exported):

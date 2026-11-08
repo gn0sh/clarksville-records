@@ -61,7 +61,9 @@
 | 2026-11-08 | backend-engineer | opus/high | independent-readings fixes + acreage printed + open-run check | done, ddf84e2..475bb60: verified 351/390 (0.900, gate passes, no headroom), zoning fields 289->218, 0 vote values changed, 458 pass |
 | 2026-11-08 | frontend-engineer | sonnet/medium | merge readings fix, render acreage.printed, officials headings | done, 3471566: 487 pass, site_checks PASS |
 | 2026-11-08 | code-reviewer | opus/high | fresh review d251fcb (readings + acreage) | request changes: must-fix parse-accuracy/reprint-dissent-unchecked (rate to 0.890), provenance/acreage-printed-uncorroborated; should-fix tests-miss-new-dissent, registry-walk-skips-dicts; nit a11y |
-| 2026-11-08 | backend-engineer | opus/high | reprint dissent + acreage fixes, then headroom by better readings | running |
+| 2026-11-08 | backend-engineer | opus/high | reprint dissent + acreage fixes, then headroom by better readings | done, b2d0d0f..42d763e: 347/390 after fixes, 354/390 (0.908) after headroom; 0 verified values changed; 26-2-6 p138 = 2 real roll calls; 0 titles fixed (glue not seen by both engines); 499 pass |
+| 2026-11-08 | code-reviewer | opus/high | delta re-review of 42d763e | running |
+| 2026-11-08 | frontend-engineer | sonnet/medium | name links site-wide + table row heights + not-confirmed chip | running |
 | 2026-11-08 | code-reviewer | opus/high | delta re-review of landing fixes | approve with nits: a11y-headings/officials-sections; provenance/acreage-not-as-printed (3rd provenance hit, fresh review next); provenance/open-run-latest-mismatch (latent) |
 | 2026-11-08 | qa-engineer | sonnet/medium | re-test landing bugs | PASS all; site_checks PASS incl. layout, provenance |
 | 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
