@@ -59,7 +59,9 @@
 | 2026-11-08 | code-reviewer | sonnet/medium | review rezoning fields | request changes: parse-accuracy/single-engine-misread-agrees, malformed-dissent-dropped; 3 nits |
 | 2026-11-08 | software-architect | opus/medium | independent-readings invariant (loop rule, parse-accuracy 2nd hit) | done, e9c7502 |
 | 2026-11-08 | backend-engineer | opus/high | independent-readings fixes + acreage printed + open-run check | done, ddf84e2..475bb60: verified 351/390 (0.900, gate passes, no headroom), zoning fields 289->218, 0 vote values changed, 458 pass |
-| 2026-11-08 | frontend-engineer | sonnet/medium | merge readings fix, render acreage.printed, officials headings | running |
+| 2026-11-08 | frontend-engineer | sonnet/medium | merge readings fix, render acreage.printed, officials headings | done, 3471566: 487 pass, site_checks PASS |
+| 2026-11-08 | code-reviewer | opus/high | fresh review d251fcb (readings + acreage) | request changes: must-fix parse-accuracy/reprint-dissent-unchecked (rate to 0.890), provenance/acreage-printed-uncorroborated; should-fix tests-miss-new-dissent, registry-walk-skips-dicts; nit a11y |
+| 2026-11-08 | backend-engineer | opus/high | reprint dissent + acreage fixes, then headroom by better readings | running |
 | 2026-11-08 | code-reviewer | opus/high | delta re-review of landing fixes | approve with nits: a11y-headings/officials-sections; provenance/acreage-not-as-printed (3rd provenance hit, fresh review next); provenance/open-run-latest-mismatch (latent) |
 | 2026-11-08 | qa-engineer | sonnet/medium | re-test landing bugs | PASS all; site_checks PASS incl. layout, provenance |
 | 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
@@ -79,7 +81,7 @@
 | politeness | 1 (review) | redirect-bypass |
 | idempotence | 1 (review) | superseded-source |
 | provenance | 3 (review 11-08 x2, delta): invariant stated (2c9dba6); fresh review on next fix | derived-count-shown-as-stated, derived-seat-dates-shown-as-term, acreage-not-as-printed, open-run-latest-mismatch |
-| parse-accuracy | 2 (review 11-08, rezoning review): architect states invariant | verified-rate, combine-ignores-unclean-dissent, outcome-crosses-clause, two-thirds-majority |
+| parse-accuracy | 3 (review 11-08, rezoning review, fresh review d251fcb): invariant stated e9c7502; implementation miss #1 of the re-plan (escalate to Brian only after 2) | verified-rate, combine-ignores-unclean-dissent, outcome-crosses-clause, two-thirds-majority |
 
 ## Skipped panels
 - Architect recommended a 3-member Brain Trust on the facts schema and id scheme; skipped for today's preview (private, data regenerated from source each run, so the schema is cheap to change before public launch). Revisit at M1.5.
@@ -117,3 +119,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-08: the independent-readings rule took verified roll calls to 351/390, exactly 90.0%. It passes AC-P1 with no headroom. Manager decisions: a lone "-" beside a vote stays non-malformed, because the invariant does not list it (counting it would give 0.846). The reprint gap is queued for the architect: a printing held only because of its tesseract reading does not veto a reprint of the same table.
 - Next to win back headroom: the mid-row district-token misread (rc-84fcd6d8-p70-0) and the tesseract-garbled stated tallies (6 roll calls).
 - 2026-11-08 ~9:50 PM ET: preview v4 published at https://claude.ai/artifact/QkxSRXNSMiWXpHUoLj8ynj (map landing, drawer, seats, search, rezoning fields, public build, review.html removed). It was built from data/facts.json at d251fcb with sitegen plus collector.export; the publish recipe is build/publish/index.html (head/body stripped) plus a files map of build/site/*.
+- 2026-11-08 manager decision: apply the independent-readings rule fully, including dissent from reprints, even though the verified rate drops to about 0.890, below the AC-P1 gate. The gate only blocks going public, not the private preview. Headroom is to be won back only by more correct readings, never by relaxing checks.
