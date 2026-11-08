@@ -1,10 +1,11 @@
 """python -m collector fin {fetch,build,census} (task F5c, architecture A1-A2, A5).
 
-fetch:  the purchasing archive page (always re-requested), then every document it links that is not yet in the store,
-        through the polite fetcher (robots.txt, 10 s per host, User-Agent, allowlist). Bonfire hosts are never
-        requested; a link to a host off the allowlist or to a non-PDF file (.docx) is recorded, not requested. A site
-        403/429 or a proxy refusal stops the whole fetch (never worked around). Unfetched links are recorded in
-        data/fin_fetch_status.json (committed, deterministic: a status keeps its first date while it is unchanged).
+fetch:  the purchasing archive page (always re-requested; a new version is stored only when its table changed), then
+        every document it links that is not yet in the store, through the polite fetcher (robots.txt, 10 s per host,
+        User-Agent, allowlist). Bonfire hosts are never requested; a link to a host off the allowlist or to a non-PDF
+        file (.docx) is recorded, not requested. A site 403/429 or a proxy refusal stops the whole fetch (never worked
+        around). Unfetched links are recorded in data/fin_fetch_status.json (committed, deterministic: a status keeps
+        its first date while it is unchanged).
 build:  store -> data/finance.json (fin_facts) and the `finance` block of build/report.json (coverage, parity).
 census: per bid-tab link its layout class (lump_sum / not_read / scan) and the award-letter scan count (F5b).
 """
@@ -20,7 +21,7 @@ from .fetch import (FetchFailed, HostBlocked, HostRefused, NotPdf, PoliteFetcher
                     _host_matches)
 from .fin_archive import parse_archive
 from .fin_config import FinanceConfig
-from .store import Store, fetch_into_store
+from .store import Store, _looks_html, fetch_into_store
 
 ROOT = Path(__file__).resolve().parent.parent
 FETCH_STATUS = ROOT / "data" / "fin_fetch_status.json"
@@ -83,6 +84,26 @@ def archive_links(rows) -> list[tuple[str, str, str]]:
     return out
 
 
+def fetch_archive(f, store: Store, cfg: FinanceConfig):
+    """-> (entry, status, rows). The page is always requested. Its bytes change on every request (the site's
+    e-mail obfuscation outside the table), so a new version is stored only when the table read from it differs from
+    the stored version's; otherwise the stored version stays the source (status 'unchanged-table') and a no-op run
+    leaves the manifest and finance.json as they were."""
+    status, body, headers = f.get(cfg.archive_url)
+    if status != 200:
+        raise FetchFailed(f"HTTP {status} for {cfg.archive_url}")
+    if not _looks_html(body, headers):
+        raise FetchFailed(f"not an HTML page: {cfg.archive_url} ({headers.get('Content-Type')})")
+    rows = parse_archive(body.decode("utf-8", "replace"), cfg)          # StructureChanged propagates: fail loudly
+    known = store.latest(cfg.archive_url)
+    if known and store.has_bytes(known["sha256"]):
+        old = parse_archive(store.path_for(known["sha256"]).read_text(encoding="utf-8"), cfg)
+        if old == rows:
+            return known, "unchanged-table", old
+    entry, st = store.put(cfg.archive_url, body, headers, {"kind": ARCHIVE_KIND, "label": "purchasing archive"})
+    return entry, st, rows
+
+
 def cmd_fetch(store: Store, cfg: FinanceConfig, fetcher: PoliteFetcher | None = None,
               status_path: Path = FETCH_STATUS, today: str | None = None, progress=print) -> dict:
     f = fetcher or PoliteFetcher(extra_denied=cfg.bonfire_hosts)
@@ -92,11 +113,9 @@ def cmd_fetch(store: Store, cfg: FinanceConfig, fetcher: PoliteFetcher | None = 
     log = {"archive": None, "links": 0, "fetched": {}, "not_requested": {}, "failures": [], "stopped": None}
     status = load_status(status_path)
     try:
-        entry, st = fetch_into_store(f, store, cfg.archive_url, {"kind": ARCHIVE_KIND, "label": "purchasing archive"},
-                                     expect="html", refresh=True)
+        entry, st, rows = fetch_archive(f, store, cfg)
         store.save()
         log["archive"] = {"sha256": entry["sha256"], "status": st}
-        rows = parse_archive(store.path_for(entry["sha256"]).read_text(encoding="utf-8"), cfg)
     except (HostBlocked, ProxyRefused) as e:
         log["stopped"] = f"{type(e).__name__}: {e}"
         log["fetch_log"] = f.log

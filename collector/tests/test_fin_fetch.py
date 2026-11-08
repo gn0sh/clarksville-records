@@ -165,6 +165,23 @@ def test_fin_fetch_requests_pdfs_only_and_never_bonfire(tmp_path):
     assert sp.read_text() == before
 
 
+def test_archive_version_changes_only_when_its_table_does(tmp_path):
+    """The live page's bytes change on every request (e-mail obfuscation outside the table): same table, same source,
+    manifest unchanged; a changed table is a new version (the old one stays for citations)."""
+    routes = {ARCHIVE: (200, FIXTURE_HTML, {"Content-Type": "text/html"})}
+    log, _, _, _ = _fin_fetch(tmp_path, routes)
+    assert log["archive"]["status"] == "new"
+    manifest = (tmp_path / "manifest.json").read_text()
+    routes[ARCHIVE] = (200, FIXTURE_HTML.replace(b"</nav>", b"<a href='/cdn-cgi/l/email-protection#ab12'>x</a></nav>"),
+                       {"Content-Type": "text/html"})
+    log, _, st, _ = _fin_fetch(tmp_path, routes)
+    assert log["archive"]["status"] == "unchanged-table" and (tmp_path / "manifest.json").read_text() == manifest
+    routes[ARCHIVE] = (200, FIXTURE_HTML.replace(b"MAY 4, 2026", b"MAY 5, 2026"), {"Content-Type": "text/html"})
+    log, _, st, _ = _fin_fetch(tmp_path, routes)
+    assert log["archive"]["status"] == "changed"
+    assert len([e for e in st.entries if e["url"] == ARCHIVE]) == 2
+
+
 def test_fin_fetch_stops_on_a_site_403(tmp_path):
     first = _links()[0][0]
     routes = {ARCHIVE: (200, FIXTURE_HTML, {"Content-Type": "text/html"}), first: (403, b"no")}
