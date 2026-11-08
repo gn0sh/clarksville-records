@@ -20,6 +20,21 @@ def words(bbox: str):
     return P.parse_bbox(bbox)[0]
 
 
+def page_words(name: str, page: int) -> list:
+    """Words of a one-page budget-book bbox fixture (`fy2027_p36`), numbered as PDF page `page`."""
+    return [P.Word(page, w.x0, w.x1, w.y0, w.y1, w.text)
+            for w in words((FIX / f"{name}.bbox.html").read_text(encoding="utf-8"))]
+
+
+# budget book id -> fixture pages the fake store serves for it (a statement page with a fund line first)
+BOOK_PAGES = {"fy2027-approved": ("fy2027", (28, 30, 36, 37)), "fy2025-approved": ("fy2025", (31, 33, 36))}
+
+
+def book_words(book_id: str) -> list:
+    prefix, pages = BOOK_PAGES[book_id]
+    return [w for p in pages for w in page_words(f"{prefix}_p{p}", p)]
+
+
 def itemised(bbox: str = WHEEL) -> str:
     """The wheel-loader tab with a unit-price header: another layout."""
     return bbox.replace(">Notes</word>", ">Qty</word>")

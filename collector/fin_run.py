@@ -5,7 +5,8 @@ fetch:  the purchasing archive page (always re-requested; a new version is store
         User-Agent, allowlist). Bonfire hosts are never requested; a link to a host off the allowlist or to a non-PDF
         file (.docx) is recorded, not requested. A site 403/429 or a proxy refusal stops the whole fetch (never worked
         around). Unfetched links are recorded in data/fin_fetch_status.json (committed, deterministic: a status keeps
-        its first date while it is unchanged).
+        its first date while it is unchanged). The budget books in finance.yml are fetched the same way (kind
+        budget_book), once: a stored book is not requested again.
 build:  store -> data/finance.json (fin_facts) and the `finance` block of build/report.json (coverage, parity).
 census: per bid-tab link its layout class (lump_sum / not_read / scan) and the award-letter scan count (F5b).
 """
@@ -30,6 +31,7 @@ STAGE_KIND = {"bid_tab": "bid_tab", "award_letter": "award_letter", "partial_awa
               "notice_of_intent": "notice", "notice_of_award": "notice", "bid": "bid", "advertisement": "bid",
               "rfp": "rfp", "rfq": "rfp"}
 ARCHIVE_KIND = "archive_index"
+BOOK_KIND = "budget_book"
 
 
 def _today() -> str:
@@ -104,6 +106,26 @@ def fetch_archive(f, store: Store, cfg: FinanceConfig):
     return entry, st, rows
 
 
+def fetch_books(f, store: Store, cfg: FinanceConfig, log: dict, progress=print) -> bool:
+    """Each budget book in finance.yml into the store (kind budget_book; its first fetch date is the one shown). A
+    book already stored is not requested again. Returns True when a site block or proxy refusal stopped the fetch."""
+    log["books"] = {}
+    for spec in cfg.budget.books:
+        try:
+            entry, st = fetch_into_store(f, store, spec.url, {"kind": BOOK_KIND, "label": spec.title})
+            log["books"][spec.id] = st
+            if st in ("new", "changed"):
+                store.save()
+                progress(f"  book {spec.id}: {st} {spec.url}", flush=True)
+        except (HostBlocked, ProxyRefused) as e:
+            log["stopped"] = f"{type(e).__name__} at {spec.url}: {e}"
+            return True
+        except (HostRefused, RobotsDisallowed, FetchFailed) as e:
+            log["failures"].append({"stage": f"book {spec.id}", "error": f"{type(e).__name__}: {e}"})
+    store.save()
+    return False
+
+
 def cmd_fetch(store: Store, cfg: FinanceConfig, fetcher: PoliteFetcher | None = None,
               status_path: Path = FETCH_STATUS, today: str | None = None, progress=print) -> dict:
     f = fetcher or PoliteFetcher(extra_denied=cfg.bonfire_hosts)
@@ -149,6 +171,8 @@ def cmd_fetch(store: Store, cfg: FinanceConfig, fetcher: PoliteFetcher | None = 
         except FetchFailed as e:
             _mark(status, url, "dead_at_fetch", str(e), today)       # a fact about the source, not a run failure
             log.setdefault("dead", []).append({"url": url, "error": str(e)})
+    if not log["stopped"]:
+        fetch_books(f, store, cfg, log, progress)
     store.save()
     save_status(status, status_path)
     log["fetch_log"] = f.log

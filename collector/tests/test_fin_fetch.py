@@ -148,11 +148,17 @@ def test_fin_fetch_requests_pdfs_only_and_never_bonfire(tmp_path):
     pdfs = [u for u, _, _ in links if not u.endswith(".docx")]
     routes = {ARCHIVE: (200, FIXTURE_HTML, {"Content-Type": "text/html"})}
     routes.update({u: (200, b"%PDF-1.7 " + u.encode()) for u in pdfs[1:]})       # the first PDF link is dead (404)
+    books = {b.url: b.id for b in CFG.budget.books}
+    routes.update({u: (200, b"%PDF-1.7 book " + u.encode()) for u in books})
     log, net, st, sp = _fin_fetch(tmp_path, routes)
     called = [u for u, _ in net.calls]
     assert called[:2] == [f"https://{HOST}/robots.txt", ARCHIVE]
     assert not any("bonfire" in u or u.endswith(".docx") for u in called)
-    assert set(called[2:]) == set(pdfs) and len(called) == len(set(called))
+    book_hosts = {f"https://{urllib.parse.urlsplit(u).netloc}/robots.txt" for u in books} - {called[0]}
+    assert set(called[2:]) == set(pdfs) | set(books) | book_hosts and len(called) == len(set(called))
+    assert min(called.index(u) for u in books) > max(called.index(u) for u in pdfs)   # books after the archive links
+    assert log["books"] == {i: "new" for i in books.values()}
+    assert all(st.latest(u)["kind"] == "budget_book" for u in books)
     assert log["stopped"] is None and log["fetched"] == {"new": len(pdfs) - 1}
     status = json.loads(sp.read_text())
     assert {u: v["status"] for u, v in status.items()} == {
