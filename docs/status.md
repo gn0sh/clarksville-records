@@ -66,7 +66,10 @@
 | 2026-11-08 | backend-engineer | opus/medium | 3 review nits | done, 98e6b21: 354/390 kept, 502 pass |
 | 2026-11-08 | qa-engineer | sonnet/medium | verify b983bfb | PASS: 508 pass, site_checks PASS all (44,100 name links, row-height 4 widths); process/offline-build-clobbers-facts (low) |
 | 2026-11-08 | code-reviewer | opus/high | fresh review frontend pass + nits at b983bfb | request changes: must-fix provenance/vote-on-rule-unpublished, parse-accuracy/narrow-pattern-drops-veto (staff pattern, repeat); nit suffix-swallows-range; should-fix neutrality/unconfirmed-vote-on-untested, perf/clamp-layout-thrash |
-| 2026-11-08 | backend-engineer | opus/high | review fixes at b983bfb (all acreage patterns listed first) | running |
+| 2026-11-08 | backend-engineer | opus/high | review fixes at b983bfb (all acreage patterns listed first) | done, 24dfba7..ccf6f95: label-bounded values rule + consumer list; 13 zoning fields published, 5 vetoed; 560 pass; 354/390 |
+| 2026-11-08 | code-reviewer | opus/high | fresh review c2dda39..ccf6f95 | approve with nits: should-fix parse-accuracy/suffix-swallows-unit (latent, no data) |
+| 2026-11-08 | backend-engineer | opus/high | suffix must hold a sign mark | done, 8e5fe69: 564 pass, no data change |
+| 2026-11-08 | code-reviewer | opus/high | delta re-review 8e5fe69 | approve; latent nit: hyphenated unit word ("sq-ft") still a suffix |
 | 2026-11-08 | frontend-engineer | sonnet/medium | name links site-wide + table row heights + not-confirmed chip + vote-on label | done, 8a50f58: 44,100 name links checked; row-height check at 4 widths; final full suite and site_checks not re-run after last tweak |
 | 2026-11-08 | code-reviewer | opus/high | delta re-review of landing fixes | approve with nits: a11y-headings/officials-sections; provenance/acreage-not-as-printed (3rd provenance hit, fresh review next); provenance/open-run-latest-mismatch (latent) |
 | 2026-11-08 | qa-engineer | sonnet/medium | re-test landing bugs | PASS all; site_checks PASS incl. layout, provenance |
@@ -128,3 +131,5 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-08 manager decision: apply the independent-readings rule fully, including dissent from reprints, even though the verified rate drops to about 0.890, below the AC-P1 gate. The gate only blocks going public, not the private preview. Headroom is to be won back only by more correct readings, never by relaxing checks.
 - Queued for the architect: a rule for glued title words ("ofthe"; 61 titles). Neither engine sees the break, so the shown-form rule can't fix it. Also queued: whether derived coverage.from/to may use "from/to" wording.
 - Queued (Brian, 2026-11-07 10:48 PM ET): address search that drops a pin on the map and names the district. Plan: Census geocoder client-side with a privacy note, plus georeferencing the PDF-space map with control points. Starts after the table fixes.
+
+- 2026-11-08 ~late evening ET: preview v5 published at https://claude.ai/artifact/QkxSRXNSMiWXpHUoLj8ynj from 8e5fe69 (name links everywhere, compact tables with Show more, Vote on label explained on About, stricter acreage reading). site_checks PASS (159 files). Queued: GoVoteTN link, address pin (Census JSONP + georeferenced map, docs/research/address-lookup.md), latent nit suffix-swallows-unit (hyphenated unit words).
