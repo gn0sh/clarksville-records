@@ -239,6 +239,47 @@ def test_held_path_is_a_zero_based_index_into_the_bidders_list(tmp_path, fin):
     assert "Not confirmed" not in by_id["sol-road-salt-fixture/bidder/3"] and "118,020.50" in html
 
 
+HARD = "this page was hard to read"
+
+
+def test_held_total_says_why_in_its_checks_own_sentence(fpages):
+    """provenance/held-sentence-misstates: the fixture's held total is held by amount-format."""
+    row = next(r for r in rows(fpages["contracts/road-salt-fixture.html"])
+               if r.attrs["data-fact-id"] == "sol-road-salt-fixture/bidder/2")
+    text = row.all_text()
+    assert T["held"]["amount-format"] == "The total is printed in a form this site does not read as a number."
+    assert "* Not confirmed. " + T["held"]["amount-format"] in text and HARD not in text
+    link = next(a for a in row.walk() if a.tag == "a" and a.all_text().startswith("Read it yourself"))
+    assert re.search(r"tab-salt\.pdf#page=\d+$", link.attrs["href"])
+    for rel, html in contracts_pages(fpages).items():
+        assert HARD not in html, rel
+
+
+def test_total_parts_hold_has_its_own_sentence(tmp_path, fin):
+    f = copy.deepcopy(fin)
+    sol = next(s for s in f["solicitations"] if s["id"] == "sol-road-salt-fixture")
+    sol["held"] = [dict(h, check="total-parts") for h in sol["held"]]
+    html = build_with(tmp_path, fin=f)["contracts/road-salt-fixture.html"]
+    row = next(r for r in rows(html) if r.attrs["data-fact-id"] == "sol-road-salt-fixture/bidder/2")
+    assert T["held"]["total-parts"] == "The printed amounts for this bidder do not add up to its printed total."
+    assert T["held"]["total-parts"] in row.all_text() and T["held"]["amount-format"] not in row.all_text()
+    assert "Read it yourself" in row.all_text() and HARD not in html
+
+
+def test_a_held_check_with_no_sentence_fails_the_build(tmp_path, fin):
+    f = copy.deepcopy(fin)
+    sol = next(s for s in f["solicitations"] if s["id"] == "sol-road-salt-fixture")
+    sol["held"] = [dict(h, check="no-such-check") for h in sol["held"]]
+    with pytest.raises(fin_views.FinanceError, match="no-such-check"):
+        build_with(tmp_path, fin=f)
+
+
+def test_vote_pages_keep_their_own_not_confirmed_sentence(fpages):
+    votes = [html for rel, html in fpages.items() if rel.startswith("votes/")]
+    assert any("* Not confirmed: this page was hard to read." in v for v in votes)
+    assert not any("* Not confirmed. " in v for v in votes)
+
+
 def test_fixture_held_path_points_at_the_null_total(fin):
     sol = next(s for s in fin["solicitations"] if s["held"])
     (h,) = sol["held"]

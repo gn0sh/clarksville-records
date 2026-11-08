@@ -5,7 +5,7 @@
 {# Design finance-contracts 5. The same structure for every solicitation (N1); state is carried by words only. #}
 <p class="crumb"><a href="index.html">{{ c.title }}</a></p>
 <h1>{{ title }}</h1>
-<p class="sol-meta">Department: {% if dept and dept.held %}{{ not_confirmed(dept.src) }}{% elif dept %}{{ dept.text }} {{ fin_cite(dept.src) }}{% else %}{{ c.no_department }}{% endif %}{% if number %} <span class="sep" aria-hidden="true">&middot;</span> Number: {{ number }}{% endif %}</p>
+<p class="sol-meta">Department: {% if dept and dept.held %}{{ not_confirmed(dept.src, dept.check) }}{% elif dept %}{{ dept.text }} {{ fin_cite(dept.src) }}{% else %}{{ c.no_department }}{% endif %}{% if number %} <span class="sep" aria-hidden="true">&middot;</span> Number: {{ number }}{% endif %}</p>
 <p class="sol-meta">Archive date as printed: {{ archive_date_text or c.archive_date_empty }} {{ fin_cite(archive_src) }}</p>
 <p class="coverage">{{ coverage_sentence }}</p>
 
@@ -51,7 +51,7 @@
   {% for b in tab.bidders %}
     <tr class="fact" data-fact-id="{{ b.fact_id }}">
       <th scope="row" class="c-bidder" data-label="Bidder">{{ person(b.who, root) }}</th>
-      <td class="num c-total" data-label="Bid total">{% if b.total is none %}{{ not_confirmed(b.src) }}{% else %}{{ b.total }}{% endif %}</td>
+      <td class="num c-total" data-label="Bid total">{% if b.total is none %}{{ not_confirmed(b.src, b.check) }}{% else %}{{ b.total }}{% endif %}</td>
       <td class="c-source cite" data-label="Source">{{ fin_cites([b.src], root, b.fact_id) }}</td>
     </tr>
   {% endfor %}
@@ -60,7 +60,7 @@
 </div>
 {% for dt in (tab.bid_date, tab.award_date) if dt %}<p class="tab-date">{{ dt.label }} {{ dt.text }} {{ fin_cite(dt.src) }}</p>
 {% endfor %}
-<p class="awardee">{% if tab.awardee.sentence %}{{ tab.awardee.sentence }}{% elif tab.awardee.held %}{{ not_confirmed(tab.awardee.src) }}{% else %}{{ tab.awardee.lead }}{{ person(tab.awardee.who, root) }}{{ tab.awardee.tail }} Source: {{ fin_link(tab.awardee.src) }}, fetched {{ tab.awardee.src.fetched }}.{% if tab.awardee.state %} {{ tab.awardee.state }}{% endif %}{% endif %}</p>
+<p class="awardee">{% if tab.awardee.sentence %}{{ tab.awardee.sentence }}{% elif tab.awardee.held %}{{ not_confirmed(tab.awardee.src, tab.awardee.check) }}{% else %}{{ tab.awardee.lead }}{{ person(tab.awardee.who, root) }}{{ tab.awardee.tail }} Source: {{ fin_link(tab.awardee.src) }}, fetched {{ tab.awardee.src.fetched }}.{% if tab.awardee.state %} {{ tab.awardee.state }}{% endif %}{% endif %}</p>
 {% endif %}
 </section>
 

@@ -4,9 +4,11 @@
 <a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">p. {{ src.page }}, fetched {{ src.fetched }}<span class="sr-only"> (opens the {{ src.kind }} PDF in a new tab)</span></a>
 {%- endmacro %}
 
-{# Shown beside every fact whose automatic checks did not pass (invariant: held-back counts). Links to the exact page. #}
-{% macro not_confirmed(src) -%}
-<span class="unconfirmed">* Not confirmed: this page was hard to read. <a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">Read it yourself<span class="sr-only"> (p. {{ src.page }} of the {{ src.kind }} PDF, opens in a new tab)</span></a>.</span>
+{# Shown beside every fact whose automatic checks did not pass (invariant: held-back counts). Links to the exact page.
+   `check`: the check that held a finance value; its fixed sentence is config/finance_text.yml `held` (env global
+   held_text; an unknown check fails the render). Left out, the vote pages' own sentence. #}
+{% macro not_confirmed(src, check=none) -%}
+<span class="unconfirmed">{% if check %}* Not confirmed. {{ held_text[check] }}{% else %}* Not confirmed: this page was hard to read.{% endif %} <a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">Read it yourself<span class="sr-only"> (p. {{ src.page }} of the {{ src.kind }} PDF, opens in a new tab)</span></a>.</span>
 {%- endmacro %}
 
 {# The asterisk, so screen readers say the words rather than "star" (design 2.6). #}

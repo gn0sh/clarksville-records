@@ -88,6 +88,16 @@ contracts:
   # glossary entries shown in the "Words used on this page" toggle on contracts pages
   words: [award-letter, bid-tab, notice-of-intent, rfp]
 
+# Why a value is held as Not confirmed*, by the check that held it (schema held.check, budget_line.held). One fixed
+# sentence each; a held value whose check has no sentence here fails the build (no silent default). Vote pages keep
+# their own sentence (_macros.html.j2 not_confirmed without a check).
+held:
+  amount-format: "The total is printed in a form this site does not read as a number."
+  total-parts: "The printed amounts for this bidder do not add up to its printed total."
+  column-align: "The amounts on this line do not sit under the book's columns in a way this site reads."
+  derived-spill: "An amount on this line runs into a column this site does not read."
+  scope-held: "This total adds a line this site does not read, so it is not checked."
+
 # Design 3: alphabetical, one sentence each, no evaluation words. id = the anchor on glossary.html.
 glossary:
   - {id: actual, term: Actual, text: "The amount the county's books show was received or spent in a finished fiscal year."}

@@ -78,8 +78,9 @@ def check_references(fin: dict) -> None:
 
 def coverage_sentence(cov: dict) -> str:
     """AC-F15: the one coverage sentence, identical on every contracts page, from finance.json's coverage block.
-    {n_tab} is n_bid_tab_links: solicitations with a bid tab link, read or not. {n_scan} of {n_letters} is
-    n_award_scanned of n_award_letters: award letters with no text layer."""
+    {n_tab} is n_bid_tab_links: solicitations with a bid tab (bid_tab not null), read or not. {n_scan} of
+    {n_letters} is n_award_scanned of n_award_letters: award-type documents (fin_checks.AWARD_LETTER_STAGES), and of
+    those the ones marked scanned (text layer none or a scanner's OCR, document.scanned)."""
     return T["coverage_contracts"].format(n_tab=cov["n_bid_tab_links"], n_total=cov["n_total"],
                                           n_scan=cov["n_award_scanned"], n_letters=cov["n_award_letters"])
 
@@ -160,16 +161,29 @@ def _doc_link(fx: Finance, d: dict, sol: dict) -> dict:
             "fetched": d["fetched_at"]}
 
 
-def _held_fields(sol: dict) -> set[str]:
-    return {h["field"] for h in sol["held"]}
+def _held_fields(sol: dict) -> dict[str, str]:
+    """{held field: the check that held it}."""
+    return {h["field"]: h["check"] for h in sol["held"]}
+
+
+def held_check(check: str | None, where: str) -> str | None:
+    """The check name the not_confirmed macro takes (provenance/held-sentence-misstates): each held value says why
+    it is held in that check's own fixed sentence (config/finance_text.yml `held`). A check with no sentence there
+    fails the build rather than fall back to a sentence that would misstate it."""
+    if check is not None and check not in T["held"]:
+        raise FinanceError(f"{where} is held by check {check!r}, which has no sentence in config/finance_text.yml "
+                           "(held)")
+    return check
 
 
 def _department(fx: Finance, sol: dict) -> dict | None:
     dep = sol["department"]
     if dep is None:
         return None
+    held = _held_fields(sol)
+    check = held.get("department", held.get("department.text"))
     return {"text": dep["text"], "src": fx.src(dep["source_id"], dep["page"]),
-            "held": "department" in _held_fields(sol) or "department.text" in _held_fields(sol)}
+            "held": check is not None, "check": held_check(check, f"solicitation {sol['id']} department")}
 
 
 def _tab_state(fx: Finance, sol: dict) -> dict | None:
@@ -195,14 +209,19 @@ def _tab_state(fx: Finance, sol: dict) -> dict | None:
             out[key] = {"label": C[label], "text": tab[key + "_text"], "src": fx.src(sid, tab[key + "_page"])}
     # schema held.field: `bid_tab.bidders[i].total_cents`, i a 0-based index into the file's bidders list (not the
     # printed order, which starts at 1); the value is also null in the file
-    held_idx = {int(m.group(1)) for f in held if (m := re.fullmatch(r"bid_tab\.bidders\[(\d+)\]\.total_cents", f))}
+    held_idx = {int(m.group(1)): c for f, c in held.items()
+                if (m := re.fullmatch(r"bid_tab\.bidders\[(\d+)\]\.total_cents", f))}
     for i, b in sorted(enumerate(tab["bidders"]), key=lambda ib: ib[1]["printed_order"]):  # printed order only (AC-F8)
         total_held = i in held_idx or b["total_cents"] is None or b["total_as_printed"] is None
+        fact_id = f"{sol['id']}/bidder/{b['printed_order']}"
+        # a null total with no held entry: amount-format is the check that leaves a printed total unread
+        check = held_idx.get(i, "amount-format") if total_held else None
         out["bidders"].append({
             "order": b["printed_order"], "who": fx.person(b["name"]),
-            "total": None if total_held else b["total_as_printed"],
-            "src": fx.src(sid, b["page"]), "fact_id": f"{sol['id']}/bidder/{b['printed_order']}"})
-    awardee_held = "bid_tab.awardee_text" in held
+            "total": None if total_held else b["total_as_printed"], "check": held_check(check, fact_id),
+            "src": fx.src(sid, b["page"]), "fact_id": fact_id})
+    awardee_check = held_check(held.get("bid_tab.awardee_text"), f"solicitation {sol['id']} awardee")
+    awardee_held = awardee_check is not None
     if tab["awardee_text"] is None or tab["awardee_match"] == "none_named":
         out["awardee"] = {"sentence": C["awardee_none"], "who": None, "src": None, "state": None, "held": False}
     else:
@@ -212,7 +231,8 @@ def _tab_state(fx: Finance, sol: dict) -> dict | None:
             raise FinanceError(f"solicitation {sol['id']} names an awardee but no page for it (awardee_page)")
         lead, _, tail = C["awardee"].partition("{name}")
         out["awardee"] = {"sentence": None, "lead": lead, "tail": tail, "who": fx.person(tab["awardee_text"]),
-                          "src": fx.src(sid, tab["awardee_page"]), "state": state, "held": awardee_held}
+                          "src": fx.src(sid, tab["awardee_page"]), "state": state, "held": awardee_held,
+                          "check": awardee_check}
     return out
 
 

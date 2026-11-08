@@ -129,13 +129,16 @@ def load_finance(finance_path: Path, facts_fixture: bool) -> dict:
 
 
 def make_env() -> jinja2.Environment:
-    return jinja2.Environment(
+    env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(str(config.TEMPLATE_DIR)),
         autoescape=jinja2.select_autoescape(["html", "j2"]),
         undefined=jinja2.StrictUndefined,
         trim_blocks=True,
         lstrip_blocks=True,
     )
+    # the not_confirmed macro's sentence per held check (provenance/held-sentence-misstates)
+    env.globals["held_text"] = config.FIN_TEXT["held"]
+    return env
 
 
 def read_changes(path: Path | None) -> list[dict]:
