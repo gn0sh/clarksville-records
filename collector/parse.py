@@ -96,12 +96,15 @@ class Attendance:
 DATE_RE = re.compile(r"\b(" + "|".join(MONTHS) + r")\s+(\d{1,2})\s*[,.]?\s*(\d{4})", re.I)
 
 
-def _int(s: str) -> int | None:
+def _int(s: str, tally: bool = False) -> int | None:
     s = s.strip()
     # glyph rule (written): the text layer's look-alikes of 0 and 1. "U" for 0 was hand-checked on the page images
-    # (Noes "—U" printed "– 0": March 2024 p56, May 2025 p44, November 2025 p47); "S" is not mapped: it stands for
-    # 5 (June 2022 p133) and for 8 (November 2024 p41), so it stays garbled
-    for a_, b_ in (("O", "0"), ("o", "0"), ("Q", "0"), ("D", "0"), ("U", "0"), ("I", "1"), ("l", "1")):
+    # of stated tally counts only (Noes "—U" printed "– 0": March 2024 p56, May 2025 p44, November 2025 p47), so it
+    # is mapped only there (tally=True), never in attendance counts, an ABSENT count or a date's day
+    # (parse-accuracy/glyph-scope); "S" is not mapped: it stands for 5 (June 2022 p133) and for 8 (November 2024
+    # p41), so it stays garbled
+    glyphs = (("O", "0"), ("o", "0"), ("Q", "0"), ("D", "0"), ("I", "1"), ("l", "1")) + ((("U", "0"),) if tally else ())
+    for a_, b_ in glyphs:
         s = s.replace(a_, b_)
     return int(s) if s.isdigit() else None
 
@@ -643,7 +646,7 @@ def read_table(lines: list[str], h: int, nxt: int, roster: list[str], source: st
     else:
         gm = TALLY.search(lines[tally_i]).groups()
         marks, g = gm[0::2], gm[1::2]
-        vals = tuple(_int(x) if x is not None else None for x in g)
+        vals = tuple(_int(x, tally=True) if x is not None else None for x in g)
         # a count is garbled when it does not read as a number, or a mark that may be (part of) a digit stands in
         # front of it or in place of it; only a count with nothing but spaces and dashes before the next label is
         # printed blank (neutrality/derived-count-shown-as-stated)

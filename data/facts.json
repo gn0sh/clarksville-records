@@ -28661,7 +28661,12 @@
       "title": "Application ofSunikumar Arunagirl from R- I to R-3",
       "year": 2022,
       "zoning": {
-        "acreage": null,
+        "acreage": {
+          "page": 8,
+          "printed": null,
+          "source_id": "src-3a926fac623a",
+          "value": 1.0
+        },
         "applicant": {
           "page": 8,
           "source_id": "src-3a926fac623a",

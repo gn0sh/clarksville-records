@@ -117,8 +117,9 @@ no usable text layer return `text_layer: "none"` and no fragments (AC-P4: "not e
   never a vote of the previous row's last member. Mid-row, a vote letter with edge noise ("a)" for 9) just before a
   name, after the previous name's own vote mark in that row, is the district column too; a plain letter there still
   counts against the cell (2026-11-08, hand-checked on December 2025 p70).
-- Count glyphs (`parse._int`): "O", "o", "Q", "D" and "U" read as 0, "I" and "l" as 1. "U" for a printed 0 was
-  hand-checked on five page images (2026-11-08). "S" is not mapped: the text layer reads both 5 and 8 as "S", so it
+- Count glyphs (`parse._int`): "O", "o", "Q", "D" read as 0, "I" and "l" as 1. "U" reads as 0 only in a stated
+  tally count (`_int(..., tally=True)`), where a printed 0 read as "U" was hand-checked on five page images
+  (2026-11-08); attendance counts, ABSENT counts and a date's day do not map it (parse-accuracy/glyph-scope). "S" is not mapped: the text layer reads both 5 and 8 as "S", so it
   stays a garbled count. The tally label "Abstentions" is also read with its "s" misread ("Abitentions",
   "Abétentions"); only the label, never a count.
 - Motion type: the motion sentence and the outcome clause are kept verbatim (`motions.text`, `roll_calls.outcome_text`,

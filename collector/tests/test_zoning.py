@@ -272,12 +272,29 @@ def test_acreage_printed_needs_both_engines_to_read_the_same_form(rules):
 
 
 def test_acreage_pattern_takes_only_known_plus_minus_forms(rules):
-    """A garbled "+/-" ("1.00 -i-I- acres", CZ-10-2022's text layer) is not read as a qualifier: the pattern takes only
-    "+/-", its known misreads "+1-", "+!-", "+l-", "+I-", and "±"."""
+    """A garbled "+/-" ("1.00 -i-I- acres", CZ-10-2022's text layer) is not read as a qualifier: the printed form is
+    taken only with "+/-", its known misreads "+1-", "+!-", "+l-", "+I-", and "±". The number is still read, so it can
+    agree or veto (parse-accuracy/narrow-pattern-drops-veto), but that reading never supplies a printed form."""
     for form in ("+/-", "+1-", "+ / -", "+!-", "±"):
         page = resolution().replace("containing 2.32 +1- acres", f"containing 2.32 {form} acres")
         (a,) = [r for r in by_case(Z.page_readings([page], rules), "CZ-01-2024") if r.field == "acreage"]
-        assert a.value == 2.32, form
+        assert a.value == 2.32 and a.as_printed and form.replace(" ", "")[:1] in a.shown, form
     for garble in ("-i-I-", "-I-/-", "+1-x"):
         page = resolution().replace("containing 2.32 +1- acres", f"containing 2.32 {garble} acres")
-        assert not [r for r in by_case(Z.page_readings([page], rules), "CZ-01-2024") if r.field == "acreage"], garble
+        (a,) = [r for r in by_case(Z.page_readings([page], rules), "CZ-01-2024") if r.field == "acreage"]
+        assert a.value == 2.32 and not a.as_printed and a.shown == "2.32", garble
+        # both engines read the same garble: the number is published, never the garbled words
+        rs = by_case(Z.page_readings([page], rules) + Z.page_readings([page], rules, engine="tesseract"), "CZ-01-2024")
+        got = Z.decide(pooled(rs))["acreage"]
+        assert got["value"] == 2.32 and got["printed"] is None, garble
+
+
+def test_a_garbled_suffix_with_another_number_vetoes_the_acreage(rules):
+    """Both engines read "2.32 +/- acres" on one printing; the text layer reads another printing as "2.82 -i-I- acres".
+    That reading is clean in its number and dissents, so the acreage is null (no majority)."""
+    good = resolution().replace("containing 2.32 +1- acres", "containing 2.32 +/- acres")
+    bad = resolution().replace("containing 2.32 +1- acres", "containing 2.82 -i-I- acres")
+    both = Z.page_readings([good], rules) + Z.page_readings([good], rules, engine="tesseract")
+    assert Z.decide(pooled(by_case(both, "CZ-01-2024")))["acreage"]["value"] == 2.32
+    rs = by_case(both + Z.page_readings([bad], rules), "CZ-01-2024")
+    assert Z.decide(pooled(rs))["acreage"] is None
