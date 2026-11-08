@@ -183,3 +183,57 @@ def test_resolve_mover():
     assert P.resolve_commissioner("J. Smith", roster) == "Joe Smith"
     assert P.resolve_commissioner("Smith", roster) is None          # ambiguous: not guessed
     assert P.resolve_commissioner("Woodruff", roster) == "Walker Woodruff"
+
+
+# ------------------------------------------------------------------ reading more correctly (headroom, 2026-11-08)
+# Each rule below was hand-checked on the page images of the roll calls it newly verifies.
+
+def _one_table(rows: list[str], tally: str, absent: str = "ABSENT: None"):
+    from collector import parse as P
+    lines = ["District Commissioner Vote District Commissioner Vote District Commissioner Vote"] + rows + [tally, absent]
+    return P.read_table(lines, 0, len(lines), ROSTER6, "text-layer")[0]
+
+
+ROSTER6 = ["John Gannon", "Jason Knight", "Joe Smith", "LaTonia Brown", "Jorge Padro", "Jeremiah Walker"]
+ROWS6 = ["1   John Gannon      Y      8    LaTonia Brown     Y",
+         "2   Jason Knight     Y      9    Jorge Padro       Y",
+         "3   Joe Smith        Y     10    Jeremiah Walker   Y"]
+
+
+def test_text_layer_u_for_a_printed_zero_is_zero_but_s_stays_garbled():
+    """"Noes—U" is the text layer's reading of "Noes – 0" (March 2024 p56, May 2025 p44, November 2025 p47, February
+    2022 p15 and p74, checked on the images); "S" stands for 5 in some places and 8 in others, so it stays garbled."""
+    from collector import parse as P
+    assert P._int("U") == 0 and P._int("S") is None
+    r = _one_table(ROWS6, "Yeses —6         Noes—U Abstentions          —   0")
+    assert r.tally == (6, 0, 0) and r.printed == (6, 0, 0) and not r.reasons
+    r = _one_table(ROWS6, "Yeses —6 Noes —S Abstentions —0")
+    assert r.tally is None and any(x.startswith("tally unreadable") for x in r.reasons)
+
+
+def test_a_misread_s_in_the_abstentions_label_is_still_the_tally_line():
+    """tesseract reads "Abstentions" as "Abitentions" or "Abétentions" (April 2026 p28, p92): the label, never a
+    count, is read through it."""
+    for label in ("Abitentions", "Abétentions", "Ab~tentions", "Abstentions"):
+        r = _one_table(ROWS6, f"Yeses—6 Noes—0 {label} — 0")
+        assert r.tally == (6, 0, 0) and not r.reasons, label
+    assert _one_table(ROWS6, "Yeses—6 Noes—0 Absent — 0").tally is None       # not the label
+
+
+def test_a_noisy_vote_letter_in_the_mid_row_district_column_is_the_district():
+    """tesseract reads district 9 as "a)" between Jason Knight's "Y" and Jorge Padro (December 2025 p70)."""
+    rows = list(ROWS6)
+    rows[1] = "2   Jason Knight     Y      a)    Jorge Padro       Y"
+    r = _one_table(rows, "Yeses—6 Noes—0 Abstentions—0")
+    assert r.votes["Jason Knight"] == "Yes" and r.clean["Jason Knight"] and not r.reasons
+    # a plain second letter is not skipped: it still counts against the cell
+    rows[1] = "2   Jason Knight     Y      A    Jorge Padro       Y"
+    r = _one_table(rows, "Yeses—6 Noes—0 Abstentions—0")
+    assert r.votes["Jason Knight"] == "?"
+    # with the district number dropped, the vote letter just before the next name is still the vote
+    rows[1] = "2   Jason Knight     Y            Jorge Padro       Y"
+    rows[0] = "1   John Gannon             LaTonia Brown     Y"
+    r = _one_table(rows, "Yeses—5 Noes—0 Abstentions—0")
+    assert r.votes["John Gannon"] == "none"
+    rows[0] = "1   John Gannon      Y      LaTonia Brown     Y"
+    assert _one_table(rows, "Yeses—6 Noes—0 Abstentions—0").votes["John Gannon"] == "Yes"
