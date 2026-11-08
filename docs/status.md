@@ -63,7 +63,10 @@
 | 2026-11-08 | code-reviewer | opus/high | fresh review d251fcb (readings + acreage) | request changes: must-fix parse-accuracy/reprint-dissent-unchecked (rate to 0.890), provenance/acreage-printed-uncorroborated; should-fix tests-miss-new-dissent, registry-walk-skips-dicts; nit a11y |
 | 2026-11-08 | backend-engineer | opus/high | reprint dissent + acreage fixes, then headroom by better readings | done, b2d0d0f..42d763e: 347/390 after fixes, 354/390 (0.908) after headroom; 0 verified values changed; 26-2-6 p138 = 2 real roll calls; 0 titles fixed (glue not seen by both engines); 499 pass |
 | 2026-11-08 | code-reviewer | opus/high | delta re-review of 42d763e | approve with nits: glyph-scope, narrow-pattern-drops-veto, schema-printed-null |
-| 2026-11-08 | backend-engineer | opus/medium | 3 review nits | running |
+| 2026-11-08 | backend-engineer | opus/medium | 3 review nits | done, 98e6b21: 354/390 kept, 502 pass |
+| 2026-11-08 | qa-engineer | sonnet/medium | verify b983bfb | PASS: 508 pass, site_checks PASS all (44,100 name links, row-height 4 widths); process/offline-build-clobbers-facts (low) |
+| 2026-11-08 | code-reviewer | opus/high | fresh review frontend pass + nits at b983bfb | request changes: must-fix provenance/vote-on-rule-unpublished, parse-accuracy/narrow-pattern-drops-veto (staff pattern, repeat); nit suffix-swallows-range; should-fix neutrality/unconfirmed-vote-on-untested, perf/clamp-layout-thrash |
+| 2026-11-08 | backend-engineer | opus/high | review fixes at b983bfb (all acreage patterns listed first) | running |
 | 2026-11-08 | frontend-engineer | sonnet/medium | name links site-wide + table row heights + not-confirmed chip + vote-on label | done, 8a50f58: 44,100 name links checked; row-height check at 4 widths; final full suite and site_checks not re-run after last tweak |
 | 2026-11-08 | code-reviewer | opus/high | delta re-review of landing fixes | approve with nits: a11y-headings/officials-sections; provenance/acreage-not-as-printed (3rd provenance hit, fresh review next); provenance/open-run-latest-mismatch (latent) |
 | 2026-11-08 | qa-engineer | sonnet/medium | re-test landing bugs | PASS all; site_checks PASS incl. layout, provenance |
@@ -83,8 +86,8 @@
 | item-history | 2 (review x2): architect states invariant | consent-reprint-duplicates, consent-pulled |
 | politeness | 1 (review) | redirect-bypass |
 | idempotence | 1 (review) | superseded-source |
-| provenance | 3 (review 11-08 x2, delta): invariant stated (2c9dba6); fresh review on next fix | derived-count-shown-as-stated, derived-seat-dates-shown-as-term, acreage-not-as-printed, open-run-latest-mismatch |
-| parse-accuracy | 3 (review 11-08, rezoning review, fresh review d251fcb): invariant stated e9c7502; implementation miss #1 of the re-plan (escalate to Brian only after 2) | verified-rate, combine-ignores-unclean-dissent, outcome-crosses-clause, two-thirds-majority |
+| provenance | 4 (review 11-08 x2, delta, fresh b983bfb): invariant stated (2c9dba6); fresh review on next fix | derived-count-shown-as-stated, derived-seat-dates-shown-as-term, acreage-not-as-printed, open-run-latest-mismatch, vote-on-rule-unpublished |
+| parse-accuracy | 3 (review 11-08, rezoning review, fresh review d251fcb): invariant stated e9c7502; implementation miss #2 of the re-plan at b983bfb (sibling staff-acreage pattern left out of the consumer list): every pattern consumer must now be listed before the fix; FYI to Brian, no ask | narrow-pattern-drops-veto, suffix-swallows-range, verified-rate, combine-ignores-unclean-dissent, outcome-crosses-clause, two-thirds-majority |
 
 ## Skipped panels
 - Architect recommended a 3-member Brain Trust on the facts schema and id scheme; skipped for today's preview (private, data regenerated from source each run, so the schema is cheap to change before public launch). Revisit at M1.5.
