@@ -725,6 +725,12 @@ ZONING_FIELDS = (("applicant", "Applicant"), ("location", "Location"), ("acreage
                  ("from_zoning", "From zoning"), ("to_zoning", "To zoning"))
 
 
+def acreage_number_text(v: float) -> str:
+    """An acreage whose printed form no two engines read alike (`printed` null, collector/zoning.py rule 6): the
+    number only, worded so it never claims to be the printed form (provenance/acreage-printed-uncorroborated)."""
+    return f"{v:g} {'acre' if v == 1 else 'acres'} (number from the minutes)"
+
+
 def zoning_rows(ix: Index, item: dict) -> list[dict]:
     """A rezoning case's fields (collector/zoning.py), each as the minutes print it with its source page. A null
     field (no two readings agreed) is left out, never filled in."""
@@ -735,7 +741,10 @@ def zoning_rows(ix: Index, item: dict) -> list[dict]:
         if f is None:
             continue
         v = f["value"]
-        text = ", ".join(v) if isinstance(v, list) else (f["printed"] if key == "acreage" else str(v))
+        if key == "acreage":
+            text = f["printed"] if f.get("printed") else acreage_number_text(v)
+        else:
+            text = ", ".join(v) if isinstance(v, list) else str(v)
         rows.append({"key": key, "label": label, "value": text, "src": ix.src(f["source_id"], f["page"])})
     return rows
 

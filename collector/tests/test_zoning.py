@@ -247,3 +247,37 @@ def test_zoning_keys_are_registered_as_stated():
         assert PROVENANCE[f"facts.json:items.zoning.{f}.value"] == "stated"
         assert PROVENANCE[f"facts.json:items.zoning.{f}.page"].startswith("derived: ")
     assert PROVENANCE["facts.json:items.zoning.acreage.printed"] == "stated"
+
+
+def test_acreage_printed_needs_both_engines_to_read_the_same_form(rules):
+    """The engines agree on the number but read its words differently: the number is published, the printed form is
+    null, and the site words it as the number only (provenance/acreage-printed-uncorroborated)."""
+    a_page = resolution().replace("containing 2.32 +1- acres", "containing approximately 2.32 +/- acres")
+    b_page = resolution().replace("containing 2.32 +1- acres", "containing 2.32 +/- acres")
+    rs = by_case(Z.page_readings([a_page], rules) + Z.page_readings([b_page], rules, engine="tesseract"), "CZ-01-2024")
+    a = Z.decide(pooled(rs))["acreage"]
+    assert a["value"] == 2.32 and a["printed"] is None and a["page"] == 1
+    # "+1-" (text layer) and "+/-" (tesseract) are one symbol in the key: stated, shown with "+/-"
+    c_page = resolution()
+    rs = by_case(Z.page_readings([c_page], rules) + Z.page_readings([b_page], rules, engine="tesseract"), "CZ-01-2024")
+    assert Z.decide(pooled(rs))["acreage"]["printed"] == "2.32 +/- acres"
+    from sitegen.views import acreage_number_text, zoning_rows
+
+    class Ix:
+        def src(self, sid, page):
+            return {"sid": sid, "page": page}
+    (row,) = zoning_rows(Ix(), {"zoning": {"acreage": a}})
+    assert row["value"] == "2.32 acres (number from the minutes)" and "printed" not in row["value"]
+    assert acreage_number_text(1.0) == "1 acre (number from the minutes)"
+
+
+def test_acreage_pattern_takes_only_known_plus_minus_forms(rules):
+    """A garbled "+/-" ("1.00 -i-I- acres", CZ-10-2022's text layer) is not read as a qualifier: the pattern takes only
+    "+/-", its known misreads "+1-", "+!-", "+l-", "+I-", and "±"."""
+    for form in ("+/-", "+1-", "+ / -", "+!-", "±"):
+        page = resolution().replace("containing 2.32 +1- acres", f"containing 2.32 {form} acres")
+        (a,) = [r for r in by_case(Z.page_readings([page], rules), "CZ-01-2024") if r.field == "acreage"]
+        assert a.value == 2.32, form
+    for garble in ("-i-I-", "-I-/-", "+1-x"):
+        page = resolution().replace("containing 2.32 +1- acres", f"containing 2.32 {garble} acres")
+        assert not [r for r in by_case(Z.page_readings([page], rules), "CZ-01-2024") if r.field == "acreage"], garble

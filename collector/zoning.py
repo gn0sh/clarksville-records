@@ -30,7 +30,9 @@ The agreement rule (written, the same for every case and field):
    capitals like "BUck") with a word break only where at least one reading of each engine has one. The text layer
    drops spaces and tesseract adds them ("Mc Donald"), so a break only one engine saw is not shown. An acreage
    also keeps its printed form by the same rule (`printed`: "2.320 +/- acres", where the printing wraps the number
-   in `acreage_printed`), beside the number, so "+/-", "approximately" and trailing zeros are not lost.
+   in `acreage_printed`), beside the number, so "+/-", "approximately" and trailing zeros are not lost. The printed
+   form is stated only from one printing that both engines read with the same key of the whole form ("+/-" and its
+   known misreads one symbol); otherwise `printed` is null and only the number is shown, never as printed.
 """
 from __future__ import annotations
 
@@ -361,5 +363,30 @@ def decide(readings: list) -> dict:
         value = list(r.value) if isinstance(r.value, tuple) else (shown if isinstance(r.value, str) else r.value)
         out[field] = {"value": value, "source_id": sid, "page": r.page}
         if field == "acreage":                          # the number as printed, with its words (rule 6)
-            out[field] = {"value": value, "printed": shown, "source_id": sid, "page": r.page}
+            got = _printed(g)
+            if got is None:     # no printing both engines read alike: the number only, never an "as printed" form
+                out[field] = {"value": value, "printed": None, "source_id": sid, "page": r.page}
+            else:
+                printed, (pr, psid, _) = got
+                out[field] = {"value": value, "printed": printed, "source_id": psid, "page": pr.page}
     return out
+
+
+def _printed(g: list):
+    """(printed form, the reading that supplies its page) of an acreage, or None (rule 6). The printed form is stated
+    only from one printing (one document, page, printing and match) that both engines read with one _text_key of the
+    printed form ("+/-" and its misreads one symbol) and no reading of that printing reads another. The shown form
+    pools every such printing with that same key (the shown-form rule, as for any agreeing readings); among the keys,
+    the best-ranked reading's. The number's agreement alone never makes its words stated
+    (provenance/acreage-printed-uncorroborated)."""
+    by: dict[tuple, list] = {}
+    for x in g:
+        r, sid, _ = x
+        by.setdefault((sid, r.page, r.printing, r.nth), []).append(x)
+    forms: dict[str, list] = {}
+    for grp in by.values():
+        keys = {_text_key(str(x[0].shown)) for x in grp}
+        if {x[0].engine for x in grp} >= set(ENGINES) and len(keys) == 1:
+            forms.setdefault(keys.pop(), []).extend(grp)
+    cands = [_shown(grp) for grp in forms.values()]
+    return min(cands, key=lambda c: _order(c[1])) if cands else None
