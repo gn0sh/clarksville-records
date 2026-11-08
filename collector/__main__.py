@@ -100,6 +100,8 @@ def cmd_build(store: Store, log: dict, use_ocr: bool = True) -> tuple[dict, dict
     chosen, copies, undated = choose(parsed_docs)
     for pm in chosen:
         b.add(pm)
+    for pd in parsed_docs:
+        b.add_zoning(pd)
     for u in undated:
         b.problems.append({"source": u["source_id"], "problem": f"minutes on pp{u['pages'][0]}-{u['pages'][1]}: "
                                                                 f"{u['problem']} ({u['date_how']})"})

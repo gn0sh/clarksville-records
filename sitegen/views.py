@@ -927,6 +927,18 @@ def _search_name(o: dict) -> str:
     return f"{o['surname']}, {o['given']}"
 
 
+def zoning_search_text(item: dict) -> str:
+    """The searchable words of a rezoning case's facts (`item.zoning`, collector/zoning.py): applicant, location and
+    district codes, only the fields that have a value. Search reads these so a name or street finds the case."""
+    z = item.get("zoning") or {}
+    parts = []
+    for name in ("applicant", "location", "from_zoning", "to_zoning"):
+        f = z.get(name)
+        if f is not None:
+            parts.append(" / ".join(f["value"]) if isinstance(f["value"], list) else str(f["value"]))
+    return " · ".join(parts)
+
+
 def search_index(facts) -> dict:
     """The one first-party search index (manager decision Q3), loaded by static/search.js. Unconfirmed roll calls
     carry no outcome and no votes, so a vote or outcome filter can never match one (invariant rules 1 and 5)."""
@@ -939,13 +951,14 @@ def search_index(facts) -> dict:
         records.append({"k": "item", "id": it["id"], "n": it["number"] or "", "t": it["title"],
                         "d": dates[0] if dates else "", "d2": dates[-1] if dates else "", "a": len(evs),
                         "y": sorted({int(d[:4]) for d in dates} or {it["year"]}), "ty": item_types(it), "b": "county",
-                        "h": f"items/{it['year']}.html#{it['id']}"})
+                        "h": f"items/{it['year']}.html#{it['id']}", "z": zoning_search_text(it)})
     for rc in ix.facts["roll_calls"]:
         m = ix.meetings[rc["meeting_id"]]
         it = ix.items.get(rc["item_id"], {})
         rec = {"k": "vote", "id": rc["id"], "n": it.get("number") or "", "t": it.get("title") or rc["item_id"],
                "d": m["date"], "y": [int(m["date"][:4])], "ty": item_types(it) if it else ["other"], "b": "county",
-               "h": f"meetings/{m['id']}.html#{rc['id']}", "c": is_verified(rc), "o": None, "v": None, "s": None}
+               "h": f"meetings/{m['id']}.html#{rc['id']}", "c": is_verified(rc), "o": None, "v": None, "s": None,
+               "z": zoning_search_text(it)}
         if values_shown(rc) and is_verified(rc):  # confirmed only, whatever the display switch says
             rec["o"] = rc["outcome"]
             rec["v"] = {v["official_id"]: v["value"] for v in rc["votes"]

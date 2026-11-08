@@ -85,6 +85,7 @@ class ParsedDocument:
     meetings: list                 # [ParsedMinutes], in document order
     tables_outside_minutes: list   # pages of vote-table headings outside every meeting's minutes (not read)
     page_of_line: list
+    zoning: list = field(default_factory=list)   # [collector.zoning.Reading] of every page, both engines
 
 
 CONSENT_HEAD = re.compile(r"as\s+part\s+of\s+(?:the\s+)?Consent\W{0,3}Agenda\s*:", re.I)
@@ -438,6 +439,7 @@ def parse_minutes(pdf_path: Path, source: dict, use_ocr: bool = True, text_cache
         ocr_pages_parallel(jobs)
         rcs = [reverify(rc, pdf_path, source["sha256"], atts[rc.segment]) if rc.status != "Verified" else rc
                for rc in rcs]
+    zoning = zoning_readings(pdf_path, source, pages, use_ocr)
     outside = sorted({page_of[h] for h in P.table_heads(lines) if owner[h] is None})
     meetings = []
     for sg in segs:
@@ -459,4 +461,28 @@ def parse_minutes(pdf_path: Path, source: dict, use_ocr: bool = True, text_cache
                                  start=0 if sg.page == 1 else sg.start + 1) if sg.role == "own" else [])
         meetings.append(ParsedMinutes(source, len(pages), "text", img, atts[sg.index], mine, cls, agenda,
                                       titles[sg.index], page_of, sg))
-    return ParsedDocument(source, len(pages), "text", img, meetings, outside, page_of)
+    return ParsedDocument(source, len(pages), "text", img, meetings, outside, page_of, zoning)
+
+
+def zoning_readings(pdf_path: Path, source: dict, pages: list[str], use_ocr: bool) -> list:
+    """Zoning case readings (collector.zoning) from the text layer and, with OCR on, tesseract's reading of the same
+    pages. A tesseract reading counts only for a case the text layer places on that page, so a misread case number
+    never moves a reading to another case."""
+    from . import zoning as Z
+    rules = Z.load_rules()
+    if rules is None:
+        return []
+    text = Z.page_readings(pages, rules)
+    if not use_ocr or not text:
+        return text
+    from .ocr import cache_path
+    on_page = {(r.page, r.case) for r in text}
+    want = sorted({r.page for r in text})
+    errors = ocr_pages_parallel([(str(pdf_path), p, source["sha256"]) for p in want])
+    ocr = [""] * len(pages)
+    for p in want:
+        c = cache_path(source["sha256"], p)
+        if not errors.get((source["sha256"], p)) and c.exists():
+            ocr[p - 1] = c.read_text()
+    tess = [r for r in Z.page_readings(ocr, rules, engine="tesseract", only=set(want)) if (r.page, r.case) in on_page]
+    return text + tess

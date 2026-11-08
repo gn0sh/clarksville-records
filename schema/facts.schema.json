@@ -126,8 +126,39 @@
         "number": { "type": ["string", "null"] },
         "title": { "type": "string", "description": "verbatim from first appearance" },
         "link_basis": { "enum": ["number", "title"] },
-        "year": { "type": "integer", "description": "year of first appearance; selects items/<year>.html" }
+        "year": { "type": "integer", "description": "year of first appearance; selects items/<year>.html" },
+        "zoning": {
+          "type": "object",
+          "description": "rezoning cases only (collector/zoning.py): each field as the minutes print it, with its source page, only where two independent readings agree and none disagrees; else null",
+          "additionalProperties": false,
+          "required": ["applicant", "location", "acreage", "from_zoning", "to_zoning"],
+          "properties": {
+            "applicant": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/zoning_text" }], "description": "applicant or owner name(s), verbatim" },
+            "location": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/zoning_text" }], "description": "property location, verbatim" },
+            "acreage": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/zoning_acreage" }] },
+            "from_zoning": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/zoning_codes" }], "description": "present district code(s)" },
+            "to_zoning": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/zoning_codes" }], "description": "requested district code(s)" }
+          }
+        }
       }
+    },
+    "zoning_text": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "source_id", "page"],
+      "properties": { "value": { "type": "string", "minLength": 1 }, "source_id": { "$ref": "#/$defs/source_id" }, "page": { "$ref": "#/$defs/page" } }
+    },
+    "zoning_acreage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "source_id", "page"],
+      "properties": { "value": { "type": "number", "exclusiveMinimum": 0 }, "source_id": { "$ref": "#/$defs/source_id" }, "page": { "$ref": "#/$defs/page" } }
+    },
+    "zoning_codes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "source_id", "page"],
+      "properties": { "value": { "type": "array", "minItems": 1, "items": { "type": "string" } }, "source_id": { "$ref": "#/$defs/source_id" }, "page": { "$ref": "#/$defs/page" } }
     },
     "item_event": {
       "type": "object",
