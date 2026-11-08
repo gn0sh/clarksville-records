@@ -53,7 +53,8 @@
 | 2026-11-08 | software-architect | opus/high | provenance invariant + consumer list (loop rule, 2nd hit) | done, 2c9dba6 |
 | 2026-11-08 | backend-engineer | opus/medium | provenance B1-B3, seats.csv export, look for seating page | running |
 | 2026-11-08 | frontend-engineer | opus/medium | provenance F1-F6 + review should-fixes + QA bugs | running |
-| 2026-11-08 | backend-engineer | opus/medium | rezoning applicant/location fields + search | running |
+| 2026-11-08 | backend-engineer | opus/medium | rezoning applicant/location fields + search | done, e4dadf3: 74/88 CZ items have applicant or location (two agreeing readings only), 431 pass |
+| 2026-11-08 | code-reviewer | sonnet/medium | review rezoning fields | running |
 | 2026-11-08 | qa-engineer | sonnet/medium | QA landing/search/seats + spot-check newly verified | FAIL: landing/one-screen (phone 706px, desktop 913px below fold), attribution/seat-label-missing-former, attribution/seat-label-missing-meeting-history; AC-P1 361/390 PASS; spot-check 10/10 |
 | 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
 
@@ -107,3 +108,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - Backlog (from frontend, 2026-11-08): rezoning items (CZ-) before 2026 carry only the case number as their title, so searching by applicant name finds only the newer ones. backend-engineer to pull applicant and street from the item text. This is the owner's named search use case.
 - 2026-11-08 manager decision (QA bug 2): a name on a date with no roster record is labelled "seat not recorded". The label is never guessed.
 - 2026-11-08 manager decisions on the architect's gaps: seats go into the public export as seats.csv. lines_effective becomes stated only if the minutes page that seats the 2022 commission is found; otherwise it stays derived.
+- 2026-11-08 manager decision: no glyph correction of zoning codes (e.g. R-lA to R-1A). Misread codes stay null, because published values must be exactly what the source states.
