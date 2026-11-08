@@ -62,6 +62,8 @@ word fails the book. A book may set `kind_overrides` (header as printed -> kind)
 "FY 25 Projection" is `adopted` (ADR 0002 amendment 2026-11-08). "Budgeted Difference" and "Percent Change" are read only to locate bands and are never stored or
 shown (no year-over-year values; they also carry book sign and rounding slips, see 9). A number whose right edge lies
 in no band, two numbers in one band, or a non-amount token raises check `column-align`: the line is held back.
+A derived band holding two tokens, a token not of the derived forms, or one off its column's right edge raises
+check `derived-spill` (a value spilled out of its own column): the line is held back too.
 "-" is 0 as printed; a blank cell is `null` ("not printed").
 
 **Row roles and scopes** (all positional; labels in config `budget.rows`):

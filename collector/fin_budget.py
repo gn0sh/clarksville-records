@@ -16,6 +16,10 @@ finance.yml `budget` (fin_config.BudgetRules); the code holds no locality litera
   whose right edge lies in [band j left edge, band j+1 left edge). A value band with two tokens, a token that is not
   an amount, or a digit token off its column's right edge by more than ALIGN_TOL holds the line (check
   `column-align`): its dollars are null and it is still listed. "-" is 0 as printed; no token is a blank cell (null).
+  Derived bands are never stored, but their tokens are checked too: two tokens, a token that is not a number of the
+  derived forms ("(1,234)", "12.50", "-3.10%", "-"), or one off its column's right edge (per trailing character: digit,
+  ")", "%", "-") holds the line (check `derived-spill`, column-kind/derived-band-spill): a value that spilled
+  into a derived column would otherwise leave its own cell blank unnoticed.
 - Row roles and scopes as A2: a fund line opens a fund (carried across pages); a line with no amounts opens a section;
   account-coded and codeless rows are detail; a `subtotal_labels` row scopes the coded rows directly above it whose
   code matches its label's code class (budget-reconcile/subtotal-scope-class); a
@@ -36,8 +40,10 @@ from .pdfwords import Line, Word, lines as group_lines
 BAND_GAP = 8.0           # points: words of one header phrase are closer than this ("FY" "2025")
 ALIGN_TOL = 2.0          # points: digit amounts of one column share their right edge (pdfwords test: 1 pt)
 AMOUNT = re.compile(r"^(\()?(\d{1,3}(?:,\d{3})*)(?(1)\))$")
+DERIVED = re.compile(r"^(\()?-?(?=[\d.])(?:\d{1,3}(?:,\d{3})*)?(?:\.\d+)?%?(?(1)\))$")  # "(1,234)" "(.50)" "-3.10%"
 DASH = "-"
 HELD_ALIGN = "column-align"
+HELD_DERIVED = "derived-spill"
 
 
 class BookLayoutError(Exception):
@@ -204,14 +210,38 @@ def has_amount(row: _Row) -> bool:
     return any(is_amount(w.text) for ws in row.tokens.values() for w in ws)
 
 
+def _edge_class(tok: str) -> str:
+    """A derived token's right-edge class: its last character unless a digit ("(1,234)" ends 3 pt right of "1,234")."""
+    return "d" if tok[-1].isdigit() else tok[-1]
+
+
 def column_edges(rows: list[_Row], bands: list[Band]) -> dict:
-    """Per value band, the most common right edge of its digit tokens on the page (amounts are right-aligned)."""
-    edges: dict[int, Counter] = {}
+    """Per value band j, the most common right edge of its digit tokens on the page (amounts are right-aligned); per
+    derived band, (j, edge class) -> the most common right edge of its tokens of that class."""
+    edges: dict = {}
     for r in rows:
         for j, ws in r.tokens.items():
-            if bands[j].kind and len(ws) == 1 and ws[0].text != DASH and is_amount(ws[0].text):
+            if len(ws) != 1:
+                continue
+            t = ws[0].text
+            if bands[j].kind and t != DASH and is_amount(t):
                 edges.setdefault(j, Counter())[round(ws[0].x1)] += 1
-    return {j: c.most_common(1)[0][0] for j, c in edges.items()}
+            elif not bands[j].kind and (t == DASH or DERIVED.match(t)):
+                edges.setdefault((j, _edge_class(t)), Counter())[round(ws[0].x1)] += 1
+    return {k: c.most_common(1)[0][0] for k, c in edges.items()}
+
+
+def derived_spill(row: _Row, bands: list[Band], edges: dict) -> bool:
+    """True when a derived band of the row holds what cannot be its own value (column-kind/derived-band-spill)."""
+    for j, ws in row.tokens.items():
+        if bands[j].kind:
+            continue
+        if len(ws) > 1 or not (ws[0].text == DASH or DERIVED.match(ws[0].text)):
+            return True
+        e = edges.get((j, _edge_class(ws[0].text)))
+        if e is not None and abs(ws[0].x1 - e) > ALIGN_TOL:
+            return True
+    return False
 
 
 def read_cells(row: _Row, bands: list[Band], edges: dict) -> tuple[list[dict], str | None]:
@@ -228,6 +258,8 @@ def read_cells(row: _Row, bands: list[Band], edges: dict) -> tuple[list[dict], s
             held = HELD_ALIGN
         cells.append({"header_as_printed": b.header, "fiscal_year": b.fiscal_year, "kind": b.kind,
                       "as_printed": text, "dollars": dollars})
+    if not held and derived_spill(row, bands, edges):
+        held = HELD_DERIVED
     if held:
         for c in cells:
             c["dollars"] = None

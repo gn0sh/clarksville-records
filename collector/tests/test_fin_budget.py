@@ -290,3 +290,40 @@ def test_an_override_that_matches_no_header_fails_the_book():
     bad = dataclasses.replace(spec, kind_overrides=(("FY 25 Projected", "adopted"),))
     with pytest.raises(fin_budget.BookLayoutError, match="kind_overrides"):
         fin_budget.read_book(book_words("fy2025-approved"), bad, FCFG.budget)
+
+
+# ------------------------------------------------------------------ derived bands (column-kind/derived-band-spill)
+def test_a_value_spilled_into_a_derived_band_holds_the_line():
+    """The FY 2027 "-" of one p. 105 row printed 30 pt right lands in the Budgeted Difference band: its own cell would
+    read blank, so the line is held (derived-spill) and nothing of it is shown as a value."""
+    def spill(words):
+        row_y = next(w.yc for w in words if w.text == "40125")
+        return [Word(w.page, w.x0 + 30, w.x1 + 30, w.y0, w.y1, w.text) if abs(w.yc - row_y) < 3 and 540 < w.x1 < 560
+                else w for w in words]
+    _, lines = read("fy2027-approved", [105], spill)
+    x = line(lines, 105, "TRUSTEE COLLECTIONS - BANKRUPT")
+    assert x["held"] == fin_budget.HELD_DERIVED and values(x) == [None, None, None]
+    assert x["cells"][2]["as_printed"] is None
+    assert line(lines, 105, "CURRENT PROPERTY TAX")["held"] is None
+
+
+def test_a_non_number_or_off_edge_token_in_a_derived_band_holds_the_line():
+    def word_in_percent(words):
+        return [Word(w.page, w.x0, w.x1, w.y0, w.y1, "n/a") if w.text == "(71.40)" else w for w in words]
+    _, lines = read("fy2027-approved", [105], word_in_percent)
+    assert line(lines, 105, "CURRENT PROPERTY TAX")["held"] == fin_budget.HELD_DERIVED
+
+    def off_edge(words):
+        return [Word(w.page, w.x0 - 8, w.x1 - 8, w.y0, w.y1, w.text) if w.text == "(9,106,000)" else w for w in words]
+    _, lines = read("fy2027-approved", [105], off_edge)
+    assert line(lines, 105, "CURRENT PROPERTY TAX")["held"] == fin_budget.HELD_DERIVED
+
+
+def test_derived_band_forms_and_real_pages_hold_nothing():
+    for tok in ("(1,234)", "(.50)", "-3.10%", "12.50", "9,999.99", "100.00"):
+        assert fin_budget.DERIVED.match(tok), tok
+    for tok in ("n/a", ".", "(12", "12,34", "1.2.3"):
+        assert not fin_budget.DERIVED.match(tok), tok
+    for book, pages in (("fy2027-approved", [36, 37, 105, 107, 108]), ("fy2025-approved", [31, 33, 36, 98, 99, 103])):
+        _, lines = read(book, pages)
+        assert not any(x["held"] for x in lines.values()), book
