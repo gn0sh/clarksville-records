@@ -54,7 +54,7 @@ def test_no_value_from_a_scan_or_shared_url(fin):
     docs = {d["id"]: d for d in fin["documents"]}
     for d in docs.values():
         if d["source_id"]:
-            assert d["scanned"] == (src[d["source_id"]]["text_layer"] == "none")
+            assert d["scanned"] == (src[d["source_id"]]["text_layer"] != "text")
     for s in fin["solicitations"]:
         t = s["bid_tab"]
         if t and t["tab_type"] == "lump_sum":

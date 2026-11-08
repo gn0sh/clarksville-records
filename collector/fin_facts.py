@@ -168,7 +168,8 @@ def build(store, cfg: FinanceConfig, status_path: Path | None = None, meta_cache
             shared = sorted(linked_by[lk.url]) if len(linked_by[lk.url]) > 1 else []
             documents[did] = {"id": did, "url": lk.url, "link_label": lk.label, "stage": lk.stage,
                               "source_id": src["id"] if src else None, "status": state,
-                              "scanned": bool(src and src["text_layer"] == "none"),
+                              # a scanner's OCR text is scanned too: no value is read from it (scan-values/*)
+                              "scanned": bool(src and src["text_layer"] != "text"),
                               "doc_date_text": None, "doc_date_page": None, "shared_by": shared, "fetched_at": when}
     census: list[Census] = []
     solicitations = []

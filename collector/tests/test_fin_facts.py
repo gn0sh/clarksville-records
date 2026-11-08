@@ -75,6 +75,24 @@ def test_document_states(built):
     assert {d["stage"] for d in scanned} == {"bid_tab", "award_letter"}
 
 
+def test_ocr_documents_are_marked_scanned(fake, monkeypatch):
+    """scan-values/ocr-not-marked-scanned: a scanner's OCR text layer is a scan for the Scanned chip and the counts,
+    not only an image-only file."""
+    cases = fake.default_cases()
+    cases["Award%20Letter%20-%20Wheel%20Loader.pdf"] = ("ocr", "")
+    ff = FakeFin(fake.tmp / "ocr", cases)
+    fin, _ = ff.build(monkeypatch)
+    src = {s["id"]: s for s in fin["sources"]}
+    by_layer = {}
+    for d in fin["documents"]:
+        if d["source_id"]:
+            by_layer.setdefault(src[d["source_id"]]["text_layer"], set()).add(d["scanned"])
+    assert by_layer["ocr"] == {True} and by_layer["none"] == {True} and by_layer["text"] == {False}
+    paint = next(d for d in fin["documents"] if d["url"].endswith("Bid%20Tab%20-%20Traffic%20Paint%20FY27.pdf"))
+    assert paint["scanned"]
+    assert fin["coverage"]["n_award_scanned"] == 1                  # the OCR letter: 0 if only none were scanned
+
+
 def test_coverage_is_the_one_function(built):
     fin, _ = built
     assert fin["coverage"] == fin_checks.coverage(fin)

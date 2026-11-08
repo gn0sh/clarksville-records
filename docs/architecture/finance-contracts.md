@@ -99,7 +99,7 @@ content_type, creator`.
   `held[]` {`field`, `check`} (values held as Not confirmed*), `row` (archive row index), `archive_source_id`.
 - **documents**: `id` (`doc-<sha1(url)[:10]>`), `url`, `link_label`, `stage`, `source_id` or null (not fetched:
   Bonfire, non-PDF, dead link), `status` (`fetched` | `not_pdf` | `link_only` | `dead_at_fetch`), `scanned` (bool;
-  true when the source's `text_layer` is `none`, the existing enum), `doc_date_text` + `doc_date_page` (only a text
+  true when the source's `text_layer` is not `text`: `none`, or `ocr` from a scanner), `doc_date_text` + `doc_date_page` (only a text
   document's own labelled date; else null), `shared_by` (other solicitation ids linking the same URL), `fetched_at`.
 - **books**: `id` (e.g. `fy2027-approved`), `title`, `edition`, `fiscal_year`, `source_id`, `pages_read[]`, `columns[]`.
 - **budget_lines**: `id` (`<book_id>/p<page>/r<line index>`), `book_id`, `edition`, `fund_no`, `fund_name`, `statement`

@@ -164,7 +164,7 @@
         "stage": { "enum": ["bid_tab", "award_letter", "partial_award", "notice_of_intent", "notice_of_award", "bid", "rfp", "rfq", "addendum", "qa", "forms", "advertisement", "drawings", "other"] },
         "source_id": { "oneOf": [{ "$ref": "#/$defs/source_id" }, { "type": "null" }], "description": "null when not fetched: Bonfire, non-PDF, dead link" },
         "status": { "enum": ["fetched", "not_pdf", "link_only", "dead_at_fetch"] },
-        "scanned": { "type": "boolean", "description": "true when the source's text_layer is none" },
+        "scanned": { "type": "boolean", "description": "true when the source's text_layer is not text (none, or a scanner's ocr): no value is read from it" },
         "doc_date_text": { "type": ["string", "null"], "description": "UX doc_date: only a text document's own labelled date" },
         "doc_date_page": { "oneOf": [{ "$ref": "#/$defs/page" }, { "type": "null" }] },
         "shared_by": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/solicitation_id" }, "description": "other solicitations linking the same URL; non-empty = link only, no values" },
