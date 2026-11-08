@@ -153,7 +153,7 @@
       "additionalProperties": false,
       "required": ["value", "printed", "source_id", "page"],
       "properties": { "value": { "type": "number", "exclusiveMinimum": 0 },
-                      "printed": { "type": "string", "minLength": 1, "description": "the acreage as the minutes print it, with its words (\"2.320 +/- acres\", \"approximately .91 acres\")" },
+                      "printed": { "type": ["string", "null"], "minLength": 1, "description": "the acreage as the minutes print it, with its words (\"2.320 +/- acres\", \"approximately .91 acres\"); null when no printing was read alike by both engines (the number only is shown)" },
                       "source_id": { "$ref": "#/$defs/source_id" }, "page": { "$ref": "#/$defs/page" } }
     },
     "zoning_codes": {

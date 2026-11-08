@@ -32,7 +32,8 @@ The agreement rule (written, the same for every case and field):
    also keeps its printed form by the same rule (`printed`: "2.320 +/- acres", where the printing wraps the number
    in `acreage_printed`), beside the number, so "+/-", "approximately" and trailing zeros are not lost. The printed
    form is stated only from one printing that both engines read with the same key of the whole form ("+/-" and its
-   known misreads one symbol); otherwise `printed` is null and only the number is shown, never as printed.
+   known misreads one symbol); otherwise `printed` is null and only the number is shown, never as printed. A
+   reading whose "+/-" is garbled ("-i-I-") still reads its number, which agrees or vetoes, but gives no printed form.
 """
 from __future__ import annotations
 
@@ -95,6 +96,7 @@ class Reading:
     engine: str
     page: int
     nth: int = 0                # which printing of this kind for this case on this page (pairs the two engines)
+    as_printed: bool = True     # acreage: the printed form is well formed (False: a garbled "+/-", number only)
 
 
 # ---------------------------------------------------------------- values
@@ -107,6 +109,10 @@ def _squash(s: str) -> str:
 # layer as "+1-", "+!-", "+l-" or "+I-". In a key every such form is one symbol, so the readings can agree; the value
 # shown is a reading that has "+/-" as printed (see _shown_rank). Nothing else in a reading is mapped.
 PLUS_MINUS = re.compile(r"\+\s?[1/!lI]\s?-|±|\+/")
+# The "+/-" forms an acreage's printed form may carry (the pattern's `acreage_suffix`). The pattern also takes a garbled
+# suffix ("1.00 -i-I- acres", CZ-10-2022's text layer) so its number is still a reading that can veto (parse-accuracy/
+# narrow-pattern-drops-veto); only that reading's printed form is dropped.
+KNOWN_SUFFIX = re.compile(r"\+ ?[/1!lI] ?-|±")
 
 
 def _text_key(s: str) -> str:
@@ -210,9 +216,13 @@ def _match_fields(text: str, pr: dict, rules: Rules, case: str, engine: str, pag
             got = _value(field, raw, rules, pr["named_districts"])
             # matched but malformed: kept as a reading that vetoes the field (rule 2), never dropped
             value, shown, key = got if got else (None, _squash(raw), MALFORMED)
-            if got and field == "acreage" and gd.get("acreage_printed"):
-                shown = _squash(gd["acreage_printed"])        # "2.320 +/- acres", "approximately .91 acres"
-            out.append(Reading(case, field, value, shown, key, pr["name"], engine, page, first + k))
+            as_printed = True
+            if field == "acreage":
+                suffix = (gd.get("acreage_suffix") or "").strip()
+                as_printed = bool(gd.get("acreage_printed")) and (not suffix or bool(KNOWN_SUFFIX.fullmatch(suffix)))
+                if got and as_printed:
+                    shown = _squash(gd["acreage_printed"])    # "2.320 +/- acres", "approximately .91 acres"
+            out.append(Reading(case, field, value, shown, key, pr["name"], engine, page, first + k, as_printed))
     return out
 
 
@@ -375,7 +385,8 @@ def decide(readings: list) -> dict:
 def _printed(g: list):
     """(printed form, the reading that supplies its page) of an acreage, or None (rule 6). The printed form is stated
     only from one printing (one document, page, printing and match) that both engines read with one _text_key of the
-    printed form ("+/-" and its misreads one symbol) and no reading of that printing reads another. The shown form
+    printed form ("+/-" and its misreads one symbol), no reading of that printing reads another, and none has a
+    garbled "+/-" (Reading.as_printed). The shown form
     pools every such printing with that same key (the shown-form rule, as for any agreeing readings); among the keys,
     the best-ranked reading's. The number's agreement alone never makes its words stated
     (provenance/acreage-printed-uncorroborated)."""
@@ -386,7 +397,7 @@ def _printed(g: list):
     forms: dict[str, list] = {}
     for grp in by.values():
         keys = {_text_key(str(x[0].shown)) for x in grp}
-        if {x[0].engine for x in grp} >= set(ENGINES) and len(keys) == 1:
+        if {x[0].engine for x in grp} >= set(ENGINES) and len(keys) == 1 and all(x[0].as_printed for x in grp):
             forms.setdefault(keys.pop(), []).extend(grp)
     cands = [_shown(grp) for grp in forms.values()]
     return min(cands, key=lambda c: _order(c[1])) if cands else None

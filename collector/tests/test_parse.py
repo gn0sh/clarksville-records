@@ -204,11 +204,20 @@ def test_text_layer_u_for_a_printed_zero_is_zero_but_s_stays_garbled():
     """"Noes—U" is the text layer's reading of "Noes – 0" (March 2024 p56, May 2025 p44, November 2025 p47, February
     2022 p15 and p74, checked on the images); "S" stands for 5 in some places and 8 in others, so it stays garbled."""
     from collector import parse as P
-    assert P._int("U") == 0 and P._int("S") is None
+    assert P._int("U", tally=True) == 0 and P._int("S", tally=True) is None
     r = _one_table(ROWS6, "Yeses —6         Noes—U Abstentions          —   0")
     assert r.tally == (6, 0, 0) and r.printed == (6, 0, 0) and not r.reasons
     r = _one_table(ROWS6, "Yeses —6 Noes —S Abstentions —0")
     assert r.tally is None and any(x.startswith("tally unreadable") for x in r.reasons)
+
+
+def test_u_for_zero_is_mapped_only_in_tally_counts():
+    """"U" for 0 was checked on tally counts only, so an attendance count, an ABSENT count or a date's day with "U"
+    stays garbled (parse-accuracy/glyph-scope); the other glyphs still map everywhere."""
+    from collector import parse as P
+    assert P._int("U") is None and P._int("1U") is None and P._int("1O") == 10
+    assert P.header_date("on Sunday, December 1O, 2023")[0] == "2023-12-10"     # the O rule is unchanged
+    assert P.header_date("on Sunday, December 1U, 2023")[0] is None
 
 
 def test_a_misread_s_in_the_abstentions_label_is_still_the_tally_line():
