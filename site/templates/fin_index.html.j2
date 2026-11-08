@@ -1,0 +1,44 @@
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import fact_meta %}
+{% from "_fin_macros.html.j2" import fin_cites, words_toggle %}
+{% block main %}
+{# Design finance-contracts 6: books, then funds in the book's order. No amounts, no chart, no total tile. #}
+<h1>{{ b.title }}</h1>
+<p class="coverage">{{ coverage_sentence }}</p>
+<p class="note">{{ notes.e }}</p>
+
+<section aria-labelledby="books-h">
+<h2 id="books-h">{{ b.books_heading }}</h2>
+<ul class="fin-books">
+{% for bk in books %}
+  <li><a href="{{ bk.url }}" target="_blank" rel="noopener noreferrer">{{ bk.title }}<span class="sr-only"> (opens the budget book PDF in a new tab)</span></a> <span class="muted">FY{{ bk.fiscal_year }}, {{ bk.edition }}, fetched {{ bk.fetched }}</span></li>
+{% endfor %}
+</ul>
+{% for m in missing %}<p class="note">{{ m }}</p>
+{% endfor %}
+</section>
+
+<section aria-labelledby="funds-h">
+<h2 id="funds-h"><a href="{{ root }}glossary.html#fund">{{ b.funds_heading }}</a></h2>
+<div class="table-scroll fin-scroll">
+<table class="fin-stack fin-funds">
+  <caption class="sr-only">{{ b.funds_heading }}</caption>
+  <thead>
+    <tr><th scope="col">{{ b.fund_no }}</th><th scope="col">{{ b.fund_name }}</th><th scope="col">{{ b.source }}</th></tr>
+  </thead>
+  <tbody>
+  {% for f in funds %}
+    <tr class="fact" data-fact-id="{{ f.fact_id }}">
+      <td class="c-fundno" data-label="{{ b.fund_no }}">{{ f.no }}</td>
+      <th scope="row" class="c-fundname" data-label="{{ b.fund_name }}"><a href="{{ root }}{{ f.href }}">{{ f.names[0].name }}</a>{% for n in f.names[1:] if n.name != f.names[0].name %}<br><small>{{ n.book }}: {{ n.name }}</small>{% endfor %}</th>
+      <td class="c-source cite" data-label="{{ b.source }}">{{ fin_cites(f.names | map(attribute="src") | list, root, f.fact_id) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if capital_href %}<p><a href="{{ root }}{{ capital_href }}">{{ b.capital_title }}</a></p>{% endif %}
+</section>
+{{ words_toggle(words, c, root) }}
+{% if disclosure %}{% include "_disclosure.html.j2" %}{% endif %}
+{% endblock %}

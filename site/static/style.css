@@ -746,3 +746,38 @@ dl.glossary dt:target { outline: 2px solid var(--focus); outline-offset: 2px; }
   table.sol-docs tbody th.c-stage { font-size: var(--t-xs); font-variant-caps: all-small-caps; letter-spacing: .05em; color: var(--muted); }
   table.sol-docs tbody td.c-date::before, table.sol-bidders tbody td.c-total::before { content: attr(data-label) ": "; color: var(--muted); }
 }
+
+/* Finance and capital projects (design finance-contracts 6-7): budget book tables, one row layout for every line. */
+.h1-sub { font-size: var(--t-sm); font-weight: 400; color: var(--muted); white-space: nowrap; }
+.fin-books { padding-left: 1.2em; }
+.fin-books li { margin: 4px 0; }
+.fin-toc ul { list-style: none; padding: 0; margin: 8px 0; font-size: var(--t-sm); }
+.fin-toc li { margin: 4px 0; }
+.fin-book { margin-top: 24px; }
+.fin-section h3 .g-n, details.fin-group .g-n { font-weight: 400; color: var(--muted); font-size: var(--t-sm); }
+details.fin-group { margin: 4px 0; }
+details.fin-group > summary { cursor: pointer; min-height: 44px; padding: 10px 0; font-weight: 600; }
+details.fin-group > summary:focus-visible, details.fin-jump > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+details.fin-jump { margin: 4px 0 8px; font-size: var(--t-sm); }
+details.fin-jump > summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
+details.fin-jump ul { columns: 16rem; margin: 0; padding-left: 1.2em; }
+table.budget caption { font-weight: 400; font-size: var(--t-xs); color: var(--muted); }
+table.budget thead th.num { font-variant-caps: normal; letter-spacing: 0; font-size: var(--t-sm); }  /* the header as printed */
+table.budget th .kind { font-weight: 400; font-size: var(--t-xs); color: var(--muted); font-variant-caps: normal; }
+table.budget td.c-acct { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+table.budget th.c-line { min-width: 12rem; }
+table.budget .b-check, table.budget .b-held, table.budget .b-moved, table.budget .b-edition { display: block; font-size: var(--t-xs); font-weight: 400; }
+table.budget .b-cols { color: var(--muted); }
+table.budget tr.b-subtotal th.c-line, table.budget tr.b-total th.c-line { font-weight: 700; }
+table.budget tr.b-subtotal > *, table.budget tr.b-total > * { border-top: 2px solid var(--fg); }
+table.budget td.c-source { min-width: 9rem; }
+.fin-flagged .flag-block { margin: 0 0 16px; }
+.fin-flagged .flag-block table.budget caption { font-weight: 600; color: var(--fg); font-size: var(--t-sm); }
+@media (max-width: 640px) {
+  table.budget tbody td.c-acct:empty { display: none; }
+  table.budget tbody td.c-acct::before { content: attr(data-label) " "; }
+  table.budget tbody td.num::before { content: attr(data-label) ": "; color: var(--muted); }
+  table.budget tbody tr.b-subtotal, table.budget tbody tr.b-total { border: 2px solid var(--fg); }
+  table.budget tr.b-subtotal > *, table.budget tr.b-total > * { border-top: 0; }
+  table.budget th.c-line { min-width: 0; }
+}

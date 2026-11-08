@@ -1,0 +1,45 @@
+{% extends "base.html.j2" %}
+{% from "_fin_macros.html.j2" import fin_cite, words_toggle %}
+{% from "_budget_macros.html.j2" import group, flagged, jump %}
+{% block main %}
+{# Design finance-contracts 6. The same structure for every fund (N1). Each book has its own tables and columns. #}
+<p class="crumb"><a href="index.html">{{ b.title }}</a></p>
+<h1>{{ title }} <span class="h1-sub">{{ b.fund_no }} {{ fund_no }}</span></h1>
+<p class="coverage">{{ coverage_sentence }}</p>
+<p class="sol-meta">{{ b.fund_name }}: {% for n in printed %}{{ n.name }} {% for s in n.srcs %}{{ fin_cite(s) }}{% if not loop.last %} {% endif %}{% endfor %}{% if not loop.last %}; {% endif %}{% endfor %}</p>
+<p class="note">{{ notes.e }}</p>
+{% if capital_href %}<p><a href="{{ capital_href }}">{{ b.capital_title }}</a></p>{% endif %}
+<nav class="fin-toc" aria-label="Books and sections">
+<ul>
+{% for bk in books %}
+  <li><a href="#{{ bk.id }}">{{ bk.title }}</a>{% if not bk.absent %}: {% for s in bk.sections %}<a href="#{{ s.id }}">{{ s.title }}</a>{% if not loop.last %}<span class="sep" aria-hidden="true"> &middot; </span>{% endif %}{% endfor %}{% endif %}</li>
+{% endfor %}
+</ul>
+</nav>
+
+{% for bk in books %}
+<section class="fin-book" id="{{ bk.id }}" aria-labelledby="{{ bk.id }}-h">
+<h2 id="{{ bk.id }}-h">{{ bk.title }}</h2>
+{% if bk.absent %}
+<p>{{ bk.absent_sentence }}</p>
+{% else %}
+{% for s in bk.sections %}
+<section class="fin-section" id="{{ s.id }}" aria-labelledby="{{ s.id }}-h">
+<h3 id="{{ s.id }}-h">{{ s.title }} <span class="g-n">({{ s.n }} {{ s.n_word }})</span></h3>
+{% if s.key == "other" %}<p class="note">{{ notes.e }}</p>{% endif %}
+{% if not s.groups %}<p>{{ b.empty_section }}</p>{% endif %}
+{{ jump(s.groups, b) }}
+{% for g in s.groups %}{{ group(g, bk.caption, b, root) }}
+{% endfor %}
+</section>
+{% endfor %}
+{{ flagged(bk.flagged, b, root) }}
+{% endif %}
+</section>
+{% endfor %}
+{{ words_toggle(words, c, root) }}
+{% if disclosure %}{% include "_disclosure.html.j2" %}{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{{ root }}static/finance.js" defer></script>
+{% endblock %}

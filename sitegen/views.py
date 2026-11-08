@@ -245,26 +245,35 @@ NAV = (  # design 2.2: fixed order, the same on every page. (label, href, page_n
 )
 
 
-def _nav(ix: "Index", contracts: bool = False) -> list[dict]:
+# finance-contracts slice 1b: with budget lines loaded, Finance and Capital projects are real pages, not "coming"
+BUDGET_NAV = {"Finance": "finance/index.html", "Capital projects": "capital/index.html"}
+
+
+def _nav(ix: "Index", contracts: bool = False, budget: tuple = ()) -> list[dict]:
+    """`budget`: the BUDGET_NAV labels whose pages are built (Finance, and Capital projects when its fund is in
+    the file); each replaces its "coming" page and drops the Coming chip."""
     years = sorted({ix.meetings[rc["meeting_id"]]["date"][:4] for rc in ix.facts["roll_calls"]}, reverse=True)
     out = []
     for label, href, page, coming in NAV:
         if label == "Bids and awards" and not contracts:
             continue
+        if label in budget:
+            href, coming = BUDGET_NAV[label], False
         if label == "Votes":  # the newest year's page; each votes page links every year
             href = f"votes/{years[0]}.html" if years else "search.html"
         out.append({"label": label, "href": href, "page": page, "coming": coming})
     return out
 
 
-def site_context(facts, contracts: bool = False) -> dict:
-    """`contracts`: finance.json is loaded, so the nav lists Bids and awards (design finance-contracts 1)."""
+def site_context(facts, contracts: bool = False, budget: tuple = ()) -> dict:
+    """`contracts`: finance.json is loaded, so the nav lists Bids and awards (design finance-contracts 1).
+    `budget`: the budget pages built (see _nav)."""
     ix = _ix(facts)
     cfg = config.SITE
     return {
         "cfg": cfg,
         "csp": csp(),
-        "nav": _nav(ix, contracts),
+        "nav": _nav(ix, contracts, budget),
         # the footer link exists only when it is switched on and has an address (CEO, 2026-11-08)
         "support_url": (cfg.get("support_url") or "") if cfg.get("support_enabled") is True else "",
         "support_label": cfg.get("support_label") or "",

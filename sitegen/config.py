@@ -29,6 +29,12 @@ SITE_NAME = SITE["site_name"]
 # Fixed wording for the finance and contracts pages (design finance-contracts 2-5); exact-string tested.
 FIN_TEXT_PATH = CONFIG_DIR / "finance_text.yml"
 FIN_TEXT = yaml.safe_load(FIN_TEXT_PATH.read_text(encoding="utf-8"))
+# The capital projects page shows this fund (architecture finance-contracts 7: finance.yml `capital_fund`). The
+# FIXTURE finance file has its own made-up capital fund.
+FIN_LOCALITY_PATH = CONFIG_DIR / "localities" / LOCALITY / "finance.yml"
+CAPITAL_FUND = str(yaml.safe_load(FIN_LOCALITY_PATH.read_text(encoding="utf-8"))["capital_fund"]) \
+    if FIN_LOCALITY_PATH.is_file() else None
+FIXTURE_CAPITAL_FUND = "951"
 
 # CEO decision G1 (2026-11-07): every page names the operator. The CEO supplies the real text; a public build
 # (M1.5) refuses to run while this is still the placeholder.

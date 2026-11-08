@@ -98,6 +98,57 @@ held:
   derived-spill: "An amount on this line runs into a column this site does not read."
   scope-held: "This total adds a line this site does not read, so it is not checked."
 
+# Finance and capital projects pages (design 6-7, slice 1b).
+budget:
+  title: Finance
+  capital_title: Capital projects
+  # the kind word under each column's printed header (schema column.kind) and its glossary entry, if any
+  kinds: {actual: Actual, amended: Amended budget, adopted: Adopted budget, projected: Projected}
+  kind_glossary: {actual: actual, amended: amended-budget, adopted: adopted-budget}
+  sections:
+    revenue: Revenue by source
+    spending: Spending by department
+    other: Transfers and available funds
+  books_heading: Budget books
+  funds_heading: Funds
+  # {year}: a fiscal year with no Actual column in any book, between the first and last one that has it
+  actuals_missing: "FY{year} actuals are not in these books."
+  caption: "From: {title}, {edition}"
+  role_words: {subtotal: Subtotal as printed, total: Total as printed}
+  check:
+    exact: Adds up
+    within_rounding: Adds up within rounding
+    does_not_add_up: "As printed, does not add up"
+    not_checked: "Not checked: a line this total adds is held as not confirmed."
+  # does_not_add_up: the columns where the printed total and its lines differ, by printed header (words, no numbers)
+  check_columns: "In the column:"
+  check_lines_link: Lines it was checked against
+  flagged_heading: Totals that do not add up as printed
+  flagged_caption: "{label} (p. {page}): the total as printed, then the lines it was checked against"
+  flagged_no_lines: "The book prints no lines for this total to add."
+  moved: "This total also adds lines listed under Transfers and available funds:"
+  not_printed: not printed in this book
+  not_in_book: "This fund is not in {book}."
+  empty_section: "No lines of this kind are read from this book for this fund."
+  no_heading: Lines printed without a heading
+  jump: Go to a heading
+  lines_word: lines
+  line_word: line
+  fund_page_link: "The whole fund, with its revenue, transfers and available funds:"
+  capital_source: "{fund_name} ({fund_no}, {book}, pp. {first}-{last})"
+  filter_name: Project name
+  filter_book: Book
+  empty_filter: "No project lines match."
+  account: Account
+  line: Line as printed
+  project_line: Project line as printed
+  source: Source
+  fund_no: Fund
+  fund_name: Name as printed
+  fund_books: Books
+  words: [actual, adopted-budget, amended-budget, fund]
+  capital_words: [actual, adopted-budget, amended-budget, capital-project, fund]
+
 # Design 3: alphabetical, one sentence each, no evaluation words. id = the anchor on glossary.html.
 glossary:
   - {id: actual, term: Actual, text: "The amount the county's books show was received or spent in a finished fiscal year."}

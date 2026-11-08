@@ -1,0 +1,76 @@
+{# Budget book tables (design finance-contracts 6-8). One row layout for every line of every fund and book (N1).
+   Columns are the book's own, as printed; amounts are the printed text (whole dollars, parentheses kept), never
+   computed. State is carried by words only. #}
+{% from "_macros.html.j2" import clamp, not_confirmed, nc_mark %}
+{% from "_fin_macros.html.j2" import fin_cites %}
+
+{% macro amount(cell, b) -%}
+{% if cell.held %}Not confirmed{{ nc_mark() }}{% elif cell.text is none %}<span aria-hidden="true">&ndash;</span><span class="sr-only">{{ b.not_printed }}</span>{% elif cell.aria %}<span aria-hidden="true">{{ cell.text }}</span><span class="sr-only">{{ cell.aria }}</span>{% else %}{{ cell.text }}{% endif %}
+{%- endmacro %}
+
+{% macro line_cell(r, b, root) -%}
+{% call clamp(2) %}{{ r.label }}{% endcall %}
+{% if r.role_words %}<span class="b-check">{{ r.role_words }}{% if r.check %} <span class="sep" aria-hidden="true">&middot;</span> {% if r.check.flag %}<a href="{{ r.check.href }}">{{ r.check.words }}</a>{% if r.check.columns %} <span class="b-cols">{{ b.check_columns }} {{ r.check.columns | join(", ") }}</span>{% endif %}{% else %}{{ r.check.words }}{% endif %}{% endif %}</span>{% endif %}
+{% if r.held %}<span class="b-held">{{ not_confirmed(r.src, r.held) }}</span>{% endif %}
+{% if r.moved %}<span class="b-moved">{{ b.moved }} {% for m in r.moved %}<a href="{{ m.href }}">{{ m.label }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</span>{% endif %}
+{% if r.edition %}<span class="b-edition">{{ r.edition.sentence }} {% for e in r.edition.links %}<a href="{{ e.href }}">{{ e.book }}, p. {{ e.page }}</a>{% if not loop.last %}; {% endif %}{% endfor %}</span>{% endif %}
+{%- endmacro %}
+
+{% macro budget_table(t, caption, b, root, label=none) -%}
+<div class="table-scroll fin-scroll">
+<table class="fin-stack budget">
+  <caption>{{ caption }}</caption>
+  <thead>
+    <tr>
+      <th scope="col">{{ b.account }}</th>
+      <th scope="col">{{ label or b.line }}</th>
+      {% for col in t.columns %}<th scope="col" class="num">{{ col.header }}<br><span class="kind">{% if col.glossary %}<a href="{{ root }}glossary.html#{{ col.glossary }}">{{ col.kind }}</a>{% else %}{{ col.kind }}{% endif %}</span></th>
+      {% endfor %}
+      <th scope="col">{{ b.source }}</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in t.rows %}
+    <tr class="fact b-{{ r.role }}"{% if r.with_anchor %} id="{{ r.anchor }}"{% endif %} data-fact-id="{{ r.id }}">
+      <td class="c-acct" data-label="{{ b.account }}">{{ r.account or "" }}</td>
+      <th scope="row" class="c-line">{{ line_cell(r, b, root) }}</th>
+      {% for cell in r.cells %}<td class="num" data-label="{{ cell.label }}">{{ amount(cell, b) }}</td>
+      {% endfor %}
+      <td class="c-source cite" data-label="{{ b.source }}">{{ fin_cites([r.src], root, r.id) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{%- endmacro %}
+
+{# A run of lines under one printed heading: open on wide screens, closed on phones (static/finance.js). #}
+{% macro group(g, caption, b, root, label=none) -%}
+<details class="fin-group" id="{{ g.id }}" data-search="{{ g.search }}" open>
+  <summary><span class="g-head">{{ g.heading }}</span> <span class="g-n">({{ g.n }} {{ g.n_word }})</span></summary>
+  {% for t in g.tables %}{{ budget_table(t, caption, b, root, label) }}{% endfor %}
+</details>
+{%- endmacro %}
+
+{# Design 6: a total that does not add up as printed, with the lines it was checked against. Always shown. #}
+{% macro flagged(fl, b, root, label=none) -%}
+{% if fl %}
+<section class="fin-flagged" aria-label="{{ b.flagged_heading }}">
+<h3>{{ b.flagged_heading }}</h3>
+{% for f in fl %}
+<div class="flag-block" id="{{ f.id }}">
+  {% for t in f.tables %}{{ budget_table(t, f.caption, b, root, label) }}{% endfor %}
+  {% if f.no_lines %}<p class="b-none">{{ f.no_lines }}</p>{% endif %}
+</div>
+{% endfor %}
+</section>
+{% endif %}
+{%- endmacro %}
+
+{% macro jump(groups, b) -%}
+{% if groups | length > 1 %}
+<details class="fin-jump"><summary>{{ b.jump }} ({{ groups | length }})</summary>
+<ul>{% for g in groups %}<li><a href="#{{ g.id }}">{{ g.heading }}</a></li>{% endfor %}</ul>
+</details>
+{% endif %}
+{%- endmacro %}

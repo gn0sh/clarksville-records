@@ -376,13 +376,16 @@ def shown_fact_ids(facts: dict) -> tuple[set[str], set[str]]:
 
 
 def finance_fact_ids(fin: dict | None) -> set[str]:
-    """Fact ids the Bids and awards pages may carry (sitegen/fin_views.py): solicitation, its documents, its bidders."""
+    """Fact ids the finance pages may carry (sitegen/fin_views.py, budget_views.py): solicitation, its documents, its
+    bidders; each budget line by its line id, and each fund as fund/<fund_no>."""
     ids: set[str] = set()
     for s in (fin or {}).get("solicitations", []):
         ids.add(s["id"])
         ids |= {f"{s['id']}/{d}" for d in s["document_ids"]}
         if s["bid_tab"]:
             ids |= {f"{s['id']}/bidder/{b['printed_order']}" for b in s["bid_tab"]["bidders"]}
+    for x in (fin or {}).get("budget_lines", []):
+        ids |= {x["id"], f"fund/{x['fund_no']}"}
     return ids
 
 
@@ -836,11 +839,15 @@ def page_type(rel: str) -> str | None:
     head = rel.split("/")[0]
     if head == "contracts":
         return "contracts_index" if rel == "contracts/index.html" else "contract"
+    if head == "finance":
+        return "finance_index" if rel == "finance/index.html" else "fund"
+    if head == "capital":
+        return "capital"
     return {"officials": "official", "meetings": "meeting", "items": "items", "districts": "district",
             "votes": "votes"}.get(head)
 
 
-NARROW_TYPES = ("contracts_index", "contract")
+NARROW_TYPES = ("contracts_index", "contract", "finance_index", "fund", "capital")  # AC-F10: also at 360 px
 
 
 def check_hscroll(site: Path, pages: dict[str, Page], all_pages: bool, sample: int) -> tuple[list[str], str]:

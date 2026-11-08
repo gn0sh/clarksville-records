@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 import jinja2
 from jsonschema import Draft202012Validator, FormatChecker
 
-from . import config, fin_views, georef as georef_mod, seats as seats_mod, views
+from . import budget_views, config, fin_views, georef as georef_mod, seats as seats_mod, views
 
 
 class BuildError(Exception):
@@ -171,7 +171,7 @@ def _clean(out: Path) -> None:
     out.mkdir(parents=True, exist_ok=True)
     for p in out.glob("*.html"):
         p.unlink()
-    for d in ("officials", "meetings", "items", "static", "districts", "votes", "contracts"):
+    for d in ("officials", "meetings", "items", "static", "districts", "votes", "contracts", "finance", "capital"):
         shutil.rmtree(out / d, ignore_errors=True)
 
 
@@ -216,7 +216,8 @@ def site_url_problems(cfg: dict) -> list[str]:
 
 
 def build(facts_path, out_dir, internal: bool = False, changes_path=None, report_path=None,
-          seats_path=DEFAULT, districts_path=DEFAULT, geocoder: bool = True, finance_path=DEFAULT) -> dict:
+          seats_path=DEFAULT, districts_path=DEFAULT, geocoder: bool = True, finance_path=DEFAULT,
+          capital_fund=DEFAULT) -> dict:
     """`geocoder=False` (`--no-geocoder`) draws no landing address box and allows no geocoder in the CSP: the build
     for the claude.ai preview, where the box could not reach the geocoder. The plain lookup line shows instead.
     `seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
@@ -224,7 +225,10 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     joined to the real roster), so tests pass their own fixture files. None means: no such file.
     `finance_path`: finance.json (bids and awards). Left out, a real build reads finance.json next to the facts file
     when it exists; a fixture facts file reads none. Without it the Bids and awards pages are not written and Finance
-    keeps its "coming" page."""
+    keeps its "coming" page. With budget lines in it, Finance (finance/index.html, one page per fund) and Capital
+    projects (capital/index.html) replace their "coming" pages.
+    `capital_fund`: the fund the capital projects page shows; left out, config.CAPITAL_FUND (finance.yml), or the
+    FIXTURE fund for a fixture build."""
     facts_path, out = Path(facts_path), Path(out_dir)
     facts = load_facts(facts_path)
     fixture = bool(facts.get("fixture"))
@@ -250,6 +254,14 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         raise BuildError("config/site.yml: " + "; ".join(bad))
     ix = views.Index(facts, seat_rows)
     fx = fin_views.Finance(fin_data, facts["officials"]) if fin_data is not None else None
+    if capital_fund is DEFAULT:
+        capital_fund = config.FIXTURE_CAPITAL_FUND if fixture else config.CAPITAL_FUND
+    try:
+        bg = budget_views.Budget(fx, capital_fund) if fx is not None and fin_data.get("budget_lines") else None
+    except fin_views.FinanceError as exc:
+        raise BuildError(f"{finance_path}: {exc}") from exc
+    budget_pages = () if bg is None else ("Finance",) + (("Capital projects",) if bg.capital_fund else ())
+    coming_slugs = {"Finance": "finance", "Capital projects": "capital-projects"}
     env = make_env()
 
     if config.OPERATOR_NAME == config.OPERATOR_PLACEHOLDER:
@@ -262,7 +274,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         report_path = out.parent / "report.json"
 
     _clean(out)
-    site = views.site_context(ix, contracts=fx is not None)
+    site = views.site_context(ix, contracts=fx is not None, budget=budget_pages)
     site["internal"] = internal
     written: list[str] = []
 
@@ -285,6 +297,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         render("votes_year.html.j2", f"votes/{year}.html", f"Votes {year}", **views.votes_year(year, ix))
     render("search.html.j2", "search.html", "Search", **views.search_page(ix, fx))
     for c in config.SITE["coming"]:
+        if c["slug"] in {coming_slugs[p] for p in budget_pages}:
+            continue
         render("coming.html.j2", f"{c['slug']}.html", c["title"], **views.coming(c["slug"]))
     render("data.html.j2", "data.html", "Data downloads", **views.data_page())
     if fx is not None:
@@ -294,6 +308,15 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
             ctx = fin_views.solicitation(sol["id"], fx)
             render("fin_solicitation.html.j2", f"contracts/{sol['slug']}.html", f"{title}: {sol['title']}", **ctx)
         render("glossary.html.j2", "glossary.html", "Glossary", **fin_views.glossary())
+    if bg is not None:
+        title = config.FIN_TEXT["budget"]["title"]
+        render("fin_index.html.j2", budget_views.INDEX, title, **budget_views.finance_index(bg))
+        for no in bg.funds:
+            ctx = budget_views.fund(no, bg)
+            render("fin_fund.html.j2", bg.fund_href(no), f"{title}: {ctx['title']}", **ctx)
+        if bg.capital_fund:
+            render("fin_capital.html.j2", budget_views.CAPITAL, config.FIN_TEXT["budget"]["capital_title"],
+                   **budget_views.capital(bg))
     for o in facts["officials"]:
         ctx = views.official(o["id"], ix)
         render("official.html.j2", f"officials/{o['id']}.html", o["name"], **ctx)
