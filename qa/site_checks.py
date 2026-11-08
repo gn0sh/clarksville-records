@@ -57,8 +57,8 @@ if __package__ in (None, ""):
 
 from qa.common import OPERATOR, ROOT, find_pdf, load_facts, pdf_page_count  # noqa: E402
 
-# 600: 244 files today (91 contract pages) plus the finance fund and department pages and the capital page to come
-MAX_FILES = 600
+# 500: under the artifact limit of 511 files per version (sitegen.config.MAX_FILES says the same)
+MAX_FILES = 500
 VIEWPORT = 390
 NARROW = 360  # AC-F10: the Bids and awards pages are also checked at 360 px
 
