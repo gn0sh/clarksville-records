@@ -233,3 +233,10 @@ def test_search_mark_never_splits_an_entity():
     out = json.loads(subprocess.run(["node", "-e", code], capture_output=True, text=True, check=True).stdout)
     assert out[0] == "Smith &amp; <mark>amp</mark> &lt;b&gt;"
     assert out[1] == "<mark>a</mark><mark>&amp;</mark>b"
+
+
+def test_build_refuses_a_non_https_link_in_site_config():
+    from sitegen.build import site_url_problems
+    assert site_url_problems(config.SITE) == []
+    bad = {**config.SITE, "swap_source": "http://example.org/list.pdf#page=9", "old_lines_map_url": ""}
+    assert [p for p in site_url_problems(bad) if p.startswith("swap_source")]

@@ -33,7 +33,7 @@
 <section aria-labelledby="current-h">
   <h2 id="current-h">Current</h2>
   {% if current %}
-  <p class="holder-row">{% if current.who and current.who.href %}<a href="{{ root }}{{ current.who.href }}">{{ current.who.name }}</a> {{ seat(current.label) }}{% elif current.who %}{{ current.who.name }} {{ seat(current.label) }}{% else %}Seat vacant{% endif %}, {{ current.dates_text }}. {{ cites(current, root) }}</p>
+  <p class="holder-row"><span>{% if current.who and current.who.href %}<a href="{{ root }}{{ current.who.href }}">{{ current.who.name }}</a> {{ seat(current.label) }}{% elif current.who %}{{ current.who.name }} {{ seat(current.label) }}{% else %}Seat vacant{% endif %}, {{ current.dates_text }}.</span> {{ cites(current, root) }}</p>
   <p class="basis muted">{{ basis }}.</p>
   {% else %}
   <p class="holder-row">Current member not yet recorded</p>

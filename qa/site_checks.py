@@ -616,7 +616,7 @@ def check_provenance(site: Path, pages: dict[str, Page], facts: dict, roster: li
             for d in dates_worded(t):
                 problems.append(f"static/search-index.js: seat text dates {d} without 'seen in roll calls' wording: {t[:90]!r}")
     problems += cutover_problems(facts, roster, eff)
-    return problems, f"{texts} seat texts checked; cutover {eff} (inferred) immaterial"
+    return problems, f"{texts} seat texts checked; lines split key {eff} immaterial"
 
 
 def check_totals(site: Path, pages: dict[str, Page], facts: dict) -> tuple[list[str], str]:

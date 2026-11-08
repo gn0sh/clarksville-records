@@ -958,7 +958,7 @@ def district(n: int, facts, districts: dict | None) -> dict:
     ix = _ix(facts)
     cfg = config.SITE
     seat = _district_seat(n)
-    eff = cfg["lines_effective"]  # internal split key only (inferred); never rendered
+    eff = cfg["lines_effective"]  # internal split key only; never rendered (pages name the observed boundary)
     recs = ix.seats.for_seat(seat)
     cur = ix.seats.current_of_seat(seat)
     old_last, cur_first = cutover_meetings(ix)
