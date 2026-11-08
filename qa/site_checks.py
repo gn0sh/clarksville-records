@@ -26,7 +26,9 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               official's own page
   footer      "Provided as a free service by Brian Zacharias." on every page
   external    no third-party scripts, styles, images or fonts (N6); the landing address box's geocoder (called
-              only on submit) is exactly config/site.yml geocoder_url
+              only on submit) is exactly config/site.yml geocoder_url; a page that loads static/address.js carries
+              its settings block (addr-config); every page has one CSP meta whose script-src is 'self' only, plus
+              (only beside the address box) one sha256 hash and exactly geocoder_url
   files       fewer than 250 files
   row-height  no table row (or vote / result list item) taller than 60% of the viewport, with long text clamped and row
               details collapsed, at 375x667, 768x1024, 1000x800 and 1280x800; needs Playwright (node)
@@ -36,8 +38,11 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
 import html
 import json
+from collections import defaultdict
 import os
 import re
 import subprocess
@@ -58,7 +63,7 @@ VIEWPORT = 390
 
 # External links that are not minutes PDFs but are allowed: a holder record's roster source, the map's boundary source,
 # the county redistricting page / old-lines map, and the footer support link. Each must be marked data-ext and https.
-EXT_KINDS = {"roster", "map", "county", "support", "lookup"}
+EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder"}
 
 
 def _site_cfg() -> dict:
@@ -88,6 +93,8 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
     """Exact URLs (qa-weakened/ext-link-any-host): config/site.yml links, the map's source_url, every roster row's
     source and last_source, and the support link only when it is switched on."""
     out = {cfg[k] for k in ("redistricting_page", "old_lines_map_url", "swap_source", "district_lookup_url") if cfg.get(k)}
+    if cfg.get("geocoder_url") and cfg.get("geocoder_privacy_url"):
+        out.add(cfg["geocoder_privacy_url"])         # the address box's "<geocoder>'s privacy policy" link
     if cfg.get("support_enabled") is True and cfg.get("support_url"):
         out.add(cfg["support_url"])
     if districts_path is not None and Path(districts_path).is_file():
@@ -106,8 +113,13 @@ class Page(HTMLParser):
         self.links: list[tuple[str, str | None]] = []   # every <a href>, one entry per element: (href, data-ext)
         self.fact_texts: list[tuple[str, str]] = []   # (fact id, text) of each outermost data-fact-id element
         self._stack, self._fact_depth, self._fact_buf = [], None, None
+        self.json_blocks: dict[str, list[str]] = defaultdict(list)   # <script type="application/json" id=...> text
+        self.csp: list[str] = []      # every <meta http-equiv="Content-Security-Policy"> content
+        self._json_id = None
 
     def handle_endtag(self, tag):
+        if tag == "script":
+            self._json_id = None
         if tag in self.VOID or tag not in self._stack:
             return
         while self._stack:
@@ -142,6 +154,11 @@ class Page(HTMLParser):
             self.fact_ids.append(a["data-fact-id"])
         if tag == "script" and a.get("src"):
             self.resources.append((tag, a["src"]))
+        if tag == "script" and (a.get("type") or "").strip().lower() == "application/json" and a.get("id"):
+            self._json_id = a["id"]
+            self.json_blocks[a["id"]].append("")
+        if tag == "meta" and (a.get("http-equiv") or "").strip().lower() == "content-security-policy":
+            self.csp.append(a.get("content") or "")
         if tag == "link" and a.get("href"):
             self.resources.append((tag, a["href"]))
         if tag in ("img", "source", "iframe", "video", "audio") and a.get("src"):
@@ -150,6 +167,9 @@ class Page(HTMLParser):
             self.resources.append((tag, a["action"]))
 
     def handle_data(self, d):
+        if self._json_id is not None:
+            self.json_blocks[self._json_id][-1] += d
+            return
         self.text.append(d)
         if self._fact_buf is not None:
             self._fact_buf = (self._fact_buf[0], self._fact_buf[1] + d)
@@ -714,11 +734,25 @@ def check_footer(pages: dict[str, Page], operator: str) -> list[str]:
 
 
 ADDR_CONFIG = re.compile(r'<script type="application/json" id="addr-config">(.*?)</script>', re.S)
+ADDRESS_JS = re.compile(r"(^|/)static/address\.js$")
+CSP_FIXED = {"default-src": ["'self'"], "connect-src": ["'none'"], "object-src": ["'none'"], "base-uri": ["'none'"]}
+HASH_SRC = re.compile(r"'sha256-[A-Za-z0-9+/]{43}='")
+
+
+def parse_csp(text: str) -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {}
+    for part in text.split(";"):
+        bits = part.split()
+        if bits:
+            out.setdefault(bits[0].lower(), bits[1:])
+    return out
 
 
 def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict | None = None) -> list[str]:
     """No third-party resource in the HTML. The one runtime call out, the landing address box's geocoder (only on
-    submit), may go only to config/site.yml geocoder_url, exactly."""
+    submit, from a sandboxed iframe), may go only to config/site.yml geocoder_url, exactly: the box's settings block
+    and the page's CSP script-src both hold it. A page that loads address.js without its settings block fails
+    (qa-guard/addr-config-silent-miss), as does a page without the CSP meta (third-party-script/no-csp)."""
     problems = []
     for rel, pg in pages.items():
         for tag, src in pg.resources:
@@ -726,6 +760,53 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
                 problems.append(f"{rel}: third-party <{tag}> {src!r}")
     if site is None:
         return problems
+    want = (cfg or {}).get("geocoder_url") or None
+    for rel, pg in pages.items():
+        blocks = pg.json_blocks.get("addr-config", [])
+        loads = any(t == "script" and ADDRESS_JS.search(src) for t, src in pg.resources)
+        if loads and not blocks:
+            problems.append(f"{rel}: loads static/address.js without its addr-config settings block")
+        if len(blocks) > 1:
+            problems.append(f"{rel}: {len(blocks)} addr-config settings blocks")
+        if blocks and not loads:
+            problems.append(f"{rel}: addr-config settings block without static/address.js")
+        for raw in blocks:
+            try:
+                got = json.loads(raw)
+                geo = got.get("geocoder")
+            except (ValueError, AttributeError):
+                problems.append(f"{rel}: address box settings are not a JSON object")
+                continue
+            if not want or geo != want:
+                problems.append(f"{rel}: address box geocoder {geo!r} is not config geocoder_url {want!r}")
+            if not isinstance(got.get("frame"), str) or not got["frame"]:
+                problems.append(f"{rel}: address box settings carry no frame script")
+        if len(pg.csp) != 1:
+            problems.append(f"{rel}: {len(pg.csp)} Content-Security-Policy metas (want 1)")
+            continue
+        pol = parse_csp(pg.csp[0])
+        for k, v in CSP_FIXED.items():
+            if pol.get(k) != v:
+                problems.append(f"{rel}: CSP {k} is {pol.get(k)!r}, want {v!r}")
+        scripts = pol.get("script-src")
+        if blocks:
+            hashes = [x for x in scripts or [] if HASH_SRC.fullmatch(x)]
+            ok = scripts is not None and "'self'" in scripts and len(hashes) == 1 and want in scripts and \
+                len(scripts) == 3
+        else:
+            ok = scripts == ["'self'"]
+        if not ok:
+            problems.append(f"{rel}: CSP script-src {scripts!r} is not 'self'"
+                            + (" + one sha256 + geocoder_url" if blocks else " only"))
+        elif blocks:
+            try:
+                frame = json.loads(blocks[0]).get("frame") or ""
+            except (ValueError, AttributeError):
+                frame = ""
+            digest = base64.b64encode(hashlib.sha256(frame.encode("utf-8")).digest()).decode("ascii")
+            if f"'sha256-{digest}'" not in scripts:
+                problems.append(f"{rel}: CSP script hash is not the address box's frame script")
+    return problems
     want = (cfg or {}).get("geocoder_url") or None
     for rel in pages:
         for raw in ADDR_CONFIG.findall((site / rel).read_text(encoding="utf-8")):

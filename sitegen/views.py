@@ -259,6 +259,7 @@ def site_context(facts) -> dict:
     cfg = config.SITE
     return {
         "cfg": cfg,
+        "csp": csp(),
         "nav": _nav(ix),
         # the footer link exists only when it is switched on and has an address (CEO, 2026-11-08)
         "support_url": (cfg.get("support_url") or "") if cfg.get("support_enabled") is True else "",
@@ -936,26 +937,64 @@ def swap_context() -> dict | None:
             "link": "Elected Officials List", "after": f" ({source_label(cfg['swap_source'])})."}
 
 
-def address_context(districts: dict | None, georef: dict | None) -> dict | None:
-    """The landing address box's settings (static/address.js), or None when there is no map, no georef fitted to it
-    or no geocoder configured: then no box is drawn. Emitted into the page as JSON; the district shapes themselves
-    are read from the map the page draws, so the lookup and the map can never disagree."""
+GEOCODE_FRAME_PATH = config.TEMPLATE_DIR / "_geocode_frame.js"
+
+
+def geocode_frame_script() -> str:
+    """The one inline script the address box's sandboxed iframe runs (static/address.js puts it in the iframe's
+    srcdoc; the page's CSP allows it by hash). It is a fixed file, so its hash is fixed too."""
+    js = GEOCODE_FRAME_PATH.read_text(encoding="utf-8").strip()
+    if "</" in js or "<!--" in js:
+        raise ValueError(f"{GEOCODE_FRAME_PATH} must not contain '</' or '<!--' (it is inlined in a srcdoc)")
+    return js
+
+
+def script_hash(js: str) -> str:
+    import base64
+    import hashlib
+    return "sha256-" + base64.b64encode(hashlib.sha256(js.encode("utf-8")).digest()).decode("ascii")
+
+
+def address_context(districts: dict | None, georef: dict | None, geocoder: bool = True) -> dict | None:
+    """The landing address box's settings (static/address.js), or None when there is no map, no georef fitted to it,
+    no geocoder configured, or the build was asked for none (`--no-geocoder`, the claude.ai preview): then no box is
+    drawn. Emitted into the page as JSON; the district shapes themselves are read from the map the page draws, so the
+    lookup and the map can never disagree. Every word the box shows comes from config/site.yml (the build has checked
+    that the geocoder and lookup labels are set)."""
     cfg = config.SITE
-    if districts is None or georef is None or not cfg.get("geocoder_url"):
+    if not geocoder or districts is None or georef is None or not cfg.get("geocoder_url"):
         return None
     return {"georef": {"projection": georef["projection"], "affine": georef["affine"],
                        "boundary_margin_m": georef["boundary_margin_m"]},
-            "geocoder": cfg["geocoder_url"], "county": cfg["county_name"], "district_label": cfg["district_label"],
+            "geocoder": cfg["geocoder_url"], "geocoder_short": cfg["geocoder_short"],
+            "county": cfg["county_name"], "district_label": cfg["district_label"],
             "lookup_url": cfg.get("district_lookup_url") or "",
-            "lookup_label": cfg.get("district_lookup_label") or "GoVoteTN"}
+            "lookup_label": cfg.get("district_lookup_label") or "",
+            "frame": geocode_frame_script()}
 
 
-def landing(facts, districts: dict | None, georef: dict | None = None) -> dict:
+# Content-Security-Policy (third-party-script/no-csp), set by a <meta> on every page (base.html.j2). Scripts come from
+# static/ only; the landing with the address box also allows the one inline script of its sandboxed geocoder iframe
+# (by hash) and the exact geocoder_url base, because a srcdoc iframe runs under this same policy. style-src keeps
+# 'unsafe-inline' for style attributes only (the official page's bar sets --n per segment); style elements are 'self'.
+CSP_BASE = ("default-src 'self'", "style-src 'self' 'unsafe-inline'", "style-src-elem 'self'", "connect-src 'none'",
+            "img-src 'self' data:", "object-src 'none'", "base-uri 'none'", "form-action 'self'", "frame-src 'self'")
+
+
+def csp(address: dict | None = None) -> str:
+    scripts = ["'self'"]
+    if address:
+        scripts += [f"'{script_hash(address['frame'])}'", address["geocoder"]]
+    return "; ".join([CSP_BASE[0], "script-src " + " ".join(scripts), *CSP_BASE[1:]])
+
+
+def landing(facts, districts: dict | None, georef: dict | None = None, geocoder: bool = True) -> dict:
     ix = _ix(facts)
-    return {"rows": district_rows(ix), "map": map_context(districts), "coverage": ix.coverage,
+    address = address_context(districts, georef, geocoder)
+    return {"csp": csp(address), "rows": district_rows(ix), "map": map_context(districts), "coverage": ix.coverage,
             "district_count": config.SITE["district_count"],
             "basis": observed_basis(ix) if ix.seats.loaded else None,
-            "address": address_context(districts, georef)}
+            "address": address}
 
 
 def _day_before(date: str) -> str:

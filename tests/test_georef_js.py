@@ -29,12 +29,21 @@ for (const [k, v] of Object.entries(inp.answers)) {
 }
 out.url = addr.jsonpUrl("https://geo.example/x", "1 Main St, Apt #2 & <b>", "cb_1");
 out.timeout = addr.TIMEOUT_MS;
+out.callback = addr.CALLBACK;
+out.doc = addr.frameDoc("X()", 'https://geo.example/x?a=1&b="2"<3>');
 console.log(JSON.stringify(out));
 """
 
 
-def _match(lon, lat):
-    return {"result": {"input": {}, "addressMatches": [{"matchedAddress": "1 TEST ST", "coordinates": {"x": lon, "y": lat}}]}}
+def _match(*pts):
+    if pts and not isinstance(pts[0], (list, tuple)):
+        pts = (pts,)
+    return {"result": {"input": {}, "addressMatches": [
+        {"matchedAddress": f"{i + 1} TEST ST", "coordinates": {"x": lon, "y": lat}} for i, (lon, lat) in enumerate(pts)]}}
+
+
+def _pt(pid):
+    return next(p["lonlat"] for p in G["check_points"] if p["id"] == pid)
 
 
 ANSWERS = {
@@ -42,6 +51,15 @@ ANSWERS = {
     "line": _match(*next(p["lonlat"] for p in G["check_points"] if p["id"] == "hwy48-loneoak")),
     "ky": _match(-87.44, 36.665),
     "nomatch": {"result": {"input": {}, "addressMatches": []}},
+    # more than one match (addr-pin/ambiguous-match): answered only when all land in one district, none near a line
+    "two_same": _match(_pt("franklin-2nd"), _pt("franklin-2nd")),
+    "two_outside": _match([-87.44, 36.665], [-87.5, 36.75]),
+    "two_districts": _match(_pt("franklin-2nd"), _pt("rossview-wilma")),
+    "two_one_near": _match(_pt("slayden-hwy13"), _pt("hwy48-loneoak")),          # both District 6, one near a line
+    "two_in_and_out": _match(_pt("franklin-2nd"), [-87.44, 36.665]),
+    "many": _match(*([_pt("franklin-2nd")] * 21)),
+    "two_one_bad": {"result": {"addressMatches": [_match(*_pt("franklin-2nd"))["result"]["addressMatches"][0],
+                                                  {"coordinates": {"x": None, "y": 36.5}}]}},
     "error_none": None,
     "error_string": "oops",
     "error_no_result": {"errors": ["bad"]},
@@ -83,6 +101,22 @@ def test_classify_match_near_outside(run):
     assert a["ky"]["kind"] == "outside" and a["ky"]["district"] is None
 
 
+def test_classify_more_than_one_match(run):
+    a = run["answers"]
+    assert a["two_same"]["kind"] == "district" and a["two_same"]["district"] == 5 and a["two_same"]["matched"] == "1 TEST ST"
+    assert a["two_outside"]["kind"] == "outside"
+    for k in ("two_districts", "two_one_near", "two_in_and_out"):
+        assert a[k] == {"kind": "ambiguous", "count": 2}, k
+    assert a["many"] == {"kind": "ambiguous", "count": 21}
+    assert a["two_one_bad"] == {"kind": "error"}
+
+
+def test_frame_doc_escapes_the_url_attribute(run):
+    assert run["callback"] == "crGeocode"
+    assert run["doc"] == ('<!doctype html><meta charset="utf-8"><meta name="referrer" content="no-referrer">'
+                          '<script data-u="https://geo.example/x?a=1&amp;b=&quot;2&quot;&lt;3&gt;">X()</script>')
+
+
 def test_classify_no_match_and_bad_answers(run):
     a = run["answers"]
     assert a["nomatch"] == {"kind": "nomatch"}
@@ -104,7 +138,15 @@ def test_scripts_store_nothing_and_call_out_only_from_the_submit_handler():
                        "XMLHttpRequest", "sendBeacon", "innerHTML", "keyup", "keydown", "\"input\"", "\"change\""):
             assert banned not in js, (path.name, banned)
     js = ADDRESS_JS.read_text(encoding="utf-8")
-    assert js.count("createElement(\"script\")") == 1 and js.count(".src = ") == 1
-    assert js.index('addEventListener("submit"') < js.index("createElement(\"script\")")
-    assert 'referrerPolicy = "no-referrer"' in js
+    # third-party-script/jsonp-runs-in-origin: the page never loads the geocoder's script itself; one sandboxed iframe
+    # per submit (allow-scripts only, no allow-same-origin), heard only from that iframe, removed after
+    assert "createElement(\"script\")" not in js and ".src = " not in js
+    assert js.count('createElement("iframe")') == 1 and js.count(".srcdoc = ") == 1
+    assert js.count('setAttribute("sandbox", "allow-scripts")') == 1
+    assert js.count('setAttribute("sandbox"') == 1 and ".sandbox" not in js
+    assert "allow-same-origin\"" not in js and "allow-top" not in js and "allow-popups" not in js
+    assert 'setAttribute("referrerpolicy", "no-referrer")' in js
+    assert "e.source !== w" in js and 'e.origin !== "null"' in js and "JSON.parse(d.json)" in js
+    assert js.index('addEventListener("submit"') < js.index('createElement("iframe")')
+    assert "removeChild(req.frame)" in js
     assert "http://www.w3.org/2000/svg" in js and js.count("https://") == 2   # the SVG namespace; the https checks

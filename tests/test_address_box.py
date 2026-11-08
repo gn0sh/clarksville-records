@@ -11,7 +11,7 @@ import pytest
 
 from conftest import FIXTURE, FIXTURE_DISTRICTS, ROOT, build, parse
 from qa import site_checks
-from sitegen import build as sitegen_build, config
+from sitegen import build as sitegen_build, config, views
 from test_georef import G
 
 REAL_DISTRICTS = config.DISTRICTS_PATH
@@ -45,8 +45,11 @@ def test_box_is_hidden_until_the_script_shows_it_and_names_the_privacy_rule(real
     text = " ".join(form.all_text().split())
     assert text.startswith("Find your district")
     assert ("Your address is sent to the U.S. Census Bureau's geocoder to find it on the map. "
-            "This site doesn't store it.") in text
+            "This site doesn't store it. Census's privacy policy applies. Or look it up on GoVoteTN.") in text
     assert f'<a data-ext="lookup" href="{config.SITE["district_lookup_url"]}" rel="noopener">GoVoteTN</a>' in html
+    assert (f'<a data-ext="geocoder" href="{config.SITE["geocoder_privacy_url"]}" rel="noopener">'
+            "Census's privacy policy</a> applies.") in html
+    assert config.SITE["geocoder_privacy_url"] == "https://www.census.gov/about/policies/privacy.html"
     assert 'aria-describedby="addr-privacy"' in html and 'role="status"' in html
     assert re.search(r'static/georef\.js" defer></script>\s*<script src="static/address\.js" defer>', html)
 
@@ -55,9 +58,10 @@ def test_box_settings_come_from_config_and_georef(real_map_site):
     cfg = addr_config((real_map_site / "index.html").read_text(encoding="utf-8"))
     assert cfg == {"georef": {"projection": G["projection"], "affine": G["affine"],
                               "boundary_margin_m": G["boundary_margin_m"]},
-                   "geocoder": config.SITE["geocoder_url"], "county": config.SITE["county_name"],
+                   "geocoder": config.SITE["geocoder_url"], "geocoder_short": "Census",
+                   "county": config.SITE["county_name"],
                    "district_label": config.SITE["district_label"], "lookup_url": config.SITE["district_lookup_url"],
-                   "lookup_label": config.SITE["district_lookup_label"]}
+                   "lookup_label": config.SITE["district_lookup_label"], "frame": views.geocode_frame_script()}
     assert config.SITE["geocoder_url"] == "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress"
 
 
@@ -80,6 +84,72 @@ def test_no_box_without_georef_or_geocoder(pages, monkeypatch, tmp_path):
     assert "Not sure of your district?" in html                          # the plain lookup line stays
 
 
+def _csp(html):
+    m = re.search(r'<meta http-equiv="Content-Security-Policy" content="([^"]*)">', html)
+    return site_checks.parse_csp(m.group(1).replace("&#39;", "'")) if m else None
+
+
+def test_landing_csp_allows_only_the_frame_script_and_the_exact_geocoder(real_map_site):
+    html = (real_map_site / "index.html").read_text(encoding="utf-8")
+    pol = _csp(html)
+    assert pol["script-src"] == ["'self'", f"'{views.script_hash(views.geocode_frame_script())}'",
+                                 config.SITE["geocoder_url"]]
+    assert pol["connect-src"] == ["'none'"] and pol["object-src"] == ["'none'"] and pol["default-src"] == ["'self'"]
+    assert pol["frame-src"] == ["'self'"] and pol["form-action"] == ["'self'"] and pol["base-uri"] == ["'none'"]
+    other = (real_map_site / "about.html").read_text(encoding="utf-8")
+    assert _csp(other)["script-src"] == ["'self'"]                       # only the landing names the geocoder
+    assert html.index("Content-Security-Policy") < html.index("<link") < html.index("<script")
+
+
+def test_frame_script_is_fixed_text_that_cannot_close_its_element():
+    js = views.geocode_frame_script()
+    assert "</" not in js and "<!--" not in js and "parent.postMessage" in js and 'getAttribute("data-u")' in js
+    assert "crGeocode" in js and 'referrerPolicy = "no-referrer"' in js and "delete window.crGeocode" in js
+    for banned in ("parent.document", "top.", "localStorage", "cookie", "fetch(", "XMLHttpRequest", "innerHTML"):
+        assert banned not in js, banned
+
+
+def test_no_geocoder_build_draws_no_box_and_names_no_geocoder(tmp_path):
+    out = tmp_path / "site"
+    build(FIXTURE, out, seats_path=None, districts_path=REAL_DISTRICTS, geocoder=False)
+    html = (out / "index.html").read_text(encoding="utf-8")
+    assert 'id="addr-form"' not in html and "address.js" not in html and "addr-config" not in html
+    assert "Not sure of your district?" in html and "census" not in html.lower()
+    assert _csp(html)["script-src"] == ["'self'"]
+    pages = {p.relative_to(out).as_posix(): site_checks.parse(p) for p in out.rglob("*.html")}
+    assert site_checks.check_external(pages, out, site_checks._site_cfg()) == []
+
+
+def test_sitegen_cli_has_no_geocoder_option(tmp_path):
+    from sitegen.__main__ import main
+    out = tmp_path / "site"
+    assert main(["--facts", str(FIXTURE), "--out", str(out), "--districts", str(REAL_DISTRICTS), "--no-geocoder"]) == 0
+    assert 'id="addr-form"' not in (out / "index.html").read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("missing", ["geocoder_label", "geocoder_short", "geocoder_privacy_url"])
+def test_geocoder_words_and_privacy_link_are_required(missing):
+    cfg = dict(config.SITE)
+    cfg[missing] = ""
+    assert any(missing in p for p in sitegen_build.site_url_problems(cfg))
+    cfg["geocoder_url"] = ""                                               # no geocoder: nothing needed
+    assert not sitegen_build.site_url_problems(cfg)
+
+
+def test_lookup_label_is_required_with_the_lookup_link_and_never_defaulted(monkeypatch, tmp_path):
+    cfg = dict(config.SITE, district_lookup_label="")
+    assert any("district_lookup_label" in p for p in sitegen_build.site_url_problems(cfg))
+    for path in ("sitegen/views.py", "site/templates/index.html.j2", "site/static/address.js"):
+        assert "GoVoteTN" not in (ROOT / path).read_text(encoding="utf-8"), path
+    monkeypatch.setitem(config.SITE, "district_lookup_label", "")
+    with pytest.raises(sitegen_build.BuildError):
+        build(FIXTURE, tmp_path / "site", seats_path=None, districts_path=REAL_DISTRICTS)
+
+
+def test_privacy_url_must_be_https():
+    assert sitegen_build.site_url_problems(dict(config.SITE, geocoder_privacy_url="http://www.census.gov/p"))
+
+
 def test_georef_for_another_pdf_stops_the_build(tmp_path):
     d = json.loads(REAL_DISTRICTS.read_text(encoding="utf-8"))
     (tmp_path / "districts.json").write_text(json.dumps(d), encoding="utf-8")
@@ -92,7 +162,8 @@ def test_geocoder_url_must_be_an_https_base():
     ok = dict(config.SITE)
     assert not sitegen_build.site_url_problems(ok)
     for bad in ("http://geocoding.geo.census.gov/x", "https://geocoding.geo.census.gov/x?benchmark=1",
-                "https://geocoding.geo.census.gov/x#a", "javascript:alert(1)"):
+                "https://geocoding.geo.census.gov/x#a", "javascript:alert(1)", "https://geo.example/x;script-src *",
+                "https://geo.example/x 'unsafe-inline'", "https://geo.example/x,y", "https://geo.example/x'"):
         assert sitegen_build.site_url_problems({**ok, "geocoder_url": bad}), bad
 
 
@@ -105,7 +176,68 @@ def test_site_checks_hold_the_geocoder_to_the_exact_config_value(real_map_site, 
     idx = site / "index.html"
     idx.write_text(idx.read_text(encoding="utf-8").replace(cfg["geocoder_url"], "https://evil.example/geo"),
                    encoding="utf-8")
+    pages["index.html"] = site_checks.parse(idx)
     assert site_checks.check_external(pages, site, cfg)
+
+
+def _site_copy(src, dst):
+    shutil.copytree(src, dst)
+    return {p.relative_to(dst).as_posix(): site_checks.parse(p) for p in dst.rglob("*.html")}
+
+
+def test_site_checks_fail_address_js_without_its_settings_block(real_map_site, tmp_path):
+    """qa-guard/addr-config-silent-miss: a page that loads address.js must carry addr-config, found by parsing (any
+    attribute order), not by a regex on one spelling."""
+    cfg = site_checks._site_cfg()
+    site = tmp_path / "a"
+    _site_copy(real_map_site, site)
+    idx = site / "index.html"
+    html = idx.read_text(encoding="utf-8")
+    swapped = html.replace('<script type="application/json" id="addr-config">',
+                           '<script id="addr-config" type="application/json">')
+    assert swapped != html
+    idx.write_text(swapped, encoding="utf-8")
+    pages = {p.relative_to(site).as_posix(): site_checks.parse(p) for p in site.rglob("*.html")}
+    assert site_checks.check_external(pages, site, cfg) == []              # attribute order does not matter
+    idx.write_text(re.sub(r'<script id="addr-config"[^>]*>.*?</script>', "", swapped, flags=re.S), encoding="utf-8")
+    pages["index.html"] = site_checks.parse(idx)
+    assert any("without its addr-config" in p for p in site_checks.check_external(pages, site, cfg))
+    about = site / "about.html"                                            # any page, not only the landing
+    about.write_text(about.read_text(encoding="utf-8").replace("</body>", '<script src="static/address.js"></script></body>'),
+                     encoding="utf-8")
+    pages["about.html"] = site_checks.parse(about)
+    assert any(p.startswith("about.html: loads static/address.js") for p in site_checks.check_external(pages, site, cfg))
+
+
+@pytest.mark.parametrize("edit", ["drop", "geocoder-other", "hash-other", "wild", "connect"])
+def test_site_checks_hold_every_page_to_the_csp(real_map_site, tmp_path, edit):
+    cfg = site_checks._site_cfg()
+    site = tmp_path / "c"
+    _site_copy(real_map_site, site)
+    target = site / ("about.html" if edit in ("drop", "wild", "connect") else "index.html")
+    html = target.read_text(encoding="utf-8")
+    if edit == "drop":
+        new = re.sub(r'<meta http-equiv="Content-Security-Policy"[^>]*>', "", html)
+    elif edit == "geocoder-other":
+        new = html.replace("&#39;sha256-", "https://evil.example &#39;sha256-")
+        new = new.replace(" https://geocoding.geo.census.gov/geocoder/locations/onelineaddress;", ";")
+    elif edit == "hash-other":
+        new = re.sub(r"&#39;sha256-[A-Za-z0-9+/]{43}=&#39;", "&#39;sha256-" + "A" * 43 + "=&#39;", html)
+    elif edit == "wild":
+        new = html.replace("script-src &#39;self&#39;;", "script-src &#39;self&#39; https:;")
+    else:
+        new = html.replace("connect-src &#39;none&#39;", "connect-src *")
+    assert new != html, edit
+    target.write_text(new, encoding="utf-8")
+    pages = {p.relative_to(site).as_posix(): site_checks.parse(p) for p in site.rglob("*.html")}
+    assert site_checks.check_external(pages, site, cfg), edit
+
+
+def test_privacy_link_is_an_allowed_external_link():
+    cfg = site_checks._site_cfg()
+    assert cfg["geocoder_privacy_url"] in site_checks.allowed_external(cfg, None, None)
+    assert "geocoder" in site_checks.EXT_KINDS
+    assert cfg["geocoder_privacy_url"] not in site_checks.allowed_external(dict(cfg, geocoder_url=""), None, None)
 
 
 def _browser_ok():
@@ -119,6 +251,7 @@ def test_address_box_in_a_browser(real_site, tmp_path):
     pts = {k: next(p["lonlat"] for p in G["check_points"] if p["id"] == pid)
            for k, pid in (("district", "franklin-2nd"), ("near", "hwy48-loneoak"))}
     pts["outside"] = [-87.44, 36.665]
+    pts["other"] = next(p["lonlat"] for p in G["check_points"] if p["id"] == "rossview-wilma")   # District 14
     f = tmp_path / "pts.json"
     f.write_text(json.dumps(pts), encoding="utf-8")
     env = dict(os.environ)
@@ -129,13 +262,27 @@ def test_address_box_in_a_browser(real_site, tmp_path):
     assert res.returncode == 0, res.stderr
     out = json.loads(res.stdout)
     for vp, m in out["fit"].items():
-        assert m["formShown"] and m["scrollHeight"] <= m["innerHeight"] and m["scrollWidth"] <= m["innerWidth"], (vp, m)
+        assert m["formShown"] and m["scrollWidth"] <= m["innerWidth"], (vp, m)
+        if vp.endswith("answered"):     # privacy line + answer shown: the answer and the pin are on the first screen
+            assert m["resultBottom"] <= m["innerHeight"] and m["pin"] and 0 <= m["pin"][0] and m["pin"][1] <= m["innerHeight"], (vp, m)
+        else:                           # before any lookup the whole landing fits one screen
+            assert m["scrollHeight"] <= m["innerHeight"], (vp, m)
+    assert set(out["fit"]) == {"375x667", "1280x800", "375x667 answered", "1280x800 answered"}
     c = out["cases"]
-    assert c["district"]["text"].startswith("This address is in District 5.") and c["district"]["href"] == "districts/05.html"
+    census = "The Census places this address in "
+    assert c["district"]["text"].startswith(census + "District 5.") and c["district"]["href"] == "districts/05.html"
+    assert "Census match: 1 TEST ST" in c["district"]["text"]
     assert c["district"]["pin"] and c["district"]["found"] == ["5"]
+    assert c["twosame"]["text"].startswith(census + "District 5.") and c["twosame"]["found"] == ["5"]
+    assert c["reachout"]["text"].startswith(census + "District 5.") and not c["reachout"]["pwned"]
     assert c["near"]["text"].startswith("This address is near a district line. Check GoVoteTN to be sure.")
     assert c["near"]["href"] == config.SITE["district_lookup_url"]
     assert c["outside"]["text"].startswith("This address is outside Montgomery County.")
+    assert c["spoof"]["text"].startswith("This address is outside Montgomery County.")   # the page's own message ignored
+    ambiguous = "More than one address matched. Add the city and ZIP, or check GoVoteTN."
+    for k in ("ambiguous", "ambiguousnear"):
+        assert c[k]["text"] == ambiguous and c[k]["href"] == config.SITE["district_lookup_url"], k
+        assert not c[k]["pin"] and c[k]["found"] == [], k
     assert c["nomatch"]["text"].startswith("No match was found for that address.") and c["nomatch"]["href"]
     for k in ("badshape", "nocallback"):
         assert c[k]["text"] == "The address lookup did not answer. Look it up on GoVoteTN.", k
@@ -144,7 +291,12 @@ def test_address_box_in_a_browser(real_site, tmp_path):
     for k, v in c.items():
         assert v["typedRequests"] == 0 and len(v["requests"]) == 1, k        # nothing sent until submit, once
         q = v["requests"][0]
-        assert q.startswith("?address=1%20Test%20St%2C%20Clarksville%20TN%20%3Cb%3E%26%22&benchmark=Public_AR_Current"
-                            "&format=jsonp&callback=crGeocode"), q
-        assert v["storage"] == 0 and v["scripts"] == 0, k                     # nothing stored, script removed
+        assert q == ("?address=1%20Test%20St%2C%20Clarksville%20TN%20%3Cb%3E%26%22&benchmark=Public_AR_Current"
+                     "&format=jsonp&callback=crGeocode"), q
+        assert v["storage"] == 0 and v["scripts"] == 0 and v["frames"] == 0, k   # nothing stored, iframe removed
         assert "<b>" not in v["html"], k                                      # census text is never markup
+        assert v["frame"] == [{"sandbox": "allow-scripts", "referrerpolicy": "no-referrer", "hidden": True,
+                               "src": None, "srcdoc": v["frame"][0]["srcdoc"]}], k   # one opaque-origin iframe
+        assert v["frame"][0]["srcdoc"].startswith('<!doctype html><meta charset="utf-8"><meta name="referrer" '
+                                                  'content="no-referrer"><script data-u="https://geocoding.'), k
+        assert v["csp"] == [] and v["refused"] == [], (k, v["csp"], v["refused"])   # nothing blocked by the CSP

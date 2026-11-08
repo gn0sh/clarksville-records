@@ -1,27 +1,52 @@
 /* Landing address box (address pin M2). Only when the visitor submits, never on a keystroke, the address goes to the
-   Census one-line geocoder by JSONP (it has no CORS); the answer's point is placed on the drawn map with
-   CRGeoref.districtFor (static/georef.js) against the same district paths the map draws. Nothing is stored and
-   nothing is logged. If the geocoder script cannot load (a sandboxed preview, a blocker, offline) the box says so
-   and points to the official lookup. Exposes CRAddress.classify / jsonpUrl for tests (module.exports under node). */
+   Census one-line geocoder by JSONP (it has no CORS). JSONP runs the geocoder's answer as script, so it runs only
+   inside a hidden iframe made per submit with sandbox="allow-scripts" and no allow-same-origin (an opaque origin: it
+   cannot touch this page, its storage or cookies). The iframe's one inline script (config "frame", allowed by hash in
+   the page's CSP) loads the JSONP and posts the answer back as JSON text; this page accepts a message only from that
+   iframe, parses it as data, validates it (classify) and shows it as text. The iframe is removed after each lookup.
+   The answer's point is placed on the drawn map with CRGeoref.districtFor (static/georef.js) against the same
+   district paths the map draws. Nothing is stored and nothing is logged. If the geocoder cannot load (a sandboxed
+   preview, a blocker, offline) the box says so and points to the official lookup.
+   Exposes CRAddress.classify / jsonpUrl / frameDoc for tests (module.exports under node). */
 (function (root) {
   "use strict";
   var TIMEOUT_MS = 8000;
+  var CALLBACK = "crGeocode";        // the one name the iframe's script defines; each lookup has its own iframe
+  var MAX_MATCHES = 20;              // more than this is "more than one address matched" without placing each
+  var MAX_ANSWER = 200000;           // characters of JSON text accepted from the iframe
 
-  /* The geocoder answer -> what to tell the visitor. `locate(lon, lat)` is districtFor bound to the map. */
-  function classify(data, locate) {
-    var res = data && typeof data === "object" ? data.result : null;
-    if (!res || typeof res !== "object" || !Array.isArray(res.addressMatches)) { return { kind: "error" }; }
-    if (!res.addressMatches.length) { return { kind: "nomatch" }; }
-    var m = res.addressMatches[0], c = m && typeof m === "object" ? m.coordinates : null;
+  function point(m) {
+    var c = m && typeof m === "object" ? m.coordinates : null;
     var lon = c && typeof c === "object" ? c.x : NaN, lat = c && typeof c === "object" ? c.y : NaN;
     if (typeof lon !== "number" || typeof lat !== "number" || !isFinite(lon) || !isFinite(lat) ||
         Math.abs(lon) > 180 || Math.abs(lat) > 90) {
-      return { kind: "error" };
+      return null;
     }
-    var matched = typeof m.matchedAddress === "string" ? m.matchedAddress.slice(0, 200) : "";
-    var got = locate(lon, lat);
-    var kind = got.near_boundary ? "near" : (got.district === null ? "outside" : "district");
-    return { kind: kind, district: got.district, matched: matched, page_xy: got.page_xy };
+    return [lon, lat];
+  }
+
+  /* The geocoder answer -> what to tell the visitor. `locate(lon, lat)` is districtFor bound to the map. More than one
+     match is answered only when every match lands in the same district (or all outside the county) and none is near
+     a district line; otherwise the visitor is asked to add the city and ZIP (addr-pin/ambiguous-match). */
+  function classify(data, locate) {
+    var res = data && typeof data === "object" ? data.result : null;
+    if (!res || typeof res !== "object" || !Array.isArray(res.addressMatches)) { return { kind: "error" }; }
+    var ms = res.addressMatches;
+    if (!ms.length) { return { kind: "nomatch" }; }
+    if (ms.length > MAX_MATCHES) { return { kind: "ambiguous", count: ms.length }; }
+    var got = [];
+    for (var i = 0; i < ms.length; i++) {
+      var p = point(ms[i]);
+      if (!p) { return { kind: "error" }; }
+      got.push(locate(p[0], p[1]));
+    }
+    var first = got[0];
+    if (got.length > 1 && !got.every(function (g) { return !g.near_boundary && g.district === first.district; })) {
+      return { kind: "ambiguous", count: ms.length };
+    }
+    var matched = typeof ms[0].matchedAddress === "string" ? ms[0].matchedAddress.slice(0, 200) : "";
+    var kind = first.near_boundary ? "near" : (first.district === null ? "outside" : "district");
+    return { kind: kind, district: first.district, matched: matched, page_xy: first.page_xy };
   }
 
   function jsonpUrl(base, address, callback) {
@@ -29,7 +54,16 @@
       encodeURIComponent(callback);
   }
 
-  var api = { classify: classify, jsonpUrl: jsonpUrl, TIMEOUT_MS: TIMEOUT_MS };
+  function escAttr(s) {
+    return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  /* The iframe's whole document: no referrer, and the fixed frame script with the JSONP URL in an attribute. */
+  function frameDoc(script, url) {
+    return '<!doctype html><meta charset="utf-8"><meta name="referrer" content="no-referrer">' +
+      '<script data-u="' + escAttr(url) + '">' + script + "</script>";
+  }
+
+  var api = { classify: classify, jsonpUrl: jsonpUrl, frameDoc: frameDoc, TIMEOUT_MS: TIMEOUT_MS, CALLBACK: CALLBACK };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; return; }
   root.CRAddress = api;
 
@@ -39,7 +73,8 @@
   if (!form || !cfgEl || !svg || !root.CRGeoref) { return; }
   var cfg;
   try { cfg = JSON.parse(cfgEl.textContent); } catch (e) { return; }
-  if (!cfg || typeof cfg.geocoder !== "string" || cfg.geocoder.indexOf("https://") !== 0) { return; }
+  if (!cfg || typeof cfg.geocoder !== "string" || cfg.geocoder.indexOf("https://") !== 0 ||
+      typeof cfg.frame !== "string" || !cfg.frame) { return; }
 
   var shapes = [];
   var anchors = svg.querySelectorAll("#layer-districts a[data-district]");
@@ -56,7 +91,7 @@
   var input = document.getElementById("addr-q");
   var button = form.querySelector("button");
   var out = document.getElementById("addr-result");
-  var seq = 0, pending = null;
+  var pending = null;
   form.hidden = false;
   var landing = form.closest(".landing");
   if (landing) { landing.classList.add("has-addr"); }
@@ -69,7 +104,7 @@
     return a;
   }
   function lookupLink() {
-    if (!cfg.lookup_url || cfg.lookup_url.indexOf("https://") !== 0) { return text(cfg.lookup_label || "the official lookup"); }
+    if (!cfg.lookup_url || cfg.lookup_url.indexOf("https://") !== 0) { return text("the official lookup"); }
     var a = link(cfg.lookup_url, cfg.lookup_label);
     a.setAttribute("rel", "noopener");
     return a;
@@ -81,7 +116,7 @@
     if (matched) {
       var s = document.createElement("span");
       s.className = "addr-matched";
-      s.textContent = "Census match: " + matched;
+      s.textContent = cfg.geocoder_short + " match: " + matched;
       out.appendChild(s);
     }
   }
@@ -114,7 +149,7 @@
     if (r.kind === "district") {
       var s = shapes.filter(function (x) { return x.number === r.district; })[0];
       var label = cfg.district_label + " " + r.district;
-      say(["This address is in ", s ? link(s.href, label) : label, "."], r.matched);
+      say(["The " + cfg.geocoder_short + " places this address in ", s ? link(s.href, label) : label, "."], r.matched);
       if (s) { s.el.classList.add("is-found"); }
       pin(r.page_xy);
     } else if (r.kind === "near") {
@@ -123,6 +158,8 @@
     } else if (r.kind === "outside") {
       say(["This address is outside " + cfg.county + "."], r.matched);
       pin(r.page_xy);
+    } else if (r.kind === "ambiguous") {
+      say(["More than one address matched. Add the city and ZIP, or check ", lookupLink(), "."]);
     } else if (r.kind === "nomatch") {
       say(["No match was found for that address. Check the spelling, or look it up on ", lookupLink(), "."]);
     } else if (r.kind === "unavailable") {
@@ -136,41 +173,54 @@
     if (pending !== req) { return; }
     pending = null;
     clearTimeout(req.timer);
-    root[req.cb] = function () {};   // a late answer is ignored
-    if (req.script.parentNode) { req.script.parentNode.removeChild(req.script); }
+    if (req.frame.parentNode) { req.frame.parentNode.removeChild(req.frame); }   // a late answer has nowhere to go
     button.disabled = false;
     form.removeAttribute("aria-busy");
     show(result);
   }
+
+  /* Only the current lookup's own iframe is heard, and only as data: a JSON string, parsed here, then classify. */
+  root.addEventListener("message", function (e) {
+    var req = pending, w = req ? req.frame.contentWindow : null;
+    if (!w || e.source !== w || e.origin !== "null") { return; }
+    var d = e.data;
+    if (!d || typeof d !== "object") { return; }
+    var r;
+    if (d.cr === "answer") {
+      try {
+        r = typeof d.json === "string" && d.json.length <= MAX_ANSWER ? classify(JSON.parse(d.json), locate)
+          : { kind: "error" };
+      } catch (err) { r = { kind: "error" }; }
+    } else if (d.cr === "loaded") {
+      r = { kind: "error" };          // the script loaded but did not call back: a bad answer, not a blocked one
+    } else if (d.cr === "blocked") {
+      r = { kind: "unavailable" };
+    } else {
+      return;
+    }
+    finish(req, r);
+  });
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     var address = input.value.replace(/\s+/g, " ").trim();
     if (!address) { say(["Enter a street address and city."]); input.focus(); return; }
     if (pending) { finish(pending, { kind: "error" }); }
-    seq += 1;
-    var req = { cb: "crGeocode" + seq + "_" + Math.floor(Math.random() * 1e9), loaded: false };
+    var fr = document.createElement("iframe");
+    var req = { frame: fr };
     pending = req;
-    root[req.cb] = function (data) {
-      var r;
-      try { r = classify(data, locate); } catch (err) { r = { kind: "error" }; }
-      finish(req, r);
-    };
-    var sc = document.createElement("script");
-    req.script = sc;
-    sc.referrerPolicy = "no-referrer";
-    sc.async = true;
-    sc.onload = function () {
-      req.loaded = true;
-      // a loaded script that did not call back is a bad answer, not a blocked one
-      setTimeout(function () { finish(req, { kind: "error" }); }, 0);
-    };
-    sc.onerror = function () { finish(req, { kind: "unavailable" }); };
-    req.timer = setTimeout(function () { finish(req, { kind: req.loaded ? "error" : "unavailable" }); }, TIMEOUT_MS);
+    fr.setAttribute("sandbox", "allow-scripts");
+    fr.setAttribute("referrerpolicy", "no-referrer");
+    fr.setAttribute("title", "Address lookup");
+    fr.setAttribute("aria-hidden", "true");
+    fr.setAttribute("tabindex", "-1");
+    fr.className = "addr-frame";
+    fr.hidden = true;
+    fr.srcdoc = frameDoc(cfg.frame, jsonpUrl(cfg.geocoder, address, CALLBACK));
+    req.timer = setTimeout(function () { finish(req, { kind: "unavailable" }); }, TIMEOUT_MS);
     button.disabled = true;
     form.setAttribute("aria-busy", "true");
     say(["Looking up the address…"]);
-    sc.src = jsonpUrl(cfg.geocoder, address, req.cb);
-    document.head.appendChild(sc);
+    document.body.appendChild(fr);
   });
 })(typeof window !== "undefined" ? window : this);

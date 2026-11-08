@@ -1,4 +1,7 @@
-"""python -m sitegen --facts <facts.json> --out build/site [--internal]"""
+"""python -m sitegen --facts <facts.json> --out build/site [--internal] [--no-geocoder]
+
+--no-geocoder: no "Find your district" address box on the landing (and no geocoder in the page's CSP), only the plain
+"Not sure of your district?" lookup line. Use it for the claude.ai preview, where the box cannot reach the geocoder."""
 import argparse
 import sys
 
@@ -14,6 +17,8 @@ def main(argv=None) -> int:
     ap.add_argument("--report", help="report.json from the verifier (default: next to --out)")
     ap.add_argument("--seats", help="holder records (default: config/seats.yml; none for a fixture facts file)")
     ap.add_argument("--districts", help="map file (default: config/localities/<locality>/districts.json)")
+    ap.add_argument("--no-geocoder", action="store_true",
+                    help="draw no landing address box (the claude.ai preview build); the plain lookup line stays")
     args = ap.parse_args(argv)
     extra = {}
     if args.seats:
@@ -22,7 +27,8 @@ def main(argv=None) -> int:
         extra["districts_path"] = args.districts
     try:
         result = build(args.facts, args.out, internal=args.internal,
-                       changes_path=args.changes, report_path=args.report, **extra)
+                       changes_path=args.changes, report_path=args.report,
+                       geocoder=not args.no_geocoder, **extra)
     except BuildError as exc:
         print(f"sitegen: {exc}", file=sys.stderr)
         return 1
