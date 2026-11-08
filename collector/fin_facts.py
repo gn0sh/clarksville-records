@@ -104,12 +104,14 @@ def _tab_not_read(document_id: str, reason: str) -> dict:
 def build_budget(store, cfg: FinanceConfig, sources: dict, problems: list, meta_cache: Path | None = META_CACHE,
                  book_words=pdf_words) -> tuple[list[dict], list[dict]]:
     """Budget books in the store -> (books, budget_lines with checks and edition marks) (tasks F10-F12). A book not
-    yet fetched, or without a text layer, is reported in `problems` and not read."""
+    in the store, or without a text layer, is reported in `problems` and not read; both are guard problems
+    (fin_run.GUARD_KEYS), so the build writes nothing rather than drop a book's lines (provenance/book-missing)."""
     books, lines = [], []
     for spec in cfg.budget.books:
         e = store.latest(spec.url)
         if not e or not store.has_bytes(e["sha256"]):
-            problems.append(f"{spec.url}: budget book not fetched yet (run `python -m collector fin fetch`)")
+            problems.append(f"book {spec.id}: not in the store, its lines would be dropped (provenance/book-missing): "
+                            f"run `python -m collector fin fetch` ({spec.url})")
             continue
         pdf = store.path_for(e["sha256"])
         src = source_record(e, pdf_meta(pdf, cfg, meta_cache))

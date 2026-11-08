@@ -146,6 +146,22 @@ def test_cmd_build_writes_finance_and_report_block(fake, monkeypatch, tmp_path, 
     assert "15 solicitations" in capsys.readouterr().out
 
 
+def test_a_missing_budget_book_stops_the_build(fake, monkeypatch, tmp_path, capsys):
+    """provenance/book-missing: a configured book whose bytes are not in the store is a guard problem: exit 2 and
+    nothing written, never a finance.json silently without that book's lines."""
+    from collector import fin_facts
+    monkeypatch.setattr(fin_facts, "pdf_meta", fake.meta)
+    spec = CFG.budget.books[0]
+    fake.store.path_for(fake.store.latest(spec.url)["sha256"]).unlink()
+    out = tmp_path / "finance.json"
+    code = fin_run.cmd_build(fake.store, CFG, finance_path=out, report_path=tmp_path / "report.json",
+                             status_path=fake.status_path, meta_cache=None, words_for=fake.words_for,
+                             book_words=fake.book_words)
+    assert code == 2 and not out.exists()
+    printed = capsys.readouterr().out
+    assert f"book {spec.id}: not in the store" in printed and "nothing written" in printed
+
+
 def test_census_lists_every_bid_tab_link_with_its_class(built):
     fin, extras = built
     text = fin_run.census_text(fin, extras)

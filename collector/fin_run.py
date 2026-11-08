@@ -33,6 +33,9 @@ STAGE_KIND = {"bid_tab": "bid_tab", "award_letter": "award_letter", "partial_awa
               "rfp": "rfp", "rfq": "rfp"}
 ARCHIVE_KIND = "archive_index"
 BOOK_KIND = "budget_book"
+# Problems that stop `fin build` (exit 2, nothing written): a value from a non-text source, a shared URL read, a value
+# citing no source, a configured budget book missing from the store.
+GUARD_KEYS = ("scan-values", "award-source", "cites no", "provenance/book-missing")
 
 
 def _today() -> str:
@@ -187,15 +190,15 @@ def validate(fin: dict) -> list[str]:
 
 def cmd_build(store: Store, cfg: FinanceConfig, finance_path: Path | None = None, report_path: Path | None = None,
               status_path: Path = FETCH_STATUS, **kw) -> int:
-    """Store -> data/finance.json and build/report.json `finance`. Exit 0 ok, 2 on schema or scan-guard problems
-    (nothing written), 3 when parity says 'review needed' (written; release waits for the reason, A5)."""
+    """Store -> data/finance.json and build/report.json `finance`. Exit 0 ok, 2 on schema or guard problems
+    (GUARD_KEYS; nothing written), 3 when parity says 'review needed' (written; release waits for the reason, A5)."""
     from . import fin_facts
     from .facts import dumps, write_if_changed
     finance_path = Path(finance_path) if finance_path else fin_facts.FINANCE
     report_path = Path(report_path) if report_path else ROOT / "build" / "report.json"
     fin, extras = fin_facts.build(store, cfg, status_path=status_path, **kw)
     errors = validate(fin)
-    guard = [p for p in extras["problems"] if "scan-values" in p or "award-source" in p or "cites no" in p]
+    guard = [p for p in extras["problems"] if any(k in p for k in GUARD_KEYS)]
     if errors or guard:
         for p in (errors + guard)[:20]:
             print("  problem:", p)
