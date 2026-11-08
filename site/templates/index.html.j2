@@ -31,11 +31,25 @@
       <div class="map-placeholder" role="note"><p>The map is not available yet. Districts are listed by number.</p></div>
       {% endif %}
       {% if site.cfg.district_lookup_url %}
-      <p class="district-lookup note">Not sure of your district? <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">Look it up on GoVoteTN</a>.</p>
+      <p class="district-lookup note">Not sure of your district? <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">Look it up on {{ site.cfg.district_lookup_label or "GoVoteTN" }}</a>.</p>
       {% endif %}
     </div>
 
     <div class="landing-list">
+      {% if address %}
+      {# Address box (address pin M2). Hidden until static/address.js shows it: it needs the script, and without it a
+         submit would only put the address in this site's own URL. Nothing is stored; see the privacy line. #}
+      <form class="addr-form" id="addr-form" hidden>
+        <div class="search-row">
+          <label for="addr-q">Find your district</label>
+          <input id="addr-q" type="text" autocomplete="street-address" maxlength="200" placeholder="Street address, city" aria-describedby="addr-privacy">
+          <button type="submit">Find</button>
+        </div>
+        <p class="addr-privacy" id="addr-privacy">Your address is sent to the U.S. Census Bureau's geocoder to find it on the map. This site doesn't store it.{% if site.cfg.district_lookup_url %} <span class="addr-alt">Or look it up on <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">{{ site.cfg.district_lookup_label or "GoVoteTN" }}</a>.</span>{% endif %}</p>
+        <p class="addr-result" id="addr-result" role="status" aria-live="polite"></p>
+      </form>
+      <script type="application/json" id="addr-config">{{ address|tojson }}</script>
+      {% endif %}
       <details class="district-list"{% if not map %} open{% endif %}>
         <summary><span class="wide-only">All {{ district_count }} districts, by number</span><span class="narrow-only" aria-hidden="true">All {{ district_count }} districts</span></summary>
         {% if basis %}<p class="basis muted">{{ basis }}.</p>{% endif %}
@@ -59,4 +73,6 @@
   </div>
 </div>
 {% endblock %}
-{% block scripts %}{% if map %}<script src="{{ root }}static/map.js" defer></script>{% endif %}{% endblock %}
+{% block scripts %}{% if map %}<script src="{{ root }}static/map.js" defer></script>{% endif %}{% if address %}
+<script src="{{ root }}static/georef.js" defer></script>
+<script src="{{ root }}static/address.js" defer></script>{% endif %}{% endblock %}

@@ -301,6 +301,11 @@ def test_landing_district_lookup_line_is_a_plain_config_link_and_vanishes_when_e
     assert "Not sure of your district? Look it up on GoVoteTN." in main_text(html)
     assert url not in "".join(h for k, h in pages.items() if k != "index.html")
     assert sitegen_build.site_url_problems({**config.SITE, "district_lookup_url": "http://x.example"})
+    assert config.SITE["district_lookup_label"] == "GoVoteTN"
+    monkeypatch.setitem(config.SITE, "district_lookup_label", "the state lookup")
+    (tmp_path / "relabel").mkdir()
+    relabelled = build_pages(tmp_path / "relabel", json.loads(FIXTURE.read_text(encoding="utf-8")))["index.html"]
+    assert f'<a data-ext="lookup" href="{url}" rel="noopener">Look it up on the state lookup</a>' in relabelled
     empty = {**config.SITE, "district_lookup_url": ""}
     monkeypatch.setattr(config, "SITE", empty)
     assert "district-lookup" not in build_pages(tmp_path, json.loads(FIXTURE.read_text(encoding="utf-8")))["index.html"]

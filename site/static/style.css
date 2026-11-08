@@ -519,6 +519,23 @@ svg.county-map { display: block; width: 100%; height: auto; max-height: 60vh; }
 .landing-list { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0 20px; }
 .landing-list > details { flex: 1 1 100%; }
 .landing-list > details:not([open]) { flex: 0 1 auto; }
+/* Address box (address pin M2): label and row on one line where there is room; the privacy line stays under it. */
+.addr-form { flex: 1 1 100%; margin: 0 0 4px; font-size: var(--t-sm); }
+.addr-form[hidden] { display: none; }
+.addr-form .search-row { align-items: center; }
+.addr-form label { flex: 0 0 auto; font-weight: 600; }
+/* With the box shown (address.js), its privacy line carries the official-lookup link, so the separate line goes. */
+.landing.has-addr .district-lookup { display: none; }
+.addr-form .search-row input { flex: 1 1 auto; width: 0; min-width: 0; min-height: 44px; padding: 8px 10px; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--mark); border-radius: var(--radius); }
+.addr-form .search-row button:disabled { opacity: 0.6; cursor: progress; }
+.addr-privacy { margin: 4px 0 0; font-size: var(--t-xs); color: var(--muted); }
+.addr-result { margin: 4px 0 0; }
+.addr-result:empty { display: none; }
+.addr-matched { display: block; font-size: var(--t-xs); color: var(--muted); overflow-wrap: anywhere; }
+.addr-pin { pointer-events: none; }
+.addr-pin circle { fill: none; stroke: var(--focus); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+.addr-pin circle.addr-pin-dot { fill: var(--focus); stroke: var(--bg); stroke-width: 1.5px; }
+#layer-districts a.is-found .district { fill: var(--surface-2); stroke: var(--focus); stroke-width: 2px; }
 details.map-about > summary { cursor: pointer; padding: 10px 0; min-height: 44px; font-size: var(--t-sm); }
 details.map-about .map-caption { font-size: var(--t-sm); }
 /* The drawer carries the full page list, so the landing's footer keeps only its two lines. */
@@ -536,6 +553,10 @@ details.map-about .map-caption { font-size: var(--t-sm); }
   details.district-list > summary, details.map-about > summary { padding: 8px 0; }
   /* bigger district numbers on a small map (in the map's own units); the list stays the full-size picker */
   .page-landing #layer-districts { font-size: 54px; stroke-width: 14px; }
+  /* phone: the address row takes 48px more, so the map gives it up; the privacy line shows once the box is in use
+     (focus, or a result on screen), always before anything is sent, and the input names it (aria-describedby) */
+  .landing.has-addr svg.county-map { max-height: max(11rem, calc(100vh - 485px)); max-height: max(11rem, calc(100svh - 485px)); }
+  .addr-form:not(:focus-within):not(.has-result) .addr-privacy { display: none; }
 }
 svg.county-map-small { max-width: 18rem; max-height: 14rem; margin: 10px 0 0; }
 .county-outline { fill: none; stroke: var(--fg); stroke-width: 2px; vector-effect: non-scaling-stroke; }

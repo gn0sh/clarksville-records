@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 import jinja2
 from jsonschema import Draft202012Validator, FormatChecker
 
-from . import config, seats as seats_mod, views
+from . import config, georef as georef_mod, seats as seats_mod, views
 
 
 class BuildError(Exception):
@@ -169,13 +169,17 @@ DEFAULT = object()
 
 
 SITE_URL_KEYS = ("redistricting_page", "old_lines_map_url", "swap_source", "support_url",
-                "district_lookup_url")
+                "district_lookup_url", "geocoder_url")
 
 
 def site_url_problems(cfg: dict) -> list[str]:
-    """Every link in config/site.yml must be https (N4); an empty value means "not set" and is never rendered."""
-    return [f"{k} must be an https link, got {cfg[k]!r}" for k in SITE_URL_KEYS
-            if cfg.get(k) and not _is_https_uri(cfg[k])]
+    """Every link in config/site.yml must be https (N4); an empty value means "not set" and is never rendered.
+    geocoder_url is a base the address box adds its own query to, so it may carry no query or fragment."""
+    out = [f"{k} must be an https link, got {cfg[k]!r}" for k in SITE_URL_KEYS
+           if cfg.get(k) and not _is_https_uri(cfg[k])]
+    if cfg.get("geocoder_url") and any(c in str(cfg["geocoder_url"]) for c in "?#&"):
+        out.append(f"geocoder_url must be a base URL with no query or fragment, got {cfg['geocoder_url']!r}")
+    return out
 
 
 def build(facts_path, out_dir, internal: bool = False, changes_path=None, report_path=None,
@@ -193,7 +197,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     try:
         seat_rows = seats_mod.load_rows(seats_path)
         districts = seats_mod.load_districts(districts_path)
-    except seats_mod.SeatsError as exc:
+        georef = georef_mod.load_for_map(districts_path, districts)
+    except (seats_mod.SeatsError, ValueError) as exc:
         raise BuildError(str(exc)) from exc
     bad = site_url_problems(config.SITE)
     if bad:
@@ -224,7 +229,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         target.write_text(html, encoding="utf-8")
         written.append(rel)
 
-    render("index.html.j2", "index.html", "Map", **views.landing(ix, districts))
+    render("index.html.j2", "index.html", "Map", **views.landing(ix, districts, georef))
     render("officials.html.j2", "officials.html", "Officials", **views.officials_page(ix))
     render("meetings_index.html.j2", "meetings.html", "Meetings", **views.meetings_page(ix))
     for n in range(1, config.SITE["district_count"] + 1):
