@@ -9,7 +9,7 @@ import subprocess
 
 import pytest
 
-from conftest import FIXTURE, FIXTURE_DISTRICTS, ROOT, build, parse
+from conftest import FIXTURE, ROOT, build, parse
 from qa import site_checks
 from sitegen import build as sitegen_build, config, views
 from test_georef import G
@@ -34,8 +34,11 @@ def real_site(tmp_path_factory):
 
 
 def addr_config(html):
-    m = site_checks.ADDR_CONFIG.search(html)
-    return json.loads(m.group(1)) if m else None
+    """The box's settings block, read the way qa/site_checks.check_external reads it (Page.json_blocks)."""
+    pg = site_checks.Page()
+    pg.feed(html)
+    blocks = pg.json_blocks.get("addr-config", [])
+    return json.loads(blocks[0]) if blocks else None
 
 
 def test_box_is_hidden_until_the_script_shows_it_and_names_the_privacy_rule(real_map_site):
@@ -203,7 +206,8 @@ def test_site_checks_fail_address_js_without_its_settings_block(real_map_site, t
     pages["index.html"] = site_checks.parse(idx)
     assert any("without its addr-config" in p for p in site_checks.check_external(pages, site, cfg))
     about = site / "about.html"                                            # any page, not only the landing
-    about.write_text(about.read_text(encoding="utf-8").replace("</body>", '<script src="static/address.js"></script></body>'),
+    about.write_text(about.read_text(encoding="utf-8").replace("</body>",
+                                                               '<script src="static/address.js"></script></body>'),
                      encoding="utf-8")
     pages["about.html"] = site_checks.parse(about)
     assert any(p.startswith("about.html: loads static/address.js") for p in site_checks.check_external(pages, site, cfg))
@@ -215,7 +219,8 @@ def test_site_checks_hold_every_page_to_the_csp(real_map_site, tmp_path, edit):
     cfg = site_checks._site_cfg()
     site = tmp_path / "c"
     _site_copy(real_map_site, site)
-    target = site / ("about.html" if edit in ("drop", "wild", "connect", "frame-src", "img-src", "form-action", "frame-src-gone") else "index.html")
+    on_about = ("drop", "wild", "connect", "frame-src", "img-src", "form-action", "frame-src-gone")
+    target = site / ("about.html" if edit in on_about else "index.html")
     html = target.read_text(encoding="utf-8")
     if edit == "drop":
         new = re.sub(r'<meta http-equiv="Content-Security-Policy"[^>]*>', "", html)
@@ -273,7 +278,8 @@ def test_address_box_in_a_browser(real_site, tmp_path):
     for vp, m in out["fit"].items():
         assert m["formShown"] and m["scrollWidth"] <= m["innerWidth"], (vp, m)
         if vp.endswith("answered"):     # privacy line + answer shown: the answer and the pin are on the first screen
-            assert m["resultBottom"] <= m["innerHeight"] and m["pin"] and 0 <= m["pin"][0] and m["pin"][1] <= m["innerHeight"], (vp, m)
+            assert m["resultBottom"] <= m["innerHeight"], (vp, m)
+            assert m["pin"] and 0 <= m["pin"][0] and m["pin"][1] <= m["innerHeight"], (vp, m)
         else:                           # before any lookup the whole landing fits one screen
             assert m["scrollHeight"] <= m["innerHeight"], (vp, m)
     assert set(out["fit"]) == {"375x667", "1280x800", "375x667 answered", "1280x800 answered"}
