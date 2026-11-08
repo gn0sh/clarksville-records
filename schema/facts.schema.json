@@ -190,9 +190,9 @@
               "additionalProperties": false,
               "required": ["yes", "no", "abstain"],
               "properties": {
-                "yes": { "type": "integer", "minimum": 0 },
-                "no": { "type": "integer", "minimum": 0 },
-                "abstain": { "type": "integer", "minimum": 0 }
+                "yes": { "type": ["integer", "null"], "minimum": 0, "description": "as printed; null when printed blank" },
+                "no": { "type": ["integer", "null"], "minimum": 0, "description": "as printed; null when printed blank" },
+                "abstain": { "type": ["integer", "null"], "minimum": 0, "description": "as printed; null when printed blank" }
               }
             },
             { "type": "null" }

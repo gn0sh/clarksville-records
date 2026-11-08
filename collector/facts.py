@@ -62,7 +62,7 @@ def _reading_of(rc):
     for r in rc.readings + ([rc.combined] if getattr(rc, "combined", None) else []):
         if r.votes is rc.votes:
             return r
-    return P.Reading("parsed", rc.votes, rc.tally, list(rc.absent), [])
+    return P.Reading("parsed", rc.votes, rc.tally, list(rc.absent), [], printed=getattr(rc, "printed_tally", None))
 
 
 ATTACHED = "inside an earlier meeting"
@@ -323,7 +323,10 @@ class Builder:
                 ev(iid, "motion", rc.motion_text, moid, rc.page, max(order - 1, 0), 1)
             self.roll_calls.append({
                 "id": rid, "meeting_id": mid, "item_id": iid, "motion_id": moid, "votes": votes,
-                "stated_tally": ({"yes": rc.tally[0], "no": rc.tally[1], "abstain": rc.tally[2]} if rc.tally else None),
+                # the counts as printed: a count printed blank is null, never the number derived for the check
+                # (neutrality/derived-count-shown-as-stated)
+                "stated_tally": (dict(zip(("yes", "no", "abstain"), rc.printed_tally or rc.tally))
+                                 if rc.tally else None),
                 "outcome": {"pass": "passed", "fail": "failed"}.get(oc, "other"),
                 "outcome_text": " ".join(clause.split()), "source_id": sid, "page": rc.page, "verification": rver})
             ev(iid, "roll_call", clause, rid, rc.page, order, 2)
