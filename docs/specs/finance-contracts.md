@@ -26,12 +26,12 @@ document. Nav already reserves Finance and Capital projects slots.
 ## Slice 1 (thin, real data, private preview), split by Brain Trust 2026-11-08
 **1a "Bids and awards"** (done-test: Brian opens a solicitation and sees every document and the bid-tab figures with sources).
 - The purchasing archive index: all ~91 solicitations (2025-2026), each with every linked document (bid, RFP, bid tab, award letter, notice of intent, Q&A), a stage label and date per document, and fetch date.
-- Bidders, "Bid total as printed" and the awardee come only from the 32 text bid tabs, with the awardee's source named. Solicitations without a bid tab are listed with documents only.
+- Bidders, "Bid total as printed" and the awardee come only from the text bid tabs (live count), with the awardee's source named. Solicitations without a bid tab are listed with documents only.
 - Scanned award letters and notices are linked, with no value read from them. OCR is a later spike, not slice 1.
 - No sums across solicitations, no per-vendor totals, no county-wide totals. Bonfire is link-only.
 
 **1b Budget books** (own done-test: Brian opens a fund and a department and sees every number with its PDF page).
-- FY2027 and FY2024-25 books to budget by fund, revenue by source and spending by department, plus the Capital Projects fund (171, FY2027 book pp. 100-112) on its own nav slot.
+- FY2027 and FY2024-25 books to budget by fund, revenue by source and spending by department, plus the Capital Projects fund (171, FY2027 book pp. 102-114) on its own nav slot.
 - Columns carry the book's own header plus its kind (actual / amended / budget); no trend lines, no "the years the books print" framing.
 - Lines are detail rows; each printed subtotal is checked against its rows; transfers and available-funds rows are tagged by section.
 - Totals are checked "to the printed dollar". A total that does not add up is shown "as printed, does not add up" with its lines, flagged, not hidden.
@@ -40,12 +40,12 @@ document. Nav already reserves Finance and Capital projects slots.
 
 ## Acceptance criteria
 - AC-F1 **Amounts match source.** Spot check of 30 random shown dollar amounts (at least 10 budget, 10 bid-tab, 5 across both books, 5 awardee names from bid tabs) against the PDF: all 30 match exactly (digits, sign, parentheses to negative). Any mismatch blocks release; the failing pattern gets a regression test, then a fresh 30.
-- AC-F2 **Budget checks (1b).** For every fund and year, each printed subtotal equals the sum of its detail rows to the printed dollar. A non-reconciling total is shown as printed, flagged "does not add up", with its lines; never hidden, never silently corrected. The run reports reconciled and flagged counts.
+- AC-F2 **Budget checks (1b).** For every fund and year, each printed subtotal equals the sum of its detail rows to the printed dollar, with three outcomes (manager decision 2026-11-08, ADR 0002 point 4): "adds up", "adds up within rounding" (gap no more than about half a dollar per line; the FY2027 book's whole-dollar rounding gives 99 of 515 such totals) and "does not add up". A non-reconciling total is shown as printed, flagged "does not add up", with its lines; never hidden, never silently corrected. The run reports reconciled and flagged counts.
 - AC-F3 **Every number is linked.** 100% of shown amounts, names and dates carry a source link to the document and page (N4) and a fetch date. A test fails the build on any shown amount without a link.
 - AC-F4 **Bid tab arithmetic.** Each bid-tab total shown is read from the tab's printed total. Bidder count and the awardee listed in the tab agree with the award letter where one is readable. Disagreement: show the bid tab as printed and flag "Documents differ, read both" with both links, with no explanation.
 - AC-F5 **No OCR values (1a).** No amount, awardee or date is read from a scanned award letter or notice; each is linked as "Scanned, read it yourself". A later OCR spike must meet P1-P4 (independent exact check, else Not confirmed*, link only) before any such value appears.
 - AC-F6 **Hand-labelled set.** At least 10 solicitations (mixed: with and without bid tab, scanned award letter, multi-bidder, single bidder, lump-sum vs unit-price tab) hand-labelled by QA; zero wrong values; anything unreadable lands in Not confirmed*.
-- AC-F7 **Document completeness.** For every purchasing archive row, 100% of its linked documents appear on its contracts entry (count of links in archive equals count shown); the run reports totals (expected 39 award letters, 32 bid tabs on 2026-11-08, or the current counts).
+- AC-F7 **Document completeness.** For every purchasing archive row, 100% of its linked documents appear on its contracts entry (count of links in archive equals count shown); the run reports totals (the live counts; the architect counted 90 rows, 56 with a bid-tab link (2 .docx) and 71 with an award-type document on 2026-11-08).
 - AC-F8 **Neutrality.** Vendors and departments use one layout and one ordering rule (alphabetical, or by date); no sorting or highlighting by amount-won counts, win rates, share of spend, year-over-year change arrows, or any computed judgment. Totals appear only as plain sums with scope and date range stated (N1-N3). A lint test fails the build on words from a banned list in templates (for example "overpaid", "suspicious", "top", "worst").
 - AC-F9 **Names link to votes.** Every elected official's name anywhere in these pages (for example the budget committee roster) links to their vote-history page. A test finds zero unlinked names matching the official roster.
 - AC-F10 **Compact tables.** Long text (titles, notes, line descriptions) is clipped with Show more; tested with no horizontal page scroll at 360 px and at narrow side-panel width.
