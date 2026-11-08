@@ -183,6 +183,13 @@ def census_text(fin: dict, extras: dict) -> str:
     out.append(f"bid-tab links (per row): {sum(counts.values())}, unique URLs: {len({c.url for c in extras['census']})}"
                f" (shared URLs: {len(shared)})")
     out.append("layout classes (per row link): " + ", ".join(f"{k} {v}" for k, v in sorted(counts.items())))
+    why: dict[str, int] = {}
+    for c in extras["census"]:
+        if c.cls != "lump_sum":
+            key = c.detail.split(":")[0] + (": " + c.detail.split(": ", 1)[1].split(" on page")[0]
+                                            if c.detail.startswith("layout") else "")
+            why[key] = why.get(key, 0) + 1
+    out.append("not read, by detail: " + "; ".join(f"{k} {v}" for k, v in sorted(why.items(), key=lambda kv: -kv[1])))
     out.append(f"solicitations: {cov['n_total']}; with a bid tab: {cov['n_bid_tab_links']}; tab read (lump_sum): "
                f"{cov['n_tab_read']}; not read: {json.dumps(cov['n_tab_not_read'], sort_keys=True)}")
     out.append(f"award letters: {cov['n_award_letters']}, scanned: {cov['n_award_scanned']}; documents: "
