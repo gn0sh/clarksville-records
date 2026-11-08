@@ -49,8 +49,18 @@
 | 2026-11-08 | backend-engineer | opus/high | fix review findings | done, 50b4bbf/0464107: 361/390 (92.6%), 327 pass |
 | 2026-11-08 | code-reviewer | opus/high | delta re-review 0464107 | approve |
 | 2026-11-08 | frontend-engineer | opus/medium | landing, drawer, officials, search, footer | done, 864b7e1: 412 pass; gaps: votes[].district, pre-2026 CZ titles lack applicant names |
-| 2026-11-08 | code-reviewer | opus/high | review landing/search/seats at a552cd4 | running |
-| 2026-11-08 | qa-engineer | sonnet/medium | QA landing/search/seats + spot-check newly verified | running |
+| 2026-11-08 | code-reviewer | opus/high | review landing/search/seats at a552cd4 | request changes: must-fix provenance/derived-seat-dates-shown-as-term; should-fix qa-weakened/ext-link-any-host, qa-tool/layout-counts-year-tables (pre-existing), locality/hard-coded-text; 4 nits |
+| 2026-11-08 | qa-engineer | sonnet/medium | QA landing/search/seats + spot-check newly verified | FAIL: landing/one-screen, attribution/seat-label-missing-former, attribution/seat-label-missing-meeting-history; AC-P1 361/390 PASS; spot-check 10/10 |
+| 2026-11-08 | backend-engineer | opus/medium | rezoning applicant/location fields + search | done, e4dadf3: 74/88 CZ items have applicant or location, 431 pass |
+| 2026-11-08 | software-architect | opus/high | provenance invariant + consumer list (loop rule) | done, 2c9dba6 |
+| 2026-11-08 | backend-engineer | opus/medium | provenance B1-B3, seats.csv, seating page | done, 430c090/6e6c968: lines_effective stated (2022-08-30 oath date, 2022-09-12 minutes p37); 424 pass |
+| 2026-11-08 | frontend-engineer | opus/medium | provenance F1-F6 + review/QA fixes + zoning on item pages | done, dd63506: 474 pass, site_checks all PASS, landing 667/667 phone, 800/800 desktop |
+| 2026-11-08 | backend-engineer | opus/medium | (mis-resumed finished map-seats agent) | waste:duplicate |
+| 2026-11-08 | code-reviewer | sonnet/medium | review rezoning fields | request changes: parse-accuracy/single-engine-misread-agrees, malformed-dissent-dropped; 3 nits |
+| 2026-11-08 | software-architect | opus/medium | independent-readings invariant (loop rule, parse-accuracy 2nd hit) | done, e9c7502 |
+| 2026-11-08 | backend-engineer | opus/high | independent-readings fixes | running |
+| 2026-11-08 | code-reviewer | opus/high | delta re-review of landing fixes | running |
+| 2026-11-08 | qa-engineer | sonnet/medium | re-test landing bugs | running |
 | 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
 
 ## Decisions
@@ -67,6 +77,7 @@
 | item-history | 2 (review x2): architect states invariant | consent-reprint-duplicates, consent-pulled |
 | politeness | 1 (review) | redirect-bypass |
 | idempotence | 1 (review) | superseded-source |
+| provenance | 2 (review 11-08 x2): architect states invariant | derived-count-shown-as-stated, derived-seat-dates-shown-as-term |
 | parse-accuracy | 2 (review 11-08, rezoning review): architect states invariant | verified-rate, combine-ignores-unclean-dissent, outcome-crosses-clause, two-thirds-majority |
 
 ## Skipped panels
@@ -100,3 +111,5 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-08: the county district map is traced from the county's own vector PDF (Redistricting20211018.pdf), with numbers 19 and 20 swapped per the 2021-11-08 amendment. The swap was verified against the 2026 roster and the per-district maps. City wards are unavailable: the city PDF is raster. The fallback is the APSU layer once that host is allowed.
 - Open parser finding (item-history family, 3rd hit): the 2024-09-09 minutes on p50 reprint the 2020 roll call for item 20-9-14 as an exhibit. It is filed as a 2024 unverified roll call. The architect must restate the invariant before the fix (loop rule). Seat derivation uses verified roll calls only, so seats are unaffected.
 - Backlog (from frontend, 2026-11-08): rezoning items (CZ-) before 2026 carry only the case number as their title, so searching by applicant name finds only the newer ones. backend-engineer to pull applicant and street from the item text. This is the owner's named search use case.
+- 2026-11-08 manager decisions: a name on a date with no roster record is labelled "seat not recorded". Seats are published as seats.csv. Zoning codes are not glyph-corrected (misread codes stay null).
+- Open parser finding (item-history family): the 2024-09-09 minutes on p50 reprint a 2020 roll call as an exhibit, and it is filed as a 2024 unverified roll call. The architect must restate the invariant before the fix.
