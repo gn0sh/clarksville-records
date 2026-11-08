@@ -346,6 +346,20 @@ def test_any_garbled_plus_minus_in_a_resolution_still_reads_its_number(rules, ga
     assert Z.decide(pooled(by_case(both, "CZ-01-2024") + [a]))["acreage"] is None
 
 
+@pytest.mark.parametrize("printed", ["21,780 SF", "2 lots", "10 sq.ft", "0.5 AC"])
+def test_a_unit_word_after_the_acreage_is_not_a_garbled_plus_minus(rules, printed):
+    """parse-accuracy/suffix-swallows-unit: any short token after the number counted as a garbled "+/-", so
+    "21,780 SF" read as a clean 21780 acres. A suffix must hold +, /, - or ±; a unit word stays in the value, which is
+    then malformed and vetoes, on the staff sheet and in the resolution text alike."""
+    both = _staff_both(rules)
+    (a,) = _acres([STAFF.replace("1.29 +/-", printed)], rules)
+    assert (a.key, a.value) == (Z.MALFORMED, None), (printed, a)
+    assert Z.decide(pooled(by_case(both, "CZ-02-2024") + [a]))["acreage"] is None
+    page = resolution().replace("containing 2.32 +1- acres", f"containing {printed} acres")
+    (a,) = _acres([page], rules, case="CZ-01-2024")
+    assert (a.key, a.value) == (Z.MALFORMED, None), (printed, a)
+
+
 @pytest.mark.parametrize("printed", ["2.32-2.5", "2.32 -2.5", "2.32 - 2.5", "2.32 to 2.5", "4. 7598", "9 .49",
                                      "I.4 +/-", "lo+/-", "0,99", "5,966 SQ FT or 0.14"])
 def test_a_range_or_a_garbled_number_is_never_read_as_a_value(rules, printed):

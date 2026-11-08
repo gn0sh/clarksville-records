@@ -75,7 +75,7 @@ printings:
     named_districts: true
   - name: identified
     kind: resolution
-    pattern: 'said property is identified as .{0,120}?[ ,]containing(?: ,)* ?(?:an area of ?)?(?P<acreage_printed>(?:approximately )?(?P<acreage>(?!an\b|approx|[,.](?!\d))\S+?(?: \S+?){0,4}?)(?P<acreage_suffix> ?(?:\+ ?[/1!lI] ?-|±)| (?![-–~]?(?:\d+(?:[.,]\d+)?|[.,]\d+)(?: |acres))\S{1,5}|(?: [,;|]+)+)?? ?acres)'
+    pattern: 'said property is identified as .{0,120}?[ ,]containing(?: ,)* ?(?:an area of ?)?(?P<acreage_printed>(?:approximately )?(?P<acreage>(?!an\b|approx|[,.](?!\d))\S+?(?: \S+?){0,4}?)(?P<acreage_suffix> ?(?:\+ ?[/1!lI] ?-|±)| (?![-–~]?(?:\d+(?:[.,]\d+)?|[.,]\d+)(?: |acres))(?=\S{0,4}[-+/±])\S{1,5}|(?: [,;|]+)+)?? ?acres)'
   - name: located
     kind: resolution
     pattern: 'situated in[ ,:|]*Civil[ ,|]*District \S{1,3}?,? (?:located )?(?P<location>.+?)(?:[ ;,]*(?:and\b|[|_=—~°*$‘.]+(?= )))*[ ;,]*(?:[|_=—~°*$‘]+)?W\S{4,8},? said property is described'
@@ -90,7 +90,7 @@ printings:
     pattern: 'NAME OF APPLICANT:? ?(?P<applicant>.+?)(?:[ ,]*[|_=—~°*$‘]+)* (?:AGENT|GENERAL INFORMATION|TAX PLAT|ACREAGE)'
   - name: staff-acreage
     kind: staff
-    pattern: 'ACREAGE ?TO ?BE ?REZONED[:.]* ?(?P<acreage_printed>(?P<acreage>(?!:|\.(?!\d)|PRE\S{2,3}NT)\S+?(?: (?!PRE\S{2,3}NT)\S+?){0,2}?)(?P<acreage_suffix> ?(?:\+ ?[/1!lI] ?-|±)| (?!PRE\S{2,3}NT)(?![-–~]?(?:\d+(?:[.,]\d+)?|[.,]\d+)(?: |$))\S{1,5})??)(?: ?[|;,_=—~°*$‘]+)*(?= PRE\S{2,3}NT|$)'
+    pattern: 'ACREAGE ?TO ?BE ?REZONED[:.]* ?(?P<acreage_printed>(?P<acreage>(?!:|\.(?!\d)|PRE\S{2,3}NT)\S+?(?: (?!PRE\S{2,3}NT)\S+?){0,2}?)(?P<acreage_suffix> ?(?:\+ ?[/1!lI] ?-|±)| (?!PRE\S{2,3}NT)(?![-–~]?(?:\d+(?:[.,]\d+)?|[.,]\d+)(?: |$))(?=\S{0,4}[-+/±])\S{1,5})??)(?: ?[|;,_=—~°*$‘]+)*(?= PRE\S{2,3}NT|$)'
   - name: staff-location
     kind: staff
     pattern: 'PROPERTY LOCATION:? (?:[-|_=—~°*$‘]+ )?(?P<location>.+?)(?: [|_=—~°*$‘]+)* (?:CITY COUNCIL WARD|COUNTY COMMISSION DISTRICT|DESCRIPTION OF PROPERTY)'

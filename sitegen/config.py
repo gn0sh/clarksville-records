@@ -100,7 +100,7 @@ OUTCOME_SUBJECTS = [
 # amendment's own wording); that text is never shown.
 OUTCOME_KINDS = [(r"(?:[a-z]+ |.*?[.:;\u201c\u201d\"] )?" + subj + _TAIL, label) for subj, label in OUTCOME_SUBJECTS]
 # The same patterns in plain words for the About page (views.vote_on_rule, about.html#vote-on): _VERB and _TAIL as
-# written below, "(?:x )?" as "[x]", ",?" as "[,]". tests/test_site_review_fixes.py checks no pattern syntax is left.
+# written below, "(?:x )?" as "[x]", ",?" as "[,]". tests/test_provenance.py checks no pattern syntax is left.
 OUTCOME_VERB_WORDS = "[was or were] adopted, approved or failed [and approved]"
 OUTCOME_TAIL_WORDS = "by the following roll call vote"
 

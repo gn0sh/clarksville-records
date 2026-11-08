@@ -462,8 +462,9 @@ malformed value never matched and the printing gave no reading: "2.82 ±" on a s
 - A value's own check decides clean or malformed, never the pattern. Acreage: `zoning.ACREAGE_NUMBER` (a comma only
   between thousands), so "0,99", "4. 7598", "I.4", "lo" and every range ("2.32-2.5", "2.32 - 2.5", "2.32 to 2.5") are
   malformed. Its suffix is a known "+/-" form (printed form kept) or any other short token that is not itself a number
-  ("4/-", "*/-", "+1..", "-++/-"): the number then agrees or vetoes, and `as_printed` is false so no printed form is
-  stated. District codes and names: `_zoning`, named mode wherever a printing can print names.
+  and holds at least one of +, /, - or ± ("4/-", "*/-", "+1..", "-++/-"): the number then agrees or vetoes, and
+  `as_printed` is false so no printed form is stated. A token without one ("SF", "lots", "sq.ft", "AC") is a unit
+  word, not a garble: it stays in the value, so the reading is malformed and vetoes. District codes and names: `_zoning`, named mode wherever a printing can print names.
 
 Printings (every pattern that reads a zoning field, `config/localities/montgomery-tn/zoning.yml`;
 `collector/tests/test_zoning.py` checks this list against the file):
