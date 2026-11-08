@@ -14,7 +14,10 @@ The agreement rule (written, the same for every case and field):
    dropped, nothing else changed) and, where the district's name is printed after its code, that district's name.
    A reading whose pattern matched but whose value fails that check is malformed: it is kept (key MALFORMED) and
    vetoes the field. Nothing is corrected or dropped: a misread is never repaired, and an over-wide pattern is fixed
-   in zoning.yml. A group that did not match, or an engine that did not run, gives no reading at all.
+   in zoning.yml. A group that did not match, or an engine that did not run, gives no reading at all. So a pattern
+   is bounded by labels, never by the shape of a clean value (architecture, "label-bounded values"): once a
+   printing's labels are found, its value groups take whatever is printed between them, and only the value check
+   here decides clean or malformed.
 3. Readings agree when they are equal after case, spaces and punctuation are ignored (names and locations), as
    numbers (acreage), or code for code (zoning).
 4. Independent readings are counted by engine (architecture, "Invariant: independent readings"). A second printing,
@@ -137,12 +140,15 @@ def _location(raw: str):
     return s, s, _text_key(s)
 
 
+# An acreage as printed: digits, a comma only between thousands ("1,234.5"), a decimal point. "0,99" (a misread
+# point), "4. 7598", "2.32-2.5" (a range), "I.4" and "1e3" are malformed readings, never numbers.
+ACREAGE_NUMBER = re.compile(r"(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?|\.\d+")
+
+
 def _acreage(raw: str):
-    s = raw.replace(",", "")
-    try:
-        v = float(s)
-    except ValueError:
+    if not ACREAGE_NUMBER.fullmatch(raw):
         return None
+    v = float(raw.replace(",", ""))
     if not (0 < v < 100000):
         return None
     return v, raw, repr(round(v, 4))

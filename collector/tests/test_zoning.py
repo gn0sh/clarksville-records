@@ -298,3 +298,102 @@ def test_a_garbled_suffix_with_another_number_vetoes_the_acreage(rules):
     assert Z.decide(pooled(by_case(both, "CZ-01-2024")))["acreage"]["value"] == 2.32
     rs = by_case(both + Z.page_readings([bad], rules), "CZ-01-2024")
     assert Z.decide(pooled(rs))["acreage"] is None
+
+
+# ---- parse-accuracy/narrow-pattern-drops-veto, third hit: every value group is bounded by labels, not by its shape
+
+def _acres(pages, rules, engine="text-layer", case="CZ-02-2024"):
+    return [r for r in by_case(Z.page_readings(pages, rules, engine=engine), case) if r.field == "acreage"]
+
+
+def _staff_both(rules):
+    both = Z.page_readings([STAFF], rules) + Z.page_readings([STAFF], rules, engine="tesseract")
+    assert Z.decide(pooled(by_case(both, "CZ-02-2024")))["acreage"]["value"] == 1.29
+    return both
+
+
+@pytest.mark.parametrize("printed", ["1.82 ±", "1.82±", "1.82 +l-", "1.82 4/-", "1.82 */-", "1.82 -++/-", "1.82"])
+def test_a_staff_sheet_reading_of_another_number_vetoes_whatever_its_plus_minus(rules, printed):
+    """The staff sheet's acreage was read only with "+/-" or "+1-" after it, so "1.82 ±" or a garbled "+/-" gave no
+    reading and could not veto. Any suffix now reads the number; a garbled one only drops the printed form."""
+    both = _staff_both(rules)
+    (a,) = _acres([STAFF.replace("1.29 +/-", printed)], rules)
+    assert a.value == 1.82
+    assert a.as_printed == (printed in ("1.82 ±", "1.82±", "1.82 +l-", "1.82")), printed
+    assert Z.decide(pooled(by_case(both, "CZ-02-2024") + [a]))["acreage"] is None
+
+
+@pytest.mark.parametrize("printed", ["1.2O +/-", "I.29 +/-", "1,29 +/-", "1.29-", "2~78", "&1O", "1.824/-"])
+def test_a_garbled_staff_sheet_number_is_malformed_and_vetoes(rules, printed):
+    both = _staff_both(rules)
+    (a,) = _acres([STAFF.replace("1.29 +/-", printed)], rules, engine="tesseract")
+    assert (a.key, a.value) == (Z.MALFORMED, None), printed
+    assert Z.decide(pooled(by_case(both, "CZ-02-2024") + [a]))["acreage"] is None
+
+
+def test_a_blank_staff_sheet_acreage_reads_nothing(rules):
+    assert _acres([STAFF.replace("1.29 +/-", "")], rules) == []
+
+
+@pytest.mark.parametrize("garble", ["4/-", "*/-", "+1..", "“-I-", "-++/-"])
+def test_any_garbled_plus_minus_in_a_resolution_still_reads_its_number(rules, garble):
+    """`identified` took only garbles starting with -, + or ±: "2.82 4/- acres" dropped the reading."""
+    good = resolution().replace("containing 2.32 +1- acres", "containing 2.32 +/- acres")
+    both = Z.page_readings([good], rules) + Z.page_readings([good], rules, engine="tesseract")
+    bad = resolution().replace("containing 2.32 +1- acres", f"containing 2.82 {garble} acres")
+    (a,) = _acres([bad], rules, case="CZ-01-2024")
+    assert a.value == 2.82 and not a.as_printed and a.shown == "2.82", garble
+    assert Z.decide(pooled(by_case(both, "CZ-01-2024") + [a]))["acreage"] is None
+
+
+@pytest.mark.parametrize("printed", ["2.32-2.5", "2.32 -2.5", "2.32 - 2.5", "2.32 to 2.5", "4. 7598", "9 .49",
+                                     "I.4 +/-", "lo+/-", "0,99", "5,966 SQ FT or 0.14"])
+def test_a_range_or_a_garbled_number_is_never_read_as_a_value(rules, printed):
+    """parse-accuracy/suffix-swallows-range: "2.32-2.5 acres" read as a clean 2.32 with a garbled "-2.5" suffix."""
+    page = resolution().replace("containing 2.32 +1- acres", f"containing {printed} acres")
+    (a,) = _acres([page], rules, case="CZ-01-2024")
+    assert (a.key, a.value) == (Z.MALFORMED, None), (printed, a)
+
+
+@pytest.mark.parametrize("printed,value,shown", [
+    (", 1.36 acres", 1.36, "1.36 acres"), (".25 acres", 0.25, ".25 acres"), ("an area of 0.44 acres", 0.44, "0.44 acres"),
+    ("1.10+1-acres", 1.1, "1.10+1-acres"), ("2.35 , , acres", 2.35, "2.35"), ("approximately .91 acres", 0.91,
+                                                                              "approximately .91 acres")])
+def test_resolution_acreage_layouts_from_the_store_read(rules, printed, value, shown):
+    """Layouts seen in the collected minutes that the narrow pattern skipped (", 1.36", "an area of") or misread."""
+    page = resolution().replace("containing 2.32 +1- acres", f"containing {printed}")
+    (a,) = _acres([page], rules, case="CZ-01-2024")
+    assert (a.value, a.shown) == (value, shown), printed
+
+
+def test_staff_sheet_zoning_with_district_names_and_table_marks_reads(rules):
+    """staff-present read one token per field, so "R-1 SINGLE-FAMILY RESIDENTIAL DISTRICT -" or "AG |" gave no
+    reading at all. It is now bounded by the next label, with district names checked as in the resolution text."""
+    named = STAFF.replace("PRESENT ZONING: R-1", "PRESENT ZONING: R-1 - SINGLE-FAMILY RESIDENTIAL DISTRICT -").replace(
+        "PROPOSED ZONING: C-2", "PROPOSED ZONING: C-2 GENERAL COMMERCIAL DISTRICT | EXTENSION OF ZONING: NO")
+    got = {r.field: r.value for r in by_case(Z.page_readings([named], rules), "CZ-02-2024")}
+    assert got["from_zoning"] == ("R-1",) and got["to_zoning"] == ("C-2",)
+    wrong = named.replace("GENERAL COMMERCIAL", "NEIGHBORHOOD COMMERCIAL")
+    got = {r.field: r.key for r in by_case(Z.page_readings([wrong], rules), "CZ-02-2024")}
+    assert got["to_zoning"] == Z.MALFORMED                                  # a name that says another district
+
+
+@pytest.mark.parametrize("entry,frm,to", [("from AG to R- 1", ("AG",), ("R-1",)), ("from AG to M-1 -", ("AG",), ("M-1",)),
+                                          ("from C-5 / R- 1 to R-2D", ("C-5", "R-1"), ("R-2D",)),
+                                          ("from R-4 Multiple-Family Residential District to C-5 Highway & Arterial "
+                                           "Commercial District", ("R-4",), ("C-5",)),
+                                          ("from C-5 lAG to R-41C-5", None, None)])
+def test_listing_zoning_is_bounded_by_from_and_to(rules, entry, frm, to):
+    agenda = AGENDA.replace("CZ-02-2024 Application of Gary Thomas Mosley from R-1 to C-2",
+                            f"CZ-02-2024 Application of Gary Thomas Mosley {entry}")
+    got = {r.field: r.value for r in by_case(Z.page_readings([agenda], rules), "CZ-02-2024")}
+    assert (got["from_zoning"], got["to_zoning"]) == (frm, to), entry
+
+
+def test_every_printing_is_in_the_architecture_consumer_list(rules):
+    """The "Invariant: independent readings" section lists every printing that reads a zoning field."""
+    doc = (Z.ROOT / "docs" / "architecture" / "clarksville-records.md").read_text(encoding="utf-8")
+    sec = doc[doc.index("### Invariant: independent readings"):]
+    sec = sec[:sec.index("\n### ", 10)]
+    for p in rules.printings:
+        assert f"| `{p['name']}` |" in sec, p["name"]

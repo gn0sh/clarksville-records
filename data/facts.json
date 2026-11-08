@@ -28463,7 +28463,7 @@
           "value": "Phillip Traylor"
         },
         "from_zoning": {
-          "page": 2,
+          "page": 17,
           "source_id": "src-2149fe00d2e6",
           "value": [
             "AG"
@@ -28509,7 +28509,12 @@
       "title": "CZ-05-2024",
       "year": 2024,
       "zoning": {
-        "acreage": null,
+        "acreage": {
+          "page": 39,
+          "printed": "4.3",
+          "source_id": "src-2149fe00d2e6",
+          "value": 4.3
+        },
         "applicant": null,
         "from_zoning": {
           "page": 2,
@@ -28668,7 +28673,7 @@
           "value": 1.0
         },
         "applicant": {
-          "page": 8,
+          "page": 2,
           "source_id": "src-3a926fac623a",
           "value": "Sunikumar Arunagirl"
         },
@@ -28704,7 +28709,7 @@
           "value": "A parcel fronting on the west frontage of Old Highway 48, directly west ofthe Old Highway 48 & Liverworth Rd. intersection"
         },
         "to_zoning": {
-          "page": 2,
+          "page": 4,
           "source_id": "src-59d6ad382cde",
           "value": [
             "AG"
@@ -28813,7 +28818,11 @@
             "AG"
           ]
         },
-        "location": null,
+        "location": {
+          "page": 5,
+          "source_id": "src-66f87bb7fd4f",
+          "value": "Property located on the northeast corner ofthe Guthrie Road and Rossview Road intersection"
+        },
         "to_zoning": null
       }
     },
@@ -28826,14 +28835,14 @@
       "zoning": {
         "acreage": null,
         "applicant": {
-          "page": 6,
+          "page": 2,
           "source_id": "src-adbd2896a91a",
           "value": "Mark Deering & Chris Steffen"
         },
         "from_zoning": null,
         "location": null,
         "to_zoning": {
-          "page": 6,
+          "page": 2,
           "source_id": "src-adbd2896a91a",
           "value": [
             "R-2D"
@@ -29059,10 +29068,26 @@
       "year": 2025,
       "zoning": {
         "acreage": null,
-        "applicant": null,
-        "from_zoning": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-7335f41b4ea6",
+          "value": "J&N Enterprises"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-7335f41b4ea6",
+          "value": [
+            "AG"
+          ]
+        },
         "location": null,
-        "to_zoning": null
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-7335f41b4ea6",
+          "value": [
+            "R-1"
+          ]
+        }
       }
     },
     {
@@ -29119,7 +29144,7 @@
         },
         "applicant": null,
         "from_zoning": {
-          "page": 5,
+          "page": 2,
           "source_id": "src-4d802d50d1a3",
           "value": [
             "AG"
@@ -29241,7 +29266,7 @@
           "value": 6.44
         },
         "applicant": {
-          "page": 16,
+          "page": 2,
           "source_id": "src-c4992c9e270f",
           "value": "Run-A-Muck Outfitters LLC"
         },
@@ -29262,10 +29287,26 @@
       "year": 2025,
       "zoning": {
         "acreage": null,
-        "applicant": null,
-        "from_zoning": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-7d6c8e270ce1",
+          "value": "Lora Richardson"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-7d6c8e270ce1",
+          "value": [
+            "AG"
+          ]
+        },
         "location": null,
-        "to_zoning": null
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-7d6c8e270ce1",
+          "value": [
+            "E-1"
+          ]
+        }
       }
     },
     {
@@ -29362,12 +29403,7 @@
       "title": "CZ-19-2020",
       "year": 2020,
       "zoning": {
-        "acreage": {
-          "page": 38,
-          "printed": "6.10 acres",
-          "source_id": "src-66f87bb7fd4f",
-          "value": 6.1
-        },
+        "acreage": null,
         "applicant": null,
         "from_zoning": null,
         "location": null,
@@ -29499,17 +29535,8 @@
       "title": "Application of John Daigle from C-2 to B-I",
       "year": 2021,
       "zoning": {
-        "acreage": {
-          "page": 11,
-          "printed": "1.4 acres",
-          "source_id": "src-9e291a55986d",
-          "value": 1.4
-        },
-        "applicant": {
-          "page": 2,
-          "source_id": "src-9e291a55986d",
-          "value": "John Daigle"
-        },
+        "acreage": null,
+        "applicant": null,
         "from_zoning": {
           "page": 11,
           "source_id": "src-9e291a55986d",
@@ -29679,13 +29706,7 @@
           "source_id": "src-ca24948f8efa",
           "value": "A parcel of land fronting on the southeast frontage ofIndian Mound Rd., 970 +/- feet southwest of the Indian mound Rd. & Caps Rd. intersection"
         },
-        "to_zoning": {
-          "page": 6,
-          "source_id": "src-ca24948f8efa",
-          "value": [
-            "E-1"
-          ]
-        }
+        "to_zoning": null
       }
     },
     {
@@ -30040,11 +30061,7 @@
           "source_id": "src-9e291a55986d",
           "value": 102.81
         },
-        "applicant": {
-          "page": 2,
-          "source_id": "src-9e291a55986d",
-          "value": "M. Ireland LLC"
-        },
+        "applicant": null,
         "from_zoning": null,
         "location": null,
         "to_zoning": {
@@ -30094,7 +30111,7 @@
           "value": "Alfred Jones"
         },
         "from_zoning": {
-          "page": 2,
+          "page": 26,
           "source_id": "src-7325525d58ca",
           "value": [
             "R-3"
@@ -30148,7 +30165,12 @@
       "title": "Application ofJeffrey L. Winningham from AG to B-i",
       "year": 2023,
       "zoning": {
-        "acreage": null,
+        "acreage": {
+          "page": 6,
+          "printed": null,
+          "source_id": "src-6caf17ab1e6a",
+          "value": 1.12
+        },
         "applicant": null,
         "from_zoning": {
           "page": 4,
@@ -30502,10 +30524,26 @@
       "year": 2025,
       "zoning": {
         "acreage": null,
-        "applicant": null,
-        "from_zoning": null,
+        "applicant": {
+          "page": 2,
+          "source_id": "src-277b12058180",
+          "value": "Linda Wortham, etal"
+        },
+        "from_zoning": {
+          "page": 2,
+          "source_id": "src-277b12058180",
+          "value": [
+            "AG"
+          ]
+        },
         "location": null,
-        "to_zoning": null
+        "to_zoning": {
+          "page": 2,
+          "source_id": "src-277b12058180",
+          "value": [
+            "R-1"
+          ]
+        }
       }
     },
     {
@@ -30638,11 +30676,16 @@
       "title": "Application of DGTF Clark Enterprises, LLC from C-5 lAG to R-41C-5",
       "year": 2023,
       "zoning": {
-        "acreage": null,
-        "applicant": {
+        "acreage": {
           "page": 7,
+          "printed": "15.42 +/- acres",
           "source_id": "src-b325a18d7786",
-          "value": "DGTF Clark Enterprises LLC"
+          "value": 15.42
+        },
+        "applicant": {
+          "page": 2,
+          "source_id": "src-b325a18d7786",
+          "value": "DGTF Clark Enterprises, LLC"
         },
         "from_zoning": null,
         "location": {

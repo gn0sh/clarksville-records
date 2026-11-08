@@ -9,9 +9,13 @@
 # An acreage printing may wrap its number in `acreage_printed`: the words the page prints with it ("approximately",
 # "+/-", "acres"), published as `acreage.printed` beside the number.
 # Patterns are case-insensitive unless a printing sets `case: true`. Add a printing when a new layout is seen on a page.
-# A group that matches but whose value fails its check is a malformed reading and vetoes the field, so a pattern must
-# not overrun its value: marks the page prints around a value (table rules and fill lines that tesseract reads as
-# "|", "_", "=", "—") and the "and" before WHEREAS sit outside the group, and a blank PROPOSED ZONING reads nothing.
+# A group that matches but whose value fails its check is a malformed reading and vetoes the field. So a value group
+# is bounded by labels, never by the shape of a clean value (architecture, "label-bounded values"): once a printing's
+# labels are found, the group takes whatever is printed between them ("1.82 ±", "1.2O", "2.32-2.5", "R- 1", "AG
+# Agricultural"), and only the value check in collector/zoning.py decides clean or malformed. A pattern must not
+# overrun its value either: marks the page prints around a value (table rules and fill lines that tesseract reads as
+# "|", "_", "=", "—", quotes, an empty "/ - /" slot), the word "District" after a named district and the "and" before
+# WHEREAS sit outside the group, and a blank value (PROPOSED ZONING, ACREAGE TO BE REZONED) reads nothing.
 
 # Case numbers that are rezoning applications (an applicant and a property). CZO- cases amend the zoning text and
 # name no applicant, so they carry no zoning facts.
@@ -54,43 +58,46 @@ printings:
   # entry; the entry runs to the next case or item number, a section heading, or a blank line.
   - name: listing
     kind: entry
-    pattern: '^Applica\s?tion\s?of\s?(?P<applicant>.+?)\s+from\s+(?P<from_zoning>\S+(?:\s?/\s?\S+)*)\s+to\s+(?P<to_zoning>\S+(?:\s?/\s?\S+)*)(?:\s*\(.*\))?\s*\.?$'
+    pattern: '^Applica\s?tion\s?of\s?(?P<applicant>.+?)\s+from\s+(?P<from_zoning>.+?)(?:\s+District)?\s+to\s+(?P<to_zoning>.+?)(?:\s+District)?(?:\s*\(.*\))?(?:\s+[-|_=—~°*$‘!''.,]+)*\s*\.?$'
+    named_districts: true
 
   # The zoning resolution's own text (one page, sometimes running onto the next).
   - name: heading
     kind: resolution
     case: true
-    pattern: 'ZONE CLASSIFICATION OF THE PROPERTY OF (?:[|_=—~°*$‘]+ )?(?P<applicant>[^a-z]+?)(?: [|_=—~°*$‘]+)* W\S{4,8},? an application'
+    pattern: 'ZONE CLASSIFICATION OF THE PROPERTY OF (?:[|_=—~°*$‘]+ )?(?P<applicant>.{1,160}?)(?: [|_=—~°*$‘]+)* ["“”]?W\S{4,8},? an application'
   - name: submitted
     kind: resolution
     pattern: 'has been subm\w{2,6} by (?P<applicant>.+?)(?:[ ,;.]*(?:and\b|[|_=—~°*$‘]+))*[ ,;.]*(?:[|_=—~°*$‘]+)?W\S{4,8},? said property'
   - name: change
     kind: resolution
-    pattern: 'zone change from (?P<from_zoning>.+?) District to (?P<to_zoning>.+?) District has been'
+    pattern: 'zone change from (?P<from_zoning>.+?)(?: District)?(?: [/|_=—~°*$‘-]+)* to (?P<to_zoning>.+?)(?: District)?(?: ?[/|_=—~°*$‘-]+)* has[ ,]*been'
     named_districts: true
   - name: identified
     kind: resolution
-    pattern: 'said property is identified as .{0,120}? containing (?P<acreage_printed>(?:approximately )?(?P<acreage>\d[\d,]*(?:\.\d+)?|\.\d+) ?(?P<acreage_suffix>(?:\+ ?[/1!lI] ?-|±|[-+±]\S{0,4}) ?)?acres)'
+    pattern: 'said property is identified as .{0,120}?[ ,]containing(?: ,)* ?(?:an area of ?)?(?P<acreage_printed>(?:approximately )?(?P<acreage>(?!an\b|approx|[,.](?!\d))\S+?(?: \S+?){0,4}?)(?P<acreage_suffix> ?(?:\+ ?[/1!lI] ?-|±)| (?![-–~]?(?:\d+(?:[.,]\d+)?|[.,]\d+)(?: |acres))\S{1,5}|(?: [,;|]+)+)?? ?acres)'
   - name: located
     kind: resolution
-    pattern: 'situated in ,? ?Civil ,? ?District \S{1,3}?,? (?:located )?(?P<location>.+?)(?:[ ;,]*(?:and\b|[|_=—~°*$‘.]+(?= )))*[ ;,]*(?:[|_=—~°*$‘]+)?W\S{4,8},? said property is described'
+    pattern: 'situated in[ ,:|]*Civil[ ,|]*District \S{1,3}?,? (?:located )?(?P<location>.+?)(?:[ ;,]*(?:and\b|[|_=—~°*$‘.]+(?= )))*[ ;,]*(?:[|_=—~°*$‘]+)?W\S{4,8},? said property is described'
   - name: approved
     kind: resolution
-    pattern: 'that,? the zone classification of ?the property of (?P<applicant>.+?)(?: [|_=—~°*$‘]+)* from (?P<from_zoning>.{1,40}?) to (?P<to_zoning>.{1,40}?) is hereby approved'
+    pattern: 'that,? the zone classification of ?the property of ?(?P<applicant>.+?)(?: [|_=—~°*$‘]+)* from (?P<from_zoning>.+?)(?: District)?(?: [/|_=—~°*$‘-]+)* to (?P<to_zoning>.+?)(?: District)?(?: ?[/|_=—~°*$‘.-]+)* is hereby approved'
+    named_districts: true
 
   # The planning staff's review sheet attached to the resolution.
   - name: staff-applicant
     kind: staff
-    pattern: 'NAME OF APPLICANT:? (?P<applicant>.+?)(?:[ ,]*[|_=—~°*$‘]+)* (?:AGENT|GENERAL INFORMATION|TAX PLAT|ACREAGE)'
+    pattern: 'NAME OF APPLICANT:? ?(?P<applicant>.+?)(?:[ ,]*[|_=—~°*$‘]+)* (?:AGENT|GENERAL INFORMATION|TAX PLAT|ACREAGE)'
   - name: staff-acreage
     kind: staff
-    pattern: 'ACREAGE TO BE REZONED:? (?P<acreage_printed>(?P<acreage>\d[\d,]*(?:\.\d+)?|\.\d+) ?(?:\+ ?/ ?-|\+1-))'
+    pattern: 'ACREAGE ?TO ?BE ?REZONED[:.]* ?(?P<acreage_printed>(?P<acreage>(?!:|\.(?!\d)|PRE\S{2,3}NT)\S+?(?: (?!PRE\S{2,3}NT)\S+?){0,2}?)(?P<acreage_suffix> ?(?:\+ ?[/1!lI] ?-|±)| (?!PRE\S{2,3}NT)(?![-–~]?(?:\d+(?:[.,]\d+)?|[.,]\d+)(?: |$))\S{1,5})??)(?: ?[|;,_=—~°*$‘]+)*(?= PRE\S{2,3}NT|$)'
   - name: staff-location
     kind: staff
     pattern: 'PROPERTY LOCATION:? (?:[-|_=—~°*$‘]+ )?(?P<location>.+?)(?: [|_=—~°*$‘]+)* (?:CITY COUNCIL WARD|COUNTY COMMISSION DISTRICT|DESCRIPTION OF PROPERTY)'
   - name: staff-present
     kind: staff
-    pattern: 'PRESENT ZONING:? (?P<from_zoning>\S+(?: ?/ ?\S+)*) PROPOSED ZONING:? (?:(?P<to_zoning>(?!EXTENSION\b)\S+(?: ?/ ?\S+)*) )?'
+    pattern: 'PRE\S{2,3}NT ?Z\w{4,5}\b[:.~]?(?: ?[|_=—~°*$‘]+)?(?: ?(?P<from_zoning>(?![\s:.~]|PROPOSED\b).{1,80}?)(?: District)?(?: ?[-|_=—~°*$‘.,]+)*)?? PROPOSED ?Z\w{4,5}\b[:.~]?(?: ?[|_=—~°*$‘]+)?(?: ?(?P<to_zoning>(?![\s:.~]|EXTENSION\b|OF ZONING\b|TAX\b|PROPERTY\b).{1,80}?)(?: District)?(?: ?[-|_=—~°*$‘.,]+)*)?? ?(?=EXTENSION|OF ZONING\b|TAX ?[A-Z]|PROPERTY|GEN\. ?LOC|$)'
+    named_districts: true
 
 # Pages of a resolution: the page must carry this text (and the case number in its header).
 resolution_marker: 'ZONE\s+CLASSIFICATION\s+OF\s+THE\s+PROPERTY\s+OF'

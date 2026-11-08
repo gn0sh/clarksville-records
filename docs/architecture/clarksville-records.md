@@ -445,6 +445,46 @@ Consumers (every place readings are combined or one reading is checked against a
 | `parse.assign_names` header pairing, motion mover/seconder | yes | none: one reading matched to a closed set |
 | `meetings.py` copy choice, `minutes.list_numbers` agenda match | yes | none: selection and closed-set lookup, no value published from agreement |
 
+**Hit 3** (review of b983bfb, `parse-accuracy/narrow-pattern-drops-veto` again, with nit
+`parse-accuracy/suffix-swallows-range`). Hit 2b made a matched-but-malformed value a vetoing reading, but most value
+groups were shaped like a clean value (a number followed by "+/-" or "+1-", one token for a district code), so a
+malformed value never matched and the printing gave no reading: "2.82 ±" on a staff sheet could not veto, and
+"2.32-2.5 acres" read as a clean 2.32. Rule added, **label-bounded values**:
+- A printing is found by its labels: the fixed words around its values ("ACREAGE TO BE REZONED:", "PRESENT ZONING:",
+  "containing" ... "acres", "from" ... "to"), with their spacing misreads ("APPLICANT:Name", "property ofJohnathan",
+  ": Civil", "ACREAGE TO BE REZONED:."). A garbled label ("ta" or "toC-5" for "to", "Disttict", different wording)
+  means the printing is not found: none. That is the known limit of this rule, and so is a printing only tesseract
+  finds (`minutes.zoning_readings` runs tesseract only on pages where the text layer read something).
+- Once its labels are found, each value group takes any characters up to the next label, so whatever is printed
+  there is a reading: clean, or malformed and vetoing. Only marks around a value (table rules, fill lines, quotes, an
+  empty overlay slot "/ - /") and the word "District" after a named district sit outside the group. A value that is
+  empty or only marks is blank: none.
+- A value's own check decides clean or malformed, never the pattern. Acreage: `zoning.ACREAGE_NUMBER` (a comma only
+  between thousands), so "0,99", "4. 7598", "I.4", "lo" and every range ("2.32-2.5", "2.32 - 2.5", "2.32 to 2.5") are
+  malformed. Its suffix is a known "+/-" form (printed form kept) or any other short token that is not itself a number
+  ("4/-", "*/-", "+1..", "-++/-"): the number then agrees or vetoes, and `as_printed` is false so no printed form is
+  stated. District codes and names: `_zoning`, named mode wherever a printing can print names.
+
+Printings (every pattern that reads a zoning field, `config/localities/montgomery-tn/zoning.yml`;
+`collector/tests/test_zoning.py` checks this list against the file):
+| Printing | Fields | Bounded by | Before hit 3 | Now |
+|---|---|---|---|---|
+| `listing` | applicant, from/to | "Application of" ... "from" ... "to" ... end of entry | from/to one token each: "R- 1", "M-1 -", "R-1 !", named districts gave none | any text between the labels, named districts, trailing marks outside |
+| `heading` | applicant | "PROPERTY OF" ... "WHEREAS, an application" | capitals only (`[^a-z]+?`): a lower-case misread gave none | any characters (up to 160); a quote before WHEREAS outside |
+| `submitted` | applicant | "has been submitted by" ... "WHEREAS, said property" | complies | none |
+| `change` | from/to | "zone change from" ... "to" ... "has been" | needed " District to" and " District has been": "District / - / to", "District /I-l~1 to", "has , been" gave none | "District" and marks outside and optional |
+| `identified` | acreage | "containing" ... "acres" | number shape plus suffix forms from -, + or ±: "4/-", "*/-", ", 1.36", "an area of", "I.4", "lo" gave none; "2.32-2.5" read 2.32 | 1 to 5 tokens before "acres"; suffix rule above |
+| `located` | location | "situated in Civil District N" ... "WHEREAS, said property is described" | complies (value `.+?`) | label spacing ": Civil", "Civil &#124; &#124; District" accepted |
+| `approved` | applicant, from/to | "the property of" ... "from" ... "to" ... "is hereby approved" | from/to codes only and at most 40 characters: a named district was malformed, a longer one gave none | named districts, no length cap |
+| `staff-applicant` | applicant | "NAME OF APPLICANT:" ... "AGENT" (or the next label) | complies | "APPLICANT:Name" accepted |
+| `staff-acreage` | acreage | "ACREAGE TO BE REZONED:" ... "PRESENT ZONING" | needed "+/-" or "+1-": "±", none, "1.4 &#124;", "0.99 -i-/-", "&1O", "IA" gave none | 1 to 3 tokens; suffix rule above; marks outside |
+| `staff-location` | location | "PROPERTY LOCATION:" ... next label | complies | none |
+| `staff-present` | from/to | "PRESENT ZONING:" ... "PROPOSED ZONING:" ... "EXTENSION" / "TAX PLAT" / "PROPERTY" | one token each: "AG &#124;", "R-1 SINGLE-FAMILY RESIDENTIAL DISTRICT -" gave none | any text between labels (up to 80), named districts, either value may be blank |
+
+Code consumers of a reading: `zoning._match_fields` (a matched group always gives a reading; unchanged),
+`zoning._acreage` (`ACREAGE_NUMBER`, new), `zoning.KNOWN_SUFFIX` (decides `as_printed` only), `zoning._zoning`
+(named mode; unchanged), `zoning.decide` / `_printed` (unchanged).
+
 Tests (`tests/test_independent_readings.py`, restated by QA): CZ-01-2024 applicant is null with OCR on and with
 `--no-ocr`; two text-layer printings that agree publish nothing alone; one malformed reading nulls a field both
 engines otherwise agree on; a "---" or "?" in the text layer holds a roll call tesseract reads cleanly; the shown form
