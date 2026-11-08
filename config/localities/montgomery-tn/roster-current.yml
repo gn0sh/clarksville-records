@@ -1,6 +1,6 @@
 # Current county seats as printed in the Montgomery County Election Commission's "Officials of Montgomery County"
 # list (Elected Officials List.pdf; PDF created 2026-02-03, fetched 2026-11-08). Names and seats only: the list's
-# addresses and phone numbers are never copied here. Used by tools/seat_check.py to cross-check config/seats.yml.
+# addresses and phone numbers are never copied here. Used by tools/seat_check.py to cross-check seats.yml (same folder).
 source: "https://montgomerytn.gov/storage/departments/election/Elected%20Officials%20List.pdf"
 fetched: "2026-11-08"
 source_created: "2026-02-03"

@@ -137,7 +137,8 @@ def test_facts_and_export_carry_null_for_a_blank_count(tmp_path):
     pub = json.loads(files["facts.json"].read_text())
     assert pub["roll_calls"][0]["stated_tally"] == {"yes": 19, "no": None, "abstain": 0}
     (row,) = csv.DictReader(io.StringIO(files["roll_calls.csv"].read_text()))
-    assert (row["yes"], row["no"], row["abstain"]) == ("19", "", "0")
+    assert (row["stated_yes"], row["stated_no"], row["stated_abstain"]) == ("19", "", "0")
+    assert not {"yes", "no", "abstain"} & set(row)
 
 
 # ------------------------------------------------------------------ parse-accuracy/two-thirds-majority

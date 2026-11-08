@@ -13,7 +13,7 @@ from tools import derive_seats, seat_check
 ROOT = Path(__file__).resolve().parent.parent
 LOCALITY = ROOT / "config" / "localities" / seat_check.locality()
 DISTRICTS = LOCALITY / "districts.json"
-SEATS = ROOT / "config" / "seats.yml"
+SEATS = ROOT / "config" / "localities" / "montgomery-tn" / "seats.yml"
 SVG_PATH = re.compile(r"^[MLZ0-9. -]+$")
 
 
@@ -51,7 +51,7 @@ def test_map_has_21_districts_with_sourced_metadata(districts):
     assert districts["source_url"].startswith("https://")
     assert re.fullmatch(r"[0-9a-f]{64}", districts["source_sha256"])
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", districts["fetched"])
-    assert districts["effective"] == "2022-09-01"
+    assert districts["effective"] == yaml.safe_load((ROOT / "config" / "site.yml").read_text())["lines_effective"]
     assert "19 and 20" in districts["note"]
 
 

@@ -595,7 +595,8 @@ class Reading:
     raw_names: dict = field(default_factory=dict)    # member -> table cell text as read
     clean: dict = field(default_factory=dict)        # member -> True when its cell read cleanly (see cells_to_votes)
     # the counts as the minutes print them: equal to tally, except that a count printed blank (derived from the
-    # roster for the checks only) is None here. None (the default) means "same as tally".
+    # roster for the checks only) is None here. None (the default) means no count is stated; it never falls back to
+    # tally, which may hold a derived count (provenance invariant).
     printed: tuple | None = None
 
 
@@ -734,7 +735,7 @@ def cells_to_votes(cells: list[Cell], roster: list[str], reasons: list[str], cle
 
 def printed_counts(r: "Reading") -> tuple | None:
     """r's counts as the minutes print them (None for a count printed blank); None when r read no tally."""
-    return r.printed if r.printed is not None else r.tally
+    return r.printed
 
 
 def check_votes(votes: dict, absent: set, tally: tuple | None, roster: list[str], reasons: list[str]) -> None:
@@ -846,7 +847,8 @@ def combine(readings: list[Reading], roster: list[str]) -> Reading | None:
     printed = None
     if tally is not None:
         ps = [printed_counts(r) for r in readings if r.tally == tally]
-        printed = tuple(tally[i] if any(p[i] is not None for p in ps) else None for i in range(3))
+        printed = tuple(tally[i] if any(p is not None and p[i] is not None for p in ps) else None for i in range(3))
+        printed = printed if any(x is not None for x in printed) else None
     return Reading("+".join(r.source for r in readings), votes, tally, sorted(set(absent)), reasons, raw,
                    {m: True for m in votes}, printed)
 

@@ -8,15 +8,18 @@ position). Per meeting, an official's district is the number most observations a
 where an official has no readable number, or two numbers tie, is listed under `unknown`; two people in one district
 at one meeting are listed under `conflicts`.
 
-Holder records are runs of meetings where one official holds one district number, split at the date the 2021
-lines took effect (`--lines-effective`, default 2022-09-01), so old-lines and current-lines periods are separate
-rows. `start`/`end` are the first and last meeting seen in that run (the source cited is the first meeting's roll
-call page); the latest run of a seat that reaches the latest meeting has no end.
+Holder records are runs of meetings where one official holds one district number, split at `lines_effective`
+(config/site.yml), so old-lines and current-lines periods are separate rows. Every row is `dates: observed`
+(architecture, "Invariant: derived vs stated"): `start`/`end` are the first and last meeting whose roll-call table
+prints that holder in that slot, never term dates; `source` cites the first meeting's roll-call page and
+`last_source` the last one's. The latest run of a seat that reaches the latest meeting has no end (its
+`last_source` is that latest meeting). The district count and cutover default to config/site.yml.
 
-  python -I tools/derive_seats.py --text-dir PATH/data/text --ocr-dir PATH/data/ocr \\
-      --out config/seats.yml --evidence config/localities/montgomery-tn/seat-evidence.json
+  python -I tools/derive_seats.py --text-dir PATH/data/text --ocr-dir PATH/data/ocr
+      (writes config/localities/<locality>/seats.yml and seat-evidence.json there)
 
-`--extra` names a YAML file of rows from other sources (e.g. the county mayor from the Elected Officials List),
+`--extra` (default config/localities/<locality>/seats-extra.yml) names a YAML file of rows from other sources (e.g.
+the county mayor from the Elected Officials List, `dates: sourced` with the source's own `printed` wording),
 appended unchanged after the derived rows.
 """
 from __future__ import annotations
@@ -29,6 +32,11 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def site_config() -> dict:
+    import yaml
+    return yaml.safe_load((ROOT / "config" / "site.yml").read_text(encoding="utf-8"))
 NUM = r"(?<![\w.$,])(\d{1,2})[ \t]+(?:[—–-][ \t]*)?"      # a district number, then the name on the same line
 VACANT = re.compile(NUM + r"Vacan\w*", re.I)
 
@@ -134,12 +142,13 @@ def runs(held: dict, cite: dict, sources: dict, lines_effective: str, n_seats: i
         cur = None
         for date, oid in seq:
             period = "old" if date < lines_effective else "current"
-            if cur and cur["official_id"] == oid and cur["lines"] == period:
-                cur["end"] = date
-                continue
-            cur = {"official_id": oid, "seat": f"{prefix}-{d}", "start": date, "end": date, "lines": period}
             sid, page = cite[(date, oid, d)]
-            cur["source"] = f"{sources[sid]['url']}#page={page}"
+            here = f"{sources[sid]['url']}#page={page}"
+            if cur and cur["official_id"] == oid and cur["lines"] == period:
+                cur["end"], cur["last_source"] = date, here
+                continue
+            cur = {"official_id": oid, "seat": f"{prefix}-{d}", "dates": "observed", "start": date, "end": date,
+                   "lines": period, "source": here, "last_source": here}
             rows.append(cur)
         if cur and cur["end"] == latest:
             cur["end"] = None
@@ -155,11 +164,13 @@ def main(argv=None):
     ap.add_argument("--facts", default=str(ROOT / "data" / "facts.json"))
     ap.add_argument("--text-dir", default=str(ROOT / "data" / "text"))
     ap.add_argument("--ocr-dir", default=str(ROOT / "data" / "ocr"))
-    ap.add_argument("--seats", type=int, default=21)
-    ap.add_argument("--lines-effective", default="2022-09-01")
-    ap.add_argument("--extra", default=None)
-    ap.add_argument("--out", required=True)
-    ap.add_argument("--evidence", required=True)
+    cfg = site_config()
+    loc = ROOT / "config" / "localities" / cfg["locality"]
+    ap.add_argument("--seats", type=int, default=int(cfg["district_count"]))
+    ap.add_argument("--lines-effective", default=str(cfg["lines_effective"]))
+    ap.add_argument("--extra", default=str(loc / "seats-extra.yml"))
+    ap.add_argument("--out", default=str(loc / "seats.yml"))
+    ap.add_argument("--evidence", default=str(loc / "seat-evidence.json"))
     a = ap.parse_args(argv)
     facts = json.loads(Path(a.facts).read_text(encoding="utf-8"))
     obs, vac, cite = observe(facts, Path(a.text_dir), Path(a.ocr_dir))
@@ -167,10 +178,12 @@ def main(argv=None):
     sources = {s["id"]: s for s in facts["sources"]}
     rows = runs(held, cite, sources, a.lines_effective, a.seats)
     import yaml
-    if a.extra:
+    if a.extra and Path(a.extra).is_file():
         rows += yaml.safe_load(Path(a.extra).read_text(encoding="utf-8")) or []
     header = ("# Seat holder records (docs/design/landing-search-nav.md 4.1). GENERATED by tools/derive_seats.py from the\n"
               "# district numbers printed in the minutes' roll-call tables, plus the rows in seats-extra.yml.\n"
+              "# dates: observed = first/last meeting whose roll-call table prints the holder (never term dates);\n"
+              "# dates: sourced = the source's own term wording in `printed` (architecture, derived vs stated).\n"
               "# Do not hand-edit derived rows: fix the source reading or add a row to the extra file and re-run.\n")
     Path(a.out).write_text(header + yaml.safe_dump(rows, sort_keys=False, allow_unicode=True, width=200),
                            encoding="utf-8")
