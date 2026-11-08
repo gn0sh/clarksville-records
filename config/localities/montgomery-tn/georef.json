@@ -1,0 +1,337 @@
+{
+ "about": "Georeference of districts.json: projected metres -> page space of the source PDF. Fitted by tools/georef_fit.py from control_points; check_points are held out of the fit. Used by sitegen/georef.py district_for().",
+ "source_sha256": "6b53b113e781268c6e66cc4200c8ed21be70610d480b7fe75a004af6e3fa6718",
+ "page_space": "PDF user space of the source page, y down",
+ "projection": {
+  "name": "NAD83 / Tennessee State Plane (EPSG:32136), metres",
+  "method": "lambert_conformal_conic_2sp",
+  "ellipsoid": "GRS80",
+  "semi_major_m": 6378137.0,
+  "inverse_flattening": 298.257222101,
+  "lat_1": 35.25,
+  "lat_2": 36.416666666667,
+  "lat_0": 34.333333333333,
+  "lon_0": -86.0,
+  "x_0": 600000.0,
+  "y_0": 0.0,
+  "datum_note": "Inputs are NAD83 degrees; WGS84 (what a geocoder returns) differs by about 1 m here, far below the margin."
+ },
+ "projection_finding": "The PDF is drawn in Tennessee State Plane: the fitted affine has no measurable rotation or shear and equal x/y scale (see fit), and affine on projected metres fits to a few metres, while affine on raw lon/lat leaves 30-44 m residuals. Projective adds nothing (held-out max 4.9 m vs 4.5 m).",
+ "method": "Control points are the sharp corners of the county line (turn over 30 degrees, both legs over 800 m) in the TIGER outline; the page_xy of each is the matching vertex of the PDF county outline, found near the spot predicted by a first outline-to-outline alignment. Check points are road crossings: the TIGER intersection, and on the page the crossing of the drawn centre lines whose course matches the TIGER lines (mean offset under 0.4 pt). Dual-carriageway I-24 uses the midpoint of the two carriageway crossings on both sides. Working scripts were one-off; tools/georef_fit.py refits from the points stored here.",
+ "sources": {
+  "tiger-county-2025": {
+   "title": "2025 TIGER/Line Shapefile, Current County and Equivalent (U.S. Census Bureau), Montgomery County TN (GEOID 47125) and neighbours, as redistributed in USGS The National Map Governmental Unit Boundaries for Tennessee (GU_CountyOrEquivalent, load date 2025-09-23)",
+   "url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/GovtUnit/GPKG/GOVTUNIT_Tennessee_State_GPKG.zip",
+   "fetched": "2026-11-08",
+   "licence": "Public domain (U.S. federal government work; USGS metadata: no use constraints)"
+  },
+  "tiger-roads-tnm": {
+   "title": "USGS The National Map Transportation for Tennessee (Trans_RoadSegment), whose road lines come from Census TIGER/Line (2016 BAS All Roads; Lone Oak Rd and Rossview Rd segments from MAF/TIGER 2021 and 2018 extracts)",
+   "url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Tran/GPKG/TRAN_Tennessee_State_GPKG.zip",
+   "fetched": "2026-11-08",
+   "licence": "Public domain (U.S. federal government work)"
+  },
+  "access_note": "The Census Bureau hosts (www2.census.gov, tigerweb.geo.census.gov, geocoding.geo.census.gov) were not reachable from the build sandbox on 2026-11-08, so the same TIGER data was read from the USGS redistribution. Nothing from APSU or mcgtn GIS services was used."
+ },
+ "control_points": [
+  {
+   "id": "nw-corner",
+   "feature": "NW county corner: the KY state line meets the Stewart County line",
+   "lonlat": [
+    -87.641157,
+    36.638109
+   ],
+   "lonlat_source": "tiger-county-2025",
+   "page_xy": [
+    32.88,
+    311.27
+   ],
+   "page_source": "vertex of the county outline (union of the district fills) in the source PDF"
+  },
+  {
+   "id": "ne-corner",
+   "feature": "NE county corner: the KY state line meets the Robertson County line",
+   "lonlat": [
+    -87.114983,
+    36.642371
+   ],
+   "lonlat_source": "tiger-county-2025",
+   "page_xy": [
+    1671.1,
+    317.75
+   ],
+   "page_source": "vertex of the county outline (union of the district fills) in the source PDF"
+  },
+  {
+   "id": "e-jog",
+   "feature": "Corner (jog) in the Robertson County line, 3.2 km south of the NE corner",
+   "lonlat": [
+    -87.12099,
+    36.613544
+   ],
+   "lonlat_source": "tiger-county-2025",
+   "page_xy": [
+    1651.18,
+    428.87
+   ],
+   "page_source": "vertex of the county outline (union of the district fills) in the source PDF"
+  },
+  {
+   "id": "e-corner",
+   "feature": "Corner in the Cheatham County line near the Robertson County line",
+   "lonlat": [
+    -87.128677,
+    36.46195
+   ],
+   "lonlat_source": "tiger-county-2025",
+   "page_xy": [
+    1620.46,
+    1014.21
+   ],
+   "page_source": "vertex of the county outline (union of the district fills) in the source PDF"
+  },
+  {
+   "id": "se-corner",
+   "feature": "Corner in the Cheatham County line, 2.6 km SW of e-corner",
+   "lonlat": [
+    -87.150276,
+    36.445037
+   ],
+   "lonlat_source": "tiger-county-2025",
+   "page_xy": [
+    1552.54,
+    1078.77
+   ],
+   "page_source": "vertex of the county outline (union of the district fills) in the source PDF"
+  },
+  {
+   "id": "s-corner",
+   "feature": "Corner in the Dickson County line on the south edge",
+   "lonlat": [
+    -87.327204,
+    36.31593
+   ],
+   "lonlat_source": "tiger-county-2025",
+   "page_xy": [
+    993.35,
+    1570.51
+   ],
+   "page_source": "vertex of the county outline (union of the district fills) in the source PDF"
+  },
+  {
+   "id": "sw-corner",
+   "feature": "SW county corner on the Stewart County line",
+   "lonlat": [
+    -87.586957,
+    36.34178
+   ],
+   "lonlat_source": "tiger-county-2025",
+   "page_xy": [
+    183.12,
+    1458.67
+   ],
+   "page_source": "vertex of the county outline (union of the district fills) in the source PDF"
+  }
+ ],
+ "check_points": [
+  {
+   "id": "i24-ky",
+   "feature": "I-24 crosses the KY state line (midpoint of the two carriageways)",
+   "lonlat": [
+    -87.339549,
+    36.641636
+   ],
+   "lonlat_source": "tiger-roads-tnm x tiger-county-2025",
+   "page_xy": [
+    972.11,
+    311.99
+   ],
+   "page_source": "where the two drawn I-24 carriageway lines end at the county line (midpoint)"
+  },
+  {
+   "id": "i24-robertson",
+   "feature": "I-24 crosses the Robertson County line (midpoint of the two carriageways)",
+   "lonlat": [
+    -87.127587,
+    36.46854
+   ],
+   "lonlat_source": "tiger-roads-tnm x tiger-county-2025",
+   "page_xy": [
+    1624.3,
+    988.89
+   ],
+   "page_source": "where the two drawn I-24 carriageway lines cross the county outline (midpoint)"
+  },
+  {
+   "id": "lylewood-dover",
+   "feature": "Lylewood Rd x Dover Rd",
+   "lonlat": [
+    -87.529504,
+    36.541528
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    374.64,
+    689.98
+   ],
+   "page_source": "crossing of the two drawn road centre lines"
+  },
+  {
+   "id": "slayden-hwy13",
+   "feature": "Slayden Marion Rd x Hwy 13",
+   "lonlat": [
+    -87.420209,
+    36.381725
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    706.31,
+    1312.28
+   ],
+   "page_source": "crossing of the two drawn road centre lines"
+  },
+  {
+   "id": "hwy48-loneoak",
+   "feature": "Hwy 48 x Lone Oak Rd",
+   "lonlat": [
+    -87.385058,
+    36.392629
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    816.71,
+    1271.72
+   ],
+   "page_source": "crossing of the two drawn road centre lines"
+  },
+  {
+   "id": "trenton-tiny",
+   "feature": "Trenton Rd x Tiny Town Rd",
+   "lonlat": [
+    -87.317863,
+    36.624598
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    1038.71,
+    378.71
+   ],
+   "page_source": "crossing of the two drawn road centre lines"
+  },
+  {
+   "id": "rossview-wilma",
+   "feature": "Rossview Rd x Wilma Rudolph Blvd",
+   "lonlat": [
+    -87.308018,
+    36.566302
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    1066.31,
+    604.3
+   ],
+   "page_source": "crossing of the two drawn road centre lines"
+  },
+  {
+   "id": "warfield-rossview",
+   "feature": "Warfield Blvd x Rossview Rd",
+   "lonlat": [
+    -87.287882,
+    36.560958
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    1128.71,
+    625.66
+   ],
+   "page_source": "crossing of the two drawn road centre lines"
+  },
+  {
+   "id": "richview-warfield",
+   "feature": "Richview Rd x Warfield Blvd",
+   "lonlat": [
+    -87.278763,
+    36.525387
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    1155.35,
+    763.42
+   ],
+   "page_source": "crossing of the two drawn road centre lines"
+  },
+  {
+   "id": "franklin-2nd",
+   "feature": "Franklin St x N 2nd St, downtown Clarksville",
+   "lonlat": [
+    -87.358722,
+    36.527614
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    906.23,
+    751.42
+   ],
+   "page_source": "crossing of the two drawn street centre lines"
+  }
+ ],
+ "boundary_margin_m": 100,
+ "boundary_margin_basis": {
+  "transform_m": 7,
+  "transform_note": "largest leave-one-out control error (6.9 m); held-out check points max 4.5 m",
+  "traced_shapes_m": 28,
+  "traced_shapes_note": "districts.json paths are simplified (0.8 pt tolerance) and rounded to 0.1 pt; measured max Hausdorff distance to the unsimplified trace is 0.98 pt = 28 m",
+  "geocoder_m": 65,
+  "geocoder_note": "allowance for the Census geocoder, which interpolates along street address ranges and places the point on the street centre line; many district lines follow street centre lines, so an address on a boundary street can land on either side. Judgment call, not measured (the geocoder was not reachable from the sandbox).",
+  "outline_check": "TIGER county outline sampled every 50 m against the PDF outline after the fit: median 1.5 m, p99 4.7 m, max 45.7 m."
+ },
+ "affine": [
+  [
+   0.034812969613,
+   -1.777261e-06,
+   -15744.902045731313
+  ],
+  [
+   -3.081071e-06,
+   -0.0348126446,
+   9257.887582067498
+  ]
+ ],
+ "fit": {
+  "metres_per_page_unit": 28.7251,
+  "rotation_deg": 0.0029,
+  "scale_ratio_x_to_y": 1.000009,
+  "residual_m": {
+   "nw-corner": 0.3,
+   "ne-corner": 1.6,
+   "e-jog": 0.4,
+   "e-corner": 1.7,
+   "se-corner": 5.2,
+   "s-corner": 2.8,
+   "sw-corner": 0.7
+  },
+  "rms_residual_m": 2.42,
+  "leave_one_out_m": {
+   "nw-corner": 1.7,
+   "ne-corner": 2.6,
+   "e-jog": 0.6,
+   "e-corner": 2.3,
+   "se-corner": 6.9,
+   "s-corner": 4.8,
+   "sw-corner": 1.5
+  },
+  "check_error_m": {
+   "i24-ky": 4.5,
+   "i24-robertson": 3.7,
+   "lylewood-dover": 0.8,
+   "slayden-hwy13": 2.8,
+   "hwy48-loneoak": 2.4,
+   "trenton-tiny": 3.8,
+   "rossview-wilma": 2.9,
+   "warfield-rossview": 1.8,
+   "richview-warfield": 1.7,
+   "franklin-2nd": 2.5
+  },
+  "max_check_error_m": 4.5
+ }
+}
