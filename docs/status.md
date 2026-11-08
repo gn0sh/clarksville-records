@@ -73,6 +73,8 @@
 | 2026-11-08 | frontend-engineer | sonnet/medium | name links site-wide + table row heights + not-confirmed chip + vote-on label | done, 8a50f58: 44,100 name links checked; row-height check at 4 widths; final full suite and site_checks not re-run after last tweak |
 | 2026-11-08 | code-reviewer | opus/high | delta re-review of landing fixes | approve with nits: a11y-headings/officials-sections; provenance/acreage-not-as-printed (3rd provenance hit, fresh review next); provenance/open-run-latest-mismatch (latent) |
 | 2026-11-08 | qa-engineer | sonnet/medium | re-test landing bugs | PASS all; site_checks PASS incl. layout, provenance |
+| 2026-11-08 | frontend-engineer | sonnet/medium | GoVoteTN lookup line | done, 1d2fe84; review approve with 3 nits |
+| 2026-11-08 | backend-engineer | opus/high | georeference district map (pin M1) | done, 187d5a4: 575 pass, held-out max 4.5 m |
 | 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
 
 ## Decisions
@@ -134,3 +136,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 
 - 2026-11-08 ~late evening ET: preview v5 published at https://claude.ai/artifact/QkxSRXNSMiWXpHUoLj8ynj from 8e5fe69 (name links everywhere, compact tables with Show more, Vote on label explained on About, stricter acreage reading). site_checks PASS (159 files). Queued: GoVoteTN link, address pin (Census JSONP + georeferenced map, docs/research/address-lookup.md), latent nit suffix-swallows-unit (hyphenated unit words).
 - 2026-11-08: GoVoteTN lookup line merged (1d2fe84, review approve with nits: config-comment/orphaned-support-note, landing-config/hardcoded-link-text, test-adequacy/qa-allowlist-untested) and published as preview v6 (index only). Link sits above the fold at 375x667 and 1280x800 (manager check). Address pin M1: backend-engineer georeferencing the district map (opus/high).
+- 2026-11-08: address pin M1 merged (187d5a4): State Plane + affine fit, 7 county-corner control points from USGS National Map TIGER (Census hosts blocked by sandbox proxy), held-out max 4.5 m, boundary_margin_m 100. Unverified: Census geocoder accuracy/JSONP (unreachable here); artifact preview likely blocks census.gov script, so the pin must degrade to the GoVoteTN link there. M2 (UI + JS port) with frontend-engineer (opus/medium).
