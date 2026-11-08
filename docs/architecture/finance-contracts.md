@@ -71,7 +71,8 @@ in no band, two numbers in one band, or a non-amount token raises check `column-
   "Total " (flag `heading_from_total`; labels are truncated and repeat, so they are never keys).
 - `detail`: an account-coded row, or a codeless row not listed below (e.g. "Salaries & Benefits").
 - `subtotal` (labels `Other Expenditures`, `Capital Expenditures`): scope = the coded rows directly above it, back to the
-  previous non-coded row.
+  previous non-coded row, whose account code is in the label's code class (`subtotal_labels` maps each label to a code
+  regex: 53xxx-56xxx and 57xxx; FY2025 p. 103 prints a 53990 row above a Capital Expenditures subtotal that omits it).
 - `total` (`^Total `): scope = every detail row since the scope opened; `Total Revenues`, `Total Revenues <fund>` and
   `Total Expenditures <fund>` scope the whole fund. A detail row is in exactly one scope per level (no double counting).
 - Tags (`budget.tags`, by section heading, department heading or account code): `transfer` (e.g. 49800, 55900,

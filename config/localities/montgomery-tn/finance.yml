@@ -114,7 +114,12 @@ budget:
   rows:
     fund_line: '^(?P<name>.+ FUND) (?P<no>\d{3})$'
     account_code: '^\d{5}$'
-    subtotal_labels: ["Other Expenditures", "Capital Expenditures"]
+    # Subtotal label -> the account codes it adds up (a regex on the code). Its scope is the coded rows directly above
+    # it whose code matches: "Capital Expenditures" adds the 57xxx capital codes, not a 53xxx service row printed in
+    # the same block (FY2025 p. 103, budget-reconcile/subtotal-scope-class).
+    subtotal_labels:
+      Other Expenditures: '^5[3-6]\d{3}$'
+      Capital Expenditures: '^57\d{3}$'
     total: '^Total '
     # Totals over the whole fund's statement (revenue or expenditure), not one section.
     fund_totals: ['^Total Revenues$', '^Total Revenues .+ FUND \d{3}$', '^Total Expenditures .+ FUND \d{3}$']

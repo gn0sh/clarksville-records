@@ -68,7 +68,7 @@ class BudgetRules:
     year: re.Pattern
     fund_line: re.Pattern
     account_code: re.Pattern
-    subtotal_labels: tuple
+    subtotal_labels: dict        # label -> compiled regex on the account codes it adds up
     total: re.Pattern
     fund_totals: tuple           # compiled
     scope_break_after: tuple     # compiled
@@ -125,6 +125,10 @@ def parse_budget(budget: dict) -> BudgetRules:
     fund_line = _cs_regex(rows["fund_line"], "budget.rows.fund_line")
     if not {"name", "no"} <= set(fund_line.groupindex):
         raise FinanceConfigError("finance.yml: budget.rows.fund_line needs groups (?P<name>) and (?P<no>)")
+    subs = _need(rows, "subtotal_labels", dict, "budget.rows.")
+    if not subs or not all(isinstance(k, str) and k.strip() for k in subs):
+        raise FinanceConfigError("finance.yml: budget.rows.subtotal_labels must map labels to account-code regexes")
+    subtotal_labels = {k: _cs_regex(v, f"budget.rows.subtotal_labels.{k}") for k, v in subs.items()}
     tags = _need(budget, "tags", dict, w)
     if set(tags) != set(TAGS):
         raise FinanceConfigError(f"finance.yml: budget.tags must name {', '.join(TAGS)}")
@@ -141,7 +145,7 @@ def parse_budget(budget: dict) -> BudgetRules:
         header_words=_strings(_need(budget, "header_words", list, w), "budget.header_words", True),
         year=_cs_regex(_need(budget, "year", str, w), "budget.year"),
         fund_line=fund_line, account_code=_cs_regex(rows["account_code"], "budget.rows.account_code"),
-        subtotal_labels=_strings(rows["subtotal_labels"], "budget.rows.subtotal_labels"),
+        subtotal_labels=subtotal_labels,
         total=_cs_regex(rows["total"], "budget.rows.total"),
         fund_totals=tuple(_cs_regex(p, "budget.rows.fund_totals") for p in
                           _strings(rows["fund_totals"], "budget.rows.fund_totals")),

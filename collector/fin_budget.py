@@ -15,7 +15,8 @@ finance.yml `budget` (fin_config.BudgetRules); the code holds no locality litera
   an amount, or a digit token off its column's right edge by more than ALIGN_TOL holds the line (check
   `column-align`): its dollars are null and it is still listed. "-" is 0 as printed; no token is a blank cell (null).
 - Row roles and scopes as A2: a fund line opens a fund (carried across pages); a line with no amounts opens a section;
-  account-coded and codeless rows are detail; `subtotal_labels` rows scope the coded rows directly above them; a
+  account-coded and codeless rows are detail; a `subtotal_labels` row scopes the coded rows directly above it whose
+  code matches its label's code class (budget-reconcile/subtotal-scope-class); a
   `total` row scopes the section's detail rows, or the whole fund's statement for `fund_totals`. A section with no
   heading takes its heading from its total (heading_from_total). Each detail row is in one scope per level.
 
@@ -236,7 +237,7 @@ class _Scopes:
 
     def reset_fund(self):
         self.section = Section()
-        self.coded: list[str] = []
+        self.coded: list[tuple[str, str]] = []      # (line id, account code) of the coded rows directly above
         self.fund: list[str] = []
 
     def open_section(self, heading: str | None):
@@ -325,7 +326,8 @@ def _line(spec, page, r: _Row, statement, fund_no, fund_name, sc: _Scopes, rules
         held = HELD_ALIGN
     role, level, scope = "detail", None, []
     if code is None and label in rules.subtotal_labels:
-        role, level, scope = "subtotal", "subtotal", list(sc.coded)
+        cls = rules.subtotal_labels[label]
+        role, level, scope = "subtotal", "subtotal", [i for i, c in sc.coded if cls.fullmatch(c)]
         sc.coded = []
     elif code is None and rules.total.match(label):
         role = "total"
@@ -345,7 +347,7 @@ def _line(spec, page, r: _Row, statement, fund_no, fund_name, sc: _Scopes, rules
         sc.section.line_ids.append(lid)
         sc.fund.append(lid)
         if code:
-            sc.coded.append(lid)
+            sc.coded.append((lid, code))
         else:
             sc.coded = []
     pl = ParsedLine(lid, page, statement, fund_no, fund_name, sc.section if level != "fund" else None, code, label,

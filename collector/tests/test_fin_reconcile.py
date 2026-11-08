@@ -224,3 +224,36 @@ def test_committed_ids_sort_numerically_into_book_order(committed):
     assert all(key(x["id"])[1] == x["page"] for x in lines)
     pos = {x["id"]: n for n, x in enumerate(sorted(lines, key=lambda x: key(x["id"])))}
     assert all(pos[i] < pos[x["id"]] for x in lines for i in x["scope_line_ids"])
+
+
+# ------------------------------------------------------------------ subtotal scope by code class (FY2025 capital fund)
+def test_fy2025_p103_capital_subtotal_adds_only_capital_codes():
+    """budget-reconcile/subtotal-scope-class: "Capital Expenditures" under a 53990 service row and two 57xxx rows adds
+    the 57xxx rows only, so the book's printed subtotal is exact; the section total still adds all three."""
+    lines, _ = lines_of([98, 99, 103], "fy2025-approved")
+    sub, tot = lines["fy2025-approved/p103/r31"], lines["fy2025-approved/p103/r32"]
+    assert sub["label_as_printed"] == "Capital Expenditures"
+    assert sub["scope_line_ids"] == ["fy2025-approved/p103/r29", "fy2025-approved/p103/r30"]
+    assert lines["fy2025-approved/p103/r28"]["account_code"] == "53990"
+    assert sub["check"]["state"] == "exact" and diffs(sub) == [0, 0, 0]
+    assert tot["check"]["state"] == "exact" and len(tot["scope_line_ids"]) == 3
+
+
+def test_fy2025_p99_capital_subtotals_stay_flagged_as_printed():
+    """Real book errors stay flagged: p. 99 prints a Capital Expenditures subtotal (95 / 99,905 / 200,000) under a lone
+    53990 row (no capital line: empty scope), and another (r35) that its two capital lines do not add up to."""
+    lines, _ = lines_of([98, 99, 103], "fy2025-approved")
+    r17, r35 = lines["fy2025-approved/p99/r17"], lines["fy2025-approved/p99/r35"]
+    assert r17["scope_line_ids"] == [] and r17["check"]["state"] == "does_not_add_up"
+    assert [pc["printed"] for pc in r17["check"]["per_cell"]] == [95, 99905, 200000]
+    assert r35["scope_line_ids"] == ["fy2025-approved/p99/r33", "fy2025-approved/p99/r34"]
+    assert r35["check"]["state"] == "does_not_add_up"
+
+
+def test_other_expenditures_subtotal_skips_a_capital_row():
+    """Mixed classes the other way: a 57xxx row directly above "Other Expenditures" is not in its scope."""
+    rules = CFG.budget
+    assert rules.subtotal_labels["Other Expenditures"].fullmatch("53990")
+    assert not rules.subtotal_labels["Other Expenditures"].fullmatch("57060")
+    assert rules.subtotal_labels["Capital Expenditures"].fullmatch("57060")
+    assert not rules.subtotal_labels["Capital Expenditures"].fullmatch("53990")
