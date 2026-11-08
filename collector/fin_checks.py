@@ -89,12 +89,18 @@ def awardee_match(awardee_text: str | None, bidder_names: list[str]) -> str:
     return "ambiguous" if hits else "not_a_listed_bidder"
 
 
+def parts_add_up(parts: list[int | None], total: int) -> bool:
+    """Bid-tab blocks (total-parts): a bidder's printed base bid and alternates add up to its printed total, to the
+    cent. A part that is not a well-formed amount (None) means it cannot be checked: False, the total is held."""
+    return bool(parts) and None not in parts and sum(parts) == total
+
+
 # ------------------------------------------------------------------ coverage and parity
 def coverage(fin: dict) -> dict:
     """Live counts for every page and the report (schema coverage)."""
     sols, docs = fin["solicitations"], fin["documents"]
     tabs = [s["bid_tab"] for s in sols if s["bid_tab"]]
-    not_read = {"layout": 0, "scan": 0, "shared_url": 0}
+    not_read = {"layout": 0, "scan": 0, "shared_url": 0, "not_pdf": 0}
     for t in tabs:
         if t["tab_type"] == "not_read":
             not_read[t["not_read_reason"]] += 1

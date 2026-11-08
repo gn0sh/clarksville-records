@@ -103,6 +103,7 @@ def test_real_tab_is_read_through_the_build(built):
     t = s["bid_tab"]
     assert t["document_id"] == did and t["tab_type"] == "lump_sum" and t["awardee_match"] == "bidder:1"
     assert t["awardee_text"] == "McCoy Construction &Forestry" and t["award_date_text"] == "2-26-25"
+    assert (t["bid_date_text"], t["bid_date_page"], t["award_date_page"]) == ("2-20-25 at 2p.m.", 1, 1)
     assert [b["total_cents"] for b in t["bidders"]] == [18900000, 21188700]
     assert s["department"]["text"] == "Bi-County SWM" and s["department"]["page"] == 1
 
@@ -112,7 +113,7 @@ def test_real_tab_is_read_through_the_build(built):
     ("Bid%20Tab%20-%20Traffic%20Paint%20FY27.pdf", "scan"),          # OCR text from a scanner
     ("Bid%20Tab%20Sheet.pdf", "shared_url"),
     ("Bid%20Tab%20-%20Hwy%20Dept%20Rock%20FY27.pdf", "layout"),
-    ("Bid%20Tab%20-%20Metal%20Pipe%20%26%20Bands%20FY27.docx", "layout"),
+    ("Bid%20Tab%20-%20Metal%20Pipe%20%26%20Bands%20FY27.docx", "not_pdf"),     # a .docx: not_pdf
 ])
 def test_unreadable_tabs_yield_no_value(built, tail, reason):
     fin, _ = built
@@ -122,6 +123,7 @@ def test_unreadable_tabs_yield_no_value(built, tail, reason):
         t = s["bid_tab"]
         assert t["tab_type"] == "not_read" and t["not_read_reason"] == reason and t["document_id"] == did
         assert t["bidders"] == [] and t["awardee_text"] is None and t["awardee_match"] is None
+        assert t["bid_date_text"] is None and t["bid_date_page"] is None and t["award_date_page"] is None
         assert s["department"] is None and s["held"] == []
     if reason == "shared_url":
         doc = next(d for d in fin["documents"] if d["id"] == did)

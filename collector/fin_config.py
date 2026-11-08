@@ -25,11 +25,21 @@ class FinanceConfigError(Exception):
 
 
 @dataclass(frozen=True)
+class BlockRules:
+    header: tuple                # the header line's columns, name column first
+    header_words: tuple          # the only words allowed on the lines just above and below the header
+    first_label: str             # the label that starts a bidder's block
+    total_labels: tuple
+    marks: tuple
+
+
+@dataclass(frozen=True)
 class BidTabRules:
-    fields: dict                 # key -> label as printed
-    columns: dict                # name / total -> header words
+    fields: dict                 # key -> labels as printed (tuple)
+    columns: dict                # name / total -> header labels (tuple)
     optional_columns: tuple
     table_end: tuple
+    blocks: BlockRules | None = None
 
 
 @dataclass(frozen=True)
@@ -71,6 +81,15 @@ def _strings(v, key: str, allow_empty: bool = False) -> tuple:
     return tuple(v)
 
 
+def _labels(v, key: str) -> tuple:
+    """A label, or a list of labels, as printed -> a non-empty tuple of non-empty strings."""
+    if isinstance(v, str):
+        v = [v]
+    if not isinstance(v, list) or not v or not all(isinstance(x, str) and x.strip() for x in v):
+        raise FinanceConfigError(f"finance.yml: missing key {key} (a label or a non-empty list of labels)")
+    return tuple(v)
+
+
 def _regex(pattern: str, key: str) -> re.Pattern:
     try:
         return re.compile(pattern, re.I)
@@ -102,13 +121,22 @@ def parse(cfg: dict) -> FinanceConfig:
             raise FinanceConfigError(f"finance.yml: date_formats: {f!r} is not a strptime format")
     bt = _need(cfg, "bidtab", dict)
     fields = _need(bt, "fields", dict, "bidtab.")
-    for k in BIDTAB_FIELDS:
-        if not isinstance(fields.get(k), str) or not fields[k].strip():
-            raise FinanceConfigError(f"finance.yml: missing key bidtab.fields.{k}")
+    fields = {k: _labels(fields.get(k), f"bidtab.fields.{k}") for k in BIDTAB_FIELDS}
     cols = _need(bt, "columns", dict, "bidtab.")
-    for k in ("name", "total"):
-        if not isinstance(cols.get(k), str) or not cols[k].strip():
-            raise FinanceConfigError(f"finance.yml: missing key bidtab.columns.{k}")
+    cols = {k: _labels(cols.get(k), f"bidtab.columns.{k}") for k in ("name", "total")}
+    blocks = None
+    if "blocks" in bt:
+        b = _need(bt, "blocks", dict, "bidtab.")
+        blocks = BlockRules(header=_strings(_need(b, "header", list, "bidtab.blocks."), "bidtab.blocks.header"),
+                            header_words=_strings(_need(b, "header_words", list, "bidtab.blocks."),
+                                                  "bidtab.blocks.header_words"),
+                            first_label=_labels(_need(b, "first_label", str, "bidtab.blocks."),
+                                                "bidtab.blocks.first_label")[0],
+                            total_labels=_strings(_need(b, "total_labels", list, "bidtab.blocks."),
+                                                  "bidtab.blocks.total_labels"),
+                            marks=_strings(_need(b, "marks", list, "bidtab.blocks."), "bidtab.blocks.marks"))
+        if len(blocks.header) < 2:
+            raise FinanceConfigError("finance.yml: bidtab.blocks.header must name the name column and at least one more")
     budget = _need(cfg, "budget", dict)
     for k in ("books", "page_titles", "kind_words", "rows", "tags", "fund_balance_labels"):
         _need(budget, k, None, "budget.")
@@ -121,9 +149,9 @@ def parse(cfg: dict) -> FinanceConfig:
         bonfire_hosts=tuple(h.lower() for h in _strings(_need(cfg, "bonfire_hosts", list), "bonfire_hosts")),
         scan_producers=tuple(_regex(p, "scan_producers") for p in
                              _strings(_need(cfg, "scan_producers", list), "scan_producers")),
-        bidtab=BidTabRules(fields={k: fields[k] for k in BIDTAB_FIELDS}, columns={k: cols[k] for k in ("name", "total")},
+        bidtab=BidTabRules(fields=fields, columns=cols,
                            optional_columns=_strings(bt.get("optional_columns", []), "bidtab.optional_columns", True),
-                           table_end=_strings(bt.get("table_end", []), "bidtab.table_end", True)),
+                           table_end=_strings(bt.get("table_end", []), "bidtab.table_end", True), blocks=blocks),
         budget=budget, capital_fund=cfg["capital_fund"])
 
 

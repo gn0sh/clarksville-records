@@ -97,8 +97,8 @@ class Census:
 
 def _tab_not_read(document_id: str, reason: str) -> dict:
     return {"document_id": document_id, "tab_type": "not_read", "not_read_reason": reason, "project_text": None,
-            "bid_date_text": None, "awardee_text": None, "awardee_page": None, "award_date_text": None,
-            "awardee_match": None, "bidders": []}
+            "bid_date_text": None, "bid_date_page": None, "awardee_text": None, "awardee_page": None,
+            "award_date_text": None, "award_date_page": None, "awardee_match": None, "bidders": []}
 
 
 def build(store, cfg: FinanceConfig, status_path: Path | None = None, meta_cache: Path | None = META_CACHE,
@@ -158,14 +158,16 @@ def build(store, cfg: FinanceConfig, status_path: Path | None = None, meta_cache
                 res = read_bidtab(words_for(store.path_for(sources[d["source_id"]]["sha256"])), cfg.bidtab)
                 if res.tab_type == "lump_sum":
                     reads.append((d["id"], res))
-                    census.append(Census(lk.url, sid, "lump_sum", f"{len(res.bidders)} bidders"))
+                    census.append(Census(lk.url, sid, "lump_sum", f"{res.layout}: {len(res.bidders)} bidders"))
                     continue
                 why, detail = "layout", res.reason
             else:
                 detail = {"shared_url": f"URL linked from {len(d['shared_by'])} rows",
                           "scan": f"text layer {sources[d['source_id']]['text_layer']}" if d["source_id"] else "",
                           "not_fetched": f"document {d['status']}"}[why]
-            reason = {"not_fetched": "layout"}.get(why, why)      # schema enum: a non-PDF or dead link is not read
+            if why == "not_fetched" and d["status"] == "not_pdf":
+                why, detail = "not_pdf", "a .docx link or non-PDF bytes: not read"
+            reason = {"not_fetched": "layout"}.get(why, why)      # schema enum: a dead or link-only tab is not read
             census.append(Census(lk.url, sid, "scan" if why == "scan" else "not_read", f"{why}: {detail}"))
             first_not_read = first_not_read or (d["id"], reason)
         bid_tab = department = differ = None
@@ -175,9 +177,11 @@ def build(store, cfg: FinanceConfig, status_path: Path | None = None, meta_cache
             f = res.fields
             bid_tab = {"document_id": did, "tab_type": "lump_sum", "not_read_reason": None,
                        "project_text": f.get("project", (None,))[0], "bid_date_text": f.get("bid_date", (None,))[0],
+                       "bid_date_page": f["bid_date"][1] if "bid_date" in f else None,
                        "awardee_text": f.get("awardee", (None,))[0],
                        "awardee_page": f["awardee"][1] if "awardee" in f else None,
                        "award_date_text": f.get("award_date", (None,))[0],
+                       "award_date_page": f["award_date"][1] if "award_date" in f else None,
                        "awardee_match": fin_checks.awardee_match(f.get("awardee", (None,))[0], names),
                        "bidders": [{"printed_order": b.printed_order, "name": b.name,
                                     "total_as_printed": b.total_as_printed, "total_cents": b.total_cents,

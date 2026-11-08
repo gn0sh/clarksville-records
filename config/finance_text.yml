@@ -58,6 +58,7 @@ contracts:
     layout: "This bid tab lists prices by item, so its totals are not read here. Read the bid tab itself."
     scan: "This bid tab is a scanned image. No amount, name or date has been read from it."
     shared_url: "This bid tab link is listed for more than one solicitation, so nothing is read from it."
+    not_pdf: "This bid tab is not a PDF file, so nothing is read from it. Open the file itself."
   awardee: "Awardee as printed on the bid tab: {name}."
   awardee_none: "The bid tab does not name an awardee."
   awardee_not_listed: "This name is not one of the bidders listed on the bid tab."

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import posixpath
+import re
 import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
@@ -190,6 +191,14 @@ def cmd_build(store: Store, cfg: FinanceConfig, finance_path: Path | None = None
     return 3 if block["parity"]["status"] != "ok" else 0
 
 
+def reason_class(detail: str) -> str:
+    """A census detail without its page and quoted text: "layout: words, not one amount, in the Total column"."""
+    head, _, rest = detail.partition(": ")
+    if head != "layout":
+        return head
+    return head + ": " + re.split(r" on page|: '|: \"| for '", rest)[0]
+
+
 def census_text(fin: dict, extras: dict) -> str:
     """F5b: each bid tab's layout class and the award-letter scan count."""
     out = ["bid tabs (archive order): class | detail | solicitation | url"]
@@ -205,9 +214,7 @@ def census_text(fin: dict, extras: dict) -> str:
     why: dict[str, int] = {}
     for c in extras["census"]:
         if c.cls != "lump_sum":
-            key = c.detail.split(":")[0] + (": " + c.detail.split(": ", 1)[1].split(" on page")[0]
-                                            if c.detail.startswith("layout") else "")
-            why[key] = why.get(key, 0) + 1
+            why[reason_class(c.detail)] = why.get(reason_class(c.detail), 0) + 1
     out.append("not read, by detail: " + "; ".join(f"{k} {v}" for k, v in sorted(why.items(), key=lambda kv: -kv[1])))
     out.append(f"solicitations: {cov['n_total']}; with a bid tab: {cov['n_bid_tab_links']}; tab read (lump_sum): "
                f"{cov['n_tab_read']}; not read: {json.dumps(cov['n_tab_not_read'], sort_keys=True)}")
@@ -222,6 +229,39 @@ def cmd_census(store: Store, cfg: FinanceConfig, status_path: Path = FETCH_STATU
     fin, extras = fin_facts.build(store, cfg, status_path=status_path, **kw)
     print(census_text(fin, extras))
     return 0
+
+
+def run_step(store: Store, log: dict, offline: bool, fetcher: PoliteFetcher | None = None,
+             cfg: FinanceConfig | None = None, finance_path: Path | None = None, report_path: Path | None = None,
+             status_path: Path = FETCH_STATUS, progress=print, **kw) -> int:
+    """The finance steps of `python -m collector run` (A1), after the votes steps: fin fetch (skipped when offline;
+    the same polite fetcher as the votes fetch, so the 10 s per host floor holds across both) then fin build.
+    A stopped or failed fetch is logged (stage fin_fetch) and the build still runs from the store; a build that
+    cannot run or writes nothing is logged (stage fin_build). -> the fin build exit code: 0 ok, 2 problems (nothing
+    written), 3 parity 'review needed' (written)."""
+    from . import fin_config
+    try:
+        cfg = cfg or fin_config.load()
+    except fin_config.FinanceConfigError as e:
+        log["failures"].append({"stage": "fin_build", "error": f"FinanceConfigError: {e}"})
+        return 2
+    if not offline:
+        print("collector: finance fetch (10 s between requests per host)", flush=True)
+        fl = cmd_fetch(store, cfg, fetcher=fetcher, status_path=status_path, progress=progress)
+        log["fin_fetch"] = {k: v for k, v in fl.items() if k != "fetch_log"}
+        if fl["stopped"]:
+            log["failures"].append({"stage": "fin_fetch", "error": f"STOPPED, not retried: {fl['stopped']}"})
+        log["failures"] += [{"stage": "fin_fetch", **x} for x in fl["failures"]]
+    print("collector: finance build", flush=True)
+    try:
+        code = cmd_build(store, cfg, finance_path=finance_path, report_path=report_path, status_path=status_path, **kw)
+    except FileNotFoundError as e:                       # no archive page in the store yet
+        log["failures"].append({"stage": "fin_build", "error": f"FileNotFoundError: {e}"})
+        return 2
+    log["fin_build"] = code
+    if code == 2:
+        log["failures"].append({"stage": "fin_build", "error": "schema or scan-guard problems: finance.json not written"})
+    return code
 
 
 def main(argv=None) -> int:

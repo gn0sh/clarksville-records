@@ -82,7 +82,7 @@ def test_coverage_is_the_one_function(built):
     assert c["n_total"] == 15
     assert c["n_bid_tab_links"] == c["n_tab_read"] + sum(c["n_tab_not_read"].values())
     assert c["n_tab_read"] == 1
-    assert c["n_tab_not_read"] == {"layout": 2, "scan": 2, "shared_url": 2}
+    assert c["n_tab_not_read"] == {"layout": 1, "scan": 2, "shared_url": 2, "not_pdf": 1}
     assert c["n_award_scanned"] == 1 and c["n_award_letters"] == 10
     assert c["by_department_year"]["Bi-County SWM"] == {"2025": {"rows": 1, "with_tab": 1, "tab_read": 1}}
     ns = c["by_department_year"][fin_checks.NOT_STATED]
