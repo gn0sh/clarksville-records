@@ -1,4 +1,4 @@
-# One-week finish plan (target: Fri 2026-11-13, launch all at once per Brian; was Sun 2026-11-15, go-live on Brian's go-ahead)
+# One-week finish plan (target: Fri 2026-11-13 ready for Brian's review; go-live when he judges it matches his vision (Brian 2026-11-09); was Sun 2026-11-15, go-live on Brian's go-ahead)
 
 Brian (2026-11-09): "a finished product for MoCo and Clarksville within a week." Priority: complete and on the web; the national any-ZIP product comes later (build nothing for it; keep locality data-driven).
 

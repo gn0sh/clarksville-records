@@ -235,3 +235,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | backend-engineer | opus/high | transcript review fixes | running
 - 2026-11-09 | security-engineer | opus/high | daily-update workflow and launch runbook | PASS WITH FINDINGS: F1 domain/dangling-cname (fix before go-live), F2 token exposure, F3 cache integrity, F4 parser timeouts, F5 env branch policy. docs/reviews/security-review-pipeline.md
 - Launch ask to batch for Brian: verify gnoshcodes.com in GitHub Pages settings (TXT record at Porkbun). Go-live waits on it.
+- 2026-11-09 22:20Z Brian: keep building; go-live waits until he judges the site matches his vision, LLC after that. Friday Nov 13 = ready for his review, not an automatic launch. Everything free, BMAC tip jar only. Interim rule stays: votes only from the record, no AI-written text about named officials. Analytics ask deferred to go-live.
