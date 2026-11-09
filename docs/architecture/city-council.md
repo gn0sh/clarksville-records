@@ -144,3 +144,46 @@ None may re-resolve a printed name; each reads `official_id` (null when held).
 | CSV export | `collector/export.py` `officials.csv`, `attendance.csv`, `votes.csv`, `motions.csv` (provenance "derived: name resolution") | `official_id` |
 | One-vote check | `collector/invariants.py` `one_vote_violations` | votes per (item, roll call) |
 | QA spot check | `qa/spot_check.py` `candidates` | the names shown to the checker |
+
+## Call-on invariant (problem family `transcripts/call-on-misattribution`)
+
+Stated after the family's second hit (review of the transcript feature, 2026-11-09). A "call-on" is the moment the
+chair gives a member the floor, read from the automatic (Whisper) transcript TEXT only (`sitegen/transcripts.py`);
+member pages list it as "Called on in meetings". **Never attribute words or an action to the wrong named person: if in
+doubt, hold (no call-on, no link).**
+
+**Accepted forms (exactly these; case and `'`/`’` free).**
+1. `<title> <surname>[,] you're | you are | you recognized` (also "recognised"), all in ONE clause: between the
+   surname and "you" only spaces and commas (`[\s,]*`); a full stop, `;`, `:`, `?`, `!` or `-` there breaks the match.
+   The recognition phrase must END the clause: what follows it is punctuation (`. , ; : ! ?`), the end of that
+   segment's text, or the member's reply starting a new sentence, which Whisper often leaves unpunctuated and which
+   is accepted only as the words "thank you" / "thanks". Anything else after it ("you recognized that the budget...",
+   "you're recognized on the consent agenda", "you are recognized for your service") is held.
+2. `the chair recognizes <title> <surname>` (also "recognises").
+
+`<title>`: Councilman/-woman/-person/-member/-lady, Chair(man/woman/person), Vice Chair(...). `<surname>`: the one
+word after the title, never a word in `NOT_A_NAME`.
+
+**Never accepted.** A bare "recognized"/"recognizes" after a name ("Councilwoman Smith recognized the students"); "you
+recognize"; a recognition in the next sentence ("Thank you Councilman Smith. You are recognized, Councilwoman Jones.",
+"I yield to Councilman Smith. You recognized me earlier."); "you recognized" followed by an object; a title with no
+surname; a mention ("I agree with Councilman Smith"); any near spelling.
+
+**Resolution (already in force, `resolve`/`roster`).** The surname links a member only when exactly one entry of that
+meeting's own attendance, as shown on the site, has it, and that entry resolved to a member listed present. An entry
+listed absent blocks its surname and never links; an entry that did not resolve blocks every word of its printed name
+and every registered surname inside it. No attendance shown (no minutes read, or under review), no match or two
+matches: no link.
+
+### Consumers of call-on data
+None may re-detect or re-resolve; each reads `Transcripts.call_ons` (resolved entries only).
+| Consumer | Where | Reads |
+|---|---|---|
+| Member pages "Called on in meetings" | `sitegen/council.py` `member` -> `Transcripts.member_rows`; `site/templates/official.html.j2` | date, time, video `#t=` link, transcript line link, matched words, excerpt |
+| Transcript page markers | `Transcripts.lines`, `Transcripts.page` (`call_on_count`); `site/templates/transcript.html.j2` | per-line member name and link; the count |
+| Site checks | `qa/site_checks.py` transcript check (`ul.call-ons` entries) | each entry's meeting and video link |
+| CSV/JSON export | none: `collector/export.py` exports no transcript or call-on data | — |
+| Search index | none | — |
+
+Tests: `tests/test_transcripts.py` (forms accepted and held, including the reviewer's sentences; resolution rules;
+every resolved call-on on the meeting's own shown attendance).
