@@ -19,6 +19,6 @@ Brian (2026-11-09): "a finished product for MoCo and Clarksville within a week."
 
 ## Needs Brian (batched)
 - (Done 11/9) CivicClerk hosts allowed in the cloud environment.
-- OK to collect City Council records from the CivicClerk portal: robots.txt allows all agents (`User-agent: * Allow: /`) but names about 35 AI crawlers it disallows, including ClaudeBot. Our collector is a plain script with its own honest User-Agent, reference use only, no training. Recommendation: yes, recorded in an ADR.
-- Hosting: make gn0sh/clarksville-records public and serve it on GitHub Pages at records.gnoshcodes.com (free; a DNS record at Porkbun). Recommendation: yes. Alternatives: keep private (no public site).
+- (YES, Brian 11/9) Collect City Council records from the CivicClerk portal.
+- (YES, Brian 11/9) Public repo plus GitHub Pages at records.gnoshcodes.com, flipped at launch.
 - Final go-live go-ahead (hard stop 1).
