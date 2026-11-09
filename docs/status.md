@@ -240,5 +240,5 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | devops-engineer | sonnet/medium | pipeline F1-F5 | merged 06ca645; fresh security review PASS WITH FINDINGS (push-reverts-concurrent-data med, 3 low)
 - 2026-11-09 | devops-engineer | sonnet/medium | push-job fixes 1-4 | merged 34ef0c8; security delta PASS
 - 2026-11-09 | backend-engineer | opus/high | transcript review fixes 1-8 | merged f265787 (1527 passed); code-review delta: request changes (call-on gap allows sentence break; 'you recognized that...'), transcripts/call-on-misattribution hit 2
-- 2026-11-09 | software-architect+engineer | opus/high | call-on invariant stated, then fix | running
+- 2026-11-09 | software-architect+engineer | opus/high | call-on invariant stated, then fix | merged ad02de2; delta APPROVE, family closed
 - 2026-11-09 23:0xZ merged tree a9348df+: full suite 1566 passed, 2 skipped; sitegen 435 pages / 490 files (preview cap 500); site_checks PASS.
