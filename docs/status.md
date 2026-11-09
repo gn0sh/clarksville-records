@@ -233,4 +233,5 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | devops-engineer | sonnet/medium | daily-update workflow (locked deploy), CNAME, launch runbook | merged 1802b97 (manager resolved conflict: build target via RECORDS_BUILD_TARGET=pages instead of RECORDS_MAX_FILES). Action pins verified by git ls-remote (setup-python v5.6.0, cache v4.2.3). Scheduled runs need main updated before a seeding dry run.
 - 2026-11-09 | code-reviewer | opus/medium | transcript feature | request changes: transcripts/call-on-misattribution (must: bare "recognized" matches prose), transcripts/call-on-absent-member (must), unresolved-entry blocking (should), excerpt-framing, site-files/cap-off-by-one, video-host, import-match, attr regex
 - 2026-11-09 | backend-engineer | opus/high | transcript review fixes | running
-- 2026-11-09 | security-engineer | opus/high | daily-update workflow and launch runbook | running
+- 2026-11-09 | security-engineer | opus/high | daily-update workflow and launch runbook | PASS WITH FINDINGS: F1 domain/dangling-cname (fix before go-live), F2 token exposure, F3 cache integrity, F4 parser timeouts, F5 env branch policy. docs/reviews/security-review-pipeline.md
+- Launch ask to batch for Brian: verify gnoshcodes.com in GitHub Pages settings (TXT record at Porkbun). Go-live waits on it.
