@@ -82,7 +82,8 @@ would have been read as the departed member, with verified votes.
 **Invariant.** A printed name resolves to a member only when exactly one member of that meeting's own roster matches
 it, and the roster is the meeting's own attendance list as printed in full (through the alias list) plus its presiding
 mayor, where a surname printed alone counts only against full names printed in the same minutes after a member's title
-or on the full-name attendance lists printed since the council's latest seating, for members whose ward (or the
+(and corroborated: printed in an action of the meeting, or a member the bounded book below already has) or on the
+full-name attendance lists printed since the council's latest seating, for members whose ward (or the
 mayor's seat) no later list in that window gives to someone else. Any other name (no match, two matches, a match only
 on a list older than the window, or a member since replaced) is held, never guessed.
 
@@ -92,21 +93,37 @@ on a list older than the window, or a member since replaced) is held, never gues
 is never used (`seating` in `config/localities/clarksville-tn/agenda-center.yml`; observed in the data, not taken from
 the charter). Mid-term changes (2019-07, 2021-11, 2022-05, 2023-06, CLAUNCH 2026) are covered by the replaced-seat rule
 when a later full-name list prints the successor, by the successor's own surname (a surname on no list is held, as
-CLAUNCH is), or by a titled full name in the minutes (a second full name for the surname holds it). Residual risk,
-accepted and named: a mid-term successor with the predecessor's exact surname who is never printed with a full name,
-title or ward before the next seating. The window is at most two years and needs no upkeep while the seating pattern
-holds; a change of pattern is a config change.
+CLAUNCH is), or by a titled full name printed in an action of the minutes (a second full name for the surname holds
+it).
+
+Residual risk, accepted and named (`city-votes/empty-book-2027`, review of 2026-11-09):
+- **Any departed member's surname.** The attendance has printed surnames only since 2025-03-06, so no full-name list
+  after 2025-02-06 can print a successor, and the replaced-seat rule cannot fire for any change after that date. A
+  member who joins after 2025-02-06 and shares the surname of *any* member on the 2025-01-02 or 2025-02-06 lists who
+  has since left (not only the predecessor in the same ward) resolves to that departed member, with verified votes,
+  unless the minutes print the newcomer's full name in an action (which makes two full names and holds the surname).
+  Nothing in the stored data shows such a case today; it would show only as a wrong name, not as a held check.
+- **The 2027 empty book.** At the seating of 2027-01-01 the window restarts and, while the attendance stays surnames
+  only, it holds no full-name list at all. From the first meeting of 2027 every surname resolves only through a full
+  name printed in an action of those minutes (the Pledge, a motion, a second) or the presiding mayor; every other
+  surname is held, so most 2027 meetings and their roll calls will be unverified. That is safe (held, never guessed)
+  but a large drop in the verified rate. Before the first 2027 meeting is built, a source of full names for the new
+  council is needed (for example a seating list from the election results as a committed, cited config file); until
+  one exists, the drop is expected and is not a regression.
+
+The window is at most two years and needs no upkeep while the seating pattern holds; a change of pattern is a config
+change.
 
 ### Code paths that resolve a printed name
 | # | Where | Path | Rule |
 |---|---|---|---|
 | N1 | `city_build._add_minutes` attendance loop, `Officials.add` | attendance printed in full (`NAME_RE`) | the printed full name is the member (id `city-<slug>`); not a name: no official, `names_well_formed` holds the meeting |
-| N2 | `Officials.canonical` (`aliases` in `agenda-center.yml`) | aliases: one printed full name -> another | whole printed names only, each the same ward in the same term (checked in wards.json); applied in N1, N3, N4, N7 |
+| N2 | `Officials.canonical` and `resolve(..., aliases)` (`aliases` in `agenda-center.yml`) | aliases: one printed full name -> another | whole printed names only, each the same ward in the same term (checked in wards.json); applied in N1, N3, N4, and in N7 and N8 by `resolve` canonicalizing the vote, absence, mover and seconder token before matching (a bare surname is never an alias key, so only a full-name token can change) |
 | N3 | `_add_minutes` presiding; `city_minutes.parse_people` `Person.mayor` | the presiding mayor ("called to order by Mayor Joe Pitts") and a list entry with the Mayor title or "(Mayor)" | added to this meeting's roster with the Mayor title; a Mayor Pro Tem is already on the PRESENT line |
-| N4 | `city_minutes.titled_names` -> `pm.titled` | titled-name scan: "Councilman Jimmy Brown made ..." | a full name after a member's title in these minutes; a title preceded by "former" or "late" is not a member of this meeting |
+| N4 | `city_minutes.titled_names` -> `pm.titled`, `pm.titled_acting`; used in `resolve_surnames` | titled-name scan: "Councilman Jimmy Brown made ..." | a full name after a member's title in these minutes, counted only when corroborated: printed at least once in an action of the meeting (`ACTING_BEFORE_RE`/`ACTING_AFTER_RE`: made a motion, moved, seconded, led the Pledge or the prayer, called to order, presided) or a member the meeting's book (N5) has; else it is no candidate and the surname stays held. Left out entirely: a title after a qualifier (`NOT_SITTING_RE`: former, late, then-, ex-, outgoing, "former City", "Former Ward 7") or another body's title (County Mayor, "Montgomery Council Mayor", Vice Mayor), and pairs with a word that is no name (`NOT_NAME_WORDS`: "Pro Tem", "Comments", "Seconded", "With") |
 | N5 | `city_build.RosterBook.for_meeting` (fed by `printed_full_names` after each read meeting) | surname book | full-name lists dated from the latest seating up to the meeting; a member is kept when on the latest list in the window or still printed for their ward or as mayor by the latest list that prints that seat; else held with the reason |
 | N6 | `city_build.resolve_surnames` | attendance printed as surnames | exactly one full name from N4 (plus the presiding mayor) and N5, and a ward printed with the surname agrees; else no official and `surnames_resolve` holds the meeting (so all its roll calls) |
-| N7 | `city_build.resolve` from `_add_minutes` | votes (`rc.votes`), block absences (`rc.absent`), `_out_of_room` | against this meeting's roster only (N1, N3, N6): full name, then surname, then initial plus surname, each exactly one match; else `names_resolve` holds the roll call |
+| N7 | `city_build.resolve` from `_add_minutes` | votes (`rc.votes`), block absences (`rc.absent`), `_out_of_room` | the token through the aliases (N2), then against this meeting's roster only (N1, N3, N6): full name, then surname, then initial plus surname, each exactly one match; else `names_resolve` holds the roll call |
 | N8 | `resolve` from `_add_minutes` motion | mover and seconder | as N7; else `mover_resolves` / `seconder_resolves` holds the motion |
 
 Tests: `collector/tests/test_city_names.py` has one test per path N1-N8, each through `assert_name_invariant` (every
