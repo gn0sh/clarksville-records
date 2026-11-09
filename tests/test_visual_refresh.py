@@ -175,5 +175,5 @@ def test_nav_lists_every_items_year_newest_first(pages, facts):
         labels = [" ".join(re.sub(r"<[^>]+>", " ", x).split()) for x in re.findall(r'<li><(?:a [^>]*|span class="nav-group")>(.*?)</(?:a|span)>', nav)]
         labels = [x for x in labels if not x.isdigit()]
         want = ["Map (home)", "Search", "Votes", "Meetings", "Officials", "Items", "Finance Coming",
-                "Capital projects Coming", "Data downloads", "About", "Changes", "Review (internal)"]
+                "Capital projects Coming", "Data downloads", "Alerts", "About", "Changes", "Review (internal)"]
         assert labels == want, (name, labels)

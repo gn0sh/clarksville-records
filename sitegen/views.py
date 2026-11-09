@@ -280,6 +280,7 @@ NAV = (  # design 2.2: fixed order, the same on every page. (label, href, page_n
     ("Bids and awards", "contracts/index.html", "Bids and awards", False),  # only when finance.json is loaded
     ("Capital projects", "capital-projects.html", "Capital projects", True),
     ("Data downloads", "data.html", "Data downloads", False),
+    ("Alerts", "alerts.html", "Alerts", False),  # only when config/site.yml has `alerts:` (sitegen/feeds.py)
     ("About", "about.html", "About", False),
     ("Changes", "changes.html", "Changes", False),
 )
@@ -287,6 +288,11 @@ NAV = (  # design 2.2: fixed order, the same on every page. (label, href, page_n
 
 # finance-contracts slice 1b: with budget lines loaded, Finance and Capital projects are real pages, not "coming"
 BUDGET_NAV = {"Finance": "finance/index.html", "Capital projects": "capital/index.html"}
+
+
+def alerts_on() -> bool:
+    """The Alerts page and its feeds are built (config/site.yml `alerts.feed_id` is set; sitegen/feeds.py)."""
+    return bool((config.SITE.get("alerts") or {}).get("feed_id"))
 
 
 def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=()) -> list[dict]:
@@ -297,6 +303,8 @@ def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=()) 
     out = []
     for label, href, page, coming in NAV:
         if label == "Bids and awards" and not contracts:
+            continue
+        if label == "Alerts" and not alerts_on():
             continue
         if label in budget:
             href, coming = BUDGET_NAV[label], False
@@ -318,6 +326,7 @@ def site_context(facts, contracts: bool = False, budget: tuple = (), councils=()
         "cfg": cfg,
         "csp": csp(),
         "nav": _nav(ix, contracts, budget, councils),
+        "alerts": alerts_on(),
         # the footer link exists only when it is switched on and has an address (CEO, 2026-11-08)
         "support_url": (cfg.get("support_url") or "") if cfg.get("support_enabled") is True else "",
         "support_label": cfg.get("support_label") or "",

@@ -13,7 +13,8 @@ from urllib.parse import urlsplit
 import jinja2
 from jsonschema import Draft202012Validator, FormatChecker
 
-from . import budget_views, config, council as council_mod, fin_views, georef as georef_mod, seats as seats_mod, views
+from . import budget_views, config, council as council_mod, feeds as feeds_mod, fin_views, georef as georef_mod, \
+    seats as seats_mod, views
 
 
 class BuildError(Exception):
@@ -175,7 +176,7 @@ def _clean(out: Path, extra_dirs=()) -> None:
     for p in out.glob("*.html"):
         p.unlink()
     for d in ("officials", "meetings", "items", "static", "districts", "votes", "contracts", "finance", "capital",
-              *extra_dirs):
+              feeds_mod.FOLDER, *extra_dirs):
         shutil.rmtree(out / d, ignore_errors=True)
 
 
@@ -290,7 +291,7 @@ def site_url_problems(cfg: dict) -> list[str]:
         if cfg.get(link):
             out += [f"{k} must be set when {link} is" for k in needs
                     if not isinstance(cfg.get(k), str) or not cfg[k].strip()]
-    return out + corrections_problems(cfg)
+    return out + corrections_problems(cfg) + feeds_mod.problems(cfg)
 
 
 # config/site.yml `corrections:` (views.corrections_context): a GitHub owner/name and a plain e-mail address. Both go
@@ -551,6 +552,11 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     render("about.html.j2", "about.html", "About", **views.about(ix), glance=views.record_glance(ix))
     render("changes.html.j2", "changes.html", "Changes", **views.changes(read_changes(changes_path)))
     render("report.html.j2", "report.html", "Report an error", **views.report_page())
+    if site["alerts"]:   # Alerts v1 (sitegen/feeds.py): written last, when every item and meeting link knows its part
+        render("alerts.html.j2", feeds_mod.PAGE, "Alerts", **feeds_mod.alerts_page(cixs))
+        for rel, body in feeds_mod.build_feeds(ix, cixs).items():
+            (out / rel).parent.mkdir(parents=True, exist_ok=True)
+            (out / rel).write_bytes(body)
     if internal:
         render("review.html.j2", "review.html", "Review (internal)",
                **views.review(ix, read_report(report_path)))
