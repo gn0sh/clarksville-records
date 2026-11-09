@@ -33,7 +33,10 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               alternate link) with unique tag: ids, newest first, at most alerts.max_entries; each alternate link
               resolves to a built page and its #anchor, each related link is a fetched source document; alerts.html
               links every feed and no other (Alerts v1, sitegen/feeds.py)
-  files       fewer than 500 files
+  files       fewer than the target's file cap: --target preview (claude.ai artifact, 500) or pages (GitHub Pages, 3000)
+  transcripts every line of a transcript page (<folder>/transcripts/*.html) has its time linked to its meeting's own
+              video as <video_url>#t=<whole seconds>, the "Transcript" label and the notice; every call-on entry on a
+              member page links a video time; video links (data-ext="video") go only to a meeting's video_url
   row-height  no table row (or vote / result list item) taller than 60% of the viewport, with long text clamped and row
               details collapsed, at 375x667, 768x1024, 1000x800 and 1280x800 (contracts pages also at 360x640); needs Playwright (node)
   hscroll     no horizontal scroll at 390 px (contracts pages also at 360 px) for the page types (index, official, meeting, items, and when present
@@ -66,15 +69,21 @@ if __package__ in (None, ""):
 
 from qa.common import OPERATOR, ROOT, find_pdf, load_facts, pdf_page_count  # noqa: E402
 
-# 500: under the artifact limit of 511 files per version (sitegen.config.MAX_FILES says the same)
-MAX_FILES = 500
+# Per build target (sitegen.config.MAX_FILES_BY_TARGET says the same): preview 500, under the artifact limit of 511
+# files per version; pages 3000 (GitHub Pages has no such limit). MAX_FILES is the preview's.
+MAX_FILES_BY_TARGET = {"preview": 500, "pages": 3000}
+MAX_FILES = MAX_FILES_BY_TARGET["preview"]
+TRANSCRIPT_NOTICE = ("Automatic transcript made by speech-recognition software from the city's video. It may contain "
+                     "errors. The video is the record.")
 VIEWPORT = 390
 NARROW = 360  # AC-F10: the Bids and awards pages are also checked at 360 px
 
 
 # External links that are not minutes PDFs but are allowed: a holder record's roster source, the map's boundary source,
 # the county redistricting page / old-lines map, and the footer support link. Each must be marked data-ext and https.
-EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder", "corrections"}
+EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder", "corrections", "video"}
+TRANSCRIPT_TEXT = re.compile(r"(<(span|p)\b[^>]*\bdata-transcript\b[^>]*>)[^<]*(</\2>)")
+VIDEO_HREF = re.compile(r"(https://[^#\s]+)(?:#t=(\d+))?")
 
 
 def corrections_links(cfg: dict) -> tuple[str, str]:
@@ -298,9 +307,12 @@ def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str
 
 
 def check_sources(site: Path, pages: dict[str, Page], facts: dict, store_extra,
-                  allowed: set[str] | None = None, fin: dict | None = None) -> tuple[list[str], str]:
-    """`allowed`: the exact external URLs a page may link that are not minutes PDFs (allowed_external)."""
+                  allowed: set[str] | None = None, fin: dict | None = None,
+                  videos: set[str] | None = None) -> tuple[list[str], str]:
+    """`allowed`: the exact external URLs a page may link that are not minutes PDFs (allowed_external). `videos`: the
+    meetings' video_url values; a data-ext="video" link is one of them, alone or with #t=<whole seconds>."""
     allowed = set() if allowed is None else allowed
+    videos = set() if videos is None else videos
     problems = []
     # a finance document that was never fetched (a .docx, a dead or link-only URL) has no source row but is a listed link
     doc_urls = {d["url"] for d in (fin or {}).get("documents", []) if d.get("url")}
@@ -317,6 +329,11 @@ def check_sources(site: Path, pages: dict[str, Page], facts: dict, store_extra,
             base, _, frag = href.partition("#")
             src = by_url.get(base) or by_url.get(unquote(base))
             if src is None and rel.startswith("contracts/") and base in doc_urls:
+                continue
+            if src is None and ext == "video":
+                m = VIDEO_HREF.fullmatch(href)
+                if not m or m.group(1) not in videos:
+                    problems.append(f"{rel}: video link {href!r} is not a meeting's video_url with an optional #t=<seconds>")
                 continue
             if src is None:
                 if ext not in EXT_KINDS:
@@ -702,7 +719,9 @@ def check_provenance(site: Path, pages: dict[str, Page], facts: dict, roster: li
     texts = 0
     for rel in sorted(pages):
         body = (site / rel).read_text(encoding="utf-8")
-        plain = html.unescape(body)
+        # transcript text (data-transcript) is what the speech-recognition software wrote, shown verbatim: its words
+        # are the speakers', not the site's seat wording
+        plain = html.unescape(TRANSCRIPT_TEXT.sub(r"\1\3", body))
         for b in banned:
             if b in plain:
                 problems.append(f"{rel}: contains banned {b!r}")
@@ -771,9 +790,10 @@ class NameLinks(HTMLParser):
         a = dict(attrs)
         # data-variants: the cell listing the spellings merged into an official (not a display of the name).
         # data-item-title: an item's title as the minutes print it; a name in it is text in the document (an
-        # applicant or buyer may share an official's name), never linked (manager decision 2026-11-09)
+        # applicant or buyer may share an official's name), never linked (manager decision 2026-11-09).
+        # data-transcript: speech-recognition text, shown verbatim; a name in it is never linked (AC6.3)
         self.stack.append((tag, a.get("href") if tag == "a" else None,
-                           tag in self.SKIP or "data-variants" in a or "data-item-title" in a))
+                           tag in self.SKIP or "data-variants" in a or "data-item-title" in a or "data-transcript" in a))
 
     def handle_endtag(self, tag):
         for i in range(len(self.stack) - 1, -1, -1):
@@ -1016,13 +1036,14 @@ def page_type(rel: str) -> str | None:
         if head == c:
             parts = rel.split("/")
             return "council_home" if len(parts) == 2 else {"members": "council_member", "meetings": "council_meetings",
-                                                            "items": "council_items"}.get(parts[1])
+                                                            "items": "council_items", "transcripts": "council_transcript"}.get(parts[1])
     return {"officials": "official", "meetings": "meeting", "items": "items", "districts": "district",
             "votes": "votes"}.get(head)
 
 
 NARROW_TYPES = ("contracts_index", "contract", "finance_index", "fund", "capital",  # AC-F10: also at 360 px
                 "council_home", "council_member", "council_meetings", "council_items",  # M4: compact at 360 px
+                "council_transcript",
                 "alerts")
 
 
@@ -1117,8 +1138,98 @@ def check_row_height(site: Path, pages: dict[str, Page], sample: int, all_pages:
 
 # ---------------------------------------------------------------- driver
 
+class TranscriptLines(HTMLParser):
+    """Each <li> of ol.transcript: (id, the first a.tx-time href, the label chip text, has a data-transcript span);
+    and each li of ul.call-ons: its data-ext="video" hrefs."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.lines: list[dict] = []
+        self.call_ons: list[list[str]] = []
+        self.text: list[str] = []
+        self._in_ol = self._in_ul = 0
+        self._li: dict | None = None
+        self._chip = False
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        cls = (a.get("class") or "").split()
+        if tag == "ol" and "transcript" in cls:
+            self._in_ol += 1
+        elif tag == "ul" and "call-ons" in cls:
+            self._in_ul += 1
+        elif tag == "li" and self._in_ol:
+            self._li = {"id": a.get("id"), "time": None, "label": "", "text": False}
+            self.lines.append(self._li)
+        elif tag == "li" and self._in_ul:
+            self.call_ons.append([])
+        elif tag == "a" and self._li is not None and "tx-time" in cls and self._li["time"] is None:
+            self._li["time"] = (a.get("href") or "", a.get("data-ext"))
+        elif tag == "a" and self._in_ul and a.get("data-ext") == "video" and self.call_ons:
+            self.call_ons[-1].append(a.get("href") or "")
+        elif tag == "span" and self._li is not None and "chip-type" in cls:
+            self._chip = True
+        elif tag == "span" and self._li is not None and "data-transcript" in a:
+            self._li["text"] = True
+
+    def handle_endtag(self, tag):
+        if tag == "ol" and self._in_ol:
+            self._in_ol -= 1
+            self._li = None
+        elif tag == "ul" and self._in_ul:
+            self._in_ul -= 1
+        elif tag == "span":
+            self._chip = False
+
+    def handle_data(self, d):
+        self.text.append(d)
+        if self._chip and self._li is not None:
+            self._li["label"] += d
+
+
+def check_transcripts(site: Path, cs: list[dict]) -> tuple[list[str], str]:
+    """Transcript pages and member call-ons (sitegen/transcripts.py, spec AC6.3)."""
+    problems, n_pages, n_lines, n_calls = [], 0, 0, 0
+    for c in cs:
+        videos = {m["id"]: m.get("video_url") for m in c["facts"]["meetings"]}
+        for f in sorted((site / c["slug"] / "transcripts").glob("*.html")):
+            rel = f.relative_to(site).as_posix()
+            mid = re.sub(r"-\d+$", "", f.stem) if f.stem not in videos else f.stem
+            if mid not in videos or not videos[mid]:
+                problems.append(f"{rel}: names no meeting with a video")
+                continue
+            p = TranscriptLines()
+            p.feed(f.read_text(encoding="utf-8"))
+            n_pages += 1
+            if TRANSCRIPT_NOTICE not in " ".join("".join(p.text).split()):
+                problems.append(f"{rel}: the transcript notice is missing")
+            if not p.lines:
+                problems.append(f"{rel}: no transcript lines")
+            for li in p.lines:
+                n_lines += 1
+                href, ext = li["time"] or ("", None)
+                m = VIDEO_HREF.fullmatch(href)
+                if ext != "video" or not m or m.group(1) != videos[mid] or m.group(2) is None:
+                    problems.append(f"{rel}#{li['id']}: line does not link a time in the meeting's video ({href!r})")
+                if li["label"].strip() != "Transcript":
+                    problems.append(f"{rel}#{li['id']}: line is not labelled Transcript")
+                if not li["text"]:
+                    problems.append(f"{rel}#{li['id']}: line has no data-transcript text")
+        all_videos = {v for v in videos.values() if v}
+        for f in sorted((site / c["slug"] / "members").glob("*.html")):
+            p = TranscriptLines()
+            p.feed(f.read_text(encoding="utf-8"))
+            for hrefs in p.call_ons:
+                n_calls += 1
+                ok = [h for h in hrefs if (m := VIDEO_HREF.fullmatch(h)) and m.group(2) is not None and m.group(1) in all_videos]
+                if not ok:
+                    problems.append(f"{f.relative_to(site).as_posix()}: a call-on entry links no video time")
+    return problems, f"{n_pages} transcript pages, {n_lines} lines; {n_calls} call-on entries on member pages"
+
+
 def run_checks(site: Path, facts: dict, internal=False, no_export=False, operator=OPERATOR, browser=True,
-               all_pages=False, sample=3, store_extra=(), seats_path=None, districts_path=None, finance=None) -> Report:
+               all_pages=False, sample=3, store_extra=(), seats_path=None, districts_path=None, finance=None,
+               target="preview") -> Report:
     rep = Report()
     d_seats, d_map = default_inputs(facts)
     seats_path, districts_path = seats_path or d_seats, districts_path or d_map
@@ -1128,12 +1239,16 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     if not pages:
         rep.add("site", [f"no HTML files under {site}"])
         return rep
-    rep.add("files", [f"{len(files)} files, limit {MAX_FILES - 1}"] if len(files) >= MAX_FILES else [], f"{len(files)} files, {len(pages)} pages")
+    cap = MAX_FILES_BY_TARGET[target]
+    rep.add("files", [f"{len(files)} files, limit {cap - 1} for the {target} target"] if len(files) >= cap else [],
+            f"{len(files)} files, {len(pages)} pages, {target} target (cap {cap})")
     rep.add("links", check_links(site, pages, no_export), "internal links, #anchors and assets" + ("; data/ skipped" if no_export and not (site / "data").exists() else ""))
     cs = [c for c in councils(facts) if any(rel.startswith(c["prefix"]) for rel in pages)]
     missing = [c["slug"] for c in councils(facts) if c not in cs]
     all_sources = {"sources": [*facts["sources"], *(s for c in cs for s in c["facts"]["sources"])]}
-    problems, note = check_sources(site, pages, all_sources, store_extra, allowed_external(cfg, seats_path, districts_path), finance)
+    videos = {m["video_url"] for c in cs for m in c["facts"]["meetings"] if m.get("video_url")}
+    problems, note = check_sources(site, pages, all_sources, store_extra, allowed_external(cfg, seats_path, districts_path), finance,
+                                   videos)
     rep.add("sources", problems + [f"no pages under {m}/ for the configured council" for m in missing], note)
     county_pages = {rel: pg for rel, pg in pages.items() if not any(rel.startswith(c["prefix"]) for c in cs)}
     problems = check_unverified(site, county_pages, facts, internal, fin=finance)
@@ -1163,6 +1278,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("external", check_external(pages, site, cfg))
     problems, note = check_feeds(site, pages, all_sources["sources"], cfg)
     rep.add("feeds", problems, note)
+    problems, note = check_transcripts(site, cs)
+    rep.add("transcripts", problems, note)
     if browser:
         try:
             problems, note = check_hscroll(site, pages, all_pages, sample)
@@ -1193,12 +1310,14 @@ def main(argv=None) -> int:
     ap.add_argument("--seats", help="the roster the build read (default: the locality's, or the fixture's)")
     ap.add_argument("--districts", help="the map file the build read (default: the locality's, or the fixture's)")
     ap.add_argument("--finance", help="finance.json the build read (default: data/finance.json when it exists)")
+    ap.add_argument("--target", choices=sorted(MAX_FILES_BY_TARGET), default="preview",
+                    help="the host the build is for: its file cap applies (preview 500, pages 3000)")
     ap.add_argument("--out", default=str(ROOT / "build" / "qa" / "site_checks.txt"))
     a = ap.parse_args(argv)
     fin_path = Path(a.finance) if a.finance else Path(a.facts).with_name("finance.json")
     fin = load_facts(fin_path) if fin_path.exists() else None
     rep = run_checks(Path(a.site), load_facts(a.facts), a.internal, a.no_export, a.operator, not a.no_browser, a.all_pages,
-                     store_extra=a.store, seats_path=a.seats, districts_path=a.districts, finance=fin)
+                     store_extra=a.store, seats_path=a.seats, districts_path=a.districts, finance=fin, target=a.target)
     text = rep.render()
     print(text)
     out = Path(a.out)

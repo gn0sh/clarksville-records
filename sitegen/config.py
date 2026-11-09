@@ -59,7 +59,16 @@ FIXTURE_CAPITAL_FUND = "951"
 OPERATOR_PLACEHOLDER = "[OPERATOR NAME - CEO to confirm]"
 OPERATOR_NAME = SITE["operator"]  # "Brian Zacharias", confirmed by the CEO, 2026-11-07
 
-MAX_FILES = 500  # under the artifact limit of 511 files per version; finance adds one page per fund, not per department
+# File cap per build target. preview: the claude.ai artifact preview holds at most 511 files per version, so 500;
+# finance adds one page per fund, not per department. pages: GitHub Pages has no such cap; 3000 keeps the site small.
+MAX_FILES_BY_TARGET = {"preview": 500, "pages": 3000}
+MAX_FILES = MAX_FILES_BY_TARGET["preview"]
+
+
+def max_files(target: str = "preview") -> int:
+    """The file cap of a build target (sitegen --target, qa.site_checks --target)."""
+    cap = MAX_FILES_BY_TARGET[target]
+    return min(cap, MAX_FILES) if target == "preview" else cap   # MAX_FILES: the preview cap, as before
 PAGE_BYTES = 1_000_000  # a year page over this is split in parts (build.py plan_parts; city-pages/page-weight)
 PAGE_TARGET = 850_000  # the size each part aims at, under PAGE_BYTES
 

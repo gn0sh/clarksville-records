@@ -137,6 +137,7 @@ class CouncilIndex(views.Index):
         self.KIND_LABELS = {**config.KIND_LABELS, **cfg["kind_labels"]}
         self._rows, self._seen = holder_rows(wards, facts, cfg)
         self.year_pages = {}
+        self.tx = None   # transcripts.Transcripts, set by build.py
         super().__init__(facts, self._rows)
 
     def make_seats(self, seat_rows):
@@ -239,6 +240,8 @@ def meetings_year(year: str, cix: CouncilIndex) -> dict:
         src = cix.sources[m["source_id"]]
         agenda = cix.sources.get(m.get("agenda_source_id") or "")
         out.append({**ctx, "id": m["id"], "has_minutes": src["kind"] == "minutes",
+                    "video_url": m.get("video_url"),
+                    "transcript": cix.tx.meeting_entry(m["id"]) if cix.tx is not None else None,
                     "agenda": ({"url": agenda["url"], "pages": agenda["pages"], "fetched": agenda["fetched_at"]}
                                if agenda and agenda["id"] != src["id"] else None)})
     return {"year": year, "meetings": out, "years": cix.meeting_years(), "body": cix.body_name, "parts": []}
@@ -249,7 +252,11 @@ def items_year(year: int, cix: CouncilIndex) -> dict:
 
 
 def member(official_id: str, cix: CouncilIndex) -> dict:
-    return views.official(official_id, cix)
+    """A member's page: the county's official view plus the call-ons found in the transcripts (the same section on
+    every member's page, sitegen/transcripts.py)."""
+    return {**views.official(official_id, cix),
+            "called_on": cix.tx.member_rows(official_id) if cix.tx is not None else [],
+            "transcripts_read": len(cix.tx.by_meeting) if cix.tx is not None else 0}
 
 
 def landing_entry(cix: CouncilIndex) -> dict:

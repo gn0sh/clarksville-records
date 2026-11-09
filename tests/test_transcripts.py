@@ -1,0 +1,354 @@
+"""Meeting video transcripts (spec AC6.3): import (collector/transcripts.py), call-on detection and name resolution
+(sitegen/transcripts.py), the transcript and member pages, and the file cap per target.
+
+Rules under test: every line verbatim, labelled Transcript, linked to <video_url>#t=<whole seconds>; a call-on is read
+from the TEXT only and resolves only when exactly one entry of that meeting's attendance shown on the site has the
+surname (name resolution invariant, docs/architecture/city-council.md); nothing is summarised or reworded; the import
+and the pages are deterministic."""
+import html
+import json
+import re
+import shutil
+from pathlib import Path
+
+import pytest
+
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT
+from collector import transcripts as ctx
+from qa import site_checks
+from sitegen import config, council, transcripts as tx
+from sitegen.build import build
+
+CITY = ROOT / "data" / "localities" / "clarksville-tn"
+CFG = config.load_council("clarksville-tn")
+MEETING = "2026-02-05-regular"       # minutes read, attendance shown, video on CivicClerk
+HOSTILE = '<script>alert(1)</script> "quoted" & <b>bold</b> <a href="javascript:x">x</a>'
+
+
+def kind_of(title: str) -> str:
+    from collector.agenda_center import load_config
+    return load_config().kind_of(title)
+
+
+def city_facts() -> dict:
+    return json.loads((CITY / "facts.json").read_text(encoding="utf-8"))
+
+
+def raw_transcript(meeting: dict, segments, **over) -> dict:
+    d = {"event_id": 777, "event_name": "Regular Session", "start": meeting["date"], "video_url": meeting["video_url"],
+         "model": "small.en", "model_version": "faster-whisper 1.2.1", "created_at": "2026-11-09T21:17:07Z",
+         "segments": [{"start": a, "end": b, "text": t, "words": [{"start": a, "end": b, "word": t, "prob": 0.5}]}
+                      for a, b, t in segments]}
+    d.update(over)
+    return d
+
+
+SEGMENTS = [
+    (0.0, 4.0, "Good evening, the meeting will come to order."),
+    (4.0, 9.5, "councilman Smith you're recognized thank you mayor I have a question"),
+    (9.5, 15.0, "about the paving contract on Main Street and the schedule"),
+    (15.0, 21.0, HOSTILE),
+    (21.0, 26.0, "and that is all I have.\x07 Thank you. Councilman"),
+    (26.0, 30.0, "Brown, you're recognized. Thank you Mayor."),
+    (30.0, 35.0, "I agree with Councilman Smith on this one."),          # a mention, not a call-on
+    (35.0, 40.0, "councilman holloman you recognized thank you mayor"),  # near spelling of Holleman: never matched
+    (40.0, 45.0, "councilman Chandler you're recognized I yield"),       # Chandler: listed absent, still one match
+    (45.0, 50.0, "the chair recognizes Councilwoman Lovato on the item"),
+]
+
+
+def write_raw(folder: Path, d: dict) -> Path:
+    folder.mkdir(parents=True, exist_ok=True)
+    p = folder / f"{d['start']}_{d['event_id']}.json"
+    p.write_text(json.dumps(d), encoding="utf-8")
+    return p
+
+
+# ---------------------------------------------------------------------------------------------------------- import
+
+def test_import_compacts_and_matches_by_video_url(tmp_path):
+    facts = city_facts()
+    m = next(x for x in facts["meetings"] if x["id"] == MEETING)
+    write_raw(tmp_path / "in", raw_transcript(m, SEGMENTS))
+    out = tmp_path / "out"
+    log = ctx.import_dir(tmp_path / "in", facts, out, kind_of)
+    assert [r["meeting_id"] for r in log["imported"]] == [MEETING] and log["imported"][0]["matched_by"] == "video_url"
+    t = json.loads((out / f"{MEETING}.json").read_text(encoding="utf-8"))
+    assert t["video_url"] == m["video_url"] and t["model"] == "small.en" and t["source_file"] == "2026-02-05_777.json"
+    assert all(len(s) == 3 for s in t["segments"]) and "words" not in json.dumps(t)
+    # hostile text is data: kept as written (escaped only when rendered); control characters removed
+    assert t["segments"][3][2] == HOSTILE
+    assert t["segments"][4][2] == "and that is all I have. Thank you. Councilman"
+    assert json.loads((out / "index.json").read_text())[MEETING]["segments"] == len(SEGMENTS)
+
+
+def test_import_is_deterministic_and_idempotent(tmp_path):
+    facts = city_facts()
+    m = next(x for x in facts["meetings"] if x["id"] == MEETING)
+    write_raw(tmp_path / "in", raw_transcript(m, SEGMENTS))
+    ctx.import_dir(tmp_path / "in", facts, tmp_path / "a", kind_of)
+    first = {p.name: p.read_bytes() for p in (tmp_path / "a").iterdir()}
+    log = ctx.import_dir(tmp_path / "in", facts, tmp_path / "a", kind_of)
+    assert log["imported"] == [] and len(log["unchanged"]) == 1
+    assert {p.name: p.read_bytes() for p in (tmp_path / "a").iterdir()} == first
+    # a separate run elsewhere gives the same bytes (no clock, sorted keys)
+    ctx.import_dir(tmp_path / "in", facts, tmp_path / "b", kind_of)
+    assert {p.name: p.read_bytes() for p in (tmp_path / "b").iterdir()} == first
+
+
+def test_import_matches_by_date_and_kind_only_without_a_video_url(tmp_path):
+    facts = city_facts()
+    m = next(x for x in facts["meetings"] if x["id"] == MEETING)
+    write_raw(tmp_path / "in", raw_transcript(m, SEGMENTS, video_url=None))
+    log = ctx.import_dir(tmp_path / "in", facts, tmp_path / "out", kind_of)
+    assert log["imported"][0]["matched_by"] == "date_kind"
+    # the link always goes to the meeting's own video
+    assert json.loads((tmp_path / "out" / f"{MEETING}.json").read_text())["video_url"] == m["video_url"]
+
+
+def test_import_never_guesses(tmp_path):
+    facts = city_facts()
+    m = next(x for x in facts["meetings"] if x["id"] == MEETING)
+    write_raw(tmp_path / "in", raw_transcript(m, SEGMENTS, video_url="https://evil.example/x.mp4"))
+    write_raw(tmp_path / "in", raw_transcript({**m, "date": "2026-02-06"}, SEGMENTS, video_url=None, event_id=5))
+    write_raw(tmp_path / "in", raw_transcript(m, [(5.0, 1.0, "ends before it starts")], event_id=6))
+    (tmp_path / "in" / "notes.json").write_text("{}")
+    log = ctx.import_dir(tmp_path / "in", facts, tmp_path / "out", kind_of)
+    assert log["imported"] == [] and len(log["skipped"]) == 4
+    assert json.loads((tmp_path / "out" / "index.json").read_text()) == {}
+
+
+def test_import_keeps_the_later_transcript_of_a_meeting(tmp_path):
+    facts = city_facts()
+    m = next(x for x in facts["meetings"] if x["id"] == MEETING)
+    write_raw(tmp_path / "in", raw_transcript(m, SEGMENTS, event_id=777, created_at="2026-11-09T01:00:00Z"))
+    write_raw(tmp_path / "in", raw_transcript(m, SEGMENTS[:2], event_id=778, created_at="2026-11-10T01:00:00Z"))
+    ctx.import_dir(tmp_path / "in", facts, tmp_path / "out", kind_of)
+    assert json.loads((tmp_path / "out" / f"{MEETING}.json").read_text())["source_file"] == "2026-02-05_778.json"
+
+
+def test_committed_transcripts_match_their_meetings():
+    facts = city_facts()
+    loaded = tx.load(CITY / "facts.json", facts)
+    assert loaded, "at least one transcript is committed"
+    for mid, t in loaded.items():
+        assert t["video_url"] == next(m for m in facts["meetings"] if m["id"] == mid)["video_url"]
+
+
+# ---------------------------------------------------------------------------------------------- links and detection
+
+def test_timestamp_link_format():
+    url = "https://cpmedia.azureedge.net/clarksvilletn/abc.mp4"
+    assert tx.video_href(url, 1184.98) == f"{url}#t=1184"     # whole seconds, rounded down: never after the words
+    assert tx.video_href(url, 0) == f"{url}#t=0"
+    assert tx.clock(3725.5) == "1:02:05" and tx.clock(59.9) == "0:00:59"
+
+
+def segs(rows=SEGMENTS):
+    return [[a, b, ctx.clean_text(t)] for a, b, t in rows]
+
+
+def test_detection_reads_call_ons_from_the_text_only():
+    found = [(d["seg"], d["name"]) for d in tx.detect(segs())]
+    # a title split across two lines is found; a mention ("I agree with Councilman Smith") is not a call-on
+    assert found == [(1, "Smith"), (4, "Brown"), (7, "holloman"), (8, "Chandler"), (9, "Lovato")]
+
+
+@pytest.mark.parametrize("text", ["councilman you're recognized", "Councilman Smith recognizes the effort",
+                                  "thank you councilman Smith", "council members you're recognized"])
+def test_detection_ignores_non_call_ons(text):
+    assert tx.detect([[0.0, 3.0, text]]) == []
+
+
+def test_excerpt_is_verbatim_and_bounded():
+    s = segs()
+    joined = " ".join(x[2] for x in s)
+    for d in tx.detect(s):
+        assert d["excerpt"] in joined, "never reworded: the excerpt is a stretch of the transcript text"
+        assert len(d["excerpt"]) > 0
+    first = tx.detect(s)[0]
+    # runs to the lines starting within 20 s of the call-on, and stops before the next call-on ("Councilman Brown")
+    assert first["excerpt"].startswith("thank you mayor I have a question about the paving contract")
+    assert first["excerpt"].endswith("Thank you") and "Brown" not in first["excerpt"]
+
+
+# ------------------------------------------------------------------------------- name resolution invariant
+
+def meeting_with(att, status="verified", extracted=True):
+    return {"attendance_status": "extracted" if extracted else "not_extracted",
+            "verification": {"status": status, "checks": []}, "attendance": att}
+
+
+OFF = {"a": {"id": "a", "surname": "Smith"}, "b": {"id": "b", "surname": "Brown"}, "c": {"id": "c", "surname": "Smith"}}
+
+
+def att(oid, raw):
+    return {"official_id": oid, "raw_name": raw, "status": "present", "page": 1}
+
+
+def test_resolves_only_on_exactly_one_roster_match():
+    r = tx.roster(meeting_with([att("a", "SMITH"), att("b", "BROWN")]), OFF)
+    assert tx.resolve("smith", r) == ("a", "")
+    assert tx.resolve("Smyth", r)[0] is None                       # never a near spelling
+    two = tx.roster(meeting_with([att("a", "SMITH"), att("c", "SMITH")]), OFF)
+    assert tx.resolve("Smith", two)[0] is None                     # two members with the surname: held
+    blocked = tx.roster(meeting_with([att("a", "SMITH"), att(None, "W. SMITH")]), OFF)
+    assert tx.resolve("Smith", blocked)[0] is None                 # an unresolved entry still blocks
+    alone = tx.roster(meeting_with([att(None, "CLAUNCH")]), OFF)
+    assert tx.resolve("Claunch", alone)[0] is None                 # the one match did not resolve to a member
+
+
+def test_no_roster_no_link():
+    assert tx.roster(meeting_with([att("a", "SMITH")], status="unverified"), OFF) is None   # attendance under review
+    assert tx.roster(meeting_with([], extracted=False), OFF) is None                         # no minutes read
+    assert tx.resolve("Smith", None)[0] is None
+
+
+def test_every_resolved_call_on_is_on_the_meetings_own_shown_attendance():
+    """The invariant over the real data: a call-on links a member only if that member is on the meeting's own
+    attendance as shown, and no other entry there has the surname."""
+    facts = city_facts()
+    wards = json.loads((CITY / "wards.json").read_text(encoding="utf-8"))
+    cix = council.load(CFG, facts, wards)
+    m = cix.meetings[MEETING]
+    t = {"meeting_id": MEETING, "video_url": m["video_url"], "segments": segs()}
+    cix.tx = tx.Transcripts(cix, {**tx.load(CITY / "facts.json", facts), MEETING: t})
+    for mid, calls in cix.tx.call_ons.items():
+        meet = cix.meetings[mid]
+        for d in calls:
+            ids = [a["official_id"] for a in meet["attendance"]]
+            assert d["official_id"] in ids
+            sur = cix.officials[d["official_id"]]["surname"].casefold()
+            same = [a for a in meet["attendance"] if (cix.officials.get(a["official_id"]) or {}).get("surname", a["raw_name"]
+                    .split()[-1]).casefold() == sur]
+            assert len(same) == 1
+    got = {(d["name"], d["official_id"]) for d in cix.tx.call_ons[MEETING]}
+    assert got == {("Smith", "city-wanda-smith"), ("Brown", "city-jimmy-brown"),
+                   ("Chandler", "city-tim-chandler"), ("Lovato", "city-keri-lovato")}   # not "holloman"
+    # the 2026-11-05 transcript: no minutes read yet, so nothing links
+    assert all(not v for k, v in cix.tx.call_ons.items() if k != MEETING and not council.views.attendance_shown(cix.meetings[k]))
+
+
+# ------------------------------------------------------------------------------------------------------ pages
+
+@pytest.fixture(scope="module")
+def city_dir(tmp_path_factory):
+    from test_council_pages import subset
+    facts = city_facts()
+    sub = subset(facts, ("2019-01-03-regular", MEETING))
+    d = tmp_path_factory.mktemp("city")
+    (d / "facts.json").write_text(json.dumps(sub), encoding="utf-8")
+    wards = [w for w in json.loads((CITY / "wards.json").read_text()) if w["meeting_id"] in ("2019-01-03-regular", MEETING)]
+    (d / "wards.json").write_text(json.dumps(wards), encoding="utf-8")
+    m = next(x for x in sub["meetings"] if x["id"] == MEETING)
+    write_raw(d / "raw", raw_transcript(m, SEGMENTS))
+    ctx.import_dir(d / "raw", sub, d / "transcripts", kind_of)
+    return d, sub
+
+
+@pytest.fixture(scope="module")
+def built(tmp_path_factory, city_dir):
+    d, sub = city_dir
+    cfg = {**CFG, "facts_path": d / "facts.json", "wards_path": d / "wards.json"}
+    out = tmp_path_factory.mktemp("site") / "build" / "site"
+    result = build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, councils=[cfg])
+    return out, result, cfg, sub
+
+
+def test_transcript_page_lines(built):
+    out, result, cfg, sub = built
+    assert result["transcripts"] and result["transcript_pages"] == 1
+    page = (out / "city" / "transcripts" / f"{MEETING}.html").read_text(encoding="utf-8")
+    assert tx.NOTICE in html.unescape(page)
+    video = next(m for m in sub["meetings"] if m["id"] == MEETING)["video_url"]
+    lines = re.findall(r'<li id="s(\d+)"[^>]*>(.*?)</li>', page, re.S)
+    assert len(lines) == len(SEGMENTS)
+    for i, body in lines:
+        assert f'href="{video}#t={int(SEGMENTS[int(i)][0])}"' in body
+        assert '<span class="chip chip-type">Transcript</span>' in body
+    # hostile text is escaped, never markup
+    assert "<script>alert" not in page and "&lt;script&gt;alert(1)&lt;/script&gt;" in page
+    assert 'href="javascript' not in page
+    # the call-on lines are marked with the member, linked
+    assert re.search(r'<li id="s1" class="call-on">.*Called on: <a href="../../city/members/city-wanda-smith.html">Wanda Smith</a>', page)
+    assert 'id="s7" class="call-on"' not in page        # "holloman": not matched
+
+
+def test_member_pages_list_call_ons_verbatim_and_alike(built):
+    out, result, cfg, sub = built
+    smith = (out / "city" / "members" / "city-wanda-smith.html").read_text(encoding="utf-8")
+    assert "Called on in meetings (transcript)" in smith
+    assert "Transcript text after the chair called on Wanda Smith:" in smith
+    video = next(m for m in sub["meetings"] if m["id"] == MEETING)["video_url"]
+    assert f'href="{video}#t=4"' in smith
+    assert "thank you mayor I have a question about the paving contract" in smith
+    assert f"transcripts/{MEETING}.html#s1" in smith
+    other = (out / "city" / "members" / "city-geno-grubbs.html")
+    if other.is_file():
+        text = other.read_text(encoding="utf-8")
+        assert "Called on in meetings (transcript)" in text and "No call-ons found in the 1 meeting transcript" in text
+    # the same headings on every member page (layout N1)
+    problems, _ = site_checks.check_layout(out, json.loads(Path(cfg["facts_path"]).read_text()), "city/members")
+    assert problems == []
+
+
+def test_meeting_section_links_the_transcript(built):
+    out, *_ = built
+    year = (out / "city" / "meetings" / "2026.html").read_text(encoding="utf-8")
+    assert f'href="../../city/transcripts/{MEETING}.html">Automatic transcript</a>' in year
+
+
+def test_site_checks_pass_on_transcripts_and_catch_a_line_without_time(built, tmp_path):
+    out, result, cfg, sub = built
+    cs = [{"slug": "city", "prefix": "city/", "facts": sub}]
+    problems, note = site_checks.check_transcripts(out, cs)
+    assert problems == [] and f"{len(SEGMENTS)} lines" in note
+    videos = {m["video_url"] for m in sub["meetings"] if m.get("video_url")}
+    pages = {f.relative_to(out).as_posix(): site_checks.parse(f) for f in out.rglob("*.html")}
+    probs, _ = site_checks.check_sources(out, pages, {"sources": [*json.loads(FIXTURE.read_text())["sources"],
+                                                                  *sub["sources"]]}, (), set(), None, videos)
+    assert [p for p in probs if "video" in p] == []
+    copy = tmp_path / "site"
+    shutil.copytree(out, copy)
+    p = copy / "city" / "transcripts" / f"{MEETING}.html"
+    p.write_text(re.sub(r'(<li id="s3">)<a class="tx-time"[^>]*>.*?</a>', r"\1", p.read_text(encoding="utf-8"),
+                        flags=re.S), encoding="utf-8")
+    problems, _ = site_checks.check_transcripts(copy, cs)
+    assert any("#s3" in x for x in problems)
+    # a video link to another host is caught by the sources check
+    p2 = copy / "city" / "members" / "city-wanda-smith.html"
+    p2.write_text(p2.read_text(encoding="utf-8").replace(next(iter(videos)), "https://evil.example/v.mp4"), encoding="utf-8")
+    pages = {"city/members/city-wanda-smith.html": site_checks.parse(p2)}
+    probs, _ = site_checks.check_sources(copy, pages, {"sources": []}, (), set(), None, videos)
+    assert any("video link" in x for x in probs)
+
+
+def test_pages_are_deterministic(built, tmp_path_factory):
+    out, result, cfg, sub = built
+    out2 = tmp_path_factory.mktemp("again") / "build" / "site"
+    build(FIXTURE, out2, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, councils=[cfg])
+    for rel in (f"city/transcripts/{MEETING}.html", "city/members/city-wanda-smith.html"):
+        assert (out / rel).read_bytes() == (out2 / rel).read_bytes()
+
+
+def test_preview_over_its_cap_leaves_transcript_pages_out(built, tmp_path_factory, monkeypatch):
+    out, result, cfg, sub = built
+    n = result["files"]
+    from sitegen.build import export_file_count
+    monkeypatch.setitem(config.MAX_FILES_BY_TARGET, "preview", n + export_file_count(True, [cfg], False) - 1)
+    out2 = tmp_path_factory.mktemp("small") / "build" / "site"
+    r2 = build(FIXTURE, out2, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, councils=[cfg])
+    assert r2["transcripts"] is False and not (out2 / "city" / "transcripts").exists()
+    year = (out2 / "city" / "meetings" / "2026.html").read_text(encoding="utf-8")
+    assert "this preview copy leaves transcript pages out" in year
+    smith = (out2 / "city" / "members" / "city-wanda-smith.html").read_text(encoding="utf-8")
+    assert "#t=4" in smith and "line in the transcript" not in smith      # the video links stay
+    # the pages target has room
+    r3 = build(FIXTURE, tmp_path_factory.mktemp("pages") / "site", seats_path=FIXTURE_SEATS,
+               districts_path=FIXTURE_DISTRICTS, councils=[cfg], target="pages")
+    assert r3["transcripts"] is True
+
+
+def test_file_caps_per_target():
+    assert config.MAX_FILES_BY_TARGET == site_checks.MAX_FILES_BY_TARGET == {"preview": 500, "pages": 3000}
+    assert config.max_files("pages") == 3000

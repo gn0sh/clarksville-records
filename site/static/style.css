@@ -816,3 +816,14 @@ ul.feed-list a { font-weight: 600; }
 .feed-about { display: block; color: var(--muted); font-size: var(--t-sm); margin-top: 2px; }
 .feed-url { display: block; margin-top: 4px; }
 ol.alert-steps { max-width: 44rem; }
+
+/* Meeting transcripts (sitegen/transcripts.py): one line per segment, its time linked to the video. */
+.transcript-notice { max-width: 44rem; padding: 8px 12px; border: 1px solid var(--border); background: var(--surface); }
+ol.transcript { list-style: none; padding: 0; max-width: 48rem; }
+ol.transcript > li { padding: 6px 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+ol.transcript > li.call-on { border-left: 3px solid var(--fg); padding-left: 8px; }
+.tx-time { font-variant-numeric: tabular-nums; white-space: nowrap; }
+ul.call-ons { padding-left: 1.2em; max-width: 48rem; }
+ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
+.tx-quote { margin: 4px 0 0; padding-left: 10px; border-left: 2px solid var(--border); }
+.tx-quote p { margin: 2px 0; }

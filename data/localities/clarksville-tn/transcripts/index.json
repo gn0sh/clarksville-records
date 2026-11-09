@@ -1,0 +1,12 @@
+{
+ "2026-11-05-regular": {
+  "created_at": "2026-11-09T21:17:07Z",
+  "event_id": "2950",
+  "file": "2026-11-05-regular.json",
+  "model": "small.en",
+  "model_version": "faster-whisper 1.2.1",
+  "segments": 1271,
+  "source_file": "2026-11-05_2950.json",
+  "video_url": "https://cpmedia.azureedge.net/clarksvilletn/fc4820ad23.mp4"
+ }
+}
