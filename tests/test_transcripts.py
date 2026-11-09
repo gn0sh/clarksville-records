@@ -52,7 +52,7 @@ SEGMENTS = [
     (26.0, 30.0, "Brown, you're recognized. Thank you Mayor."),
     (30.0, 35.0, "I agree with Councilman Smith on this one."),          # a mention, not a call-on
     (35.0, 40.0, "councilman holloman you recognized thank you mayor"),  # near spelling of Holleman: never matched
-    (40.0, 45.0, "councilman Chandler you're recognized I yield"),       # Chandler: listed absent, still one match
+    (40.0, 45.0, "councilman Chandler you're recognized I yield"),       # Chandler: listed absent, so never linked
     (45.0, 50.0, "the chair recognizes Councilwoman Lovato on the item"),
 ]
 
@@ -127,6 +127,47 @@ def test_import_keeps_the_later_transcript_of_a_meeting(tmp_path):
     assert json.loads((tmp_path / "out" / f"{MEETING}.json").read_text())["source_file"] == "2026-02-05_778.json"
 
 
+def test_import_compares_event_id_when_the_meeting_carries_one(tmp_path):
+    facts = city_facts()
+    m = next(x for x in facts["meetings"] if x["id"] == MEETING)
+    write_raw(tmp_path / "in", raw_transcript(m, SEGMENTS, event_id=777))
+    other = {**facts, "meetings": [{**x, "event_id": 900} if x["id"] == MEETING else x for x in facts["meetings"]]}
+    log = ctx.import_dir(tmp_path / "in", other, tmp_path / "out", kind_of)
+    assert log["imported"] == [] and "event 900" in log["skipped"][0]["why"]
+    same = {**facts, "meetings": [{**x, "event_id": 777} if x["id"] == MEETING else x for x in facts["meetings"]]}
+    log = ctx.import_dir(tmp_path / "in", same, tmp_path / "out", kind_of)
+    assert [r["meeting_id"] for r in log["imported"]] == [MEETING]
+    # without a video_url (date + kind) the event_id is compared too
+    write_raw(tmp_path / "in2", raw_transcript(m, SEGMENTS, video_url=None, event_id=777))
+    assert ctx.import_dir(tmp_path / "in2", other, tmp_path / "out2", kind_of)["imported"] == []
+
+
+def test_import_removes_transcripts_that_no_longer_match(tmp_path):
+    facts = city_facts()
+    m = next(x for x in facts["meetings"] if x["id"] == MEETING)
+    write_raw(tmp_path / "in", raw_transcript(m, SEGMENTS))
+    out = tmp_path / "out"
+    ctx.import_dir(tmp_path / "in", facts, out, kind_of)
+    assert (out / f"{MEETING}.json").is_file()
+    # the next import from an empty folder keeps a transcript that still matches
+    (tmp_path / "empty").mkdir()
+    log = ctx.import_dir(tmp_path / "empty", facts, out, kind_of)
+    assert log["removed"] == [] and MEETING in json.loads((out / "index.json").read_text())
+    # the meeting's video changed: the transcript no longer matches it, so it and its index entry go
+    moved = {**facts, "meetings": [{**x, "video_url": "https://cpmedia.azureedge.net/clarksvilletn/new.mp4"}
+                                   if x["id"] == MEETING else x for x in facts["meetings"]]}
+    log = ctx.import_dir(tmp_path / "empty", moved, out, kind_of)
+    assert [r["file"] for r in log["removed"]] == [f"{MEETING}.json"]
+    assert not (out / f"{MEETING}.json").exists() and json.loads((out / "index.json").read_text()) == {}
+    # a meeting gone from the facts, or an event_id that differs, also removes it
+    ctx.import_dir(tmp_path / "in", facts, out, kind_of)
+    gone = {**facts, "meetings": [x for x in facts["meetings"] if x["id"] != MEETING]}
+    assert len(ctx.import_dir(tmp_path / "empty", gone, out, kind_of)["removed"]) == 1
+    ctx.import_dir(tmp_path / "in", facts, out, kind_of)
+    ev = {**facts, "meetings": [{**x, "event_id": 1} if x["id"] == MEETING else x for x in facts["meetings"]]}
+    assert len(ctx.import_dir(tmp_path / "empty", ev, out, kind_of)["removed"]) == 1
+
+
 def test_committed_transcripts_match_their_meetings():
     facts = city_facts()
     loaded = tx.load(CITY / "facts.json", facts)
@@ -144,6 +185,36 @@ def test_timestamp_link_format():
     assert tx.clock(3725.5) == "1:02:05" and tx.clock(59.9) == "0:00:59"
 
 
+@pytest.mark.parametrize("url", [
+    "http://cpmedia.azureedge.net/clarksvilletn/abc.mp4",          # not https
+    "https://evil.example/clarksvilletn/abc.mp4",                  # another host
+    "https://cpmedia.azureedge.net.evil.example/abc.mp4",          # a host that only starts like it
+    "https://user@cpmedia.azureedge.net/abc.mp4",                  # userinfo
+    "https://cpmedia.azureedge.net:8443/abc.mp4",                  # a port
+    "https://cpmedia.azureedge.net/clarksvilletn/abc.mp4.html",    # not an .mp4 path
+    "https://cpmedia.azureedge.net/clarksvilletn/abc.mp4#t=5",     # already has a fragment
+    None,
+])
+def test_no_timestamp_link_to_a_video_the_rule_does_not_allow(url):
+    assert tx.video_ok(url) is False and tx.video_href(url, 12.0) is None
+    assert site_checks.video_ok(url) is False                       # the QA check restates the same rule
+    assert config.VIDEO_HOSTS == site_checks.VIDEO_HOSTS
+
+
+def test_a_disallowed_video_shows_times_as_text_only(tmp_path):
+    facts = city_facts()
+    wards = json.loads((CITY / "wards.json").read_text(encoding="utf-8"))
+    bad = "https://evil.example/clarksvilletn/x.mp4"
+    facts = {**facts, "meetings": [{**x, "video_url": bad} if x["id"] == MEETING else x for x in facts["meetings"]]}
+    cix = council.load(CFG, facts, wards)
+    cix.tx = tx.Transcripts(cix, {MEETING: {"meeting_id": MEETING, "video_url": bad, "segments": segs(),
+                                            "model": "m", "model_version": "v", "created_at": "2026-11-09"}})
+    assert all(line["href"] is None for line in cix.tx.lines(MEETING))
+    assert cix.tx.page(MEETING)["video_ok"] is False
+    rows = cix.tx.member_rows("city-wanda-smith")
+    assert rows and all(r["video_href"] is None for r in rows)
+
+
 def segs(rows=SEGMENTS):
     return [[a, b, ctx.clean_text(t)] for a, b, t in rows]
 
@@ -155,9 +226,24 @@ def test_detection_reads_call_ons_from_the_text_only():
 
 
 @pytest.mark.parametrize("text", ["councilman you're recognized", "Councilman Smith recognizes the effort",
-                                  "thank you councilman Smith", "council members you're recognized"])
+                                  "thank you councilman Smith", "council members you're recognized",
+                                  "Councilwoman Smith recognized the students",
+                                  "Councilman Brown, you recognize this is a tough vote",
+                                  "Chairman Pitts recognized the veterans",
+                                  "Councilman Brown recognized"])
 def test_detection_ignores_non_call_ons(text):
     assert tx.detect([[0.0, 3.0, text]]) == []
+
+
+@pytest.mark.parametrize("text,name", [("Councilman Brown, you're recognized.", "Brown"),
+                                       ("councilman brown you are recognized", "brown"),
+                                       ("Councilwoman Smith you recognized thank you", "Smith"),
+                                       ("Councilman Brown, you’re recognised", "Brown"),
+                                       ("the chair recognizes Councilwoman Smith now", "Smith")])
+def test_detection_finds_the_call_on_forms(text, name):
+    found = tx.detect([[0.0, 3.0, text]])
+    assert [d["name"] for d in found] == [name]
+    assert found[0]["matched"] in text                               # the matched words, verbatim
 
 
 def test_excerpt_is_verbatim_and_bounded():
@@ -182,8 +268,8 @@ def meeting_with(att, status="verified", extracted=True):
 OFF = {"a": {"id": "a", "surname": "Smith"}, "b": {"id": "b", "surname": "Brown"}, "c": {"id": "c", "surname": "Smith"}}
 
 
-def att(oid, raw):
-    return {"official_id": oid, "raw_name": raw, "status": "present", "page": 1}
+def att(oid, raw, status="present"):
+    return {"official_id": oid, "raw_name": raw, "status": status, "page": 1}
 
 
 def test_resolves_only_on_exactly_one_roster_match():
@@ -196,6 +282,36 @@ def test_resolves_only_on_exactly_one_roster_match():
     assert tx.resolve("Smith", blocked)[0] is None                 # an unresolved entry still blocks
     alone = tx.roster(meeting_with([att(None, "CLAUNCH")]), OFF)
     assert tx.resolve("Claunch", alone)[0] is None                 # the one match did not resolve to a member
+
+
+def test_an_absent_member_blocks_but_never_links():
+    r = tx.roster(meeting_with([att("a", "SMITH", "absent"), att("b", "BROWN")]), OFF)
+    oid, why = tx.resolve("Smith", r)
+    assert oid is None and "absent" in why                          # listed absent: never linked
+    assert tx.resolve("Brown", r) == ("b", "")
+    shared = tx.roster(meeting_with([att("a", "SMITH"), att("c", "SMITH", "absent")]), OFF)
+    assert tx.resolve("Smith", shared)[0] is None                   # still blocks the present member's shared surname
+
+
+OFF2 = {"a": {"id": "a", "surname": "Smith"}, "b": {"id": "b", "surname": "Brown"},
+        "l": {"id": "l", "surname": "Little"}, "s": {"id": "s", "surname": "Streetman"},
+        "d": {"id": "d", "surname": "Arrived"}}
+
+
+@pytest.mark.parametrize("raw,blocked", [
+    ("DaJaun Little m", "Little"),          # the surname is not the last word
+    ("DaJaun Little m", "DaJaun"),          # every word of the printed name blocks
+    ("StaceyStreetman", "Streetman"),       # a registered surname inside the name with no space
+    ("Stacey Street man", "Streetman"),     # ... with spaces removed
+    ("arrived at 6:04)", "arrived"),
+])
+def test_an_unresolved_line_blocks_every_name_in_it(raw, blocked):
+    members = {"l": att("l", "LITTLE"), "s": att("s", "STREETMAN"), "d": att("d", "ARRIVED")}
+    present = [v for k, v in members.items() if OFF2[k]["surname"].casefold() == blocked.casefold()]
+    r = tx.roster(meeting_with([*present, att(None, raw)]), OFF2)
+    assert tx.resolve(blocked, r)[0] is None
+    if present:   # without the unresolved line the member would have linked
+        assert tx.resolve(blocked, tx.roster(meeting_with(present), OFF2))[0] is not None
 
 
 def test_no_roster_no_link():
@@ -223,8 +339,12 @@ def test_every_resolved_call_on_is_on_the_meetings_own_shown_attendance():
                     .split()[-1]).casefold() == sur]
             assert len(same) == 1
     got = {(d["name"], d["official_id"]) for d in cix.tx.call_ons[MEETING]}
-    assert got == {("Smith", "city-wanda-smith"), ("Brown", "city-jimmy-brown"),
-                   ("Chandler", "city-tim-chandler"), ("Lovato", "city-keri-lovato")}   # not "holloman"
+    # not "holloman" (near spelling), not Chandler (listed absent in this meeting's minutes)
+    assert got == {("Smith", "city-wanda-smith"), ("Brown", "city-jimmy-brown"), ("Lovato", "city-keri-lovato")}
+    assert next(a["status"] for a in m["attendance"] if a["official_id"] == "city-tim-chandler") == "absent"
+    for mid, calls in cix.tx.call_ons.items():   # no call-on ever links a member listed absent
+        absent = {a["official_id"] for a in cix.meetings[mid]["attendance"] if a["status"] == "absent"}
+        assert not {d["official_id"] for d in calls} & absent
     # the 2026-11-05 transcript: no minutes read yet, so nothing links
     assert all(not v for k, v in cix.tx.call_ons.items() if k != MEETING and not council.views.attendance_shown(cix.meetings[k]))
 
@@ -283,6 +403,12 @@ def test_member_pages_list_call_ons_verbatim_and_alike(built):
     assert f'href="{video}#t=4"' in smith
     assert "thank you mayor I have a question about the paving contract" in smith
     assert f"transcripts/{MEETING}.html#s1" in smith
+    # the matched call-on words are shown verbatim with the entry
+    assert ('Matched words: &ldquo;<span class="tx-matched" data-transcript>councilman Smith you&#39;re recognized'
+            '</span>&rdquo;') in smith
+    chandler = out / "city" / "members" / "city-tim-chandler.html"
+    if chandler.is_file():
+        assert "Chandler you" not in chandler.read_text(encoding="utf-8")      # listed absent: no call-on entry
     other = (out / "city" / "members" / "city-geno-grubbs.html")
     if other.is_file():
         text = other.read_text(encoding="utf-8")
@@ -321,6 +447,16 @@ def test_site_checks_pass_on_transcripts_and_catch_a_line_without_time(built, tm
     pages = {"city/members/city-wanda-smith.html": site_checks.parse(p2)}
     probs, _ = site_checks.check_sources(copy, pages, {"sources": []}, (), set(), None, videos)
     assert any("video link" in x for x in probs)
+    problems, _ = site_checks.check_transcripts(copy, cs)
+    assert any("call-on entry of" in x for x in problems)            # the entry no longer links its meeting's video
+
+
+def test_transcript_text_regex_is_anchored():
+    rx = site_checks.TRANSCRIPT_TEXT
+    assert rx.search('<span class="x" data-transcript>words</span>')
+    assert rx.search('<p data-transcript="1">words</p>')
+    assert not rx.search('<span data-transcript-foo>words</span>')
+    assert not rx.search('<span xdata-transcript>words</span>')
 
 
 def test_pages_are_deterministic(built, tmp_path_factory):
@@ -351,4 +487,19 @@ def test_preview_over_its_cap_leaves_transcript_pages_out(built, tmp_path_factor
 
 def test_file_caps_per_target():
     assert config.MAX_FILES_BY_TARGET == site_checks.MAX_FILES_BY_TARGET == {"preview": 500, "pages": 3000}
-    assert config.max_files("pages") == 3000
+    assert config.max_files("pages") == 3000 and config.max_files("preview") == 500
+
+
+def test_one_cap_rule_a_build_at_the_cap_is_ok(tmp_path, monkeypatch):
+    """At most the cap (<= cap) is OK in sitegen's manifest and in qa/site_checks alike; one over fails both."""
+    from sitegen.build import BuildError, write_publish_manifest
+    site = tmp_path / "build" / "site"
+    site.mkdir(parents=True)
+    for i in range(3):
+        (site / f"f{i}.txt").write_text("x")
+    monkeypatch.setitem(config.MAX_FILES_BY_TARGET, "preview", 3)
+    write_publish_manifest(site, "preview")                          # exactly at the cap: OK
+    (site / "f3.txt").write_text("x")
+    with pytest.raises(BuildError):
+        write_publish_manifest(site, "preview")
+

@@ -33,7 +33,7 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               alternate link) with unique tag: ids, newest first, at most alerts.max_entries; each alternate link
               resolves to a built page and its #anchor, each related link is a fetched source document; alerts.html
               links every feed and no other (Alerts v1, sitegen/feeds.py)
-  files       fewer than the target's file cap: --target preview (claude.ai artifact, 500) or pages (GitHub Pages, 3000)
+  files       at most the target's file cap: --target preview (claude.ai artifact, 500) or pages (GitHub Pages, 3000)
   transcripts every line of a transcript page (<folder>/transcripts/*.html) has its time linked to its meeting's own
               video as <video_url>#t=<whole seconds>, the "Transcript" label and the notice; every call-on entry on a
               member page links a video time; video links (data-ext="video") go only to a meeting's video_url
@@ -82,8 +82,24 @@ NARROW = 360  # AC-F10: the Bids and awards pages are also checked at 360 px
 # External links that are not minutes PDFs but are allowed: a holder record's roster source, the map's boundary source,
 # the county redistricting page / old-lines map, and the footer support link. Each must be marked data-ext and https.
 EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder", "corrections", "video"}
-TRANSCRIPT_TEXT = re.compile(r"(<(span|p)\b[^>]*\bdata-transcript\b[^>]*>)[^<]*(</\2>)")
+# the data-transcript attribute itself, not data-transcript-foo
+TRANSCRIPT_TEXT = re.compile(r"(<(span|p)\b[^>]*\sdata-transcript(?=[\s=/>])[^>]*>)[^<]*(</\2>)")
 VIDEO_HREF = re.compile(r"(https://[^#\s]+)(?:#t=(\d+))?")
+# Restated from sitegen/config.py VIDEO_HOSTS and sitegen/transcripts.py video_ok (an independent check): times link to
+# a meeting's video only when its video_url is https on one of these hosts, a path ending .mp4, with no "#" in it.
+VIDEO_HOSTS = ("cpmedia.azureedge.net",)
+
+
+def video_ok(url) -> bool:
+    if not isinstance(url, str) or "#" in url:
+        return False
+    try:
+        u = urlsplit(url)
+        port = u.port
+    except ValueError:
+        return False
+    return (u.scheme == "https" and u.hostname in VIDEO_HOSTS and u.netloc == u.hostname and port is None
+            and u.path.lower().endswith(".mp4"))
 
 
 def corrections_links(cfg: dict) -> tuple[str, str]:
@@ -1143,12 +1159,12 @@ def check_row_height(site: Path, pages: dict[str, Page], sample: int, all_pages:
 
 class TranscriptLines(HTMLParser):
     """Each <li> of ol.transcript: (id, the first a.tx-time href, the label chip text, has a data-transcript span);
-    and each li of ul.call-ons: its data-ext="video" hrefs."""
+    and each li of ul.call-ons: (its data-meeting, its data-ext="video" hrefs)."""
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.lines: list[dict] = []
-        self.call_ons: list[list[str]] = []
+        self.call_ons: list[tuple[str | None, list[str]]] = []
         self.text: list[str] = []
         self._in_ol = self._in_ul = 0
         self._li: dict | None = None
@@ -1165,11 +1181,11 @@ class TranscriptLines(HTMLParser):
             self._li = {"id": a.get("id"), "time": None, "label": "", "text": False}
             self.lines.append(self._li)
         elif tag == "li" and self._in_ul:
-            self.call_ons.append([])
+            self.call_ons.append((a.get("data-meeting"), []))
         elif tag == "a" and self._li is not None and "tx-time" in cls and self._li["time"] is None:
             self._li["time"] = (a.get("href") or "", a.get("data-ext"))
         elif tag == "a" and self._in_ul and a.get("data-ext") == "video" and self.call_ons:
-            self.call_ons[-1].append(a.get("href") or "")
+            self.call_ons[-1][1].append(a.get("href") or "")
         elif tag == "span" and self._li is not None and "chip-type" in cls:
             self._chip = True
         elif tag == "span" and self._li is not None and "data-transcript" in a:
@@ -1208,25 +1224,35 @@ def check_transcripts(site: Path, cs: list[dict]) -> tuple[list[str], str]:
                 problems.append(f"{rel}: the transcript notice is missing")
             if not p.lines:
                 problems.append(f"{rel}: no transcript lines")
+            linked = video_ok(videos[mid])
             for li in p.lines:
                 n_lines += 1
                 href, ext = li["time"] or ("", None)
                 m = VIDEO_HREF.fullmatch(href)
-                if ext != "video" or not m or m.group(1) != videos[mid] or m.group(2) is None:
+                if not linked:
+                    if li["time"] is not None:
+                        problems.append(f"{rel}#{li['id']}: line links a time in a video not on the allowed hosts")
+                elif ext != "video" or not m or m.group(1) != videos[mid] or m.group(2) is None:
                     problems.append(f"{rel}#{li['id']}: line does not link a time in the meeting's video ({href!r})")
                 if li["label"].strip() != "Transcript":
                     problems.append(f"{rel}#{li['id']}: line is not labelled Transcript")
                 if not li["text"]:
                     problems.append(f"{rel}#{li['id']}: line has no data-transcript text")
-        all_videos = {v for v in videos.values() if v}
         for f in sorted((site / c["slug"] / "members").glob("*.html")):
             p = TranscriptLines()
             p.feed(f.read_text(encoding="utf-8"))
-            for hrefs in p.call_ons:
+            for mid, hrefs in p.call_ons:
                 n_calls += 1
-                ok = [h for h in hrefs if (m := VIDEO_HREF.fullmatch(h)) and m.group(2) is not None and m.group(1) in all_videos]
-                if not ok:
-                    problems.append(f"{f.relative_to(site).as_posix()}: a call-on entry links no video time")
+                rel = f.relative_to(site).as_posix()
+                video = videos.get(mid)
+                if not video:
+                    problems.append(f"{rel}: a call-on entry names no meeting with a video ({mid!r})")
+                    continue
+                ok = [h for h in hrefs if (m := VIDEO_HREF.fullmatch(h)) and m.group(2) is not None and m.group(1) == video]
+                if video_ok(video) and (not ok or len(ok) != len(hrefs)):
+                    problems.append(f"{rel}: a call-on entry of {mid} does not link a time in that meeting's video")
+                elif not video_ok(video) and hrefs:
+                    problems.append(f"{rel}: a call-on entry of {mid} links a video not on the allowed hosts")
     return problems, f"{n_pages} transcript pages, {n_lines} lines; {n_calls} call-on entries on member pages"
 
 
@@ -1243,7 +1269,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
         rep.add("site", [f"no HTML files under {site}"])
         return rep
     cap = MAX_FILES_BY_TARGET[target]
-    rep.add("files", [f"{len(files)} files, limit {cap - 1} for the {target} target"] if len(files) >= cap else [],
+    # one rule everywhere (sitegen/config.py max_files): a build is within its cap at most at the cap (<= cap)
+    rep.add("files", [f"{len(files)} files, over the limit of {cap} for the {target} target"] if len(files) > cap else [],
             f"{len(files)} files, {len(pages)} pages, {target} target (cap {cap})")
     rep.add("links", check_links(site, pages, no_export), "internal links, #anchors and assets" + ("; data/ skipped" if no_export and not (site / "data").exists() else ""))
     cs = [c for c in councils(facts) if any(rel.startswith(c["prefix"]) for rel in pages)]

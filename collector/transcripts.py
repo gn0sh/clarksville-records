@@ -17,9 +17,12 @@ Matching (each input to one meeting of the council's facts file):
 1. by video_url: the one meeting whose video_url is exactly the transcript's; else
 2. by date + kind: when the transcript has no video_url, the one meeting on its start date whose kind is the kind
    rule's reading of its event_name (agenda-center.yml kind_rules), and that meeting has a video_url.
+When the meeting carries an event_id (the listing's event number), it must equal the transcript's event_id too.
 A transcript whose video_url names no meeting's video, or a match that is not exactly one meeting, is skipped with
 the reason; nothing is guessed. Every timestamp link on the site goes to the matched meeting's own video_url.
 When two inputs match one meeting, the later created_at (then the later file name) is kept.
+Every import also removes the transcript files already in the folder that no longer match a meeting of the facts file
+(the meeting is gone, its video_url changed, or its event_id differs), so the index never names a stale transcript.
 
 Deterministic and idempotent: the output depends only on the inputs and the facts file (no clock), files are
 rewritten only when their text changes, and running the same import twice changes nothing.
@@ -115,21 +118,44 @@ def read_input(path: Path) -> dict:
     return rec
 
 
+def _event_differs(rec: dict, meeting: dict) -> bool:
+    """True when the meeting carries an event_id and it is not the transcript's."""
+    ev = meeting.get("event_id")
+    return ev is not None and str(ev) != str(rec.get("event_id"))
+
+
 def match(rec: dict, meetings: list[dict], kind_of) -> tuple[dict | None, str]:
     """(meeting, how) or (None, why not). See the module docstring for the rule."""
     if rec["video_url"]:
         hits = [m for m in meetings if m.get("video_url") and m["video_url"] == rec["video_url"]]
-        if len(hits) == 1:
-            return hits[0], "video_url"
-        return None, (f"video_url names {len(hits)} meetings" if hits else
-                      "video_url is no meeting's video (not matched by date: the link would name another video)")
-    date, kind = rec["start"][:10], kind_of(rec["event_name"])
-    hits = [m for m in meetings if m["date"] == date and m["kind"] == kind]
-    if len(hits) != 1:
-        return None, f"{len(hits)} meetings on {date} of kind {kind}"
-    if not hits[0].get("video_url"):
-        return None, f"meeting {hits[0]['id']} has no video_url to link to"
-    return hits[0], "date_kind"
+        if len(hits) != 1:
+            return None, (f"video_url names {len(hits)} meetings" if hits else
+                          "video_url is no meeting's video (not matched by date: the link would name another video)")
+        how = "video_url"
+    else:
+        date, kind = rec["start"][:10], kind_of(rec["event_name"])
+        hits = [m for m in meetings if m["date"] == date and m["kind"] == kind]
+        if len(hits) != 1:
+            return None, f"{len(hits)} meetings on {date} of kind {kind}"
+        if not hits[0].get("video_url"):
+            return None, f"meeting {hits[0]['id']} has no video_url to link to"
+        how = "date_kind"
+    if _event_differs(rec, hits[0]):
+        return None, (f"meeting {hits[0]['id']} is event {hits[0]['event_id']}, the transcript is event "
+                      f"{rec.get('event_id')}")
+    return hits[0], how
+
+
+def stale(t: dict, meetings: dict[str, dict]) -> str | None:
+    """Why a committed transcript no longer matches a meeting of the facts file, or None when it still does."""
+    m = meetings.get(t.get("meeting_id"))
+    if m is None:
+        return f"meeting {t.get('meeting_id')!r} is not in the facts file"
+    if not m.get("video_url") or m["video_url"] != t.get("video_url"):
+        return f"meeting {m['id']}'s video_url is not the transcript's"
+    if _event_differs(t, m):
+        return f"meeting {m['id']} is event {m['event_id']}, the transcript is event {t.get('event_id')}"
+    return None
 
 
 def render(rec: dict) -> str:
@@ -162,10 +188,11 @@ def build_index(out_dir: Path) -> dict:
 
 
 def import_dir(src: Path, facts: dict, out_dir: Path, kind_of) -> dict:
-    """Import every <date>_<event>.json in src. Returns {"imported": [...], "unchanged": [...], "skipped": [...]}."""
+    """Import every <date>_<event>.json in src, and remove the transcripts in out_dir that no longer match a meeting.
+    Returns {"imported": [...], "unchanged": [...], "skipped": [...], "removed": [...]}."""
     meetings = facts["meetings"]
     chosen: dict[str, dict] = {}
-    log = {"imported": [], "unchanged": [], "skipped": []}
+    log = {"imported": [], "unchanged": [], "skipped": [], "removed": []}
     for path in sorted(Path(src).glob("*.json")):
         try:
             rec = read_input(path)
@@ -192,6 +219,21 @@ def import_dir(src: Path, facts: dict, out_dir: Path, kind_of) -> dict:
         log["imported" if changed else "unchanged"].append({"file": rec["source_file"], "meeting_id": mid,
                                                              "matched_by": rec["matched_by"],
                                                              "segments": len(rec["segments"])})
+    by_id = {m["id"]: m for m in meetings}
+    for p in sorted(Path(out_dir).glob("*.json")) if Path(out_dir).is_dir() else []:
+        if p.name == "index.json":
+            continue
+        try:
+            t = json.loads(p.read_text(encoding="utf-8"))
+            why = stale(t, by_id) if isinstance(t, dict) else "not a transcript object"
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            why = "not JSON"
+        if why is None and p.name != f"{t['meeting_id']}.json":
+            why = "file name is not its meeting id"
+        if why is not None:
+            p.unlink()
+            log["removed"].append({"file": p.name, "why": why})
+    out_dir.mkdir(parents=True, exist_ok=True)
     index = build_index(out_dir)
     _write(out_dir / "index.json", json.dumps(index, indent=1, sort_keys=True, ensure_ascii=False) + "\n")
     log["meetings_with_transcript"] = len(index)
