@@ -16,8 +16,9 @@ Entries (invariant: an id never changes, so a reader never alerts twice for one 
 - a topic feed has one entry per item per meeting it appears at; id <feed_id><body>/item/<item id>/<meeting id>.
 `updated` is the meeting's date, which never changes (so a reader never marks an entry as changed); entries are
 newest meeting first, at most `alerts.max_entries` per feed. A reader shows an entry it has not seen as new whatever its
-date, so minutes posted weeks after their meeting still alert, as long as the meeting is within the newest entries. Titles are the document's own text, escaped by the XML writer, and never link to an
-official (DECISION 2026-11-09): an entry links only its page on this site and its source document.
+date, so minutes posted weeks after their meeting still alert, as long as the meeting is within the newest entries.
+Titles are the document's own text, escaped by the XML writer, and never link to an official (DECISION 2026-11-09):
+an entry links only its page on this site and its source document.
 """
 from __future__ import annotations
 
@@ -110,8 +111,8 @@ def _body_entries(key: str, ix: views.Index) -> list[dict]:
                 "updated": m["date"],
                 "href": ix.meeting_href(m["id"]),
                 "source": s["url"],
-                "summary": f"{m['body']}, {ix.meeting_label(m)}. {word} ({views.plural(s['pages'], 'page', 'pages')}), "
-                           f"fetched {s['fetched_at']}.",
+                "summary": f"{m['body']}, {ix.meeting_label(m)}. {word} ({s['pages']} "
+                           f"{views.plural(s['pages'], 'page', 'pages')}), fetched {s['fetched_at']}.",
                 "sort": (m["date"], m["id"], s["kind"] == "minutes"),
             })
     return out

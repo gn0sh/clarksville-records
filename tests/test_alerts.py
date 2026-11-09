@@ -61,6 +61,11 @@ def test_county_feed_has_one_entry_per_meeting_document(built):
     assert sorted(ids) == sorted(f"{prefix}county/meeting/{m['id']}/minutes" for m in FACTS["meetings"])
     dates = [text(e, "updated") for e in root.findall(A + "entry")]
     assert dates == sorted(dates, reverse=True)
+    pages = {s["id"]: s["pages"] for s in FACTS["sources"]}
+    m = FACTS["meetings"][0]
+    e = next(e for e in root.findall(A + "entry") if text(e, "id").endswith(f"/{m['id']}/minutes"))
+    n = pages[m["source_id"]]
+    assert f"Minutes ({n} page{'' if n == 1 else 's'}), fetched " in text(e, "summary")
 
 
 def test_entry_links_resolve_to_built_pages(built, pages):
@@ -153,7 +158,7 @@ def test_alerts_page_links_every_feed_and_explains_how(built, pages):
     html = pages["alerts.html"]
     for f in feed_files(built):
         assert f'href="feeds/{f.name}"' in html
-        assert f'rel="alternate" type="application/atom+xml"' in html
+        assert 'rel="alternate" type="application/atom+xml"' in html
     main = html[html.index("<main"):html.index("</main>")]
     for words in ("feed reader", "Feedly", "Inoreader", "NetNewsWire", "iPhone", "Copy link", "Email alerts are planned.",
                   "keeps no list of who follows a feed"):
