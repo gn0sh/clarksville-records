@@ -30718,7 +30718,7 @@
       "date": "2022-05-05",
       "id": "ev-46fd6cde-p6-12",
       "item_id": "ordinance-115-2021-22",
-      "label": "from R-4 Multiple Family Residential District/H-1 Historic Overlay District to OP Office/Professional District/H-1 Historic Overlay District RPC: Disapproval/Approval 5 Councilperson Streetman made a motion",
+      "label": "from R-4 Multiple Family Residential District/H-1 Historic Overlay District to OP Office/Professional District/H-1 Historic Overlay District RPC: Disapproval/Approval Councilperson Streetman made a motion",
       "meeting_id": "2022-05-05-regular",
       "order": 12,
       "page": 6,
@@ -30970,7 +30970,7 @@
       "date": "2022-06-02",
       "id": "ev-75d3ffaf-p6-4",
       "item_id": "ordinance-124-2021-22",
-      "label": "ORDINANCE 124-2021-22 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Singletary Investments - Bert Singletary, Agent - for Zone Change on property located at the intersection of Professional Park Dr & Stowe Ct from R-4 Multiple Family Residential District to PUD Planned Unit Development District RPC: Approval/Approval 5 Councilperson Streetman made a motion",
+      "label": "ORDINANCE 124-2021-22 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Singletary Investments - Bert Singletary, Agent - for Zone Change on property located at the intersection of Professional Park Dr & Stowe Ct from R-4 Multiple Family Residential District to PUD Planned Unit Development District RPC: Approval/Approval Councilperson Streetman made a motion",
       "meeting_id": "2022-06-02-regular",
       "order": 4,
       "page": 6,
@@ -31210,7 +31210,7 @@
       "date": "2022-06-02",
       "id": "ev-75d3ffaf-p10-24",
       "item_id": "ordinance-134-2021-22",
-      "label": "ORDINANCE 134-2021-22 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of BJ Properties for Zone Change on property located at the intersection of Madison St & Denny Rd from C-5 Highway & Arterial Commercial District to R-4 Multiple Family Residential District RPC: Approval/Approval 9 Councilperson Streetman made a motion",
+      "label": "ORDINANCE 134-2021-22 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of BJ Properties for Zone Change on property located at the intersection of Madison St & Denny Rd from C-5 Highway & Arterial Commercial District to R-4 Multiple Family Residential District RPC: Approval/Approval Councilperson Streetman made a motion",
       "meeting_id": "2022-06-02-regular",
       "order": 24,
       "page": 10,
@@ -31270,7 +31270,7 @@
       "date": "2022-06-02",
       "id": "ev-75d3ffaf-p10-29",
       "item_id": "ordinance-136-2021-22",
-      "label": "10 NAY: Allen, Reynolds, Smith, Zacharias",
+      "label": "The motion to adopt ORDINANCE 136-2021-22 (First Reading) passed",
       "meeting_id": "2022-06-02-regular",
       "order": 29,
       "page": 10,
@@ -31280,9 +31280,21 @@
     },
     {
       "date": "2022-06-02",
+      "id": "ev-75d3ffaf-p11-30",
+      "item_id": "ordinance-137-2021-22",
+      "label": "ORDINANCE 137-2021-22 (First Reading) An Ordinance amending the City Zoning Ordinance of the City of Clarksville, Tennessee, as it pertains to updates to R-2A and R-6 zoning classifications RPC: Approval/Approval Councilperson Streetman made a motion",
+      "meeting_id": "2022-06-02-regular",
+      "order": 30,
+      "page": 11,
+      "ref": "mo-75d3ffaf-p11-0",
+      "source_id": "src-75d3ffaf58a1",
+      "type": "motion"
+    },
+    {
+      "date": "2022-06-02",
       "id": "ev-75d3ffaf-p11-31",
-      "item_id": "ordinance-136-2021-22",
-      "label": "The motion to adopt ORDINANCE 136-2021-22 (First Reading) passed",
+      "item_id": "ordinance-137-2021-22",
+      "label": "The motion to divide the question failed.",
       "meeting_id": "2022-06-02-regular",
       "order": 31,
       "page": 11,
@@ -31292,21 +31304,9 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p11-32",
-      "item_id": "ordinance-137-2021-22",
-      "label": "ORDINANCE 137-2021-22 (First Reading) An Ordinance amending the City Zoning Ordinance of the City of Clarksville, Tennessee, as it pertains to updates to R-2A and R-6 zoning classifications RPC: Approval/Approval Councilperson Streetman made a motion",
-      "meeting_id": "2022-06-02-regular",
-      "order": 32,
-      "page": 11,
-      "ref": "mo-75d3ffaf-p11-0",
-      "source_id": "src-75d3ffaf58a1",
-      "type": "motion"
-    },
-    {
-      "date": "2022-06-02",
       "id": "ev-75d3ffaf-p11-33",
-      "item_id": "ordinance-137-2021-22",
-      "label": "The motion to divide the question failed.",
+      "item_id": "t-835aa0d013",
+      "label": "The motion to cease discussion failed.",
       "meeting_id": "2022-06-02-regular",
       "order": 33,
       "page": 11,
@@ -31317,8 +31317,8 @@
     {
       "date": "2022-06-02",
       "id": "ev-75d3ffaf-p11-35",
-      "item_id": "t-835aa0d013",
-      "label": "The motion to cease discussion failed.",
+      "item_id": "ordinance-137-2021-22",
+      "label": "The motion to adopt ORDINANCE 137-2021-22 (First Reading) passed",
       "meeting_id": "2022-06-02-regular",
       "order": 35,
       "page": 11,
@@ -31328,23 +31328,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p11-37",
-      "item_id": "ordinance-137-2021-22",
-      "label": "The motion to adopt ORDINANCE 137-2021-22 (First Reading) passed",
-      "meeting_id": "2022-06-02-regular",
-      "order": 37,
-      "page": 11,
-      "ref": "rc-75d3ffaf-p11-3",
-      "source_id": "src-75d3ffaf58a1",
-      "type": "roll_call"
-    },
-    {
-      "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p11-38",
+      "id": "ev-75d3ffaf-p11-36",
       "item_id": "resolution-69-2021-22",
       "label": "RESOLUTION 69-2021-22 A Resolution accepting the Public Improvement Program for Fiscal Years 2022-2023 through 2026-2027 compiled by the City of Clarksville and approved by the Clarksville-Montgomery County Regional Planning Commission RPC: Approval with no comments/Approval with no comments Councilperson Streetman made a motion",
       "meeting_id": "2022-06-02-regular",
-      "order": 38,
+      "order": 36,
       "page": 11,
       "ref": "mo-75d3ffaf-p11-1",
       "source_id": "src-75d3ffaf58a1",
@@ -31352,11 +31340,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p12-39",
+      "id": "ev-75d3ffaf-p12-37",
       "item_id": "resolution-69-2021-22",
       "label": "The motion to adopt RESOLUTION 69-2021-22 passed",
       "meeting_id": "2022-06-02-regular",
-      "order": 39,
+      "order": 37,
       "page": 12,
       "ref": "rc-75d3ffaf-p12-0",
       "source_id": "src-75d3ffaf58a1",
@@ -31364,11 +31352,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p13-40",
+      "id": "ev-75d3ffaf-p13-38",
       "item_id": "t-14dc72607d",
       "label": "Adoption of Minutes: May 5, 2022 Councilperson Smith made a motion",
       "meeting_id": "2022-06-02-regular",
-      "order": 40,
+      "order": 38,
       "page": 13,
       "ref": "mo-75d3ffaf-p13-0",
       "source_id": "src-75d3ffaf58a1",
@@ -31376,11 +31364,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p14-41",
+      "id": "ev-75d3ffaf-p14-39",
       "item_id": "t-14dc72607d",
       "label": "The motion to adopt the CONSENT AGENDA passed",
       "meeting_id": "2022-06-02-regular",
-      "order": 41,
+      "order": 39,
       "page": 14,
       "ref": "rc-75d3ffaf-p14-0",
       "source_id": "src-75d3ffaf58a1",
@@ -31388,11 +31376,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p14-42",
+      "id": "ev-75d3ffaf-p14-40",
       "item_id": "resolution-65-2021-22",
       "label": "RESOLUTION 65-2021-22 A Resolution of the City Council of the City of Clarksville, Tennessee approving an economic impact plan for the Vulcan Plant development area and adopting designated development area policies and procedures Finance: Approval Councilperson Streetman made a motion",
       "meeting_id": "2022-06-02-regular",
-      "order": 42,
+      "order": 40,
       "page": 14,
       "ref": "mo-75d3ffaf-p14-0",
       "source_id": "src-75d3ffaf58a1",
@@ -31400,11 +31388,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p14-43",
+      "id": "ev-75d3ffaf-p14-41",
       "item_id": "resolution-65-2021-22",
       "label": "The motion to postpone RESOLUTION 65-2021-22 to the July Regular session passed",
       "meeting_id": "2022-06-02-regular",
-      "order": 43,
+      "order": 41,
       "page": 14,
       "ref": "rc-75d3ffaf-p14-1",
       "source_id": "src-75d3ffaf58a1",
@@ -31412,11 +31400,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p14-44",
+      "id": "ev-75d3ffaf-p14-42",
       "item_id": "t-83b7ffdfe8",
       "label": "ORDINANCE 121-21-22 (First Reading) An Ordinance submitting to the qualified voters of the City of Clarksville the question of whether the City shall adopt home rule Councilperson Butler, Finance: Disapproval Councilperson Streetman made a motion",
       "meeting_id": "2022-06-02-regular",
-      "order": 44,
+      "order": 42,
       "page": 14,
       "ref": "mo-75d3ffaf-p14-1",
       "source_id": "src-75d3ffaf58a1",
@@ -31424,11 +31412,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p14-45",
+      "id": "ev-75d3ffaf-p14-43",
       "item_id": "t-83b7ffdfe8",
       "label": "The motion to postpone ORDINANCE 121-21-22 to the July Regular session failed.",
       "meeting_id": "2022-06-02-regular",
-      "order": 45,
+      "order": 43,
       "page": 14,
       "ref": "rc-75d3ffaf-p14-2",
       "source_id": "src-75d3ffaf58a1",
@@ -31436,11 +31424,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p14-46",
+      "id": "ev-75d3ffaf-p14-44",
       "item_id": "t-83b7ffdfe8",
       "label": "Councilperson Zacharias made a motion",
       "meeting_id": "2022-06-02-regular",
-      "order": 46,
+      "order": 44,
       "page": 14,
       "ref": "mo-75d3ffaf-p14-2",
       "source_id": "src-75d3ffaf58a1",
@@ -31448,11 +31436,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p15-47",
+      "id": "ev-75d3ffaf-p15-45",
       "item_id": "t-83b7ffdfe8",
       "label": "The motion to amend ORDINANCE 121-21-22 passed.",
       "meeting_id": "2022-06-02-regular",
-      "order": 47,
+      "order": 45,
       "page": 15,
       "ref": "rc-75d3ffaf-p15-0",
       "source_id": "src-75d3ffaf58a1",
@@ -31460,11 +31448,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p15-49",
+      "id": "ev-75d3ffaf-p15-47",
       "item_id": "t-83b7ffdfe8",
       "label": "The motion to adopt ORDINANCE 121-21-22 (First Reading) as amended passed.",
       "meeting_id": "2022-06-02-regular",
-      "order": 49,
+      "order": 47,
       "page": 15,
       "ref": "rc-75d3ffaf-p15-1",
       "source_id": "src-75d3ffaf58a1",
@@ -31472,11 +31460,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p15-50",
+      "id": "ev-75d3ffaf-p15-48",
       "item_id": "ordinance-138-2021-22",
       "label": "Finance: Approval Councilperson Streetman made a motion",
       "meeting_id": "2022-06-02-regular",
-      "order": 50,
+      "order": 48,
       "page": 15,
       "ref": "mo-75d3ffaf-p15-0",
       "source_id": "src-75d3ffaf58a1",
@@ -31484,11 +31472,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p15-51",
+      "id": "ev-75d3ffaf-p15-49",
       "item_id": "ordinance-138-2021-22",
       "label": "The motion to adopt ORDINANCE 138-2021-22 (First Reading) passed",
       "meeting_id": "2022-06-02-regular",
-      "order": 51,
+      "order": 49,
       "page": 15,
       "ref": "rc-75d3ffaf-p15-2",
       "source_id": "src-75d3ffaf58a1",
@@ -31496,11 +31484,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p15-52",
-      "item_id": "t-83b7ffdfe8",
+      "id": "ev-75d3ffaf-p15-50",
+      "item_id": "ordinance-107-2021-22",
       "label": "Councilperson Streetman made a motion",
       "meeting_id": "2022-06-02-regular",
-      "order": 52,
+      "order": 50,
       "page": 15,
       "ref": "mo-75d3ffaf-p15-1",
       "source_id": "src-75d3ffaf58a1",
@@ -31508,11 +31496,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p15-53",
-      "item_id": "t-83b7ffdfe8",
-      "label": "15 NAY: Butler, Marquis, Richmond",
+      "id": "ev-75d3ffaf-p15-51",
+      "item_id": "ordinance-107-2021-22",
+      "label": "The motion to adopt the amendment to ORDINANCE 107-2021-22 (Second Reading) passed",
       "meeting_id": "2022-06-02-regular",
-      "order": 53,
+      "order": 51,
       "page": 15,
       "ref": "rc-75d3ffaf-p15-3",
       "source_id": "src-75d3ffaf58a1",
@@ -31520,11 +31508,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p16-55",
+      "id": "ev-75d3ffaf-p16-53",
       "item_id": "ordinance-107-2021-22",
-      "label": "The motion to adopt the amendment to ORDINANCE 107-2021-22 (Second Reading) passed",
+      "label": "The motion to adopt ORDINANCE 107-2021-22 (Second Reading) as amended passed",
       "meeting_id": "2022-06-02-regular",
-      "order": 55,
+      "order": 53,
       "page": 16,
       "ref": "rc-75d3ffaf-p16-0",
       "source_id": "src-75d3ffaf58a1",
@@ -31532,23 +31520,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p16-57",
-      "item_id": "ordinance-107-2021-22",
-      "label": "The motion to adopt ORDINANCE 107-2021-22 (Second Reading) as amended passed",
-      "meeting_id": "2022-06-02-regular",
-      "order": 57,
-      "page": 16,
-      "ref": "rc-75d3ffaf-p16-1",
-      "source_id": "src-75d3ffaf58a1",
-      "type": "roll_call"
-    },
-    {
-      "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p16-58",
+      "id": "ev-75d3ffaf-p16-54",
       "item_id": "resolution-62-2021-22",
       "label": "Department of Housing and Urban Development, the City of Clarksville FY 2022-2023 Annual Action Plan, and the FY 2022-2023 application for community development block grant funds and home investments partnership program funds Neighborhood & Community Services Committee: Approval Councilperson Streetman made a motion",
       "meeting_id": "2022-06-02-regular",
-      "order": 58,
+      "order": 54,
       "page": 16,
       "ref": "mo-75d3ffaf-p16-0",
       "source_id": "src-75d3ffaf58a1",
@@ -31556,23 +31532,23 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p16-59",
+      "id": "ev-75d3ffaf-p16-55",
       "item_id": "resolution-62-2021-22",
       "label": "The motion to adopt RESOLUTION 62-2021-22 passed",
       "meeting_id": "2022-06-02-regular",
-      "order": 59,
+      "order": 55,
       "page": 16,
-      "ref": "rc-75d3ffaf-p16-2",
+      "ref": "rc-75d3ffaf-p16-1",
       "source_id": "src-75d3ffaf58a1",
       "type": "roll_call"
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p17-60",
+      "id": "ev-75d3ffaf-p17-56",
       "item_id": "ordinance-120-2021-22",
       "label": "Public Safety Committee: Approval Councilperson Holleman made a motion",
       "meeting_id": "2022-06-02-regular",
-      "order": 60,
+      "order": 56,
       "page": 17,
       "ref": "mo-75d3ffaf-p17-0",
       "source_id": "src-75d3ffaf58a1",
@@ -31580,11 +31556,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p17-61",
+      "id": "ev-75d3ffaf-p17-57",
       "item_id": "ordinance-120-2021-22",
       "label": "The motion to adopt Ordinance 120-2021-22 (First Reading) passed",
       "meeting_id": "2022-06-02-regular",
-      "order": 61,
+      "order": 57,
       "page": 17,
       "ref": "rc-75d3ffaf-p17-0",
       "source_id": "src-75d3ffaf58a1",
@@ -31592,11 +31568,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p17-62",
+      "id": "ev-75d3ffaf-p17-58",
       "item_id": "resolution-63-2021-22",
       "label": "RESOLUTION 63-2021-22 A Resolution requesting the Regional Planning Commission study the manner in which tow in lots and wrecker services are handled in the zoning code and return an ordinance for consideration by the Clarksville City Council Councilperson Zacharias Councilperson Zacharias made a motion",
       "meeting_id": "2022-06-02-regular",
-      "order": 62,
+      "order": 58,
       "page": 17,
       "ref": "mo-75d3ffaf-p17-1",
       "source_id": "src-75d3ffaf58a1",
@@ -31604,11 +31580,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p18-63",
+      "id": "ev-75d3ffaf-p18-59",
       "item_id": "resolution-63-2021-22",
       "label": "The motion to adopt RESOLUTION 63-2021-22 passed",
       "meeting_id": "2022-06-02-regular",
-      "order": 63,
+      "order": 59,
       "page": 18,
       "ref": "rc-75d3ffaf-p18-0",
       "source_id": "src-75d3ffaf58a1",
@@ -31616,11 +31592,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p18-64",
+      "id": "ev-75d3ffaf-p18-60",
       "item_id": "ordinance-119-2021-22",
       "label": "ORDINANCE 119-2021-22 (First Reading) An Ordinance amending the Official Code of the City of Clarksville Relative to Short Term Rentals Councilperson Butler Councilperson Butler made a motion",
       "meeting_id": "2022-06-02-regular",
-      "order": 64,
+      "order": 60,
       "page": 18,
       "ref": "mo-75d3ffaf-p18-0",
       "source_id": "src-75d3ffaf58a1",
@@ -31628,11 +31604,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p18-65",
+      "id": "ev-75d3ffaf-p18-61",
       "item_id": "ordinance-119-2021-22",
       "label": "The motion to adopt ORDINANCE 119-2021-22 (First Reading) failed.",
       "meeting_id": "2022-06-02-regular",
-      "order": 65,
+      "order": 61,
       "page": 18,
       "ref": "rc-75d3ffaf-p18-1",
       "source_id": "src-75d3ffaf58a1",
@@ -31640,11 +31616,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p18-66",
+      "id": "ev-75d3ffaf-p18-62",
       "item_id": "t-d7f75825c8",
       "label": "RESOLUTION 68-2021-22 A Resolution to repeal RESOLUTION 51-2020-21 expressing the sense of the Council in regard to Lance Baker in his position of City Attorney for the City of Clarksville Councilperson Butler Councilperson Butler made a motion",
       "meeting_id": "2022-06-02-regular",
-      "order": 66,
+      "order": 62,
       "page": 18,
       "ref": "mo-75d3ffaf-p18-1",
       "source_id": "src-75d3ffaf58a1",
@@ -31652,11 +31628,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p18-67",
+      "id": "ev-75d3ffaf-p18-63",
       "item_id": "t-d7f75825c8",
       "label": "The motion to cease discussion passed.",
       "meeting_id": "2022-06-02-regular",
-      "order": 67,
+      "order": 63,
       "page": 18,
       "ref": "rc-75d3ffaf-p18-2",
       "source_id": "src-75d3ffaf58a1",
@@ -31664,11 +31640,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p18-69",
+      "id": "ev-75d3ffaf-p18-65",
       "item_id": "resolution-68-2021-22",
-      "label": "18 The motion to adopt RESOLUTION 68-2021-22 failed.",
+      "label": "The motion to adopt RESOLUTION 68-2021-22 failed.",
       "meeting_id": "2022-06-02-regular",
-      "order": 69,
+      "order": 65,
       "page": 18,
       "ref": "rc-75d3ffaf-p18-3",
       "source_id": "src-75d3ffaf58a1",
@@ -31676,11 +31652,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p19-70",
+      "id": "ev-75d3ffaf-p19-66",
       "item_id": "resolution-70-2021-22",
       "label": "CONSIDERATION OF RESOLUTION 70-2021-22 A Resolution requesting the Regional Planning Commission to initiate, prepare and consider an ordinance to amend the minimum lot area in a R-6 zoning classification from 2,500 sf to 5,000 sf (requires ¾ majority approval of members present and voting) Councilperson Smith Councilperson Smith made a motion",
       "meeting_id": "2022-06-02-regular",
-      "order": 70,
+      "order": 66,
       "page": 19,
       "ref": "mo-75d3ffaf-p19-0",
       "source_id": "src-75d3ffaf58a1",
@@ -31688,11 +31664,11 @@
     },
     {
       "date": "2022-06-02",
-      "id": "ev-75d3ffaf-p19-71",
+      "id": "ev-75d3ffaf-p19-67",
       "item_id": "resolution-70-2021-22",
       "label": "The motion to consider failed.",
       "meeting_id": "2022-06-02-regular",
-      "order": 71,
+      "order": 67,
       "page": 19,
       "ref": "rc-75d3ffaf-p19-0",
       "source_id": "src-75d3ffaf58a1",
@@ -31714,7 +31690,7 @@
       "date": "2022-06-14",
       "id": "ev-e1275c5d-p1-1",
       "item_id": "t-daa72f29ad",
-      "label": "1 The motion to adopt the consent agenda PASSED",
+      "label": "The motion to adopt the consent agenda PASSED",
       "meeting_id": "2022-06-14-special",
       "order": 1,
       "page": 1,
@@ -31882,7 +31858,7 @@
       "date": "2022-06-14",
       "id": "ev-e1275c5d-p4-17",
       "item_id": "t-daa72f29ad",
-      "label": "4 NAY: Butler",
+      "label": "The motion to adopt AMENDMENT 2 PASSED",
       "meeting_id": "2022-06-14-special",
       "order": 17,
       "page": 4,
@@ -31892,9 +31868,21 @@
     },
     {
       "date": "2022-06-14",
+      "id": "ev-e1275c5d-p5-18",
+      "item_id": "t-daa72f29ad",
+      "label": "The motion to adopt AMENDMENT 2 PASSED ● AMENDMENT 3: Councilperson Zacharias made a motion",
+      "meeting_id": "2022-06-14-special",
+      "order": 18,
+      "page": 5,
+      "ref": "mo-e1275c5d-p5-0",
+      "source_id": "src-e1275c5da628",
+      "type": "motion"
+    },
+    {
+      "date": "2022-06-14",
       "id": "ev-e1275c5d-p5-19",
       "item_id": "t-daa72f29ad",
-      "label": "The motion to adopt AMENDMENT 2 PASSED",
+      "label": "The motion to cease discussion FAILED.",
       "meeting_id": "2022-06-14-special",
       "order": 19,
       "page": 5,
@@ -31904,21 +31892,9 @@
     },
     {
       "date": "2022-06-14",
-      "id": "ev-e1275c5d-p5-20",
-      "item_id": "t-daa72f29ad",
-      "label": "The motion to adopt AMENDMENT 2 PASSED ● AMENDMENT 3: Councilperson Zacharias made a motion",
-      "meeting_id": "2022-06-14-special",
-      "order": 20,
-      "page": 5,
-      "ref": "mo-e1275c5d-p5-0",
-      "source_id": "src-e1275c5da628",
-      "type": "motion"
-    },
-    {
-      "date": "2022-06-14",
       "id": "ev-e1275c5d-p5-21",
       "item_id": "t-daa72f29ad",
-      "label": "The motion to cease discussion FAILED.",
+      "label": "The motion to adopt AMENDMENT 3 PASSED.",
       "meeting_id": "2022-06-14-special",
       "order": 21,
       "page": 5,
@@ -31928,9 +31904,21 @@
     },
     {
       "date": "2022-06-14",
+      "id": "ev-e1275c5d-p5-22",
+      "item_id": "t-daa72f29ad",
+      "label": "● AMENDMENT 4: Councilperson Butler made a motion",
+      "meeting_id": "2022-06-14-special",
+      "order": 22,
+      "page": 5,
+      "ref": "mo-e1275c5d-p5-1",
+      "source_id": "src-e1275c5da628",
+      "type": "motion"
+    },
+    {
+      "date": "2022-06-14",
       "id": "ev-e1275c5d-p5-23",
       "item_id": "t-daa72f29ad",
-      "label": "The motion to adopt AMENDMENT 3 PASSED.",
+      "label": "The motion to adopt AMENDMENT 4 FAILED.",
       "meeting_id": "2022-06-14-special",
       "order": 23,
       "page": 5,
@@ -31942,11 +31930,11 @@
       "date": "2022-06-14",
       "id": "ev-e1275c5d-p5-24",
       "item_id": "t-daa72f29ad",
-      "label": "● AMENDMENT 4: Councilperson Butler made a motion",
+      "label": "● AMENDMENT 5: Councilperson Butler made a motion",
       "meeting_id": "2022-06-14-special",
       "order": 24,
       "page": 5,
-      "ref": "mo-e1275c5d-p5-1",
+      "ref": "mo-e1275c5d-p5-2",
       "source_id": "src-e1275c5da628",
       "type": "motion"
     },
@@ -31954,7 +31942,7 @@
       "date": "2022-06-14",
       "id": "ev-e1275c5d-p5-25",
       "item_id": "t-daa72f29ad",
-      "label": "The motion to adopt AMENDMENT 4 FAILED.",
+      "label": "The motion to adopt AMENDMENT 5 FAILED.",
       "meeting_id": "2022-06-14-special",
       "order": 25,
       "page": 5,
@@ -31964,35 +31952,11 @@
     },
     {
       "date": "2022-06-14",
-      "id": "ev-e1275c5d-p5-26",
-      "item_id": "t-daa72f29ad",
-      "label": "● AMENDMENT 5: Councilperson Butler made a motion",
-      "meeting_id": "2022-06-14-special",
-      "order": 26,
-      "page": 5,
-      "ref": "mo-e1275c5d-p5-2",
-      "source_id": "src-e1275c5da628",
-      "type": "motion"
-    },
-    {
-      "date": "2022-06-14",
-      "id": "ev-e1275c5d-p5-27",
-      "item_id": "t-daa72f29ad",
-      "label": "5 The motion to adopt AMENDMENT 5 FAILED.",
-      "meeting_id": "2022-06-14-special",
-      "order": 27,
-      "page": 5,
-      "ref": "rc-e1275c5d-p5-4",
-      "source_id": "src-e1275c5da628",
-      "type": "roll_call"
-    },
-    {
-      "date": "2022-06-14",
-      "id": "ev-e1275c5d-p6-28",
+      "id": "ev-e1275c5d-p6-26",
       "item_id": "t-daa72f29ad",
       "label": "● AMENDMENT 6: Councilperson Butler made a motion",
       "meeting_id": "2022-06-14-special",
-      "order": 28,
+      "order": 26,
       "page": 6,
       "ref": "mo-e1275c5d-p6-0",
       "source_id": "src-e1275c5da628",
@@ -32000,11 +31964,11 @@
     },
     {
       "date": "2022-06-14",
-      "id": "ev-e1275c5d-p6-29",
+      "id": "ev-e1275c5d-p6-27",
       "item_id": "t-daa72f29ad",
       "label": "The motion to cease discussion FAILED.",
       "meeting_id": "2022-06-14-special",
-      "order": 29,
+      "order": 27,
       "page": 6,
       "ref": "rc-e1275c5d-p6-0",
       "source_id": "src-e1275c5da628",
@@ -32012,11 +31976,11 @@
     },
     {
       "date": "2022-06-14",
-      "id": "ev-e1275c5d-p6-31",
+      "id": "ev-e1275c5d-p6-29",
       "item_id": "t-daa72f29ad",
       "label": "The motion to adopt AMENDMENT 6 FAILED.",
       "meeting_id": "2022-06-14-special",
-      "order": 31,
+      "order": 29,
       "page": 6,
       "ref": "rc-e1275c5d-p6-1",
       "source_id": "src-e1275c5da628",
@@ -32024,11 +31988,11 @@
     },
     {
       "date": "2022-06-14",
-      "id": "ev-e1275c5d-p6-32",
+      "id": "ev-e1275c5d-p6-30",
       "item_id": "t-daa72f29ad",
       "label": "● AMENDMENT 7: Councilperson Butler made a motion",
       "meeting_id": "2022-06-14-special",
-      "order": 32,
+      "order": 30,
       "page": 6,
       "ref": "mo-e1275c5d-p6-1",
       "source_id": "src-e1275c5da628",
@@ -32036,11 +32000,11 @@
     },
     {
       "date": "2022-06-14",
-      "id": "ev-e1275c5d-p6-33",
+      "id": "ev-e1275c5d-p6-31",
       "item_id": "t-daa72f29ad",
       "label": "The motion to adopt AMENDMENT 7 FAILED.",
       "meeting_id": "2022-06-14-special",
-      "order": 33,
+      "order": 31,
       "page": 6,
       "ref": "rc-e1275c5d-p6-2",
       "source_id": "src-e1275c5da628",
@@ -32048,11 +32012,11 @@
     },
     {
       "date": "2022-06-14",
-      "id": "ev-e1275c5d-p6-34",
+      "id": "ev-e1275c5d-p6-32",
       "item_id": "t-daa72f29ad",
       "label": "● AMENDMENT 8: Councilperson Reynolds made a motion",
       "meeting_id": "2022-06-14-special",
-      "order": 34,
+      "order": 32,
       "page": 6,
       "ref": "mo-e1275c5d-p6-2",
       "source_id": "src-e1275c5da628",
@@ -32060,11 +32024,11 @@
     },
     {
       "date": "2022-06-14",
-      "id": "ev-e1275c5d-p6-35",
+      "id": "ev-e1275c5d-p6-33",
       "item_id": "t-daa72f29ad",
-      "label": "6 NAY: Little, Smith",
+      "label": "The motion to adopt AMENDMENT 8 PASSED.",
       "meeting_id": "2022-06-14-special",
-      "order": 35,
+      "order": 33,
       "page": 6,
       "ref": "rc-e1275c5d-p6-3",
       "source_id": "src-e1275c5da628",
@@ -32072,23 +32036,11 @@
     },
     {
       "date": "2022-06-14",
-      "id": "ev-e1275c5d-p7-37",
-      "item_id": "t-daa72f29ad",
-      "label": "The motion to adopt AMENDMENT 8 PASSED.",
-      "meeting_id": "2022-06-14-special",
-      "order": 37,
-      "page": 7,
-      "ref": "rc-e1275c5d-p7-0",
-      "source_id": "src-e1275c5da628",
-      "type": "roll_call"
-    },
-    {
-      "date": "2022-06-14",
-      "id": "ev-e1275c5d-p7-38",
+      "id": "ev-e1275c5d-p7-34",
       "item_id": "ordinance-146-2021-22",
       "label": "Councilperson Smith made a motion",
       "meeting_id": "2022-06-14-special",
-      "order": 38,
+      "order": 34,
       "page": 7,
       "ref": "mo-e1275c5d-p7-0",
       "source_id": "src-e1275c5da628",
@@ -32096,11 +32048,23 @@
     },
     {
       "date": "2022-06-14",
-      "id": "ev-e1275c5d-p7-39",
+      "id": "ev-e1275c5d-p7-35",
       "item_id": "ordinance-146-2021-22",
       "label": "The motion to adopt ORDINANCE 146-2021-22 as amended (Second Reading) PASSED.",
       "meeting_id": "2022-06-14-special",
-      "order": 39,
+      "order": 35,
+      "page": 7,
+      "ref": "rc-e1275c5d-p7-0",
+      "source_id": "src-e1275c5da628",
+      "type": "roll_call"
+    },
+    {
+      "date": "2022-06-14",
+      "id": "ev-e1275c5d-p7-37",
+      "item_id": "t-daa72f29ad",
+      "label": "The motion to adopt AMENDMENT 8 PASSED",
+      "meeting_id": "2022-06-14-special",
+      "order": 37,
       "page": 7,
       "ref": "rc-e1275c5d-p7-1",
       "source_id": "src-e1275c5da628",
@@ -32108,23 +32072,11 @@
     },
     {
       "date": "2022-06-14",
-      "id": "ev-e1275c5d-p7-41",
-      "item_id": "t-daa72f29ad",
-      "label": "The motion to adopt AMENDMENT 8 PASSED",
-      "meeting_id": "2022-06-14-special",
-      "order": 41,
-      "page": 7,
-      "ref": "rc-e1275c5d-p7-2",
-      "source_id": "src-e1275c5da628",
-      "type": "roll_call"
-    },
-    {
-      "date": "2022-06-14",
-      "id": "ev-e1275c5d-p7-42",
-      "item_id": "t-daa72f29ad",
+      "id": "ev-e1275c5d-p7-38",
+      "item_id": "ordinance-143-2021-22",
       "label": "The motion to adopt AMENDMENT 8 PASSED Councilperson Streetman made a motion",
       "meeting_id": "2022-06-14-special",
-      "order": 42,
+      "order": 38,
       "page": 7,
       "ref": "mo-e1275c5d-p7-1",
       "source_id": "src-e1275c5da628",
@@ -32132,25 +32084,13 @@
     },
     {
       "date": "2022-06-14",
-      "id": "ev-e1275c5d-p7-43",
-      "item_id": "t-daa72f29ad",
-      "label": "7 NAY: Butler, Marquis",
-      "meeting_id": "2022-06-14-special",
-      "order": 43,
-      "page": 7,
-      "ref": "rc-e1275c5d-p7-3",
-      "source_id": "src-e1275c5da628",
-      "type": "roll_call"
-    },
-    {
-      "date": "2022-06-14",
-      "id": "ev-e1275c5d-p8-45",
+      "id": "ev-e1275c5d-p7-39",
       "item_id": "ordinance-143-2021-22",
       "label": "The motion to adopt ORDINANCE 143-2021-22 as amended (Second Reading) PASSED",
       "meeting_id": "2022-06-14-special",
-      "order": 45,
-      "page": 8,
-      "ref": "rc-e1275c5d-p8-0",
+      "order": 39,
+      "page": 7,
+      "ref": "rc-e1275c5d-p7-2",
       "source_id": "src-e1275c5da628",
       "type": "roll_call"
     },
@@ -32158,7 +32098,7 @@
       "date": "2022-07-07",
       "id": "ev-9c8f5706-p4-0",
       "item_id": "ordinance-122-2021-22",
-      "label": "for Zone Change on property located at the eastern terminus of Cave Springs Rd from R-1 Single Family Residential District to R-4 Multiple Family Residential District RPC: Disapproval/Approval 3 Councilperson Streetman made a motion",
+      "label": "for Zone Change on property located at the eastern terminus of Cave Springs Rd from R-1 Single Family Residential District to R-4 Multiple Family Residential District RPC: Disapproval/Approval Councilperson Streetman made a motion",
       "meeting_id": "2022-07-07-regular",
       "order": 0,
       "page": 4,
@@ -32506,7 +32446,7 @@
       "date": "2022-07-07",
       "id": "ev-9c8f5706-p11-32",
       "item_id": "ordinance-01-2022-23",
-      "label": "ORDINANCE 01-2022-23 (First Reading) An Ordinance authorizing the donation of properties located at 1103 Crossland Avenue and 341 Hickory Heights to Habitat for Humanity for Community Development Finance Committee: Approval 10 Councilperson Streetman made a motion",
+      "label": "ORDINANCE 01-2022-23 (First Reading) An Ordinance authorizing the donation of properties located at 1103 Crossland Avenue and 341 Hickory Heights to Habitat for Humanity for Community Development Finance Committee: Approval Councilperson Streetman made a motion",
       "meeting_id": "2022-07-07-regular",
       "order": 32,
       "page": 11,
@@ -32578,7 +32518,7 @@
       "date": "2022-07-07",
       "id": "ev-9c8f5706-p13-38",
       "item_id": "t-4ef0cf5d7c",
-      "label": "The motion to adopt the RESOLUTION 12-202-23 passed 12 Councilperson Butler made a motion",
+      "label": "The motion to adopt the RESOLUTION 12-202-23 passed Councilperson Butler made a motion",
       "meeting_id": "2022-07-07-regular",
       "order": 38,
       "page": 13,
@@ -32733,7 +32673,7 @@
     {
       "date": "2022-08-04",
       "id": "ev-cc5b9995-p3-2",
-      "item_id": "t-5d9ea80119",
+      "item_id": "ordinance-13-2022-23",
       "label": "from R-2 Single Family Residential District to R-6 Single Family Residential District RPC: APPROVAL/APPROVAL Councilperson Streetman made a motion",
       "meeting_id": "2022-08-04-regular",
       "order": 2,
@@ -32745,8 +32685,8 @@
     {
       "date": "2022-08-04",
       "id": "ev-cc5b9995-p3-3",
-      "item_id": "t-5d9ea80119",
-      "label": "3 NAY: Smith",
+      "item_id": "ordinance-13-2022-23",
+      "label": "The motion to adopt ORDINANCE 13-2022-23 (First Reading) passed.",
       "meeting_id": "2022-08-04-regular",
       "order": 3,
       "page": 3,
@@ -32756,9 +32696,21 @@
     },
     {
       "date": "2022-08-04",
+      "id": "ev-cc5b9995-p4-4",
+      "item_id": "ordinance-14-2022-23",
+      "label": "from R-3 Three Family Residential District to R-6 Single Family Residential District RPC: APPROVAL/APPROVAL Councilperson Streetman made a motion",
+      "meeting_id": "2022-08-04-regular",
+      "order": 4,
+      "page": 4,
+      "ref": "mo-cc5b9995-p4-0",
+      "source_id": "src-cc5b9995fdd0",
+      "type": "motion"
+    },
+    {
+      "date": "2022-08-04",
       "id": "ev-cc5b9995-p4-5",
-      "item_id": "ordinance-13-2022-23",
-      "label": "The motion to adopt ORDINANCE 13-2022-23 (First Reading) passed.",
+      "item_id": "ordinance-14-2022-23",
+      "label": "The motion to adopt ORDINANCE 14-2022-23 (First Reading) passed.",
       "meeting_id": "2022-08-04-regular",
       "order": 5,
       "page": 4,
@@ -32769,20 +32721,20 @@
     {
       "date": "2022-08-04",
       "id": "ev-cc5b9995-p4-6",
-      "item_id": "ordinance-14-2022-23",
+      "item_id": "ordinance-15-2022-23",
       "label": "from R-3 Three Family Residential District to R-6 Single Family Residential District RPC: APPROVAL/APPROVAL Councilperson Streetman made a motion",
       "meeting_id": "2022-08-04-regular",
       "order": 6,
       "page": 4,
-      "ref": "mo-cc5b9995-p4-0",
+      "ref": "mo-cc5b9995-p4-1",
       "source_id": "src-cc5b9995fdd0",
       "type": "motion"
     },
     {
       "date": "2022-08-04",
       "id": "ev-cc5b9995-p4-7",
-      "item_id": "ordinance-14-2022-23",
-      "label": "The motion to adopt ORDINANCE 14-2022-23 (First Reading) passed.",
+      "item_id": "ordinance-15-2022-23",
+      "label": "The motion to adopt ORDINANCE 15-2022-23 (First Reading) passed.",
       "meeting_id": "2022-08-04-regular",
       "order": 7,
       "page": 4,
@@ -32792,35 +32744,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p4-8",
-      "item_id": "ordinance-15-2022-23",
+      "id": "ev-cc5b9995-p5-8",
+      "item_id": "ordinance-16-2022-23",
       "label": "from R-3 Three Family Residential District to R-6 Single Family Residential District RPC: APPROVAL/APPROVAL Councilperson Streetman made a motion",
       "meeting_id": "2022-08-04-regular",
       "order": 8,
-      "page": 4,
-      "ref": "mo-cc5b9995-p4-1",
-      "source_id": "src-cc5b9995fdd0",
-      "type": "motion"
-    },
-    {
-      "date": "2022-08-04",
-      "id": "ev-cc5b9995-p4-9",
-      "item_id": "ordinance-15-2022-23",
-      "label": "The motion to adopt ORDINANCE 15-2022-23 (First Reading) passed.",
-      "meeting_id": "2022-08-04-regular",
-      "order": 9,
-      "page": 4,
-      "ref": "rc-cc5b9995-p4-2",
-      "source_id": "src-cc5b9995fdd0",
-      "type": "roll_call"
-    },
-    {
-      "date": "2022-08-04",
-      "id": "ev-cc5b9995-p5-10",
-      "item_id": "ordinance-16-2022-23",
-      "label": "from R-3 Three Family Residential District to R-6 Single Family Residential District RPC: APPROVAL/APPROVAL 4 Councilperson Streetman made a motion",
-      "meeting_id": "2022-08-04-regular",
-      "order": 10,
       "page": 5,
       "ref": "mo-cc5b9995-p5-0",
       "source_id": "src-cc5b9995fdd0",
@@ -32828,11 +32756,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p5-11",
+      "id": "ev-cc5b9995-p5-9",
       "item_id": "ordinance-16-2022-23",
       "label": "The motion to adopt ORDINANCE 16-2022-23 (First Reading) passed.",
       "meeting_id": "2022-08-04-regular",
-      "order": 11,
+      "order": 9,
       "page": 5,
       "ref": "rc-cc5b9995-p5-0",
       "source_id": "src-cc5b9995fdd0",
@@ -32840,11 +32768,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p5-12",
+      "id": "ev-cc5b9995-p5-10",
       "item_id": "ordinance-17-2022-23",
       "label": "from R-2 Single Family Residential District to R-6 Single Family Residential District RPC: APPROVAL/APPROVAL Councilperson Streetman made a motion",
       "meeting_id": "2022-08-04-regular",
-      "order": 12,
+      "order": 10,
       "page": 5,
       "ref": "mo-cc5b9995-p5-1",
       "source_id": "src-cc5b9995fdd0",
@@ -32852,11 +32780,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p5-13",
+      "id": "ev-cc5b9995-p5-11",
       "item_id": "ordinance-17-2022-23",
       "label": "The motion to adopt ORDINANCE 17-2022-23 (First Reading) passed.",
       "meeting_id": "2022-08-04-regular",
-      "order": 13,
+      "order": 11,
       "page": 5,
       "ref": "rc-cc5b9995-p5-1",
       "source_id": "src-cc5b9995fdd0",
@@ -32864,11 +32792,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p5-14",
+      "id": "ev-cc5b9995-p5-12",
       "item_id": "ordinance-18-2022-23",
       "label": "from R-1A Single Family Residential District to R-4 Multiple Family Residential District RPC: APPROVAL/APPROVAL Councilperson Streetman made a motion",
       "meeting_id": "2022-08-04-regular",
-      "order": 14,
+      "order": 12,
       "page": 5,
       "ref": "mo-cc5b9995-p5-2",
       "source_id": "src-cc5b9995fdd0",
@@ -32876,11 +32804,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p5-15",
+      "id": "ev-cc5b9995-p5-13",
       "item_id": "ordinance-18-2022-23",
       "label": "The motion to adopt ORDINANCE 18-2022-23 (First Reading) passed.",
       "meeting_id": "2022-08-04-regular",
-      "order": 15,
+      "order": 13,
       "page": 5,
       "ref": "rc-cc5b9995-p5-2",
       "source_id": "src-cc5b9995fdd0",
@@ -32888,11 +32816,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p6-16",
+      "id": "ev-cc5b9995-p6-14",
       "item_id": "ordinance-19-2022-23",
-      "label": "from AG 5 Agricultural District / R-1 Single Family Residential District to R-2 Single Family Residential District RPC: APPROVAL/APPROVAL Councilperson Streetman made a motion",
+      "label": "from AG Agricultural District / R-1 Single Family Residential District to R-2 Single Family Residential District RPC: APPROVAL/APPROVAL Councilperson Streetman made a motion",
       "meeting_id": "2022-08-04-regular",
-      "order": 16,
+      "order": 14,
       "page": 6,
       "ref": "mo-cc5b9995-p6-0",
       "source_id": "src-cc5b9995fdd0",
@@ -32900,11 +32828,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p6-17",
+      "id": "ev-cc5b9995-p6-15",
       "item_id": "ordinance-19-2022-23",
       "label": "The motion to adopt ORDINANCE 19-2022-23 (First Reading) passed.",
       "meeting_id": "2022-08-04-regular",
-      "order": 17,
+      "order": 15,
       "page": 6,
       "ref": "rc-cc5b9995-p6-0",
       "source_id": "src-cc5b9995fdd0",
@@ -32912,11 +32840,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p6-19",
+      "id": "ev-cc5b9995-p6-17",
       "item_id": "ordinance-20-2022-23",
       "label": "The motion to amend ORDINANCE 20-2022-23 (First Reading) failed.",
       "meeting_id": "2022-08-04-regular",
-      "order": 19,
+      "order": 17,
       "page": 6,
       "ref": "rc-cc5b9995-p6-1",
       "source_id": "src-cc5b9995fdd0",
@@ -32924,11 +32852,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p6-21",
+      "id": "ev-cc5b9995-p6-19",
       "item_id": "ordinance-20-2022-23",
       "label": "The motion to adopt ORDINANCE 20-2022-23 (First Reading) passed.",
       "meeting_id": "2022-08-04-regular",
-      "order": 21,
+      "order": 19,
       "page": 6,
       "ref": "rc-cc5b9995-p6-2",
       "source_id": "src-cc5b9995fdd0",
@@ -32936,11 +32864,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p8-22",
+      "id": "ev-cc5b9995-p8-20",
       "item_id": "t-a40bfb5890",
-      "label": "Adoption of Minutes: July 7 7 Councilperson Smith made a motion",
+      "label": "Adoption of Minutes: July 7 Councilperson Smith made a motion",
       "meeting_id": "2022-08-04-regular",
-      "order": 22,
+      "order": 20,
       "page": 8,
       "ref": "mo-cc5b9995-p8-0",
       "source_id": "src-cc5b9995fdd0",
@@ -32948,11 +32876,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p8-23",
+      "id": "ev-cc5b9995-p8-21",
       "item_id": "t-a40bfb5890",
       "label": "The motion to adopt the CONSENT AGENDA passed",
       "meeting_id": "2022-08-04-regular",
-      "order": 23,
+      "order": 21,
       "page": 8,
       "ref": "rc-cc5b9995-p8-0",
       "source_id": "src-cc5b9995fdd0",
@@ -32960,11 +32888,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p8-24",
+      "id": "ev-cc5b9995-p8-22",
       "item_id": "ordinance-10-2022-23",
       "label": "Finance Committee: Approval Councilperson Streetman made a motion",
       "meeting_id": "2022-08-04-regular",
-      "order": 24,
+      "order": 22,
       "page": 8,
       "ref": "mo-cc5b9995-p8-1",
       "source_id": "src-cc5b9995fdd0",
@@ -32972,11 +32900,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p8-25",
+      "id": "ev-cc5b9995-p8-23",
       "item_id": "ordinance-10-2022-23",
       "label": "The motion to adopt the ORDINANCE 10-2022-23 (First Reading) passed",
       "meeting_id": "2022-08-04-regular",
-      "order": 25,
+      "order": 23,
       "page": 8,
       "ref": "rc-cc5b9995-p8-1",
       "source_id": "src-cc5b9995fdd0",
@@ -32984,11 +32912,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p9-26",
+      "id": "ev-cc5b9995-p9-24",
       "item_id": "ordinance-11-2022-23",
-      "label": "Neighborhood & Community Services Committee: Approval 8 Councilperson Streetman made a motion",
+      "label": "Neighborhood & Community Services Committee: Approval Councilperson Streetman made a motion",
       "meeting_id": "2022-08-04-regular",
-      "order": 26,
+      "order": 24,
       "page": 9,
       "ref": "mo-cc5b9995-p9-0",
       "source_id": "src-cc5b9995fdd0",
@@ -32996,11 +32924,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p9-27",
+      "id": "ev-cc5b9995-p9-25",
       "item_id": "ordinance-11-2022-23",
       "label": "The motion to adopt the ORDINANCE 11-2022-23 (First Reading) passed",
       "meeting_id": "2022-08-04-regular",
-      "order": 27,
+      "order": 25,
       "page": 9,
       "ref": "rc-cc5b9995-p9-0",
       "source_id": "src-cc5b9995fdd0",
@@ -33008,11 +32936,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p9-28",
+      "id": "ev-cc5b9995-p9-26",
       "item_id": "ordinance-22-2022-23",
       "label": "Councilperson Butler Councilperson Butler made a motion",
       "meeting_id": "2022-08-04-regular",
-      "order": 28,
+      "order": 26,
       "page": 9,
       "ref": "mo-cc5b9995-p9-1",
       "source_id": "src-cc5b9995fdd0",
@@ -33020,11 +32948,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p10-29",
+      "id": "ev-cc5b9995-p10-27",
       "item_id": "ordinance-22-2022-23",
       "label": "The motion to adopt the ORDINANCE 22-2022-23 (First Reading) passed",
       "meeting_id": "2022-08-04-regular",
-      "order": 29,
+      "order": 27,
       "page": 10,
       "ref": "rc-cc5b9995-p10-0",
       "source_id": "src-cc5b9995fdd0",
@@ -33032,11 +32960,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p10-30",
+      "id": "ev-cc5b9995-p10-28",
       "item_id": "ordinance-09-2022-23",
       "label": "Councilperson Holleman Councilperson Holleman made a motion",
       "meeting_id": "2022-08-04-regular",
-      "order": 30,
+      "order": 28,
       "page": 10,
       "ref": "mo-cc5b9995-p10-0",
       "source_id": "src-cc5b9995fdd0",
@@ -33044,11 +32972,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p10-31",
+      "id": "ev-cc5b9995-p10-29",
       "item_id": "ordinance-09-2022-23",
       "label": "The motion to amend postponing ORDINANCE 09-2022-23(First Reading) indefinitely passed",
       "meeting_id": "2022-08-04-regular",
-      "order": 31,
+      "order": 29,
       "page": 10,
       "ref": "rc-cc5b9995-p10-1",
       "source_id": "src-cc5b9995fdd0",
@@ -33056,11 +32984,11 @@
     },
     {
       "date": "2022-08-04",
-      "id": "ev-cc5b9995-p10-33",
+      "id": "ev-cc5b9995-p10-31",
       "item_id": "ordinance-09-2022-23",
       "label": "The motion to postpone ORDINANCE 09-2022-23(First Reading) as amended",
       "meeting_id": "2022-08-04-regular",
-      "order": 33,
+      "order": 31,
       "page": 10,
       "ref": "rc-cc5b9995-p10-2",
       "source_id": "src-cc5b9995fdd0",
@@ -33298,7 +33226,7 @@
       "date": "2022-09-01",
       "id": "ev-3794e4d5-p7-19",
       "item_id": "t-4bf7e63a06",
-      "label": "7 The motion to adopt ORDINANCE 18-2022-23 Failed.",
+      "label": "The motion to adopt ORDINANCE 18-2022-23 Failed.",
       "meeting_id": "2022-09-01-regular",
       "order": 19,
       "page": 7,
@@ -33478,7 +33406,7 @@
       "date": "2022-09-01",
       "id": "ev-3794e4d5-p11-38",
       "item_id": "ordinance-23-2022-23",
-      "label": "ORDINANCE 23-2022-23 An Ordinance accepting the donation of certain real property from the Clarksville Montgomery County Regional Airport Authority to the City of Clarksville for the purpose of a Public Safety Complex Finance Committee: Approval 10 Councilperson Streetman made a motion",
+      "label": "ORDINANCE 23-2022-23 An Ordinance accepting the donation of certain real property from the Clarksville Montgomery County Regional Airport Authority to the City of Clarksville for the purpose of a Public Safety Complex Finance Committee: Approval Councilperson Streetman made a motion",
       "meeting_id": "2022-09-01-regular",
       "order": 38,
       "page": 11,
@@ -33514,7 +33442,7 @@
       "date": "2022-09-01",
       "id": "ev-3794e4d5-p11-41",
       "item_id": "ordinance-24-2022-23",
-      "label": "11 The motion to amend ORDINANCE 24-2022-23 (First Reading) Failed.",
+      "label": "The motion to amend ORDINANCE 24-2022-23 (First Reading) Failed.",
       "meeting_id": "2022-09-01-regular",
       "order": 41,
       "page": 11,
@@ -33549,8 +33477,8 @@
     {
       "date": "2022-09-01",
       "id": "ev-3794e4d5-p12-47",
-      "item_id": "t-306746b0a3",
-      "label": "12 NAY: Holleman, Shakeenab, Streetman",
+      "item_id": "resolution-28-2022-23",
+      "label": "The motion to adopt amendment 1 to RESOLUTION 28-2022-23 Passed.",
       "meeting_id": "2022-09-01-regular",
       "order": 47,
       "page": 12,
@@ -33560,9 +33488,21 @@
     },
     {
       "date": "2022-09-01",
+      "id": "ev-3794e4d5-p13-48",
+      "item_id": "resolution-28-2022-23",
+      "label": "Councilperson Marquis made a motion",
+      "meeting_id": "2022-09-01-regular",
+      "order": 48,
+      "page": 13,
+      "ref": "mo-3794e4d5-p13-0",
+      "source_id": "src-3794e4d5115f",
+      "type": "motion"
+    },
+    {
+      "date": "2022-09-01",
       "id": "ev-3794e4d5-p13-49",
       "item_id": "resolution-28-2022-23",
-      "label": "The motion to adopt amendment 1 to RESOLUTION 28-2022-23 Passed.",
+      "label": "The motion to adopt amendment 2 to RESOLUTION 28-2022-23 Passed.",
       "meeting_id": "2022-09-01-regular",
       "order": 49,
       "page": 13,
@@ -33574,11 +33514,11 @@
       "date": "2022-09-01",
       "id": "ev-3794e4d5-p13-50",
       "item_id": "resolution-28-2022-23",
-      "label": "Councilperson Marquis made a motion",
+      "label": "Councilperson Smith made a motion",
       "meeting_id": "2022-09-01-regular",
       "order": 50,
       "page": 13,
-      "ref": "mo-3794e4d5-p13-0",
+      "ref": "mo-3794e4d5-p13-1",
       "source_id": "src-3794e4d5115f",
       "type": "motion"
     },
@@ -33586,7 +33526,7 @@
       "date": "2022-09-01",
       "id": "ev-3794e4d5-p13-51",
       "item_id": "resolution-28-2022-23",
-      "label": "The motion to adopt amendment 2 to RESOLUTION 28-2022-23 Passed.",
+      "label": "The motion to adopt amendment 3 to RESOLUTION 28-2022-23 Passed.",
       "meeting_id": "2022-09-01-regular",
       "order": 51,
       "page": 13,
@@ -33598,11 +33538,11 @@
       "date": "2022-09-01",
       "id": "ev-3794e4d5-p13-52",
       "item_id": "resolution-28-2022-23",
-      "label": "Councilperson Smith made a motion",
+      "label": "Councilperson Reynolds made a motion",
       "meeting_id": "2022-09-01-regular",
       "order": 52,
       "page": 13,
-      "ref": "mo-3794e4d5-p13-1",
+      "ref": "mo-3794e4d5-p13-2",
       "source_id": "src-3794e4d5115f",
       "type": "motion"
     },
@@ -33610,7 +33550,7 @@
       "date": "2022-09-01",
       "id": "ev-3794e4d5-p13-53",
       "item_id": "resolution-28-2022-23",
-      "label": "The motion to adopt amendment 3 to RESOLUTION 28-2022-23 Passed.",
+      "label": "The motion to cease discussion on postponing amendment 4 indefinitely to RESOLUTION 28-2022-23 Failed.",
       "meeting_id": "2022-09-01-regular",
       "order": 53,
       "page": 13,
@@ -33620,21 +33560,9 @@
     },
     {
       "date": "2022-09-01",
-      "id": "ev-3794e4d5-p13-54",
-      "item_id": "resolution-28-2022-23",
-      "label": "Councilperson Reynolds made a motion",
-      "meeting_id": "2022-09-01-regular",
-      "order": 54,
-      "page": 13,
-      "ref": "mo-3794e4d5-p13-2",
-      "source_id": "src-3794e4d5115f",
-      "type": "motion"
-    },
-    {
-      "date": "2022-09-01",
       "id": "ev-3794e4d5-p13-55",
       "item_id": "resolution-28-2022-23",
-      "label": "The motion to cease discussion on postponing amendment 4 indefinitely to RESOLUTION 28-2022-23 Failed.",
+      "label": "The motion to postpone amendment 4 indefinitely on RESOLUTION 28-2022-23 Failed.",
       "meeting_id": "2022-09-01-regular",
       "order": 55,
       "page": 13,
@@ -33644,23 +33572,11 @@
     },
     {
       "date": "2022-09-01",
-      "id": "ev-3794e4d5-p13-57",
-      "item_id": "t-306746b0a3",
-      "label": "13 NAY: Butler, Holleman, Pitts, Richmond, Smith, Streetman",
+      "id": "ev-3794e4d5-p14-57",
+      "item_id": "resolution-28-2022-23",
+      "label": "The motion to cease discussion on amendment 4 to RESOLUTION 28-2022-23 Failed.",
       "meeting_id": "2022-09-01-regular",
       "order": 57,
-      "page": 13,
-      "ref": "rc-3794e4d5-p13-4",
-      "source_id": "src-3794e4d5115f",
-      "type": "roll_call"
-    },
-    {
-      "date": "2022-09-01",
-      "id": "ev-3794e4d5-p14-59",
-      "item_id": "resolution-28-2022-23",
-      "label": "The motion to postpone amendment 4 indefinitely on RESOLUTION 28-2022-23 Failed.",
-      "meeting_id": "2022-09-01-regular",
-      "order": 59,
       "page": 14,
       "ref": "rc-3794e4d5-p14-0",
       "source_id": "src-3794e4d5115f",
@@ -33668,11 +33584,11 @@
     },
     {
       "date": "2022-09-01",
-      "id": "ev-3794e4d5-p14-61",
+      "id": "ev-3794e4d5-p14-59",
       "item_id": "resolution-28-2022-23",
-      "label": "The motion to cease discussion on amendment 4 to RESOLUTION 28-2022-23 Failed.",
+      "label": "The motion to adopt amendment 4 to RESOLUTION 28-2022-23 Passed.",
       "meeting_id": "2022-09-01-regular",
-      "order": 61,
+      "order": 59,
       "page": 14,
       "ref": "rc-3794e4d5-p14-1",
       "source_id": "src-3794e4d5115f",
@@ -33680,23 +33596,11 @@
     },
     {
       "date": "2022-09-01",
-      "id": "ev-3794e4d5-p14-63",
-      "item_id": "resolution-28-2022-23",
-      "label": "The motion to adopt amendment 4 to RESOLUTION 28-2022-23 Passed.",
-      "meeting_id": "2022-09-01-regular",
-      "order": 63,
-      "page": 14,
-      "ref": "rc-3794e4d5-p14-2",
-      "source_id": "src-3794e4d5115f",
-      "type": "roll_call"
-    },
-    {
-      "date": "2022-09-01",
-      "id": "ev-3794e4d5-p14-64",
+      "id": "ev-3794e4d5-p14-60",
       "item_id": "t-306746b0a3",
       "label": "Councilperson Redd made a motion",
       "meeting_id": "2022-09-01-regular",
-      "order": 64,
+      "order": 60,
       "page": 14,
       "ref": "mo-3794e4d5-p14-0",
       "source_id": "src-3794e4d5115f",
@@ -33704,11 +33608,23 @@
     },
     {
       "date": "2022-09-01",
-      "id": "ev-3794e4d5-p14-65",
+      "id": "ev-3794e4d5-p14-61",
       "item_id": "t-306746b0a3",
       "label": "The motion to divide the question Passed.",
       "meeting_id": "2022-09-01-regular",
-      "order": 65,
+      "order": 61,
+      "page": 14,
+      "ref": "rc-3794e4d5-p14-2",
+      "source_id": "src-3794e4d5115f",
+      "type": "roll_call"
+    },
+    {
+      "date": "2022-09-01",
+      "id": "ev-3794e4d5-p14-63",
+      "item_id": "resolution-28-2022-23",
+      "label": "The motion to adopt RESOLUTION 28-2022-23-A Passed.",
+      "meeting_id": "2022-09-01-regular",
+      "order": 63,
       "page": 14,
       "ref": "rc-3794e4d5-p14-3",
       "source_id": "src-3794e4d5115f",
@@ -33716,23 +33632,11 @@
     },
     {
       "date": "2022-09-01",
-      "id": "ev-3794e4d5-p14-67",
-      "item_id": "resolution-28-2022-23",
-      "label": "The motion to adopt RESOLUTION 28-2022-23-A Passed.",
-      "meeting_id": "2022-09-01-regular",
-      "order": 67,
-      "page": 14,
-      "ref": "rc-3794e4d5-p14-4",
-      "source_id": "src-3794e4d5115f",
-      "type": "roll_call"
-    },
-    {
-      "date": "2022-09-01",
-      "id": "ev-3794e4d5-p15-69",
+      "id": "ev-3794e4d5-p15-65",
       "item_id": "resolution-28-2022-23",
       "label": "The motion to adopt RESOLUTION 28-2022-23-B as amended passed.",
       "meeting_id": "2022-09-01-regular",
-      "order": 69,
+      "order": 65,
       "page": 15,
       "ref": "rc-3794e4d5-p15-0",
       "source_id": "src-3794e4d5115f",
@@ -33740,11 +33644,11 @@
     },
     {
       "date": "2022-09-01",
-      "id": "ev-3794e4d5-p15-70",
+      "id": "ev-3794e4d5-p15-66",
       "item_id": "resolution-30-2022-23",
       "label": "RESOLUTION 30-2022-23 A Resolution requesting the City Council to create a special committee to study the Official Code of the City of Clarksville, Tennessee, Title 1, (Administration, Officers, and Personnel), Chapter 6, Code of Ethics, and return a report of the study and an Ordinance of Amendment for Consideration by the City Council Councilperson Allen Councilperson Allen made a motion",
       "meeting_id": "2022-09-01-regular",
-      "order": 70,
+      "order": 66,
       "page": 15,
       "ref": "mo-3794e4d5-p15-0",
       "source_id": "src-3794e4d5115f",
@@ -33752,11 +33656,11 @@
     },
     {
       "date": "2022-09-01",
-      "id": "ev-3794e4d5-p15-71",
+      "id": "ev-3794e4d5-p15-67",
       "item_id": "resolution-30-2022-23",
       "label": "The motion to adopt RESOLUTION 30-2022-23 Passed.",
       "meeting_id": "2022-09-01-regular",
-      "order": 71,
+      "order": 67,
       "page": 15,
       "ref": "rc-3794e4d5-p15-1",
       "source_id": "src-3794e4d5115f",
@@ -34018,7 +33922,7 @@
       "date": "2022-10-06",
       "id": "ev-ae249858-p8-21",
       "item_id": "ordinance-33-2022-23",
-      "label": "8 The motion to adopt ORDINANCE 33-2022-23 (First Reading) Passed.",
+      "label": "The motion to adopt ORDINANCE 33-2022-23 (First Reading) Passed.",
       "meeting_id": "2022-10-06-regular",
       "order": 21,
       "page": 8,
@@ -34054,7 +33958,7 @@
       "date": "2022-10-06",
       "id": "ev-ae249858-p9-25",
       "item_id": "resolution-32-2022-23",
-      "label": "9 The motion to adopt RESOLUTION 32-2022-23 Passed.",
+      "label": "The motion to adopt RESOLUTION 32-2022-23 Passed.",
       "meeting_id": "2022-10-06-regular",
       "order": 25,
       "page": 9,
@@ -34126,7 +34030,7 @@
       "date": "2022-10-06",
       "id": "ev-ae249858-p11-31",
       "item_id": "t-b06e2869e9",
-      "label": "11 The motion to postpone ORDINANCE 46-2022-23 (First Reading) to the November Regular Session Passed.",
+      "label": "The motion to postpone ORDINANCE 46-2022-23 (First Reading) to the November Regular Session Passed.",
       "meeting_id": "2022-10-06-regular",
       "order": 31,
       "page": 11,
@@ -34330,7 +34234,7 @@
       "date": "2022-11-03",
       "id": "ev-5b842ae0-p7-12",
       "item_id": "ordinance-9-2022-23",
-      "label": "Councilperson Holleman Finance: Approval 6 Councilperson Streetman made a motion",
+      "label": "Councilperson Holleman Finance: Approval Councilperson Streetman made a motion",
       "meeting_id": "2022-11-03-regular",
       "order": 12,
       "page": 7,
@@ -34354,7 +34258,7 @@
       "date": "2022-11-03",
       "id": "ev-5b842ae0-p8-14",
       "item_id": "t-c87b97ce54",
-      "label": "NEW BUSINESS 1 ORDINANCE 46-2022-23 (First Reading) (postponed from 10-6-22) An Ordinance amending the Operating Budgets for Fiscal Year 2023 for Governmental Funds (Ordinance 146-2021-22) to provide additional COVID Premium Pay to Four Department Heads 7 Councilperson Allen made a motion",
+      "label": "NEW BUSINESS 1 ORDINANCE 46-2022-23 (First Reading) (postponed from 10-6-22) An Ordinance amending the Operating Budgets for Fiscal Year 2023 for Governmental Funds (Ordinance 146-2021-22) to provide additional COVID Premium Pay to Four Department Heads Councilperson Allen made a motion",
       "meeting_id": "2022-11-03-regular",
       "order": 14,
       "page": 8,
@@ -34438,23 +34342,11 @@
       "date": "2022-11-03",
       "id": "ev-5b842ae0-p8-21",
       "item_id": "t-c87b97ce54",
-      "label": "8 NAY: Little, Richmond",
+      "label": "The motion to postpone Resolution 39(b)-2022-23 to the December Regular Session passed.",
       "meeting_id": "2022-11-03-regular",
       "order": 21,
       "page": 8,
       "ref": "rc-5b842ae0-p8-3",
-      "source_id": "src-5b842ae0e849",
-      "type": "roll_call"
-    },
-    {
-      "date": "2022-11-03",
-      "id": "ev-5b842ae0-p9-23",
-      "item_id": "t-c87b97ce54",
-      "label": "The motion to postpone Resolution 39(b)-2022-23 to the December Regular Session passed.",
-      "meeting_id": "2022-11-03-regular",
-      "order": 23,
-      "page": 9,
-      "ref": "rc-5b842ae0-p9-0",
       "source_id": "src-5b842ae0e849",
       "type": "roll_call"
     },
@@ -34546,7 +34438,7 @@
       "date": "2022-12-01",
       "id": "ev-dc343d7d-p3-7",
       "item_id": "ordinance-55-2022-23",
-      "label": "3 The motion to adopt Amendment #1 to ORDINANCE 55-2022-23 (First Reading) Passed",
+      "label": "The motion to adopt Amendment #1 to ORDINANCE 55-2022-23 (First Reading) Passed",
       "meeting_id": "2022-12-01-regular",
       "order": 7,
       "page": 3,
@@ -34810,7 +34702,7 @@
       "date": "2022-12-01",
       "id": "ev-dc343d7d-p9-33",
       "item_id": "t-0066667fe1",
-      "label": "9 The motion to adopt RESOLUTION 39(B)-2022-23 Failed.",
+      "label": "The motion to adopt RESOLUTION 39(B)-2022-23 Failed.",
       "meeting_id": "2022-12-01-regular",
       "order": 33,
       "page": 9,
@@ -34966,7 +34858,7 @@
       "date": "2023-01-05",
       "id": "ev-a65d6eb2-p5-10",
       "item_id": "ordinance-64-2022-23",
-      "label": "Union St from R-3 Three Family Residential District to R-2A Single Family Residential District 4 Councilperson Streetman made a motion",
+      "label": "Union St from R-3 Three Family Residential District to R-2A Single Family Residential District Councilperson Streetman made a motion",
       "meeting_id": "2023-01-05-regular",
       "order": 10,
       "page": 5,
@@ -35110,7 +35002,7 @@
       "date": "2023-01-05",
       "id": "ev-a65d6eb2-p8-22",
       "item_id": "resolution-42-2022-23",
-      "label": "RESOLUTION 42-2022-23 A Resolution authorizing retirement of a Patrol Service Dog “Vader” from K-9 unit and donation to Police Officer Casey Stanton Finance and Public Safety: Approval/Approval 7 Councilperson Streetman made a motion",
+      "label": "RESOLUTION 42-2022-23 A Resolution authorizing retirement of a Patrol Service Dog “Vader” from K-9 unit and donation to Police Officer Casey Stanton Finance and Public Safety: Approval/Approval Councilperson Streetman made a motion",
       "meeting_id": "2023-01-05-regular",
       "order": 22,
       "page": 8,
@@ -35338,7 +35230,7 @@
       "date": "2023-02-02",
       "id": "ev-44aea86c-p5-10",
       "item_id": "ordinance-78-2022-23",
-      "label": "ORDINANCE 78-2022-23 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Seay Wilson for Zone Change on property located at the intersection Pea Ridge Rd & Sambar Dr from R-1 Single Family Residential District to C-5 Highway & Arterial Commercial District RPC: Approval/Approval 4 Councilperson Streetman made a motion",
+      "label": "ORDINANCE 78-2022-23 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Seay Wilson for Zone Change on property located at the intersection Pea Ridge Rd & Sambar Dr from R-1 Single Family Residential District to C-5 Highway & Arterial Commercial District RPC: Approval/Approval Councilperson Streetman made a motion",
       "meeting_id": "2023-02-02-regular",
       "order": 10,
       "page": 5,
@@ -35614,7 +35506,7 @@
       "date": "2023-05-04",
       "id": "ev-fd3ce01b-p4-2",
       "item_id": "ordinance-108-2022-23",
-      "label": "525 +/- feet south of the Crossland Ave and High 3 St intersection from R-3 Three Family Residential District to R-6 Single Family Residential District RPC: Approval/Approval Councilperson Streetman made a motion",
+      "label": "525 +/- feet south of the Crossland Ave and High St intersection from R-3 Three Family Residential District to R-6 Single Family Residential District RPC: Approval/Approval Councilperson Streetman made a motion",
       "meeting_id": "2023-05-04-regular",
       "order": 2,
       "page": 4,
@@ -35674,7 +35566,7 @@
       "date": "2023-05-04",
       "id": "ev-fd3ce01b-p4-7",
       "item_id": "ordinance-110-2022-23",
-      "label": "4 The motion to adopt ORDINANCE 110-2022-23 Passed.",
+      "label": "The motion to adopt ORDINANCE 110-2022-23 Passed.",
       "meeting_id": "2023-05-04-regular",
       "order": 7,
       "page": 4,
@@ -35746,7 +35638,7 @@
       "date": "2023-05-04",
       "id": "ev-fd3ce01b-p5-13",
       "item_id": "t-3102169e64",
-      "label": "5 The motion to postpone RESOLUTION 57-2022-23, RESOLUTION 56-2022-23 and ORDINANCE 106-2022-23 until the June 1, 2023 regular session Passed.",
+      "label": "The motion to postpone RESOLUTION 57-2022-23, RESOLUTION 56-2022-23 and ORDINANCE 106-2022-23 until the June 1, 2023 regular session Passed.",
       "meeting_id": "2023-05-04-regular",
       "order": 13,
       "page": 5,
@@ -35974,7 +35866,7 @@
       "date": "2023-06-01",
       "id": "ev-f273e5db-p5-8",
       "item_id": "ordinance-131-2022-23",
-      "label": "ORDINANCE 131-2022-23 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Elliot Kershaw and Rolanda Amos, Richard Garrett - Agent, for Zone Change on a parcel located at the southwest corner of the Woodard St & Central Ave intersection from R-3 Three Family Residential District to R-6 Single Family Residential District 4 Councilperson Streetman made a motion",
+      "label": "ORDINANCE 131-2022-23 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Elliot Kershaw and Rolanda Amos, Richard Garrett - Agent, for Zone Change on a parcel located at the southwest corner of the Woodard St & Central Ave intersection from R-3 Three Family Residential District to R-6 Single Family Residential District Councilperson Streetman made a motion",
       "meeting_id": "2023-06-01-regular",
       "order": 8,
       "page": 5,
@@ -36694,7 +36586,7 @@
       "date": "2023-06-15",
       "id": "ev-2b3713d0-p6-24",
       "item_id": "ordinance-140-2022-23",
-      "label": "The motion to adopt Amendment #2 to ORDINANCE 140-2022-23 (First Reading) Failed 5 Councilperson Holleman made a motion",
+      "label": "The motion to adopt Amendment #2 to ORDINANCE 140-2022-23 (First Reading) Failed Councilperson Holleman made a motion",
       "meeting_id": "2023-06-15-special",
       "order": 24,
       "page": 6,
@@ -36862,7 +36754,7 @@
       "date": "2023-06-20",
       "id": "ev-fa1a43d7-p3-8",
       "item_id": "ordinance-137-2022-23",
-      "label": "ORDINANCE 137-2022-23 (Second Reading) An Ordinance amending the Fiscal Year 2022-23 and adopting the Operating Budget for Fiscal Year 2023-24 for the Internal Service Funds 2 Councilperson Smith made a motion",
+      "label": "ORDINANCE 137-2022-23 (Second Reading) An Ordinance amending the Fiscal Year 2022-23 and adopting the Operating Budget for Fiscal Year 2023-24 for the Internal Service Funds Councilperson Smith made a motion",
       "meeting_id": "2023-06-20-special",
       "order": 8,
       "page": 3,
@@ -36934,7 +36826,7 @@
       "date": "2023-06-20",
       "id": "ev-fa1a43d7-p4-14",
       "item_id": "ordinance-140-2022-23",
-      "label": "ORDINANCE 140-2022-23 (Second Reading) An Ordinance amending the Operating and Capital Budgets for Fiscal Year 2022-23 and adopting the Operating and Capital Budgets for Fiscal Year 2023-24 for the Governmental Funds and adopting the tax rate for the Fiscal Year beginning July 1, 2023 and ending June 30, 2024 3 Councilperson Smith made a motion",
+      "label": "ORDINANCE 140-2022-23 (Second Reading) An Ordinance amending the Operating and Capital Budgets for Fiscal Year 2022-23 and adopting the Operating and Capital Budgets for Fiscal Year 2023-24 for the Governmental Funds and adopting the tax rate for the Fiscal Year beginning July 1, 2023 and ending June 30, 2024 Councilperson Smith made a motion",
       "meeting_id": "2023-06-20-special",
       "order": 14,
       "page": 4,
@@ -37030,7 +36922,7 @@
       "date": "2023-07-06",
       "id": "ev-f21e4a47-p3-0",
       "item_id": "ordinance-142-2022-23",
-      "label": "ORDINANCE 142-2022-23 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Bert Singletary, for Zone Change on a tract of land fronting on the east frontage of Pea Ridge Rd, east of the Sambar & Pea Ridge Rd & Rutting Dr & Pea Ridge Rd intersections from C-5 Highway & Arterial Commercial District to PUD Planned Unit Development District RPC: Staff Approval / RPC Approval 2 Councilperson Streetman made a motion",
+      "label": "ORDINANCE 142-2022-23 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Bert Singletary, for Zone Change on a tract of land fronting on the east frontage of Pea Ridge Rd, east of the Sambar & Pea Ridge Rd & Rutting Dr & Pea Ridge Rd intersections from C-5 Highway & Arterial Commercial District to PUD Planned Unit Development District RPC: Staff Approval / RPC Approval Councilperson Streetman made a motion",
       "meeting_id": "2023-07-06-regular",
       "order": 0,
       "page": 3,
@@ -37150,7 +37042,7 @@
       "date": "2023-07-06",
       "id": "ev-f21e4a47-p4-11",
       "item_id": "ordinance-147-2022-23",
-      "label": "4 The motion to adopt Amendment 1 to ORDINANCE 147-2022-23 (First Reading) as amended Failed.",
+      "label": "The motion to adopt Amendment 1 to ORDINANCE 147-2022-23 (First Reading) as amended Failed.",
       "meeting_id": "2023-07-06-regular",
       "order": 11,
       "page": 4,
@@ -46014,13 +45906,6 @@
       "number": null,
       "title": "DIVIDE THE QUESTION",
       "year": 2016
-    },
-    {
-      "id": "t-5d9ea80119",
-      "link_basis": "title",
-      "number": null,
-      "title": "ADOPTION OF ZONING",
-      "year": 2022
     },
     {
       "id": "t-5d9f6ebd4b",
@@ -117305,7 +117190,7 @@
       "page": 6,
       "seconded_by": null,
       "source_id": "src-46fd6cdebf1b",
-      "text": "from R-4 Multiple Family Residential District/H-1 Historic Overlay District to OP Office/Professional District/H-1 Historic Overlay District RPC: Disapproval/Approval 5 Councilperson Streetman made a motion",
+      "text": "from R-4 Multiple Family Residential District/H-1 Historic Overlay District to OP Office/Professional District/H-1 Historic Overlay District RPC: Disapproval/Approval Councilperson Streetman made a motion",
       "verification": {
         "checks": [
           {
@@ -117745,7 +117630,7 @@
       "page": 6,
       "seconded_by": null,
       "source_id": "src-75d3ffaf58a1",
-      "text": "ORDINANCE 124-2021-22 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Singletary Investments - Bert Singletary, Agent - for Zone Change on property located at the intersection of Professional Park Dr & Stowe Ct from R-4 Multiple Family Residential District to PUD Planned Unit Development District RPC: Approval/Approval 5 Councilperson Streetman made a motion",
+      "text": "ORDINANCE 124-2021-22 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Singletary Investments - Bert Singletary, Agent - for Zone Change on property located at the intersection of Professional Park Dr & Stowe Ct from R-4 Multiple Family Residential District to PUD Planned Unit Development District RPC: Approval/Approval Councilperson Streetman made a motion",
       "verification": {
         "checks": [
           {
@@ -118185,7 +118070,7 @@
       "page": 10,
       "seconded_by": null,
       "source_id": "src-75d3ffaf58a1",
-      "text": "ORDINANCE 134-2021-22 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of BJ Properties for Zone Change on property located at the intersection of Madison St & Denny Rd from C-5 Highway & Arterial Commercial District to R-4 Multiple Family Residential District RPC: Approval/Approval 9 Councilperson Streetman made a motion",
+      "text": "ORDINANCE 134-2021-22 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of BJ Properties for Zone Change on property located at the intersection of Madison St & Denny Rd from C-5 Highway & Arterial Commercial District to R-4 Multiple Family Residential District RPC: Approval/Approval Councilperson Streetman made a motion",
       "verification": {
         "checks": [
           {
@@ -118616,7 +118501,7 @@
     },
     {
       "id": "mo-75d3ffaf-p15-1",
-      "item_id": "t-83b7ffdfe8",
+      "item_id": "ordinance-107-2021-22",
       "meeting_id": "2022-06-02-regular",
       "moved_by": {
         "official_id": "city-stacey-streetman",
@@ -119540,7 +119425,7 @@
     },
     {
       "id": "mo-e1275c5d-p7-1",
-      "item_id": "t-daa72f29ad",
+      "item_id": "ordinance-143-2021-22",
       "meeting_id": "2022-06-14-special",
       "moved_by": {
         "official_id": "city-stacey-streetman",
@@ -119593,7 +119478,7 @@
       "page": 4,
       "seconded_by": null,
       "source_id": "src-9c8f5706cd6a",
-      "text": "for Zone Change on property located at the eastern terminus of Cave Springs Rd from R-1 Single Family Residential District to R-4 Multiple Family Residential District RPC: Disapproval/Approval 3 Councilperson Streetman made a motion",
+      "text": "for Zone Change on property located at the eastern terminus of Cave Springs Rd from R-1 Single Family Residential District to R-4 Multiple Family Residential District RPC: Disapproval/Approval Councilperson Streetman made a motion",
       "verification": {
         "checks": [
           {
@@ -120165,7 +120050,7 @@
       "page": 11,
       "seconded_by": null,
       "source_id": "src-9c8f5706cd6a",
-      "text": "ORDINANCE 01-2022-23 (First Reading) An Ordinance authorizing the donation of properties located at 1103 Crossland Avenue and 341 Hickory Heights to Habitat for Humanity for Community Development Finance Committee: Approval 10 Councilperson Streetman made a motion",
+      "text": "ORDINANCE 01-2022-23 (First Reading) An Ordinance authorizing the donation of properties located at 1103 Crossland Avenue and 341 Hickory Heights to Habitat for Humanity for Community Development Finance Committee: Approval Councilperson Streetman made a motion",
       "verification": {
         "checks": [
           {
@@ -120297,7 +120182,7 @@
       "page": 13,
       "seconded_by": null,
       "source_id": "src-9c8f5706cd6a",
-      "text": "The motion to adopt the RESOLUTION 12-202-23 passed 12 Councilperson Butler made a motion",
+      "text": "The motion to adopt the RESOLUTION 12-202-23 passed Councilperson Butler made a motion",
       "verification": {
         "checks": [
           {
@@ -120552,7 +120437,7 @@
     },
     {
       "id": "mo-cc5b9995-p3-1",
-      "item_id": "t-5d9ea80119",
+      "item_id": "ordinance-13-2022-23",
       "meeting_id": "2022-08-04-regular",
       "moved_by": {
         "official_id": "city-stacey-streetman",
@@ -120693,7 +120578,7 @@
       "page": 5,
       "seconded_by": null,
       "source_id": "src-cc5b9995fdd0",
-      "text": "from R-3 Three Family Residential District to R-6 Single Family Residential District RPC: APPROVAL/APPROVAL 4 Councilperson Streetman made a motion",
+      "text": "from R-3 Three Family Residential District to R-6 Single Family Residential District RPC: APPROVAL/APPROVAL Councilperson Streetman made a motion",
       "verification": {
         "checks": [
           {
@@ -120825,7 +120710,7 @@
       "page": 6,
       "seconded_by": null,
       "source_id": "src-cc5b9995fdd0",
-      "text": "from AG 5 Agricultural District / R-1 Single Family Residential District to R-2 Single Family Residential District RPC: APPROVAL/APPROVAL Councilperson Streetman made a motion",
+      "text": "from AG Agricultural District / R-1 Single Family Residential District to R-2 Single Family Residential District RPC: APPROVAL/APPROVAL Councilperson Streetman made a motion",
       "verification": {
         "checks": [
           {
@@ -120869,7 +120754,7 @@
       "page": 8,
       "seconded_by": null,
       "source_id": "src-cc5b9995fdd0",
-      "text": "Adoption of Minutes: July 7 7 Councilperson Smith made a motion",
+      "text": "Adoption of Minutes: July 7 Councilperson Smith made a motion",
       "verification": {
         "checks": [
           {
@@ -120957,7 +120842,7 @@
       "page": 9,
       "seconded_by": null,
       "source_id": "src-cc5b9995fdd0",
-      "text": "Neighborhood & Community Services Committee: Approval 8 Councilperson Streetman made a motion",
+      "text": "Neighborhood & Community Services Committee: Approval Councilperson Streetman made a motion",
       "verification": {
         "checks": [
           {
@@ -121749,7 +121634,7 @@
       "page": 11,
       "seconded_by": null,
       "source_id": "src-3794e4d5115f",
-      "text": "ORDINANCE 23-2022-23 An Ordinance accepting the donation of certain real property from the Clarksville Montgomery County Regional Airport Authority to the City of Clarksville for the purpose of a Public Safety Complex Finance Committee: Approval 10 Councilperson Streetman made a motion",
+      "text": "ORDINANCE 23-2022-23 An Ordinance accepting the donation of certain real property from the Clarksville Montgomery County Regional Airport Authority to the City of Clarksville for the purpose of a Public Safety Complex Finance Committee: Approval Councilperson Streetman made a motion",
       "verification": {
         "checks": [
           {
@@ -123025,7 +122910,7 @@
       "page": 7,
       "seconded_by": null,
       "source_id": "src-5b842ae0e849",
-      "text": "Councilperson Holleman Finance: Approval 6 Councilperson Streetman made a motion",
+      "text": "Councilperson Holleman Finance: Approval Councilperson Streetman made a motion",
       "verification": {
         "checks": [
           {
@@ -123069,7 +122954,7 @@
       "page": 8,
       "seconded_by": null,
       "source_id": "src-5b842ae0e849",
-      "text": "NEW BUSINESS 1 ORDINANCE 46-2022-23 (First Reading) (postponed from 10-6-22) An Ordinance amending the Operating Budgets for Fiscal Year 2023 for Governmental Funds (Ordinance 146-2021-22) to provide additional COVID Premium Pay to Four Department Heads 7 Councilperson Allen made a motion",
+      "text": "NEW BUSINESS 1 ORDINANCE 46-2022-23 (First Reading) (postponed from 10-6-22) An Ordinance amending the Operating Budgets for Fiscal Year 2023 for Governmental Funds (Ordinance 146-2021-22) to provide additional COVID Premium Pay to Four Department Heads Councilperson Allen made a motion",
       "verification": {
         "checks": [
           {
@@ -124084,7 +123969,7 @@
       "page": 5,
       "seconded_by": null,
       "source_id": "src-a65d6eb2bae0",
-      "text": "Union St from R-3 Three Family Residential District to R-2A Single Family Residential District 4 Councilperson Streetman made a motion",
+      "text": "Union St from R-3 Three Family Residential District to R-2A Single Family Residential District Councilperson Streetman made a motion",
       "verification": {
         "checks": [
           {
@@ -124348,7 +124233,7 @@
       "page": 8,
       "seconded_by": null,
       "source_id": "src-a65d6eb2bae0",
-      "text": "RESOLUTION 42-2022-23 A Resolution authorizing retirement of a Patrol Service Dog “Vader” from K-9 unit and donation to Police Officer Casey Stanton Finance and Public Safety: Approval/Approval 7 Councilperson Streetman made a motion",
+      "text": "RESOLUTION 42-2022-23 A Resolution authorizing retirement of a Patrol Service Dog “Vader” from K-9 unit and donation to Police Officer Casey Stanton Finance and Public Safety: Approval/Approval Councilperson Streetman made a motion",
       "verification": {
         "checks": [
           {
@@ -124744,7 +124629,7 @@
       "page": 5,
       "seconded_by": null,
       "source_id": "src-44aea86c079e",
-      "text": "ORDINANCE 78-2022-23 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Seay Wilson for Zone Change on property located at the intersection Pea Ridge Rd & Sambar Dr from R-1 Single Family Residential District to C-5 Highway & Arterial Commercial District RPC: Approval/Approval 4 Councilperson Streetman made a motion",
+      "text": "ORDINANCE 78-2022-23 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Seay Wilson for Zone Change on property located at the intersection Pea Ridge Rd & Sambar Dr from R-1 Single Family Residential District to C-5 Highway & Arterial Commercial District RPC: Approval/Approval Councilperson Streetman made a motion",
       "verification": {
         "checks": [
           {
@@ -125096,7 +124981,7 @@
       "page": 4,
       "seconded_by": null,
       "source_id": "src-fd3ce01ba1b2",
-      "text": "525 +/- feet south of the Crossland Ave and High 3 St intersection from R-3 Three Family Residential District to R-6 Single Family Residential District RPC: Approval/Approval Councilperson Streetman made a motion",
+      "text": "525 +/- feet south of the Crossland Ave and High St intersection from R-3 Three Family Residential District to R-6 Single Family Residential District RPC: Approval/Approval Councilperson Streetman made a motion",
       "verification": {
         "checks": [
           {
@@ -125712,7 +125597,7 @@
       "page": 5,
       "seconded_by": null,
       "source_id": "src-f273e5db1850",
-      "text": "ORDINANCE 131-2022-23 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Elliot Kershaw and Rolanda Amos, Richard Garrett - Agent, for Zone Change on a parcel located at the southwest corner of the Woodard St & Central Ave intersection from R-3 Three Family Residential District to R-6 Single Family Residential District 4 Councilperson Streetman made a motion",
+      "text": "ORDINANCE 131-2022-23 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Elliot Kershaw and Rolanda Amos, Richard Garrett - Agent, for Zone Change on a parcel located at the southwest corner of the Woodard St & Central Ave intersection from R-3 Three Family Residential District to R-6 Single Family Residential District Councilperson Streetman made a motion",
       "verification": {
         "checks": [
           {
@@ -126944,7 +126829,7 @@
       "page": 6,
       "seconded_by": null,
       "source_id": "src-2b3713d02de5",
-      "text": "The motion to adopt Amendment #2 to ORDINANCE 140-2022-23 (First Reading) Failed 5 Councilperson Holleman made a motion",
+      "text": "The motion to adopt Amendment #2 to ORDINANCE 140-2022-23 (First Reading) Failed Councilperson Holleman made a motion",
       "verification": {
         "checks": [
           {
@@ -127252,7 +127137,7 @@
       "page": 3,
       "seconded_by": null,
       "source_id": "src-fa1a43d74aea",
-      "text": "ORDINANCE 137-2022-23 (Second Reading) An Ordinance amending the Fiscal Year 2022-23 and adopting the Operating Budget for Fiscal Year 2023-24 for the Internal Service Funds 2 Councilperson Smith made a motion",
+      "text": "ORDINANCE 137-2022-23 (Second Reading) An Ordinance amending the Fiscal Year 2022-23 and adopting the Operating Budget for Fiscal Year 2023-24 for the Internal Service Funds Councilperson Smith made a motion",
       "verification": {
         "checks": [
           {
@@ -127384,7 +127269,7 @@
       "page": 4,
       "seconded_by": null,
       "source_id": "src-fa1a43d74aea",
-      "text": "ORDINANCE 140-2022-23 (Second Reading) An Ordinance amending the Operating and Capital Budgets for Fiscal Year 2022-23 and adopting the Operating and Capital Budgets for Fiscal Year 2023-24 for the Governmental Funds and adopting the tax rate for the Fiscal Year beginning July 1, 2023 and ending June 30, 2024 3 Councilperson Smith made a motion",
+      "text": "ORDINANCE 140-2022-23 (Second Reading) An Ordinance amending the Operating and Capital Budgets for Fiscal Year 2022-23 and adopting the Operating and Capital Budgets for Fiscal Year 2023-24 for the Governmental Funds and adopting the tax rate for the Fiscal Year beginning July 1, 2023 and ending June 30, 2024 Councilperson Smith made a motion",
       "verification": {
         "checks": [
           {
@@ -127560,7 +127445,7 @@
       "page": 3,
       "seconded_by": null,
       "source_id": "src-f21e4a473871",
-      "text": "ORDINANCE 142-2022-23 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Bert Singletary, for Zone Change on a tract of land fronting on the east frontage of Pea Ridge Rd, east of the Sambar & Pea Ridge Rd & Rutting Dr & Pea Ridge Rd intersections from C-5 Highway & Arterial Commercial District to PUD Planned Unit Development District RPC: Staff Approval / RPC Approval 2 Councilperson Streetman made a motion",
+      "text": "ORDINANCE 142-2022-23 (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Bert Singletary, for Zone Change on a tract of land fronting on the east frontage of Pea Ridge Rd, east of the Sambar & Pea Ridge Rd & Rutting Dr & Pea Ridge Rd intersections from C-5 Highway & Arterial Commercial District to PUD Planned Unit Development District RPC: Staff Approval / RPC Approval Councilperson Streetman made a motion",
       "verification": {
         "checks": [
           {
@@ -326268,8 +326153,8 @@
       "item_id": "ordinance-136-2021-22",
       "meeting_id": "2022-06-02-regular",
       "motion_id": "mo-75d3ffaf-p10-2",
-      "outcome": "other",
-      "outcome_text": "10 NAY: Allen, Reynolds, Smith, Zacharias",
+      "outcome": "passed",
+      "outcome_text": "The motion to adopt ORDINANCE 136-2021-22 (First Reading) passed",
       "page": 10,
       "source_id": "src-75d3ffaf58a1",
       "stated_tally": null,
@@ -326291,13 +326176,13 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-brian-zacharias, city-karen-reynolds, city-travis-holleman, city-wanda-allen, city-wanda-smith",
+            "detail": "city-travis-holleman",
             "ok": false
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not read",
-            "ok": false
+            "detail": "passed with 9 yes and 4 no",
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -326373,64 +326258,7 @@
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
-        }
-      ]
-    },
-    {
-      "id": "rc-75d3ffaf-p11-0",
-      "item_id": "ordinance-136-2021-22",
-      "meeting_id": "2022-06-02-regular",
-      "motion_id": null,
-      "outcome": "passed",
-      "outcome_text": "The motion to adopt ORDINANCE 136-2021-22 (First Reading) passed",
-      "page": 11,
-      "source_id": "src-75d3ffaf58a1",
-      "stated_tally": null,
-      "verification": {
-        "checks": [
-          {
-            "check": "attendance_verified",
-            "ok": true
-          },
-          {
-            "check": "names_resolve",
-            "ok": true
-          },
-          {
-            "check": "one_entry_per_official",
-            "ok": true
-          },
-          {
-            "check": "one_vote_per_present_member",
-            "detail": "city-ambar-marquis, city-dajuan-little, city-joe-shakeenab, city-stacey-streetman, city-travis-holleman, city-trisha-butler, city-vondell-richmond",
-            "ok": false
-          },
-          {
-            "check": "outcome_consistent",
-            "detail": "passed with 0 yes and 4 no",
-            "ok": false
-          },
-          {
-            "check": "reading_used",
-            "detail": "text-layer",
-            "ok": true
-          },
-          {
-            "check": "vote_matches_item",
-            "ok": true
-          },
-          {
-            "check": "voters_recorded_present",
-            "ok": true
-          },
-          {
-            "check": "votes_listed",
-            "ok": true
-          }
-        ],
-        "status": "unverified"
-      },
-      "votes": [
+        },
         {
           "official_id": "city-wanda-allen",
           "raw_name": "Allen",
@@ -326458,7 +326286,7 @@
       ]
     },
     {
-      "id": "rc-75d3ffaf-p11-1",
+      "id": "rc-75d3ffaf-p11-0",
       "item_id": "ordinance-137-2021-22",
       "meeting_id": "2022-06-02-regular",
       "motion_id": "mo-75d3ffaf-p11-0",
@@ -326582,7 +326410,7 @@
       ]
     },
     {
-      "id": "rc-75d3ffaf-p11-2",
+      "id": "rc-75d3ffaf-p11-1",
       "item_id": "t-835aa0d013",
       "meeting_id": "2022-06-02-regular",
       "motion_id": null,
@@ -326710,7 +326538,7 @@
       ]
     },
     {
-      "id": "rc-75d3ffaf-p11-3",
+      "id": "rc-75d3ffaf-p11-2",
       "item_id": "ordinance-137-2021-22",
       "meeting_id": "2022-06-02-regular",
       "motion_id": null,
@@ -327735,11 +327563,11 @@
     },
     {
       "id": "rc-75d3ffaf-p15-3",
-      "item_id": "t-83b7ffdfe8",
+      "item_id": "ordinance-107-2021-22",
       "meeting_id": "2022-06-02-regular",
       "motion_id": "mo-75d3ffaf-p15-1",
-      "outcome": "other",
-      "outcome_text": "15 NAY: Butler, Marquis, Richmond",
+      "outcome": "passed",
+      "outcome_text": "The motion to adopt the amendment to ORDINANCE 107-2021-22 (Second Reading) passed",
       "page": 15,
       "source_id": "src-75d3ffaf58a1",
       "stated_tally": null,
@@ -327759,13 +327587,12 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-ambar-marquis, city-trisha-butler, city-vondell-richmond",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not read",
-            "ok": false
+            "detail": "passed with 9 yes and 3 no",
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -327785,7 +327612,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -327841,64 +327668,7 @@
           "raw_name": "Zacharias",
           "raw_value": "AYE",
           "value": "yes"
-        }
-      ]
-    },
-    {
-      "id": "rc-75d3ffaf-p16-0",
-      "item_id": "ordinance-107-2021-22",
-      "meeting_id": "2022-06-02-regular",
-      "motion_id": null,
-      "outcome": "passed",
-      "outcome_text": "The motion to adopt the amendment to ORDINANCE 107-2021-22 (Second Reading) passed",
-      "page": 16,
-      "source_id": "src-75d3ffaf58a1",
-      "stated_tally": null,
-      "verification": {
-        "checks": [
-          {
-            "check": "attendance_verified",
-            "ok": true
-          },
-          {
-            "check": "names_resolve",
-            "ok": true
-          },
-          {
-            "check": "one_entry_per_official",
-            "ok": true
-          },
-          {
-            "check": "one_vote_per_present_member",
-            "detail": "city-brian-zacharias, city-dajuan-little, city-joe-shakeenab, city-karen-reynolds, city-stacey-streetman, city-travis-holleman, city-wanda-allen, city-wanda-smith",
-            "ok": false
-          },
-          {
-            "check": "outcome_consistent",
-            "detail": "passed with 0 yes and 3 no",
-            "ok": false
-          },
-          {
-            "check": "reading_used",
-            "detail": "text-layer",
-            "ok": true
-          },
-          {
-            "check": "vote_matches_item",
-            "ok": true
-          },
-          {
-            "check": "voters_recorded_present",
-            "ok": true
-          },
-          {
-            "check": "votes_listed",
-            "ok": true
-          }
-        ],
-        "status": "unverified"
-      },
-      "votes": [
+        },
         {
           "official_id": "city-trisha-butler",
           "raw_name": "Butler",
@@ -327920,7 +327690,7 @@
       ]
     },
     {
-      "id": "rc-75d3ffaf-p16-1",
+      "id": "rc-75d3ffaf-p16-0",
       "item_id": "ordinance-107-2021-22",
       "meeting_id": "2022-06-02-regular",
       "motion_id": null,
@@ -328048,7 +327818,7 @@
       ]
     },
     {
-      "id": "rc-75d3ffaf-p16-2",
+      "id": "rc-75d3ffaf-p16-1",
       "item_id": "resolution-62-2021-22",
       "meeting_id": "2022-06-02-regular",
       "motion_id": "mo-75d3ffaf-p16-0",
@@ -328693,7 +328463,7 @@
       "meeting_id": "2022-06-02-regular",
       "motion_id": null,
       "outcome": "failed",
-      "outcome_text": "18 The motion to adopt RESOLUTION 68-2021-22 failed.",
+      "outcome_text": "The motion to adopt RESOLUTION 68-2021-22 failed.",
       "page": 18,
       "source_id": "src-75d3ffaf58a1",
       "stated_tally": null,
@@ -328949,7 +328719,7 @@
       "meeting_id": "2022-06-14-special",
       "motion_id": "mo-e1275c5d-p1-0",
       "outcome": "passed",
-      "outcome_text": "1 The motion to adopt the consent agenda PASSED",
+      "outcome_text": "The motion to adopt the consent agenda PASSED",
       "page": 1,
       "source_id": "src-e1275c5da628",
       "stated_tally": null,
@@ -329922,8 +329692,8 @@
       "item_id": "t-daa72f29ad",
       "meeting_id": "2022-06-14-special",
       "motion_id": "mo-e1275c5d-p4-1",
-      "outcome": "other",
-      "outcome_text": "4 NAY: Butler",
+      "outcome": "passed",
+      "outcome_text": "The motion to adopt AMENDMENT 2 PASSED",
       "page": 4,
       "source_id": "src-e1275c5da628",
       "stated_tally": null,
@@ -329943,13 +329713,12 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-trisha-butler",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not read",
-            "ok": false
+            "detail": "passed with 10 yes and 1 no",
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -329969,7 +329738,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -330031,64 +329800,7 @@
           "raw_name": "Zacharias",
           "raw_value": "AYE",
           "value": "yes"
-        }
-      ]
-    },
-    {
-      "id": "rc-e1275c5d-p5-0",
-      "item_id": "t-daa72f29ad",
-      "meeting_id": "2022-06-14-special",
-      "motion_id": null,
-      "outcome": "passed",
-      "outcome_text": "The motion to adopt AMENDMENT 2 PASSED",
-      "page": 5,
-      "source_id": "src-e1275c5da628",
-      "stated_tally": null,
-      "verification": {
-        "checks": [
-          {
-            "check": "attendance_verified",
-            "ok": true
-          },
-          {
-            "check": "names_resolve",
-            "ok": true
-          },
-          {
-            "check": "one_entry_per_official",
-            "ok": true
-          },
-          {
-            "check": "one_vote_per_present_member",
-            "detail": "city-ambar-marquis, city-brian-zacharias, city-joe-shakeenab, city-karen-reynolds, city-stacey-streetman, city-travis-holleman, city-vondell-richmond, city-wanda-allen, city-wanda-smith",
-            "ok": false
-          },
-          {
-            "check": "outcome_consistent",
-            "detail": "passed with 0 yes and 1 no",
-            "ok": false
-          },
-          {
-            "check": "reading_used",
-            "detail": "text-layer",
-            "ok": true
-          },
-          {
-            "check": "vote_matches_item",
-            "ok": true
-          },
-          {
-            "check": "voters_recorded_present",
-            "ok": true
-          },
-          {
-            "check": "votes_listed",
-            "ok": true
-          }
-        ],
-        "status": "unverified"
-      },
-      "votes": [
+        },
         {
           "official_id": "city-trisha-butler",
           "raw_name": "Butler",
@@ -330098,7 +329810,7 @@
       ]
     },
     {
-      "id": "rc-e1275c5d-p5-1",
+      "id": "rc-e1275c5d-p5-0",
       "item_id": "t-daa72f29ad",
       "meeting_id": "2022-06-14-special",
       "motion_id": "mo-e1275c5d-p5-0",
@@ -330220,7 +329932,7 @@
       ]
     },
     {
-      "id": "rc-e1275c5d-p5-2",
+      "id": "rc-e1275c5d-p5-1",
       "item_id": "t-daa72f29ad",
       "meeting_id": "2022-06-14-special",
       "motion_id": null,
@@ -330342,7 +330054,7 @@
       ]
     },
     {
-      "id": "rc-e1275c5d-p5-3",
+      "id": "rc-e1275c5d-p5-2",
       "item_id": "t-daa72f29ad",
       "meeting_id": "2022-06-14-special",
       "motion_id": "mo-e1275c5d-p5-1",
@@ -330464,12 +330176,12 @@
       ]
     },
     {
-      "id": "rc-e1275c5d-p5-4",
+      "id": "rc-e1275c5d-p5-3",
       "item_id": "t-daa72f29ad",
       "meeting_id": "2022-06-14-special",
       "motion_id": "mo-e1275c5d-p5-2",
       "outcome": "failed",
-      "outcome_text": "5 The motion to adopt AMENDMENT 5 FAILED.",
+      "outcome_text": "The motion to adopt AMENDMENT 5 FAILED.",
       "page": 5,
       "source_id": "src-e1275c5da628",
       "stated_tally": null,
@@ -330962,8 +330674,8 @@
       "item_id": "t-daa72f29ad",
       "meeting_id": "2022-06-14-special",
       "motion_id": "mo-e1275c5d-p6-2",
-      "outcome": "other",
-      "outcome_text": "6 NAY: Little, Smith",
+      "outcome": "passed",
+      "outcome_text": "The motion to adopt AMENDMENT 8 PASSED.",
       "page": 6,
       "source_id": "src-e1275c5da628",
       "stated_tally": null,
@@ -330983,13 +330695,12 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-dajuan-little, city-wanda-smith",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not read",
-            "ok": false
+            "detail": "passed with 9 yes and 2 no",
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -331009,7 +330720,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -331065,64 +330776,7 @@
           "raw_name": "Zacharias",
           "raw_value": "AYE",
           "value": "yes"
-        }
-      ]
-    },
-    {
-      "id": "rc-e1275c5d-p7-0",
-      "item_id": "t-daa72f29ad",
-      "meeting_id": "2022-06-14-special",
-      "motion_id": null,
-      "outcome": "passed",
-      "outcome_text": "The motion to adopt AMENDMENT 8 PASSED.",
-      "page": 7,
-      "source_id": "src-e1275c5da628",
-      "stated_tally": null,
-      "verification": {
-        "checks": [
-          {
-            "check": "attendance_verified",
-            "ok": true
-          },
-          {
-            "check": "names_resolve",
-            "ok": true
-          },
-          {
-            "check": "one_entry_per_official",
-            "ok": true
-          },
-          {
-            "check": "one_vote_per_present_member",
-            "detail": "city-ambar-marquis, city-brian-zacharias, city-joe-shakeenab, city-karen-reynolds, city-stacey-streetman, city-travis-holleman, city-trisha-butler, city-vondell-richmond, city-wanda-allen",
-            "ok": false
-          },
-          {
-            "check": "outcome_consistent",
-            "detail": "passed with 0 yes and 2 no",
-            "ok": false
-          },
-          {
-            "check": "reading_used",
-            "detail": "text-layer",
-            "ok": true
-          },
-          {
-            "check": "vote_matches_item",
-            "ok": true
-          },
-          {
-            "check": "voters_recorded_present",
-            "ok": true
-          },
-          {
-            "check": "votes_listed",
-            "ok": true
-          }
-        ],
-        "status": "unverified"
-      },
-      "votes": [
+        },
         {
           "official_id": "city-dajuan-little",
           "raw_name": "Little",
@@ -331138,7 +330792,7 @@
       ]
     },
     {
-      "id": "rc-e1275c5d-p7-1",
+      "id": "rc-e1275c5d-p7-0",
       "item_id": "ordinance-146-2021-22",
       "meeting_id": "2022-06-14-special",
       "motion_id": "mo-e1275c5d-p7-0",
@@ -331266,7 +330920,7 @@
       ]
     },
     {
-      "id": "rc-e1275c5d-p7-2",
+      "id": "rc-e1275c5d-p7-1",
       "item_id": "t-daa72f29ad",
       "meeting_id": "2022-06-14-special",
       "motion_id": null,
@@ -331394,12 +331048,12 @@
       ]
     },
     {
-      "id": "rc-e1275c5d-p7-3",
-      "item_id": "t-daa72f29ad",
+      "id": "rc-e1275c5d-p7-2",
+      "item_id": "ordinance-143-2021-22",
       "meeting_id": "2022-06-14-special",
       "motion_id": "mo-e1275c5d-p7-1",
-      "outcome": "other",
-      "outcome_text": "7 NAY: Butler, Marquis",
+      "outcome": "passed",
+      "outcome_text": "The motion to adopt ORDINANCE 143-2021-22 as amended (Second Reading) PASSED",
       "page": 7,
       "source_id": "src-e1275c5da628",
       "stated_tally": null,
@@ -331419,13 +331073,12 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-ambar-marquis, city-trisha-butler",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not read",
-            "ok": false
+            "detail": "passed with 10 yes and 2 no",
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -331445,7 +331098,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -331507,64 +331160,7 @@
           "raw_name": "Zacharias",
           "raw_value": "AYE",
           "value": "yes"
-        }
-      ]
-    },
-    {
-      "id": "rc-e1275c5d-p8-0",
-      "item_id": "ordinance-143-2021-22",
-      "meeting_id": "2022-06-14-special",
-      "motion_id": null,
-      "outcome": "passed",
-      "outcome_text": "The motion to adopt ORDINANCE 143-2021-22 as amended (Second Reading) PASSED",
-      "page": 8,
-      "source_id": "src-e1275c5da628",
-      "stated_tally": null,
-      "verification": {
-        "checks": [
-          {
-            "check": "attendance_verified",
-            "ok": true
-          },
-          {
-            "check": "names_resolve",
-            "ok": true
-          },
-          {
-            "check": "one_entry_per_official",
-            "ok": true
-          },
-          {
-            "check": "one_vote_per_present_member",
-            "detail": "city-brian-zacharias, city-dajuan-little, city-joe-shakeenab, city-karen-reynolds, city-stacey-streetman, city-travis-holleman, city-vondell-richmond, city-wanda-allen, city-wanda-smith",
-            "ok": false
-          },
-          {
-            "check": "outcome_consistent",
-            "detail": "passed with 0 yes and 2 no",
-            "ok": false
-          },
-          {
-            "check": "reading_used",
-            "detail": "text-layer",
-            "ok": true
-          },
-          {
-            "check": "vote_matches_item",
-            "ok": true
-          },
-          {
-            "check": "voters_recorded_present",
-            "ok": true
-          },
-          {
-            "check": "votes_listed",
-            "ok": true
-          }
-        ],
-        "status": "unverified"
-      },
-      "votes": [
+        },
         {
           "official_id": "city-trisha-butler",
           "raw_name": "Butler",
@@ -334908,11 +334504,11 @@
     },
     {
       "id": "rc-cc5b9995-p3-1",
-      "item_id": "t-5d9ea80119",
+      "item_id": "ordinance-13-2022-23",
       "meeting_id": "2022-08-04-regular",
       "motion_id": "mo-cc5b9995-p3-1",
-      "outcome": "other",
-      "outcome_text": "3 NAY: Smith",
+      "outcome": "passed",
+      "outcome_text": "The motion to adopt ORDINANCE 13-2022-23 (First Reading) passed.",
       "page": 3,
       "source_id": "src-cc5b9995fdd0",
       "stated_tally": null,
@@ -334932,13 +334528,13 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-trisha-butler, city-wanda-smith",
+            "detail": "city-trisha-butler",
             "ok": false
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not read",
-            "ok": false
+            "detail": "passed with 10 yes and 1 no",
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -335020,64 +334616,7 @@
           "raw_name": "Zacharias",
           "raw_value": "AYE",
           "value": "yes"
-        }
-      ]
-    },
-    {
-      "id": "rc-cc5b9995-p4-0",
-      "item_id": "ordinance-13-2022-23",
-      "meeting_id": "2022-08-04-regular",
-      "motion_id": null,
-      "outcome": "passed",
-      "outcome_text": "The motion to adopt ORDINANCE 13-2022-23 (First Reading) passed.",
-      "page": 4,
-      "source_id": "src-cc5b9995fdd0",
-      "stated_tally": null,
-      "verification": {
-        "checks": [
-          {
-            "check": "attendance_verified",
-            "ok": true
-          },
-          {
-            "check": "names_resolve",
-            "ok": true
-          },
-          {
-            "check": "one_entry_per_official",
-            "ok": true
-          },
-          {
-            "check": "one_vote_per_present_member",
-            "detail": "city-ambar-marquis, city-brian-zacharias, city-dajuan-little, city-joe-shakeenab, city-karen-reynolds, city-stacey-streetman, city-travis-holleman, city-trisha-butler, city-wallace-redd, city-wanda-allen",
-            "ok": false
-          },
-          {
-            "check": "outcome_consistent",
-            "detail": "passed with 0 yes and 1 no",
-            "ok": false
-          },
-          {
-            "check": "reading_used",
-            "detail": "text-layer",
-            "ok": true
-          },
-          {
-            "check": "vote_matches_item",
-            "ok": true
-          },
-          {
-            "check": "voters_recorded_present",
-            "ok": true
-          },
-          {
-            "check": "votes_listed",
-            "ok": true
-          }
-        ],
-        "status": "unverified"
-      },
-      "votes": [
+        },
         {
           "official_id": "city-wanda-smith",
           "raw_name": "Smith",
@@ -335087,7 +334626,7 @@
       ]
     },
     {
-      "id": "rc-cc5b9995-p4-1",
+      "id": "rc-cc5b9995-p4-0",
       "item_id": "ordinance-14-2022-23",
       "meeting_id": "2022-08-04-regular",
       "motion_id": "mo-cc5b9995-p4-0",
@@ -335210,7 +334749,7 @@
       ]
     },
     {
-      "id": "rc-cc5b9995-p4-2",
+      "id": "rc-cc5b9995-p4-1",
       "item_id": "ordinance-15-2022-23",
       "meeting_id": "2022-08-04-regular",
       "motion_id": "mo-cc5b9995-p4-1",
@@ -338026,7 +337565,7 @@
       "meeting_id": "2022-09-01-regular",
       "motion_id": "mo-3794e4d5-p7-1",
       "outcome": "failed",
-      "outcome_text": "7 The motion to adopt ORDINANCE 18-2022-23 Failed.",
+      "outcome_text": "The motion to adopt ORDINANCE 18-2022-23 Failed.",
       "page": 7,
       "source_id": "src-3794e4d5115f",
       "stated_tally": null,
@@ -339435,7 +338974,7 @@
       "meeting_id": "2022-09-01-regular",
       "motion_id": "mo-3794e4d5-p11-1",
       "outcome": "failed",
-      "outcome_text": "11 The motion to amend ORDINANCE 24-2022-23 (First Reading) Failed.",
+      "outcome_text": "The motion to amend ORDINANCE 24-2022-23 (First Reading) Failed.",
       "page": 11,
       "source_id": "src-3794e4d5115f",
       "stated_tally": null,
@@ -339815,11 +339354,11 @@
     },
     {
       "id": "rc-3794e4d5-p12-2",
-      "item_id": "t-306746b0a3",
+      "item_id": "resolution-28-2022-23",
       "meeting_id": "2022-09-01-regular",
       "motion_id": null,
-      "outcome": "other",
-      "outcome_text": "12 NAY: Holleman, Shakeenab, Streetman",
+      "outcome": "passed",
+      "outcome_text": "The motion to adopt amendment 1 to RESOLUTION 28-2022-23 Passed.",
       "page": 12,
       "source_id": "src-3794e4d5115f",
       "stated_tally": null,
@@ -339839,13 +339378,12 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-joe-shakeenab, city-stacey-streetman, city-travis-holleman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not read",
-            "ok": false
+            "detail": "passed with 9 yes and 3 no",
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -339865,7 +339403,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -339921,64 +339459,7 @@
           "raw_name": "Zacharias",
           "raw_value": "AYE",
           "value": "yes"
-        }
-      ]
-    },
-    {
-      "id": "rc-3794e4d5-p13-0",
-      "item_id": "resolution-28-2022-23",
-      "meeting_id": "2022-09-01-regular",
-      "motion_id": null,
-      "outcome": "passed",
-      "outcome_text": "The motion to adopt amendment 1 to RESOLUTION 28-2022-23 Passed.",
-      "page": 13,
-      "source_id": "src-3794e4d5115f",
-      "stated_tally": null,
-      "verification": {
-        "checks": [
-          {
-            "check": "attendance_verified",
-            "ok": true
-          },
-          {
-            "check": "names_resolve",
-            "ok": true
-          },
-          {
-            "check": "one_entry_per_official",
-            "ok": true
-          },
-          {
-            "check": "one_vote_per_present_member",
-            "detail": "city-ambar-marquis, city-brian-zacharias, city-dajuan-little, city-karen-reynolds, city-trisha-butler, city-wallace-redd, city-wanda-allen, city-wanda-smith",
-            "ok": false
-          },
-          {
-            "check": "outcome_consistent",
-            "detail": "passed with 0 yes and 3 no",
-            "ok": false
-          },
-          {
-            "check": "reading_used",
-            "detail": "text-layer",
-            "ok": true
-          },
-          {
-            "check": "vote_matches_item",
-            "ok": true
-          },
-          {
-            "check": "voters_recorded_present",
-            "ok": true
-          },
-          {
-            "check": "votes_listed",
-            "ok": true
-          }
-        ],
-        "status": "unverified"
-      },
-      "votes": [
+        },
         {
           "official_id": "city-travis-holleman",
           "raw_name": "Holleman",
@@ -340000,7 +339481,7 @@
       ]
     },
     {
-      "id": "rc-3794e4d5-p13-1",
+      "id": "rc-3794e4d5-p13-0",
       "item_id": "resolution-28-2022-23",
       "meeting_id": "2022-09-01-regular",
       "motion_id": "mo-3794e4d5-p13-0",
@@ -340128,7 +339609,7 @@
       ]
     },
     {
-      "id": "rc-3794e4d5-p13-2",
+      "id": "rc-3794e4d5-p13-1",
       "item_id": "resolution-28-2022-23",
       "meeting_id": "2022-09-01-regular",
       "motion_id": "mo-3794e4d5-p13-1",
@@ -340256,7 +339737,7 @@
       ]
     },
     {
-      "id": "rc-3794e4d5-p13-3",
+      "id": "rc-3794e4d5-p13-2",
       "item_id": "resolution-28-2022-23",
       "meeting_id": "2022-09-01-regular",
       "motion_id": "mo-3794e4d5-p13-2",
@@ -340355,12 +339836,12 @@
       ]
     },
     {
-      "id": "rc-3794e4d5-p13-4",
-      "item_id": "t-306746b0a3",
+      "id": "rc-3794e4d5-p13-3",
+      "item_id": "resolution-28-2022-23",
       "meeting_id": "2022-09-01-regular",
       "motion_id": null,
-      "outcome": "other",
-      "outcome_text": "13 NAY: Butler, Holleman, Pitts, Richmond, Smith, Streetman",
+      "outcome": "failed",
+      "outcome_text": "The motion to postpone amendment 4 indefinitely on RESOLUTION 28-2022-23 Failed.",
       "page": 13,
       "source_id": "src-3794e4d5115f",
       "stated_tally": null,
@@ -340380,13 +339861,13 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-stacey-streetman, city-travis-holleman, city-trisha-butler, city-wallace-redd, city-wanda-smith",
+            "detail": "city-wallace-redd",
             "ok": false
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not read",
-            "ok": false
+            "detail": "failed with 6 yes and 6 no",
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -340399,7 +339880,8 @@
           },
           {
             "check": "voters_recorded_present",
-            "ok": true
+            "detail": "city-vondell-richmond",
+            "ok": false
           },
           {
             "check": "votes_listed",
@@ -340444,65 +339926,7 @@
           "raw_name": "Zacharias",
           "raw_value": "AYE",
           "value": "yes"
-        }
-      ]
-    },
-    {
-      "id": "rc-3794e4d5-p14-0",
-      "item_id": "resolution-28-2022-23",
-      "meeting_id": "2022-09-01-regular",
-      "motion_id": null,
-      "outcome": "failed",
-      "outcome_text": "The motion to postpone amendment 4 indefinitely on RESOLUTION 28-2022-23 Failed.",
-      "page": 14,
-      "source_id": "src-3794e4d5115f",
-      "stated_tally": null,
-      "verification": {
-        "checks": [
-          {
-            "check": "attendance_verified",
-            "ok": true
-          },
-          {
-            "check": "names_resolve",
-            "ok": true
-          },
-          {
-            "check": "one_entry_per_official",
-            "ok": true
-          },
-          {
-            "check": "one_vote_per_present_member",
-            "detail": "city-ambar-marquis, city-brian-zacharias, city-dajuan-little, city-joe-shakeenab, city-karen-reynolds, city-wallace-redd, city-wanda-allen",
-            "ok": false
-          },
-          {
-            "check": "outcome_consistent",
-            "detail": "failed with 0 yes and 6 no",
-            "ok": true
-          },
-          {
-            "check": "reading_used",
-            "detail": "text-layer",
-            "ok": true
-          },
-          {
-            "check": "vote_matches_item",
-            "ok": true
-          },
-          {
-            "check": "voters_recorded_present",
-            "detail": "city-vondell-richmond",
-            "ok": false
-          },
-          {
-            "check": "votes_listed",
-            "ok": true
-          }
-        ],
-        "status": "unverified"
-      },
-      "votes": [
+        },
         {
           "official_id": "city-trisha-butler",
           "raw_name": "Butler",
@@ -340542,7 +339966,7 @@
       ]
     },
     {
-      "id": "rc-3794e4d5-p14-1",
+      "id": "rc-3794e4d5-p14-0",
       "item_id": "resolution-28-2022-23",
       "meeting_id": "2022-09-01-regular",
       "motion_id": null,
@@ -340664,7 +340088,7 @@
       ]
     },
     {
-      "id": "rc-3794e4d5-p14-2",
+      "id": "rc-3794e4d5-p14-1",
       "item_id": "resolution-28-2022-23",
       "meeting_id": "2022-09-01-regular",
       "motion_id": null,
@@ -340786,7 +340210,7 @@
       ]
     },
     {
-      "id": "rc-3794e4d5-p14-3",
+      "id": "rc-3794e4d5-p14-2",
       "item_id": "t-306746b0a3",
       "meeting_id": "2022-09-01-regular",
       "motion_id": "mo-3794e4d5-p14-0",
@@ -340914,7 +340338,7 @@
       ]
     },
     {
-      "id": "rc-3794e4d5-p14-4",
+      "id": "rc-3794e4d5-p14-3",
       "item_id": "resolution-28-2022-23",
       "meeting_id": "2022-09-01-regular",
       "motion_id": null,
@@ -342580,7 +342004,7 @@
       "meeting_id": "2022-10-06-regular",
       "motion_id": "mo-ae249858-p8-1",
       "outcome": "passed",
-      "outcome_text": "8 The motion to adopt ORDINANCE 33-2022-23 (First Reading) Passed.",
+      "outcome_text": "The motion to adopt ORDINANCE 33-2022-23 (First Reading) Passed.",
       "page": 8,
       "source_id": "src-ae249858c4bb",
       "stated_tally": null,
@@ -342840,7 +342264,7 @@
       "meeting_id": "2022-10-06-regular",
       "motion_id": null,
       "outcome": "passed",
-      "outcome_text": "9 The motion to adopt RESOLUTION 32-2022-23 Passed.",
+      "outcome_text": "The motion to adopt RESOLUTION 32-2022-23 Passed.",
       "page": 9,
       "source_id": "src-ae249858c4bb",
       "stated_tally": null,
@@ -343224,7 +342648,7 @@
       "meeting_id": "2022-10-06-regular",
       "motion_id": "mo-ae249858-p11-0",
       "outcome": "passed",
-      "outcome_text": "11 The motion to postpone ORDINANCE 46-2022-23 (First Reading) to the November Regular Session Passed.",
+      "outcome_text": "The motion to postpone ORDINANCE 46-2022-23 (First Reading) to the November Regular Session Passed.",
       "page": 11,
       "source_id": "src-ae249858c4bb",
       "stated_tally": null,
@@ -345053,8 +344477,8 @@
       "item_id": "t-c87b97ce54",
       "meeting_id": "2022-11-03-regular",
       "motion_id": "mo-5b842ae0-p8-3",
-      "outcome": "other",
-      "outcome_text": "8 NAY: Little, Richmond",
+      "outcome": "passed",
+      "outcome_text": "The motion to postpone Resolution 39(b)-2022-23 to the December Regular Session passed.",
       "page": 8,
       "source_id": "src-5b842ae0e849",
       "stated_tally": null,
@@ -345074,13 +344498,12 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-dajuan-little, city-vondell-richmond",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
-            "detail": "outcome not read",
-            "ok": false
+            "detail": "passed with 11 yes and 2 no",
+            "ok": true
           },
           {
             "check": "reading_used",
@@ -345100,7 +344523,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -345168,64 +344591,7 @@
           "raw_name": "Zacharias",
           "raw_value": "AYE",
           "value": "yes"
-        }
-      ]
-    },
-    {
-      "id": "rc-5b842ae0-p9-0",
-      "item_id": "t-c87b97ce54",
-      "meeting_id": "2022-11-03-regular",
-      "motion_id": null,
-      "outcome": "passed",
-      "outcome_text": "The motion to postpone Resolution 39(b)-2022-23 to the December Regular Session passed.",
-      "page": 9,
-      "source_id": "src-5b842ae0e849",
-      "stated_tally": null,
-      "verification": {
-        "checks": [
-          {
-            "check": "attendance_verified",
-            "ok": true
-          },
-          {
-            "check": "names_resolve",
-            "ok": true
-          },
-          {
-            "check": "one_entry_per_official",
-            "ok": true
-          },
-          {
-            "check": "one_vote_per_present_member",
-            "detail": "city-ambar-marquis, city-brian-zacharias, city-joe-shakeenab, city-karen-reynolds, city-stacey-streetman, city-travis-holleman, city-trisha-butler, city-wallace-redd, city-wanda-allen, city-wanda-smith",
-            "ok": false
-          },
-          {
-            "check": "outcome_consistent",
-            "detail": "passed with 0 yes and 2 no",
-            "ok": false
-          },
-          {
-            "check": "reading_used",
-            "detail": "text-layer",
-            "ok": true
-          },
-          {
-            "check": "vote_matches_item",
-            "ok": true
-          },
-          {
-            "check": "voters_recorded_present",
-            "ok": true
-          },
-          {
-            "check": "votes_listed",
-            "ok": true
-          }
-        ],
-        "status": "unverified"
-      },
-      "votes": [
+        },
         {
           "official_id": "city-dajuan-little",
           "raw_name": "Little",
@@ -345630,7 +344996,7 @@
       "meeting_id": "2022-12-01-regular",
       "motion_id": "mo-dc343d7d-p3-2",
       "outcome": "passed",
-      "outcome_text": "3 The motion to adopt Amendment #1 to ORDINANCE 55-2022-23 (First Reading) Passed",
+      "outcome_text": "The motion to adopt Amendment #1 to ORDINANCE 55-2022-23 (First Reading) Passed",
       "page": 3,
       "source_id": "src-dc343d7dc788",
       "stated_tally": null,
@@ -347322,7 +346688,7 @@
       "meeting_id": "2022-12-01-regular",
       "motion_id": null,
       "outcome": "failed",
-      "outcome_text": "9 The motion to adopt RESOLUTION 39(B)-2022-23 Failed.",
+      "outcome_text": "The motion to adopt RESOLUTION 39(B)-2022-23 Failed.",
       "page": 9,
       "source_id": "src-dc343d7dc788",
       "stated_tally": null,
@@ -352496,7 +351862,7 @@
       "meeting_id": "2023-05-04-regular",
       "motion_id": "mo-fd3ce01b-p4-2",
       "outcome": "passed",
-      "outcome_text": "4 The motion to adopt ORDINANCE 110-2022-23 Passed.",
+      "outcome_text": "The motion to adopt ORDINANCE 110-2022-23 Passed.",
       "page": 4,
       "source_id": "src-fd3ce01ba1b2",
       "stated_tally": null,
@@ -352865,7 +352231,7 @@
       "meeting_id": "2023-05-04-regular",
       "motion_id": "mo-fd3ce01b-p5-2",
       "outcome": "passed",
-      "outcome_text": "5 The motion to postpone RESOLUTION 57-2022-23, RESOLUTION 56-2022-23 and ORDINANCE 106-2022-23 until the June 1, 2023 regular session Passed.",
+      "outcome_text": "The motion to postpone RESOLUTION 57-2022-23, RESOLUTION 56-2022-23 and ORDINANCE 106-2022-23 until the June 1, 2023 regular session Passed.",
       "page": 5,
       "source_id": "src-fd3ce01ba1b2",
       "stated_tally": null,
@@ -360665,7 +360031,7 @@
       "meeting_id": "2023-07-06-regular",
       "motion_id": null,
       "outcome": "failed",
-      "outcome_text": "4 The motion to adopt Amendment 1 to ORDINANCE 147-2022-23 (First Reading) as amended Failed.",
+      "outcome_text": "The motion to adopt Amendment 1 to ORDINANCE 147-2022-23 (First Reading) as amended Failed.",
       "page": 4,
       "source_id": "src-f21e4a473871",
       "stated_tally": null,
