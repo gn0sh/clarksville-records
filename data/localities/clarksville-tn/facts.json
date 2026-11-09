@@ -57229,6 +57229,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -57361,6 +57366,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -57495,6 +57505,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -57601,6 +57616,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -57735,6 +57755,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -57841,6 +57866,11 @@
           {
             "check": "present_listed",
             "detail": "7 present, 5 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -57974,6 +58004,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -58080,6 +58115,11 @@
           {
             "check": "present_listed",
             "detail": "8 present, 4 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -58214,6 +58254,11 @@
             "check": "present_listed",
             "detail": "10 present, 2 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -58320,6 +58365,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -58428,6 +58478,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -58535,6 +58590,11 @@
             "check": "present_listed",
             "detail": "10 present, 2 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -58641,6 +58701,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -58782,6 +58847,11 @@
             "check": "present_listed",
             "detail": "11 present, 2 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "unverified"
@@ -58914,6 +58984,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -59048,6 +59123,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -59180,6 +59260,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -59314,6 +59399,11 @@
             "check": "present_listed",
             "detail": "10 present, 2 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -59420,6 +59510,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -59554,6 +59649,11 @@
             "check": "present_listed",
             "detail": "10 present, 2 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -59660,6 +59760,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -59794,6 +59899,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -59926,6 +60036,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -60060,6 +60175,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -60192,6 +60312,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -60326,6 +60451,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -60459,6 +60589,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -60565,6 +60700,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -60673,6 +60813,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -60779,6 +60924,11 @@
           {
             "check": "present_listed",
             "detail": "10 present, 2 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -60887,6 +61037,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -60994,6 +61149,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -61100,6 +61260,11 @@
           {
             "check": "present_listed",
             "detail": "9 present, 3 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -61234,6 +61399,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -61366,6 +61536,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -61500,6 +61675,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -61632,6 +61812,11 @@
           {
             "check": "present_listed",
             "detail": "10 present, 2 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -61766,6 +61951,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -61872,6 +62062,11 @@
           {
             "check": "present_listed",
             "detail": "10 present, 2 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -62006,6 +62201,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -62138,6 +62338,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -62272,6 +62477,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -62404,6 +62614,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -62538,6 +62753,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -62671,6 +62891,11 @@
             "check": "present_listed",
             "detail": "10 present, 2 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -62776,6 +63001,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -62884,6 +63114,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -62991,6 +63226,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -63097,6 +63337,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -63231,6 +63476,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -63337,6 +63587,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -63445,6 +63700,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -63551,6 +63811,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -63685,6 +63950,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -63791,6 +64061,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -63925,6 +64200,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -64057,6 +64337,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -64191,6 +64476,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -64323,6 +64613,11 @@
           {
             "check": "present_listed",
             "detail": "10 present, 2 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Kim McMillan by the configured mayor seat from 2015-01-01",
             "ok": true
           }
         ],
@@ -64703,6 +64998,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -64835,6 +65135,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -64969,6 +65274,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -65075,6 +65385,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -65203,6 +65518,11 @@
             "check": "present_listed",
             "detail": "11 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -65303,6 +65623,11 @@
           {
             "check": "present_listed",
             "detail": "10 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -65431,6 +65756,11 @@
             "check": "present_listed",
             "detail": "11 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -65531,6 +65861,11 @@
           {
             "check": "present_listed",
             "detail": "9 present, 2 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -65638,6 +65973,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -65772,6 +66112,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -65904,6 +66249,11 @@
           {
             "check": "present_listed",
             "detail": "10 present, 2 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -66064,6 +66414,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -66197,6 +66552,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -66329,6 +66689,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -66436,6 +66801,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -66541,6 +66911,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -66675,6 +67050,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -66807,6 +67187,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -66941,6 +67326,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -67074,6 +67464,11 @@
             "check": "present_listed",
             "detail": "10 present, 2 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -67181,6 +67576,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -67286,6 +67686,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -67420,6 +67825,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -67526,6 +67936,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -67634,6 +68049,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -67734,6 +68154,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -67841,6 +68266,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -67974,6 +68404,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -68212,6 +68647,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -68318,6 +68758,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -68426,6 +68871,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -68533,6 +68983,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -68638,6 +69093,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -68746,6 +69206,11 @@
             "check": "present_listed",
             "detail": "10 present, 2 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -68851,6 +69316,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -68984,6 +69454,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -69197,6 +69672,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "unverified"
@@ -69304,6 +69784,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -69410,6 +69895,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -69544,6 +70034,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -69651,6 +70146,11 @@
             "check": "present_listed",
             "detail": "10 present, 2 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -69710,6 +70210,11 @@
             "check": "present_listed",
             "detail": "0 present, 0 absent",
             "ok": false
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "unverified"
@@ -69816,6 +70321,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -69950,6 +70460,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -70051,6 +70566,11 @@
             "check": "present_listed",
             "detail": "11 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -70127,6 +70647,11 @@
           {
             "check": "present_listed",
             "detail": "7 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -70222,6 +70747,11 @@
           {
             "check": "present_listed",
             "detail": "10 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -70356,6 +70886,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -70463,6 +70998,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -70569,6 +71109,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -70703,6 +71248,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -70809,6 +71359,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -70969,6 +71524,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -71075,6 +71635,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -71209,6 +71774,11 @@
             "check": "present_listed",
             "detail": "8 present, 4 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -71315,6 +71885,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -71423,6 +71998,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -71529,6 +72109,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -71715,6 +72300,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -71821,6 +72411,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -71920,6 +72515,11 @@
           {
             "check": "present_listed",
             "detail": "9 present, 2 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -72027,6 +72627,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -72239,6 +72844,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -72385,6 +72995,11 @@
           {
             "check": "present_listed",
             "detail": "10 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -72545,6 +73160,11 @@
             "check": "present_listed",
             "detail": "9 present, 3 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -72638,6 +73258,11 @@
           {
             "check": "present_listed",
             "detail": "10 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -72745,6 +73370,11 @@
           {
             "check": "present_listed",
             "detail": "10 present, 2 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -72904,6 +73534,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -73037,6 +73672,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -73144,6 +73784,11 @@
             "check": "present_listed",
             "detail": "8 present, 4 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -73204,6 +73849,11 @@
             "check": "present_listed",
             "detail": "0 present, 0 absent",
             "ok": false
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "unverified"
@@ -73311,6 +73961,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -73371,6 +74026,11 @@
             "check": "present_listed",
             "detail": "0 present, 0 absent",
             "ok": false
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "unverified"
@@ -73472,6 +74132,11 @@
             "check": "present_listed",
             "detail": "8 present, 3 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -73572,6 +74237,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -73700,6 +74370,11 @@
             "check": "present_listed",
             "detail": "11 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -73801,6 +74476,11 @@
             "check": "present_listed",
             "detail": "9 present, 2 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -73901,6 +74581,11 @@
           {
             "check": "present_listed",
             "detail": "10 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -74038,8 +74723,13 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "1 printed as surnames: not resolved: StaceyStreetman",
+            "detail": "1 printed as surnames: not resolved: StaceyStreetman (no roster entry)",
             "ok": false
           }
         ],
@@ -74173,6 +74863,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -74333,6 +75028,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -74440,6 +75140,11 @@
             "check": "present_listed",
             "detail": "8 present, 4 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -74546,6 +75251,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -74680,6 +75390,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -74813,6 +75528,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -74945,6 +75665,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -75105,6 +75830,11 @@
             "check": "present_listed",
             "detail": "11 present, 1 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -75238,6 +75968,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -75364,6 +76099,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -75498,6 +76238,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -75603,6 +76348,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -75736,6 +76486,11 @@
           {
             "check": "present_listed",
             "detail": "11 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -76150,6 +76905,11 @@
             "check": "present_listed",
             "detail": "11 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -76517,6 +77277,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -76649,6 +77414,11 @@
           {
             "check": "present_listed",
             "detail": "9 present, 3 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -76822,6 +77592,11 @@
             "check": "present_listed",
             "detail": "9 present, 3 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -76928,6 +77703,11 @@
           {
             "check": "present_listed",
             "detail": "10 present, 2 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -77094,6 +77874,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -77293,6 +78078,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -77399,6 +78189,11 @@
           {
             "check": "present_listed",
             "detail": "9 present, 3 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -77559,6 +78354,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -77718,6 +78518,11 @@
             "check": "present_listed",
             "detail": "10 present, 2 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -77824,6 +78629,11 @@
           {
             "check": "present_listed",
             "detail": "10 present, 2 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -78175,6 +78985,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -78336,6 +79151,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -78469,6 +79289,11 @@
           {
             "check": "present_listed",
             "detail": "10 present, 2 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -78631,6 +79456,11 @@
             "check": "present_listed",
             "detail": "12 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -78738,6 +79568,11 @@
           {
             "check": "present_listed",
             "detail": "9 present, 3 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -78873,6 +79708,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the configured mayor seat from 2019-01-01",
             "ok": true
           }
         ],
@@ -79042,6 +79882,11 @@
             "check": "present_listed",
             "detail": "10 present, 3 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by this meeting's attendance",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -79208,6 +80053,11 @@
             "check": "present_listed",
             "detail": "13 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by this meeting's attendance",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -79348,6 +80198,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by this meeting's attendance",
             "ok": true
           }
         ],
@@ -79517,6 +80372,11 @@
             "check": "present_listed",
             "detail": "13 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by this meeting's attendance",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -79657,6 +80517,11 @@
           {
             "check": "present_listed",
             "detail": "10 present, 3 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by this meeting's attendance",
             "ok": true
           }
         ],
@@ -79850,6 +80715,11 @@
           {
             "check": "present_listed",
             "detail": "12 present, 1 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by this meeting's attendance",
             "ok": true
           }
         ],
@@ -80125,6 +80995,11 @@
             "check": "present_listed",
             "detail": "13 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by this meeting's attendance",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -80282,6 +81157,11 @@
             "check": "present_listed",
             "detail": "10 present, 0 absent",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -80424,8 +81304,13 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 2 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06; 2 by these minutes",
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 10 by the attendance of 2025-02-06",
             "ok": true
           }
         ],
@@ -80569,8 +81454,13 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 2 by the attendance of 2025-01-02; 8 by the attendance of 2025-02-06; 3 by these minutes",
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 10 by the attendance of 2025-02-06",
             "ok": true
           }
         ],
@@ -80715,8 +81605,13 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 2 by the attendance of 2025-01-02; 6 by the attendance of 2025-02-06; 5 by these minutes",
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 10 by the attendance of 2025-02-06",
             "ok": true
           }
         ],
@@ -80861,8 +81756,13 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 2 by the attendance of 2025-01-02; 7 by the attendance of 2025-02-06; 4 by these minutes",
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 10 by the attendance of 2025-02-06",
             "ok": true
           }
         ],
@@ -81041,8 +81941,13 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 2 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06; 2 by these minutes",
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 10 by the attendance of 2025-02-06",
             "ok": true
           }
         ],
@@ -81160,8 +82065,13 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 2 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06; 2 by these minutes",
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 10 by the attendance of 2025-02-06",
             "ok": true
           }
         ],
@@ -81306,8 +82216,13 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 1 by the attendance of 2025-01-02; 8 by the attendance of 2025-02-06; 4 by these minutes",
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 10 by the attendance of 2025-02-06",
             "ok": true
           }
         ],
@@ -81453,8 +82368,13 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 2 by the attendance of 2025-01-02; 7 by the attendance of 2025-02-06; 3 by these minutes; not resolved: ZAHARIAS",
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06; not resolved: ZAHARIAS (no roster entry)",
             "ok": false
           }
         ],
@@ -81599,8 +82519,13 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 2 by the attendance of 2025-01-02; 8 by the attendance of 2025-02-06; 3 by these minutes",
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 10 by the attendance of 2025-02-06",
             "ok": true
           }
         ],
@@ -81799,8 +82724,13 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 2 by the attendance of 2025-01-02; 6 by the attendance of 2025-02-06; 5 by these minutes",
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 10 by the attendance of 2025-02-06",
             "ok": true
           }
         ],
@@ -81945,8 +82875,13 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 2 by the attendance of 2025-01-02; 6 by the attendance of 2025-02-06; 5 by these minutes",
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 10 by the attendance of 2025-02-06",
             "ok": true
           }
         ],
@@ -82084,8 +83019,13 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "12 printed as surnames: 2 by the attendance of 2025-01-02; 8 by the attendance of 2025-02-06; 2 by these minutes",
+            "detail": "12 printed as surnames: 3 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06",
             "ok": true
           }
         ],
@@ -82230,8 +83170,13 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 1 by the attendance of 2025-01-02; 8 by the attendance of 2025-02-06; 3 by these minutes; not resolved: CLAUNCH",
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06; not resolved: CLAUNCH (no roster entry)",
             "ok": false
           }
         ],
@@ -82377,8 +83322,13 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 1 by the attendance of 2025-01-02; 7 by the attendance of 2025-02-06; 4 by these minutes; not resolved: CLAUNCH",
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06; not resolved: CLAUNCH (no roster entry)",
             "ok": false
           }
         ],
@@ -82524,8 +83474,13 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 2 by the attendance of 2025-01-02; 7 by the attendance of 2025-02-06; 3 by these minutes; not resolved: CLAUNCH",
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06; not resolved: CLAUNCH (no roster entry)",
             "ok": false
           }
         ],
@@ -82671,8 +83626,13 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 1 by the attendance of 2025-01-02; 8 by the attendance of 2025-02-06; 3 by these minutes; not resolved: CLAUNCH",
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06; not resolved: CLAUNCH (no roster entry)",
             "ok": false
           }
         ],
