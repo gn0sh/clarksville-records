@@ -2,16 +2,21 @@
 
 Rules:
 - Every transcript line is shown as the speech-recognition software wrote it, labelled "Transcript", with its time
-  linked to that moment of the meeting's own video (`<video_url>#t=<whole seconds>`). Nothing is summarised,
+  linked to that moment of the meeting's own video (`<video_url>#t=<whole seconds>`) when that video_url is an https
+  .mp4 on a host in config.VIDEO_HOSTS with no "#" in it (video_ok); otherwise the times are text only, no links. Nothing is summarised,
   reworded or corrected; the page says the video is the record.
 - Who speaks is never read from the voice. A "call-on" is found only in the transcript TEXT, where a member's title
-  and surname are followed by the words that give them the floor ("Councilman Chandler, you're recognized", "the
-  chair recognizes Councilwoman Smith"). The surname is resolved under the name resolution invariant
-  (docs/architecture/city-council.md): exactly one entry of that meeting's own attendance list, as read from its
-  minutes and shown on the site, has that surname (an unresolved entry counts as a match, so it blocks); no minutes
-  read, no attendance shown, no match or two matches: no link. Never a near spelling.
+  and surname are followed by "you're recognized" / "you are recognized" (or Whisper's "you recognized"), or come
+  after "the chair recognizes" ("Councilman Chandler, you're recognized", "the chair recognizes Councilwoman Smith").
+  Nothing else counts ("Councilwoman Smith recognized the students" is not a call-on). The surname is resolved under
+  the name resolution invariant (docs/architecture/city-council.md): exactly one entry of that meeting's own
+  attendance list, as read from its minutes and shown on the site, has that surname, and that entry resolved to a
+  member who is listed present. An entry that did not resolve blocks every word of its printed name and every
+  registered surname inside it; an entry listed absent blocks its surname but never links. No minutes read, no
+  attendance shown, no match or two matches: no link. Never a near spelling.
 - Each member page lists the call-ons resolved to them, the same way for every member: the date, the time linked to
-  the video, and about CALL_ON_SECONDS of transcript text after the call-on, verbatim, labelled as transcript text.
+  the video, the matched call-on words verbatim, and about CALL_ON_SECONDS of transcript text after the call-on,
+  verbatim, labelled as transcript text.
 
 Files: one page per meeting with a transcript (<slug>/transcripts/<meeting id>.html), split into parts with the
 year pages' part pattern when over config.PAGE_BYTES. A preview build over its file cap leaves these pages out
@@ -23,8 +28,9 @@ import json
 import math
 import re
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from . import views
+from . import config, views
 
 CALL_ON_SECONDS = 20
 FOLDER = "transcripts"
@@ -36,9 +42,10 @@ TITLES = r"council(?:man|woman|person|member|lady)|chair(?:man|woman|person)?|vi
 _NAME = r"(?P<name>[A-Za-z][A-Za-z'’-]*)"
 _GAP = r"[\s,.;:!?-]*"
 CALL_ON_PATTERNS = (
-    # "Councilman Chandler, you're recognized" / "Councilman Chandler you recognize" / "Councilman Brown recognized"
+    # "Councilman Chandler, you're recognized" / "you are recognized" / Whisper's "you recognized". Only these: a bare
+    # "recognized" ("Councilwoman Smith recognized the students") or "you recognize" is not a call-on.
     re.compile(r"\b(?P<title>" + TITLES + r")\s+" + _NAME + _GAP
-               + r"(?:(?:you\s*['’]?\s*re|you\s+are|you)\s+recogni[sz]ed?|recogni[sz]ed)\b", re.I),
+               + r"(?:you\s*['’]?\s*re|you\s+are|you)\s+recogni[sz]ed\b", re.I),
     # "the chair recognizes Councilwoman Smith"
     re.compile(r"\bthe\s+chair\s+recogni[sz]es\s+(?P<title>" + TITLES + r")\s+" + _NAME + r"\b", re.I),
 )
@@ -52,8 +59,25 @@ class TranscriptLoadError(ValueError):
     pass
 
 
-def video_href(video_url: str, seconds: float) -> str:
-    """The video at a moment: whole seconds, rounded down, so the link never starts after the words."""
+def video_ok(video_url) -> bool:
+    """Whether timestamp links may be made to this video: https, a host in config.VIDEO_HOSTS (no user or port), a
+    path ending .mp4, and no "#" already in it."""
+    if not isinstance(video_url, str) or "#" in video_url:
+        return False
+    try:
+        u = urlsplit(video_url)
+        port = u.port
+    except ValueError:
+        return False
+    return (u.scheme == "https" and u.hostname in config.VIDEO_HOSTS and u.netloc == u.hostname and port is None
+            and u.path.lower().endswith(".mp4"))
+
+
+def video_href(video_url: str, seconds: float) -> str | None:
+    """The video at a moment: whole seconds, rounded down, so the link never starts after the words. None when the
+    video_url is not one video_ok allows (the time is then shown as text only)."""
+    if not video_ok(video_url):
+        return None
     return f"{video_url}#t={int(math.floor(seconds))}"
 
 
@@ -64,7 +88,8 @@ def clock(seconds: float) -> str:
 
 def load(facts_path: Path, facts: dict) -> dict[str, dict]:
     """{meeting id: transcript} from <facts folder>/transcripts/index.json (none: {}). Every transcript must name a
-    meeting of these facts and carry exactly that meeting's https video_url; its segments [start, end, text]."""
+    meeting of these facts and carry exactly that meeting's video_url; its segments [start, end, text]. (Whether its
+    times link to the video is video_ok's rule.)"""
     folder = Path(facts_path).parent / FOLDER
     index_path = folder / "index.json"
     if not index_path.is_file():
@@ -76,7 +101,7 @@ def load(facts_path: Path, facts: dict) -> dict[str, dict]:
             raise TranscriptLoadError(f"{index_path}: transcript for {mid}, which is not a meeting in the facts")
         t = json.loads((folder / Path(entry["file"]).name).read_text(encoding="utf-8"))
         vu = meetings[mid].get("video_url")
-        if t.get("meeting_id") != mid or not vu or t.get("video_url") != vu or not vu.startswith("https://"):
+        if t.get("meeting_id") != mid or not vu or t.get("video_url") != vu:
             raise TranscriptLoadError(f"{folder / entry['file']}: does not carry meeting {mid}'s video_url")
         for s in t["segments"]:
             if not (isinstance(s, list) and len(s) == 3 and all(isinstance(x, (int, float)) and not isinstance(x, bool)
@@ -109,8 +134,9 @@ def _seg_at(starts: list[int], offset: int) -> int:
 
 
 def detect(segments: list) -> list[dict]:
-    """Call-ons found in the transcript text, in time order: {seg, seconds, title, name, end_seg, excerpt}.
-    seg: the line where the title starts (the link's time); excerpt: the text after the call-on words, verbatim,
+    """Call-ons found in the transcript text, in time order: {seg, seconds, title, name, end_seg, matched, excerpt}.
+    seg: the line where the title starts (the link's time); matched: the call-on words themselves, verbatim (shown
+    with each entry so a reader can judge the match); excerpt: the text after the call-on words, verbatim,
     through the lines that start within CALL_ON_SECONDS of the line where those words end, and never past the next
     call-on."""
     text, starts = _joined(segments)
@@ -137,36 +163,49 @@ def detect(segments: list) -> list[dict]:
         if i + 1 < len(kept):
             stop = min(stop, kept[i + 1][0])
         out.append({"seg": seg, "seconds": segments[seg][0], "title": title, "name": name, "end_seg": end_seg,
-                    "excerpt": text[b:stop].strip(" ,.;:!?-")})
+                    "matched": text[a:b], "excerpt": text[b:stop].strip(" ,.;:!?-")})
     return out
 
 
-def roster(meeting: dict, officials: dict) -> list[tuple[str | None, str]] | None:
-    """(official id or None, surname) per entry of the meeting's attendance as shown on the site; None when no
-    attendance is shown (no minutes read, or attendance under review)."""
+def roster(meeting: dict, officials: dict) -> list[dict] | None:
+    """One entry per line of the meeting's attendance as shown on the site: {official_id (None when the line did not
+    resolve), names (casefolded words that match it), absent}. None when no attendance is shown (no minutes read, or
+    attendance under review).
+    A resolved line matches its member's surname. A line that did not resolve matches every word of its printed name
+    and every registered surname (any official's) found inside the printed name with spaces removed, any case
+    ("DaJaun Little m", "StaceyStreetman"): it blocks those names, never links them."""
     if not views.attendance_shown(meeting):
         return None
+    surnames = {o["surname"].casefold() for o in officials.values() if o.get("surname")}
     out = []
     for a in meeting["attendance"]:
         o = officials.get(a["official_id"]) if a["official_id"] else None
+        absent = a.get("status") == "absent"
         if o is not None:
-            out.append((o["id"], o["surname"]))
-        else:   # an entry that did not resolve still blocks its surname (two matches: held)
-            words = re.findall(r"[A-Za-z'’-]+", a.get("raw_name") or "")
-            out.append((None, words[-1] if words else ""))
+            out.append({"official_id": o["id"], "names": frozenset({o["surname"].casefold()}), "absent": absent})
+        else:
+            raw = a.get("raw_name") or ""
+            words = {w.strip("'’-").casefold() for w in re.findall(r"[A-Za-z'’-]+", raw)} - {""}
+            squashed = "".join(raw.split()).casefold()
+            words |= {s for s in surnames if s in squashed}
+            out.append({"official_id": None, "names": frozenset(words), "absent": absent})
     return out
 
 
-def resolve(name: str, entries: list[tuple[str | None, str]] | None) -> tuple[str | None, str]:
-    """(official id, "") when exactly one roster entry's surname is the printed name (any case), else (None, why)."""
+def resolve(name: str, entries: list[dict] | None) -> tuple[str | None, str]:
+    """(official id, "") when exactly one roster entry matches the printed name (any case) and that entry is a
+    member listed present; else (None, why)."""
     if entries is None:
         return None, "no attendance shown for this meeting"
-    hits = [oid for oid, sur in entries if sur and sur.casefold() == name.casefold()]
+    key = name.strip("'’").casefold()
+    hits = [e for e in entries if key in e["names"]]
     if len(hits) != 1:
         return None, f"{len(hits)} attendance entries with this surname"
-    if hits[0] is None:
+    if hits[0]["official_id"] is None:
         return None, "the attendance entry with this surname did not resolve to a member"
-    return hits[0], ""
+    if hits[0]["absent"]:
+        return None, "the attendance entry with this surname is listed absent"
+    return hits[0]["official_id"], ""
 
 
 class Transcripts:
@@ -208,12 +247,12 @@ class Transcripts:
             for d in self.call_ons[mid]:
                 if d["official_id"] != official_id:
                     continue
-                rows.append({"date": m["date"], "meeting_label": self.cix.meeting_label(m),
+                rows.append({"date": m["date"], "meeting_id": mid, "meeting_label": self.cix.meeting_label(m),
                              "meeting_href": self.cix.meeting_href(mid),
                              "time": clock(d["seconds"]),
                              "video_href": video_href(self.by_meeting[mid]["video_url"], d["seconds"]),
                              "line_href": self.line_href(mid, d["seg"]) if self.pages else None,
-                             "excerpt": d["excerpt"]})
+                             "matched": d["matched"], "excerpt": d["excerpt"]})
         return rows
 
     def lines(self, meeting_id: str) -> list[dict]:
@@ -231,6 +270,7 @@ class Transcripts:
         m = self.cix.meetings[meeting_id]
         return {"meeting": m, "kind_label": self.cix.kind_labels[m["kind"]],
                 "meeting_href": self.cix.meeting_href(meeting_id), "video_url": t["video_url"],
+                "video_ok": video_ok(t["video_url"]),
                 "notice": NOTICE, "label": LABEL, "model": t["model"], "model_version": t["model_version"],
                 "created_at": t["created_at"], "call_on_count": len(self.call_ons.get(meeting_id, [])),
                 "lines": self.lines(meeting_id)}

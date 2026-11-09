@@ -203,6 +203,15 @@ def test_file_cap_is_enforced(site):
     assert "files" in failed(run(site))
 
 
+def test_file_cap_allows_exactly_the_cap(site, monkeypatch):
+    """One rule everywhere (sitegen/config.py max_files): at most the cap is OK, one over fails."""
+    n = sum(1 for f in site.rglob("*") if f.is_file())
+    monkeypatch.setitem(site_checks.MAX_FILES_BY_TARGET, "preview", n)
+    assert "files" not in failed(run(site))
+    (site / "pad.txt").write_text("x")
+    assert "files" in failed(run(site))
+
+
 def _browser_ok():
     try:
         site_checks.subprocess.run(["node", "--version"], capture_output=True, timeout=10, check=True)

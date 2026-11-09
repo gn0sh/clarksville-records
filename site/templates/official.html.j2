@@ -57,7 +57,8 @@
   {% if called_on %}
   <ul class="call-ons">
     {% for r in called_on %}
-    <li><a href="{{ root }}{{ r.meeting_href }}">{{ r.meeting_label }}</a>: <a data-ext="video" href="{{ r.video_href }}" target="_blank" rel="noopener noreferrer">{{ r.time }} in the video<span class="sr-only"> (opens in a new tab)</span></a>{% if r.line_href %} (<a href="{{ root }}{{ r.line_href }}">line in the transcript</a>){% endif %}
+    <li data-meeting="{{ r.meeting_id }}"><a href="{{ root }}{{ r.meeting_href }}">{{ r.meeting_label }}</a>: {% if r.video_href %}<a data-ext="video" href="{{ r.video_href }}" target="_blank" rel="noopener noreferrer">{{ r.time }} in the video<span class="sr-only"> (opens in a new tab)</span></a>{% else %}{{ r.time }} in the video{% endif %}{% if r.line_href %} (<a href="{{ root }}{{ r.line_href }}">line in the transcript</a>){% endif %}
+      <p class="muted">Matched words: &ldquo;<span class="tx-matched" data-transcript>{{ r.matched }}</span>&rdquo;</p>
       <blockquote class="tx-quote"><p class="muted">Transcript text after the chair called on {{ official.name }}:</p><p data-transcript>{{ r.excerpt }}</p></blockquote></li>
     {% endfor %}
   </ul>

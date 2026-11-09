@@ -73,10 +73,9 @@ DEFAULT_TARGET = os.environ.get("RECORDS_BUILD_TARGET") or "preview"
 
 
 def max_files(target: str | None = None) -> int:
-    """The file cap of a build target (sitegen --target, qa.site_checks --target)."""
-    target = target or DEFAULT_TARGET
-    cap = MAX_FILES_BY_TARGET[target]
-    return min(cap, MAX_FILES) if target == "preview" else cap   # MAX_FILES: the preview cap, as before
+    """The file cap of a build target (sitegen --target, qa.site_checks --target). One rule everywhere: a build is
+    within its cap when it has at most this many files (<= cap)."""
+    return MAX_FILES_BY_TARGET[target or DEFAULT_TARGET]
 PAGE_BYTES = 1_000_000  # a year page over this is split in parts (build.py plan_parts; city-pages/page-weight)
 PAGE_TARGET = 850_000  # the size each part aims at, under PAGE_BYTES
 
@@ -154,3 +153,6 @@ OUTCOME_TAIL_WORDS = "by the following roll call vote"
 
 # Source URLs must use this scheme; anything else fails the build.
 ALLOWED_URL_SCHEMES = ("https",)
+# Hosts whose meeting videos get timestamp links (sitegen/transcripts.py video_ok): the city's CivicClerk media host.
+# A transcript of a video anywhere else shows its times as text only.
+VIDEO_HOSTS = ("cpmedia.azureedge.net",)

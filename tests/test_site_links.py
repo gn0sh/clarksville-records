@@ -134,9 +134,9 @@ def test_publish_manifest_and_file_limit(tmp_path, monkeypatch):
     manifest = json.loads((tmp_path / "build" / "publish-files.json").read_text())
     assert "index.html" not in manifest and "about.html" in manifest and "static/style.css" in manifest
     assert all(Path(v).is_file() for v in manifest.values())
-    monkeypatch.setattr(config, "MAX_FILES", 5)
+    monkeypatch.setitem(config.MAX_FILES_BY_TARGET, "preview", 5)
     with pytest.raises(sitegen_build.BuildError):
-        sitegen_build.write_publish_manifest(out)
+        sitegen_build.write_publish_manifest(out, "preview")
 
 
 def test_invalid_facts_fail_the_build(tmp_path):
