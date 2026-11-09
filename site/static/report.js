@@ -8,7 +8,12 @@
   var PAGE_RE = /^(?!.*\.\.)(?!.*\/\/)[A-Za-z0-9][A-Za-z0-9_\/-]{0,200}\.html$/;
   // A fact or record id as the site prints them (e.g. rc-2024-01-08-3/o-smith, 2024-01-08/att/o-smith).
   var ID_RE = /^[A-Za-z0-9][A-Za-z0-9_.:\/-]{0,159}$/;
-  var enc = encodeURIComponent;
+  // encodeURIComponent, plus the five characters it leaves as they are (RFC 3986 strict), so no quote survives.
+  function enc(s) {
+    return encodeURIComponent(s).replace(/[!'()*]/g, function (c) {
+      return "%" + c.charCodeAt(0).toString(16).toUpperCase();
+    });
+  }
 
   function parseHash(hash) {
     var out = {};
