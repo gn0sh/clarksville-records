@@ -109,7 +109,7 @@ def cmd_build(store: Store, log: dict, use_ocr: bool = True) -> tuple[dict, dict
             continue                     # the same bytes listed under two URLs: one document
         seen_sha.add(e["sha256"])
         p = store.path_for(e["sha256"])
-        if not p.exists():
+        if not store.has_bytes(e["sha256"]):
             log["failures"].append({"stage": "parse", "url": e["url"], "error": "not in the store (run without --offline)"})
             continue
         t0 = time.time()
@@ -232,7 +232,7 @@ REFUSED = 4
 
 def missing_inputs(store: Store) -> list[dict]:
     """Minutes entries the build would read (current, in range) whose bytes are not in the store."""
-    return [e for e in store.current() if in_range(e) and not store.path_for(e["sha256"]).exists()]
+    return [e for e in store.current() if in_range(e) and not store.has_bytes(e["sha256"])]
 
 
 def shrink_reason(facts: dict, log: dict, facts_path: Path) -> str | None:

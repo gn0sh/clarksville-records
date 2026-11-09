@@ -51,6 +51,7 @@ class Store:
         self.root = Path(root) if root else store_dir()
         self.changes_path = Path(changes_path) if changes_path else self.manifest_path.parent / "changes.jsonl"
         self.now = now
+        self._verified: set[str] = set()
         raw = json.loads(self.manifest_path.read_text()) if self.manifest_path.exists() else []
         self.entries = [_norm_entry(e) for e in raw]
 
@@ -59,7 +60,23 @@ class Store:
         return self.root / f"{sha256}.pdf"
 
     def has_bytes(self, sha256: str) -> bool:
-        return self.path_for(sha256).exists()
+        """True when the stored file exists AND its sha256 matches its name (pipeline/cache-integrity). A file restored
+        from the Actions cache is not trusted: on a mismatch it is deleted and treated as missing, so it is refetched.
+        Each file is hashed once per Store instance."""
+        p = self.path_for(sha256)
+        if sha256 in self._verified:
+            return p.exists()
+        if not p.is_file():
+            return False
+        h = hashlib.sha256()
+        with p.open("rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
+        if h.hexdigest() != sha256:
+            p.unlink(missing_ok=True)
+            return False
+        self._verified.add(sha256)
+        return True
 
     def latest(self, url: str) -> dict | None:
         cands = [e for e in self.entries if e["url"] == url]
@@ -85,6 +102,7 @@ class Store:
             tmp = p.with_suffix(".part")
             tmp.write_bytes(body)
             tmp.replace(p)
+        self._verified.add(digest)
         same = next((e for e in self.entries if e["url"] == url and e["sha256"] == digest), None)
         if same:
             return same, "unchanged"

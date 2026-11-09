@@ -106,3 +106,17 @@ def test_a_missing_superseded_blob_does_not_fail_the_build(tmp_path, monkeypatch
     assert read == [new["sha256"]]
     assert not [f for f in log["failures"] if f.get("url") == "https://h/a"]
     assert log["superseded"] == [{"url": "https://h/a", "sha256": old["sha256"], "superseded_by": new["sha256"]}]
+
+
+def test_cache_restored_file_with_wrong_hash_is_deleted_and_refetched(tmp_path):
+    """pipeline/cache-integrity: a stored file whose bytes do not hash to its name is not trusted."""
+    st = make(tmp_path)
+    e, _ = st.put("https://h/a", b"%PDF-1 good", {"Content-Type": "application/pdf"}, {"meeting_date": "2024-12"})
+    p = st.path_for(e["sha256"])
+    assert make(tmp_path).has_bytes(e["sha256"])             # an intact file is used
+    p.write_bytes(b"%PDF-1 tampered")
+    fresh = make(tmp_path)                                   # a new run: nothing verified yet
+    assert not fresh.has_bytes(e["sha256"]) and not p.exists()      # mismatch: deleted, treated as missing
+    f = FakeFetcher(body=b"%PDF-1 good")
+    fetch_into_store(f, fresh, "https://h/a")
+    assert f.calls == 1 and p.read_bytes() == b"%PDF-1 good"        # refetched

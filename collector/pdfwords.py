@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from pathlib import Path
 
+PARSE_TIMEOUT = 120       # seconds; TimeoutExpired is a parse failure for that document (pipeline/parser-dos)
 LINE_TOL = 0.35          # fraction of the smaller word height
 
 
@@ -97,7 +98,8 @@ def bbox_text(pdf: Path, first: int | None = None, last: int | None = None) -> s
         cmd += ["-f", str(first)]
     if last:
         cmd += ["-l", str(last)]
-    return subprocess.run(cmd + [str(pdf), "-"], check=True, capture_output=True).stdout.decode("utf-8", "replace")
+    return subprocess.run(cmd + [str(pdf), "-"], check=True, capture_output=True,
+                          timeout=PARSE_TIMEOUT).stdout.decode("utf-8", "replace")
 
 
 def pdf_words(pdf: Path, first: int | None = None, last: int | None = None) -> list[Word]:

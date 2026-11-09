@@ -18,6 +18,7 @@ from .parse import RollCall, decide, read_table, table_heads, _lines_with_pages
 ROOT = Path(__file__).resolve().parent.parent
 OCR_CACHE = Path(os.environ.get("RECORDS_OCR_CACHE", ROOT / "data" / "ocr"))
 DPI = 300
+OCR_TIMEOUT = 600        # seconds per poppler/tesseract call; a timeout is an OCR failure for that roll call
 
 
 def cache_path(sha: str, page: int) -> Path:
@@ -35,10 +36,10 @@ def ocr_page(pdf: Path, page: int, sha: str) -> str:
     with tempfile.TemporaryDirectory() as td:
         base = Path(td) / "pg"
         subprocess.run(["pdftoppm", "-f", str(page), "-l", str(page), "-r", str(DPI), "-gray", "-png",
-                        str(pdf), str(base)], check=True, capture_output=True)
+                        str(pdf), str(base)], check=True, capture_output=True, timeout=OCR_TIMEOUT)
         png = next(Path(td).glob("pg*.png"))
         text = subprocess.run(["tesseract", str(png), "-", "--psm", "6", "-c", "preserve_interword_spaces=1"],
-                              check=True, capture_output=True, env=env).stdout.decode("utf-8", "replace")
+                              check=True, capture_output=True, env=env, timeout=OCR_TIMEOUT).stdout.decode("utf-8", "replace")
     tmp = cache.with_suffix(".part")
     tmp.write_text(text)
     tmp.replace(cache)
