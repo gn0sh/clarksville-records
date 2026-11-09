@@ -295,7 +295,8 @@ def corrections_problems(cfg: dict) -> list[str]:
         return ["corrections must be a mapping with github_repo and email"]
     out = [f"corrections has an unknown key {k!r}" for k in c if k not in ("github_repo", "email")]
     repo, email = c.get("github_repo") or "", c.get("email") or ""
-    if repo and not (isinstance(repo, str) and _GITHUB_REPO.fullmatch(repo) and ".." not in repo):
+    if repo and not (isinstance(repo, str) and _GITHUB_REPO.fullmatch(repo) and ".." not in repo
+                     and all(part not in (".", "..") for part in repo.split("/"))):
         out.append(f"corrections.github_repo must be owner/name, got {repo!r}")
     if email and not (isinstance(email, str) and _EMAIL.fullmatch(email) and ".." not in email):
         out.append(f"corrections.email must be a plain address, got {email!r}")
@@ -524,5 +525,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     index_js = "window.SEARCH_INDEX = " + json.dumps(views.search_index(ix, fx, cixs), separators=(",", ":"),
                                                      ensure_ascii=True) + ";\n"
     (out / "static" / "search-index.js").write_text(index_js, encoding="utf-8")
+    # The built page paths, for static/report.js: a page path in a report link is shown as a page of this site only
+    # when it is in this list (report-frag/text-spoof).
+    (out / "static" / "pages.js").write_text(
+        "window.BUILT_PAGES = " + json.dumps(sorted(written), separators=(",", ":")) + ";\n", encoding="utf-8")
     manifest = write_publish_manifest(out)
     return {"pages": written, "files": len(manifest) + 1}
