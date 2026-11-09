@@ -31,6 +31,15 @@ corrections:
   github_repo: ""   # "owner/name" of the PUBLIC repo: a prefilled issue from .github/ISSUE_TEMPLATE/correction.yml
   email: ""         # an address for a mailto link (no address is set until Brian picks one)
 
+# Alerts v1 (M5, sitegen/feeds.py): free Atom feeds on alerts.html. No sign-up, no e-mail, nothing stored about a
+# reader. One "new agendas and minutes" feed per body (the county and each council below), and one feed per topic
+# here, each an item_types key below, across every body. Leave the whole block out to build no feeds.
+alerts:
+  feed_id: "tag:records.gnoshcodes.com,2026-11-09:"   # names every feed and entry id; never change it (readers re-alert)
+  site_url: ""        # the public site's https base ending in "/", set at launch: feeds then carry absolute links
+  max_entries: 50     # newest entries per feed
+  topics: [rezoning, budget, resolution, ordinance, appointment]
+
 county_name: Montgomery County
 county_body: Montgomery County Commission
 city_name: City of Clarksville
