@@ -86,7 +86,11 @@ _J = {
     "meetings": {"attendance": "stated", "attendance_status": PROVENANCE["meetings.attendance_status"],
                  "body": PROVENANCE["meetings.body"], "date": "stated", "id": "derived: id",
                  "kind": PROVENANCE["meetings.kind"], "source_id": "derived: id",
-                 "stated_absent_count": "stated", "verification": _VER},
+                 "stated_absent_count": "stated", "verification": _VER,
+                 # a council's meetings (schema meeting, city): the Agenda Center listing's own fields
+                 "title": "stated", "agenda_url": "derived: link to the listed agenda file",
+                 "agenda_source_id": "derived: id", "minutes_url": "derived: link to the listed minutes file",
+                 "minutes_status": "derived: whether the team fetched and read the minutes"},
     "meetings.attendance": {"official_id": "derived: name resolution", "raw_name": "stated", "status": "stated",
                             "page": _CITE["page"]},
     "roll_calls": {"id": "derived: content position", "item_id": PROVENANCE["roll_calls.item_id"],
@@ -181,12 +185,13 @@ def strip_raw(facts: dict, internal: bool = False) -> dict:
     return out
 
 
-def public_subset(facts: dict, internal: bool = False) -> dict:
+def public_subset(facts: dict, internal: bool = False, ix=None) -> dict:
     """What the public pages show: every roll call and motion; motion attribution only as `Index.attribution` allows
-    (the same rule as the pages); attendance only when verified."""
+    (the same rule as the pages); attendance only when verified. `ix`: the pages' index of these facts (a council's
+    CouncilIndex); left out, the county's."""
     from sitegen.views import Index
 
-    ix = Index(facts)
+    ix = ix if ix is not None else Index(facts)
     mos = []
     for m in facts["motions"]:
         att = ix.attribution(m)
@@ -319,18 +324,63 @@ def seats_csv(rows: list[dict], facts: dict, names: dict) -> str:
     return _csv(out, SEAT_COLS)
 
 
-def export(facts: dict, out_dir: Path, internal: bool = False, seats: list[dict] | None = None) -> list[Path]:
-    """`seats`: the raw seat holder rows (config/localities/<locality>/seats.yml); None writes a header-only
-    seats.csv (fixture facts are never joined to the real roster)."""
-    out_dir = Path(out_dir) / "data"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    sub = strip_raw(public_subset(facts, internal), internal)
+def write_facts(facts: dict, data_dir: Path, internal: bool = False, seats: list[dict] | None = None,
+                ix=None) -> list[Path]:
+    """facts.json plus the CSV_FILES tables of one body's facts into `data_dir`."""
+    data_dir = Path(data_dir)
+    data_dir.mkdir(parents=True, exist_ok=True)
+    sub = strip_raw(public_subset(facts, internal, ix), internal)
     written = []
-    p = out_dir / "facts.json"
+    p = data_dir / "facts.json"
     p.write_text(json.dumps(sub, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
     written.append(p)
     for name, text in tables(sub, facts, internal, seats).items():
-        p = out_dir / f"{name}.csv"
+        p = data_dir / f"{name}.csv"
         p.write_text(text, encoding="utf-8")
         written.append(p)
+    return written
+
+
+def export(facts: dict, out_dir: Path, internal: bool = False, seats: list[dict] | None = None) -> list[Path]:
+    """The county's export into <out_dir>/data/. `seats`: the raw seat holder rows
+    (config/localities/<locality>/seats.yml); None writes a header-only seats.csv (fixture facts are never joined to
+    the real roster)."""
+    return write_facts(facts, Path(out_dir) / "data", internal, seats)
+
+
+def council_dir(cfg: dict) -> str:
+    """Where a council's export lives under data/: its page folder (council.yml `slug`), e.g. data/city/."""
+    return cfg["slug"]
+
+
+def export_council(cfg: dict, out_dir: Path, internal: bool = False) -> list[Path]:
+    """One council (a sitegen.config.COUNCILS entry, council.yml) into <out_dir>/data/<slug>/: the same files as the
+    county's, from the council's own facts file, under the same rules (held values out, raw OCR out). Its seats.csv
+    holds the observed ward and title records the council's pages show (sitegen/council.py holder_rows)."""
+    from sitegen import council as council_mod
+    from sitegen.build import load_facts
+
+    facts = load_facts(cfg["facts_path"])
+    wards_path = Path(cfg["wards_path"])
+    wards = json.loads(wards_path.read_text(encoding="utf-8")) if wards_path.is_file() else []
+    cix = council_mod.load(cfg, facts, wards)
+    return write_facts(facts, Path(out_dir) / "data" / council_dir(cfg), internal, cix._rows, ix=cix)
+
+
+def export_site(facts: dict, out_dir: Path, internal: bool = False, seats: list[dict] | None = None,
+                finance_path: Path | None = None, councils=None) -> list[Path]:
+    """Everything under <out_dir>/data/: the county's facts, each council's (config `councils`, per locality) and the
+    finance tables when `finance_path` exists (collector/fin_export.py)."""
+    from sitegen import config
+
+    written = export(facts, out_dir, internal, seats)
+    fixture = bool(facts.get("fixture"))
+    if councils is None:   # as the site build: a fixture county is never exported beside a real council
+        councils = () if fixture else config.COUNCILS
+    for cfg in councils:
+        written += export_council(cfg, out_dir, internal)
+    if finance_path is not None and Path(finance_path).is_file() and not fixture:
+        from .fin_export import export_finance
+        fin = json.loads(Path(finance_path).read_text(encoding="utf-8"))
+        written += export_finance(fin, Path(out_dir) / "data")
     return written

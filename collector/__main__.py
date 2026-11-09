@@ -1,4 +1,4 @@
-"""python -m collector {fetch,build,run,names} [--offline] [--internal]
+"""python -m collector {fetch,build,run,export} [--offline] [--internal] [--allow-shrink] [--out build/site]
 python -m collector fin {fetch,build,census}   (finance and contracts: collector/fin_run.py)
 python -m collector city {fetch,build,run}     (City Council, Agenda Center: collector/city_run.py)
 
@@ -7,6 +7,10 @@ build (fin_run.run_step: data/finance.json, build/report.json `finance`) -> site
 build/run-log.json. Exit 0 ok, 2 on fetch/parse failures (votes or finance), 3 on a gate failure (votes gates, or
 finance parity 'review needed'). On 2 or 3 it prints the `gh issue create` command it would run (task D1).
 --offline skips discovery and fetching (votes and finance) and uses the store (data/store/, or RECORDS_STORE).
+Offline guard (provenance/offline-run-overwrites-facts): an offline run (and `build`) refuses, exit 4, writing
+nothing, when minutes PDFs the manifest lists are missing from the store, when no minutes parse, or when the result
+would drop a meeting data/facts.json has. --allow-shrink lets a deliberate shrink through.
+export: build/site/data/ from the committed files (county facts, each council's facts, finance), no parsing.
 """
 from __future__ import annotations
 
@@ -221,11 +225,67 @@ def issue_command(code: int, log: dict, report: dict | None) -> str:
             f"--body {shlex.quote(json.dumps(body, indent=1))}")
 
 
+# ------------------------------------------------------------------ offline guard
+REFUSED = 4
+
+
+def missing_inputs(store: Store) -> list[dict]:
+    """Minutes entries the build would read (current, in range) whose bytes are not in the store."""
+    return [e for e in store.current() if in_range(e) and not store.path_for(e["sha256"]).exists()]
+
+
+def shrink_reason(facts: dict, log: dict, facts_path: Path) -> str | None:
+    """Why an offline result must not replace facts_path, or None. Refused: no minutes parsed, a document not in the
+    store, or a meeting the current file has that the new result lacks (provenance/offline-run-overwrites-facts)."""
+    gone = [f for f in log["failures"] if f.get("stage") == "parse" and "not in the store" in f.get("error", "")]
+    if gone:
+        return f"{len(gone)} minutes documents are not in the store, e.g. {gone[0].get('url')}"
+    if not log.get("parsed") or not facts.get("meetings"):
+        return "no minutes documents parsed"
+    if not Path(facts_path).is_file():
+        return None
+    old = json.loads(Path(facts_path).read_text(encoding="utf-8"))
+    dropped = sorted({m["id"] for m in old.get("meetings", [])} - {m["id"] for m in facts["meetings"]})
+    if dropped:
+        return (f"the result has {len(facts['meetings'])} meetings and would drop {len(dropped)} of the "
+                f"{len(old.get('meetings', []))} in {Path(facts_path).name}, e.g. {', '.join(dropped[:3])}")
+    return None
+
+
+def refuse(why: str) -> int:
+    print(f"collector: REFUSED (offline run): {why}. {FACTS.name} and the build were left unchanged. Restore the "
+          "store (data/store/ or RECORDS_STORE), run without --offline, or pass --allow-shrink if the smaller result "
+          "is meant.", file=sys.stderr, flush=True)
+    return REFUSED
+
+
+def cmd_export(args) -> int:
+    """build/site/data/ from the committed files only: the county facts, each council's, finance (no parsing)."""
+    from .export import export_site
+    facts = json.loads(FACTS.read_text(encoding="utf-8"))
+    out = Path(args.out)
+    written = export_site(facts, out, internal=args.internal, seats=load_seat_rows(), finance_path=FINANCE)
+    try:
+        from sitegen.build import write_publish_manifest
+    except ImportError:
+        write_publish_manifest = None
+    if write_publish_manifest is not None:
+        write_publish_manifest(out)
+    print(f"collector export: {len(written)} files, {sum(p.stat().st_size for p in written):,} bytes, to {out}/data")
+    return 0
+
+
 def cmd_run(args) -> int:
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
     log = {"started_at": started, "offline": args.offline, "found": None, "new": [], "fetched": {}, "failures": [],
            "parsed": 0, "held_back": None}
     store = Store(MANIFEST)
+    allow = getattr(args, "allow_shrink", False)
+    if args.offline and not allow:
+        missing = missing_inputs(store)
+        if missing:
+            return refuse(f"{len(missing)} minutes PDFs listed in the manifest are not in the store "
+                          f"({store.root}), e.g. {missing[0]['url']}")
     fetcher = None
     if not args.offline:
         fetcher = finance_fetcher()
@@ -233,6 +293,10 @@ def cmd_run(args) -> int:
         cmd_fetch(store, log, fetcher=fetcher)
     print("collector: parse, verify, assemble", flush=True)
     facts, report, b = cmd_build(store, log, use_ocr=not args.no_ocr)
+    if args.offline and not allow:
+        why = shrink_reason(facts, log, FACTS)
+        if why:
+            return refuse(why)
     changed = write_if_changed(FACTS, dumps(facts))
     BUILD.mkdir(parents=True, exist_ok=True)
     write_if_changed(BUILD / "report.json", dumps(report))
@@ -245,10 +309,10 @@ def cmd_run(args) -> int:
     except ImportError:
         print("collector: sitegen is not installed in this checkout; skipping the site step", flush=True)
         site_build = None
-    from .export import export
+    from .export import export_site
     if site_build:
         site_build(FACTS, site, internal=args.internal, report_path=BUILD / "report.json")
-    export(facts, site, internal=args.internal, seats=load_seat_rows())
+    export_site(facts, site, internal=args.internal, seats=load_seat_rows(), finance_path=FINANCE)
     if site_build:
         write_publish_manifest(site)
     log["finished_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -278,11 +342,16 @@ def main(argv=None) -> int:
         from .fin_run import main as fin_main
         return fin_main(argv[1:])
     ap = argparse.ArgumentParser(prog="python -m collector")
-    ap.add_argument("command", choices=["run", "fetch", "build"])
+    ap.add_argument("command", choices=["run", "fetch", "build", "export"])
     ap.add_argument("--offline", action="store_true", help="skip discovery and fetching; use the store")
     ap.add_argument("--internal", action="store_true", help="build the internal review page too")
     ap.add_argument("--no-ocr", action="store_true", help="text layer only (no tesseract second reading)")
+    ap.add_argument("--allow-shrink", action="store_true",
+                    help="offline: let a result with fewer meetings, or missing store files, replace data/facts.json")
+    ap.add_argument("--out", default=str(BUILD / "site"), help="export: the site folder (default build/site)")
     args = ap.parse_args(argv)
+    if args.command == "export":
+        return cmd_export(args)
     if args.command == "fetch":
         log = {"found": None, "new": [], "fetched": {}, "failures": []}
         store = Store(MANIFEST)
