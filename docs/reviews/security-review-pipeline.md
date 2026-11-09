@@ -25,3 +25,6 @@ Holds: write token only in `push` (no parser there), only data/ staged, download
 | 4 | LOW | pipeline/dispatch-non-main-ref | :171, :209 | fix: require refs/heads/main on push and deploy |
 | 5 | LOW | pipeline/deploy-without-push | :206 | accept (manager): site may briefly lead main; next run reconciles |
 | 6 | INFO | pipeline/parser-dos | collector/fin_facts.py | accept: fails safe |
+
+## Delta re-check of 34ef0c8: PASS
+Findings 1-4 closed, nothing new; 5 and 6 stay accepted. Note: the extension allowlist does not check content; false facts in *.json stay covered by site checks and diff review.
