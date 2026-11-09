@@ -218,7 +218,7 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | code-reviewer | opus/high | fresh name-resolution review | request changes: city-votes/titled-nonmember (med-high, reproduced), alias-in-votes (low), empty-book-2027 (info). city-votes family hit 4; re-plan fail 1 of 2 before escalating. Report docs/reviews/code-review-name-resolution.md
 - 2026-11-09 | backend-engineer | opus/high | fix titled-name corroboration + alias canonicalization + residual-risk doc | running
 - 2026-11-09 | frontend-engineer | sonnet/medium | gnoshcodes.com records card | done: gn0sh/gnoshcodes-site branch claude/records-product 78afcb4, not merged; merge at launch with go-ahead (hard stop 1)
-- 2026-11-09 | frontend-engineer | sonnet/medium | gnoshcodes branding + operator credit to gnoshcodes (Brian Nov 9) | running
+- 2026-11-09 | frontend-engineer | sonnet/medium | gnoshcodes branding + operator credit + trust pages (Who runs this, Our rules, Corrections, Method) + Official record line | merged a9348df (conflicts in site_checks/style.css resolved keeping both). Follow-ups: transcript pages need the Official record line; kit asks for a placeholder-logo credit line (decide); needs code review
 - 2026-11-09 21:48Z: Brian said "go" to full parallel helpers through the Friday launch (coordinator relay).
 - 2026-11-09 | devops-engineer | sonnet/medium | prod hosting: locked daily-update + Pages workflow, CNAME, launch runbook | running
 - 2026-11-09 | qa-engineer | sonnet/medium | launch test plan | done: docs/qa/launch-test-plan.md; manager decisions recorded (city verified-rate waiver, transcript coverage, preview limits non-blocking)
