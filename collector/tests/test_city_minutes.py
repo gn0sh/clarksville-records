@@ -345,3 +345,49 @@ def test_a_run_on_of_two_names_is_not_an_official(cfg):
     assert checks(m)["names_well_formed"]["detail"] == "Ron Erb Valerie Guzman"
     assert not any("valerie" in o["id"] for o in facts["officials"])
     assert all(r["verification"]["status"] == "unverified" for r in facts["roll_calls"])
+
+
+# ------------------------------------------------------------------ 2020-2023 formats
+HYBRID = """ATTENDANCE
+
+    IN PERSON: Richard Garrett ( Ward 1), Ron Erb (Ward 3), Gary Norris ((Ward 11), Jeff
+    Burkhart (Ward 12), Trisha Butler - arrived late (Ward 4), Vacant (Ward 5)
+
+    VIA GOOGLE MEETS: Tim Chandler (Ward 6), Wanda
+    Smith (Ward 7)
+APPROVAL OF ELECTRONIC MEETING
+
+    The regular session was called to order by Mayor Joe Pitts.
+
+    ORDINANCE 12-2022-23 (First Reading) Amending the budget
+
+    The following vote was recorded:
+
+           AYE: Burkhart, Erb, Garrett, Norris, Pitts
+
+           Nay:   Smith
+
+           NO RESPONSE: Chandler
+
+    The motion to adopt ORDINANCE 12-2022-23 (First Reading) passed.
+"""
+
+
+def test_hybrid_attendance_lines_and_mixed_case_labels(cfg):
+    p = parse_text([HYBRID], cfg)
+    assert [(x.raw_name, x.ward) for x in p.present] == [
+        ("Richard Garrett", 1), ("Ron Erb", 3), ("Gary Norris", 11), ("Jeff Burkhart", 12), ("Trisha Butler", 4),
+        ("Tim Chandler", 6), ("Wanda Smith", 7)]
+    assert [x.part_time for x in p.present] == [False] * 4 + [True, False, False]
+    rc = p.roll_calls[0]
+    assert [(v.raw_name, v.raw_value, v.value) for v in rc.votes][-2:] == [("Smith", "NAY", "no"),
+                                                                          ("Chandler", "NO RESPONSE", "other")]
+    assert rc.item["number"] == "12-2022-23" and rc.outcome == "passed"
+
+
+def test_late_arrival_may_miss_a_vote(cfg):
+    rows, store, inspect = rows_and_store()
+    facts, _ = build(cfg, rows[:1], store, parse=lambda p, c: parse_text([HYBRID], c), inspect=inspect)
+    assert facts["meetings"][0]["verification"]["status"] == "verified"
+    rc = facts["roll_calls"][0]
+    assert rc["verification"]["status"] == "verified"           # Butler arrived late and is not in the vote

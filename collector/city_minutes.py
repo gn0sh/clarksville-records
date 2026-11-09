@@ -29,8 +29,14 @@ MOTION_RE = re.compile(TITLES + r"\s+([A-Z][A-Za-z'’-]+)\s+made\s+a\s+motion")
 NAMED_RE = re.compile(TITLES + r"\s+([A-Z][A-Za-z'’-]+)")
 SECOND_RE = re.compile(r"seconded\s+by\s+" + TITLES + r"\s+([A-Z][A-Za-z'’-]+)")
 # "(Ward 1)", "(Ward 10; arrived 5:05 p.m.)", and the minutes' own slips "Ward 3)" and "(Ward7)"
+# "Ward N" with or without its parentheses, with a note after it ("Ward 2 - left early", "Ward 8, Excused")
 WARD_RE = re.compile(r"\(?\s*\bWard\s*(\d{1,2})\b[^)]*\)?", re.I)
-PAREN_RE = re.compile(r"\([^)]*\)?|\bWard\s*\d{1,2}\b[^)]*\)")
+PAREN_RE = re.compile(r"\([^)]*\)?|\bWard\s*\d{1,2}\b[^)]*\)?", re.I)
+DASH_NOTE_RE = re.compile(r"\s*[-–—‐]\s*[a-z][^()]*")        # "Trisha Butler - arrived late (Ward 12)"
+PART_TIME_RE = re.compile(r"\b(?:arrived|left|late|departed|excused at)\b", re.I)
+SECTION_RE = re.compile(r"^\d{1,2}\.\s+[A-Z]")                     # "3.   Planning Commission" (2023 minutes)
+NOT_A_PERSON = {"vacant"}                                         # a seat listed as "Vacant": no one to record
+WARD_ONLY_RE = re.compile(r"^\(?\s*Ward\s*\d{1,2}\b[^()]*\)?$", re.I)
 NOT_PRESENT_RE = re.compile(r"\bnot\s+present\b|\babsent\b|\bleft\s+the\s+meeting\b|\bhad\s+left\b", re.I)
 PRO_TEM_RE = re.compile(r"^\s*Mayor\s+Pro\s+Te(?:a)?m\s*$", re.I)    # "Mayor Pro Team" is printed too
 # A person's name as the attendance prints it: two or three capitalised words (an initial counts), maybe a suffix.
@@ -53,6 +59,7 @@ class Person:
     page: int
     pro_tem: bool = False
     mayor: bool = False      # listed with the title Mayor ("Mayor Kim McMillan")
+    part_time: bool = False  # the attendance notes a late arrival or early departure ("arrived 5:05 p.m.")
 
 
 @dataclass
@@ -111,7 +118,7 @@ def lines_of(pages: list[str]) -> list[Line]:
 
 
 def _label_of(text: str, labels) -> tuple[str, str] | None:
-    m = re.match(r"^([A-Z][A-Z ]*?)\s*:\s*(.*)$", text)
+    m = re.match(r"^([A-Za-z][A-Za-z ]*?)\s*:\s*(.*)$", text)       # "AYE:", also "Nay:" and "Abstain:"
     if m and m.group(1).strip().upper() in labels:
         return m.group(1).strip().upper(), m.group(2)
     return None
@@ -135,7 +142,7 @@ def split_outside_parens(text: str) -> list[str]:
     while i < len(text):
         ch = text[i]
         if ch == "(":
-            depth += 1
+            depth = 1                       # "((Ward 11)" is printed too: parentheses do not nest here
         elif ch == ")":
             depth = max(depth - 1, 0)
         if depth == 0 and ch in ",;":
@@ -148,9 +155,9 @@ def split_outside_parens(text: str) -> list[str]:
             continue
         else:
             cur += ch
-            # a "(Ward N)" group always ends a member's entry, even where the comma after it was left out:
-            # "Tim Chandler (Ward 4) Valerie Guzman (Ward 5)" is two members
-            if ch == ")" and depth == 0 and re.search(r"\(\s*Ward\b[^()]*\)$", cur) \
+            # a parenthesised group ("(Ward N)", "(11)") always ends a member's entry, even where the comma after
+            # it was left out: "Tim Chandler (Ward 4) Valerie Guzman (Ward 5)" is two members
+            if ch == ")" and depth == 0 and re.search(r"\([^()]*\)$", cur) \
                     and re.match(r"\s+[A-Z]", text[i + 1:]):
                 parts.append(cur)
                 cur = ""
@@ -165,7 +172,14 @@ def parse_people(text: str, page: int) -> list[Person]:
     out: list[Person] = []
     for tok in split_outside_parens(text):
         ward = WARD_RE.search(tok)
-        name = PAREN_RE.sub("", tok).strip()
+        if WARD_ONLY_RE.match(tok) and out:          # "Wallace Redd, Ward 4)": the ward split off by a comma
+            if out[-1].ward is None:
+                out[-1].ward = int(ward.group(1))
+            continue
+        name = PAREN_RE.sub("", DASH_NOTE_RE.sub("", tok)).strip()
+        part_time = bool(PART_TIME_RE.search(tok))
+        if name.lower() in NOT_A_PERSON:
+            continue
         if SUFFIX_RE.match(name) and out:                # "Joe Smith, Jr." split on its comma
             out[-1].raw_name += ", " + name
             continue
@@ -177,7 +191,7 @@ def parse_people(text: str, page: int) -> list[Person]:
             if ward and out[-1].ward is None:
                 out[-1].ward = int(ward.group(1))
             continue
-        out.append(Person(name, int(ward.group(1)) if ward else None, page, mayor=bool(mayor)))
+        out.append(Person(name, int(ward.group(1)) if ward else None, page, mayor=bool(mayor), part_time=part_time))
     return out
 
 
@@ -188,6 +202,8 @@ def _block(lines: list[Line], i: int, labels, prose_labels=()) -> tuple[str, str
     parts = [rest]
     j = i + 1
     while j < len(lines) and lines[j].text and not _label_of(lines[j].text, labels) \
+            and not SECTION_RE.match(lines[j].text) \
+            and not (HEADING_RE.match(lines[j].text) and not re.search(r"[a-z]", lines[j].text)) \
             and (label in prose_labels or not _ends_list(lines[j].text)):
         parts.append(lines[j].text)
         j += 1
@@ -271,12 +287,15 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
     window: list[Line] = []            # text since the last vote block or item start (for the motion)
     i, order = 0, 0
     seen_attendance = False
+    attendance_closed = False          # the first heading after the attendance lines closes the section
     while i < len(lines):
         ln = lines[i]
         t = ln.text
         lab = _label_of(t, all_labels) if t else None
-        if lab and lab[0] in att_labels and not out.roll_calls and not seen_attendance_done(out, lab[0], cfg):
-            label, text, j = _block(lines, i, all_labels)
+        if lab and lab[0] in att_labels and not out.roll_calls and not attendance_closed:
+            # every attendance line of the ATTENDANCE section ("IN PERSON:" and "VIA GOOGLE MEETS:" in 2020); a
+            # note after a name ("Trisha Butler - arrived late") does not end the list, a blank line does
+            label, text, j = _block(lines, i, all_labels, att_labels)
             people = parse_people(text, ln.page)
             if label in cfg.present_labels:
                 out.present.extend(people)
@@ -330,6 +349,7 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
             i = j
             continue
         if t and _para_start(lines, i) and _heading(t, cfg, all_labels):
+            attendance_closed = attendance_closed or seen_attendance
             item = {"number": None, "kind": None, "title": None, "heading": re.sub(r"\s+", " ", t)}
             window = []
         if t:
@@ -338,13 +358,6 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
     if not seen_attendance:
         out.problems.append("no attendance lines found")
     return out
-
-
-def seen_attendance_done(out: ParsedCityMinutes, label: str, cfg: AgendaCenterConfig) -> bool:
-    """Only the first PRESENT line (and the ABSENT line with it) is the meeting's attendance."""
-    if label in cfg.present_labels:
-        return bool(out.present)
-    return bool(out.absent)
 
 
 def _motion(window: list[Line]) -> dict | None:

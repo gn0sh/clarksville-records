@@ -45,8 +45,12 @@ vote_labels:                 # quoted: YAML reads a bare yes/no as true/false
   "ABSTENTIONS": "abstain"
   "RECUSED": "other"
   "PASS": "other"
+  "NOT VOTING": "other"        # 2019-07-25
+  "NO RESPONSE": "other"       # 2020 remote meetings: no answer at the roll call
 absent_labels: [ABSENT, "NOT PRESENT"]
-present_labels: [PRESENT]
+# Attendance lines of the ATTENDANCE section. 2020-2021 remote and hybrid meetings print PARTICIPATING, or
+# IN PERSON plus VIA GOOGLE MEETS; all of them count as present.
+present_labels: [PRESENT, PARTICIPATING, IN PERSON, VIA GOOGLE MEETS, VIA GOOGLE MEET, REMOTE, REMOTELY]
 # A NOTE line inside a vote block ("NOTE: Councilman Alexander was not present for this vote.") names members who
 # did not vote because they were out of the room; they count as absent for that vote only.
 note_labels: [NOTE]
@@ -58,8 +62,14 @@ item_number: '\b(ORDINANCE|RESOLUTION)\s+(\d{1,3}-\d{4}-\d{2})\b'
 # The presiding officer, from the call-to-order sentence ("called to order by Mayor Joe Pitts"). Groups: title, name.
 # When the title is presiding_title (the mayor, who is not on the PRESENT line and votes), the mayor is added to the
 # meeting's roster; a Mayor Pro Tem presiding is already on the PRESENT line as a member.
-presiding: "called to order by (?P<title>Mayor Pro Tem|Mayor)\\s+(?P<name>[A-Z][A-Za-z.'-]+(?:\\s+[A-Z][A-Za-z.'-]+)+)"
+presiding: "called to order by (?P<title>Mayor Pro Tem|Mayor)\\s+(?P<name>[A-Z][a-z][A-Za-z'-]*(?:\\s+[A-Z]\\.)?(?:\\s+[A-Z][a-z][A-Za-z'-]*)+)"
 presiding_title: Mayor
 
-# Name fixes for the same person printed two ways. Empty until a run shows one; each entry needs a source note.
-aliases: {}
+# Name fixes for the same person printed two ways: printed form -> the form most minutes print. Each entry is the
+# same ward in the same term (checked in data/localities/clarksville-tn/wards.json, 2026-11-09); applied to every
+# printing alike. Vote names are never fixed here: a misspelt vote name stays unresolved and its roll call is held.
+aliases:
+  "DaJaun Little": "DaJuan Little"     # Ward 3, 10 printings 2022-11-03 on; DaJuan Little 46 printings, Ward 3
+  "DuJuan Little": "DaJuan Little"     # Ward 3, 2021-10-05
+  "Jaon Knight": "Jason Knight"        # Ward 5, 2021-01-05
+  "Trish Butler": "Trisha Butler"      # Ward 12, 2021-04-29

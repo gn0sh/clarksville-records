@@ -233,7 +233,7 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
                  items, events, wards, problems, unresolved) -> None:
     sha8 = src["sha256"][:8]
     roster: list[tuple[str, str]] = []
-    present_ids, absent_ids = set(), set()
+    present_ids, absent_ids, part_time = set(), set(), set()
     att = []
     malformed = []
     for status, people in (("present", pm.present), ("absent", pm.absent)):
@@ -246,6 +246,8 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
             att.append({"official_id": oid, "raw_name": p.raw_name, "status": status, "page": p.page})
             roster.append((oid, officials.by_id[oid]["name"]))
             (present_ids if status == "present" else absent_ids).add(oid)
+            if p.part_time:
+                part_time.add(oid)
             wards.append({"official_id": oid, "raw_name": p.raw_name, "ward": p.ward, "pro_tem": p.pro_tem,
                           "meeting_id": meeting["id"], "date": meeting["date"], "source_id": src["id"],
                           "page": p.page})
@@ -294,7 +296,8 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
         voted = set(seen)
         yes = sum(v["value"] == "yes" for v in votes)
         no = sum(v["value"] == "no" for v in votes)
-        missing = sorted(present_ids - voted - block_absent - {presiding_id})
+        # a member whose attendance notes a late arrival or early departure may be missing from a vote
+        missing = sorted(present_ids - voted - block_absent - part_time - {presiding_id})
         not_present = sorted(o for o in voted if o not in present_ids and o != presiding_id)
         unres = [v["raw_name"] for v in votes if v["official_id"] is None]
         if rc.outcome == "passed":
