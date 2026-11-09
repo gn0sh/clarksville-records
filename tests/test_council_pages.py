@@ -463,3 +463,12 @@ def test_pack_years_joins_consecutive_years_while_the_page_fits():
     assert [years_key(r) for r in runs] == ["2024-2026", "2023", "2021-2022"]
     assert [g["year"] for r in runs for g in r] == list(size)    # order kept, every year once
     assert pack_years([], lambda run: 0) == []
+
+
+def test_pack_years_never_joins_years_with_a_gap():
+    """city-pages/year-run-label: a member seen in 2018 and 2023 only gets two pages, never one labelled 2018-2023."""
+    from sitegen.build import pack_years, years_key
+    groups = [{"year": y} for y in ("2026", "2025", "2023", "2018", "2017")]
+    runs = pack_years(groups, lambda run: 1)
+    assert [years_key(r) for r in runs] == ["2025-2026", "2023", "2017-2018"]
+    assert all(int(a["year"]) - int(b["year"]) == 1 for r in runs for a, b in zip(r, r[1:]))
