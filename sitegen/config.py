@@ -1,4 +1,5 @@
 """Site-wide constants. The operator name is read from here for the footer and the About page (spec G1)."""
+import os
 from pathlib import Path
 
 import yaml
@@ -16,6 +17,10 @@ CONFIG_DIR = REPO_ROOT / "config"
 SITE_CONFIG_PATH = CONFIG_DIR / "site.yml"
 SITE = yaml.safe_load(SITE_CONFIG_PATH.read_text(encoding="utf-8"))
 LOCALITY = SITE["locality"]
+# Launch-time override (docs/ops/launch-runbook.md): the daily-update workflow sets RECORDS_SITE_URL so feeds carry
+# absolute links to the public site without editing alerts.site_url in config/site.yml. Unset: the file's value.
+if os.environ.get("RECORDS_SITE_URL"):
+    SITE.setdefault("alerts", {})["site_url"] = os.environ["RECORDS_SITE_URL"]
 # Holder records (design 4.1) and the landing map's geometry (design 3.2). Both optional: without them the site
 # shows no seat labels, one officials list, and the district list without a map.
 # The roster lives with its locality (config/localities/<locality>/seats.yml); the older top-level config/seats.yml
@@ -59,7 +64,9 @@ FIXTURE_CAPITAL_FUND = "951"
 OPERATOR_PLACEHOLDER = "[OPERATOR NAME - CEO to confirm]"
 OPERATOR_NAME = SITE["operator"]  # "Brian Zacharias", confirmed by the CEO, 2026-11-07
 
-MAX_FILES = 500  # under the artifact limit of 511 files per version; finance adds one page per fund, not per department
+# Under the claude.ai artifact limit of 511 files per version (the preview host). GitHub Pages has no such cap, so the
+# daily-update workflow sets RECORDS_MAX_FILES higher; a local or preview build keeps 500.
+MAX_FILES = int(os.environ.get("RECORDS_MAX_FILES") or 500)  # finance adds one page per fund, not per department
 PAGE_BYTES = 1_000_000  # a year page over this is split in parts (build.py plan_parts; city-pages/page-weight)
 PAGE_TARGET = 850_000  # the size each part aims at, under PAGE_BYTES
 

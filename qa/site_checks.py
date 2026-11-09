@@ -66,8 +66,9 @@ if __package__ in (None, ""):
 
 from qa.common import OPERATOR, ROOT, find_pdf, load_facts, pdf_page_count  # noqa: E402
 
-# 500: under the artifact limit of 511 files per version (sitegen.config.MAX_FILES says the same)
-MAX_FILES = 500
+# 500: under the artifact limit of 511 files per version (sitegen.config.MAX_FILES says the same; both read the
+# RECORDS_MAX_FILES override the Pages workflow sets)
+MAX_FILES = int(os.environ.get("RECORDS_MAX_FILES") or 500)
 VIEWPORT = 390
 NARROW = 360  # AC-F10: the Bids and awards pages are also checked at 360 px
 
@@ -87,7 +88,10 @@ def corrections_links(cfg: dict) -> tuple[str, str]:
 
 def _site_cfg() -> dict:
     import yaml
-    return yaml.safe_load((ROOT / "config" / "site.yml").read_text(encoding="utf-8"))
+    cfg = yaml.safe_load((ROOT / "config" / "site.yml").read_text(encoding="utf-8"))
+    if os.environ.get("RECORDS_SITE_URL"):    # the same launch-time override sitegen/config.py applies
+        cfg.setdefault("alerts", {})["site_url"] = os.environ["RECORDS_SITE_URL"]
+    return cfg
 
 
 def councils(facts: dict) -> list[dict]:
