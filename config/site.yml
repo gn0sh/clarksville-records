@@ -35,7 +35,9 @@ district_layer: {label: County commission districts, short: Districts}
 ward_layer: {label: City wards, short: Wards, coming: true}
 # Landing purpose line (h1). Neutral: what the site holds, no claim about anyone.
 purpose: Votes and records of the Montgomery County Commission, linked to the county's own minutes.
-city_coming: City of Clarksville records are coming.
+city_coming: City of Clarksville records are coming.   # shown only when no council is listed below
+# Councils with their own pages beside the county (M4): each is config/localities/<locality>/council.yml.
+councils: [clarksville-tn]
 
 # County commission seats drawn on the map and given a page each (districts/<nn>.html).
 district_count: 21

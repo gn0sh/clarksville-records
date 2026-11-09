@@ -18,7 +18,7 @@
   var KIND = { item: "Item", vote: "Roll call", meeting: "Meeting", person: "Person or district", sol: "Bids and awards" };
   var OUTCOME = { passed: "Passed", failed: "Failed", other: "Other" };
   var VOTE = { yes: "Yes", no: "No", abstain: "Abstain", other: "Other" };
-  var MULTI = ["kind", "type", "outcome"];
+  var MULTI = ["kind", "type", "outcome", "body"];
   var SINGLE = ["q", "from", "to", "official", "vote", "order"];
 
   if (!IX) {
@@ -31,6 +31,10 @@
   IX.types.forEach(function (t) { TYPES[t.key] = t.label; });
   var OFFICIALS = {};
   IX.officials.forEach(function (o) { OFFICIALS[o.id] = o.label; });
+  var BODIES = {};
+  (IX.bodies || []).forEach(function (b) { BODIES[b.key] = b.label; });
+  // Each official's page: a council's members live under its own folder (sitegen/council.py).
+  function officialHref(id) { return (IX.hrefs && IX.hrefs[id]) || "officials/" + id + ".html"; }
 
   function esc(s) {
     return String(s).replace(/[&<>"']/g, function (c) {
@@ -95,6 +99,7 @@
   function hay(r) { return (r.n + " " + r.t + " " + (r.st || "") + " " + (r.z || "") + " " + (r.x || "")).toLowerCase(); }
   function baseMatch(r, st, toks) {  // every filter except official, vote and outcome
     if (st.kind.length && st.kind.indexOf(r.k) < 0) { return false; }
+    if (st.body.length && st.body.indexOf(r.b) < 0) { return false; }
     if (st.from || st.to) {
       var lo = st.from ? +st.from : -Infinity, hi = st.to ? +st.to : Infinity;
       if (!r.y.some(function (y) { return y >= lo && y <= hi; })) { return false; }
@@ -131,11 +136,11 @@
     var parts = [KIND[r.k]];
     if (r.k === "item" || r.k === "vote") {
       r.ty.forEach(function (t) { parts.push(TYPES[t] || t); });
-      parts.push(IX.county_body);
+      parts.push(BODIES[r.b] || IX.county_body);
     }
     var html = '<li class="result"><p class="r-kind">' + esc(parts.join(" · ")) + "</p>";
     html += '<p class="r-title"><a href="' + esc(r.h) + '">' + (r.n ? "<strong>" + mark(r.n, toks) + "</strong> " : "") +
-      mark(r.t, toks) + "</a>" + (r.st ? ' <span class="seat">' + (r.ho ? '<a href="officials/' + esc(r.ho) + '.html">' + mark(r.st, toks) + "</a>" : mark(r.st, toks)) + "</span>" : "") + "</p>" +
+      mark(r.t, toks) + "</a>" + (r.st ? ' <span class="seat">' + (r.ho ? '<a href="' + esc(officialHref(r.ho)) + '">' + mark(r.st, toks) + "</a>" : mark(r.st, toks)) + "</span>" : "") + "</p>" +
       (r.z ? '<p class="r-zoning">' + mark(r.z, toks) + "</p>" : "") +
       (r.x ? '<p class="r-zoning">' + mark(r.x, toks) + "</p>" : "");
     var meta = "";
@@ -145,7 +150,7 @@
     } else if (r.k === "vote") {
       meta = esc(r.d) + " · Outcome: " + (r.c && r.o ? esc(OUTCOME[r.o]) : 'Not confirmed<span aria-hidden="true">*</span><span class="sr-only"> (not confirmed)</span>, see the page');
       if (st.official && st.vote && r.v && r.s) {
-        meta += '<br><a href="officials/' + esc(st.official) + '.html">' + esc(IX.names[st.official]) + '</a><span class="seat">, ' + esc(seatOn(r.d, st.official)) + "</span>: " +
+        meta += '<br><a href="' + esc(officialHref(st.official)) + '">' + esc(IX.names[st.official]) + '</a><span class="seat">, ' + esc(seatOn(r.d, st.official)) + "</span>: " +
           esc(VOTE[r.v[st.official]]) +
           ' · Source: <a href="' + esc(r.s.u) + '" target="_blank" rel="noopener noreferrer">minutes p. ' + esc(r.s.p) +
           ", fetched " + esc(r.s.f) + "</a>";
@@ -170,16 +175,17 @@
     st.kind.forEach(function (k) { chipsEl.appendChild(chip("Show: " + KIND[k], function () { state.kind = state.kind.filter(function (x) { return x !== k; }); })); });
     if (st.from || st.to) { chipsEl.appendChild(chip("Years: " + (st.from || "any") + "-" + (st.to || "any"), function () { state.from = state.to = ""; })); }
     st.type.forEach(function (t) { chipsEl.appendChild(chip("Type: " + TYPES[t], function () { state.type = state.type.filter(function (x) { return x !== t; }); })); });
+    st.body.forEach(function (b) { chipsEl.appendChild(chip("Body: " + (BODIES[b] || b), function () { state.body = state.body.filter(function (x) { return x !== b; }); })); });
     if (st.official) { chipsEl.appendChild(chip("Official: " + (OFFICIALS[st.official] || st.official), function () { state.official = ""; state.vote = ""; })); }
     if (st.vote) { chipsEl.appendChild(chip("Voted: " + VOTE[st.vote], function () { state.vote = ""; })); }
     st.outcome.forEach(function (o) { chipsEl.appendChild(chip("Outcome: " + OUTCOME[o], function () { state.outcome = state.outcome.filter(function (x) { return x !== o; }); })); });
-    var n = st.kind.length + st.type.length + st.outcome.length + (st.from || st.to ? 1 : 0) + (st.official ? 1 : 0) + (st.vote ? 1 : 0);
+    var n = st.kind.length + st.type.length + st.outcome.length + st.body.length + (st.from || st.to ? 1 : 0) + (st.official ? 1 : 0) + (st.vote ? 1 : 0);
     document.getElementById("filter-count").textContent = n ? "(" + n + ")" : "";
   }
 
   var state = readURL();
   function empty(st) {
-    return !st.q && !st.kind.length && !st.type.length && !st.outcome.length && !st.from && !st.to && !st.official;
+    return !st.q && !st.kind.length && !st.type.length && !st.outcome.length && !st.body.length && !st.from && !st.to && !st.official;
   }
   function update(keepPage) {
     state = fromControls();

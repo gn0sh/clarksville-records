@@ -1,0 +1,37 @@
+# City of Clarksville, TN: the City Council pages of the site (M4 slice 2). sitegen/council.py reads this file for
+# every locality listed under `councils:` in config/site.yml; the code holds no locality literal. Paths are relative
+# to the repository root. The facts file is the city collector's (collector/city_run.py), in schema/facts.schema.json.
+
+body_key: city                       # search index body key ("b"), also the Search page's Body filter value
+body_name: Clarksville City Council  # as the minutes and the facts file name it
+nav_label: City Council              # the menu entry and the page names ("City Council: Meetings 2019")
+slug: city                           # every page of this body lives under <slug>/ (index, members, meetings, items)
+facts: data/localities/clarksville-tn/facts.json
+wards: data/localities/clarksville-tn/wards.json   # each member's ward as printed in each meeting's attendance list
+
+# Seats (design 4.1, invariant `provenance`). A ward holder record is a run of meetings whose attendance list prints
+# the member with that ward number, dates observed (the first and last such meetings), never term dates. A ward
+# printed for a member at fewer than `min_ward_prints` meetings in a row is not made a record (a single print that
+# disagrees with the member's own run either side is read as a misprint or misread; the meeting's own page still
+# links the source). The mayor's seat is taken from the roll calls whose votes list a person with that title.
+seat_word: ward                      # seat ids ward-<n>; labels from config/site.yml ward_label ("Ward 3")
+min_ward_prints: 2
+title_seats:
+  Mayor: city-mayor                  # an official whose title is Mayor holds the city-mayor seat on their roll calls
+evidence:
+  ward: attendance lists
+  title: roll calls
+latest_words: the latest minutes read   # "seen in attendance lists from X to L, the latest minutes read"
+
+# How each meeting kind (schema meeting.kind, from agenda-center.yml kind_rules) is named on the pages.
+kind_labels:
+  regular: Regular session
+  executive: Executive session
+  special: Special session
+  committee: Committee meeting
+  work-session: Work session
+  public-hearing: Public hearing
+  other: Other meeting
+
+# Shown for an item whose title the minutes reader could not take from the minutes (its number is still shown).
+untitled_item: Title not read from the minutes

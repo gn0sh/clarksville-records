@@ -22,8 +22,10 @@
       </fieldset>
       <fieldset>
         <legend>Body</legend>
-        <label><input type="checkbox" name="body" value="county" checked disabled> {{ site.cfg.county_body }}</label>
-        <label><input type="checkbox" name="body" value="city" disabled> {{ site.cfg.city_body }} (coming)</label>
+        {% for b in bodies %}
+        <label><input type="checkbox" name="body" value="{{ b.key }}"> {{ b.label }}</label>
+        {% endfor %}
+        {% if bodies | length == 1 %}<label><input type="checkbox" name="body" value="city" disabled> {{ site.cfg.city_body }} (coming)</label>{% endif %}
       </fieldset>
       <fieldset class="years">
         <legend>Years</legend>

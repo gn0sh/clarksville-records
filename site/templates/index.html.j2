@@ -6,7 +6,7 @@
 {% set dl = site.cfg.district_layer %}{% set wl = site.cfg.ward_layer %}
 <div class="landing">
   <h1 class="purpose">{{ site.cfg.purpose }}</h1>
-  <p class="muted purpose-sub"><span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>. {{ site.cfg.city_coming }}</p>
+  <p class="muted purpose-sub"><span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>. {% for c in site.councils %}<a href="{{ root }}{{ c.href }}">{{ c.body }}</a>: <span class="nowrap">{{ c.from }} to {{ c.to }}</span>.{% if not loop.last %} {% endif %}{% else %}{{ site.cfg.city_coming }}{% endfor %}</p>
 
   <form class="landing-search" action="search.html" method="get" role="search">
     <label for="landing-q" class="sr-only">Search records</label>
@@ -23,7 +23,11 @@
         <label><input type="radio" name="layer" id="show-districts" value="districts" checked> <span class="wide-only">{{ dl.label }}</span><span class="narrow-only" aria-hidden="true">{{ dl.short }}</span></label>
         <label><input type="radio" name="layer" id="show-wards" value="wards"> <span class="wide-only">{{ wl.label }}{% if wl.coming %} (coming){% endif %}</span><span class="narrow-only" aria-hidden="true">{{ wl.short }}{% if wl.coming %} (coming){% endif %}</span></label>
       </fieldset>
+      {% if site.councils %}
+      <p class="wards-note note">A map of the {{ site.cfg.city_name }} wards is not available yet. {% for c in site.councils %}<a href="{{ root }}{{ c.href }}#seats-h">{{ c.label }} seats</a>.{% endfor %}</p>
+      {% else %}
       <p class="wards-note note">{{ site.cfg.city_name }} wards are coming. The city's records have not been collected yet.</p>
+      {% endif %}
       {% if map %}
       <p class="sr-only">Map of {{ site.cfg.county_name }}'s {{ district_count }} commission districts. The same districts are listed after the map.</p>
       {{ county_map(map, root, site.cfg, links=true) }}
@@ -62,7 +66,17 @@
           </ol>
         </nav>
         <h2 class="list-h">{{ wl.label }}</h2>
+        {% for c in site.councils %}
+        <nav aria-label="{{ c.label }} seats">
+          <ol class="districts">
+            {% for s in c.seats %}
+            <li data-seat="{{ s.seat }}"><a href="{{ root }}{{ s.href }}"><span class="d-label">{{ s.label }}</span></a>{% if s.holder %} <span class="d-holder"><a href="{{ root }}{{ s.holder.href }}">{{ s.holder.name }}</a></span>{% endif %}</li>
+            {% endfor %}
+          </ol>
+        </nav>
+        {% else %}
         <p>{{ wl.label }} pages are coming.</p>
+        {% endfor %}
       </details>
       {% if map %}
       <details class="map-about">

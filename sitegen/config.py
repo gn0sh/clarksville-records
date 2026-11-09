@@ -26,6 +26,24 @@ DISTRICTS_PATH = CONFIG_DIR / "localities" / LOCALITY / "districts.json"
 
 SITE_NAME = SITE["site_name"]
 
+# Councils shown beside the county (M4): each listed locality's config/localities/<locality>/council.yml names its
+# facts and wards files, its page folder and its wording (sitegen/council.py). An empty list builds the county only.
+COUNCIL_KEYS = ("body_key", "body_name", "nav_label", "slug", "facts", "wards", "seat_word", "min_ward_prints",
+                "title_seats", "evidence", "latest_words", "kind_labels", "untitled_item")
+
+
+def load_council(locality: str) -> dict:
+    path = CONFIG_DIR / "localities" / locality / "council.yml"
+    cfg = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    missing = [k for k in COUNCIL_KEYS if k not in cfg]
+    if missing:
+        raise ValueError(f"{path}: missing {', '.join(missing)}")
+    return {**cfg, "locality": locality, "facts_path": REPO_ROOT / cfg["facts"],
+            "wards_path": REPO_ROOT / cfg["wards"]}
+
+
+COUNCILS = [load_council(loc) for loc in SITE.get("councils") or []]
+
 # Fixed wording for the finance and contracts pages (design finance-contracts 2-5); exact-string tested.
 FIN_TEXT_PATH = CONFIG_DIR / "finance_text.yml"
 FIN_TEXT = yaml.safe_load(FIN_TEXT_PATH.read_text(encoding="utf-8"))

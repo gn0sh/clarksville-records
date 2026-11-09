@@ -1,0 +1,64 @@
+{% extends "base.html.j2" %}
+{% from "_cards.html.j2" import cards %}
+{# A council's home (council.py home): its seats with current holders, its members, and its meetings and items by
+   year. The same layout for every council; every name links to its member page. #}
+{% block main %}
+<h1>{{ body }}</h1>
+<p class="lede">Votes and records of the {{ body }}, linked to the city's own minutes, <span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>. {{ fetched }}</p>
+<nav class="council-jump" aria-label="On this page">
+  <ul class="inline-list">
+    <li><a href="#seats-h">Seats</a></li>
+    <li><a href="#meetings-h">Meetings by year</a></li>
+    <li><a href="#items-h">Items by year</a></li>
+    <li><a href="#members-h">Members</a></li>
+  </ul>
+</nav>
+
+<section aria-labelledby="seats-h">
+  <h2 id="seats-h">Seats</h2>
+  {% if basis %}<p class="basis muted">{{ basis }}.</p>{% endif %}
+  <ol class="districts council-seats">
+    {% for s in seat_rows %}
+    <li id="seat-{{ s.seat }}" data-seat="{{ s.seat }}"><span class="d-label">{{ s.label }}</span> <span class="d-holder">{% if s.holder %}<a href="{{ root }}{{ s.holder.href }}">{{ s.holder.name }}</a>{% else %}Current member not yet recorded{% endif %}</span></li>
+    {% endfor %}
+  </ol>
+  <p class="muted">A ward map is not available yet. Each member's ward is read from the attendance lists the minutes print.</p>
+</section>
+
+<section aria-labelledby="meetings-h">
+  <h2 id="meetings-h">Meetings by year</h2>
+  <ul class="year-links">
+    {% for y in meeting_years %}
+    <li><a href="{{ y.href }}">{{ y.year }}</a> <span class="muted">({{ y.n }} {{ "meeting" if y.n == 1 else "meetings" }})</span></li>
+    {% endfor %}
+  </ul>
+  <p class="muted">{{ glance.rc_confirmed }} roll calls confirmed and {{ glance.rc_unconfirmed }} not confirmed*. A roll call that is not confirmed shows no vote values; each links to its page of the minutes.</p>
+</section>
+
+<section aria-labelledby="items-h">
+  <h2 id="items-h">Items by year</h2>
+  <p>Ordinances, resolutions and other items, by the year they were first seen.</p>
+  <ul class="year-links">
+    {% for y in item_years %}
+    <li><a href="{{ y.href }}">{{ y.year }}</a> <span class="muted">({{ y.n }} {{ "item" if y.n == 1 else "items" }})</span></li>
+    {% endfor %}
+  </ul>
+</section>
+
+<section aria-labelledby="members-h">
+<h2 id="members-h">Members</h2>
+<p>Members seen in the latest minutes read, by seat. Then everyone who served previously, by surname. Choose a name to see that person's recorded votes, attendance, motions and seconds.</p>
+{% for s in sections %}
+<h3 class="section-h" id="{{ s.key }}-h">{{ s.heading or "Members" }}{% if s.key != "current" %} ({{ s.cards | length }}){% endif %}</h3>
+<details class="officials-section" id="{{ s.key }}" data-order="{{ s.order }}"{% if s.key in ("current", "all") %} open{% endif %}>
+  <summary class="section-summary" id="{{ s.key }}-toggle">Show or hide the list: {{ s.heading or "Members" }}</summary>
+  {% for b in s.get("basis") or [] %}<p class="basis muted">{{ b }}.</p>{% endfor %}
+  {% if s.cards %}
+  {{ cards(s.cards, (s.heading or "Members") ~ (", by seat" if s.order == "seat" else ", alphabetical by surname"), root) }}
+  {% else %}
+  <p>No one is listed here.</p>
+  {% endif %}
+</details>
+{% endfor %}
+</section>
+{% endblock %}

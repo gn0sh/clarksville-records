@@ -793,3 +793,12 @@ table.budget td.c-source { min-width: 9rem; }
   /* the visually hidden header row stays one line tall (row-height check), still read by screen readers */
   table.budget thead tr { display: block; height: 1px; overflow: hidden; }
 }
+
+/* Council pages (M4): the home's jump links, year lists and seat rows; the "<council>" line above a page title */
+.inline-list { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.year-links { list-style: none; margin: 0.4em 0; padding: 0; columns: 2 9rem; }
+.year-links li { padding: 3px 0; }
+.kicker-line { margin: 0 0 4px; font-size: var(--t-sm); }
+ol.council-seats li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 7px 4px; }
+ol.council-seats .d-label { min-width: 5.5em; font-weight: 600; }
+.council-meeting { border-top: 2px solid var(--border); margin-top: 1.5em; padding-top: 0.5em; }

@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 import jinja2
 from jsonschema import Draft202012Validator, FormatChecker
 
-from . import budget_views, config, fin_views, georef as georef_mod, seats as seats_mod, views
+from . import budget_views, config, council as council_mod, fin_views, georef as georef_mod, seats as seats_mod, views
 
 
 class BuildError(Exception):
@@ -166,13 +166,31 @@ def read_report(path: Path | None) -> dict | None:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
-def _clean(out: Path) -> None:
-    """Remove what this generator owns. `data/` belongs to the collector's export and is left alone."""
+def _clean(out: Path, extra_dirs=()) -> None:
+    """Remove what this generator owns. `data/` belongs to the collector's export and is left alone. `extra_dirs`:
+    each council's page folder (council.yml slug)."""
     out.mkdir(parents=True, exist_ok=True)
     for p in out.glob("*.html"):
         p.unlink()
-    for d in ("officials", "meetings", "items", "static", "districts", "votes", "contracts", "finance", "capital"):
+    for d in ("officials", "meetings", "items", "static", "districts", "votes", "contracts", "finance", "capital",
+              *extra_dirs):
         shutil.rmtree(out / d, ignore_errors=True)
+
+
+def load_councils(councils, fixture: bool) -> list:
+    """Each council (a config.COUNCILS entry): its facts file, schema- and reference-checked like the county's, and
+    its wards file, as a council.CouncilIndex. A FIXTURE council is never built beside real county facts, nor a real
+    one beside fixture facts (made-up people must never sit next to real ones)."""
+    out = []
+    for cfg in councils:
+        facts = load_facts(cfg["facts_path"])
+        if bool(facts.get("fixture")) != fixture:
+            raise BuildError(f"{cfg['facts_path']}: a {'FIXTURE' if facts.get('fixture') else 'real'} council facts "
+                             f"file cannot be built with a {'FIXTURE' if fixture else 'real'} county facts file")
+        wards_path = Path(cfg["wards_path"])
+        wards = json.loads(wards_path.read_text(encoding="utf-8")) if wards_path.is_file() else []
+        out.append(council_mod.load(cfg, facts, wards))
+    return out
 
 
 def write_publish_manifest(out: Path) -> dict:
@@ -217,7 +235,7 @@ def site_url_problems(cfg: dict) -> list[str]:
 
 def build(facts_path, out_dir, internal: bool = False, changes_path=None, report_path=None,
           seats_path=DEFAULT, districts_path=DEFAULT, geocoder: bool = True, finance_path=DEFAULT,
-          capital_fund=DEFAULT) -> dict:
+          capital_fund=DEFAULT, councils=DEFAULT) -> dict:
     """`geocoder=False` (`--no-geocoder`) draws no landing address box and allows no geocoder in the CSP: the build
     for the claude.ai preview, where the box could not reach the geocoder. The plain lookup line shows instead.
     `seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
@@ -228,7 +246,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     keeps its "coming" page. With budget lines in it, Finance (finance/index.html, one page per fund) and Capital
     projects (capital/index.html) replace their "coming" pages.
     `capital_fund`: the fund the capital projects page shows; left out, config.CAPITAL_FUND (finance.yml), or the
-    FIXTURE fund for a fixture build."""
+    FIXTURE fund for a fixture build.
+    `councils`: the councils to build beside the county (config.COUNCILS entries, council.yml); left out, a real
+    build builds config.COUNCILS and a fixture build none. Each gets its pages under its own folder (council.py)."""
     facts_path, out = Path(facts_path), Path(out_dir)
     facts = load_facts(facts_path)
     fixture = bool(facts.get("fixture"))
@@ -253,6 +273,12 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     if bad:
         raise BuildError("config/site.yml: " + "; ".join(bad))
     ix = views.Index(facts, seat_rows)
+    if councils is DEFAULT:
+        councils = () if fixture else config.COUNCILS
+    cixs = load_councils(councils, fixture)
+    county_names = {o["name"]: ix.official_href(o["id"]) for o in facts["officials"]}
+    for c in cixs:  # a county official named in a council item title links to their county page
+        c.extra_names = county_names
     fx = fin_views.Finance(fin_data, facts["officials"]) if fin_data is not None else None
     if capital_fund is DEFAULT:
         capital_fund = config.FIXTURE_CAPITAL_FUND if fixture else config.CAPITAL_FUND
@@ -273,15 +299,16 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     if report_path is None:
         report_path = out.parent / "report.json"
 
-    _clean(out)
-    site = views.site_context(ix, contracts=fx is not None, budget=budget_pages)
+    _clean(out, [c.slug for c in cixs])
+    site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs)
     site["internal"] = internal
+    site["councils"] = [council_mod.landing_entry(c) for c in cixs]
     written: list[str] = []
 
-    def render(template: str, rel: str, page_name: str, **ctx) -> None:
+    def render(template: str, rel: str, page_name: str, site_ctx=None, **ctx) -> None:
         depth = rel.count("/")
         html = env.get_template(template).render(
-            site=site, root="../" * depth, page_name=page_name, **ctx)
+            site=site_ctx or site, root="../" * depth, page_name=page_name, **ctx)
         target = out / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(html, encoding="utf-8")
@@ -295,7 +322,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         render("district.html.j2", f"districts/{n:02d}.html", ctx["title"], **ctx)
     for year in site["vote_years_desc"]:
         render("votes_year.html.j2", f"votes/{year}.html", f"Votes {year}", **views.votes_year(year, ix))
-    render("search.html.j2", "search.html", "Search", **views.search_page(ix, fx))
+    render("search.html.j2", "search.html", "Search", **views.search_page(ix, fx, cixs))
     for c in config.SITE["coming"]:
         if c["slug"] in {coming_slugs[p] for p in budget_pages}:
             continue
@@ -325,9 +352,21 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         render("official_roster.html.j2", f"officials/{oid}.html", ctx["official"]["name"], **ctx)
     for m in facts["meetings"]:
         ctx = views.meeting(m["id"], ix)
-        render("meeting.html.j2", f"meetings/{m['id']}.html", f"Meeting {m['date']}", **ctx)
+        render("meeting.html.j2", f"meetings/{m['id']}.html", f"Meeting {m['date']}", m=ctx, **ctx)
     for year in ix.item_years():
         render("items_year.html.j2", f"items/{year}.html", f"Items {year}", **views.items_year(year, ix))
+    for c in cixs:  # council pages (council.py): home, one page per member, per year of meetings, per year of items
+        cs = council_mod.site_for(site, c)
+        render("council_home.html.j2", c.home_href(), c.page_name(), cs, council=c.nav_label,
+               council_href=c.home_href(), **council_mod.home(c))
+        for o in c.facts["officials"]:
+            render("official.html.j2", c.official_href(o["id"]), o["name"], cs, **council_mod.member(o["id"], c))
+        for y in c.meeting_years():
+            render("council_meetings_year.html.j2", f"{c.slug}/meetings/{y}.html", c.page_name(f"Meetings {y}"), cs,
+                   council=c.nav_label, council_href=c.home_href(), **council_mod.meetings_year(y, c))
+        for y in c.item_years():
+            render("council_items_year.html.j2", f"{c.slug}/items/{y}.html", c.page_name(f"Items {y}"), cs,
+                   council=c.nav_label, council_href=c.home_href(), **council_mod.items_year(y, c))
     render("about.html.j2", "about.html", "About", **views.about(ix), glance=views.record_glance(ix))
     render("changes.html.j2", "changes.html", "Changes", **views.changes(read_changes(changes_path)))
     if internal:
@@ -336,7 +375,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
 
     shutil.copytree(config.STATIC_DIR, out / "static")
     # A script, not a JSON file, so search also works when the site is opened from files or a zip (no fetch).
-    index_js = "window.SEARCH_INDEX = " + json.dumps(views.search_index(ix, fx), separators=(",", ":"),
+    index_js = "window.SEARCH_INDEX = " + json.dumps(views.search_index(ix, fx, cixs), separators=(",", ":"),
                                                      ensure_ascii=True) + ";\n"
     (out / "static" / "search-index.js").write_text(index_js, encoding="utf-8")
     manifest = write_publish_manifest(out)

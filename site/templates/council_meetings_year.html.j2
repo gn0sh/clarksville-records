@@ -1,0 +1,40 @@
+{% extends "base.html.j2" %}
+{% from "_meeting.html.j2" import meeting_stats, meeting_sections %}
+{# A council's meetings in one year (council.py meetings_year), oldest first. One section per meeting, its ids
+   prefixed by the meeting id; the roll calls and motions use the same blocks as a county meeting page. #}
+{% block main %}
+<p class="kicker-line"><a href="{{ root }}{{ council_href }}">{{ council }}</a></p>
+<h1>Meetings in {{ year }}</h1>
+<p class="lede">{{ body }}. Each meeting shows its attendance, motions and roll calls in the order of the minutes, with a link to each page. Meetings whose minutes were not collected show their agenda only.</p>
+<nav aria-label="Meetings by year" class="year-nav">
+  <ul class="inline-list">
+    {% for y in years %}<li><a href="{{ y }}.html"{% if y == year %} aria-current="page"{% endif %}>{{ y }}</a></li>{% endfor %}
+  </ul>
+</nav>
+<details class="toc-group" open>
+  <summary>{{ meetings | length }} {{ "meeting" if meetings | length == 1 else "meetings" }} in {{ year }}</summary>
+  <ul class="toc">
+    {% for m in meetings %}
+    <li><a href="#{{ m.id }}">{{ m.meeting.date }}, {{ m.kind_label | lower }}</a></li>
+    {% endfor %}
+  </ul>
+</details>
+
+{% for m in meetings %}
+<section class="council-meeting" id="{{ m.id }}" aria-labelledby="h-{{ m.id }}">
+  <header class="meeting-head">
+    <p class="kind-line"><span class="chip chip-kind">{{ m.kind_label }}</span></p>
+    <h2 id="h-{{ m.id }}">{{ m.kind_label }}, <span class="nowrap">{{ m.meeting.date }}</span></h2>
+    {% if m.has_minutes %}
+    <p class="source-line">Source: <a href="{{ m.doc.url }}" target="_blank" rel="noopener noreferrer">{{ m.doc.kind }} PDF, {{ m.doc.pages }} pages<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ m.doc.fetched }}.{% if m.agenda %} Agenda: <a href="{{ m.agenda.url }}" target="_blank" rel="noopener noreferrer">PDF, {{ m.agenda.pages }} pages<span class="sr-only"> (opens in a new tab)</span></a>.{% endif %}</p>
+    {% else %}
+    <p class="source-line">Minutes not collected for this meeting. Agenda: <a href="{{ m.doc.url }}" target="_blank" rel="noopener noreferrer">{{ m.doc.kind }} PDF, {{ m.doc.pages }} pages<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ m.doc.fetched }}.</p>
+    {% endif %}
+  </header>
+  {% if m.has_minutes %}
+  {{ meeting_stats(m) }}
+  {{ meeting_sections(m, root, "h3", m.id ~ "-") }}
+  {% endif %}
+</section>
+{% endfor %}
+{% endblock %}
