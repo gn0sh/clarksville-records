@@ -16,7 +16,7 @@ import html
 import re
 import urllib.parse
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 import yaml
@@ -61,6 +61,13 @@ class AgendaCenterConfig:
     presiding_title: str
     aliases: dict
     seating: dict | None = None   # {month, every_years, from_year}: when the council is seated (name resolution window)
+    # the city's mayor as configured, cited seating entries: ({name, from, to, cite}, ...), dates inclusive (path N3)
+    mayors: tuple = ()
+
+    def mayors_on(self, date: str) -> list[dict]:
+        """The configured mayor entries whose term covers date (YYYY-MM-DD): at most one (parse_config refuses an
+        overlap)."""
+        return [m for m in self.mayors if m["from"] <= date <= m["to"]]
 
     def seated_on(self, date: str) -> str | None:
         """The latest seating on or before date (YYYY-MM-DD), or None without a seating rule."""
@@ -153,6 +160,7 @@ def parse_config(cfg) -> AgendaCenterConfig:
                                     and all(type(v) is int for v in seating.values())
                                     and 1 <= seating["month"] <= 12 and seating["every_years"] >= 1):
         raise AgendaCenterConfigError("agenda-center.yml: seating must be {month: 1-12, every_years: 1+, from_year}")
+    mayors = _mayors(cfg.get("mayors") or [])
     return AgendaCenterConfig(
         locality=_need(cfg, "locality", str), body=_need(cfg, "body", str),
         official_title=_need(cfg, "official_title", str), host=host,
@@ -171,7 +179,40 @@ def parse_config(cfg) -> AgendaCenterConfig:
         vote_asides=_rx(_need(cfg, "vote_asides", str), "vote_asides"),
         presiding=_presiding(_rx(_need(cfg, "presiding", str), "presiding", 0)),
         presiding_title=_need(cfg, "presiding_title", str), aliases=dict(aliases),
-        seating=dict(seating) if seating else None)
+        seating=dict(seating) if seating else None, mayors=mayors)
+
+
+def _iso(v, key: str) -> str:
+    """A YAML date (unquoted 2019-01-01 loads as a date) or a quoted ISO date -> 'YYYY-MM-DD'."""
+    s = v.isoformat() if isinstance(v, date) and not isinstance(v, datetime) else v
+    if not (isinstance(s, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", s)):
+        raise AgendaCenterConfigError(f"agenda-center.yml: {key} must be a date YYYY-MM-DD")
+    return s
+
+
+def _mayors(raw) -> tuple:
+    """mayors: [{name, from, to, cite}]: each a full name, an inclusive term, and the minutes that print the person as
+    the city's mayor. Terms may not overlap: two mayors on one date would make the seat a guess."""
+    if not isinstance(raw, list):
+        raise AgendaCenterConfigError("agenda-center.yml: mayors must be a list")
+    out = []
+    for i, m in enumerate(raw):
+        if not (isinstance(m, dict) and set(m) == {"name", "from", "to", "cite"}):
+            raise AgendaCenterConfigError(f"agenda-center.yml: mayors[{i}] must be {{name, from, to, cite}}")
+        if not (isinstance(m["name"], str) and len(m["name"].split()) >= 2):
+            raise AgendaCenterConfigError(f"agenda-center.yml: mayors[{i}].name must be a full name")
+        if not (isinstance(m["cite"], str) and m["cite"].strip()):
+            raise AgendaCenterConfigError(f"agenda-center.yml: mayors[{i}].cite must name the minutes it is read from")
+        e = {"name": " ".join(m["name"].split()), "from": _iso(m["from"], f"mayors[{i}].from"),
+             "to": _iso(m["to"], f"mayors[{i}].to"), "cite": m["cite"].strip()}
+        if e["from"] > e["to"]:
+            raise AgendaCenterConfigError(f"agenda-center.yml: mayors[{i}]: from is after to")
+        out.append(e)
+    out.sort(key=lambda e: e["from"])
+    for a, b in zip(out, out[1:]):
+        if b["from"] <= a["to"]:
+            raise AgendaCenterConfigError(f"agenda-center.yml: mayors: {a['name']} and {b['name']} overlap")
+    return tuple(out)
 
 
 def load_config(path: Path | None = None) -> AgendaCenterConfig:

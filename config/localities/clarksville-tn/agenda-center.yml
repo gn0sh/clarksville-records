@@ -78,7 +78,10 @@ vote_lead_in: '\bthe\s+following\b[^.]*?\b(?:vote|voe|voet|recorded|taken)\b|\b(
 vote_asides: '\babstain|\babstention|\brecus'
 # The presiding officer, from the call-to-order sentence ("called to order by Mayor Joe Pitts"). Groups: title, name.
 # When the title is presiding_title (the mayor, who is not on the PRESENT line and votes), the mayor is added to the
-# meeting's roster; a Mayor Pro Tem presiding is already on the PRESENT line as a member.
+# meeting's roster only when `mayors` below covers the meeting's date with that name (or a full-name attendance list
+# since the latest seating prints that name as Mayor); else the presiding name is held (check presiding_resolves),
+# never added (city-votes/presiding-guest: a joint session "called to order by Mayor Wes Golden" of the county).
+# A Mayor Pro Tem presiding is already on the PRESENT line as a member; the sentence adds nobody.
 presiding: "called to order by (?P<title>Mayor Pro Tem|Mayor)\\s+(?P<name>[A-Z][a-z][A-Za-z'-]*(?:\\s+[A-Z]\\.)?(?:\\s+[A-Z][a-z][A-Za-z'-]*)+)"
 presiding_title: Mayor
 # When the council is seated: on the 1st of `month` every `every_years` years from `from_year`. Every wholesale change
@@ -87,6 +90,21 @@ presiding_title: Mayor
 # charter). An attendance list printed as surnames is read only against full-name lists printed since the latest
 # seating (docs/architecture/city-council.md, name resolution invariant). Without this key no earlier list is used.
 seating: {month: 1, every_years: 2, from_year: 2017}
+# The city's mayor, as configured, cited seating entries (name resolution invariant, path N3). The mayor is not on the
+# PRESENT line of most minutes, so this is the source that puts the mayor on a meeting's roster; the call-to-order
+# sentence alone never does. Terms are inclusive, may not overlap, and change only at a seating (Kim McMillan called
+# every stored meeting to order through 2018-11-01, Joe Pitts every one from 2019-01-03 to the latest stored, 2026-06-04).
+# Each cite is a stored minutes file that prints the person as the city's mayor. A mayor seated 2027-01-01 needs a new
+# entry, cited from the minutes, before those meetings are built; until then their presiding mayor is held.
+mayors:
+  - name: Kim McMillan
+    from: "2015-01-01"
+    to: "2018-12-31"
+    cite: "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_12062018-107 p.1 'ABSENT: Mayor Kim McMillan'; https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01032017-61 p.1 'Mayor McMillan administered the Oath of Office to members of the City Council'"
+  - name: Joe Pitts
+    from: "2019-01-01"
+    to: "2026-12-31"
+    cite: "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2623,plainText=false) p.1 (2025-01-02) 'PRESENT: ... Joe Pitts (Mayor)' and 'Mayor Pitts administered the Oath of Office of City Council'"
 
 # Name fixes for the same person printed two ways: printed form -> the form most minutes print. Each entry is the
 # same ward in the same term (checked in data/localities/clarksville-tn/wards.json, 2026-11-09); applied to every
