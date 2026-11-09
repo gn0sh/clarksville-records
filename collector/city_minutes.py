@@ -135,6 +135,20 @@ def lines_of(pages: list[str]) -> list[Line]:
             for i, p in enumerate(pages) for raw in p.splitlines()]
 
 
+PAGE_NUMBER_RE = re.compile(r"^\d{1,3}$")
+
+
+def blank_page_numbers(lines: list[Line]) -> list[Line]:
+    """A page's printed number (a line of digits only, the last non-blank line of its page) is read as a blank line,
+    so it never breaks a vote block ("AYE: ..." on page 10, "NAY: ..." on page 11) or joins the next sentence."""
+    last: dict[int, int] = {}
+    for k, ln in enumerate(lines):
+        if ln.text:
+            last[ln.page] = k
+    return [Line(ln.page, "") if last.get(ln.page) == k and PAGE_NUMBER_RE.match(ln.text) else ln
+            for k, ln in enumerate(lines)]
+
+
 def _label_of(text: str, labels) -> tuple[str, str] | None:
     m = re.match(r"^([A-Za-z][A-Za-z ]*?)\s*:\s*(.*)$", text)       # "AYE:", also "Nay:" and "Abstain:"
     if m and m.group(1).strip().upper() in labels:
@@ -309,7 +323,7 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
     if text_layer != "text":
         out.problems.append(f"text layer {text_layer}: not read")
         return out
-    lines = lines_of(pages)
+    lines = blank_page_numbers(lines_of(pages))
     vote_labels = set(cfg.vote_labels)
     att_labels = set(cfg.present_labels) | set(cfg.absent_labels)
     note_labels = set(cfg.note_labels)

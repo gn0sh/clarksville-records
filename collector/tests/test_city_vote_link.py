@@ -3,7 +3,8 @@
 A roll call is linked to a numbered item only when the words that belong to the vote (its motion, its lead-in
 sentence, its outcome sentence) identify that item, or it sits under that item's own number line and those words
 name no other item, kind or several items. Otherwise it goes to its section, or is held. One test per code path that
-sets the link, each asserting the invariant; then the reviewer's abstention case and the lead-in case."""
+sets the link, each asserting the invariant; then the reviewer's abstention case, the lead-in case and the page-number
+case (city-votes/outcome-text)."""
 import re
 
 import pytest
@@ -243,3 +244,50 @@ def test_build_uses_the_link_for_roll_call_motion_and_events(cfg):
             assert motions[built_rc["motion_id"]]["item_id"] == built_rc["item_id"]
         evs = [e for e in facts["item_events"] if e["ref"] in (built_rc["id"], built_rc["motion_id"])]
         assert evs and all(e["item_id"] == built_rc["item_id"] for e in evs)
+
+
+# ---- city-votes/outcome-text: a page number between the vote lines and what follows ----
+
+PAGE_BREAK_1 = """ATTENDANCE
+
+    PRESENT: Ron Erb (Ward 3), David Allen (Ward 8), Jeff Burkhart (Ward 12)
+
+    The regular session was called to order by Mayor Joe Pitts.
+
+15. ORDINANCE 136-2021-22 (First Reading) Amending the Zoning Ordinance
+
+   Councilperson Erb made a motion to adopt ORDINANCE 136-2021-22 (First
+   Reading). Councilperson Allen seconded the motion.
+
+   The following vote was recorded:
+
+            AYE: Allen, Erb, Pitts
+
+
+
+                                          10"""
+PAGE_BREAK_2 = """            NAY: Burkhart
+
+   The motion to adopt ORDINANCE 136-2021-22 (First Reading) passed
+
+16. ORDINANCE 137-2021-22 (First Reading) Amending the Zoning Ordinance
+
+   The following vote was recorded:
+
+            AYE: Allen, Burkhart, Erb, Pitts
+
+
+
+                                          11"""
+PAGE_BREAK_3 = """   The motion to adopt ORDINANCE 137-2021-22 (First Reading) passed
+"""
+
+
+def test_a_page_number_does_not_break_a_vote_block_or_its_outcome(cfg):
+    a, b = parse_text([PAGE_BREAK_1, PAGE_BREAK_2, PAGE_BREAK_3], cfg).roll_calls
+    assert [(v.raw_name, v.value) for v in a.votes] == [("Allen", "yes"), ("Erb", "yes"), ("Pitts", "yes"),
+                                                          ("Burkhart", "no")]
+    assert a.outcome == "passed" and a.outcome_text.startswith("The motion to adopt ORDINANCE 136-2021-22")
+    assert a.item["number"] == "136-2021-22"
+    assert b.outcome_text == "The motion to adopt ORDINANCE 137-2021-22 (First Reading) passed"
+    assert b.item["number"] == "137-2021-22" and b.outcome == "passed"
