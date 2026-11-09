@@ -188,3 +188,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | code-reviewer | opus/default | review exports | request changes: 1 medium (fin-export/held-leak), fix running (sonnet)
 - 2026-11-09: polite county fetch filled the store (59 missing minutes down to 4; the fetch treats those 4 as unchanged, so they are not refetched). facts.json unchanged. Follow-up: refetch the 4 (low).
 - 2026-11-09 | backend-engineer | sonnet/default | fix fin-export/held-leak | done, 1280 tests
+- 2026-11-09 | manager | delta check of 40ef363 (held-leak fix): diff matches the finding, 15 tests pass. Approved.
