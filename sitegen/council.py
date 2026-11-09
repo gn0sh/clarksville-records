@@ -30,7 +30,9 @@ def ward_rows(wards: list[dict], facts: dict, cfg: dict) -> list[dict]:
     1. A print with no ward, or for a name that did not resolve, is not used.
     2. Per member, consecutive prints of the same ward form a run; a run shorter than `min_ward_prints` is dropped,
        the shortest first and one at a time, so the member's runs either side of it join again (a lone print that
-       disagrees with the member's own run either side; the meeting page still shows the source).
+       disagrees with the member's own run either side; the meeting page still shows the source). A run that ends
+       at the latest minutes read is kept however short: no later print can confirm it yet, and dropping it would
+       hide a newly seated member (city-pages/ward-misprint).
     3. Per ward, the kept prints in date order are split wherever the member printed changes: each piece is one
        record, from its first to its last meeting. So someone who held a ward twice, with another member between,
        has two records.
@@ -51,12 +53,14 @@ def ward_rows(wards: list[dict], facts: dict, cfg: dict) -> list[dict]:
                 runs.append([w])
         return runs
 
+    latest = obs[-1]["date"] if obs else None   # the latest minutes read that print a ward
     kept = []
     for prints in by_member.values():
         # drop one short run at a time, the shortest first, so the runs either side of a lone misprint join up
         # again (Ward 4, Ward 3, Ward 4: one run of Ward 4) before their own length is judged
         while True:
-            short = [r for r in runs_of(prints) if len({x["meeting_id"] for x in r}) < cfg["min_ward_prints"]]
+            short = [r for r in runs_of(prints) if len({x["meeting_id"] for x in r}) < cfg["min_ward_prints"]
+                     and r[-1]["date"] != latest]
             if not short:
                 break
             drop = min(short, key=lambda r: (len(r), r[0]["date"]))

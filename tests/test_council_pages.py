@@ -345,3 +345,16 @@ def test_names_inside_item_titles_never_link_to_an_official(tmp_path, cfg, city_
     cs = [{"slug": "city", "prefix": "city/", "facts": facts}]
     problems, _ = site_checks.check_name_links(out, county, site_checks.read_roster(FIXTURE_SEATS), cs)
     assert problems == []
+
+
+def test_a_run_of_one_at_the_latest_minutes_read_is_kept():
+    """city-pages/ward-misprint: a member first printed at the latest minutes read is a current record, not a
+    misprint; a lone print before the latest is still dropped."""
+    wards = [_w("2020-01-01", "a", 1), _w("2020-02-01", "a", 1), _w("2020-03-01", "a", 1),
+             _w("2020-02-01", "b", 4),                                # lone print, not at the latest: dropped
+             _w("2020-01-01", "c", 2), _w("2020-02-01", "c", 2), _w("2020-03-01", "c", 3)]  # c moves at the latest
+    rows, latest = council.holder_rows(wards + [_w("2020-03-01", "b", 5)], FACTS_W, CFG)
+    got = sorted((r["official_id"], r["seat"], r["start"], r["end"]) for r in rows)
+    assert latest == "2020-03-01"
+    assert got == [("a", "ward-1", "2020-01-01", None), ("b", "ward-5", "2020-03-01", None),
+                   ("c", "ward-2", "2020-01-01", "2020-02-01"), ("c", "ward-3", "2020-03-01", None)]
