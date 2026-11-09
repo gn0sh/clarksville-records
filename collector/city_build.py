@@ -80,10 +80,13 @@ class Officials:
         return out
 
 
-def resolve(token: str, roster: list[tuple[str, str]]) -> str | None:
+def resolve(token: str, roster: list[tuple[str, str]], aliases: dict | None = None) -> str | None:
     """A vote name as printed -> the one roster official it names, else None. roster: [(official_id, full name)].
-    Matches, in order: the full name; the surname; an initial plus surname ('W. Smith'). Never a near spelling."""
-    t = clean_name(token).lower()
+    The printed name is read through the alias list first (whole printed names only, path N2: 'Amber Marquis' ->
+    'Ambar Marquis'). Matches, in order: the full name; the surname; an initial plus surname ('W. Smith'). Never a
+    near spelling."""
+    t = clean_name(token)
+    t = (aliases or {}).get(t, t).lower()
     full = [oid for oid, n in roster if n.lower() == t]
     if len(full) == 1:
         return full[0]
@@ -303,11 +306,11 @@ def by_source(meetings: list[dict], roll_calls: list[dict]) -> dict:
     return out
 
 
-def _out_of_room(pm: ParsedCityMinutes, roster, part_time: dict) -> list[set]:
+def _out_of_room(pm: ParsedCityMinutes, roster, part_time: dict, aliases: dict | None = None) -> list[set]:
     """For each roll call of the meeting, the members its missing-vote check exempts: a member noted as arriving
     late, for the votes before their first recorded vote; one noted as leaving early, for the votes after their
     last. A noted member with no recorded vote at all cannot be placed, so is exempt from every vote."""
-    voted = [{resolve(v.raw_name, roster) for v in rc.votes} for rc in pm.roll_calls]
+    voted = [{resolve(v.raw_name, roster, aliases) for v in rc.votes} for rc in pm.roll_calls]
     out = [set() for _ in pm.roll_calls]
     for oid, p in part_time.items():
         ks = [k for k, s in enumerate(voted) if oid in s]
@@ -406,21 +409,29 @@ def resolve_surnames(cfg, officials: Officials, pm: ParsedCityMinutes, book: dic
     March 2025 on) -> ({id(person): (full name, is mayor)}, checks).
 
     A surname is read as a member's full name only when exactly one full name with that surname (any case) is printed
-    in these minutes after a member's title ("Councilman Jimmy Brown", the presiding "Mayor Joe Pitts") or is on the
-    meeting's bounded roster (`book`, RosterBook.for_meeting: lists since the latest seating, members not replaced),
-    and a ward printed with the surname agrees with it. Anything else stays as printed, with no official, and holds
-    the meeting's attendance (check surnames_resolve), so its roll calls are held too. Never a near spelling
-    ("ZAHARIAS"). The check's detail names the dates of the attendance lists used, and why a held surname's earlier
-    printings were not used."""
+    in these minutes after a member's title and corroborated (in an action of the meeting: "Councilman Jimmy Brown
+    made a motion", "the Pledge was led by Councilman ...", or a member the book has; the presiding "Mayor Joe Pitts"),
+    or is on the meeting's bounded roster (`book`, RosterBook.for_meeting: lists since the latest seating, members
+    not replaced), and a ward printed with the surname agrees with it. Anything else stays as printed, with no
+    official, and holds the meeting's attendance (check surnames_resolve), so its roll calls are held too. Never a
+    near spelling ("ZAHARIAS"). The check's detail names the dates of the attendance lists used, and why a held
+    surname's earlier printings (or uncorroborated titled names) were not used."""
     people = [p for p in pm.present + pm.absent
               if not NAME_RE.match(clean_name(p.raw_name)) and SURNAME_RE.match(clean_name(p.raw_name))]
     if not people:
         return {}, []
     book = book or {}
     presiding = officials.canonical(pm.presiding) if pm.presiding else None
-    here = {officials.canonical(n) for n in pm.titled}
+    # a titled full name counts only when corroborated (city-votes/titled-nonmember): printed in an action context of
+    # this meeting (moved, seconded, led the Pledge or the prayer, called to order, presided), or a member the roster
+    # book already has. Any other ("a resolution honoring Councilman X") is no candidate.
+    in_book = {r["name"] for e in book.values() for r in e["people"]}
+    acting = {officials.canonical(n) for n in pm.titled_acting}
+    titled = {officials.canonical(n) for n in pm.titled}
+    here = {n for n in titled if n in acting or n in in_book}
     if presiding:
         here.add(presiding)
+    ignored = titled - here
     out, unresolved, basis = {}, [], Counter()
     for p in people:
         s = clean_name(p.raw_name).lower()
@@ -441,8 +452,9 @@ def resolve_surnames(cfg, officials: Officials, pm: ParsedCityMinutes, book: dic
         elif cands:
             unresolved.append(f"{p.raw_name} ({len(cands)} full names)")
         else:
-            held = "; ".join(earlier["held"])
-            unresolved.append(f"{p.raw_name} ({held})" if held else p.raw_name)
+            held = earlier["held"] + [f"{n}: titled in these minutes, not in an action and not on the book"
+                                      for n in sorted(ignored) if name_parts(n)[1].lower() == s]
+            unresolved.append(f"{p.raw_name} ({'; '.join(held)})" if held else p.raw_name)
     detail = "; ".join(f"{n} by {why}" for why, n in sorted(basis.items()))
     if unresolved:
         detail = (detail + "; " if detail else "") + "not resolved: " + ", ".join(unresolved)
@@ -491,7 +503,7 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
     for msg in pm.problems:
         problems.append({"meeting": meeting["id"], "problem": msg})
 
-    out_of_room = _out_of_room(pm, roster, part_time)
+    out_of_room = _out_of_room(pm, roster, part_time, cfg.aliases)
     per_page, motions_on_page = Counter(), Counter()
     for k, rc in enumerate(pm.roll_calls):
         n = per_page[rc.page]
@@ -512,13 +524,13 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
                                    "year": int(meeting["date"][:4])})
         votes, seen = [], Counter()
         for v in rc.votes:
-            oid = resolve(v.raw_name, roster)
+            oid = resolve(v.raw_name, roster, cfg.aliases)
             if oid is None:
                 unresolved[v.raw_name] += 1
             else:
                 seen[oid] += 1
             votes.append({"official_id": oid, "raw_name": v.raw_name, "value": v.value, "raw_value": v.raw_value})
-        block_absent = {resolve(a, roster) for a in rc.absent}
+        block_absent = {resolve(a, roster, cfg.aliases) for a in rc.absent}
         voted = set(seen)
         yes = sum(v["value"] == "yes" for v in votes)
         no = sum(v["value"] == "no" for v in votes)
@@ -552,8 +564,8 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
         if rc.motion:
             motion_id = f"mo-{sha8}-p{rc.motion['page']}-{motions_on_page[rc.motion['page']]}"
             motions_on_page[rc.motion["page"]] += 1
-            mover = resolve(rc.motion["mover"], roster)
-            sec = resolve(rc.motion["seconder"], roster) if rc.motion["seconder"] else None
+            mover = resolve(rc.motion["mover"], roster, cfg.aliases)
+            sec = resolve(rc.motion["seconder"], roster, cfg.aliases) if rc.motion["seconder"] else None
             mchecks = [
                 _check("attendance_verified", att_ok),
                 _check("mover_resolves", mover is not None, rc.motion["mover"]),

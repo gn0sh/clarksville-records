@@ -144,6 +144,10 @@ def parse_config(cfg) -> AgendaCenterConfig:
     aliases = cfg.get("aliases") or {}
     if not isinstance(aliases, dict):
         raise AgendaCenterConfigError("agenda-center.yml: aliases must be a mapping")
+    # whole printed names only: resolve() reads vote, mover and seconder tokens through the aliases, so a bare surname
+    # as a key would re-point every vote printed with that surname (city-votes/alias-in-votes)
+    if any(not isinstance(x, str) or len(x.split()) < 2 for kv in aliases.items() for x in kv):
+        raise AgendaCenterConfigError("agenda-center.yml: each alias and its target must be a full name")
     seating = cfg.get("seating")
     if seating is not None and not (isinstance(seating, dict) and set(seating) == {"month", "every_years", "from_year"}
                                     and all(type(v) is int for v in seating.values())

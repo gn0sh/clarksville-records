@@ -115,6 +115,9 @@ class ParsedCityMinutes:
     # full names these minutes print after a member's title ("Councilman Jimmy Brown", "Mayor Joe Pitts"): the only
     # in-document evidence for an attendance list printed as surnames ("BROWN, CHANDLER, ..."; city_build)
     titled: list = field(default_factory=list)
+    # the titled names printed in an action context of this meeting (moved, seconded, led the Pledge or the prayer,
+    # called the meeting to order, presided): a subset of titled; the rest count only when the roster book has them
+    titled_acting: list = field(default_factory=list)
     printed_date: str | None = None     # the date of the call-to-order sentence, ISO ("... on Thursday, August 1, 2024")
 
 
@@ -354,6 +357,7 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
     if pm:
         out.presiding, out.presiding_title = pm.group("name"), pm.group("title")
     out.titled = titled_names(joined)
+    out.titled_acting = titled_names(joined, acting=True)
     out.printed_date = called_to_order_on(joined)
 
     item = {"number": None, "kind": None, "title": None, "heading": None}
@@ -450,7 +454,30 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
 TITLED_RE = re.compile(TITLES + r"\s+([A-Z][a-z][A-Za-z'’-]*(?:\s+[A-Z]\.)?\s+[A-Z][A-Za-z'’-]*[a-z][A-Za-z'’-]*)\b")
 TITLE_WORDS = {"councilman", "councillady", "councilwoman", "councilperson", "councilmember", "council", "mayor",
                "called", "none", "abstain", "absent", "present", "designations"}
-NOT_SITTING_RE = re.compile(r"\b(?:former|late)\s+$", re.I)
+# Words a titled pair can pick up that are no part of a name: the rest of "Mayor Pro Tem" ("Pro Tem", "Pro Team"),
+# a heading word ("Council Member Comments Stacey"), and a verb or word that runs on after a bare surname
+# ("Councilperson Allen Seconded", "Councilperson Smith With no objection", "Councilperson Holleman Finance")
+NOT_NAME_WORDS = {"pro", "tem", "team", "comments", "comment", "with", "the", "and", "for", "no", "there", "this",
+                  "that", "finance", "chair", "chairperson", "committee", "seconded", "objected", "moved", "motioned",
+                  "stated", "asked", "thanked", "recognized", "presented", "announced", "abstained", "recused",
+                  "registered", "made", "said", "offered", "led", "read", "reported", "noted", "introduced",
+                  "mentioned", "shared", "invited", "requested", "voted", "welcomed", "spoke", "then", "also"}
+# A title that does not make the person a sitting member of this council at this meeting: a qualifier right before
+# it ("former City Councilman", "then-Councilman", "Former Ward 7 Councilwoman", "the late Mayor", "outgoing
+# Councilman") or another body's title ("County Mayor", "Montgomery Council Mayor" as printed, "Vice Mayor").
+NOT_SITTING_RE = re.compile(
+    r"(?:\b(?:former|late|past|retired|outgoing|honorary|county|montgomery|state|vice|deputy|youth|student)"
+    r"(?:\s*-\s*|\s+)|\b(?:then|ex)\s*-\s*)(?:(?:city|council|ward\s*\d{1,2})\s+)*$", re.I)
+# An action of a member at this meeting, printed with the titled name: before it ("the Pledge of Allegiance was led
+# by", "A prayer was offered by", "seconded by", "called to order by", "presided over by") or after it ("made a
+# motion", "moved", "seconded", "led the Pledge", "offered a prayer", "called the meeting to order", "presided").
+ACTING_BEFORE_RE = re.compile(r"\b(?:led|offered|given|delivered|seconded|presided\s+over|moved|made)\s+by\s+"
+                              r"(?:the\s+)?$|\bcalled\s+to\s+order\s+by\s+$", re.I)
+ACTING_AFTER_RE = re.compile(
+    r"^\s*(?:\((?:Ward\s*\d{1,2})\)\s*)?,?\s*(?:made\s+(?:a|the)\s+motion|moved\b|motioned\b|seconded\b|"
+    r"presided\b|called\s+(?:the\s+(?:meeting|session)\s+)?to\s+order|led\s+the\s+(?:Pledge|invocation|prayer)|"
+    r"(?:offered|gave|delivered|led)\s+(?:a|the)\s+(?:prayer|invocation)|(?:offered|gave)\s+the\s+opening\s+prayer)",
+    re.I)
 
 
 CALLED_ON_RE = re.compile(r"called\s+to\s+order\b.{0,160}?\b(January|February|March|April|May|June|July|August|"
@@ -467,19 +494,28 @@ def called_to_order_on(text: str) -> str | None:
     return f"{int(m.group(3)):04d}-{MONTHS.index(m.group(1).lower()) + 1:02d}-{int(m.group(2)):02d}"
 
 
-def titled_names(text: str) -> list[str]:
+def titled_names(text: str, acting: bool = False) -> list[str]:
     """Full names printed right after a member's title, in order of first printing ("Councilman Jimmy Brown made a
-    motion" -> "Jimmy Brown"). A pair whose last word is a title or a label ("Mayor Pitts Councilman", "Councilman
-    Shakeenab Called") is not a name. A title after "former" or "late" ("former Councilman David Allen") names someone
-    who is not a member at this meeting, so it is left out (name resolution invariant, path N4)."""
+    motion" -> "Jimmy Brown"). A pair whose first or last word is a title, a label or no part of a name ("Mayor Pitts
+    Councilman", "Councilman Shakeenab Called", "Mayor Pro Tem", "Councilperson Allen Seconded") is not a name. A
+    title after a qualifier ("former City Councilman David Allen", "then-Councilman", "the late Mayor") or another
+    body's title ("County Mayor Jim Durrett") names someone who is not a member at this meeting, so it is left out.
+
+    acting=True: only the names printed at least once in an action context of the meeting (ACTING_BEFORE_RE,
+    ACTING_AFTER_RE: moved, seconded, led the Pledge or the prayer, called to order, presided). A titled name with
+    no such printing ("a resolution honoring Councilman X") counts only when the roster book has the member
+    (city_build.resolve_surnames; name resolution invariant, path N4)."""
     out = []
     flat = re.sub(r"\s+", " ", text)
     for m in TITLED_RE.finditer(flat):
         name = m.group(1)
-        words = name.split()
-        if words[-1].lower() in TITLE_WORDS or words[0].lower() in TITLE_WORDS or name in out:
+        words = [w.lower() for w in name.split()]
+        if name in out or {words[0], words[-1]} & (TITLE_WORDS | NOT_NAME_WORDS):
             continue
-        if NOT_SITTING_RE.search(flat[max(0, m.start() - 12):m.start()]):
+        before = flat[max(0, m.start() - 40):m.start()]
+        if NOT_SITTING_RE.search(before):
+            continue
+        if acting and not (ACTING_BEFORE_RE.search(before) or ACTING_AFTER_RE.match(flat[m.end():m.end() + 60])):
             continue
         out.append(name)
     return out
