@@ -5,6 +5,12 @@ The city collector reads Clarksville City Council minutes from the Agenda Center
 `data/localities/clarksville-tn/facts.json`, in the shape of `schema/facts.schema.json`. The county's parser
 (`collector/parse.py`, `collector/facts.py`) has its own item rule and is not covered here.
 
+Since M4 slice 3 (ADR 0003) the CivicClerk listing (`collector/civicclerk.py`, 2024 on) feeds the same build: its
+minutes go through the same reader, checks and link paths below, unchanged. Two additions sit before the roll calls and
+never set a link: an attendance list printed as surnames is read against full names (`city_build.resolve_surnames`;
+an unresolved surname holds the meeting's attendance), and a minutes file listed for two meetings is read only for the
+meeting whose call-to-order date it prints (`minutes_status: other_meeting` for the other).
+
 ## Vote-to-item link invariant (problem family `city-votes/item-link`)
 
 Stated after the family's second hit (delta re-review of 1ea1e44..f1dedd8, 2026-11-09). Hit 1: votes linked to the
