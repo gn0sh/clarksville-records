@@ -237,3 +237,6 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - Launch ask to batch for Brian: verify gnoshcodes.com in GitHub Pages settings (TXT record at Porkbun). Go-live waits on it.
 - 2026-11-09 22:20Z Brian: keep building; go-live waits until he judges the site matches his vision, LLC after that. Friday Nov 13 = ready for his review, not an automatic launch. Everything free, BMAC tip jar only. Interim rule stays: votes only from the record, no AI-written text about named officials. Analytics ask deferred to go-live.
 - 2026-11-09 | contractor (Maren Okafor, product designer) | opus/medium via run.py | two design directions for Brian: Public Ledger, Seat Map ($0.70) | delivered; pitches /mnt/project-files/records/design-pitches/; in-house mockup https://claude.ai/artifact/QVWsoSaeux8euggRVcJSRq. Waiting on Brian's pick (default: keep current look + gnoshcodes branding).
+- 2026-11-09 | devops-engineer | sonnet/medium | pipeline F1-F5 | merged 06ca645; fresh security review PASS WITH FINDINGS (push-reverts-concurrent-data med, 3 low)
+- 2026-11-09 | devops-engineer | sonnet/medium | push-job fixes 1-4 | merged 34ef0c8; security delta re-check running
+- 2026-11-09 | backend-engineer | opus/high | transcript review fixes 1-8 | merged f265787 (1527 passed); code-review delta running
