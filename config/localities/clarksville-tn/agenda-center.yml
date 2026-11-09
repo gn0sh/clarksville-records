@@ -59,6 +59,12 @@ outcome_passed: '\b(passed|adopted|approved|carried)\b'
 outcome_failed: '\b(failed|defeated|denied|did not pass)\b'
 # Item numbers as the minutes print them ("ORDINANCE 47-2019-20", "RESOLUTION 33-2019-20").
 item_number: '\b(ORDINANCE|RESOLUTION)\s+(\d{1,3}-\d{4}-\d{2})\b'
+# The item kinds as the minutes name them in a sentence ("adopt this ordinance", "these resolutions"; any case).
+# A vote is linked to a numbered item only when what it is on agrees with the item: see collector/city_minutes.py.
+item_kinds: [ordinance, resolution]
+# Votes that are never on one numbered item, whatever item they follow: the motion, the lead-in to the vote or the
+# outcome sentence says so (case-insensitive). They are linked to their section heading.
+not_item_votes: '\badjourn|\bconsent\s+agenda\b|\bappoint'
 # The presiding officer, from the call-to-order sentence ("called to order by Mayor Joe Pitts"). Groups: title, name.
 # When the title is presiding_title (the mayor, who is not on the PRESENT line and votes), the mayor is added to the
 # meeting's roster; a Mayor Pro Tem presiding is already on the PRESENT line as a member.

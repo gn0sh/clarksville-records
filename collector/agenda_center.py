@@ -53,6 +53,8 @@ class AgendaCenterConfig:
     outcome_passed: re.Pattern
     outcome_failed: re.Pattern
     item_number: re.Pattern
+    item_kind_word: re.Pattern    # from item_kinds: group 1 the kind, group 2 a plural s
+    not_item_votes: re.Pattern
     presiding: re.Pattern
     presiding_title: str
     aliases: dict
@@ -98,6 +100,12 @@ def _presiding(rx: re.Pattern) -> re.Pattern:
     return rx
 
 
+def _kinds(kinds: list) -> re.Pattern:
+    if not kinds or not all(isinstance(k, str) and re.fullmatch(r"[a-z]+", k) for k in kinds):
+        raise AgendaCenterConfigError("agenda-center.yml: item_kinds must be lower-case words")
+    return re.compile(r"\b(" + "|".join(kinds) + r")(s)?\b", re.I)
+
+
 def parse_config(cfg) -> AgendaCenterConfig:
     if not isinstance(cfg, dict):
         raise AgendaCenterConfigError("agenda-center.yml: not a mapping")
@@ -136,6 +144,8 @@ def parse_config(cfg) -> AgendaCenterConfig:
         outcome_passed=_rx(_need(cfg, "outcome_passed", str), "outcome_passed"),
         outcome_failed=_rx(_need(cfg, "outcome_failed", str), "outcome_failed"),
         item_number=_rx(_need(cfg, "item_number", str), "item_number", 0),
+        item_kind_word=_kinds(_need(cfg, "item_kinds", list)),
+        not_item_votes=_rx(_need(cfg, "not_item_votes", str), "not_item_votes"),
         presiding=_presiding(_rx(_need(cfg, "presiding", str), "presiding", 0)),
         presiding_title=_need(cfg, "presiding_title", str), aliases=dict(aliases))
 

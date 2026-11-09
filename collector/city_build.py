@@ -320,6 +320,8 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
             _check("voters_recorded_present", not not_present, ", ".join(not_present) or None),
             _check("one_vote_per_present_member", not missing, ", ".join(missing) or None),
             _check("outcome_consistent", consistent, why),
+            # the vote's own words contradict the item it follows: linked to the section and held, never guessed
+            _check("vote_matches_item", rc.link["ok"], rc.link["detail"]),
         ]
         motion_id = None
         if rc.motion:

@@ -8,8 +8,10 @@ come from agenda-center.yml.
 Rules (same as the county): values only from a born-digital text layer. A scan (no text, or text from a scanner or
 OCR engine) is marked not read, and nothing is taken from it. Nothing is guessed: a vote name that does not match
 exactly one member recorded present (or the presiding mayor) stays unresolved and holds its roll call back
-(verification "unverified"), shown as printed. Consent-agenda votes are kept as one roll call on the consent motion;
-abstentions on single consent items are noted in prose by the minutes and are not expanded.
+(verification "unverified"), shown as printed. Consent-agenda votes are kept as one roll call on the consent motion,
+linked to the Consent Agenda section and never to one of its items; abstentions on single consent items are noted in
+prose by the minutes and are not expanded. A vote is linked to a numbered item only when its own words agree
+(_item_for_vote): otherwise it goes to its section heading, and a contradiction also holds its roll call.
 """
 from __future__ import annotations
 
@@ -87,6 +89,7 @@ class RollCall:
     motion: dict | None   # {text, mover, seconder, page}
     order: int
     notes: list = field(default_factory=list)   # NOTE lines in the vote block, as printed
+    link: dict = field(default_factory=lambda: {"basis": "heading", "ok": True, "detail": None})  # _item_for_vote
 
 
 @dataclass
@@ -355,9 +358,10 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
                        "passed" if cfg.outcome_passed.search(sentence) else "other")
             if cfg.outcome_failed.search(sentence) and cfg.outcome_passed.search(sentence):
                 outcome = "other"
-            out.roll_calls.append(RollCall(page, votes, absent, sentence, outcome,
-                                           _item_for_vote(item, window, titles, cfg), _motion(window), order,
-                                           notes))
+            motion = _motion(window)
+            vote_item, link = _item_for_vote(item, window, titles, cfg, motion, sentence)
+            out.roll_calls.append(RollCall(page, votes, absent, sentence, outcome, vote_item, motion, order,
+                                           notes, link))
             order += 1
             window = []
             i = j
@@ -396,18 +400,67 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
     return out
 
 
-def _item_for_vote(item: dict, window: list[Line], titles: dict, cfg: AgendaCenterConfig) -> dict:
-    """The vote's item. Under an item heading, that item. Under a section heading only ("ZONING"), the one item
-    number the paragraph before the vote names ("... disapproval of ORDINANCE 14-2017-18 ... adopt this ordinance"),
-    if it names exactly one; else the section."""
-    if item["number"]:
-        return dict(item)
+def last_sentence(text: str) -> str:
+    """The last sentence of text, or the words after its last full stop ("... passed. The following vote on the
+    motion to postpone was recorded:" -> "The following vote on the motion to postpone was recorded:")."""
+    rest = text.strip()
+    while True:
+        s = first_sentence(rest)
+        if s is None or not rest[len(s):].strip():
+            return rest
+        rest = rest[len(s):].strip()
+
+
+def _item_for_vote(item: dict, window: list[Line], titles: dict, cfg: AgendaCenterConfig, motion: dict | None,
+                   sentence: str) -> tuple[dict, dict]:
+    """The vote's item and how it was linked -> (item, {basis, ok, detail}). Never guessed: when the minutes do not
+    show which numbered item a vote is on, the vote goes to its section heading; when they contradict the item it
+    follows, the vote also goes to the section and its roll call is held (ok False).
+
+    What the vote is on, in the minutes' words, is its subject: the motion (when exactly one is linked), the sentence
+    that leads into the vote ("The following vote on the motion to postpone was recorded:") and the outcome sentence.
+    - A subject that names a Consent Agenda, an adjournment or appointments (not_item_votes) is never on one item.
+    - Under an item's own heading, the vote is on that item unless its subject names another item number, only
+      another kind ("adopt this resolution" under an ORDINANCE: held), or several items ("these ordinances").
+    - Under a section heading only ("ZONING"), the vote is on a numbered item only when its subject refers to it:
+      it names the number, or it says "this ordinance" and the paragraph before the vote names exactly one
+      ordinance. A number named in passing ("Councilman Grubbs abstained from voting on ORDINANCE 46-2015-16")
+      links nothing."""
+    section = {"number": None, "kind": None, "title": None, "heading": item["heading"]}
     text = re.sub(r"\s+", " ", " ".join(l.text for l in window))
-    named = {(m.group(1).lower(), m.group(2)) for m in cfg.item_number.finditer(text)}
-    if len(named) != 1:
-        return dict(item)
-    kind, number = named.pop()
-    return {"number": number, "kind": kind, "title": titles.get((kind, number)), "heading": item["heading"]}
+    subject = " ".join(x for x in ((motion or {}).get("text"), last_sentence(text), sentence) if x)
+    if cfg.not_item_votes.search(subject):
+        return section, {"basis": "not_an_item_vote", "ok": True, "detail": None}
+    # in a sentence the number may be printed in any case ("adopt Resolution 42-2021-22")
+    in_text = re.compile(cfg.item_number.pattern, cfg.item_number.flags | re.I)
+    nums = {(m.group(1).lower(), m.group(2)) for m in in_text.finditer(subject)}
+    kinds = [(m.group(1).lower(), bool(m.group(2))) for m in cfg.item_kind_word.finditer(subject)]
+    kind_set = {k for k, _ in kinds}
+    if item["number"]:
+        me = (item["kind"], item["number"])
+        label = f"{item['kind']} {item['number']}"
+        if nums and me not in nums:
+            return section, {"basis": "contradiction", "ok": False,
+                             "detail": f"vote names {', '.join(sorted(' '.join(n) for n in nums))}; item {label}"}
+        if len(nums) > 1:
+            return section, {"basis": "several_items", "ok": True, "detail": None}
+        if not nums and kind_set and item["kind"] not in kind_set:
+            return section, {"basis": "contradiction", "ok": False,
+                             "detail": f"vote is on a {', '.join(sorted(kind_set))}; item {label}"}
+        if not nums and kinds and all(plural for k, plural in kinds if k == item["kind"]):
+            return section, {"basis": "several_items", "ok": True, "detail": None}
+        return dict(item), {"basis": "named" if nums else "heading", "ok": True, "detail": None}
+    if len(nums) == 1:
+        kind, number = next(iter(nums))
+    else:
+        named = {(m.group(1).lower(), m.group(2)) for m in in_text.finditer(text)}
+        if nums or len(named) != 1 or not kinds:
+            return section, {"basis": "section", "ok": True, "detail": None}
+        kind, number = next(iter(named))
+        if kind_set != {kind} or any(plural for _, plural in kinds):
+            return section, {"basis": "section", "ok": True, "detail": None}
+    return ({"number": number, "kind": kind, "title": titles.get((kind, number)), "heading": item["heading"]},
+            {"basis": "named", "ok": True, "detail": None})
 
 
 def _motion(window: list[Line]) -> dict | None:

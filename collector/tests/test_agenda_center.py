@@ -52,6 +52,9 @@ def test_vote_labels_are_strings_not_yaml_booleans(cfg):
     ("years", [2024, 2016], "years"),
     ("kind_rules", [["formal", "x"]], "kind must be one of"),
     ("kind_rules", [["regular", "("]], "bad regex"),
+    ("item_kinds", ["ORDINANCE (x)"], "item_kinds"),
+    ("item_kinds", [], "item_kinds"),
+    ("not_item_votes", "(", "bad regex"),
 ])
 def test_config_rejects_bad_values(key, value, match):
     bad = raw_cfg()

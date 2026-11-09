@@ -532,3 +532,165 @@ def test_no_item_title_holds_motion_or_vote_text(cfg):
     facts, _ = build(cfg, rows[:1], store, parse=lambda p, c: parse_text([OVERRUN], c), inspect=inspect)
     import re
     assert not [i["title"] for i in facts["items"] if re.search(r"made a motion|seconded|AYE:", i["title"])]
+
+
+# city-votes/item-link: a vote is linked to a numbered item only when its own words refer to it
+LINKS = """ATTENDANCE
+
+    PRESENT: Geno Grubbs (Ward 7), Ron Erb (Ward 3), David Allen (Ward 8), Mike Alexander (Ward 10)
+
+    The regular session was called to order by Mayor Kim McMillan.
+
+CONSENT AGENDA
+
+     1.     ORDINANCE 36-2015-16 (Second Reading) Amending the FY16 General Fund Budget
+
+     2.     ORDINANCE 46-2015-16 (Second Reading) Authorizing purchase of property
+
+Councilman Erb made a motion to adopt the Consent Agenda. The motion was
+seconded by Councilman Allen.
+
+Councilman Allen made a motion to move the appointments to New Business. The motion was seconded by Councilman
+Erb. The following vote was recorded:
+
+      AYE: Allen, Erb
+      NAY: Alexander, Grubbs, McMillan
+
+The motion to move the appointments to New Business failed.
+
+Councilman Grubbs abstained from voting on ORDINANCE 46-2015-16. The following vote on the motion to
+adopt the Consent Agenda as amended was recorded:
+
+      AYE: Alexander, Allen, Erb, Grubbs, McMillan
+
+The motion to adopt the Consent Agenda as amended passed.
+
+SHORT TERM RENTALS
+
+    ORDINANCE 63-2020-21 (Second Reading) Amending the Official Code relative to
+    short term rentals
+
+          Councilman Erb made a motion to adopt this ordinance on second reading. The motion was
+          seconded by Councilman Allen. The following vote was recorded:
+
+                 AYE: Allen, Erb, Grubbs, McMillan
+
+                 NAY: Alexander
+
+          The motion to adopt this ordinance on second reading passed. Councilman Allen made a motion to
+          postpone third reading. The motion was seconded by Councilman Erb.
+
+          Councilman Grubbs made a motion to adjourn. The motion was seconded by
+          Councilman Alexander. The following vote was recorded:
+
+                 AYE: Alexander, Grubbs
+
+                 NAY: Allen, Erb, McMillan
+
+          The motion to adjourn failed. The following vote on the motion to postpone was
+          recorded:
+
+                 AYE: Alexander, Allen, Erb, Grubbs, McMillan
+
+          The motion to postpone passed.
+
+BOARD APPOINTMENTS
+
+     RESOLUTION 48-2020-21 Approving appointments to the Audit Committee and Ethics Commission
+
+            Councilman Erb made a motion to approve the appointments to the Ethics Commission. The motion was
+            seconded by Councilman Allen. The following vote was recorded:
+
+                   AYE: Alexander, Allen, Erb, Grubbs, McMillan
+
+            The motion to approve appointments to the Ethics Commission passed resulting
+            in the adoption of RESOLUTION 48-2020-21 as presented.
+
+FINANCE COMMITTEE
+
+     ORDINANCE 47-2019-20 (First Reading) Authorizing transfer of property interest
+
+            Councilman Erb made a motion to adopt this resolution. The motion was seconded by Councilman
+            Allen. The following vote was recorded:
+
+                   AYE: Alexander, Allen, Erb, Grubbs, McMillan
+
+            The motion to adopt this resolution passed.
+
+            The following vote on RESOLUTION 50-2019-20 was recorded:
+
+                   AYE: Alexander, Allen, Erb, Grubbs, McMillan
+
+            The motion to adopt RESOLUTION 50-2019-20 passed.
+
+     ORDINANCE 48-2019-20 (First Reading) Amending the budget
+
+            The following vote was recorded:
+
+                   AYE: Alexander, Allen, Erb, Grubbs, McMillan
+
+            The motion to adopt these ordinances on first reading passed.
+"""
+
+
+@pytest.fixture(scope="module")
+def links(cfg):
+    return parse_text([LINKS], cfg).roll_calls
+
+
+@pytest.fixture(scope="module")
+def links_built(cfg):
+    rows, store, inspect = rows_and_store()
+    return build(cfg, rows[:1], store, parse=lambda p, c: parse_text([LINKS], c), inspect=inspect)[0]
+
+
+def test_consent_agenda_vote_with_an_abstention_note_is_not_linked_to_that_item(links, links_built):
+    move, consent = links[0], links[1]
+    assert move.item["number"] is None and move.item["heading"] == "CONSENT AGENDA"      # appointments: section
+    assert consent.item["number"] is None and consent.item["heading"] == "CONSENT AGENDA"
+    assert consent.link["basis"] == "not_an_item_vote"
+    rc = links_built["roll_calls"][1]
+    assert rc["item_id"].startswith("t-") and rc["verification"]["status"] == "verified"
+    assert not any(i["id"] == "ordinance-46-2015-16" for i in links_built["items"])
+
+
+def test_adjourn_vote_under_an_item_goes_to_the_section(links, links_built):
+    adopt, adjourn, postpone = links[2], links[3], links[4]
+    assert adopt.item["number"] == "63-2020-21" and adopt.link["basis"] == "heading"
+    assert adjourn.outcome_text == "The motion to adjourn failed."
+    assert adjourn.item["number"] is None and adjourn.item["heading"] == "SHORT TERM RENTALS"
+    assert adjourn.link == {"basis": "not_an_item_vote", "ok": True, "detail": None}
+    # the vote after it, on the motion to postpone, is still on the item it was moved on
+    assert postpone.item["number"] == "63-2020-21"
+    rc = links_built["roll_calls"][3]
+    assert rc["item_id"] != "ordinance-63-2020-21" and rc["verification"]["status"] == "verified"
+
+
+def test_appointment_votes_are_not_linked_to_a_resolution(links, links_built):
+    ethics = links[5]
+    assert ethics.item["number"] is None and ethics.item["heading"] == "BOARD APPOINTMENTS"
+    assert ethics.link["basis"] == "not_an_item_vote"
+    assert links_built["roll_calls"][5]["item_id"].startswith("t-")
+
+
+def test_vote_whose_outcome_kind_contradicts_the_item_is_held(links, links_built):
+    wrong_kind, other_number = links[6], links[7]
+    assert wrong_kind.item["number"] is None and wrong_kind.item["heading"] == "FINANCE COMMITTEE"
+    assert wrong_kind.link["ok"] is False and wrong_kind.link["basis"] == "contradiction"
+    assert other_number.item["number"] is None and other_number.link["ok"] is False
+    for rc in links_built["roll_calls"][6:8]:
+        assert rc["verification"]["status"] == "unverified"
+        assert not checks(rc)["vote_matches_item"]["ok"]
+        assert "ordinance 47-2019-20" in checks(rc)["vote_matches_item"]["detail"]
+        assert rc["item_id"].startswith("t-")
+
+
+def test_vote_on_several_items_is_not_linked_to_one(links):
+    several = links[8]
+    assert several.item["number"] is None
+    assert several.link == {"basis": "several_items", "ok": True, "detail": None}
+
+
+def test_every_other_roll_call_passes_the_item_check(links_built):
+    ok = [checks(rc)["vote_matches_item"]["ok"] for rc in links_built["roll_calls"]]
+    assert ok == [True] * 6 + [False, False, True]
