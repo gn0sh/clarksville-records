@@ -242,3 +242,6 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | backend-engineer | opus/high | transcript review fixes 1-8 | merged f265787 (1527 passed); code-review delta: request changes (call-on gap allows sentence break; 'you recognized that...'), transcripts/call-on-misattribution hit 2
 - 2026-11-09 | software-architect+engineer | opus/high | call-on invariant stated, then fix | merged ad02de2; delta APPROVE, family closed
 - 2026-11-09 23:0xZ merged tree a9348df+: full suite 1566 passed, 2 skipped; sitegen 435 pages / 490 files (preview cap 500); site_checks PASS.
+- 2026-11-09 | code-reviewer | sonnet/medium | branding + trust pages | request changes (1 must, 7 should); docs/reviews/code-review-branding.md
+- 2026-11-09 | frontend-engineer | sonnet/medium | branding review fixes + transcript record line + alerts per-ward note | running
+- 2026-11-09 | code-reviewer | opus | call-on delta 11106f7 | approve
