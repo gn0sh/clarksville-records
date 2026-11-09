@@ -1,0 +1,63 @@
+# City of Clarksville, TN: City Council meetings from the city's CivicPlus Agenda Center (milestone M4, slice 1).
+# collector/agenda_center.py loads and checks this file; the code holds no locality literal. A missing or malformed key
+# fails the load loudly. Facts about the site: docs/platform-facts.md, "City of Clarksville".
+#
+# Never cityofclarksville.com (it blocks automated tools; denied in collector/fetch.py whatever this file says).
+# robots.txt (www.clarksvilletn.gov, checked 2026-11-09): /AgendaCenter allowed for `*`, Crawl-delay 10. The polite
+# fetcher reads robots.txt every run and checks every URL against it.
+
+locality: clarksville-tn
+body: Clarksville City Council
+official_title: City Council Member
+
+# Agenda Center listing. The category page loads other years with a POST (UpdateCategoryList); the collector only
+# GETs, so it reads the Agenda Center's own search page, one request per year, limited to this category.
+host: www.clarksvilletn.gov
+category_id: 3
+category_name: City Council
+search_url: "https://www.clarksvilletn.gov/AgendaCenter/Search/?term=&CIDs={cid}&startDate=01/01/{year}&endDate=12/31/{year}&dateRange=&dateSelector="
+years: [2016, 2024]          # first and last year listed (newest entry seen: 2024); CivicClerk holds later ones
+
+# Meeting kind from the listed title (case-insensitive; the first regex that matches wins). Titles are shown as
+# printed; the kind only groups them and names the meeting id. A meeting that matches none is "other". Kinds must be
+# in schema/facts.schema.json meeting.kind.
+kind_rules:
+  - [executive, '\bexecutive\b']
+  - [work-session, '\bwork\s*session\b|\bworkshop\b']
+  - [special, '\bspecial\b|\boath of office\b']
+  - [public-hearing, '\bpublic\s+hearing\b']
+  - [committee, '\bcommittee\b|\bcode review\b|\bbudget review\b|\bmtg notice\b']
+  - [regular, '\bregular\b']
+  - [other, '^']
+
+# Minutes. Vote lines start with one of these labels and a colon ("AYE: Allen, Burkhart, ..."). value is the
+# schema vote value; raw_value keeps the label as printed. ABSENT names are attendance at the vote, not a vote.
+vote_labels:                 # quoted: YAML reads a bare yes/no as true/false
+  "AYE": "yes"
+  "AYES": "yes"
+  "YES": "yes"
+  "NAY": "no"
+  "NAYS": "no"
+  "NO": "no"
+  "ABSTAIN": "abstain"
+  "ABSTAINED": "abstain"
+  "ABSTENTION": "abstain"
+  "ABSTENTIONS": "abstain"
+  "RECUSED": "other"
+  "PASS": "other"
+absent_labels: [ABSENT, "NOT PRESENT"]
+present_labels: [PRESENT]
+# A NOTE line inside a vote block ("NOTE: Councilman Alexander was not present for this vote.") names members who
+# did not vote because they were out of the room; they count as absent for that vote only.
+note_labels: [NOTE]
+# Words that end a vote block's name list (the outcome sentence that follows it).
+outcome_passed: '\b(passed|adopted|approved|carried)\b'
+outcome_failed: '\b(failed|defeated|denied|did not pass)\b'
+# Item numbers as the minutes print them ("ORDINANCE 47-2019-20", "RESOLUTION 33-2019-20").
+item_number: '\b(ORDINANCE|RESOLUTION)\s+(\d{1,3}-\d{4}-\d{2})\b'
+# The presiding officer who also votes, from the call-to-order sentence ("called to order by Mayor Joe Pitts").
+presiding: "called to order by (?:Mayor Pro Tem|Mayor)\\s+([A-Z][A-Za-z.'-]+(?:\\s+[A-Z][A-Za-z.'-]+)+)"
+presiding_title: Mayor
+
+# Name fixes for the same person printed two ways. Empty until a run shows one; each entry needs a source note.
+aliases: {}

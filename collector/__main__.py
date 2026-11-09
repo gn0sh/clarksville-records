@@ -1,5 +1,6 @@
 """python -m collector {fetch,build,run,names} [--offline] [--internal]
 python -m collector fin {fetch,build,census}   (finance and contracts: collector/fin_run.py)
+python -m collector city {fetch,build,run}     (City Council, Agenda Center: collector/city_run.py)
 
 run: discover -> fetch new (polite) -> parse -> resolve names -> verify -> data/facts.json -> finance fetch and
 build (fin_run.run_step: data/finance.json, build/report.json `finance`) -> sitegen -> export -> build/report.json,
@@ -270,6 +271,9 @@ def cmd_run(args) -> int:
 
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
+    if argv[:1] == ["city"]:
+        from .city_run import main as city_main
+        return city_main(argv[1:])
     if argv[:1] == ["fin"]:
         from .fin_run import main as fin_main
         return fin_main(argv[1:])
