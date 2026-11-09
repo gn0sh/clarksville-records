@@ -136,36 +136,6 @@ class Index:
     def item_title(self, item: dict) -> str:
         return item["title"]
 
-    # Names printed inside free text (an item title is verbatim from the minutes, "Honoring Councilman X"): every
-    # official's display name links to their page (standing rule). This body's officials first; `extra_names` adds
-    # another body's ({name: href}), e.g. a county official named in a city item.
-    extra_names: dict = {}
-
-    def name_hrefs(self) -> dict:
-        if getattr(self, "_name_hrefs", None) is None:
-            own = {o["name"]: self.official_href(o["id"]) for o in self.facts["officials"]}
-            own.update({o["name"]: self.official_href(o["id"]) for o in self.seats.roster_only.values()})
-            self._name_hrefs = {**self.extra_names, **own}
-            names = sorted(self._name_hrefs, key=len, reverse=True)
-            self._name_re = (re.compile(r"(?<!\w)(" + "|".join(re.escape(n) for n in names) + r")(?!\w)")
-                             if names else None)
-        return self._name_hrefs
-
-    def text_parts(self, text: str) -> list[dict]:
-        """`text` as [{text, href}]: href is an official's page for each display name in it, else None."""
-        hrefs = self.name_hrefs()
-        if not text or self._name_re is None:
-            return [{"text": text, "href": None}]
-        out, last = [], 0
-        for m in self._name_re.finditer(text):
-            if m.start() > last:
-                out.append({"text": text[last:m.start()], "href": None})
-            out.append({"text": m.group(1), "href": hrefs[m.group(1)]})
-            last = m.end()
-        if last < len(text):
-            out.append({"text": text[last:], "href": None})
-        return out or [{"text": text, "href": None}]
-
     def outcome(self, rc: dict) -> dict:
         """Passed/Failed/Other plus the tally counted from the verified votes (never the minutes' raw outcome text).
         Absent = members the meeting's verified attendance lists as absent who have no vote on this roll call.
@@ -256,11 +226,9 @@ class Index:
     def item_ref(self, item_id: str) -> dict:
         it = self.items.get(item_id)
         if it is None:
-            return {"id": item_id, "number": None, "title": item_id, "href": None,
-                    "title_parts": [{"text": item_id, "href": None}]}
+            return {"id": item_id, "number": None, "title": item_id, "href": None}
         title = self.item_title(it)
-        return {"id": it["id"], "number": it["number"], "title": title, "href": self.item_href(it),
-                "title_parts": self.text_parts(title)}
+        return {"id": it["id"], "number": it["number"], "title": title, "href": self.item_href(it)}
 
     def data_as_of(self) -> str:
         dates = [s["fetched_at"] for s in self.facts["sources"]]
@@ -450,14 +418,17 @@ def record_glance(ix: Index) -> dict:
 
 def current_basis_lines(ix: Index, people: list[dict]) -> list[str]:
     """The basis of "Current" for a section, one line per kind of basis (same for everyone, so the cards stay
-    identical): the roll-call one, then each seat whose current record is a term from a source."""
-    lines, sourced = [], []
+    identical): the observed one (naming each kind of evidence, observed_basis), then each seat whose current record
+    is a term from a source."""
+    lines, observed, sourced = [], [], []
     for o in people:
         for r in ix.seats.of(o["id"]):
-            if r["current"] and r["dates"] == "observed" and not lines:
-                lines.append(ix.seats.basis(r))
+            if r["current"] and r["dates"] == "observed":
+                observed.append(r)
             elif r["current"] and r["dates"] == "sourced" and r["label"] not in sourced:
                 sourced.append(r["label"])
+    if observed:
+        lines.append(observed_basis(ix, observed))
     if sourced:
         lines.append(f"{' and '.join(sourced)}: the source prints no end to the term")
     return lines
@@ -476,9 +447,32 @@ def _card(ix: Index, o: dict) -> dict:
             "roster_only": False}
 
 
-def observed_basis(ix: Index) -> str:
-    """The basis line of "Current" for a record seen in roll calls (the common case), shown with every "Current"."""
-    return basis_text({"dates": "observed"}, ix.seats.latest, ix.seats.wording)
+def _seat_group(labels: list[str]) -> str:
+    """'Ward 1', 'Ward 2' -> 'wards'; a seat without a number keeps its label ('Mayor')."""
+    out = []
+    for label in labels:
+        m = re.fullmatch(r"(.+) \d+", label)
+        word = f"{m.group(1).lower()}s" if m else label
+        if word not in out:
+            out.append(word)
+    return ", ".join(out)
+
+
+def observed_basis(ix: Index, records: list[dict] | None = None) -> str:
+    """The basis line of "Current" for observed records, shown with every "Current". `records`: the current observed
+    records the line covers (default: every one in the index). When they rest on different evidence (a council's
+    wards on the attendance lists, its mayor on the roll calls), the line names each with its seats, so no seat is
+    described by another's evidence (city-pages/current-basis)."""
+    if records is None:
+        records = [r for r in ix.seats.records if r["current"] and r["dates"] == "observed"]
+    by_ev: dict[str, list[str]] = {}
+    for r in sorted(records, key=lambda r: seat_order(r["seat"])):
+        by_ev.setdefault(r.get("evidence") or ix.seats.wording["evidence"], []).append(r["label"])
+    if len(by_ev) <= 1:
+        ev = next(iter(by_ev), None)
+        return basis_text({"dates": "observed", "evidence": ev}, ix.seats.latest, ix.seats.wording)
+    parts = " and ".join(f"the {ev} ({_seat_group(labels)})" for ev, labels in by_ev.items())
+    return f"Current: in {parts} of {ix.seats.wording['latest']}, {ix.seats.latest}"
 
 
 def officials_page(facts) -> dict:
@@ -858,7 +852,6 @@ def items_year(year: int, facts) -> dict:
         events = sorted(ix.events_by_item[it["id"]], key=lambda e: (e["date"], e["page"], e["order"], e["id"]))
         entries.append({
             "id": it["id"], "number": it["number"], "title": ix.item_title(it),
-            "title_parts": ix.text_parts(ix.item_title(it)),
             "basis": "Linked by number" if it["link_basis"] == "number" else "Linked by title",
             "zoning": zoning_rows(ix, it),
             "events": [_event(ix, e) for e in events],

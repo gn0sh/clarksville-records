@@ -278,6 +278,11 @@ def test_name_links_check_ignores_title_option_footer_and_own_page(site):
     page.write_text(t.replace("<title>", "<title>A. Example ", 1), encoding="utf-8")
     edit(page, "</main>", '<select><option>A. Example</option></select></main>')
     assert "name-links" not in failed(run(site))
+    # an item title is text in the document (manager decision 2026-11-09): a name in it is not checked
+    edit(page, "</main>", '<p><a href="items/2024.html#x"><span data-item-title>Sale to A. Example</span></a></p></main>')
+    assert "name-links" not in failed(run(site))
+    edit(page, "</main>", '<p>Sale to A. Example</p></main>')   # outside a title the rule still holds
+    assert "name-links" in failed(run(site))
 
 
 def test_roster_only_official_has_a_page_that_says_nothing_is_recorded(site):

@@ -276,9 +276,6 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     if councils is DEFAULT:
         councils = () if fixture else config.COUNCILS
     cixs = load_councils(councils, fixture)
-    county_names = {o["name"]: ix.official_href(o["id"]) for o in facts["officials"]}
-    for c in cixs:  # a county official named in a council item title links to their county page
-        c.extra_names = county_names
     fx = fin_views.Finance(fin_data, facts["officials"]) if fin_data is not None else None
     if capital_fund is DEFAULT:
         capital_fund = config.FIXTURE_CAPITAL_FUND if fixture else config.CAPITAL_FUND

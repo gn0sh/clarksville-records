@@ -22,8 +22,8 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               the cutover is immaterial (architecture, invariant `provenance`)
   totals      "Recorded absent at X of Y meetings" equals a recount from the meeting pages (AC2.2)
   name-links  every occurrence of an official's display name in the visible text of a page is inside an <a> to that
-              official's page (standing rule), except in <title>, <option>, the operator lines (footer, About) and on the
-              official's own page
+              official's page (standing rule), except in <title>, <option>, item titles (data-item-title: text in
+              the document, never linked), the operator lines (footer, About) and on the official's own page
   footer      "Provided as a free service by Brian Zacharias." on every page
   external    no third-party scripts, styles, images or fonts (N6); the landing address box's geocoder (called
               only on submit) is exactly config/site.yml geocoder_url; a page that loads static/address.js carries
@@ -753,8 +753,11 @@ class NameLinks(HTMLParser):
         if tag in Page.VOID:
             return
         a = dict(attrs)
-        # data-variants: the cell listing the spellings merged into an official (not a display of the name)
-        self.stack.append((tag, a.get("href") if tag == "a" else None, tag in self.SKIP or "data-variants" in a))
+        # data-variants: the cell listing the spellings merged into an official (not a display of the name).
+        # data-item-title: an item's title as the minutes print it; a name in it is text in the document (an
+        # applicant or buyer may share an official's name), never linked (manager decision 2026-11-09)
+        self.stack.append((tag, a.get("href") if tag == "a" else None,
+                           tag in self.SKIP or "data-variants" in a or "data-item-title" in a))
 
     def handle_endtag(self, tag):
         for i in range(len(self.stack) - 1, -1, -1):
