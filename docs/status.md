@@ -185,3 +185,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | frontend-engineer | opus/default | fix city page findings | done: 4 fixed, 1263 tests, site_checks pass, 445/500 files; d90ebeb. Follow-up: finance pages over 1 MB (finance/101 3.7 MB)
 - 2026-11-09 | code-reviewer | opus/default | delta re-review city fixes | approve (crawl: 0 broken links, all 305 meetings/1850 roll calls once)
 - 2026-11-09 | backend-engineer | opus/default | exports + offline guard + finance page weight | done: EXPORTS_READY on, city exports, guard exits 4, finance pages split, 468 files, site_checks pass, 1280 tests; 5d2e560. Note: store lacks 59 county minutes PDFs (offline run refuses, as designed).
+- 2026-11-09 | code-reviewer | opus/default | review exports | request changes: 1 medium (fin-export/held-leak), fix running (sonnet)
