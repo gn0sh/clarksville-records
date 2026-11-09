@@ -546,6 +546,9 @@ details.map-about .map-caption { font-size: var(--t-sm); }
 @media (max-width: 899px) {
   .page-landing svg.county-map { max-height: max(12rem, calc(100vh - 435px)); max-height: max(12rem, calc(100svh - 435px)); }
   .purpose { font-size: var(--t-md); line-height: 1.3; margin-bottom: 2px; }
+  /* the support link joins the operator line, which now wraps on a phone: smaller footer type and the map gives up 16px */
+  .page-landing .site-footer { font-size: var(--t-xs); line-height: 1.35; }
+  .page-landing svg.county-map { max-height: max(12rem, calc(100vh - 451px)); max-height: max(12rem, calc(100svh - 451px)); }
   .purpose-sub { font-size: var(--t-xs); }
   .landing-search { margin: 6px 0; }
   .layer-switch { margin: 0 0 2px; }
@@ -555,7 +558,7 @@ details.map-about .map-caption { font-size: var(--t-sm); }
   .page-landing #layer-districts { font-size: 54px; stroke-width: 14px; }
   /* phone: the address row takes 48px more, so the map gives it up; the privacy line shows once the box is in use
      (focus, or a result on screen), always before anything is sent, and the input names it (aria-describedby) */
-  .landing.has-addr svg.county-map { max-height: max(11rem, calc(100vh - 485px)); max-height: max(11rem, calc(100svh - 485px)); }
+  .landing.has-addr svg.county-map { max-height: max(11rem, calc(100vh - 501px)); max-height: max(11rem, calc(100svh - 501px)); }
   .addr-form:not(:focus-within):not(.has-result) .addr-privacy { display: none; }
 }
 svg.county-map-small { max-width: 18rem; max-height: 14rem; margin: 10px 0 0; }
