@@ -87,6 +87,17 @@ def test_parse_events_rows_as_printed(cfg, acfg):
     assert rows[2]["agenda_url"] is None and rows[2]["minutes_url"] is None
 
 
+@pytest.mark.parametrize("title,kind", [
+    ("Regular Session", "regular"), ("City Council Regular Session", "regular"), ("Executive Session", "executive"),
+    ("City Council Special Work Session", "work-session"), ("City Council - Special Session", "special"),
+    ("Special Session - 2nd Reading of the Budget", "special"), ("Budget Workshop", "work-session"),
+    ("Ethics Code Review Special Called Meeting", "committee"),      # as the Agenda Center's Ethics Code Review
+    ("Restoring Clarksville", "other"),
+])
+def test_civicclerk_titles_get_the_agenda_center_kinds(acfg, title, kind):
+    assert acfg.kind_of(title) == kind
+
+
 def test_date_is_taken_as_printed_not_converted(cfg, acfg):
     late = event(7, "2024-03-07T23:30:00Z", "Regular Session", [(1, "Agenda", "a", "")])
     rows, _ = cc.parse_events({"value": [late]}, cfg, acfg.kind_of)

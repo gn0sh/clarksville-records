@@ -24,7 +24,10 @@ years: [2016, 2024]          # first and last year listed (newest entry seen: 20
 kind_rules:
   - [executive, '\bexecutive\b']
   - [work-session, '\bwork\s*session\b|\bworkshop\b']
-  - [special, '\bspecial\b|\boath of office\b']
+  # before special: CivicClerk lists "Ethics Code Review Special Called Meeting" (2024-02-26); the Agenda Center's
+  # Ethics Code Review meetings are committee meetings. No Agenda Center title has both words (checked 2026-11-09).
+  - [committee, '\bcode review\b']
+  - [special,'\bspecial\b|\boath of office\b']
   - [public-hearing, '\bpublic\s+hearing\b']
   - [committee, '\bcommittee\b|\bcode review\b|\bbudget review\b|\bmtg notice\b']
   - [regular, '\bregular\b']
