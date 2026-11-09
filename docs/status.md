@@ -196,3 +196,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 1:35 PM ET: Brian reported the Buy Me a Coffee link 404s; corrected to his link https://buymeacoffee.com/gnoshcodes (no www) in config and test; preview republished (artifact versions 16-18).
 - 2026-11-09 1:35 PM ET: told Brian the earliest go-live is Wed Nov 11 for the core (county, city 2016-2024, finance, downloads, corrections); CivicClerk 2024+ and alerts follow as updates by Fri Nov 13. Card: launch core Wed (rec) vs all at once ~Fri. Default if no answer: core Wed, still gated on his go-live go-ahead.
 - 2026-11-09 | security-engineer | opus/high | correction intake + public surface + history | PASS WITH FINDINGS: 1 medium (csv formula injection), 3 low; repo safe to make public. Fixes running.
+- 2026-11-09 1:38 PM ET: Brian chose to launch everything at once, about Fri Nov 13 (CivicClerk 2024+ and alerts included). Go-live still needs his go-ahead.
