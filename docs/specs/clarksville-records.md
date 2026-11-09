@@ -107,7 +107,7 @@ A parse that misstates an official's vote or attendance is the worst failure. Ru
 - **M2:** County budgets and capital projects: see `docs/specs/finance-contracts.md` (audits later).
 - **M3:** County contracts (purchasing archive; Bonfire is link-only): see `docs/specs/finance-contracts.md`.
 - **M4:** City Council and committees from the clarksvilletn.gov Agenda Center (10 s crawl delay), same neutral display; find where post-May-2024 council records live.
-- **M5:** Keyword alerts on new documents (any delivery that contacts real people is a hard stop).
+- **M5:** Keyword alerts on new documents (any delivery that contacts real people is a hard stop). **Brian 2026-11-09:** the natural follow-up to the records site is letting people sign up for alerts on agenda items, especially zoning. Queued after finance and contracts: sketch email sign-up, matching by topic, address or district (reuse the georeferenced map and rezoning fields), and new-agenda detection (polite polling of agenda pages). Keep the design compatible with a possible standalone meeting-alerts app (market check by the coordinator). Sending to real people stays a hard stop.
 Public launch is a separate decision by Brian after the private preview, not a milestone.
 
 ## Assumptions
