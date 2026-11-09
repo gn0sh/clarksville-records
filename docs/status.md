@@ -178,3 +178,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - Problem-key ledger: city-votes/item-link hits 2 (review, delta re-review).
 - 2026-11-09 | software-architect+backend | opus/high | item-link invariant + fix, page-number fix | done: invariant in docs/architecture/city-council.md, 1208 tests pass, verified 1525/1850 (82.4%); 47c8eb1
 - 2026-11-09 | code-reviewer | opus/default | delta re-review 2 | approve (1 low docstring)
+- 2026-11-09 | frontend-engineer | opus/default | M4 slice 2: city pages | done: 49 pages, 312 files, site_checks pass, 1251 tests; 89b94b2. Open: cross-body name links in titles, page weight (3.8 MB)
