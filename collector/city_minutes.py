@@ -480,7 +480,9 @@ def _item_for_vote(item: dict, window: list[Line], titles: dict, cfg: AgendaCent
     Invariant (docs/architecture/city-council.md, "Vote-to-item link invariant"): a roll call is linked to a numbered
     item only when the vote's own words (vote_words: its motion, its lead-in sentence, its outcome sentence) identify
     that item, or the vote sits under that item's own number line and its words name no other item, kind or several
-    items. A number anywhere else in the paragraph (an abstention note, a speaker) never makes a link.
+    items. A number elsewhere in the paragraph is never read as the vote's own words; the one place it counts is the
+    "this ordinance" rule below, where a single number in the paragraph before the motion (a speaker's mention among
+    them) is the antecedent the motion refers to. An abstention or recusal note never counts.
     - Words that name a Consent Agenda, an adjournment or appointments (not_item_votes) are never on one item.
     - Under an item's own number line, the vote is on that item unless its words name another item number, only
       another kind ("adopt this resolution" under an ORDINANCE: held), or several items ("these ordinances").
