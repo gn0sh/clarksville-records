@@ -8,6 +8,30 @@
   <h1 class="purpose">{{ site.cfg.purpose }}</h1>
   <p class="muted purpose-sub"><span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>. {% for c in site.councils %}<a href="{{ root }}{{ c.href }}">{{ c.label }}</a>: <span class="nowrap">{{ c.from }} to {{ c.to }}</span>.{% if not loop.last %} {% endif %}{% else %}{{ site.cfg.city_coming }}{% endfor %}</p>
 
+  {# Address search first (CEO decision, Nov 9): most first-time visitors do not know their ward or district. The
+     form stays hidden until static/address.js shows it (it needs the script; without it a submit would only put the
+     address in this site's own URL). The address is not stored; see the privacy line. The lookup runs in a sandboxed
+     iframe that address.js makes per submit (opaque origin, removed after). The map below is the second way in. #}
+  <section id="your-seats" class="your-seats" aria-labelledby="your-seats-h" hidden>
+    <h2 id="your-seats-h">Your seats</h2>
+    <ul class="your-seats-list"></ul>
+    <button type="button" class="your-seats-forget" id="seats-forget">Forget</button>
+    <p class="your-seats-note">Saved only in this browser, on this device. Nothing is sent anywhere and no cookies are used.</p>
+  </section>
+{% if address %}
+  <form class="addr-form" id="addr-form" hidden>
+    <div class="search-row">
+      <label for="addr-q">{% if map and map.wards %}Find your ward and county district by address{% else %}Find your county district by address{% endif %}</label>
+      <input id="addr-q" type="text" autocomplete="street-address" maxlength="200" placeholder="Street address, city" aria-describedby="addr-privacy">
+      <button type="submit">Find</button>
+    </div>
+    <p class="addr-privacy" id="addr-privacy">Your address is sent to {{ site.cfg.geocoder_label }} to find it on the map. This site doesn't store it. <a data-ext="geocoder" href="{{ site.cfg.geocoder_privacy_url }}" rel="noopener">{{ site.cfg.geocoder_short }}'s privacy policy</a> applies.{% if site.cfg.district_lookup_url %} <span class="addr-alt">Or look it up on <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">{{ site.cfg.district_lookup_label }}</a>.</span>{% endif %}</p>
+    <p class="addr-privacy addr-seats-note">After a lookup, only the district number is kept, in this browser on this device, to show "Your seats" next time. No cookies.{% if not (map and map.wards) %} City ward lookup is coming; the wards are listed below the map.{% endif %}</p>
+    <p class="addr-result" id="addr-result" role="status" aria-live="polite"></p>
+  </form>
+  <script type="application/json" id="addr-config">{{ address|tojson }}</script>
+{% endif %}
+
   <form class="landing-search" action="search.html" method="get" role="search">
     <label for="landing-q" class="sr-only">Search records</label>
     <div class="search-row">
@@ -40,23 +64,8 @@
     </div>
 
     <div class="landing-list">
-      {% if address %}
-      {# Address box (address pin M2). Hidden until static/address.js shows it: it needs the script, and without it a
-         submit would only put the address in this site's own URL. Nothing is stored; see the privacy line. The lookup itself runs in a
-         sandboxed iframe that address.js makes per submit (opaque origin, removed after). #}
-      <form class="addr-form" id="addr-form" hidden>
-        <div class="search-row">
-          <label for="addr-q">Find your district</label>
-          <input id="addr-q" type="text" autocomplete="street-address" maxlength="200" placeholder="Street address, city" aria-describedby="addr-privacy">
-          <button type="submit">Find</button>
-        </div>
-        <p class="addr-privacy" id="addr-privacy">Your address is sent to {{ site.cfg.geocoder_label }} to find it on the map. This site doesn't store it. <a data-ext="geocoder" href="{{ site.cfg.geocoder_privacy_url }}" rel="noopener">{{ site.cfg.geocoder_short }}'s privacy policy</a> applies.{% if site.cfg.district_lookup_url %} <span class="addr-alt">Or look it up on <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">{{ site.cfg.district_lookup_label }}</a>.</span>{% endif %}</p>
-        <p class="addr-result" id="addr-result" role="status" aria-live="polite"></p>
-      </form>
-      <script type="application/json" id="addr-config">{{ address|tojson }}</script>
-      {% endif %}
       <details class="district-list"{% if not map %} open{% endif %}>
-        <summary><span class="wide-only">All {{ district_count }} districts, by number</span><span class="narrow-only" aria-hidden="true">All {{ district_count }} districts</span></summary>
+        <summary><span class="wide-only">{% if site.councils %}All {{ site.cfg.ward_count }} wards and {{ district_count }} districts, as a list{% else %}All {{ district_count }} districts, by number{% endif %}</span><span class="narrow-only" aria-hidden="true">{% if site.councils %}Wards and districts, list{% else %}All {{ district_count }} districts{% endif %}</span></summary>
         {% if basis %}<p class="basis muted">{{ basis }}.</p>{% endif %}
         <nav aria-label="{{ dl.label }}">
           <ol class="districts">
@@ -89,6 +98,7 @@
   </div>
 </div>
 {% endblock %}
-{% block scripts %}{% if map %}<script src="{{ root }}static/map.js" defer></script>{% endif %}{% if address %}
+{% block scripts %}{% if map %}<script src="{{ root }}static/map.js" defer></script>
+<script src="{{ root }}static/seats.js" defer></script>{% endif %}{% if address %}
 <script src="{{ root }}static/georef.js" defer></script>
 <script src="{{ root }}static/address.js" defer></script>{% endif %}{% endblock %}
