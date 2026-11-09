@@ -31,8 +31,8 @@ corrections:
   github_repo: ""   # "owner/name" of the PUBLIC repo: a prefilled issue from .github/ISSUE_TEMPLATE/correction.yml
   email: ""         # an address for a mailto link (no address is set until Brian picks one)
 
-# Alerts v1 (M5, sitegen/feeds.py): free Atom feeds on alerts.html. No sign-up, no e-mail, nothing stored about a
-# reader. One "new agendas and minutes" feed per body (the county and each council below), and one feed per topic
+# Alerts v1 (M5, sitegen/feeds.py): free Atom feeds on alerts.html. We keep no list of followers and run no
+# sign-up. One "new agendas and minutes" feed per body (the county and each council below), and one feed per topic
 # here, each an item_types key below, across every body. Leave the whole block out to build no feeds.
 alerts:
   feed_id: "tag:records.gnoshcodes.com,2026-11-09:"   # names every feed and entry id; never change it (readers re-alert)

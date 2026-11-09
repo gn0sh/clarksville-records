@@ -5,7 +5,7 @@
 {% endfor %}
 {% endblock %}
 {% block main %}
-{# Alerts v1 (M5, sitegen/feeds.py). Static Atom feeds: no sign-up, no e-mail, nothing stored about a reader. #}
+{# Alerts v1 (M5, sitegen/feeds.py). Static Atom feeds: we keep no list of followers and run no sign-up. #}
 <h1>Alerts</h1>
 <p class="lede">Follow new records with a feed. A feed is a link that a feed reader app checks for you: it shows each new agenda, set of minutes or item when it is added to this site.</p>
 
@@ -15,7 +15,7 @@
   <li>Paste the link into a feed reader. On the web, Feedly or Inoreader: choose Follow or Add subscription and paste it. On iPhone, an app such as NetNewsWire: choose Add Feed and paste it.</li>
   <li>The reader checks the feed and lists each new entry, linked to its page here and to its source document.</li>
 </ol>
-<p>There is no sign-up: this site keeps no list of who follows a feed. Each feed holds the newest {{ max_entries }} entries.</p>
+<p>We keep no list of followers and run no sign-up. Each feed holds the newest {{ max_entries }} entries.</p>
 <p>Email alerts are planned.</p>
 
 <h2>New agendas and minutes</h2>

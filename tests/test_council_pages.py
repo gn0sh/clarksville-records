@@ -465,6 +465,7 @@ def test_pack_years_joins_consecutive_years_while_the_page_fits():
     assert pack_years([], lambda run: 0) == []
 
 
+<<<<<<< HEAD
 def test_pack_years_never_joins_years_with_a_gap():
     """city-pages/year-run-label: a member seen in 2018 and 2023 only gets two pages, never one labelled 2018-2023."""
     from sitegen.build import pack_years, years_key
@@ -472,3 +473,55 @@ def test_pack_years_never_joins_years_with_a_gap():
     runs = pack_years(groups, lambda run: 1)
     assert [years_key(r) for r in runs] == ["2025-2026", "2023", "2017-2018"]
     assert all(int(a["year"]) - int(b["year"]) == 1 for r in runs for a, b in zip(r, r[1:]))
+=======
+# ---------------------------------------------------------------- alerts feeds beside a council
+
+ATOM = "{http://www.w3.org/2005/Atom}"
+
+
+def _feed(out, name):
+    from xml.etree import ElementTree as ET
+    return ET.parse(out / "feeds" / name).getroot()
+
+
+def _alt(entry):
+    return next(x.get("href") for x in entry.findall(ATOM + "link") if x.get("rel") == "alternate")
+
+
+def test_council_feed_hrefs_resolve_to_council_pages(site):
+    out, _ = site
+    entries = _feed(out, "city-meetings.xml").findall(ATOM + "entry")
+    assert entries
+    for e in entries:
+        href = _alt(e)
+        assert href.startswith("../city/meetings/"), href
+        page, _, anchor = href[3:].partition("#")
+        assert (out / page).is_file(), href
+        assert f'id="{anchor}"' in (out / page).read_text(encoding="utf-8"), href
+
+
+def test_multi_body_feed_ids_carry_the_body_key(site, cix):
+    out, _ = site
+    prefix = config.SITE["alerts"]["feed_id"]
+    county, city = config.SITE["county_key"], cix.body_key
+    bodies, item_ids = set(), []
+    for f in sorted((out / "feeds").glob("*.xml")):
+        ids = [e.find(ATOM + "id").text for e in _feed(out, f.name).findall(ATOM + "entry")]
+        assert len(ids) == len(set(ids)), f.name
+        for i in ids:
+            assert i.startswith(prefix), i
+            bodies.add(i[len(prefix):].split("/")[0])
+        if f.name.startswith("topic-"):
+            item_ids += ids
+    assert bodies == {county, city}
+    assert any(i.startswith(f"{prefix}{city}/item/") for i in item_ids)
+    assert any(i.startswith(f"{prefix}{county}/item/") for i in item_ids)
+
+
+def test_council_item_entries_link_to_council_item_pages(site, cix):
+    out, _ = site
+    prefix = config.SITE["alerts"]["feed_id"] + cix.body_key + "/item/"
+    hrefs = [_alt(e) for f in (out / "feeds").glob("topic-*.xml") for e in _feed(out, f.name).findall(ATOM + "entry")
+             if e.find(ATOM + "id").text.startswith(prefix)]
+    assert hrefs and all(h.startswith("../city/items/") for h in hrefs)
+>>>>>>> worktree-agent-a5297bb66b22e9fc2

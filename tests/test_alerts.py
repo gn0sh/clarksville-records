@@ -161,7 +161,7 @@ def test_alerts_page_links_every_feed_and_explains_how(built, pages):
         assert 'rel="alternate" type="application/atom+xml"' in html
     main = html[html.index("<main"):html.index("</main>")]
     for words in ("feed reader", "Feedly", "Inoreader", "NetNewsWire", "iPhone", "Copy link", "Email alerts are planned.",
-                  "keeps no list of who follows a feed"):
+                  "We keep no list of followers and run no sign-up."):
         assert words in main, words
     assert BANNED.search(parse(main).all_text()) is None
     assert "officials/" not in main
@@ -228,3 +228,29 @@ def test_site_checks_catch_a_duplicate_id_and_an_unlinked_feed(site):
     problems = feeds_check(site)
     assert any("twice" in p for p in problems)
     assert any("does not link feeds/extra.xml" in p for p in problems)
+
+
+def test_illegal_xml_characters_are_stripped_and_whitespace_collapsed():
+    """PDF text carries NUL, form feed and U+FFFE: none is legal in XML 1.0, so the feed must still parse."""
+    nasty = "Zoning\x00 of  the\x0c lot\ufffe\n at  5\ufffa"
+    feed = {"file": "feeds/t.xml", "title": nasty, "about": nasty}
+    raw = feeds.render(feed, [entry(1, nasty)])
+    root = ET.fromstring(raw)
+    assert text(root.find(A + "entry"), "title") == "Zoning of the lot at 5\ufffa"
+    assert text(root, "subtitle") == "Zoning of the lot at 5\ufffa"
+    assert b"\x0c" not in raw and b"\x00" not in raw
+
+
+@pytest.mark.parametrize("title,topic,hit", [
+    ("Resolution to appoint a member", "appointment", True),
+    ("Appointments to the board", "appointment", True),
+    ("Report on disappointment with the schedule", "appointment", False),
+    ("Reappointment of a member", "appointment", False),
+    ("Budget amendment", "budget", True),
+    ("Supplemental appropriations", "budget", True),
+    ("A rezoning request", "rezoning", True),
+    ("Resolution", "resolution", True),
+    ("Irresolution on the matter", "resolution", False),
+])
+def test_topic_words_match_at_the_start_of_a_word(title, topic, hit):
+    assert (topic in views.item_types({"number": "", "title": title})) is hit
