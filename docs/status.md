@@ -182,3 +182,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 9:56 AM ET: Brian: after the 3 PM ET reset, records is #1 priority and gets nearly all usage, efficiently. Plan: from 3 PM run 2 agents in parallel (e.g. exports + report-an-error, then alerts + hosting). The business plan is in a separate thread.
 - 2026-11-09 | code-reviewer | opus/default | review city pages | request changes: 2 med-high, 1 med, 2 low
 - DECISION 2026-11-09: names inside item titles never link to an official's page (they can be applicants or buyers with the same name). Names link only where the minutes record an official acting.
+- 2026-11-09 | frontend-engineer | opus/default | fix city page findings | done: 4 fixed, 1263 tests, site_checks pass, 445/500 files; d90ebeb. Follow-up: finance pages over 1 MB (finance/101 3.7 MB)
