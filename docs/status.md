@@ -183,3 +183,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | code-reviewer | opus/default | review city pages | request changes: 2 med-high, 1 med, 2 low
 - DECISION 2026-11-09: names inside item titles never link to an official's page (they can be applicants or buyers with the same name). Names link only where the minutes record an official acting.
 - 2026-11-09 | frontend-engineer | opus/default | fix city page findings | done: 4 fixed, 1263 tests, site_checks pass, 445/500 files; d90ebeb. Follow-up: finance pages over 1 MB (finance/101 3.7 MB)
+- 2026-11-09 | code-reviewer | opus/default | delta re-review city fixes | approve (crawl: 0 broken links, all 305 meetings/1850 roll calls once)
