@@ -14,6 +14,7 @@ import jinja2
 from jsonschema import Draft202012Validator, FormatChecker
 
 from . import budget_views, config, council as council_mod, feeds as feeds_mod, fin_views, georef as georef_mod, \
+    transcripts as transcripts_mod, \
     seats as seats_mod, views
 
 
@@ -196,16 +197,27 @@ def load_councils(councils, fixture: bool) -> list:
     return out
 
 
-def write_publish_manifest(out: Path) -> dict:
-    """{published path: local path}, index.html excluded. Call again after the export adds data/ files."""
+def write_publish_manifest(out: Path, target: str = "preview") -> dict:
+    """{published path: local path}, index.html excluded. Call again after the export adds data/ files.
+    `target`: the host the build is for (config.MAX_FILES_BY_TARGET): its file cap applies."""
     out = Path(out)
     files = sorted(p for p in out.rglob("*") if p.is_file())
-    if len(files) > config.MAX_FILES:
-        raise BuildError(f"site has {len(files)} files; the limit is {config.MAX_FILES}")
+    cap = config.max_files(target)
+    if len(files) > cap:
+        raise BuildError(f"site has {len(files)} files; the limit for the {target} target is {cap}")
     manifest = {p.relative_to(out).as_posix(): str(p) for p in files if p.relative_to(out).as_posix() != "index.html"}
     (out.parent / "publish-files.json").write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return manifest
+
+
+def export_file_count(fixture: bool, councils, finance: bool) -> int:
+    """How many files the open-data export (collector/export.py export_site) adds under data/: facts.json plus one
+    CSV per table for the county and for each council, and finance.json plus its CSVs when finance is built."""
+    from collector.export import CSV_FILES
+    from collector.fin_export import FIN_FILES
+    per_body = 1 + len(CSV_FILES)
+    return per_body * (1 + len(councils)) + ((1 + len(FIN_FILES)) if finance and not fixture else 0)
 
 
 def balanced_chunks(weights: list[int], k: int) -> list[range]:
@@ -306,7 +318,7 @@ REPORT_TEMPLATES = frozenset({
     "meeting.html.j2", "items_year.html.j2", "votes_year.html.j2", "official.html.j2", "official_year.html.j2",
     "official_roster.html.j2", "district.html.j2", "council_home.html.j2", "council_meetings_year.html.j2",
     "council_items_year.html.j2", "fin_index.html.j2", "fin_fund.html.j2", "fin_capital.html.j2",
-    "fin_contracts_index.html.j2", "fin_solicitation.html.j2"})
+    "fin_contracts_index.html.j2", "fin_solicitation.html.j2", "transcript.html.j2"})
 
 
 def corrections_problems(cfg: dict) -> list[str]:
@@ -327,7 +339,7 @@ def corrections_problems(cfg: dict) -> list[str]:
 
 def build(facts_path, out_dir, internal: bool = False, changes_path=None, report_path=None,
           seats_path=DEFAULT, districts_path=DEFAULT, geocoder: bool = True, finance_path=DEFAULT,
-          capital_fund=DEFAULT, councils=DEFAULT) -> dict:
+          capital_fund=DEFAULT, councils=DEFAULT, target: str = "preview", transcripts: bool = True) -> dict:
     """`geocoder=False` (`--no-geocoder`) draws no landing address box and allows no geocoder in the CSP: the build
     for the claude.ai preview, where the box could not reach the geocoder. The plain lookup line shows instead.
     `seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
@@ -340,7 +352,13 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     `capital_fund`: the fund the capital projects page shows; left out, config.CAPITAL_FUND (finance.yml), or the
     FIXTURE fund for a fixture build.
     `councils`: the councils to build beside the county (config.COUNCILS entries, council.yml); left out, a real
-    build builds config.COUNCILS and a fixture build none. Each gets its pages under its own folder (council.py)."""
+    build builds config.COUNCILS and a fixture build none. Each gets its pages under its own folder (council.py).
+    `target`: "preview" (the claude.ai artifact, config.MAX_FILES_BY_TARGET caps it at 500 files) or "pages" (GitHub
+    Pages). When the preview build with its export would pass its cap, it is built again without the transcript
+    pages (`transcripts=False`): each meeting with a transcript then says so, and the member pages keep their
+    call-ons with the video links (sitegen/transcripts.py). Year and meeting pages are never split to make room."""
+    if target not in config.MAX_FILES_BY_TARGET:
+        raise BuildError(f"unknown target {target!r}; one of {', '.join(sorted(config.MAX_FILES_BY_TARGET))}")
     facts_path, out = Path(facts_path), Path(out_dir)
     facts = load_facts(facts_path)
     fixture = bool(facts.get("fixture"))
@@ -368,6 +386,11 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     if councils is DEFAULT:
         councils = () if fixture else config.COUNCILS
     cixs = load_councils(councils, fixture)
+    for c in cixs:
+        try:
+            c.tx = transcripts_mod.Transcripts(c, transcripts_mod.load(c.cfg["facts_path"], c.facts), pages=transcripts)
+        except transcripts_mod.TranscriptLoadError as exc:
+            raise BuildError(str(exc)) from exc
     fx = fin_views.Finance(fin_data, facts["officials"]) if fin_data is not None else None
     if capital_fund is DEFAULT:
         capital_fund = config.FIXTURE_CAPITAL_FUND if fixture else config.CAPITAL_FUND
@@ -392,6 +415,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs)
     site["internal"] = internal
     site["councils"] = [council_mod.landing_entry(c) for c in cixs]
+    site["transcripts_omitted"] = not transcripts
     written: list[str] = []
 
     def html_of(template: str, rel: str, page_name: str, site_ctx=None, **ctx) -> str:
@@ -440,6 +464,41 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         for n, ids in enumerate(parts, 1):
             for i in ids:
                 bix.page_parts[(kind, i)] = n
+
+    # Transcript pages (sitegen/transcripts.py), one per meeting, in parts by line when over config.PAGE_BYTES; planned
+    # before any page links a line, so each line link names its part.
+    tx_plans = []
+    for c in cixs:
+        if not c.tx.pages:
+            continue
+        cs = council_mod.site_for(site, c)
+        extra = {"council": c.nav_label, "council_href": c.home_href()}
+        for mid in sorted(c.tx.by_meeting):
+            ctx = c.tx.page(mid)
+            name = c.page_name(f"Transcript {ctx['meeting']['date']}")
+            rel = c.tx.page_href(mid)
+
+            def size_of(es, ctx=ctx, rel=rel, name=name, cs=cs, extra=extra):
+                return len(html_of("transcript.html.j2", rel, name, cs, **extra,
+                                   **{**ctx, "lines": es, "parts": []}).encode("utf-8"))
+
+            parts = plan_parts(ctx["lines"], size_of, [len(x["text"]) + 200 for x in ctx["lines"]])
+            for n, ids in enumerate(parts, 1):
+                for i in ids:
+                    c.tx.part_of[(mid, int(i[1:]))] = n
+            tx_plans.append((c, cs, extra, mid, name, parts))
+
+    def render_transcript_pages():
+        for c, cs, extra, mid, name, parts in tx_plans:
+            ctx = c.tx.page(mid)
+            by_id = {x["id"]: x for x in ctx["lines"]}
+            runs = [[by_id[i] for i in ids] for ids in parts]
+            nav = [{"href": posixpath.basename(c.tx.page_href(mid, n)),
+                    "label": f"{run[0]['time']} to {run[-1]['time']}"}
+                   for n, run in enumerate(runs, 1)] if len(runs) > 1 else []
+            for n, run in enumerate(runs, 1):
+                render("transcript.html.j2", c.tx.page_href(mid, n), name if n == 1 else f"{name} (part {n})", cs,
+                       **extra, **{**ctx, "lines": run, "parts": [{**p, "current": i == n} for i, p in enumerate(nav, 1)]})
 
     def render_year_pages():
         for (bix, kind, tpl, folder, year, name, sctx, extra, key, date_of, make) in year_specs():
@@ -522,6 +581,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         ctx = views.meeting(m["id"], ix)
         render("meeting.html.j2", f"meetings/{m['id']}.html", f"Meeting {m['date']}", m=ctx, **ctx)
     render_year_pages()   # county items; each council's meetings and items (in parts when too big)
+    render_transcript_pages()
     for c in cixs:  # council pages (council.py): home, one page per member and per year of their history
         cs = council_mod.site_for(site, c)
         render("council_home.html.j2", c.home_href(), c.page_name(), cs, council=c.nav_label,
@@ -572,5 +632,16 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     # when it is in this list (report-frag/text-spoof).
     (out / "static" / "pages.js").write_text(
         "window.BUILT_PAGES = " + json.dumps(sorted(written), separators=(",", ":")) + ";\n", encoding="utf-8")
-    manifest = write_publish_manifest(out)
-    return {"pages": written, "files": len(manifest) + 1}
+    # The target's file cap, counting the export still to come (data/ in `out` now may be an older export's).
+    cap = config.max_files(target)
+    built = sum(1 for p in out.rglob("*") if p.is_file() and p.relative_to(out).parts[0] != "data")
+    expected = built + export_file_count(fixture, cixs, fx is not None and fin_views.EXPORTS_READY)
+    tx_pages = sum(len(p[5]) for p in tx_plans)
+    if expected > cap and tx_pages and target == "preview":
+        print(f"sitegen: {expected} files with the export is over the {target} cap of {cap}; building again without "
+              f"the {tx_pages} transcript pages", file=sys.stderr)
+        return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
+                     finance_path, capital_fund, councils, target, transcripts=False)
+    manifest = write_publish_manifest(out, target)
+    return {"pages": written, "files": len(manifest) + 1, "target": target, "transcripts": transcripts,
+            "transcript_pages": tx_pages}

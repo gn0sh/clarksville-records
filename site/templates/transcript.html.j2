@@ -1,0 +1,19 @@
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import parts_nav %}
+{# One meeting's automatic transcript (sitegen/transcripts.py). Every line: its time linked to that moment of the
+   city's video, the label, and the text exactly as the software wrote it (data-transcript: never linked, never
+   reworded). A line where the text shows the chair calling on a member names that member, matched by surname
+   against the meeting's attendance list, never by voice. #}
+{% block main %}
+<p class="kicker-line"><a href="{{ root }}{{ council_href }}">{{ council }}</a></p>
+<h1>Transcript: {{ kind_label }}, <span class="nowrap">{{ meeting.date }}</span></h1>
+<p class="notice transcript-notice" role="note"><strong>{{ notice }}</strong></p>
+<p class="source-line">Video: <a data-ext="video" href="{{ video_url }}" target="_blank" rel="noopener noreferrer">the city's recording (MP4)<span class="sr-only"> (opens in a new tab)</span></a>. Meeting: <a href="{{ root }}{{ meeting_href }}">{{ kind_label | lower }}, {{ meeting.date }}</a>. Made with {{ model_version }}, model {{ model }}, on {{ created_at[:10] }}.</p>
+<p class="muted">Each line starts with its time in the video; the time links to that moment. Lines marked "Called on" are where the transcript text shows the chair giving a member the floor by title and surname ({{ call_on_count }} on this transcript); the name is matched to the meeting's attendance list in the minutes, not to the voice.</p>
+{{ parts_nav(parts, "Transcript parts", "This transcript is on {n} pages, by time:") }}
+<ol class="transcript">
+  {% for l in lines %}
+  <li id="{{ l.id }}"{% if l.call_ons %} class="call-on"{% endif %}><a class="tx-time" data-ext="video" href="{{ l.href }}" target="_blank" rel="noopener noreferrer">{{ l.time }}<span class="sr-only"> in the video (opens in a new tab)</span></a> <span class="chip chip-type">{{ label }}</span> <span class="tx-text" data-transcript>{{ l.text }}</span>{% for c in l.call_ons %} <span class="chip chip-status">Called on: <a href="{{ root }}{{ c.href }}">{{ c.name }}</a></span>{% endfor %}</li>
+  {% endfor %}
+</ol>
+{% endblock %}

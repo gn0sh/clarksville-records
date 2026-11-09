@@ -32,6 +32,9 @@
     {% else %}
     <p class="source-line">Minutes not collected for this meeting. Agenda: <a href="{{ m.doc.url }}" target="_blank" rel="noopener noreferrer">{{ m.doc.kind }} PDF, {{ m.doc.pages }} pages<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ m.doc.fetched }}.</p>
     {% endif %}
+    {% if m.video_url %}
+    <p class="source-line">Video: <a data-ext="video" href="{{ m.video_url }}" target="_blank" rel="noopener noreferrer">the city's recording (MP4)<span class="sr-only"> (opens in a new tab)</span></a>.{% if m.transcript %}{% if m.transcript.href %} <a href="{{ root }}{{ m.transcript.href }}">Automatic transcript</a>, {{ m.transcript.lines }} lines, each linked to its time in the video.{% else %} An automatic transcript of this video is on the full site; this preview copy leaves transcript pages out to stay under its file limit.{% endif %}{% endif %}</p>
+    {% endif %}
   </header>
   {% if m.has_minutes %}
   {{ meeting_stats(m) }}
