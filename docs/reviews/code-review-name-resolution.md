@@ -33,3 +33,7 @@ entry. Spot check of 7 verified 2026 roll calls against pdftotext: all exact. Fu
 Holds: widened NOT_SITTING_RE, NOT_NAME_WORDS junk filter, earlier repro held, `d == last` pinned. 68 name tests pass.
 
 **Manager decision:** stop inferring from prose. Titled names in minutes text never add a candidate; surnames resolve only via the roster book or a cited config entry; an unknown presiding name is held. Fix run at opus/xhigh (escalated).
+
+## Delta re-review of fail-safe fix (15dd2e4..2043aac): APPROVE
+Invariant holds: titled-name scans gone, surnames resolve only via the roster book; presiding mayor only via the book, the cited `mayors` config, or the meeting's own list. Facts diff: 0 attribution/attendance/status changes. Mayors cites checked against stored minutes; term edges, Mayor Pro Tem chair, joint session held. Residual risk documented and bounded (window restarts 2027-01-01).
+- city-votes/presiding-own-list (LOW, backlog): a meeting's own full-name list printing a different "Mayor X" while a configured mayor covers the date can create a city official titled Mayor. Nothing in stored data triggers it. Fix: hold any Mayor-titled name that differs from the configured mayor.
