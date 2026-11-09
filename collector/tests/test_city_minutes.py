@@ -640,8 +640,11 @@ def links(cfg):
 
 @pytest.fixture(scope="module")
 def links_built(cfg):
+    """LINKS is called to order by Mayor Kim McMillan, so it is built on a date inside her configured term (to
+    2018-12-31): the presiding mayor is on the roster only then (path N3, city-votes/presiding-guest)."""
     rows, store, inspect = rows_and_store()
-    return build(cfg, rows[:1], store, parse=lambda p, c: parse_text([LINKS], c), inspect=inspect)[0]
+    rows = [{**rows[0], "date": "2018-03-01"}]
+    return build(cfg, rows, store, parse=lambda p, c: parse_text([LINKS], c), inspect=inspect)[0]
 
 
 def test_consent_agenda_vote_with_an_abstention_note_is_not_linked_to_that_item(links, links_built):

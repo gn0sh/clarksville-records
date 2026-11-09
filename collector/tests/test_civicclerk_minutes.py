@@ -15,7 +15,7 @@ import pytest
 
 from collector import agenda_center as ac
 from collector.city_build import Officials, RosterBook, build, printed_full_names, resolve_surnames
-from collector.city_minutes import called_to_order_on, parse_text, titled_names
+from collector.city_minutes import called_to_order_on, parse_text
 from collector.tests.test_city_minutes import SCHEMA, FakeStore, entry
 
 API = "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId={},plainText=false)"
@@ -194,11 +194,9 @@ def test_a_capital_heading_after_a_list_without_a_comma_still_ends_it(cfg):
     assert [v.raw_name for v in pm.roll_calls[0].votes] == ["BROWN", "HAYWOOD"]
 
 
-def test_titled_names_and_the_called_to_order_date(cfg):
+def test_the_called_to_order_date(cfg):
     assert called_to_order_on(CAPS_2025) == "2025-08-07"
     assert called_to_order_on("no call to order here") is None
-    assert titled_names(CAPS_2025) == ["Joe Pitts", "Keri Lovato", "Stacey Streetman"]
-    assert titled_names("Mayor Pitts Councilman Shakeenab Called for the question; Councilman Haywood None") == []
 
 
 def test_links_on_the_new_shapes_keep_the_invariant(cfg):
@@ -232,8 +230,7 @@ def book_from(cfg, text, date, meeting="2025-08-07"):
 
 def test_printed_full_names_by_surname(cfg):
     book, _ = roster_from(cfg, FULL_2025, "2025-02-06")
-    assert len(book) == 13 and book["pitts"] == {"date": "2025-02-06",
-                                                 "people": [{"name": "Joe Pitts", "ward": None, "mayor": True}]}
+    assert len(book) == 12 and "pitts" not in book       # the call-to-order sentence is no list (path N3)
     assert book["brown"]["people"] == [{"name": "Jimmy Brown", "ward": 9, "mayor": False}]
     assert roster_from(cfg, CAPS_2025, "2025-08-07")[0] == {}                  # surnames only: nothing to learn
 
@@ -263,16 +260,17 @@ def test_a_repeated_label_and_a_mayor_note_in_the_attendance(cfg):
         ("Brian Zacharias", 1, False), ("Keri Lovato", 12, False), ("Joe Pitts", None, True)]
 
 
-def test_surnames_resolve_against_the_latest_full_roster_and_these_minutes(cfg):
+def test_surnames_resolve_against_the_latest_full_roster_and_the_configured_mayor(cfg):
     last, off = book_from(cfg, FULL_2025, "2025-02-06")
     pm = parse_text([CAPS_2025], cfg)
     got, checks = resolve_surnames(cfg, off, pm, last)
     names = {p.raw_name: got[id(p)] for p in pm.present + pm.absent}
     assert names["BROWN"] == ("Jimmy Brown", False) and names["MCLAUGHLIN"] == ("Deanna McLaughlin", False)
-    assert names["PITTS"] == ("Joe Pitts", True)                                # the presiding mayor
+    assert names["PITTS"] == ("Joe Pitts", True)                                # the configured, cited mayor
     assert names["LOVATO"] == ("Keri Lovato", False)
     assert checks[0]["check"] == "surnames_resolve" and checks[0]["ok"]
-    assert "by these minutes" in checks[0]["detail"] and "by the attendance of 2025-02-06" in checks[0]["detail"]
+    assert checks[0]["detail"] == ("13 printed as surnames: 12 by the attendance of 2025-02-06; "
+                                   "1 by the configured mayor seat from 2019-01-01")
 
 
 def test_a_misspelt_or_unknown_surname_is_not_resolved(cfg):
@@ -280,7 +278,8 @@ def test_a_misspelt_or_unknown_surname_is_not_resolved(cfg):
     pm = parse_text([CAPS_2025.replace("STREETMAN, ZACHARIAS\n\n      ABSENT", "STREETMAN, ZAHARIAS, CLAUNCH\n\n"
                                                                                  "      ABSENT")], cfg)
     got, checks = resolve_surnames(cfg, off, pm, last)
-    assert not checks[0]["ok"] and "not resolved: ZAHARIAS, CLAUNCH" in checks[0]["detail"]
+    assert not checks[0]["ok"] and "not resolved: ZAHARIAS (no roster entry), CLAUNCH (no roster entry)" \
+        in checks[0]["detail"]
     assert all(off.canonical(p.raw_name) == p.raw_name for p in pm.present if id(p) not in got)
 
 
@@ -288,15 +287,20 @@ def test_a_ward_that_disagrees_with_the_roster_is_not_resolved(cfg):
     last, off = book_from(cfg, FULL_2025, "2025-02-06")
     pm = parse_text([SURNAMES_WARDS_2025.replace("Brown (Ward 9)", "Brown (Ward 2)")], cfg)
     got, checks = resolve_surnames(cfg, off, pm, last)
-    assert not checks[0]["ok"] and "not resolved: Brown" in checks[0]["detail"]
+    assert not checks[0]["ok"] and "not resolved: Brown (no roster entry; Jimmy Brown: Ward 9, not Ward 2 as printed)" \
+        in checks[0]["detail"]
     assert {got[id(p)][0] for p in pm.present if id(p) in got} >= {"Brian Zacharias", "Carlos Peters"}
 
 
-def test_two_full_names_for_one_surname_is_not_resolved(cfg):
+def test_a_titled_name_in_the_text_is_never_a_second_candidate(cfg):
+    """city-votes/titled-nonmember: "the Pledge ... was led by Councilman Jim Brown" is prose, not a roster entry, so
+    BROWN is read against the book alone (Jimmy Brown). Two full names on the book still hold it (test_city_names n6)."""
     last, off = book_from(cfg, FULL_2025, "2025-02-06")
     pm = parse_text([CAPS_2025.replace("led by Councilman Keri Lovato", "led by Councilman Jim Brown")], cfg)
     got, checks = resolve_surnames(cfg, off, pm, last)
-    assert "BROWN (2 full names)" in checks[0]["detail"] and not checks[0]["ok"]
+    names = {p.raw_name: got.get(id(p)) for p in pm.present + pm.absent}
+    assert names["BROWN"] == ("Jimmy Brown", False) and checks[0]["ok"]
+    assert "Jim Brown" not in checks[0]["detail"] and "2 full names" not in checks[0]["detail"]
 
 
 # ------------------------------------------------------------------ build

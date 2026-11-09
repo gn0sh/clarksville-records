@@ -188,7 +188,8 @@ def test_abstention_note_before_the_vote_lines_is_not_linked_in_the_facts(cfg):
     rc = parse_text([ABSTAIN], cfg).roll_calls[0]
     assert rc.item["number"] is None and rc.link["basis"] == "section"
     rows, store, inspect = rows_and_store()
-    facts, _ = build(cfg, rows[:1], store, parse=lambda p, c: parse_text([ABSTAIN], c), inspect=inspect)
+    rows = [{**rows[0], "date": "2016-06-02"}]           # inside Mayor Kim McMillan's configured term (path N3)
+    facts, _ = build(cfg, rows, store, parse=lambda p, c: parse_text([ABSTAIN], c), inspect=inspect)
     assert facts["roll_calls"][0]["item_id"].startswith("t-")
     assert not any(i["number"] for i in facts["items"])                      # no ORDINANCE 46-2015-16 item
     assert facts["roll_calls"][0]["verification"]["status"] == "verified"

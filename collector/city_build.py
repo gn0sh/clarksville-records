@@ -324,14 +324,14 @@ SURNAME_RE = re.compile(r"^[A-Za-z][A-Za-z'’-]+$")
 
 
 def printed_full_names(cfg, officials: Officials, pm: ParsedCityMinutes, date: str) -> dict:
-    """The full names these minutes print in their attendance list (and the presiding mayor), by surname:
+    """The full names these minutes print in their attendance list, by surname:
     {surname (lower case): {"date": date, "people": [{name, ward, mayor}]}}. Names that are not full names are
-    left out. A later surname-only attendance list is read against these through RosterBook, never directly."""
+    left out, and so is the call-to-order sentence: a presiding name is never evidence of a member (path N3; the
+    mayor's seat comes from the configured `mayors`, see RosterBook). A later surname-only attendance list is read
+    against these through RosterBook, never directly."""
     out: dict[str, dict] = {}
     people = [{"name": officials.canonical(p.raw_name), "ward": p.ward, "mayor": p.mayor}
               for p in pm.present + pm.absent if NAME_RE.match(clean_name(p.raw_name))]
-    if people and pm.presiding and pm.presiding_title == cfg.presiding_title:
-        people.append({"name": officials.canonical(pm.presiding), "ward": None, "mayor": True})
     for r in people:
         e = out.setdefault(name_parts(r["name"])[1].lower(), {"date": date, "people": []})
         if r["name"] not in [x["name"] for x in e["people"]]:
@@ -354,7 +354,10 @@ class RosterBook:
     them, or when the latest of them that prints the member's seat (ward, or mayor) still prints this member there
     (a list cut short, like 2025-02-06's, does not drop the members after the cut). A member printed without a ward
     and not on the latest list, or whose seat a later list gives to someone else, is held with the reason. `date` is
-    the member's own latest printing."""
+    the member's own latest printing.
+
+    The configured, cited mayor whose term covers the meeting (cfg.mayors_on) is in the book too, as the Mayor seat
+    ({..., "mayor": True, "date": the term's start, "configured": True}): the only entry not read from a list."""
 
     def __init__(self, cfg):
         self.cfg = cfg
@@ -401,6 +404,11 @@ class RosterBook:
         for name, d in sorted(before.items()):
             entry(name)["held"].append(f"{name}: last printed {d}, before the seating of {start}" if start
                                        else f"{name}: last printed {d}; no seating rule, so no earlier list is used")
+        for m in self.cfg.mayors_on(date):
+            e = entry(m["name"])
+            if m["name"] not in [p["name"] for p in e["people"]]:
+                e["people"].append({"name": m["name"], "ward": None, "mayor": True, "date": m["from"],
+                                    "configured": True})
         return out
 
 
@@ -408,57 +416,72 @@ def resolve_surnames(cfg, officials: Officials, pm: ParsedCityMinutes, book: dic
     """Attendance printed as surnames only ("PRESENT: BROWN, CHANDLER, ..., PITTS, ...", CivicClerk minutes from
     March 2025 on) -> ({id(person): (full name, is mayor)}, checks).
 
-    A surname is read as a member's full name only when exactly one full name with that surname (any case) is printed
-    in these minutes after a member's title and corroborated (in an action of the meeting: "Councilman Jimmy Brown
-    made a motion", "the Pledge was led by Councilman ...", or a member the book has; the presiding "Mayor Joe Pitts"),
-    or is on the meeting's bounded roster (`book`, RosterBook.for_meeting: lists since the latest seating, members
-    not replaced), and a ward printed with the surname agrees with it. Anything else stays as printed, with no
-    official, and holds the meeting's attendance (check surnames_resolve), so its roll calls are held too. Never a
-    near spelling ("ZAHARIAS"). The check's detail names the dates of the attendance lists used, and why a held
-    surname's earlier printings (or uncorroborated titled names) were not used."""
+    A surname is read as a member's full name only when exactly one full name with that surname (any case) is on the
+    meeting's roster book (`book`, RosterBook.for_meeting: the full-name attendance lists since the latest seating,
+    members not replaced, and the configured, cited mayor), and a ward printed with the surname agrees with it.
+    Nothing else in the minutes is evidence: a titled name in the text ("Councilman David Allen moved to Clarksville
+    in 1985", "the Pledge was led by Councilman X", "called to order by Mayor Wes Golden") never adds a candidate
+    (city-votes/titled-nonmember, city-votes/presiding-guest). Anything else stays as printed, with no official, and
+    holds the meeting's attendance (check surnames_resolve), so its roll calls are held too. Never a near spelling
+    ("ZAHARIAS"). The check's detail names the lists (or the configured mayor) used, and for a held surname that it
+    has no roster entry and why its earlier printings were not used."""
     people = [p for p in pm.present + pm.absent
               if not NAME_RE.match(clean_name(p.raw_name)) and SURNAME_RE.match(clean_name(p.raw_name))]
     if not people:
         return {}, []
     book = book or {}
-    presiding = officials.canonical(pm.presiding) if pm.presiding else None
-    # a titled full name counts only when corroborated (city-votes/titled-nonmember): printed in an action context of
-    # this meeting (moved, seconded, led the Pledge or the prayer, called to order, presided), or a member the roster
-    # book already has. Any other ("a resolution honoring Councilman X") is no candidate.
-    in_book = {r["name"] for e in book.values() for r in e["people"]}
-    acting = {officials.canonical(n) for n in pm.titled_acting}
-    titled = {officials.canonical(n) for n in pm.titled}
-    here = {n for n in titled if n in acting or n in in_book}
-    if presiding:
-        here.add(presiding)
-    ignored = titled - here
     out, unresolved, basis = {}, [], Counter()
     for p in people:
         s = clean_name(p.raw_name).lower()
-        cands: dict[str, str] = {}               # full name -> where it is printed
-        for n in sorted(here):
-            if name_parts(n)[1].lower() == s:
-                cands[n] = "these minutes"
+        cands: dict[str, str] = {}               # full name -> the roster entry it is read from
         earlier = book.get(s, {"people": [], "held": []})
+        other_ward = []
         for r in earlier["people"]:
             if p.ward is None or r["ward"] is None or r["ward"] == p.ward:
-                cands.setdefault(r["name"], f"the attendance of {r['date']}")
+                cands.setdefault(r["name"], f"the configured mayor seat from {r['date']}" if r.get("configured")
+                                 else f"the attendance of {r['date']}")
+            else:
+                other_ward.append(f"{r['name']}: Ward {r['ward']}, not Ward {p.ward} as printed")
         if len(cands) == 1:
             name, why = next(iter(cands.items()))
-            mayor = (name == presiding and pm.presiding_title == cfg.presiding_title) or any(
-                r["mayor"] for r in earlier["people"] if r["name"] == name)
+            mayor = any(r["mayor"] for r in earlier["people"] if r["name"] == name)
             out[id(p)] = (name, mayor)
             basis[why] += 1
         elif cands:
             unresolved.append(f"{p.raw_name} ({len(cands)} full names)")
         else:
-            held = earlier["held"] + [f"{n}: titled in these minutes, not in an action and not on the book"
-                                      for n in sorted(ignored) if name_parts(n)[1].lower() == s]
-            unresolved.append(f"{p.raw_name} ({'; '.join(held)})" if held else p.raw_name)
+            unresolved.append(f"{p.raw_name} ({'; '.join(['no roster entry'] + earlier['held'] + other_ward)})")
     detail = "; ".join(f"{n} by {why}" for why, n in sorted(basis.items()))
     if unresolved:
         detail = (detail + "; " if detail else "") + "not resolved: " + ", ".join(unresolved)
     return out, [_check("surnames_resolve", not unresolved, f"{len(people)} printed as surnames: {detail}")]
+
+
+def presiding_mayor(cfg, officials: Officials, pm: ParsedCityMinutes, book: dict | None) -> tuple[str | None, list]:
+    """The presiding mayor of the call-to-order sentence ("called to order by Mayor Joe Pitts") -> (full name, checks)
+    when the name is on the meeting's roster book as the Mayor seat (the configured, cited mayor whose term covers
+    the meeting, or a full-name attendance list since the latest seating that prints the name as Mayor) or on this
+    meeting's own attendance printed in full with the Mayor title. Otherwise (None, a failed presiding_resolves
+    check): the sentence alone never adds a person (city-votes/presiding-guest: a joint session "called to order by
+    Mayor Wes Golden", the County Mayor). No check when no presiding mayor is printed (a Mayor Pro Tem presiding is
+    on the PRESENT line already)."""
+    if not (pm.presiding and pm.presiding_title == cfg.presiding_title):
+        return None, []
+    name = officials.canonical(pm.presiding)
+    own = [p for p in pm.present + pm.absent
+           if p.mayor and NAME_RE.match(clean_name(p.raw_name)) and officials.canonical(p.raw_name) == name]
+    seat = [r for r in (book or {}).get(name_parts(name)[1].lower(), {"people": []})["people"]
+            if r["name"] == name and r["mayor"]]
+    if own:
+        why = "this meeting's attendance"
+    elif seat:
+        why = (f"the configured mayor seat from {seat[0]['date']}" if seat[0].get("configured")
+               else f"the attendance of {seat[0]['date']}")
+    else:
+        return None, [_check("presiding_resolves", False,
+                             f"{name}: no roster entry for the Mayor seat (no configured mayor and no full-name list "
+                             f"since the seating prints them as Mayor): held, not added")]
+    return name, [_check("presiding_resolves", True, f"{name} by {why}")]
 
 
 def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: ParsedCityMinutes, roll_calls, motions,
@@ -469,6 +492,7 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
     att = []
     malformed = []
     by_surname, surname_checks = resolve_surnames(cfg, officials, pm, surname_book)
+    presiding, presiding_checks = presiding_mayor(cfg, officials, pm, surname_book)
     for status, people in (("present", pm.present), ("absent", pm.absent)):
         for p in people:
             full = by_surname.get(id(p))
@@ -487,14 +511,15 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
                           "meeting_id": meeting["id"], "date": meeting["date"], "source_id": src["id"],
                           "page": p.page})
     presiding_id = None
-    if pm.presiding and pm.presiding_title == cfg.presiding_title:
-        presiding_id = officials.add(pm.presiding, cfg.presiding_title)
+    if presiding:                       # on the roster book as the Mayor seat, or this meeting's own list (path N3)
+        presiding_id = officials.add(presiding, cfg.presiding_title)
         if presiding_id not in present_ids:
             roster.append((presiding_id, officials.by_id[presiding_id]["name"]))
     dup = [n for n, c in Counter(a["official_id"] for a in att if a["official_id"]).items() if c > 1]
     att_checks = [_check("present_listed", bool(pm.present), f"{len(pm.present)} present, {len(pm.absent)} absent"),
                   _check("one_entry_per_official", not dup, ", ".join(dup) or None),
-                  _check("names_well_formed", not malformed, ", ".join(malformed) or None)] + surname_checks
+                  _check("names_well_formed", not malformed, ", ".join(malformed) or None)] + surname_checks + \
+        presiding_checks
     if att:
         meeting["attendance_status"] = "extracted"
         meeting["attendance"] = att
