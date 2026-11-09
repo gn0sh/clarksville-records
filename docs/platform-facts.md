@@ -93,3 +93,7 @@
   summary/chart pages skipped), capital fund 171 on pp. 94-104. FY2027: 78 pages read in 28-119, capital fund pp. 103-114.
 - The two books share only fiscal year 2025, as FY2024-25's "FY 25 Projection" and FY2027's "FY 2025 Actuals":
   different kinds, so the edition compare (same fund, code or label, heading, year and kind) finds no pair to compare.
+
+## Meeting video (checked 2026-11-09)
+- City Council (CivicClerk API, verified): past events carry `mediaSourcePathMp4`, a public MP4 on https://cpmedia.azureedge.net/clarksvilletn/<id>.mp4 (e.g. Regular Sessions 2026-09-03, 10-01, 11-05; also Executive Sessions). `youtubeVideoId` is empty and there are no closed-caption files. The api host robots.txt: `User-agent: *` Allow /, `Content-Signal: search=yes, ai-train=no, use=reference`; named AI crawlers (ClaudeBot etc.) are disallowed. Our collector uses its own honest UA, reference use only, no training (Brian approved CivicClerk collection 2026-11-09).
+- County Commission: YouTube (Brian 2026-11-07). The YouTube terms forbid downloading, so no county audio source yet (to research).
