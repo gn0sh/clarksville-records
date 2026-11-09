@@ -245,3 +245,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | code-reviewer | sonnet/medium | branding + trust pages | request changes (1 must, 7 should); docs/reviews/code-review-branding.md
 - 2026-11-09 | frontend-engineer | sonnet/medium | branding review fixes + transcript record line + alerts per-ward note | running
 - 2026-11-09 | code-reviewer | opus | call-on delta 11106f7 | approve
+- 2026-11-09 23:07Z Brian: keep both designs (Public Ledger, Seat Map) for A/B testing once the site is complete; decide then. Saved in docs/design/ab-candidates/. A/B needs analytics (go-live ask).
