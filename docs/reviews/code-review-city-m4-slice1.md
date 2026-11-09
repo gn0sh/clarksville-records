@@ -14,3 +14,6 @@ Checked and sound: name resolution, the alias scope, outcome checks, additive sc
 All 5 findings were fixed. 5 newly linked verified roll calls were spot-checked and are correct. 252 of the 258 new links print the item number in their own outcome sentence.
 - MEDIUM city-votes/item-link (second hit in this family): the section-only branch of `_item_for_vote` uses `last_sentence(window)`, so a number mentioned in passing just before the AYE lines (an abstention note) still links. No verified roll call in the current data is affected. Under the loop limit, the architect states the invariant before the fix.
 - LOW city-votes/outcome-text: rc-75d3ffaf-p10-2 has a vote block broken by a page number. It is held, not wrong.
+
+## Delta re-review 2 (fa2ff3e..47c8eb1), 2026-11-09: APPROVE
+The medium item-link and low outcome-text findings are fixed, and the code matches the invariant. 3 rejoined blocks were spot-checked: each is one vote split across a page. LOW (docs only): the `_item_for_vote` docstring overstates "never makes a link" for a speaker's mention before a "this ordinance" motion. Reword it.
