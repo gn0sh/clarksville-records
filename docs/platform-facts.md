@@ -23,6 +23,37 @@
 - Agenda Center: 39 boards incl. City Council and Finance Committee, year selectors to 2016; minutes only on some meetings; newest entry May 2024
   (newer council meetings are probably posted elsewhere: unverified, to find).
 
+### Agenda Center, City Council (verified 2026-11-09 by the collector's fetcher, 10 s apart)
+- robots.txt at https://www.clarksvilletn.gov/robots.txt (re-read 2026-11-09; a block was "added 2026-10-21 by Add-RobotsRules"):
+  `User-agent: *` disallows /activedit, /admin, /OJA, /support, /search.asp(x), /Search, /CurrentEvents*, /map.asp(x),
+  /RSS.aspx, /error.aspx, /404.aspx, /common/modules/icalendar/, /publiclogin.aspx; **Crawl-delay: 10**. Baiduspider and
+  Yandex: Disallow /. A group of ~21 named AI and SEO crawlers (ClaudeBot, Claude-SearchBot, GPTBot, CCBot, ...) gets
+  the same paths plus /calendar.aspx, /rssfeed.aspx, /civicalerts.aspx, /bids.aspx, /faq.aspx, and no Crawl-delay.
+  Our User-Agent matches only `*`. /AgendaCenter (listing, search and ViewFile) is allowed; `/Search` is a prefix rule
+  that does not cover /AgendaCenter/Search. The fetcher checks every URL with robotparser and waits 10 s per host.
+- City Council is Agenda Center category 3. The category page shows the newest year only; other years load by a POST
+  to /AgendaCenter/UpdateCategoryList (one GET of it reset the connection; not used). The Agenda Center's own search
+  page answers a GET per year: `/AgendaCenter/Search/?term=&CIDs=3&startDate=01/01/YYYY&endDate=12/31/YYYY&dateRange=&dateSelector=`.
+- Listed City Council rows 2016-2024: 314 (2016 32, 2017 32, 2018 32, 2019 33, 2020 44, 2021 52, 2022 33, 2023 54,
+  2024 2; the newest is 2024-01-11). 168 rows have a minutes link (none after Oct 2023). The category also lists
+  executive sessions, special and work sessions, Ethics Code Review committee meetings and budget-review notices.
+- Files: `/AgendaCenter/ViewFile/Agenda/_MMDDYYYY-<id>` and `/ViewFile/Minutes/_MMDDYYYY-<id>`, served as PDFs.
+  All 168 minutes fetched 2026-11-09 are born-digital text (no scans). Of 292 agendas fetched, 237 have a text layer,
+  41 are OCR text (scanner producer or OCR font) and 1 has none; 13 agenda packets are over the collector's 50 MB limit
+  and were not stored. The 314 listed meetings span 2016-01-04 to 2024-01-11.
+- Collected 2026-11-09 (`python -m collector city fetch --agendas`, then `build`): 305 meetings in facts (9 left out:
+  no fetched file to cite), 168 minutes read, 1,859 roll calls (1,526 verified, 82.1%), 22,327 votes by name, 767
+  motions, 31 officials. Held roll calls name the failed check (misspelt names, members missing from a vote with no
+  note, outcomes the text contradicts, attendance lines that do not parse).
+- Minutes format: "PRESENT: Name (Ward N), ..., Name, Mayor Pro Tem (Ward N)" and "ABSENT: ..."; the mayor presides
+  ("called to order by Mayor Joe Pitts") and votes. Votes: "AYE: Allen, Burkhart, ..." / "NAY: ..." by surname, then a
+  sentence "The motion to ... passed/failed." "NOTE: Councilman X was not present for this vote." marks a member out
+  of the room. Consent agendas pass on one vote; per-item abstentions are noted in prose. No tallies are printed.
+- Source errors seen (kept as printed, held): misspelled names ("Alllen", "Garett", "Ereb", "Wallace4"), a member
+  listed both present and absent (2016-07-07), "passed" on a 5-5 vote, "failed" on an 11-0 vote.
+- Connection resets: the sandbox relay drops a tunnel when a page takes more than ~10 s (proxy status
+  ws_closed_mid_exchange, nothing received from the site). Not a refusal; the fetcher retries once.
+
 ## Existing services
 - soar.com "Citizen Portal": AI summaries of Clarksville council meetings with overall tallies, no per-member votes, paywalled video/transcripts.
 

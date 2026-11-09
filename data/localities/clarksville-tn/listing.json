@@ -1,0 +1,2828 @@
+[
+  {
+    "agenda_id": "01042016-20",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01042016-20",
+    "date": "2016-01-04",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "01072016-32",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01072016-32",
+    "date": "2016-01-07",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01072016-32",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "01282016-21",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01282016-21",
+    "date": "2016-01-28",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "02042016-33",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02042016-33",
+    "date": "2016-02-04",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02042016-33",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "02252016-22",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02252016-22",
+    "date": "2016-02-25",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "03032016-34",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03032016-34",
+    "date": "2016-03-03",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03032016-34",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "03222016-44",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03222016-44",
+    "date": "2016-03-22",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03222016-44",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "03312016-23",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03312016-23",
+    "date": "2016-03-31",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "04072016-35",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04072016-35",
+    "date": "2016-04-07",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04072016-35",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "04182016-45",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04182016-45",
+    "date": "2016-04-18",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04182016-45",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "04282016-24",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04282016-24",
+    "date": "2016-04-28",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "05052016-36",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05052016-36",
+    "date": "2016-05-05",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05052016-36",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "05192016-46",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05192016-46",
+    "date": "2016-05-19",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05192016-46",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "05262016-25",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05262016-25",
+    "date": "2016-05-26",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "05312016-47",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05312016-47",
+    "date": "2016-05-31",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05312016-47",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06022016-37",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06022016-37",
+    "date": "2016-06-02",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06022016-37",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06072016-48",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06072016-48",
+    "date": "2016-06-07",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06072016-48",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06142016-49",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06142016-49",
+    "date": "2016-06-14",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06142016-49",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06222016-50",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06222016-50",
+    "date": "2016-06-22",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06222016-50",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06302016-26",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06302016-26",
+    "date": "2016-06-30",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "07072016-38",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07072016-38",
+    "date": "2016-07-07",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_07072016-38",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "07282016-27",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07282016-27",
+    "date": "2016-07-28",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "08042016-39",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08042016-39",
+    "date": "2016-08-04",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_08042016-39",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "08252016-28",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08252016-28",
+    "date": "2016-08-25",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "09012016-40",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09012016-40",
+    "date": "2016-09-01",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09012016-40",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "09292016-29",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09292016-29",
+    "date": "2016-09-29",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "10062016-41",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10062016-41",
+    "date": "2016-10-06",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10062016-41",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "10272016-30",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10272016-30",
+    "date": "2016-10-27",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "10272016-51",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10272016-51",
+    "date": "2016-10-27",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10272016-51",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "11032016-42",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11032016-42",
+    "date": "2016-11-03",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_11032016-42",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "11282016-31",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11282016-31",
+    "date": "2016-11-28",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "12012016-43",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12012016-43",
+    "date": "2016-12-01",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_12012016-43",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "01032017-61",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01032017-61",
+    "date": "2017-01-03",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01032017-61",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "01032017-69",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01032017-69",
+    "date": "2017-01-03",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "01052017-81",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01052017-81",
+    "date": "2017-01-05",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01052017-81",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "01262017-70",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01262017-70",
+    "date": "2017-01-26",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "02022017-82",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02022017-82",
+    "date": "2017-02-02",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02022017-82",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "02232017-71",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02232017-71",
+    "date": "2017-02-23",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "03022017-83",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03022017-83",
+    "date": "2017-03-02",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03022017-83",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "03302017-72",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03302017-72",
+    "date": "2017-03-30",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "04062017-52",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04062017-52",
+    "date": "2017-04-06",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04062017-52",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "04272017-73",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04272017-73",
+    "date": "2017-04-27",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "05042017-53",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05042017-53",
+    "date": "2017-05-04",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05042017-53",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "05252017-74",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05252017-74",
+    "date": "2017-05-25",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "05312017-62",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05312017-62",
+    "date": "2017-05-31",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05312017-62",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06012017-54",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06012017-54",
+    "date": "2017-06-01",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06012017-54",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06082017-63",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06082017-63",
+    "date": "2017-06-08",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06082017-63",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06122017-64",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06122017-64",
+    "date": "2017-06-12",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06122017-64",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06152017-65",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06152017-65",
+    "date": "2017-06-15",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06152017-65",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06192017-66",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06192017-66",
+    "date": "2017-06-19",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06192017-66",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06292017-67",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06292017-67",
+    "date": "2017-06-29",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06292017-67",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06292017-75",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06292017-75",
+    "date": "2017-06-29",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "07062017-55",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07062017-55",
+    "date": "2017-07-06",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_07062017-55",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "07272017-76",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07272017-76",
+    "date": "2017-07-27",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "08032017-56",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08032017-56",
+    "date": "2017-08-03",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_08032017-56",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "08312017-77",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08312017-77",
+    "date": "2017-08-31",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "09072017-57",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09072017-57",
+    "date": "2017-09-07",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09072017-57",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "09282017-78",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09282017-78",
+    "date": "2017-09-28",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "10052017-58",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10052017-58",
+    "date": "2017-10-05",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10052017-58",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "10262017-79",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10262017-79",
+    "date": "2017-10-26",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "11022017-59",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11022017-59",
+    "date": "2017-11-02",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_11022017-59",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "11302017-68",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11302017-68",
+    "date": "2017-11-30",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_11302017-68",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "11302017-80",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11302017-80",
+    "date": "2017-11-30",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "12072017-60",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12072017-60",
+    "date": "2017-12-07",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_12072017-60",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "01022018-84",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01022018-84",
+    "date": "2018-01-02",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "01042018-96",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01042018-96",
+    "date": "2018-01-04",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01042018-96",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "01292018-85",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01292018-85",
+    "date": "2018-01-29",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "02012018-97",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02012018-97",
+    "date": "2018-02-01",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02012018-97",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "02222018-86",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02222018-86",
+    "date": "2018-02-22",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "03012018-98",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03012018-98",
+    "date": "2018-03-01",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03012018-98",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "03292018-87",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03292018-87",
+    "date": "2018-03-29",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "04052018-99",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04052018-99",
+    "date": "2018-04-05",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04052018-99",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "04262018-108",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04262018-108",
+    "date": "2018-04-26",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04262018-108",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "04262018-88",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04262018-88",
+    "date": "2018-04-26",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "05032018-633",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05032018-633",
+    "date": "2018-05-03",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05032018-633",
+    "title": "Regular Session Agenda 5-3-18"
+  },
+  {
+    "agenda_id": "05172018-115",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05172018-115",
+    "date": "2018-05-17",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05172018-115",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "05182018-109",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05182018-109",
+    "date": "2018-05-18",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05182018-109",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "05302018-110",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05302018-110",
+    "date": "2018-05-30",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05302018-110",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "05312018-89",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05312018-89",
+    "date": "2018-05-31",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06072018-101",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06072018-101",
+    "date": "2018-06-07",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06072018-101",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06072018-111",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06072018-111",
+    "date": "2018-06-07",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06072018-111",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06142018-112",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06142018-112",
+    "date": "2018-06-14",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06142018-112",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06212018-113",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06212018-113",
+    "date": "2018-06-21",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06212018-113",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06282018-114",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06282018-114",
+    "date": "2018-06-28",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06282018-114",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "06282018-90",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06282018-90",
+    "date": "2018-06-28",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "07052018-102",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07052018-102",
+    "date": "2018-07-05",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_07052018-102",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "07262018-91",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07262018-91",
+    "date": "2018-07-26",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "08022018-103",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08022018-103",
+    "date": "2018-08-02",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_08022018-103",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "08302018-92",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08302018-92",
+    "date": "2018-08-30",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "09062018-104",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09062018-104",
+    "date": "2018-09-06",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09062018-104",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "09272018-93",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09272018-93",
+    "date": "2018-09-27",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "10042018-105",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10042018-105",
+    "date": "2018-10-04",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10042018-105",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "10252018-94",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10252018-94",
+    "date": "2018-10-25",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "11012018-106",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11012018-106",
+    "date": "2018-11-01",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_11012018-106",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "11292018-95",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11292018-95",
+    "date": "2018-11-29",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "12062018-107",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12062018-107",
+    "date": "2018-12-06",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_12062018-107",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "01022019-120",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01022019-120",
+    "date": "2019-01-02",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01022019-120",
+    "title": "City Council Special Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "01032019-116",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01032019-116",
+    "date": "2019-01-03",
+    "has_previous_versions": true,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "01032019-118",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01032019-118",
+    "date": "2019-01-03",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01032019-118",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "01312019-117",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01312019-117",
+    "date": "2019-01-31",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "02072019-119",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02072019-119",
+    "date": "2019-02-07",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02072019-119",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "02282019-200",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02282019-200",
+    "date": "2019-02-28",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda 2-28-19"
+  },
+  {
+    "agenda_id": "03072019-127",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03072019-127",
+    "date": "2019-03-07",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03072019-127",
+    "title": "City Council Regular Session Agenda (PDF)"
+  },
+  {
+    "agenda_id": "04042019-199",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04042019-199",
+    "date": "2019-04-04",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04042019-199",
+    "title": "City Council Regular Session Agenda 4-4-19"
+  },
+  {
+    "agenda_id": "04252019-201",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04252019-201",
+    "date": "2019-04-25",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda 4-25-19"
+  },
+  {
+    "agenda_id": "05022019-198",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05022019-198",
+    "date": "2019-05-02",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05022019-198",
+    "title": "City Council Regular Session Agenda 5-2-19"
+  },
+  {
+    "agenda_id": "05292019-183",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05292019-183",
+    "date": "2019-05-29",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05292019-183",
+    "title": "City Council Special Session Agenda 5-29-19"
+  },
+  {
+    "agenda_id": "05302019-185",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05302019-185",
+    "date": "2019-05-30",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda 5-30-19"
+  },
+  {
+    "agenda_id": "06062019-197",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06062019-197",
+    "date": "2019-06-06",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06062019-197",
+    "title": "City Council Regular Session Agenda 6-6-19"
+  },
+  {
+    "agenda_id": "06132019-194",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06132019-194",
+    "date": "2019-06-13",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06132019-194",
+    "title": "City Council Special Session Agenda 6-13-19"
+  },
+  {
+    "agenda_id": "06202019-204",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06202019-204",
+    "date": "2019-06-20",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06202019-204",
+    "title": "City Council Special Session Agenda 6-20-19"
+  },
+  {
+    "agenda_id": "06272019-214",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06272019-214",
+    "date": "2019-06-27",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda 6-27-19"
+  },
+  {
+    "agenda_id": "07022019-216",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07022019-216",
+    "date": "2019-07-02",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_07022019-216",
+    "title": "City Council Regular Session Agenda 7-2-19"
+  },
+  {
+    "agenda_id": "07252019-218",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07252019-218",
+    "date": "2019-07-25",
+    "has_previous_versions": false,
+    "kind": "public-hearing",
+    "minutes_url": null,
+    "title": "Growth Plan Public Hearing"
+  },
+  {
+    "agenda_id": "07252019-231",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07252019-231",
+    "date": "2019-07-25",
+    "has_previous_versions": true,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_07252019-231",
+    "title": "City Council Special Session Agenda 7-25-19"
+  },
+  {
+    "agenda_id": "07252019-233",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07252019-233",
+    "date": "2019-07-25",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda 7-25-19"
+  },
+  {
+    "agenda_id": "08012019-219",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08012019-219",
+    "date": "2019-08-01",
+    "has_previous_versions": false,
+    "kind": "public-hearing",
+    "minutes_url": null,
+    "title": "Growth Plan Public Hearing"
+  },
+  {
+    "agenda_id": "08012019-238",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08012019-238",
+    "date": "2019-08-01",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_08012019-238",
+    "title": "City Council Regular Session Agenda 8-1-19"
+  },
+  {
+    "agenda_id": "08292019-254",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08292019-254",
+    "date": "2019-08-29",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda 8-29-19"
+  },
+  {
+    "agenda_id": "09052019-256",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09052019-256",
+    "date": "2019-09-05",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09052019-256",
+    "title": "City Council Regular Session Agenda 9-5-19"
+  },
+  {
+    "agenda_id": "09052019-301",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09052019-301",
+    "date": "2019-09-05",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": null,
+    "title": "Regular Session Minutes 9-5-19"
+  },
+  {
+    "agenda_id": "09262019-271",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09262019-271",
+    "date": "2019-09-26",
+    "has_previous_versions": true,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda 9-26-19"
+  },
+  {
+    "agenda_id": "10032019-279",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10032019-279",
+    "date": "2019-10-03",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10032019-279",
+    "title": "City Council Regular Session Agenda 10-3-19"
+  },
+  {
+    "agenda_id": "10312019-303",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10312019-303",
+    "date": "2019-10-31",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10312019-303",
+    "title": "City Council Special Session Agenda 10-31-19"
+  },
+  {
+    "agenda_id": "10312019-304",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10312019-304",
+    "date": "2019-10-31",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda 10-31-19"
+  },
+  {
+    "agenda_id": "11072019-306",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11072019-306",
+    "date": "2019-11-07",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_11072019-306",
+    "title": "Regular Session Agenda 11-7-19"
+  },
+  {
+    "agenda_id": "12022019-321",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12022019-321",
+    "date": "2019-12-02",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "Executive Session Agenda 12-2-19"
+  },
+  {
+    "agenda_id": "12052019-325",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12052019-325",
+    "date": "2019-12-05",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_12052019-325",
+    "title": "City Council Regular Session Agenda 12-5-19"
+  },
+  {
+    "agenda_id": "12302019-340",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12302019-340",
+    "date": "2019-12-30",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda 12-30-19"
+  },
+  {
+    "agenda_id": "01022020-342",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01022020-342",
+    "date": "2020-01-02",
+    "has_previous_versions": true,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01022020-342",
+    "title": "City Council Regular Session Agenda 1-2-20"
+  },
+  {
+    "agenda_id": "01302020-362",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01302020-362",
+    "date": "2020-01-30",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda 1-30-20"
+  },
+  {
+    "agenda_id": "02062020-366",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02062020-366",
+    "date": "2020-02-06",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02062020-366",
+    "title": "City Council Regular Session Agenda 2-6-20"
+  },
+  {
+    "agenda_id": "02272020-383",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02272020-383",
+    "date": "2020-02-27",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda 2-27-20"
+  },
+  {
+    "agenda_id": "03052020-385",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03052020-385",
+    "date": "2020-03-05",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03052020-385",
+    "title": "City Council Regular Session Agenda 3-5-20"
+  },
+  {
+    "agenda_id": "03182020-392",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03182020-392",
+    "date": "2020-03-18",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03182020-392",
+    "title": "City Council Special Session Agenda 3-18-20"
+  },
+  {
+    "agenda_id": "03232020-401",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03232020-401",
+    "date": "2020-03-23",
+    "has_previous_versions": true,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03232020-401",
+    "title": "City Council Special Session Agenda"
+  },
+  {
+    "agenda_id": "03262020-403",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03262020-403",
+    "date": "2020-03-26",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda"
+  },
+  {
+    "agenda_id": "03312020-408",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03312020-408",
+    "date": "2020-03-31",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03312020-408",
+    "title": "City Council Special Session Agenda 3-31-20"
+  },
+  {
+    "agenda_id": "04022020-409",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04022020-409",
+    "date": "2020-04-02",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04022020-409",
+    "title": "City Council Regular Session Agenda 4-2-20"
+  },
+  {
+    "agenda_id": "04072020-412",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04072020-412",
+    "date": "2020-04-07",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04072020-412",
+    "title": "City Council Special Session Agenda 4-7-20"
+  },
+  {
+    "agenda_id": "04142020-414",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04142020-414",
+    "date": "2020-04-14",
+    "has_previous_versions": true,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04142020-414",
+    "title": "City Council Special Session Agenda 4-14-20"
+  },
+  {
+    "agenda_id": "04212020-419",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04212020-419",
+    "date": "2020-04-21",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04212020-419",
+    "title": "City Council Special Session Agenda 4-21-20"
+  },
+  {
+    "agenda_id": "04302020-430",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04302020-430",
+    "date": "2020-04-30",
+    "has_previous_versions": true,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda 4-30-20"
+  },
+  {
+    "agenda_id": "05072020-432",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05072020-432",
+    "date": "2020-05-07",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05072020-432",
+    "title": "City Council Regular Session Agenda 5-7-20"
+  },
+  {
+    "agenda_id": "05182020-435",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05182020-435",
+    "date": "2020-05-18",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "City Council Committee FY21 Department Budget Reviews"
+  },
+  {
+    "agenda_id": "05192020-436",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05192020-436",
+    "date": "2020-05-19",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "FY21 Budget Review Committee Schedule"
+  },
+  {
+    "agenda_id": "05202020-437",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05202020-437",
+    "date": "2020-05-20",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "FY21 Budget Review Committee Schedule"
+  },
+  {
+    "agenda_id": "05212020-438",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05212020-438",
+    "date": "2020-05-21",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "FY21 Budget Review Committee Schedule"
+  },
+  {
+    "agenda_id": "05282020-454",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05282020-454",
+    "date": "2020-05-28",
+    "has_previous_versions": true,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda 5-28-20"
+  },
+  {
+    "agenda_id": "06042020-456",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06042020-456",
+    "date": "2020-06-04",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06042020-456",
+    "title": "City Council Regular Session Agenda 6-4-20"
+  },
+  {
+    "agenda_id": "06152020-463",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06152020-463",
+    "date": "2020-06-15",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06152020-463",
+    "title": "City Council Special Session Agenda 6-15-20"
+  },
+  {
+    "agenda_id": "06182020-474",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06182020-474",
+    "date": "2020-06-18",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06182020-474",
+    "title": "City Council Special Session Agenda 6-18-20"
+  },
+  {
+    "agenda_id": "06232020-480",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06232020-480",
+    "date": "2020-06-23",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06232020-480",
+    "title": "City Council Special Session Agenda 6-23-20"
+  },
+  {
+    "agenda_id": "06252020-489",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06252020-489",
+    "date": "2020-06-25",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda 6-25-20"
+  },
+  {
+    "agenda_id": "07022020-634",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07022020-634",
+    "date": "2020-07-02",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_07022020-634",
+    "title": "City Council Regular Session Agenda 7-2-20"
+  },
+  {
+    "agenda_id": "07072020-496",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07072020-496",
+    "date": "2020-07-07",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_07072020-496",
+    "title": "City Council Special Session Agenda 7-7-20"
+  },
+  {
+    "agenda_id": "07302020-520",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07302020-520",
+    "date": "2020-07-30",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda 7-30-20"
+  },
+  {
+    "agenda_id": "08062020-526",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08062020-526",
+    "date": "2020-08-06",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_08062020-526",
+    "title": "City Council Regular Session Agenda 8-6-20"
+  },
+  {
+    "agenda_id": "08272020-555",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08272020-555",
+    "date": "2020-08-27",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda 8-27-20"
+  },
+  {
+    "agenda_id": "09032020-561",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09032020-561",
+    "date": "2020-09-03",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09032020-561",
+    "title": "City Council Regular Session Agenda 9-3-20"
+  },
+  {
+    "agenda_id": "09212020-584",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09212020-584",
+    "date": "2020-09-21",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "FY21 Amended Budget Committee Review - September 21, 2020"
+  },
+  {
+    "agenda_id": "09222020-585",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09222020-585",
+    "date": "2020-09-22",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "FY21 Amended Budget Committee Review - September 22, 2020"
+  },
+  {
+    "agenda_id": "09232020-586",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09232020-586",
+    "date": "2020-09-23",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "FY21 Amended Budget Committee Review - September 23, 2020"
+  },
+  {
+    "agenda_id": "09242020-599",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09242020-599",
+    "date": "2020-09-24",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - September 24, 2020"
+  },
+  {
+    "agenda_id": "10012020-607",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10012020-607",
+    "date": "2020-10-01",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10012020-607",
+    "title": "City Council Regular Session Agenda - October 1, 2020"
+  },
+  {
+    "agenda_id": "10012020-608",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10012020-608",
+    "date": "2020-10-01",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10012020-608",
+    "title": "City Council Special Session Agenda - October 1, 2020"
+  },
+  {
+    "agenda_id": "10052020-609",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10052020-609",
+    "date": "2020-10-05",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10052020-609",
+    "title": "City Council Special Session Agenda - October 5, 2020"
+  },
+  {
+    "agenda_id": "10292020-630",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10292020-630",
+    "date": "2020-10-29",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - October 29, 2020"
+  },
+  {
+    "agenda_id": "11052020-637",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11052020-637",
+    "date": "2020-11-05",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_11052020-637",
+    "title": "City Council Regular Session Agenda - November 5, 2020"
+  },
+  {
+    "agenda_id": "11102020-641",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11102020-641",
+    "date": "2020-11-10",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_11102020-641",
+    "title": "City Council Special Session Agenda - November 10, 2020"
+  },
+  {
+    "agenda_id": "11302020-661",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11302020-661",
+    "date": "2020-11-30",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - November 30, 2020"
+  },
+  {
+    "agenda_id": "12032020-666",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12032020-666",
+    "date": "2020-12-03",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_12032020-666",
+    "title": "City Council Regular Session Agenda - December 3, 2020"
+  },
+  {
+    "agenda_id": "12172020-678",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12172020-678",
+    "date": "2020-12-17",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_12172020-678",
+    "title": "City Council Special Session Agenda - December 17, 2020"
+  },
+  {
+    "agenda_id": "01052021-685",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01052021-685",
+    "date": "2021-01-05",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - January 5, 2021"
+  },
+  {
+    "agenda_id": "01052021-686",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01052021-686",
+    "date": "2021-01-05",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01052021-686",
+    "title": "City Council Special Session Agenda - January 5, 2021"
+  },
+  {
+    "agenda_id": "01072021-687",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01072021-687",
+    "date": "2021-01-07",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01072021-687",
+    "title": "City Council Regular Session Agenda - January 7, 2021"
+  },
+  {
+    "agenda_id": "01142021-691",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01142021-691",
+    "date": "2021-01-14",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01142021-691",
+    "title": "City Council Special Session Agenda - January 14, 2021"
+  },
+  {
+    "agenda_id": "01252021-704",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01252021-704",
+    "date": "2021-01-25",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01252021-704",
+    "title": "City Council Special Session Agenda - January 25, 2021"
+  },
+  {
+    "agenda_id": "01282021-717",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01282021-717",
+    "date": "2021-01-28",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "Executive Session Agenda - January 28, 2020"
+  },
+  {
+    "agenda_id": "02032021-719",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02032021-719",
+    "date": "2021-02-03",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02032021-719",
+    "title": "City Council Special Session Agenda - February 3, 2021"
+  },
+  {
+    "agenda_id": "02042021-720",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02042021-720",
+    "date": "2021-02-04",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02042021-720",
+    "title": "City Council Regular Session Agenda - February 4, 2021"
+  },
+  {
+    "agenda_id": "02092021-725",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02092021-725",
+    "date": "2021-02-09",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02092021-725",
+    "title": "City Council Special Session Agenda - February 9, 2021"
+  },
+  {
+    "agenda_id": "02252021-747",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02252021-747",
+    "date": "2021-02-25",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - February 25, 2021"
+  },
+  {
+    "agenda_id": "03042021-749",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03042021-749",
+    "date": "2021-03-04",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03042021-749",
+    "title": "City Council Regular Session Agenda - March 4, 2021"
+  },
+  {
+    "agenda_id": "03232021-765",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03232021-765",
+    "date": "2021-03-23",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03232021-765",
+    "title": "City Council Special Session Agenda - March 23, 2021"
+  },
+  {
+    "agenda_id": "03252021-776",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03252021-776",
+    "date": "2021-03-25",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - March 25, 2021 Rescheduled to March 29, 2021"
+  },
+  {
+    "agenda_id": "03292021-778",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03292021-778",
+    "date": "2021-03-29",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - March 29, 2021"
+  },
+  {
+    "agenda_id": "04012021-781",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04012021-781",
+    "date": "2021-04-01",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04012021-781",
+    "title": "City Council Regular Session Agenda - April 1, 2021"
+  },
+  {
+    "agenda_id": "04132021-788",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04132021-788",
+    "date": "2021-04-13",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04132021-788",
+    "title": "City Council Special Session Agenda - April 13, 2021"
+  },
+  {
+    "agenda_id": "04292021-810",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04292021-810",
+    "date": "2021-04-29",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": null,
+    "title": "City Council Special Session Agenda - April 28, 2021"
+  },
+  {
+    "agenda_id": "04292021-811",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04292021-811",
+    "date": "2021-04-29",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04292021-811",
+    "title": "City Council Executive Session Agenda - April 29, 2021"
+  },
+  {
+    "agenda_id": "05062021-814",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05062021-814",
+    "date": "2021-05-06",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05062021-814",
+    "title": "City Council Regular Session Agenda - May 6, 2021"
+  },
+  {
+    "agenda_id": "05122021-822",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05122021-822",
+    "date": "2021-05-12",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05122021-822",
+    "title": "City Council Special Session Agenda - May 12, 2021"
+  },
+  {
+    "agenda_id": "05172021-826",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05172021-826",
+    "date": "2021-05-17",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05172021-826",
+    "title": "City Council Special Session Agenda - May 17, 2021"
+  },
+  {
+    "agenda_id": "05182021-819",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05182021-819",
+    "date": "2021-05-18",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "FY22 Department Budget Review Agenda - May 18, 2021"
+  },
+  {
+    "agenda_id": "05192021-820",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05192021-820",
+    "date": "2021-05-19",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "FY22 Department Budget Review Agenda - May 19, 2021"
+  },
+  {
+    "agenda_id": "05202021-821",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05202021-821",
+    "date": "2021-05-20",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "FY22 Department Budget Review Agenda - May 20, 2021"
+  },
+  {
+    "agenda_id": "05272021-842",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05272021-842",
+    "date": "2021-05-27",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - May 27, 2021"
+  },
+  {
+    "agenda_id": "06032021-844",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06032021-844",
+    "date": "2021-06-03",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844",
+    "title": "City Council Regular Session Agenda - June 3, 2021"
+  },
+  {
+    "agenda_id": "06152021-850",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06152021-850",
+    "date": "2021-06-15",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06152021-850",
+    "title": "City Council Special Session Agenda - June 15, 2021"
+  },
+  {
+    "agenda_id": "06172021-857",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06172021-857",
+    "date": "2021-06-17",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06172021-857",
+    "title": "City Council Special Session Agenda - June 17, 2021"
+  },
+  {
+    "agenda_id": "06222021-862",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06222021-862",
+    "date": "2021-06-22",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06222021-862",
+    "title": "City Council Special Session Agenda - June 22, 2021"
+  },
+  {
+    "agenda_id": "06242021-864",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06242021-864",
+    "date": "2021-06-24",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - June 24, 2021"
+  },
+  {
+    "agenda_id": "06282021-865",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06282021-865",
+    "date": "2021-06-28",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": null,
+    "title": "City Council Special Session Agenda - June 28, 2021"
+  },
+  {
+    "agenda_id": "06292021-868",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06292021-868",
+    "date": "2021-06-29",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": null,
+    "title": "City Council Special Session Agenda - June 29, 2021"
+  },
+  {
+    "agenda_id": "06302021-869",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06302021-869",
+    "date": "2021-06-30",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": null,
+    "title": "City Council Special Session Agenda - June 30, 2021"
+  },
+  {
+    "agenda_id": "07012021-870",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07012021-870",
+    "date": "2021-07-01",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_07012021-870",
+    "title": "City Council Regular Session Agenda July 1, 2021"
+  },
+  {
+    "agenda_id": "07292021-905",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07292021-905",
+    "date": "2021-07-29",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - July 29, 2021"
+  },
+  {
+    "agenda_id": "08052021-908",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08052021-908",
+    "date": "2021-08-05",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": null,
+    "title": "City Council Regular Session Agenda - August 5, 2021"
+  },
+  {
+    "agenda_id": "08172021-922",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08172021-922",
+    "date": "2021-08-17",
+    "has_previous_versions": false,
+    "kind": "other",
+    "minutes_url": null,
+    "title": "City Council and IDB - August 17, 2021"
+  },
+  {
+    "agenda_id": "08262021-942",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08262021-942",
+    "date": "2021-08-26",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - August 26, 2021"
+  },
+  {
+    "agenda_id": "09022021-943",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09022021-943",
+    "date": "2021-09-02",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943",
+    "title": "City Council Regular Session Agenda - September 1, 2021"
+  },
+  {
+    "agenda_id": "09072021-944",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09072021-944",
+    "date": "2021-09-07",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": null,
+    "title": "Special Session Agenda - September 7, 2021"
+  },
+  {
+    "agenda_id": "09212021-947",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09212021-947",
+    "date": "2021-09-21",
+    "has_previous_versions": false,
+    "kind": "other",
+    "minutes_url": null,
+    "title": "Legislative Agenda Reception - September 21, 2021"
+  },
+  {
+    "agenda_id": "09302021-973",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09302021-973",
+    "date": "2021-09-30",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "Executive Session Agenda- September 30, 2021"
+  },
+  {
+    "agenda_id": "10052021-977",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10052021-977",
+    "date": "2021-10-05",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10052021-977",
+    "title": "City Council Special Session Agenda - 10-5-21"
+  },
+  {
+    "agenda_id": "10072021-980",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10072021-980",
+    "date": "2021-10-07",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980",
+    "title": "City Council Regular Session Agenda - October 7, 2021"
+  },
+  {
+    "agenda_id": "10202021-993",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10202021-993",
+    "date": "2021-10-20",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10202021-993",
+    "title": "City Council Special Session Agenda - October 20, 2021"
+  },
+  {
+    "agenda_id": "10282021-1003",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10282021-1003",
+    "date": "2021-10-28",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": null,
+    "title": "City Council Special Session - October 28, 2021"
+  },
+  {
+    "agenda_id": "10282021-1004",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10282021-1004",
+    "date": "2021-10-28",
+    "has_previous_versions": true,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "Executive Session Agenda - October 28, 2021"
+  },
+  {
+    "agenda_id": "11042021-1008",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11042021-1008",
+    "date": "2021-11-04",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_11042021-1008",
+    "title": "City Council Regular Session Agenda - November 4, 2021"
+  },
+  {
+    "agenda_id": "11302021-1023",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11302021-1023",
+    "date": "2021-11-30",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "Executive Session Agenda - November 30, 2021"
+  },
+  {
+    "agenda_id": "12022021-1027",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12022021-1027",
+    "date": "2021-12-02",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_12022021-1027",
+    "title": "City Council Regular Session Agenda - December 2, 2021"
+  },
+  {
+    "agenda_id": "12142021-1036",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12142021-1036",
+    "date": "2021-12-14",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_12142021-1036",
+    "title": "City Council Special Session Agenda - December 14, 2021"
+  },
+  {
+    "agenda_id": "12302021-1042",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12302021-1042",
+    "date": "2021-12-30",
+    "has_previous_versions": true,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - December 30, 2021"
+  },
+  {
+    "agenda_id": "01062022-1047",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01062022-1047",
+    "date": "2022-01-06",
+    "has_previous_versions": true,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01062022-1047",
+    "title": "City Council Regular Session Agenda - January 6, 2022"
+  },
+  {
+    "agenda_id": "01122022-1049",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01122022-1049",
+    "date": "2022-01-12",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01122022-1049",
+    "title": "City Council Special Agenda - January 12, 2022"
+  },
+  {
+    "agenda_id": "01272022-1070",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01272022-1070",
+    "date": "2022-01-27",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - January 27, 2022"
+  },
+  {
+    "agenda_id": "02032022-1071",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02032022-1071",
+    "date": "2022-02-03",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02032022-1071",
+    "title": "City Council Regular Session Agenda - February 3, 2022"
+  },
+  {
+    "agenda_id": "02152022-1079",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02152022-1079",
+    "date": "2022-02-15",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02152022-1079",
+    "title": "City Council Special Session Agenda - February 15, 2022"
+  },
+  {
+    "agenda_id": "02222022-1084",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02222022-1084",
+    "date": "2022-02-22",
+    "has_previous_versions": true,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02222022-1084",
+    "title": "City Council Special Session - February 22, 2022"
+  },
+  {
+    "agenda_id": "02242022-1091",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02242022-1091",
+    "date": "2022-02-24",
+    "has_previous_versions": true,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "Executive Session Agenda - February 24, 2022"
+  },
+  {
+    "agenda_id": "03032022-1097",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03032022-1097",
+    "date": "2022-03-03",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03032022-1097",
+    "title": "City Council Regular Session Agenda - March 3, 2022"
+  },
+  {
+    "agenda_id": "03082022-1098",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03082022-1098",
+    "date": "2022-03-08",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03082022-1098",
+    "title": "City Council Special Session Agenda - March 8, 2022"
+  },
+  {
+    "agenda_id": "03162022-1104",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03162022-1104",
+    "date": "2022-03-16",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03162022-1104",
+    "title": "Special Session Agenda - March 16, 2022 (continuation of meeting recessed on March 8, 2022)"
+  },
+  {
+    "agenda_id": "03312022-1122",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03312022-1122",
+    "date": "2022-03-31",
+    "has_previous_versions": true,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - March 31, 2022"
+  },
+  {
+    "agenda_id": "04072022-1125",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04072022-1125",
+    "date": "2022-04-07",
+    "has_previous_versions": true,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04072022-1125",
+    "title": "City Council Regular Session Agenda - April 7, 2022"
+  },
+  {
+    "agenda_id": "04282022-1146",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04282022-1146",
+    "date": "2022-04-28",
+    "has_previous_versions": true,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "Executive Session Agenda - April 28, 2022"
+  },
+  {
+    "agenda_id": "05052022-1151",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05052022-1151",
+    "date": "2022-05-05",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05052022-1151",
+    "title": "City Council Regular Session"
+  },
+  {
+    "agenda_id": "05262022-1175",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05262022-1175",
+    "date": "2022-05-26",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - May 26, 2022"
+  },
+  {
+    "agenda_id": "06022022-1177",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06022022-1177",
+    "date": "2022-06-02",
+    "has_previous_versions": true,
+    "kind": "work-session",
+    "minutes_url": null,
+    "title": "Budget Workshop Agenda - June 2, 2022"
+  },
+  {
+    "agenda_id": "06022022-1178",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06022022-1178",
+    "date": "2022-06-02",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06022022-1178",
+    "title": "City Council Regular Session Agenda - June 2, 2022"
+  },
+  {
+    "agenda_id": "06092022-1182",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06092022-1182",
+    "date": "2022-06-09",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06092022-1182",
+    "title": "City Council Special Session Agenda - June 9, 2022"
+  },
+  {
+    "agenda_id": "06142022-1189",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06142022-1189",
+    "date": "2022-06-14",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06142022-1189",
+    "title": "City Council Special Agenda - June 14, 2022"
+  },
+  {
+    "agenda_id": "06302022-1203",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06302022-1203",
+    "date": "2022-06-30",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "Executive Session Agenda - June 30, 2022"
+  },
+  {
+    "agenda_id": "07072022-1206",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07072022-1206",
+    "date": "2022-07-07",
+    "has_previous_versions": true,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_07072022-1206",
+    "title": "City Council Regular Session Agenda - July 7, 2022"
+  },
+  {
+    "agenda_id": "07282022-1225",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07282022-1225",
+    "date": "2022-07-28",
+    "has_previous_versions": true,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "Executive Session Agenda - July 28, 2022"
+  },
+  {
+    "agenda_id": "08042022-1227",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08042022-1227",
+    "date": "2022-08-04",
+    "has_previous_versions": true,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_08042022-1227",
+    "title": "City Council Regular Session Agenda - August 4, 2022"
+  },
+  {
+    "agenda_id": "08252022-1250",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08252022-1250",
+    "date": "2022-08-25",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - August 25, 2022"
+  },
+  {
+    "agenda_id": "09012022-1253",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09012022-1253",
+    "date": "2022-09-01",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09012022-1253",
+    "title": "City Council Regular Session - September 1, 2022"
+  },
+  {
+    "agenda_id": "09192022-1264",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09192022-1264",
+    "date": "2022-09-19",
+    "has_previous_versions": true,
+    "kind": "special",
+    "minutes_url": null,
+    "title": "Special Session Agenda - September 19, 2022"
+  },
+  {
+    "agenda_id": "09292022-1275",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09292022-1275",
+    "date": "2022-09-29",
+    "has_previous_versions": true,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "Executive Session Agenda- September 29, 2022"
+  },
+  {
+    "agenda_id": "10062022-1278",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10062022-1278",
+    "date": "2022-10-06",
+    "has_previous_versions": true,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10062022-1278",
+    "title": "Regular Session Agenda - October 6, 2022"
+  },
+  {
+    "agenda_id": "10272022-1295",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10272022-1295",
+    "date": "2022-10-27",
+    "has_previous_versions": true,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "Executive Session Agenda - October 27, 2022"
+  },
+  {
+    "agenda_id": "11032022-1296",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11032022-1296",
+    "date": "2022-11-03",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_11032022-1296",
+    "title": "City Council Regular Session Agenda - November 3, 2022"
+  },
+  {
+    "agenda_id": "11292022-1308",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11292022-1308",
+    "date": "2022-11-29",
+    "has_previous_versions": true,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - November 29, 2022"
+  },
+  {
+    "agenda_id": "12012022-1309",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12012022-1309",
+    "date": "2022-12-01",
+    "has_previous_versions": true,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_12012022-1309",
+    "title": "Regular Session Agenda - December 1, 2022"
+  },
+  {
+    "agenda_id": "12292022-1325",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12292022-1325",
+    "date": "2022-12-29",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - December 29, 2022"
+  },
+  {
+    "agenda_id": "01042023-1326",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01042023-1326",
+    "date": "2023-01-04",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01042023-1326",
+    "title": "Oath of Office Special Session"
+  },
+  {
+    "agenda_id": "01052023-1327",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01052023-1327",
+    "date": "2023-01-05",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01052023-1327",
+    "title": "City Council Regular Session Agenda - January 5, 2023"
+  },
+  {
+    "agenda_id": "01262023-1349",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01262023-1349",
+    "date": "2023-01-26",
+    "has_previous_versions": true,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "Executive Session Agenda - January 26, 2023"
+  },
+  {
+    "agenda_id": "01312023-1350",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01312023-1350",
+    "date": "2023-01-31",
+    "has_previous_versions": true,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "Ethics Code Review Agenda - January 31, 2023 (Canceled)"
+  },
+  {
+    "agenda_id": "02022023-1353",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02022023-1353",
+    "date": "2023-02-02",
+    "has_previous_versions": true,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02022023-1353",
+    "title": "City Council Regular Session Agenda - February 2, 2023"
+  },
+  {
+    "agenda_id": "02092023-1358",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02092023-1358",
+    "date": "2023-02-09",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02092023-1358",
+    "title": "Ethics Code Review Agenda - February 9, 2023"
+  },
+  {
+    "agenda_id": "02232023-1368",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_02232023-1368",
+    "date": "2023-02-23",
+    "has_previous_versions": true,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "Executive Session Agenda - February 23, 2023"
+  },
+  {
+    "agenda_id": "03022023-1372",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03022023-1372",
+    "date": "2023-03-02",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": null,
+    "title": "Regular Session Agenda - March 2, 2023"
+  },
+  {
+    "agenda_id": "03092023-1373",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03092023-1373",
+    "date": "2023-03-09",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": null,
+    "title": "Special Session Agenda"
+  },
+  {
+    "agenda_id": "03092023-1376",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03092023-1376",
+    "date": "2023-03-09",
+    "has_previous_versions": true,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "Ethic Code Review Agenda- March 9, 2023"
+  },
+  {
+    "agenda_id": "03302023-1392",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03302023-1392",
+    "date": "2023-03-30",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session - March 30, 2023"
+  },
+  {
+    "agenda_id": "04062023-1396",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04062023-1396",
+    "date": "2023-04-06",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": null,
+    "title": "City Council Regular Agenda"
+  },
+  {
+    "agenda_id": "04132023-1405",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04132023-1405",
+    "date": "2023-04-13",
+    "has_previous_versions": true,
+    "kind": "committee",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04132023-1405",
+    "title": "Ethics Code Review - April 13, 2023"
+  },
+  {
+    "agenda_id": "04272023-1418",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04272023-1418",
+    "date": "2023-04-27",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "Executive Session Agenda April 27, 2023"
+  },
+  {
+    "agenda_id": "05042023-1429",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05042023-1429",
+    "date": "2023-05-04",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05042023-1429",
+    "title": "City Council Regular Session - May 4, 2023"
+  },
+  {
+    "agenda_id": "05082023-1421",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05082023-1421",
+    "date": "2023-05-08",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "Finance Committee Budget Overview Mtg Notice"
+  },
+  {
+    "agenda_id": "05092023-1422",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05092023-1422",
+    "date": "2023-05-09",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "Finance Committee Budget Review Mtg Notice"
+  },
+  {
+    "agenda_id": "05102023-1423",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05102023-1423",
+    "date": "2023-05-10",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "Parks & Recreation Budget Review Mtg Notice"
+  },
+  {
+    "agenda_id": "05102023-1424",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05102023-1424",
+    "date": "2023-05-10",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "Public Safety Committee Budget Review Mtg Notice"
+  },
+  {
+    "agenda_id": "05102023-1430",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05102023-1430",
+    "date": "2023-05-10",
+    "has_previous_versions": true,
+    "kind": "special",
+    "minutes_url": null,
+    "title": "City Council Special Session Agenda - May 10, 2023"
+  },
+  {
+    "agenda_id": "05112023-1425",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05112023-1425",
+    "date": "2023-05-11",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "Gas & Water Committee Public Safety Budget Review Mtg Notice"
+  },
+  {
+    "agenda_id": "05112023-1426",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05112023-1426",
+    "date": "2023-05-11",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "TSG Committee Budget Review Mtg Notice"
+  },
+  {
+    "agenda_id": "05112023-1435",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05112023-1435",
+    "date": "2023-05-11",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "Ethics Code Review Agenda - May 11, 2023"
+  },
+  {
+    "agenda_id": "05122023-1427",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05122023-1427",
+    "date": "2023-05-12",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "Neighborhood & Community Services Committee Budget Review Mtg Notice"
+  },
+  {
+    "agenda_id": "05252023-1446",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05252023-1446",
+    "date": "2023-05-25",
+    "has_previous_versions": true,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "Executive Session Agenda - May 25, 2023"
+  },
+  {
+    "agenda_id": "06012023-1447",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06012023-1447",
+    "date": "2023-06-01",
+    "has_previous_versions": true,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06012023-1447",
+    "title": "City Council Regular Session Agenda - June 1, 2023"
+  },
+  {
+    "agenda_id": "06012023-1448",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06012023-1448",
+    "date": "2023-06-01",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": null,
+    "title": "Regular Session Agenda - June 1, 2023"
+  },
+  {
+    "agenda_id": "06062023-1450",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06062023-1450",
+    "date": "2023-06-06",
+    "has_previous_versions": false,
+    "kind": "work-session",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06062023-1450",
+    "title": "Budget Work Session Agenda - June 6, 2023"
+  },
+  {
+    "agenda_id": "06082023-1455",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06082023-1455",
+    "date": "2023-06-08",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06082023-1455",
+    "title": "Ethics Code Review Agenda - June 8, 2023"
+  },
+  {
+    "agenda_id": "06152023-1461",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06152023-1461",
+    "date": "2023-06-15",
+    "has_previous_versions": true,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06152023-1461",
+    "title": "Special Session Agenda- June 15, 2023"
+  },
+  {
+    "agenda_id": "06202023-1465",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06202023-1465",
+    "date": "2023-06-20",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06202023-1465",
+    "title": "City Council Special Session- June 20, 2023"
+  },
+  {
+    "agenda_id": "06262023-1469",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06262023-1469",
+    "date": "2023-06-26",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "Finance Committee Agenda - June 26, 2023"
+  },
+  {
+    "agenda_id": "06292023-1473",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06292023-1473",
+    "date": "2023-06-29",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - June 29, 2023"
+  },
+  {
+    "agenda_id": "07062023-1474",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07062023-1474",
+    "date": "2023-07-06",
+    "has_previous_versions": true,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_07062023-1474",
+    "title": "City Council Regular Session Agenda: July 6, 2023"
+  },
+  {
+    "agenda_id": "07132023-1480",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07132023-1480",
+    "date": "2023-07-13",
+    "has_previous_versions": true,
+    "kind": "committee",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_07132023-1480",
+    "title": "Ethics Code Review Committee Agenda"
+  },
+  {
+    "agenda_id": "07272023-1503",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07272023-1503",
+    "date": "2023-07-27",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - July 27, 2023"
+  },
+  {
+    "agenda_id": "08032023-1507",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08032023-1507",
+    "date": "2023-08-03",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_08032023-1507",
+    "title": "City Council Regular Session Agenda - August 3, 2023"
+  },
+  {
+    "agenda_id": "08102023-1512",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08102023-1512",
+    "date": "2023-08-10",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_08102023-1512",
+    "title": "City Council Special Session Agenda - August 10, 2023"
+  },
+  {
+    "agenda_id": "08102023-1515",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08102023-1515",
+    "date": "2023-08-10",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "Ethics Code Review Agenda - August 10, 2023"
+  },
+  {
+    "agenda_id": "08312023-1531",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08312023-1531",
+    "date": "2023-08-31",
+    "has_previous_versions": true,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - August 31, 2023"
+  },
+  {
+    "agenda_id": "09072023-1533",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09072023-1533",
+    "date": "2023-09-07",
+    "has_previous_versions": true,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09072023-1533",
+    "title": "City Council Regular Session - September 7, 2023"
+  },
+  {
+    "agenda_id": "09142023-1537",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09142023-1537",
+    "date": "2023-09-14",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "Ethics Code Review Committee Meeting Agenda - September 14, 2023"
+  },
+  {
+    "agenda_id": "09282023-1552",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09282023-1552",
+    "date": "2023-09-28",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - September 28, 2023"
+  },
+  {
+    "agenda_id": "10022023-1553",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10022023-1553",
+    "date": "2023-10-02",
+    "has_previous_versions": false,
+    "kind": "work-session",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10022023-1553",
+    "title": "City Council Special Work Session Agenda - October 2, 2023"
+  },
+  {
+    "agenda_id": "10052023-1558",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10052023-1558",
+    "date": "2023-10-05",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10052023-1558",
+    "title": "City Council Regular Session Agenda - October 5, 2023"
+  },
+  {
+    "agenda_id": "10122023-1563",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10122023-1563",
+    "date": "2023-10-12",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "Ethics Code Review Sub Committee Agenda - October 12, 2023"
+  },
+  {
+    "agenda_id": "10262023-1583",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10262023-1583",
+    "date": "2023-10-26",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - October 26-2023"
+  },
+  {
+    "agenda_id": "11022023-1584",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11022023-1584",
+    "date": "2023-11-02",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": null,
+    "title": "City Council Regular Session Agenda - November 2, 2023"
+  },
+  {
+    "agenda_id": "11092023-1587",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11092023-1587",
+    "date": "2023-11-09",
+    "has_previous_versions": false,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "Ethics Code Review Sub Committee Meeting Agenda - November 9, 2023"
+  },
+  {
+    "agenda_id": "11302023-1603",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11302023-1603",
+    "date": "2023-11-30",
+    "has_previous_versions": false,
+    "kind": "special",
+    "minutes_url": null,
+    "title": "City Council Special Session Agenda - November 30, 2023"
+  },
+  {
+    "agenda_id": "11302023-1604",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11302023-1604",
+    "date": "2023-11-30",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - November 30, 2023"
+  },
+  {
+    "agenda_id": "12072023-1609",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12072023-1609",
+    "date": "2023-12-07",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": null,
+    "title": "City Council Regular Session Agenda - December 7, 2023"
+  },
+  {
+    "agenda_id": "12282023-1621",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12282023-1621",
+    "date": "2023-12-28",
+    "has_previous_versions": true,
+    "kind": "special",
+    "minutes_url": null,
+    "title": "City Council Special Session Agenda - December 28, 2023"
+  },
+  {
+    "agenda_id": "12282023-1622",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12282023-1622",
+    "date": "2023-12-28",
+    "has_previous_versions": false,
+    "kind": "executive",
+    "minutes_url": null,
+    "title": "City Council Executive Session Agenda - December 28, 2023"
+  },
+  {
+    "agenda_id": "01042024-1624",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01042024-1624",
+    "date": "2024-01-04",
+    "has_previous_versions": false,
+    "kind": "regular",
+    "minutes_url": null,
+    "title": "City Council Regular Session Agenda - January 4, 2023"
+  },
+  {
+    "agenda_id": "01112024-1634",
+    "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01112024-1634",
+    "date": "2024-01-11",
+    "has_previous_versions": true,
+    "kind": "committee",
+    "minutes_url": null,
+    "title": "Ethics Code Review Sub-Committee Meeting Agenda -January 11, 2024"
+  }
+]
