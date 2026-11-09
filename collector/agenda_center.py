@@ -55,6 +55,8 @@ class AgendaCenterConfig:
     item_number: re.Pattern
     item_kind_word: re.Pattern    # from item_kinds: group 1 the kind, group 2 a plural s
     not_item_votes: re.Pattern
+    vote_lead_in: re.Pattern      # the sentence leading into a vote ("The following vote ... was recorded:")
+    vote_asides: re.Pattern       # a sentence about a member's own vote (an abstention note), not about the item
     presiding: re.Pattern
     presiding_title: str
     aliases: dict
@@ -146,6 +148,8 @@ def parse_config(cfg) -> AgendaCenterConfig:
         item_number=_rx(_need(cfg, "item_number", str), "item_number", 0),
         item_kind_word=_kinds(_need(cfg, "item_kinds", list)),
         not_item_votes=_rx(_need(cfg, "not_item_votes", str), "not_item_votes"),
+        vote_lead_in=_rx(_need(cfg, "vote_lead_in", str), "vote_lead_in"),
+        vote_asides=_rx(_need(cfg, "vote_asides", str), "vote_asides"),
         presiding=_presiding(_rx(_need(cfg, "presiding", str), "presiding", 0)),
         presiding_title=_need(cfg, "presiding_title", str), aliases=dict(aliases))
 

@@ -65,6 +65,14 @@ item_kinds: [ordinance, resolution]
 # Votes that are never on one numbered item, whatever item they follow: the motion, the lead-in to the vote or the
 # outcome sentence says so (case-insensitive). They are linked to their section heading.
 not_item_votes: '\badjourn|\bconsent\s+agenda\b|\bappoint'
+# The sentence that leads into a vote ("The following vote on the motion to postpone was recorded:", "A voice vote
+# was taken"), from these words on (case-insensitive). Only such a sentence counts as the vote's own words when the
+# minutes' last sentence before the vote lines is read; any other last sentence ("Councilman Grubbs abstained from
+# voting on ORDINANCE 46-2015-16.") is not about the vote and never links it. Spellings as printed: "voe", "voet".
+vote_lead_in: '\bthe\s+following\b[^.]*?\b(?:vote|voe|voet|recorded|taken)\b|\b(?:voice|roll\s+call)\s+vote\s+was\s+(?:recorded|taken)\b'
+# A sentence about a member's own vote, not about the item ("... abstained from voting on ORDINANCE 46-2015-16",
+# "... recused himself", "... noted his abstention"). An item number in it is never what "this ordinance" refers to.
+vote_asides: '\babstain|\babstention|\brecus'
 # The presiding officer, from the call-to-order sentence ("called to order by Mayor Joe Pitts"). Groups: title, name.
 # When the title is presiding_title (the mayor, who is not on the PRESENT line and votes), the mayor is added to the
 # meeting's roster; a Mayor Pro Tem presiding is already on the PRESENT line as a member.

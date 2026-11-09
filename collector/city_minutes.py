@@ -96,7 +96,8 @@ class RollCall:
     motion: dict | None   # {text, mover, seconder, page}
     order: int
     notes: list = field(default_factory=list)   # NOTE lines in the vote block, as printed
-    link: dict = field(default_factory=lambda: {"basis": "heading", "ok": True, "detail": None})  # _item_for_vote
+    # set by _item_for_vote; a roll call made without it is held, never linked on trust
+    link: dict = field(default_factory=lambda: {"basis": "unset", "ok": False, "detail": "item link not checked"})
 
 
 @dataclass
@@ -408,15 +409,52 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
     return out
 
 
-def last_sentence(text: str) -> str:
-    """The last sentence of text, or the words after its last full stop ("... passed. The following vote on the
-    motion to postpone was recorded:" -> "The following vote on the motion to postpone was recorded:")."""
-    rest = text.strip()
-    while True:
+def sentences(text: str) -> list[str]:
+    """text split into its sentences, the words after the last full stop as the last one ("... passed. The following
+    vote on the motion to postpone was recorded:" -> 2 sentences). 'U.S.', 'No.', 'p.m.' do not end one."""
+    out, rest = [], text.strip()
+    while rest:
         s = first_sentence(rest)
         if s is None or not rest[len(s):].strip():
-            return rest
+            out.append(rest)
+            break
+        out.append(s)
         rest = rest[len(s):].strip()
+    return out
+
+
+def last_sentence(text: str) -> str:
+    """The last sentence of text, or the words after its last full stop."""
+    parts = sentences(text)
+    return parts[-1] if parts else ""
+
+
+def lead_in(text: str, cfg: AgendaCenterConfig) -> str | None:
+    """The words that lead into a vote: the last sentence before the vote lines when it is a vote lead-in
+    (cfg.vote_lead_in), from the lead-in words on ("With no objections, the following vote was recorded:" -> "the
+    following vote was recorded:"). Any other last sentence (an abstention note, a speaker) gives None."""
+    s = last_sentence(text)
+    m = cfg.vote_lead_in.search(s)
+    return s[m.start():] if m else None
+
+
+def vote_words(window: list[Line], cfg: AgendaCenterConfig, motion: dict | None, sentence: str) -> list[str]:
+    """The words that belong to a vote (docs/architecture/city-council.md, "Vote-to-item link invariant"): its motion
+    (when exactly one is linked), its lead-in sentence and its outcome sentence. Nothing else in the paragraph."""
+    text = re.sub(r"\s+", " ", " ".join(l.text for l in window))
+    return [x for x in ((motion or {}).get("text"), lead_in(text, cfg), sentence) if x]
+
+
+def _antecedent(text: str, motion: dict | None) -> str:
+    """The paragraph text a "this ordinance" in the vote's words can refer back to: what comes before the motion
+    sentence (when one is linked), else everything before the last sentence. A number named after the motion, or in
+    the sentence right before the vote lines, is never the item the vote is on."""
+    mtext = (motion or {}).get("text")
+    pos = text.find(mtext) if mtext else -1
+    if pos < 0:
+        last = last_sentence(text)
+        pos = len(text) - len(last) if last and text.endswith(last) else 0
+    return text[:pos]
 
 
 def _item_for_vote(item: dict, window: list[Line], titles: dict, cfg: AgendaCenterConfig, motion: dict | None,
@@ -425,18 +463,19 @@ def _item_for_vote(item: dict, window: list[Line], titles: dict, cfg: AgendaCent
     show which numbered item a vote is on, the vote goes to its section heading; when they contradict the item it
     follows, the vote also goes to the section and its roll call is held (ok False).
 
-    What the vote is on, in the minutes' words, is its subject: the motion (when exactly one is linked), the sentence
-    that leads into the vote ("The following vote on the motion to postpone was recorded:") and the outcome sentence.
-    - A subject that names a Consent Agenda, an adjournment or appointments (not_item_votes) is never on one item.
-    - Under an item's own heading, the vote is on that item unless its subject names another item number, only
+    Invariant (docs/architecture/city-council.md, "Vote-to-item link invariant"): a roll call is linked to a numbered
+    item only when the vote's own words (vote_words: its motion, its lead-in sentence, its outcome sentence) identify
+    that item, or the vote sits under that item's own number line and its words name no other item, kind or several
+    items. A number anywhere else in the paragraph (an abstention note, a speaker) never makes a link.
+    - Words that name a Consent Agenda, an adjournment or appointments (not_item_votes) are never on one item.
+    - Under an item's own number line, the vote is on that item unless its words name another item number, only
       another kind ("adopt this resolution" under an ORDINANCE: held), or several items ("these ordinances").
-    - Under a section heading only ("ZONING"), the vote is on a numbered item only when its subject refers to it:
-      it names the number, or it says "this ordinance" and the paragraph before the vote names exactly one
-      ordinance. A number named in passing ("Councilman Grubbs abstained from voting on ORDINANCE 46-2015-16")
-      links nothing."""
+    - Under a section heading only ("ZONING"), the vote is on a numbered item only when its words name the number,
+      or they say "this ordinance" and the paragraph before the motion (no motion: before the last sentence) names
+      exactly one ordinance outside an abstention note (vote_asides)."""
     section = {"number": None, "kind": None, "title": None, "heading": item["heading"]}
     text = re.sub(r"\s+", " ", " ".join(l.text for l in window))
-    subject = " ".join(x for x in ((motion or {}).get("text"), last_sentence(text), sentence) if x)
+    subject = " ".join(vote_words(window, cfg, motion, sentence))
     if cfg.not_item_votes.search(subject):
         return section, {"basis": "not_an_item_vote", "ok": True, "detail": None}
     # in a sentence the number may be printed in any case ("adopt Resolution 42-2021-22")
@@ -461,8 +500,11 @@ def _item_for_vote(item: dict, window: list[Line], titles: dict, cfg: AgendaCent
     if len(nums) == 1:
         kind, number = next(iter(nums))
     else:
-        named = {(m.group(1).lower(), m.group(2)) for m in in_text.finditer(text)}
-        if nums or len(named) != 1 or not kinds:
+        if nums or not kinds:
+            return section, {"basis": "section", "ok": True, "detail": None}
+        named = {(m.group(1).lower(), m.group(2)) for s in sentences(_antecedent(text, motion))
+                 if not cfg.vote_asides.search(s) for m in in_text.finditer(s)}
+        if len(named) != 1:
             return section, {"basis": "section", "ok": True, "detail": None}
         kind, number = next(iter(named))
         if kind_set != {kind} or any(plural for _, plural in kinds):
