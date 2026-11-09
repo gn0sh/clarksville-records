@@ -24,7 +24,9 @@ from .extract import extract_pages, image_only_pages
 
 SCAN_MARKS = re.compile(r"scan|paper capture|konica|bizhub|ricoh|xerox|canon ir|sharp mx|kyocera|lexmark|"
                         r"\bocr\b|tesseract|abbyy|finereader|omnipage", re.I)
-TITLES = r"(?:Councilman|Councillady|Councilwoman|Councilmember|Council Member|Councilor|Mayor Pro Tem|Mayor)"
+# "Councilperson" is the title printed from 2021 on
+TITLES = (r"(?:Councilman|Councillady|Councilwoman|Councilperson|Councilmember|Council Member|Councilor|Mayor Pro Tem|"
+          r"Mayor)")
 MOTION_RE = re.compile(TITLES + r"\s+([A-Z][A-Za-z'’-]+)\s+made\s+a\s+motion")
 NAMED_RE = re.compile(TITLES + r"\s+([A-Z][A-Za-z'’-]+)")
 SECOND_RE = re.compile(r"seconded\s+by\s+" + TITLES + r"\s+([A-Z][A-Za-z'’-]+)")

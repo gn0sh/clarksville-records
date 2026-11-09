@@ -423,3 +423,35 @@ def test_late_arrival_may_miss_a_vote(cfg):
     assert facts["meetings"][0]["verification"]["status"] == "verified"
     rc = facts["roll_calls"][0]
     assert rc["verification"]["status"] == "verified"           # Butler arrived late and is not in the vote
+
+
+# ------------------------------------------------------------------ review fixes (code-review-city-m4-slice1.md)
+COUNCILPERSON = """ATTENDANCE
+
+    PRESENT: Richard Garrett (Ward 1), Trisha Butler (Ward 12), Jason Knight (Ward 5), David Allen (Ward 8)
+
+    The regular session was called to order by Mayor Joe Pitts.
+
+    ORDINANCE 63-2020-21 (Second Reading) Amending the Official Code relative to
+    short term rentals
+
+          Councilperson Butler made a motion to adopt this ordinance on second reading. The motion was
+          seconded by Councilperson Allen. The following vote was recorded:
+
+                 AYE: Allen, Butler, Garrett, Pitts
+
+                 NOTE: Councilperson Knight was not present for this vote.
+
+          The motion to adopt this ordinance on second reading passed.
+"""
+
+
+def test_councilperson_title_reads_motions_and_note_absences(cfg):
+    # city-motions/title-regex: "Councilperson" (printed from 2021) was not a title, so no motion was read
+    rc = parse_text([COUNCILPERSON], cfg).roll_calls[0]
+    assert rc.motion["mover"] == "Butler" and rc.motion["seconder"] == "Allen"
+    assert rc.absent == ["Knight"]
+    rows, store, inspect = rows_and_store()
+    facts, _ = build(cfg, rows[:1], store, parse=lambda p, c: parse_text([COUNCILPERSON], c), inspect=inspect)
+    assert len(facts["motions"]) == 1 and facts["motions"][0]["verification"]["status"] == "verified"
+    assert facts["roll_calls"][0]["verification"]["status"] == "verified"       # Knight out of the room
