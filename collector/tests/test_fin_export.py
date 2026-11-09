@@ -247,3 +247,31 @@ def test_offline_run_refuses_when_store_files_are_missing(tmp_path, monkeypatch,
     assert M.main(["run", "--offline"]) == M.REFUSED
     assert "not in the store" in capsys.readouterr().err
     assert not (tmp_path / "facts.json").exists()
+
+
+# -- csv-export/formula-injection: text cells are neutralised per column; number columns are not touched
+
+def test_csv_text_cells_starting_with_a_formula_character_get_an_apostrophe():
+    import csv
+    import io
+    from collector.export import _csv
+    lead = ("=", "+", "-", "@", "\t", "\r")
+    rows = [{"name": c + "x", "n": c + "1"} for c in lead] + [{"name": "Plain Co", "n": None}]
+    out = list(csv.DictReader(io.StringIO(_csv(rows, ["name", "n"], {"n"}), newline="")))
+    assert [r["name"] for r in out[:6]] == ["'" + c + "x" for c in lead]
+    assert [r["n"] for r in out[:6]] == [c + "1" for c in lead]
+    assert out[6] == {"name": "Plain Co", "n": ""}
+
+
+def test_finance_csv_leaves_numbers_and_placeholder_alone_but_guards_bidder_names():
+    import csv
+    import io
+    from collector.export import _csv
+    from collector.fin_export import COLS, NUMERIC_COLS
+    assert NUMERIC_COLS <= {c for cols in COLS.values() for c in cols}
+    bidder = {"name": '=HYPERLINK("http://x")', "total_as_printed": "-", "total_cents": -500, "printed_order": 1}
+    r = next(csv.DictReader(io.StringIO(_csv([bidder], COLS["bidders"], NUMERIC_COLS))))
+    assert r["name"].startswith("'=") and r["total_as_printed"] == "-" and r["total_cents"] == "-500"
+    line = {"as_printed": "-1,234", "dollars": -1234, "label_as_printed": "-Transfers"}
+    r = next(csv.DictReader(io.StringIO(_csv([line], COLS["budget_lines"], NUMERIC_COLS))))
+    assert r["as_printed"] == "-1,234" and r["dollars"] == "-1234" and r["label_as_printed"] == "'-Transfers"
