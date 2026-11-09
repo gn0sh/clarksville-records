@@ -12,7 +12,7 @@
     <tbody>
     {% for r in log %}
       <tr><th scope="row">{{ r.date }}</th><td>{{ r.page }}</td><td>{{ r.was }}</td><td>{{ r.now }}</td>
-      <td><a data-ext="record" href="{{ r.source_url }}" target="_blank" rel="noopener noreferrer">Source<span class="sr-only"> (opens in a new tab)</span></a></td></tr>
+      <td><a data-ext="corrections" href="{{ r.source_url }}" target="_blank" rel="noopener noreferrer">Source<span class="sr-only"> (opens in a new tab)</span></a></td></tr>
     {% endfor %}
     </tbody>
   </table>

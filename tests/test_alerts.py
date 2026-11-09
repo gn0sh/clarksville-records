@@ -160,7 +160,7 @@ def test_alerts_page_links_every_feed_and_explains_how(built, pages):
         assert f'href="feeds/{f.name}"' in html
         assert 'rel="alternate" type="application/atom+xml"' in html
     main = html[html.index("<main"):html.index("</main>")]
-    for words in ("feed reader", "Feedly", "Inoreader", "NetNewsWire", "iPhone", "Copy link", "Email alerts are planned.",
+    for words in ("feed reader", "Feedly", "Inoreader", "NetNewsWire", "iPhone", "Copy link", "Email alerts are planned.", "Feeds for a single ward or district are not available yet.",
                   "We keep no list of followers and run no sign-up."):
         assert words in main, words
     assert BANNED.search(parse(main).all_text()) is None

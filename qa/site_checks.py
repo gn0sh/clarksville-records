@@ -158,7 +158,22 @@ def council_record_urls(cfg: dict) -> set[str]:
     return out
 
 
-def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | None) -> set[str]:
+def corrections_log_urls(path: Path | None = None) -> set[str]:
+    """The https source_url of each row of the public corrections log (data/corrections-log.json). A malformed log
+    adds nothing: the sitegen build rejects it first."""
+    p = Path(path) if path else ROOT / "data" / "corrections-log.json"
+    if not p.is_file():
+        return set()
+    try:
+        rows = json.loads(p.read_text(encoding="utf-8"))
+    except ValueError:
+        return set()
+    return {r["source_url"] for r in rows if isinstance(r, dict) and isinstance(r.get("source_url"), str)
+            and r["source_url"].startswith("https://")} if isinstance(rows, list) else set()
+
+
+def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | None,
+                     corrections_path: Path | None = None) -> set[str]:
     """Exact URLs (qa-weakened/ext-link-any-host): config/site.yml links, the map's source_url, every roster row's
     source and last_source, and the support link only when it is switched on."""
     out = {cfg[k] for k in ("redistricting_page", "old_lines_map_url", "swap_source", "district_lookup_url") if cfg.get(k)}
@@ -166,6 +181,7 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
         out.add(cfg["geocoder_privacy_url"])         # the address box's "<geocoder>'s privacy policy" link
     out |= {v["url"] for v in (cfg.get("official_records") or {}).values()}   # "Official record:" lines
     out |= council_record_urls(cfg)
+    out |= corrections_log_urls(corrections_path)    # the corrections page's "Source" links
     if cfg.get("operator_url"):
         out.add(cfg["operator_url"])                 # the footer's "gnoshcodes" link
     if cfg.get("support_enabled") is True and cfg.get("support_url"):

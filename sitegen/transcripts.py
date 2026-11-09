@@ -293,7 +293,9 @@ class Transcripts:
     def page(self, meeting_id: str) -> dict:
         t = self.by_meeting[meeting_id]
         m = self.cix.meetings[meeting_id]
-        return {"meeting": m, "kind_label": self.cix.kind_labels[m["kind"]],
+        src = self.cix.sources.get(m.get("source_id") or "") or {}
+        doc = {"url": src["url"], "kind": src.get("kind") or "Minutes"} if src.get("url") else None
+        return {"meeting": m, "doc": doc, "kind_label": self.cix.kind_labels[m["kind"]],
                 "meeting_href": self.cix.meeting_href(meeting_id), "video_url": t["video_url"],
                 "video_ok": video_ok(t["video_url"]),
                 "notice": NOTICE, "label": LABEL, "model": t["model"], "model_version": t["model_version"],
