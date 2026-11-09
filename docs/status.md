@@ -174,3 +174,5 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | backend-engineer | opus/default | M4 slice 1: city Agenda Center collector | done: 305 meetings, 168 minutes, 1,859 roll calls (82.1% verified, below 90% gate), 1163 tests pass; merged 8c17453
 - 2026-11-09 | code-reviewer | opus/default | review M4 slice 1 | request changes: 1 high (city-votes/item-link), 2 medium, 2 low
 - 2026-11-09 | backend-engineer | opus/high | fix M4 review findings | done: 5 fixed, 1181 tests pass, verified 81.7%; f1dedd8
+- 2026-11-09 | code-reviewer | opus/default | delta re-review M4 fixes | approve + 1 medium (city-votes/item-link 2nd hit -> architect invariant first)
+- Problem-key ledger: city-votes/item-link hits 2 (review, delta re-review).

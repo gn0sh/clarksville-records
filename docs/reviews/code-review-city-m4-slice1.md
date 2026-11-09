@@ -9,3 +9,8 @@ Verdict: REQUEST CHANGES (2026-11-09)
 5. LOW city-votes/part-time-exempt, city_build.py:302: an arrived/left note exempts that member from the missing-vote check for the whole meeting.
 
 Checked and sound: name resolution, the alias scope, outcome checks, additive schema (both facts files validate), no cityofclarksville.com or CivicClerk contact, neutrality, tests. 5 roll calls spot-checked against pdftotext: all correct by person.
+
+## Delta re-review (1ea1e44..f1dedd8), 2026-11-09: APPROVE with follow-up
+All 5 findings were fixed. 5 newly linked verified roll calls were spot-checked and are correct. 252 of the 258 new links print the item number in their own outcome sentence.
+- MEDIUM city-votes/item-link (second hit in this family): the section-only branch of `_item_for_vote` uses `last_sentence(window)`, so a number mentioned in passing just before the AYE lines (an abstention note) still links. No verified roll call in the current data is affected. Under the loop limit, the architect states the invariant before the fix.
+- LOW city-votes/outcome-text: rc-75d3ffaf-p10-2 has a vote block broken by a page number. It is held, not wrong.
