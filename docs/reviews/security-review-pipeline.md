@@ -14,3 +14,14 @@ Holds: deploy lock (vars.RECORDS_DEPLOY_ENABLED, implicit success() of update, u
 | F6 | INFO | pipeline/failure-issue | daily-update.yml:107-115 | accept |
 
 Runbook note at :134 about two unverified pins is stale.
+
+## Fresh review of fixes (e2fc45f..06ca645): PASS WITH FINDINGS
+Holds: write token only in `push` (no parser there), only data/ staged, download-artifact past zip-slip fix, pins verified (upload-artifact v4.6.2, download-artifact v4.3.0), deploy uses update's Pages artifact, has_bytes re-hash on every caller, timeouts on all poppler/tesseract calls, F1/F5 runbook order correct.
+| # | Sev | Key | Where | Action |
+|---|---|---|---|---|
+| 1 | MEDIUM | pipeline/push-reverts-concurrent-data | daily-update.yml:177-196 | fix: commit on update's SHA, then pull --rebase so concurrent edits conflict |
+| 2 | LOW | pipeline/push-unvalidated-artifact | :192-196 | fix: fail on symlinks or paths outside a *.json/*.yml allowlist; size cap |
+| 3 | LOW | pipeline/push-failure-silent | :169-203, runbook:11-12 | fix: failure issue step in push |
+| 4 | LOW | pipeline/dispatch-non-main-ref | :171, :209 | fix: require refs/heads/main on push and deploy |
+| 5 | LOW | pipeline/deploy-without-push | :206 | accept (manager): site may briefly lead main; next run reconciles |
+| 6 | INFO | pipeline/parser-dos | collector/fin_facts.py | accept: fails safe |
