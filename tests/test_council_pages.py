@@ -164,7 +164,7 @@ def test_nav_and_landing_carry_the_council(cpages):
         hrefs = [n.attrs.get("href", "") for n in nav.walk() if n.tag == "a"]
         assert any(h.endswith("city/index.html") for h in hrefs), rel
     landing = cpages["index.html"]
-    assert 'href="city/index.html">Clarksville City Council</a>' in landing
+    assert 'href="city/index.html">' + CFG["nav_label"] + '</a>: ' in landing   # short label: one line at 375 px
     assert CFG["nav_label"] + " seats" in landing
     assert "pages are coming" not in landing and "records are coming" not in landing
 
@@ -278,3 +278,70 @@ def test_a_lone_misprint_does_not_cut_the_members_own_run():
     wards = [_w("2020-01-01", "a", 4), _w("2020-02-01", "a", 4), _w("2020-03-01", "a", 3), _w("2020-04-01", "a", 4)]
     rows, _ = council.holder_rows(wards, FACTS_W, CFG)
     assert [(r["seat"], r["start"], r["end"]) for r in rows] == [("ward-4", "2020-01-01", None)]
+
+
+# ---------------------------------------------------------------- review fixes (docs/reviews/code-review-city-pages.md)
+
+def test_each_council_list_on_the_landing_has_its_own_basis_line(cpages, cix):
+    """city-pages/current-basis: the council's seats are not under the county's "Current" line; they carry the
+    council's own, dated at the council's latest minutes read."""
+    landing = cpages["index.html"]
+    county = re.search(r'<details class="district-list".*?<p class="basis muted">(.*?)</p>', landing, re.S).group(1)
+    council_part = landing[landing.index('<h2 class="list-h">'):]
+    own = re.search(r'<p class="basis muted">(.*?)</p>\s*<nav aria-label="' + CFG["nav_label"] + ' seats">',
+                    council_part, re.S).group(1)
+    assert own != county
+    assert own.endswith(f"{CFG['latest_words']}, {cix.seats.latest}.")
+    assert views.observed_basis(cix) + "." == own
+
+
+def test_the_basis_names_each_kind_of_evidence_with_its_seats(cix):
+    """city-pages/current-basis (low): wards come from the attendance lists, the mayor from the roll calls; one line
+    names both, so the mayor is never described as seen in the attendance lists."""
+    def rec(seat, label, ev):
+        return {"seat": seat, "label": label, "evidence": ev, "current": True, "dates": "observed"}
+    ward, mayor = CFG["evidence"]["ward"], CFG["evidence"]["title"]
+    both = views.observed_basis(cix, [rec("ward-2", "Ward 2", ward), rec("ward-1", "Ward 1", ward),
+                                      rec("city-mayor", "City Mayor", mayor)])
+    assert both == (f"Current: in the {ward} (wards) and the {mayor} (City Mayor) of {CFG['latest_words']}, "
+                    f"{cix.seats.latest}")
+    one = views.observed_basis(cix, [rec("ward-1", "Ward 1", ward)])
+    assert one == f"Current: in the {ward} of {CFG['latest_words']}, {cix.seats.latest}"
+
+
+def test_the_council_home_basis_matches_its_seats(cpages, cix):
+    html = cpages["city/index.html"]
+    seats_sec = html[html.index('id="seats-h"'):html.index('id="meetings-h"')]
+    line = re.search(r'<p class="basis muted">(.*?)</p>', seats_sec).group(1)
+    evs = {r["evidence"] for r in cix.seats.records if r["current"] and r["dates"] == "observed"}
+    assert evs
+    for ev in evs:
+        assert f"the {ev}" in line
+
+
+def test_names_inside_item_titles_never_link_to_an_official(tmp_path, cfg, city_facts):
+    """city-pages/cross-body-name-link: an item title is text in the document; a buyer or applicant may share an
+    official's name. No name inside a title links, in the council's pages or the county's."""
+    county = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    cname = county["officials"][0]["name"]
+    member = city_facts["officials"][0]
+    facts = json.loads(json.dumps(city_facts))
+    it = next(i for i in facts["items"] if i["title"])
+    it["title"] = f"Sale of property to {cname} and {member['name']}"
+    d = tmp_path / "c"
+    d.mkdir()
+    (d / "facts.json").write_text(json.dumps(facts), encoding="utf-8")
+    out = tmp_path / "build" / "site"
+    build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS,
+          councils=[{**cfg, "facts_path": d / "facts.json"}])
+    year = (out / "city" / "items" / f"{it['year']}.html").read_text(encoding="utf-8")
+    assert f'<span data-item-title>Sale of property to {cname} and {member["name"]}</span>' in year
+    n = 0
+    for f in out.rglob("*.html"):
+        for m in re.finditer(r"<span data-item-title>(.*?)</span>", f.read_text(encoding="utf-8"), re.S):
+            n += 1
+            assert "<a " not in m.group(1), f
+    assert n
+    cs = [{"slug": "city", "prefix": "city/", "facts": facts}]
+    problems, _ = site_checks.check_name_links(out, county, site_checks.read_roster(FIXTURE_SEATS), cs)
+    assert problems == []

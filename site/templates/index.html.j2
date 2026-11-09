@@ -6,7 +6,7 @@
 {% set dl = site.cfg.district_layer %}{% set wl = site.cfg.ward_layer %}
 <div class="landing">
   <h1 class="purpose">{{ site.cfg.purpose }}</h1>
-  <p class="muted purpose-sub"><span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>. {% for c in site.councils %}<a href="{{ root }}{{ c.href }}">{{ c.body }}</a>: <span class="nowrap">{{ c.from }} to {{ c.to }}</span>.{% if not loop.last %} {% endif %}{% else %}{{ site.cfg.city_coming }}{% endfor %}</p>
+  <p class="muted purpose-sub"><span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>. {% for c in site.councils %}<a href="{{ root }}{{ c.href }}">{{ c.label }}</a>: <span class="nowrap">{{ c.from }} to {{ c.to }}</span>.{% if not loop.last %} {% endif %}{% else %}{{ site.cfg.city_coming }}{% endfor %}</p>
 
   <form class="landing-search" action="search.html" method="get" role="search">
     <label for="landing-q" class="sr-only">Search records</label>
@@ -67,6 +67,7 @@
         </nav>
         <h2 class="list-h">{{ wl.label }}</h2>
         {% for c in site.councils %}
+        {% if c.basis %}<p class="basis muted">{{ c.basis }}.</p>{% endif %}
         <nav aria-label="{{ c.label }} seats">
           <ol class="districts">
             {% for s in c.seats %}

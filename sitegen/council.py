@@ -236,6 +236,8 @@ def landing_entry(cix: CouncilIndex) -> dict:
     """What the county landing shows of the council: a link, its coverage and its seats with current holders."""
     return {"label": cix.nav_label, "body": cix.body_name, "href": cix.home_href(),
             "from": cix.coverage["from"][:4], "to": cix.coverage["to"][:4],
+            # the council's own basis line: its "current" is its latest minutes read, not the county's meeting
+            "basis": views.observed_basis(cix) if cix.seats.loaded else None,
             "seats": [{**s, "href": f"{cix.home_href()}#seat-{s['seat']}",
                        "holder": ({**s["holder"], "href": s["holder"]["href"]} if s["holder"] else None)}
                       for s in seat_list(cix)]}
