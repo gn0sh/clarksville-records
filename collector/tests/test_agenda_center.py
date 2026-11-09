@@ -237,6 +237,48 @@ def test_connection_reset_is_retried_once_then_fails():
         f2.get(url)
 
 
+def test_reset_retry_waits_the_host_delay_first():
+    # fetch/reset-retry: the retry is a new request on the host, so it waits the full crawl delay
+    url = "https://www.clarksvilletn.gov/AgendaCenter/Search/?CIDs=3"
+    reset = urllib.error.URLError(ConnectionResetError(104, "Connection reset by peer"))
+    now, timeline = [0.0], []
+    responses = {"https://www.clarksvilletn.gov/robots.txt": [ROBOTS], url: [reset, b"<html>"]}
+
+    def opener(req, timeout):
+        timeline.append(("get", req.full_url, now[0]))
+        r = responses[req.full_url].pop(0)
+        if isinstance(r, Exception):
+            raise r
+        return FakeResp(r)
+
+    def sleep(s):
+        timeline.append(("sleep", s, now[0]))
+        now[0] += s
+
+    f = PoliteFetcher(opener=opener, sleep=sleep, clock=lambda: now[0], proxy_failures=lambda: [])
+    assert f.get(url)[0] == 200
+    gets = [(u, t) for kind, u, t in timeline if kind == "get"]
+    assert [u for u, _ in gets] == ["https://www.clarksvilletn.gov/robots.txt", url, url]
+    assert gets[2][1] - gets[1][1] >= 10.0                      # the retry waited the Crawl-delay
+    assert timeline[-2] == ("sleep", 10.0, gets[1][1])
+
+
+def test_reset_retries_are_capped_per_host_per_run():
+    urls = [f"https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_{n}" for n in range(5)]
+    reset = urllib.error.URLError(ConnectionResetError(104, "Connection reset by peer"))
+    f, calls = fetcher_with({"https://www.clarksvilletn.gov/robots.txt": [ROBOTS],
+                             **{u: [reset, b"%PDF"] for u in urls}})
+    from collector.fetch import RESET_RETRIES_PER_HOST
+    assert RESET_RETRIES_PER_HOST == 3
+    for u in urls[:3]:
+        assert f.get(u)[0] == 200                               # retried once each
+    for u in urls[3:]:
+        with pytest.raises(FetchFailed, match="not retried: 3 resets"):
+            f.get(u)
+    assert [e["event"] for e in f.log].count("retry") == 3
+    assert calls.count(urls[3]) == 1 and calls.count(urls[4]) == 1      # no second request after the cap
+
+
 def test_cityofclarksville_com_is_never_requested():
     f, calls = fetcher_with({})
     with pytest.raises(HostRefused):

@@ -9,7 +9,8 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
 - no automatic redirects: each Location goes through get() again (allowlist, denied hosts, robots, per-host
   delay), at most MAX_REDIRECTS hops, or the fetch fails;
 - a connection reset (the sandbox relay dropping a slow exchange) is retried once after the host delay, like a
-  server error; a second reset fails the fetch;
+  server error; a second reset fails the fetch. At most RESET_RETRIES_PER_HOST resets are retried per host per
+  run: after that a reset fails the fetch at once, so a relay that keeps dropping cannot double the requests;
 - a 403 or 429 sent by the site stops that host for the rest of the run, with no retry by another
   host, header or proxy. A refusal by the sandbox's own egress proxy (a rejected CONNECT, which the
   site never sees) is a different case: it is logged as ProxyRefused and does not mark the site as
@@ -39,6 +40,7 @@ DENIED_HOSTS = ("cityofclarksville.com", "dev2.montgomerytn.gov")
 MAX_BYTES = 50 * 1024 * 1024
 PROXY_REFUSALS_BEFORE_SKIP = 3
 MAX_REDIRECTS = 5
+RESET_RETRIES_PER_HOST = 3
 REDIRECT_CODES = (301, 302, 303, 307, 308)
 
 
@@ -118,11 +120,13 @@ class PoliteFetcher:
     allowed_hosts: tuple = ALLOWED_HOSTS
     extra_denied: tuple = ()                         # hosts denied for this run, e.g. finance.yml bonfire_hosts
     max_bytes: int = MAX_BYTES
+    reset_retries: int = RESET_RETRIES_PER_HOST     # per host per run
     _last: dict = field(default_factory=dict)        # host -> clock() of last request
     _robots: dict = field(default_factory=dict)      # host -> RobotFileParser
     _blocked: dict = field(default_factory=dict)     # host -> reason (site said 403/429)
     _proxy_refused: dict = field(default_factory=dict)  # host -> count
     _delay: dict = field(default_factory=dict)       # host -> delay (robots Crawl-delay may raise it)
+    _resets: dict = field(default_factory=dict)      # host -> resets retried this run
     log: list = field(default_factory=list)          # [{event, host, url, detail}]
 
     # ------------------------------------------------------------ policy
@@ -205,13 +209,17 @@ class PoliteFetcher:
         except (urllib.error.URLError, OSError) as e:
             if _is_tunnel_refusal(e):
                 raise self._note_proxy_refusal(host, url, str(getattr(e, "reason", e))) from None
-            if _is_reset(e) and _retry:
+            if _is_reset(e) and _retry and self._resets.get(host, 0) < self.reset_retries:
                 # the sandbox relay drops a tunnel when the site is slow to answer (proxy status: ws_closed_mid_
-                # exchange): the site sent no refusal, so one retry after the host delay, like a server error
+                # exchange): the site sent no refusal, so one retry after the host delay (_wait), like a server error
+                self._resets[host] = self._resets.get(host, 0) + 1
                 self.log.append({"event": "retry", "host": host, "url": url, "detail": f"connection reset: {e}"})
                 return self._raw_get(url, _retry=False)
-            self.log.append({"event": "error", "host": host, "url": url, "detail": str(e)})
-            raise FetchFailed(f"{url}: {e}") from None
+            detail = str(e)
+            if _is_reset(e) and _retry:
+                detail += f" (not retried: {self.reset_retries} resets already retried on {host} this run)"
+            self.log.append({"event": "error", "host": host, "url": url, "detail": detail})
+            raise FetchFailed(f"{url}: {detail}") from None
 
     def robots(self, host: str, scheme: str = "https") -> urllib.robotparser.RobotFileParser:
         if host not in self._robots:
