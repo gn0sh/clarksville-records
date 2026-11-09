@@ -192,7 +192,8 @@ def load(cfg: dict, facts: dict, wards: list[dict]) -> CouncilIndex:
 
 def site_for(site: dict, cix: CouncilIndex) -> dict:
     """The site context for a council page: the header's coverage line and data date are the council's own."""
-    return {**site, "coverage": cix.coverage, "data_as_of": cix.data_as_of()}
+    rec = {"url": cix.cfg["record_url"], "label": cix.cfg["record_label"]} if cix.cfg.get("record_url") else None
+    return {**site, "coverage": cix.coverage, "data_as_of": cix.data_as_of(), "record": rec}
 
 
 def seat_list(cix: CouncilIndex) -> list[dict]:

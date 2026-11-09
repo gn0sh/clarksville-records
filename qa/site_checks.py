@@ -74,7 +74,7 @@ NARROW = 360  # AC-F10: the Bids and awards pages are also checked at 360 px
 
 # External links that are not minutes PDFs but are allowed: a holder record's roster source, the map's boundary source,
 # the county redistricting page / old-lines map, and the footer support link. Each must be marked data-ext and https.
-EXT_KINDS = {"roster", "map", "county", "support", "operator", "lookup", "geocoder", "corrections"}
+EXT_KINDS = {"roster", "map", "county", "support", "operator", "record", "lookup", "geocoder", "corrections"}
 
 
 def corrections_links(cfg: dict) -> tuple[str, str]:
@@ -120,12 +120,24 @@ def read_roster(path: Path | None) -> list[dict]:
     return raw.get("seats", []) if isinstance(raw, dict) else raw
 
 
+def council_record_urls(cfg: dict) -> set[str]:
+    import yaml
+    out = set()
+    for loc in cfg.get("councils") or []:
+        c = yaml.safe_load((ROOT / "config" / "localities" / loc / "council.yml").read_text(encoding="utf-8"))
+        if c.get("record_url"):
+            out.add(c["record_url"])
+    return out
+
+
 def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | None) -> set[str]:
     """Exact URLs (qa-weakened/ext-link-any-host): config/site.yml links, the map's source_url, every roster row's
     source and last_source, and the support link only when it is switched on."""
     out = {cfg[k] for k in ("redistricting_page", "old_lines_map_url", "swap_source", "district_lookup_url") if cfg.get(k)}
     if cfg.get("geocoder_url") and cfg.get("geocoder_privacy_url"):
         out.add(cfg["geocoder_privacy_url"])         # the address box's "<geocoder>'s privacy policy" link
+    out |= {v["url"] for v in (cfg.get("official_records") or {}).values()}   # "Official record:" lines
+    out |= council_record_urls(cfg)
     if cfg.get("operator_url"):
         out.add(cfg["operator_url"])                 # the footer's "gnoshcodes" link
     if cfg.get("support_enabled") is True and cfg.get("support_url"):

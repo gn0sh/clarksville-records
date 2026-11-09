@@ -398,7 +398,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         depth = rel.count("/")
         return env.get_template(template).render(
             site=site_ctx or site, root="../" * depth, page_name=page_name,
-            report_page=template in REPORT_TEMPLATES, **ctx)
+            report_page=template in REPORT_TEMPLATES,
+            official_record=views.official_record(template, site_ctx or site, ctx), **ctx)
 
     def render(template: str, rel: str, page_name: str, site_ctx=None, **ctx) -> None:
         html = html_of(template, rel, page_name, site_ctx, **ctx)
@@ -552,6 +553,11 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                 rel, (name, s), kw = year_page(run, ctx)
                 render("official_year.html.j2", rel, name, s, **kw)
     render("about.html.j2", "about.html", "About", **views.about(ix), glance=views.record_glance(ix))
+    trust = views.trust_pages(ix)
+    render("who.html.j2", "who-runs-this.html", "Who runs this", **trust)
+    render("rules.html.j2", "our-rules.html", "Our rules", **trust)
+    render("corrections.html.j2", "corrections.html", "Corrections", **trust)
+    render("method.html.j2", "method.html", "Method", **trust)
     render("changes.html.j2", "changes.html", "Changes", **views.changes(read_changes(changes_path)))
     render("report.html.j2", "report.html", "Report an error", **views.report_page())
     if site["alerts"]:   # Alerts v1 (sitegen/feeds.py): written last, when every item and meeting link knows its part

@@ -19,6 +19,14 @@ geocoder_label: the U.S. Census Bureau's geocoder   # "Your address is sent to <
 geocoder_short: Census                               # "The Census places this address in ...", "Census's privacy policy"
 geocoder_privacy_url: https://www.census.gov/about/policies/privacy.html
 
+# "Unofficial copy. Official record:" line on every record page (views.official_record). A meeting page links its own
+# minutes PDF; the pages that gather many meetings link the body's minutes listing; each council names its own in
+# council.yml (record_url, record_label). Every URL here is one the collectors read (docs/platform-facts.md).
+official_records:
+  county: {url: "https://montgomerytn.gov/clerk/county-commission-minutes", label: "Montgomery County clerk, commission minutes"}
+  finance: {url: "https://montgomerytn.gov/account-budget", label: "Montgomery County budget page"}
+  contracts: {url: "https://montgomerytn.gov/purchasing/archive", label: "Montgomery County purchasing archive"}
+
 # Footer support link (CEO, 2026-11-07). Rendered only when support_enabled is true AND support_url is set.
 # Enabled 2026-11-09: Brian says his council seat is not a factor (he leaves it before anything goes live).
 support_url: https://buymeacoffee.com/gnoshcodes
