@@ -313,10 +313,16 @@ def test_landing_district_lookup_line_is_a_plain_config_link_and_vanishes_when_e
 
 # ---- 5. Footer -----------------------------------------------------------------------------------------------------
 
-def test_footer_has_no_support_link_while_switched_off(pages):
-    assert config.SITE["support_enabled"] is False
+def test_footer_has_no_support_link_while_switched_off(tmp_path, facts, monkeypatch):
+    monkeypatch.setitem(config.SITE, "support_enabled", False)
+    pages = build_pages(tmp_path, facts)
     for name, html in pages.items():
         assert 'data-ext="support"' not in html and "buymeacoffee" not in html, name
+
+
+def test_support_link_is_on_in_config():
+    # Brian 2026-11-09: council seat not a factor; the footer support link is on.
+    assert config.SITE["support_enabled"] is True
 
 
 def test_footer_support_link_renders_when_switched_on(tmp_path, facts, monkeypatch):
