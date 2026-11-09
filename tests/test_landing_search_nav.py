@@ -344,3 +344,16 @@ def test_footer_support_link_renders_when_switched_on(tmp_path, facts, monkeypat
                          sorted((ROOT / "site" / "static").glob("*.js")), ids=lambda p: p.name)
 def test_no_locality_names_in_templates_or_scripts(path):
     assert not re.search(r"Montgomery|Clarksville|Tennessee|\bTN\b", path.read_text(encoding="utf-8")), path.name
+
+
+def test_a_county_item_with_no_title_gets_a_fallback_title():
+    ix = views.Index.__new__(views.Index)
+    assert ix.item_title({"number": "24-7-4", "title": ""}) == "Untitled item 24-7-4"
+    assert ix.item_title({"number": None, "title": ""}) == "Untitled item"
+    assert ix.item_title({"number": "24-7-4", "title": None}) == "Untitled item 24-7-4"
+    assert ix.item_title({"number": "24-7-4", "title": "Real title"}) == "Real title"
+
+
+def test_item_types_match_word_starts_only():
+    assert "appointment" in views.item_types({"number": "", "title": "Appointment of a member"})
+    assert views.item_types({"number": "", "title": "On disappointment"}) == ["other"]

@@ -7,6 +7,7 @@ Invariant: held-back counts (architecture): verified roll calls are "confirmed";
 """
 from __future__ import annotations
 
+import functools
 import json
 import re
 from collections import defaultdict
@@ -149,7 +150,10 @@ class Index:
         return f"officials/{official_id}/{year}.html"
 
     def item_title(self, item: dict) -> str:
-        return item["title"]
+        """The title as printed; an empty one gets a fixed fallback (with the item number when there is one)."""
+        if item.get("title"):
+            return item["title"]
+        return f"Untitled item {item['number']}" if item.get("number") else "Untitled item"
 
     def outcome(self, rc: dict) -> dict:
         """Passed/Failed/Other plus the tally counted from the verified votes (never the minutes' raw outcome text).
@@ -1258,11 +1262,17 @@ def votes_year(year: str, facts) -> dict:
     return {"year": year, "rows": rows, "years": years}
 
 
+@functools.lru_cache(maxsize=None)
+def _word_start(word: str) -> re.Pattern:
+    """A type word matches at the start of a word of the title ("appoint" finds "appointment", not "disappointment")."""
+    return re.compile(r"(?<!\w)" + re.escape(word.casefold()))
+
+
 def item_types(item: dict) -> list[str]:
     """Design 5.4: number prefix, else fixed words in the verbatim title; can match several; else "other"."""
     number, title = (item.get("number") or "").upper(), (item.get("title") or "").casefold()
     out = [t["key"] for t in config.SITE["item_types"]
-           if any(number.startswith(p.upper()) for p in t["prefixes"]) or any(w in title for w in t["words"])]
+           if any(number.startswith(p.upper()) for p in t["prefixes"]) or any(_word_start(w).search(title) for w in t["words"])]
     return out or ["other"]
 
 

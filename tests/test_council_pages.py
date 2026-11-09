@@ -463,3 +463,55 @@ def test_pack_years_joins_consecutive_years_while_the_page_fits():
     assert [years_key(r) for r in runs] == ["2024-2026", "2023", "2021-2022"]
     assert [g["year"] for r in runs for g in r] == list(size)    # order kept, every year once
     assert pack_years([], lambda run: 0) == []
+
+
+# ---------------------------------------------------------------- alerts feeds beside a council
+
+ATOM = "{http://www.w3.org/2005/Atom}"
+
+
+def _feed(out, name):
+    from xml.etree import ElementTree as ET
+    return ET.parse(out / "feeds" / name).getroot()
+
+
+def _alt(entry):
+    return next(x.get("href") for x in entry.findall(ATOM + "link") if x.get("rel") == "alternate")
+
+
+def test_council_feed_hrefs_resolve_to_council_pages(site):
+    out, _ = site
+    entries = _feed(out, "city-meetings.xml").findall(ATOM + "entry")
+    assert entries
+    for e in entries:
+        href = _alt(e)
+        assert href.startswith("../city/meetings/"), href
+        page, _, anchor = href[3:].partition("#")
+        assert (out / page).is_file(), href
+        assert f'id="{anchor}"' in (out / page).read_text(encoding="utf-8"), href
+
+
+def test_multi_body_feed_ids_carry_the_body_key(site, cix):
+    out, _ = site
+    prefix = config.SITE["alerts"]["feed_id"]
+    county, city = config.SITE["county_key"], cix.body_key
+    bodies, item_ids = set(), []
+    for f in sorted((out / "feeds").glob("*.xml")):
+        ids = [e.find(ATOM + "id").text for e in _feed(out, f.name).findall(ATOM + "entry")]
+        assert len(ids) == len(set(ids)), f.name
+        for i in ids:
+            assert i.startswith(prefix), i
+            bodies.add(i[len(prefix):].split("/")[0])
+        if f.name.startswith("topic-"):
+            item_ids += ids
+    assert bodies == {county, city}
+    assert any(i.startswith(f"{prefix}{city}/item/") for i in item_ids)
+    assert any(i.startswith(f"{prefix}{county}/item/") for i in item_ids)
+
+
+def test_council_item_entries_link_to_council_item_pages(site, cix):
+    out, _ = site
+    prefix = config.SITE["alerts"]["feed_id"] + cix.body_key + "/item/"
+    hrefs = [_alt(e) for f in (out / "feeds").glob("topic-*.xml") for e in _feed(out, f.name).findall(ATOM + "entry")
+             if e.find(ATOM + "id").text.startswith(prefix)]
+    assert hrefs and all(h.startswith("../city/items/") for h in hrefs)
