@@ -2,7 +2,7 @@
 {# The history table, one per year in a <details> (newest open). Used by official pages and seat pages. #}
 {% macro history_groups(row_groups, root, empty="No votes, attendance, motions or seconds are shown for this person in this period.", open_all=False) %}
   {% for g in row_groups %}
-  <details class="year-group" data-year="{{ g.year }}"{% if g.year %} id="year-{{ g.year }}"{% endif %}{% if loop.first or open_all %} open{% endif %}>
+  <details class="year-group" data-year="{{ g.year }}"{% if g.year and open_all %} id="year-{{ g.year }}"{% endif %}{% if loop.first or open_all %} open{% endif %}>
   <summary><span class="year-label">{{ g.year or "No rows" }}</span> <span class="muted">({{ g.rows|length }} {{ "row" if g.rows|length == 1 else "rows" }})</span></summary>
   <div class="table-scroll" tabindex="0" role="region" aria-label="History table, {{ g.year }}">
   <table class="history stack" role="table">
