@@ -176,3 +176,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | backend-engineer | opus/high | fix M4 review findings | done: 5 fixed, 1181 tests pass, verified 81.7%; f1dedd8
 - 2026-11-09 | code-reviewer | opus/default | delta re-review M4 fixes | approve + 1 medium (city-votes/item-link 2nd hit -> architect invariant first)
 - Problem-key ledger: city-votes/item-link hits 2 (review, delta re-review).
+- 2026-11-09 | software-architect+backend | opus/high | item-link invariant + fix, page-number fix | done: invariant in docs/architecture/city-council.md, 1208 tests pass, verified 1525/1850 (82.4%); 47c8eb1
