@@ -134,7 +134,7 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
     sources: dict[str, dict] = {}
     meetings, roll_calls, motions, items, events, wards = [], [], [], {}, [], []
     problems, unresolved = [], Counter()
-    last_roster = None              # the latest attendance printed with full names (resolve_surnames)
+    surname_book: dict = {}         # each surname's latest full-name printing in attendance (resolve_surnames)
     status_count = Counter()
     ids_used: Counter = Counter()
 
@@ -212,8 +212,8 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
             continue
         read_shas.add(minutes_src["sha256"])
         _add_minutes(cfg, officials, meeting, minutes_src, pm, roll_calls, motions, items, events, wards,
-                     problems, unresolved, last_roster)
-        last_roster = full_roster(cfg, officials, pm, meeting["date"]) or last_roster
+                     problems, unresolved, surname_book)
+        surname_book.update(printed_full_names(cfg, officials, pm, meeting["date"]))
 
     for s in sources.values():
         if not s["meeting_date"]:
@@ -305,31 +305,37 @@ def _out_of_room(pm: ParsedCityMinutes, roster, part_time: dict) -> list[set]:
 SURNAME_RE = re.compile(r"^[A-Za-z][A-Za-z'’-]+$")
 
 
-def full_roster(cfg, officials: Officials, pm: ParsedCityMinutes, date: str) -> dict | None:
-    """The attendance of minutes that print every member's full name, with the presiding mayor: what a later
-    surname-only attendance list may be read against. None when any attendance name is not a full name."""
-    people = pm.present + pm.absent
-    if not people or not all(NAME_RE.match(clean_name(p.raw_name)) for p in people):
-        return None
-    out = [{"name": officials.canonical(p.raw_name), "ward": p.ward, "mayor": p.mayor} for p in people]
-    if pm.presiding and pm.presiding_title == cfg.presiding_title:
-        out.append({"name": officials.canonical(pm.presiding), "ward": None, "mayor": True})
-    return {"date": date, "people": out}
+def printed_full_names(cfg, officials: Officials, pm: ParsedCityMinutes, date: str) -> dict:
+    """The full names these minutes print in their attendance list (and the presiding mayor), by surname:
+    {surname (lower case): {"date": date, "people": [{name, ward, mayor}]}}. Names that are not full names are
+    left out. A later surname-only attendance list is read against the latest such printing of each surname."""
+    out: dict[str, dict] = {}
+    people = [{"name": officials.canonical(p.raw_name), "ward": p.ward, "mayor": p.mayor}
+              for p in pm.present + pm.absent if NAME_RE.match(clean_name(p.raw_name))]
+    if people and pm.presiding and pm.presiding_title == cfg.presiding_title:
+        people.append({"name": officials.canonical(pm.presiding), "ward": None, "mayor": True})
+    for r in people:
+        e = out.setdefault(name_parts(r["name"])[1].lower(), {"date": date, "people": []})
+        if r["name"] not in [x["name"] for x in e["people"]]:
+            e["people"].append(r)
+    return out
 
 
-def resolve_surnames(cfg, officials: Officials, pm: ParsedCityMinutes, last: dict | None) -> tuple[dict, list]:
+def resolve_surnames(cfg, officials: Officials, pm: ParsedCityMinutes, book: dict | None) -> tuple[dict, list]:
     """Attendance printed as surnames only ("PRESENT: BROWN, CHANDLER, ..., PITTS, ...", CivicClerk minutes from
     March 2025 on) -> ({id(person): (full name, is mayor)}, checks).
 
     A surname is read as a member's full name only when exactly one full name with that surname (any case) is printed
-    either in these minutes after a member's title ("Councilman Jimmy Brown", the presiding "Mayor Joe Pitts") or in
-    the attendance list of the latest earlier minutes that print full names (`last`, full_roster), and a ward printed
-    with the surname agrees with that list. Anything else stays as printed, with no official, and holds the meeting's
-    attendance (check surnames_resolve), so its roll calls are held too. Never a near spelling ("ZAHARIAS")."""
+    in these minutes after a member's title ("Councilman Jimmy Brown", the presiding "Mayor Joe Pitts") or in the
+    latest earlier attendance list that printed a full name with that surname (`book`, printed_full_names), and a
+    ward printed with the surname agrees with that list. Anything else stays as printed, with no official, and holds
+    the meeting's attendance (check surnames_resolve), so its roll calls are held too. Never a near spelling
+    ("ZAHARIAS"). The check's detail names the dates of the attendance lists used."""
     people = [p for p in pm.present + pm.absent
               if not NAME_RE.match(clean_name(p.raw_name)) and SURNAME_RE.match(clean_name(p.raw_name))]
     if not people:
         return {}, []
+    book = book or {}
     presiding = officials.canonical(pm.presiding) if pm.presiding else None
     here = {officials.canonical(n) for n in pm.titled}
     if presiding:
@@ -341,13 +347,14 @@ def resolve_surnames(cfg, officials: Officials, pm: ParsedCityMinutes, last: dic
         for n in sorted(here):
             if name_parts(n)[1].lower() == s:
                 cands[n] = "these minutes"
-        for r in (last or {}).get("people", []):
-            if name_parts(r["name"])[1].lower() == s and (p.ward is None or r["ward"] is None or r["ward"] == p.ward):
-                cands.setdefault(r["name"], f"the attendance of {last['date']}")
+        earlier = book.get(s, {"date": None, "people": []})
+        for r in earlier["people"]:
+            if p.ward is None or r["ward"] is None or r["ward"] == p.ward:
+                cands.setdefault(r["name"], f"the attendance of {earlier['date']}")
         if len(cands) == 1:
             name, why = next(iter(cands.items()))
             mayor = (name == presiding and pm.presiding_title == cfg.presiding_title) or any(
-                r["mayor"] for r in (last or {}).get("people", []) if r["name"] == name)
+                r["mayor"] for r in earlier["people"] if r["name"] == name)
             out[id(p)] = (name, mayor)
             basis[why] += 1
         else:
@@ -359,13 +366,13 @@ def resolve_surnames(cfg, officials: Officials, pm: ParsedCityMinutes, last: dic
 
 
 def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: ParsedCityMinutes, roll_calls, motions,
-                 items, events, wards, problems, unresolved, last_roster: dict | None = None) -> None:
+                 items, events, wards, problems, unresolved, surname_book: dict | None = None) -> None:
     sha8 = src["sha256"][:8]
     roster: list[tuple[str, str]] = []
     present_ids, absent_ids, part_time = set(), set(), {}     # part_time: official -> Person (late or left)
     att = []
     malformed = []
-    by_surname, surname_checks = resolve_surnames(cfg, officials, pm, last_roster)
+    by_surname, surname_checks = resolve_surnames(cfg, officials, pm, surname_book)
     for status, people in (("present", pm.present), ("absent", pm.absent)):
         for p in people:
             full = by_surname.get(id(p))

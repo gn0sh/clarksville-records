@@ -14,7 +14,7 @@ import jsonschema
 import pytest
 
 from collector import agenda_center as ac
-from collector.city_build import build, full_roster, resolve_surnames, Officials
+from collector.city_build import Officials, build, printed_full_names, resolve_surnames
 from collector.city_minutes import called_to_order_on, parse_text, titled_names
 from collector.tests.test_city_minutes import SCHEMA, FakeStore, entry
 
@@ -219,14 +219,37 @@ def test_links_on_the_new_shapes_keep_the_invariant(cfg):
 # ------------------------------------------------------------------ surnames to members
 def roster_from(cfg, text, date):
     off = Officials(cfg)
-    return full_roster(cfg, off, parse_text([text], cfg), date), off
+    return printed_full_names(cfg, off, parse_text([text], cfg), date), off
 
 
-def test_full_roster_needs_every_name_in_full(cfg):
-    last, _ = roster_from(cfg, FULL_2025, "2025-02-06")
-    assert last["date"] == "2025-02-06" and len(last["people"]) == 13          # 12 members and the presiding mayor
-    assert {"name": "Joe Pitts", "ward": None, "mayor": True} in last["people"]
-    assert roster_from(cfg, CAPS_2025, "2025-08-07")[0] is None
+def test_printed_full_names_by_surname(cfg):
+    book, _ = roster_from(cfg, FULL_2025, "2025-02-06")
+    assert len(book) == 13 and book["pitts"] == {"date": "2025-02-06",
+                                                 "people": [{"name": "Joe Pitts", "ward": None, "mayor": True}]}
+    assert book["brown"]["people"] == [{"name": "Jimmy Brown", "ward": 9, "mayor": False}]
+    assert roster_from(cfg, CAPS_2025, "2025-08-07")[0] == {}                  # surnames only: nothing to learn
+
+
+def test_each_surname_uses_its_own_latest_printing(cfg):
+    """2025-02-06 printed a cut-off list (it ends at "Stacey Streetman"): LOVATO is read against the latest list
+    that printed a Lovato, not left unresolved."""
+    book, off = roster_from(cfg, FULL_2025, "2025-01-02")
+    cut = FULL_2025.replace(", Joe Shakeenab\n      (Ward 11), Keri Lovato (Ward 12)", "")
+    pm_cut = parse_text([cut], cfg)
+    assert "Keri Lovato" not in [p.raw_name for p in pm_cut.present]
+    book.update(printed_full_names(cfg, off, pm_cut, "2025-02-06"))
+    assert book["lovato"]["date"] == "2025-01-02" and book["brown"]["date"] == "2025-02-06"
+    pm = parse_text([CAPS_2025], cfg)
+    got, checks = resolve_surnames(cfg, off, pm, book)
+    assert checks[0]["ok"] and "by the attendance of 2025-01-02" in checks[0]["detail"]
+
+
+def test_a_repeated_label_and_a_mayor_note_in_the_attendance(cfg):
+    text = ("called to order by Mayor Joe Pitts on Thursday, January 2, 2025.\n\n"
+            "PRESENT: PRESENT: Brian Zacharias (Ward 1), Keri Lovato (Ward\n12), Joe Pitts (Mayor)\n\n")
+    pm = parse_text([text], cfg)
+    assert [(p.raw_name, p.ward, p.mayor) for p in pm.present] == [
+        ("Brian Zacharias", 1, False), ("Keri Lovato", 12, False), ("Joe Pitts", None, True)]
 
 
 def test_surnames_resolve_against_the_latest_full_roster_and_these_minutes(cfg):

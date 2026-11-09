@@ -49,6 +49,7 @@ SECTION_RE = re.compile(r"^\d{1,2}\.\s+[A-Z]")                     # "3.   Plann
 NOT_A_PERSON = {"vacant"}                                         # a seat listed as "Vacant": no one to record
 WARD_ONLY_RE = re.compile(r"^\(?\s*Ward\s*\d{1,2}\b[^()]*\)?$", re.I)
 NOT_PRESENT_RE = re.compile(r"\bnot\s+present\b|\babsent\b|\bleft\s+the\s+meeting\b|\bhad\s+left\b", re.I)
+MAYOR_NOTE_RE = re.compile(r"\(\s*Mayor\s*\)", re.I)
 PRO_TEM_RE = re.compile(r"^\s*Mayor\s+Pro\s+Te(?:a)?m\s*$", re.I)    # "Mayor Pro Team" is printed too
 # A person's name as the attendance prints it: two or three capitalised words (an initial counts), maybe a suffix.
 # Four or more ("Tim Chandler Valerie Guzman", a missing comma) is not one name.
@@ -222,6 +223,7 @@ def parse_people(text: str, page: int) -> list[Person]:
         mayor = re.match(r"^Mayor\s+(?!Pro\s+Te)", name)
         if mayor:
             name = name[mayor.end():]
+        mayor = mayor or MAYOR_NOTE_RE.search(tok)          # "Joe Pitts (Mayor)" (2025-01-02)
         if PRO_TEM_RE.match(name) and out:
             out[-1].pro_tem = True
             if ward and out[-1].ward is None:
@@ -368,6 +370,7 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
             # every attendance line of the ATTENDANCE section ("IN PERSON:" and "VIA GOOGLE MEETS:" in 2020); a
             # note after a name ("Trisha Butler - arrived late") does not end the list, a blank line does
             label, text, j = _block(lines, i, all_labels, att_labels)
+            text = re.sub(rf"^\s*{re.escape(label)}\s*:\s*", "", text, flags=re.I)   # "PRESENT: PRESENT: ..." (2025-01-02)
             people = parse_people(text, ln.page)
             if label in cfg.present_labels:
                 out.present.extend(people)
