@@ -111,6 +111,10 @@ class ParsedCityMinutes:
     presiding_title: str | None = None  # its title there (Mayor, Mayor Pro Tem)
     roll_calls: list = field(default_factory=list)
     problems: list = field(default_factory=list)
+    # full names these minutes print after a member's title ("Councilman Jimmy Brown", "Mayor Joe Pitts"): the only
+    # in-document evidence for an attendance list printed as surnames ("BROWN, CHANDLER, ..."; city_build)
+    titled: list = field(default_factory=list)
+    printed_date: str | None = None     # the date of the call-to-order sentence, ISO ("... on Thursday, August 1, 2024")
 
 
 def pdf_layer(pdf: Path, pages: list[str]) -> str:
@@ -236,11 +240,26 @@ def _block(lines: list[Line], i: int, labels, prose_labels=()) -> tuple[str, str
     j = i + 1
     while j < len(lines) and lines[j].text and not _label_of(lines[j].text, labels) \
             and not SECTION_RE.match(lines[j].text) \
-            and not (HEADING_RE.match(lines[j].text) and not re.search(r"[a-z]", lines[j].text)) \
-            and (label in prose_labels or not _ends_list(lines[j].text)):
+            and (_list_goes_on(parts[-1], lines[j].text)
+                 or (not (HEADING_RE.match(lines[j].text) and not re.search(r"[a-z]", lines[j].text))
+                     and (label in prose_labels or not _ends_list(lines[j].text)))):
         parts.append(lines[j].text)
         j += 1
     return label, " ".join(parts), j
+
+
+# A line of names in capitals ("SHAKEENAB, SMITH, STREETMAN, ZACHARIAS", CivicClerk minutes from 2025 on)
+CAPS_NAMES_RE = re.compile(r"^[A-Z][A-Za-z'’.-]*(?:\s*\([^)]*\))?(?:\s*,?\s*[A-Z][A-Za-z'’.-]*(?:\s*\([^)]*\))?)*\s*,?"
+                           r"(?:\s*\([^)]*)?$")      # a note left open at the line's end: "SMITH (ARRIVED AT"
+
+
+def _list_goes_on(prev: str, text: str) -> bool:
+    """The name list goes on, even when the names are printed in capitals (which would otherwise read as a heading):
+    the line before ends with a comma and this line is only names ('AYE: BROWN, HAYWOOD, LOVATO,' / 'SHAKEENAB,
+    SMITH'), or the line before left a note open ('SMITH (ARRIVED AT' / '6:03 PM), STREETMAN, ZACHARIAS')."""
+    if prev.count("(") > prev.count(")"):
+        return True
+    return prev.rstrip().endswith(",") and bool(CAPS_NAMES_RE.match(text.strip()))
 
 
 def _ends_list(text: str) -> bool:
@@ -332,6 +351,8 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
     pm = cfg.presiding.search(re.sub(r"\s+", " ", joined))
     if pm:
         out.presiding, out.presiding_title = pm.group("name"), pm.group("title")
+    out.titled = titled_names(joined)
+    out.printed_date = called_to_order_on(joined)
 
     item = {"number": None, "kind": None, "title": None, "heading": None}
     titles: dict = {}                  # (kind, number) -> title as first printed in this document
@@ -420,6 +441,39 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
         i += 1
     if not seen_attendance:
         out.problems.append("no attendance lines found")
+    return out
+
+
+TITLED_RE = re.compile(TITLES + r"\s+([A-Z][a-z][A-Za-z'’-]*(?:\s+[A-Z]\.)?\s+[A-Z][A-Za-z'’-]*[a-z][A-Za-z'’-]*)\b")
+TITLE_WORDS = {"councilman", "councillady", "councilwoman", "councilperson", "councilmember", "council", "mayor",
+               "called", "none", "abstain", "absent", "present", "designations"}
+
+
+CALLED_ON_RE = re.compile(r"called\s+to\s+order\b.{0,160}?\b(January|February|March|April|May|June|July|August|"
+                          r"September|October|November|December)\s+(\d{1,2}),?\s+(\d{4})", re.I | re.S)
+MONTHS = ("january", "february", "march", "april", "may", "june", "july", "august", "september", "october",
+          "november", "december")
+
+
+def called_to_order_on(text: str) -> str | None:
+    """The date the minutes say the meeting was called to order, as YYYY-MM-DD, or None."""
+    m = CALLED_ON_RE.search(re.sub(r"\s+", " ", text))
+    if not m:
+        return None
+    return f"{int(m.group(3)):04d}-{MONTHS.index(m.group(1).lower()) + 1:02d}-{int(m.group(2)):02d}"
+
+
+def titled_names(text: str) -> list[str]:
+    """Full names printed right after a member's title, in order of first printing ("Councilman Jimmy Brown made a
+    motion" -> "Jimmy Brown"). A pair whose last word is a title or a label ("Mayor Pitts Councilman", "Councilman
+    Shakeenab Called") is not a name."""
+    out = []
+    for m in TITLED_RE.finditer(re.sub(r"\s+", " ", text)):
+        name = m.group(1)
+        words = name.split()
+        if words[-1].lower() in TITLE_WORDS or words[0].lower() in TITLE_WORDS or name in out:
+            continue
+        out.append(name)
     return out
 
 
