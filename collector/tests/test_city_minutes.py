@@ -299,3 +299,49 @@ def test_scanned_minutes_are_marked_and_nothing_is_read(cfg):
     assert called == [] and m["minutes_status"] == "scan_not_read"
     assert facts["roll_calls"] == [] and m["attendance"] == []
     assert summary["minutes_status"] == {"scan_not_read": 1}
+
+
+# ------------------------------------------------------------------ attendance slips seen in the 2016-2019 minutes
+@pytest.mark.parametrize("text,expected", [
+    # the comma after a ward group left out (2019-03-07)
+    ("Ron Erb (Ward 3), Tim Chandler (Ward 4) Valerie Guzman (Ward 5)",
+     [("Ron Erb", 3), ("Tim Chandler", 4), ("Valerie Guzman", 5)]),
+    # an opening parenthesis left out, and no space before the number (2018-10-04)
+    ("Ron Erb Ward 3), Geno Grubbs (Ward7)", [("Ron Erb", 3), ("Geno Grubbs", 7)]),
+    # zero-width characters are not part of a name (2017 minutes carry them)
+    ("Bill​ ​Powers​ ​(Ward​ ​11)", [("Bill Powers", 11)]),
+    # a suffix after a comma stays with its name
+    ("Joe Smith, Jr. (Ward 2), Ann Lee (Ward 3)", [("Joe Smith, Jr.", None), ("Ann Lee", 3)]),
+])
+def test_attendance_slips(text, expected):
+    from collector.city_minutes import lines_of
+    clean = lines_of([text])[0].text
+    assert [(p.raw_name, p.ward) for p in parse_people(clean, 1)] == expected
+
+
+def test_mayor_pro_team_spelling_and_mayor_on_the_present_line():
+    ps = parse_people("Valerie Guzman, Mayor Pro Team (Ward 5), Mayor Kim McMillan", 1)
+    assert [(p.raw_name, p.pro_tem, p.mayor) for p in ps] == [("Valerie Guzman", True, False),
+                                                              ("Kim McMillan", False, True)]
+
+
+def test_pro_tem_presiding_is_not_made_mayor(cfg):
+    text = PAGE1.replace("called to order by Mayor Joe Pitts", "called to order by Mayor Pro Tem David Allen")
+    text = text.replace("Garrett, Pitts,", "Garrett,")
+    rows, store, inspect = rows_and_store()
+    facts, _ = build(cfg, rows[:1], store, parse=lambda p, c: parse_text([text], c), inspect=inspect)
+    offs = {o["id"]: o["title"] for o in facts["officials"]}
+    assert offs["city-david-allen"] == "City Council Member" and "city-joe-pitts" not in offs
+    assert facts["roll_calls"][0]["verification"]["status"] == "verified"
+
+
+def test_a_run_on_of_two_names_is_not_an_official(cfg):
+    text = PAGE1.replace("Ron Erb\n                   (Ward 3), ", "Ron Erb Valerie Guzman, ")
+    assert text != PAGE1
+    rows, store, inspect = rows_and_store()
+    facts, _ = build(cfg, rows[:1], store, parse=lambda p, c: parse_text([text], c), inspect=inspect)
+    m = facts["meetings"][0]
+    assert m["verification"]["status"] == "unverified"
+    assert checks(m)["names_well_formed"]["detail"] == "Ron Erb Valerie Guzman"
+    assert not any("valerie" in o["id"] for o in facts["officials"])
+    assert all(r["verification"]["status"] == "unverified" for r in facts["roll_calls"])

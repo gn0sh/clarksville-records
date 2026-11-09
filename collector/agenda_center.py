@@ -92,6 +92,12 @@ def _rx(p, key: str, flags=re.I) -> re.Pattern:
         raise AgendaCenterConfigError(f"agenda-center.yml: {key}: bad regex {p!r}: {e}") from None
 
 
+def _presiding(rx: re.Pattern) -> re.Pattern:
+    if not {"title", "name"} <= set(rx.groupindex):
+        raise AgendaCenterConfigError("agenda-center.yml: presiding needs groups (?P<title>) and (?P<name>)")
+    return rx
+
+
 def parse_config(cfg) -> AgendaCenterConfig:
     if not isinstance(cfg, dict):
         raise AgendaCenterConfigError("agenda-center.yml: not a mapping")
@@ -130,7 +136,7 @@ def parse_config(cfg) -> AgendaCenterConfig:
         outcome_passed=_rx(_need(cfg, "outcome_passed", str), "outcome_passed"),
         outcome_failed=_rx(_need(cfg, "outcome_failed", str), "outcome_failed"),
         item_number=_rx(_need(cfg, "item_number", str), "item_number", 0),
-        presiding=_rx(_need(cfg, "presiding", str), "presiding", 0),
+        presiding=_presiding(_rx(_need(cfg, "presiding", str), "presiding", 0)),
         presiding_title=_need(cfg, "presiding_title", str), aliases=dict(aliases))
 
 

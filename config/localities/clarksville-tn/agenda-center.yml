@@ -55,8 +55,10 @@ outcome_passed: '\b(passed|adopted|approved|carried)\b'
 outcome_failed: '\b(failed|defeated|denied|did not pass)\b'
 # Item numbers as the minutes print them ("ORDINANCE 47-2019-20", "RESOLUTION 33-2019-20").
 item_number: '\b(ORDINANCE|RESOLUTION)\s+(\d{1,3}-\d{4}-\d{2})\b'
-# The presiding officer who also votes, from the call-to-order sentence ("called to order by Mayor Joe Pitts").
-presiding: "called to order by (?:Mayor Pro Tem|Mayor)\\s+([A-Z][A-Za-z.'-]+(?:\\s+[A-Z][A-Za-z.'-]+)+)"
+# The presiding officer, from the call-to-order sentence ("called to order by Mayor Joe Pitts"). Groups: title, name.
+# When the title is presiding_title (the mayor, who is not on the PRESENT line and votes), the mayor is added to the
+# meeting's roster; a Mayor Pro Tem presiding is already on the PRESENT line as a member.
+presiding: "called to order by (?P<title>Mayor Pro Tem|Mayor)\\s+(?P<name>[A-Z][A-Za-z.'-]+(?:\\s+[A-Z][A-Za-z.'-]+)+)"
 presiding_title: Mayor
 
 # Name fixes for the same person printed two ways. Empty until a run shows one; each entry needs a source note.

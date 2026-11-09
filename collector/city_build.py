@@ -15,7 +15,7 @@ import unicodedata
 from collections import Counter, defaultdict
 
 from .agenda_center import AgendaCenterConfig
-from .city_minutes import ParsedCityMinutes, Person, parse_minutes_pdf, pdf_layer, short_hash
+from .city_minutes import NAME_RE, ParsedCityMinutes, parse_minutes_pdf, pdf_layer, short_hash
 from .extract import extract_pages
 from .store import Store
 
@@ -235,9 +235,14 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
     roster: list[tuple[str, str]] = []
     present_ids, absent_ids = set(), set()
     att = []
+    malformed = []
     for status, people in (("present", pm.present), ("absent", pm.absent)):
         for p in people:
-            oid = officials.add(p.raw_name, cfg.official_title)
+            if not NAME_RE.match(clean_name(p.raw_name)):       # not a person's name as printed: no official made
+                malformed.append(p.raw_name)
+                att.append({"official_id": None, "raw_name": p.raw_name, "status": status, "page": p.page})
+                continue
+            oid = officials.add(p.raw_name, cfg.presiding_title if p.mayor else cfg.official_title)
             att.append({"official_id": oid, "raw_name": p.raw_name, "status": status, "page": p.page})
             roster.append((oid, officials.by_id[oid]["name"]))
             (present_ids if status == "present" else absent_ids).add(oid)
@@ -245,13 +250,14 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
                           "meeting_id": meeting["id"], "date": meeting["date"], "source_id": src["id"],
                           "page": p.page})
     presiding_id = None
-    if pm.presiding:
+    if pm.presiding and pm.presiding_title == cfg.presiding_title:
         presiding_id = officials.add(pm.presiding, cfg.presiding_title)
         if presiding_id not in present_ids:
             roster.append((presiding_id, officials.by_id[presiding_id]["name"]))
-    dup = [n for n, c in Counter(a["official_id"] for a in att).items() if c > 1]
+    dup = [n for n, c in Counter(a["official_id"] for a in att if a["official_id"]).items() if c > 1]
     att_checks = [_check("present_listed", bool(pm.present), f"{len(pm.present)} present, {len(pm.absent)} absent"),
-                  _check("one_entry_per_official", not dup, ", ".join(dup) or None)]
+                  _check("one_entry_per_official", not dup, ", ".join(dup) or None),
+                  _check("names_well_formed", not malformed, ", ".join(malformed) or None)]
     if att:
         meeting["attendance_status"] = "extracted"
         meeting["attendance"] = att

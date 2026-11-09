@@ -28,10 +28,15 @@ TITLES = r"(?:Councilman|Councillady|Councilwoman|Councilmember|Council Member|C
 MOTION_RE = re.compile(TITLES + r"\s+([A-Z][A-Za-z'’-]+)\s+made\s+a\s+motion")
 NAMED_RE = re.compile(TITLES + r"\s+([A-Z][A-Za-z'’-]+)")
 SECOND_RE = re.compile(r"seconded\s+by\s+" + TITLES + r"\s+([A-Z][A-Za-z'’-]+)")
-WARD_RE = re.compile(r"\(\s*Ward\s*(\d{1,2})\b[^)]*\)?", re.I)   # "(Ward 10; arrived 5:05 p.m.)" too
-PAREN_RE = re.compile(r"\([^)]*\)?")
+# "(Ward 1)", "(Ward 10; arrived 5:05 p.m.)", and the minutes' own slips "Ward 3)" and "(Ward7)"
+WARD_RE = re.compile(r"\(?\s*\bWard\s*(\d{1,2})\b[^)]*\)?", re.I)
+PAREN_RE = re.compile(r"\([^)]*\)?|\bWard\s*\d{1,2}\b[^)]*\)")
 NOT_PRESENT_RE = re.compile(r"\bnot\s+present\b|\babsent\b|\bleft\s+the\s+meeting\b|\bhad\s+left\b", re.I)
-PRO_TEM_RE = re.compile(r"^\s*Mayor\s+Pro\s+Tem\s*$", re.I)
+PRO_TEM_RE = re.compile(r"^\s*Mayor\s+Pro\s+Te(?:a)?m\s*$", re.I)    # "Mayor Pro Team" is printed too
+# A person's name as the attendance prints it: two or three capitalised words (an initial counts), maybe a suffix.
+# Four or more ("Tim Chandler Valerie Guzman", a missing comma) is not one name.
+NAME_RE = re.compile(r"^[A-Z][A-Za-z.'’-]*(?:\s+[A-Z][A-Za-z.'’-]*){1,2}(?:,?\s+(?:Jr|Sr|II|III|IV)\.?)?$")
+SUFFIX_RE = re.compile(r"^(?:Jr|Sr|II|III|IV)\.?$")
 HEADING_RE = re.compile(r"^[A-Z][A-Z&,'’/().\- ]{3,}(?:\s|$)")
 
 
@@ -47,6 +52,7 @@ class Person:
     ward: int | None
     page: int
     pro_tem: bool = False
+    mayor: bool = False      # listed with the title Mayor ("Mayor Kim McMillan")
 
 
 @dataclass
@@ -76,7 +82,8 @@ class ParsedCityMinutes:
     present: list = field(default_factory=list)
     absent: list = field(default_factory=list)
     attendance_page: int | None = None
-    presiding: str | None = None
+    presiding: str | None = None        # name as printed in the call-to-order sentence
+    presiding_title: str | None = None  # its title there (Mayor, Mayor Pro Tem)
     roll_calls: list = field(default_factory=list)
     problems: list = field(default_factory=list)
 
@@ -94,8 +101,13 @@ def pdf_layer(pdf: Path, pages: list[str]) -> str:
     return "text"
 
 
+INVISIBLE = re.compile("[​‌‍⁠﻿­]")   # zero-width characters some exports carry
+
+
 def lines_of(pages: list[str]) -> list[Line]:
-    return [Line(i + 1, raw.strip()) for i, p in enumerate(pages) for raw in p.splitlines()]
+    """Page-numbered lines, stripped. Zero-width characters are removed (they print as nothing); no other change."""
+    return [Line(i + 1, INVISIBLE.sub("", raw).replace(" ", " ").strip())
+            for i, p in enumerate(pages) for raw in p.splitlines()]
 
 
 def _label_of(text: str, labels) -> tuple[str, str] | None:
@@ -136,6 +148,12 @@ def split_outside_parens(text: str) -> list[str]:
             continue
         else:
             cur += ch
+            # a "(Ward N)" group always ends a member's entry, even where the comma after it was left out:
+            # "Tim Chandler (Ward 4) Valerie Guzman (Ward 5)" is two members
+            if ch == ")" and depth == 0 and re.search(r"\(\s*Ward\b[^()]*\)$", cur) \
+                    and re.match(r"\s+[A-Z]", text[i + 1:]):
+                parts.append(cur)
+                cur = ""
         i += 1
     parts.append(cur)
     return [p.strip() for p in parts if p.strip() and p.strip().lower() not in ("none", "n/a")]
@@ -148,12 +166,18 @@ def parse_people(text: str, page: int) -> list[Person]:
     for tok in split_outside_parens(text):
         ward = WARD_RE.search(tok)
         name = PAREN_RE.sub("", tok).strip()
+        if SUFFIX_RE.match(name) and out:                # "Joe Smith, Jr." split on its comma
+            out[-1].raw_name += ", " + name
+            continue
+        mayor = re.match(r"^Mayor\s+(?!Pro\s+Te)", name)
+        if mayor:
+            name = name[mayor.end():]
         if PRO_TEM_RE.match(name) and out:
             out[-1].pro_tem = True
             if ward and out[-1].ward is None:
                 out[-1].ward = int(ward.group(1))
             continue
-        out.append(Person(name, int(ward.group(1)) if ward else None, page))
+        out.append(Person(name, int(ward.group(1)) if ward else None, page, mayor=bool(mayor)))
     return out
 
 
@@ -240,7 +264,8 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
     all_labels = vote_labels | att_labels | note_labels
     joined = " ".join(l.text for l in lines)
     pm = cfg.presiding.search(re.sub(r"\s+", " ", joined))
-    out.presiding = pm.group(1) if pm else None
+    if pm:
+        out.presiding, out.presiding_title = pm.group("name"), pm.group("title")
 
     item = {"number": None, "kind": None, "title": None, "heading": None}
     window: list[Line] = []            # text since the last vote block or item start (for the motion)
