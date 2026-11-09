@@ -1,6 +1,7 @@
 {% extends "base.html.j2" %}
 {% from "_fin_macros.html.j2" import fin_cite, words_toggle %}
 {% from "_budget_macros.html.j2" import group, flagged, jump %}
+{% from "_macros.html.j2" import parts_nav %}
 {% block main %}
 {# Design finance-contracts 7, Note D. The capital fund's lines in book order, per book; no total across lines and no
    cost column. Without scripts the filter form stays hidden and every line shows. #}
@@ -8,6 +9,7 @@
 <p class="coverage">{{ coverage_sentence }}</p>
 <p class="note">{{ notes.d }}</p>
 <p>{{ b.fund_page_link }} <a href="{{ fund_href }}">{{ b.fund_no }} {{ fund_no }}</a></p>
+{{ parts_nav(parts, "Parts of this page", "This page is on {n} pages, by book and project:") }}
 <form id="cap-filters" class="filters toolbar sol-filters" action="index.html" method="get" hidden>
   <div class="f-q">
     <label for="f-name">{{ b.filter_name }}</label>
@@ -23,7 +25,7 @@
 </form>
 <p id="cap-none" class="empty-note" hidden>{{ b.empty_filter }}</p>
 
-{% for bk in books %}
+{% for bk in books if bk.shown %}
 <section class="fin-book" id="{{ bk.id }}" data-book="{{ bk.id }}" aria-labelledby="{{ bk.id }}-h">
 <h2 id="{{ bk.id }}-h">{{ bk.title }}</h2>
 {% if bk.absent %}
@@ -31,7 +33,7 @@
 {% else %}
 <p class="sol-meta">{{ bk.source_line }} {{ fin_cite(bk.src) }}</p>
 {{ jump(bk.groups, b) }}
-{% for g in bk.groups %}{{ group(g, bk.caption, b, root, b.project_line) }}
+{% for g in bk.groups if g.tables is not none %}{{ group(g, bk.caption, b, root, b.project_line) }}
 {% endfor %}
 {{ flagged(bk.flagged, b, root, b.project_line) }}
 {% endif %}

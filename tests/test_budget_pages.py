@@ -469,3 +469,58 @@ def test_real_trustee_note_text():
         "The printed total is 1 higher.",
         "FY 2026 Amended: the book prints 1,226,777. The lines printed above it add up to 1,230,677. "
         "The printed total is 3,900 lower."]
+
+
+# ---- page weight (finance-pages/page-weight) ----------------------------------------------------------------------
+
+def _split_build(tmp_path, monkeypatch, fin):
+    """Build two_books(fin) with PAGE_BYTES just under fund 901's whole page, so it must split by heading."""
+    from qa import site_checks
+    whole = build_with(tmp_path / "whole", fin=two_books(fin))
+    size = len(whole["finance/901.html"].encode("utf-8"))
+    monkeypatch.setattr(config, "PAGE_BYTES", size - 1)
+    monkeypatch.setattr(config, "PAGE_TARGET", size // 3)
+    pages = build_with(tmp_path / "split", fin=two_books(fin))
+    site = tmp_path / "split" / "build" / "site"
+    assert site_checks.check_links(site, {r: site_checks.parse(site / r) for r in pages}, no_export=True) == []
+    return whole, pages, size
+
+
+def test_a_fund_page_over_the_limit_is_split_by_heading_and_keeps_every_line_once(tmp_path, monkeypatch, fin):
+    whole, pages, size = _split_build(tmp_path, monkeypatch, fin)
+    parts = sorted(r for r in pages if re.fullmatch(r"finance/901(-\d+)?\.html", r))
+    assert len(parts) >= 2 and "finance/901-2.html" in parts
+    f = two_books(fin)
+    lines = [x for x in f["budget_lines"] if x["fund_no"] == "901"]
+    for x in lines:   # every row anchored on exactly one part, with its own fact id
+        hits = [r for r in parts if f'id="{budget_views.anchor(x["id"])}"' in pages[r]]
+        assert len(hits) == 1, (x["id"], hits)
+    flagged = [x for x in lines if x["check"] and x["check"]["state"] == "does_not_add_up"]
+    assert flagged
+    for x in flagged:  # the "does not add up" block sits on the same part as its total's row, with its notes
+        block = "chk-" + budget_views.anchor(x["id"])[2:]
+        where = [r for r in parts if f'id="{block}"' in pages[r]]
+        assert len(where) == 1 and f'id="{budget_views.anchor(x["id"])}"' in pages[where[0]], x["id"]
+        for note in budget_views.diff_notes(x):
+            assert html_mod.escape(note, quote=False) in pages[where[0]] or note in text_of(pages[where[0]])
+    cov = budget_views.coverage_sentence(f["coverage"])
+    for r in parts:
+        assert len(pages[r].encode("utf-8")) <= size - 1, r
+        assert 'class="year-nav parts-nav"' in pages[r] and "This fund is on" in pages[r]
+        assert cov in text_of(pages[r]) and T["notes"]["e"] in text_of(pages[r])
+    # the union of the parts shows the same rows as the whole page
+    rows_of = lambda html: sorted(r.attrs["data-fact-id"] for r in rows(html))  # noqa: E731
+    assert sorted(i for r in parts for i in rows_of(pages[r])) == rows_of(whole["finance/901.html"])
+
+
+def test_capital_page_parts_keep_every_project_line(tmp_path, monkeypatch, fin):
+    whole = build_with(tmp_path / "whole", fin=fin)
+    size = len(whole["capital/index.html"].encode("utf-8"))
+    monkeypatch.setattr(config, "PAGE_BYTES", size - 1)
+    monkeypatch.setattr(config, "PAGE_TARGET", size // 2)
+    pages = build_with(tmp_path / "split", fin=fin)
+    parts = sorted(r for r in pages if re.fullmatch(r"capital/index(-\d+)?\.html", r))
+    rows_of = lambda html: sorted(r.attrs["data-fact-id"] for r in rows(html))  # noqa: E731
+    assert sorted(i for r in parts for i in rows_of(pages[r])) == rows_of(whole["capital/index.html"])
+    if len(parts) > 1:
+        assert all("This page is on" in pages[r] for r in parts)

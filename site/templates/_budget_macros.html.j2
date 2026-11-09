@@ -73,7 +73,7 @@
 {% macro jump(groups, b) -%}
 {% if groups | length > 1 %}
 <details class="fin-jump"><summary>{{ b.jump }} ({{ groups | length }})</summary>
-<ul>{% for g in groups %}<li><a href="#{{ g.id }}">{{ g.heading }}</a></li>{% endfor %}</ul>
+<ul>{% for g in groups %}<li><a href="{{ g.href or ('#' ~ g.id) }}">{{ g.heading }}</a></li>{% endfor %}</ul>
 </details>
 {% endif %}
 {%- endmacro %}

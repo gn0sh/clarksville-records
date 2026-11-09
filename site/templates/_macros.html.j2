@@ -61,10 +61,10 @@
 {%- endmacro %}
 
 {# The parts of a year page too big for one page (build.py plan_parts): each part by its date range. #}
-{% macro parts_nav(parts, label) -%}
+{% macro parts_nav(parts, label, intro="This year is on {n} pages, by date:") -%}
 {% if parts and parts | length > 1 %}
 <nav aria-label="{{ label }}" class="year-nav parts-nav">
-  <p class="muted">This year is on {{ parts | length }} pages, by date:</p>
+  <p class="muted">{{ intro.replace("{n}", parts | length | string) }}</p>
   <ul class="inline-list">
     {% for p in parts %}<li><a href="{{ p.href }}"{% if p.current %} aria-current="page"{% endif %}>{{ p.label }}</a></li>{% endfor %}
   </ul>

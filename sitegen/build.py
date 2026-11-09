@@ -1,7 +1,9 @@
 """Render the static site from a facts file. Entry point: `build(facts_path, out_dir, internal=False)`."""
 from __future__ import annotations
 
+import functools
 import json
+import posixpath
 import re
 import shutil
 import sys
@@ -219,15 +221,16 @@ def balanced_chunks(weights: list[int], k: int) -> list[range]:
     return [range(a, b) for a, b in zip(cuts, cuts[1:]) if b > a]
 
 
-def plan_parts(entries: list[dict], size_of) -> list[list[str]]:
+def plan_parts(entries: list[dict], size_of, weights: list[int] | None = None) -> list[list[str]]:
     """The parts of one year page (city-pages/page-weight): [[entry id, ...], ...] in page order. One part when the
-    page fits config.PAGE_BYTES; otherwise contiguous runs by date, each weighed by its context's size, as few as
-    keep every part under PAGE_BYTES. `size_of(entries)` renders a page of those entries and returns its bytes."""
+    page fits config.PAGE_BYTES; otherwise contiguous runs by date, each weighed by its context's size (or `weights`),
+    as few as keep every part under PAGE_BYTES. `size_of(entries)` renders a page of those entries and returns its
+    bytes. Also the fund and capital pages, by heading (finance-pages/page-weight)."""
     import math
     size = size_of(entries)
     if size <= config.PAGE_BYTES or len(entries) < 2:
         return [[e["id"] for e in entries]]
-    weights = [len(json.dumps(e, default=str)) for e in entries]
+    weights = weights or [len(json.dumps(e, default=str)) for e in entries]
     k = math.ceil(size / config.PAGE_TARGET)
     while True:
         runs = [[entries[i] for i in r] for r in balanced_chunks(weights, k)]
@@ -425,12 +428,38 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     if bg is not None:
         title = config.FIN_TEXT["budget"]["title"]
         render("fin_index.html.j2", budget_views.INDEX, title, **budget_views.finance_index(bg))
+        # Fund and capital pages over config.PAGE_BYTES are split in parts by heading (finance-pages/page-weight):
+        # every fund is planned first, so each line's row has its part before any page links to it.
+        split = []
         for no in bg.funds:
-            ctx = budget_views.fund(no, bg)
-            render("fin_fund.html.j2", bg.fund_href(no), f"{title}: {ctx['title']}", **ctx)
+            split.append(("fin_fund.html.j2", bg.fund_href(no), None, functools.partial(budget_views.fund, no, bg),
+                          "sections", True))
         if bg.capital_fund:
-            render("fin_capital.html.j2", budget_views.CAPITAL, config.FIN_TEXT["budget"]["capital_title"],
-                   **budget_views.capital(bg))
+            split.append(("fin_capital.html.j2", budget_views.CAPITAL, config.FIN_TEXT["budget"]["capital_title"],
+                          functools.partial(budget_views.capital, bg), None, False))
+        planned = []
+        for tpl, rel, name, make, key, owns_lines in split:
+            full = make()
+            name = name or f"{title}: {full['title']}"
+            us = budget_views.units(full, key)
+            by_id = {u["id"]: u for u in us}
+            parts = plan_parts(us, lambda es: len(html_of(tpl, rel, name, parts=[], **make(
+                keep={e["id"] for e in es}, page=rel)).encode("utf-8")), [u["weight"] for u in us]) if us else [[]]
+            stem = rel[:-len(".html")]
+            paths = [rel if n == 1 else f"{stem}-{n}.html" for n in range(1, len(parts) + 1)]
+            part_of = {gid: path for ids, path in zip(parts, paths) for gid in ids}
+            if owns_lines and len(parts) > 1:
+                for gid, path in part_of.items():
+                    for line_id in by_id[gid]["lines"]:
+                        bg.line_pages[line_id] = path
+            planned.append((tpl, name, make, parts, paths, part_of, by_id))
+        for tpl, name, make, parts, paths, part_of, by_id in planned:
+            nav = [{"href": posixpath.basename(p), "label": budget_views.part_label([by_id[i] for i in ids])}
+                   for ids, p in zip(parts, paths)] if len(parts) > 1 else []
+            for n, (ids, path) in enumerate(zip(parts, paths), 1):
+                ctx = make(keep=set(ids), page=path, part_of=part_of) if len(parts) > 1 else make()
+                render(tpl, path, name if n == 1 else f"{name} (part {n})",
+                       **ctx, parts=[{**p, "current": i == n} for i, p in enumerate(nav, 1)])
     for o in facts["officials"]:
         ctx = views.official(o["id"], ix)
         render("official.html.j2", f"officials/{o['id']}.html", o["name"], **ctx)

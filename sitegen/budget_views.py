@@ -105,6 +105,9 @@ class Budget:
                     funds.setdefault(x["fund_no"], None)
         self.funds = list(funds)
         self.capital_fund = capital_fund if capital_fund in funds else None
+        # Page weight (finance-pages/page-weight): a fund page too big for one page is split in parts by heading
+        # (build.py plan_parts). {line id: the fund page part that holds its row}; a line not in it is on part 1.
+        self.line_pages: dict[str, str] = {}
 
     def fund_lines(self, fund_no: str, book_id: str) -> list[dict]:
         return [x for x in self.lines if x["fund_no"] == fund_no and x["book_id"] == book_id]
@@ -119,7 +122,7 @@ class Budget:
     def href_from(self, page: str):
         """A link to a line's row from `page`: #anchor on the same page, else on the line's own fund page."""
         def href_of(line_id: str) -> str:
-            target = self.fund_href(self.by_id[line_id]["fund_no"])
+            target = self.line_pages.get(line_id) or self.fund_href(self.by_id[line_id]["fund_no"])
             return ("" if target == page else "../" + target) + "#" + anchor(line_id)
         return href_of
 
@@ -180,9 +183,10 @@ def _tables(bg: Budget, lines: list[dict], seen: set[str], href_of, anchors: boo
     return out
 
 
-def _groups(bg: Budget, lines: list[dict], prefix: str, seen: set[str], href_of) -> list[dict]:
+def _groups(bg: Budget, lines: list[dict], prefix: str, seen: set[str], href_of, keep=None) -> list[dict]:
     """Runs of lines under one printed heading (a revenue source, a department, a project) in book order; each run
-    is a `<details>` with its own anchor."""
+    is a `<details>` with its own anchor. `keep`: the group ids shown on this page part (None: all); a group on
+    another part keeps its heading and count (for the jump list) but has no tables (`tables` None)."""
     runs: list[list[dict]] = []
     for x in lines:
         if not runs or runs[-1][0]["heading_as_printed"] != x["heading_as_printed"]:
@@ -191,24 +195,31 @@ def _groups(bg: Budget, lines: list[dict], prefix: str, seen: set[str], href_of)
     out = []
     for n, run in enumerate(runs, 1):
         heading = run[0]["heading_as_printed"]
-        out.append({"id": f"{prefix}-{n}", "heading": heading or B["no_heading"], "n": len(run),
+        gid = f"{prefix}-{n}"
+        out.append({"id": gid, "href": "#" + gid, "heading": heading or B["no_heading"], "n": len(run),
                     "n_word": B["line_word"] if len(run) == 1 else B["lines_word"],
                     "search": " ".join([heading or "", *(x["label_as_printed"] for x in run)]).casefold(),
-                    "tables": _tables(bg, run, seen, href_of)})
+                    "lines": [x["id"] for x in run],
+                    "tables": _tables(bg, run, seen, href_of) if keep is None or gid in keep else None})
     return out
 
 
-def _flagged(bg: Budget, lines: list[dict], seen: set[str], href_of) -> list[dict]:
+def _flagged(bg: Budget, lines: list[dict], seen: set[str], href_of, keep_lines=None) -> list[dict]:
     """Design 6 "does not add up": the total as printed, then every line it was checked against, wherever that line
-    is listed (a transfer moved to its own section is still listed under its total). Shown, never collapsed."""
+    is listed (a transfer moved to its own section is still listed under its total). Shown, never collapsed.
+    `keep_lines`: on a page part, only the totals whose own row is on that part (so the row's link to its block and
+    the block's link back stay on one page)."""
     out = []
     for x in lines:
         if x["check"] is None or x["held"] or x["check"]["state"] != "does_not_add_up":
             continue
+        if keep_lines is not None and x["id"] not in keep_lines:
+            continue
         scope = [bg.by_id[i] for i in x["scope_line_ids"]]
         tables = _tables(bg, [x, *scope], seen, href_of, anchors=False)
         tables[0]["rows"][0]["check"]["href"] = "#" + anchor(x["id"])  # back to the total's own row
-        out.append({"id": "chk-" + anchor(x["id"])[2:], "line_href": "#" + anchor(x["id"]),
+        out.append({"id": "chk-" + anchor(x["id"])[2:], "line_href": "#" + anchor(x["id"]), "line_id": x["id"],
+                    "weight": 1 + len(scope),
                     "caption": B["flagged_caption"].format(label=x["label_as_printed"], page=x["page"]),
                     "no_lines": None if scope else B["flagged_no_lines"], "tables": tables})
     return out
@@ -253,10 +264,64 @@ def finance_index(bg: Budget) -> dict:
                 capital_href=CAPITAL if bg.capital_fund else None, exports=EXPORTS_READY and not bg.fx.fixture)
 
 
-def fund(fund_no: str, bg: Budget) -> dict:
+def _place(books: list[dict], keep, page: str, part_of: dict | None, sections_key: str | None) -> None:
+    """Page parts (finance-pages/page-weight): mark what this part shows and point every jump, table-of-contents and
+    section link at the part that holds it. `part_of`: {group id: page}; None for a page in one part. A book or
+    section with no groups (absent from the book, or an empty section) is shown with the book's first group, or on
+    part 1. Everything is shown when `keep` is None."""
+    import posixpath
+    part_of = part_of or {}
+
+    def href(gid_page: str | None, frag: str) -> str:
+        return ("" if gid_page in (None, page) else posixpath.basename(gid_page)) + "#" + frag
+
+    first_page = next(iter(part_of.values()), page)
+    for bk in books:
+        secs = bk.get(sections_key, []) if sections_key else [bk]
+        gids = [g["id"] for s in secs for g in s["groups"]]
+        home = part_of.get(gids[0], first_page) if gids else first_page
+        bk["href"] = href(home, bk["id"])
+        for s in secs:
+            for g in s["groups"]:
+                g["href"] = href(part_of.get(g["id"]), g["id"])
+            s_home = part_of.get(s["groups"][0]["id"], home) if s["groups"] else home
+            if sections_key:
+                s["href"] = href(s_home, s["id"])
+                s["shown"] = keep is None or any(g["tables"] is not None for g in s["groups"]) or \
+                    (not s["groups"] and s_home == page)
+        bk["shown"] = keep is None or home == page or any(g["tables"] is not None for s in secs for g in s["groups"])
+
+
+def units(ctx: dict, sections_key: str | None = "sections") -> list[dict]:
+    """The groups of a fund or capital page in page order, each weighed by its lines plus the flagged blocks of the
+    totals it holds: the units build.py plan_parts splits a page into ({"id", "weight"})."""
+    out = []
+    for bk in ctx["books"]:
+        secs = bk.get(sections_key, []) if sections_key else [bk]
+        flag_w = {f["line_id"]: f["weight"] for f in bk["flagged"]}
+        for s in secs:
+            for g in s["groups"]:
+                out.append({"id": g["id"], "weight": g["n"] + sum(flag_w.get(i, 0) for i in g["lines"]),
+                            "book": bk["title"], "heading": g["heading"], "lines": g["lines"]})
+    return out
+
+
+def part_label(units_of_part: list[dict]) -> str:
+    """A fund or capital page part by what it holds: "<book>: <first heading> to <last heading>"."""
+    a, z = units_of_part[0], units_of_part[-1]
+    first = f"{a['book']}: {a['heading']}"
+    if a is z or (a["book"], a["heading"]) == (z["book"], z["heading"]):
+        return first
+    return f"{first} to {z['heading']}" if a["book"] == z["book"] else f"{first} to {z['book']}: {z['heading']}"
+
+
+def fund(fund_no: str, bg: Budget, keep=None, page: str | None = None, part_of: dict | None = None) -> dict:
     """finance/<fund_no>.html (design 6): for each book, the same three sections in the same order, then the totals
-    that do not add up with their lines. A book without the fund says so; an empty section says so."""
-    href_of = bg.href_from(bg.fund_href(fund_no))
+    that do not add up with their lines. A book without the fund says so; an empty section says so.
+    Page parts (build.py): `keep` the group ids this part shows, `page` its path (finance/<no>-<n>.html), `part_of`
+    {group id: part path}; left out, the whole fund on one page."""
+    page = page or bg.fund_href(fund_no)
+    href_of = bg.href_from(page)
     seen: set[str] = set()
     books = []
     for b in bg.books:
@@ -270,10 +335,13 @@ def fund(fund_no: str, bg: Budget) -> dict:
             sid = f"{b['id']}-{key}"
             entry["sections"].append({"key": key, "id": sid, "title": B["sections"][key], "n": len(part),
                                       "n_word": B["line_word"] if len(part) == 1 else B["lines_word"],
-                                      "groups": _groups(bg, part, sid, seen, href_of)})
+                                      "groups": _groups(bg, part, sid, seen, href_of, keep)})
         if lines:
-            entry["flagged"] = _flagged(bg, lines, seen, href_of)
+            kept = None if keep is None else {i for s in entry["sections"] for g in s["groups"]
+                                              if g["tables"] is not None for i in g["lines"]}
+            entry["flagged"] = _flagged(bg, lines, seen, href_of, kept)
         books.append(entry)
+    _place(books, keep, page, part_of, "sections")
     names = _names(bg, fund_no)
     printed: dict[str, list[dict]] = {}  # one entry per name as printed, with every book that prints it
     for n in names:
@@ -283,11 +351,13 @@ def fund(fund_no: str, bg: Budget) -> dict:
                 title=names[0]["name"], capital_href="../" + CAPITAL if fund_no == bg.capital_fund else None)
 
 
-def capital(bg: Budget) -> dict:
+def capital(bg: Budget, keep=None, page: str | None = None, part_of: dict | None = None) -> dict:
     """capital/index.html (design 7, Note D): the capital fund's spending lines, project by project, per book, as
-    printed. No total across lines and no cost column: the printed lines and their checks only."""
+    printed. No total across lines and no cost column: the printed lines and their checks only. Page parts as
+    `fund` (capital/index-<n>.html)."""
     no = bg.capital_fund
-    href_of = bg.href_from(CAPITAL)
+    page = page or CAPITAL
+    href_of = bg.href_from(page)
     seen: set[str] = set()
     books = []
     for b in bg.books:
@@ -301,8 +371,10 @@ def capital(bg: Budget) -> dict:
             entry["source_line"] = B["capital_source"].format(fund_name=part[0]["fund_name"], fund_no=no,
                                                               book=b["title"], first=min(pages), last=max(pages))
             entry["src"] = bg.src(part[0])
-            entry["groups"] = _groups(bg, part, f"cap-{b['id']}", seen, href_of)
-            entry["flagged"] = _flagged(bg, part, seen, href_of)
+            entry["groups"] = _groups(bg, part, f"cap-{b['id']}", seen, href_of, keep)
+            kept = None if keep is None else {i for g in entry["groups"] if g["tables"] is not None for i in g["lines"]}
+            entry["flagged"] = _flagged(bg, part, seen, href_of, kept)
         books.append(entry)
+    _place(books, keep, page, part_of, None)
     return dict(_common(bg), books=books, fund_no=no, fund_href="../" + bg.fund_href(no),
                 words=_words(B["capital_words"]))
