@@ -1,7 +1,7 @@
 """Alerts v1 (M5): static Atom feeds, written beside the pages (docs/plan/one-week-finish.md, item 3).
 
-No accounts, no e-mail, no server: each feed is a plain file a feed reader fetches, and nothing about a reader is
-stored. Which feeds exist comes from config, never from a place name in code (config/site.yml `alerts:`):
+No accounts, no e-mail, no server: each feed is a plain file a feed reader fetches. We keep no list of followers
+and run no sign-up. Which feeds exist comes from config, never from a place name in code (config/site.yml `alerts:`):
 - one "new agendas and minutes" feed per body (the county, then each council in config.COUNCILS);
 - one feed per topic in `alerts.topics`, each an item type of `item_types` (the same mechanical rule as the Search
   filter and the About page), across every body.
@@ -159,10 +159,19 @@ def _abs(href: str, feed_rel: str, site_url: str) -> str:
         (f"#{href.split('#', 1)[1]}" if "#" in href else "")
 
 
+# Characters XML 1.0 forbids (everything outside its Char range): PDF text carries some (form feed, NUL).
+_XML_ILLEGAL = re.compile("[^\u0009\u000a\u000d\u0020-\ud7ff\ue000-\ufffd\U00010000-\U0010ffff]")
+
+
+def clean(text: str) -> str:
+    """Text safe for an XML 1.0 element: illegal characters dropped, runs of whitespace collapsed to one space."""
+    return " ".join(_XML_ILLEGAL.sub("", text).split())
+
+
 def _sub(parent, tag: str, text: str | None = None, **attrs) -> ET.Element:
     el = ET.SubElement(parent, f"{{{ATOM}}}{tag}", attrs)
     if text is not None:
-        el.text = text
+        el.text = clean(text)
     return el
 
 
