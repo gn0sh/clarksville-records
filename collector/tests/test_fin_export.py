@@ -95,6 +95,8 @@ def test_held_department_awardee_and_budget_line_are_null_with_check():
     r = next(r for r in t["solicitations"] if r["id"] == sol["id"])
     assert r["department"] == "" and r["department_held_check"] == "scan-values"
     assert r["awardee_text"] == "" and r["awardee_held_check"] == "award-source"
+    assert r["awardee_match"] == ""
+    assert next(s for s in pub["solicitations"] if s["id"] == sol["id"])["bid_tab"]["awardee_match"] is None
     cells = [r for r in t["budget_lines"] if r["line_id"] == line["id"]]
     assert cells and all(c["as_printed"] == "" and c["dollars"] == "" and c["held_check"] == "column-align"
                          for c in cells)

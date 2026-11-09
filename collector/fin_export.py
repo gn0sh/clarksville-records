@@ -171,6 +171,8 @@ def public_finance(fin: dict) -> dict:
         for col in ("awardee_text", "bid_date_text", "award_date_text", "project_text"):
             if col in cols:
                 tab[col] = None
+        if "awardee_text" in cols:
+            tab["awardee_match"] = None   # bidder:N would join to bidders.csv and recover the held awardee
         for i, b in enumerate(tab["bidders"]):
             check = bidder_held(sol, i, b, held_idx)
             b["held_check"] = check
@@ -222,7 +224,7 @@ def tables(fin: dict) -> dict[str, str]:
                "bid_tab_source_url": tab_doc.get("url"), "tab_type": tab.get("tab_type"),
                "not_read_reason": tab.get("not_read_reason"),
                **{k: tab.get(k) for k in TAB_VALUES}, "awardee_held_check": cols.get("awardee_text"),
-               "awardee_match": tab.get("awardee_match"),
+               "awardee_match": None if "awardee_text" in cols else tab.get("awardee_match"),
                "held_checks": "; ".join(f"{h['field']}: {h['check']}" for h in sol["held"]),
                **cite(sol["archive_source_id"], None)}
         sols.append(row)

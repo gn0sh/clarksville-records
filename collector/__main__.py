@@ -248,7 +248,8 @@ def shrink_reason(facts: dict, log: dict, facts_path: Path) -> str | None:
     dropped = sorted({m["id"] for m in old.get("meetings", [])} - {m["id"] for m in facts["meetings"]})
     if dropped:
         return (f"the result has {len(facts['meetings'])} meetings and would drop {len(dropped)} of the "
-                f"{len(old.get('meetings', []))} in {Path(facts_path).name}, e.g. {', '.join(dropped[:3])}")
+                f"{len(old.get('meetings', []))} in {Path(facts_path).name}, e.g. {', '.join(dropped[:3])}. "
+                f"A parser change that renames meeting ids also causes this; pass --allow-shrink to override")
     return None
 
 
