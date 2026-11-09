@@ -202,3 +202,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 1:50 PM ET: allowlisted cpmedia.azureedge.net (city video) and huggingface.co, cdn-lfs.hf.co, cas-bridge.xethub.hf.co (Whisper model). Container trial running: faster-whisper small.en int8 on CPU, Nov 5 Regular Session, output in the scratchpad tx/out. Brian: switch to Central time from 20:43 UTC.
 - 2026-11-09 | backend-engineer | sonnet/default | security fixes 1-5 | done: 1316 tests, site_checks pass; d0385a9. Delta security re-confirm next.
 - 2026-11-09 | security-engineer | opus/high | delta re-confirm | PASS, 1-5 fixed
+- 2026-11-09 ~2:20 PM CT | backend-engineer | opus/default | M4 slice 3: CivicClerk 2024+ | done (handoff lost in a container restart; manager verified git): ADR 0003, 385 meetings, 2,235 roll calls (1,756 verified, 78.6%), video URLs stored; e136a8b. Full suite + site_checks re-run by manager.
