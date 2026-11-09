@@ -17790,6 +17790,56 @@
     "ward": null
   },
   {
+    "date": "2023-04-13",
+    "meeting_id": "2023-04-13-committee",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Zacharias",
+    "source_id": "src-0697fda91542",
+    "ward": null
+  },
+  {
+    "date": "2023-04-13",
+    "meeting_id": "2023-04-13-committee",
+    "official_id": "city-wallace-redd",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Redd",
+    "source_id": "src-0697fda91542",
+    "ward": null
+  },
+  {
+    "date": "2023-04-13",
+    "meeting_id": "2023-04-13-committee",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "McLaughlin",
+    "source_id": "src-0697fda91542",
+    "ward": null
+  },
+  {
+    "date": "2023-04-13",
+    "meeting_id": "2023-04-13-committee",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Shakeenab",
+    "source_id": "src-0697fda91542",
+    "ward": null
+  },
+  {
+    "date": "2023-04-13",
+    "meeting_id": "2023-04-13-committee",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Smith",
+    "source_id": "src-0697fda91542",
+    "ward": null
+  },
+  {
     "date": "2023-05-04",
     "meeting_id": "2023-05-04-regular",
     "official_id": "city-brian-zacharias",
@@ -19188,5 +19238,3755 @@
     "raw_name": "Wanda Allen",
     "source_id": "src-f9fee1b3fca0",
     "ward": 8
+  },
+  {
+    "date": "2024-01-04",
+    "meeting_id": "2024-01-04-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Brian Zacharias",
+    "source_id": "src-91e5b0266c6a",
+    "ward": 1
+  },
+  {
+    "date": "2024-01-04",
+    "meeting_id": "2024-01-04-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Deanna McLaughlin",
+    "source_id": "src-91e5b0266c6a",
+    "ward": 2
+  },
+  {
+    "date": "2024-01-04",
+    "meeting_id": "2024-01-04-regular",
+    "official_id": "city-dajuan-little",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "DaJuan Little",
+    "source_id": "src-91e5b0266c6a",
+    "ward": 3
+  },
+  {
+    "date": "2024-01-04",
+    "meeting_id": "2024-01-04-regular",
+    "official_id": "city-wallace-redd",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wallace Redd",
+    "source_id": "src-91e5b0266c6a",
+    "ward": 4
+  },
+  {
+    "date": "2024-01-04",
+    "meeting_id": "2024-01-04-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Ambar Marquis",
+    "source_id": "src-91e5b0266c6a",
+    "ward": 5
+  },
+  {
+    "date": "2024-01-04",
+    "meeting_id": "2024-01-04-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Smith",
+    "source_id": "src-91e5b0266c6a",
+    "ward": 6
+  },
+  {
+    "date": "2024-01-04",
+    "meeting_id": "2024-01-04-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Travis Holleman",
+    "source_id": "src-91e5b0266c6a",
+    "ward": 7
+  },
+  {
+    "date": "2024-01-04",
+    "meeting_id": "2024-01-04-regular",
+    "official_id": "city-wanda-allen",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Allen",
+    "source_id": "src-91e5b0266c6a",
+    "ward": 8
+  },
+  {
+    "date": "2024-01-04",
+    "meeting_id": "2024-01-04-regular",
+    "official_id": "city-karen-reynolds",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Karen Reynolds",
+    "source_id": "src-91e5b0266c6a",
+    "ward": 9
+  },
+  {
+    "date": "2024-01-04",
+    "meeting_id": "2024-01-04-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Stacey Streetman",
+    "source_id": "src-91e5b0266c6a",
+    "ward": 10
+  },
+  {
+    "date": "2024-01-04",
+    "meeting_id": "2024-01-04-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Shakeenab",
+    "source_id": "src-91e5b0266c6a",
+    "ward": 11
+  },
+  {
+    "date": "2024-01-04",
+    "meeting_id": "2024-01-04-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Keri Lovato",
+    "source_id": "src-91e5b0266c6a",
+    "ward": 12
+  },
+  {
+    "date": "2024-02-01",
+    "meeting_id": "2024-02-01-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Brian Zacharias",
+    "source_id": "src-ec32e758760a",
+    "ward": 1
+  },
+  {
+    "date": "2024-02-01",
+    "meeting_id": "2024-02-01-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Deanna McLaughlin",
+    "source_id": "src-ec32e758760a",
+    "ward": 2
+  },
+  {
+    "date": "2024-02-01",
+    "meeting_id": "2024-02-01-regular",
+    "official_id": "city-dajuan-little",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "DaJuan Little",
+    "source_id": "src-ec32e758760a",
+    "ward": 3
+  },
+  {
+    "date": "2024-02-01",
+    "meeting_id": "2024-02-01-regular",
+    "official_id": "city-wallace-redd",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wallace Redd",
+    "source_id": "src-ec32e758760a",
+    "ward": 4
+  },
+  {
+    "date": "2024-02-01",
+    "meeting_id": "2024-02-01-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Ambar Marquis",
+    "source_id": "src-ec32e758760a",
+    "ward": 5
+  },
+  {
+    "date": "2024-02-01",
+    "meeting_id": "2024-02-01-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Smith",
+    "source_id": "src-ec32e758760a",
+    "ward": 6
+  },
+  {
+    "date": "2024-02-01",
+    "meeting_id": "2024-02-01-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Travis Holleman",
+    "source_id": "src-ec32e758760a",
+    "ward": 7
+  },
+  {
+    "date": "2024-02-01",
+    "meeting_id": "2024-02-01-regular",
+    "official_id": "city-wanda-allen",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Allen",
+    "source_id": "src-ec32e758760a",
+    "ward": 8
+  },
+  {
+    "date": "2024-02-01",
+    "meeting_id": "2024-02-01-regular",
+    "official_id": "city-karen-reynolds",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Karen Reynolds",
+    "source_id": "src-ec32e758760a",
+    "ward": 9
+  },
+  {
+    "date": "2024-02-01",
+    "meeting_id": "2024-02-01-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Stacey Streetman",
+    "source_id": "src-ec32e758760a",
+    "ward": 10
+  },
+  {
+    "date": "2024-02-01",
+    "meeting_id": "2024-02-01-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Shakeenab",
+    "source_id": "src-ec32e758760a",
+    "ward": 11
+  },
+  {
+    "date": "2024-02-01",
+    "meeting_id": "2024-02-01-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Keri Lovato",
+    "source_id": "src-ec32e758760a",
+    "ward": 12
+  },
+  {
+    "date": "2024-02-26",
+    "meeting_id": "2024-02-26-special",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Brian Zacharias",
+    "source_id": "src-d9f3f7d1a3d6",
+    "ward": 1
+  },
+  {
+    "date": "2024-02-26",
+    "meeting_id": "2024-02-26-special",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Deanna McLaughlin",
+    "source_id": "src-d9f3f7d1a3d6",
+    "ward": 2
+  },
+  {
+    "date": "2024-02-26",
+    "meeting_id": "2024-02-26-special",
+    "official_id": "city-wallace-redd",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wallace Redd",
+    "source_id": "src-d9f3f7d1a3d6",
+    "ward": 4
+  },
+  {
+    "date": "2024-02-26",
+    "meeting_id": "2024-02-26-special",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Ambar Marquis",
+    "source_id": "src-d9f3f7d1a3d6",
+    "ward": 5
+  },
+  {
+    "date": "2024-02-26",
+    "meeting_id": "2024-02-26-special",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Travis Holleman",
+    "source_id": "src-d9f3f7d1a3d6",
+    "ward": 7
+  },
+  {
+    "date": "2024-02-26",
+    "meeting_id": "2024-02-26-special",
+    "official_id": "city-wanda-allen",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Allen",
+    "source_id": "src-d9f3f7d1a3d6",
+    "ward": 8
+  },
+  {
+    "date": "2024-02-26",
+    "meeting_id": "2024-02-26-special",
+    "official_id": "city-karen-reynolds",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Karen Reynolds",
+    "source_id": "src-d9f3f7d1a3d6",
+    "ward": 9
+  },
+  {
+    "date": "2024-02-26",
+    "meeting_id": "2024-02-26-special",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Stacey Streetman",
+    "source_id": "src-d9f3f7d1a3d6",
+    "ward": 10
+  },
+  {
+    "date": "2024-02-26",
+    "meeting_id": "2024-02-26-special",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Shakeenab",
+    "source_id": "src-d9f3f7d1a3d6",
+    "ward": 11
+  },
+  {
+    "date": "2024-02-26",
+    "meeting_id": "2024-02-26-special",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Keri Lovato",
+    "source_id": "src-d9f3f7d1a3d6",
+    "ward": 12
+  },
+  {
+    "date": "2024-02-26",
+    "meeting_id": "2024-02-26-special",
+    "official_id": "city-dajuan-little",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "DaJuan Little",
+    "source_id": "src-d9f3f7d1a3d6",
+    "ward": 3
+  },
+  {
+    "date": "2024-02-26",
+    "meeting_id": "2024-02-26-special",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Smith",
+    "source_id": "src-d9f3f7d1a3d6",
+    "ward": 6
+  },
+  {
+    "date": "2024-03-07",
+    "meeting_id": "2024-03-07-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Brian Zacharias",
+    "source_id": "src-03a9f89ab3ef",
+    "ward": 1
+  },
+  {
+    "date": "2024-03-07",
+    "meeting_id": "2024-03-07-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Deanna McLaughlin",
+    "source_id": "src-03a9f89ab3ef",
+    "ward": 2
+  },
+  {
+    "date": "2024-03-07",
+    "meeting_id": "2024-03-07-regular",
+    "official_id": "city-dajuan-little",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "DaJuan Little",
+    "source_id": "src-03a9f89ab3ef",
+    "ward": 3
+  },
+  {
+    "date": "2024-03-07",
+    "meeting_id": "2024-03-07-regular",
+    "official_id": "city-wallace-redd",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wallace Redd",
+    "source_id": "src-03a9f89ab3ef",
+    "ward": 4
+  },
+  {
+    "date": "2024-03-07",
+    "meeting_id": "2024-03-07-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Ambar Marquis",
+    "source_id": "src-03a9f89ab3ef",
+    "ward": 5
+  },
+  {
+    "date": "2024-03-07",
+    "meeting_id": "2024-03-07-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Smith",
+    "source_id": "src-03a9f89ab3ef",
+    "ward": 6
+  },
+  {
+    "date": "2024-03-07",
+    "meeting_id": "2024-03-07-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Travis Holleman",
+    "source_id": "src-03a9f89ab3ef",
+    "ward": 7
+  },
+  {
+    "date": "2024-03-07",
+    "meeting_id": "2024-03-07-regular",
+    "official_id": "city-wanda-allen",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Allen",
+    "source_id": "src-03a9f89ab3ef",
+    "ward": 8
+  },
+  {
+    "date": "2024-03-07",
+    "meeting_id": "2024-03-07-regular",
+    "official_id": "city-karen-reynolds",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Karen Reynolds",
+    "source_id": "src-03a9f89ab3ef",
+    "ward": 9
+  },
+  {
+    "date": "2024-03-07",
+    "meeting_id": "2024-03-07-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Stacey Streetman",
+    "source_id": "src-03a9f89ab3ef",
+    "ward": 10
+  },
+  {
+    "date": "2024-03-07",
+    "meeting_id": "2024-03-07-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Shakeenab",
+    "source_id": "src-03a9f89ab3ef",
+    "ward": 11
+  },
+  {
+    "date": "2024-03-07",
+    "meeting_id": "2024-03-07-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Keri Lovato",
+    "source_id": "src-03a9f89ab3ef",
+    "ward": 12
+  },
+  {
+    "date": "2024-03-12",
+    "meeting_id": "2024-03-12-special",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Brian Zacharias",
+    "source_id": "src-2f6eea787dc6",
+    "ward": 1
+  },
+  {
+    "date": "2024-03-12",
+    "meeting_id": "2024-03-12-special",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Deanna McLaughlin",
+    "source_id": "src-2f6eea787dc6",
+    "ward": 2
+  },
+  {
+    "date": "2024-03-12",
+    "meeting_id": "2024-03-12-special",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Ambar Marquis",
+    "source_id": "src-2f6eea787dc6",
+    "ward": 5
+  },
+  {
+    "date": "2024-03-12",
+    "meeting_id": "2024-03-12-special",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Smith",
+    "source_id": "src-2f6eea787dc6",
+    "ward": 6
+  },
+  {
+    "date": "2024-03-12",
+    "meeting_id": "2024-03-12-special",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Travis Holleman",
+    "source_id": "src-2f6eea787dc6",
+    "ward": 7
+  },
+  {
+    "date": "2024-03-12",
+    "meeting_id": "2024-03-12-special",
+    "official_id": "city-wanda-allen",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Allen",
+    "source_id": "src-2f6eea787dc6",
+    "ward": 8
+  },
+  {
+    "date": "2024-03-12",
+    "meeting_id": "2024-03-12-special",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Stacey Streetman",
+    "source_id": "src-2f6eea787dc6",
+    "ward": 10
+  },
+  {
+    "date": "2024-03-12",
+    "meeting_id": "2024-03-12-special",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Shakeenab",
+    "source_id": "src-2f6eea787dc6",
+    "ward": 11
+  },
+  {
+    "date": "2024-03-12",
+    "meeting_id": "2024-03-12-special",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Keri Lovato",
+    "source_id": "src-2f6eea787dc6",
+    "ward": 12
+  },
+  {
+    "date": "2024-03-12",
+    "meeting_id": "2024-03-12-special",
+    "official_id": "city-dajuan-little",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "DaJuan Little",
+    "source_id": "src-2f6eea787dc6",
+    "ward": 3
+  },
+  {
+    "date": "2024-03-12",
+    "meeting_id": "2024-03-12-special",
+    "official_id": "city-wallace-redd",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wallace Redd",
+    "source_id": "src-2f6eea787dc6",
+    "ward": 4
+  },
+  {
+    "date": "2024-03-12",
+    "meeting_id": "2024-03-12-special",
+    "official_id": "city-karen-reynolds",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Karen Reynolds",
+    "source_id": "src-2f6eea787dc6",
+    "ward": 9
+  },
+  {
+    "date": "2024-04-04",
+    "meeting_id": "2024-04-04-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Brian Zacharias",
+    "source_id": "src-c267a353315a",
+    "ward": 1
+  },
+  {
+    "date": "2024-04-04",
+    "meeting_id": "2024-04-04-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Deanna McLaughlin",
+    "source_id": "src-c267a353315a",
+    "ward": 2
+  },
+  {
+    "date": "2024-04-04",
+    "meeting_id": "2024-04-04-regular",
+    "official_id": "city-dajuan-little",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "DaJuan Little",
+    "source_id": "src-c267a353315a",
+    "ward": 3
+  },
+  {
+    "date": "2024-04-04",
+    "meeting_id": "2024-04-04-regular",
+    "official_id": "city-wallace-redd",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wallace Redd",
+    "source_id": "src-c267a353315a",
+    "ward": 4
+  },
+  {
+    "date": "2024-04-04",
+    "meeting_id": "2024-04-04-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Ambar Marquis",
+    "source_id": "src-c267a353315a",
+    "ward": 5
+  },
+  {
+    "date": "2024-04-04",
+    "meeting_id": "2024-04-04-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Smith",
+    "source_id": "src-c267a353315a",
+    "ward": 6
+  },
+  {
+    "date": "2024-04-04",
+    "meeting_id": "2024-04-04-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Travis Holleman",
+    "source_id": "src-c267a353315a",
+    "ward": 7
+  },
+  {
+    "date": "2024-04-04",
+    "meeting_id": "2024-04-04-regular",
+    "official_id": "city-wanda-allen",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Allen",
+    "source_id": "src-c267a353315a",
+    "ward": 8
+  },
+  {
+    "date": "2024-04-04",
+    "meeting_id": "2024-04-04-regular",
+    "official_id": "city-karen-reynolds",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Karen Reynolds",
+    "source_id": "src-c267a353315a",
+    "ward": 9
+  },
+  {
+    "date": "2024-04-04",
+    "meeting_id": "2024-04-04-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Stacey Streetman",
+    "source_id": "src-c267a353315a",
+    "ward": 10
+  },
+  {
+    "date": "2024-04-04",
+    "meeting_id": "2024-04-04-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Shakeenab",
+    "source_id": "src-c267a353315a",
+    "ward": 11
+  },
+  {
+    "date": "2024-04-04",
+    "meeting_id": "2024-04-04-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Keri Lovato",
+    "source_id": "src-c267a353315a",
+    "ward": 12
+  },
+  {
+    "date": "2024-05-02",
+    "meeting_id": "2024-05-02-regular",
+    "official_id": "city-wanda-allen",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Allen",
+    "source_id": "src-7c087d77e03a",
+    "ward": 8
+  },
+  {
+    "date": "2024-05-02",
+    "meeting_id": "2024-05-02-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Travis Holleman",
+    "source_id": "src-7c087d77e03a",
+    "ward": 7
+  },
+  {
+    "date": "2024-05-02",
+    "meeting_id": "2024-05-02-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Keri Lovato",
+    "source_id": "src-7c087d77e03a",
+    "ward": 12
+  },
+  {
+    "date": "2024-05-02",
+    "meeting_id": "2024-05-02-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Amber Marquis",
+    "source_id": "src-7c087d77e03a",
+    "ward": 5
+  },
+  {
+    "date": "2024-05-02",
+    "meeting_id": "2024-05-02-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Deanna McLaughlin",
+    "source_id": "src-7c087d77e03a",
+    "ward": 2
+  },
+  {
+    "date": "2024-05-02",
+    "meeting_id": "2024-05-02-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Pitts",
+    "source_id": "src-7c087d77e03a",
+    "ward": null
+  },
+  {
+    "date": "2024-05-02",
+    "meeting_id": "2024-05-02-regular",
+    "official_id": "city-karen-reynolds",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Karen Reynolds",
+    "source_id": "src-7c087d77e03a",
+    "ward": 9
+  },
+  {
+    "date": "2024-05-02",
+    "meeting_id": "2024-05-02-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Smith",
+    "source_id": "src-7c087d77e03a",
+    "ward": 6
+  },
+  {
+    "date": "2024-05-02",
+    "meeting_id": "2024-05-02-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Stacey Streetman",
+    "source_id": "src-7c087d77e03a",
+    "ward": 10
+  },
+  {
+    "date": "2024-05-02",
+    "meeting_id": "2024-05-02-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Brian Zacharias",
+    "source_id": "src-7c087d77e03a",
+    "ward": 1
+  },
+  {
+    "date": "2024-05-02",
+    "meeting_id": "2024-05-02-regular",
+    "official_id": "city-dajuan-little",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Dajuan Little",
+    "source_id": "src-7c087d77e03a",
+    "ward": 3
+  },
+  {
+    "date": "2024-05-02",
+    "meeting_id": "2024-05-02-regular",
+    "official_id": "city-wallace-redd",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wallace Redd",
+    "source_id": "src-7c087d77e03a",
+    "ward": 4
+  },
+  {
+    "date": "2024-05-02",
+    "meeting_id": "2024-05-02-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Shakeenab",
+    "source_id": "src-7c087d77e03a",
+    "ward": 11
+  },
+  {
+    "date": "2024-06-06",
+    "meeting_id": "2024-06-06-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Brian Zacharias",
+    "source_id": "src-6440cc8492ab",
+    "ward": 1
+  },
+  {
+    "date": "2024-06-06",
+    "meeting_id": "2024-06-06-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Deanna McLaughlin",
+    "source_id": "src-6440cc8492ab",
+    "ward": 2
+  },
+  {
+    "date": "2024-06-06",
+    "meeting_id": "2024-06-06-regular",
+    "official_id": "city-dajuan-little",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "DaJuan Little",
+    "source_id": "src-6440cc8492ab",
+    "ward": 3
+  },
+  {
+    "date": "2024-06-06",
+    "meeting_id": "2024-06-06-regular",
+    "official_id": "city-wallace-redd",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wallace Redd",
+    "source_id": "src-6440cc8492ab",
+    "ward": 4
+  },
+  {
+    "date": "2024-06-06",
+    "meeting_id": "2024-06-06-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Ambar Marquis",
+    "source_id": "src-6440cc8492ab",
+    "ward": 5
+  },
+  {
+    "date": "2024-06-06",
+    "meeting_id": "2024-06-06-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Smith",
+    "source_id": "src-6440cc8492ab",
+    "ward": 6
+  },
+  {
+    "date": "2024-06-06",
+    "meeting_id": "2024-06-06-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Travis Holleman",
+    "source_id": "src-6440cc8492ab",
+    "ward": 7
+  },
+  {
+    "date": "2024-06-06",
+    "meeting_id": "2024-06-06-regular",
+    "official_id": "city-wanda-allen",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Allen",
+    "source_id": "src-6440cc8492ab",
+    "ward": 8
+  },
+  {
+    "date": "2024-06-06",
+    "meeting_id": "2024-06-06-regular",
+    "official_id": "city-karen-reynolds",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Karen Reynolds",
+    "source_id": "src-6440cc8492ab",
+    "ward": 9
+  },
+  {
+    "date": "2024-06-06",
+    "meeting_id": "2024-06-06-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Stacey Streetman",
+    "source_id": "src-6440cc8492ab",
+    "ward": 10
+  },
+  {
+    "date": "2024-06-06",
+    "meeting_id": "2024-06-06-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Shakeenab",
+    "source_id": "src-6440cc8492ab",
+    "ward": 11
+  },
+  {
+    "date": "2024-06-06",
+    "meeting_id": "2024-06-06-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Keri Lovato",
+    "source_id": "src-6440cc8492ab",
+    "ward": 12
+  },
+  {
+    "date": "2024-06-06",
+    "meeting_id": "2024-06-06-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Pitts",
+    "source_id": "src-6440cc8492ab",
+    "ward": null
+  },
+  {
+    "date": "2024-06-20",
+    "meeting_id": "2024-06-20-special",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Brian Zacharias",
+    "source_id": "src-af6974e45055",
+    "ward": 1
+  },
+  {
+    "date": "2024-06-20",
+    "meeting_id": "2024-06-20-special",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Deanna McLaughlin",
+    "source_id": "src-af6974e45055",
+    "ward": 2
+  },
+  {
+    "date": "2024-06-20",
+    "meeting_id": "2024-06-20-special",
+    "official_id": "city-wallace-redd",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wallace Redd",
+    "source_id": "src-af6974e45055",
+    "ward": 4
+  },
+  {
+    "date": "2024-06-20",
+    "meeting_id": "2024-06-20-special",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Ambar Marquis",
+    "source_id": "src-af6974e45055",
+    "ward": 5
+  },
+  {
+    "date": "2024-06-20",
+    "meeting_id": "2024-06-20-special",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Smith",
+    "source_id": "src-af6974e45055",
+    "ward": 6
+  },
+  {
+    "date": "2024-06-20",
+    "meeting_id": "2024-06-20-special",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Travis Holleman",
+    "source_id": "src-af6974e45055",
+    "ward": 7
+  },
+  {
+    "date": "2024-06-20",
+    "meeting_id": "2024-06-20-special",
+    "official_id": "city-wanda-allen",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Allen",
+    "source_id": "src-af6974e45055",
+    "ward": 8
+  },
+  {
+    "date": "2024-06-20",
+    "meeting_id": "2024-06-20-special",
+    "official_id": "city-karen-reynolds",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Karen Reynolds",
+    "source_id": "src-af6974e45055",
+    "ward": 9
+  },
+  {
+    "date": "2024-06-20",
+    "meeting_id": "2024-06-20-special",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Stacey Streetman",
+    "source_id": "src-af6974e45055",
+    "ward": 10
+  },
+  {
+    "date": "2024-06-20",
+    "meeting_id": "2024-06-20-special",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Shakeenab",
+    "source_id": "src-af6974e45055",
+    "ward": 11
+  },
+  {
+    "date": "2024-06-20",
+    "meeting_id": "2024-06-20-special",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Keri Lovato",
+    "source_id": "src-af6974e45055",
+    "ward": 12
+  },
+  {
+    "date": "2024-06-20",
+    "meeting_id": "2024-06-20-special",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Pitts",
+    "source_id": "src-af6974e45055",
+    "ward": null
+  },
+  {
+    "date": "2024-06-20",
+    "meeting_id": "2024-06-20-special",
+    "official_id": "city-dajuan-little",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "DaJuan Little",
+    "source_id": "src-af6974e45055",
+    "ward": 3
+  },
+  {
+    "date": "2024-07-02",
+    "meeting_id": "2024-07-02-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Brian Zacharias",
+    "source_id": "src-87de241b15f7",
+    "ward": 1
+  },
+  {
+    "date": "2024-07-02",
+    "meeting_id": "2024-07-02-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Deanna McLaughlin",
+    "source_id": "src-87de241b15f7",
+    "ward": 2
+  },
+  {
+    "date": "2024-07-02",
+    "meeting_id": "2024-07-02-regular",
+    "official_id": "city-dajuan-little",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "DaJuan Little",
+    "source_id": "src-87de241b15f7",
+    "ward": 3
+  },
+  {
+    "date": "2024-07-02",
+    "meeting_id": "2024-07-02-regular",
+    "official_id": "city-wallace-redd",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wallace Redd",
+    "source_id": "src-87de241b15f7",
+    "ward": 4
+  },
+  {
+    "date": "2024-07-02",
+    "meeting_id": "2024-07-02-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Ambar Marquis",
+    "source_id": "src-87de241b15f7",
+    "ward": 5
+  },
+  {
+    "date": "2024-07-02",
+    "meeting_id": "2024-07-02-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Smith",
+    "source_id": "src-87de241b15f7",
+    "ward": 6
+  },
+  {
+    "date": "2024-07-02",
+    "meeting_id": "2024-07-02-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Travis Holleman",
+    "source_id": "src-87de241b15f7",
+    "ward": 7
+  },
+  {
+    "date": "2024-07-02",
+    "meeting_id": "2024-07-02-regular",
+    "official_id": "city-wanda-allen",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Allen",
+    "source_id": "src-87de241b15f7",
+    "ward": 8
+  },
+  {
+    "date": "2024-07-02",
+    "meeting_id": "2024-07-02-regular",
+    "official_id": "city-karen-reynolds",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Karen Reynolds",
+    "source_id": "src-87de241b15f7",
+    "ward": 9
+  },
+  {
+    "date": "2024-07-02",
+    "meeting_id": "2024-07-02-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Stacey Streetman",
+    "source_id": "src-87de241b15f7",
+    "ward": 10
+  },
+  {
+    "date": "2024-07-02",
+    "meeting_id": "2024-07-02-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Shakeenab",
+    "source_id": "src-87de241b15f7",
+    "ward": 11
+  },
+  {
+    "date": "2024-07-02",
+    "meeting_id": "2024-07-02-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Keri Lovato",
+    "source_id": "src-87de241b15f7",
+    "ward": 12
+  },
+  {
+    "date": "2024-07-02",
+    "meeting_id": "2024-07-02-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Pitts",
+    "source_id": "src-87de241b15f7",
+    "ward": null
+  },
+  {
+    "date": "2024-08-01",
+    "meeting_id": "2024-08-01-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Brian Zacharias",
+    "source_id": "src-8dbaae53aafc",
+    "ward": 1
+  },
+  {
+    "date": "2024-08-01",
+    "meeting_id": "2024-08-01-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Deanna McLaughlin",
+    "source_id": "src-8dbaae53aafc",
+    "ward": 2
+  },
+  {
+    "date": "2024-08-01",
+    "meeting_id": "2024-08-01-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Ambar Marquis",
+    "source_id": "src-8dbaae53aafc",
+    "ward": 5
+  },
+  {
+    "date": "2024-08-01",
+    "meeting_id": "2024-08-01-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Smith",
+    "source_id": "src-8dbaae53aafc",
+    "ward": 6
+  },
+  {
+    "date": "2024-08-01",
+    "meeting_id": "2024-08-01-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Travis Holleman",
+    "source_id": "src-8dbaae53aafc",
+    "ward": 7
+  },
+  {
+    "date": "2024-08-01",
+    "meeting_id": "2024-08-01-regular",
+    "official_id": "city-karen-reynolds",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Karen Reynolds",
+    "source_id": "src-8dbaae53aafc",
+    "ward": 9
+  },
+  {
+    "date": "2024-08-01",
+    "meeting_id": "2024-08-01-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Stacey Streetman",
+    "source_id": "src-8dbaae53aafc",
+    "ward": 10
+  },
+  {
+    "date": "2024-08-01",
+    "meeting_id": "2024-08-01-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Shakeenab",
+    "source_id": "src-8dbaae53aafc",
+    "ward": 11
+  },
+  {
+    "date": "2024-08-01",
+    "meeting_id": "2024-08-01-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Keri Lovato",
+    "source_id": "src-8dbaae53aafc",
+    "ward": 12
+  },
+  {
+    "date": "2024-08-01",
+    "meeting_id": "2024-08-01-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Pitts",
+    "source_id": "src-8dbaae53aafc",
+    "ward": null
+  },
+  {
+    "date": "2024-08-01",
+    "meeting_id": "2024-08-01-regular",
+    "official_id": "city-dajuan-little",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "DaJuan Little",
+    "source_id": "src-8dbaae53aafc",
+    "ward": 3
+  },
+  {
+    "date": "2024-08-01",
+    "meeting_id": "2024-08-01-regular",
+    "official_id": "city-wallace-redd",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wallace Redd",
+    "source_id": "src-8dbaae53aafc",
+    "ward": 4
+  },
+  {
+    "date": "2024-08-01",
+    "meeting_id": "2024-08-01-regular",
+    "official_id": "city-wanda-allen",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Allen",
+    "source_id": "src-8dbaae53aafc",
+    "ward": 8
+  },
+  {
+    "date": "2024-10-03",
+    "meeting_id": "2024-10-03-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Brian Zacharias",
+    "source_id": "src-5afcfc4650c0",
+    "ward": 1
+  },
+  {
+    "date": "2024-10-03",
+    "meeting_id": "2024-10-03-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Deanna McLaughlin",
+    "source_id": "src-5afcfc4650c0",
+    "ward": 2
+  },
+  {
+    "date": "2024-10-03",
+    "meeting_id": "2024-10-03-regular",
+    "official_id": "city-wallace-redd",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wallace Redd",
+    "source_id": "src-5afcfc4650c0",
+    "ward": 4
+  },
+  {
+    "date": "2024-10-03",
+    "meeting_id": "2024-10-03-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Ambar Marquis",
+    "source_id": "src-5afcfc4650c0",
+    "ward": 5
+  },
+  {
+    "date": "2024-10-03",
+    "meeting_id": "2024-10-03-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Smith",
+    "source_id": "src-5afcfc4650c0",
+    "ward": 6
+  },
+  {
+    "date": "2024-10-03",
+    "meeting_id": "2024-10-03-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Travis Holleman",
+    "source_id": "src-5afcfc4650c0",
+    "ward": 7
+  },
+  {
+    "date": "2024-10-03",
+    "meeting_id": "2024-10-03-regular",
+    "official_id": "city-wanda-allen",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Allen",
+    "source_id": "src-5afcfc4650c0",
+    "ward": 8
+  },
+  {
+    "date": "2024-10-03",
+    "meeting_id": "2024-10-03-regular",
+    "official_id": "city-karen-reynolds",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Karen Reynolds",
+    "source_id": "src-5afcfc4650c0",
+    "ward": 9
+  },
+  {
+    "date": "2024-10-03",
+    "meeting_id": "2024-10-03-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Stacey Streetman",
+    "source_id": "src-5afcfc4650c0",
+    "ward": 10
+  },
+  {
+    "date": "2024-10-03",
+    "meeting_id": "2024-10-03-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Shakeenab",
+    "source_id": "src-5afcfc4650c0",
+    "ward": 11
+  },
+  {
+    "date": "2024-10-03",
+    "meeting_id": "2024-10-03-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Keri Lovato",
+    "source_id": "src-5afcfc4650c0",
+    "ward": 12
+  },
+  {
+    "date": "2024-10-03",
+    "meeting_id": "2024-10-03-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Pitts",
+    "source_id": "src-5afcfc4650c0",
+    "ward": null
+  },
+  {
+    "date": "2024-10-03",
+    "meeting_id": "2024-10-03-regular",
+    "official_id": "city-dajuan-little",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "DaJuan Little",
+    "source_id": "src-5afcfc4650c0",
+    "ward": 3
+  },
+  {
+    "date": "2025-01-02",
+    "meeting_id": "2025-01-02-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Brian Zacharias",
+    "source_id": "src-1c6813b9bdb7",
+    "ward": 1
+  },
+  {
+    "date": "2025-01-02",
+    "meeting_id": "2025-01-02-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Deanna McLaughlin",
+    "source_id": "src-1c6813b9bdb7",
+    "ward": 2
+  },
+  {
+    "date": "2025-01-02",
+    "meeting_id": "2025-01-02-regular",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Carlos Peters",
+    "source_id": "src-1c6813b9bdb7",
+    "ward": 3
+  },
+  {
+    "date": "2025-01-02",
+    "meeting_id": "2025-01-02-regular",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Tim Chandler",
+    "source_id": "src-1c6813b9bdb7",
+    "ward": 4
+  },
+  {
+    "date": "2025-01-02",
+    "meeting_id": "2025-01-02-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Ambar Marquis",
+    "source_id": "src-1c6813b9bdb7",
+    "ward": 5
+  },
+  {
+    "date": "2025-01-02",
+    "meeting_id": "2025-01-02-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Smith",
+    "source_id": "src-1c6813b9bdb7",
+    "ward": 6
+  },
+  {
+    "date": "2025-01-02",
+    "meeting_id": "2025-01-02-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Travis Holleman",
+    "source_id": "src-1c6813b9bdb7",
+    "ward": 7
+  },
+  {
+    "date": "2025-01-02",
+    "meeting_id": "2025-01-02-regular",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Jerry Haywood",
+    "source_id": "src-1c6813b9bdb7",
+    "ward": 8
+  },
+  {
+    "date": "2025-01-02",
+    "meeting_id": "2025-01-02-regular",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Jimmy Brown",
+    "source_id": "src-1c6813b9bdb7",
+    "ward": 9
+  },
+  {
+    "date": "2025-01-02",
+    "meeting_id": "2025-01-02-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Stacey Streetman",
+    "source_id": "src-1c6813b9bdb7",
+    "ward": 10
+  },
+  {
+    "date": "2025-01-02",
+    "meeting_id": "2025-01-02-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Shakeenab",
+    "source_id": "src-1c6813b9bdb7",
+    "ward": 11
+  },
+  {
+    "date": "2025-01-02",
+    "meeting_id": "2025-01-02-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Keri Lovato",
+    "source_id": "src-1c6813b9bdb7",
+    "ward": 12
+  },
+  {
+    "date": "2025-01-02",
+    "meeting_id": "2025-01-02-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Joe Pitts",
+    "source_id": "src-1c6813b9bdb7",
+    "ward": null
+  },
+  {
+    "date": "2025-02-06",
+    "meeting_id": "2025-02-06-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Brian Zacharias",
+    "source_id": "src-1d0d77a7052c",
+    "ward": 1
+  },
+  {
+    "date": "2025-02-06",
+    "meeting_id": "2025-02-06-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Deanna McLaughlin",
+    "source_id": "src-1d0d77a7052c",
+    "ward": 2
+  },
+  {
+    "date": "2025-02-06",
+    "meeting_id": "2025-02-06-regular",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Carlos Peters",
+    "source_id": "src-1d0d77a7052c",
+    "ward": 3
+  },
+  {
+    "date": "2025-02-06",
+    "meeting_id": "2025-02-06-regular",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Tim Chandler",
+    "source_id": "src-1d0d77a7052c",
+    "ward": 4
+  },
+  {
+    "date": "2025-02-06",
+    "meeting_id": "2025-02-06-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Ambar Marquis",
+    "source_id": "src-1d0d77a7052c",
+    "ward": 5
+  },
+  {
+    "date": "2025-02-06",
+    "meeting_id": "2025-02-06-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Wanda Smith",
+    "source_id": "src-1d0d77a7052c",
+    "ward": 6
+  },
+  {
+    "date": "2025-02-06",
+    "meeting_id": "2025-02-06-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Travis Holleman",
+    "source_id": "src-1d0d77a7052c",
+    "ward": 7
+  },
+  {
+    "date": "2025-02-06",
+    "meeting_id": "2025-02-06-regular",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Jerry Haywood",
+    "source_id": "src-1d0d77a7052c",
+    "ward": 8
+  },
+  {
+    "date": "2025-02-06",
+    "meeting_id": "2025-02-06-regular",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Jimmy Brown",
+    "source_id": "src-1d0d77a7052c",
+    "ward": 9
+  },
+  {
+    "date": "2025-02-06",
+    "meeting_id": "2025-02-06-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Stacey Streetman",
+    "source_id": "src-1d0d77a7052c",
+    "ward": null
+  },
+  {
+    "date": "2025-03-06",
+    "meeting_id": "2025-03-06-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Zacharias",
+    "source_id": "src-d432d310b794",
+    "ward": 1
+  },
+  {
+    "date": "2025-03-06",
+    "meeting_id": "2025-03-06-regular",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Peters",
+    "source_id": "src-d432d310b794",
+    "ward": 3
+  },
+  {
+    "date": "2025-03-06",
+    "meeting_id": "2025-03-06-regular",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Chandler",
+    "source_id": "src-d432d310b794",
+    "ward": 4
+  },
+  {
+    "date": "2025-03-06",
+    "meeting_id": "2025-03-06-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Marquis",
+    "source_id": "src-d432d310b794",
+    "ward": 5
+  },
+  {
+    "date": "2025-03-06",
+    "meeting_id": "2025-03-06-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Smith",
+    "source_id": "src-d432d310b794",
+    "ward": 6
+  },
+  {
+    "date": "2025-03-06",
+    "meeting_id": "2025-03-06-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Holleman",
+    "source_id": "src-d432d310b794",
+    "ward": 7
+  },
+  {
+    "date": "2025-03-06",
+    "meeting_id": "2025-03-06-regular",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Haywood",
+    "source_id": "src-d432d310b794",
+    "ward": 8
+  },
+  {
+    "date": "2025-03-06",
+    "meeting_id": "2025-03-06-regular",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Brown",
+    "source_id": "src-d432d310b794",
+    "ward": 9
+  },
+  {
+    "date": "2025-03-06",
+    "meeting_id": "2025-03-06-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Streetman",
+    "source_id": "src-d432d310b794",
+    "ward": 10
+  },
+  {
+    "date": "2025-03-06",
+    "meeting_id": "2025-03-06-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Shakeenab",
+    "source_id": "src-d432d310b794",
+    "ward": 11
+  },
+  {
+    "date": "2025-03-06",
+    "meeting_id": "2025-03-06-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Lovato",
+    "source_id": "src-d432d310b794",
+    "ward": 12
+  },
+  {
+    "date": "2025-03-06",
+    "meeting_id": "2025-03-06-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Pitts",
+    "source_id": "src-d432d310b794",
+    "ward": null
+  },
+  {
+    "date": "2025-03-06",
+    "meeting_id": "2025-03-06-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "McLaughlin",
+    "source_id": "src-d432d310b794",
+    "ward": 2
+  },
+  {
+    "date": "2025-04-03",
+    "meeting_id": "2025-04-03-regular",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "BROWN",
+    "source_id": "src-82989968efa3",
+    "ward": null
+  },
+  {
+    "date": "2025-04-03",
+    "meeting_id": "2025-04-03-regular",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CHANDLER",
+    "source_id": "src-82989968efa3",
+    "ward": null
+  },
+  {
+    "date": "2025-04-03",
+    "meeting_id": "2025-04-03-regular",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HAYWOOD",
+    "source_id": "src-82989968efa3",
+    "ward": null
+  },
+  {
+    "date": "2025-04-03",
+    "meeting_id": "2025-04-03-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HOLLEMAN",
+    "source_id": "src-82989968efa3",
+    "ward": null
+  },
+  {
+    "date": "2025-04-03",
+    "meeting_id": "2025-04-03-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "LOVATO",
+    "source_id": "src-82989968efa3",
+    "ward": null
+  },
+  {
+    "date": "2025-04-03",
+    "meeting_id": "2025-04-03-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MARQUIS",
+    "source_id": "src-82989968efa3",
+    "ward": null
+  },
+  {
+    "date": "2025-04-03",
+    "meeting_id": "2025-04-03-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "McLAUGHLIN",
+    "source_id": "src-82989968efa3",
+    "ward": null
+  },
+  {
+    "date": "2025-04-03",
+    "meeting_id": "2025-04-03-regular",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PETERS",
+    "source_id": "src-82989968efa3",
+    "ward": null
+  },
+  {
+    "date": "2025-04-03",
+    "meeting_id": "2025-04-03-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PITTS",
+    "source_id": "src-82989968efa3",
+    "ward": null
+  },
+  {
+    "date": "2025-04-03",
+    "meeting_id": "2025-04-03-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SHAKEENAB",
+    "source_id": "src-82989968efa3",
+    "ward": null
+  },
+  {
+    "date": "2025-04-03",
+    "meeting_id": "2025-04-03-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SMITH",
+    "source_id": "src-82989968efa3",
+    "ward": null
+  },
+  {
+    "date": "2025-04-03",
+    "meeting_id": "2025-04-03-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "STREETMAN",
+    "source_id": "src-82989968efa3",
+    "ward": null
+  },
+  {
+    "date": "2025-04-03",
+    "meeting_id": "2025-04-03-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "ZACHARIAS",
+    "source_id": "src-82989968efa3",
+    "ward": null
+  },
+  {
+    "date": "2025-05-01",
+    "meeting_id": "2025-05-01-regular",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "BROWN",
+    "source_id": "src-5ee078dd2e88",
+    "ward": null
+  },
+  {
+    "date": "2025-05-01",
+    "meeting_id": "2025-05-01-regular",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CHANDLER",
+    "source_id": "src-5ee078dd2e88",
+    "ward": null
+  },
+  {
+    "date": "2025-05-01",
+    "meeting_id": "2025-05-01-regular",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HAYWOOD",
+    "source_id": "src-5ee078dd2e88",
+    "ward": null
+  },
+  {
+    "date": "2025-05-01",
+    "meeting_id": "2025-05-01-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HOLLEMAN",
+    "source_id": "src-5ee078dd2e88",
+    "ward": null
+  },
+  {
+    "date": "2025-05-01",
+    "meeting_id": "2025-05-01-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "LOVATO",
+    "source_id": "src-5ee078dd2e88",
+    "ward": null
+  },
+  {
+    "date": "2025-05-01",
+    "meeting_id": "2025-05-01-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MARQUIS",
+    "source_id": "src-5ee078dd2e88",
+    "ward": null
+  },
+  {
+    "date": "2025-05-01",
+    "meeting_id": "2025-05-01-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "McLAUGHLIN",
+    "source_id": "src-5ee078dd2e88",
+    "ward": null
+  },
+  {
+    "date": "2025-05-01",
+    "meeting_id": "2025-05-01-regular",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PETERS",
+    "source_id": "src-5ee078dd2e88",
+    "ward": null
+  },
+  {
+    "date": "2025-05-01",
+    "meeting_id": "2025-05-01-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PITTS",
+    "source_id": "src-5ee078dd2e88",
+    "ward": null
+  },
+  {
+    "date": "2025-05-01",
+    "meeting_id": "2025-05-01-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SHAKEENAB",
+    "source_id": "src-5ee078dd2e88",
+    "ward": null
+  },
+  {
+    "date": "2025-05-01",
+    "meeting_id": "2025-05-01-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SMITH",
+    "source_id": "src-5ee078dd2e88",
+    "ward": null
+  },
+  {
+    "date": "2025-05-01",
+    "meeting_id": "2025-05-01-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "STREETMAN",
+    "source_id": "src-5ee078dd2e88",
+    "ward": null
+  },
+  {
+    "date": "2025-05-01",
+    "meeting_id": "2025-05-01-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "ZACHARIAS",
+    "source_id": "src-5ee078dd2e88",
+    "ward": null
+  },
+  {
+    "date": "2025-06-05",
+    "meeting_id": "2025-06-05-regular",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "BROWN",
+    "source_id": "src-1b789e56d16a",
+    "ward": null
+  },
+  {
+    "date": "2025-06-05",
+    "meeting_id": "2025-06-05-regular",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CHANDLER",
+    "source_id": "src-1b789e56d16a",
+    "ward": null
+  },
+  {
+    "date": "2025-06-05",
+    "meeting_id": "2025-06-05-regular",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HAYWOOD",
+    "source_id": "src-1b789e56d16a",
+    "ward": null
+  },
+  {
+    "date": "2025-06-05",
+    "meeting_id": "2025-06-05-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HOLLEMAN",
+    "source_id": "src-1b789e56d16a",
+    "ward": null
+  },
+  {
+    "date": "2025-06-05",
+    "meeting_id": "2025-06-05-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "LOVATO",
+    "source_id": "src-1b789e56d16a",
+    "ward": null
+  },
+  {
+    "date": "2025-06-05",
+    "meeting_id": "2025-06-05-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MARQUIS",
+    "source_id": "src-1b789e56d16a",
+    "ward": null
+  },
+  {
+    "date": "2025-06-05",
+    "meeting_id": "2025-06-05-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "McLAUGHLIN",
+    "source_id": "src-1b789e56d16a",
+    "ward": null
+  },
+  {
+    "date": "2025-06-05",
+    "meeting_id": "2025-06-05-regular",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PETERS",
+    "source_id": "src-1b789e56d16a",
+    "ward": null
+  },
+  {
+    "date": "2025-06-05",
+    "meeting_id": "2025-06-05-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PITTS",
+    "source_id": "src-1b789e56d16a",
+    "ward": null
+  },
+  {
+    "date": "2025-06-05",
+    "meeting_id": "2025-06-05-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SHAKEENAB",
+    "source_id": "src-1b789e56d16a",
+    "ward": null
+  },
+  {
+    "date": "2025-06-05",
+    "meeting_id": "2025-06-05-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SMITH",
+    "source_id": "src-1b789e56d16a",
+    "ward": null
+  },
+  {
+    "date": "2025-06-05",
+    "meeting_id": "2025-06-05-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "STREETMAN",
+    "source_id": "src-1b789e56d16a",
+    "ward": null
+  },
+  {
+    "date": "2025-06-05",
+    "meeting_id": "2025-06-05-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "ZACHARIAS",
+    "source_id": "src-1b789e56d16a",
+    "ward": null
+  },
+  {
+    "date": "2025-06-26",
+    "meeting_id": "2025-06-26-special",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "BROWN",
+    "source_id": "src-5eb9a512932c",
+    "ward": null
+  },
+  {
+    "date": "2025-06-26",
+    "meeting_id": "2025-06-26-special",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CHANDLER",
+    "source_id": "src-5eb9a512932c",
+    "ward": null
+  },
+  {
+    "date": "2025-06-26",
+    "meeting_id": "2025-06-26-special",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HAYWOOD",
+    "source_id": "src-5eb9a512932c",
+    "ward": null
+  },
+  {
+    "date": "2025-06-26",
+    "meeting_id": "2025-06-26-special",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HOLLEMAN",
+    "source_id": "src-5eb9a512932c",
+    "ward": null
+  },
+  {
+    "date": "2025-06-26",
+    "meeting_id": "2025-06-26-special",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "LOVATO",
+    "source_id": "src-5eb9a512932c",
+    "ward": null
+  },
+  {
+    "date": "2025-06-26",
+    "meeting_id": "2025-06-26-special",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MARQUIS",
+    "source_id": "src-5eb9a512932c",
+    "ward": null
+  },
+  {
+    "date": "2025-06-26",
+    "meeting_id": "2025-06-26-special",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "McLAUGHLIN",
+    "source_id": "src-5eb9a512932c",
+    "ward": null
+  },
+  {
+    "date": "2025-06-26",
+    "meeting_id": "2025-06-26-special",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PITTS",
+    "source_id": "src-5eb9a512932c",
+    "ward": null
+  },
+  {
+    "date": "2025-06-26",
+    "meeting_id": "2025-06-26-special",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "STREETMAN",
+    "source_id": "src-5eb9a512932c",
+    "ward": null
+  },
+  {
+    "date": "2025-06-26",
+    "meeting_id": "2025-06-26-special",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "ZACHARIAS",
+    "source_id": "src-5eb9a512932c",
+    "ward": null
+  },
+  {
+    "date": "2025-06-26",
+    "meeting_id": "2025-06-26-special",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PETERS",
+    "source_id": "src-5eb9a512932c",
+    "ward": null
+  },
+  {
+    "date": "2025-06-26",
+    "meeting_id": "2025-06-26-special",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SHAKEENAB",
+    "source_id": "src-5eb9a512932c",
+    "ward": null
+  },
+  {
+    "date": "2025-06-26",
+    "meeting_id": "2025-06-26-special",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SMITH",
+    "source_id": "src-5eb9a512932c",
+    "ward": null
+  },
+  {
+    "date": "2025-07-01",
+    "meeting_id": "2025-07-01-regular",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "BROWN",
+    "source_id": "src-7c79b4e3eba6",
+    "ward": null
+  },
+  {
+    "date": "2025-07-01",
+    "meeting_id": "2025-07-01-regular",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CHANDLER",
+    "source_id": "src-7c79b4e3eba6",
+    "ward": null
+  },
+  {
+    "date": "2025-07-01",
+    "meeting_id": "2025-07-01-regular",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HAYWOOD",
+    "source_id": "src-7c79b4e3eba6",
+    "ward": null
+  },
+  {
+    "date": "2025-07-01",
+    "meeting_id": "2025-07-01-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HOLLEMAN",
+    "source_id": "src-7c79b4e3eba6",
+    "ward": null
+  },
+  {
+    "date": "2025-07-01",
+    "meeting_id": "2025-07-01-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "LOVATO",
+    "source_id": "src-7c79b4e3eba6",
+    "ward": null
+  },
+  {
+    "date": "2025-07-01",
+    "meeting_id": "2025-07-01-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MARQUIS",
+    "source_id": "src-7c79b4e3eba6",
+    "ward": null
+  },
+  {
+    "date": "2025-07-01",
+    "meeting_id": "2025-07-01-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "McLAUGHLIN",
+    "source_id": "src-7c79b4e3eba6",
+    "ward": null
+  },
+  {
+    "date": "2025-07-01",
+    "meeting_id": "2025-07-01-regular",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PETERS",
+    "source_id": "src-7c79b4e3eba6",
+    "ward": null
+  },
+  {
+    "date": "2025-07-01",
+    "meeting_id": "2025-07-01-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PITTS",
+    "source_id": "src-7c79b4e3eba6",
+    "ward": null
+  },
+  {
+    "date": "2025-07-01",
+    "meeting_id": "2025-07-01-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SHAKEENAB",
+    "source_id": "src-7c79b4e3eba6",
+    "ward": null
+  },
+  {
+    "date": "2025-07-01",
+    "meeting_id": "2025-07-01-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SMITH",
+    "source_id": "src-7c79b4e3eba6",
+    "ward": null
+  },
+  {
+    "date": "2025-07-01",
+    "meeting_id": "2025-07-01-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "STREETMAN",
+    "source_id": "src-7c79b4e3eba6",
+    "ward": null
+  },
+  {
+    "date": "2025-07-01",
+    "meeting_id": "2025-07-01-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "ZACHARIAS",
+    "source_id": "src-7c79b4e3eba6",
+    "ward": null
+  },
+  {
+    "date": "2025-08-07",
+    "meeting_id": "2025-08-07-regular",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "BROWN",
+    "source_id": "src-904e34d80c3c",
+    "ward": null
+  },
+  {
+    "date": "2025-08-07",
+    "meeting_id": "2025-08-07-regular",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CHANDLER",
+    "source_id": "src-904e34d80c3c",
+    "ward": null
+  },
+  {
+    "date": "2025-08-07",
+    "meeting_id": "2025-08-07-regular",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HAYWOOD",
+    "source_id": "src-904e34d80c3c",
+    "ward": null
+  },
+  {
+    "date": "2025-08-07",
+    "meeting_id": "2025-08-07-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HOLLEMAN",
+    "source_id": "src-904e34d80c3c",
+    "ward": null
+  },
+  {
+    "date": "2025-08-07",
+    "meeting_id": "2025-08-07-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "LOVATO",
+    "source_id": "src-904e34d80c3c",
+    "ward": null
+  },
+  {
+    "date": "2025-08-07",
+    "meeting_id": "2025-08-07-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MARQUIS",
+    "source_id": "src-904e34d80c3c",
+    "ward": null
+  },
+  {
+    "date": "2025-08-07",
+    "meeting_id": "2025-08-07-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MCLAUGHLIN",
+    "source_id": "src-904e34d80c3c",
+    "ward": null
+  },
+  {
+    "date": "2025-08-07",
+    "meeting_id": "2025-08-07-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PITTS",
+    "source_id": "src-904e34d80c3c",
+    "ward": null
+  },
+  {
+    "date": "2025-08-07",
+    "meeting_id": "2025-08-07-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SHAKEENAB",
+    "source_id": "src-904e34d80c3c",
+    "ward": null
+  },
+  {
+    "date": "2025-08-07",
+    "meeting_id": "2025-08-07-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SMITH",
+    "source_id": "src-904e34d80c3c",
+    "ward": null
+  },
+  {
+    "date": "2025-08-07",
+    "meeting_id": "2025-08-07-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "STREETMAN",
+    "source_id": "src-904e34d80c3c",
+    "ward": null
+  },
+  {
+    "date": "2025-08-07",
+    "meeting_id": "2025-08-07-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "ZACHARIAS",
+    "source_id": "src-904e34d80c3c",
+    "ward": null
+  },
+  {
+    "date": "2025-08-07",
+    "meeting_id": "2025-08-07-regular",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PETERS",
+    "source_id": "src-904e34d80c3c",
+    "ward": null
+  },
+  {
+    "date": "2025-09-04",
+    "meeting_id": "2025-09-04-regular",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "BROWN",
+    "source_id": "src-eaa9f099a833",
+    "ward": null
+  },
+  {
+    "date": "2025-09-04",
+    "meeting_id": "2025-09-04-regular",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CHANDLER",
+    "source_id": "src-eaa9f099a833",
+    "ward": null
+  },
+  {
+    "date": "2025-09-04",
+    "meeting_id": "2025-09-04-regular",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HAYWOOD",
+    "source_id": "src-eaa9f099a833",
+    "ward": null
+  },
+  {
+    "date": "2025-09-04",
+    "meeting_id": "2025-09-04-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HOLLEMAN",
+    "source_id": "src-eaa9f099a833",
+    "ward": null
+  },
+  {
+    "date": "2025-09-04",
+    "meeting_id": "2025-09-04-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "LOVATO",
+    "source_id": "src-eaa9f099a833",
+    "ward": null
+  },
+  {
+    "date": "2025-09-04",
+    "meeting_id": "2025-09-04-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MARQUIS",
+    "source_id": "src-eaa9f099a833",
+    "ward": null
+  },
+  {
+    "date": "2025-09-04",
+    "meeting_id": "2025-09-04-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MCLAUGHLIN",
+    "source_id": "src-eaa9f099a833",
+    "ward": null
+  },
+  {
+    "date": "2025-09-04",
+    "meeting_id": "2025-09-04-regular",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PETERS",
+    "source_id": "src-eaa9f099a833",
+    "ward": null
+  },
+  {
+    "date": "2025-09-04",
+    "meeting_id": "2025-09-04-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PITTS",
+    "source_id": "src-eaa9f099a833",
+    "ward": null
+  },
+  {
+    "date": "2025-09-04",
+    "meeting_id": "2025-09-04-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SHAKEENAB",
+    "source_id": "src-eaa9f099a833",
+    "ward": null
+  },
+  {
+    "date": "2025-09-04",
+    "meeting_id": "2025-09-04-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SMITH",
+    "source_id": "src-eaa9f099a833",
+    "ward": null
+  },
+  {
+    "date": "2025-09-04",
+    "meeting_id": "2025-09-04-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "STREETMAN",
+    "source_id": "src-eaa9f099a833",
+    "ward": null
+  },
+  {
+    "date": "2025-10-02",
+    "meeting_id": "2025-10-02-regular",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "BROWN",
+    "source_id": "src-d104506a545a",
+    "ward": null
+  },
+  {
+    "date": "2025-10-02",
+    "meeting_id": "2025-10-02-regular",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CHANDLER",
+    "source_id": "src-d104506a545a",
+    "ward": null
+  },
+  {
+    "date": "2025-10-02",
+    "meeting_id": "2025-10-02-regular",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HAYWOOD",
+    "source_id": "src-d104506a545a",
+    "ward": null
+  },
+  {
+    "date": "2025-10-02",
+    "meeting_id": "2025-10-02-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HOLLEMAN",
+    "source_id": "src-d104506a545a",
+    "ward": null
+  },
+  {
+    "date": "2025-10-02",
+    "meeting_id": "2025-10-02-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "LOVATO",
+    "source_id": "src-d104506a545a",
+    "ward": null
+  },
+  {
+    "date": "2025-10-02",
+    "meeting_id": "2025-10-02-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MARQUIS",
+    "source_id": "src-d104506a545a",
+    "ward": null
+  },
+  {
+    "date": "2025-10-02",
+    "meeting_id": "2025-10-02-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MCLAUGHLIN",
+    "source_id": "src-d104506a545a",
+    "ward": null
+  },
+  {
+    "date": "2025-10-02",
+    "meeting_id": "2025-10-02-regular",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PETERS",
+    "source_id": "src-d104506a545a",
+    "ward": null
+  },
+  {
+    "date": "2025-10-02",
+    "meeting_id": "2025-10-02-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PITTS",
+    "source_id": "src-d104506a545a",
+    "ward": null
+  },
+  {
+    "date": "2025-10-02",
+    "meeting_id": "2025-10-02-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SHAKEENAB",
+    "source_id": "src-d104506a545a",
+    "ward": null
+  },
+  {
+    "date": "2025-10-02",
+    "meeting_id": "2025-10-02-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SMITH",
+    "source_id": "src-d104506a545a",
+    "ward": null
+  },
+  {
+    "date": "2025-10-02",
+    "meeting_id": "2025-10-02-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "STREETMAN",
+    "source_id": "src-d104506a545a",
+    "ward": null
+  },
+  {
+    "date": "2025-10-02",
+    "meeting_id": "2025-10-02-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "ZACHARIAS",
+    "source_id": "src-d104506a545a",
+    "ward": null
+  },
+  {
+    "date": "2025-12-04",
+    "meeting_id": "2025-12-04-regular",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "BROWN",
+    "source_id": "src-c693c2820d19",
+    "ward": null
+  },
+  {
+    "date": "2025-12-04",
+    "meeting_id": "2025-12-04-regular",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CHANDLER",
+    "source_id": "src-c693c2820d19",
+    "ward": null
+  },
+  {
+    "date": "2025-12-04",
+    "meeting_id": "2025-12-04-regular",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HAYWOOD",
+    "source_id": "src-c693c2820d19",
+    "ward": null
+  },
+  {
+    "date": "2025-12-04",
+    "meeting_id": "2025-12-04-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HOLLEMAN",
+    "source_id": "src-c693c2820d19",
+    "ward": null
+  },
+  {
+    "date": "2025-12-04",
+    "meeting_id": "2025-12-04-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "LOVATO",
+    "source_id": "src-c693c2820d19",
+    "ward": null
+  },
+  {
+    "date": "2025-12-04",
+    "meeting_id": "2025-12-04-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MARQUIS",
+    "source_id": "src-c693c2820d19",
+    "ward": null
+  },
+  {
+    "date": "2025-12-04",
+    "meeting_id": "2025-12-04-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MCLAUGHLIN",
+    "source_id": "src-c693c2820d19",
+    "ward": null
+  },
+  {
+    "date": "2025-12-04",
+    "meeting_id": "2025-12-04-regular",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PETERS",
+    "source_id": "src-c693c2820d19",
+    "ward": null
+  },
+  {
+    "date": "2025-12-04",
+    "meeting_id": "2025-12-04-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PITTS",
+    "source_id": "src-c693c2820d19",
+    "ward": null
+  },
+  {
+    "date": "2025-12-04",
+    "meeting_id": "2025-12-04-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SHAKEENAB",
+    "source_id": "src-c693c2820d19",
+    "ward": null
+  },
+  {
+    "date": "2025-12-04",
+    "meeting_id": "2025-12-04-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SMITH",
+    "source_id": "src-c693c2820d19",
+    "ward": null
+  },
+  {
+    "date": "2025-12-04",
+    "meeting_id": "2025-12-04-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "STREETMAN",
+    "source_id": "src-c693c2820d19",
+    "ward": null
+  },
+  {
+    "date": "2025-12-04",
+    "meeting_id": "2025-12-04-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "ZACHARIAS",
+    "source_id": "src-c693c2820d19",
+    "ward": null
+  },
+  {
+    "date": "2026-01-08",
+    "meeting_id": "2026-01-08-regular",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "BROWN",
+    "source_id": "src-b86dbbb6c288",
+    "ward": null
+  },
+  {
+    "date": "2026-01-08",
+    "meeting_id": "2026-01-08-regular",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CHANDLER",
+    "source_id": "src-b86dbbb6c288",
+    "ward": null
+  },
+  {
+    "date": "2026-01-08",
+    "meeting_id": "2026-01-08-regular",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HAYWOOD",
+    "source_id": "src-b86dbbb6c288",
+    "ward": null
+  },
+  {
+    "date": "2026-01-08",
+    "meeting_id": "2026-01-08-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HOLLEMAN",
+    "source_id": "src-b86dbbb6c288",
+    "ward": null
+  },
+  {
+    "date": "2026-01-08",
+    "meeting_id": "2026-01-08-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "LOVATO",
+    "source_id": "src-b86dbbb6c288",
+    "ward": null
+  },
+  {
+    "date": "2026-01-08",
+    "meeting_id": "2026-01-08-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MARQUIS",
+    "source_id": "src-b86dbbb6c288",
+    "ward": null
+  },
+  {
+    "date": "2026-01-08",
+    "meeting_id": "2026-01-08-regular",
+    "official_id": "city-deanna-mclaughlin",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MCLAUGHLIN",
+    "source_id": "src-b86dbbb6c288",
+    "ward": null
+  },
+  {
+    "date": "2026-01-08",
+    "meeting_id": "2026-01-08-regular",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PETERS",
+    "source_id": "src-b86dbbb6c288",
+    "ward": null
+  },
+  {
+    "date": "2026-01-08",
+    "meeting_id": "2026-01-08-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PITTS",
+    "source_id": "src-b86dbbb6c288",
+    "ward": null
+  },
+  {
+    "date": "2026-01-08",
+    "meeting_id": "2026-01-08-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SHAKEENAB",
+    "source_id": "src-b86dbbb6c288",
+    "ward": null
+  },
+  {
+    "date": "2026-01-08",
+    "meeting_id": "2026-01-08-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SMITH",
+    "source_id": "src-b86dbbb6c288",
+    "ward": null
+  },
+  {
+    "date": "2026-01-08",
+    "meeting_id": "2026-01-08-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "STREETMAN",
+    "source_id": "src-b86dbbb6c288",
+    "ward": null
+  },
+  {
+    "date": "2026-01-08",
+    "meeting_id": "2026-01-08-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "ZACHARIAS",
+    "source_id": "src-b86dbbb6c288",
+    "ward": null
+  },
+  {
+    "date": "2026-02-05",
+    "meeting_id": "2026-02-05-regular",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "BROWN",
+    "source_id": "src-eccc59a53b9a",
+    "ward": null
+  },
+  {
+    "date": "2026-02-05",
+    "meeting_id": "2026-02-05-regular",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HAYWOOD",
+    "source_id": "src-eccc59a53b9a",
+    "ward": null
+  },
+  {
+    "date": "2026-02-05",
+    "meeting_id": "2026-02-05-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HOLLEMAN",
+    "source_id": "src-eccc59a53b9a",
+    "ward": null
+  },
+  {
+    "date": "2026-02-05",
+    "meeting_id": "2026-02-05-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "LOVATO",
+    "source_id": "src-eccc59a53b9a",
+    "ward": null
+  },
+  {
+    "date": "2026-02-05",
+    "meeting_id": "2026-02-05-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MARQUIS",
+    "source_id": "src-eccc59a53b9a",
+    "ward": null
+  },
+  {
+    "date": "2026-02-05",
+    "meeting_id": "2026-02-05-regular",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PETERS",
+    "source_id": "src-eccc59a53b9a",
+    "ward": null
+  },
+  {
+    "date": "2026-02-05",
+    "meeting_id": "2026-02-05-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PITTS",
+    "source_id": "src-eccc59a53b9a",
+    "ward": null
+  },
+  {
+    "date": "2026-02-05",
+    "meeting_id": "2026-02-05-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SHAKEENAB",
+    "source_id": "src-eccc59a53b9a",
+    "ward": null
+  },
+  {
+    "date": "2026-02-05",
+    "meeting_id": "2026-02-05-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SMITH",
+    "source_id": "src-eccc59a53b9a",
+    "ward": null
+  },
+  {
+    "date": "2026-02-05",
+    "meeting_id": "2026-02-05-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "STREETMAN",
+    "source_id": "src-eccc59a53b9a",
+    "ward": null
+  },
+  {
+    "date": "2026-02-05",
+    "meeting_id": "2026-02-05-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "ZACHARIAS",
+    "source_id": "src-eccc59a53b9a",
+    "ward": null
+  },
+  {
+    "date": "2026-02-05",
+    "meeting_id": "2026-02-05-regular",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CHANDLER",
+    "source_id": "src-eccc59a53b9a",
+    "ward": null
+  },
+  {
+    "date": "2026-03-05",
+    "meeting_id": "2026-03-05-regular",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "BROWN",
+    "source_id": "src-209ffc71a926",
+    "ward": null
+  },
+  {
+    "date": "2026-03-05",
+    "meeting_id": "2026-03-05-regular",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CHANDLER",
+    "source_id": "src-209ffc71a926",
+    "ward": null
+  },
+  {
+    "date": "2026-03-05",
+    "meeting_id": "2026-03-05-regular",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HAYWOOD",
+    "source_id": "src-209ffc71a926",
+    "ward": null
+  },
+  {
+    "date": "2026-03-05",
+    "meeting_id": "2026-03-05-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HOLLEMAN",
+    "source_id": "src-209ffc71a926",
+    "ward": null
+  },
+  {
+    "date": "2026-03-05",
+    "meeting_id": "2026-03-05-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "LOVATO",
+    "source_id": "src-209ffc71a926",
+    "ward": null
+  },
+  {
+    "date": "2026-03-05",
+    "meeting_id": "2026-03-05-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MARQUIS",
+    "source_id": "src-209ffc71a926",
+    "ward": null
+  },
+  {
+    "date": "2026-03-05",
+    "meeting_id": "2026-03-05-regular",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PETERS",
+    "source_id": "src-209ffc71a926",
+    "ward": null
+  },
+  {
+    "date": "2026-03-05",
+    "meeting_id": "2026-03-05-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PITTS",
+    "source_id": "src-209ffc71a926",
+    "ward": null
+  },
+  {
+    "date": "2026-03-05",
+    "meeting_id": "2026-03-05-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SHAKEENAB",
+    "source_id": "src-209ffc71a926",
+    "ward": null
+  },
+  {
+    "date": "2026-03-05",
+    "meeting_id": "2026-03-05-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SMITH",
+    "source_id": "src-209ffc71a926",
+    "ward": null
+  },
+  {
+    "date": "2026-03-05",
+    "meeting_id": "2026-03-05-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "STREETMAN",
+    "source_id": "src-209ffc71a926",
+    "ward": null
+  },
+  {
+    "date": "2026-03-05",
+    "meeting_id": "2026-03-05-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "ZACHARIAS",
+    "source_id": "src-209ffc71a926",
+    "ward": null
+  },
+  {
+    "date": "2026-04-02",
+    "meeting_id": "2026-04-02-regular",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "BROWN",
+    "source_id": "src-06cb9d66ef52",
+    "ward": null
+  },
+  {
+    "date": "2026-04-02",
+    "meeting_id": "2026-04-02-regular",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CHANDLER",
+    "source_id": "src-06cb9d66ef52",
+    "ward": null
+  },
+  {
+    "date": "2026-04-02",
+    "meeting_id": "2026-04-02-regular",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HAYWOOD",
+    "source_id": "src-06cb9d66ef52",
+    "ward": null
+  },
+  {
+    "date": "2026-04-02",
+    "meeting_id": "2026-04-02-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HOLLEMAN",
+    "source_id": "src-06cb9d66ef52",
+    "ward": null
+  },
+  {
+    "date": "2026-04-02",
+    "meeting_id": "2026-04-02-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "LOVATO",
+    "source_id": "src-06cb9d66ef52",
+    "ward": null
+  },
+  {
+    "date": "2026-04-02",
+    "meeting_id": "2026-04-02-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MARQUIS",
+    "source_id": "src-06cb9d66ef52",
+    "ward": null
+  },
+  {
+    "date": "2026-04-02",
+    "meeting_id": "2026-04-02-regular",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PETERS",
+    "source_id": "src-06cb9d66ef52",
+    "ward": null
+  },
+  {
+    "date": "2026-04-02",
+    "meeting_id": "2026-04-02-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PITTS",
+    "source_id": "src-06cb9d66ef52",
+    "ward": null
+  },
+  {
+    "date": "2026-04-02",
+    "meeting_id": "2026-04-02-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SHAKEENAB",
+    "source_id": "src-06cb9d66ef52",
+    "ward": null
+  },
+  {
+    "date": "2026-04-02",
+    "meeting_id": "2026-04-02-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SMITH",
+    "source_id": "src-06cb9d66ef52",
+    "ward": null
+  },
+  {
+    "date": "2026-04-02",
+    "meeting_id": "2026-04-02-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "STREETMAN",
+    "source_id": "src-06cb9d66ef52",
+    "ward": null
+  },
+  {
+    "date": "2026-04-02",
+    "meeting_id": "2026-04-02-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "ZACHARIAS",
+    "source_id": "src-06cb9d66ef52",
+    "ward": null
+  },
+  {
+    "date": "2026-05-07",
+    "meeting_id": "2026-05-07-regular",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "BROWN",
+    "source_id": "src-9f1eedb38c88",
+    "ward": null
+  },
+  {
+    "date": "2026-05-07",
+    "meeting_id": "2026-05-07-regular",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CHANDLER",
+    "source_id": "src-9f1eedb38c88",
+    "ward": null
+  },
+  {
+    "date": "2026-05-07",
+    "meeting_id": "2026-05-07-regular",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HAYWOOD",
+    "source_id": "src-9f1eedb38c88",
+    "ward": null
+  },
+  {
+    "date": "2026-05-07",
+    "meeting_id": "2026-05-07-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HOLLEMAN",
+    "source_id": "src-9f1eedb38c88",
+    "ward": null
+  },
+  {
+    "date": "2026-05-07",
+    "meeting_id": "2026-05-07-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "LOVATO",
+    "source_id": "src-9f1eedb38c88",
+    "ward": null
+  },
+  {
+    "date": "2026-05-07",
+    "meeting_id": "2026-05-07-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MARQUIS",
+    "source_id": "src-9f1eedb38c88",
+    "ward": null
+  },
+  {
+    "date": "2026-05-07",
+    "meeting_id": "2026-05-07-regular",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PETERS",
+    "source_id": "src-9f1eedb38c88",
+    "ward": null
+  },
+  {
+    "date": "2026-05-07",
+    "meeting_id": "2026-05-07-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PITTS",
+    "source_id": "src-9f1eedb38c88",
+    "ward": null
+  },
+  {
+    "date": "2026-05-07",
+    "meeting_id": "2026-05-07-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SHAKEENAB",
+    "source_id": "src-9f1eedb38c88",
+    "ward": null
+  },
+  {
+    "date": "2026-05-07",
+    "meeting_id": "2026-05-07-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SMITH",
+    "source_id": "src-9f1eedb38c88",
+    "ward": null
+  },
+  {
+    "date": "2026-05-07",
+    "meeting_id": "2026-05-07-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "STREETMAN",
+    "source_id": "src-9f1eedb38c88",
+    "ward": null
+  },
+  {
+    "date": "2026-05-07",
+    "meeting_id": "2026-05-07-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "ZACHARIAS",
+    "source_id": "src-9f1eedb38c88",
+    "ward": null
+  },
+  {
+    "date": "2026-06-04",
+    "meeting_id": "2026-06-04-regular",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "BROWN",
+    "source_id": "src-8bc059bb68d9",
+    "ward": null
+  },
+  {
+    "date": "2026-06-04",
+    "meeting_id": "2026-06-04-regular",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CHANDLER",
+    "source_id": "src-8bc059bb68d9",
+    "ward": null
+  },
+  {
+    "date": "2026-06-04",
+    "meeting_id": "2026-06-04-regular",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HAYWOOD",
+    "source_id": "src-8bc059bb68d9",
+    "ward": null
+  },
+  {
+    "date": "2026-06-04",
+    "meeting_id": "2026-06-04-regular",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HOLLEMAN",
+    "source_id": "src-8bc059bb68d9",
+    "ward": null
+  },
+  {
+    "date": "2026-06-04",
+    "meeting_id": "2026-06-04-regular",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "LOVATO",
+    "source_id": "src-8bc059bb68d9",
+    "ward": null
+  },
+  {
+    "date": "2026-06-04",
+    "meeting_id": "2026-06-04-regular",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MARQUIS",
+    "source_id": "src-8bc059bb68d9",
+    "ward": null
+  },
+  {
+    "date": "2026-06-04",
+    "meeting_id": "2026-06-04-regular",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PETERS",
+    "source_id": "src-8bc059bb68d9",
+    "ward": null
+  },
+  {
+    "date": "2026-06-04",
+    "meeting_id": "2026-06-04-regular",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PITTS",
+    "source_id": "src-8bc059bb68d9",
+    "ward": null
+  },
+  {
+    "date": "2026-06-04",
+    "meeting_id": "2026-06-04-regular",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SHAKEENAB",
+    "source_id": "src-8bc059bb68d9",
+    "ward": null
+  },
+  {
+    "date": "2026-06-04",
+    "meeting_id": "2026-06-04-regular",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SMITH",
+    "source_id": "src-8bc059bb68d9",
+    "ward": null
+  },
+  {
+    "date": "2026-06-04",
+    "meeting_id": "2026-06-04-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "STREETMAN",
+    "source_id": "src-8bc059bb68d9",
+    "ward": null
+  },
+  {
+    "date": "2026-06-04",
+    "meeting_id": "2026-06-04-regular",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "ZACHARIAS",
+    "source_id": "src-8bc059bb68d9",
+    "ward": null
   }
 ]
