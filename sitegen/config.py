@@ -1,4 +1,5 @@
 """Site-wide constants. The operator name is read from here for the footer and the About page (spec G1)."""
+import os
 from pathlib import Path
 
 import yaml
@@ -16,6 +17,10 @@ CONFIG_DIR = REPO_ROOT / "config"
 SITE_CONFIG_PATH = CONFIG_DIR / "site.yml"
 SITE = yaml.safe_load(SITE_CONFIG_PATH.read_text(encoding="utf-8"))
 LOCALITY = SITE["locality"]
+# Launch-time override (docs/ops/launch-runbook.md): the daily-update workflow sets RECORDS_SITE_URL so feeds carry
+# absolute links to the public site without editing alerts.site_url in config/site.yml. Unset: the file's value.
+if os.environ.get("RECORDS_SITE_URL"):
+    SITE.setdefault("alerts", {})["site_url"] = os.environ["RECORDS_SITE_URL"]
 # Holder records (design 4.1) and the landing map's geometry (design 3.2). Both optional: without them the site
 # shows no seat labels, one officials list, and the district list without a map.
 # The roster lives with its locality (config/localities/<locality>/seats.yml); the older top-level config/seats.yml
@@ -63,10 +68,13 @@ OPERATOR_NAME = SITE["operator"]  # "Brian Zacharias", confirmed by the CEO, 202
 # finance adds one page per fund, not per department. pages: GitHub Pages has no such cap; 3000 keeps the site small.
 MAX_FILES_BY_TARGET = {"preview": 500, "pages": 3000}
 MAX_FILES = MAX_FILES_BY_TARGET["preview"]
+# The daily-update workflow sets RECORDS_BUILD_TARGET=pages; local and preview builds default to "preview".
+DEFAULT_TARGET = os.environ.get("RECORDS_BUILD_TARGET") or "preview"
 
 
-def max_files(target: str = "preview") -> int:
+def max_files(target: str | None = None) -> int:
     """The file cap of a build target (sitegen --target, qa.site_checks --target)."""
+    target = target or DEFAULT_TARGET
     cap = MAX_FILES_BY_TARGET[target]
     return min(cap, MAX_FILES) if target == "preview" else cap   # MAX_FILES: the preview cap, as before
 PAGE_BYTES = 1_000_000  # a year page over this is split in parts (build.py plan_parts; city-pages/page-weight)

@@ -23,7 +23,7 @@ def main(argv=None) -> int:
                     "facts file, none for a fixture facts file). Without it Bids and awards is not built")
     ap.add_argument("--no-geocoder", action="store_true",
                     help="draw no landing address box (the claude.ai preview build); the plain lookup line stays")
-    ap.add_argument("--target", choices=("preview", "pages"), default="preview",
+    ap.add_argument("--target", choices=("preview", "pages"), default=config.DEFAULT_TARGET,
                     help="the host: preview (claude.ai artifact, at most 500 files; transcript pages are left out when "
                     "the site would pass that) or pages (GitHub Pages, at most 3000 files)")
     args = ap.parse_args(argv)

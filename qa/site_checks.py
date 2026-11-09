@@ -96,7 +96,10 @@ def corrections_links(cfg: dict) -> tuple[str, str]:
 
 def _site_cfg() -> dict:
     import yaml
-    return yaml.safe_load((ROOT / "config" / "site.yml").read_text(encoding="utf-8"))
+    cfg = yaml.safe_load((ROOT / "config" / "site.yml").read_text(encoding="utf-8"))
+    if os.environ.get("RECORDS_SITE_URL"):    # the same launch-time override sitegen/config.py applies
+        cfg.setdefault("alerts", {})["site_url"] = os.environ["RECORDS_SITE_URL"]
+    return cfg
 
 
 def councils(facts: dict) -> list[dict]:
@@ -1310,7 +1313,7 @@ def main(argv=None) -> int:
     ap.add_argument("--seats", help="the roster the build read (default: the locality's, or the fixture's)")
     ap.add_argument("--districts", help="the map file the build read (default: the locality's, or the fixture's)")
     ap.add_argument("--finance", help="finance.json the build read (default: data/finance.json when it exists)")
-    ap.add_argument("--target", choices=sorted(MAX_FILES_BY_TARGET), default="preview",
+    ap.add_argument("--target", choices=sorted(MAX_FILES_BY_TARGET), default=os.environ.get("RECORDS_BUILD_TARGET") or "preview",
                     help="the host the build is for: its file cap applies (preview 500, pages 3000)")
     ap.add_argument("--out", default=str(ROOT / "build" / "qa" / "site_checks.txt"))
     a = ap.parse_args(argv)

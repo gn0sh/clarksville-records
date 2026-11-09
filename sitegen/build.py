@@ -197,7 +197,7 @@ def load_councils(councils, fixture: bool) -> list:
     return out
 
 
-def write_publish_manifest(out: Path, target: str = "preview") -> dict:
+def write_publish_manifest(out: Path, target: str | None = None) -> dict:
     """{published path: local path}, index.html excluded. Call again after the export adds data/ files.
     `target`: the host the build is for (config.MAX_FILES_BY_TARGET): its file cap applies."""
     out = Path(out)
@@ -339,7 +339,7 @@ def corrections_problems(cfg: dict) -> list[str]:
 
 def build(facts_path, out_dir, internal: bool = False, changes_path=None, report_path=None,
           seats_path=DEFAULT, districts_path=DEFAULT, geocoder: bool = True, finance_path=DEFAULT,
-          capital_fund=DEFAULT, councils=DEFAULT, target: str = "preview", transcripts: bool = True) -> dict:
+          capital_fund=DEFAULT, councils=DEFAULT, target: str | None = None, transcripts: bool = True) -> dict:
     """`geocoder=False` (`--no-geocoder`) draws no landing address box and allows no geocoder in the CSP: the build
     for the claude.ai preview, where the box could not reach the geocoder. The plain lookup line shows instead.
     `seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
@@ -357,6 +357,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     Pages). When the preview build with its export would pass its cap, it is built again without the transcript
     pages (`transcripts=False`): each meeting with a transcript then says so, and the member pages keep their
     call-ons with the video links (sitegen/transcripts.py). Year and meeting pages are never split to make room."""
+    target = target or config.DEFAULT_TARGET
     if target not in config.MAX_FILES_BY_TARGET:
         raise BuildError(f"unknown target {target!r}; one of {', '.join(sorted(config.MAX_FILES_BY_TARGET))}")
     facts_path, out = Path(facts_path), Path(out_dir)
