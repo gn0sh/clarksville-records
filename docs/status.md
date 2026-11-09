@@ -180,3 +180,5 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | code-reviewer | opus/default | delta re-review 2 | approve (1 low docstring)
 - 2026-11-09 | frontend-engineer | opus/default | M4 slice 2: city pages | done: 49 pages, 312 files, site_checks pass, 1251 tests; 89b94b2. Open: cross-body name links in titles, page weight (3.8 MB)
 - 2026-11-09 9:56 AM ET: Brian: after the 3 PM ET reset, records is #1 priority and gets nearly all usage, efficiently. Plan: from 3 PM run 2 agents in parallel (e.g. exports + report-an-error, then alerts + hosting). The business plan is in a separate thread.
+- 2026-11-09 | code-reviewer | opus/default | review city pages | request changes: 2 med-high, 1 med, 2 low
+- DECISION 2026-11-09: names inside item titles never link to an official's page (they can be applicants or buyers with the same name). Names link only where the minutes record an official acting.
