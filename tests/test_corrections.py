@@ -148,6 +148,9 @@ def test_report_link_survives_site_checks_when_on(monkeypatch, tmp_path):
     ({"github_repo": "owner/name?x=1"}, "owner/name"),
     ({"github_repo": "https://github.com/owner/name"}, "owner/name"),
     ({"github_repo": "owner/../x"}, "owner/name"),
+    ({"github_repo": "o/."}, "owner/name"),      # corr-config/repo-dot
+    ({"github_repo": "o/.."}, "owner/name"),
+    ({"github_repo": "./x"}, "owner/name"),
     ({"github_repo": 'own"er/name'}, "owner/name"),
     ({"email": "a@b.org?cc=x@y.org"}, "plain address"),
     ({"email": "<script>@x.org"}, "plain address"),
@@ -330,8 +333,92 @@ def test_report_page_in_a_browser(full, tmp_path):
     for h in r["hostile"]:
         assert h["hidden"] is True and h["imgs"] == 0
         assert all(s and s.startswith("static/") for s in h["scripts"]), h["scripts"]
-    assert r["badId"] == {"hidden": False, "page": "meetings/x.html", "id": "Not given", "bold": 0}
+    # a well-formed path that is not a built page is labelled, never shown as a page of this site (report-frag/text-spoof)
+    assert r["badId"] == {"hidden": False, "page": "meetings/x.html (not a page of this site)", "id": "Not given",
+                          "bold": 0}
     assert r["href"].startswith("../report.html#page=" + quote(meeting, safe=JS_SAFE)), r
     assert r["href"].endswith("&id=" + quote(r["factId"], safe=JS_SAFE))
     assert r["landed"]["page"] == meeting      # a file:// site shows the path, never a local file address
     assert r["landed"]["id"] == r["factId"]
+
+
+# -- report-frag/text-spoof: the page path is checked against the built page list; the about box says it is from the link
+
+def test_build_writes_the_page_list_and_report_page_loads_it_first(full):
+    out, pages = full
+    js = (out / "static" / "pages.js").read_text(encoding="utf-8")
+    listed = json.loads(js.split("=", 1)[1].strip().rstrip(";"))
+    assert set(listed) == set(pages) and "report.html" in listed
+    html = pages["report.html"]
+    assert html.index("static/pages.js") < html.index("static/report.js")
+    assert "from the link you followed (not checked" in html
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node not available")
+def test_report_js_page_status(tmp_path):
+    script = tmp_path / "probe.js"
+    script.write_text(
+        'const r = require(process.argv[2]); const L = ["a.html", "meetings/x.html"];'
+        'console.log(JSON.stringify([r.pageStatus("a.html", L), r.pageStatus("evil/made-up.html", L),'
+        'r.pageStatus("a.html", undefined), r.pageStatus(undefined, L)]));', encoding="utf-8")
+    res = subprocess.run(["node", str(script), str(REPORT_JS)], capture_output=True, text=True, timeout=60)
+    assert res.returncode == 0, res.stderr
+    assert json.loads(res.stdout) == ["known", "unknown", "unchecked", "none"]
+
+
+# -- nav-report/regex-overmatch and hash-decode/finance-uncaught, in a browser
+
+BROWSER2 = r"""
+const path = require('path');
+let pw;
+for (const r of ['', ...(process.env.NODE_PATH || '').split(path.delimiter).filter(Boolean)]) {
+  try { pw = require(r ? path.join(r, 'playwright') : 'playwright'); break; } catch (e) { /* next */ }
+}
+(async () => {
+  const [site, meeting, fin] = process.argv.slice(2);
+  const browser = await pw.chromium.launch();
+  const page = await browser.newPage();
+  const out = {errors: []};
+  page.on('pageerror', e => out.errors.push(String(e)));
+  const base = 'file://' + site + '/';
+  await page.goto(base + meeting);
+  out.nav = await page.evaluate(() => {
+    const hrefs = ['https://evil.example/report.html', '//evil.example/report.html', 'https://evil.example/x/report.html#a',
+                   '../report.html', 'report.html'];
+    const res = [];
+    for (const h of hrefs) {
+      const a = document.createElement('a'); a.setAttribute('href', h); document.body.appendChild(a);
+      a.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}));
+      res.push([h, a.getAttribute('href')]);
+    }
+    return res;
+  });
+  await page.goto('about:blank');
+  await page.goto(base + fin + '#%E0%A4%A');       // a malformed escape in the hash
+  await page.waitForTimeout(100);
+  out.finOpen = await page.evaluate(() => document.querySelectorAll('details.fin-group').length);
+  await browser.close();
+  console.log(JSON.stringify(out));
+})();
+"""
+
+
+@pytest.mark.skipif(not _browser_ok(), reason="Playwright (node) not available")
+def test_nav_rewrites_only_own_report_links_and_finance_ignores_a_bad_hash(full, tmp_path):
+    out, pages = full
+    meeting = next(r for r in sorted(pages) if r.startswith("meetings/") and "data-fact-id" in pages[r])
+    fin = next(r for r in sorted(pages) if "fin-group" in pages[r])
+    script = tmp_path / "probe2.js"
+    script.write_text(BROWSER2, encoding="utf-8")
+    env = dict(os.environ)
+    env.setdefault("NODE_PATH", subprocess.run(["npm", "root", "-g"], capture_output=True, text=True).stdout.strip())
+    res = subprocess.run(["node", str(script), str(out.resolve()), meeting, fin], capture_output=True, text=True,
+                         timeout=180, env=env)
+    assert res.returncode == 0, res.stderr
+    r = json.loads(res.stdout.strip().splitlines()[-1])
+    assert r["errors"] == [], r["errors"]            # finance.js did not throw on the bad hash
+    assert r["finOpen"] >= 1
+    by = dict(map(tuple, r["nav"]))
+    for off in ("https://evil.example/report.html", "//evil.example/report.html", "https://evil.example/x/report.html#a"):
+        assert by[off] == off, by                    # off-site links are left exactly as written
+    assert by["../report.html"].startswith("../report.html#page=") and by["report.html"].startswith("report.html#page=")

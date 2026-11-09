@@ -57,10 +57,20 @@
   var rootPath;
   try { rootPath = new URL(nav.getAttribute("data-root") || "./", window.location.href).pathname; } catch (e) { return; }
   var REPORT = /(^|\/)report\.html(#|$)/;
+  // Only a link to this site's own report.html is rewritten (nav-report/regex-overmatch): resolved against this page,
+  // it must have this page's scheme and host, and a path ending in /report.html.
+  function ownReportLink(href) {
+    if (!REPORT.test(href)) { return false; }
+    try {
+      var u = new URL(href, window.location.href);
+      return u.protocol === window.location.protocol && u.host === window.location.host &&
+        /(^|\/)report\.html$/.test(u.pathname);
+    } catch (e) { return false; }
+  }
 
   function prepare(e) {
     var a = e.target && e.target.closest ? e.target.closest("a[href]") : null;
-    if (!a || !REPORT.test(a.getAttribute("href"))) { return; }
+    if (!a || !ownReportLink(a.getAttribute("href"))) { return; }
     var path = window.location.pathname;
     var page = path.indexOf(rootPath) === 0 ? path.slice(rootPath.length) : "";
     if (page === "" || page.slice(-1) === "/") { page += "index.html"; }

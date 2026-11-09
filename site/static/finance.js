@@ -8,7 +8,8 @@
   if (!groups.length) { return; }
 
   function openTarget() {
-    var id = decodeURIComponent(location.hash.slice(1));
+    var id;
+    try { id = decodeURIComponent(location.hash.slice(1)); } catch (e) { return; }   // a malformed hash is ignored
     var el = id && document.getElementById(id);
     for (var n = el; n; n = n.parentElement) {
       if (n.tagName === "DETAILS") { n.open = true; }

@@ -209,12 +209,26 @@ def public_subset(facts: dict, internal: bool = False, ix=None) -> dict:
     return out
 
 
-def _csv(rows: list[dict], cols: list[str]) -> str:
+_FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _csv(rows: list[dict], cols: list[str], numeric: frozenset | set | tuple = ()) -> str:
+    """CSV text. A text cell that starts with = + - @ TAB or CR gets a leading ' so a spreadsheet shows it as text
+    and never runs it as a formula (csv-export/formula-injection). The rule is per column: `numeric` names the
+    columns that hold numbers or a printed amount (negative numbers and the "-" placeholder stay as they are)."""
     buf = io.StringIO()
     w = csv.DictWriter(buf, fieldnames=cols, extrasaction="ignore", lineterminator="\n")
     w.writeheader()
+
+    def cell(k, v):
+        if v is None:
+            return ""
+        if isinstance(v, str) and k not in numeric and v.startswith(_FORMULA_START):
+            return "'" + v
+        return v
+
     for r in rows:
-        w.writerow({k: ("" if r.get(k) is None else r.get(k)) for k in cols})
+        w.writerow({k: cell(k, r.get(k)) for k in cols})
     return buf.getvalue()
 
 

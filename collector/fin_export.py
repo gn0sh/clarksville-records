@@ -114,6 +114,13 @@ COLS = {
 }
 
 
+# Columns that hold a number or an amount as printed: left alone by the CSV text-cell guard (export._csv), so a
+# negative number or the "-" placeholder stays as it is. Every other column is text.
+NUMERIC_COLS = frozenset({"printed_order", "total_as_printed", "total_cents", "as_printed", "dollars", "printed",
+                          "sum", "diff", "scope_lines", "column", "year", "fiscal_year", "page", "bid_date_page",
+                          "awardee_page", "department_page"})
+
+
 class ExportError(Exception):
     pass
 
@@ -266,9 +273,12 @@ def tables(fin: dict) -> dict[str, str]:
                                "header_as_printed": cell["header_as_printed"], "fiscal_year": cell["fiscal_year"],
                                "kind": cell["kind"], "printed": pc["printed"], "sum": pc["sum"], "diff": pc["diff"],
                                "scope_lines": len(x["scope_line_ids"]), "held_check": x["held"], **c})
-    return {"solicitations": _csv(sols, COLS["solicitations"]), "bidders": _csv(bidders, COLS["bidders"]),
-            "fin_documents": _csv(documents, COLS["fin_documents"]),
-            "budget_lines": _csv(lines, COLS["budget_lines"]), "budget_checks": _csv(checks, COLS["budget_checks"])}
+    def csv_of(name, rows):
+        return _csv(rows, COLS[name], NUMERIC_COLS)
+
+    return {"solicitations": csv_of("solicitations", sols), "bidders": csv_of("bidders", bidders),
+            "fin_documents": csv_of("fin_documents", documents), "budget_lines": csv_of("budget_lines", lines),
+            "budget_checks": csv_of("budget_checks", checks)}
 
 
 def url_of(sources: dict, source_id: str | None) -> str | None:
