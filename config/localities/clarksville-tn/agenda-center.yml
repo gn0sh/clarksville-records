@@ -81,6 +81,12 @@ vote_asides: '\babstain|\babstention|\brecus'
 # meeting's roster; a Mayor Pro Tem presiding is already on the PRESENT line as a member.
 presiding: "called to order by (?P<title>Mayor Pro Tem|Mayor)\\s+(?P<name>[A-Z][a-z][A-Za-z'-]*(?:\\s+[A-Z]\\.)?(?:\\s+[A-Z][a-z][A-Za-z'-]*)+)"
 presiding_title: Mayor
+# When the council is seated: on the 1st of `month` every `every_years` years from `from_year`. Every wholesale change
+# of members in the full-name attendance lists of 2016-2025 falls at the first January meeting of an odd year (2017,
+# 2019, 2021, 2023, 2025), after the November elections of even years (observed in the data, not taken from the
+# charter). An attendance list printed as surnames is read only against full-name lists printed since the latest
+# seating (docs/architecture/city-council.md, name resolution invariant). Without this key no earlier list is used.
+seating: {month: 1, every_years: 2, from_year: 2017}
 
 # Name fixes for the same person printed two ways: printed form -> the form most minutes print. Each entry is the
 # same ward in the same term (checked in data/localities/clarksville-tn/wards.json, 2026-11-09); applied to every

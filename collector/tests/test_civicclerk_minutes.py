@@ -14,7 +14,7 @@ import jsonschema
 import pytest
 
 from collector import agenda_center as ac
-from collector.city_build import Officials, build, printed_full_names, resolve_surnames
+from collector.city_build import Officials, RosterBook, build, printed_full_names, resolve_surnames
 from collector.city_minutes import called_to_order_on, parse_text, titled_names
 from collector.tests.test_city_minutes import SCHEMA, FakeStore, entry
 
@@ -222,6 +222,14 @@ def roster_from(cfg, text, date):
     return printed_full_names(cfg, off, parse_text([text], cfg), date), off
 
 
+def book_from(cfg, text, date, meeting="2025-08-07"):
+    """The bounded book a surname-only list of `meeting` is read against, from one full-name list of `date`."""
+    printed, off = roster_from(cfg, text, date)
+    rb = RosterBook(cfg)
+    rb.add(printed)
+    return rb.for_meeting(meeting), off
+
+
 def test_printed_full_names_by_surname(cfg):
     book, _ = roster_from(cfg, FULL_2025, "2025-02-06")
     assert len(book) == 13 and book["pitts"] == {"date": "2025-02-06",
@@ -233,12 +241,15 @@ def test_printed_full_names_by_surname(cfg):
 def test_each_surname_uses_its_own_latest_printing(cfg):
     """2025-02-06 printed a cut-off list (it ends at "Stacey Streetman"): LOVATO is read against the latest list
     that printed a Lovato, not left unresolved."""
-    book, off = roster_from(cfg, FULL_2025, "2025-01-02")
+    printed, off = roster_from(cfg, FULL_2025, "2025-01-02")
     cut = FULL_2025.replace(", Joe Shakeenab\n      (Ward 11), Keri Lovato (Ward 12)", "")
     pm_cut = parse_text([cut], cfg)
     assert "Keri Lovato" not in [p.raw_name for p in pm_cut.present]
-    book.update(printed_full_names(cfg, off, pm_cut, "2025-02-06"))
-    assert book["lovato"]["date"] == "2025-01-02" and book["brown"]["date"] == "2025-02-06"
+    rb = RosterBook(cfg)
+    rb.add(printed)
+    rb.add(printed_full_names(cfg, off, pm_cut, "2025-02-06"))
+    book = rb.for_meeting("2025-08-07")
+    assert book["lovato"]["people"][0]["date"] == "2025-01-02" and book["brown"]["people"][0]["date"] == "2025-02-06"
     pm = parse_text([CAPS_2025], cfg)
     got, checks = resolve_surnames(cfg, off, pm, book)
     assert checks[0]["ok"] and "by the attendance of 2025-01-02" in checks[0]["detail"]
@@ -253,7 +264,7 @@ def test_a_repeated_label_and_a_mayor_note_in_the_attendance(cfg):
 
 
 def test_surnames_resolve_against_the_latest_full_roster_and_these_minutes(cfg):
-    last, off = roster_from(cfg, FULL_2025, "2025-02-06")
+    last, off = book_from(cfg, FULL_2025, "2025-02-06")
     pm = parse_text([CAPS_2025], cfg)
     got, checks = resolve_surnames(cfg, off, pm, last)
     names = {p.raw_name: got[id(p)] for p in pm.present + pm.absent}
@@ -265,7 +276,7 @@ def test_surnames_resolve_against_the_latest_full_roster_and_these_minutes(cfg):
 
 
 def test_a_misspelt_or_unknown_surname_is_not_resolved(cfg):
-    last, off = roster_from(cfg, FULL_2025, "2025-02-06")
+    last, off = book_from(cfg, FULL_2025, "2025-02-06")
     pm = parse_text([CAPS_2025.replace("STREETMAN, ZACHARIAS\n\n      ABSENT", "STREETMAN, ZAHARIAS, CLAUNCH\n\n"
                                                                                  "      ABSENT")], cfg)
     got, checks = resolve_surnames(cfg, off, pm, last)
@@ -274,7 +285,7 @@ def test_a_misspelt_or_unknown_surname_is_not_resolved(cfg):
 
 
 def test_a_ward_that_disagrees_with_the_roster_is_not_resolved(cfg):
-    last, off = roster_from(cfg, FULL_2025, "2025-02-06")
+    last, off = book_from(cfg, FULL_2025, "2025-02-06")
     pm = parse_text([SURNAMES_WARDS_2025.replace("Brown (Ward 9)", "Brown (Ward 2)")], cfg)
     got, checks = resolve_surnames(cfg, off, pm, last)
     assert not checks[0]["ok"] and "not resolved: Brown" in checks[0]["detail"]
@@ -282,7 +293,7 @@ def test_a_ward_that_disagrees_with_the_roster_is_not_resolved(cfg):
 
 
 def test_two_full_names_for_one_surname_is_not_resolved(cfg):
-    last, off = roster_from(cfg, FULL_2025, "2025-02-06")
+    last, off = book_from(cfg, FULL_2025, "2025-02-06")
     pm = parse_text([CAPS_2025.replace("led by Councilman Keri Lovato", "led by Councilman Jim Brown")], cfg)
     got, checks = resolve_surnames(cfg, off, pm, last)
     assert "BROWN (2 full names)" in checks[0]["detail"] and not checks[0]["ok"]

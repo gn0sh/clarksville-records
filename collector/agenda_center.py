@@ -60,6 +60,16 @@ class AgendaCenterConfig:
     presiding: re.Pattern
     presiding_title: str
     aliases: dict
+    seating: dict | None = None   # {month, every_years, from_year}: when the council is seated (name resolution window)
+
+    def seated_on(self, date: str) -> str | None:
+        """The latest seating on or before date (YYYY-MM-DD), or None without a seating rule."""
+        if not self.seating:
+            return None
+        s = self.seating
+        y0 = s["from_year"] + ((int(date[:4]) - s["from_year"]) // s["every_years"]) * s["every_years"]
+        start = f"{y0:04d}-{s['month']:02d}-01"
+        return start if start <= date else f"{y0 - s['every_years']:04d}-{s['month']:02d}-01"
 
     def year_range(self) -> range:
         return range(self.years[0], self.years[1] + 1)
@@ -134,6 +144,11 @@ def parse_config(cfg) -> AgendaCenterConfig:
     aliases = cfg.get("aliases") or {}
     if not isinstance(aliases, dict):
         raise AgendaCenterConfigError("agenda-center.yml: aliases must be a mapping")
+    seating = cfg.get("seating")
+    if seating is not None and not (isinstance(seating, dict) and set(seating) == {"month", "every_years", "from_year"}
+                                    and all(type(v) is int for v in seating.values())
+                                    and 1 <= seating["month"] <= 12 and seating["every_years"] >= 1):
+        raise AgendaCenterConfigError("agenda-center.yml: seating must be {month: 1-12, every_years: 1+, from_year}")
     return AgendaCenterConfig(
         locality=_need(cfg, "locality", str), body=_need(cfg, "body", str),
         official_title=_need(cfg, "official_title", str), host=host,
@@ -151,7 +166,8 @@ def parse_config(cfg) -> AgendaCenterConfig:
         vote_lead_in=_rx(_need(cfg, "vote_lead_in", str), "vote_lead_in"),
         vote_asides=_rx(_need(cfg, "vote_asides", str), "vote_asides"),
         presiding=_presiding(_rx(_need(cfg, "presiding", str), "presiding", 0)),
-        presiding_title=_need(cfg, "presiding_title", str), aliases=dict(aliases))
+        presiding_title=_need(cfg, "presiding_title", str), aliases=dict(aliases),
+        seating=dict(seating) if seating else None)
 
 
 def load_config(path: Path | None = None) -> AgendaCenterConfig:

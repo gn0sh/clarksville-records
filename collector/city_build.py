@@ -134,7 +134,7 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
     sources: dict[str, dict] = {}
     meetings, roll_calls, motions, items, events, wards = [], [], [], {}, [], []
     problems, unresolved = [], Counter()
-    surname_book: dict = {}         # each surname's latest full-name printing in attendance (resolve_surnames)
+    book = RosterBook(cfg)          # full-name attendance lists so far, bounded per meeting (resolve_surnames)
     status_count = Counter()
     ids_used: Counter = Counter()
 
@@ -212,8 +212,8 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
             continue
         read_shas.add(minutes_src["sha256"])
         _add_minutes(cfg, officials, meeting, minutes_src, pm, roll_calls, motions, items, events, wards,
-                     problems, unresolved, surname_book)
-        surname_book.update(printed_full_names(cfg, officials, pm, meeting["date"]))
+                     problems, unresolved, book.for_meeting(meeting["date"]))
+        book.add(printed_full_names(cfg, officials, pm, meeting["date"]))
 
     for s in sources.values():
         if not s["meeting_date"]:
@@ -308,7 +308,7 @@ SURNAME_RE = re.compile(r"^[A-Za-z][A-Za-z'’-]+$")
 def printed_full_names(cfg, officials: Officials, pm: ParsedCityMinutes, date: str) -> dict:
     """The full names these minutes print in their attendance list (and the presiding mayor), by surname:
     {surname (lower case): {"date": date, "people": [{name, ward, mayor}]}}. Names that are not full names are
-    left out. A later surname-only attendance list is read against the latest such printing of each surname."""
+    left out. A later surname-only attendance list is read against these through RosterBook, never directly."""
     out: dict[str, dict] = {}
     people = [{"name": officials.canonical(p.raw_name), "ward": p.ward, "mayor": p.mayor}
               for p in pm.present + pm.absent if NAME_RE.match(clean_name(p.raw_name))]
@@ -321,16 +321,82 @@ def printed_full_names(cfg, officials: Officials, pm: ParsedCityMinutes, date: s
     return out
 
 
+def _seat(p: dict) -> str | None:
+    """The seat a printing names: 'Ward 3', 'Mayor', or None (no ward printed)."""
+    return "Mayor" if p["mayor"] else (f"Ward {p['ward']}" if p["ward"] is not None else None)
+
+
+class RosterBook:
+    """The full-name attendance lists read so far (printed_full_names, one per read meeting), and, for one meeting,
+    the book its surname-only attendance is read against (name resolution invariant, docs/architecture/city-council.md):
+    {surname: {"people": [{name, ward, mayor, date}], "held": [why a printing of that surname is not used]}}.
+
+    Only lists dated from the council's latest seating (cfg.seated_on) up to the meeting are used, so a member who
+    left at an earlier seating is never a candidate. A member on those lists is kept when printed on the latest of
+    them, or when the latest of them that prints the member's seat (ward, or mayor) still prints this member there
+    (a list cut short, like 2025-02-06's, does not drop the members after the cut). A member printed without a ward
+    and not on the latest list, or whose seat a later list gives to someone else, is held with the reason. `date` is
+    the member's own latest printing."""
+
+    def __init__(self, cfg):
+        self.cfg = cfg
+        self.lists: list[tuple[str, list[dict]]] = []
+
+    def add(self, printed: dict) -> None:
+        people = [p for e in printed.values() for p in e["people"]]
+        if people:
+            self.lists.append((next(iter(printed.values()))["date"], people))
+
+    def for_meeting(self, date: str) -> dict:
+        start = self.cfg.seated_on(date)
+        inside = sorted((x for x in self.lists if start is not None and start <= x[0] <= date), key=lambda x: x[0])
+        latest: dict[str, tuple[str, dict]] = {}
+        seat: dict[str, tuple[str, set]] = {}            # seat -> (date of the latest list printing it, names there)
+        for d, people in inside:
+            for p in people:
+                latest[p["name"]] = (d, p)
+                k = _seat(p)
+                if k:
+                    if k not in seat or seat[k][0] != d:
+                        seat[k] = (d, set())
+                    seat[k][1].add(p["name"])
+        last = inside[-1][0] if inside else None
+        out: dict[str, dict] = {}
+
+        def entry(name: str) -> dict:
+            return out.setdefault(name_parts(name)[1].lower(), {"people": [], "held": []})
+
+        for name, (d, p) in sorted(latest.items()):
+            k = _seat(p)
+            if d == last or (k and name in seat[k][1]):
+                entry(name)["people"].append({**p, "date": d})
+            elif k:
+                entry(name)["held"].append(f"{name}: {k} printed for {', '.join(sorted(seat[k][1]))} on {seat[k][0]}")
+            else:
+                entry(name)["held"].append(f"{name}: printed without a ward on {d}, not on the list of {last}")
+        before = {}
+        for d, people in self.lists:
+            if (start is None or d < start) and d <= date:
+                for p in people:
+                    if p["name"] not in latest:
+                        before[p["name"]] = d
+        for name, d in sorted(before.items()):
+            entry(name)["held"].append(f"{name}: last printed {d}, before the seating of {start}" if start
+                                       else f"{name}: last printed {d}; no seating rule, so no earlier list is used")
+        return out
+
+
 def resolve_surnames(cfg, officials: Officials, pm: ParsedCityMinutes, book: dict | None) -> tuple[dict, list]:
     """Attendance printed as surnames only ("PRESENT: BROWN, CHANDLER, ..., PITTS, ...", CivicClerk minutes from
     March 2025 on) -> ({id(person): (full name, is mayor)}, checks).
 
     A surname is read as a member's full name only when exactly one full name with that surname (any case) is printed
-    in these minutes after a member's title ("Councilman Jimmy Brown", the presiding "Mayor Joe Pitts") or in the
-    latest earlier attendance list that printed a full name with that surname (`book`, printed_full_names), and a
-    ward printed with the surname agrees with that list. Anything else stays as printed, with no official, and holds
+    in these minutes after a member's title ("Councilman Jimmy Brown", the presiding "Mayor Joe Pitts") or is on the
+    meeting's bounded roster (`book`, RosterBook.for_meeting: lists since the latest seating, members not replaced),
+    and a ward printed with the surname agrees with it. Anything else stays as printed, with no official, and holds
     the meeting's attendance (check surnames_resolve), so its roll calls are held too. Never a near spelling
-    ("ZAHARIAS"). The check's detail names the dates of the attendance lists used."""
+    ("ZAHARIAS"). The check's detail names the dates of the attendance lists used, and why a held surname's earlier
+    printings were not used."""
     people = [p for p in pm.present + pm.absent
               if not NAME_RE.match(clean_name(p.raw_name)) and SURNAME_RE.match(clean_name(p.raw_name))]
     if not people:
@@ -347,18 +413,21 @@ def resolve_surnames(cfg, officials: Officials, pm: ParsedCityMinutes, book: dic
         for n in sorted(here):
             if name_parts(n)[1].lower() == s:
                 cands[n] = "these minutes"
-        earlier = book.get(s, {"date": None, "people": []})
+        earlier = book.get(s, {"people": [], "held": []})
         for r in earlier["people"]:
             if p.ward is None or r["ward"] is None or r["ward"] == p.ward:
-                cands.setdefault(r["name"], f"the attendance of {earlier['date']}")
+                cands.setdefault(r["name"], f"the attendance of {r['date']}")
         if len(cands) == 1:
             name, why = next(iter(cands.items()))
             mayor = (name == presiding and pm.presiding_title == cfg.presiding_title) or any(
                 r["mayor"] for r in earlier["people"] if r["name"] == name)
             out[id(p)] = (name, mayor)
             basis[why] += 1
+        elif cands:
+            unresolved.append(f"{p.raw_name} ({len(cands)} full names)")
         else:
-            unresolved.append(f"{p.raw_name} ({len(cands)} full names)" if cands else p.raw_name)
+            held = "; ".join(earlier["held"])
+            unresolved.append(f"{p.raw_name} ({held})" if held else p.raw_name)
     detail = "; ".join(f"{n} by {why}" for why, n in sorted(basis.items()))
     if unresolved:
         detail = (detail + "; " if detail else "") + "not resolved: " + ", ".join(unresolved)
