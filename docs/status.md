@@ -73,6 +73,9 @@
 | 2026-11-08 | frontend-engineer | sonnet/medium | name links site-wide + table row heights + not-confirmed chip + vote-on label | done, 8a50f58: 44,100 name links checked; row-height check at 4 widths; final full suite and site_checks not re-run after last tweak |
 | 2026-11-08 | code-reviewer | opus/high | delta re-review of landing fixes | approve with nits: a11y-headings/officials-sections; provenance/acreage-not-as-printed (3rd provenance hit, fresh review next); provenance/open-run-latest-mismatch (latent) |
 | 2026-11-08 | qa-engineer | sonnet/medium | re-test landing bugs | PASS all; site_checks PASS incl. layout, provenance |
+| 2026-11-09 | frontend-engineer | opus/medium | address-first landing + remember seats on device | done, de57078: 1615 pass, site_checks PASS |
+| 2026-11-09 | code-reviewer | sonnet/medium | review 58d7db1 landing | approve with nits (4: your-seats/*) |
+| 2026-11-09 | frontend-engineer | sonnet/medium | fix your-seats nits | done, 58f12a1: 35 pass, site_checks PASS |
 | 2026-11-08 | frontend-engineer | sonnet/medium | GoVoteTN lookup line | done, 1d2fe84; review approve with 3 nits |
 | 2026-11-08 | backend-engineer | opus/high | georeference district map (pin M1) | done, 187d5a4: 575 pass, held-out max 4.5 m |
 | 2026-11-08 | frontend-engineer | opus/medium | address pin M2 (box, georef.js, Census JSONP) | done, b470a4f: 614 pass, site_checks PASS; live geocoder untested (blocked here) |
