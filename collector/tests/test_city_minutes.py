@@ -385,6 +385,38 @@ def test_hybrid_attendance_lines_and_mixed_case_labels(cfg):
     assert rc.item["number"] == "12-2022-23" and rc.outcome == "passed"
 
 
+ZONING = """PUBLIC HEARING
+
+    ORDINANCE 14-2017-18 (First Reading) Amending the Zoning Ordinance and Map
+
+             No one expressed support for or opposition to this request.
+
+ZONING
+
+    The recommendation of the Regional Planning Staff was for disapproval of
+    ORDINANCE 14-2017-18. Councilman Erb made a motion to adopt this ordinance on first
+    reading. The motion was seconded by Councilman Allen. The following vote was recorded:
+
+             AYE: Allen, Erb
+
+             The motion to adopt this ordinance on first reading passed.
+
+    The recommendations were for approval of ORDINANCE 15-2017-18 and ORDINANCE 16-2017-18.
+    The following vote was recorded:
+
+             AYE: Allen, Erb
+
+             The motion to adopt these ordinances on first reading passed.
+"""
+
+
+def test_vote_under_a_section_links_the_one_item_its_paragraph_names(cfg):
+    a, b = parse_text([ZONING], cfg).roll_calls
+    assert a.item["number"] == "14-2017-18" and a.item["title"] == "(First Reading) Amending the Zoning Ordinance and Map"
+    assert a.item["heading"] == "ZONING"
+    assert b.item["number"] is None and b.item["heading"] == "ZONING"     # two named: not guessed
+
+
 def test_late_arrival_may_miss_a_vote(cfg):
     rows, store, inspect = rows_and_store()
     facts, _ = build(cfg, rows[:1], store, parse=lambda p, c: parse_text([HYBRID], c), inspect=inspect)

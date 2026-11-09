@@ -284,6 +284,7 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
         out.presiding, out.presiding_title = pm.group("name"), pm.group("title")
 
     item = {"number": None, "kind": None, "title": None, "heading": None}
+    titles: dict = {}                  # (kind, number) -> title as first printed in this document
     window: list[Line] = []            # text since the last vote block or item start (for the motion)
     i, order = 0, 0
     seen_attendance = False
@@ -330,8 +331,9 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
                        "passed" if cfg.outcome_passed.search(sentence) else "other")
             if cfg.outcome_failed.search(sentence) and cfg.outcome_passed.search(sentence):
                 outcome = "other"
-            out.roll_calls.append(RollCall(page, votes, absent, sentence, outcome, dict(item),
-                                           _motion(window), order, notes))
+            out.roll_calls.append(RollCall(page, votes, absent, sentence, outcome,
+                                           _item_for_vote(item, window, titles, cfg), _motion(window), order,
+                                           notes))
             order += 1
             window = []
             i = j
@@ -345,6 +347,7 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
                 j += 1
             item = {"number": m.group(2), "kind": m.group(1).lower(),
                     "title": re.sub(r"\s+", " ", " ".join(title_parts)).strip(), "heading": item["heading"]}
+            titles.setdefault((item["kind"], item["number"]), item["title"])
             window = []
             i = j
             continue
@@ -358,6 +361,20 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
     if not seen_attendance:
         out.problems.append("no attendance lines found")
     return out
+
+
+def _item_for_vote(item: dict, window: list[Line], titles: dict, cfg: AgendaCenterConfig) -> dict:
+    """The vote's item. Under an item heading, that item. Under a section heading only ("ZONING"), the one item
+    number the paragraph before the vote names ("... disapproval of ORDINANCE 14-2017-18 ... adopt this ordinance"),
+    if it names exactly one; else the section."""
+    if item["number"]:
+        return dict(item)
+    text = re.sub(r"\s+", " ", " ".join(l.text for l in window))
+    named = {(m.group(1).lower(), m.group(2)) for m in cfg.item_number.finditer(text)}
+    if len(named) != 1:
+        return dict(item)
+    kind, number = named.pop()
+    return {"number": number, "kind": kind, "title": titles.get((kind, number)), "heading": item["heading"]}
 
 
 def _motion(window: list[Line]) -> dict | None:

@@ -279,6 +279,8 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
                 items[iid] = {"id": iid, "number": f"{rc.item['kind'].upper()} {rc.item['number']}",
                               "title": rc.item["title"] or "", "link_basis": "number",
                               "year": int(meeting["date"][:4])}
+            elif not items[iid]["title"] and rc.item["title"]:      # first printed title, once one is seen
+                items[iid]["title"] = rc.item["title"]
         else:
             heading = rc.item["heading"] or "(no heading)"
             iid = "t-" + short_hash(meeting["id"], heading)
