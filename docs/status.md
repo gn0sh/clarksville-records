@@ -203,3 +203,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | backend-engineer | sonnet/default | security fixes 1-5 | done: 1316 tests, site_checks pass; d0385a9. Delta security re-confirm next.
 - 2026-11-09 | security-engineer | opus/high | delta re-confirm | PASS, 1-5 fixed
 - 2026-11-09 ~2:20 PM CT | backend-engineer | opus/default | M4 slice 3: CivicClerk 2024+ | done (handoff lost in a container restart; manager verified git): ADR 0003, 385 meetings, 2,235 roll calls (1,756 verified, 78.6%), video URLs stored; e136a8b. Full suite + site_checks re-run by manager.
+- 2026-11-09 | code-reviewer | opus/default | review CivicClerk slice | request changes: 1 medium (city-votes/surname-stale-book), 3 low. Ledger: city-votes family hit 3 (item-link x2, surname-stale-book): architect states the name-resolution invariant first; fresh review after the fix.
