@@ -221,5 +221,6 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | frontend-engineer | sonnet/medium | gnoshcodes branding + operator credit to gnoshcodes (Brian Nov 9) | running
 - 2026-11-09 21:48Z: Brian said "go" to full parallel helpers through the Friday launch (coordinator relay).
 - 2026-11-09 | devops-engineer | sonnet/medium | prod hosting: locked daily-update + Pages workflow, CNAME, launch runbook | running
-- 2026-11-09 | qa-engineer | sonnet/medium | launch test plan | running
+- 2026-11-09 | qa-engineer | sonnet/medium | launch test plan | done: docs/qa/launch-test-plan.md; manager decisions recorded (city verified-rate waiver, transcript coverage, preview limits non-blocking)
 - 2026-11-09: CLAUDE.md hard stop 1 wording fixed (repo is already public).
+- Follow-up (from launch plan): Alerts page must say per-ward/district feeds are not available yet; add the NEW tests listed in docs/qa/launch-test-plan.md before the final QA pass.
