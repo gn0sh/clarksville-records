@@ -115,6 +115,9 @@ class Index:
         # Holder records (design 4.1): seat labels and the current / served previously split. Empty without a roster.
         self.seats = self.make_seats(seat_rows)
         self.kind_labels = self.KIND_LABELS
+        # Page weight (city-pages/page-weight): a year page too big for one page is split in parts (build.py
+        # plan_parts); {("item" | "meeting", id): part number}. Part 1 keeps the year's own path.
+        self.page_parts: dict[tuple[str, str], int] = {}
 
     # -- where a page lives. The county's pages are the default; a council (sitegen/council.py) overrides these, so
     # the view functions below serve every body with one set of rules (N1).
@@ -131,7 +134,19 @@ class Index:
         return f"meetings/{meeting_id}.html" + (f"#{anchor}" if anchor else "")
 
     def item_href(self, item: dict) -> str:
-        return f"items/{item['year']}.html#{item['id']}"
+        return f"items/{item['year']}{self.part_suffix('item', item['id'])}.html#{item['id']}"
+
+    def part_suffix(self, kind: str, key: str) -> str:
+        """'' on a year's first (or only) page, '-2', '-3' ... on its later parts (page_parts)."""
+        n = self.page_parts.get((kind, key), 1)
+        return f"-{n}" if n > 1 else ""
+
+    # An official's history on their page (False), or one page per year linked from it (True: a council, whose
+    # members' histories are too long for one page; city-pages/page-weight).
+    history_by_year = False
+
+    def official_year_href(self, official_id: str, year: str) -> str:
+        return f"officials/{official_id}/{year}.html"
 
     def item_title(self, item: dict) -> str:
         return item["title"]
@@ -665,6 +680,10 @@ def official(official_id: str, facts) -> dict:
         # one group per year, newest first; with no rows at all, one empty group so the page keeps its skeleton
         "row_groups": ([{"year": y, "rows": [r for r in rows if r["year"] == y]} for y in years]
                        or [{"year": "", "rows": []}]),
+        # history_by_year: the History section links one page per year instead of holding the rows
+        "year_pages": ([{"year": y, "n": sum(1 for r in rows if r["year"] == y),
+                         "href": ix.official_year_href(official_id, y)} for y in years]
+                       if ix.history_by_year else None),
         "years": years,
         "types": [(t, config.TYPE_LABELS[t]) for t in config.HISTORY_TYPES],
     }
@@ -859,7 +878,7 @@ def items_year(year: int, facts) -> dict:
         })
     # Items with no appearance (first == "") go last, so their group is last too.
     entries.sort(key=lambda i: (i["first"] == "", i["first"], (i["number"] or i["title"]).casefold(), i["id"]))
-    return {"year": year, "items": entries, "toc_groups": _toc_groups(entries)}
+    return {"year": year, "items": entries, "toc_groups": _toc_groups(entries), "parts": []}
 
 
 # ---------------------------------------------------------------------------------------------------------------

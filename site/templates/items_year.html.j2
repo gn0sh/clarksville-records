@@ -1,10 +1,11 @@
 {% extends "base.html.j2" %}
-{% from "_macros.html.j2" import source, fact_meta, cite, motion_block, roll_call_block, item_title %}
+{% from "_macros.html.j2" import source, fact_meta, cite, motion_block, roll_call_block, item_title, parts_nav %}
 {% block main %}
 {% block items_head %}
 <h1>Items first seen in {{ year }}</h1>
 <p class="lede">Each item shows every appearance in the minutes, oldest first. Items are linked by their official number; items without a number are linked only when the title matches exactly, and say so.</p>
 {% endblock %}
+{{ parts_nav(parts, "Items first seen in " ~ year ~ ", by date") }}
 <nav aria-label="Items in {{ year }}" class="toc-groups">
   {% for g in toc_groups %}
   <details class="toc-group">

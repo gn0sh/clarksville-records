@@ -137,23 +137,39 @@ def test_an_untitled_item_shows_the_fixed_words(cix):
     assert cix.item_title({"title": "CONSENT AGENDA"}) == "CONSENT AGENDA"
 
 
+def _member_years(facts: dict, cix) -> int:
+    """Pages of member history by year: one per member per year with a row (council.py, history_by_year)."""
+    return sum(len(views.official(o["id"], cix)["year_pages"]) for o in facts["officials"])
+
+
 def test_page_count_is_one_per_member_and_per_year_never_per_meeting(site, cix, city_facts):
     out, _ = site
     city = sorted(p.relative_to(out).as_posix() for p in (out / "city").rglob("*.html"))
     want = (1 + len(city_facts["officials"]) + len({m["date"][:4] for m in city_facts["meetings"]})
-            + len({i["year"] for i in city_facts["items"]}))
+            + len({i["year"] for i in city_facts["items"]}) + _member_years(city_facts, cix))
     assert len(city) == want
     assert "city/index.html" in city
     assert not any(re.search(r"meetings/\d{4}-\d{2}-\d{2}", p) for p in city)
 
 
 def test_real_city_pages_fit_the_file_budget():
-    """The real city facts make at most this many pages: one per member, per year of meetings and of items, plus
-    the home. With the county's pages they stay under config.MAX_FILES (qa/site_checks.py checks the built site)."""
+    """The real city facts make about this many pages: one per member and per year of each member's history, per
+    year of meetings and of items (more parts when a year is over config.PAGE_BYTES, about 20 more today), plus the
+    home. With the county's pages they stay under config.MAX_FILES (qa/site_checks.py checks the built site)."""
     facts = json.loads((CITY / "facts.json").read_text(encoding="utf-8"))
+    years = {o["id"]: set() for o in facts["officials"]}
+    dates = {m["id"]: m["date"][:4] for m in facts["meetings"]}
+    for rc in facts["roll_calls"]:
+        for v in rc["votes"]:
+            if v["official_id"] in years:
+                years[v["official_id"]].add(dates[rc["meeting_id"]])
+    for m in facts["meetings"]:
+        for a in m["attendance"]:
+            if a["official_id"] in years:
+                years[a["official_id"]].add(m["date"][:4])
     n = (1 + len(facts["officials"]) + len({m["date"][:4] for m in facts["meetings"]})
-         + len({i["year"] for i in facts["items"]}))
-    assert n <= 60
+         + len({i["year"] for i in facts["items"]}) + sum(len(y) for y in years.values()))
+    assert n <= 180
 
 
 # ---------------------------------------------------------------- the pages
@@ -358,3 +374,61 @@ def test_a_run_of_one_at_the_latest_minutes_read_is_kept():
     assert latest == "2020-03-01"
     assert got == [("a", "ward-1", "2020-01-01", None), ("b", "ward-5", "2020-03-01", None),
                    ("c", "ward-2", "2020-01-01", "2020-02-01"), ("c", "ward-3", "2020-03-01", None)]
+
+
+# ---------------------------------------------------------------- page weight (city-pages/page-weight)
+
+def test_member_page_links_one_page_per_year_and_each_year_page_holds_that_years_rows(cpages, cix, city_facts):
+    for o in city_facts["officials"]:
+        ctx = views.official(o["id"], cix)
+        page = cpages[f"city/members/{o['id']}.html"]
+        assert 'id="history"' not in page   # no rows on the member page itself
+        for y in ctx["year_pages"]:
+            assert f'href="../../{y["href"]}">{y["year"]}</a>' in page
+            yp = cpages[y["href"]]
+            assert f'<a href="../../../city/members/{o["id"]}.html">{o["name"]}</a>: {y["year"]}</h1>' in yp
+            rows = re.findall(r'<tr role="row" class="fact[^"]*" data-type="[^"]+" data-year="(\d{4})"', yp)
+            assert len(rows) == y["n"] and set(rows) == {y["year"]}
+        assert sum(y["n"] for y in ctx["year_pages"]) == len(ctx["rows"])
+
+
+def test_county_official_pages_keep_their_history_inline(pages):
+    off = [r for r in pages if r.startswith("officials/") and r.count("/") == 1]
+    assert off and all('id="history"' in pages[r] for r in off if "No votes or attendance" not in pages[r])
+    assert not any(r.count("/") == 2 and r.startswith("officials/") for r in pages)
+
+
+def test_balanced_chunks_are_contiguous_and_cover_everything():
+    from sitegen.build import balanced_chunks
+    w = [5, 1, 1, 1, 5, 1, 1, 1, 5, 1]
+    for k in range(1, 12):
+        runs = balanced_chunks(w, k)
+        assert [i for r in runs for i in r] == list(range(len(w)))
+        assert all(len(r) for r in runs) and len(runs) <= min(k, len(w))
+    assert [list(r) for r in balanced_chunks([1, 1, 1, 1], 2)] == [[0, 1], [2, 3]]
+
+
+def test_a_year_page_over_the_limit_is_split_in_parts_and_links_follow(tmp_path, cfg, monkeypatch):
+    monkeypatch.setattr(config, "PAGE_BYTES", 60_000)
+    monkeypatch.setattr(config, "PAGE_TARGET", 40_000)
+    out = tmp_path / "build" / "site"
+    build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, councils=[cfg])
+    pages = {p.relative_to(out).as_posix(): p.read_text(encoding="utf-8") for p in out.rglob("*.html")}
+    parts = [r for r in pages if re.fullmatch(r"(city/)?(meetings|items)/\d{4}-\d+\.html", r)]
+    assert parts, sorted(pages)
+    for r in parts:
+        first = re.sub(r"-\d+\.html$", ".html", r)
+        assert 'class="year-nav parts-nav"' in pages[r] and 'class="year-nav parts-nav"' in pages[first]
+    for rel, html in pages.items():
+        if rel.startswith(("city/meetings/", "city/items/", "items/")):
+            n = html.count('<section class="council-meeting"') + html.count('<section class="item"')
+            assert len(html.encode("utf-8")) <= 60_000 or n == 1, rel   # one entry alone may be bigger
+    county = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    pg = {rel: site_checks.parse(out / rel) for rel in pages}
+    assert site_checks.check_links(out, pg, no_export=True) == []
+    cs = [{"slug": "city", "prefix": "city/", "facts": json.loads(cfg["facts_path"].read_text(encoding="utf-8"))}]
+    problems, _ = site_checks.check_name_links(out, county, site_checks.read_roster(FIXTURE_SEATS), cs)
+    assert problems == []
+    problems, _ = site_checks.check_totals(out, {r: None for r in pages}, cs[0]["facts"], "city/meetings/",
+                                           "city/members")
+    assert problems == []

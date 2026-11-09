@@ -30,7 +30,7 @@
   form.addEventListener("submit", function (e) { e.preventDefault(); });
 
   function apply() {
-    var t = typeSel.value, y = yearSel.value, shown = 0;
+    var t = typeSel.value, y = yearSel ? yearSel.value : "", shown = 0;  // a one-year page has no year filter
     for (var i = 0; i < rows.length; i++) {
       var ok = (!t || rows[i].dataset.type === t) && (!y || rows[i].dataset.year === y);
       rows[i].hidden = !ok;
@@ -47,5 +47,5 @@
     }
   }
   typeSel.addEventListener("change", apply);
-  yearSel.addEventListener("change", apply);
+  if (yearSel) { yearSel.addEventListener("change", apply); }
 })();

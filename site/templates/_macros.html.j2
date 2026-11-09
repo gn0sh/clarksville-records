@@ -60,6 +60,18 @@
 <span data-item-title>{{ title }}</span>
 {%- endmacro %}
 
+{# The parts of a year page too big for one page (build.py plan_parts): each part by its date range. #}
+{% macro parts_nav(parts, label) -%}
+{% if parts and parts | length > 1 %}
+<nav aria-label="{{ label }}" class="year-nav parts-nav">
+  <p class="muted">This year is on {{ parts | length }} pages, by date:</p>
+  <ul class="inline-list">
+    {% for p in parts %}<li><a href="{{ p.href }}"{% if p.current %} aria-current="page"{% endif %}>{{ p.label }}</a></li>{% endfor %}
+  </ul>
+</nav>
+{% endif %}
+{%- endmacro %}
+
 {% macro item_link(item, root) -%}
 {% if item.href %}<a href="{{ root }}{{ item.href }}">{% if item.number %}<strong>{{ item.number }}</strong> {% endif %}{{ item_title(item.title) }}</a>{% else %}{{ item_title(item.title) }}{% endif %}
 {%- endmacro %}

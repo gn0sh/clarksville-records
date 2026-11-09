@@ -52,6 +52,18 @@
 
 <section aria-labelledby="history-h">
   <h2 id="history-h">History</h2>
+  {% if year_pages is not none %}
+  <p>Votes, attendance, and motions and seconds the minutes attribute to this person, one page per year.</p>
+  {% if year_pages %}
+  <ul class="year-links">
+    {% for y in year_pages %}
+    <li><a href="{{ root }}{{ y.href }}">{{ y.year }}</a> <span class="muted">({{ y.n }} {{ "row" if y.n == 1 else "rows" }})</span></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No votes, attendance, motions or seconds are shown for this person in this period.</p>
+  {% endif %}
+  {% else %}
   <p>Votes, attendance, and motions and seconds the minutes attribute to this person, newest first.</p>
   <form id="filters" class="filters toolbar" hidden>
     <div>
@@ -80,5 +92,6 @@
   <div id="history">
   {{ history_groups(row_groups, root) }}
   </div>
+  {% endif %}
 </section>
 {% endblock %}

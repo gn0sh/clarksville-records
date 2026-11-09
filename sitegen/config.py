@@ -60,6 +60,8 @@ OPERATOR_PLACEHOLDER = "[OPERATOR NAME - CEO to confirm]"
 OPERATOR_NAME = SITE["operator"]  # "Brian Zacharias", confirmed by the CEO, 2026-11-07
 
 MAX_FILES = 500  # under the artifact limit of 511 files per version; finance adds one page per fund, not per department
+PAGE_BYTES = 1_000_000  # a year page over this is split in parts (build.py plan_parts; city-pages/page-weight)
+PAGE_TARGET = 850_000  # the size each part aims at, under PAGE_BYTES
 
 # Fixed lists, the same for every official (neutrality N1/N2).
 HISTORY_TYPES = ("vote", "attendance", "moved", "seconded")

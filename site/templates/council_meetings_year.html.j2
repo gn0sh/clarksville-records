@@ -1,5 +1,6 @@
 {% extends "base.html.j2" %}
 {% from "_meeting.html.j2" import meeting_stats, meeting_sections %}
+{% from "_macros.html.j2" import parts_nav %}
 {# A council's meetings in one year (council.py meetings_year), oldest first. One section per meeting, its ids
    prefixed by the meeting id; the roll calls and motions use the same blocks as a county meeting page. #}
 {% block main %}
@@ -11,8 +12,9 @@
     {% for y in years %}<li><a href="{{ y }}.html"{% if y == year %} aria-current="page"{% endif %}>{{ y }}</a></li>{% endfor %}
   </ul>
 </nav>
+{{ parts_nav(parts, "Meetings in " ~ year ~ ", by date") }}
 <details class="toc-group" open>
-  <summary>{{ meetings | length }} {{ "meeting" if meetings | length == 1 else "meetings" }} in {{ year }}</summary>
+  <summary>{{ meetings | length }} {{ "meeting" if meetings | length == 1 else "meetings" }} {% if parts and parts | length > 1 %}on this page{% else %}in {{ year }}{% endif %}</summary>
   <ul class="toc">
     {% for m in meetings %}
     <li><a href="#{{ m.id }}">{{ m.meeting.date }}, {{ m.kind_label | lower }}</a></li>

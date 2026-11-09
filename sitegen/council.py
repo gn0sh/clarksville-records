@@ -5,8 +5,9 @@ names a place. The pages use the county's view functions (sitegen/views.py) thro
 changes where pages live and how seats are read, so every rule of the county pages holds here too: a held roll call
 shows "Not confirmed*" and no value, every name links to its member page, every fact links its source page (N1-N4).
 
-File budget (config.MAX_FILES): one page per member, one page per year of meetings (each meeting a section with its
-roll calls inline) and one page per year of items, plus the council's home page. Never one page per meeting or item.
+File budget (config.MAX_FILES): one page per member plus one per year of their history, one page per year of meetings
+(each meeting a section with its roll calls inline) and one page per year of items, plus the council's home page. A
+year page over config.PAGE_BYTES is split into parts by date (build.py plan_parts). Never one page per meeting or item.
 """
 from __future__ import annotations
 
@@ -141,17 +142,22 @@ class CouncilIndex(views.Index):
         return Seats(seat_rows, self.officials, latest,
                      wording={"evidence": self.cfg["evidence"]["ward"], "latest": self.cfg["latest_words"]})
 
+    history_by_year = True
+
     def official_href(self, official_id: str) -> str:
         return f"{self.slug}/members/{official_id}.html"
+
+    def official_year_href(self, official_id: str, year: str) -> str:
+        return f"{self.slug}/members/{official_id}/{year}.html"
 
     def meeting_href(self, meeting_id: str, anchor: str = "") -> str:
         year = self.meetings[meeting_id]["date"][:4]
         if anchor == views.ATTENDANCE:
             anchor = f"{meeting_id}-{views.ATTENDANCE}"
-        return f"{self.slug}/meetings/{year}.html#{anchor or meeting_id}"
+        return f"{self.slug}/meetings/{year}{self.part_suffix('meeting', meeting_id)}.html#{anchor or meeting_id}"
 
     def item_href(self, item: dict) -> str:
-        return f"{self.slug}/items/{item['year']}.html#{item['id']}"
+        return f"{self.slug}/items/{item['year']}{self.part_suffix('item', item['id'])}.html#{item['id']}"
 
     def item_title(self, item: dict) -> str:
         return item["title"] or self.cfg["untitled_item"]
@@ -225,7 +231,7 @@ def meetings_year(year: str, cix: CouncilIndex) -> dict:
         out.append({**ctx, "id": m["id"], "has_minutes": src["kind"] == "minutes",
                     "agenda": ({"url": agenda["url"], "pages": agenda["pages"], "fetched": agenda["fetched_at"]}
                                if agenda and agenda["id"] != src["id"] else None)})
-    return {"year": year, "meetings": out, "years": cix.meeting_years(), "body": cix.body_name}
+    return {"year": year, "meetings": out, "years": cix.meeting_years(), "body": cix.body_name, "parts": []}
 
 
 def items_year(year: int, cix: CouncilIndex) -> dict:

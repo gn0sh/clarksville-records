@@ -205,6 +205,44 @@ def write_publish_manifest(out: Path) -> dict:
     return manifest
 
 
+def balanced_chunks(weights: list[int], k: int) -> list[range]:
+    """Split indexes 0..n-1 into at most k contiguous, non-empty runs of about equal total weight."""
+    n, total = len(weights), sum(weights) or 1
+    k = max(1, min(k, n))
+    cuts, acc, j = [0], 0, 1
+    for i, w in enumerate(weights):
+        acc += w
+        if j < k and acc >= total * j / k and i + 1 < n and i + 1 > cuts[-1]:
+            cuts.append(i + 1)
+            j += 1
+    cuts.append(n)
+    return [range(a, b) for a, b in zip(cuts, cuts[1:]) if b > a]
+
+
+def plan_parts(entries: list[dict], size_of) -> list[list[str]]:
+    """The parts of one year page (city-pages/page-weight): [[entry id, ...], ...] in page order. One part when the
+    page fits config.PAGE_BYTES; otherwise contiguous runs by date, each weighed by its context's size, as few as
+    keep every part under PAGE_BYTES. `size_of(entries)` renders a page of those entries and returns its bytes."""
+    import math
+    size = size_of(entries)
+    if size <= config.PAGE_BYTES or len(entries) < 2:
+        return [[e["id"] for e in entries]]
+    weights = [len(json.dumps(e, default=str)) for e in entries]
+    k = math.ceil(size / config.PAGE_TARGET)
+    while True:
+        runs = [[entries[i] for i in r] for r in balanced_chunks(weights, k)]
+        if k >= len(entries) or all(size_of(run) <= config.PAGE_BYTES for run in runs):
+            return [[e["id"] for e in run] for run in runs]
+        k += 1
+
+
+def part_label(dates: list[str]) -> str:
+    dates = sorted(d for d in dates if d)
+    if not dates:
+        return "No appearance listed"
+    return dates[0] if dates[0] == dates[-1] else f"{dates[0]} to {dates[-1]}"
+
+
 DEFAULT = object()
 
 
@@ -302,14 +340,65 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     site["councils"] = [council_mod.landing_entry(c) for c in cixs]
     written: list[str] = []
 
-    def render(template: str, rel: str, page_name: str, site_ctx=None, **ctx) -> None:
+    def html_of(template: str, rel: str, page_name: str, site_ctx=None, **ctx) -> str:
         depth = rel.count("/")
-        html = env.get_template(template).render(
+        return env.get_template(template).render(
             site=site_ctx or site, root="../" * depth, page_name=page_name, **ctx)
+
+    def render(template: str, rel: str, page_name: str, site_ctx=None, **ctx) -> None:
+        html = html_of(template, rel, page_name, site_ctx, **ctx)
         target = out / rel
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(html, encoding="utf-8")
         written.append(rel)
+
+    # Year pages (items; a council's meetings), split in parts when over config.PAGE_BYTES (city-pages/page-weight).
+    # Each: (Index, kind, template, folder, year, page name, site ctx, extra ctx, list key, date of an entry, ctx).
+    def year_specs():
+        for year in ix.item_years():
+            yield (ix, "item", "items_year.html.j2", "items", year, f"Items {year}", None, {}, "items",
+                   lambda e: e["first"], lambda y: views.items_year(y, ix))
+        for c in cixs:
+            cs = council_mod.site_for(site, c)
+            extra = {"council": c.nav_label, "council_href": c.home_href()}
+            for y in c.meeting_years():
+                yield (c, "meeting", "council_meetings_year.html.j2", f"{c.slug}/meetings", y,
+                       c.page_name(f"Meetings {y}"), cs, extra, "meetings", lambda e: e["meeting"]["date"],
+                       lambda y, c=c: council_mod.meetings_year(y, c))
+            for y in c.item_years():
+                yield (c, "item", "council_items_year.html.j2", f"{c.slug}/items", y, c.page_name(f"Items {y}"), cs,
+                       extra, "items", lambda e: e["first"], lambda y, c=c: council_mod.items_year(y, c))
+
+    def with_entries(ctx: dict, key: str, entries: list[dict]) -> dict:
+        out_ctx = {**ctx, key: entries}
+        if key == "items":
+            out_ctx["toc_groups"] = views._toc_groups(entries)
+        return out_ctx
+
+    plans = {}
+    for (bix, kind, tpl, folder, year, name, sctx, extra, key, date_of, make) in year_specs():
+        ctx = make(year)
+        rel = f"{folder}/{year}.html"
+        parts = plan_parts(ctx[key], lambda es: len(html_of(tpl, rel, name, sctx, **extra,
+                                                                  **with_entries(ctx, key, es)).encode("utf-8")))
+        plans[(folder, year)] = parts
+        for n, ids in enumerate(parts, 1):
+            for i in ids:
+                bix.page_parts[(kind, i)] = n
+
+    def render_year_pages():
+        for (bix, kind, tpl, folder, year, name, sctx, extra, key, date_of, make) in year_specs():
+            ctx = make(year)   # again, now that every link knows its part
+            by_id = {e["id"]: e for e in ctx[key]}
+            parts = plans[(folder, year)]
+            runs = [[by_id[i] for i in ids] for ids in parts]
+            nav = [{"href": f"{year}{'' if n == 1 else f'-{n}'}.html", "label": part_label([date_of(e) for e in run])}
+                   for n, run in enumerate(runs, 1)] if len(runs) > 1 else []
+            for n, run in enumerate(runs, 1):
+                suffix = "" if n == 1 else f"-{n}"
+                render(tpl, f"{folder}/{year}{suffix}.html", name if n == 1 else f"{name} (part {n})", sctx, **extra,
+                       **{**with_entries(ctx, key, run),
+                          "parts": [{**p, "current": i == n} for i, p in enumerate(nav, 1)]})
 
     render("index.html.j2", "index.html", "Map", **views.landing(ix, districts, georef, geocoder))
     render("officials.html.j2", "officials.html", "Officials", **views.officials_page(ix))
@@ -350,20 +439,20 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     for m in facts["meetings"]:
         ctx = views.meeting(m["id"], ix)
         render("meeting.html.j2", f"meetings/{m['id']}.html", f"Meeting {m['date']}", m=ctx, **ctx)
-    for year in ix.item_years():
-        render("items_year.html.j2", f"items/{year}.html", f"Items {year}", **views.items_year(year, ix))
-    for c in cixs:  # council pages (council.py): home, one page per member, per year of meetings, per year of items
+    render_year_pages()   # county items; each council's meetings and items (in parts when too big)
+    for c in cixs:  # council pages (council.py): home, one page per member and per year of their history
         cs = council_mod.site_for(site, c)
         render("council_home.html.j2", c.home_href(), c.page_name(), cs, council=c.nav_label,
                council_href=c.home_href(), **council_mod.home(c))
         for o in c.facts["officials"]:
-            render("official.html.j2", c.official_href(o["id"]), o["name"], cs, **council_mod.member(o["id"], c))
-        for y in c.meeting_years():
-            render("council_meetings_year.html.j2", f"{c.slug}/meetings/{y}.html", c.page_name(f"Meetings {y}"), cs,
-                   council=c.nav_label, council_href=c.home_href(), **council_mod.meetings_year(y, c))
-        for y in c.item_years():
-            render("council_items_year.html.j2", f"{c.slug}/items/{y}.html", c.page_name(f"Items {y}"), cs,
-                   council=c.nav_label, council_href=c.home_href(), **council_mod.items_year(y, c))
+            ctx = council_mod.member(o["id"], c)
+            render("official.html.j2", c.official_href(o["id"]), o["name"], cs, **ctx)
+            for g in ctx["row_groups"]:
+                if g["year"]:
+                    render("official_year.html.j2", c.official_year_href(o["id"], g["year"]),
+                           f"{o['name']} {g['year']}", cs, council=c.nav_label, council_href=c.home_href(),
+                           official=ctx["official"], official_href=c.official_href(o["id"]), year=g["year"],
+                           year_pages=ctx["year_pages"], types=ctx["types"], groups=[g])
     render("about.html.j2", "about.html", "About", **views.about(ix), glance=views.record_glance(ix))
     render("changes.html.j2", "changes.html", "Changes", **views.changes(read_changes(changes_path)))
     if internal:
