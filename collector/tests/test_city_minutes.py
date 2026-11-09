@@ -741,3 +741,16 @@ def test_part_time_note_exempts_only_before_arrival_or_after_departure(cfg):
     # Burkhart left after his last vote, but Allen had arrived and voted: his missing vote holds the roll call
     assert after["verification"]["status"] == "unverified"
     assert checks(after)["one_vote_per_present_member"]["detail"] == "city-david-allen"
+
+
+def test_vote_naming_its_item_in_any_case_is_linked_and_a_passing_mention_is_not(cfg):
+    text = ZONING.replace("The motion to adopt these ordinances on first reading passed.",
+                          "The motion to adopt Ordinance 16-2017-18 on first reading passed.")
+    a, b = parse_text([text], cfg).roll_calls
+    assert b.item["number"] == "16-2017-18" and b.link["basis"] == "named"
+    # the item named in the paragraph only, with no word of the vote referring to it, links nothing
+    text = ZONING.replace("Councilman Erb made a motion to adopt this ordinance on first\n    reading.",
+                          "Councilman Erb made a motion to refer this request back.")
+    text = text.replace("The motion to adopt this ordinance on first reading passed.", "The motion passed.")
+    a = parse_text([text], cfg).roll_calls[0]
+    assert a.item["number"] is None and a.item["heading"] == "ZONING" and a.link["basis"] == "section"
