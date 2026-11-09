@@ -90,7 +90,9 @@ _J = {
                  # a council's meetings (schema meeting, city): the Agenda Center listing's own fields
                  "title": "stated", "agenda_url": "derived: link to the listed agenda file",
                  "agenda_source_id": "derived: id", "minutes_url": "derived: link to the listed minutes file",
-                 "minutes_status": "derived: whether the team fetched and read the minutes"},
+                 "minutes_status": "derived: whether the team fetched and read the minutes",
+                 "listing_source": "derived: the listing the meeting was taken from",
+                 "video_url": "derived: link to the listed meeting video"},
     "meetings.attendance": {"official_id": "derived: name resolution", "raw_name": "stated", "status": "stated",
                             "page": _CITE["page"]},
     "roll_calls": {"id": "derived: content position", "item_id": PROVENANCE["roll_calls.item_id"],

@@ -250,3 +250,51 @@ def test_one_source_never_merges_its_own_rows(cfg, acfg):
     rows, dups = cc.merge_sources([a1, a2], [cc_row(cfg, acfg, e) for e in (s1, s2, s3)])
     assert len(dups) == 2 and len(rows) == 3                      # two pairs, one CivicClerk meeting left over
     assert [r["source"] for r in rows] == ["agenda-center", "agenda-center", "civicclerk"]
+
+
+# ------------------------------------------------------------------ build: both sources in one facts file
+def test_build_records_each_meetings_source_and_video(cfg, acfg):
+    import jsonschema
+
+    from collector.city_build import build
+    from collector.city_minutes import parse_text
+    from collector.tests.test_city_minutes import PAGE1, PAGE2, SCHEMA, FakeStore, entry, rows_and_store
+
+    rows, _, inspect = rows_and_store()
+    c = cc_row(cfg, acfg, event(1408, "2024-02-01T18:00:00Z", "Regular Session",
+                                [(1891, "Agenda", "2-1-24 Regular Session Agenda", ""), (2002, "Minutes", "Minutes", "")],
+                                "https://cpmedia.azureedge.net/clarksvilletn/d6b27ab504.mp4"))
+    merged, dups = cc.merge_sources(rows, [c])
+    store = FakeStore([entry(rows[0]["agenda_url"], "agenda", "2019-12-05", 1),
+                       entry(rows[0]["minutes_url"], "minutes", "2019-12-05", 2),
+                       entry(c["agenda_url"], "agenda", "2024-02-01", 4),
+                       entry(c["minutes_url"], "minutes", "2024-02-01", 5)])
+    facts, summary = build(acfg, merged, store, parse=lambda p, k: parse_text([PAGE1, PAGE2], k), inspect=inspect)
+    jsonschema.validate({k: v for k, v in facts.items() if k != "_wards"}, SCHEMA)
+    ms = {m["id"]: m for m in facts["meetings"]}
+    assert ms["2019-12-05-regular"]["listing_source"] == "agenda-center" and "video_url" not in ms["2019-12-05-regular"]
+    new = ms["2024-02-01-regular"]
+    assert new["listing_source"] == "civicclerk" and new["minutes_status"] == "read"
+    assert new["video_url"] == "https://cpmedia.azureedge.net/clarksvilletn/d6b27ab504.mp4"
+    assert new["minutes_url"] == cfg.file(2002) and new["agenda_url"] == cfg.file(1891)
+    bs = summary["by_source"]
+    assert bs["civicclerk"]["meetings"] == 1 and bs["civicclerk"]["with_video"] == 1
+    assert bs["2024_on"]["roll_calls"] == bs["civicclerk"]["roll_calls"] > 0
+    assert bs["agenda-center"]["roll_calls"] + bs["civicclerk"]["roll_calls"] == summary["roll_calls"]
+    assert len({r["id"] for r in facts["roll_calls"]}) == len(facts["roll_calls"])
+
+
+def test_minutes_but_no_agenda_builds_with_a_null_agenda_url(cfg, acfg):
+    import jsonschema
+
+    from collector.city_build import build
+    from collector.city_minutes import parse_text
+    from collector.tests.test_city_minutes import PAGE1, PAGE2, SCHEMA, FakeStore, entry
+
+    c = cc_row(cfg, acfg, event(3, "2024-03-12T17:30:00Z", "City Council Special Session",
+                                [(3075, "Minutes", "Minutes", "")]))
+    store = FakeStore([entry(c["minutes_url"], "minutes", "2024-03-12", 6)])
+    facts, _ = build(acfg, [c], store, parse=lambda p, k: parse_text([PAGE1, PAGE2], k), inspect=lambda p: (2, "text"))
+    jsonschema.validate({k: v for k, v in facts.items() if k != "_wards"}, SCHEMA)
+    m = facts["meetings"][0]
+    assert m["agenda_url"] is None and m["minutes_status"] == "read" and "agenda_source_id" not in m

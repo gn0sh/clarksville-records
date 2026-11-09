@@ -149,7 +149,10 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
             sources[sid] = source_record(e, *inspect(path))
         return sources[sid], path
 
-    for r in sorted(rows, key=lambda r: (r["date"], int(r["agenda_id"].split("-")[-1]))):
+    # Agenda Center rows first on a day (their meeting ids were published first), then CivicClerk rows; within a
+    # source by its own id, so ids of one kind on one day (-2, -3) stay put
+    for r in sorted(rows, key=lambda r: (r["date"], r.get("source", "agenda-center") != "agenda-center",
+                                         int(r["agenda_id"].split("-")[-1]))):
         agenda_src, _ = source_for(r["agenda_url"])
         minutes_src, minutes_path = source_for(r["minutes_url"])
         src = minutes_src or agenda_src
@@ -183,6 +186,10 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
                    "stated_absent_count": None, "verification": _verification([])}
         if agenda_src:
             meeting["agenda_source_id"] = agenda_src["id"]
+        if r.get("source"):
+            meeting["listing_source"] = r["source"]
+        if r.get("video_url"):
+            meeting["video_url"] = r["video_url"]
         meetings.append(meeting)
         if pm is None or mstatus != "read":
             meeting["verification"] = _verification([_check("minutes_read", False, mstatus)])
@@ -224,9 +231,29 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
         "held_back_checks": dict(Counter(c["check"] for r in roll_calls for c in r["verification"]["checks"]
                                          if not c["ok"])),
         "unresolved_vote_names": dict(unresolved.most_common()),
+        "by_source": by_source(meetings, roll_calls),
         "problems": problems,
     }
     return {**facts, "_wards": wards}, summary
+
+
+def by_source(meetings: list[dict], roll_calls: list[dict]) -> dict:
+    """Counts per listing source (and for meetings from 2024 on), so each source's verified rate is reported apart."""
+    src_of = {m["id"]: m.get("listing_source", "agenda-center") for m in meetings}
+    date_of = {m["id"]: m["date"] for m in meetings}
+    out: dict[str, dict] = {}
+
+    def add(key: str, ms: list[dict], rcs: list[dict]) -> None:
+        ok = sum(r["verification"]["status"] == "verified" for r in rcs)
+        out[key] = {"meetings": len(ms), "minutes_read": sum(m.get("minutes_status") == "read" for m in ms),
+                    "with_video": sum(bool(m.get("video_url")) for m in ms), "roll_calls": len(rcs),
+                    "roll_calls_verified": ok, "verified_rate": round(ok / len(rcs), 4) if rcs else None}
+
+    for s in sorted(set(src_of.values())):
+        add(s, [m for m in meetings if src_of[m["id"]] == s], [r for r in roll_calls if src_of[r["meeting_id"]] == s])
+    add("2024_on", [m for m in meetings if m["date"] >= "2024"],
+        [r for r in roll_calls if date_of[r["meeting_id"]] >= "2024"])
+    return out
 
 
 def _out_of_room(pm: ParsedCityMinutes, roster, part_time: dict) -> list[set]:
