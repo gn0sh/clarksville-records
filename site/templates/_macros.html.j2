@@ -53,8 +53,16 @@
 {% if text %}<span class="seat">{{ text }}</span>{% endif %}
 {%- endmacro %}
 
+{# Free text with each official's name linked to their page (views.Index.text_parts). `href`: the other pieces link
+   there (an item's own page), so a name is never a link inside a link. #}
+{% macro parts(ps, root, href=none) -%}
+{% for p in ps %}{% if p.href %}<a href="{{ root }}{{ p.href }}">{{ p.text }}</a>{% elif href %}<a href="{{ href }}">{{ p.text }}</a>{% else %}{{ p.text }}{% endif %}{% endfor %}
+{%- endmacro %}
+
 {% macro item_link(item, root) -%}
-{% if item.href %}<a href="{{ root }}{{ item.href }}">{% if item.number %}<strong>{{ item.number }}</strong> {% endif %}{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}
+{% set ps = item.title_parts if item.title_parts is defined else [{"text": item.title, "href": none}] %}
+{% if ps | selectattr("href") | list %}{% if item.href %}{% if item.number %}<a href="{{ root }}{{ item.href }}"><strong>{{ item.number }}</strong></a> {% endif %}{{ parts(ps, root, root ~ item.href) }}{% else %}{{ parts(ps, root) }}{% endif %}
+{%- elif item.href %}<a href="{{ root }}{{ item.href }}">{% if item.number %}<strong>{{ item.number }}</strong> {% endif %}{{ item.title }}</a>{% else %}{{ item.title }}{% endif %}
 {%- endmacro %}
 
 {# A vote or attendance chip: swatch (pattern, never colour) plus the word. key is yes/no/abstain/other/present/absent. #}

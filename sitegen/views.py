@@ -113,7 +113,58 @@ class Index:
         dates = [m["date"] for m in facts["meetings"]]
         self.latest = max(dates) if dates else self.coverage["to"]
         # Holder records (design 4.1): seat labels and the current / served previously split. Empty without a roster.
-        self.seats = Seats(seat_rows, self.officials, self.latest)
+        self.seats = self.make_seats(seat_rows)
+        self.kind_labels = self.KIND_LABELS
+
+    # -- where a page lives. The county's pages are the default; a council (sitegen/council.py) overrides these, so
+    # the view functions below serve every body with one set of rules (N1).
+    KIND_LABELS = config.KIND_LABELS
+
+    def make_seats(self, seat_rows):
+        return Seats(seat_rows, self.officials, self.latest)
+
+    def official_href(self, official_id: str) -> str:
+        return f"officials/{official_id}.html"
+
+    def meeting_href(self, meeting_id: str, anchor: str = "") -> str:
+        """The page of a meeting, at `anchor` (a fact id, or ATTENDANCE for its attendance section) when given."""
+        return f"meetings/{meeting_id}.html" + (f"#{anchor}" if anchor else "")
+
+    def item_href(self, item: dict) -> str:
+        return f"items/{item['year']}.html#{item['id']}"
+
+    def item_title(self, item: dict) -> str:
+        return item["title"]
+
+    # Names printed inside free text (an item title is verbatim from the minutes, "Honoring Councilman X"): every
+    # official's display name links to their page (standing rule). This body's officials first; `extra_names` adds
+    # another body's ({name: href}), e.g. a county official named in a city item.
+    extra_names: dict = {}
+
+    def name_hrefs(self) -> dict:
+        if getattr(self, "_name_hrefs", None) is None:
+            own = {o["name"]: self.official_href(o["id"]) for o in self.facts["officials"]}
+            own.update({o["name"]: self.official_href(o["id"]) for o in self.seats.roster_only.values()})
+            self._name_hrefs = {**self.extra_names, **own}
+            names = sorted(self._name_hrefs, key=len, reverse=True)
+            self._name_re = (re.compile(r"(?<!\w)(" + "|".join(re.escape(n) for n in names) + r")(?!\w)")
+                             if names else None)
+        return self._name_hrefs
+
+    def text_parts(self, text: str) -> list[dict]:
+        """`text` as [{text, href}]: href is an official's page for each display name in it, else None."""
+        hrefs = self.name_hrefs()
+        if not text or self._name_re is None:
+            return [{"text": text, "href": None}]
+        out, last = [], 0
+        for m in self._name_re.finditer(text):
+            if m.start() > last:
+                out.append({"text": text[last:m.start()], "href": None})
+            out.append({"text": m.group(1), "href": hrefs[m.group(1)]})
+            last = m.end()
+        if last < len(text):
+            out.append({"text": text[last:], "href": None})
+        return out or [{"text": text, "href": None}]
 
     def outcome(self, rc: dict) -> dict:
         """Passed/Failed/Other plus the tally counted from the verified votes (never the minutes' raw outcome text).
@@ -180,7 +231,7 @@ class Index:
         return (fact["page"], ev["order"] if ev else 0, fact["id"])
 
     def meeting_label(self, m: dict) -> str:
-        return f"{m['date']}, {config.KIND_LABELS[m['kind']].lower()}"
+        return f"{m['date']}, {self.kind_labels[m['kind']].lower()}"
 
     def person(self, ref: dict | None, date: str | None = None) -> dict | None:
         """A linked official with the seat held on `date` (design 6A.2), or the fixed unmatched text."""
@@ -192,7 +243,7 @@ class Index:
             if date and self.seats.loaded:
                 # the seat held on that date, or the fixed words when no holder record covers it (never guessed)
                 seat = self.seats.on(oid, date) or SEAT_NOT_RECORDED
-            return {"name": self.officials[oid]["name"], "href": f"officials/{oid}.html", "seat": seat}
+            return {"name": self.officials[oid]["name"], "href": self.official_href(oid), "seat": seat}
         return {"name": "Name not matched", "href": None, "seat": None}  # never the raw OCR name on a public page
 
     def resolved_person(self, ref: dict | None, date: str | None = None) -> dict | None:
@@ -205,9 +256,11 @@ class Index:
     def item_ref(self, item_id: str) -> dict:
         it = self.items.get(item_id)
         if it is None:
-            return {"id": item_id, "number": None, "title": item_id, "href": None}
-        return {"id": it["id"], "number": it["number"], "title": it["title"],
-                "href": f"items/{it['year']}.html#{it['id']}"}
+            return {"id": item_id, "number": None, "title": item_id, "href": None,
+                    "title_parts": [{"text": item_id, "href": None}]}
+        title = self.item_title(it)
+        return {"id": it["id"], "number": it["number"], "title": title, "href": self.item_href(it),
+                "title_parts": self.text_parts(title)}
 
     def data_as_of(self) -> str:
         dates = [s["fetched_at"] for s in self.facts["sources"]]
@@ -223,6 +276,10 @@ class Index:
 
     def item_years(self) -> list[int]:
         return sorted({i["year"] for i in self.facts["items"]})
+
+
+# The anchor of a meeting's attendance section (Index.meeting_href).
+ATTENDANCE = "attendance"
 
 
 def _ix(facts) -> Index:
@@ -249,9 +306,10 @@ NAV = (  # design 2.2: fixed order, the same on every page. (label, href, page_n
 BUDGET_NAV = {"Finance": "finance/index.html", "Capital projects": "capital/index.html"}
 
 
-def _nav(ix: "Index", contracts: bool = False, budget: tuple = ()) -> list[dict]:
+def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=()) -> list[dict]:
     """`budget`: the BUDGET_NAV labels whose pages are built (Finance, and Capital projects when its fund is in
-    the file); each replaces its "coming" page and drops the Coming chip."""
+    the file); each replaces its "coming" page and drops the Coming chip. `councils`: each council's home page is
+    listed after Officials, under its configured label (council.yml nav_label)."""
     years = sorted({ix.meetings[rc["meeting_id"]]["date"][:4] for rc in ix.facts["roll_calls"]}, reverse=True)
     out = []
     for label, href, page, coming in NAV:
@@ -262,18 +320,21 @@ def _nav(ix: "Index", contracts: bool = False, budget: tuple = ()) -> list[dict]
         if label == "Votes":  # the newest year's page; each votes page links every year
             href = f"votes/{years[0]}.html" if years else "search.html"
         out.append({"label": label, "href": href, "page": page, "coming": coming})
+        if label == "Officials":
+            out += [{"label": c.nav_label, "href": c.home_href(), "page": c.nav_label, "coming": False}
+                    for c in councils]
     return out
 
 
-def site_context(facts, contracts: bool = False, budget: tuple = ()) -> dict:
+def site_context(facts, contracts: bool = False, budget: tuple = (), councils=()) -> dict:
     """`contracts`: finance.json is loaded, so the nav lists Bids and awards (design finance-contracts 1).
-    `budget`: the budget pages built (see _nav)."""
+    `budget`: the budget pages built (see _nav). `councils`: the council.CouncilIndex of each council built."""
     ix = _ix(facts)
     cfg = config.SITE
     return {
         "cfg": cfg,
         "csp": csp(),
-        "nav": _nav(ix, contracts, budget),
+        "nav": _nav(ix, contracts, budget, councils),
         # the footer link exists only when it is switched on and has an address (CEO, 2026-11-08)
         "support_url": (cfg.get("support_url") or "") if cfg.get("support_enabled") is True else "",
         "support_label": cfg.get("support_label") or "",
@@ -406,10 +467,10 @@ def _card(ix: Index, o: dict) -> dict:
     """One card template for everyone, current or former (design 6A.3: the section heading is the only difference).
     A roster-only person (in config/seats.yml, not in the facts) has no page and no counts: the fixed sentence."""
     if o["id"] in ix.seats.roster_only:
-        return {"id": o["id"], "name": o["name"], "title": o["title"], "href": f"officials/{o['id']}.html",
+        return {"id": o["id"], "name": o["name"], "title": o["title"], "href": ix.official_href(o["id"]),
                 "initials": initials(o), "seat": ix.seats.seat_text(o["id"]), "roster_only": True}
     c = official_counts(ix, o["id"])
-    return {"id": o["id"], "name": o["name"], "title": o["title"], "href": f"officials/{o['id']}.html",
+    return {"id": o["id"], "name": o["name"], "title": o["title"], "href": ix.official_href(o["id"]),
             "initials": initials(o), "present": c["present"], "listed": c["meetings_listed"],
             "rc_voted": c["rc_voted"], "rc_voted_nc": c["rc_voted_nc"], "seat": ix.seats.seat_text(o["id"]),
             "roster_only": False}
@@ -417,7 +478,7 @@ def _card(ix: Index, o: dict) -> dict:
 
 def observed_basis(ix: Index) -> str:
     """The basis line of "Current" for a record seen in roll calls (the common case), shown with every "Current"."""
-    return basis_text({"dates": "observed"}, ix.latest)
+    return basis_text({"dates": "observed"}, ix.seats.latest, ix.seats.wording)
 
 
 def officials_page(facts) -> dict:
@@ -469,8 +530,8 @@ def meetings_page(facts) -> dict:
         group = rc_by_meeting[m["id"]]
         shown = attendance_shown(m)
         by_year.setdefault(m["date"][:4], []).append({
-            "label": ix.meeting_label(m), "date": m["date"], "href": f"meetings/{m['id']}.html",
-            "kind_label": config.KIND_LABELS[m["kind"]],
+            "label": ix.meeting_label(m), "date": m["date"], "href": ix.meeting_href(m["id"]),
+            "kind_label": ix.kind_labels[m["kind"]],
             "rc_confirmed": sum(1 for rc in group if is_verified(rc)),
             "rc_unconfirmed": sum(1 for rc in group if not is_verified(rc)),
             "motions": motions_by_meeting[m["id"]],
@@ -541,7 +602,7 @@ def official(official_id: str, facts) -> dict:
         m = ix.meetings[meeting_id]
         return {
             "type": kind, "type_label": config.TYPE_LABELS[kind], "date": m["date"], "year": m["date"][:4],
-            "meeting_label": ix.meeting_label(m), "meeting_href": f"meetings/{meeting_id}.html{anchor}",
+            "meeting_label": ix.meeting_label(m), "meeting_href": ix.meeting_href(meeting_id, anchor),
             "fact_id": fact_id, "src": ix.src(source_id, page), "page": page,
             "item": None, "motion_text": None, "motion_label": None, "motion_by": None, "vote_on": None,
             "record": "", "key": None, "outcome": None, "pos": 0, "confirmed": True,
@@ -551,8 +612,7 @@ def official(official_id: str, facts) -> dict:
         for v in rc["votes"]:
             if v["official_id"] != official_id:  # resolved id only: an unmatched vote is on no official's page
                 continue
-            r = base("vote", rc["meeting_id"], f"{rc['id']}/{official_id}", rc["source_id"], rc["page"],
-                     f"#{rc['id']}")
+            r = base("vote", rc["meeting_id"], f"{rc['id']}/{official_id}", rc["source_id"], rc["page"], rc["id"])
             r["item"] = ix.item_ref(rc["item_id"])
             r.update(ix.motion_for(rc))
             shown = values_shown(rc)
@@ -569,7 +629,7 @@ def official(official_id: str, facts) -> dict:
         for a in m["attendance"]:
             if a["official_id"] != official_id:
                 continue
-            r = base("attendance", m["id"], f"{m['id']}/att/{official_id}", m["source_id"], a["page"], "#attendance")
+            r = base("attendance", m["id"], f"{m['id']}/att/{official_id}", m["source_id"], a["page"], ATTENDANCE)
             r["record"] = "Present" if a["status"] == "present" else "Absent"
             r["key"] = a["status"]
             rows.append(r)
@@ -580,7 +640,7 @@ def official(official_id: str, facts) -> dict:
                                        ("seconded", "seconded", mo["seconded_by"], att["seconder"])):
             if shown is None or ref["official_id"] != official_id:
                 continue
-            r = base(kind, mo["meeting_id"], f"{mo['id']}/{role}", mo["source_id"], mo["page"], f"#{mo['id']}")
+            r = base(kind, mo["meeting_id"], f"{mo['id']}/{role}", mo["source_id"], mo["page"], mo["id"])
             r["item"] = ix.item_ref(mo["item_id"])
             r["record"] = motion_type_label(mo["text"])  # the type only, never the minutes' sentence
             rc = ix.rc_by_motion.get(mo["id"])
@@ -712,7 +772,7 @@ def meeting(meeting_id: str, facts) -> dict:
     }
     return {
         "stats": stats, "meeting": m, "label": ix.meeting_label(m),
-        "kind_label": config.KIND_LABELS[m["kind"]],
+        "kind_label": ix.kind_labels[m["kind"]],
         "doc": {"url": src["url"], "kind": src["kind"], "fetched": src["fetched_at"], "pages": src["pages"]},
         "attendance_state": att_state, "attendance": attendance,
         "blocks": [b for _, b in shown],
@@ -726,7 +786,7 @@ def meeting(meeting_id: str, facts) -> dict:
 def _event(ix: Index, e: dict) -> dict:
     out = {
         "id": e["id"], "date": e["date"], "type_label": config.EVENT_TYPE_LABELS[e["type"]], "type": e["type"],
-        "label": e["label"], "meeting_href": f"meetings/{e['meeting_id']}.html",
+        "label": e["label"], "meeting_href": ix.meeting_href(e["meeting_id"]),
         "meeting_label": ix.meeting_label(ix.meetings[e["meeting_id"]]),
         "src": ix.src(e["source_id"], e["page"]), "motion": None, "roll_call": None,
     }
@@ -736,11 +796,11 @@ def _event(ix: Index, e: dict) -> dict:
     if e["type"] == "roll_call" and ref in ix.roll_calls:
         rc = ix.roll_calls[ref]
         out["roll_call"] = _roll_call_block(ix, rc)  # marked * inside the block when unconfirmed
-        out["meeting_href"] += f"#{rc['id']}"
+        out["meeting_href"] = ix.meeting_href(e["meeting_id"], rc["id"])
     elif e["type"] == "motion" and ref in ix.motions:
         mo = ix.motions[ref]
         out["motion"] = _motion_block(ix, mo)  # attribution held inside the block when the motion is unverified
-        out["meeting_href"] += f"#{mo['id']}"
+        out["meeting_href"] = ix.meeting_href(e["meeting_id"], mo["id"])
     return out
 
 
@@ -797,7 +857,8 @@ def items_year(year: int, facts) -> dict:
             continue
         events = sorted(ix.events_by_item[it["id"]], key=lambda e: (e["date"], e["page"], e["order"], e["id"]))
         entries.append({
-            "id": it["id"], "number": it["number"], "title": it["title"],
+            "id": it["id"], "number": it["number"], "title": ix.item_title(it),
+            "title_parts": ix.text_parts(ix.item_title(it)),
             "basis": "Linked by number" if it["link_basis"] == "number" else "Linked by title",
             "zoning": zoning_rows(ix, it),
             "events": [_event(ix, e) for e in events],
@@ -1179,27 +1240,24 @@ def zoning_search_text(item: dict) -> str:
     return " · ".join(parts)
 
 
-def search_index(facts, fin=None) -> dict:
-    """The one first-party search index (manager decision Q3), loaded by static/search.js. Unconfirmed roll calls
-    carry no outcome and no votes, so a vote or outcome filter can never match one (invariant rules 1 and 5).
-    `fin` (a fin_views.Finance) adds the solicitations, type `sol` (finance-contracts F7)."""
-    ix = _ix(facts)
-    cfg = config.SITE
-    body = cfg["county_key"]
+def body_records(ix: Index, body: str) -> list[dict]:
+    """One body's search records (items, votes, meetings, people), every href from the body's own Index, so the
+    county and a council (sitegen/council.py) are indexed by one rule."""
     records = []
     for it in ix.facts["items"]:
         evs = sorted(ix.events_by_item[it["id"]], key=lambda e: e["date"])
         dates = [e["date"] for e in evs]
-        records.append({"k": "item", "id": it["id"], "n": it["number"] or "", "t": it["title"],
+        records.append({"k": "item", "id": it["id"], "n": it["number"] or "", "t": ix.item_title(it),
                         "d": dates[0] if dates else "", "d2": dates[-1] if dates else "", "a": len(evs),
                         "y": sorted({int(d[:4]) for d in dates} or {it["year"]}), "ty": item_types(it), "b": body,
-                        "h": f"items/{it['year']}.html#{it['id']}", "z": zoning_search_text(it)})
+                        "h": ix.item_href(it), "z": zoning_search_text(it)})
     for rc in ix.facts["roll_calls"]:
         m = ix.meetings[rc["meeting_id"]]
         it = ix.items.get(rc["item_id"], {})
-        rec = {"k": "vote", "id": rc["id"], "n": it.get("number") or "", "t": it.get("title") or rc["item_id"],
+        rec = {"k": "vote", "id": rc["id"], "n": it.get("number") or "",
+               "t": (ix.item_title(it) if it else "") or rc["item_id"],
                "d": m["date"], "y": [int(m["date"][:4])], "ty": item_types(it) if it else ["other"], "b": body,
-               "h": f"meetings/{m['id']}.html#{rc['id']}", "c": is_verified(rc), "o": None, "v": None, "s": None,
+               "h": ix.meeting_href(m["id"], rc["id"]), "c": is_verified(rc), "o": None, "v": None, "s": None,
                "z": zoning_search_text(it)}
         if values_shown(rc) and is_verified(rc):  # confirmed only, whatever the display switch says
             rec["o"] = rc["outcome"]
@@ -1211,14 +1269,41 @@ def search_index(facts, fin=None) -> dict:
     for m in ix.facts["meetings"]:
         records.append({"k": "meeting", "id": m["id"], "n": "", "t": f"{ix.meeting_label(m)}, {m['body']}",
                         "d": m["date"], "y": [int(m["date"][:4])], "ty": [], "b": body,
-                        "h": f"meetings/{m['id']}.html"})
-    officials = sorted(ix.facts["officials"], key=name_key)
-    for o in officials:
+                        "h": ix.meeting_href(m["id"])})
+    for o in sorted(ix.facts["officials"], key=name_key):
         records.append({"k": "person", "id": o["id"], "n": "", "t": o["name"], "st": ix.seats.seat_text(o["id"]) or "",
-                        "d": "", "y": [], "ty": [], "b": body, "h": f"officials/{o['id']}.html"})
+                        "d": "", "y": [], "ty": [], "b": body, "h": ix.official_href(o["id"])})
     for o in sorted(ix.seats.roster_only.values(), key=name_key):  # no votes, but a page and a name to find
         records.append({"k": "person", "id": o["id"], "n": "", "t": o["name"], "st": ix.seats.seat_text(o["id"]) or "",
-                        "d": "", "y": [], "ty": [], "b": body, "h": f"officials/{o['id']}.html"})
+                        "d": "", "y": [], "ty": [], "b": body, "h": ix.official_href(o["id"])})
+    return records
+
+
+def _seat_on(ix: Index, seat_labels: list[str], seat_on: dict[str, dict[str, int]]) -> None:
+    """Adds the seat each of the body's officials held on each of its roll-call dates (labels only)."""
+    if not ix.seats.loaded:
+        return
+    for rc in ix.facts["roll_calls"]:
+        d = ix.meetings[rc["meeting_id"]]["date"]
+        for v in rc["votes"]:
+            oid = v["official_id"]
+            if not oid or oid not in ix.officials or oid in seat_on.get(d, {}):
+                continue
+            label = ix.seats.on(oid, d) or SEAT_NOT_RECORDED
+            if label not in seat_labels:
+                seat_labels.append(label)
+            seat_on.setdefault(d, {})[oid] = seat_labels.index(label)
+
+
+def search_index(facts, fin=None, councils=()) -> dict:
+    """The one first-party search index (manager decision Q3), loaded by static/search.js. Unconfirmed roll calls
+    carry no outcome and no votes, so a vote or outcome filter can never match one (invariant rules 1 and 5).
+    `fin` (a fin_views.Finance) adds the solicitations, type `sol` (finance-contracts F7). `councils` (each a
+    council.CouncilIndex) adds each council's records under its own body key."""
+    ix = _ix(facts)
+    cfg = config.SITE
+    body = cfg["county_key"]
+    records = body_records(ix, body)
     for row in district_rows(ix):
         records.append({"k": "person", "id": f"district-{row['number']}", "n": "",
                         "t": f"{cfg['district_page_title']} {row['number']}", "st": row["holder"] or "",
@@ -1226,42 +1311,42 @@ def search_index(facts, fin=None) -> dict:
                         "d": "", "y": [], "ty": [], "b": body, "h": row["href"]})
     if fin is not None:
         records += fin_views.search_records(fin, body)
+    bodies = [{"key": body, "label": cfg["county_body"]}]
+    people = [(ix, o) for o in sorted(ix.facts["officials"], key=name_key)]
+    for cix in councils:
+        records += body_records(cix, cix.body_key)
+        bodies.append({"key": cix.body_key, "label": cix.body_name})
+        people += [(cix, o) for o in sorted(cix.facts["officials"], key=name_key)]
     years = sorted({y for r in records for y in r["y"]})
     # Compact: seat_on[date][official] is an index into seat_labels, for the officials with a vote on that date.
     seat_labels: list[str] = []
     seat_on: dict[str, dict[str, int]] = {}
-    if ix.seats.loaded:
-        for rc in ix.facts["roll_calls"]:
-            d = ix.meetings[rc["meeting_id"]]["date"]
-            for v in rc["votes"]:
-                oid = v["official_id"]
-                if not oid or oid not in ix.officials or oid in seat_on.get(d, {}):
-                    continue
-                label = ix.seats.on(oid, d) or SEAT_NOT_RECORDED
-                if label not in seat_labels:
-                    seat_labels.append(label)
-                seat_on.setdefault(d, {})[oid] = seat_labels.index(label)
+    for x in (ix, *councils):
+        _seat_on(x, seat_labels, seat_on)
     return {
         "records": records,
-        # alphabetical by surname, no counts (design 5.2, N3); everyone with a holder record carries their seat
-        # label, current ("District 7") or former ("District 7 (seen in roll calls X to Y)"), design 6A.2
-        "officials": [{"id": o["id"], "label": _search_name(o) + (f" ({ix.seats.seat_text(o['id'])})"
-                                                                  if ix.seats.seat_text(o["id"]) else "")}
-                      for o in officials],
+        # alphabetical by surname within each body, no counts (design 5.2, N3); everyone with a holder record carries
+        # their seat label, current ("District 7") or former ("District 7 (seen in roll calls X to Y)"), design 6A.2
+        "officials": [{"id": o["id"], "label": _search_name(o) + (f" ({x.seats.seat_text(o['id'])})"
+                                                                  if x.seats.seat_text(o["id"]) else "")}
+                      for x, o in people],
         # The seat each official held on each roll-call date (vote filter rows, design 6A.2): labels only, never a
         # holder record's dates. An official with no record covering a date reads "seat not recorded".
         "seat_labels": seat_labels, "seat_on": seat_on,
-        "names": {o["id"]: o["name"] for o in officials},
+        "names": {o["id"]: o["name"] for _, o in people},
+        # each official's page, for the result lines static/search.js writes (county and council pages differ)
+        "hrefs": {o["id"]: x.official_href(o["id"]) for x, o in people},
+        "bodies": bodies,
         "years": years,
         "types": [{"key": t["key"], "label": t["label"]} for t in cfg["item_types"]] + [{"key": "other", "label": "Other"}],
         "county_body": cfg["county_body"],
     }
 
 
-def search_page(facts, fin=None) -> dict:
+def search_page(facts, fin=None, councils=()) -> dict:
     ix = _ix(facts)
-    idx = search_index(ix, fin)
-    return {"years": idx["years"], "types": idx["types"], "officials": idx["officials"],
+    idx = search_index(ix, fin, councils)
+    return {"years": idx["years"], "types": idx["types"], "officials": idx["officials"], "bodies": idx["bodies"],
             "contracts_kind": config.FIN_TEXT["contracts"]["search_kind"] if fin is not None else None}
 
 

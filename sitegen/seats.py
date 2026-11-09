@@ -132,11 +132,18 @@ def source_label(url: str) -> str:
     return f"p. {m.group(1)}" if m else "source"
 
 
-def basis_text(rec: dict, latest: str) -> str:
+# The fixed wording of observed holder records (architecture, invariant `provenance`). `evidence` names what printed
+# the holder in the seat ("roll calls" for the county; a council's attendance lists print each member's ward);
+# `latest` names what the latest date L is. The county's wording is the default; a council passes its own.
+COUNTY_WORDING = {"evidence": "roll calls", "latest": "the latest meeting collected"}
+
+
+def basis_text(rec: dict, latest: str, wording: dict | None = None) -> str:
     """The basis of a derived "Current" status, shown wherever "Current" is (architecture, invariant `provenance`)."""
     if rec["dates"] == "sourced":
         return "Current: the source prints no end to this term"
-    return f"Current: in the roll calls of the latest meeting collected, {latest}"
+    w = wording or COUNTY_WORDING
+    return f"Current: in the {rec.get('evidence') or w['evidence']} of {w['latest']}, {latest}"
 
 
 class Seats:
@@ -145,9 +152,10 @@ class Seats:
     `dates_text` is the only place a holder record's dates become words. Records keep `start`/`end` for sorting and
     the on-date lookup, but nothing that leaves this class for a page carries them."""
 
-    def __init__(self, rows: list[dict] | None, officials: dict, latest: str):
+    def __init__(self, rows: list[dict] | None, officials: dict, latest: str, wording: dict | None = None):
         self.loaded = rows is not None
         self.latest = latest
+        self.wording = wording or COUNTY_WORDING
         self.records: list[dict] = []
         # A roster person with no facts yet (e.g. a mayor, who has no roll call votes): kept, shown by name with their
         # seat and no history, never linked to a page that does not exist.
@@ -177,14 +185,15 @@ class Seats:
         """Fixed wording (architecture, invariant `provenance`); L = the latest meeting collected."""
         if rec["dates"] == "sourced":
             return f"term {rec['printed']}, as the source prints it"
+        ev = rec.get("evidence") or self.wording["evidence"]
         if rec["official_id"] is None:
-            return f"shown as vacant in roll calls from {rec['start']} to {rec['end'] or self.latest}"
+            return f"shown as vacant in {ev} from {rec['start']} to {rec['end'] or self.latest}"
         if rec["end"] is None:
-            return f"seen in roll calls from {rec['start']} to {self.latest}, the latest meeting collected"
-        return f"seen in roll calls {rec['start']} to {rec['end']}"
+            return f"seen in {ev} from {rec['start']} to {self.latest}, {self.wording['latest']}"
+        return f"seen in {ev} {rec['start']} to {rec['end']}"
 
     def basis(self, rec: dict) -> str:
-        return basis_text(rec, self.latest)
+        return basis_text(rec, self.latest, self.wording)
 
     def view(self, rec: dict) -> dict:
         """What a page may know about a record: label, wording and sources, never a bare start/end."""
