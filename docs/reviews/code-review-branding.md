@@ -6,3 +6,6 @@
 - should: transcript pages lack the Official record line (rule 6 false); record-line/no-data-ext-on-pdf check; trust/rules wording (rule 7 conflict checks have no mechanism yet); method/claim-vs-config (show_unconfirmed_values); method/duplicated-ua; corrections/log-validation-gaps; license/ofl-text-missing.
 - nits: whole-build footer guard; unused contexts; RFN check on subset fonts.
 Manager decisions: keep the 8 rules and the 2-business-day correction promise (CEO-approved plan, Nov 9); reword rule 7 as a pre-agreement commitment since no payers exist.
+
+## Delta re-review of 46655f1: APPROVE WITH NITS
+All must/should items closed; OFL text matches canonical 1.1. Nits: alerts per-ward sentence came from a separate ask (fine); rule 6 now says "Every record page" (manager fix).

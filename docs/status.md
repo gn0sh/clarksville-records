@@ -247,5 +247,5 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | code-reviewer | opus | call-on delta 11106f7 | approve
 - 2026-11-09 23:07Z Brian: keep both designs (Public Ledger, Seat Map) for A/B testing once the site is complete; decide then. Saved in docs/design/ab-candidates/. A/B needs analytics (go-live ask).
 - 2026-11-09 23:12Z Brian: map only useful first visit; address lookup solves it. Next (after branding fixes merge): landing leads with address search; map secondary (collapsed or below); remember the visitor's ward/district in localStorage for return visits ("Your seats").
-- 2026-11-09 | frontend-engineer | sonnet/medium | branding review fixes | merged 3933a90 (1608 passed); delta review running
+- 2026-11-09 | frontend-engineer | sonnet/medium | branding review fixes | merged 3933a90 (1608 passed); delta APPROVE
 - 2026-11-09 | frontend-engineer | sonnet/medium | address-first landing + Your seats (localStorage) | running
