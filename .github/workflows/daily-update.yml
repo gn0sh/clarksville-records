@@ -1,7 +1,9 @@
 # Daily update and GitHub Pages deploy for https://records.gnoshcodes.com/
 #
-# update job : collect politely, rebuild, check, commit refreshed data to main, upload the site as a Pages artifact.
-#              Runs daily and on demand. It never publishes anything.
+# update job : collect politely, rebuild, check, upload the refreshed data/ and the site as artifacts. It parses
+#              untrusted downloaded PDFs, so it has read-only repo access and no persisted token. It never publishes.
+# push job   : commits the refreshed data/ (from the update job's artifact) to main. The only job with contents: write;
+#              it parses nothing.
 # deploy job : publishes that artifact to GitHub Pages. LOCKED until launch: it runs only when the repository variable
 #              RECORDS_DEPLOY_ENABLED is exactly 'true'. Setting that variable is the CEO's go-live step (hard stop 1).
 #              See docs/ops/launch-runbook.md. No secrets are used anywhere; GITHUB_TOKEN is the only credential.
@@ -38,14 +40,14 @@ jobs:
     # cache was evicted) refetches about 930 documents at 10 s each plus parsing: budget the hosted-runner maximum.
     timeout-minutes: 355
     permissions:
-      contents: write        # commit refreshed data/ to main
+      contents: read         # check out main; the token is NOT persisted (pipeline/token-exposure-untrusted-parse)
       issues: write          # open one issue when a run fails
     steps:
       - name: Check out main
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: main
-          persist-credentials: true   # needed for the data commit below (GITHUB_TOKEN, contents: write only)
+          persist-credentials: false  # untrusted PDFs are parsed in this job: no token on disk
 
       - name: Set up Python
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
@@ -134,19 +136,22 @@ jobs:
           path: data/store
           key: records-store-v1-${{ github.run_id }}
 
-      - name: Commit refreshed data to main
+      # The data commit happens in the separate push job, so this job never holds a write token.
+      # Not uploaded: the git-ignored caches (the 3 GB document store and derived text/OCR).
+      - name: Upload refreshed data
         if: success() && (github.event_name == 'schedule' || inputs.collect)
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data
-          if git diff --cached --quiet; then
-            echo "No data changes."
-          else
-            git commit -m "Daily update: refreshed records data ($(date -u +%F))"
-            git pull --rebase origin main
-            git push origin HEAD:main
-          fi
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: records-data
+          path: |
+            data
+            !data/store
+            !data/raw
+            !data/text
+            !data/ocr
+            !data/out
+          retention-days: 2
+          if-no-files-found: error
 
       # Pages deployed from Actions takes the domain from the repository settings; the file keeps the domain with the
       # build output (and serves a branch-based deploy too).
@@ -160,6 +165,42 @@ jobs:
         with:
           path: build/site
           retention-days: 2
+
+  push:
+    needs: update
+    if: github.event_name == 'schedule' || inputs.collect
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write        # commit refreshed data/ to main: the only job that can write to the repository
+    steps:
+      - name: Check out main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: main
+
+      - name: Download refreshed data
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: records-data
+          path: ${{ runner.temp }}/records-data
+
+      - name: Commit refreshed data to main
+        run: |
+          # data/ in a fresh checkout holds only tracked files (the ignored caches are absent), so replacing it whole
+          # keeps deletions too. Only data/ is ever staged.
+          rm -rf data
+          cp -a "$RUNNER_TEMP/records-data" data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then
+            echo "No data changes."
+          else
+            git commit -m "Daily update: refreshed records data ($(date -u +%F))"
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
 
   deploy:
     needs: update

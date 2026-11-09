@@ -12,11 +12,12 @@ import subprocess
 from pathlib import Path
 
 MIN_CHARS_PER_PAGE = 40
+PARSE_TIMEOUT = 120     # seconds; a hung poppler tool is a parse failure for that document (pipeline/parser-dos)
 
 
 def extract_pages(pdf: Path) -> list[str]:
     out = subprocess.run(["pdftotext", "-layout", "-enc", "UTF-8", str(pdf), "-"],
-                         check=True, capture_output=True).stdout.decode("utf-8", "replace")
+                         check=True, capture_output=True, timeout=PARSE_TIMEOUT).stdout.decode("utf-8", "replace")
     pages = out.split("\f")
     if pages and not pages[-1].strip():
         pages = pages[:-1]

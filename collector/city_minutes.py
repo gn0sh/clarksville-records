@@ -126,9 +126,9 @@ def pdf_layer(pdf: Path, pages: list[str]) -> str:
     made the text (e.g. tesseract's GlyphLessFont); else 'text'."""
     if not pages or len(image_only_pages(pages)) == len(pages):
         return "none"
-    info = subprocess.run(["pdfinfo", str(pdf)], capture_output=True).stdout.decode("utf-8", "replace")
+    info = subprocess.run(["pdfinfo", str(pdf)], capture_output=True, timeout=120).stdout.decode("utf-8", "replace")
     made_by = " ".join(re.findall(r"^(?:Creator|Producer):\s*(.*?)\s*$", info, re.M))
-    fonts = subprocess.run(["pdffonts", str(pdf)], capture_output=True).stdout.decode("utf-8", "replace")
+    fonts = subprocess.run(["pdffonts", str(pdf)], capture_output=True, timeout=120).stdout.decode("utf-8", "replace")
     if SCAN_MARKS.search(made_by) or "GlyphLessFont" in fonts:
         return "ocr"
     return "text"

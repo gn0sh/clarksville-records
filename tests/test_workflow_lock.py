@@ -54,3 +54,18 @@ def test_launch_overrides_are_read_from_the_environment(monkeypatch):
         monkeypatch.undo()
         importlib.reload(config)
     assert config.max_files() == 500 and config.SITE["alerts"]["site_url"] == ""
+
+
+def test_untrusted_parse_job_has_no_write_token():
+    """pipeline/token-exposure-untrusted-parse: the update job parses downloaded PDFs, so it gets no write access and
+    no persisted token; only the small push job (which parses nothing) can write to the repository."""
+    jobs = WF["jobs"]
+    assert jobs["update"]["permissions"] == {"contents": "read", "issues": "write"}
+    checkout = [s for s in jobs["update"]["steps"] if "actions/checkout@" in s.get("uses", "")]
+    assert checkout and all(s["with"]["persist-credentials"] is False for s in checkout)
+    writers = [n for n, j in jobs.items() if (j.get("permissions") or {}).get("contents") == "write"]
+    assert writers == ["push"]
+    assert jobs["push"]["needs"] == "update"
+    assert "git push" not in "\n".join(s.get("run", "") for s in jobs["update"]["steps"])
+    assert not any("python" in s.get("run", "") for s in jobs["push"]["steps"])      # parses nothing
+    assert jobs["deploy"]["needs"] == "update"
