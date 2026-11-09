@@ -120,8 +120,15 @@ budget:
     within_rounding: Adds up within rounding
     does_not_add_up: "As printed, does not add up"
     not_checked: "Not checked: a line this total adds is held as not confirmed."
-  # does_not_add_up: the columns where the printed total and its lines differ, by printed header (words, no numbers)
-  check_columns: "In the column:"
+  # Owner's decision, 2026-11-08: a total that does not add up carries a note per affected column, with the numbers
+  # from the check cells (printed, sum, diff = printed - sum). Fixed wording only: no commentary, no blame.
+  # {header}: the column's printed header. {printed}, {sum}, {diff}, {abs}: whole dollars with thousands separators,
+  # negatives in parentheses as the book prints them. {direction} is diff_higher or diff_lower.
+  diff_note: "{header}: the book prints {printed}. The lines printed above it add up to {sum}. Difference: {diff} (the printed total is {abs} {direction})."
+  diff_higher: higher
+  diff_lower: lower
+  diff_note_no_lines: "{header}: the book prints this total, {printed}, with no lines above it to add."
+  diff_note_rounding: "{header}: off by {abs} because the book rounds each line to whole dollars."
   check_lines_link: Lines it was checked against
   flagged_heading: Totals that do not add up as printed
   flagged_caption: "{label} (p. {page}): the total as printed, then the lines it was checked against"

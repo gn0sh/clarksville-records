@@ -397,3 +397,77 @@ def test_site_checks_know_the_budget_pages(fin):
                       ("capital/index.html", "capital")):
         assert site_checks.page_type(rel) == kind and kind in site_checks.NARROW_TYPES
     assert site_checks.MAX_FILES == config.MAX_FILES == 500  # under the artifact limit of 511 files
+
+
+# ---- difference notes (owner's decision 2026-11-08) ----------------------------------------------------------------
+
+def notes_in(html, block_id=None, fid=None):
+    """The b-diff notes in the row of a fact (first one on the page) or in a flagged block."""
+    doc = parse(html)
+    if block_id:
+        root = next(n for n in doc.walk() if n.attrs.get("id") == block_id)
+        nodes = list(root.walk())
+    else:
+        nodes = list(doc.walk())
+    out = []
+    for n in nodes:
+        if n.tag == "tr" and (n.attrs.get("data-fact-id") == fid or (block_id and "data-fact-id" in n.attrs)):
+            out += [re.sub(r"\s+", " ", li.all_text()).strip() for li in n.walk()
+                    if li.tag == "li" and li.parent is not None and "b-diff" in li.parent.attrs.get("class", "")]
+        if fid and out:
+            break
+    return out
+
+
+def line_of(fin, lid):
+    return next(x for x in fin["budget_lines"] if x["id"] == lid)
+
+
+def test_note_numbers_equal_the_check_cells(bpages, fin):
+    x = line_of(fin, "fy2027-approved/p21/r3")
+    pc = x["check"]["per_cell"][1]
+    assert (pc["printed"], pc["sum"], pc["diff"]) == (3100, 3000, 100)
+    want = "FY 2026 Amended: the book prints 3,100. The lines printed above it add up to 3,000. " \
+           "Difference: 100 (the printed total is 100 higher)."
+    assert notes_in(bpages["finance/901.html"], fid="fy2027-approved/p21/r3") == [want]
+    assert notes_in(bpages["finance/901.html"], block_id="chk-fy2027-approved-p21-r3") == [want]  # same note in the section
+
+
+def test_note_with_no_lines_above_the_total(bpages):
+    want = "FY 2026 Amended: the book prints this total, 25,000, with no lines above it to add."
+    assert notes_in(bpages["capital/index.html"], fid="fy2027-approved/p100/r4") == [want]
+
+
+def test_within_rounding_note_is_one_short_line(bpages, fin):
+    pc = line_of(fin, "fy2027-approved/p20/r6")["check"]["per_cell"][0]
+    assert pc["diff"] == 1
+    n = notes_in(bpages["finance/901.html"], fid="fy2027-approved/p20/r6")
+    assert n == ["FY 2025 Actuals: off by 1 because the book rounds each line to whole dollars."]
+
+
+def test_negative_difference_says_lower_with_parentheses(fin):
+    x = copy.deepcopy(line_of(fin, "fy2027-approved/p21/r3"))
+    x["check"]["per_cell"][1].update(printed=3000, sum=3900, diff=-900)
+    assert budget_views.diff_notes(x) == [
+        "FY 2026 Amended: the book prints 3,000. The lines printed above it add up to 3,900. "
+        "Difference: (900) (the printed total is 900 lower)."]
+    x["check"]["per_cell"][1].update(printed=-1200, sum=0, diff=-1200)
+    x["scope_line_ids"] = []
+    assert budget_views.diff_notes(x) == [
+        "FY 2026 Amended: the book prints this total, (1,200), with no lines above it to add."]
+
+
+def test_held_and_not_checked_totals_get_no_numbers(fin):
+    x = copy.deepcopy(line_of(fin, "fy2027-approved/p21/r3"))
+    x["check"]["state"] = "not_checked"
+    assert budget_views.diff_notes(x) == []
+
+
+def test_real_trustee_note_text():
+    real = json.loads((ROOT / "data" / "finance.json").read_text(encoding="utf-8"))
+    x = next(x for x in real["budget_lines"] if x["id"] == "fy2027-approved/p47/r37")
+    assert budget_views.diff_notes(x) == [
+        "FY 2025 Actuals: the book prints 1,039,953. The lines printed above it add up to 1,039,952. "
+        "Difference: 1 (the printed total is 1 higher).",
+        "FY 2026 Amended: the book prints 1,226,777. The lines printed above it add up to 1,230,677. "
+        "Difference: (3,900) (the printed total is 3,900 lower)."]

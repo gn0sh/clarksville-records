@@ -767,7 +767,7 @@ table.budget th .kind { font-weight: 400; font-size: var(--t-xs); color: var(--m
 table.budget td.c-acct { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
 table.budget th.c-line { min-width: 12rem; }
 table.budget .b-check, table.budget .b-held, table.budget .b-moved, table.budget .b-edition { display: block; font-size: var(--t-xs); font-weight: 400; }
-table.budget .b-cols { color: var(--muted); }
+table.budget .b-diff { margin: .25rem 0 0; padding: 0; list-style: none; font-size: var(--t-xs); font-weight: 400; color: var(--muted); }
 table.budget tr.b-subtotal th.c-line, table.budget tr.b-total th.c-line { font-weight: 700; }
 table.budget tr.b-subtotal > *, table.budget tr.b-total > * { border-top: 2px solid var(--fg); }
 table.budget td.c-source { min-width: 9rem; }

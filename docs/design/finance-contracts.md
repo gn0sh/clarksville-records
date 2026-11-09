@@ -73,7 +73,7 @@ Any elected official named on a page links to their vote page via the `person` m
 | No bid tab | section 2 replaced by "No bid tab was found for this solicitation. Documents are listed above." No amounts, no awardee, no "missing" styling |
 | Scanned only | "Scanned, read it yourself" on the row; detail adds "This document is a scanned image. No amount, name or date has been read from it." |
 | Documents differ (AC-F4) | `.note` above the bid tab: "Documents differ, read both." with both links and the names of the differing fields only (Awardee, Number of bidders); no explanation, no verdict |
-| Total does not add up as printed | total shown as printed with "as printed, does not add up" and the lines it was checked against in a nested table |
+| Total does not add up as printed | total shown as printed with "as printed, does not add up" and the lines it was checked against in a nested table. Owner decision 2026-11-08: a fixed-wording note under the total, per affected column, gives printed, sum of lines and difference from the check cells (shorter for within rounding; templates in `config/finance_text.yml`). |
 | Not confirmed* | `not_confirmed` macro: "Not confirmed*" and "Read it yourself" link, no number |
 | Link dead at fetch | row text "Link not available at fetch ({date})" with the archive page link |
 | Empty filter result | "No solicitations match. Clear filters." Coverage sentence stays |

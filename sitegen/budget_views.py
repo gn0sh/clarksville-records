@@ -43,6 +43,35 @@ def aria_amount(text: str | None) -> str | None:
     return None
 
 
+def dollars(n: int) -> str:
+    """Whole dollars with thousands separators; a negative in parentheses, as the book prints it."""
+    return f"({-n:,})" if n < 0 else f"{n:,}"
+
+
+def diff_notes(line: dict) -> list[str]:
+    """One fixed-wording note per column whose printed total and summed lines differ (owner's decision 2026-11-08).
+    The numbers are the check cells' printed, sum and diff, never recomputed."""
+    check = line["check"]
+    state = check["state"]
+    if state not in ("does_not_add_up", "within_rounding"):
+        return []
+    out = []
+    for c, pc in zip(line["cells"], check["per_cell"]):
+        d = pc["diff"]
+        if d in (0, None):
+            continue
+        h = c["header_as_printed"]
+        if state == "within_rounding":
+            out.append(B["diff_note_rounding"].format(header=h, abs=f"{abs(d):,}"))
+        elif not line["scope_line_ids"]:
+            out.append(B["diff_note_no_lines"].format(header=h, printed=dollars(pc["printed"])))
+        else:
+            out.append(B["diff_note"].format(
+                header=h, printed=dollars(pc["printed"]), sum=dollars(pc["sum"]), diff=dollars(d), abs=f"{abs(d):,}",
+                direction=B["diff_higher"] if d > 0 else B["diff_lower"]))
+    return out
+
+
 def coverage_sentence(cov: dict) -> str:
     """Design 2: the one budget coverage sentence, from finance.json's coverage block (never counted here)."""
     return T["coverage_budget"].format(n_lines=cov["n_lines"], n_books=cov["n_books"], n_flag=cov["n_flag"])
@@ -122,11 +151,8 @@ def _row(bg: Budget, line: dict, href_of) -> dict:
     check = None
     if line["check"] is not None and not held:  # a held total says why it is held instead (not_confirmed)
         state = line["check"]["state"]
-        cols = []
-        if state == "does_not_add_up":  # which printed columns differ, by header; no amount is computed or shown
-            cols = [c["header_as_printed"] for c, pc in zip(line["cells"], line["check"]["per_cell"])
-                    if pc["diff"] not in (0, None)]
-        check = {"state": state, "words": B["check"][state], "flag": state == "does_not_add_up", "columns": cols,
+        check = {"state": state, "words": B["check"][state], "flag": state == "does_not_add_up",
+                 "notes": diff_notes(line),
                  "href": "#chk-" + anchor(line["id"])[2:]}
     moved = []
     if line["row_role"] != "detail":  # tagged lines this total adds that are listed in another section
