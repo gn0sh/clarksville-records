@@ -29,7 +29,11 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               only on submit) is exactly config/site.yml geocoder_url; a page that loads static/address.js carries
               its settings block (addr-config); every page has one CSP meta whose script-src is 'self' only, plus
               (only beside the address box) one sha256 hash and exactly geocoder_url
-  files       fewer than 250 files
+  feeds       every feeds/*.xml is Atom (feed id, title, updated, author, self link; each entry id, title, updated,
+              alternate link) with unique tag: ids, newest first, at most alerts.max_entries; each alternate link
+              resolves to a built page and its #anchor, each related link is a fetched source document; alerts.html
+              links every feed and no other (Alerts v1, sitegen/feeds.py)
+  files       fewer than 500 files
   row-height  no table row (or vote / result list item) taller than 60% of the viewport, with long text clamped and row
               details collapsed, at 375x667, 768x1024, 1000x800 and 1280x800 (contracts pages also at 360x640); needs Playwright (node)
   hscroll     no horizontal scroll at 390 px (contracts pages also at 360 px) for the page types (index, official, meeting, items, and when present
@@ -455,7 +459,7 @@ def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: 
     toks = unverified_tokens(facts)
     for f in sorted(site.rglob("*")):
         rel = f.relative_to(site).as_posix()
-        if not f.is_file() or rel == "review.html" or f.suffix not in (".html", ".csv", ".json", ".js", ".css", ".txt", ".md"):
+        if not f.is_file() or rel == "review.html" or f.suffix not in (".html", ".csv", ".json", ".js", ".css", ".txt", ".md", ".xml"):
             continue
         body = f.read_text(encoding="utf-8", errors="replace")
         body = body + "\n" + html.unescape(body)
@@ -900,10 +904,106 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
     return problems
 
 
+ATOM = "{http://www.w3.org/2005/Atom}"
+RFC3339 = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})")
+
+
+def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: dict) -> tuple[list[str], str]:
+    """Alerts v1 (sitegen/feeds.py): each feeds/*.xml is valid Atom (RFC 4287 required elements), its entry ids are
+    unique tag: URIs, newest first, capped; its links go to a built page (and #anchor) or a fetched source document."""
+    import xml.etree.ElementTree as ET
+    problems: list[str] = []
+    feeds = sorted((site / "feeds").glob("*.xml")) if (site / "feeds").is_dir() else []
+    alerts = cfg.get("alerts") or {}
+    if not feeds:
+        return (["config/site.yml has alerts: but the build has no feeds/*.xml"] if alerts.get("feed_id") else []), "no feeds"
+    cap = alerts.get("max_entries") or 0
+    known = {s["url"] for s in sources}
+    entries_n = 0
+    for f in feeds:
+        rel = f.relative_to(site).as_posix()
+        try:
+            root = ET.parse(f).getroot()
+        except ET.ParseError as exc:
+            problems.append(f"{rel}: not well-formed XML ({exc})")
+            continue
+        if root.tag != ATOM + "feed":
+            problems.append(f"{rel}: root is {root.tag!r}, not an Atom feed")
+            continue
+
+        def text(el, tag):
+            x = el.find(ATOM + tag)
+            return (x.text or "").strip() if x is not None else ""
+
+        for tag in ("id", "title", "updated"):
+            if not text(root, tag):
+                problems.append(f"{rel}: feed has no {tag}")
+        if text(root, "updated") and not RFC3339.fullmatch(text(root, "updated")):
+            problems.append(f"{rel}: feed updated {text(root, 'updated')!r} is not an RFC 3339 date-time")
+        entries = root.findall(ATOM + "entry")
+        entries_n += len(entries)
+        if root.find(f"{ATOM}author/{ATOM}name") is None and any(e.find(ATOM + "author") is None for e in entries):
+            problems.append(f"{rel}: no feed author and an entry without one")
+        if not any(link.get("rel") == "self" for link in root.findall(ATOM + "link")):
+            problems.append(f"{rel}: no rel=self link")
+        if cap and len(entries) > cap:
+            problems.append(f"{rel}: {len(entries)} entries, more than alerts.max_entries {cap}")
+        ids, dates = set(), []
+        for e in entries:
+            eid = text(e, "id")
+            for tag in ("id", "title", "updated"):
+                if not text(e, tag):
+                    problems.append(f"{rel}: entry {eid or '?'} has no {tag}")
+            if eid and not eid.startswith("tag:"):
+                problems.append(f"{rel}: entry id {eid!r} is not a tag: URI")
+            if eid in ids:
+                problems.append(f"{rel}: entry id {eid!r} twice")
+            ids.add(eid)
+            up = text(e, "updated")
+            if up and not RFC3339.fullmatch(up):
+                problems.append(f"{rel}: entry {eid} updated {up!r} is not an RFC 3339 date-time")
+            dates.append(up)
+            links = e.findall(ATOM + "link")
+            alt = [x.get("href") or "" for x in links if (x.get("rel") or "alternate") == "alternate"]
+            if not alt:
+                problems.append(f"{rel}: entry {eid} has no alternate link")
+            for href in alt:
+                u = urlsplit(href)
+                if u.scheme:
+                    base = (alerts.get("site_url") or "")
+                    if not base or not href.startswith(base):
+                        problems.append(f"{rel}: entry {eid} links {href!r} outside alerts.site_url")
+                        continue
+                    href = href[len(base):]
+                    target = resolve("index.html", href)
+                else:
+                    target = resolve(rel, href)
+                if target is None or not (site / target).is_file():
+                    problems.append(f"{rel}: entry {eid} links {href!r}, no such page")
+                elif u.fragment and target in pages and u.fragment not in pages[target].ids:
+                    problems.append(f"{rel}: entry {eid} links {href!r}, no #{u.fragment} on {target}")
+            for x in links:
+                if x.get("rel") == "related":
+                    src = (x.get("href") or "").split("#")[0]
+                    if src not in known:
+                        problems.append(f"{rel}: entry {eid} source {src!r} is not a fetched source document")
+        if dates != sorted(dates, reverse=True):
+            problems.append(f"{rel}: entries are not newest first")
+    linked = set()
+    if "alerts.html" in pages:
+        linked = {resolve("alerts.html", h) for h in pages["alerts.html"].hrefs if h.endswith(".xml")}
+    else:
+        problems.append("feeds are built but alerts.html is not")
+    built = {f.relative_to(site).as_posix() for f in feeds}
+    problems += [f"alerts.html does not link {r}" for r in sorted(built - linked)]
+    problems += [f"alerts.html links {r}, which is not built" for r in sorted(linked - built)]
+    return problems, f"{len(feeds)} feeds, {entries_n} entries"
+
+
 def page_type(rel: str) -> str | None:
     if rel == "index.html":
         return "index"
-    if rel in ("officials.html", "search.html"):
+    if rel in ("officials.html", "search.html", "alerts.html"):
         return rel[:-5]
     head = rel.split("/")[0]
     if head == "contracts":
@@ -922,7 +1022,8 @@ def page_type(rel: str) -> str | None:
 
 
 NARROW_TYPES = ("contracts_index", "contract", "finance_index", "fund", "capital",  # AC-F10: also at 360 px
-                "council_home", "council_member", "council_meetings", "council_items")  # M4: compact at 360 px
+                "council_home", "council_member", "council_meetings", "council_items",  # M4: compact at 360 px
+                "alerts")
 
 
 def _council_slugs() -> list[str]:
@@ -1060,6 +1161,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("name-links", problems, note)
     rep.add("footer", check_footer(pages, operator), f"'Provided as a free service by {operator}.' on {len(pages)} pages")
     rep.add("external", check_external(pages, site, cfg))
+    problems, note = check_feeds(site, pages, all_sources["sources"], cfg)
+    rep.add("feeds", problems, note)
     if browser:
         try:
             problems, note = check_hscroll(site, pages, all_pages, sample)
