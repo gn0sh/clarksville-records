@@ -6,3 +6,5 @@ Verdict: PASS WITH FINDINGS (no critical/high). Repo safe to make public: YES (f
 4. LOW nav-report/regex-overmatch, static/nav.js:59: off-site links ending in /report.html would get the fragment; rewrite same-origin links only.
 5. INFO corr-config/repo-dot accepts "o/.". 6. INFO the CSP meta cannot set frame-ancestors; acceptable for a static site with no state changes. 7. INFO a public correction email draws spam; create the `correction` label; CLAUDE.md and docs/status.md would become public (private claude.ai links, API spend notes: not secrets).
 Checked: report.js/nav.js against 13 hostile fragments in Playwright, config validation with 10 hostile values, CSP on 430 pages with and without the geocoder, injection through titles, names and search, 68,712 external links, all 28 export files, full history secret scan (323 commits).
+
+## Delta re-confirm (7ca729a), 2026-11-09: PASS. Findings 1-5 fixed (NUMERIC_COLS only ever hold numbers or held nulls; pages.js not spoofable; no page errors).
