@@ -249,3 +249,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 23:12Z Brian: map only useful first visit; address lookup solves it. Next (after branding fixes merge): landing leads with address search; map secondary (collapsed or below); remember the visitor's ward/district in localStorage for return visits ("Your seats").
 - 2026-11-09 | frontend-engineer | sonnet/medium | branding review fixes | merged 3933a90 (1608 passed); delta APPROVE
 - 2026-11-09 | frontend-engineer | sonnet/medium | address-first landing + Your seats (localStorage) | running
+- 2026-11-09 23:31Z Remote Control on the 3070 (DESKTOP-NEL11IQ) approved by Brian and running: CivicClerk City Council videos 2024+, faster-whisper large-v3 on GPU, output C:\Users\bezac\records-transcripts\out. Container CPU loop (small.en) keeps running as a fallback.
