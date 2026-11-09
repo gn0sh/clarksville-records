@@ -155,10 +155,13 @@ doubt, hold (no call-on, no link).**
 **Accepted forms (exactly these; case and `'`/`’` free).**
 1. `<title> <surname>[,] you're | you are | you recognized` (also "recognised"), all in ONE clause: between the
    surname and "you" only spaces and commas (`[\s,]*`); a full stop, `;`, `:`, `?`, `!` or `-` there breaks the match.
-   The recognition phrase must END the clause: what follows it is punctuation (`. , ; : ! ?`), the end of that
-   segment's text, or the member's reply starting a new sentence, which Whisper often leaves unpunctuated and which
-   is accepted only as the words "thank you" / "thanks". Anything else after it ("you recognized that the budget...",
-   "you're recognized on the consent agenda", "you are recognized for your service") is held.
+   The recognition phrase must END the clause: what follows it is `. ; : ! ?`, a comma only after "you're" / "you
+   are" (never after a bare "you recognized": "you recognized, I think, the problem" is held), or the member's reply
+   starting a new sentence, which Whisper often leaves unpunctuated and which is accepted only as the words "thank
+   you" / "thanks" (never "thanks to"). The end of a segment's text ends the clause only when it is the last segment
+   or the next segment's text starts with one of these ("you recognized" | "that the budget was short" is held).
+   Anything else after it ("you recognized that the budget...", "you're recognized on the consent agenda", "you are
+   recognized for your service") is held.
 2. `the chair recognizes <title> <surname>` (also "recognises").
 
 `<title>`: Councilman/-woman/-person/-member/-lady, Chair(man/woman/person), Vice Chair(...). `<surname>`: the one

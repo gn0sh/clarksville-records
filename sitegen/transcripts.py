@@ -49,13 +49,16 @@ CALL_ON_PATTERNS = (
     # "recognized" ("Councilwoman Smith recognized the students") or "you recognize" is not a call-on. The phrase must
     # also end its clause (_ends_clause): "you recognized that the budget was short" is not a call-on.
     re.compile(r"\b(?P<title>" + TITLES + r")\s+" + _NAME + _GAP
-               + r"(?:you\s*['’]?\s*re|you\s+are|you)\s+recogni[sz]ed\b", re.I),
+               + r"(?P<you>you\s*['’]?\s*re|you\s+are|you)\s+recogni[sz]ed\b", re.I),
     # "the chair recognizes Councilwoman Smith"
     re.compile(r"\bthe\s+chair\s+recogni[sz]es\s+(?P<title>" + TITLES + r")\s+" + _NAME + r"\b", re.I),
 )
 # What may follow "you're recognized" for it to end its clause: punctuation, or the member's reply starting a new
-# sentence that Whisper left unpunctuated ("thank you", "thanks"); the end of a line's text also ends it.
-_CLAUSE_END = re.compile(r"\s*(?:[.,;:!?]|thank(?:s|\s+you)\b)", re.I)
+# sentence that Whisper left unpunctuated ("thank you", "thanks", never "thanks to"). A comma ends it only after
+# "you're" / "you are" (_CLAUSE_END_COMMA), never after a bare "you recognized" ("you recognized, I think, the
+# problem"). The end of a line's text ends it only when the next line starts the same way (or there is none).
+_CLAUSE_END = re.compile(r"\s*(?:[.;:!?]|thank\s+you\b|thanks\b(?!\s+to\b))", re.I)
+_CLAUSE_END_COMMA = re.compile(r"\s*,")
 # words that can follow a title but are never a surname
 NOT_A_NAME = {"you", "your", "you're", "youre", "is", "are", "be", "she", "he", "the", "a", "from", "for", "of", "on",
               "and", "who", "that", "has", "have", "was", "were", "will", "would", "said", "says", "recognized",
@@ -147,13 +150,25 @@ def detect(segments: list) -> list[dict]:
     through the lines that start within CALL_ON_SECONDS of the line where those words end, and never past the next
     call-on."""
     text, starts = _joined(segments)
-    line_ends = {starts[i] + len(s[2].rstrip()) for i, s in enumerate(segments)}
+    line_end = {starts[i] + len(s[2].rstrip()): i for i, s in enumerate(segments)}
+
+    def ends_clause(m) -> bool:
+        b = m.end()
+        if b in line_end:   # the end of a line: the next line must start a new clause (or there is none)
+            i = line_end[b]
+            if i + 1 == len(segments):
+                return True
+            b = starts[i + 1]
+        if _CLAUSE_END.match(text, b):
+            return True
+        return m.group("you").lower() != "you" and bool(_CLAUSE_END_COMMA.match(text, b))
+
     hits = []
     for k, rx in enumerate(CALL_ON_PATTERNS):
         for m in rx.finditer(text):
             if m.group("name").lower().strip("'’") in NOT_A_NAME:
                 continue
-            if k == 0 and m.end() not in line_ends and not _CLAUSE_END.match(text, m.end()):
+            if k == 0 and not ends_clause(m):
                 continue   # "you recognized that ...": the phrase does not end its clause
             hits.append((m.start(), m.end(), m.group("title"), m.group("name")))
     hits.sort()

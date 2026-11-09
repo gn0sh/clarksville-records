@@ -238,7 +238,9 @@ def test_detection_reads_call_ons_from_the_text_only():
                                   # ...and must end it
                                   "Councilman Smith, you recognized that the budget was short",
                                   "Councilman Smith, you are recognized for your service",
-                                  "councilman Smith you're recognized on the consent agenda"])
+                                  "councilman Smith you're recognized on the consent agenda",
+                                  "Councilman Smith you recognized thanks to the staff the problem",
+                                  "Councilman Smith you recognized, I think, the problem"])
 def test_detection_ignores_non_call_ons(text):
     assert tx.detect([[0.0, 3.0, text]]) == []
 
@@ -258,10 +260,11 @@ def test_detection_finds_the_call_on_forms(text, name):
     assert found[0]["matched"] in text                               # the matched words, verbatim
 
 
-def test_a_call_on_at_the_end_of_a_line_is_found_and_one_that_runs_on_is_not():
-    # end of a line's text ends the clause even when the next line goes on; within a line it must end there
-    found = tx.detect([[0.0, 2.0, "Councilman Smith you're recognized"], [2.0, 4.0, "on the item I have a question"]])
+def test_a_call_on_at_the_end_of_a_line_ends_its_clause_only_if_the_next_line_starts_a_new_one():
+    found = tx.detect([[0.0, 2.0, "Councilman Smith you're recognized"], [2.0, 4.0, "thank you mayor I have a question"]])
     assert [d["name"] for d in found] == ["Smith"]
+    assert tx.detect([[0.0, 2.0, "Councilman Smith, you recognized"], [2.0, 4.0, "that the budget was short"]]) == []
+    assert tx.detect([[0.0, 2.0, "Councilman Smith you're recognized"], [2.0, 4.0, "on the item"]]) == []
     assert tx.detect([[0.0, 4.0, "Councilman Smith you're recognized on the item I have a question"]]) == []
 
 
