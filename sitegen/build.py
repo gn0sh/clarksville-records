@@ -271,7 +271,7 @@ def part_label(dates: list[str]) -> str:
 DEFAULT = object()
 
 
-SITE_URL_KEYS = ("redistricting_page", "old_lines_map_url", "swap_source", "support_url",
+SITE_URL_KEYS = ("redistricting_page", "old_lines_map_url", "swap_source", "support_url", "operator_url",
                 "district_lookup_url", "geocoder_url", "geocoder_privacy_url")
 
 # geocoder_url goes into the landing's CSP script-src as a source expression and gets the address box's query added,

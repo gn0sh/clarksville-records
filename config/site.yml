@@ -2,7 +2,8 @@
 # so another locality is a new copy of this file plus its own config/localities/<locality>/ (docs/status.md, ZIP note).
 locality: montgomery-tn
 site_name: Clarksville Records
-operator: Brian Zacharias          # confirmed by the CEO, 2026-11-07 (G1)
+operator: gnoshcodes               # CEO decision 2026-11-09: a gnoshcodes product, no personal operator credit
+operator_url: https://gnoshcodes.com/
 
 # "Not sure of your district?" lookup link on the landing (the state elections site). Empty renders nothing; another
 # locality sets its own. The site sends nothing there: it is a plain link the visitor chooses to follow.

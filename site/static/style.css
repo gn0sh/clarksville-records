@@ -1,27 +1,32 @@
-/* Clarksville Records: "the county record book". Warm paper, dark ink, a serif masthead, hairline and double rules,
-   small-caps labels, citations set like footnotes. System fonts only: no external fonts, scripts or trackers.
-   Colour is chrome only (one teal-green ink for links and bands). Every vote value is drawn in the same --mark ink
-   and told apart by pattern and by its word, so no value looks "good" or "bad" and the page reads in greyscale. */
+/* Clarksville Records, a gnoshcodes project. Colours and type come from the gnoshcodes brand kit (v1): Digital blue
+   #2B4BA5, Human orange #EF5E35, Orange-for-text #B8401A, Ink/Muted/Line/Paper/Surface neutrals; Outfit for display,
+   Inter for body (both SIL OFL 1.1, self-hosted from static/brand/, no outside fonts, scripts or trackers).
+   Branding is chrome only (header band, links, rules, footer logo). Every vote value is drawn in the same --mark ink
+   and told apart by pattern and by its word, so no value looks "good" or "bad" and the page reads in greyscale.
+   Contrast (WCAG 2.2): body/link/muted/orange-text pairs are 4.5:1 or better in both themes; checked in the PR. */
+@font-face { font-family: "Outfit"; font-weight: 700; font-style: normal; font-display: swap; src: url("brand/Outfit-700.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 400; font-style: normal; font-display: swap; src: url("brand/Inter-400.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 600; font-style: normal; font-display: swap; src: url("brand/Inter-600.woff2") format("woff2"); }
 :root {
-  --bg: #fbf9f4;
-  --surface: #f1ede3;
-  --surface-2: #e8e3d6;
-  --fg: #1f1d1a;
-  --muted: #5b564d;
-  --border: #cdc5b4;          /* decorative rules only */
-  --link: #1d5c54;
+  --bg: #F7F8FC;              /* gc-paper */
+  --surface: #FFFFFF;         /* gc-surface */
+  --surface-2: #EDF0F8;
+  --fg: #141A2E;              /* gc-ink */
+  --muted: #4A5470;           /* gc-muted */
+  --border: #D5DAE8;          /* gc-line: decorative rules only */
+  --link: #2B4BA5;            /* gc-blue */
   --link-visited: #5c3f7a;
-  --focus: #1d5c54;
-  --band-bg: #1d3b38;
-  --band-fg: #f6f1e4;
-  --band-muted: #c9d6cf;
-  --seal: #8a6417;            /* initials ring and ornaments; never text on --band-bg */
-  --mark: #33414b;            /* the one data-mark colour: bars, chips, timeline nodes */
-  --mark-soft: #8a8272;
+  --focus: #2B4BA5;
+  --band-bg: #2B4BA5;
+  --band-fg: #FFFFFF;
+  --band-muted: #DCE3F7;
+  --seal: #B8401A;            /* gc-orange-text: initials ring and ornaments; never text on --band-bg */
+  --mark: #2E3A57;            /* the one data-mark colour: bars, chips, timeline nodes */
+  --mark-soft: #7C86A3;
   --banner-bg: #fff1b8;
   --banner-fg: #4a3800;
-  --font-head: "Source Serif 4", Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
-  --font-body: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-head: Outfit, "Avenir Next", "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  --font-body: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --gutter: 16px;
   --measure: 64rem;
@@ -37,17 +42,17 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #161513; --surface: #211f1c; --surface-2: #2a2824; --fg: #ece7dc; --muted: #b4ad9f;
-    --border: #45403a; --link: #82c9bb; --link-visited: #c9b0ec; --focus: #82c9bb;
-    --band-bg: #0f2725; --band-fg: #efe9dc; --band-muted: #a9c2ba; --seal: #d6ad5c;
-    --mark: #d8d1c3; --mark-soft: #8b8475; --banner-bg: #3a3000; --banner-fg: #ffe58a;
+    --bg: #0E1324; --surface: #182038; --surface-2: #212A47; --fg: #EEF1F8; --muted: #A3ACC4;
+    --border: #2C3552; --link: #8EA6F0; --link-visited: #C9B0EC; --focus: #8EA6F0;
+    --band-bg: #1B2E6B; --band-fg: #EEF1F8; --band-muted: #C5D0F2; --seal: #EF5E35;
+    --mark: #D5DAE8; --mark-soft: #7C86A3; --banner-bg: #3a3000; --banner-fg: #ffe58a;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #161513; --surface: #211f1c; --surface-2: #2a2824; --fg: #ece7dc; --muted: #b4ad9f;
-  --border: #45403a; --link: #82c9bb; --link-visited: #c9b0ec; --focus: #82c9bb;
-  --band-bg: #0f2725; --band-fg: #efe9dc; --band-muted: #a9c2ba; --seal: #d6ad5c;
-  --mark: #d8d1c3; --mark-soft: #8b8475; --banner-bg: #3a3000; --banner-fg: #ffe58a;
+  --bg: #0E1324; --surface: #182038; --surface-2: #212A47; --fg: #EEF1F8; --muted: #A3ACC4;
+  --border: #2C3552; --link: #8EA6F0; --link-visited: #C9B0EC; --focus: #8EA6F0;
+  --band-bg: #1B2E6B; --band-fg: #EEF1F8; --band-muted: #C5D0F2; --seal: #EF5E35;
+  --mark: #D5DAE8; --mark-soft: #7C86A3; --banner-bg: #3a3000; --banner-fg: #ffe58a;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -142,7 +147,7 @@ small { font-size: var(--t-sm); }
 .glance .stat-label { color: var(--band-muted); }
 .glance .stat-num { font-size: 2.1rem; }
 .glance .stat-dates .stat-num { font-size: var(--t-lg); padding-top: 8px; }
-.glance-note { margin: 18px 0 0; padding-top: 12px; border-top: 1px solid rgba(201, 214, 207, .35); font-size: var(--t-sm); color: var(--band-muted); max-width: 52rem; }
+.glance-note { margin: 18px 0 0; padding-top: 12px; border-top: 1px solid rgba(220, 227, 247, .35); font-size: var(--t-sm); color: var(--band-muted); max-width: 52rem; }
 .glance-note a, .glance-note a:visited { color: var(--band-fg); }
 .glance a:focus-visible { outline-color: var(--band-fg); }
 
@@ -717,6 +722,7 @@ table.fin-stack caption { text-align: left; font-weight: 600; padding: 8px 12px;
 table.fin-stack .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 table.sol-index td.c-date { white-space: nowrap; }
 table.sol-index td.c-source { min-width: 9rem; }
+table.sol-index td.c-docs { min-width: 12rem; }   /* Inter runs wider than the old fallback: keep the doc note from stacking tall */
 @media (min-width: 641px) { table.fin-stack tbody tr:nth-child(even) { background: var(--surface); } }
 details.words { margin: 16px 0; font-size: var(--t-sm); }
 details.words > summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
@@ -816,3 +822,22 @@ ul.feed-list a { font-weight: 600; }
 .feed-about { display: block; color: var(--muted); font-size: var(--t-sm); margin-top: 2px; }
 .feed-url { display: block; margin-top: 4px; }
 ol.alert-steps { max-width: 44rem; }
+
+/* ---- gnoshcodes credit (footer) ---------------------------------------------------------------------------- */
+.gc-credit { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0.6em 0 0.25em; }
+.gc-logo { display: block; width: 160px; height: auto; }            /* brand minimum for the wordmark is 160 px */
+.gc-logo-dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .gc-logo-light { display: none; }
+  :root:not([data-theme="light"]) .gc-logo-dark { display: block; }
+}
+:root[data-theme="dark"] .gc-logo-light { display: none; }
+:root[data-theme="dark"] .gc-logo-dark { display: block; }
+/* Landing: it must fit one screen, so the credit joins the footer's line instead of adding one (logo stays 160 px). */
+@media (min-width: 700px) {
+  .page-landing .site-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 20px; }
+  .page-landing .gc-credit { margin: 0; order: 2; }
+  .page-landing .gc-credit span { display: none; }
+  .page-landing .site-footer > p:nth-of-type(1) { order: 1; }
+  .page-landing .site-footer > p:nth-of-type(3) { order: 3; }
+}

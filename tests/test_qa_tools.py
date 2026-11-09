@@ -74,7 +74,7 @@ def test_unknown_external_link_is_caught(site):
 
 
 def test_missing_footer_is_caught(site):
-    edit(site / "meetings" / "2024-12-09-formal.html", "Provided as a free service by Brian Zacharias", "Provided by someone")
+    edit(site / "meetings" / "2024-12-09-formal.html", "Provided as a free service by", "Provided by someone")
     assert "footer" in failed(run(site))
 
 

@@ -338,6 +338,7 @@ def site_context(facts, contracts: bool = False, budget: tuple = (), councils=()
                                   reverse=True),
         "site_name": config.SITE_NAME,
         "operator": config.OPERATOR_NAME,
+        "operator_url": cfg.get("operator_url") or "",
         "data_as_of": ix.data_as_of(),
         "fixture": ix.fixture,
         "item_years": ix.item_years(),

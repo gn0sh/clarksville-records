@@ -111,7 +111,8 @@ def test_internal_links_resolve(built, pages):
 
 def test_every_page_has_operator_footer_fixture_banner_and_no_external_resources(pages):
     for name, html in pages.items():
-        assert f"Provided as a free service by {config.OPERATOR_NAME}." in html, name
+        assert (f'Provided as a free service by <a data-ext="operator" href="{config.SITE["operator_url"]}" '
+                f'rel="noopener noreferrer">{config.OPERATOR_NAME}</a>.') in html, name
         assert "Run by" not in html, name
         assert "About this site and its data rules." in html, name
         assert "Data as of 2026-11-07" in html, name

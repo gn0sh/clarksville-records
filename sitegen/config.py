@@ -57,7 +57,7 @@ FIXTURE_CAPITAL_FUND = "951"
 # CEO decision G1 (2026-11-07): every page names the operator. The CEO supplies the real text; a public build
 # (M1.5) refuses to run while this is still the placeholder.
 OPERATOR_PLACEHOLDER = "[OPERATOR NAME - CEO to confirm]"
-OPERATOR_NAME = SITE["operator"]  # "Brian Zacharias", confirmed by the CEO, 2026-11-07
+OPERATOR_NAME = SITE["operator"]  # "gnoshcodes", CEO decision 2026-11-09
 
 MAX_FILES = 500  # under the artifact limit of 511 files per version; finance adds one page per fund, not per department
 PAGE_BYTES = 1_000_000  # a year page over this is split in parts (build.py plan_parts; city-pages/page-weight)

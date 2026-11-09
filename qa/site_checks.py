@@ -24,7 +24,7 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   name-links  every occurrence of an official's display name in the visible text of a page is inside an <a> to that
               official's page (standing rule), except in <title>, <option>, item titles (data-item-title: text in
               the document, never linked), the operator lines (footer, About) and on the official's own page
-  footer      "Provided as a free service by Brian Zacharias." on every page
+  footer      "Provided as a free service by gnoshcodes." on every page
   external    no third-party scripts, styles, images or fonts (N6); the landing address box's geocoder (called
               only on submit) is exactly config/site.yml geocoder_url; a page that loads static/address.js carries
               its settings block (addr-config); every page has one CSP meta whose script-src is 'self' only, plus
@@ -74,7 +74,7 @@ NARROW = 360  # AC-F10: the Bids and awards pages are also checked at 360 px
 
 # External links that are not minutes PDFs but are allowed: a holder record's roster source, the map's boundary source,
 # the county redistricting page / old-lines map, and the footer support link. Each must be marked data-ext and https.
-EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder", "corrections"}
+EXT_KINDS = {"roster", "map", "county", "support", "operator", "lookup", "geocoder", "corrections"}
 
 
 def corrections_links(cfg: dict) -> tuple[str, str]:
@@ -126,6 +126,8 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
     out = {cfg[k] for k in ("redistricting_page", "old_lines_map_url", "swap_source", "district_lookup_url") if cfg.get(k)}
     if cfg.get("geocoder_url") and cfg.get("geocoder_privacy_url"):
         out.add(cfg["geocoder_privacy_url"])         # the address box's "<geocoder>'s privacy policy" link
+    if cfg.get("operator_url"):
+        out.add(cfg["operator_url"])                 # the footer's "gnoshcodes" link
     if cfg.get("support_enabled") is True and cfg.get("support_url"):
         out.add(cfg["support_url"])
     out |= {u for u in corrections_links(cfg) if u.startswith("https://")}   # the report page's GitHub issue link
@@ -823,7 +825,7 @@ def check_name_links(site: Path, facts: dict, roster: list[dict], councils_=()) 
 
 
 def check_footer(pages: dict[str, Page], operator: str) -> list[str]:
-    needle = re.compile(r"Provided as a free service by\s+" + re.escape(operator) + r"\.")
+    needle = re.compile(r"Provided as a free service by\s+" + re.escape(operator) + r"\s*\.")
     return [f"{rel}: no 'Provided as a free service by {operator}.' footer" for rel, pg in pages.items()
             if not needle.search(" ".join(pg.text))]
 
