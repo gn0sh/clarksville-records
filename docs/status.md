@@ -186,3 +186,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | code-reviewer | opus/default | delta re-review city fixes | approve (crawl: 0 broken links, all 305 meetings/1850 roll calls once)
 - 2026-11-09 | backend-engineer | opus/default | exports + offline guard + finance page weight | done: EXPORTS_READY on, city exports, guard exits 4, finance pages split, 468 files, site_checks pass, 1280 tests; 5d2e560. Note: store lacks 59 county minutes PDFs (offline run refuses, as designed).
 - 2026-11-09 | code-reviewer | opus/default | review exports | request changes: 1 medium (fin-export/held-leak), fix running (sonnet)
+- 2026-11-09: polite county fetch filled the store (59 missing minutes down to 4; the fetch treats those 4 as unchanged, so they are not refetched). facts.json unchanged. Follow-up: refetch the 4 (low).
