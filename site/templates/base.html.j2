@@ -28,6 +28,11 @@
 <div class="rule-double" aria-hidden="true"></div>
 <main id="main">
 {% block main %}{% endblock %}
+{# M1.5: every fact-bearing page (build.REPORT_TEMPLATES) links the report page; static/nav.js adds this page's path
+   (and the #anchor the reader came to) to the link's #fragment when it is followed. #}
+{% if report_page is defined and report_page %}
+<p class="report-page"><a href="{{ root }}report.html">Report an error on this page</a></p>
+{% endif %}
 </main>
 <footer class="site-footer">
   <p>Provided as a free service by {{ site.operator }}.{% if site.support_url %} <a data-ext="support" href="{{ site.support_url }}" rel="noopener noreferrer">{{ site.support_label }}</a>{% endif %}</p>

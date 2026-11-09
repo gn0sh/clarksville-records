@@ -64,7 +64,7 @@ def test_official_with_no_data_has_same_skeleton(pages, facts):
     from sitegen.build import make_env
     site = dict(views.site_context(ix), internal=True)  # the session-built pages are internal builds
     html = make_env().get_template("official.html.j2").render(
-        site=site, root="../", page_name="x", **views.official("z-nobody", ix))
+        site=site, root="../", page_name="x", report_page=True, **views.official("z-nobody", ix))
     assert "No votes, attendance, motions or seconds are shown" in html
     assert skeleton(html) == skeleton(pages["officials/a-example.html"])
 

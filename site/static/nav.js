@@ -47,3 +47,33 @@
   // A click on the backdrop lands on the <dialog> element itself (the panel fills the dialog's box).
   dlg.addEventListener("click", function (e) { if (e.target === dlg) { dlg.close(); } });
 })();
+
+/* "Report an error" links (M1.5, docs/design/correction-intake.md): just before one is followed (pressed, touched,
+   focused or clicked), its #fragment is set to this page's site path and the fact id of the row it sits in (or the
+   #anchor the reader came to). Nothing is stored or sent; static/report.js checks both values again. */
+(function () {
+  var nav = document.getElementById("site-nav");
+  if (!nav || typeof URL !== "function" || !document.addEventListener) { return; }
+  var rootPath;
+  try { rootPath = new URL(nav.getAttribute("data-root") || "./", window.location.href).pathname; } catch (e) { return; }
+  var REPORT = /(^|\/)report\.html(#|$)/;
+
+  function prepare(e) {
+    var a = e.target && e.target.closest ? e.target.closest("a[href]") : null;
+    if (!a || !REPORT.test(a.getAttribute("href"))) { return; }
+    var path = window.location.pathname;
+    var page = path.indexOf(rootPath) === 0 ? path.slice(rootPath.length) : "";
+    if (page === "" || page.slice(-1) === "/") { page += "index.html"; }
+    var holder = a.closest("[data-fact-id]");
+    var id = holder ? holder.getAttribute("data-fact-id") : "";
+    if (!id && window.location.hash) {
+      try { id = decodeURIComponent(window.location.hash.slice(1)); } catch (err) { id = ""; }
+    }
+    var parts = ["page=" + encodeURIComponent(page)];
+    if (id) { parts.push("id=" + encodeURIComponent(id)); }
+    a.setAttribute("href", a.getAttribute("href").split("#")[0] + "#" + parts.join("&"));
+  }
+  ["mousedown", "touchstart", "focusin", "click"].forEach(function (type) {
+    document.addEventListener(type, prepare, true);
+  });
+})();

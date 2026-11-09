@@ -271,6 +271,34 @@ def site_url_problems(cfg: dict) -> list[str]:
         if cfg.get(link):
             out += [f"{k} must be set when {link} is" for k in needs
                     if not isinstance(cfg.get(k), str) or not cfg[k].strip()]
+    return out + corrections_problems(cfg)
+
+
+# config/site.yml `corrections:` (views.corrections_context): a GitHub owner/name and a plain e-mail address. Both go
+# into an href, so only these shapes are allowed (no query, fragment, space, quote or angle bracket).
+_GITHUB_REPO = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9._-]{1,100}")
+_EMAIL = re.compile(r"[A-Za-z0-9._+-]{1,64}@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+")
+
+# Templates of fact-bearing pages: each gets the page-level "Report an error on this page" link (base.html.j2).
+REPORT_TEMPLATES = frozenset({
+    "meeting.html.j2", "items_year.html.j2", "votes_year.html.j2", "official.html.j2", "official_year.html.j2",
+    "official_roster.html.j2", "district.html.j2", "council_home.html.j2", "council_meetings_year.html.j2",
+    "council_items_year.html.j2", "fin_index.html.j2", "fin_fund.html.j2", "fin_capital.html.j2",
+    "fin_contracts_index.html.j2", "fin_solicitation.html.j2"})
+
+
+def corrections_problems(cfg: dict) -> list[str]:
+    c = cfg.get("corrections")
+    if c is None:
+        return []
+    if not isinstance(c, dict):
+        return ["corrections must be a mapping with github_repo and email"]
+    out = [f"corrections has an unknown key {k!r}" for k in c if k not in ("github_repo", "email")]
+    repo, email = c.get("github_repo") or "", c.get("email") or ""
+    if repo and not (isinstance(repo, str) and _GITHUB_REPO.fullmatch(repo) and ".." not in repo):
+        out.append(f"corrections.github_repo must be owner/name, got {repo!r}")
+    if email and not (isinstance(email, str) and _EMAIL.fullmatch(email) and ".." not in email):
+        out.append(f"corrections.email must be a plain address, got {email!r}")
     return out
 
 
@@ -346,7 +374,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     def html_of(template: str, rel: str, page_name: str, site_ctx=None, **ctx) -> str:
         depth = rel.count("/")
         return env.get_template(template).render(
-            site=site_ctx or site, root="../" * depth, page_name=page_name, **ctx)
+            site=site_ctx or site, root="../" * depth, page_name=page_name,
+            report_page=template in REPORT_TEMPLATES, **ctx)
 
     def render(template: str, rel: str, page_name: str, site_ctx=None, **ctx) -> None:
         html = html_of(template, rel, page_name, site_ctx, **ctx)
@@ -485,6 +514,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                            year_pages=ctx["year_pages"], types=ctx["types"], groups=[g])
     render("about.html.j2", "about.html", "About", **views.about(ix), glance=views.record_glance(ix))
     render("changes.html.j2", "changes.html", "Changes", **views.changes(read_changes(changes_path)))
+    render("report.html.j2", "report.html", "Report an error", **views.report_page())
     if internal:
         render("review.html.j2", "review.html", "Review (internal)",
                **views.review(ix, read_report(report_path)))

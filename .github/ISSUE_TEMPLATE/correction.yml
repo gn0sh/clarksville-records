@@ -1,0 +1,41 @@
+# Report an error (M1.5, docs/design/correction-intake.md). The site's report.html links here with
+# ?template=correction.yml&title=...&page_url=...&fact_id=... (sitegen/views.py CORRECTION_FIELDS, static/report.js).
+# Keep the ids page_url and fact_id: tests/test_corrections.py checks them.
+name: Report an error
+description: A fact on the site does not match its source document.
+title: "Correction: "
+labels: ["correction"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Each report is checked against the source document. The site shows what the source document says, never a
+        changed value without a source, and every change is recorded on the site's Changes page.
+        This report is public. Please do not include personal details such as a phone number or home address.
+  - type: input
+    id: page_url
+    attributes:
+      label: Page address
+      description: The address of the page with the error.
+    validations:
+      required: true
+  - type: input
+    id: fact_id
+    attributes:
+      label: Fact id
+      description: Shown under Details on a row, or beside the fact. Leave empty if there is none.
+    validations:
+      required: false
+  - type: textarea
+    id: shown
+    attributes:
+      label: What the page shows
+    validations:
+      required: true
+  - type: textarea
+    id: source
+    attributes:
+      label: What the source document says
+      description: A link to the source document and the page number.
+    validations:
+      required: true

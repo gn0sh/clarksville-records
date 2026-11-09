@@ -929,6 +929,27 @@ def changes(entries: list[dict]) -> dict:
     return {"entries": entries}
 
 
+# Report an error (M1.5, docs/design/correction-intake.md). The issue form's file name and the field ids
+# static/report.js prefills; tests check the form in .github/ISSUE_TEMPLATE/ has these ids.
+CORRECTION_FORM = "correction.yml"
+CORRECTION_FIELDS = ("page_url", "fact_id")
+
+
+def corrections_context(cfg: dict | None = None) -> dict:
+    """The channels config/site.yml `corrections:` turns on. An empty value renders no link; with neither set the
+    report page says corrections open when the site launches. Values are checked by build.corrections_problems."""
+    c = (config.SITE if cfg is None else cfg).get("corrections") or {}
+    repo = str(c.get("github_repo") or "").strip()
+    email = str(c.get("email") or "").strip()
+    return {"issue_url": f"https://github.com/{repo}/issues/new?template={CORRECTION_FORM}" if repo else "",
+            "mailto": f"mailto:{email}" if email else "",
+            "open": bool(repo or email)}
+
+
+def report_page() -> dict:
+    return {"corr": corrections_context()}
+
+
 def review(facts, report: dict | None) -> dict:
     ix = _ix(facts)
     unverified = []
