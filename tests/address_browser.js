@@ -128,7 +128,9 @@ function consoleCsp(page) {
                scripts: document.querySelectorAll('script[src*="census.gov"]').length,
                frames: document.querySelectorAll('iframe').length,
                pwned: document.body.hasAttribute('data-pwned'), csp: window.__csp,
-               storage: localStorage.length + sessionStorage.length };
+               storage: Object.keys(localStorage).concat(Object.keys(sessionStorage)),
+               storageText: JSON.stringify(localStorage),
+               seats: JSON.parse(localStorage.getItem('cr-your-seats') || 'null') };
     });
     out.cases[name].requests = requests;
     out.cases[name].typedRequests = typed;

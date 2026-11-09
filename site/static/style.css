@@ -520,15 +520,24 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--focus); out
 svg.county-map { display: block; width: 100%; height: auto; max-height: 60vh; }
 /* One screen (QA landing/one-screen): the map takes what the viewport leaves after the purpose line, search, layer
    switch, the two disclosures and the footer line, so the whole landing fits 375x667 and 1280x800 unscrolled. */
-.page-landing svg.county-map { max-height: max(12rem, calc(100vh - 385px)); max-height: max(12rem, calc(100svh - 385px)); }
+.page-landing svg.county-map { max-height: max(12rem, calc(100vh - 450px)); max-height: max(12rem, calc(100svh - 450px)); }
 .landing-list { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0 20px; }
 .landing-list > details { flex: 1 1 100%; }
 .landing-list > details:not([open]) { flex: 0 1 auto; }
 /* Address box (address pin M2): label and row on one line where there is room; the privacy line stays under it. */
-.addr-form { flex: 1 1 100%; margin: 0 0 4px; font-size: var(--t-sm); }
+.addr-form { margin: 8px 0 4px; max-width: 40rem; font-size: var(--t-sm); }
+.addr-form .addr-seats-note { display: none; }
+.addr-form:focus-within .addr-seats-note, .addr-form.has-result .addr-seats-note { display: block; }
 .addr-form[hidden] { display: none; }
 .addr-form .search-row { align-items: center; }
 .addr-form label { flex: 0 0 auto; font-weight: 600; }
+.your-seats { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin: 8px 0; padding: 8px 12px; max-width: 40rem; border-left: 3px solid var(--mark-soft); background: var(--surface); font-size: var(--t-sm); }
+.your-seats[hidden] { display: none; }
+.your-seats h2 { margin: 0; padding: 0; border: 0; font-size: var(--t-sm); }
+.your-seats-list { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; padding: 0; list-style: none; }
+.your-seats-list a { display: inline-block; min-height: 32px; line-height: 32px; font-weight: 600; }
+.your-seats-forget { min-height: 44px; padding: 6px 14px; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--mark); border-radius: var(--radius); cursor: pointer; }
+.your-seats-note { flex: 1 1 100%; margin: 0; font-size: var(--t-xs); color: var(--muted); }
 /* With the box shown (address.js), its privacy line carries the official-lookup link, so the separate line goes. */
 .landing.has-addr .district-lookup { display: none; }
 .addr-form .search-row input { flex: 1 1 auto; width: 0; min-width: 0; min-height: 44px; padding: 8px 10px; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--mark); border-radius: var(--radius); }
@@ -564,7 +573,10 @@ details.map-about .map-caption { font-size: var(--t-sm); }
   .page-landing #layer-districts { font-size: 54px; stroke-width: 14px; }
   /* phone: the address row takes 48px more, so the map gives it up; the privacy line shows once the box is in use
      (focus, or a result on screen), always before anything is sent, and the input names it (aria-describedby) */
-  .landing.has-addr svg.county-map { max-height: max(11rem, calc(100vh - 501px)); max-height: max(11rem, calc(100svh - 501px)); }
+  /* the longer label takes its own line above the input row: 24px more */
+  .addr-form .search-row { flex-wrap: wrap; }
+  .addr-form label { flex: 1 1 100%; }
+  .landing.has-addr svg.county-map { max-height: max(10rem, calc(100vh - 525px)); max-height: max(10rem, calc(100svh - 525px)); }
   .addr-form:not(:focus-within):not(.has-result) .addr-privacy { display: none; }
 }
 svg.county-map-small { max-width: 18rem; max-height: 14rem; margin: 10px 0 0; }

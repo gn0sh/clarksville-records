@@ -46,9 +46,10 @@ def test_box_is_hidden_until_the_script_shows_it_and_names_the_privacy_rule(real
     form = next(n for n in parse(html).walk() if n.attrs.get("id") == "addr-form")
     assert "hidden" in form.attrs and "action" not in form.attrs and "method" not in form.attrs
     text = " ".join(form.all_text().split())
-    assert text.startswith("Find your district")
+    assert text.startswith("Find your county district by address")     # ward lookup is not built yet
     assert ("Your address is sent to the U.S. Census Bureau's geocoder to find it on the map. "
             "This site doesn't store it. Census's privacy policy applies. Or look it up on GoVoteTN.") in text
+    assert "only the district number is kept, in this browser on this device" in text
     assert f'<a data-ext="lookup" href="{config.SITE["district_lookup_url"]}" rel="noopener">GoVoteTN</a>' in html
     assert (f'<a data-ext="geocoder" href="{config.SITE["geocoder_privacy_url"]}" rel="noopener">'
             "Census's privacy policy</a> applies.") in html
@@ -308,7 +309,12 @@ def test_address_box_in_a_browser(real_site, tmp_path):
         q = v["requests"][0]
         assert q == ("?address=1%20Test%20St%2C%20Clarksville%20TN%20%3Cb%3E%26%22&benchmark=Public_AR_Current"
                      "&format=jsonp&callback=crGeocode"), q
-        assert v["storage"] == 0 and v["scripts"] == 0 and v["frames"] == 0, k   # nothing stored, iframe removed
+        # the address is never stored; only a found district number, under the one key (the reachout's own write failed)
+        want = ["cr-your-seats"] if k in ("district", "twosame", "reachout") else []
+        assert v["storage"] == want and v["scripts"] == 0 and v["frames"] == 0, k
+        if want:
+            assert v["seats"] == {"district": 5, "ward": None}, k
+            assert "Test St" not in v["storageText"], k
         assert "<b>" not in v["html"], k                                      # census text is never markup
         assert v["frame"] == [{"sandbox": "allow-scripts", "referrerpolicy": "no-referrer", "hidden": True,
                                "src": None, "srcdoc": v["frame"][0]["srcdoc"]}], k   # one opaque-origin iframe

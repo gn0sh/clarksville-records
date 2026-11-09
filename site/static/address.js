@@ -5,7 +5,8 @@
    the page's CSP) loads the JSONP and posts the answer back as JSON text; this page accepts a message only from that
    iframe, parses it as data, validates it (classify) and shows it as text. The iframe is removed after each lookup.
    The answer's point is placed on the drawn map with CRGeoref.districtFor (static/georef.js) against the same
-   district paths the map draws. Nothing is stored and nothing is logged. If the geocoder cannot load (a sandboxed
+   district paths the map draws. The address is never stored or logged; a found district number (not the address) is
+   kept in this browser only, by static/seats.js. If the geocoder cannot load (a sandboxed
    preview, a blocker, offline) the box says so and points to the official lookup.
    Exposes CRAddress.classify / jsonpUrl / frameDoc for tests (module.exports under node). */
 (function (root) {
@@ -152,6 +153,7 @@
       say(["The " + cfg.geocoder_short + " places this address in ", s ? link(s.href, label) : label, "."], r.matched);
       if (s) { s.el.classList.add("is-found"); }
       pin(r.page_xy);
+      if (root.CRSeats) { root.CRSeats.save({ district: r.district }); }   // this device only (static/seats.js)
     } else if (r.kind === "near") {
       say(["This address is near a district line. Check ", lookupLink(), " to be sure."], r.matched);
       pin(r.page_xy);
