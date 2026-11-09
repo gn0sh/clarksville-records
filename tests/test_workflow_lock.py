@@ -10,7 +10,9 @@ WF = yaml.safe_load(TEXT)
 
 
 def test_deploy_job_is_locked():
-    assert WF["jobs"]["deploy"]["if"].strip() == "vars.RECORDS_DEPLOY_ENABLED == 'true'"
+    cond = WF["jobs"]["deploy"]["if"].strip()
+    assert cond == "vars.RECORDS_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'"
+    assert cond.startswith("vars.RECORDS_DEPLOY_ENABLED == 'true'")          # the lock stays the first condition
     assert WF["jobs"]["deploy"]["needs"] == "update"
 
 
@@ -69,3 +71,55 @@ def test_untrusted_parse_job_has_no_write_token():
     assert "git push" not in "\n".join(s.get("run", "") for s in jobs["update"]["steps"])
     assert not any("python" in s.get("run", "") for s in jobs["push"]["steps"])      # parses nothing
     assert jobs["deploy"]["needs"] == "update"
+
+
+def _push_run_text():
+    return "\n".join(s.get("run", "") for s in WF["jobs"]["push"]["steps"])
+
+
+def test_push_commits_on_the_update_sha_then_rebases():
+    """pipeline/push-reverts-concurrent-data: a concurrent data/ edit on main must conflict, never be reverted."""
+    jobs = WF["jobs"]
+    assert jobs["update"]["outputs"]["sha"] == "${{ steps.checkout.outputs.commit }}"
+    assert any(s.get("id") == "checkout" and "actions/checkout@" in s["uses"] for s in jobs["update"]["steps"])
+    checkout = [s for s in jobs["push"]["steps"] if "actions/checkout@" in s.get("uses", "")]
+    assert len(checkout) == 1 and checkout[0]["with"]["ref"] == "${{ needs.update.outputs.sha }}"
+    run = _push_run_text()
+    assert run.index("git commit") < run.index("git pull --rebase origin main") < run.index("git push origin HEAD:main")
+    assert "--force" not in run and "-f " not in run
+
+
+def test_push_validates_the_artifact_before_staging():
+    """pipeline/push-unvalidated-artifact: no symlinks, only tracked file types, 50 MB cap, checked before git add."""
+    steps = WF["jobs"]["push"]["steps"]
+    names = [s.get("name", "") for s in steps]
+    validate = steps[names.index("Validate refreshed data")]["run"]
+    assert "! -type f ! -type d" in validate                      # symlinks and special files
+    assert "*.json|*.yml" in validate                              # extension allowlist (what git ls-files data holds)
+    assert "-size +50M" in validate
+    assert names.index("Validate refreshed data") < names.index("Commit refreshed data to main")
+    assert names.index("Download refreshed data") < names.index("Validate refreshed data")
+    assert "git add" not in validate
+
+
+def test_tracked_data_files_fit_the_allowlist():
+    import subprocess
+    files = subprocess.run(["git", "ls-files", "data"], cwd=ROOT, capture_output=True, text=True, check=True).stdout.split()
+    assert files and all(f.endswith((".json", ".yml")) for f in files)
+
+
+def test_push_failure_opens_an_issue():
+    """pipeline/push-failure-silent."""
+    push = WF["jobs"]["push"]
+    assert push["permissions"] == {"contents": "write", "issues": "write"}
+    last = push["steps"][-1]
+    assert last["if"] == "failure()" and "Daily update failed" in last["run"] and "gh issue" in last["run"]
+    runbook = (ROOT / "docs" / "ops" / "launch-runbook.md").read_text(encoding="utf-8")
+    assert "A failure in `update` or `push` opens" in runbook
+
+
+def test_push_and_deploy_run_on_main_only():
+    """pipeline/dispatch-non-main-ref: a manual run on another branch cannot commit to main or deploy."""
+    assert "github.ref == 'refs/heads/main'" in WF["jobs"]["push"]["if"]
+    assert "github.ref == 'refs/heads/main'" in WF["jobs"]["deploy"]["if"]
+    assert "github.event_name == 'schedule' || inputs.collect" in WF["jobs"]["push"]["if"]

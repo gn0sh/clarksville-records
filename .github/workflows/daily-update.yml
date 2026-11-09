@@ -36,6 +36,8 @@ permissions: {}
 jobs:
   update:
     runs-on: ubuntu-24.04
+    outputs:
+      sha: ${{ steps.checkout.outputs.commit }}   # the main commit this run built on; the push job commits on it
     # A warm daily run takes minutes (10 s per request, only new documents). A cold cache (first run, or after the
     # cache was evicted) refetches about 930 documents at 10 s each plus parsing: budget the hosted-runner maximum.
     timeout-minutes: 355
@@ -44,6 +46,7 @@ jobs:
       issues: write          # open one issue when a run fails
     steps:
       - name: Check out main
+        id: checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: main
@@ -168,22 +171,48 @@ jobs:
 
   push:
     needs: update
-    if: github.event_name == 'schedule' || inputs.collect
+    # main only (pipeline/dispatch-non-main-ref): a manual run on another branch must never commit to main.
+    if: (github.event_name == 'schedule' || inputs.collect) && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: write        # commit refreshed data/ to main: the only job that can write to the repository
+      issues: write          # open one issue when this job fails (pipeline/push-failure-silent)
     steps:
-      - name: Check out main
+      # The exact commit the update job built on, not whatever main is now: the data commit is made on it, then
+      # rebased onto main below, so a concurrent edit to data/ is a loud conflict, never a silent revert
+      # (pipeline/push-reverts-concurrent-data).
+      - name: Check out the commit the update job built on
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: main
+          ref: ${{ needs.update.outputs.sha }}
 
       - name: Download refreshed data
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: records-data
           path: ${{ runner.temp }}/records-data
+
+      # The artifact came from the job that parses untrusted PDFs: treat it as input (pipeline/push-unvalidated-artifact).
+      # Allowed: regular files named *.json or *.yml (all that data/ tracks today), none over 50 MB, no symlinks.
+      - name: Validate refreshed data
+        run: |
+          set -eu
+          dir="$RUNNER_TEMP/records-data"
+          bad=0
+          while IFS= read -r -d '' f; do
+            echo "::error::not a regular file or directory (symlink or special file): $f"; bad=1
+          done < <(find "$dir" ! -type f ! -type d -print0)
+          while IFS= read -r -d '' f; do
+            case "$f" in
+              *.json|*.yml) ;;
+              *) echo "::error::file type not allowed in data/: $f"; bad=1 ;;
+            esac
+          done < <(find "$dir" -type f -print0)
+          while IFS= read -r -d '' f; do
+            echo "::error::file over 50 MB: $f"; bad=1
+          done < <(find "$dir" -type f -size +50M -print0)
+          [ "$bad" = 0 ]
 
       - name: Commit refreshed data to main
         run: |
@@ -198,15 +227,31 @@ jobs:
             echo "No data changes."
           else
             git commit -m "Daily update: refreshed records data ($(date -u +%F))"
+            # A concurrent change to data/ on main conflicts here and fails the job (the failure step opens the issue).
             git pull --rebase origin main
             git push origin HEAD:main
+          fi
+
+      - name: Open an issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Daily update failed"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+          body="The push job failed (data not committed to main): $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. The last deployed site is unchanged."
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body "$body"
           fi
 
   deploy:
     needs: update
     # LOCKED: does not run until the CEO sets the repository variable RECORDS_DEPLOY_ENABLED to 'true' (Settings >
     # Secrets and variables > Actions > Variables). Do not remove this condition. Hard stop 1.
-    if: vars.RECORDS_DEPLOY_ENABLED == 'true'
+    # Also main only (pipeline/dispatch-non-main-ref).
+    if: vars.RECORDS_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:

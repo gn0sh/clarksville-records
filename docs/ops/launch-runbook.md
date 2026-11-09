@@ -9,7 +9,10 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   `pytest`, upload the refreshed `data/` and `build/site` (plus `CNAME`) as artifacts. Read-only repo access, no
   persisted token (it parses downloaded PDFs). It never publishes.
 - `push` job: the only job with `contents: write`; it commits the refreshed `data/` to `main` if it changed, and parses
-  nothing. A failure opens one "Daily update failed" issue and leaves the live site as it was.
+  nothing. It validates the artifact first (only `*.json`/`*.yml`, no symlinks, 50 MB cap), commits on the SHA the
+  `update` job built on, then rebases onto `main`: a concurrent edit to `data/` fails the job instead of being
+  reverted. A failure in `update` or `push` opens (or comments on) one "Daily update failed" issue and leaves the live
+  site as it was. Both `push` and `deploy` run on `main` only.
 - `deploy` job: publishes the artifact. **Locked:** runs only when repo variable `RECORDS_DEPLOY_ENABLED` is `true`.
 - Collection keeps the collector's rules: honest User-Agent, robots.txt, 10 s between requests per host.
 - The downloaded PDFs (about 3 GB, not in git) live in the Actions cache (`records-store-v1-*`, 10 GB repo limit, evicted
