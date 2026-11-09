@@ -67,7 +67,7 @@ document. Nav already reserves Finance and Capital projects slots.
 - software-architect: book edition stored per line; differing figures shown both, never overwritten.
 
 ## Public-launch gates (preview unchanged)
-A vendor-correction path (a named company can report an error) and the G1 operator disclosure on every finance and contract page, both before any public URL (G6).
+A vendor-correction path (a named company can report an error) before any public URL (G6). (The per-page operator disclosure was dropped 2026-11-09: Brian's council seat is not a factor; the G1 footer stays.)
 
 ## Out of scope for now
 Per-vendor or county-wide sums; OCR of award letters (later spike); chart explorer comparing over time (county vs city vs other counties; keep line data in a comparable shape); City of Clarksville budgets and contracts (M4 sources); comptroller audits and FY2024 actuals (unverified source, later); Bonfire collection (robots) ; commission resolution links (stretch below); alerts; any score, ranking, red flag, "unusual" marker or commentary; vendor ownership or political-donation joins; records-request submission; public URL (G6).

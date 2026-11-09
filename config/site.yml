@@ -18,11 +18,11 @@ geocoder_label: the U.S. Census Bureau's geocoder   # "Your address is sent to <
 geocoder_short: Census                               # "The Census places this address in ...", "Census's privacy policy"
 geocoder_privacy_url: https://www.census.gov/about/policies/privacy.html
 
-# Footer support link (CEO, 2026-11-07). Rendered only when support_enabled is true AND support_url is set; it stays
-# false until the pre-public ethics check (G6: Brian sits on Council until January).
+# Footer support link (CEO, 2026-11-07). Rendered only when support_enabled is true AND support_url is set.
+# Enabled 2026-11-09: Brian says his council seat is not a factor (he leaves it before anything goes live).
 support_url: https://www.buymeacoffee.com/gnoshcodes
 support_label: Buy Me a Coffee
-support_enabled: false
+support_enabled: true
 
 county_name: Montgomery County
 county_body: Montgomery County Commission

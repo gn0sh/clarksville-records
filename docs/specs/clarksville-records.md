@@ -38,6 +38,7 @@ per-member votes, and paywalls video and transcripts.
 
 ## Operator and governance (Brain Trust 2026-11-07, `docs/reviews/brain-trust-spec.md`)
 - G0. **Update 2026-11-07:** the CEO is no longer a candidate (the election is over). The campaign-finance check was dropped from G6; disclosure (G1) and mechanical rules (G2) stay, since the site still names officials.
+- G0b. **Update 2026-11-09 (Brian):** his City Council seat is not a factor; he leaves it before anything goes live. No council-ethics check or caveat; the Buy Me a Coffee footer link is on.
 - G1. **Who runs it:** every page has a footer line naming the operator, linking to an About page that names him and states the data rules (CEO decision, 2026-11-07).
 - G2. **Mechanical rules, no case-by-case calls:** held-back roll calls, name merges and corrections follow written rules applied identically to every official. The source document wins. Every change is logged in a public change history.
 - G3. **The owner's own record**, if he holds office, appears under exactly the same rules.
