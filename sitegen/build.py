@@ -413,7 +413,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         if c["slug"] in {coming_slugs[p] for p in budget_pages}:
             continue
         render("coming.html.j2", f"{c['slug']}.html", c["title"], **views.coming(c["slug"]))
-    render("data.html.j2", "data.html", "Data downloads", **views.data_page())
+    render("data.html.j2", "data.html", "Data downloads",
+           **views.data_page(cixs, finance=fx is not None and fin_views.EXPORTS_READY and not fixture))
     if fx is not None:
         title = config.FIN_TEXT["contracts"]["title"]
         render("fin_contracts_index.html.j2", "contracts/index.html", title, **fin_views.contracts_index(fx))

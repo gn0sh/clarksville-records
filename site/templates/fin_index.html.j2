@@ -39,6 +39,7 @@
 </div>
 {% if capital_href %}<p><a href="{{ root }}{{ capital_href }}">{{ b.capital_title }}</a></p>{% endif %}
 </section>
+{% if exports %}<p class="exports">Download: <a href="{{ root }}data/budget_lines.csv">Budget lines (CSV)</a> <span class="sep" aria-hidden="true">&middot;</span> <a href="{{ root }}data/budget_checks.csv">Total checks (CSV)</a> <span class="sep" aria-hidden="true">&middot;</span> <a href="{{ root }}data/finance.json">JSON</a></p>{% endif %}
 {{ words_toggle(words, c, root) }}
 {% if disclosure %}{% include "_disclosure.html.j2" %}{% endif %}
 {% endblock %}

@@ -2,9 +2,13 @@
 {% block main %}
 <h1>Data downloads</h1>
 <p class="lede">Every shown fact, with its source, as files: so this site is not the only copy. The files carry what the pages show, and none of the program's raw reading of names, vote wording or motion sentences.</p>
+{% for g in groups %}
+{% if groups | length > 1 %}<h2>{{ g.heading }}</h2>{% endif %}
 <ul class="data-files">
-{% for f in files %}
+{% for f in g.files %}
   <li><a href="{{ root }}data/{{ f.name }}">{{ f.name }}</a>: {{ f.about }}</li>
 {% endfor %}
 </ul>
+{% endfor %}
+<p>Every row names the document that prints it (source_url, page) and when it was fetched. A value held back as "Not confirmed" is empty in these files, with the check that held it.</p>
 {% endblock %}

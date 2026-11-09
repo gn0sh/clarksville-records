@@ -1382,5 +1382,25 @@ EXPORT_FILES = (
 )
 
 
-def data_page() -> dict:
-    return {"files": [{"name": n, "about": a} for n, a in EXPORT_FILES]}
+FIN_EXPORT_FILES = (
+    ("finance.json", "Bids and awards and the budget books, as the pages show them, with every source."),
+    ("solicitations.csv", "One row per solicitation in the purchasing archive."),
+    ("bidders.csv", "One row per bidder on a bid tab that was read, in the tab's printed order."),
+    ("fin_documents.csv", "Every bid and award document, with its address and fetch date."),
+    ("budget_lines.csv", "One row per budget line per column, as printed."),
+    ("budget_checks.csv", "Each subtotal and total line per column: the printed total, the sum of its lines and the "
+                          "difference."),
+)
+
+
+def data_page(councils=(), finance: bool = False) -> dict:
+    """The Data downloads page: the county's files, then each council's (data/<slug>/, the same files), then the
+    finance files when the finance pages are built. A held value is empty in every file, with the check that held it."""
+    groups = [{"heading": config.SITE["county_body"], "files": [{"name": n, "about": a} for n, a in EXPORT_FILES]}]
+    for c in councils:
+        groups.append({"heading": c.body_name,
+                       "files": [{"name": f"{c.slug}/{n}", "about": a} for n, a in EXPORT_FILES]})
+    if finance:
+        groups.append({"heading": "Bids, awards and budgets",
+                       "files": [{"name": n, "about": a} for n, a in FIN_EXPORT_FILES]})
+    return {"groups": groups, "files": groups[0]["files"]}

@@ -16,8 +16,9 @@ T = config.FIN_TEXT
 C = T["contracts"]
 
 
-# The CSV/JSON download links on the index wait for the export files (finance-contracts F8): set True there.
-EXPORTS_READY = False
+# The CSV/JSON download links on the contracts and finance indexes: the export files exist (collector/fin_export.py,
+# tasks F8 and F15), written by `python -m collector export` or `run`.
+EXPORTS_READY = True
 
 
 class FinanceError(Exception):
@@ -290,7 +291,7 @@ def contracts_index(fx: Finance) -> dict:
     years = sorted({r["year"] for r in rows if r["year"] is not None}, reverse=True)
     return {"rows": rows, "depts": depts, "years": years, "coverage_sentence": coverage_sentence(fx.coverage),
             "notes": notes(), "c": C, "words": _words(C["words"]), "disclosure": False,
-            "exports": EXPORTS_READY}
+            "exports": EXPORTS_READY and not fx.fixture}   # a fixture build has no finance export
 
 
 def solicitation(sol_id: str, fx: Finance) -> dict:

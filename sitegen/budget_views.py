@@ -248,8 +248,9 @@ def finance_index(bg: Budget) -> dict:
                       "url": s["url"], "fetched": s["fetched_at"]})
     funds = [{"no": no, "href": bg.fund_href(no), "names": _names(bg, no), "fact_id": f"fund/{no}"}
              for no in bg.funds]
+    from .fin_views import EXPORTS_READY
     return dict(_common(bg), books=books, funds=funds, missing=_actuals_missing(bg), words=_words(B["words"]),
-                capital_href=CAPITAL if bg.capital_fund else None)
+                capital_href=CAPITAL if bg.capital_fund else None, exports=EXPORTS_READY and not bg.fx.fixture)
 
 
 def fund(fund_no: str, bg: Budget) -> dict:
