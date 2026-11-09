@@ -6,7 +6,7 @@ next to this one, read `../gnoshcodes/CLAUDE.md`. The agents and skills it names
 It is the one current copy. Don't copy it here, because copies drift.
 
 ## Hard stops (always ask Brian first, even if you can't reach the playbook)
-1. Deploying to production or any environment real users touch, including making the site or this repo public.
+1. Deploying to production or any environment real users touch, including turning on the production deploy (the repo is already public; a temporary preview runs on gh-pages).
 2. Deleting or irreversibly changing data, databases, infrastructure, or git history on shared branches.
 3. Spending money (a custom domain included).
 4. Acting outside the repo on Brian's behalf (emails, public posts, records requests, accounts, publishing).

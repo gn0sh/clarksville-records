@@ -219,3 +219,7 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | backend-engineer | opus/high | fix titled-name corroboration + alias canonicalization + residual-risk doc | running
 - 2026-11-09 | frontend-engineer | sonnet/medium | gnoshcodes.com records card | done: gn0sh/gnoshcodes-site branch claude/records-product 78afcb4, not merged; merge at launch with go-ahead (hard stop 1)
 - 2026-11-09 | frontend-engineer | sonnet/medium | gnoshcodes branding + operator credit to gnoshcodes (Brian Nov 9) | running
+- 2026-11-09 21:48Z: Brian said "go" to full parallel helpers through the Friday launch (coordinator relay).
+- 2026-11-09 | devops-engineer | sonnet/medium | prod hosting: locked daily-update + Pages workflow, CNAME, launch runbook | running
+- 2026-11-09 | qa-engineer | sonnet/medium | launch test plan | running
+- 2026-11-09: CLAUDE.md hard stop 1 wording fixed (repo is already public).
