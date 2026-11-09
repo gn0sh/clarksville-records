@@ -20,7 +20,7 @@ geocoder_privacy_url: https://www.census.gov/about/policies/privacy.html
 
 # Footer support link (CEO, 2026-11-07). Rendered only when support_enabled is true AND support_url is set.
 # Enabled 2026-11-09: Brian says his council seat is not a factor (he leaves it before anything goes live).
-support_url: https://www.buymeacoffee.com/gnoshcodes
+support_url: https://buymeacoffee.com/gnoshcodes
 support_label: Buy Me a Coffee
 support_enabled: true
 

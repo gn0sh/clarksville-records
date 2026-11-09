@@ -330,7 +330,7 @@ def test_footer_support_link_renders_when_switched_on(tmp_path, facts, monkeypat
     pages = build_pages(tmp_path, facts)
     for name, html in pages.items():
         assert re.search(r'Provided as a free service by Brian Zacharias\. <a data-ext="support" '
-                         r'href="https://www\.buymeacoffee\.com/gnoshcodes" rel="noopener noreferrer">Buy Me a Coffee</a>',
+                         r'href="https://buymeacoffee\.com/gnoshcodes" rel="noopener noreferrer">Buy Me a Coffee</a>',
                          html), name
     monkeypatch.setitem(config.SITE, "support_url", "")
     (tmp_path / "b").mkdir()
