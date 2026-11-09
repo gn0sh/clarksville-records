@@ -8,6 +8,8 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
 - one plain GET with a clear User-Agent, no header tricks;
 - no automatic redirects: each Location goes through get() again (allowlist, denied hosts, robots, per-host
   delay), at most MAX_REDIRECTS hops, or the fetch fails;
+- a connection reset (the sandbox relay dropping a slow exchange) is retried once after the host delay, like a
+  server error; a second reset fails the fetch;
 - a 403 or 429 sent by the site stops that host for the rest of the run, with no retry by another
   host, header or proxy. A refusal by the sandbox's own egress proxy (a rejected CONNECT, which the
   site never sees) is a different case: it is logged as ProxyRefused and does not mark the site as
@@ -96,6 +98,11 @@ def _is_tunnel_refusal(err: BaseException) -> bool:
     """http.client raises OSError('Tunnel connection failed: 403 ...') when the proxy rejects CONNECT."""
     e = err.reason if isinstance(err, urllib.error.URLError) and not isinstance(err, urllib.error.HTTPError) else err
     return isinstance(e, OSError) and "Tunnel connection failed" in str(e)
+
+
+def _is_reset(err: BaseException) -> bool:
+    e = err.reason if isinstance(err, urllib.error.URLError) and not isinstance(err, urllib.error.HTTPError) else err
+    return isinstance(e, ConnectionResetError)
 
 
 @dataclass
@@ -198,6 +205,11 @@ class PoliteFetcher:
         except (urllib.error.URLError, OSError) as e:
             if _is_tunnel_refusal(e):
                 raise self._note_proxy_refusal(host, url, str(getattr(e, "reason", e))) from None
+            if _is_reset(e) and _retry:
+                # the sandbox relay drops a tunnel when the site is slow to answer (proxy status: ws_closed_mid_
+                # exchange): the site sent no refusal, so one retry after the host delay, like a server error
+                self.log.append({"event": "retry", "host": host, "url": url, "detail": f"connection reset: {e}"})
+                return self._raw_get(url, _retry=False)
             self.log.append({"event": "error", "host": host, "url": url, "detail": str(e)})
             raise FetchFailed(f"{url}: {e}") from None
 
