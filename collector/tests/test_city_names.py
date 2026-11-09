@@ -97,7 +97,7 @@ def assert_name_invariant(cfg, facts: dict, texts: dict) -> None:
             refs += [mo["moved_by"]] + ([mo["seconded_by"]] if mo["seconded_by"] else [])
         for v in refs:
             assert v["official_id"] is None or v["official_id"] in roster, (m["id"], v)
-            assert v["official_id"] == resolve(v["raw_name"], pairs), (m["id"], v)
+            assert v["official_id"] == resolve(v["raw_name"], pairs, cfg.aliases), (m["id"], v)
         if not m["verification"]["status"] == "verified":
             assert all(r["verification"]["status"] == "unverified" for r in rcs)
 
@@ -263,3 +263,129 @@ def test_the_window_starts_at_the_latest_seating_and_a_bad_rule_is_refused(cfg):
                 {"month": 1, "every_years": 2}, "odd years"):
         with pytest.raises(ac.AgendaCenterConfigError):
             ac.parse_config({**raw, "seating": bad})
+
+
+# ------------------------------------------------------------------ city-votes/titled-nonmember (fresh review, ca8c2fd)
+@pytest.mark.parametrize("text", [
+    "The Council honored former City Councilman David Allen.",
+    "A plaque for then-Councilman David Allen was shown.",
+    "Former Ward 7 Councilwoman David Allen was recognized.",
+    "the late Mayor David Allen was remembered.",
+    "outgoing Councilman David Allen received a key.",
+    "County Mayor David Allen and Mayor Pitts proclaimed the day.",
+    "with Montgomery Council Mayor David Allen, we agreed.",
+    "Montgomery County Mayor David Allen was present.",
+    "Vice Mayor David Allen of the sister city attended.",
+])
+def test_n4_a_title_that_is_not_a_seat_on_this_council_is_left_out(text):
+    """Every not-sitting form from the review: a qualifier before the title, or another body's title."""
+    assert titled_names(text) == [] and titled_names(text, acting=True) == []
+
+
+@pytest.mark.parametrize("text, expected", [
+    ("Valerie Guzman, Mayor Pro Tem (Ward 5) was present.", []),            # the rest of the title, not a name
+    ("Valerie Guzman, Mayor Pro Team (Ward 5) was present.", []),
+    ("Councilperson Allen Seconded the motion.", []),                         # a verb after a bare surname
+    ("Councilperson Reynolds Objected. The following vote", []),
+    ("Councilperson Smith With no objection, this item was moved.", []),
+    ("Councilperson Smith The motion to consider failed.", []),
+    ("Councilperson Holleman Finance: Approval", []),
+    ("Mayor and Council Member Comments Stacey Streetman invited everyone.", []),
+])
+def test_n4_junk_words_never_make_a_titled_name(text, expected):
+    assert titled_names(text) == expected
+
+
+@pytest.mark.parametrize("text, acting", [
+    ("A prayer was offered by Councilman Eric Claunch; the Pledge", True),
+    ("the Pledge of Allegiance was led by Councilman Eric Claunch. 2.", True),
+    ("the Pledge of Allegiance as led by Councilman Eric Claunch (Ward 2).", True),
+    ("Councilman Eric Claunch made a motion to adopt", True),
+    ("Councilman Eric Claunch (Ward 2) made a motion to adopt", True),
+    ("Councilman Eric Claunch moved to adopt", True),
+    ("seconded by Councilman Eric Claunch. The following vote", True),
+    ("Councilman Eric Claunch seconded the motion.", True),
+    ("Councilman Eric Claunch called the meeting to order at 4:00 PM.", True),
+    ("Councilman Eric Claunch offered a prayer and led the Pledge", True),
+    ("a resolution honoring Councilman Eric Claunch was read.", False),
+    ("guest of Councilman Eric Claunch; the Pledge", False),
+    ("ORDINANCE 5-2025-26 Councilman Eric Claunch Councilman Claunch made a motion", False),   # a sponsor line
+    ("the Pledge was led by former Councilman Eric Claunch.", False),
+])
+def test_n4_an_action_context_corroborates_a_titled_name(text, acting):
+    assert titled_names(text, acting=True) == (["Eric Claunch"] if acting else [])
+
+
+def test_n4_reviewers_repro_former_city_councilman_does_not_verify_allen(cfg):
+    """The review's repro: 2025-01-02 prints the full-name list; 2025-08-07 prints ALLEN in place of REYNOLDS and
+    'honored former City Councilman David Allen'. Before the fix ALLEN resolved to city-david-allen and the roll call
+    was verified."""
+    caps = CAPS.replace("REYNOLDS", "ALLEN")
+    extra = "A plaque honored former City Councilman David Allen."
+    facts, _ = run(cfg, [("2025-01-02", minutes("2025-01-02", FULL, aye=FULL_AYE)),
+                         ("2025-08-07", minutes("2025-08-07", caps, aye=caps, extra=extra))])
+    assert att(facts, "2025-08-07")["ALLEN"] is None
+    assert not surname_check(facts, "2025-08-07")["ok"]
+    rcs = [r for r in facts["roll_calls"] if r["meeting_id"] == meeting(facts, "2025-08-07")["id"]]
+    assert rcs and all(r["verification"]["status"] == "unverified" for r in rcs)
+    assert not any(v["official_id"] == "city-david-allen" for r in rcs for v in r["votes"])
+    assert "city-david-allen" not in {o["id"] for o in facts["officials"]}
+
+
+@pytest.mark.parametrize("extra", [
+    "The Council adopted a resolution honoring Councilman David Allen.",       # no qualifier, no action
+    "then-Councilman David Allen was thanked.",
+    "Former Ward 7 Councilwoman David Allen was thanked.",
+    "County Mayor David Allen was thanked.",
+])
+def test_n4_an_uncorroborated_titled_name_leaves_the_surname_held(cfg, extra):
+    caps = CAPS.replace("REYNOLDS", "ALLEN")
+    facts, _ = run(cfg, [("2025-01-02", minutes("2025-01-02", FULL, aye=FULL_AYE)),
+                         ("2025-08-07", minutes("2025-08-07", caps, aye=caps, extra=extra))])
+    assert att(facts, "2025-08-07")["ALLEN"] is None
+    assert not surname_check(facts, "2025-08-07")["ok"]
+
+
+def test_n4_a_titled_name_in_the_book_or_in_an_action_resolves(cfg):
+    """Corroborated: Karen Reynolds is in the roster book (2025-01-02), so a plain titled mention counts; Eric Claunch
+    is in no book but seconded the motion at this meeting."""
+    caps = CAPS.replace("REYNOLDS", "REYNOLDS, CLAUNCH")
+    text = minutes("2025-08-07", caps, aye=caps, seconder="Eric Claunch",
+                   extra="A plaque honored Councilwoman Karen Reynolds.")
+    facts, _ = run(cfg, [("2025-01-02", minutes("2025-01-02", FULL, aye=FULL_AYE)), ("2025-08-07", text)])
+    a = att(facts, "2025-08-07")
+    assert a["REYNOLDS"] == "city-karen-reynolds" and a["CLAUNCH"] == "city-eric-claunch"
+    assert surname_check(facts, "2025-08-07")["ok"]
+
+
+def test_n5_a_member_printed_without_a_ward_on_the_latest_list_is_kept(cfg):
+    """`d == last` in RosterBook.for_meeting: a ward-less entry has no seat, so only being on the latest list keeps
+    it. Without that clause Ted Nobody would be held and NOBODY would not resolve."""
+    facts, _ = run(cfg, [("2025-01-02", minutes("2025-01-02", FULL + ", Ted Nobody", aye=FULL_AYE + ", Nobody")),
+                         ("2025-08-07", minutes("2025-08-07", CAPS + ", NOBODY", aye=CAPS + ", NOBODY"))])
+    assert att(facts, "2025-08-07")["NOBODY"] == "city-ted-nobody"
+    assert surname_check(facts, "2025-08-07")["ok"]
+    rb = RosterBook(cfg)
+    rb.add(printed_full_names(cfg, Officials(cfg), parse_text([minutes("2025-01-02", FULL + ", Ted Nobody")], cfg),
+                              "2025-01-02"))
+    assert rb.for_meeting("2025-08-07")["nobody"] == {
+        "people": [{"name": "Ted Nobody", "ward": None, "mayor": False, "date": "2025-01-02"}], "held": []}
+
+
+# ------------------------------------------------------------------ city-votes/alias-in-votes
+def test_n2_n7_n8_a_vote_mover_or_seconder_printed_as_an_alias_resolves(cfg):
+    """Path N2 is applied in N7 and N8: a vote, mover or seconder printed 'Amber Marquis' is read through the alias
+    list as Ambar Marquis, the member on this meeting's roster. (The motion parser reads a mover or seconder as one
+    word after the title, so a full-name mover reaches resolve() only through the same call checked below.)"""
+    text = minutes("2025-01-02", FULL + ", Ambar Marquis (Ward 6)", aye=FULL_AYE + ", Amber Marquis")
+    facts, _ = run(cfg, [("2025-01-02", text)])
+    rc = facts["roll_calls"][0]
+    assert {v["raw_name"]: v["official_id"] for v in rc["votes"]}["Amber Marquis"] == "city-ambar-marquis"
+    assert rc["verification"]["status"] == "verified"
+    roster = [("city-ambar-marquis", "Ambar Marquis")]
+    assert resolve("Amber Marquis", roster, cfg.aliases) == "city-ambar-marquis"
+    assert resolve("Amber Marquis", roster) is None
+    raw = yaml.safe_load(ac.config_path("clarksville-tn").read_text(encoding="utf-8"))
+    for bad in ({"Marquis": "Ambar Marquis"}, {"Amber Marquis": "Marquis"}, {"Amber Marquis": None}):
+        with pytest.raises(ac.AgendaCenterConfigError):          # a surname alias would re-point every such vote
+            ac.parse_config({**raw, "aliases": bad})
