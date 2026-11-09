@@ -125,6 +125,7 @@ budget:
   # {header}: the column's printed header. {printed}, {sum}, {diff}, {abs}: whole dollars with thousands separators,
   # negatives in parentheses as the book prints them. {direction} is diff_higher or diff_lower.
   diff_note: "{header}: the book prints {printed}. The lines printed above it add up to {sum}. Difference: {diff} (the printed total is {abs} {direction})."
+  diff_label: Difference as printed
   diff_higher: higher
   diff_lower: lower
   diff_note_no_lines: "{header}: the book prints this total, {printed}, with no lines above it to add."

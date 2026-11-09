@@ -11,7 +11,6 @@
 {% macro line_cell(r, b, root) -%}
 {% call clamp(2) %}{{ r.label }}{% endcall %}
 {% if r.role_words %}<span class="b-check">{{ r.role_words }}{% if r.check %} <span class="sep" aria-hidden="true">&middot;</span> {% if r.check.flag %}<a href="{{ r.check.href }}">{{ r.check.words }}</a>{% else %}{{ r.check.words }}{% endif %}{% endif %}</span>{% endif %}
-{% if r.check and r.check.notes %}<ul class="b-diff">{% for n in r.check.notes %}<li>{{ n }}</li>{% endfor %}</ul>{% endif %}
 {% if r.held %}<span class="b-held">{{ not_confirmed(r.src, r.held) }}</span>{% endif %}
 {% if r.moved %}<span class="b-moved">{{ b.moved }} {% for m in r.moved %}<a href="{{ m.href }}">{{ m.label }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</span>{% endif %}
 {% if r.edition %}<span class="b-edition">{{ r.edition.sentence }} {% for e in r.edition.links %}<a href="{{ e.href }}">{{ e.book }}, p. {{ e.page }}</a>{% if not loop.last %}; {% endif %}{% endfor %}</span>{% endif %}
@@ -39,6 +38,9 @@
       {% endfor %}
       <td class="c-source cite" data-label="{{ b.source }}">{{ fin_cites([r.src], root, r.id) }}</td>
     </tr>
+    {% if r.check and r.check.notes %}
+    <tr class="b-diffrow"><td colspan="{{ t.columns | length + 3 }}" data-label="{{ b.diff_label }}"><ul class="b-diff">{% for n in r.check.notes %}<li>{{ n }}</li>{% endfor %}</ul></td></tr>
+    {% endif %}
   {% endfor %}
   </tbody>
 </table>

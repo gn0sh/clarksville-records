@@ -767,7 +767,14 @@ table.budget th .kind { font-weight: 400; font-size: var(--t-xs); color: var(--m
 table.budget td.c-acct { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
 table.budget th.c-line { min-width: 12rem; }
 table.budget .b-check, table.budget .b-held, table.budget .b-moved, table.budget .b-edition { display: block; font-size: var(--t-xs); font-weight: 400; }
-table.budget .b-diff { margin: .25rem 0 0; padding: 0; list-style: none; font-size: var(--t-xs); font-weight: 400; color: var(--muted); }
+table.budget .b-diff { margin: 0; padding: 0; list-style: none; font-size: var(--t-xs); font-weight: 400; color: var(--muted); }
+table.budget .b-diff li + li { margin-top: 2px; }
+table.budget tr.b-diffrow td { padding-top: 0; border-top: 0; }
+@media (max-width: 640px) {
+  /* the note sits in its own card row, joined to the total above it */
+  table.fin-stack tbody tr:has(+ .b-diffrow) { margin-bottom: 0; border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; }
+  table.fin-stack tbody tr.b-diffrow { border-top: 0; border-radius: 0 0 var(--radius) var(--radius); padding-top: 0; }
+}
 table.budget tr.b-subtotal th.c-line, table.budget tr.b-total th.c-line { font-weight: 700; }
 table.budget tr.b-subtotal > *, table.budget tr.b-total > * { border-top: 2px solid var(--fg); }
 table.budget td.c-source { min-width: 9rem; }

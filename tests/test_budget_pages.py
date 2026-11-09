@@ -224,7 +224,7 @@ def test_check_states_in_words(bpages):
     assert B["check"]["within_rounding"] in row_text(html, "fy2027-approved/p20/r6")
     t = row_text(html, "fy2027-approved/p21/r3")
     assert B["check"]["does_not_add_up"] == "As printed, does not add up"
-    assert B["check"]["does_not_add_up"] in t and "FY 2026 Amended" in t
+    assert B["check"]["does_not_add_up"] in t
     assert "3,100" in t  # shown as printed, never corrected
 
 
@@ -402,21 +402,19 @@ def test_site_checks_know_the_budget_pages(fin):
 # ---- difference notes (owner's decision 2026-11-08) ----------------------------------------------------------------
 
 def notes_in(html, block_id=None, fid=None):
-    """The b-diff notes in the row of a fact (first one on the page) or in a flagged block."""
+    """The b-diff notes in the row that follows a total (the first such total on the page, or in a flagged block)."""
     doc = parse(html)
+    nodes = list(doc.walk())
     if block_id:
-        root = next(n for n in doc.walk() if n.attrs.get("id") == block_id)
-        nodes = list(root.walk())
-    else:
-        nodes = list(doc.walk())
-    out = []
-    for n in nodes:
-        if n.tag == "tr" and (n.attrs.get("data-fact-id") == fid or (block_id and "data-fact-id" in n.attrs)):
-            out += [re.sub(r"\s+", " ", li.all_text()).strip() for li in n.walk()
-                    if li.tag == "li" and li.parent is not None and "b-diff" in li.parent.attrs.get("class", "")]
-        if fid and out:
-            break
-    return out
+        nodes = list(next(n for n in nodes if n.attrs.get("id") == block_id).walk())
+    trs = [n for n in nodes if n.tag == "tr" and ("data-fact-id" in n.attrs or "b-diffrow" in n.attrs.get("class", ""))]
+    for i, tr in enumerate(trs):
+        if tr.attrs.get("data-fact-id") == fid or (block_id and i == 0):
+            nxt = trs[i + 1] if i + 1 < len(trs) else None
+            if nxt is None or "b-diffrow" not in nxt.attrs.get("class", ""):
+                return []
+            return [re.sub(r"\s+", " ", li.all_text()).strip() for li in nxt.walk() if li.tag == "li"]
+    return []
 
 
 def line_of(fin, lid):
