@@ -173,3 +173,4 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09: DEADLINE (Brian): finished MoCo + Clarksville product within a week, target Sun 2026-11-15. Plan: docs/plan/one-week-finish.md. Waiting on CEO: (CivicClerk hosts allowed 11/9) | CivicClerk collection OK (yes rec.) | public repo + Pages at records.gnoshcodes.com (yes rec.) | go-live go-ahead (hard stop 1). Defaults: city from the Agenda Center (2016 to May 2024) only; no public hosting.
 - 2026-11-09 | backend-engineer | opus/default | M4 slice 1: city Agenda Center collector | done: 305 meetings, 168 minutes, 1,859 roll calls (82.1% verified, below 90% gate), 1163 tests pass; merged 8c17453
 - 2026-11-09 | code-reviewer | opus/default | review M4 slice 1 | request changes: 1 high (city-votes/item-link), 2 medium, 2 low
+- 2026-11-09 | backend-engineer | opus/high | fix M4 review findings | done: 5 fixed, 1181 tests pass, verified 81.7%; f1dedd8
