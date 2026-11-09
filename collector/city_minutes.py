@@ -29,6 +29,11 @@ TITLES = (r"(?:Councilman|Councillady|Councilwoman|Councilperson|Councilmember|C
           r"Mayor)")
 MOTION_RE = re.compile(TITLES + r"\s+([A-Z][A-Za-z'’-]+)\s+made\s+a\s+motion")
 NAMED_RE = re.compile(TITLES + r"\s+([A-Z][A-Za-z'’-]+)")
+# A member speaking or moving: title, surname, then a verb ("Councilperson Allen made", "Mayor McMillan said",
+# "Councilman Burkhart seconded"). Not "Councilman Jeff Burkhart, Chair" (a name, no verb).
+SPEAKS = TITLES + r"\s+[A-Z][A-Za-z'’-]+\s+(?:made|said|felt|then|was|also|[a-z]+ed)\b"
+BODY_IN_LINE_RE = re.compile(SPEAKS)
+BODY_LINE_RE = re.compile(r"^(?:The|This|These|There|Because|In response)\b|^" + SPEAKS)
 SECOND_RE = re.compile(r"seconded\s+by\s+" + TITLES + r"\s+([A-Z][A-Za-z'’-]+)")
 # "(Ward 1)", "(Ward 10; arrived 5:05 p.m.)", and the minutes' own slips "Ward 3)" and "(Ward7)"
 # "Ward N" with or without its parentheses, with a note after it ("Ward 2 - left early", "Ward 8, Excused")
@@ -270,6 +275,23 @@ def _heading(text: str, cfg: AgendaCenterConfig, labels) -> bool:
     return run == len(words) or run >= 2
 
 
+def _ends_title(text: str, cfg: AgendaCenterConfig, labels) -> bool:
+    """An item's title runs over the lines after its number until one of these: a blank line, a heading, a label
+    line ("AYE: ..."), or a line that starts the item's body: a sentence ("The ...", "There was no
+    recommendation ...", "Because ...") or a member speaking or moving ("Councilperson Allen made a motion").
+    Minutes often print the body right under the title with no blank line between them."""
+    return (not text or _heading(text, cfg, labels) or bool(_label_of(text, labels)) or bool(BODY_LINE_RE.match(text))
+            or bool(MOTION_RE.search(text)))
+
+
+def _heading_text(text: str) -> str:
+    """A heading as printed, without a sentence that runs on after it on the same line ("DELIBERATION PHASE:
+    Councilman Garrett made a motion ..." -> "DELIBERATION PHASE")."""
+    text = re.sub(r"\s+", " ", text)
+    m = BODY_IN_LINE_RE.search(text)
+    return text[:m.start()].strip(" :;,-") if m and m.start() > 0 else text
+
+
 def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "text") -> ParsedCityMinutes:
     out = ParsedCityMinutes(text_layer=text_layer, pages=max(len(pages), 1))
     if text_layer != "text":
@@ -342,20 +364,29 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
             continue
         if t and _para_start(lines, i) and cfg.item_number.match(t):
             m = cfg.item_number.match(t)
-            title_parts, j = [t[m.end():].strip()], i + 1
-            while j < len(lines) and lines[j].text and not _heading(lines[j].text, cfg, all_labels) \
-                    and not lines[j].text.startswith(("The ", "This ")):
+            kind, number = m.group(1).lower(), m.group(2)
+            rest = t[m.end():].strip()
+            window = []
+            if re.match(r"[a-z]", rest):
+                # a sentence about the item ("RESOLUTION 35-2018-19 was removed from the Consent Agenda.
+                # Councilman Powers made a motion ..."): the item is taken up here, but the line is no title
+                item = {"number": number, "kind": kind, "title": titles.get((kind, number)),
+                        "heading": item["heading"]}
+                window.append(ln)
+                i += 1
+                continue
+            title_parts, j = [rest], i + 1
+            while j < len(lines) and not _ends_title(lines[j].text, cfg, all_labels):
                 title_parts.append(lines[j].text)
                 j += 1
-            item = {"number": m.group(2), "kind": m.group(1).lower(),
+            item = {"number": number, "kind": kind,
                     "title": re.sub(r"\s+", " ", " ".join(title_parts)).strip(), "heading": item["heading"]}
-            titles.setdefault((item["kind"], item["number"]), item["title"])
-            window = []
+            titles.setdefault((kind, number), item["title"])
             i = j
             continue
         if t and _para_start(lines, i) and _heading(t, cfg, all_labels):
             attendance_closed = attendance_closed or seen_attendance
-            item = {"number": None, "kind": None, "title": None, "heading": re.sub(r"\s+", " ", t)}
+            item = {"number": None, "kind": None, "title": None, "heading": _heading_text(t)}
             window = []
         if t:
             window.append(ln)

@@ -455,3 +455,80 @@ def test_councilperson_title_reads_motions_and_note_absences(cfg):
     facts, _ = build(cfg, rows[:1], store, parse=lambda p, c: parse_text([COUNCILPERSON], c), inspect=inspect)
     assert len(facts["motions"]) == 1 and facts["motions"][0]["verification"]["status"] == "verified"
     assert facts["roll_calls"][0]["verification"]["status"] == "verified"       # Knight out of the room
+
+
+OVERRUN = """ATTENDANCE
+
+    PRESENT: Valerie Guzman (Ward 5), Ron Erb (Ward 3), David Allen (Ward 8)
+
+    The regular session was called to order by Mayor Kim McMillan.
+
+GAS & WATER COMMITTEE
+
+    ORDINANCE 53-2018-19 (First Reading) Authorizing extension of utility services to
+    1621 Dunlop Lane; request of Ben Stanley
+    There was no recommendation from the Gas & Water Committee due to lack of a quorum.
+    Councillady Guzman made a motion to adopt this ordinance on first reading. The motion
+    was seconded by Councilman Erb. The following vote was recorded:
+           AYE: Allen, Erb, Guzman, McMillan
+    The motion to adopt this ordinance on first reading passed.
+
+    RESOLUTION 81-2020-21 Authorizing reapplication for zone change for Reda Home Builders,
+    Inc. on property located at the intersection of Twin Rivers Road and Nolen Road
+    Councilperson Allen made a motion to adopt this resolution. The motion was seconded by
+    Councilperson Erb.
+
+          AYE: Allen, Erb, Guzman, McMillan
+
+    The motion to adopt this resolution passed.
+
+BOARD APPOINTMENTS
+
+    RESOLUTION 35-2018-19 was removed from the Consent Agenda. Councilman
+    Allen made a motion to adopt this resolution. The motion was seconded by
+    Councilman Erb. The following vote was recorded:
+
+          AYE: Allen, Erb, Guzman, McMillan
+
+    The motion to adopt this resolution passed.
+
+DELIBERATION PHASE: Councilman Erb made a motion to overturn the decision
+of the Regional Historic Zoning Commission. The motion was seconded by Councilman Allen.
+The following vote was recorded:
+
+          AYE: Allen, Erb, Guzman, McMillan
+
+The motion to overturn the decision passed.
+"""
+
+
+def test_item_title_stops_where_the_body_starts(cfg):
+    # city-items/title-overrun: the title absorbed the motion and vote text, and the AYE line inside it was lost
+    rcs = parse_text([OVERRUN], cfg).roll_calls
+    assert len(rcs) == 4                                       # the AYE line right under the motion is read
+    a, b, c, d = rcs
+    assert a.item["title"] == ("(First Reading) Authorizing extension of utility services to 1621 Dunlop Lane; "
+                               "request of Ben Stanley")
+    assert [v.raw_name for v in a.votes] == ["Allen", "Erb", "Guzman", "McMillan"]
+    assert a.motion["mover"] == "Guzman" and a.motion["seconder"] == "Erb"
+    assert b.item["title"].endswith("intersection of Twin Rivers Road and Nolen Road")
+    assert b.motion["mover"] == "Allen"
+
+
+def test_a_sentence_after_an_item_number_is_not_its_title(cfg):
+    c = parse_text([OVERRUN], cfg).roll_calls[2]
+    assert c.item["number"] == "35-2018-19" and c.item["title"] is None
+    assert c.motion["mover"] == "Allen" and c.motion["seconder"] == "Erb"     # the motion on that line is read
+
+
+def test_a_heading_line_does_not_take_the_sentence_after_it(cfg):
+    d = parse_text([OVERRUN], cfg).roll_calls[3]
+    assert d.item["number"] is None and d.item["heading"] == "DELIBERATION PHASE"
+    assert d.motion["mover"] == "Erb"
+
+
+def test_no_item_title_holds_motion_or_vote_text(cfg):
+    rows, store, inspect = rows_and_store()
+    facts, _ = build(cfg, rows[:1], store, parse=lambda p, c: parse_text([OVERRUN], c), inspect=inspect)
+    import re
+    assert not [i["title"] for i in facts["items"] if re.search(r"made a motion|seconded|AYE:", i["title"])]
