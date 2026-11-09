@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src &#39;self&#39;; script-src &#39;self&#39;; style-src &#39;self&#39; &#39;unsafe-inline&#39;; style-src-elem &#39;self&#39;; connect-src &#39;none&#39;; img-src &#39;self&#39; data:; object-src &#39;none&#39;; base-uri &#39;none&#39;; form-action &#39;self&#39;; frame-src &#39;self&#39;">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Clarksville Records | About</title>
+<link rel="stylesheet" href="static/style.css">
+</head>
+<body><div style="background:#B8401A;color:#fff;padding:6px 12px;font:14px/1.4 system-ui,sans-serif;text-align:center">Preview, not yet launched. Shared for review only.</div>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="masthead">
+    <a id="nav-open" class="menu-btn" href="#site-nav"><span class="menu-icon" aria-hidden="true"></span><span class="menu-word">Menu</span></a>
+    <div class="brand">
+      <p class="site-name"><a href="index.html">Clarksville Records</a></p>
+<p class="kicker">Montgomery County Commission minutes, <span class="nowrap">2020-02-10</span> to <span class="nowrap">2026-05-11</span></p>    </div>
+  </div>
+</header>
+<div class="rule-double" aria-hidden="true"></div>
+<main id="main">
+<h1>About this site and its data rules</h1>
+
+<section aria-labelledby="operator">
+  <h2 id="operator">Who runs this site</h2>
+  <p>This site is run by Brian Zacharias. The site is a private preview and has no public address yet.</p>
+</section>
+
+<section aria-labelledby="collected">
+  <h2 id="collected">What is collected, and from where</h2>
+  <p>The site reads the official minutes of the Montgomery County Commission, as published by the county, for 2020-02-10 to 2026-05-11. Each minutes PDF is downloaded politely (it follows the site's robots rules and waits between requests) and kept unchanged. A computer program reads the text of each PDF. The county's minutes record motions, seconds, roll call votes and attendance. They do not record spoken comments, so none are shown.</p>
+  <p>Every fact on this site links to the minutes PDF, opened at the page where the fact appears, and shows the date the PDF was fetched.</p>
+</section>
+
+<section aria-labelledby="the-record">
+  <h2 id="the-record">The record</h2>
+  <div class="glance">
+  <ul class="stats">
+    <li class="stat"><span class="stat-num">64</span><span class="stat-label">meetings in the record</span></li>
+    <li class="stat"><span class="stat-num">354</span><span class="stat-label">roll calls confirmed</span></li>
+    <li class="stat"><span class="stat-num">36</span><span class="stat-label">roll calls shown but not confirmed*</span></li>
+    <li class="stat stat-dates"><span class="stat-num"><span class="nowrap">2020-02-10</span> to <span class="nowrap">2026-05-11</span></span><span class="stat-label">dates covered</span></li>
+  </ul>
+  <p class="glance-note">354 of 390 roll calls are confirmed; the other 36 are shown with an asterisk and a link to the page of the minutes. 97 motion attributions are under review. 0 meetings have no attendance shown. See the <a href="#verified">data rules</a>.</p>
+  </div>
+</section>
+
+<section aria-labelledby="verified">
+  <h2 id="verified">Verified and not confirmed facts</h2>
+  <p>A computer program can misread a page, so each extracted fact is checked automatically before it is shown. For a roll call the checks are: every member present has exactly one recorded vote; the Yes, No and Abstain totals equal the totals the minutes state; the recorded outcome agrees with the votes; and every name matches the roster for that meeting. A roll call that passes every check is <em>confirmed</em>. A roll call that fails any check is still listed, marked with an asterisk (*) and &ldquo;Not confirmed: this page was hard to read. Read it yourself&rdquo;, with a link to that page of the minutes, but no vote, outcome or tally the program read from it is shown: each vote and the outcome read &ldquo;Not confirmed*&rdquo;, here and in the data files below. Confirmed votes are counted on their own, for example &ldquo;12 Yes, 3 No confirmed; 2 roll calls not confirmed*, see each page&rdquo;, and a not confirmed roll call never changes a confirmed total. A vote whose name could not be matched to an official is never placed under anyone: it appears only on the meeting and item pages, as &ldquo;Name not matched*&rdquo;, and is counted once, in one sentence that is the same on every official's page. For a motion the checks are that the people named as moving and seconding it match the roster, were present, and are two different people; if any of these fails, the motion is marked &ldquo;Attribution under review&rdquo; and no one is named as moving or seconding it, even when its roll call is shown. The minutes' own sentence for a motion, and the names exactly as the program read them, are never shown on these pages or included in the data files below, because the program can misread names in them. Each motion is shown as its kind, such as &ldquo;Motion to adopt&rdquo;. A confirmed roll call shows its outcome as Passed, Failed or Other with a tally counted from the votes shown on the page, never the minutes' own outcome sentence. Attendance that fails its checks is not shown. Scanned minutes with no readable text are shown as &ldquo;Attendance not extracted for this meeting.&rdquo;</p>
+</section>
+
+<section aria-labelledby="merge-rules">
+  <h2 id="merge-rules">How names are matched</h2>
+  <p>The same four rules apply to every person:</p>
+  <ol>
+    <li>Normalise the name from the minutes: remove a leading title (Commissioner, Comm., Chairman, Chairwoman, Mayor, Mr., Mrs., Ms., Dr.), remove periods and commas, collapse spaces, ignore capitalisation.</li>
+    <li>Match the result exactly against each official's name and listed variants (below).</li>
+    <li>Match on surname alone only when exactly one official at that meeting has that surname.</li>
+    <li>Anything else is unmatched: the name is shown as &ldquo;Name not matched&rdquo; and the fact is not confirmed. Names are never matched by closeness of spelling. A variant is added to the table below only by a recorded change.</li>
+  </ol>
+  <h3 id="aliases">Name variants merged into each official</h3>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Name variants">
+  <table class="aliases">
+    <thead><tr><th scope="col">Official</th><th scope="col">Variants seen in the minutes</th></tr></thead>
+    <tbody>
+      <tr>
+        <th scope="row"><a href="officials/jerry-allbert.html">Jerry Allbert</a></th>
+        <td data-variants>Jerry Ailbert; Jerry Alibert</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/randy-allbert.html">Randy Allbert</a></th>
+        <td data-variants>Randy Ailbert; Randy Alibert</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/joshua-beal.html">Joshua Beal</a></th>
+        <td data-variants>None recorded</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/latonia-brown.html">LaTonia Brown</a></th>
+        <td data-variants>None recorded</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/loretta-bryant.html">Loretta J. Bryant</a></th>
+        <td data-variants>Loretta Bryant; Loretta I. Bryant</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/nathan-burkholder.html">Nathan Burkholder</a></th>
+        <td data-variants>Nathan Buricholder</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/brandon-butts.html">Brandon Butts</a></th>
+        <td data-variants>Brandon Buffs; Brandon Bulls; Brandon Buns</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/carmelle-chandler.html">Carmelle Chandler</a></th>
+        <td data-variants>None recorded</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/joe-creek.html">Joe Creek</a></th>
+        <td data-variants>Joe L. Creek</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/billy-frye.html">Billy Frye</a></th>
+        <td data-variants>Billy Frye~; Billy Fry~</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/ryan-gallant.html">Ryan Gallant</a></th>
+        <td data-variants>None recorded</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/john-gannon.html">John Gannon</a></th>
+        <td data-variants>JoIm Gaimon; JoIm Gannon; John Gaimon; John M. Gaimon; John M. Gannon</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/david-harper.html">David Harper</a></th>
+        <td data-variants>None recorded</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/arnold-hodges.html">Arnold Hodges</a></th>
+        <td data-variants>None recorded</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/garland-johnson.html">Garland Johnson</a></th>
+        <td data-variants>None recorded</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/charles-keene.html">Charles Keene</a></th>
+        <td data-variants>Charles Ke~ne</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/jason-knight.html">Jason Knight</a></th>
+        <td data-variants>Jason 0. Knight; Jason D. Knight</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/michael-lankford.html">Michael Lankford</a></th>
+        <td data-variants>Michael Lanlcford; Micha~lLankford</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/rashidah-leverett.html">Rashidah Leverett</a></th>
+        <td data-variants>Rashidah A. Leverett; RashidahLeverett; Rashid~hLeverett</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/james-lewis.html">James R. Lewis</a></th>
+        <td data-variants>James Lewis</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/jorge-padro.html">Jorge Padro</a></th>
+        <td data-variants>None recorded</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/lisa-prichard.html">Lisa Prichard</a></th>
+        <td data-variants>Lisa L. Prichard; Lisa Pifichard; Lisa Prichai~d</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/chris-rasnic.html">Chris Rasnic</a></th>
+        <td data-variants>None recorded</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/rickey-ray.html">Rickey Ray</a></th>
+        <td data-variants>Ricke~~ Ray</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/larry-rocconi.html">Larry Rocconi</a></th>
+        <td data-variants>None recorded</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/clayton-rudder.html">Clayton Rudder</a></th>
+        <td data-variants>None recorded</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/david-shelton.html">David Shelton</a></th>
+        <td data-variants>None recorded</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/robert-sigler.html">Robert Sigler</a></th>
+        <td data-variants>None recorded</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/autumn-simmons.html">Autumn Simmons</a></th>
+        <td data-variants>Autunm Simmons</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/joe-smith.html">Joe Smith</a></th>
+        <td data-variants>None recorded</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/tangi-smith.html">Tangi Smith</a></th>
+        <td data-variants>Tangi C. Smith; Tãngi Smith</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/jeremiah-walker.html">Jeremiah Walker</a></th>
+        <td data-variants>None recorded</td>
+      </tr>
+      <tr>
+        <th scope="row"><a href="officials/walker-woodruff.html">Walker Woodruff</a></th>
+        <td data-variants>Walker R. Woodruff; Walker R. Woo~lrnff</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section aria-labelledby="seats">
+  <h2 id="seats">Seats, current members and those who served previously</h2>
+  <p>Each seat (District 1 to 21, County Mayor, City Mayor) has a list of holder records. For the commission districts, a holder record gives the first and last meetings whose roll-call tables print that person in that seat, with links to both pages, worded &ldquo;seen in roll calls&rdquo;. These are not term dates: a term is shown only when a source prints it, in its own words (&ldquo;term 2022-2026, as the source prints it&rdquo;). &ldquo;Current&rdquo; means seen in the roll calls of the latest meeting collected (or, for a term from a source, that the source prints no end), and is always shown with that basis. Everyone else with a record served previously. A person with no record yet is listed under &ldquo;Seat not yet recorded&rdquo;, and a name on a meeting date that no record covers reads &ldquo;seat not recorded&rdquo;: nobody is placed in a seat by guess. The seat shown next to a name on a meeting page is the one that meeting's roll-call table prints, or, between two meetings that print the same seat, that seat.</p>
+  <p>District lines changed with the county's <a data-ext="county" href="https://montgomerytn.gov/election/2021-redistricting" target="_blank" rel="noopener noreferrer">2021 redistricting<span class="sr-only"> (opens in a new tab)</span></a>. The exact day the new lines took effect is not printed in any source collected, so the site splits votes at the change between two meetings: the last roll call under the old lines and the first under the current lines, both named on each seat page. Votes under the old lines are listed under &ldquo;Old district lines&rdquo; and never added to votes under the current lines. The map PDF prints Districts 19 and 20 the other way round; this site uses the numbers printed in the roll-call tables and the county&#39;s <a data-ext="county" href="https://montgomerytn.gov/storage/departments/election/Elected%20Officials%20List.pdf#page=9" target="_blank" rel="noopener noreferrer">Elected Officials List<span class="sr-only"> (opens in a new tab)</span></a> (p. 9).</p>
+</section>
+
+<section aria-labelledby="item-types">
+  <h2 id="item-types">How item types are decided</h2>
+  <p>The same rule for every item. An item has a type when its number starts with one of the prefixes below, or its title, as printed in the minutes, contains one of the words (any capitalisation). An item can have more than one type. An item with none of them is &ldquo;Other&rdquo;.</p>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Item type rule">
+  <table class="aliases">
+    <thead><tr><th scope="col">Type</th><th scope="col">Number starts with</th><th scope="col">Title contains</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Rezoning</th><td>CZ-, CZO-</td><td>rezone, rezoning, zoning</td></tr>
+      <tr><th scope="row">Budget and finance</th><td>None</td><td>budget, appropriat</td></tr>
+      <tr><th scope="row">Resolution</th><td>None</td><td>resolution</td></tr>
+      <tr><th scope="row">Ordinance</th><td>None</td><td>ordinance</td></tr>
+      <tr><th scope="row">Appointment</th><td>None</td><td>appoint, nominat</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section aria-labelledby="motion-kinds">
+  <h2 id="motion-kinds">How motion kinds are decided</h2>
+  <p>The same rule for every motion. The kind shown (for example &ldquo;Motion to adopt&rdquo;) is decided by the team, not printed in the minutes: the motion's text is searched for the phrases below, in this order, and the first match gives the kind (any capitalisation; &ldquo;...&rdquo; stands for any words in between). A motion with none of them is &ldquo;Motion&rdquo;. Only the kind is shown, never the minutes' sentence.</p>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Motion kind rule">
+  <table class="aliases">
+    <thead><tr><th scope="col">Kind</th><th scope="col">Text contains</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Motion to amend</th><td>motion to amend; to amend; amendment</td></tr>
+      <tr><th scope="row">Motion to defer</th><td>motion to defer; to defer</td></tr>
+      <tr><th scope="row">Motion to table</th><td>motion to table; to table</td></tr>
+      <tr><th scope="row">Motion to postpone</th><td>motion to postpone; to postpone</td></tr>
+      <tr><th scope="row">Motion to approve</th><td>motion to approve; to approve</td></tr>
+      <tr><th scope="row">Motion to adopt</th><td>motion to adopt; foregoing ... was adopted</td></tr>
+      <tr><th scope="row">Motion to suspend the rules</th><td>rules were suspended; suspend the rules</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section aria-labelledby="vote-on">
+  <h2 id="vote-on">How &ldquo;Vote on&rdquo; is decided</h2>
+  <p>The same rule for every roll call. The &ldquo;Vote on&rdquo; label (for example &ldquo;Amendment&rdquo;) is decided by the team, not printed as a label in the minutes. It comes from the sentence the minutes print just before the roll call, the one that says what was adopted or failed by the roll call vote that follows. That whole sentence must take one of the forms below, checked in this order, and the first match gives the label (any capitalisation; words in [brackets] may be missing; &ldquo;th~&rdquo; is read as &ldquo;the&rdquo;; a colon and stray marks at the end are ignored). Before it there may be one other word (a name) or earlier text that ends in punctuation. A sentence that takes none of these forms gets no label, and a roll call that is not confirmed never gets one. Only the label is shown, never the minutes' sentence.</p>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Vote on rule">
+  <table class="aliases">
+    <thead><tr><th scope="col">Vote on</th><th scope="col">The sentence reads</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Resolution, as amended</th><td>[the] foregoing resolution[,] as amended[,] [was or were] adopted, approved or failed [and approved] by the following roll call vote</td></tr>
+      <tr><th scope="row">Resolution, as amended</th><td>[the] foregoing resolution [was or were] adopted, approved or failed [and approved], as amended, by the following roll call vote</td></tr>
+      <tr><th scope="row">Resolution, as amended</th><td>[the] foregoing amended resolution [was or were] adopted, approved or failed [and approved] by the following roll call vote</td></tr>
+      <tr><th scope="row">Zoning resolution</th><td>[the] foregoing zoning resolution [was or were] adopted, approved or failed [and approved] by the following roll call vote</td></tr>
+      <tr><th scope="row">Resolution</th><td>[the] foregoing resolution [was or were] adopted, approved or failed [and approved] by the following roll call vote</td></tr>
+      <tr><th scope="row">Amendment</th><td>[the] foregoing amendment [was or were] adopted, approved or failed [and approved] by the following roll call vote</td></tr>
+      <tr><th scope="row">Amendment</th><td>[the] amendment [was or were] adopted, approved or failed [and approved] by the following roll call vote</td></tr>
+      <tr><th scope="row">Motion to defer</th><td>[the] foregoing motion to defer [was or were] adopted, approved or failed [and approved] by the following roll call vote</td></tr>
+      <tr><th scope="row">Motion to defer</th><td>[the] motion to defer [was or were] adopted, approved or failed [and approved] by the following roll call vote</td></tr>
+      <tr><th scope="row">Motion to table</th><td>[the] [foregoing] motion to table [was or were] adopted, approved or failed [and approved] by the following roll call vote</td></tr>
+      <tr><th scope="row">Motion to reconsider</th><td>[the] motion to reconsider [was or were] adopted, approved or failed [and approved] by the following roll call vote</td></tr>
+      <tr><th scope="row">Motion</th><td>[the] [foregoing] motion [was or were] adopted, approved or failed [and approved] by the following roll call vote</td></tr>
+      <tr><th scope="row">Consent agenda</th><td>[the] foregoing consent agenda items [was or were] adopted, approved or failed [and approved] by the following roll call vote</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section aria-labelledby="neutrality">
+  <h2 id="neutrality">Neutrality rules</h2>
+  <ol>
+    <li>Every official is shown with the same layout, the same fields and the same order. People are listed alphabetically by surname, except current members, who are listed by seat number. Nothing is ever ordered by a count.</li>
+    <li>Only facts are shown. Attendance is Present or Absent as the minutes record it. A vote is Yes, No or Abstain, or Other, with the minutes' wording only when it is one of Recused, Absent, Not voting or Present. Nothing is turned into a judgment.</li>
+    <li>Counts appear only as plain totals, with the number of meetings they come from and the date range stated, worded the same way for everyone. Nothing is sorted by a count or highlighted for one.</li>
+    <li>Every fact shows a link to its source document and page, and the date it was fetched.</li>
+    <li>Every fact has a way to report a mistake (see below).</li>
+    <li>There are no advertisements, campaign links, outside scripts, outside fonts or visitor tracking. The site's own small scripts (menu, map and search) make no network requests.</li>
+  </ol>
+</section>
+
+<section aria-labelledby="corrections">
+  <h2 id="corrections">Report an error</h2>
+  <p>Every fact has a <a href="report.html">Report an error</a> link. It opens a short page that says what to include: the page address, the fact id shown on the row, and the source document and page that shows the right value.</p>
+  <p>A vote's fact id is the roll call id, a slash, and the official's id. An attendance fact id is the meeting id, <code>/att/</code>, and the official's id. A Moved or Seconded fact id is the motion id, a slash, and <code>moved</code> or <code>seconded</code>.</p>
+  <h3 id="how-corrections-work">How corrections work</h3>
+  <p>Each report is checked against the source document it names. The site then shows what the source document says, with a link to it; a value is never changed without a source. The same rule applies to every official and every record, whoever sends the report. When a fix is made, the change is recorded on the <a href="changes.html">Changes</a> page.</p>
+</section>
+
+<section aria-labelledby="exports">
+  <h2 id="exports">Open data</h2>
+  <p>All shown facts, with their sources, are available as files so this site is not the only copy. The files carry the same facts as the pages: official ids and names, each motion's kind, whether each roll call and vote is confirmed, and links to the source pages, but not the program's raw reading of names, vote wording or motion sentences.</p>
+  <ul>
+    <li><a href="data/facts.json">facts.json</a> (all shown facts and sources)</li>
+    <li><a href="data/officials.csv">officials.csv</a></li>
+    <li><a href="data/meetings.csv">meetings.csv</a></li>
+    <li><a href="data/attendance.csv">attendance.csv</a></li>
+    <li><a href="data/roll_calls.csv">roll_calls.csv</a></li>
+    <li><a href="data/votes.csv">votes.csv</a></li>
+    <li><a href="data/motions.csv">motions.csv</a></li>
+    <li><a href="data/items.csv">items.csv</a></li>
+    <li><a href="data/item_events.csv">item_events.csv</a></li>
+    <li><a href="data/sources.csv">sources.csv</a></li>
+  </ul>
+</section>
+</main>
+<footer class="site-footer">
+  <p>Provided as a free service by Brian Zacharias. <a data-ext="support" href="https://buymeacoffee.com/gnoshcodes" rel="noopener noreferrer">Buy Me a Coffee</a></p>
+  <p><a href="about.html">About this site and its data rules.</a> Data as of 2026-11-07</p>
+  <nav id="site-nav" class="site-nav" aria-label="All pages" data-root="" data-search="search.html">
+    <h2 class="site-nav-h">All pages</h2>
+    <ul class="nav-list">
+      <li><a href="index.html">Map (home)</a></li>
+      <li><a href="search.html">Search</a></li>
+      <li><a href="votes/2026.html">Votes</a></li>
+      <li><a href="meetings.html">Meetings</a></li>
+      <li><a href="officials.html">Officials</a></li>
+      <li><a href="city/index.html">City Council</a></li>
+      <li><span class="nav-group">Items</span>
+        <ul class="nav-years" aria-label="Items by year">
+          <li><a href="items/2026.html">2026</a></li>
+          <li><a href="items/2025.html">2025</a></li>
+          <li><a href="items/2024.html">2024</a></li>
+          <li><a href="items/2023.html">2023</a></li>
+          <li><a href="items/2022.html">2022</a></li>
+          <li><a href="items/2021.html">2021</a></li>
+          <li><a href="items/2020.html">2020</a></li>
+        </ul>
+      </li>
+      <li><a href="finance/index.html">Finance</a></li>
+      <li><a href="contracts/index.html">Bids and awards</a></li>
+      <li><a href="capital/index.html">Capital projects</a></li>
+      <li><a href="data.html">Data downloads</a></li>
+      <li><a href="alerts.html">Alerts</a></li>
+      <li><a href="about.html" aria-current="page">About</a></li>
+      <li><a href="changes.html">Changes</a></li>
+    </ul>
+  </nav>
+</footer>
+<script src="static/nav.js" defer></script>
+<script src="static/filter.js" defer></script>
+<script src="static/clamp.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src &#39;self&#39;; script-src &#39;self&#39;; style-src &#39;self&#39; &#39;unsafe-inline&#39;; style-src-elem &#39;self&#39;; connect-src &#39;none&#39;; img-src &#39;self&#39; data:; object-src &#39;none&#39;; base-uri &#39;none&#39;; form-action &#39;self&#39;; frame-src &#39;self&#39;">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Clarksville Records | Data downloads</title>
+<link rel="stylesheet" href="static/style.css">
+</head>
+<body><div style="background:#B8401A;color:#fff;padding:6px 12px;font:14px/1.4 system-ui,sans-serif;text-align:center">Preview, not yet launched. Shared for review only.</div>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="masthead">
+    <a id="nav-open" class="menu-btn" href="#site-nav"><span class="menu-icon" aria-hidden="true"></span><span class="menu-word">Menu</span></a>
+    <div class="brand">
+      <p class="site-name"><a href="index.html">Clarksville Records</a></p>
+<p class="kicker">Montgomery County Commission minutes, <span class="nowrap">2020-02-10</span> to <span class="nowrap">2026-05-11</span></p>    </div>
+  </div>
+</header>
+<div class="rule-double" aria-hidden="true"></div>
+<main id="main">
+<h1>Data downloads</h1>
+<p class="lede">Every shown fact, with its source, as files: so this site is not the only copy. The files carry what the pages show, and none of the program's raw reading of names, vote wording or motion sentences.</p>
+<h2>Montgomery County Commission</h2><ul class="data-files">
+  <li><a href="data/facts.json">facts.json</a>: All shown facts and their sources, in one file.</li>
+  <li><a href="data/officials.csv">officials.csv</a>: One row per official.</li>
+  <li><a href="data/meetings.csv">meetings.csv</a>: One row per meeting.</li>
+  <li><a href="data/attendance.csv">attendance.csv</a>: Verified attendance, one row per member per meeting.</li>
+  <li><a href="data/roll_calls.csv">roll_calls.csv</a>: One row per roll call, with whether it is confirmed.</li>
+  <li><a href="data/votes.csv">votes.csv</a>: One row per vote in a roll call.</li>
+  <li><a href="data/motions.csv">motions.csv</a>: One row per motion, with its kind.</li>
+  <li><a href="data/items.csv">items.csv</a>: One row per agenda item.</li>
+  <li><a href="data/item_events.csv">item_events.csv</a>: Each appearance of an item at a meeting.</li>
+  <li><a href="data/sources.csv">sources.csv</a>: Every source document, with its address and fetch date.</li>
+  <li><a href="data/seats.csv">seats.csv</a>: Seat holder records: first and last meetings seen in roll calls, or a term as its source prints it.</li>
+</ul>
+<h2>Clarksville City Council</h2><ul class="data-files">
+  <li><a href="data/city/facts.json">city/facts.json</a>: All shown facts and their sources, in one file.</li>
+  <li><a href="data/city/officials.csv">city/officials.csv</a>: One row per official.</li>
+  <li><a href="data/city/meetings.csv">city/meetings.csv</a>: One row per meeting.</li>
+  <li><a href="data/city/attendance.csv">city/attendance.csv</a>: Verified attendance, one row per member per meeting.</li>
+  <li><a href="data/city/roll_calls.csv">city/roll_calls.csv</a>: One row per roll call, with whether it is confirmed.</li>
+  <li><a href="data/city/votes.csv">city/votes.csv</a>: One row per vote in a roll call.</li>
+  <li><a href="data/city/motions.csv">city/motions.csv</a>: One row per motion, with its kind.</li>
+  <li><a href="data/city/items.csv">city/items.csv</a>: One row per agenda item.</li>
+  <li><a href="data/city/item_events.csv">city/item_events.csv</a>: Each appearance of an item at a meeting.</li>
+  <li><a href="data/city/sources.csv">city/sources.csv</a>: Every source document, with its address and fetch date.</li>
+  <li><a href="data/city/seats.csv">city/seats.csv</a>: Seat holder records: first and last meetings seen in roll calls, or a term as its source prints it.</li>
+</ul>
+<h2>Bids, awards and budgets</h2><ul class="data-files">
+  <li><a href="data/finance.json">finance.json</a>: Bids and awards and the budget books, as the pages show them, with every source.</li>
+  <li><a href="data/solicitations.csv">solicitations.csv</a>: One row per solicitation in the purchasing archive.</li>
+  <li><a href="data/bidders.csv">bidders.csv</a>: One row per bidder on a bid tab that was read, in the tab&#39;s printed order.</li>
+  <li><a href="data/fin_documents.csv">fin_documents.csv</a>: Every bid and award document, with its address and fetch date.</li>
+  <li><a href="data/budget_lines.csv">budget_lines.csv</a>: One row per budget line per column, as printed.</li>
+  <li><a href="data/budget_checks.csv">budget_checks.csv</a>: Each subtotal and total line per column: the printed total, the sum of its lines and the difference.</li>
+</ul>
+<p>Every row names the document that prints it (source_url, page) and when it was fetched. A value held back as "Not confirmed" is empty in these files, with the check that held it.</p>
+<p>A text cell that would begin with =, +, - or @ (or a tab or carriage return) starts with an apostrophe, so a spreadsheet shows it as text; number columns are left as they are.</p>
+</main>
+<footer class="site-footer">
+  <p>Provided as a free service by Brian Zacharias. <a data-ext="support" href="https://buymeacoffee.com/gnoshcodes" rel="noopener noreferrer">Buy Me a Coffee</a></p>
+  <p><a href="about.html">About this site and its data rules.</a> Data as of 2026-11-07</p>
+  <nav id="site-nav" class="site-nav" aria-label="All pages" data-root="" data-search="search.html">
+    <h2 class="site-nav-h">All pages</h2>
+    <ul class="nav-list">
+      <li><a href="index.html">Map (home)</a></li>
+      <li><a href="search.html">Search</a></li>
+      <li><a href="votes/2026.html">Votes</a></li>
+      <li><a href="meetings.html">Meetings</a></li>
+      <li><a href="officials.html">Officials</a></li>
+      <li><a href="city/index.html">City Council</a></li>
+      <li><span class="nav-group">Items</span>
+        <ul class="nav-years" aria-label="Items by year">
+          <li><a href="items/2026.html">2026</a></li>
+          <li><a href="items/2025.html">2025</a></li>
+          <li><a href="items/2024.html">2024</a></li>
+          <li><a href="items/2023.html">2023</a></li>
+          <li><a href="items/2022.html">2022</a></li>
+          <li><a href="items/2021.html">2021</a></li>
+          <li><a href="items/2020.html">2020</a></li>
+        </ul>
+      </li>
+      <li><a href="finance/index.html">Finance</a></li>
+      <li><a href="contracts/index.html">Bids and awards</a></li>
+      <li><a href="capital/index.html">Capital projects</a></li>
+      <li><a href="data.html" aria-current="page">Data downloads</a></li>
+      <li><a href="alerts.html">Alerts</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="changes.html">Changes</a></li>
+    </ul>
+  </nav>
+</footer>
+<script src="static/nav.js" defer></script>
+<script src="static/filter.js" defer></script>
+<script src="static/clamp.js" defer></script>
+</body>
+</html>
