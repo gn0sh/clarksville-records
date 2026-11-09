@@ -235,7 +235,7 @@ def test_text_fields_are_escaped(tmp_path, facts, payload):
         {"date": "2026-11-07", "fact_id": payload, "field": payload, "old": payload, "new": payload, "note": payload}])
     for name, html in pages.items():
         assert "<script>alert" not in html, name
-        assert "<img" not in html, name
+        assert "<img src=x" not in html, name   # the footer logo is a real <img class="gc-logo">
         assert 'onerror=x>' not in html, name
     assert "&lt;script&gt;" in pages["changes.html"] or "&lt;img" in pages["changes.html"]
     assert "&lt;" in pages["officials/a-example.html"]

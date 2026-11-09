@@ -291,7 +291,7 @@ for (const r of ['', ...(process.env.NODE_PATH || '').split(path.delimiter).filt
     await page.waitForTimeout(50);
     out.hostile.push(await page.evaluate(() => ({
       hidden: document.getElementById('report-about').hidden,
-      imgs: document.querySelectorAll('img').length,
+      imgs: document.querySelectorAll('img:not(.gc-logo)').length,
       scripts: [...document.scripts].map(s => s.getAttribute('src')),
       text: document.getElementById('report-about').textContent,
     })));

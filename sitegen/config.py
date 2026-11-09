@@ -62,7 +62,7 @@ FIXTURE_CAPITAL_FUND = "951"
 # CEO decision G1 (2026-11-07): every page names the operator. The CEO supplies the real text; a public build
 # (M1.5) refuses to run while this is still the placeholder.
 OPERATOR_PLACEHOLDER = "[OPERATOR NAME - CEO to confirm]"
-OPERATOR_NAME = SITE["operator"]  # "Brian Zacharias", confirmed by the CEO, 2026-11-07
+OPERATOR_NAME = SITE["operator"]  # "gnoshcodes", CEO decision 2026-11-09
 
 # File cap per build target. preview: the claude.ai artifact preview holds at most 511 files per version, so 500;
 # finance adds one page per fund, not per department. pages: GitHub Pages has no such cap; 3000 keeps the site small.

@@ -2,7 +2,8 @@
 # so another locality is a new copy of this file plus its own config/localities/<locality>/ (docs/status.md, ZIP note).
 locality: montgomery-tn
 site_name: Clarksville Records
-operator: Brian Zacharias          # confirmed by the CEO, 2026-11-07 (G1)
+operator: gnoshcodes               # CEO decision 2026-11-09: a gnoshcodes product, no personal operator credit
+operator_url: https://gnoshcodes.com/
 
 # "Not sure of your district?" lookup link on the landing (the state elections site). Empty renders nothing; another
 # locality sets its own. The site sends nothing there: it is a plain link the visitor chooses to follow.
@@ -17,6 +18,14 @@ geocoder_url: https://geocoding.geo.census.gov/geocoder/locations/onelineaddress
 geocoder_label: the U.S. Census Bureau's geocoder   # "Your address is sent to <label> to find it on the map."
 geocoder_short: Census                               # "The Census places this address in ...", "Census's privacy policy"
 geocoder_privacy_url: https://www.census.gov/about/policies/privacy.html
+
+# "Unofficial copy. Official record:" line on every record page (views.official_record). A meeting page links its own
+# minutes PDF; the pages that gather many meetings link the body's minutes listing; each council names its own in
+# council.yml (record_url, record_label). Every URL here is one the collectors read (docs/platform-facts.md).
+official_records:
+  county: {url: "https://montgomerytn.gov/clerk/county-commission-minutes", label: "Montgomery County clerk, commission minutes"}
+  finance: {url: "https://montgomerytn.gov/account-budget", label: "Montgomery County budget page"}
+  contracts: {url: "https://montgomerytn.gov/purchasing/archive", label: "Montgomery County purchasing archive"}
 
 # Footer support link (CEO, 2026-11-07). Rendered only when support_enabled is true AND support_url is set.
 # Enabled 2026-11-09: Brian says his council seat is not a factor (he leaves it before anything goes live).

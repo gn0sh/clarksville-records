@@ -4,6 +4,8 @@
 
 body_key: city                       # search index body key ("b"), also the Search page's Body filter value
 body_name: Clarksville City Council  # as the minutes and the facts file name it
+record_url: https://clarksvilletn.portal.civicclerk.com/      # "Unofficial copy. Official record:" on this body's pages
+record_label: City of Clarksville CivicClerk portal
 nav_label: City Council              # the menu entry and the page names ("City Council: Meetings 2019")
 slug: city                           # every page of this body lives under <slug>/ (index, members, meetings, items)
 facts: data/localities/clarksville-tn/facts.json

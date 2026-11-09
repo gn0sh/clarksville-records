@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>{{ site.site_name }} | {{ page_name }}</title>
+<link rel="icon" href="{{ root }}static/brand/favicon.ico" sizes="any">
 <link rel="stylesheet" href="{{ root }}static/style.css">
 {% block head %}{% endblock %}
 </head>
@@ -30,12 +31,16 @@
 {% block main %}{% endblock %}
 {# M1.5: every fact-bearing page (build.REPORT_TEMPLATES) links the report page; static/nav.js adds this page's path
    (and the #anchor the reader came to) to the link's #fragment when it is followed. #}
+{% if official_record is defined and official_record %}
+<p class="official-record">Unofficial copy. Official record: <a{% if official_record.get("ext", true) %} data-ext="record"{% endif %} href="{{ official_record.url }}" target="_blank" rel="noopener noreferrer">{{ official_record.label }}<span class="sr-only"> (opens in a new tab)</span></a>.</p>
+{% endif %}
 {% if report_page is defined and report_page %}
 <p class="report-page"><a href="{{ root }}report.html">Report an error on this page</a></p>
 {% endif %}
 </main>
 <footer class="site-footer">
-  <p>Provided as a free service by {{ site.operator }}.{% if site.support_url %} <a data-ext="support" href="{{ site.support_url }}" rel="noopener noreferrer">{{ site.support_label }}</a>{% endif %}</p>
+  <p>Provided as a free service by {% if site.operator_url %}<a data-ext="operator" href="{{ site.operator_url }}" rel="noopener noreferrer">{{ site.operator }}</a>{% else %}{{ site.operator }}{% endif %}.{% if site.support_url %} <a data-ext="support" href="{{ site.support_url }}" rel="noopener noreferrer">{{ site.support_label }}</a>{% endif %}</p>
+  <p class="gc-credit"><img class="gc-logo gc-logo-light" src="{{ root }}static/brand/gnoshcodes-wordmark-color-light.svg" alt="gnoshcodes" width="160" height="29"><img class="gc-logo gc-logo-dark" src="{{ root }}static/brand/gnoshcodes-wordmark-color-dark.svg" alt="gnoshcodes" width="160" height="29"><span>A gnoshcodes project.</span></p>
   <p><a href="{{ root }}about.html">About this site and its data rules.</a> Data as of {{ site.data_as_of }}</p>
   <nav id="site-nav" class="site-nav" aria-label="All pages" data-root="{{ root }}" data-search="{{ root }}search.html">
     <h2 class="site-nav-h">All pages</h2>

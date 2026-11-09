@@ -9,7 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURE = ROOT / "site" / "fixtures" / "facts.sample.json"
-OPERATOR = "Brian Zacharias"
+OPERATOR = "gnoshcodes"
 
 VOTE_LABEL = {"yes": "Yes", "no": "No", "abstain": "Abstain"}
 

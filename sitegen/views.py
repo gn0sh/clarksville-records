@@ -285,6 +285,10 @@ NAV = (  # design 2.2: fixed order, the same on every page. (label, href, page_n
     ("Capital projects", "capital-projects.html", "Capital projects", True),
     ("Data downloads", "data.html", "Data downloads", False),
     ("Alerts", "alerts.html", "Alerts", False),  # only when config/site.yml has `alerts:` (sitegen/feeds.py)
+    ("Who runs this", "who-runs-this.html", "Who runs this", False),
+    ("Our rules", "our-rules.html", "Our rules", False),
+    ("Corrections", "corrections.html", "Corrections", False),
+    ("Method", "method.html", "Method", False),
     ("About", "about.html", "About", False),
     ("Changes", "changes.html", "Changes", False),
 )
@@ -338,6 +342,8 @@ def site_context(facts, contracts: bool = False, budget: tuple = (), councils=()
                                   reverse=True),
         "site_name": config.SITE_NAME,
         "operator": config.OPERATOR_NAME,
+        "operator_url": cfg.get("operator_url") or "",
+        "record": (cfg.get("official_records") or {}).get("county"),
         "data_as_of": ix.data_as_of(),
         "fixture": ix.fixture,
         "item_years": ix.item_years(),
@@ -936,6 +942,66 @@ def about(facts) -> dict:
         "coverage": ix.coverage,
         "has_items": bool(ix.facts["items"]),
     }
+
+
+# Template groups for the "Unofficial copy. Official record:" line (base.html.j2). A meeting page links its own minutes
+# PDF; a page of a body's meetings, items, votes or officials links the body's minutes listing (site.record, which a
+# council overrides); finance and contract pages link the county's budget page and purchasing archive.
+RECORD_BODY = frozenset({
+    "votes_year.html.j2", "items_year.html.j2", "official.html.j2", "official_year.html.j2", "official_roster.html.j2",
+    "district.html.j2", "council_home.html.j2", "council_meetings_year.html.j2", "council_items_year.html.j2"})
+RECORD_FINANCE = frozenset({"fin_index.html.j2", "fin_fund.html.j2", "fin_capital.html.j2"})
+
+
+def official_record(template: str, site: dict, ctx: dict) -> dict | None:
+    """{url, label} of the official record behind a record page, or None for a page that is not one."""
+    recs = config.SITE.get("official_records") or {}
+    if template == "meeting.html.j2":
+        d = ctx["doc"]
+        return {"url": d["url"], "label": f"{d['kind']} PDF", "ext": False}   # a minutes PDF: allowed like any other
+    if template in RECORD_BODY:
+        return site.get("record")
+    if template in RECORD_FINANCE:
+        return recs.get("finance")
+    if template == "fin_contracts_index.html.j2":
+        return recs.get("contracts")
+    if template == "fin_solicitation.html.j2":
+        a = ctx.get("archive_src") or {}
+        return {"url": a["url"], "label": "Montgomery County purchasing archive"} if a.get("url") else recs.get("contracts")
+    return None
+
+
+CORRECTIONS_LOG = config.REPO_ROOT / "data" / "corrections-log.json"
+CORRECTION_KEYS = ("date", "page", "was", "now", "source_url")
+
+
+def corrections_log(path=None) -> list[dict]:
+    """The public log of every correction (data/corrections-log.json, a list, newest first). Empty = none yet.
+    Entries are written by hand after a report is checked against its source; each needs the keys above."""
+    import json
+    p = path or CORRECTIONS_LOG
+    if not p.is_file():
+        return []
+    rows = json.loads(p.read_text(encoding="utf-8"))
+    if not isinstance(rows, list):
+        raise ValueError(f"{p}: want a list of corrections")
+    for r in rows:
+        missing = [k for k in CORRECTION_KEYS if not isinstance(r.get(k), str) or not r[k].strip()]
+        if missing or not str(r["source_url"]).startswith("https://"):
+            raise ValueError(f"{p}: a correction needs {', '.join(CORRECTION_KEYS)} (source_url https): {r!r}")
+    return sorted(rows, key=lambda r: r["date"], reverse=True)
+
+
+def trust_pages(ix) -> dict:
+    """Context for the who-runs-this, our-rules, corrections and method pages."""
+    g = record_glance(ix)
+    pct = round(100 * g["rc_confirmed"] / g["rc_total"], 1) if g["rc_total"] else 0
+    return {"glance": g, "confirmed_pct": pct, "log": corrections_log(), "corr": corrections_context(),
+            "user_agent": USER_AGENT_TEXT}
+
+
+USER_AGENT_TEXT = ("clarksville-records research collector (+https://github.com/gn0sh/clarksville-records; "
+                   "polite, 10s/host)")
 
 
 def changes(entries: list[dict]) -> dict:
