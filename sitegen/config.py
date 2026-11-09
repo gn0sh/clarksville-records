@@ -67,7 +67,8 @@ MAX_FILES = MAX_FILES_BY_TARGET["preview"]
 
 def max_files(target: str = "preview") -> int:
     """The file cap of a build target (sitegen --target, qa.site_checks --target)."""
-    return MAX_FILES_BY_TARGET[target]
+    cap = MAX_FILES_BY_TARGET[target]
+    return min(cap, MAX_FILES) if target == "preview" else cap   # MAX_FILES: the preview cap, as before
 PAGE_BYTES = 1_000_000  # a year page over this is split in parts (build.py plan_parts; city-pages/page-weight)
 PAGE_TARGET = 850_000  # the size each part aims at, under PAGE_BYTES
 
