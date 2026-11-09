@@ -224,3 +224,6 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | qa-engineer | sonnet/medium | launch test plan | done: docs/qa/launch-test-plan.md; manager decisions recorded (city verified-rate waiver, transcript coverage, preview limits non-blocking)
 - 2026-11-09: CLAUDE.md hard stop 1 wording fixed (repo is already public).
 - Follow-up (from launch plan): Alerts page must say per-ward/district feeds are not available yet; add the NEW tests listed in docs/qa/launch-test-plan.md before the final QA pass.
+- 2026-11-09 | backend-engineer | opus/high | titled-name corroboration + aliases + docs | merged 15dd2e4; alias + 2027 doc resolved
+- 2026-11-09 | code-reviewer | opus/high | delta re-review 15dd2e4 | request changes: titled-nonmember still open, presiding-guest (new). city-votes re-plan failure 2 of 2: manager decision to remove prose inference entirely (fail-safe: hold) instead of escalating to Brian; next failure in this family goes to Brian.
+- 2026-11-09 | backend-engineer | opus/xhigh (escalated) | fail-safe titled names + presiding guest | running

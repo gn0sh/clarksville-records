@@ -25,3 +25,11 @@ RosterBook.for_meeting window/seat/cut rules and held reasons; resolve_surnames;
 mayor paths; duplicate surnames; Tim Chandler across terms; misspellings held; seating config basis (wholesale changes
 2017/2019/2021/2023/2025 Januaries). 12 name tests pass; mental reverts each caught except `d == last` for a ward-less
 entry. Spot check of 7 verified 2026 roll calls against pdftotext: all exact. Full suite not run (timeout).
+
+## Delta re-review of 15dd2e4 (fixes c2324d0, 063e098): REQUEST CHANGES
+1. city-votes/titled-nonmember still open (MEDIUM): ACTING_*_RE match prose ("WHEREAS, Councilman David Allen moved to Clarksville in 1985", "presided over the Finance Committee", "presentation was made by", "honoring ..., seconded by the Council", Pledge led by a former member, "Mayor Wes Golden of Montgomery County"). Reproduced end to end: ALLEN -> city-david-allen verified.
+2. city-votes/presiding-guest (LOW, pre-existing): resolve_surnames adds the presiding name unchecked; a County Mayor chairing a joint session would become a city official titled Mayor.
+3. alias-in-votes RESOLVED. 4. empty-book-2027 RESOLVED (docs).
+Holds: widened NOT_SITTING_RE, NOT_NAME_WORDS junk filter, earlier repro held, `d == last` pinned. 68 name tests pass.
+
+**Manager decision:** stop inferring from prose. Titled names in minutes text never add a candidate; surnames resolve only via the roster book or a cited config entry; an unknown presiding name is held. Fix run at opus/xhigh (escalated).
