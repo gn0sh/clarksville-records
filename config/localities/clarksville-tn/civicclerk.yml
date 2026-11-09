@@ -1,0 +1,23 @@
+# City of Clarksville, TN: City Council meetings from the city's CivicClerk portal (M4, slice 3), 2024 on.
+# collector/civicclerk.py loads and checks this file; the code holds no locality literal. Facts about the API:
+# docs/platform-facts.md, "CivicClerk". Decision and robots judgment: docs/adr/0003-civicclerk-collection.md.
+#
+# robots.txt (api host, checked 2026-11-09): `User-agent: *` Allow /, Content-Signal search=yes, ai-train=no,
+# use=reference; named AI crawlers (ClaudeBot etc.) are disallowed. Our collector matches only `*` (its own honest
+# User-Agent), uses the records for reference only and never for training. Brian approved collection 2026-11-09.
+# GET only, 10 s between requests, a 403/429 stops the host for the run (collector/fetch.py).
+
+locality: clarksville-tn
+api_host: clarksvilletn.api.civicclerk.com
+category_name: City Council            # events whose categoryName is exactly this; every other board is left out
+from_date: "2024-01-01"                # the Agenda Center holds the council's meetings to January 2024
+# The events listing (OData). Pages follow @odata.nextLink, which must stay on api_host.
+events_url: "https://{host}/v1/Events?$filter=categoryName%20eq%20%27{category}%27%20and%20startDateTime%20ge%20{from_date}T00:00:00Z&$orderby=startDateTime%20asc"
+# A published file (agenda or minutes PDF) by its fileId, as the portal itself downloads it.
+file_url: "https://{host}/v1/Meetings/GetMeetingFileStream(fileId={file_id},plainText=false)"
+# publishedFiles[].type values taken as the agenda and the minutes (other types, e.g. packets, are not fetched)
+agenda_types: [Agenda]
+minutes_types: [Minutes]
+# Video: mediaSourcePathMp4 is kept as the meeting's video link only when it is a full https URL on one of these
+# hosts (a bare storage path such as "stream/CLARKSVILLETN/<uuid>.mp4" has no documented public URL: not guessed).
+video_hosts: [cpmedia.azureedge.net]

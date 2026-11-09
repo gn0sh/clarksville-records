@@ -33,7 +33,8 @@ USER_AGENT = ("clarksville-records research collector "
 MIN_DELAY = 10.0                 # seconds between requests on every host (brief: 10 s everywhere)
 HOST_FLOORS = {"clarksvilletn.gov": 10.0}
 ALLOWED_HOSTS = ("montgomerytn.gov", "mcgtn.org", "d6.mcgtn.org",
-                 "montgomeryminutes.bisonline.com", "clarksvilletn.gov")
+                 "montgomeryminutes.bisonline.com", "clarksvilletn.gov",
+                 "clarksvilletn.api.civicclerk.com")    # the city's CivicClerk API (ADR 0003; Brian 2026-11-09)
 # cityofclarksville.com blocks automated tools: never collect from it. dev2.montgomerytn.gov (the M0 index host)
 # answered 403 from the site on 2026-11-07: stopped for good, never retried by another route.
 DENIED_HOSTS = ("cityofclarksville.com", "dev2.montgomerytn.gov")
