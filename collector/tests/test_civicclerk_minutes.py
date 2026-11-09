@@ -363,3 +363,21 @@ def test_minutes_for_two_meetings_without_an_agenda_leave_the_other_out(cfg):
     facts, summary = built(cfg, [FULL_2025, FULL_2025], rows, [entry(API.format(1), "minutes", "2025-02-06", 1)])
     assert [m["date"] for m in facts["meetings"]] == ["2025-02-06"]
     assert summary["minutes_status"]["not_in_facts"] == 1
+
+
+def test_the_other_listing_of_a_merged_meeting_stays_cited(cfg):
+    """city-merge/dropped-citation: 2024-01-04 is kept from CivicClerk; the Agenda Center's agenda for it (not
+    fetched) stays in the facts under also_listed, and a fetched file there gets its source id."""
+    ac_agenda = "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01042024-1624"
+    other = {"source": "agenda-center", "title": "City Council Regular Session Agenda - January 4, 2023",
+             "agenda_url": ac_agenda, "minutes_url": None}
+    rows = cc_rows()[:1]
+    rows[0] = {**rows[0], "also_listed": [other]}
+    facts, _ = built(cfg, [FULL_2025], rows, [entry(rows[0]["minutes_url"], "minutes", "2025-02-06", 1)])
+    jsonschema.validate({k: v for k, v in facts.items() if k != "_wards"}, SCHEMA)
+    assert facts["meetings"][0]["also_listed"] == [other]
+    facts, _ = built(cfg, [FULL_2025], rows, [entry(rows[0]["minutes_url"], "minutes", "2025-02-06", 1),
+                                              entry(ac_agenda, "agenda", "2025-02-06", 9)])
+    jsonschema.validate({k: v for k, v in facts.items() if k != "_wards"}, SCHEMA)
+    sid = facts["meetings"][0]["also_listed"][0]["agenda_source_id"]
+    assert sid in {s["id"] for s in facts["sources"]}

@@ -206,6 +206,8 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
             meeting["listing_source"] = r["source"]
         if r.get("video_url"):
             meeting["video_url"] = r["video_url"]
+        if r.get("also_listed"):            # the other listing of this meeting (merge_sources): its files stay cited
+            meeting["also_listed"] = [also_listed(x, source_for) for x in r["also_listed"]]
         meetings.append(meeting)
         if pm is None or mstatus != "read":
             meeting["verification"] = _verification([_check("minutes_read", False, mstatus)])
@@ -253,6 +255,19 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
         "problems": problems,
     }
     return {**facts, "_wards": wards}, summary
+
+
+def also_listed(x: dict, source_for) -> dict:
+    """One other listing of a meeting (civicclerk.merge_sources `also_listed`) as the facts keep it: its source,
+    title and file links, plus the fetched file's source id where the file was fetched (city-merge/dropped-citation).
+    Nothing is read from those files."""
+    out = {"source": x["source"], "title": x["title"], "agenda_url": x.get("agenda_url"),
+           "minutes_url": x.get("minutes_url")}
+    for kind in ("agenda", "minutes"):
+        src, _ = source_for(out[f"{kind}_url"])
+        if src:
+            out[f"{kind}_source_id"] = src["id"]
+    return out
 
 
 def _other_meeting(src: dict, path, row: dict, cfg, parse, read_shas: set) -> str | None:
