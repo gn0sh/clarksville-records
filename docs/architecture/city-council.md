@@ -71,3 +71,59 @@ None may re-derive the link; each reads `item_id` (or `rc.item` / `rc.link` befo
 | CSV export | `collector/export.py` `tables`: `roll_calls.csv`, `votes.csv`, `motions.csv` (`item_id`), `items.csv` (`link_basis`), `item_events.csv` | provenance "derived: item linking rule" |
 | One-vote check | `collector/invariants.py` `consent_item_ids`, `one_vote_violations` | the Consent Agenda title item; one roll_call event per (item, roll call) |
 | QA spot check | `qa/spot_check.py` `candidates` | the item label shown to the checker per sampled vote |
+
+## Name resolution invariant (problem family `city-votes`, names)
+
+Stated after the family's third hit (review of the CivicClerk slice, 1bc303c..e136a8b, 2026-11-09:
+`city-votes/surname-stale-book`). The surname book kept each surname's latest full-name printing with no time limit,
+so a new member sharing a departed member's surname (the data has David Allen out and Wanda Allen in on 2021-01-07)
+would have been read as the departed member, with verified votes.
+
+**Invariant.** A printed name resolves to a member only when exactly one member of that meeting's own roster matches
+it, and the roster is the meeting's own attendance list as printed in full (through the alias list) plus its presiding
+mayor, where a surname printed alone counts only against full names printed in the same minutes after a member's title
+or on the full-name attendance lists printed since the council's latest seating, for members whose ward (or the
+mayor's seat) no later list in that window gives to someone else. Any other name (no match, two matches, a match only
+on a list older than the window, or a member since replaced) is held, never guessed.
+
+**The window: the council's seating.** Every wholesale change of members in the full-name attendance lists of
+2016-2025 falls at the first January meeting of an odd year (2017-01-05, 2019-01-03, 2021-01-07, 2023-01-05,
+2025-01-02: members elected in November of the even year take their seats), so a list from before the latest seating
+is never used (`seating` in `config/localities/clarksville-tn/agenda-center.yml`; observed in the data, not taken from
+the charter). Mid-term changes (2019-07, 2021-11, 2022-05, 2023-06, CLAUNCH 2026) are covered by the replaced-seat rule
+when a later full-name list prints the successor, by the successor's own surname (a surname on no list is held, as
+CLAUNCH is), or by a titled full name in the minutes (a second full name for the surname holds it). Residual risk,
+accepted and named: a mid-term successor with the predecessor's exact surname who is never printed with a full name,
+title or ward before the next seating. The window is at most two years and needs no upkeep while the seating pattern
+holds; a change of pattern is a config change.
+
+### Code paths that resolve a printed name
+| # | Where | Path | Rule |
+|---|---|---|---|
+| N1 | `city_build._add_minutes` attendance loop, `Officials.add` | attendance printed in full (`NAME_RE`) | the printed full name is the member (id `city-<slug>`); not a name: no official, `names_well_formed` holds the meeting |
+| N2 | `Officials.canonical` (`aliases` in `agenda-center.yml`) | aliases: one printed full name -> another | whole printed names only, each the same ward in the same term (checked in wards.json); applied in N1, N3, N4, N7 |
+| N3 | `_add_minutes` presiding; `city_minutes.parse_people` `Person.mayor` | the presiding mayor ("called to order by Mayor Joe Pitts") and a list entry with the Mayor title or "(Mayor)" | added to this meeting's roster with the Mayor title; a Mayor Pro Tem is already on the PRESENT line |
+| N4 | `city_minutes.titled_names` -> `pm.titled` | titled-name scan: "Councilman Jimmy Brown made ..." | a full name after a member's title in these minutes; a title preceded by "former" or "late" is not a member of this meeting |
+| N5 | `city_build.RosterBook.for_meeting` (fed by `printed_full_names` after each read meeting) | surname book | full-name lists dated from the latest seating up to the meeting; a member is kept when on the latest list in the window or still printed for their ward or as mayor by the latest list that prints that seat; else held with the reason |
+| N6 | `city_build.resolve_surnames` | attendance printed as surnames | exactly one full name from N4 (plus the presiding mayor) and N5, and a ward printed with the surname agrees; else no official and `surnames_resolve` holds the meeting (so all its roll calls) |
+| N7 | `city_build.resolve` from `_add_minutes` | votes (`rc.votes`), block absences (`rc.absent`), `_out_of_room` | against this meeting's roster only (N1, N3, N6): full name, then surname, then initial plus surname, each exactly one match; else `names_resolve` holds the roll call |
+| N8 | `resolve` from `_add_minutes` motion | mover and seconder | as N7; else `mover_resolves` / `seconder_resolves` holds the motion |
+
+Tests: `collector/tests/test_city_names.py` has one test per path N1-N8, each through `assert_name_invariant` (every
+resolved name of a meeting is on that meeting's attendance or is its presiding mayor, and every surname resolved from
+the book names a list dated inside the meeting's window), plus the reviewer's case: a departed member's surname reused
+by a new member.
+
+### Consumers of a resolved name (`official_id`)
+None may re-resolve a printed name; each reads `official_id` (null when held).
+| Consumer | Where | Reads |
+|---|---|---|
+| Facts build | `city_build._add_minutes` | `meetings[].attendance[].official_id`, `roll_calls[].votes[].official_id`, `motions[].moved_by/seconded_by`, `officials[]` (title from N3), the checks `names_resolve`, `surnames_resolve`, `one_entry_per_official`, `voters_recorded_present`, `one_vote_per_present_member`, `mover_*`, `seconder_*` |
+| Wards | `city_build` `_wards` -> `data/localities/clarksville-tn/wards.json`; `sitegen/council.py` `ward_rows`, `CouncilIndex` seats | holder records per ward (an unresolved print is not used) |
+| Member pages | `sitegen/views.py` `official`, `official_counts`, `totals_sentences`; `sitegen/build.py` member and history pages | votes, attendance, motions per member |
+| Meeting, vote and item pages | `sitegen/views.py` `meeting`, `_roll_call_block`, `_motion_block`, `votes_year`, `items_year` | the name shown and linked per vote |
+| Held counts | `sitegen/views.py` held-back counts (an unresolved vote counted once, never shown raw) | `official_id` null |
+| Search index | `sitegen/views.py` search records (`officials`, votes) | member names |
+| CSV export | `collector/export.py` `officials.csv`, `attendance.csv`, `votes.csv`, `motions.csv` (provenance "derived: name resolution") | `official_id` |
+| One-vote check | `collector/invariants.py` `one_vote_violations` | votes per (item, roll call) |
+| QA spot check | `qa/spot_check.py` `candidates` | the names shown to the checker |

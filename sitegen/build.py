@@ -243,10 +243,12 @@ def plan_parts(entries: list[dict], size_of, weights: list[int] | None = None) -
 def pack_years(groups: list[dict], size_of) -> list[list[dict]]:
     """A council member's history pages (city-pages/file-budget): the year groups (newest first) in runs of
     consecutive years, each run one page, a run growing while `size_of(run)` (the rendered page's bytes) stays under
-    config.PAGE_TARGET. A year too big for that on its own keeps its own page. Order is never changed."""
+    config.PAGE_TARGET. A year too big for that on its own keeps its own page. Order is never changed. Only adjacent
+    years join (city-pages/year-run-label): a page named "2018-2023" would imply service in the years between."""
     runs: list[list[dict]] = []
     for g in groups:
-        if runs and size_of(runs[-1] + [g]) <= config.PAGE_TARGET:
+        if (runs and int(runs[-1][-1]["year"]) - int(g["year"]) == 1
+                and size_of(runs[-1] + [g]) <= config.PAGE_TARGET):
             runs[-1].append(g)
         else:
             runs.append([g])

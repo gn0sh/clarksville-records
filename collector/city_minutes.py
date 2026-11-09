@@ -450,6 +450,7 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
 TITLED_RE = re.compile(TITLES + r"\s+([A-Z][a-z][A-Za-z'’-]*(?:\s+[A-Z]\.)?\s+[A-Z][A-Za-z'’-]*[a-z][A-Za-z'’-]*)\b")
 TITLE_WORDS = {"councilman", "councillady", "councilwoman", "councilperson", "councilmember", "council", "mayor",
                "called", "none", "abstain", "absent", "present", "designations"}
+NOT_SITTING_RE = re.compile(r"\b(?:former|late)\s+$", re.I)
 
 
 CALLED_ON_RE = re.compile(r"called\s+to\s+order\b.{0,160}?\b(January|February|March|April|May|June|July|August|"
@@ -469,12 +470,16 @@ def called_to_order_on(text: str) -> str | None:
 def titled_names(text: str) -> list[str]:
     """Full names printed right after a member's title, in order of first printing ("Councilman Jimmy Brown made a
     motion" -> "Jimmy Brown"). A pair whose last word is a title or a label ("Mayor Pitts Councilman", "Councilman
-    Shakeenab Called") is not a name."""
+    Shakeenab Called") is not a name. A title after "former" or "late" ("former Councilman David Allen") names someone
+    who is not a member at this meeting, so it is left out (name resolution invariant, path N4)."""
     out = []
-    for m in TITLED_RE.finditer(re.sub(r"\s+", " ", text)):
+    flat = re.sub(r"\s+", " ", text)
+    for m in TITLED_RE.finditer(flat):
         name = m.group(1)
         words = name.split()
         if words[-1].lower() in TITLE_WORDS or words[0].lower() in TITLE_WORDS or name in out:
+            continue
+        if NOT_SITTING_RE.search(flat[max(0, m.start() - 12):m.start()]):
             continue
         out.append(name)
     return out
