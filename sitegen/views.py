@@ -11,6 +11,9 @@ import functools
 import json
 import re
 from collections import defaultdict
+from urllib.parse import urlsplit
+
+from collector.fetch import USER_AGENT   # the Method page quotes the collector's own User-Agent, never a copy
 
 from . import config, fin_views
 import datetime as dt
@@ -953,22 +956,40 @@ RECORD_BODY = frozenset({
 RECORD_FINANCE = frozenset({"fin_index.html.j2", "fin_fund.html.j2", "fin_capital.html.j2"})
 
 
+def https_url(u) -> bool:
+    """True for a non-empty https:// URL that has a hostname (a link the site may print as an official source)."""
+    if not isinstance(u, str) or not u.strip() or u != u.strip():
+        return False
+    try:
+        sp = urlsplit(u)
+        return sp.scheme == "https" and bool(sp.hostname)
+    except ValueError:
+        return False
+
+
 def official_record(template: str, site: dict, ctx: dict) -> dict | None:
-    """{url, label} of the official record behind a record page, or None for a page that is not one."""
+    """{url, label} of the official record behind a record page, or None for a page that is not one, or when the
+    record's URL is not a non-empty https URL with a hostname (the line is then left off rather than printed broken)."""
     recs = config.SITE.get("official_records") or {}
-    if template == "meeting.html.j2":
-        d = ctx["doc"]
-        return {"url": d["url"], "label": f"{d['kind']} PDF", "ext": False}   # a minutes PDF: allowed like any other
-    if template in RECORD_BODY:
-        return site.get("record")
-    if template in RECORD_FINANCE:
-        return recs.get("finance")
-    if template == "fin_contracts_index.html.j2":
-        return recs.get("contracts")
-    if template == "fin_solicitation.html.j2":
+    rec = None
+    if template in ("meeting.html.j2", "transcript.html.j2"):
+        d = ctx.get("doc") or {}
+        if d.get("url"):   # a minutes PDF: allowed like any other source link, so no data-ext
+            rec = {"url": d["url"], "label": f"{d.get('kind') or 'Minutes'} PDF", "ext": False}
+        elif template == "transcript.html.j2":
+            rec = site.get("record")   # no minutes PDF known: the council's own record page
+    elif template in RECORD_BODY:
+        rec = site.get("record")
+    elif template in RECORD_FINANCE:
+        rec = recs.get("finance")
+    elif template == "fin_contracts_index.html.j2":
+        rec = recs.get("contracts")
+    elif template == "fin_solicitation.html.j2":
         a = ctx.get("archive_src") or {}
-        return {"url": a["url"], "label": "Montgomery County purchasing archive"} if a.get("url") else recs.get("contracts")
-    return None
+        rec = {"url": a["url"], "label": "Montgomery County purchasing archive"} if a.get("url") else recs.get("contracts")
+    if not isinstance(rec, dict) or not https_url(rec.get("url")):
+        return None
+    return rec
 
 
 CORRECTIONS_LOG = config.REPO_ROOT / "data" / "corrections-log.json"
@@ -977,8 +998,10 @@ CORRECTION_KEYS = ("date", "page", "was", "now", "source_url")
 
 def corrections_log(path=None) -> list[dict]:
     """The public log of every correction (data/corrections-log.json, a list, newest first). Empty = none yet.
-    Entries are written by hand after a report is checked against its source; each needs the keys above."""
+    Entries are written by hand after a report is checked against its source; each has exactly the keys above, all
+    strings, a real ISO date (YYYY-MM-DD) and an https source_url with a hostname."""
     import json
+    from datetime import date
     p = path or CORRECTIONS_LOG
     if not p.is_file():
         return []
@@ -986,22 +1009,28 @@ def corrections_log(path=None) -> list[dict]:
     if not isinstance(rows, list):
         raise ValueError(f"{p}: want a list of corrections")
     for r in rows:
+        if not isinstance(r, dict):
+            raise ValueError(f"{p}: a correction must be an object: {r!r}")
         missing = [k for k in CORRECTION_KEYS if not isinstance(r.get(k), str) or not r[k].strip()]
-        if missing or not str(r["source_url"]).startswith("https://"):
-            raise ValueError(f"{p}: a correction needs {', '.join(CORRECTION_KEYS)} (source_url https): {r!r}")
+        extra = [k for k in r if k not in CORRECTION_KEYS]
+        if missing or extra:
+            raise ValueError(f"{p}: a correction needs exactly {', '.join(CORRECTION_KEYS)} as non-empty text "
+                             f"(missing {missing}, unknown {extra}): {r!r}")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", r["date"]):
+            raise ValueError(f"{p}: correction date must be YYYY-MM-DD: {r['date']!r}")
+        try:
+            date.fromisoformat(r["date"])
+        except ValueError:
+            raise ValueError(f"{p}: correction date is not a real date: {r['date']!r}") from None
+        if not https_url(r["source_url"]):
+            raise ValueError(f"{p}: correction source_url must be an https URL with a host: {r['source_url']!r}")
     return sorted(rows, key=lambda r: r["date"], reverse=True)
 
 
 def trust_pages(ix) -> dict:
     """Context for the who-runs-this, our-rules, corrections and method pages."""
     g = record_glance(ix)
-    pct = round(100 * g["rc_confirmed"] / g["rc_total"], 1) if g["rc_total"] else 0
-    return {"glance": g, "confirmed_pct": pct, "log": corrections_log(), "corr": corrections_context(),
-            "user_agent": USER_AGENT_TEXT}
-
-
-USER_AGENT_TEXT = ("clarksville-records research collector (+https://github.com/gn0sh/clarksville-records; "
-                   "polite, 10s/host)")
+    return {"glance": g, "log": corrections_log(), "user_agent": USER_AGENT}
 
 
 def changes(entries: list[dict]) -> dict:

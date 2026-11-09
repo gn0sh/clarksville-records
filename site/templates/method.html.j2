@@ -8,7 +8,7 @@
 <section aria-labelledby="votes-h">
   <h2 id="votes-h">How votes are read and checked</h2>
   <p>A computer program reads each minutes PDF. Each extracted roll call is then checked automatically against fixed rules, the same for every official (see <a href="{{ root }}about.html#verified">Verified and not confirmed facts</a>). Every fact links the page of the source document it came from.</p>
-  <p>A roll call that fails a check is held back: it is shown with an asterisk and a link to the page, but no value. Of the county's {{ glance.rc_total }} roll calls, {{ glance.rc_confirmed }} are confirmed. The city council's own count is on its coverage lines.</p>
+  <p>A roll call that fails a check is shown with an asterisk and a link to the page{% if site.show_unconfirmed_values %}, marked not confirmed, and counted apart from the confirmed ones{% else %}, but with no value{% endif %}. Of the county's {{ glance.rc_total }} roll calls, {{ glance.rc_confirmed }} are confirmed. The city council's own count is on its coverage lines.</p>
 </section>
 <section aria-labelledby="tx-h">
   <h2 id="tx-h">Transcripts</h2>
