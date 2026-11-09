@@ -5,7 +5,8 @@ names a place. The pages use the county's view functions (sitegen/views.py) thro
 changes where pages live and how seats are read, so every rule of the county pages holds here too: a held roll call
 shows "Not confirmed*" and no value, every name links to its member page, every fact links its source page (N1-N4).
 
-File budget (config.MAX_FILES): one page per member plus one per year of their history, one page per year of meetings
+File budget (config.MAX_FILES): one page per member plus their history by year (consecutive years share a page
+while it stays under config.PAGE_TARGET: build.py pack_years), one page per year of meetings
 (each meeting a section with its roll calls inline) and one page per year of items, plus the council's home page. A
 year page over config.PAGE_BYTES is split into parts by date (build.py plan_parts). Never one page per meeting or item.
 """
@@ -135,6 +136,7 @@ class CouncilIndex(views.Index):
         self.nav_label = cfg["nav_label"]
         self.KIND_LABELS = {**config.KIND_LABELS, **cfg["kind_labels"]}
         self._rows, self._seen = holder_rows(wards, facts, cfg)
+        self.year_pages = {}
         super().__init__(facts, self._rows)
 
     def make_seats(self, seat_rows):
@@ -143,12 +145,20 @@ class CouncilIndex(views.Index):
                      wording={"evidence": self.cfg["evidence"]["ward"], "latest": self.cfg["latest_words"]})
 
     history_by_year = True
+    # official id -> {year: page key}: consecutive years share one history page while it stays under
+    # config.PAGE_TARGET (build.py pack_years; city-pages/file-budget). A year not packed has its own page.
+    year_pages: dict = {}
 
     def official_href(self, official_id: str) -> str:
         return f"{self.slug}/members/{official_id}.html"
 
+    def year_page_key(self, official_id: str, year: str) -> str:
+        return self.year_pages.get(official_id, {}).get(year, year)
+
     def official_year_href(self, official_id: str, year: str) -> str:
-        return f"{self.slug}/members/{official_id}/{year}.html"
+        key = self.year_page_key(official_id, year)
+        page = f"{self.slug}/members/{official_id}/{key}.html"
+        return page if key == year else f"{page}#year-{year}"
 
     def meeting_href(self, meeting_id: str, anchor: str = "") -> str:
         year = self.meetings[meeting_id]["date"][:4]

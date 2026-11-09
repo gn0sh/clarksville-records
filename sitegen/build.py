@@ -239,6 +239,25 @@ def plan_parts(entries: list[dict], size_of, weights: list[int] | None = None) -
         k += 1
 
 
+def pack_years(groups: list[dict], size_of) -> list[list[dict]]:
+    """A council member's history pages (city-pages/file-budget): the year groups (newest first) in runs of
+    consecutive years, each run one page, a run growing while `size_of(run)` (the rendered page's bytes) stays under
+    config.PAGE_TARGET. A year too big for that on its own keeps its own page. Order is never changed."""
+    runs: list[list[dict]] = []
+    for g in groups:
+        if runs and size_of(runs[-1] + [g]) <= config.PAGE_TARGET:
+            runs[-1].append(g)
+        else:
+            runs.append([g])
+    return runs
+
+
+def years_key(run: list[dict]) -> str:
+    """A history page's name from its years: '2024' alone, '2024-2026' for a run (oldest first)."""
+    ys = sorted(g["year"] for g in run)
+    return ys[0] if len(ys) == 1 else f"{ys[0]}-{ys[-1]}"
+
+
 def part_label(dates: list[str]) -> str:
     dates = sorted(d for d in dates if d)
     if not dates:
@@ -506,13 +525,29 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                council_href=c.home_href(), **council_mod.home(c))
         for o in c.facts["officials"]:
             ctx = council_mod.member(o["id"], c)
+            groups = [g for g in ctx["row_groups"] if g["year"]]
+
+            def year_page(run, ctx=ctx, o=o):
+                key = years_key(run)
+                rel = f"{c.slug}/members/{o['id']}/{key}.html"
+                label = key.replace("-", " to ")
+                return rel, (f"{o['name']} {label}", cs), dict(
+                    council=c.nav_label, council_href=c.home_href(), official=ctx["official"],
+                    official_href=c.official_href(o["id"]), year=label, years=[g["year"] for g in run],
+                    year_pages=ctx["year_pages"], types=ctx["types"], groups=run)
+
+            def size_of(run):
+                rel, (name, s), kw = year_page(run)
+                return len(html_of("official_year.html.j2", rel, name, s, **kw).encode("utf-8"))
+
+            runs = pack_years(groups, size_of)
+            c.year_pages[o["id"]] = {g["year"]: years_key(run) for run in runs for g in run}
+            ctx = council_mod.member(o["id"], c)      # the year links now name each year's page
             render("official.html.j2", c.official_href(o["id"]), o["name"], cs, **ctx)
-            for g in ctx["row_groups"]:
-                if g["year"]:
-                    render("official_year.html.j2", c.official_year_href(o["id"], g["year"]),
-                           f"{o['name']} {g['year']}", cs, council=c.nav_label, council_href=c.home_href(),
-                           official=ctx["official"], official_href=c.official_href(o["id"]), year=g["year"],
-                           year_pages=ctx["year_pages"], types=ctx["types"], groups=[g])
+            for run in runs:
+                run = [g for g in ctx["row_groups"] if g["year"] in {x["year"] for x in run}]
+                rel, (name, s), kw = year_page(run, ctx)
+                render("official_year.html.j2", rel, name, s, **kw)
     render("about.html.j2", "about.html", "About", **views.about(ix), glance=views.record_glance(ix))
     render("changes.html.j2", "changes.html", "Changes", **views.changes(read_changes(changes_path)))
     render("report.html.j2", "report.html", "Report an error", **views.report_page())

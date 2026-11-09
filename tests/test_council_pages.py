@@ -137,25 +137,40 @@ def test_an_untitled_item_shows_the_fixed_words(cix):
     assert cix.item_title({"title": "CONSENT AGENDA"}) == "CONSENT AGENDA"
 
 
-def _member_years(facts: dict, cix) -> int:
-    """Pages of member history by year: one per member per year with a row (council.py, history_by_year)."""
-    return sum(len(views.official(o["id"], cix)["year_pages"]) for o in facts["officials"])
+def _member_history_pages(out, facts: dict, cix) -> int:
+    """Pages of member history: each member's years with a row, consecutive years sharing a page (council.py,
+    history_by_year; build.py pack_years). Every year with a row is on exactly one page, named by its years."""
+    n = 0
+    for o in facts["officials"]:
+        years = {y["year"] for y in views.official(o["id"], cix)["year_pages"]}
+        pages = sorted(p.stem for p in (out / "city" / "members" / o["id"]).glob("*.html"))
+        covered = []
+        for name in pages:
+            m = re.fullmatch(r"(\d{4})(?:-(\d{4}))?", name)
+            assert m, name
+            covered += [str(y) for y in range(int(m.group(1)), int(m.group(2) or m.group(1)) + 1)
+                        if str(y) in years]
+        assert sorted(covered) == sorted(years)                  # each year once, on one page
+        n += len(pages)
+    return n
 
 
 def test_page_count_is_one_per_member_and_per_year_never_per_meeting(site, cix, city_facts):
     out, _ = site
     city = sorted(p.relative_to(out).as_posix() for p in (out / "city").rglob("*.html"))
     want = (1 + len(city_facts["officials"]) + len({m["date"][:4] for m in city_facts["meetings"]})
-            + len({i["year"] for i in city_facts["items"]}) + _member_years(city_facts, cix))
+            + len({i["year"] for i in city_facts["items"]}) + _member_history_pages(out, city_facts, cix))
     assert len(city) == want
     assert "city/index.html" in city
     assert not any(re.search(r"meetings/\d{4}-\d{2}-\d{2}", p) for p in city)
 
 
 def test_real_city_pages_fit_the_file_budget():
-    """The real city facts make about this many pages: one per member and per year of each member's history, per
+    """The real city facts make at most this many pages: one per member and per year of each member's history, per
     year of meetings and of items (more parts when a year is over config.PAGE_BYTES, about 20 more today), plus the
-    home. With the county's pages they stay under config.MAX_FILES (qa/site_checks.py checks the built site)."""
+    home. With CivicClerk (2024 on) this upper bound is 205; pack_years puts consecutive years of a member's history
+    on one page (about 60 fewer pages), and with the county's pages the built site stays under config.MAX_FILES
+    (469 files on 2026-11-09; BuildError and qa/site_checks.py check the built site)."""
     facts = json.loads((CITY / "facts.json").read_text(encoding="utf-8"))
     years = {o["id"]: set() for o in facts["officials"]}
     dates = {m["id"]: m["date"][:4] for m in facts["meetings"]}
@@ -169,7 +184,7 @@ def test_real_city_pages_fit_the_file_budget():
                 years[a["official_id"]].add(m["date"][:4])
     n = (1 + len(facts["officials"]) + len({m["date"][:4] for m in facts["meetings"]})
          + len({i["year"] for i in facts["items"]}) + sum(len(y) for y in years.values()))
-    assert n <= 180
+    assert n <= 230
 
 
 # ---------------------------------------------------------------- the pages
@@ -378,17 +393,21 @@ def test_a_run_of_one_at_the_latest_minutes_read_is_kept():
 
 # ---------------------------------------------------------------- page weight (city-pages/page-weight)
 
-def test_member_page_links_one_page_per_year_and_each_year_page_holds_that_years_rows(cpages, cix, city_facts):
+def test_member_page_links_each_year_to_the_page_that_holds_that_years_rows(cpages, cix, city_facts):
     for o in city_facts["officials"]:
         ctx = views.official(o["id"], cix)
         page = cpages[f"city/members/{o['id']}.html"]
         assert 'id="history"' not in page   # no rows on the member page itself
+        links = {y: h for h, y in re.findall(r'<a href="\.\./\.\./([^"]+)">(\d{4})</a> <span class="muted">', page)}
+        assert sorted(links) == sorted(y["year"] for y in ctx["year_pages"])
         for y in ctx["year_pages"]:
-            assert f'href="../../{y["href"]}">{y["year"]}</a>' in page
-            yp = cpages[y["href"]]
-            assert f'<a href="../../../city/members/{o["id"]}.html">{o["name"]}</a>: {y["year"]}</h1>' in yp
+            rel, _, anchor = links[y["year"]].partition("#")
+            yp = cpages[rel]
+            label = rel.rsplit("/", 1)[1][:-5].replace("-", " to ")
+            assert f'<a href="../../../city/members/{o["id"]}.html">{o["name"]}</a>: {label}</h1>' in yp
+            assert anchor in ("", f"year-{y['year']}") and f'id="year-{y["year"]}"' in yp
             rows = re.findall(r'<tr role="row" class="fact[^"]*" data-type="[^"]+" data-year="(\d{4})"', yp)
-            assert len(rows) == y["n"] and set(rows) == {y["year"]}
+            assert rows.count(y["year"]) == y["n"]
         assert sum(y["n"] for y in ctx["year_pages"]) == len(ctx["rows"])
 
 
@@ -432,3 +451,15 @@ def test_a_year_page_over_the_limit_is_split_in_parts_and_links_follow(tmp_path,
     problems, _ = site_checks.check_totals(out, {r: None for r in pages}, cs[0]["facts"], "city/meetings/",
                                            "city/members")
     assert problems == []
+
+
+# ---------------------------------------------------------------- history pages (city-pages/file-budget)
+
+def test_pack_years_joins_consecutive_years_while_the_page_fits():
+    from sitegen.build import pack_years, years_key
+    size = {"2026": 200_000, "2025": 300_000, "2024": 300_000, "2023": 900_000, "2022": 100_000, "2021": 100_000}
+    groups = [{"year": y} for y in size]                       # newest first, as the member page lists them
+    runs = pack_years(groups, lambda run: 20_000 + sum(size[g["year"]] for g in run))
+    assert [years_key(r) for r in runs] == ["2024-2026", "2023", "2021-2022"]
+    assert [g["year"] for r in runs for g in r] == list(size)    # order kept, every year once
+    assert pack_years([], lambda run: 0) == []
