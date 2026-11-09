@@ -24,7 +24,7 @@ SUFFIXES = {"jr", "sr", "ii", "iii", "iv"}
 # "failed due to lack of 2/3 majority": a motion can fail with more yes than no when the minutes say a larger
 # majority was required. Only then is a yes > no failure consistent.
 THRESHOLD_RE = re.compile(r"2/3|two[- ]thirds|majority", re.I)
-MINUTES_STATUS = ("read", "scan_not_read", "not_posted", "not_fetched", "parse_failed")
+MINUTES_STATUS = ("read", "scan_not_read", "not_posted", "not_fetched", "parse_failed", "other_meeting")
 
 
 def slug(s: str) -> str:
@@ -134,6 +134,7 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
     sources: dict[str, dict] = {}
     meetings, roll_calls, motions, items, events, wards = [], [], [], {}, [], []
     problems, unresolved = [], Counter()
+    last_roster = None              # the latest attendance printed with full names (resolve_surnames)
     status_count = Counter()
     ids_used: Counter = Counter()
 
@@ -151,10 +152,23 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
 
     # Agenda Center rows first on a day (their meeting ids were published first), then CivicClerk rows; within a
     # source by its own id, so ids of one kind on one day (-2, -3) stay put
+    # one minutes file posted for two meetings (CivicClerk posted the 2024-08-01 minutes again as the 2024-09-05
+    # minutes): it is read only for the meeting whose date its call-to-order sentence prints, and only once
+    posted = Counter(e["sha256"] for e in (store.latest(r["minutes_url"]) for r in rows if r["minutes_url"]) if e)
+    read_shas: set = set()
     for r in sorted(rows, key=lambda r: (r["date"], r.get("source", "agenda-center") != "agenda-center",
                                          int(r["agenda_id"].split("-")[-1]))):
         agenda_src, _ = source_for(r["agenda_url"])
         minutes_src, minutes_path = source_for(r["minutes_url"])
+        other_meeting = None
+        if minutes_src and (posted[minutes_src["sha256"]] > 1 or minutes_src["sha256"] in read_shas):
+            other_meeting = _other_meeting(minutes_src, minutes_path, r, cfg, parse, read_shas)
+            if other_meeting:
+                problems.append({"meeting": r["date"], "title": r["title"], "problem": other_meeting})
+                minutes_src, minutes_path = None, None
+                if not agenda_src:
+                    status_count["not_in_facts"] += 1
+                    continue
         src = minutes_src or agenda_src
         if not src:
             status_count["not_in_facts"] += 1
@@ -168,6 +182,8 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
         pm: ParsedCityMinutes | None = None
         if not r["minutes_url"]:
             mstatus = "not_posted"
+        elif other_meeting:
+            mstatus = "other_meeting"
         elif not minutes_src:
             mstatus = "not_fetched"
         elif minutes_src["text_layer"] != "text":
@@ -194,8 +210,10 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
         if pm is None or mstatus != "read":
             meeting["verification"] = _verification([_check("minutes_read", False, mstatus)])
             continue
+        read_shas.add(minutes_src["sha256"])
         _add_minutes(cfg, officials, meeting, minutes_src, pm, roll_calls, motions, items, events, wards,
-                     problems, unresolved)
+                     problems, unresolved, last_roster)
+        last_roster = full_roster(cfg, officials, pm, meeting["date"]) or last_roster
 
     for s in sources.values():
         if not s["meeting_date"]:
@@ -237,6 +255,20 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
     return {**facts, "_wards": wards}, summary
 
 
+def _other_meeting(src: dict, path, row: dict, cfg, parse, read_shas: set) -> str | None:
+    """Why a minutes file listed for more than one meeting is not this meeting's, or None when it is."""
+    try:
+        printed = parse(path, cfg).printed_date
+    except Exception as ex:                                   # read again (and reported) in the main loop
+        return f"the same minutes file is listed for another meeting and could not be read: {type(ex).__name__}"
+    if printed != row["date"]:
+        return (f"the minutes file listed for this meeting is also listed for another meeting and records the meeting "
+                f"of {printed or 'an unprinted date'}: not read for this one")
+    if src["sha256"] in read_shas:
+        return "the same minutes file was already read for another meeting on this date: not read again"
+    return None
+
+
 def by_source(meetings: list[dict], roll_calls: list[dict]) -> dict:
     """Counts per listing source (and for meetings from 2024 on), so each source's verified rate is reported apart."""
     src_of = {m["id"]: m.get("listing_source", "agenda-center") for m in meetings}
@@ -270,20 +302,79 @@ def _out_of_room(pm: ParsedCityMinutes, roster, part_time: dict) -> list[set]:
     return out
 
 
+SURNAME_RE = re.compile(r"^[A-Za-z][A-Za-z'’-]+$")
+
+
+def full_roster(cfg, officials: Officials, pm: ParsedCityMinutes, date: str) -> dict | None:
+    """The attendance of minutes that print every member's full name, with the presiding mayor: what a later
+    surname-only attendance list may be read against. None when any attendance name is not a full name."""
+    people = pm.present + pm.absent
+    if not people or not all(NAME_RE.match(clean_name(p.raw_name)) for p in people):
+        return None
+    out = [{"name": officials.canonical(p.raw_name), "ward": p.ward, "mayor": p.mayor} for p in people]
+    if pm.presiding and pm.presiding_title == cfg.presiding_title:
+        out.append({"name": officials.canonical(pm.presiding), "ward": None, "mayor": True})
+    return {"date": date, "people": out}
+
+
+def resolve_surnames(cfg, officials: Officials, pm: ParsedCityMinutes, last: dict | None) -> tuple[dict, list]:
+    """Attendance printed as surnames only ("PRESENT: BROWN, CHANDLER, ..., PITTS, ...", CivicClerk minutes from
+    March 2025 on) -> ({id(person): (full name, is mayor)}, checks).
+
+    A surname is read as a member's full name only when exactly one full name with that surname (any case) is printed
+    either in these minutes after a member's title ("Councilman Jimmy Brown", the presiding "Mayor Joe Pitts") or in
+    the attendance list of the latest earlier minutes that print full names (`last`, full_roster), and a ward printed
+    with the surname agrees with that list. Anything else stays as printed, with no official, and holds the meeting's
+    attendance (check surnames_resolve), so its roll calls are held too. Never a near spelling ("ZAHARIAS")."""
+    people = [p for p in pm.present + pm.absent
+              if not NAME_RE.match(clean_name(p.raw_name)) and SURNAME_RE.match(clean_name(p.raw_name))]
+    if not people:
+        return {}, []
+    presiding = officials.canonical(pm.presiding) if pm.presiding else None
+    here = {officials.canonical(n) for n in pm.titled}
+    if presiding:
+        here.add(presiding)
+    out, unresolved, basis = {}, [], Counter()
+    for p in people:
+        s = clean_name(p.raw_name).lower()
+        cands: dict[str, str] = {}               # full name -> where it is printed
+        for n in sorted(here):
+            if name_parts(n)[1].lower() == s:
+                cands[n] = "these minutes"
+        for r in (last or {}).get("people", []):
+            if name_parts(r["name"])[1].lower() == s and (p.ward is None or r["ward"] is None or r["ward"] == p.ward):
+                cands.setdefault(r["name"], f"the attendance of {last['date']}")
+        if len(cands) == 1:
+            name, why = next(iter(cands.items()))
+            mayor = (name == presiding and pm.presiding_title == cfg.presiding_title) or any(
+                r["mayor"] for r in (last or {}).get("people", []) if r["name"] == name)
+            out[id(p)] = (name, mayor)
+            basis[why] += 1
+        else:
+            unresolved.append(f"{p.raw_name} ({len(cands)} full names)" if cands else p.raw_name)
+    detail = "; ".join(f"{n} by {why}" for why, n in sorted(basis.items()))
+    if unresolved:
+        detail = (detail + "; " if detail else "") + "not resolved: " + ", ".join(unresolved)
+    return out, [_check("surnames_resolve", not unresolved, f"{len(people)} printed as surnames: {detail}")]
+
+
 def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: ParsedCityMinutes, roll_calls, motions,
-                 items, events, wards, problems, unresolved) -> None:
+                 items, events, wards, problems, unresolved, last_roster: dict | None = None) -> None:
     sha8 = src["sha256"][:8]
     roster: list[tuple[str, str]] = []
     present_ids, absent_ids, part_time = set(), set(), {}     # part_time: official -> Person (late or left)
     att = []
     malformed = []
+    by_surname, surname_checks = resolve_surnames(cfg, officials, pm, last_roster)
     for status, people in (("present", pm.present), ("absent", pm.absent)):
         for p in people:
-            if not NAME_RE.match(clean_name(p.raw_name)):       # not a person's name as printed: no official made
+            full = by_surname.get(id(p))
+            if full is None and not NAME_RE.match(clean_name(p.raw_name)):   # not a name as printed: no official
                 malformed.append(p.raw_name)
                 att.append({"official_id": None, "raw_name": p.raw_name, "status": status, "page": p.page})
                 continue
-            oid = officials.add(p.raw_name, cfg.presiding_title if p.mayor else cfg.official_title)
+            name, mayor = full if full else (p.raw_name, p.mayor)
+            oid = officials.add(name, cfg.presiding_title if mayor else cfg.official_title)
             att.append({"official_id": oid, "raw_name": p.raw_name, "status": status, "page": p.page})
             roster.append((oid, officials.by_id[oid]["name"]))
             (present_ids if status == "present" else absent_ids).add(oid)
@@ -300,7 +391,7 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
     dup = [n for n, c in Counter(a["official_id"] for a in att if a["official_id"]).items() if c > 1]
     att_checks = [_check("present_listed", bool(pm.present), f"{len(pm.present)} present, {len(pm.absent)} absent"),
                   _check("one_entry_per_official", not dup, ", ".join(dup) or None),
-                  _check("names_well_formed", not malformed, ", ".join(malformed) or None)]
+                  _check("names_well_formed", not malformed, ", ".join(malformed) or None)] + surname_checks
     if att:
         meeting["attendance_status"] = "extracted"
         meeting["attendance"] = att
