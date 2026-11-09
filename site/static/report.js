@@ -44,25 +44,39 @@
     return { issue: issue, mail: mail };
   }
 
+  // "known" when `page` is one of `list` (the built page paths static/pages.js carries), "unknown" when the list is
+  // there and it is not, "unchecked" when there is no list. Only "known" may be shown without a warning.
+  function pageStatus(page, list) {
+    if (!page) { return "none"; }
+    if (!Array.isArray(list)) { return "unchecked"; }
+    return list.indexOf(page) >= 0 ? "known" : "unknown";
+  }
+
   if (typeof module !== "undefined" && module.exports) {
-    module.exports = { parseHash: parseHash, links: links, PAGE_RE: PAGE_RE, ID_RE: ID_RE };
+    module.exports = { parseHash: parseHash, links: links, pageStatus: pageStatus, PAGE_RE: PAGE_RE, ID_RE: ID_RE };
   }
   if (typeof document === "undefined") { return; }
 
   var params = parseHash(window.location.hash);
+  // Nothing in the link is a fact: the page path is checked against the list of built pages, the id cannot be.
+  var status = pageStatus(params.page, window.BUILT_PAGES);
   var pageUrl = "";
-  if (params.page && /^https?:$/.test(window.location.protocol)) {
+  if (status === "known" && /^https?:$/.test(window.location.protocol)) {
     try { pageUrl = new URL(params.page, window.location.href).href; } catch (e) { pageUrl = ""; }
   }
+  var linkParams = { page: status === "known" ? params.page : undefined, id: params.id };
   var issueA = document.getElementById("report-issue");
   var mailA = document.getElementById("report-mail");
-  var got = links(params, pageUrl, issueA && issueA.getAttribute("href"), mailA && mailA.getAttribute("href"));
+  var got = links(linkParams, pageUrl, issueA && issueA.getAttribute("href"), mailA && mailA.getAttribute("href"));
   if (issueA && got.issue) { issueA.setAttribute("href", got.issue); }
   if (mailA && got.mail) { mailA.setAttribute("href", got.mail); }
 
   var box = document.getElementById("report-about");
   if (box && (params.page || params.id)) {
-    document.getElementById("report-page-url").textContent = pageUrl || params.page || "Not given";
+    var pageText = pageUrl || params.page || "Not given";
+    if (status === "unknown") { pageText += " (not a page of this site)"; }
+    if (status === "unchecked") { pageText += " (not checked)"; }
+    document.getElementById("report-page-url").textContent = pageText;
     document.getElementById("report-fact-id").textContent = params.id || "Not given";
     box.hidden = false;
   }
