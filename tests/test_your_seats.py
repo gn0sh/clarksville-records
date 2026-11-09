@@ -41,6 +41,10 @@ def test_your_seats_box_has_a_forget_button_and_the_storage_line(addr_site):
     assert "hidden" in box.attrs                                             # shown by the script, on a later visit
     btn = next(n for n in box.walk() if n.tag == "button")
     assert btn.attrs["type"] == "button" and btn.attrs["id"] == "seats-forget" and btn.all_text().strip() == "Forget"
+    assert btn.attrs["aria-label"] == "Forget my saved seats"
+    status = next(n for n in parse(html).walk() if n.attrs.get("id") == "seats-status")
+    assert status.attrs["aria-live"] == "polite"
+    assert "or a click on the map, only the district number is kept" in html  # the note covers map clicks too
     assert "Saved only in this browser, on this device." in " ".join(box.all_text().split())
     assert "no cookies" in box.all_text()
     assert "No cookies." in html                                              # the address box's own one-line notice
@@ -142,6 +146,67 @@ for (const win of [blocked, {{}}]) {{
 console.log('ok');
 """
     p = tmp_path / "seats_test.js"
+    p.write_text(prog, encoding="utf-8")
+    res = subprocess.run(["node", str(p)], capture_output=True, text=True, timeout=60)
+    assert res.returncode == 0 and res.stdout.strip() == "ok", res.stderr
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node not available")
+def test_seats_box_render_and_forget_with_a_stub_dom(tmp_path):
+    prog = f"""
+const assert = require("assert"); const vm = require('vm'); const fs = require('fs');
+const src = fs.readFileSync({json.dumps(str(SEATS_JS))}, 'utf8');
+function el() {{
+  const e = {{ hidden: false, children: [], attrs: {{}}, handlers: {{}}, textContent: '', focused: false,
+    get firstChild() {{ return this.children[0] || null; }},
+    removeChild(c) {{ this.children.splice(this.children.indexOf(c), 1); }},
+    appendChild(c) {{ this.children.push(c); }},
+    setAttribute(k, v) {{ this.attrs[k] = v; }}, getAttribute(k) {{ return this.attrs[k]; }},
+    addEventListener(t, f) {{ this.handlers[t] = f; }}, focus() {{ this.focused = true; }},
+    closest() {{ return null; }} }};
+  return e;
+}}
+function run(stored, rows) {{
+  const data = stored === null ? {{}} : {{ 'cr-your-seats': stored }};
+  const box = el(), list = el(), button = el(), status = el(), q = el();
+  box.querySelector = (s) => (s === '.your-seats-list' ? list : null);
+  const byId = {{ 'your-seats': box, 'seats-forget': button, 'seats-status': status, 'landing-q': q }};
+  const doc = {{
+    getElementById: (id) => byId[id] || null,
+    querySelectorAll: () => [],
+    createElement: () => el(),
+    querySelector: (sel) => {{
+      const m = rows[sel]; if (!m) return null;
+      const label = {{ textContent: m.label }};
+      return {{ querySelector: () => label, getAttribute: () => m.href }};
+    }},
+  }};
+  const win = {{ document: doc, localStorage: {{ getItem: (k) => (k in data ? data[k] : null),
+    setItem(k, v) {{ data[k] = String(v); }}, removeItem(k) {{ delete data[k]; }} }} }};
+  vm.runInNewContext(src, {{ window: win }}, {{ filename: 'seats.js' }});
+  return {{ box, list, button, status, q, data }};
+}}
+const rows = {{ 'li[data-district="4"] > a': {{ label: 'District 4', href: 'd4.html' }},
+               'li[data-seat="ward-2"] > a': {{ label: 'Ward 2', href: 'w2.html' }} }};
+// valid stored value: box shown, one link per matching row, text set with textContent
+let t = run('{{"district":4,"ward":2}}', rows);
+assert.strictEqual(t.box.hidden, false); assert.strictEqual(t.list.children.length, 2);
+assert.deepStrictEqual(t.list.children.map((li) => li.children[0].textContent), ['Ward 2', 'District 4']);
+assert.deepStrictEqual(t.list.children.map((li) => li.children[0].attrs.href), ['w2.html', 'd4.html']);
+// a stored number that matches no list row: the box stays hidden
+t = run('{{"district":9,"ward":null}}', rows);
+assert.strictEqual(t.box.hidden, true); assert.strictEqual(t.list.children.length, 0);
+// nothing stored: hidden
+assert.strictEqual(run(null, rows).box.hidden, true);
+// Forget: clears the key, hides the box, announces it, moves focus to a visible search field
+t = run('{{"district":4,"ward":null}}', rows);
+assert.strictEqual(t.box.hidden, false);
+t.button.handlers.click();
+assert.deepStrictEqual(t.data, {{}}); assert.strictEqual(t.box.hidden, true);
+assert.strictEqual(t.status.textContent, 'Saved seats forgotten'); assert.strictEqual(t.q.focused, true);
+console.log('ok');
+"""
+    p = tmp_path / "seats_dom_test.js"
     p.write_text(prog, encoding="utf-8")
     res = subprocess.run(["node", str(p)], capture_output=True, text=True, timeout=60)
     assert res.returncode == 0 and res.stdout.strip() == "ok", res.stderr

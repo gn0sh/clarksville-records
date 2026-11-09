@@ -95,6 +95,8 @@
   button.addEventListener("click", function () {
     forget();
     box.hidden = true;
+    var status = doc.getElementById("seats-status");
+    if (status) { status.textContent = "Saved seats forgotten"; }
     var q = doc.getElementById("addr-q");
     if (!q || q.closest("[hidden]")) { q = doc.getElementById("landing-q"); }
     if (q) { q.focus(); }
