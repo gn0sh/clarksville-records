@@ -229,11 +229,25 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
     return {**facts, "_wards": wards}, summary
 
 
+def _out_of_room(pm: ParsedCityMinutes, roster, part_time: dict) -> list[set]:
+    """For each roll call of the meeting, the members its missing-vote check exempts: a member noted as arriving
+    late, for the votes before their first recorded vote; one noted as leaving early, for the votes after their
+    last. A noted member with no recorded vote at all cannot be placed, so is exempt from every vote."""
+    voted = [{resolve(v.raw_name, roster) for v in rc.votes} for rc in pm.roll_calls]
+    out = [set() for _ in pm.roll_calls]
+    for oid, p in part_time.items():
+        ks = [k for k, s in enumerate(voted) if oid in s]
+        for k in range(len(voted)):
+            if not ks or (p.arrived_late and k < ks[0]) or (p.left_early and k > ks[-1]):
+                out[k].add(oid)
+    return out
+
+
 def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: ParsedCityMinutes, roll_calls, motions,
                  items, events, wards, problems, unresolved) -> None:
     sha8 = src["sha256"][:8]
     roster: list[tuple[str, str]] = []
-    present_ids, absent_ids, part_time = set(), set(), set()
+    present_ids, absent_ids, part_time = set(), set(), {}     # part_time: official -> Person (late or left)
     att = []
     malformed = []
     for status, people in (("present", pm.present), ("absent", pm.absent)):
@@ -247,7 +261,7 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
             roster.append((oid, officials.by_id[oid]["name"]))
             (present_ids if status == "present" else absent_ids).add(oid)
             if p.part_time:
-                part_time.add(oid)
+                part_time[oid] = p
             wards.append({"official_id": oid, "raw_name": p.raw_name, "ward": p.ward, "pro_tem": p.pro_tem,
                           "meeting_id": meeting["id"], "date": meeting["date"], "source_id": src["id"],
                           "page": p.page})
@@ -268,8 +282,9 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
     for msg in pm.problems:
         problems.append({"meeting": meeting["id"], "problem": msg})
 
+    out_of_room = _out_of_room(pm, roster, part_time)
     per_page, motions_on_page = Counter(), Counter()
-    for rc in pm.roll_calls:
+    for k, rc in enumerate(pm.roll_calls):
         n = per_page[rc.page]
         per_page[rc.page] += 1
         rid = f"rc-{sha8}-p{rc.page}-{n}"
@@ -298,8 +313,9 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
         voted = set(seen)
         yes = sum(v["value"] == "yes" for v in votes)
         no = sum(v["value"] == "no" for v in votes)
-        # a member whose attendance notes a late arrival or early departure may be missing from a vote
-        missing = sorted(present_ids - voted - block_absent - part_time - {presiding_id})
+        # a member noted as arriving late may miss the votes before their first vote, one noted as leaving early
+        # the votes after their last; any other missing vote holds the roll call
+        missing = sorted(present_ids - voted - block_absent - out_of_room[k] - {presiding_id})
         not_present = sorted(o for o in voted if o not in present_ids and o != presiding_id)
         unres = [v["raw_name"] for v in votes if v["official_id"] is None]
         if rc.outcome == "passed":

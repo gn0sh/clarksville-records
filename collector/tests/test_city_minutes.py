@@ -694,3 +694,50 @@ def test_vote_on_several_items_is_not_linked_to_one(links):
 def test_every_other_roll_call_passes_the_item_check(links_built):
     ok = [checks(rc)["vote_matches_item"]["ok"] for rc in links_built["roll_calls"]]
     assert ok == [True] * 6 + [False, False, True]
+
+
+# city-votes/part-time-exempt: a late arrival or early departure exempts a member only before they came or after they left
+PART_TIME = """ATTENDANCE
+
+    PRESENT: Ron Erb (Ward 3), David Allen (Ward 8; arrived 4:44 p.m.), Jeff Burkhart (Ward 12 - left early)
+
+    The regular session was called to order by Mayor Joe Pitts.
+
+    ORDINANCE 1-2019-20 (First Reading) One
+
+          The following vote was recorded:
+
+                 AYE: Burkhart, Erb, Pitts
+
+          The motion to adopt this ordinance passed.
+
+    ORDINANCE 2-2019-20 (First Reading) Two
+
+          The following vote was recorded:
+
+                 AYE: Allen, Burkhart, Erb, Pitts
+
+          The motion to adopt this ordinance passed.
+
+    ORDINANCE 3-2019-20 (First Reading) Three
+
+          The following vote was recorded:
+
+                 AYE: Erb, Pitts
+
+          The motion to adopt this ordinance passed.
+"""
+
+
+def test_part_time_note_exempts_only_before_arrival_or_after_departure(cfg):
+    p = parse_text([PART_TIME], cfg)
+    assert [(x.raw_name, x.arrived_late, x.left_early) for x in p.present] == [
+        ("Ron Erb", False, False), ("David Allen", True, False), ("Jeff Burkhart", False, True)]
+    rows, store, inspect = rows_and_store()
+    facts, _ = build(cfg, rows[:1], store, parse=lambda q, c: parse_text([PART_TIME], c), inspect=inspect)
+    before, both, after = facts["roll_calls"]
+    assert before["verification"]["status"] == "verified"       # Allen had not arrived yet
+    assert both["verification"]["status"] == "verified"
+    # Burkhart left after his last vote, but Allen had arrived and voted: his missing vote holds the roll call
+    assert after["verification"]["status"] == "unverified"
+    assert checks(after)["one_vote_per_present_member"]["detail"] == "city-david-allen"

@@ -42,7 +42,9 @@ SECOND_RE = re.compile(r"seconded\s+by\s+" + TITLES + r"\s+([A-Z][A-Za-z'’-]+)
 WARD_RE = re.compile(r"\(?\s*\bWard\s*(\d{1,2})\b[^)]*\)?", re.I)
 PAREN_RE = re.compile(r"\([^)]*\)?|\bWard\s*\d{1,2}\b[^)]*\)?", re.I)
 DASH_NOTE_RE = re.compile(r"\s*[-–—‐]\s*[a-z][^()]*")        # "Trisha Butler - arrived late (Ward 12)"
-PART_TIME_RE = re.compile(r"\b(?:arrived|left|late|departed|excused at)\b", re.I)
+# a late arrival ("arrived 4:44 p.m.", "joined late") or an early departure ("left early", "excused at 8 p.m.")
+ARRIVED_RE = re.compile(r"\b(?:arrived|late|joined)\b", re.I)
+LEFT_RE = re.compile(r"\b(?:left|departed|excused at)\b", re.I)
 SECTION_RE = re.compile(r"^\d{1,2}\.\s+[A-Z]")                     # "3.   Planning Commission" (2023 minutes)
 NOT_A_PERSON = {"vacant"}                                         # a seat listed as "Vacant": no one to record
 WARD_ONLY_RE = re.compile(r"^\(?\s*Ward\s*\d{1,2}\b[^()]*\)?$", re.I)
@@ -68,7 +70,12 @@ class Person:
     page: int
     pro_tem: bool = False
     mayor: bool = False      # listed with the title Mayor ("Mayor Kim McMillan")
-    part_time: bool = False  # the attendance notes a late arrival or early departure ("arrived 5:05 p.m.")
+    arrived_late: bool = False  # the attendance notes a late arrival ("arrived 5:05 p.m.")
+    left_early: bool = False    # ... or an early departure ("left early")
+
+    @property
+    def part_time(self) -> bool:
+        return self.arrived_late or self.left_early
 
 
 @dataclass
@@ -187,7 +194,7 @@ def parse_people(text: str, page: int) -> list[Person]:
                 out[-1].ward = int(ward.group(1))
             continue
         name = PAREN_RE.sub("", DASH_NOTE_RE.sub("", tok)).strip()
-        part_time = bool(PART_TIME_RE.search(tok))
+        arrived, left = bool(ARRIVED_RE.search(tok)), bool(LEFT_RE.search(tok))
         if name.lower() in NOT_A_PERSON:
             continue
         if SUFFIX_RE.match(name) and out:                # "Joe Smith, Jr." split on its comma
@@ -201,7 +208,8 @@ def parse_people(text: str, page: int) -> list[Person]:
             if ward and out[-1].ward is None:
                 out[-1].ward = int(ward.group(1))
             continue
-        out.append(Person(name, int(ward.group(1)) if ward else None, page, mayor=bool(mayor), part_time=part_time))
+        out.append(Person(name, int(ward.group(1)) if ward else None, page, mayor=bool(mayor), arrived_late=arrived,
+                          left_early=left))
     return out
 
 
