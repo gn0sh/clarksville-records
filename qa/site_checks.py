@@ -22,7 +22,7 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               the cutover is immaterial (architecture, invariant `provenance`)
   totals      "Recorded absent at X of Y meetings" equals a recount from the meeting pages (AC2.2)
   name-links  every occurrence of an official's display name in the visible text of a page is inside an <a> to that
-              official's page (standing rule), except in <title>, <option>, the footer operator line and on the
+              official's page (standing rule), except in <title>, <option>, the operator lines (footer, About) and on the
               official's own page
   footer      "Provided as a free service by Brian Zacharias." on every page
   external    no third-party scripts, styles, images or fonts (N6); the landing address box's geocoder (called
@@ -34,6 +34,11 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               details collapsed, at 375x667, 768x1024, 1000x800 and 1280x800 (contracts pages also at 360x640); needs Playwright (node)
   hscroll     no horizontal scroll at 390 px (contracts pages also at 360 px) for the page types (index, official, meeting, items, and when present
               officials, district, search, votes); needs Playwright (node)
+
+Councils (config/site.yml `councils`, each config/localities/<locality>/council.yml): a real build also has each
+council's pages under its folder, built from the council's own facts file. links, sources, unverified, layout, totals,
+provenance, name-links, footer, external, hscroll and row-height cover them too, each against the council's facts and
+its member pages (<folder>/members/<id>.html); the council's pages are also checked at 360 px.
 """
 from __future__ import annotations
 
@@ -71,6 +76,18 @@ EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder"}
 def _site_cfg() -> dict:
     import yaml
     return yaml.safe_load((ROOT / "config" / "site.yml").read_text(encoding="utf-8"))
+
+
+def councils(facts: dict) -> list[dict]:
+    """The councils a real build has beside the county: {slug, prefix, facts}. None for a fixture facts file."""
+    import yaml
+    if facts.get("fixture"):
+        return []
+    out = []
+    for loc in _site_cfg().get("councils") or []:
+        c = yaml.safe_load((ROOT / "config" / "localities" / loc / "council.yml").read_text(encoding="utf-8"))
+        out.append({"slug": c["slug"], "prefix": c["slug"] + "/", "facts": load_facts(ROOT / c["facts"])})
+    return out
 
 
 def default_inputs(facts: dict) -> tuple[Path | None, Path | None]:
@@ -348,6 +365,23 @@ def attribution_shown(facts: dict, mo: dict) -> bool:
     return mo["verification"]["status"] == "verified"
 
 
+ID_RUN = re.compile(r"[A-Za-z0-9_/-]+")
+
+
+def id_prefixes(body: str) -> set[str]:
+    """Every string an id token can match in `body` under _contains' boundaries: each maximal run of id characters,
+    cut at each '/'. One pass per file, so a big page is scanned once for all id tokens, not once per token."""
+    out: set[str] = set()
+    for m in ID_RUN.finditer(body):
+        run = m.group(0)
+        i = run.find("/")
+        while i >= 0:
+            out.add(run[:i])
+            i = run.find("/", i + 1)
+        out.add(run)
+    return out
+
+
 def _contains(body: str, tok: str, why: str) -> bool:
     """Ids match on id boundaries (ev-x-p9-1 is not inside ev-x-p9-13); free text matches as a substring."""
     if " text" in why:
@@ -390,7 +424,11 @@ def finance_fact_ids(fin: dict | None) -> set[str]:
 
 
 def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: bool,
-                     show_values: bool | None = None, fin: dict | None = None) -> list[str]:
+                     show_values: bool | None = None, fin: dict | None = None, official_prefix: str = "officials/",
+                     export: bool = True) -> list[str]:
+    """`pages`: the pages built from `facts` (a council's pages are checked against the council's facts, with its
+    member pages under `official_prefix`); the token scan always covers every file. `export`: data/facts.json is
+    this facts file's export."""
     if show_values is None:  # the build's switch; the rule itself is restated here, not called from sitegen
         from sitegen.config import SHOW_UNCONFIRMED_VALUES as show_values
     problems = []
@@ -409,10 +447,17 @@ def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: 
             continue
         body = f.read_text(encoding="utf-8", errors="replace")
         body = body + "\n" + html.unescape(body)
+        ids = None
         for tok, why in toks:
             if internal and rel.startswith("data/") and " text" in why:
                 continue    # an --internal export carries raw outcome text by design; its pages still must not
-            if _contains(body, tok, why):
+            if " text" in why:
+                hit = tok in body
+            else:   # the same boundaries as _contains, from one scan of the file
+                if ids is None:
+                    ids = id_prefixes(body)
+                hit = tok in ids
+            if hit:
                 problems.append(f"{rel}: contains {tok!r} ({why})")
     # every fact id on a page is a shown fact; every shown fact is on its official's page
     shown, hidden = shown_fact_ids(facts)
@@ -425,7 +470,7 @@ def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: 
                 problems.append(f"{rel}: shows hidden fact {fid}")
             elif fid not in shown and fid not in known and not rel == "review.html":
                 problems.append(f"{rel}: fact id {fid} is not in the facts file")
-            if rel.startswith("officials/"):
+            if rel.startswith(official_prefix):
                 on_official.add(fid)
     for fid in sorted(shown - on_official):
         problems.append(f"shown fact {fid} is on no official page")
@@ -448,9 +493,9 @@ def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: 
             if rc in unconfirmed and not show_values and (m := PARSED_VALUE.search(text)):
                 problems.append(f"{rel}: {fid} shows a parsed value {m.group(0)!r} of an unconfirmed roll call")
     # SHOW_UNCONFIRMED_VALUES off: the public export carries no value, outcome or tally of an unconfirmed roll call
-    export = site / "data" / "facts.json"
-    if not internal and not show_values and export.is_file():
-        for r in json.loads(export.read_text(encoding="utf-8")).get("roll_calls", []):
+    export_file = site / "data" / "facts.json"
+    if export and not internal and not show_values and export_file.is_file():
+        for r in json.loads(export_file.read_text(encoding="utf-8")).get("roll_calls", []):
             if r["id"] in unconfirmed and (r.get("outcome") is not None or r.get("stated_tally") is not None
                                            or any(v.get("value") is not None for v in r.get("votes", []))):
                 problems.append(f"data/facts.json: unconfirmed roll call {r['id']} carries a parsed value")
@@ -524,20 +569,21 @@ def _skeleton(html_text: str) -> tuple:
     return (tuple(heads), frozenset(tables))
 
 
-def check_layout(site: Path, facts: dict) -> tuple[list[str], str]:
-    skel = {o["id"]: _skeleton((site / "officials" / f"{o['id']}.html").read_text(encoding="utf-8"))
-            for o in facts["officials"] if (site / "officials" / f"{o['id']}.html").is_file()}
+def check_layout(site: Path, facts: dict, folder: str = "officials") -> tuple[list[str], str]:
+    skel = {o["id"]: _skeleton((site / folder / f"{o['id']}.html").read_text(encoding="utf-8"))
+            for o in facts["officials"] if (site / folder / f"{o['id']}.html").is_file()}
     if not skel:
-        return ["no official pages"], ""
+        return [f"no official pages under {folder}/"], ""
     ref_id, ref = next(iter(skel.items()))
-    return [f"officials/{i}.html differs in headings/columns from officials/{ref_id}.html" for i, k in skel.items() if k != ref], \
-        f"{len(skel)} official pages, same {len(ref[0])} headings and {len(ref[1])} column header set(s)"
+    return [f"{folder}/{i}.html differs in headings/columns from {folder}/{ref_id}.html" for i, k in skel.items() if k != ref], \
+        f"{len(skel)} official pages under {folder}/, same {len(ref[0])} headings and {len(ref[1])} column header set(s)"
 
 
 # ---------------------------------------------------------------- provenance (derived vs stated)
 # Restated from the architecture's invariant `provenance`, not imported from sitegen.
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
-DATE_PHRASES = ("seen in roll calls", "shown as vacant in roll calls", "roll calls")
+DATE_PHRASES = ("seen in roll calls", "shown as vacant in roll calls", "roll calls", "seen in attendance lists",
+                "shown as vacant in attendance lists", "attendance lists")
 SOURCE_TERM = "as the source prints it"
 BANNED = ("Held this seat", "vacant since", "to present", "in use since")
 
@@ -667,11 +713,13 @@ def check_provenance(site: Path, pages: dict[str, Page], facts: dict, roster: li
     return problems, f"{texts} seat texts checked; lines split key {eff} immaterial"
 
 
-def check_totals(site: Path, pages: dict[str, Page], facts: dict) -> tuple[list[str], str]:
-    """AC2.2: each 'Recorded absent at X of Y meetings' equals a recount from the built meeting pages."""
+def check_totals(site: Path, pages: dict[str, Page], facts: dict, meetings: str = "meetings/",
+                 folder: str = "officials") -> tuple[list[str], str]:
+    """AC2.2: each 'Recorded absent at X of Y meetings' equals a recount from the built meeting pages (`meetings`:
+    their folder; a council's are one page per year) on the official pages under `folder`."""
     counts: dict[str, list[int]] = {}
     for rel in pages:
-        if not rel.startswith("meetings/"):
+        if not rel.startswith(meetings):
             continue
         t = (site / rel).read_text(encoding="utf-8")
         for m in re.finditer(r'data-fact-id="[^"]+/att/([^"]+)"[^>]*>\s*<th[^>]*>.*?</th>\s*<td[^>]*>(.*?)</td>', t, re.S):
@@ -680,16 +728,16 @@ def check_totals(site: Path, pages: dict[str, Page], facts: dict) -> tuple[list[
             c[1] += re.sub(r"<[^>]+>", "", m.group(2)).strip() == "Absent"
     problems = []
     for o in facts["officials"]:
-        f = site / "officials" / f"{o['id']}.html"
+        f = site / folder / f"{o['id']}.html"
         if not f.is_file():
             continue
         m = re.search(r"Recorded absent at (\d+) of (\d+) meetings", f.read_text(encoding="utf-8"))
         listed, absent = counts.get(o["id"], [0, 0])
         if not m:
-            problems.append(f"officials/{o['id']}.html: no 'Recorded absent at X of Y meetings' sentence")
+            problems.append(f"{folder}/{o['id']}.html: no 'Recorded absent at X of Y meetings' sentence")
         elif (int(m.group(1)), int(m.group(2))) != (absent, listed):
-            problems.append(f"officials/{o['id']}.html: page says {m.group(1)} of {m.group(2)}, meeting pages recount {absent} of {listed}")
-    return problems, f"{len(facts['officials'])} officials recounted"
+            problems.append(f"{folder}/{o['id']}.html: page says {m.group(1)} of {m.group(2)}, meeting pages recount {absent} of {listed}")
+    return problems, f"{len(facts['officials'])} officials under {folder}/ recounted"
 
 
 class NameLinks(HTMLParser):
@@ -721,14 +769,20 @@ class NameLinks(HTMLParser):
         self.nodes.append((d, href))
 
 
-def check_name_links(site: Path, facts: dict, roster: list[dict]) -> tuple[list[str], str]:
-    """Standing rule: wherever an elected official's name is shown, it links to officials/<id>.html."""
+def check_name_links(site: Path, facts: dict, roster: list[dict], councils_=()) -> tuple[list[str], str]:
+    """Standing rule: wherever an elected official's name is shown, it links to officials/<id>.html (a council
+    member's: <folder>/members/<id>.html). A name two people share may link to either one's page."""
     names = {o["id"]: o["name"] for o in facts["officials"]}
     for r in roster:
         if r.get("official_id") and r["official_id"] not in names:
             names[r["official_id"]] = r.get("name") or " ".join(w.capitalize() for w in r["official_id"].split("-"))
-    by_name = {n: oid for oid, n in names.items()}
-    pat = re.compile(r"(?<!\w)(" + "|".join(re.escape(n) for n in sorted(by_name, key=len, reverse=True)) + r")(?!\w)")
+    pages_of: dict[str, set[str]] = defaultdict(set)   # display name -> the official pages it may link to
+    for oid, n in names.items():
+        pages_of[n].add(f"officials/{oid}.html")
+    for c in councils_:
+        for o in c["facts"]["officials"]:
+            pages_of[o["name"]].add(f"{c['prefix']}members/{o['id']}.html")
+    pat = re.compile(r"(?<!\w)(" + "|".join(re.escape(n) for n in sorted(pages_of, key=len, reverse=True)) + r")(?!\w)")
     problems, checked = [], 0
     pages = sorted(site.rglob("*.html"))
     for f in pages:
@@ -736,16 +790,16 @@ def check_name_links(site: Path, facts: dict, roster: list[dict]) -> tuple[list[
         p = NameLinks()
         p.feed(f.read_text(encoding="utf-8"))
         for text, href in p.nodes:
-            if "Provided as a free service by" in text:
+            if "Provided as a free service by" in text or "This site is run by" in text:   # the operator lines (footer, About)
                 continue
             for m in pat.finditer(text):
-                oid = by_name[m.group(1)]
-                if rel == f"officials/{oid}.html":
+                allowed = pages_of[m.group(1)]
+                if rel in allowed:
                     continue   # a person's own page names them in its heading
                 checked += 1
                 target = resolve(rel, href) if href is not None else None
-                if target != f"officials/{oid}.html":
-                    problems.append(f"{rel}: {names[oid]!r} is not linked to officials/{oid}.html (in {text.strip()[:60]!r})")
+                if target not in allowed:
+                    problems.append(f"{rel}: {m.group(1)!r} is not linked to {' or '.join(sorted(allowed))} (in {text.strip()[:60]!r})")
     return problems, f"{checked} name links checked on {len(pages)} pages"
 
 
@@ -843,11 +897,23 @@ def page_type(rel: str) -> str | None:
         return "finance_index" if rel == "finance/index.html" else "fund"
     if head == "capital":
         return "capital"
+    for c in _council_slugs():
+        if head == c:
+            parts = rel.split("/")
+            return "council_home" if len(parts) == 2 else {"members": "council_member", "meetings": "council_meetings",
+                                                            "items": "council_items"}.get(parts[1])
     return {"officials": "official", "meetings": "meeting", "items": "items", "districts": "district",
             "votes": "votes"}.get(head)
 
 
-NARROW_TYPES = ("contracts_index", "contract", "finance_index", "fund", "capital")  # AC-F10: also at 360 px
+NARROW_TYPES = ("contracts_index", "contract", "finance_index", "fund", "capital",  # AC-F10: also at 360 px
+                "council_home", "council_member", "council_meetings", "council_items")  # M4: compact at 360 px
+
+
+def _council_slugs() -> list[str]:
+    import yaml
+    return [yaml.safe_load((ROOT / "config" / "localities" / loc / "council.yml").read_text(encoding="utf-8"))["slug"]
+            for loc in _site_cfg().get("councils") or []]
 
 
 def check_hscroll(site: Path, pages: dict[str, Page], all_pages: bool, sample: int) -> tuple[list[str], str]:
@@ -948,20 +1014,34 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
         return rep
     rep.add("files", [f"{len(files)} files, limit {MAX_FILES - 1}"] if len(files) >= MAX_FILES else [], f"{len(files)} files, {len(pages)} pages")
     rep.add("links", check_links(site, pages, no_export), "internal links, #anchors and assets" + ("; data/ skipped" if no_export and not (site / "data").exists() else ""))
-    problems, note = check_sources(site, pages, facts, store_extra, allowed_external(cfg, seats_path, districts_path), finance)
-    rep.add("sources", problems, note)
-    rep.add("unverified", check_unverified(site, pages, facts, internal, fin=finance), "internal build" if internal else "public build")
+    cs = [c for c in councils(facts) if any(rel.startswith(c["prefix"]) for rel in pages)]
+    missing = [c["slug"] for c in councils(facts) if c not in cs]
+    all_sources = {"sources": [*facts["sources"], *(s for c in cs for s in c["facts"]["sources"])]}
+    problems, note = check_sources(site, pages, all_sources, store_extra, allowed_external(cfg, seats_path, districts_path), finance)
+    rep.add("sources", problems + [f"no pages under {m}/ for the configured council" for m in missing], note)
+    county_pages = {rel: pg for rel, pg in pages.items() if not any(rel.startswith(c["prefix"]) for c in cs)}
+    problems = check_unverified(site, county_pages, facts, internal, fin=finance)
+    for c in cs:
+        mine = {rel: pg for rel, pg in pages.items() if rel.startswith(c["prefix"])}
+        problems += check_unverified(site, mine, c["facts"], internal, official_prefix=c["prefix"] + "members/", export=False)
+    rep.add("unverified", problems, ("internal build" if internal else "public build") + "".join(f"; {c['slug']}/ against its own facts" for c in cs))
     fact_ids = {o["id"] for o in facts["officials"]}
     roster_only = tuple(sorted({r["official_id"] for r in read_roster(seats_path) if r.get("official_id")} - fact_ids))
     problems, note = check_index(site, pages, facts, roster_only)
     rep.add("index", problems, "AC1.1: " + note)
     problems, note = check_layout(site, facts)
+    for c in cs:
+        p2, n2 = check_layout(site, c["facts"], c["prefix"] + "members")
+        problems, note = problems + p2, f"{note}; {n2}"
     rep.add("layout", problems, "AC1.5/N1: " + note)
     problems, note = check_totals(site, pages, facts)
+    for c in cs:
+        p2, n2 = check_totals(site, pages, c["facts"], c["prefix"] + "meetings/", c["prefix"] + "members")
+        problems, note = problems + p2, f"{note}; {n2}"
     rep.add("totals", problems, "AC2.2: " + note)
     problems, note = check_provenance(site, pages, facts, read_roster(seats_path), cfg)
     rep.add("provenance", problems, note)
-    problems, note = check_name_links(site, facts, read_roster(seats_path))
+    problems, note = check_name_links(site, facts, read_roster(seats_path), cs)
     rep.add("name-links", problems, note)
     rep.add("footer", check_footer(pages, operator), f"'Provided as a free service by {operator}.' on {len(pages)} pages")
     rep.add("external", check_external(pages, site, cfg))
