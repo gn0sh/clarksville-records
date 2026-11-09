@@ -24,6 +24,13 @@ support_url: https://www.buymeacoffee.com/gnoshcodes
 support_label: Buy Me a Coffee
 support_enabled: true
 
+# Report an error (M1.5, docs/design/correction-intake.md). Every fact page links report.html, which offers these
+# channels to the reader. Both empty (the default): report.html says corrections open when the site launches. Brian
+# chooses the values; the build refuses anything else than the shapes below.
+corrections:
+  github_repo: ""   # "owner/name" of the PUBLIC repo: a prefilled issue from .github/ISSUE_TEMPLATE/correction.yml
+  email: ""         # an address for a mailto link (no address is set until Brian picks one)
+
 county_name: Montgomery County
 county_body: Montgomery County Commission
 city_name: City of Clarksville

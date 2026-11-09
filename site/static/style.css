@@ -803,3 +803,8 @@ table.budget td.c-source { min-width: 9rem; }
 ol.council-seats li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 7px 4px; }
 ol.council-seats .d-label { min-width: 5.5em; font-weight: 600; }
 .council-meeting { border-top: 2px solid var(--border); margin-top: 1.5em; padding-top: 0.5em; }
+/* Report an error (M1.5): the page-level link on fact pages and the report page's "This report is about" box. */
+.report-page { margin: 2em 0 0; font-size: var(--t-xs); color: var(--muted); }
+.report-about dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; margin: 0.4em 0; }
+.report-about dt { color: var(--muted); }
+.report-about dd { margin: 0; overflow-wrap: anywhere; }

@@ -73,5 +73,5 @@
   <p>{% if old_map_url %}<a data-ext="county" href="{{ old_map_url }}" target="_blank" rel="noopener noreferrer">Map of the old district lines (PDF)<span class="sr-only"> (opens in a new tab)</span></a>{% else %}The map of the old district lines has not been found yet. County redistricting page: <a data-ext="county" href="{{ redistricting_page }}" target="_blank" rel="noopener noreferrer">{{ redistricting_page }}<span class="sr-only"> (opens in a new tab)</span></a>{% endif %}</p>
   {% if old_blocks %}{{ holder_blocks(old_blocks) }}{% else %}<p>No votes are recorded for {{ label }} in the minutes collected so far.</p>{% endif %}
 </section>
-<p class="muted">Holder records give the first and last meetings whose roll-call tables print a person in this seat, with links to both pages; they are not term dates (<a href="{{ root }}about.html#seats">how seats are recorded</a>). Wrong or missing? <a href="{{ root }}about.html#corrections">Report an error</a>.</p>
+<p class="muted">Holder records give the first and last meetings whose roll-call tables print a person in this seat, with links to both pages; they are not term dates (<a href="{{ root }}about.html#seats">how seats are recorded</a>). Wrong or missing? <a href="{{ root }}report.html">Report an error</a>.</p>
 {% endblock %}

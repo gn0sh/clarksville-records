@@ -70,7 +70,15 @@ NARROW = 360  # AC-F10: the Bids and awards pages are also checked at 360 px
 
 # External links that are not minutes PDFs but are allowed: a holder record's roster source, the map's boundary source,
 # the county redistricting page / old-lines map, and the footer support link. Each must be marked data-ext and https.
-EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder"}
+EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder", "corrections"}
+
+
+def corrections_links(cfg: dict) -> tuple[str, str]:
+    """The report page's channel links as config/site.yml `corrections:` sets them: (GitHub issue form URL, mailto)."""
+    c = cfg.get("corrections") or {}
+    repo, email = str(c.get("github_repo") or "").strip(), str(c.get("email") or "").strip()
+    return (f"https://github.com/{repo}/issues/new?template=correction.yml" if repo else "",
+            f"mailto:{email}" if email else "")
 
 
 def _site_cfg() -> dict:
@@ -116,6 +124,7 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
         out.add(cfg["geocoder_privacy_url"])         # the address box's "<geocoder>'s privacy policy" link
     if cfg.get("support_enabled") is True and cfg.get("support_url"):
         out.add(cfg["support_url"])
+    out |= {u for u in corrections_links(cfg) if u.startswith("https://")}   # the report page's GitHub issue link
     if districts_path is not None and Path(districts_path).is_file():
         out.add(json.loads(Path(districts_path).read_text(encoding="utf-8"))["source_url"])
     for r in read_roster(seats_path):
@@ -249,10 +258,13 @@ def resolve(page_rel: str, href: str) -> str | None:
 
 def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str]:
     problems = []
+    mailto = corrections_links(_site_cfg())[1]   # the one mailto allowed: report.html's, from config `corrections:`
     for rel, pg in pages.items():
         for href in pg.hrefs:
             u = urlsplit(href)
             if u.scheme in ("http", "https"):
+                continue
+            if mailto and rel == "report.html" and href == mailto:
                 continue
             if u.scheme or href.startswith("//"):
                 problems.append(f"{rel}: href with scheme {href!r}")
