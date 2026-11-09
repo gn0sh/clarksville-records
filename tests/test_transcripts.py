@@ -52,7 +52,7 @@ SEGMENTS = [
     (26.0, 30.0, "Brown, you're recognized. Thank you Mayor."),
     (30.0, 35.0, "I agree with Councilman Smith on this one."),          # a mention, not a call-on
     (35.0, 40.0, "councilman holloman you recognized thank you mayor"),  # near spelling of Holleman: never matched
-    (40.0, 45.0, "councilman Chandler you're recognized I yield"),       # Chandler: listed absent, so never linked
+    (40.0, 45.0, "councilman Chandler you're recognized thank you I yield"),       # Chandler: listed absent, so never linked
     (45.0, 50.0, "the chair recognizes Councilwoman Lovato on the item"),
 ]
 
@@ -230,7 +230,17 @@ def test_detection_reads_call_ons_from_the_text_only():
                                   "Councilwoman Smith recognized the students",
                                   "Councilman Brown, you recognize this is a tough vote",
                                   "Chairman Pitts recognized the veterans",
-                                  "Councilman Brown recognized"])
+                                  "Councilman Brown recognized",
+                                  # call-on invariant: the recognition must be in the same clause as the name...
+                                  "Thank you Councilman Smith. You are recognized, Councilwoman Jones.",
+                                  "I yield to Councilman Smith. You recognized me earlier.",
+                                  "Councilman Smith; you're recognized.", "Councilman Smith - you're recognized.",
+                                  # ...and must end it
+                                  "Councilman Smith, you recognized that the budget was short",
+                                  "Councilman Smith, you are recognized for your service",
+                                  "councilman Smith you're recognized on the consent agenda",
+                                  "Councilman Smith you recognized thanks to the staff the problem",
+                                  "Councilman Smith you recognized, I think, the problem"])
 def test_detection_ignores_non_call_ons(text):
     assert tx.detect([[0.0, 3.0, text]]) == []
 
@@ -239,11 +249,23 @@ def test_detection_ignores_non_call_ons(text):
                                        ("councilman brown you are recognized", "brown"),
                                        ("Councilwoman Smith you recognized thank you", "Smith"),
                                        ("Councilman Brown, you’re recognised", "Brown"),
-                                       ("the chair recognizes Councilwoman Smith now", "Smith")])
+                                       ("the chair recognizes Councilwoman Smith now", "Smith"),
+                                       ("Councilman Smith, you're recognized.", "Smith"),
+                                       ("Councilman Smith you're recognized", "Smith"),       # end of the line
+                                       ("councilman Smith you recognized thanks mayor", "Smith"),
+                                       ("Councilman Smith, you're recognized, go ahead", "Smith")])
 def test_detection_finds_the_call_on_forms(text, name):
     found = tx.detect([[0.0, 3.0, text]])
     assert [d["name"] for d in found] == [name]
     assert found[0]["matched"] in text                               # the matched words, verbatim
+
+
+def test_a_call_on_at_the_end_of_a_line_ends_its_clause_only_if_the_next_line_starts_a_new_one():
+    found = tx.detect([[0.0, 2.0, "Councilman Smith you're recognized"], [2.0, 4.0, "thank you mayor I have a question"]])
+    assert [d["name"] for d in found] == ["Smith"]
+    assert tx.detect([[0.0, 2.0, "Councilman Smith, you recognized"], [2.0, 4.0, "that the budget was short"]]) == []
+    assert tx.detect([[0.0, 2.0, "Councilman Smith you're recognized"], [2.0, 4.0, "on the item"]]) == []
+    assert tx.detect([[0.0, 4.0, "Councilman Smith you're recognized on the item I have a question"]]) == []
 
 
 def test_excerpt_is_verbatim_and_bounded():

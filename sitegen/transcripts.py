@@ -5,10 +5,13 @@ Rules:
   linked to that moment of the meeting's own video (`<video_url>#t=<whole seconds>`) when that video_url is an https
   .mp4 on a host in config.VIDEO_HOSTS with no "#" in it (video_ok); otherwise the times are text only, no links. Nothing is summarised,
   reworded or corrected; the page says the video is the record.
-- Who speaks is never read from the voice. A "call-on" is found only in the transcript TEXT, where a member's title
-  and surname are followed by "you're recognized" / "you are recognized" (or Whisper's "you recognized"), or come
-  after "the chair recognizes" ("Councilman Chandler, you're recognized", "the chair recognizes Councilwoman Smith").
-  Nothing else counts ("Councilwoman Smith recognized the students" is not a call-on). The surname is resolved under
+- Who speaks is never read from the voice. A "call-on" is found only in the transcript TEXT, under the call-on
+  invariant (docs/architecture/city-council.md): a member's title and surname followed, in the same clause (only
+  spaces and commas between), by "you're recognized" / "you are recognized" (or Whisper's "you recognized") that ends
+  the clause (punctuation, the end of that line's text, or the reply "thank you" / "thanks" next), or the title and
+  surname after "the chair recognizes" ("Councilman Chandler, you're recognized.", "the chair recognizes Councilwoman
+  Smith"). Nothing else counts ("Councilwoman Smith recognized the students", "Councilman Smith. You are recognized",
+  "Councilman Smith, you recognized that the budget was short" are not call-ons). The surname is resolved under
   the name resolution invariant (docs/architecture/city-council.md): exactly one entry of that meeting's own
   attendance list, as read from its minutes and shown on the site, has that surname, and that entry resolved to a
   member who is listed present. An entry that did not resolve blocks every word of its printed name and every
@@ -40,15 +43,22 @@ NOTICE = ("Automatic transcript made by speech-recognition software from the cit
 # Titles a presiding officer uses to give a member the floor. The surname is one word after the title.
 TITLES = r"council(?:man|woman|person|member|lady)|chair(?:man|woman|person)?|vice[\s-]+chair(?:man|woman|person)?"
 _NAME = r"(?P<name>[A-Za-z][A-Za-z'’-]*)"
-_GAP = r"[\s,.;:!?-]*"
+_GAP = r"[\s,]*"      # one clause: no sentence break between the surname and the recognition
 CALL_ON_PATTERNS = (
     # "Councilman Chandler, you're recognized" / "you are recognized" / Whisper's "you recognized". Only these: a bare
-    # "recognized" ("Councilwoman Smith recognized the students") or "you recognize" is not a call-on.
+    # "recognized" ("Councilwoman Smith recognized the students") or "you recognize" is not a call-on. The phrase must
+    # also end its clause (_ends_clause): "you recognized that the budget was short" is not a call-on.
     re.compile(r"\b(?P<title>" + TITLES + r")\s+" + _NAME + _GAP
-               + r"(?:you\s*['’]?\s*re|you\s+are|you)\s+recogni[sz]ed\b", re.I),
+               + r"(?P<you>you\s*['’]?\s*re|you\s+are|you)\s+recogni[sz]ed\b", re.I),
     # "the chair recognizes Councilwoman Smith"
     re.compile(r"\bthe\s+chair\s+recogni[sz]es\s+(?P<title>" + TITLES + r")\s+" + _NAME + r"\b", re.I),
 )
+# What may follow "you're recognized" for it to end its clause: punctuation, or the member's reply starting a new
+# sentence that Whisper left unpunctuated ("thank you", "thanks", never "thanks to"). A comma ends it only after
+# "you're" / "you are" (_CLAUSE_END_COMMA), never after a bare "you recognized" ("you recognized, I think, the
+# problem"). The end of a line's text ends it only when the next line starts the same way (or there is none).
+_CLAUSE_END = re.compile(r"\s*(?:[.;:!?]|thank\s+you\b|thanks\b(?!\s+to\b))", re.I)
+_CLAUSE_END_COMMA = re.compile(r"\s*,")
 # words that can follow a title but are never a surname
 NOT_A_NAME = {"you", "your", "you're", "youre", "is", "are", "be", "she", "he", "the", "a", "from", "for", "of", "on",
               "and", "who", "that", "has", "have", "was", "were", "will", "would", "said", "says", "recognized",
@@ -140,11 +150,26 @@ def detect(segments: list) -> list[dict]:
     through the lines that start within CALL_ON_SECONDS of the line where those words end, and never past the next
     call-on."""
     text, starts = _joined(segments)
+    line_end = {starts[i] + len(s[2].rstrip()): i for i, s in enumerate(segments)}
+
+    def ends_clause(m) -> bool:
+        b = m.end()
+        if b in line_end:   # the end of a line: the next line must start a new clause (or there is none)
+            i = line_end[b]
+            if i + 1 == len(segments):
+                return True
+            b = starts[i + 1]
+        if _CLAUSE_END.match(text, b):
+            return True
+        return m.group("you").lower() != "you" and bool(_CLAUSE_END_COMMA.match(text, b))
+
     hits = []
-    for rx in CALL_ON_PATTERNS:
+    for k, rx in enumerate(CALL_ON_PATTERNS):
         for m in rx.finditer(text):
             if m.group("name").lower().strip("'’") in NOT_A_NAME:
                 continue
+            if k == 0 and not ends_clause(m):
+                continue   # "you recognized that ...": the phrase does not end its clause
             hits.append((m.start(), m.end(), m.group("title"), m.group("name")))
     hits.sort()
     kept = []
