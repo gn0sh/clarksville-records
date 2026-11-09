@@ -124,7 +124,7 @@ budget:
   # from the check cells (printed, sum, diff = printed - sum). Fixed wording only: no commentary, no blame.
   # {header}: the column's printed header. {printed}, {sum}, {diff}, {abs}: whole dollars with thousands separators,
   # negatives in parentheses as the book prints them. {direction} is diff_higher or diff_lower.
-  diff_note: "{header}: the book prints {printed}. The lines printed above it add up to {sum}. Difference: {diff} (the printed total is {abs} {direction})."
+  diff_note: "{header}: the book prints {printed}. The lines printed above it add up to {sum}. The printed total is {abs} {direction}."
   diff_label: Difference as printed
   diff_higher: higher
   diff_lower: lower

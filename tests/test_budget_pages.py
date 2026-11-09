@@ -426,7 +426,7 @@ def test_note_numbers_equal_the_check_cells(bpages, fin):
     pc = x["check"]["per_cell"][1]
     assert (pc["printed"], pc["sum"], pc["diff"]) == (3100, 3000, 100)
     want = "FY 2026 Amended: the book prints 3,100. The lines printed above it add up to 3,000. " \
-           "Difference: 100 (the printed total is 100 higher)."
+           "The printed total is 100 higher."
     assert notes_in(bpages["finance/901.html"], fid="fy2027-approved/p21/r3") == [want]
     assert notes_in(bpages["finance/901.html"], block_id="chk-fy2027-approved-p21-r3") == [want]  # same note in the section
 
@@ -443,12 +443,12 @@ def test_within_rounding_note_is_one_short_line(bpages, fin):
     assert n == ["FY 2025 Actuals: off by 1 because the book rounds each line to whole dollars."]
 
 
-def test_negative_difference_says_lower_with_parentheses(fin):
+def test_negative_difference_says_lower(fin):
     x = copy.deepcopy(line_of(fin, "fy2027-approved/p21/r3"))
     x["check"]["per_cell"][1].update(printed=3000, sum=3900, diff=-900)
     assert budget_views.diff_notes(x) == [
         "FY 2026 Amended: the book prints 3,000. The lines printed above it add up to 3,900. "
-        "Difference: (900) (the printed total is 900 lower)."]
+        "The printed total is 900 lower."]
     x["check"]["per_cell"][1].update(printed=-1200, sum=0, diff=-1200)
     x["scope_line_ids"] = []
     assert budget_views.diff_notes(x) == [
@@ -466,6 +466,6 @@ def test_real_trustee_note_text():
     x = next(x for x in real["budget_lines"] if x["id"] == "fy2027-approved/p47/r37")
     assert budget_views.diff_notes(x) == [
         "FY 2025 Actuals: the book prints 1,039,953. The lines printed above it add up to 1,039,952. "
-        "Difference: 1 (the printed total is 1 higher).",
+        "The printed total is 1 higher.",
         "FY 2026 Amended: the book prints 1,226,777. The lines printed above it add up to 1,230,677. "
-        "Difference: (3,900) (the printed total is 3,900 lower)."]
+        "The printed total is 3,900 lower."]
