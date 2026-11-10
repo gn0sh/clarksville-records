@@ -394,6 +394,9 @@ def test_no_support_url_allows_no_exact_link():
     got = settings_mod.parse(SITE_YML.read_text(encoding="utf-8"))
     top = {k: v for k, v in got["top"].items() if k != "support_url"}
     assert settings_mod.from_values(top, got["sender"]).link_urls == ()
+    # an empty support_url is the support link switched off, not an error (the footer test builds with one)
+    assert settings_mod.from_values({**top, "support_url": ""}, got["sender"]).link_urls == ()
+    assert not any("support_url" in p for p in morning.sender_problems({**config.SITE, "support_url": ""}))
 
 
 @pytest.mark.parametrize("value", ["", "Example.com", "a..b", "https://example.com", "example.com/x", "ex ample.com",

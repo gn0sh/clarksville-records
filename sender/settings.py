@@ -278,7 +278,7 @@ def from_values(top: dict, sender: dict) -> Settings:
     except ValueError as exc:
         raise SettingsError(f"morning_note.sender.{exc}") from None
     urls: tuple = ()
-    if "support_url" in top:
+    if top.get("support_url") not in (None, ""):      # left out or empty: no support link
         if not exact_url_ok(top["support_url"]):
             raise SettingsError("support_url must be one https URL on a lower-case host, with no user or port")
         urls = (top["support_url"],)
