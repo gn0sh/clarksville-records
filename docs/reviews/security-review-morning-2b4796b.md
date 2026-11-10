@@ -105,3 +105,54 @@ Most serious problem: once the note is enabled, two privacy statements already o
 - Tests: full suite 1128 passed, 4 skipped. qa/site_checks on the pages build: RESULT PASS (41 feeds, 1246 entries).
 - Not checked: the sender job and API key (they do not exist yet; a separate review before they are added);
   the provider's actual settings.
+
+## Delta re-review 1d638db (origin/claude/sqv6p9-morning-sec, fa9e9b0..1d638db, 4 commits), 2026-11-10
+
+### Verdict: PASS. Release recommendation: OK WITH FOLLOW-UPS (one new low finding). Email stays off in committed config (tests/test_morning_page.py test_committed_config_keeps_email_off).
+
+### Status of each finding
+- 1 privacy-text-matches-data-flow: **CLOSED.**
+  - Built enabled with the Buttondown values (scratch config, restored): no page prints "never sent anywhere" or "Nothing is sent anywhere".
+  - index.html and method.html print `seats_sent`, and method.html gains a Morning note section (what is sent, to whom, unsubscribe, privacy link).
+  - The off build keeps the original sentences. Tests cover both states.
+- 2 privacy-text-complete: **MOVED TO THE RUNBOOK; ACCEPTED.** docs/ops/launch-runbook.md now lists double opt-in, tracking off, the sent_line wording, platform-facts, the real-submit redirect test and a sender review, all before `enabled: true`. That is adequate because nothing is sent while off. The runbook cites docs/reviews/security-review-morning-2b4796b.md, which the manager must keep in step with this delta.
+- 3 seat-consent: **CLOSED.**
+  - A visible box shows the numbers ("District 5, Ward 3"). The seat fields are posted only while it is ticked (seatPost needs include === true), and never without JS.
+  - The box itself has no name, so it is never posted. The browser test covers unticked, re-ticked, district-only and no-seats cases.
+- 4 href-scheme-defense: **CLOSED.**
+  - morning_page._source_url and feeds._source_link drop any URL that is not https, using build._is_https_uri.
+  - site_checks.bad_scheme now fails other schemes in links, resources and feed links. It strips tabs, newlines and control characters first, as browsers do.
+- 5 csp-origin-self-validating: **CLOSED.** form_origin() checks `morning._HTTPS.fullmatch` itself (morning_page.py:54).
+
+### (a) The site_checks allowance: it holds
+I tested check_external against mutated copies of an enabled build (Buttondown action):
+
+| Mutation | Result |
+|---|---|
+| A second CSP origin on alerts | FAIL |
+| A wrong CSP origin | FAIL |
+| `https:` wildcard | FAIL |
+| Provider origin added to about.html's CSP | FAIL |
+| The same form on about.html | FAIL |
+| A different action path on alerts | FAIL |
+| A second off-site form on alerts | FAIL |
+| connect-src loosened | FAIL |
+| A second CSP meta | FAIL |
+| The enabled build checked against the committed (off) config | FAIL |
+
+- The CSP comparison is exact list equality, and the allowance is keyed on `rel == "alerts.html"` and an exact match on the action.
+- Off state: `note_action` is None, so the checks are the same as before plus the new scheme checks; it is stricter. The privacy URL is allowed only while enabled.
+- The enabled build passes qa.site_checks (RESULT PASS).
+- Limit: QA compares against config, so a wrong origin typed into config itself would pass. The runbook's real-submit step is the human check for that.
+
+### (b) The seats box ticked by default: acceptable (judgment call, medium confidence)
+- The numbers are printed next to the box before sending, and the sent line and Method page disclose it.
+- The default lists ("Zoning near me", "My two seats") only work with seats, so an unticked default would make most sign-ups get silently empty notes.
+- The data is a coarse district or ward number, and the site is US-only with no EU opt-in duty. This is a judgment call, not legal advice.
+- Condition: the box must stay visible whenever seats would be posted. Tests enforce this today.
+- Optional: say near the box that the zoning and seat lists need it ticked.
+
+### New finding
+- **morning-security/qa-formaction-gap** (LOW): qa/site_checks.py:439 records `<form action>` but not `formaction` on `<button>` or `<input>`. Tested: `<button formaction="https://buttondown.com/other">` on alerts.html passes check_external.
+  - Limit on harm: the CSP still keeps any such post on the provider's origin on alerts.html, and on 'self' on every other page.
+  - Fix: add a formaction attribute to `resources` (tag "form") so the exact-action rule applies. Owner: qa-engineer or backend-engineer.
