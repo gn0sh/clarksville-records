@@ -16,7 +16,7 @@ from urllib.parse import urlsplit
 from collector.fetch import USER_AGENT   # the Method page quotes the collector's own User-Agent, never a copy
 
 from . import config, fin_views, georef as georef_mod
-from . import unofficial
+from . import localdates, unofficial
 import datetime as dt
 
 from .seats import Seats, basis_text, seat_order, source_label
@@ -218,7 +218,7 @@ class Index:
     # -- generic builders ------------------------------------------------------------------------------------
     def src(self, source_id: str, page: int) -> dict:
         s = self.sources[source_id]
-        return {"url": f"{s['url']}#page={page}", "page": page, "fetched": s["fetched_at"], "kind": s["kind"]}
+        return {"url": f"{s['url']}#page={page}", "page": page, "fetched": localdates.fetched(s), "kind": s["kind"]}
 
     def position(self, fact: dict) -> tuple:
         """Document order: page, then position on the page when an item event records it."""
@@ -256,16 +256,17 @@ class Index:
         return {"id": it["id"], "number": it["number"], "title": title, "href": self.item_href(it)}
 
     def data_as_of(self) -> str:
-        dates = [s["fetched_at"] for s in self.facts["sources"]]
-        return max(dates) if dates else "unknown"
+        """The latest fetch day, as pages print it (localdates.span: the site_timezone day, or labelled UTC)."""
+        sp = localdates.span(self.facts["sources"])
+        return sp[1] if sp else "unknown"
 
     def fetched_sentence(self) -> str:
-        dates = sorted({s["fetched_at"] for s in self.facts["sources"]})
-        if not dates:
+        sp = localdates.span(self.facts["sources"])
+        if not sp:
             return "No minutes have been fetched yet."
-        if len(dates) == 1:
-            return f"Minutes fetched on {dates[0]}."
-        return f"Minutes fetched between {dates[0]} and {dates[-1]}."
+        if sp[0] == sp[1]:
+            return f"Minutes fetched on {sp[0]}."
+        return f"Minutes fetched between {sp[0]} and {sp[1]}."
 
     def item_years(self) -> list[int]:
         return sorted({i["year"] for i in self.facts["items"]})
@@ -823,7 +824,7 @@ def meeting(meeting_id: str, facts) -> dict:
     return {
         "stats": stats, "meeting": m, "label": ix.meeting_label(m),
         "kind_label": ix.kind_labels[m["kind"]],
-        "doc": {"url": src["url"], "kind": src["kind"], "fetched": src["fetched_at"], "pages": src["pages"]},
+        "doc": {"url": src["url"], "kind": src["kind"], "fetched": localdates.fetched(src), "pages": src["pages"]},
         "attendance_state": att_state, "attendance": attendance,
         "blocks": [b for _, b in shown],
         "unconfirmed_roll_calls": unconfirmed,
@@ -1055,7 +1056,10 @@ def trust_pages(ix) -> dict:
 
 
 def changes(entries: list[dict]) -> dict:
-    return {"entries": entries}
+    """A source replacement (collector/store.py: field sha256, dated first_fetched_at[:10], a UTC day) shows the
+    local day of the new copy's fetch (localdates.day_of); any other row's date is written by hand and shown as is."""
+    return {"entries": [{**e, "date": localdates.day_of(e.get("source_url"), e.get("new"), e.get("date"))}
+                        if e.get("field") == "sha256" and e.get("date") else e for e in entries]}
 
 
 # Report an error (M1.5, docs/design/correction-intake.md). The issue form's file name and the field ids
@@ -1091,7 +1095,7 @@ def review(facts, report: dict | None) -> dict:
             unverified.append({"kind": "Attendance", "id": f"{m['id']}/att", "where": ix.meeting_label(m),
                                "failed": failed(m["verification"]),
                                "src": {"url": ix.sources[m["source_id"]]["url"], "page": None,
-                                       "fetched": ix.sources[m["source_id"]]["fetched_at"]}})
+                                       "fetched": localdates.fetched(ix.sources[m["source_id"]])}})
     for mo in ix.facts["motions"]:
         if not is_verified(mo):
             unverified.append({"kind": "Motion attribution", "id": mo["id"], "where": mo["text"],
@@ -1148,8 +1152,13 @@ def map_context(districts: dict | None, highlight: int | None = None) -> dict | 
         "districts": [{"number": d["number"], "path": d["path"], "this": d["number"] == highlight}
                       for d in sorted(districts["districts"], key=lambda d: d["number"])],
         "source_url": districts["source_url"], "source_title": districts.get("source_title") or "county map",
-        "fetched": districts["fetched"],
+        "fetched": map_fetched(districts),
     }
+
+
+def map_fetched(lines: dict) -> str:
+    """A traced map's fetch day as pages print it (localdates.day_of: by its source_url and source_sha256)."""
+    return localdates.day_of(lines["source_url"], lines.get("source_sha256"), lines["fetched"])
 
 
 def swap_context() -> dict | None:
@@ -1223,9 +1232,9 @@ def lookup_sources(districts: dict | None) -> dict | None:
         return None
     wards = georef_mod.wards_of(districts)
     return {"districts": {"url": districts["source_url"], "title": districts.get("source_title") or "county map",
-                          "fetched": districts["fetched"]},
+                          "fetched": map_fetched(districts)},
             "swap": swap_context(),
-            "wards": ({"url": wards["source_url"], "title": wards["source_title"], "fetched": wards["fetched"]}
+            "wards": ({"url": wards["source_url"], "title": wards["source_title"], "fetched": map_fetched(wards)}
                       if wards is not None else None)}
 
 

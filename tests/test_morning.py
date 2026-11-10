@@ -126,6 +126,9 @@ def test_contract_shape(site):
     n = note(site, D)
     assert n["schema"] == "morning-note/1" and n["date"] == "2026-11-11"
     assert n["window"] == {"from": "2026-11-10T07:00-06:00", "to": "2026-11-11T07:00-06:00"}
+    # morning-digest/as-of-contract: data_as_of is a plain day; a fixture build has no manifest rows behind it, so it
+    # is the stored UTC day and says so in its own field (docs/architecture/morning-note.md)
+    assert len(n["data_as_of"]) == 10 and date.fromisoformat(n["data_as_of"]) and n["data_as_of_utc"] is True
     assert n["lists"] == [{"key": x["key"], "label": x["label"]} for x in config.SITE["morning_note"]["lists"]]
     assert n["entries"]
     for e in n["entries"]:

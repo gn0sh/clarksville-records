@@ -64,6 +64,9 @@ today's), `morning/index.html`. Files are always written, an empty `entries` mea
    "district": 7, "ward": 6, "href": "rpc/meetings/2026.html#...", "source": {"url": "...", "page": 3}}],
  "unplaced_zoning": 0}
 ```
+`data_as_of` is a plain YYYY-MM-DD: the latest fetch day of every body's sources, the America/Chicago day of its
+manifest instant (docs/architecture/local-dates.md). Beside it, `data_as_of_utc` (bool, additive) is `true` when some
+source has no manifest row, so the day is a stored UTC day instead (a fixture build).
 T1 additions (additive; T3 and the sender may rely on them):
 - every entry carries `seat_body`: `"district"` (county entries), `"ward"` (council entries) or `null`; `select()`'s
   `seats` rule is "`seat_body` is district and a district is stored, or ward and a ward is stored";
@@ -77,7 +80,7 @@ T1 additions (additive; T3 and the sender may rely on them):
   id>`; county agenda-only items `county/item/<number>/<meeting id>`; RPC cases `<rpc body_key>/item/<case id>/<meeting
   id>`; budget books `finance/book/<book id>`; a solicitation is new on the day its first document is first fetched
   (`contracts/solicitation/<id>`), and each document first fetched on a later day is `contracts/document/<sol>/<doc>`;
-- the manifest paths are config (`morning_note.manifests`, they name localities); a fixture build writes no note
+- the manifest paths are config (`fetch_manifests`, the one list pages also use; they name localities); a fixture build writes no note
   unless a test passes `morning_manifests=`;
 - file budget (manager decision 2026-11-10): `morning/` (JSON and T3's `morning/index.html`) is built on the `pages`
   target only; the preview writes none. A preview still over 500 with the export after leaving out transcript pages
