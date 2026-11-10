@@ -388,10 +388,15 @@ def export_council(cfg: dict, out_dir: Path, internal: bool = False) -> list[Pat
     return write_facts(facts, Path(out_dir) / "data" / council_dir(cfg), internal, cix._rows, ix=cix)
 
 
+_DEFAULT_RPC = object()     # export_site `rpc` left out: the site config decides
+
+
 def export_site(facts: dict, out_dir: Path, internal: bool = False, seats: list[dict] | None = None,
-                finance_path: Path | None = None, councils=None) -> list[Path]:
-    """Everything under <out_dir>/data/: the county's facts, each council's (config `councils`, per locality) and the
-    finance tables when `finance_path` exists (collector/fin_export.py)."""
+                finance_path: Path | None = None, councils=None, rpc=_DEFAULT_RPC) -> list[Path]:
+    """Everything under <out_dir>/data/: the county's facts, each council's (config `councils`, per locality), the
+    Regional Planning Commission's (collector/rpc_export.py) and the finance tables when `finance_path` exists
+    (collector/fin_export.py). `rpc`: the RPC's rpc.yml as sitegen.rpc.load_config returns it, or None for no RPC
+    files; left out, config/site.yml `rpc:` for real facts and none for fixture facts, as the site build."""
     from sitegen import config
 
     written = export(facts, out_dir, internal, seats)
@@ -400,6 +405,13 @@ def export_site(facts: dict, out_dir: Path, internal: bool = False, seats: list[
         councils = () if fixture else config.COUNCILS
     for cfg in councils:
         written += export_council(cfg, out_dir, internal)
+    from sitegen import rpc as rpc_mod
+    if rpc is _DEFAULT_RPC:
+        rpc = None if fixture else rpc_mod.load_config(config.SITE.get("rpc"))
+    rpx = rpc_mod.load(rpc, fixture)   # None with no config or no facts file yet; refuses fixture beside real facts
+    if rpx is not None:
+        from .rpc_export import export_rpc
+        written += export_rpc(rpx, out_dir, internal)
     if finance_path is not None and Path(finance_path).is_file() and not fixture:
         from .fin_export import export_finance
         fin = json.loads(Path(finance_path).read_text(encoding="utf-8"))

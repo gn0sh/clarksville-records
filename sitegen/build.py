@@ -219,13 +219,16 @@ def write_publish_manifest(out: Path, target: str | None = None) -> dict:
     return manifest
 
 
-def export_file_count(fixture: bool, councils, finance: bool) -> int:
+def export_file_count(fixture: bool, councils, finance: bool, rpc: bool = False) -> int:
     """How many files the open-data export (collector/export.py export_site) adds under data/: facts.json plus one
-    CSV per table for the county and for each council, and finance.json plus its CSVs when finance is built."""
+    CSV per table for the county and for each council, the Regional Planning Commission's facts.json and CSVs when its
+    pages are built (`rpc`), and finance.json plus its CSVs when finance is built."""
     from collector.export import CSV_FILES
     from collector.fin_export import FIN_FILES
+    from collector.rpc_export import RPC_FILES
     per_body = 1 + len(CSV_FILES)
-    return per_body * (1 + len(councils)) + ((1 + len(FIN_FILES)) if finance and not fixture else 0)
+    return (per_body * (1 + len(councils)) + ((1 + len(RPC_FILES)) if rpc else 0)
+            + ((1 + len(FIN_FILES)) if finance and not fixture else 0))
 
 
 def balanced_chunks(weights: list[int], k: int) -> list[range]:
@@ -579,7 +582,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
             continue
         render("coming.html.j2", f"{c['slug']}.html", c["title"], **views.coming(c["slug"]))
     render("data.html.j2", "data.html", "Data downloads",
-           **views.data_page(cixs, finance=fx is not None and fin_views.EXPORTS_READY and not fixture))
+           **views.data_page(cixs, finance=fx is not None and fin_views.EXPORTS_READY and not fixture, rpc=rpx))
     if fx is not None:
         title = config.FIN_TEXT["contracts"]["title"]
         render("fin_contracts_index.html.j2", "contracts/index.html", title,
@@ -731,7 +734,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     # The target's file cap, counting the export still to come (data/ in `out` now may be an older export's).
     cap = config.max_files(target)
     built = sum(1 for p in out.rglob("*") if p.is_file() and p.relative_to(out).parts[0] != "data")
-    expected = built + (export_file_count(fixture, cixs, fx is not None and fin_views.EXPORTS_READY) if export else 0)
+    expected = built + (export_file_count(fixture, cixs, fx is not None and fin_views.EXPORTS_READY, rpx is not None)
+                        if export else 0)
     tx_pages = sum(len(p[5]) for p in tx_plans)
     if expected > cap and tx_pages and target == "preview":
         print(f"sitegen: {expected} files with the export is over the {target} cap of {cap}; building again without "

@@ -12,6 +12,7 @@
   <li><a href="{{ root }}data/{{ f.name }}">{{ f.name }}</a>: {{ f.about }}</li>
 {% endfor %}
 </ul>
+{% if g.note %}<p>{{ g.note }}</p>{% endif %}
 {% endfor %}
 {% endif %}
 <p>Every row names the document that prints it (source_url, page) and when it was fetched. A value held back as "Not confirmed" is empty in these files, with the check that held it.</p>
