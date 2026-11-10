@@ -5,7 +5,11 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
 - robots.txt read once per host per run, `can_fetch` checked before every request;
 - at least HOST_FLOOR seconds between requests to one host (robots.txt fetch included), more if robots
   Crawl-delay says so;
-- one plain GET with a clear User-Agent, no header tricks;
+- one plain GET with a clear User-Agent, no header tricks. The one other request is get_if_changed: the same GET
+  with the validators the server itself sent for our stored copy (If-None-Match from its ETag, If-Modified-Since
+  from its Last-Modified), so an unchanged document answers 304 with no body instead of being downloaded again. A
+  server that ignores the validators answers 200 with the document, exactly as a plain GET; with no stored
+  validator the request is the plain GET. Same policy, robots check and per-host delay, one request either way;
 - no automatic redirects: each Location goes through get() again (allowlist, denied hosts, robots, per-host
   delay), at most MAX_REDIRECTS hops, or the fetch fails;
 - a connection reset (the sandbox relay dropping a slow exchange) is retried once after the host delay, like a
@@ -85,6 +89,11 @@ def host_matches(host: str, names) -> bool:
     allowlist and denied list use it, and so does any adapter that filters links before asking the fetcher."""
     host = host.lower().split(":")[0]
     return any(host == n or host.endswith("." + n) for n in names)
+
+
+def _header_value(v) -> bool:
+    """A stored validator we may send back: non-empty printable ASCII (no line break or control character)."""
+    return isinstance(v, str) and bool(v.strip()) and len(v) <= 512 and all(32 <= ord(c) < 127 for c in v)
 
 
 def proxy_status_failures() -> list[dict]:
@@ -180,7 +189,7 @@ class PoliteFetcher:
         return ProxyRefused(f"{host}: sandbox egress proxy refused ({detail}); the site did not see it")
 
     # ------------------------------------------------------------ requests
-    def _raw_get(self, url: str, _retry: bool = True) -> tuple[int, bytes, dict]:
+    def _raw_get(self, url: str, _retry: bool = True, _headers: dict | None = None) -> tuple[int, bytes, dict]:
         host = urllib.parse.urlsplit(url).netloc
         self.check_host(host)
         if host in self._blocked:
@@ -189,7 +198,7 @@ class PoliteFetcher:
             raise ProxyRefused(f"{host}: skipped after {PROXY_REFUSALS_BEFORE_SKIP} proxy refusals this run")
         self._wait(host)
         started = self.wall()
-        req = urllib.request.Request(url, headers={"User-Agent": self.user_agent})
+        req = urllib.request.Request(url, headers={**(_headers or {}), "User-Agent": self.user_agent})
         try:
             with self._open(req) as r:
                 body = r.read(self.max_bytes + 1)
@@ -208,7 +217,7 @@ class PoliteFetcher:
                 raise HostBlocked(self._blocked[host]) from None
             if e.code >= 500 and _retry:
                 self.log.append({"event": "retry", "host": host, "url": url, "detail": f"HTTP {e.code}"})
-                return self._raw_get(url, _retry=False)
+                return self._raw_get(url, _retry=False, _headers=_headers)
             return e.code, (e.read() or b""), dict(e.headers or {})
         except (urllib.error.URLError, OSError) as e:
             if _is_tunnel_refusal(e):
@@ -218,7 +227,7 @@ class PoliteFetcher:
                 # exchange): the site sent no refusal, so one retry after the host delay (_wait), like a server error
                 self._resets[host] = self._resets.get(host, 0) + 1
                 self.log.append({"event": "retry", "host": host, "url": url, "detail": f"connection reset: {e}"})
-                return self._raw_get(url, _retry=False)
+                return self._raw_get(url, _retry=False, _headers=_headers)
             detail = str(e)
             if _is_reset(e) and _retry:
                 detail += f" (not retried: {self.reset_retries} resets already retried on {host} this run)"
@@ -258,16 +267,31 @@ class PoliteFetcher:
         self.check_host(host)
         return nxt
 
-    def get(self, url: str, _hops: int = 0) -> tuple[int, bytes, dict]:
+    def get(self, url: str, _hops: int = 0, _headers: dict | None = None) -> tuple[int, bytes, dict]:
         parts = urllib.parse.urlsplit(url)
         self.check_host(parts.netloc)
         rp = self.robots(parts.netloc, parts.scheme)
         if not rp.can_fetch(self.user_agent, url):
             self.log.append({"event": "robots_disallowed", "host": parts.netloc, "url": url, "detail": ""})
             raise RobotsDisallowed(url)
-        status, body, headers = self._raw_get(url)
+        status, body, headers = self._raw_get(url, _headers=_headers)
         if status in REDIRECT_CODES:
             if _hops >= MAX_REDIRECTS:
                 raise FetchFailed(f"{url}: more than {MAX_REDIRECTS} redirects")
+            # the validators belong to the URL they were stored for: a redirect's target gets the plain GET
             return self.get(self._location(url, headers), _hops + 1)
         return status, body, headers
+
+    def get_if_changed(self, url: str, etag: str | None = None,
+                       last_modified: str | None = None) -> tuple[int, bytes, dict]:
+        """get(), asking the server to send the document only if it changed since our stored copy (a conditional
+        GET, RFC 9110 13.1). `etag` and `last_modified` are the ETag and Last-Modified the server sent with that
+        copy, passed back unchanged. -> (304, b"", headers) when the server says it is unchanged; otherwise whatever
+        get() returns (a server without validator support answers 200 with the document). A validator that is empty
+        or not a clean header value is left out; with none left this is get()."""
+        headers = {}
+        if _header_value(etag):
+            headers["If-None-Match"] = etag.strip()
+        if _header_value(last_modified):
+            headers["If-Modified-Since"] = last_modified.strip()
+        return self.get(url, _headers=headers or None)

@@ -15,8 +15,11 @@ Rules:
   its denied list) is skipped with the reason and never requested;
 - a stored agenda is requested again, once per run, until its meeting date has passed: the county may replace the PDF
   at the same URL (a revised agenda). New bytes are a new store version (the old one stays as its own source); the
-  same bytes change nothing. The request is a plain GET through the same fetcher (PoliteFetcher sends no conditional
-  headers). After the meeting date a stored agenda is never requested again;
+  same bytes change nothing. That request is a conditional GET through the same fetcher (PoliteFetcher.
+  get_if_changed, with the ETag and Last-Modified the county sent for the stored copy), so an unchanged agenda
+  answers 304 and its 6 to 19 MB are not downloaded again (politeness/daily-full-pdf-recheck); a server answer
+  without validators, or one that ignores them, is the full GET as before. Still one request per agenda per run.
+  After the meeting date a stored agenda is never requested again;
 - the county keeps placeholder files at the links of meetings it has not posted yet (dec-formal.pdf was a 6 KB file
   dated 2026-04-02). A file under PLACEHOLDER_BYTES, or last modified more than PLACEHOLDER_DAYS before the first day of
   the month it is listed under, is not stored: it is recorded in `skipped` with the reason and asked for again on a
@@ -231,7 +234,8 @@ def recheck_due(x: dict, dates: dict[str, str], today: date) -> bool:
 def cmd_fetch(store: Store, log: dict, fetcher: PoliteFetcher | None = None, today: date | None = None,
               facts_path: Path = FACTS, agendas_path: Path | None = None) -> list[dict]:
     """One GET of the agenda page, then each wanted agenda not in the store yet, and once each stored agenda whose
-    meeting date has not passed (a revision). Returns the skipped links."""
+    meeting date has not passed (a revision; a conditional GET, so an unchanged one is not downloaded). Returns the
+    skipped links."""
     f = fetcher or PoliteFetcher()
     today = today or datetime.now(timezone.utc).date()
     log.setdefault("failures", [])
@@ -260,7 +264,11 @@ def cmd_fetch(store: Store, log: dict, fetcher: PoliteFetcher | None = None, tod
             continue
         asked.add(x["url"])
         try:
-            status, body, headers = f.get(x["url"])
+            if recheck and (known.get("etag") or known.get("last_modified")):
+                status, body, headers = f.get_if_changed(x["url"], etag=known.get("etag"),
+                                                         last_modified=known.get("last_modified"))
+            else:
+                status, body, headers = f.get(x["url"])
         except STOP as e:
             log["failures"].append({"stage": "agenda_fetch", "url": x["url"], "error": f"{type(e).__name__}: {e}"})
             if isinstance(e, HostBlocked):
@@ -271,6 +279,10 @@ def cmd_fetch(store: Store, log: dict, fetcher: PoliteFetcher | None = None, tod
             continue
         except FetchFailed as e:
             log["failures"].append({"stage": "agenda_fetch", "url": x["url"], "error": f"{type(e).__name__}: {e}"})
+            continue
+        if recheck and status == 304:
+            # the county says the stored agenda is unchanged: nothing was downloaded
+            log["fetched"]["not_modified"] = log["fetched"].get("not_modified", 0) + 1
             continue
         if recheck and (status != 200 or body[:4] != b"%PDF"
                         or placeholder_reason(body, headers, x["year"], x["month"])):

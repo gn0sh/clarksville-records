@@ -240,3 +240,57 @@ def test_host_matches_is_the_public_host_rule():
     assert not fetch.host_matches("evilh.example", ("h.example",)) and not fetch.host_matches("h.example.net", ("h.example",))
     assert not hasattr(fetch, "_host_matches")
     assert county_agenda.host_matches is fetch.host_matches and fin_run.host_matches is fetch.host_matches
+
+
+class HeaderNet:
+    """Records each request's conditional headers; `answers` is url -> list of (status, body, headers) in order."""
+
+    def __init__(self, answers):
+        self.answers, self.seen = answers, []
+
+    def __call__(self, req, timeout):
+        url = req.full_url
+        self.seen.append((url, req.get_header("If-none-match"), req.get_header("If-modified-since"),
+                          req.get_header("User-agent")))
+        if url.endswith("/robots.txt"):
+            raise urllib.error.HTTPError(url, 404, "x", {}, io.BytesIO(b""))
+        status, body, headers = self.answers[url].pop(0)
+        if status >= 300:
+            raise urllib.error.HTTPError(url, status, "x", headers, io.BytesIO(body))
+        return FakeResp(body, status, headers)
+
+
+def test_get_if_changed_sends_the_stored_validators_and_returns_304_without_a_body():
+    # politeness/daily-full-pdf-recheck
+    from collector.fetch import USER_AGENT
+    u, lm = "https://h.example/a.pdf", "Mon, 09 Nov 2026 21:03:12 GMT"
+    net, clock = HeaderNet({u: [(304, b"", {"ETag": '"abc"'}), (200, b"%PDF new", {"ETag": '"def"'}),
+                                (200, b"%PDF new", {}), (200, b"%PDF new", {}), (500, b"", {}), (304, b"", {})]}), Clock()
+    f = PoliteFetcher(opener=net, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: [],
+                      allowed_hosts=("h.example", "g.example"))
+    assert f.get_if_changed(u, etag='"abc"', last_modified=lm)[:2] == (304, b"")
+    assert net.seen[-1] == (u, '"abc"', lm, USER_AGENT)
+    assert "h.example" not in f._blocked                             # a 304 is not a refusal
+    assert f.get_if_changed(u, etag='"abc"')[:2] == (200, b"%PDF new")          # changed: the document
+    assert net.seen[-1][1:3] == ('"abc"', None)
+    # no validator, or one that is not a clean header value: the plain GET
+    assert f.get_if_changed(u)[0] == 200 and net.seen[-1][1:3] == (None, None)
+    assert f.get_if_changed(u, etag='"a"\r\nX-Evil: 1', last_modified=" ")[0] == 200
+    assert net.seen[-1][1:3] == (None, None)
+    # a server error is retried once with the same validators; one request each otherwise, 10 s apart
+    assert f.get_if_changed(u, etag='"def"')[0] == 304
+    assert [x[1] for x in net.seen[-2:]] == ['"def"', '"def"']
+    assert all(s >= 10.0 for s in clock.slept)
+    assert len([x for x in net.seen if x[0] == u]) == 6
+    # robots.txt and the allowlist apply as for get()
+    with pytest.raises(HostRefused):
+        f.get_if_changed("https://elsewhere.example/a.pdf", etag='"abc"')
+
+
+def test_a_redirect_target_gets_the_plain_get_without_the_validators():
+    u, v = "https://h.example/a.pdf", "https://g.example/b.pdf"
+    net, clock = HeaderNet({u: [(302, b"", {"Location": v})], v: [(200, b"%PDF", {})]}), Clock()
+    f = PoliteFetcher(opener=net, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: [],
+                      allowed_hosts=("h.example", "g.example"))
+    assert f.get_if_changed(u, etag='"abc"')[:2] == (200, b"%PDF")
+    assert [(x[0], x[1]) for x in net.seen if not x[0].endswith("robots.txt")] == [(u, '"abc"'), (v, None)]
