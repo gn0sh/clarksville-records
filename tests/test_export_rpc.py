@@ -202,8 +202,8 @@ def test_a_motion_stored_confirmed_with_a_reason_is_not_exported(tmp_path):
     data = json.loads(written["facts.json"].read_text(encoding="utf-8"))
     data["motions"].append(dict(data["motions"][0], id=f"{MEETING}-motion-1"))
     written["facts.json"].write_text(json.dumps(data), encoding="utf-8")
-    assert SC.check_rpc_export(tmp_path / "site", rec)[0] == [
-        f"data/rpc/facts.json: motion {MEETING}-motion-1 is not confirmed in rpc.json"]
+    assert f"data/rpc/facts.json: motion {MEETING}-motion-1 is not confirmed in rpc.json" in \
+        SC.check_rpc_export(tmp_path / "site", rec)[0]
 
 
 def test_a_motion_the_pages_place_nowhere_is_not_exported(tmp_path):
@@ -280,7 +280,7 @@ def test_site_checks_rpc_export_catches_an_unconfirmed_a_crowded_and_an_internal
     assert f"data/rpc/facts.json: motion {MEETING}-motion-2 is not confirmed in rpc.json" in text
     assert f"data/rpc/motions.csv: motion {MEETING}-motion-2 is not confirmed in rpc.json" in text
     assert "data/rpc/motions.csv: column confirmed" in text
-    assert f"data/rpc/facts.json: motion {MEETING}-motion-1 carries reasons, tally" in text
+    assert "data/rpc/facts.json: key reasons at motions[0]" in text and "key tally at motions[0]" in text
     # two disposing motions on one case_id (stored confirmed; the pages hold both back as crowded), a motion moved
     # off its own case, and a caseless approval that is not the meeting's own business
     by_id = {mv["id"]: mv for mv in rec["motions"]}
@@ -294,6 +294,94 @@ def test_site_checks_rpc_export_catches_an_unconfirmed_a_crowded_and_an_internal
     assert f"data/rpc/facts.json: 2 disposing motions on case {Z19}" in text
     assert f"data/rpc/facts.json: motion {MEETING}-motion-1 is not under its own case" in text
     assert f"data/rpc/facts.json: motion {MEETING}-motion-7 has no case and is not the meeting's own business" in text
+
+
+def _mutated(tmp_path: Path, mutate) -> str:
+    """check_rpc_export's problems after `mutate(data dir, facts.json dict)` on a clean export (2 motions)."""
+    from qa import site_checks as SC
+    site, rec = _export_site_dir(tmp_path, facts_with_motions(tmp_path))
+    assert SC.check_rpc_export(site, rec)[0] == []
+    d = site / "data" / "rpc"
+    data = json.loads((d / "facts.json").read_text(encoding="utf-8"))
+    if mutate(d, data) is not False:
+        (d / "facts.json").write_text(json.dumps(data), encoding="utf-8")
+    return "\n".join(SC.check_rpc_export(site, rec)[0])
+
+
+def _csv_edit(d: Path, name: str, edit) -> bool:
+    rs = rows(d / name)
+    cols = list(rs[0])
+    rs = edit(rs)
+    buf = io.StringIO()
+    w = csv.DictWriter(buf, fieldnames=cols, lineterminator="\n")
+    w.writeheader()
+    w.writerows(rs)
+    (d / name).write_text(buf.getvalue(), encoding="utf-8")
+    return False
+
+
+M1 = f"{MEETING}-motion-1"
+
+
+def test_site_checks_rpc_export_compares_each_value_to_the_record(tmp_path):
+    def outcome(d, data):
+        return _csv_edit(d, "motions.csv", lambda rs: [dict(r, outcome="Motion failed") if r["id"] == M1 else r
+                                                      for r in rs])
+    assert f"data/rpc/motions.csv: motion {M1} outcome is not rpc.json's" in _mutated(tmp_path / "a", outcome)
+
+    def mover(d, data):
+        data["motions"][0]["moved_by"] = "Someone Else"
+    assert f"data/rpc/facts.json: motion {M1} moved_by is not rpc.json's" in _mutated(tmp_path / "b", mover)
+
+    def source(d, data):
+        return _csv_edit(d, "motions.csv", lambda rs: [dict(r, source_sha256="f" * 64, page="3", source_url="x")
+                                                      if r["id"] == M1 else r for r in rs])
+    text = _mutated(tmp_path / "c", source)
+    for k in ("source_url", "source_sha256", "page"):
+        assert f"data/rpc/motions.csv: motion {M1} {k} is not rpc.json's" in text, k
+
+    def case_and_nays(d, data):
+        data["motions"][0].update(case_number="ZO-4-2024", nays=[], seconded_by=None, page=3, source_id="src-x")
+    text = _mutated(tmp_path / "d", case_and_nays)
+    for k in ("case_number", "nays", "seconded_by", "page", "source_id"):
+        assert f"data/rpc/facts.json: motion {M1} {k} is not rpc.json's" in text, k
+
+
+def test_site_checks_rpc_export_finds_a_held_value_in_any_file(tmp_path):
+    def plant(d, data):
+        return _csv_edit(d, "cases.csv", lambda rs: [dict(rs[0], applicant="Hidden Mover"), *rs[1:]])
+    assert (f"data/rpc/cases.csv: holds 'Hidden Mover', a value of motion {MEETING}-motion-2, which is not "
+            "exported") in _mutated(tmp_path, plant)
+
+
+def test_site_checks_rpc_export_a_duplicate_a_mismatch_and_a_reasons_key_anywhere(tmp_path):
+    def dup(d, data):
+        return _csv_edit(d, "motions.csv", lambda rs: rs + [rs[0]])
+    assert f"data/rpc/motions.csv: motion {M1} is in the file 2 times" in _mutated(tmp_path / "a", dup)
+
+    def drop(d, data):
+        return _csv_edit(d, "motions.csv", lambda rs: [r for r in rs if r["id"] != M1])
+    assert (f"data/rpc/motions.csv and facts.json hold different motions (only in facts.json: {M1})"
+            in _mutated(tmp_path / "b", drop))
+
+    def nested(d, data):
+        data["meetings"][0]["reasons"] = ["x"]
+        data["sources"][0]["tally"] = "5-1"
+    text = _mutated(tmp_path / "c", nested)
+    assert "data/rpc/facts.json: key reasons at meetings[0]" in text
+    assert "data/rpc/facts.json: key tally at sources[0]" in text
+
+
+def test_site_checks_rpc_export_a_missing_folder_or_file(tmp_path):
+    """An export written (data/ there) without the RPC's folder, or with a file of it missing, fails."""
+    from qa import site_checks as SC
+    site, rec = _export_site_dir(tmp_path, facts_with_motions(tmp_path))
+    (site / "data" / "rpc" / "cases.csv").unlink()
+    assert "data/rpc/cases.csv: missing" in "\n".join(SC.check_rpc_export(site, rec)[0])
+    import shutil
+    shutil.rmtree(site / "data" / "rpc")
+    (site / "data" / "facts.json").write_text("{}", encoding="utf-8")
+    assert SC.check_rpc_export(site, rec)[0] == ["data/rpc/: missing, beside the rest of data/ (the RPC export)"]
 
 
 def test_site_checks_rpc_export_a_stale_record_exports_no_motion(tmp_path):

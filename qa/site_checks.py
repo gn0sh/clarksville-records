@@ -43,7 +43,9 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               (RPC pages, index, today, any RPC card) says "unanimous" outside the minutes' own words
   rpc-export  (a build with the RPC export) data/<slug>/motions.csv and facts.json hold only motions confirmed in
               rpc.json under the current motion_rules, each on its own meeting's case (or the meeting's own business),
-              one disposing motion per case_id, with no confirmed/reasons/tally key or column
+              one disposing motion per case_id, with no confirmed/reasons/tally key or column; each row's values are
+              the record's, both files hold the same motions once, no value of a motion left out is in any file, and
+              data/<slug>/ holds exactly the export's five files
   files       at most the target's file cap: --target preview (claude.ai artifact, 500) or pages (GitHub Pages, 3000)
   transcripts every line of a transcript page (<folder>/transcripts/*.html) has its time linked to its meeting's own
               video as <video_url>#t=<whole seconds>, the "Transcript" label and the notice; every call-on entry on a
@@ -263,23 +265,55 @@ def check_rpc_motions(site: Path, pages: dict[str, "Page"], rpc: dict | None) ->
 
 RPC_EXPORT_HELD_KEYS = ("confirmed", "reasons", "tally")      # never in a site's data/<slug>/ (internal: build/)
 RPC_EXPORT_FILES = {"facts.json", "meetings.csv", "cases.csv", "motions.csv", "sources.csv"}
+RPC_HELD_FIELDS = ("moved_by", "seconded_by", "outcome", "nays", "abstained")    # what a motion not exported never shows
+_RPC_FORMULA = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _rpc_cell(v):
+    """A value as collector/export.py _csv writes it (lists joined by "; ", a formula-like text cell after a ')."""
+    if isinstance(v, list):
+        v = "; ".join(v) if v else None
+    if v is None:
+        return None
+    if isinstance(v, str):
+        return "'" + v if v.startswith(_RPC_FORMULA) else v
+    return str(v)
+
+
+def _rpc_held_keys(v, path: str = "") -> list[str]:
+    out = []
+    if isinstance(v, dict):
+        for k, x in v.items():
+            if k in RPC_EXPORT_HELD_KEYS:
+                out.append(f"key {k} at {path or 'top level'}")
+            out += _rpc_held_keys(x, f"{path}.{k}" if path else k)
+    elif isinstance(v, list):
+        for i, x in enumerate(v):
+            out += _rpc_held_keys(x, f"{path}[{i}]")
+    return out
 
 
 def check_rpc_export(site: Path, rpc: dict | None) -> tuple[list[str], str]:
-    """The RPC's export (data/<slug>/motions.csv and facts.json, collector/rpc_export.py) against rpc.json, as the
-    county guard on data/facts.json: every exported motion is `confirmed: true` in the record, which was written under
-    the reader's current motion_rules; it sits on its record's case_id, a case on its own meeting's agenda, or is the
-    meeting's own business with no case; no case_id holds more than one disposing motion; no file carries a
-    confirmed, reasons or tally key or column, and data/<slug>/ holds no file but the export's own (the internal
-    export goes beside the site, in every build)."""
+    """The RPC's export (data/<slug>/, collector/rpc_export.py) against rpc.json, as the county guard on
+    data/facts.json: every exported motion is `confirmed: true` in the record, which was written under the reader's
+    current motion_rules; it sits on its record's case_id, a case on its own meeting's agenda, or is the meeting's own
+    business with no case; no case_id holds more than one disposing motion; each row's values (kind, mover, seconder,
+    nays, abstainers, outcome, case number, source, page) are the record's; motions.csv and facts.json hold the same
+    motions, each once; no value of a motion left out is in any of the files; no file carries a confirmed, reasons or
+    tally key (anywhere in facts.json) or column; and data/<slug>/ holds the export's files and nothing else (the
+    internal export goes beside the site, in every build). An export written without data/<slug>/ fails."""
     if not rpc:
         return [], "no RPC facts"
     slug = rpc["_cfg"]["slug"]
     d = site / "data" / slug
     if not d.is_dir():
+        if (site / "data").is_dir():
+            return [f"data/{slug}/: missing, beside the rest of data/ (the RPC export)"], ""
         return [], f"no data/{slug}/ export"
     motions = {mv["id"]: mv for mv in rpc.get("motions", [])}
     cases = {c["id"]: c for c in rpc["cases"]}
+    sources = {s["id"]: s for s in rpc["sources"]}
+    dates = {m["id"]: m["date"] for m in rpc["meetings"]}
     rules = rpc.get("motion_rules")
     problems: list[str] = []
     exported: dict[str, list[dict]] = {}
@@ -287,20 +321,23 @@ def check_rpc_export(site: Path, rpc: dict | None) -> tuple[list[str], str]:
         if p.is_file() and p.relative_to(d).as_posix() not in RPC_EXPORT_FILES:
             problems.append(f"data/{slug}/{p.relative_to(d).as_posix()}: not a file the RPC export writes (a "
                             f"leftover; internal files never go in the site)")
+    problems += [f"data/{slug}/{n}: missing" for n in sorted(RPC_EXPORT_FILES) if not (d / n).is_file()]
+    csv_name, json_name = f"data/{slug}/motions.csv", f"data/{slug}/facts.json"
     if (d / "motions.csv").is_file():
         with (d / "motions.csv").open(encoding="utf-8", newline="") as f:
             r = csv.DictReader(f)
-            problems += [f"data/{slug}/motions.csv: column {c}" for c in r.fieldnames or [] if c in RPC_EXPORT_HELD_KEYS]
-            exported[f"data/{slug}/motions.csv"] = [{k: (v or None) for k, v in row.items()} for row in r]
+            problems += [f"{csv_name}: column {c}" for c in r.fieldnames or [] if c in RPC_EXPORT_HELD_KEYS]
+            exported[csv_name] = [{k: (v or None) for k, v in row.items()} for row in r]
     if (d / "facts.json").is_file():
-        ms = json.loads((d / "facts.json").read_text(encoding="utf-8")).get("motions", [])
-        exported[f"data/{slug}/facts.json"] = ms
-        for mv in ms:
-            held = sorted(k for k in RPC_EXPORT_HELD_KEYS if k in mv)
-            if held:
-                problems.append(f"data/{slug}/facts.json: motion {mv.get('id')} carries {', '.join(held)}")
+        data = json.loads((d / "facts.json").read_text(encoding="utf-8"))
+        problems += [f"{json_name}: {k}" for k in _rpc_held_keys(data)]
+        exported[json_name] = data.get("motions", [])
     for name, rows in exported.items():
         per_case: dict[str, set[str]] = defaultdict(set)
+        counts: dict[str, int] = defaultdict(int)
+        for row in rows:
+            counts[row.get("id")] += 1
+        problems += [f"{name}: motion {mid} is in the file {n} times" for mid, n in sorted(counts.items()) if n > 1]
         for row in rows:
             mid = row.get("id")
             mv = motions.get(mid)
@@ -318,11 +355,51 @@ def check_rpc_export(site: Path, rpc: dict | None) -> tuple[list[str], str]:
                 problems.append(f"{name}: motion {mid} has no case and is not the meeting's own business")
             if row.get("case_id") and mv["kind"] not in RPC_BUSINESS:
                 per_case[row["case_id"]].add(mid)
+            # every value as the record holds it (the case number only where the motion is placed on its case)
+            want = {"meeting_id": mv["meeting_id"], "kind": mv["kind"], "moved_by": mv.get("moved_by"),
+                    "seconded_by": mv.get("seconded_by"), "nays": list(mv.get("nays") or []),
+                    "abstained": list(mv.get("abstained") or []), "outcome": mv.get("outcome"),
+                    "case_number": mv.get("case") if mv.get("case_id") else None, "page": mv["page"]}
+            if name == csv_name:
+                s = sources.get(mv["source_id"]) or {}
+                want.update(date=dates.get(mv["meeting_id"]), source_url=s.get("url"),
+                            source_sha256=s.get("sha256"), fetched_at=s.get("fetched_at"))
+                want = {k: _rpc_cell(v) for k, v in want.items()}
+            else:
+                want["source_id"] = mv["source_id"]
+            problems += [f"{name}: motion {mid} {k} is not rpc.json's" for k, v in want.items() if row.get(k) != v]
         problems += [f"{name}: {len(ids)} disposing motions on case {case} ({', '.join(sorted(ids)[:3])})"
                      for case, ids in sorted(per_case.items()) if len(ids) > 1]
+    if csv_name in exported and json_name in exported:
+        in_csv = {r.get("id") for r in exported[csv_name]}
+        in_json = {r.get("id") for r in exported[json_name]}
+        if in_csv != in_json:
+            parts = [f"only in {w}: {', '.join(sorted(str(x) for x in ids)[:3])}"
+                     for w, ids in (("facts.json", in_json - in_csv), ("motions.csv", in_csv - in_json)) if ids]
+            problems.append(f"{csv_name} and facts.json hold different motions ({'; '.join(parts)})")
+    # no value of a motion left out of the files is in any of them; allowed: a value a shown motion also has, or one
+    # the record's agendas, listing or sources print themselves (a member who is also a case's agent, say)
+    out_ids = {r.get("id") for rows in exported.values() for r in rows}
+    printed = json.dumps([rpc["cases"], rpc["meetings"], rpc["sources"]], ensure_ascii=False)
+    shown_vals = [v for mid in out_ids if mid in motions for k in RPC_HELD_FIELDS
+                  for v in (motions[mid].get(k) if isinstance(motions[mid].get(k), list) else [motions[mid].get(k)])
+                  if v]
+    held: dict[str, str] = {}
+    for mid, mv in motions.items():
+        if mid in out_ids:
+            continue
+        for k in RPC_HELD_FIELDS:
+            for v in (mv.get(k) if isinstance(mv.get(k), list) else [mv.get(k)]):
+                if v and v not in held and v not in printed and not any(v in s for s in shown_vals):
+                    held[v] = mid
+    for n in sorted(RPC_EXPORT_FILES):
+        if (d / n).is_file():
+            text = (d / n).read_text(encoding="utf-8")
+            problems += [f"data/{slug}/{n}: holds {v!r}, a value of motion {mid}, which is not exported"
+                         for v, mid in sorted(held.items()) if v in text]
     n = {len(rows) for rows in exported.values()}
     return problems, (f"{'/'.join(str(x) for x in sorted(n))} motions in data/{slug}/motions.csv and facts.json "
-                      f"(motion_rules {rules!r})")
+                      f"(motion_rules {rules!r}; {len(held)} values of motions left out checked)")
 
 
 def rpc_allowed(rpc: dict | None) -> set[str]:
