@@ -173,10 +173,14 @@ def read_report(path: Path | None) -> dict | None:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
-def _clean(out: Path, extra_dirs=()) -> None:
-    """Remove what this generator owns. `data/` belongs to the collector's export and is left alone. `extra_dirs`:
-    each council's page folder (council.yml slug)."""
+def _clean(out: Path, extra_dirs=(), export: bool = True) -> None:
+    """Remove what this generator owns. `data/` belongs to the collector's export and is left alone, unless the build
+    goes without the export (`export` False): then an earlier export there is removed, so no stale data/ file is
+    published beside a data.html that says the files are not there. `extra_dirs`: each council's page folder
+    (council.yml slug)."""
     out.mkdir(parents=True, exist_ok=True)
+    if not export:
+        shutil.rmtree(out / "data", ignore_errors=True)
     for p in out.glob("*.html"):
         p.unlink()
     for d in ("officials", "meetings", "items", "static", "districts", "votes", "contracts", "finance", "capital",
@@ -374,8 +378,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     left out, config/site.yml `morning_note.manifests` for a real build and none for a fixture build (made-up sources
     have no manifest rows). None: no morning/ files. The preview target writes none.
     `export`: whether the open-data export (collector export, data/) goes with this build. A preview still over its
-    cap without the transcript pages is built again with export=False: data.html and about.html then link no data/
-    file and say the files are on the full site."""
+    cap without the transcript pages is built again with export=False: no page (data.html, about.html, the finance
+    and contracts indexes) links a data/ file, data.html and about.html say the files are on the full site, and any
+    earlier export in `out_dir/data` is removed."""
     target = target or config.DEFAULT_TARGET
     if target not in config.MAX_FILES_BY_TARGET:
         raise BuildError(f"unknown target {target!r}; one of {', '.join(sorted(config.MAX_FILES_BY_TARGET))}")
@@ -445,7 +450,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     if report_path is None:
         report_path = out.parent / "report.json"
 
-    _clean(out, [c.slug for c in cixs] + ([rpx.slug] if rpx else []))
+    _clean(out, [c.slug for c in cixs] + ([rpx.slug] if rpx else []), export=export)
     site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs, rpc=rpx)
     site["internal"] = internal
     site["councils"] = [council_mod.landing_entry(c) for c in cixs]
@@ -573,14 +578,15 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
            **views.data_page(cixs, finance=fx is not None and fin_views.EXPORTS_READY and not fixture))
     if fx is not None:
         title = config.FIN_TEXT["contracts"]["title"]
-        render("fin_contracts_index.html.j2", "contracts/index.html", title, **fin_views.contracts_index(fx))
+        render("fin_contracts_index.html.j2", "contracts/index.html", title,
+               **fin_views.contracts_index(fx, export=export))
         for sol in fin_data["solicitations"]:
             ctx = fin_views.solicitation(sol["id"], fx)
             render("fin_solicitation.html.j2", f"contracts/{sol['slug']}.html", f"{title}: {sol['title']}", **ctx)
         render("glossary.html.j2", "glossary.html", "Glossary", **fin_views.glossary())
     if bg is not None:
         title = config.FIN_TEXT["budget"]["title"]
-        render("fin_index.html.j2", budget_views.INDEX, title, **budget_views.finance_index(bg))
+        render("fin_index.html.j2", budget_views.INDEX, title, **budget_views.finance_index(bg, export=export))
         # Fund and capital pages over config.PAGE_BYTES are split in parts by heading (finance-pages/page-weight):
         # every fund is planned first, so each line's row has its part before any page links to it.
         split = []
