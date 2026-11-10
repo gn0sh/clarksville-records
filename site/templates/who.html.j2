@@ -3,12 +3,12 @@
 <h1>Who runs this</h1>
 <section aria-labelledby="operator-h">
   <h2 id="operator-h">The operator</h2>
-  <p>This site is run by <a data-ext="operator" href="{{ site.operator_url }}" rel="noopener noreferrer">{{ site.operator }}</a>, a small software company. It is independent. It is not an official government site, and it is not run by, paid by or approved by {% for b in site.unofficial.bodies %}{{ b.name }}, {% endfor %}or any candidate, party or campaign. <a href="{{ root }}about.html#unofficial">More on what that means</a>.</p>
+  <p>This site is run by <a data-ext="operator" href="{{ site.operator_url }}" rel="noopener noreferrer">{{ site.operator }}</a>, a small software company. It is independent. It is not an official government site. It is not run by, paid by or approved by {% for b in site.unofficial.bodies %}{% if not loop.first %}{{ " or " if loop.last else ", " }}{% endif %}{{ b.short }}{% endfor %}. It is not run or approved by any candidate, party or campaign, and does not work for one. <a href="{{ root }}about.html#unofficial">More on what that means</a>.</p>
   <p>Every record page is an unofficial copy of public records and links the official record. <a href="{{ root }}our-rules.html">Our rules</a> say how coverage is decided and what no one can buy. <a href="{{ root }}method.html">Method</a> says how the records are collected and checked.</p>
 </section>
 <section aria-labelledby="funding-h">
   <h2 id="funding-h">How this site is funded</h2>
   <p>The site is free to read. There are no advertisements.{% if site.support_url %} It is supported by tips through <a data-ext="support" href="{{ site.support_url }}" rel="noopener noreferrer">{{ site.support_label }}</a>.{% endif %}</p>
-  <p><strong>No payers yet.</strong> No person, company, office or group pays for this site or for what it covers. If one ever does, this page will list the payer's name, the amount and the contract, as <a href="{{ root }}our-rules.html">our rules</a> require.</p>
+  <p><strong>No one pays for coverage.</strong> No one pays for what this site covers; tips do not buy anything. If anyone ever pays for what it covers, or under a contract, this page will list the payer's name, the amount and the contract, as <a href="{{ root }}our-rules.html">our rules</a> require.</p>
 </section>
 {% endblock %}

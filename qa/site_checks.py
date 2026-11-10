@@ -1390,7 +1390,7 @@ class UnofficialText(HTMLParser):
         _, hid, foot, intag = self.stack[-1] if self.stack else ("", False, False, False)
         style = (a.get("style") or "").replace(" ", "").lower()
         hid = (hid or tag in self.SKIP or "hidden" in a or (a.get("aria-hidden") or "").lower() == "true"
-               or "display:none" in style or "visibility:hidden" in style)
+               or "sr-only" in (a.get("class") or "").split() or bool(INLINE_HIDE.search(style)))
         is_tag = "unofficial-tag" in (a.get("class") or "").split()
         if is_tag and not hid and not intag:
             self.tags.append([])
@@ -1411,12 +1411,32 @@ class UnofficialText(HTMLParser):
                 self.tags[-1].append(data)
 
 
+_ZERO = r"(?:0+(?:\.0*)?|\.0+)[a-z%]*(?=\s*(?:;|!|$))"   # 0, 0.0, .0, 0px, 0em, 0% (not 0.5)
+INLINE_HIDE = re.compile(rf"display:none|visibility:hidden|opacity:{_ZERO}|font-size:{_ZERO}")
+CSS_HIDE = re.compile(rf"display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*{_ZERO}|font-size\s*:\s*{_ZERO}",
+                      re.M)
+FOOTER_SUBJECT = re.compile(r"^(?:footer|\.site-footer)(?![\w-])")
+
+
+def _hides_notice(selector: str) -> bool:
+    """A selector that can hide the notice: one naming an unofficial-* class, one whose subject is the footer, or one
+    whose subject is a section inside the footer (`footer section`, `.site-footer > section`)."""
+    if "unofficial" in selector:
+        return True
+    parts = [p for p in re.split(r"\s*[>+~]\s*|\s+", selector.strip()) if p]
+    if not parts:
+        return False
+    return bool(FOOTER_SUBJECT.match(parts[-1])) or (
+        parts[-1].startswith("section") and any(FOOTER_SUBJECT.match(p) for p in parts[:-1]))
+
+
 def _hiding_rules(site: Path) -> list[str]:
-    """Selectors in the built style.css that name an unofficial-* class and hide it (display:none, visibility:hidden)."""
+    """Selectors in the built style.css that can hide the notice (_hides_notice) with display:none, visibility:hidden,
+    opacity:0 or font-size:0."""
     css = site / "static" / "style.css"
     text = re.sub(r"/\*.*?\*/", "", css.read_text(encoding="utf-8"), flags=re.S) if css.is_file() else ""
-    return [" ".join(sel.split()) for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", text)
-            if "unofficial" in sel and re.search(r"display\s*:\s*none|visibility\s*:\s*hidden", body)]
+    return [" ".join(sel.split()) for group, body in re.findall(r"([^{}]+)\{([^{}]*)\}", text) if CSS_HIDE.search(body)
+            for sel in group.split(",") if _hides_notice(sel)]
 
 
 def unofficial_notice(cfg: dict) -> str:

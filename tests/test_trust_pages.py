@@ -31,7 +31,7 @@ def test_who_runs_this_has_no_personal_name_and_names_the_operator(pages):
     html = pages["who-runs-this.html"]
     text = re.sub(r"<[^>]+>", " ", html)
     assert "Brian" not in text and "Zacharias" not in text
-    assert 'href="https://gnoshcodes.com/"' in html and "No payers yet." in html
+    assert 'href="https://gnoshcodes.com/"' in html and "No one pays for what this site covers; tips do not buy anything." in html
     assert "not an official government site" in text
 
 
