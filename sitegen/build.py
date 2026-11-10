@@ -681,21 +681,26 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     render("method.html.j2", "method.html", "Method", **trust)
     render("changes.html.j2", "changes.html", "Changes", **views.changes(read_changes(changes_path)))
     render("report.html.j2", "report.html", "Report an error", **views.report_page())
-    feed_rows = feeds_mod.feed_list(cixs, rpc=rpx, fin=fin_data, target=target) if site["alerts"] else []
-    if site["alerts"]:   # Alerts v1 (sitegen/feeds.py): written last, when every item and meeting link knows its part
-        for rel, body in feeds_mod.build_feeds(ix, cixs, rpc=rpx, fin=fin_data, target=target).items():
-            (out / rel).parent.mkdir(parents=True, exist_ok=True)
-            (out / rel).write_bytes(body)
     if morning_manifests is DEFAULT:
         mn = morning_mod.settings()
         morning_manifests = None if fixture or mn is None else mn["manifests"]
+    first = None   # {source URL: first_fetched_at}: the feeds' date added and the morning note's window
+    if morning_manifests is not None:
+        try:
+            first = morning_mod.first_fetched(morning_manifests)
+        except morning_mod.MorningError as exc:
+            raise BuildError(str(exc)) from exc
+    feed_rows = feeds_mod.feed_list(cixs, rpc=rpx, fin=fin_data, target=target) if site["alerts"] else []
+    if site["alerts"]:   # Alerts v1 (sitegen/feeds.py): written last, when every item and meeting link knows its part
+        for rel, body in feeds_mod.build_feeds(ix, cixs, rpc=rpx, fin=fin_data, target=target, first=first).items():
+            (out / rel).parent.mkdir(parents=True, exist_ok=True)
+            (out / rel).write_bytes(body)
     morning_note = None
     if morning_manifests is not None and morning_mod.settings() is not None and target != "preview":
         # The morning note (Daylight M3, sitegen/morning.py): after every page, so each entry's link knows its part.
         # Pages target only: the claude.ai preview may leave sections out (docs/status.md Decisions, 2026-11-09) and
         # is at its file cap.
         try:
-            first = morning_mod.first_fetched(morning_manifests)
             bulk = morning_mod.bulk_urls(morning_manifests, morning_mod.settings()["backfill"]["initial_run_hours"])
             docs = morning_mod.documents(ix, cixs, rpx, ax, fx, bg, first)
             as_of = max([x for x in [ix.data_as_of(), *(c.data_as_of() for c in cixs)] if x != "unknown"]

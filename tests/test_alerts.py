@@ -495,3 +495,60 @@ def test_an_rpc_source_url_that_is_not_an_https_link_is_dropped(county, zoning_r
 def test_a_good_rpc_source_url_is_still_linked(zoning_rpc):
     e = feeds._rpc_entries(zoning_rpc, feeds._rpc_cases(zoning_rpc, CFG))[0]
     assert e["source"] == "https://example.invalid/agenda.pdf#page=1"
+
+
+# ------------------------------------------------------------------ feeds/entry-date-is-local-day, alerts/entry-date-is-meeting-date
+@pytest.mark.parametrize("day, want", [
+    ("2026-01-15", "2026-01-15T12:00:00-06:00"),   # winter: CST
+    ("2026-07-15", "2026-07-15T12:00:00-05:00"),   # summer: CDT
+    ("2026-03-08", "2026-03-08T12:00:00-05:00"),   # spring forward (02:00 CST -> 03:00 CDT that morning)
+    ("2026-11-01", "2026-11-01T12:00:00-06:00"),   # fall back (02:00 CDT -> 01:00 CST that morning)
+])
+def test_a_bare_day_is_noon_in_the_site_zone(day, want):
+    assert feeds._stamp(day) == want
+    assert site_checks.RFC3339.fullmatch(want)
+
+
+@pytest.mark.parametrize("fetched, want", [
+    ("2026-01-16T03:30:00+00:00", "2026-01-15T21:30:00-06:00"),   # winter evening: the UTC date is the next day
+    ("2026-07-16T03:30:00+00:00", "2026-07-15T22:30:00-05:00"),   # summer evening
+    ("2026-03-08T07:30:00+00:00", "2026-03-08T01:30:00-06:00"),   # spring-forward day, before the change
+    ("2026-03-08T08:30:00+00:00", "2026-03-08T03:30:00-05:00"),   # and after it
+    ("2026-11-01T06:30:00+00:00", "2026-11-01T01:30:00-05:00"),   # fall-back day, the first 01:30
+    ("2026-11-01T07:30:00+00:00", "2026-11-01T01:30:00-06:00"),   # the second 01:30
+])
+def test_a_first_fetched_at_keeps_its_instant_with_the_local_offset(fetched, want):
+    from datetime import datetime
+    assert feeds._stamp(datetime.fromisoformat(fetched)) == want
+
+
+def test_entries_are_dated_when_their_document_was_added_and_ids_do_not_change(county):
+    """With the manifests' first_fetched_at, updated and published are that instant in site_timezone (not the
+    meeting's date at midnight UTC), the feed lists entries by it, and every id is what it was without it."""
+    from datetime import datetime, timedelta, timezone
+    srcs = sorted(FACTS["sources"], key=lambda s: s["id"])
+    base = datetime(2026, 11, 7, 23, 0, tzinfo=timezone.utc)         # 17:00 CST on November 7
+    first = {s["url"]: base + timedelta(hours=k) for k, s in enumerate(srcs)}
+    plain = feeds.build_feeds(county, cfg=CFG)
+    dated = feeds.build_feeds(county, cfg=CFG, first=first)
+    assert sorted(plain) == sorted(dated)
+    for rel in dated:
+        assert sorted(ids_of(plain[rel])) == sorted(ids_of(dated[rel])), rel
+    root = ET.fromstring(dated["feeds/county-meetings.xml"])
+    by_source = {s["id"]: s for s in FACTS["sources"]}
+    for m in FACTS["meetings"]:
+        e = next(e for e in root.findall(A + "entry") if text(e, "id").endswith(f"/{m['id']}/minutes"))
+        want = first[by_source[m["source_id"]]["url"]].astimezone(feeds._zone()).isoformat(timespec="seconds")
+        assert text(e, "updated") == text(e, "published") == want
+        assert text(e, "updated")[19:] == "-06:00"
+    dates = [text(e, "updated") for e in root.findall(A + "entry")]
+    assert dates == sorted(dates, reverse=True) and text(root, "updated") == dates[0]
+
+
+def test_without_a_manifest_row_an_entry_is_its_fetched_day_at_local_noon(built):
+    """A fixture build has no manifests: each entry is its source's fetched day (never the meeting's) at noon."""
+    fetched = {s["fetched_at"] for s in FACTS["sources"]}
+    root = parsed(built / "feeds" / "county-meetings.xml")
+    for e in root.findall(A + "entry"):
+        up = text(e, "updated")
+        assert up == text(e, "published") and up[:10] in fetched and up[10:19] == "T12:00:00", up
