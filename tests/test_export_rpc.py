@@ -506,6 +506,9 @@ def test_a_field_the_reader_adds_later_is_not_exported_unregistered(tmp_path):
         for r in facts[lst]:
             r["qq_new_field"] = "Qqnew"
     facts["qq_top"] = "Qqnew"
+    facts["coverage"]["qq_later"] = "Qqnew"
+    for d in facts["meetings"][0]["documents"]:
+        d["qq_doc"] = "Qqnew"
     for p in RE.export_rpc(load(tmp_path, facts), tmp_path / "out"):
         assert "qq" not in p.read_text(encoding="utf-8").casefold(), p.name
 

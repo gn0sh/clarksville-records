@@ -185,7 +185,7 @@ def public_facts(rpx, internal: bool = False) -> dict:
                                       "sha256", "url", "fetched_at")}
                for s in sorted(facts["sources"], key=lambda s: s["id"])]
     return {"schema_version": SCHEMA_VERSION, "body": rpx.body, "listing_url": rpx.cfg["listing_url"],
-            "motion_rules": facts.get("motion_rules"), "coverage": dict(facts["coverage"]),
+            "motion_rules": facts.get("motion_rules"), "coverage": {k: facts["coverage"].get(k) for k in _JSON["coverage"]},
             "meetings": meetings, "cases": cases, "motions": motions, "sources": sources}
 
 
