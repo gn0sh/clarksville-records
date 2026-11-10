@@ -50,7 +50,7 @@ the local day of some recorded instant, or labelled.
 | sitegen/views.py:258 `data_as_of` -> base.html.j2:57, council.py:266 | footer "Data as of D" on every page | fixed (`span`) |
 | sitegen/views.py:262 `fetched_sentence` -> council_home.html.j2:9, views.py:714,738 (official pages) | "Minutes fetched between A and B." | fixed (`span`) |
 | sitegen/fin_views.py:115 `Finance.src` -> _fin_macros.html.j2:12,17, fin_solicitation.html.j2:63 | "bid tab p. 1, fetched D" | fixed |
-| sitegen/fin_views.py:162 -> fin_solicitation.html.j2:26 | "Document fetched D." | fixed for fetched documents; a link never fetched (not_pdf, dead) has only the run's UTC day: labelled (UTC day) |
+| sitegen/fin_views.py:162 -> fin_solicitation.html.j2:26 | "Document fetched D." | fixed for fetched documents; a link never fetched (not_pdf, dead) prints no fetch day (provenance/docx-not-fetched) |
 | sitegen/fin_views.py:153 dead link note | "Link not available at fetch (D)" | labelled (UTC day): no instant (no such document in today's data) |
 | sitegen/budget_views.py:259 -> fin_index.html.j2:14 | "FY.., fetched D" per budget book | fixed |
 | sitegen/views.py:1151 -> district.html.j2:30; views.py:1226,1228 -> index.html.j2:87 (landing, not edited) | map lines "fetched D" | wards: fixed (maps manifest row); county districts PDF: no manifest row, labelled (UTC day) |
@@ -74,9 +74,9 @@ note). Left with a reason: 5 (morning window, build day, civil dates, export col
   "fetched 2026-11-08 (UTC day)". The map was traced and committed at 2026-11-08 00:43Z (18:43 on 11-07 in
   Clarksville), so the day in Clarksville was probably 2026-11-07, but that is an inference, so it is not shown.
   Fix: fetch it through the collector (a manifest row) the next time the map is re-traced.
-- **Finance links never fetched** (3 `.docx` bid tabs, status not_pdf): `fetched_at` is the day of the fetch run
-  (collector/fin_run.py, a UTC day). Shown as "Document fetched 2026-11-08 (UTC day)." The word "fetched" for a link
-  that was not requested is older wording, left for the finance owner (not a date question).
+- **Finance links never fetched** (3 `.docx` bid tabs, status not_pdf, "not requested" in data/fin_fetch_status.json):
+  `fetched_at` is the day of the fetch run (collector/fin_run.py, a UTC day). They were never fetched, so the row
+  prints no "Document fetched" line. A dead link keeps the day the fetch was tried in its note, labelled (UTC day).
 - **Fixture builds**: made-up sources have no manifest rows, so every fetch day is labelled (UTC day).
 
 ## Wording

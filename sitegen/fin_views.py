@@ -166,7 +166,9 @@ def _doc_link(fx: Finance, d: dict, sol: dict) -> dict:
         note = C["shared"]
     return {"id": d["id"], "stage": d["stage"], "stage_label": stage_label(d["stage"]), "label": label,
             "href": None if d["status"] == "dead_at_fetch" else d["url"], "scanned": d["scanned"], "note": note,
-            "fetched": doc_fetched(fx, d)}
+            # a link never fetched (not a PDF, dead) prints no fetch day (provenance/docx-not-fetched); the dead
+            # link's note above keeps the day the fetch was tried
+            "fetched": doc_fetched(fx, d) if d.get("source_id") else None}
 
 
 def _held_fields(sol: dict) -> dict[str, str]:
