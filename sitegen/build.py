@@ -17,7 +17,7 @@ from . import county_agendas as agendas_mod
 from . import rpc as rpc_mod
 from . import morning_page
 from . import budget_views, config, council as council_mod, days as days_mod, feeds as feeds_mod, fin_views, \
-    georef as georef_mod, morning as morning_mod, unofficial as unofficial_mod, \
+    georef as georef_mod, localdates, morning as morning_mod, unofficial as unofficial_mod, \
     transcripts as transcripts_mod, \
     seats as seats_mod, views
 
@@ -146,6 +146,9 @@ def make_env() -> jinja2.Environment:
     )
     # the not_confirmed macro's sentence per held check (provenance/held-sentence-misstates)
     env.globals["held_text"] = config.FIN_TEXT["held"]
+    # A template that prints an instant prints its site_timezone day (docs/architecture/local-dates.md). Fetch days
+    # reach the templates already converted (localdates.fetched, where a view picks the source).
+    env.filters["local_day"] = localdates.local_day
     return env
 
 
@@ -363,7 +366,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
           seats_path=DEFAULT, districts_path=DEFAULT, geocoder: bool = True, finance_path=DEFAULT,
           capital_fund=DEFAULT, councils=DEFAULT, target: str | None = None, transcripts: bool = True,
           rpc=DEFAULT, today=None, county_agendas=DEFAULT, morning_manifests=DEFAULT,
-          export: bool = True) -> dict:
+          export: bool = True, fetch_manifests=DEFAULT) -> dict:
     """`geocoder=False` (`--no-geocoder`) draws no landing address box and allows no geocoder in the CSP: the build
     for the claude.ai preview, where the box could not reach the geocoder. The plain lookup line shows instead.
     `seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
@@ -389,18 +392,28 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     are shown as agenda-only meetings (sitegen/county_agendas.py); left out, config.COUNTY_AGENDAS for a real build
     and none for a fixture build. None: no agenda-only meetings.
     `morning_manifests`: the collectors' manifests the morning note (sitegen/morning.py) reads first_fetched_at from;
-    left out, config/site.yml `morning_note.manifests` for a real build and none for a fixture build (made-up sources
+    left out, config/site.yml `fetch_manifests` (the one list, morning.manifest_paths) for a real build and none for a fixture build (made-up sources
     have no manifest rows). None: no morning/ files. The preview target writes none.
     `export`: whether the open-data export (collector export, data/) goes with this build. A preview still over its
     cap without the transcript pages is built again with export=False: no page (data.html, about.html, the finance
     and contracts indexes) links a data/ file, data.html and about.html say the files are on the full site, and any
-    earlier export in `out_dir/data` is removed."""
+    earlier export in `out_dir/data` is removed.
+    `fetch_manifests`: the collectors' manifests whose first_fetched_at (by url and sha256) gives every fetch day a
+    page prints as its site_timezone day (sitegen/localdates.py, docs/architecture/local-dates.md); left out,
+    config/site.yml `fetch_manifests` for a real build and none for a fixture build. A source with no row shows its
+    stored UTC day, labelled "(UTC day)"."""
     target = target or config.DEFAULT_TARGET
     if target not in config.MAX_FILES_BY_TARGET:
         raise BuildError(f"unknown target {target!r}; one of {', '.join(sorted(config.MAX_FILES_BY_TARGET))}")
     facts_path, out = Path(facts_path), Path(out_dir)
     facts = load_facts(facts_path)
     fixture = bool(facts.get("fixture"))
+    if fetch_manifests is DEFAULT:
+        fetch_manifests = None if fixture else config.SITE.get("fetch_manifests")
+    try:
+        localdates.load(fetch_manifests)   # before any view picks a source's fetch day
+    except localdates.LocalDatesError as exc:
+        raise BuildError(str(exc)) from exc
     if seats_path is DEFAULT:
         seats_path = None if fixture else config.SEATS_PATH
     if districts_path is DEFAULT:
@@ -703,7 +716,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     render("report.html.j2", "report.html", "Report an error", **views.report_page())
     if morning_manifests is DEFAULT:
         mn = morning_mod.settings()
-        morning_manifests = None if fixture or mn is None else mn["manifests"]
+        morning_manifests = None if fixture or mn is None else morning_mod.manifest_paths()
     first = None   # {source URL: first_fetched_at}: the feeds' date added and the morning note's window
     if morning_manifests is not None:
         try:
@@ -723,10 +736,12 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         try:
             bulk = morning_mod.bulk_urls(morning_manifests, morning_mod.settings()["backfill"]["initial_run_hours"])
             docs = morning_mod.documents(ix, cixs, rpx, ax, fx, bg, first)
-            as_of = max([x for x in [ix.data_as_of(), *(c.data_as_of() for c in cixs)] if x != "unknown"]
-                        + [s["fetched_at"] for s in (rpx.facts["sources"] if rpx else []) if s.get("fetched_at")],
-                        default="")
-            morning_note = morning_mod.write(out, built_day, docs, first, data_as_of=as_of, bulk=bulk)
+            # the latest fetch day of every body, as the pages print it (localdates.span)
+            # a plain day; data_as_of_utc says when it is a stored UTC day (morning-digest/as-of-contract)
+            as_of, exact = localdates.latest([*ix.facts["sources"], *(s for c in cixs for s in c.facts["sources"]),
+                                              *(rpx.facts["sources"] if rpx else [])]) or ("", True)
+            morning_note = morning_mod.write(out, built_day, docs, first, data_as_of=as_of, bulk=bulk,
+                                             data_as_of_utc=not exact)
         except morning_mod.MorningError as exc:
             raise BuildError(str(exc)) from exc
     if site["alerts"]:
@@ -767,14 +782,16 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
               f"the {tx_pages} transcript pages", file=sys.stderr)
         return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
                      finance_path, capital_fund, councils, target, transcripts=False, rpc=rpc, today=today,
-                     county_agendas=county_agendas, morning_manifests=morning_manifests, export=export)
+                     county_agendas=county_agendas, morning_manifests=morning_manifests, export=export,
+                     fetch_manifests=fetch_manifests)
     if expected > cap and export and target == "preview":
         print(f"sitegen: {expected} files with the export is over the {target} cap of {cap}; building again without "
               f"the open-data export (do not run `collector export` for this preview; data.html says the files are "
               f"on the full site)", file=sys.stderr)
         return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
                      finance_path, capital_fund, councils, target, transcripts=transcripts, rpc=rpc, today=today,
-                     county_agendas=county_agendas, morning_manifests=morning_manifests, export=False)
+                     county_agendas=county_agendas, morning_manifests=morning_manifests, export=False,
+                     fetch_manifests=fetch_manifests)
     manifest = write_publish_manifest(out, target)
     return {"pages": written, "files": len(manifest) + 1, "target": target, "transcripts": transcripts,
             "transcript_pages": tx_pages, "files_with_export": expected,

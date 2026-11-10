@@ -35,6 +35,11 @@ def problems(cfg: dict | None = None) -> list[str]:
     return bad
 
 
+def _place(cfg: dict | None = None) -> str:
+    """The place whose calendar day the pages show (config/site.yml today_place; docs/architecture/local-dates.md)."""
+    return str((config.SITE if cfg is None else cfg).get("today_place") or "the site's time zone")
+
+
 def export_readme(cfg: dict | None = None) -> str:
     """data/README.txt, written beside the export's files."""
     t = load(cfg)
@@ -44,4 +49,6 @@ def export_readme(cfg: dict | None = None) -> str:
     return (f"{t['tag']}.\n\n{t['notice']}\n\n{t['differ']} {t['not_advice']}\n\n"
             f"{t['correction_label']}: {report}\n\nThe official sites:\n{links}\n\n"
             "These files carry the facts the pages show, each with the source document it came from. This notice "
-            "applies to every file in this folder, including a file copied away from it.\n")
+            "applies to every file in this folder, including a file copied away from it.\n\n"
+            f"fetched_at is the day in Coordinated Universal Time (UTC) a file was first fetched, so it can be one "
+            f"day after the fetch date the pages show (the day in {_place(cfg)}).\n")

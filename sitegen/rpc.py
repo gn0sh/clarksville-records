@@ -28,7 +28,7 @@ from pathlib import Path
 
 import yaml
 
-from . import config
+from . import config, localdates
 
 RPC_KEYS = ("body", "nav_label", "slug", "body_key", "listing_url", "record_url", "record_label", "facts",
             "kind_labels", "case_types")
@@ -238,7 +238,7 @@ class Rpc:
             what = "DOCX" if s["format"] == "docx" else "PDF"
             pages = f", {s['pages']} {'page' if s['pages'] == 1 else 'pages'}" if s.get("pages") else ""
             return {"label": label, "url": d["url"], "collected": True, "what": f"{what}{pages}",
-                    "fetched": s["fetched_at"], "no_text": s["format"] == "pdf" and s["text_layer"] == "none",
+                    "fetched": localdates.fetched(s), "no_text": s["format"] == "pdf" and s["text_layer"] == "none",
                     "ocr": s.get("read_by") == "OCR"}
         host = d["host"].removeprefix("www.")
         return {"label": label, "url": d["url"], "collected": False, "host": host}
@@ -272,7 +272,7 @@ class Rpc:
                 "docs": [self._doc(d) for d in m["documents"] if d["kind"] != "video"],
                 "not_posted": [DOC_LABELS.get(k, k) for k in ("agenda", "minutes")
                                if k not in kinds_linked],
-                "agenda": ({"url": agenda["url"], "pages": agenda["pages"], "fetched": agenda["fetched_at"],
+                "agenda": ({"url": agenda["url"], "pages": agenda["pages"], "fetched": localdates.fetched(agenda),
                             "no_text": agenda["text_layer"] == "none",
                             "ocr": m.get("agenda_read_by") == "OCR"} if agenda else None),
                 "minutes": ({"url": minutes["url"], "ocr": m.get("minutes_read_by") == "OCR"} if minutes else None),
@@ -293,7 +293,7 @@ class Rpc:
         for m in sorted(self.facts["meetings"], key=lambda m: (m["date"], m["id"]), reverse=True):
             by_year[m["date"][:4]].append(self.meeting(m))
         cov = self.facts["coverage"]
-        fetched = sorted(s["fetched_at"] for s in self.facts["sources"] if s.get("fetched_at"))
+        fetched = localdates.span(self.facts["sources"])   # (earliest, latest) as pages print them
         return {"body": self.body, "coverage": cov, "listing_url": self.cfg["listing_url"],
                 "record_label": self.cfg["record_label"],
                 "n_meetings": len(self.facts["meetings"]), "n_cases": len(self.facts["cases"]),
@@ -302,7 +302,7 @@ class Rpc:
                 "n_docs": len(self.facts["sources"]),
                 "n_link_only": sum(1 for m in self.facts["meetings"] for d in m["documents"]
                                    if not d["fetched"] and d["kind"] != "video"),
-                "fetched_to": fetched[-1] if fetched else None,
+                "fetched_to": fetched[1] if fetched else None,
                 "years": [{"year": y, "href": f"meetings/{y}.html", "meetings": by_year[y]} for y in self.years()]}
 
     # ------------------------------------------------------------------ search

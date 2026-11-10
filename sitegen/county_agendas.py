@@ -17,7 +17,7 @@ import json
 from datetime import date
 from pathlib import Path
 
-from . import config
+from . import config, localdates
 
 
 PAGE = "meetings/agendas.html"
@@ -83,7 +83,7 @@ class Agendas:
                           "item_href": self.ix.item_href(known) if known else None})
         return {"id": m["id"], "date": m["date"], "date_text": _date_text(m["date"]), "kind": m["kind"],
                 "kind_label": self.ix.kind_labels.get(m["kind"], m["kind"]), "href": self.href(m["id"]),
-                "doc": {"url": src["url"], "pages": src["pages"], "fetched": src["fetched_at"]},
+                "doc": {"url": src["url"], "pages": src["pages"], "fetched": localdates.fetched(src)},
                 "entries": items, "minutes_note": self.minutes_note(m),
                 "upcoming": m["date"] > self.today.isoformat(), "on_build_day": m["date"] == self.today.isoformat()}
 

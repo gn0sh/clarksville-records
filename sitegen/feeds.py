@@ -24,7 +24,8 @@ Entries (invariant: an id never changes, so a reader never alerts twice for one 
 with its offset. A document without a manifest row (a fixture build) is dated by its source's `fetched_at` day, else
 its meeting's day, at noon in site_timezone (a reader in the Americas shows that day; `fetched_at` is a UTC day, so it
 can be one day after the site_timezone day of the fetch, sweep L1). An entry's summary prints "fetched <day>": the
-site_timezone day of its own `updated`, so the two never disagree. Which entries a feed keeps is still by
+site_timezone day of its own `updated`, so the two never disagree (without a manifest row, the day pages print for its
+source, sitegen/localdates.py: a UTC day is labelled "(UTC day)"). Which entries a feed keeps is still by
 meeting: at most max_entries entries (not meetings), taken newest meeting first (then the meeting, then document
 order), except `topic-rezoning.xml`, which keeps at most max_entries entries of each body (RPC agendas are dated ahead
 and come often; one cap would push every county and council entry out); the kept entries are then listed newest
@@ -42,7 +43,7 @@ import xml.etree.ElementTree as ET
 from datetime import date, datetime, time, timezone
 from zoneinfo import ZoneInfo
 
-from . import config, unofficial, views
+from . import config, localdates, unofficial, views
 
 DEFAULT_ZONING_PREFIXES = ("Z", "ZO", "CZ", "CZO", "HZ")
 SEAT_TARGET = "pages"
@@ -118,6 +119,14 @@ def _added(first: dict | None, url: str, *fallbacks) -> datetime | str:
     return next(f for f in fallbacks if f)
 
 
+def _fetched_day(added, src: dict, zone: ZoneInfo | None = None) -> str:
+    """The "fetched <day>" of an entry's summary: the site_timezone day of its first_fetched_at; with no manifest row
+    (a fixture build), its source's day as pages print it (localdates.fetched: labelled when it is a UTC day)."""
+    if isinstance(added, datetime):
+        return _day(added, zone)
+    return localdates.fetched(src) or _day(added, zone)
+
+
 def _bodies(county, councils) -> list[tuple[str, str, views.Index]]:
     """(body key, body name, Index): the county first, then each council in config order."""
     return [(config.SITE["county_key"], config.SITE["county_body"], county)] + \
@@ -185,7 +194,7 @@ def _body_entries(key: str, ix: views.Index, first: dict | None = None, zone: Zo
                 "href": ix.meeting_href(m["id"]),
                 "source": s["url"],
                 "summary": f"{m['body']}, {ix.meeting_label(m)}. {word} ({s['pages']} "
-                           f"{views.plural(s['pages'], 'page', 'pages')}), fetched {_day(added, zone)}.",
+                           f"{views.plural(s['pages'], 'page', 'pages')}), fetched {_fetched_day(added, s, zone)}.",
                 "sort": (m["date"], m["id"], s["kind"] == "minutes"),
             })
     return out
@@ -207,7 +216,7 @@ def _agenda_entries(key: str, ix: views.Index, agendas, first: dict | None = Non
             "href": agendas.href(m["id"]),
             "source": s["url"],
             "summary": f"{agendas.data.get('body') or ix.coverage['body']}, {label}. Agenda ({s['pages']} "
-                       f"{views.plural(s['pages'], 'page', 'pages')}), fetched {_day(added, zone)}.",
+                       f"{views.plural(s['pages'], 'page', 'pages')}), fetched {_fetched_day(added, s, zone)}.",
             "sort": (m["date"], m["id"], False),
         })
     return out

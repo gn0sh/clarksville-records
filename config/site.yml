@@ -4,6 +4,14 @@ locality: montgomery-tn
 site_name: Daylight                 # working product name (design/daylight, 2026-11-09); trademark check before go-live
 site_place: Clarksville-Montgomery County   # name plate line under the name, on every page
 site_timezone: America/Chicago   # the zone of the landing date line (static/sky.js); the sun follows the viewer's own clock
+# The collectors' manifests (first_fetched_at by url and sha256). Every fetch day a page prints is the site_timezone
+# day of that instant; a source with no row shows its stored UTC day labelled "(UTC day)" (docs/architecture/local-dates.md).
+fetch_manifests:
+  - data/manifest.json
+  - data/county-agendas/manifest.json
+  - data/localities/clarksville-tn/manifest.json
+  - data/localities/cmc-rpc/manifest.json
+  - data/maps/manifest.json
 today_place: Clarksville            # landing sky: "Tuesday in Clarksville" (static/sky.js reads it from the page)
 operator: gnoshcodes LLC           # CEO decisions 2026-11-09 (a gnoshcodes product, no personal credit) and 2026-11-10 (the LLC)
 operator_url: https://gnoshcodes.com/
@@ -60,7 +68,7 @@ alerts:
 
 # The morning note (Daylight M3, sitegen/morning.py, docs/architecture/morning-note.md). Each build writes the last
 # `keep_days` days' "what's new" as morning/YYYY-MM-DD.json plus morning/latest.json: every document whose
-# first_fetched_at (in the collectors' own manifests below) falls in [day before at `cutoff`, day at `cutoff`) in
+# first_fetched_at (in the collectors' own manifests, fetch_manifests above) falls in [day before at `cutoff`, day at `cutoff`) in
 # site_timezone (pages target only; the preview build writes none). Nothing is sent: email is a later step behind the CEO's provider pick (hard stops 3-5). The build
 # refuses `enabled: true` without an https form_action and privacy_url, and any form_action while enabled is false.
 # Leave the whole block out to write no note.
@@ -77,12 +85,8 @@ morning_note:
   # the earliest row of its manifest) or more than max_entries entries is written with "backfill": true and no
   # entries (its counts kept), so a first collection never becomes a mail.
   backfill: {initial_run_hours: 48, max_entries: 100}
-  # The collectors' manifests (first_fetched_at by source URL). Every document the note reads must have a row in one.
-  manifests:
-    - data/manifest.json
-    - data/county-agendas/manifest.json
-    - data/localities/clarksville-tn/manifest.json
-    - data/localities/cmc-rpc/manifest.json
+  # The collectors' manifests: the one list `fetch_manifests` above (dates/two-manifest-lists). Every document the
+  # note reads must have a row in one.
   # Every connective word of the note (entries otherwise carry only the record's own words).
   text:
     agenda_item: On the agenda

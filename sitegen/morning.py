@@ -63,6 +63,12 @@ def settings(cfg: dict | None = None) -> dict | None:
     return cfg.get("morning_note")
 
 
+def manifest_paths(cfg: dict | None = None) -> list:
+    """The collectors' manifests the note reads: config/site.yml `fetch_manifests`, the one list the pages' fetch days
+    come from too (sitegen/localdates.py; dates/two-manifest-lists)."""
+    return list((config.SITE if cfg is None else cfg).get("fetch_manifests") or [])
+
+
 def problems(cfg: dict) -> list[str]:
     """config/site.yml `morning_note:` shape and the provider seam rules; the build refuses anything else."""
     mn = cfg.get("morning_note")
@@ -94,9 +100,11 @@ def problems(cfg: dict) -> list[str]:
     if not isinstance(bf, dict) or not all(isinstance(bf.get(k), int) and not isinstance(bf.get(k), bool)
                                            and bf[k] >= 1 for k in ("initial_run_hours", "max_entries")):
         out.append("morning_note.backfill must set initial_run_hours and max_entries, each a whole number >= 1")
-    man = mn.get("manifests")
+    if "manifests" in mn:
+        out.append("morning_note.manifests is gone: the note reads fetch_manifests (dates/two-manifest-lists)")
+    man = cfg.get("fetch_manifests")
     if not isinstance(man, list) or not man or not all(isinstance(p, str) and p for p in man):
-        out.append("morning_note.manifests must list the collectors' manifest files")
+        out.append("fetch_manifests must list the collectors' manifest files (the morning note reads them)")
     text = mn.get("text")
     if not isinstance(text, dict):
         out.append("morning_note.text must be a mapping")
@@ -581,7 +589,7 @@ def resolve(docs: list[dict], first: dict[str, datetime]) -> None:
 
 # ---------------------------------------------------------------------------------------------- the day, select
 def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None = None,
-        data_as_of: str = "", bulk: frozenset[str] = frozenset()) -> dict:
+        data_as_of: str = "", bulk: frozenset[str] = frozenset(), data_as_of_utc: bool = False) -> dict:
     """The note for day `d` (the output contract): every entry of every document first fetched in d's window.
     Backfill guard: a day holding any document from a collector's initial run (`bulk`, bulk_urls) or more than
     morning_note.backfill.max_entries entries is a backfill day: `"backfill": true` and `entries: []` (nothing to
@@ -612,6 +620,7 @@ def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None 
     support_on = cfg.get("support_enabled") is True and bool(cfg.get("support_url"))
     return {"schema": SCHEMA, "date": d.isoformat(),
             "window": {"from": _stamp(start), "to": _stamp(end)}, "data_as_of": data_as_of,
+            "data_as_of_utc": data_as_of_utc,
             "lists": [{"key": x["key"], "label": x["label"]} for x in mn["lists"]],
             "backfill": backfill, "counts": counts,
             "entries": entries, "unplaced_zoning": unplaced,
@@ -661,7 +670,7 @@ def select(note: dict, lists, seats: dict | None = None) -> list[dict]:
 
 # ---------------------------------------------------------------------------------------------- files
 def write(out: Path, today: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None = None,
-          data_as_of: str = "", bulk: frozenset[str] = frozenset()) -> dict:
+          data_as_of: str = "", bulk: frozenset[str] = frozenset(), data_as_of_utc: bool = False) -> dict:
     """morning/YYYY-MM-DD.json for the last keep_days days and morning/latest.json; returns today's note. Written
     on the pages target only (build.py): the preview may leave sections out (docs/status.md, 2026-11-09)."""
     cfg = config.SITE if cfg is None else cfg
@@ -670,7 +679,7 @@ def write(out: Path, today: date, docs: list[dict], first: dict[str, datetime], 
     today_note = None
     for back in range(settings(cfg)["keep_days"]):
         d = today - timedelta(days=back)
-        note = day(d, docs, first, cfg, data_as_of, bulk)
+        note = day(d, docs, first, cfg, data_as_of, bulk, data_as_of_utc)
         text = json.dumps(note, ensure_ascii=False, indent=1, sort_keys=False) + "\n"
         (folder / f"{d.isoformat()}.json").write_text(text, encoding="utf-8")
         if back == 0:
