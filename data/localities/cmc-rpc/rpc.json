@@ -177,6 +177,56 @@
       "ward_printed": "N/A"
     },
     {
+      "acres": null,
+      "agenda_part": null,
+      "agent": null,
+      "applicant": "MARK HOLLEMAN",
+      "applicant_label": "Applicant/owner",
+      "case_type": "Subdivision",
+      "district": null,
+      "heading_printed": null,
+      "id": "2022-01-25-regular-s-2-2022",
+      "item": null,
+      "location": "East of and adjacent to Kirkwood Road, south of and adjacent to Buck Road, immediately southeast of the intersection of Buck and Kirkwood Road.",
+      "meeting_id": "2022-01-25-regular",
+      "note": null,
+      "number": "S-2-2022",
+      "number_printed": "S-2-2022",
+      "page": 4,
+      "prefix": "S",
+      "proposed_use": null,
+      "request": "Revised Preliminary Plat Approval of PARK AT OLIVER FARMS (CLUSTER)",
+      "request_label": "Request",
+      "source_id": "src-0e71298e1055",
+      "ward": null,
+      "ward_printed": null
+    },
+    {
+      "acres": null,
+      "agenda_part": null,
+      "agent": null,
+      "applicant": "BERT SINGLETARY",
+      "applicant_label": "Applicant/owner",
+      "case_type": "Subdivision",
+      "district": null,
+      "heading_printed": null,
+      "id": "2022-01-25-regular-s-3-2022",
+      "item": null,
+      "location": "South of and adjacent to Dunbar Cave Road, north of the Red River, approximately 1,220 feet southwest of the intersection of Dunbar Cave Road and Moss Road.",
+      "meeting_id": "2022-01-25-regular",
+      "note": null,
+      "number": "S-3-2022",
+      "number_printed": "S-3-2022",
+      "page": 4,
+      "prefix": "S",
+      "proposed_use": null,
+      "request": "Preliminary Plat Approval of ROSS FARMS (CLUSTER)",
+      "request_label": "Request",
+      "source_id": "src-0e71298e1055",
+      "ward": null,
+      "ward_printed": null
+    },
+    {
       "acres": "52.08",
       "agenda_part": null,
       "agent": null,
@@ -235,7 +285,7 @@
       "case_type": "Subdivision",
       "district": null,
       "heading_printed": null,
-      "id": "2022-01-25-regular-s-2-2022",
+      "id": "2022-01-25-regular-s-2-2022-2",
       "item": 3,
       "location": "East of and adjacent to Kirkwood Road, south of and adjacent to Buck Road, immediately southeast of the intersection of Buck and Kirkwood Road.",
       "meeting_id": "2022-01-25-regular",
@@ -246,6 +296,31 @@
       "prefix": "S",
       "proposed_use": null,
       "request": "Revised Preliminary Plat Approval of PARK AT OLIVER FARMS & OLIVER RESERVE (CLUSTER)(REVISED PRELIMINARY)",
+      "request_label": "Request",
+      "source_id": "src-0e71298e1055",
+      "ward": null,
+      "ward_printed": null
+    },
+    {
+      "acres": "366.00",
+      "agenda_part": null,
+      "agent": null,
+      "applicant": "BERT SINGLETARY",
+      "applicant_label": "Applicant/owner",
+      "case_type": "Subdivision",
+      "district": null,
+      "heading_printed": null,
+      "id": "2022-01-25-regular-s-3-2022-2",
+      "item": 4,
+      "location": "South of and adjacent to Dunbar Cave Road, north of the Red River, approximately 1,220 feet southwest of the intersection of Dunbar Cave Road and Moss Road.",
+      "meeting_id": "2022-01-25-regular",
+      "note": null,
+      "number": "S-3-2022",
+      "number_printed": "S-3-2022",
+      "page": 5,
+      "prefix": "S",
+      "proposed_use": null,
+      "request": "Preliminary Plat Approval of ROSS FARMS (CLUSTER)",
       "request_label": "Request",
       "source_id": "src-0e71298e1055",
       "ward": null,
@@ -527,6 +602,31 @@
       "ward_printed": "N/A"
     },
     {
+      "acres": null,
+      "agenda_part": null,
+      "agent": null,
+      "applicant": "BERT SINGLETARY",
+      "applicant_label": "Applicant/owner",
+      "case_type": "Subdivision",
+      "district": null,
+      "heading_printed": null,
+      "id": "2022-02-22-regular-s-3-2022",
+      "item": null,
+      "location": "South of and adjacent to Dunbar Cave Road, north of the Red River, approximately 1,220 feet southwest of the intersection of Dunbar Cave Road and Moss Road. West of and adjacent to Powell Road approximately 770’ south of the intersection of Powell Road and Ellie Piper Circle.",
+      "meeting_id": "2022-02-22-regular",
+      "note": null,
+      "number": "S-3-2022",
+      "number_printed": "S-3-2022",
+      "page": 5,
+      "prefix": "S",
+      "proposed_use": null,
+      "request": "Preliminary Plat Approval of ROSS FARMS (CLUSTER)",
+      "request_label": "Request",
+      "source_id": "src-4f907716dfb5",
+      "ward": null,
+      "ward_printed": null
+    },
+    {
       "acres": "52.08",
       "agenda_part": null,
       "agent": null,
@@ -560,7 +660,7 @@
       "case_type": "Subdivision",
       "district": null,
       "heading_printed": null,
-      "id": "2022-02-22-regular-s-3-2022",
+      "id": "2022-02-22-regular-s-3-2022-2",
       "item": 2,
       "location": "South of and adjacent to Dunbar Cave Road, north of the Red River, approximately 1,220 feet southwest of the intersection of Dunbar Cave Road and Moss Road. West of and adjacent to Powell Road approximately 770’ south of the intersection of Powell Road and Ellie Piper Circle.",
       "meeting_id": "2022-02-22-regular",
@@ -721,6 +821,56 @@
       "prefix": "SR",
       "proposed_use": "Car Dealership/Retail",
       "request": "Wyatt Johnson Subaru",
+      "request_label": "Development",
+      "source_id": "src-4f907716dfb5",
+      "ward": null,
+      "ward_printed": null
+    },
+    {
+      "acres": "14.77",
+      "agenda_part": null,
+      "agent": "Cal McKay",
+      "applicant": "Vintage Clarksville Owner, LLC",
+      "applicant_label": "Applicant",
+      "case_type": "Site review",
+      "district": null,
+      "heading_printed": null,
+      "id": "2022-02-22-regular-sr-7-2022",
+      "item": 5,
+      "location": "Rossview Road",
+      "meeting_id": "2022-02-22-regular",
+      "note": null,
+      "number": "SR-7-2022",
+      "number_printed": "SR-7-2022",
+      "page": 8,
+      "prefix": "SR",
+      "proposed_use": "Multifamily/office",
+      "request": "Vintage Clarksville",
+      "request_label": "Development",
+      "source_id": "src-4f907716dfb5",
+      "ward": null,
+      "ward_printed": null
+    },
+    {
+      "acres": "27.24",
+      "agenda_part": null,
+      "agent": "Cal Burchett",
+      "applicant": "William Belew",
+      "applicant_label": "Applicant",
+      "case_type": "Site review",
+      "district": null,
+      "heading_printed": null,
+      "id": "2022-02-22-regular-sr-8-2022",
+      "item": 6,
+      "location": "Warfield Blvd",
+      "meeting_id": "2022-02-22-regular",
+      "note": "DEFERRED",
+      "number": "SR-8-2022",
+      "number_printed": "SR-8-2022",
+      "page": 8,
+      "prefix": "SR",
+      "proposed_use": "Multi-family & Office Buildings",
+      "request": "Sinclair Ridge",
       "request_label": "Development",
       "source_id": "src-4f907716dfb5",
       "ward": null,
@@ -1552,17 +1702,17 @@
       "ward_printed": null
     },
     {
-      "acres": ".24 +/- D",
+      "acres": ".24 +/-",
       "agenda_part": null,
       "agent": "Mid State Investments, LLC Shawn Berner",
-      "applicant": "Raymon Sheppard AF",
+      "applicant": "Raymon Sheppard",
       "applicant_label": "Applicant",
       "case_type": "City zoning",
       "district": 5,
       "heading_printed": null,
       "id": "2022-04-26-regular-z-8-2022",
       "item": 1,
-      "location": "Property fronting on the west frontage of Gracey Ave. 145 +/- feet south of the Gracey Ave. & Woodland St. intersection. R",
+      "location": "Property fronting on the west frontage of Gracey Ave. 145 +/- feet south of the Gracey Ave. & Woodland St. intersection.",
       "meeting_id": "2022-04-26-regular",
       "note": null,
       "number": "Z-8-2022",
@@ -1612,7 +1762,7 @@
       "heading_printed": null,
       "id": "2022-04-26-regular-z-21-2022",
       "item": 3,
-      "location": "Property fronting on the south frontage of Tiny Town Rd., 440 +/- feet west of the Tiny Town Rd. & Tower Dr. intersection. AF",
+      "location": "Property fronting on the south frontage of Tiny Town Rd., 440 +/- feet west of the Tiny Town Rd. & Tower Dr. intersection.",
       "meeting_id": "2022-04-26-regular",
       "note": null,
       "number": "Z-21-2022",
@@ -1620,7 +1770,7 @@
       "page": 2,
       "prefix": "Z",
       "proposed_use": null,
-      "request": "R-1A Single-Family Residential District T to C-5 Highway & Arterial Commercial District / R-4 Multiple-Family Residential District",
+      "request": "R-1A Single-Family Residential District to C-5 Highway & Arterial Commercial District / R-4 Multiple-Family Residential District",
       "request_label": "Request",
       "source_id": "src-a70f5ef1e996",
       "ward": 8,
@@ -1645,7 +1795,7 @@
       "page": 2,
       "prefix": "Z",
       "proposed_use": null,
-      "request": "R-2 Single-Family Residential District to R-6 Single-Family Residential District D",
+      "request": "R-2 Single-Family Residential District to R-6 Single-Family Residential District",
       "request_label": "Request",
       "source_id": "src-a70f5ef1e996",
       "ward": 6,
@@ -1695,7 +1845,7 @@
       "page": 3,
       "prefix": "Z",
       "proposed_use": null,
-      "request": "R-3 Three Family Residential District to R-6 Single-Family Residential District T",
+      "request": "R-3 Three Family Residential District to R-6 Single-Family Residential District",
       "request_label": "Request",
       "source_id": "src-a70f5ef1e996",
       "ward": 6,
@@ -1720,7 +1870,7 @@
       "page": 3,
       "prefix": "Z",
       "proposed_use": null,
-      "request": "C-2 General Commercial District to C-5 Highway & Arterial Commercial District D",
+      "request": "C-2 General Commercial District to C-5 Highway & Arterial Commercial District",
       "request_label": "Request",
       "source_id": "src-a70f5ef1e996",
       "ward": 4,
@@ -1770,7 +1920,32 @@
       "page": 4,
       "prefix": "Z",
       "proposed_use": null,
-      "request": "O-1 Office District to R-6 Single-Family Residential District T",
+      "request": "O-1 Office District to R-6 Single-Family Residential District",
+      "request_label": "Request",
+      "source_id": "src-a70f5ef1e996",
+      "ward": 4,
+      "ward_printed": "4"
+    },
+    {
+      "acres": "10.18 +/-",
+      "agenda_part": null,
+      "agent": null,
+      "applicant": "Reda Homebuilders Inc",
+      "applicant_label": "Applicant",
+      "case_type": "City zoning",
+      "district": 13,
+      "heading_printed": null,
+      "id": "2022-04-26-regular-z-28-2022",
+      "item": 10,
+      "location": "A tract located at the eastern terminus of Cave Springs Rd.",
+      "meeting_id": "2022-04-26-regular",
+      "note": null,
+      "number": "Z-28-2022",
+      "number_printed": "Z-28-2022",
+      "page": 4,
+      "prefix": "Z",
+      "proposed_use": null,
+      "request": "R-1 Single-Family Residential District to R-4 Multiple-Family Residential District",
       "request_label": "Request",
       "source_id": "src-a70f5ef1e996",
       "ward": 4,
@@ -1820,7 +1995,7 @@
       "page": 5,
       "prefix": "Z",
       "proposed_use": null,
-      "request": "R-1 Single-Family Residential District to C-2 General Commercial District / R-4 Multiple-Family Residential District T",
+      "request": "R-1 Single-Family Residential District to C-2 General Commercial District / R-4 Multiple-Family Residential District",
       "request_label": "Request",
       "source_id": "src-a70f5ef1e996",
       "ward": 11,
@@ -1845,7 +2020,7 @@
       "page": 5,
       "prefix": "Z",
       "proposed_use": null,
-      "request": "R-4 Multiple-Family Residential District to PUD Planned Unit Development Residential District D",
+      "request": "R-4 Multiple-Family Residential District to PUD Planned Unit Development Residential District",
       "request_label": "Request",
       "source_id": "src-a70f5ef1e996",
       "ward": 11,
@@ -1877,7 +2052,32 @@
       "ward_printed": "N/A"
     },
     {
-      "acres": "11.01 +/- T",
+      "acres": "52.08 +/-",
+      "agenda_part": null,
+      "agent": null,
+      "applicant": "HAYES AND ASSOCIATES",
+      "applicant_label": "Applicant/owner",
+      "case_type": "Subdivision",
+      "district": null,
+      "heading_printed": null,
+      "id": "2022-04-26-regular-s-133-2021",
+      "item": 1,
+      "location": "East of Ashland City Road, west of and adjacent to Old oak Plains Road, approximately 350 feet north of the intersection of Old Oak Plains and Oak Plains Road.",
+      "meeting_id": "2022-04-26-regular",
+      "note": null,
+      "number": "S-133-2021",
+      "number_printed": "S-133-2021",
+      "page": 7,
+      "prefix": "S",
+      "proposed_use": null,
+      "request": "Final Plat Approval of OAK PLAINS ESTATES",
+      "request_label": "Request",
+      "source_id": "src-a70f5ef1e996",
+      "ward": null,
+      "ward_printed": null
+    },
+    {
+      "acres": "11.01 +/-",
       "agenda_part": null,
       "agent": null,
       "applicant": "BLAST PROPERTIES GP",
@@ -1912,7 +2112,7 @@
       "heading_printed": null,
       "id": "2022-04-26-regular-s-17-2022",
       "item": 3,
-      "location": "South of Ringgold Rd, east of and adjacent to the terminus of Calloway Drive R",
+      "location": "South of Ringgold Rd, east of and adjacent to the terminus of Calloway Drive",
       "meeting_id": "2022-04-26-regular",
       "note": null,
       "number": "S-17-2022",
@@ -1987,7 +2187,7 @@
       "heading_printed": null,
       "id": "2022-04-26-regular-s-26-2022",
       "item": 6,
-      "location": "North of and adjacent to Dunlop Lane, west of Interstate 24, east of Ted A Crozier Sr. Blvd, approximately 100 feet north of the intersection of Chesapeake Lane and Ted Crozier Sr. Boulevard. T",
+      "location": "North of and adjacent to Dunlop Lane, west of Interstate 24, east of Ted A Crozier Sr. Blvd, approximately 100 feet north of the intersection of Chesapeake Lane and Ted Crozier Sr. Boulevard.",
       "meeting_id": "2022-04-26-regular",
       "note": null,
       "number": "S-26-2022",
@@ -2037,7 +2237,7 @@
       "heading_printed": null,
       "id": "2022-04-26-regular-sr-14-2022",
       "item": 2,
-      "location": "412 Tiny Town Road T",
+      "location": "412 Tiny Town Road",
       "meeting_id": "2022-04-26-regular",
       "note": null,
       "number": "SR-14-2022",
@@ -2069,7 +2269,7 @@
       "number_printed": "SR-22-2022",
       "page": 9,
       "prefix": "SR",
-      "proposed_use": "Office/Retail R",
+      "proposed_use": "Office/Retail",
       "request": "Harper Road Office Building",
       "request_label": "Development",
       "source_id": "src-a70f5ef1e996",
@@ -2112,7 +2312,7 @@
       "heading_printed": null,
       "id": "2022-04-26-regular-sr-24-2022",
       "item": 5,
-      "location": "2780 Madison Street T",
+      "location": "2780 Madison Street",
       "meeting_id": "2022-04-26-regular",
       "note": null,
       "number": "SR-24-2022",
@@ -2144,7 +2344,7 @@
       "number_printed": "SR-25-2022",
       "page": 10,
       "prefix": "SR",
-      "proposed_use": "Warehouse/Storage R",
+      "proposed_use": "Warehouse/Storage",
       "request": "Titan Realty Storage",
       "request_label": "Development",
       "source_id": "src-a70f5ef1e996",
@@ -2187,7 +2387,7 @@
       "heading_printed": null,
       "id": "2022-04-26-regular-sr-27-2022",
       "item": 8,
-      "location": "203 Copeland Road T",
+      "location": "203 Copeland Road",
       "meeting_id": "2022-04-26-regular",
       "note": null,
       "number": "SR-27-2022",
@@ -2902,6 +3102,31 @@
       "ward_printed": null
     },
     {
+      "acres": "43.35 +/-",
+      "agenda_part": null,
+      "agent": "Syd Hedrick",
+      "applicant": "Frank Woodard Testamentary Trust Of Last Will & Testament Of George Fleming Sr.",
+      "applicant_label": "Applicant",
+      "case_type": "City zoning",
+      "district": 1,
+      "heading_printed": null,
+      "id": "2022-06-28-regular-z-16-2022",
+      "item": 1,
+      "location": "A tract fronting on the east frontage of Warfield Blvd., 1,000 +/- feet south of the Warfield Blvd. & Rossview Rd. intersection.",
+      "meeting_id": "2022-06-28-regular",
+      "note": "DEFERRED",
+      "number": "Z-16-2022",
+      "number_printed": "Z-16-2022",
+      "page": 1,
+      "prefix": "Z",
+      "proposed_use": null,
+      "request": "R-1 Single-Family Residential District to R-4 Multiple-Family Residential District",
+      "request_label": "Request",
+      "source_id": "src-77741d90f4a2",
+      "ward": 11,
+      "ward_printed": "11"
+    },
+    {
       "acres": "0.637 +/-",
       "agenda_part": null,
       "agent": null,
@@ -3171,6 +3396,31 @@
       "prefix": "S",
       "proposed_use": null,
       "request": "Preliminary Plat Approval of MILLER FARM (CLUSTER) AND ROY S MILLER PROPERTY ASHLAND CITY ROAD LOTS 1 & 2",
+      "request_label": "Request",
+      "source_id": "src-77741d90f4a2",
+      "ward": null,
+      "ward_printed": null
+    },
+    {
+      "acres": "3.428 +/-",
+      "agenda_part": null,
+      "agent": null,
+      "applicant": "ROSSVIEW FARMS LLC",
+      "applicant_label": "Applicant/owner",
+      "case_type": "Subdivision",
+      "district": null,
+      "heading_printed": null,
+      "id": "2022-06-28-regular-s-45-2022",
+      "item": 2,
+      "location": "South of and adjacent to the intersection of Rossview Road and Kirkwood Road.",
+      "meeting_id": "2022-06-28-regular",
+      "note": null,
+      "number": "S-45-2022",
+      "number_printed": "S-45-2022",
+      "page": 6,
+      "prefix": "S",
+      "proposed_use": null,
+      "request": "Preliminary Plat Approval of KIRKWOOD ROAD PRELIMINARY ROW DEDICATION",
       "request_label": "Request",
       "source_id": "src-77741d90f4a2",
       "ward": null,
@@ -4577,6 +4827,31 @@
       "ward_printed": null
     },
     {
+      "acres": "0.28",
+      "agenda_part": null,
+      "agent": "Montgomery County Highway Department",
+      "applicant": "Joshua Taylor/Kenneth Garland",
+      "applicant_label": "Applicant",
+      "case_type": "Abandonment",
+      "district": null,
+      "heading_printed": null,
+      "id": "2022-08-23-regular-ab-5-2022",
+      "item": 5,
+      "location": "Portion of Hogan Road",
+      "meeting_id": "2022-08-23-regular",
+      "note": null,
+      "number": "AB-5-2022",
+      "number_printed": "AB-5-2022",
+      "page": 9,
+      "prefix": "AB",
+      "proposed_use": "Abandonment",
+      "request": "Hogan Road",
+      "request_label": "Development",
+      "source_id": "src-2344846a4137",
+      "ward": null,
+      "ward_printed": null
+    },
+    {
       "acres": "27.47 +/-",
       "agenda_part": null,
       "agent": "Syd Hedrick",
@@ -4600,6 +4875,31 @@
       "source_id": "src-2c08677c8a5e",
       "ward": 11,
       "ward_printed": "11"
+    },
+    {
+      "acres": "84.28+/-",
+      "agenda_part": null,
+      "agent": null,
+      "applicant": "Maynard Family Co.",
+      "applicant_label": "Applicant",
+      "case_type": "City zoning",
+      "district": 12,
+      "heading_printed": null,
+      "id": "2022-09-27-regular-z-63-2022",
+      "item": 2,
+      "location": "A portion of a tract located east of Tobacco Rd., South of Nussbaumer Rd., north of the Little West Fork Creek.",
+      "meeting_id": "2022-09-27-regular",
+      "note": null,
+      "number": "Z-63-2022",
+      "number_printed": "Z-63-2022",
+      "page": 1,
+      "prefix": "Z",
+      "proposed_use": null,
+      "request": "R-1A Single-Family Residential District to R-2 Single-Family Residential District",
+      "request_label": "Request",
+      "source_id": "src-2c08677c8a5e",
+      "ward": 5,
+      "ward_printed": "5"
     },
     {
       "acres": "0.55 +/-",
@@ -6021,6 +6321,31 @@
       "prefix": "S",
       "proposed_use": null,
       "request": "Preliminary Plat Approval of RED RIVER RIDGE (CLUSTER)",
+      "request_label": "Request",
+      "source_id": "src-5765b1db38af",
+      "ward": null,
+      "ward_printed": null
+    },
+    {
+      "acres": "1.28 +/-",
+      "agenda_part": null,
+      "agent": null,
+      "applicant": "AVA HOMES LLC",
+      "applicant_label": "Applicant/owner",
+      "case_type": "Subdivision",
+      "district": null,
+      "heading_printed": null,
+      "id": "2022-11-22-regular-s-99-2022",
+      "item": 2,
+      "location": "North of Ashland City Road, east of and adjacent to Robert Street, south of and adjacent to Caldwell Lane.",
+      "meeting_id": "2022-11-22-regular",
+      "note": null,
+      "number": "S-99-2022",
+      "number_printed": "S-99-2022",
+      "page": 6,
+      "prefix": "S",
+      "proposed_use": null,
+      "request": "Preliminary Plat Approval of AVA HOMES CALDWELL LANE",
       "request_label": "Request",
       "source_id": "src-5765b1db38af",
       "ward": null,
@@ -8377,6 +8702,31 @@
       "ward_printed": "N/A"
     },
     {
+      "acres": null,
+      "agenda_part": null,
+      "agent": null,
+      "applicant": "Progress Properties",
+      "applicant_label": "Applicant/owner",
+      "case_type": "Subdivision variance",
+      "district": null,
+      "heading_printed": null,
+      "id": "2023-03-28-regular-v-1-2023",
+      "item": null,
+      "location": "South ofTiny Town Road, West of Outlaw Field, north of and adjacent to Scott Drive and Burch Road.",
+      "meeting_id": "2023-03-28-regular",
+      "note": null,
+      "number": "V-1-2023",
+      "number_printed": "V-1-2023",
+      "page": 6,
+      "prefix": "V",
+      "proposed_use": null,
+      "request": "The applicant is requesting a variance from the Subdivision Regulations. Section 4.1.9. Subsection 1. (portion of) and Table 4.1 \"The length of a cul-de-sac, measured from the centerline of the intersecting street, road or permanent easement to the center of the turnaround, shall not be shorter than 150 feet or longer than indicated in Table 4.1\" Table 4.1 indicates a maximum length of \"750 feet\". \"For cul-de-sacs 1,000 feet or longer a permanent intermediate turnaround located between at or near the midway point with a right-of-way radius of not less than fifty (50) feet and a pavement radius of not less than forty-five (45) feet.\" The request is to allow the Proposed Scott Drive extension to be approximately 1,091 feet in length and to not provide an intermediate turnaround.",
+      "request_label": "Variance request",
+      "source_id": "src-1b55fdfdaa53",
+      "ward": null,
+      "ward_printed": null
+    },
+    {
       "acres": "233.45 +/-",
       "agenda_part": null,
       "agent": null,
@@ -8825,6 +9175,56 @@
       "source_id": "src-c9fe943a9915",
       "ward": 6,
       "ward_printed": "6"
+    },
+    {
+      "acres": "0.79 +/-",
+      "agenda_part": null,
+      "agent": null,
+      "applicant": "Robert Meadows Stephen Tyler Dennis",
+      "applicant_label": "Applicant",
+      "case_type": "City zoning",
+      "district": 4,
+      "heading_printed": null,
+      "id": "2023-04-25-regular-z-24-2023",
+      "item": 5,
+      "location": "Three parcels fronting Everett Drive south of Hemlock Drive",
+      "meeting_id": "2023-04-25-regular",
+      "note": null,
+      "number": "Z-24-2023",
+      "number_printed": "Z-24-2023",
+      "page": 2,
+      "prefix": "Z",
+      "proposed_use": null,
+      "request": "R-1 Single-Family Residential District to R-6 Single-Family Residential District",
+      "request_label": "Request",
+      "source_id": "src-c9fe943a9915",
+      "ward": 7,
+      "ward_printed": "7"
+    },
+    {
+      "acres": "1.02 +/-",
+      "agenda_part": null,
+      "agent": null,
+      "applicant": "James Burchett",
+      "applicant_label": "Applicant",
+      "case_type": "City zoning",
+      "district": 2,
+      "heading_printed": null,
+      "id": "2023-04-25-regular-z-25-2023",
+      "item": 6,
+      "location": "A parcel fronting New South Drive approx. 465 feet south of Hwy 76",
+      "meeting_id": "2023-04-25-regular",
+      "note": null,
+      "number": "Z-25-2023",
+      "number_printed": "Z-25-2023",
+      "page": 2,
+      "prefix": "Z",
+      "proposed_use": null,
+      "request": "C-4 Highway Interchange District to C-2 General Commercial District",
+      "request_label": "Request",
+      "source_id": "src-c9fe943a9915",
+      "ward": 10,
+      "ward_printed": "10"
     },
     {
       "acres": "0.51 +/-",
@@ -10077,6 +10477,31 @@
       "ward_printed": "2"
     },
     {
+      "acres": "144.04 +/-",
+      "agenda_part": null,
+      "agent": "Benjamin Stanley",
+      "applicant": "Regional Planning Commission",
+      "applicant_label": "Applicant",
+      "case_type": "City zoning",
+      "district": 19,
+      "heading_printed": null,
+      "id": "2023-06-27-regular-zo-1-2023",
+      "item": 7,
+      "location": "Property fronting on the north frontage of Dunlop Lane, 2,800 +/- feet west of the Dunlop Ln. & Rollow Ln. intersection",
+      "meeting_id": "2023-06-27-regular",
+      "note": "DEFERRED",
+      "number": "ZO-1-2023",
+      "number_printed": "ZO-1-2023",
+      "page": 3,
+      "prefix": "ZO",
+      "proposed_use": null,
+      "request": "AG Agricultural District / R-4 Multiple-Family Residential District to M-2 General Industrial District",
+      "request_label": "Request",
+      "source_id": "src-83d63ec1507d",
+      "ward": null,
+      "ward_printed": "N/A"
+    },
+    {
       "acres": "21+/-",
       "agenda_part": null,
       "agent": "Clarksville Montgomery County IDB",
@@ -10927,6 +11352,31 @@
       "ward_printed": "6"
     },
     {
+      "acres": null,
+      "agenda_part": null,
+      "agent": null,
+      "applicant": "Regional Planning Commission",
+      "applicant_label": "Applicant",
+      "case_type": "City zoning",
+      "district": null,
+      "heading_printed": null,
+      "id": "2023-07-25-regular-zo-1-2023",
+      "item": 12,
+      "location": null,
+      "meeting_id": "2023-07-25-regular",
+      "note": null,
+      "number": "ZO-1-2023",
+      "number_printed": "ZO-1-2023",
+      "page": 4,
+      "prefix": "ZO",
+      "proposed_use": null,
+      "request": "Update R-3 zoning classification from the guidance in the Red River Neighborhood Plan.",
+      "request_label": "Reason for the request",
+      "source_id": "src-39d3d9034072",
+      "ward": null,
+      "ward_printed": null
+    },
+    {
       "acres": "144.04 +/-",
       "agenda_part": null,
       "agent": "Benjamin Stanley",
@@ -11071,6 +11521,31 @@
       "prefix": "S",
       "proposed_use": null,
       "request": "Revised Preliminary Plat Approval of TANDY HILLS",
+      "request_label": "Request",
+      "source_id": "src-39d3d9034072",
+      "ward": null,
+      "ward_printed": null
+    },
+    {
+      "acres": "18.93+/-",
+      "agenda_part": null,
+      "agent": null,
+      "applicant": "ROBERT CLARK C/O BILL MACE",
+      "applicant_label": "Applicant/owner",
+      "case_type": "Subdivision",
+      "district": null,
+      "heading_printed": null,
+      "id": "2023-07-25-regular-s-33-2023",
+      "item": 2,
+      "location": "South of the 101st Airborne Division Parkway, west of and adjacent to the current terminus of Merchants Boulevard.",
+      "meeting_id": "2023-07-25-regular",
+      "note": "DEFERRED",
+      "number": "S-33-2023",
+      "number_printed": "S-33-2023",
+      "page": 8,
+      "prefix": "S",
+      "proposed_use": null,
+      "request": "Revised Preliminary Plat Approval of MERCHANTS BOULEVARD AND PEDDLERS WAY RIGHT OF WAY DEDICATION",
       "request_label": "Request",
       "source_id": "src-39d3d9034072",
       "ward": null,
@@ -11902,6 +12377,31 @@
       "ward_printed": null
     },
     {
+      "acres": "0.58",
+      "agenda_part": null,
+      "agent": "Jeff Bryant",
+      "applicant": "Montgomery County Highway Department",
+      "applicant_label": "Applicant",
+      "case_type": "Abandonment",
+      "district": null,
+      "heading_printed": null,
+      "id": "2023-08-29-regular-ab-5-2023",
+      "item": null,
+      "location": "Portion of Heath Drive",
+      "meeting_id": "2023-08-29-regular",
+      "note": null,
+      "number": "AB-5-2023",
+      "number_printed": "AB-5-2023",
+      "page": 11,
+      "prefix": "AB",
+      "proposed_use": "ABANDONMENT",
+      "request": "Montgomery County Highway Department",
+      "request_label": "Development",
+      "source_id": "src-0d717dd0c70f",
+      "ward": null,
+      "ward_printed": null
+    },
+    {
       "acres": "83.59 +/-",
       "agenda_part": null,
       "agent": "Christian Innovation Enterprises",
@@ -12050,6 +12550,31 @@
       "source_id": "src-be0b54215502",
       "ward": 4,
       "ward_printed": "4"
+    },
+    {
+      "acres": "2.17 +/-",
+      "agenda_part": null,
+      "agent": null,
+      "applicant": "PTL LOGISTICS, ED NEELY, DBJ PARTNERSHIP",
+      "applicant_label": "Applicant/owner",
+      "case_type": "Subdivision variance",
+      "district": null,
+      "heading_printed": null,
+      "id": "2023-09-26-regular-v-5-2023",
+      "item": null,
+      "location": "South of and adjacent to Guthrie Highway, approximately 1,960 feet northeast of the intersection of Hampton Station Road and Guthrie Highway.",
+      "meeting_id": "2023-09-26-regular",
+      "note": null,
+      "number": "V-5-2023",
+      "number_printed": "V-5-2023",
+      "page": 4,
+      "prefix": "V",
+      "proposed_use": null,
+      "request": "Variance Request Approval of HAMPTON RIDGE DRIVE RIGHT OF WAY DEDICATION",
+      "request_label": "Request",
+      "source_id": "src-be0b54215502",
+      "ward": null,
+      "ward_printed": null
     },
     {
       "acres": "18.93+/-",
@@ -13977,6 +14502,31 @@
       "ward_printed": null
     },
     {
+      "acres": "0.126",
+      "agenda_part": null,
+      "agent": "Jerome Henderson",
+      "applicant": "City of Clarksville",
+      "applicant_label": "Applicant",
+      "case_type": "Abandonment",
+      "district": null,
+      "heading_printed": null,
+      "id": "2023-12-21-regular-ab-10-2023",
+      "item": null,
+      "location": "North of Marion St, South of Bailey St, and East of 8th St, West of Ford St",
+      "meeting_id": "2023-12-21-regular",
+      "note": null,
+      "number": "AB-10-2023",
+      "number_printed": "AB-10-2023",
+      "page": 7,
+      "prefix": "AB",
+      "proposed_use": "ABANDONMENT",
+      "request": "City of Clarksville Abandonment",
+      "request_label": "Development",
+      "source_id": "src-a79930ad0d8f",
+      "ward": null,
+      "ward_printed": null
+    },
+    {
       "acres": ".8 +/-",
       "agenda_part": "Regular agenda",
       "agent": null,
@@ -13995,7 +14545,7 @@
       "page": 1,
       "prefix": "Z",
       "proposed_use": null,
-      "request": "RM-1 - Single Family Mobile Home Residential District to R-3 - Three Family Residential District D",
+      "request": "RM-1 - Single Family Mobile Home Residential District to R-3 - Three Family Residential District",
       "request_label": "Request",
       "source_id": "src-bf80fd8db222",
       "ward": 3,
@@ -14045,7 +14595,7 @@
       "page": 2,
       "prefix": "Z",
       "proposed_use": null,
-      "request": "R-2 - Single Family Residential to R-6 - Single-Family Residential District AF",
+      "request": "R-2 - Single Family Residential to R-6 - Single-Family Residential District",
       "request_label": "Request",
       "source_id": "src-bf80fd8db222",
       "ward": 2,
@@ -14062,7 +14612,7 @@
       "heading_printed": "SUBDIVISION VARIANCE(S)",
       "id": "2024-07-23-regular-v-2-2024",
       "item": 4,
-      "location": "East of and adjacent to the terminus of Dyce Court, west of and adjacent to the terminus of Givens Lane. 5. T AF CASE NUMBER: V - 4 - 2024",
+      "location": "East of and adjacent to the terminus of Dyce Court, west of and adjacent to the terminus of Givens Lane.",
       "meeting_id": "2024-07-23-regular",
       "note": null,
       "number": "V-2-2024",
@@ -14071,6 +14621,31 @@
       "prefix": "V",
       "proposed_use": null,
       "request": "Table 4.1 Alley Right-of-way width is required to be 20 feet. The request is for the width to be 15’ for one way alley. Table 4.1 Alley pavement width is required to be 18 feet. The request is for the pavement to be 10’ for one way alley.",
+      "request_label": "Variance request",
+      "source_id": "src-bf80fd8db222",
+      "ward": null,
+      "ward_printed": null
+    },
+    {
+      "acres": null,
+      "agenda_part": "Regular agenda",
+      "agent": null,
+      "applicant": "Ligon Home Builders LLC",
+      "applicant_label": "Owner(s)",
+      "case_type": "Subdivision variance",
+      "district": null,
+      "heading_printed": "SUBDIVISION VARIANCE(S)",
+      "id": "2024-07-23-regular-v-4-2024",
+      "item": 5,
+      "location": "North of Needmore Road, south of and adjacent to the terminus of Ann Drive.",
+      "meeting_id": "2024-07-23-regular",
+      "note": null,
+      "number": "V-4-2024",
+      "number_printed": "V - 4 - 2024",
+      "page": 3,
+      "prefix": "V",
+      "proposed_use": null,
+      "request": "Section 4.1.2.1 “1. Connectivity – in order to provide for a road system that allows for the disbursement of trips and adequate emergency response, all public rights of way must provide for the following: A. Each subdivision shall continue all public streets and road stubbed to the boundary of the development plan by previously approved (built and unbuilt) active subdivisions.” The request is to allow no connection to Bell Rd.",
       "request_label": "Variance request",
       "source_id": "src-bf80fd8db222",
       "ward": null,
@@ -14100,6 +14675,31 @@
       "source_id": "src-bf80fd8db222",
       "ward": null,
       "ward_printed": null
+    },
+    {
+      "acres": ".54 +/-",
+      "agenda_part": "Regular agenda",
+      "agent": null,
+      "applicant": "Terrence Burney",
+      "applicant_label": "Owner(s)",
+      "case_type": "Subdivision",
+      "district": 21,
+      "heading_printed": "SUBDIVISION(S)",
+      "id": "2024-07-23-regular-s-20-2024",
+      "item": 7,
+      "location": "East of and adjacent to the terminus of Dyce Court, west of and adjacent to the terminus of Givens Lane.",
+      "meeting_id": "2024-07-23-regular",
+      "note": null,
+      "number": "S-20-2024",
+      "number_printed": "S - 20 - 2024",
+      "page": 4,
+      "prefix": "S",
+      "proposed_use": null,
+      "request": "Preliminary Plat Approval of Terrence Burney Property",
+      "request_label": "Request",
+      "source_id": "src-bf80fd8db222",
+      "ward": 6,
+      "ward_printed": "6"
     },
     {
       "acres": "10.82 +/-",
@@ -14145,7 +14745,7 @@
       "page": 5,
       "prefix": "S",
       "proposed_use": null,
-      "request": "Revised Preliminary Plat Approval of Autumnwood Farms Cluster AF",
+      "request": "Revised Preliminary Plat Approval of Autumnwood Farms Cluster",
       "request_label": "Request",
       "source_id": "src-bf80fd8db222",
       "ward": 8,
@@ -14202,7 +14802,7 @@
       "ward_printed": "1"
     },
     {
-      "acres": "8.24 +/- R",
+      "acres": "8.24 +/-",
       "agenda_part": "Consent agenda",
       "agent": null,
       "applicant": "Bill Mace",
@@ -14270,7 +14870,7 @@
       "page": 7,
       "prefix": "SR",
       "proposed_use": "Hotel",
-      "request": "Hilton Hotel - Clay Lewis Rd AF",
+      "request": "Hilton Hotel - Clay Lewis Rd",
       "request_label": "Development",
       "source_id": "src-bf80fd8db222",
       "ward": 11,
@@ -14327,7 +14927,7 @@
       "ward_printed": "6"
     },
     {
-      "acres": ".34 +/- R",
+      "acres": ".34 +/-",
       "agenda_part": "Consent agenda",
       "agent": null,
       "applicant": "A.J. Sanders , JR",
@@ -15800,6 +16400,31 @@
       "source_id": "src-71c9b020e493",
       "ward": 10,
       "ward_printed": "10"
+    },
+    {
+      "acres": "+/-: 2.46",
+      "agenda_part": "Regular agenda",
+      "agent": null,
+      "applicant": "Katherine Sharp & David Sharp",
+      "applicant_label": "Owner(s)",
+      "case_type": "County zoning",
+      "district": 3,
+      "heading_printed": "COUNTY ZONING",
+      "id": "2024-10-29-regular-cz-7-2024",
+      "item": 8,
+      "location": "South of US HWY 41-A South, North of Poplar Hill, South and adjacent to McAdoo Creek Road",
+      "meeting_id": "2024-10-29-regular",
+      "note": null,
+      "number": "CZ-7-2024",
+      "number_printed": "CZ - 07 - 2024",
+      "page": 3,
+      "prefix": "CZ",
+      "proposed_use": null,
+      "request": "O-1 - Office District to C-2 - General Commercial District",
+      "request_label": "Request",
+      "source_id": "src-71c9b020e493",
+      "ward": null,
+      "ward_printed": null
     },
     {
       "acres": null,
@@ -31512,7 +32137,9 @@
       "agenda_date": "2022-01-25",
       "agenda_source_id": "src-0e71298e1055",
       "cancelled": false,
-      "case_count": 12,
+      "case_count": 15,
+      "case_numbers_printed": 15,
+      "case_numbers_read": 15,
       "date": "2022-01-25",
       "documents": [
         {
@@ -31568,7 +32195,9 @@
       "agenda_date": "2022-02-22",
       "agenda_source_id": "src-4f907716dfb5",
       "cancelled": false,
-      "case_count": 20,
+      "case_count": 23,
+      "case_numbers_printed": 23,
+      "case_numbers_read": 23,
       "date": "2022-02-22",
       "documents": [
         {
@@ -31625,6 +32254,8 @@
       "agenda_source_id": "src-16e1f17e6465",
       "cancelled": false,
       "case_count": 30,
+      "case_numbers_printed": 30,
+      "case_numbers_read": 30,
       "date": "2022-03-29",
       "documents": [
         {
@@ -31681,6 +32312,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2022-04-25",
       "documents": [
         {
@@ -31711,7 +32344,9 @@
       "agenda_date": "2022-04-26",
       "agenda_source_id": "src-a70f5ef1e996",
       "cancelled": false,
-      "case_count": 26,
+      "case_count": 28,
+      "case_numbers_printed": 28,
+      "case_numbers_read": 28,
       "date": "2022-04-26",
       "documents": [
         {
@@ -31768,6 +32403,8 @@
       "agenda_source_id": "src-18d597d2b6a2",
       "cancelled": false,
       "case_count": 28,
+      "case_numbers_printed": 28,
+      "case_numbers_read": 28,
       "date": "2022-05-24",
       "documents": [
         {
@@ -31823,7 +32460,9 @@
       "agenda_date": "2022-06-28",
       "agenda_source_id": "src-77741d90f4a2",
       "cancelled": false,
-      "case_count": 22,
+      "case_count": 24,
+      "case_numbers_printed": 24,
+      "case_numbers_read": 24,
       "date": "2022-06-28",
       "documents": [
         {
@@ -31880,6 +32519,8 @@
       "agenda_source_id": "src-46b8d028588d",
       "cancelled": false,
       "case_count": 23,
+      "case_numbers_printed": 23,
+      "case_numbers_read": 23,
       "date": "2022-07-26",
       "documents": [
         {
@@ -31935,7 +32576,9 @@
       "agenda_date": "2022-08-23",
       "agenda_source_id": "src-2344846a4137",
       "cancelled": false,
-      "case_count": 22,
+      "case_count": 23,
+      "case_numbers_printed": 23,
+      "case_numbers_read": 23,
       "date": "2022-08-23",
       "documents": [
         {
@@ -31992,6 +32635,8 @@
       "agenda_source_id": "src-0763c94e5e6a",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2022-08-23",
       "documents": [
         {
@@ -32022,7 +32667,9 @@
       "agenda_date": "2022-09-27",
       "agenda_source_id": "src-2c08677c8a5e",
       "cancelled": false,
-      "case_count": 24,
+      "case_count": 25,
+      "case_numbers_printed": 25,
+      "case_numbers_read": 25,
       "date": "2022-09-27",
       "documents": [
         {
@@ -32079,6 +32726,8 @@
       "agenda_source_id": "src-5d992e297371",
       "cancelled": false,
       "case_count": 22,
+      "case_numbers_printed": 22,
+      "case_numbers_read": 22,
       "date": "2022-10-25",
       "documents": [
         {
@@ -32134,7 +32783,9 @@
       "agenda_date": "2022-11-22",
       "agenda_source_id": "src-5765b1db38af",
       "cancelled": false,
-      "case_count": 23,
+      "case_count": 24,
+      "case_numbers_printed": 24,
+      "case_numbers_read": 24,
       "date": "2022-11-22",
       "documents": [
         {
@@ -32191,6 +32842,8 @@
       "agenda_source_id": "src-225f575456b8",
       "cancelled": false,
       "case_count": 31,
+      "case_numbers_printed": 31,
+      "case_numbers_read": 31,
       "date": "2022-12-27",
       "documents": [
         {
@@ -32247,6 +32900,8 @@
       "agenda_source_id": "src-3e2c0fb1abe2",
       "cancelled": false,
       "case_count": 17,
+      "case_numbers_printed": 17,
+      "case_numbers_read": 17,
       "date": "2023-01-24",
       "documents": [
         {
@@ -32303,6 +32958,8 @@
       "agenda_source_id": "src-f76e9c55f252",
       "cancelled": false,
       "case_count": 24,
+      "case_numbers_printed": 24,
+      "case_numbers_read": 24,
       "date": "2023-02-21",
       "documents": [
         {
@@ -32358,7 +33015,9 @@
       "agenda_date": "2023-03-28",
       "agenda_source_id": "src-1b55fdfdaa53",
       "cancelled": false,
-      "case_count": 25,
+      "case_count": 26,
+      "case_numbers_printed": 26,
+      "case_numbers_read": 26,
       "date": "2023-03-28",
       "documents": [
         {
@@ -32415,6 +33074,8 @@
       "agenda_source_id": "src-f8a881558582",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2023-04-11",
       "documents": [
         {
@@ -32445,7 +33106,9 @@
       "agenda_date": "2023-04-25",
       "agenda_source_id": "src-c9fe943a9915",
       "cancelled": false,
-      "case_count": 17,
+      "case_count": 19,
+      "case_numbers_printed": 19,
+      "case_numbers_read": 19,
       "date": "2023-04-25",
       "documents": [
         {
@@ -32502,6 +33165,8 @@
       "agenda_source_id": "src-8d53ec5be6a0",
       "cancelled": false,
       "case_count": 31,
+      "case_numbers_printed": 31,
+      "case_numbers_read": 31,
       "date": "2023-05-23",
       "documents": [
         {
@@ -32557,7 +33222,9 @@
       "agenda_date": "2023-06-27",
       "agenda_source_id": "src-83d63ec1507d",
       "cancelled": false,
-      "case_count": 29,
+      "case_count": 30,
+      "case_numbers_printed": 30,
+      "case_numbers_read": 30,
       "date": "2023-06-27",
       "documents": [
         {
@@ -32613,7 +33280,9 @@
       "agenda_date": "2023-07-25",
       "agenda_source_id": "src-39d3d9034072",
       "cancelled": false,
-      "case_count": 23,
+      "case_count": 25,
+      "case_numbers_printed": 25,
+      "case_numbers_read": 25,
       "date": "2023-07-25",
       "documents": [
         {
@@ -32669,7 +33338,9 @@
       "agenda_date": "2023-08-29",
       "agenda_source_id": "src-0d717dd0c70f",
       "cancelled": false,
-      "case_count": 27,
+      "case_count": 28,
+      "case_numbers_printed": 28,
+      "case_numbers_read": 28,
       "date": "2023-08-29",
       "documents": [
         {
@@ -32725,7 +33396,9 @@
       "agenda_date": "2023-09-26",
       "agenda_source_id": "src-be0b54215502",
       "cancelled": false,
-      "case_count": 16,
+      "case_count": 17,
+      "case_numbers_printed": 17,
+      "case_numbers_read": 17,
       "date": "2023-09-26",
       "documents": [
         {
@@ -32790,6 +33463,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2023-10-13",
       "documents": [
         {
@@ -32813,6 +33488,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2023-10-23",
       "documents": [
         {
@@ -32838,6 +33515,8 @@
       "agenda_source_id": "src-74ddaec6f689",
       "cancelled": false,
       "case_count": 24,
+      "case_numbers_printed": 24,
+      "case_numbers_read": 24,
       "date": "2023-10-24",
       "documents": [
         {
@@ -32894,6 +33573,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2023-11-20",
       "documents": [
         {
@@ -32925,6 +33606,8 @@
       "agenda_source_id": "src-6200266ea532",
       "cancelled": false,
       "case_count": 25,
+      "case_numbers_printed": 25,
+      "case_numbers_read": 25,
       "date": "2023-11-28",
       "documents": [
         {
@@ -32980,7 +33663,9 @@
       "agenda_date": "2023-12-21",
       "agenda_source_id": "src-a79930ad0d8f",
       "cancelled": false,
-      "case_count": 18,
+      "case_count": 19,
+      "case_numbers_printed": 19,
+      "case_numbers_read": 19,
       "date": "2023-12-21",
       "documents": [
         {
@@ -33037,6 +33722,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2024-01-23",
       "documents": [
         {
@@ -33068,6 +33755,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2024-02-26",
       "documents": [
         {
@@ -33099,6 +33788,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2024-02-27",
       "documents": [
         {
@@ -33130,6 +33821,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2024-03-25",
       "documents": [
         {
@@ -33161,6 +33854,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2024-03-26",
       "documents": [
         {
@@ -33192,6 +33887,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2024-04-18",
       "documents": [
         {
@@ -33217,6 +33914,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2024-04-22",
       "documents": [
         {
@@ -33248,6 +33947,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2024-04-23",
       "documents": [
         {
@@ -33279,6 +33980,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2024-05-20",
       "documents": [
         {
@@ -33310,6 +34013,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2024-05-28",
       "documents": [
         {
@@ -33341,6 +34046,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2024-06-25",
       "documents": [
         {
@@ -33371,7 +34078,9 @@
       "agenda_date": "2024-07-23",
       "agenda_source_id": "src-bf80fd8db222",
       "cancelled": false,
-      "case_count": 16,
+      "case_count": 18,
+      "case_numbers_printed": 18,
+      "case_numbers_read": 18,
       "date": "2024-07-23",
       "documents": [
         {
@@ -33428,6 +34137,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2024-08-13",
       "documents": [
         {
@@ -33459,6 +34170,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2024-08-19",
       "documents": [
         {
@@ -33490,6 +34203,8 @@
       "agenda_source_id": "src-f6db89c387bb",
       "cancelled": false,
       "case_count": 28,
+      "case_numbers_printed": 28,
+      "case_numbers_read": 28,
       "date": "2024-08-27",
       "documents": [
         {
@@ -33546,6 +34261,8 @@
       "agenda_source_id": "src-0b9992753370",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2024-09-23",
       "documents": [
         {
@@ -33577,6 +34294,8 @@
       "agenda_source_id": "src-3bb6df827d6b",
       "cancelled": false,
       "case_count": 22,
+      "case_numbers_printed": 22,
+      "case_numbers_read": 22,
       "date": "2024-09-24",
       "documents": [
         {
@@ -33632,7 +34351,9 @@
       "agenda_date": "2024-10-29",
       "agenda_source_id": "src-71c9b020e493",
       "cancelled": false,
-      "case_count": 22,
+      "case_count": 23,
+      "case_numbers_printed": 23,
+      "case_numbers_read": 23,
       "date": "2024-10-29",
       "documents": [
         {
@@ -33689,6 +34410,8 @@
       "agenda_source_id": "src-cf17ca340d47",
       "cancelled": false,
       "case_count": 17,
+      "case_numbers_printed": 17,
+      "case_numbers_read": 17,
       "date": "2024-11-26",
       "documents": [
         {
@@ -33745,6 +34468,8 @@
       "agenda_source_id": "src-7c35db56d52e",
       "cancelled": false,
       "case_count": 25,
+      "case_numbers_printed": 25,
+      "case_numbers_read": 25,
       "date": "2024-12-20",
       "documents": [
         {
@@ -33801,6 +34526,8 @@
       "agenda_source_id": "src-b41404e2be4a",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2025-01-27",
       "documents": [
         {
@@ -33832,6 +34559,8 @@
       "agenda_source_id": "src-86a0b336d417",
       "cancelled": false,
       "case_count": 21,
+      "case_numbers_printed": 21,
+      "case_numbers_read": 21,
       "date": "2025-01-28",
       "documents": [
         {
@@ -33888,6 +34617,8 @@
       "agenda_source_id": "src-6dabec6c00e7",
       "cancelled": false,
       "case_count": 4,
+      "case_numbers_printed": 4,
+      "case_numbers_read": 4,
       "date": "2025-02-24",
       "documents": [
         {
@@ -33919,6 +34650,8 @@
       "agenda_source_id": "src-dafbb44be415",
       "cancelled": false,
       "case_count": 37,
+      "case_numbers_printed": 37,
+      "case_numbers_read": 37,
       "date": "2025-02-25",
       "documents": [
         {
@@ -33975,6 +34708,8 @@
       "agenda_source_id": "src-8461d93462ee",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2025-03-24",
       "documents": [
         {
@@ -34006,6 +34741,8 @@
       "agenda_source_id": "src-3af5e7ce3dfe",
       "cancelled": false,
       "case_count": 32,
+      "case_numbers_printed": 32,
+      "case_numbers_read": 32,
       "date": "2025-03-25",
       "documents": [
         {
@@ -34062,6 +34799,8 @@
       "agenda_source_id": "src-f1d2012a956a",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2025-04-11",
       "documents": [
         {
@@ -34093,6 +34832,8 @@
       "agenda_source_id": "src-fe1c992fede7",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2025-04-21",
       "documents": [
         {
@@ -34124,6 +34865,8 @@
       "agenda_source_id": "src-698f92b3d754",
       "cancelled": false,
       "case_count": 27,
+      "case_numbers_printed": 27,
+      "case_numbers_read": 27,
       "date": "2025-04-22",
       "documents": [
         {
@@ -34180,6 +34923,8 @@
       "agenda_source_id": "src-2ae13c78d4a0",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2025-05-19",
       "documents": [
         {
@@ -34211,6 +34956,8 @@
       "agenda_source_id": "src-588083254649",
       "cancelled": false,
       "case_count": 31,
+      "case_numbers_printed": 31,
+      "case_numbers_read": 31,
       "date": "2025-05-27",
       "documents": [
         {
@@ -34267,6 +35014,8 @@
       "agenda_source_id": "src-a9131596caea",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2025-06-23",
       "documents": [
         {
@@ -34298,6 +35047,8 @@
       "agenda_source_id": "src-93d909b6bd09",
       "cancelled": false,
       "case_count": 25,
+      "case_numbers_printed": 25,
+      "case_numbers_read": 25,
       "date": "2025-06-24",
       "documents": [
         {
@@ -34354,6 +35105,8 @@
       "agenda_source_id": "src-4ea48bc26ab1",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2025-07-28",
       "documents": [
         {
@@ -34385,6 +35138,8 @@
       "agenda_source_id": "src-1ea49cb2a057",
       "cancelled": false,
       "case_count": 22,
+      "case_numbers_printed": 22,
+      "case_numbers_read": 22,
       "date": "2025-07-29",
       "documents": [
         {
@@ -34441,6 +35196,8 @@
       "agenda_source_id": "src-bc5751192d96",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2025-08-25",
       "documents": [
         {
@@ -34472,6 +35229,8 @@
       "agenda_source_id": "src-0a92840ba757",
       "cancelled": false,
       "case_count": 22,
+      "case_numbers_printed": 22,
+      "case_numbers_read": 22,
       "date": "2025-08-26",
       "documents": [
         {
@@ -34528,6 +35287,8 @@
       "agenda_source_id": "src-873b56f033dc",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2025-09-22",
       "documents": [
         {
@@ -34559,6 +35320,8 @@
       "agenda_source_id": "src-00227900ae1a",
       "cancelled": false,
       "case_count": 20,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2025-09-23",
       "documents": [
         {
@@ -34615,6 +35378,8 @@
       "agenda_source_id": "src-0c40ff0e54b1",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2025-10-27",
       "documents": [
         {
@@ -34646,6 +35411,8 @@
       "agenda_source_id": "src-7e95cf6d0f8f",
       "cancelled": false,
       "case_count": 29,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2025-10-28",
       "documents": [
         {
@@ -34702,6 +35469,8 @@
       "agenda_source_id": "src-b1c1b699fc7e",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2025-11-24",
       "documents": [
         {
@@ -34733,6 +35502,8 @@
       "agenda_source_id": "src-8f1cef84dccc",
       "cancelled": false,
       "case_count": 22,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2025-11-25",
       "documents": [
         {
@@ -34789,6 +35560,8 @@
       "agenda_source_id": "src-9867a9bc53ee",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2025-12-15",
       "documents": [
         {
@@ -34820,6 +35593,8 @@
       "agenda_source_id": "src-f97755cea0f3",
       "cancelled": false,
       "case_count": 20,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2025-12-19",
       "documents": [
         {
@@ -34876,6 +35651,8 @@
       "agenda_source_id": "src-a5416c681628",
       "cancelled": true,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2026-01-26",
       "documents": [
         {
@@ -34899,6 +35676,8 @@
       "agenda_source_id": "src-4c78b1361a9e",
       "cancelled": true,
       "case_count": 19,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2026-01-27",
       "documents": [
         {
@@ -34947,6 +35726,8 @@
       "agenda_source_id": "src-ca8d6275881e",
       "cancelled": false,
       "case_count": 1,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2026-02-06",
       "documents": [
         {
@@ -34978,6 +35759,8 @@
       "agenda_source_id": "src-ca3fc0ffeaa4",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2026-02-23",
       "documents": [
         {
@@ -35009,6 +35792,8 @@
       "agenda_source_id": "src-68bb67f67f80",
       "cancelled": false,
       "case_count": 39,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2026-02-24",
       "documents": [
         {
@@ -35065,6 +35850,8 @@
       "agenda_source_id": "src-354330400e56",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2026-03-23",
       "documents": [
         {
@@ -35096,6 +35883,8 @@
       "agenda_source_id": "src-9d764b457ee7",
       "cancelled": false,
       "case_count": 20,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2026-03-24",
       "documents": [
         {
@@ -35152,6 +35941,8 @@
       "agenda_source_id": "src-9124e70387eb",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2026-04-27",
       "documents": [
         {
@@ -35183,6 +35974,8 @@
       "agenda_source_id": "src-1afc497974c2",
       "cancelled": false,
       "case_count": 31,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2026-04-28",
       "documents": [
         {
@@ -35239,6 +36032,8 @@
       "agenda_source_id": null,
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2026-05-12",
       "documents": [
         {
@@ -35264,6 +36059,8 @@
       "agenda_source_id": "src-ece3fceb5602",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2026-05-18",
       "documents": [
         {
@@ -35295,6 +36092,8 @@
       "agenda_source_id": "src-414c3c089f64",
       "cancelled": false,
       "case_count": 26,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2026-05-26",
       "documents": [
         {
@@ -35351,6 +36150,8 @@
       "agenda_source_id": "src-925e26bcb6b8",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2026-06-22",
       "documents": [
         {
@@ -35382,6 +36183,8 @@
       "agenda_source_id": "src-a03dd9bab9e0",
       "cancelled": false,
       "case_count": 30,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2026-06-23",
       "documents": [
         {
@@ -35438,6 +36241,8 @@
       "agenda_source_id": "src-6c720bf03ef5",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2026-07-27",
       "documents": [
         {
@@ -35469,6 +36274,8 @@
       "agenda_source_id": "src-73e2951a2846",
       "cancelled": false,
       "case_count": 28,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2026-07-28",
       "documents": [
         {
@@ -35525,6 +36332,8 @@
       "agenda_source_id": "src-b1683024ff71",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2026-08-24",
       "documents": [
         {
@@ -35556,6 +36365,8 @@
       "agenda_source_id": "src-d46d7846a690",
       "cancelled": false,
       "case_count": 17,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2026-08-25",
       "documents": [
         {
@@ -35612,6 +36423,8 @@
       "agenda_source_id": "src-34c42074c07c",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2026-09-21",
       "documents": [
         {
@@ -35643,6 +36456,8 @@
       "agenda_source_id": "src-ca4990496433",
       "cancelled": false,
       "case_count": 21,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2026-09-22",
       "documents": [
         {
@@ -35699,6 +36514,8 @@
       "agenda_source_id": "src-293b1ca29ea0",
       "cancelled": false,
       "case_count": 0,
+      "case_numbers_printed": null,
+      "case_numbers_read": null,
       "date": "2026-10-26",
       "documents": [
         {
@@ -35724,6 +36541,8 @@
       "agenda_source_id": "src-4796064a0840",
       "cancelled": false,
       "case_count": 27,
+      "case_numbers_printed": 0,
+      "case_numbers_read": 0,
       "date": "2026-10-27",
       "documents": [
         {
