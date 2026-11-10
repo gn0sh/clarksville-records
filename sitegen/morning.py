@@ -595,6 +595,7 @@ def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None 
     if backfill:
         entries, unplaced = [], 0
     u = unofficial.load(cfg if "unofficial" in cfg else None)
+    support_on = cfg.get("support_enabled") is True and bool(cfg.get("support_url"))
     return {"schema": SCHEMA, "date": d.isoformat(),
             "window": {"from": _stamp(start), "to": _stamp(end)}, "data_as_of": data_as_of,
             "lists": [{"key": x["key"], "label": x["label"]} for x in mn["lists"]],
@@ -604,8 +605,8 @@ def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None 
             # the mail sender prints these in every note's text and footer (unofficial/notice-on-every-page)
             "notice": u["notice"], "email_line": u["email_line"],
             # the ask for support, printed in the footer when the support link is on (Brian, 2026-11-10)
-            "support_line": (cfg.get("support_line") or "") if cfg.get("support_enabled") is True and cfg.get("support_url") else "",
-            "support_url": cfg.get("support_url") or "" if cfg.get("support_enabled") is True else ""}
+            "support_line": (cfg.get("support_line") or "") if support_on else "",
+            "support_url": (cfg.get("support_url") or "") if support_on else ""}
 
 
 def unplaced_text(n: int, cfg: dict | None = None) -> str:

@@ -322,3 +322,12 @@ def test_a_bare_address_in_a_title_is_not_left_for_the_mail_client_to_link(title
     assert not re.search(r"(?i)www\.|[a-z]+://", shown)
     assert shown.replace("\u200b", "") == title and "&#8203;" in strong
     assert links(html) == [SITE_URL + "items/2026.html#i-x", "https://example.com/fixture/agenda.pdf#page=2"]
+
+
+@pytest.mark.parametrize("on, url, want", [(True, "https://tips.example.com/", True),
+                                           (False, "https://tips.example.com/", False), (True, "", False)])
+def test_the_note_carries_the_support_link_only_while_support_is_on(on, url, want):
+    """The note's support line and link follow support_enabled and need a URL (kept through the E501 rewrite)."""
+    cfg = {**config.SITE, "support_enabled": on, "support_url": url}
+    n = morning.day(D, [], {}, cfg)
+    assert (bool(n["support_line"]), n["support_url"]) == (want, url if want else "")
