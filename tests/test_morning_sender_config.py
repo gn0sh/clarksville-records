@@ -183,7 +183,6 @@ PAGE = "  page:\n"
     (BASE[-20:], BASE[-20:] + "morning_note:\n  sender:\n    enabled: true\n"),   # a second morning_note
     (BASE[-20:], BASE[-20:] + "\"morning_note\":\n  sender:\n    enabled: true\n"),
     (BASE[-20:], BASE[-20:] + "? morning_note\n: {sender: {enabled: true}}\n"),
-    ("morning_note:\n", "morning_note: &m\n"),
     ("    max_recipients: 2000", "    max_recipients: 0100"),                     # PyYAML reads 64
     ("    max_recipients: 2000", "    max_recipients: 1_000"), ("    max_recipients: 2000", "    max_recipients: 0x10"),
     ("    max_recipients: 2000", "    max_recipients: 2000.0"), ("    max_recipients: 2000", "    max_recipients: +2000"),
@@ -194,8 +193,8 @@ PAGE = "  page:\n"
     ("    send_at: \"07:00\"", "    send_at: \"07:\\x30\""),                     # an escape PyYAML would expand
     ("    latest_send: '10:00'", "    latest_send: '10:''00'"),
     ("    enabled: false\n", "    enabled: false\x0b    enabled: true\n"),          # VT: a line break to splitlines()
-    ("    enabled: false\n", "    enabled: false\x1c\n"), ("    enabled: false\n", "    enabled: false\x85\n"),
-    ("    enabled: false\n", "    enabled: false\u2028\n"), ("    enabled: false\n", "    enabled: false\r    enabled: true\n"),
+    ("    enabled: false\n", "    enabled: false\x1c\n"),
+    ("    enabled: false\n", "    enabled: false\r    enabled: true\n"),
     ("    enabled: false\n", "    enabled: false\u200b\n"),
     ("    enabled: false\n    provider", "    enabled: false\n     canary_only: false\n    provider"),   # deeper: continues a value
     ("    provider: buttondown", "   provider: buttondown"),                       # an indent no sibling has
@@ -205,11 +204,75 @@ PAGE = "  page:\n"
     ("  lists:\n    - {key: zoning, label: Zoning}", "  lists:\n    - {key: zoning,\n  sender: x}"),
     ("site_timezone: America/Chicago   # a comment", "site_timezone: America/Chicago\nsite_timezone: Europe/Paris"),
     ("site_timezone: America/Chicago   # a comment", "site_timezone:\n  x: 1")])
-def test_a_line_the_reader_does_not_understand_is_an_error(old, new):
+def test_a_file_the_two_readers_could_read_differently_is_refused(old, new):
+    """Refused means: the deliver reader raises, or PyYAML cannot load it (the site cannot build at all), or
+    parity() names a difference (the build and the plan fail)."""
+    assert old in BASE
+    assert refused(BASE.replace(old, new, 1))
+
+
+def refused(text: str) -> bool:
+    try:
+        settings_mod.parse(text)
+    except settings_mod.SettingsError:
+        return True
+    try:
+        loaded = yaml.safe_load(text)
+    except yaml.YAMLError:
+        return True
+    return bool(settings_mod.parity(text, loaded))
+
+
+# The sender block and the three top-level keys stay strict: the reader itself refuses these, whatever PyYAML says.
+@pytest.mark.parametrize("old, new", [
+    (SENDER_END, SENDER_END + "    \"enabled\": true\n"), (SENDER_END, SENDER_END + "    enabled : true\n"),
+    (SENDER_END, SENDER_END + "    ? canary_only\n    : false\n"), (SENDER_END, SENDER_END + "    <<: {canary_only: false}\n"),
+    (SENDER_END, SENDER_END + "    - enabled: true\n"), (PAGE, "  sender: {enabled: true}\n" + PAGE),
+    (PAGE, "  sender:\n    enabled: true\n" + PAGE), ("  sender:\n    enabled: false", "  sender: &s\n    enabled: false"),
+    ("    max_recipients: 2000", "    max_recipients: 0100"), ("    send_at: \"07:00\"", "    send_at: 07:00"),
+    ("    provider: buttondown", "    provider: yes"), ("    enabled: false\n", "    enabled: false\u200b\n"),
+    ("    enabled: false\n", "    enabled: false\x0b    enabled: true\n"),
+    ("    enabled: false\n    provider", "    enabled: false\n     canary_only: false\n    provider"),
+    ("    provider: buttondown", "   provider: buttondown"), ("    send_at: \"07:00\"", "    send_at: \"07:00\n      \""),
+    ("    enabled: false\n", "    enabled: false\n    enabled: true\n"),
+    ("site_timezone: America/Chicago   # a comment", "site_timezone: America/Chicago\nsite_timezone: Europe/Paris"),
+    ("district_count: 21", "district_count: 021"), ("district_count: 21", "district_count: 21\u200b")])
+def test_the_sender_block_and_its_top_level_keys_stay_strict(old, new):
+    assert old in BASE
+    with pytest.raises(settings_mod.SettingsError):
+        settings_mod.parse(BASE.replace(old, new, 1))
+
+
+# settings-parity/too-strict-daily-outage: valid YAML outside the sender block (and its folded text) must never stop
+# the daily build. Each reads the same in both readers.
+@pytest.mark.parametrize("old, new", [
+    ("  page:\n    enabled: true", "  page:\n    about: >-\n      folded text\n      over two lines\n    enabled: true"),
+    ("  page:\n    enabled: true", "  page:\n    about: a plain value\n      continued here\n    enabled: true"),
+    ("  page:\n    enabled: true", "  page:\n    heading: \"a quoted value\n      over two lines\"\n    enabled: true"),
+    ("  page:\n    enabled: true", "  page:\n    \"quoted-key\": x\n    hyphen-key: y\n    enabled: true"),
+    ("  lists:\n    - {key: zoning, label: Zoning}", "  lists:\n  - {key: zoning, label: Zoning}"),
+    ("other:\n", "flow: {a: 1,\n  b: 2}\nother:\n"),
+    ("      subject: \"{site_name} morning note, {date}\"", "      subject: \"{site_name} morning note, {date}\"\n      why: >-\n        You get\n        this note."),
+    ("  page:\n", "  # a comment with a zero\u200bwidth space and a \u200d joiner\n  page:\n"),
+    ("site_timezone: America/Chicago   # a comment", "# top comment \u200b\nsite_timezone: America/Chicago   # a comment"),
+    ("    enabled: true\n    mode: ids", "    enabled: true\n    label: \"Zoning\u200dnear me\"\n    mode: ids"),
+    ("    enabled: false\n", "    enabled: false\u2028"), ("    enabled: false\n", "    enabled: false\x85")])
+def test_valid_yaml_outside_the_sender_values_is_accepted(old, new):
     assert old in BASE
     text = BASE.replace(old, new, 1)
-    with pytest.raises(settings_mod.SettingsError):
-        settings_mod.parse(text)
+    loaded = yaml.safe_load(text)
+    assert settings_mod.parity(text, loaded) == [], settings_mod.parity(text, loaded)
+    assert settings_mod.from_values(**settings_mod.parse(text)).mode == "stamp"
+
+
+@pytest.mark.parametrize("change", [
+    lambda s: s.replace("  page:\n", "  page:\n    folded: >-\n      some folded\n      text\n", 1),
+    lambda s: s.replace("  page:\n", "  # zero\u200bwidth in a comment\n  page:\n", 1),
+    lambda s: "\ufeff" + s])
+def test_the_build_check_accepts_valid_yaml_elsewhere_in_the_shipped_file(tmp_path, change):
+    path = tmp_path / "site.yml"
+    path.write_text(change(SITE_YML.read_text(encoding="utf-8")), encoding="utf-8")
+    assert morning.reader_problems(path) == []
 
 
 def test_line_endings_and_a_byte_order_mark_read_the_same():

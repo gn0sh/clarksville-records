@@ -3,9 +3,9 @@
 The deliver job holds the mail key, so it installs nothing (no PyYAML) and imports no `sitegen`. It also must not
 take its limits from the plan file, which comes from the job that parses untrusted PDFs: `enabled`, `canary_only`,
 `max_recipients`, `mode` and `api_base` are read here, from the checked-out repository. This reader understands
-only what it needs: top-level `key:` lines and the `morning_note:` block, line by line (parse()). Anything it
-cannot read as exactly that is an error, never a guess or a skipped line. parity() compares it with PyYAML, and the
-site build and `python -m sender plan` fail on any difference, so the commit the deliver job reads has passed it.
+only what it needs: three top-level keys and the `morning_note:` -> `sender:` block (parse()), and is strict only
+there; the rest of the file may be any YAML. parity() compares it with PyYAML, and the site build and
+`python -m sender plan` fail on any difference, so the commit the deliver job reads has passed it.
 """
 from __future__ import annotations
 
@@ -20,11 +20,11 @@ SCALARS = ("enabled", "provider", "api_base", "mode", "send_at", "latest_send", 
            "canary_only")
 _TOP = ("site_timezone", "district_count", "ward_count")
 _LINE = re.compile(r"( *)([A-Za-z_][A-Za-z0-9_]*):(?: +(.*))?")
-_ITEM = re.compile(r"( *)-(?: +(.*))?")
 _INT = re.compile(r"0|[1-9][0-9]*")                    # no leading zero: PyYAML reads 0100 as octal 64
 _PLAIN = re.compile(r"[A-Za-z][A-Za-z0-9_./:~-]*")     # a word or URL; no space, no ": ", nothing PyYAML resolves
 _YAML_WORDS = {"yes", "no", "on", "off", "true", "false", "null", "y", "n"}
 _BAD_CATEGORIES = {"Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"}
+_BREAKS = re.compile("\r\n|[\r\n\x85\u2028\u2029]")
 # settings/api-base-host: the one host each provider's key may be sent to, fixed here rather than read from config
 PROVIDER_HOSTS = {"buttondown": "api.buttondown.com"}
 _API_BASE = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~/-]*)?")
@@ -94,91 +94,111 @@ def _scalar(raw: str | None):
 
 
 def _lines(text: str) -> list[str]:
-    """The file's lines as PyYAML splits them. A control or format character (VT, FS, NEL, U+2028, a lone CR, a
-    zero-width space) splits or hides a line differently in different readers, so any of them is an error."""
-    text = text[1:] if text.startswith("﻿") else text
-    text = text.replace("\r\n", "\n")
-    for c in text:
-        if c not in "\t\n" and unicodedata.category(c) in _BAD_CATEGORIES:
-            raise SettingsError(f"the file has a control or format character (U+{ord(c):04X})")
-    return text.split("\n")
+    """The file's lines, split where PyYAML splits them: CR LF, LF, CR, NEL, U+2028, U+2029 (not VT, FF or FS, which
+    str.splitlines() also splits on). A leading byte order mark is dropped, as PyYAML drops it."""
+    text = text[1:] if text.startswith("\ufeff") else text
+    return _BREAKS.split(text)
+
+
+def _strict(n: int, line: str) -> None:
+    """A line this reader takes a value from: no control or format character (one could hide a line or a key)."""
+    for c in line:
+        if c != "\t" and unicodedata.category(c) in _BAD_CATEGORIES:
+            raise SettingsError(f"line {n}: a control or format character (U+{ord(c):04X}) in a line the deliver "
+                                f"stage reads")
+
+
+def _indent(line: str) -> int:
+    return len(line) - len(line.lstrip(" "))
 
 
 def parse(text: str) -> dict:
     """{"top": {key: value}, "sender": {key: value}} from the file's text.
 
-    Every top-level line must be a plain `key:` line, each key once. Inside `morning_note:` every line must be a
-    `key: value`, `key:` or `- item` line, nested the way PyYAML nests it (a deeper line only under a `key:` with no
-    value, siblings at one indent, no key twice in one block), with each value on its own line. Anything else is an
-    error, never a skipped line, so the file cannot say one thing to PyYAML and another to this reader. The build and
-    `python -m sender plan` also compare the two readers (parity()), so a file that slips past this fails there."""
+    Strict only where it reads (settings-parity/too-strict-daily-outage): the three top-level keys it needs, and the
+    `morning_note:` -> `sender:` block, whose direct lines must each be one plain `key: value` (or a `key:` with a
+    sub-block, such as `text:`, which is not read), at one indent, each key once, with no line continuing a value.
+    Everywhere else any valid YAML is accepted unread, apart from two checks: no top-level key twice and no second
+    `sender:` under `morning_note:`. parity() then compares the values with PyYAML's, and the site build and
+    `python -m sender plan` fail on any difference, so the commit the deliver job reads has passed it."""
     top, sender = {}, {}
     seen_top: set[str] = set()
-    stack: list[list] = []      # inside morning_note: [indent, key or "-", has_value, {child keys}]
     in_mn = False
+    mn_child = None         # the indent of morning_note's direct keys
+    seen_sender = False
+    sender_at = None        # the indent of `sender:` while inside its block
+    child = None            # the indent of sender's direct keys
+    sub = None              # inside sender: the indent of a direct key with a sub-block (text:), whose lines are not read
+    seen_child: set[str] = set()
     for n, line in enumerate(_lines(text), 1):
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
-        indent = len(line) - len(line.lstrip(" "))
-        if indent == 0:
+        indent = _indent(line)
+        if indent == 0 and not line.startswith("\t"):
+            sender_at = None
             m = _LINE.fullmatch(line.rstrip())
             if m is None:
-                raise SettingsError(f"line {n}: a top-level line must be a plain `key:` line")
+                in_mn = False   # a top-level line this reader does not read (a quoted key, a flow mapping's rest)
+                continue
             key, raw = m.group(2), (m.group(3) or "").strip()
-            has_value = bool(raw) and not raw.startswith("#")
             if key in seen_top:
                 raise SettingsError(f"line {n}: {key} is set twice")
             seen_top.add(key)
-            if has_value and not _closed(raw):
-                raise SettingsError(f"line {n}: the value of {key} runs past its line")
-            in_mn = key == "morning_note"
-            if in_mn and has_value:
-                raise SettingsError(f"line {n}: morning_note must be a block of `key:` lines")
+            in_mn, mn_child = key == "morning_note", None
             if key in _TOP:
-                if not has_value:
+                _strict(n, line)
+                if not raw or raw.startswith("#"):
                     raise SettingsError(f"line {n}: {key} must be one plain value")
                 top[key] = _scalar(raw)
-            stack = [[0, key, has_value, set()]]
             continue
         if not in_mn:
-            continue            # another top-level block: not read
+            continue
+        if sender_at is not None:
+            if indent > sender_at:
+                if child is None:
+                    child = indent
+                if sub is not None and indent > sub:
+                    continue                    # inside a sub-block of sender (text:): not read
+                sub = None
+                if indent != child:
+                    raise SettingsError(f"line {n}: inside morning_note.sender, a line at an indent no key has, "
+                                        f"or one that continues a value")
+                _strict(n, line)
+                m = _LINE.fullmatch(line.rstrip())
+                if m is None:
+                    raise SettingsError(f"line {n}: inside morning_note.sender, a line that is not one plain "
+                                        f"`key: value`")
+                key, raw = m.group(2), (m.group(3) or "").strip()
+                has_value = bool(raw) and not raw.startswith("#")
+                if key in seen_child:
+                    raise SettingsError(f"line {n}: morning_note.sender.{key} is set twice")
+                seen_child.add(key)
+                if key in SCALARS:
+                    if not has_value:
+                        raise SettingsError(f"line {n}: morning_note.sender.{key} must be one plain value")
+                    sender[key] = _scalar(raw)
+                elif not has_value:
+                    sub = indent                # a sub-block (text:)
+                elif not _closed(raw):
+                    raise SettingsError(f"line {n}: morning_note.sender.{key} runs past its line")
+                continue
+            sender_at = None
+        if mn_child is None:
+            mn_child = indent
+        if indent != mn_child:
+            continue                            # deeper: a value, item or block of another morning_note key
         m = _LINE.fullmatch(line.rstrip())
-        item = _ITEM.fullmatch(line.rstrip()) if m is None else None
-        if m is None and item is None:
-            raise SettingsError(f"line {n}: inside morning_note, a line that is not `key: value` or `- item`")
-        key = m.group(2) if m else "-"
-        raw = ((m.group(3) if m else item.group(2)) or "").strip()
-        has_value = bool(raw) and not raw.startswith("#")
-        if has_value and not _closed(raw):
-            raise SettingsError(f"line {n}: a value runs past its line")
-        if indent > stack[-1][0]:
-            if stack[-1][2]:
-                raise SettingsError(f"line {n}: a deeper line under a key that already has a value")
-        else:
-            while stack[-1][0] > indent:
-                stack.pop()
-            if stack[-1][0] != indent:
-                raise SettingsError(f"line {n}: an indent no sibling has")
-            if (stack[-1][1] == "-") != (key == "-"):
-                raise SettingsError(f"line {n}: a list item and a key side by side")
-            stack.pop()
-        parent = stack[-1]
-        if key != "-":
-            if key in parent[3]:
-                raise SettingsError(f"line {n}: {key} is set twice in one block")
-            parent[3].add(key)
-        stack.append([indent, key, has_value, set()])
-        path = [e[1] for e in stack]
-        if path == ["morning_note", "sender"] and has_value:
+        if m is None or m.group(2) != "sender":
+            continue
+        _strict(n, line)
+        raw = (m.group(3) or "").strip()
+        if seen_sender:
+            raise SettingsError(f"line {n}: morning_note.sender is set twice")
+        seen_sender = True
+        if raw and not raw.startswith("#"):
             raise SettingsError(f"line {n}: morning_note.sender must be a block of `key: value` lines")
-        if path[:2] == ["morning_note", "sender"] and len(path) == 3:
-            if key == "-":
-                raise SettingsError(f"line {n}: morning_note.sender holds no list item")
-            if key in SCALARS:
-                if not has_value:
-                    raise SettingsError(f"line {n}: morning_note.sender.{key} must be one plain value")
-                sender[key] = _scalar(raw)
+        sender_at, child, sub, seen_child = indent, None, None, set()
     return {"top": top, "sender": sender}
 
 
