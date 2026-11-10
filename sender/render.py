@@ -21,20 +21,20 @@ import re
 import unicodedata
 from datetime import date
 
-from .common import link_ok, parse_hosts
+from .common import DOTS, MARKUP, ZWSP, link_ok, parse_hosts
 
 TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": ()}
 MAX_TITLE = 600         # a longer title is cut here and marked with CUT; the site's page carries all of it
 CUT = "..."
-# Characters HTML, Markdown or a template language ({{ x }}, {% y %}) could read as markup.
-_MARKUP = "&<>\"'{}[]()*_`#\\~|!$%@="
-_INERT = {ord(c): f"&#{ord(c)};" for c in _MARKUP}
+_INERT = {ord(c): f"&#{ord(c)};" for c in MARKUP}       # common.MARKUP: every markup character
 _LINE_START = re.compile(r"^[-+\s]+")       # a leading "---" (a rule or front matter), a "+" or "-" list mark
 # Words that would let a reader take the note for a government's own mail. Never in the subject (nor in the From
 # name, which is the provider account's setting: the site name). "official" also catches "unofficial".
 AUTHORITY = re.compile(r"city of|county|cmcss|\brpc\b|official", re.IGNORECASE)
-_WWW = re.compile(r"(?i)\b(www)\.")
-_SCHEME = re.compile(r"(?i)\b([a-z][a-z0-9+.-]*):(?=//)")
+# common.ADDRESS, broken: a zero-width space after the colon of "://", inside "www.", after a dot between words
+_SCHEME = re.compile(r":(?=//)")
+_WWW = re.compile(r"(?i)(www)\.")
+_DOT = re.compile(rf"(?<=[\w-])[{DOTS}](?=\w)")
 _HREF = re.compile(r"[A-Za-z0-9][A-Za-z0-9._~/%-]*(?:#[A-Za-z0-9._~%:-]*)?")
 
 
@@ -53,12 +53,15 @@ def clean(text) -> str:
 
 def inert(text) -> str:
     """`text` as it may stand in the HTML body: clean(), then every markup character as a character reference."""
-    s = clean(text)
+    # A mail client links a bare "www.", "scheme://" or "evil.example/login" in the text: a zero-width space keeps
+    # the words on screen and leaves nothing to link (clean() has dropped every format character, so the only
+    # zero-width spaces are these)
+    s = _SCHEME.sub(":" + ZWSP, clean(text))
+    s = _DOT.sub(lambda m: m.group(0) + ZWSP, _WWW.sub(r"\1" + ZWSP + ".", s))
     lead = _LINE_START.match(s)
     head = "".join(f"&#{ord(c)};" for c in lead.group(0)) if lead else ""
     s = head + s[len(lead.group(0)) if lead else 0:].translate(_INERT)
-    # A mail client links a bare "www." or "scheme://" in the text: a zero-width space keeps the words and breaks it
-    return _SCHEME.sub(r"\1&#8203;:", _WWW.sub(r"\1&#8203;.", s))
+    return s.replace(ZWSP, f"&#{ord(ZWSP)};")
 
 
 def _attr(url: str) -> str:

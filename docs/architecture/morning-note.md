@@ -325,9 +325,14 @@ morning_note:
   `morning/<D>.json`. It is deterministic, so a re-run writes and filters the same value; do not rotate the key
   between a day's first run and 7:00 (the scheduled emails would match nobody). `stamp` mode refuses to run without
   the secret ("no-secret", exit 2). `ids` emails carry `<D>.<key>` only (no filter reads it).
-- **The deliver stage checks each body** (security `plan-untrusted/body-unchecked`): only the tags render writes
-  (`h1 h2 p ul li br strong a`), no attribute but one https `href` on a host in `morning_note.sender.link_hosts`
-  (read from the repository), no comment or declaration, no literal `{` or `}`. The plan stage links only to the
+- **The deliver stage checks each body** (security `plan-untrusted/body-unchecked`, M3) against render's exact
+  output, not by parsing HTML: `<h1>` first, every line one of render's forms (`<h1>T</h1>`, `<h2>T</h2>`,
+  `<p>…</p>`, `<ul>`, `</ul>`, `<li>…</li>`, inside them only `<br>`, `<strong>T</strong>`, `<a href="U">T</a>`),
+  lists closed, the body ending in a complete line and a newline. Text holds no raw markup character
+  (`common.MARKUP`, braces included) and only the references render writes; read as a reader sees it, it holds no
+  `www.`, no `://` and no dot between two word characters (`evil.example/login`; CJK and full-width dots too),
+  which render breaks with a zero-width space (`common.ADDRESS`). Each `href` is one https URL on a host in
+  `morning_note.sender.link_hosts` (read from the repository). The plan stage links only to the
   same hosts (sources, site pages, the support link). `link_hosts` ships with the collectors' source hosts and the
   support host; the build refuses `enabled: true` until it also holds the site's host.
 - **Each stamp write re-reads that subscriber first** (security L2): until the T4.0 probe shows that a metadata

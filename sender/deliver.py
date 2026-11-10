@@ -36,9 +36,11 @@ from dataclasses import dataclass
 from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from html.parser import HTMLParser
+import unicodedata
+from html import unescape
 
-from .common import DATE_RE, KEY_RE, LIST_KEYS, PLAN_SCHEMA, REASONS, SIGNATURE_RE, link_ok, signature
+from .common import (ADDRESS, DATE_RE, KEY_RE, LIST_KEYS, MARKUP, PLAN_SCHEMA, REASONS, REFS, SIGNATURE_RE,
+                     link_ok, signature)
 from .settings import Settings
 
 NAMESPACE = uuid.UUID("6f1d2c1e-8b0a-5d3e-9c47-2a1b7e5d4c30")     # fixed: the idempotency keys must not change
@@ -154,57 +156,52 @@ class Outcome:
 
 
 # ------------------------------------------------------------------------------------------------ the plan file
-BODY_TAGS = frozenset({"h1", "h2", "p", "ul", "li", "br", "strong", "a"})      # all render.body_html writes
+# plan-untrusted/body-unchecked (M3): the body is held to the exact lines render.body_html writes, not parsed as
+# HTML. Text is any character but a markup one, a newline and "&", which stands only in a reference render writes.
+_CHAR = "[^" + re.escape(MARKUP) + "\\n]"
+_REF = "&(?:#[0-9]{1,7}|middot);"
+_TEXT = f"(?:{_CHAR}|{_REF})*"
+_LINK = f'<a href="[^"<>\\s]*">{_TEXT}</a>'
+_INLINE = f"(?:{_CHAR}|{_REF}|<br>|<strong>{_TEXT}</strong>|{_LINK})*"
+_LINE = re.compile(f"<h1>{_TEXT}</h1>|<h2>{_TEXT}</h2>|<p>{_INLINE}</p>|<ul>|</ul>|<li>{_INLINE}</li>")
+_TAG = re.compile(r"<[^<>]*>")
+_HREF_OF = re.compile(r'<a href="([^"]*)">')
 
 
-class _Body(HTMLParser):
-    """plan-untrusted/body-unchecked: an edition body may hold only what render.body_html writes: its tags, no
-    attribute but one https `href` on a link host, no comment, declaration or processing instruction."""
-
-    def __init__(self, hosts):
-        super().__init__(convert_charrefs=True)
-        self.hosts, self.ok = tuple(hosts), True
-
-    def handle_starttag(self, tag, attrs):
-        if tag not in BODY_TAGS:
-            self.ok = False
-        elif tag == "a":
-            self.ok &= len(attrs) == 1 and attrs[0][0] == "href" and link_ok(attrs[0][1], self.hosts)
-        elif attrs:
-            self.ok = False
-
-    def handle_startendtag(self, tag, attrs):
-        self.ok = False         # render writes <br>, never <br/>
-
-    def handle_endtag(self, tag):
-        if tag not in BODY_TAGS or tag == "br":
-            self.ok = False
-
-    def handle_comment(self, data):
-        self.ok = False
-
-    def handle_decl(self, decl):
-        self.ok = False
-
-    def handle_pi(self, data):
-        self.ok = False
-
-    def unknown_decl(self, data):
-        self.ok = False
+def _line_ok(line: str, hosts) -> bool:
+    """One line of the body as render writes it: one of its forms, only its references, every link to one of
+    `hosts`, and no text a mail client could link (common.ADDRESS) once the references are read."""
+    if not _LINE.fullmatch(line) or "  " in line:
+        return False
+    if any(int(n) not in REFS for n in re.findall(r"&#([0-9]+);", line)):
+        return False
+    for href in _HREF_OF.findall(line):     # render writes "&" in a URL as "&amp;" and nothing else as a reference
+        if re.search(r"&(?!amp;)", href) or not link_ok(href.replace("&amp;", "&"), hosts):
+            return False
+    raw = _TAG.sub("", line)
+    if any(unicodedata.category(c) in ("Cc", "Cf") or (c.isspace() and c != " ") for c in raw):
+        return False
+    shown = unescape(_TAG.sub("", line.replace("<br>", "\n")))         # what a reader (and a mail client) sees
+    return not ADDRESS.search(shown)
 
 
 def body_ok(body: str, hosts) -> bool:
-    """True when `body` could have come from render.body_html with these link hosts. A literal brace is refused:
-    render writes every brace as a character reference, so one here could reach the provider's template step."""
-    if "{" in body or "}" in body:
+    """True when `body` could have come from render.body_html with these link hosts: the site name's <h1> first,
+    every line one of render's forms, lists closed, and the body ending in a complete line and a newline. Anything
+    else (an unclosed tag at the end, an attribute, a comment, a raw bracket, a bare address) is refused."""
+    if not (isinstance(body, str) and body.startswith("<h1>") and body.endswith(">\n")):
         return False
-    check = _Body(hosts)
-    try:
-        check.feed(body)
-        check.close()
-    except Exception:       # noqa: BLE001  any parse trouble means it is not render's output
-        return False
-    return check.ok
+    in_list = False
+    for line in body[:-1].split("\n"):
+        if not _line_ok(line, hosts):
+            return False
+        if line in ("<ul>", "</ul>"):
+            if in_list == (line == "<ul>"):
+                return False
+            in_list = line == "<ul>"
+        elif in_list != line.startswith("<li>"):
+            return False
+    return not in_list and body.count("<h1>") == 1
 
 
 def check_plan(plan, link_hosts=()) -> dict:

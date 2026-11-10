@@ -965,6 +965,51 @@ def test_a_body_that_render_could_not_have_written_sends_nothing(plan, body):
     assert (res.code, res.status) == (2, "bad-plan") and fake.calls == [] and "body" in text
 
 
+def _with(line: str) -> str:
+    """GOOD_BODY with one more line before its last."""
+    head, last = GOOD_BODY[:-1].rsplit("\n", 1)
+    return f"{head}\n{line}\n{last}\n"
+
+
+# M3 (security delta at a168d24): text the old tag-only check let through, then everything it already blocked
+TEXT_BYPASSES = [
+    _with("<p>[Confirm](https://evil.example/x)</p>"), _with("<p>![x](https://evil.example/t.gif)</p>"),
+    _with("<p>[x]: https&#58;//evil.example</p>"), _with("<p>[x]: https://evil.example</p>"),
+    _with("<p>Sign in at https://evil.example/login</p>"), _with("<p>Sign in at evil.example/login</p>"),
+    _with("<p>See WWW.evil now</p>"), _with("<p>mail x&#64;evil.example</p>"), _with("<p>evil\uff0eexample</p>"),
+    _with("<p>https:&#8203;//evil.example</p>"), _with("<p>evil.&#x65;xample</p>"),
+    _with("<li>outside a list</li>"), "<ul>\n" + GOOD_BODY, GOOD_BODY + "<ul>\n",
+    GOOD_BODY + '<a href="https://evil.example/"', GOOD_BODY + "<img src=https://evil.example/t.gif",
+    GOOD_BODY[:-1], GOOD_BODY + "x\n", GOOD_BODY + "\n", GOOD_BODY.replace("<h1>Daylight</h1>\n", ""),
+    _with("<p>a</p><p>b</p>"), _with("<p>a\x00b</p>"), _with("<p>a\tb</p>"), _with("<p>a\u202eb</p>"),
+    _with("<p>&#8238;b</p>"), _with("<p>&amp;</p>"), _with("<p>&lt;script&gt;</p>"),
+]
+REGRESSIONS = [
+    _with('<p><a href="https://user' + '@records.example.com/x">x</a></p>'),
+    _with('<p><a href="javascript&#58;alert(1)">x</a></p>'), _with('<p><a href="HTTPS://records.example.com/">x</a></p>'),
+    _with('<p><a href="//records.example.com/">x</a></p>'),
+    _with('<p><a href="https://records.example.com.evil.example/">x</a></p>'),
+    _with('<p><a href="https://records.example.com/\tx">x</a></p>'),
+    _with('<p><a href="https://records.example.com/" href="https://evil.example/">x</a></p>'),
+    _with('<p><a href="https://records.example.com/x&#38;y">x</a></p>'),
+    _with('<p><img src="https://records.example.com/x.png"></p>'), _with("<style>p{}</style>"),
+    _with("<!-- x -->"), _with("<![CDATA[x]]>"), _with("<p>x</ p onclick=y>"), _with("<p>{% if x %}</p>"),
+    _with("    <script>alert(1)</script>"), _with("<p>    indented</p>"), _with("<br/>"), _with("<P>x</P>"),
+]
+
+
+@pytest.mark.parametrize("body", TEXT_BYPASSES + REGRESSIONS)
+def test_a_body_is_held_to_the_exact_lines_render_writes(plan, body):
+    """plan-untrusted/body-unchecked: each line one of render's own forms, the text between tags free of every
+    markup character, address and domain render breaks, and the body ending in a complete line."""
+    s = settings()
+    assert not deliver.body_ok(body, s.link_hosts)
+    bad = copy.deepcopy(plan)
+    bad["editions"][0]["body"] = body
+    with pytest.raises(deliver.PlanInvalid, match="body"):
+        deliver.check_plan(bad, s.link_hosts)
+
+
 def test_the_bodies_render_writes_pass_the_check(plan):
     s = settings()
     deliver.check_plan(copy.deepcopy(plan), s.link_hosts)

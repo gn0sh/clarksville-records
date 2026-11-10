@@ -19,6 +19,18 @@ MAX_PLAN_BYTES = 32_000_000
 REASONS = ("ok", "quiet", "backfill", "disabled")          # plan.reason: "ok" exactly when send is true
 
 
+# plan-untrusted/body-unchecked (M3): one rule for what render writes and what deliver accepts. MARKUP is every
+# character HTML, Markdown or a template language ({{ x }}, {% y %}) could read as markup; render writes each as a
+# character reference and deliver refuses it raw. ADDRESS is what a mail client could turn into a link in plain
+# text (a "www.", a "scheme://", a dot between two word characters as in "evil.example/login", the CJK and
+# full-width dots included); render breaks each with a zero-width space and deliver refuses a body that has one.
+MARKUP = "&<>\"'{}[]()*_`#\\~|!$%@="
+DOTS = ".\u3002\uff0e\uff61"
+ADDRESS = re.compile(rf"(?i)www\.|://|[\w-][{DOTS}]\w")
+ZWSP = "\u200b"
+# the only numeric references render writes: a markup character, a leading "-", "+" or space, the zero-width space
+REFS = frozenset({ord(c) for c in MARKUP} | {ord("-"), ord("+"), ord(" "), ord(ZWSP)})
+
 # plan-untrusted/body-unchecked: the hosts an email may link to (`morning_note.sender.link_hosts`: the site's host,
 # the collectors' source hosts and the support link's), one rule for the plan stage, the deliver check and the build
 _HOST = re.compile(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+")

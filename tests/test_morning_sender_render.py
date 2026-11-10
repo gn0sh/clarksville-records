@@ -325,6 +325,28 @@ def test_a_bare_address_in_a_title_is_not_left_for_the_mail_client_to_link(title
     assert links(html) == [SITE_URL + "items/2026.html#i-x", "https://example.com/fixture/agenda.pdf#page=2"]
 
 
+@pytest.mark.parametrize("title", ["Sign in at evil.example/login", "x@evil.example", "x_https://evil.example",
+                                   "a.b.c.d", "3.5 million", "evil\uff0eexample", "evil\u3002example", "-a.b",
+                                   "U.S. Route 41A", "wwww.evil.example", "https:///x", "Ord. 2026-12"])
+def test_a_bare_domain_in_a_title_is_broken_and_the_body_passes_the_deliver_check(title):
+    """M3: a mail client links "evil.example/login" too. Render puts a zero-width space after every dot between
+    two word characters (and after the colon of "://"), and deliver refuses a body that still has one."""
+    from sender import deliver
+    html = html_of(entry(title=title))
+    shown = next(n for n in parse(html).walk() if n.tag == "strong").all_text()
+    assert shown.replace("\u200b", "") == title
+    assert not re.search(r"(?i)www\.|://|[\w-][.\u3002\uff0e\uff61]\w", shown), shown
+    assert deliver.body_ok(html, CTX["link_hosts"])
+
+
+def test_render_writes_only_bodies_the_deliver_check_accepts():
+    """Every hostile field render is given still comes out as a body deliver sends (plan-untrusted/body-unchecked)."""
+    from sender import deliver
+    html = html_of(entry(title=HOSTILE, body_name=HOSTILE, recorded=HOSTILE), entry(id="b", title="second"),
+                   unplaced_text=HOSTILE)
+    assert deliver.body_ok(html, CTX["link_hosts"])
+
+
 @pytest.mark.parametrize("on, url, want", [(True, "https://tips.example.com/", True),
                                            (False, "https://tips.example.com/", False), (True, "", False)])
 def test_the_note_carries_the_support_link_only_while_support_is_on(on, url, want):
