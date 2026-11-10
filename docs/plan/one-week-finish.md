@@ -21,4 +21,5 @@ Brian (2026-11-09): "a finished product for MoCo and Clarksville within a week."
 - (Done 11/9) CivicClerk hosts allowed in the cloud environment.
 - (YES, Brian 11/9) Collect City Council records from the CivicClerk portal.
 - (YES, Brian 11/9) Public repo plus GitHub Pages at records.gnoshcodes.com, flipped at launch.
+- (Note 11/10, Brian) The site is named Daylight and moves to daylight.gnoshcodes.com instead of records.gnoshcodes.com; feed ids changed before launch.
 - Final go-live go-ahead (hard stop 1).

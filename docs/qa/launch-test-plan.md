@@ -1,7 +1,7 @@
 # Launch test plan: clarksville-records (Fri 2026-11-13, everything launches together)
 
 Written by qa-engineer 2026-11-09; manager decisions on spec gaps at the end.
-Scope: County, City Council (Agenda Center 2016 to May 2024 plus CivicClerk 2024+), finance/bids, exports, correction intake, Atom alerts, gnoshcodes branding, transcripts, GitHub Pages at records.gnoshcodes.com with a daily update. Definition of finished: docs/plan/one-week-finish.md.
+Scope: County, City Council (Agenda Center 2016 to May 2024 plus CivicClerk 2024+), finance/bids, exports, correction intake, Atom alerts, gnoshcodes branding, transcripts, GitHub Pages at daylight.gnoshcodes.com with a daily update. Definition of finished: docs/plan/one-week-finish.md.
 Reuse, do not duplicate: cases already passed are referenced and re-run only as the regression pass in section 1.
 - M1 plan: docs/qa/m1-test-plan.md (AC1.x, AC2.x, AC4.x, AC6.x, AC7.x, P*, N1-N6, G1-G7)
 - Finance plan: docs/qa/finance-contracts-test-plan.md (AC-F1 to AC-F17)
@@ -90,7 +90,7 @@ Every official's name links to their vote history where the record shows the off
 |---|---|---|
 | F1 | Offline: feedparser bozo=0 + xmllint; NEW RFC 4287 RELAX NG check (vendored) | 7/7 valid |
 | F2 | feed id, title, updated, author, self link; entry id (unique, stable across rebuilds), title, updated, link | present; ids stable over 2 builds |
-| F3 | alerts.site_url = https://records.gnoshcodes.com/ on production; absolute links on that host | no github.io/localhost |
+| F3 | alerts.site_url = https://daylight.gnoshcodes.com/ on production; absolute links on that host | no github.io/localhost |
 | F4 | NEW fixture with control chars in a title | still valid |
 | F5 | 20 entries per topic feed hand-judged; zoning checked against 10 known zoning items | >= 18/20; no empty feed (non-blocking if not misleading) |
 | F6 | Alerts page lists feeds; autodiscovery `<link rel="alternate" type="application/atom+xml">` on index | PASS |
@@ -102,7 +102,7 @@ Every official's name links to their vote history where the record shows the off
 | B1 | Footer on every page: credit "gnoshcodes" linking gnoshcodes.com; no operator mention of Brian in rendered HTML, feeds, exports, About (his name appears only as public-record council data) | 100% |
 | B2 | About names gnoshcodes as operator; G1 tests updated, not deleted | PASS |
 | B3 | https://buymeacoffee.com/gnoshcodes returns 200 (M, production) | 200 (non-blocking) |
-| B4 | gnoshcodes.com card (gn0sh/gnoshcodes-site claude/records-product 78afcb4) links https://records.gnoshcodes.com/ | right |
+| B4 | gnoshcodes.com card (gn0sh/gnoshcodes-site claude/records-product 78afcb4) links https://daylight.gnoshcodes.com/ | right |
 | B5 | No Preview banner in the production build | PASS |
 | B6 | Footer fits at 375 and 360 | PASS |
 
@@ -149,13 +149,13 @@ hscroll + screenshots at 375, 768, 1280, 360 for landing, index, official, meeti
 | J8 | Only GITHUB_TOKEN; minimal permissions | security-engineer confirms |
 
 ## 16. Post-deploy smoke (within 15 min of go-live; any fail = roll back)
-1. https://records.gnoshcodes.com/ over HTTPS, valid cert, HTTP redirects; no Preview banner.
+1. https://daylight.gnoshcodes.com/ over HTTPS, valid cert, HTTP redirects; no Preview banner.
 2. Landing at 375: no horizontal scroll.
 3. One county and one city official page: votes with source links; one link opens the PDF at the right page.
 4. One CivicClerk meeting with transcript: a timestamp plays at the right second.
 5. Finance fund and contract pages load with coverage sentence.
 6. Footer "gnoshcodes" credit and support link.
-7. County-meetings feed valid, links on records.gnoshcodes.com.
+7. County-meetings feed valid, links on daylight.gnoshcodes.com.
 8. Download one CSV and one JSON.
 9. Report an error opens a prefilled issue.
 10. About page, operator gnoshcodes.

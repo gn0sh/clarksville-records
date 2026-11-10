@@ -38,7 +38,7 @@ def test_runs_daily_and_on_demand():
 
 
 def test_cname_in_build_output():
-    assert (ROOT / "deploy" / "CNAME").read_text(encoding="utf-8").strip() == "records.gnoshcodes.com"
+    assert (ROOT / "deploy" / "CNAME").read_text(encoding="utf-8").strip() == "daylight.gnoshcodes.com"
     assert "cp deploy/CNAME build/site/CNAME" in TEXT
 
 
@@ -47,10 +47,10 @@ def test_launch_overrides_are_read_from_the_environment(monkeypatch):
 
     from sitegen import config
     try:
-        monkeypatch.setenv("RECORDS_SITE_URL", "https://records.gnoshcodes.com/")
+        monkeypatch.setenv("RECORDS_SITE_URL", "https://daylight.gnoshcodes.com/")
         monkeypatch.setenv("RECORDS_BUILD_TARGET", "pages")
         importlib.reload(config)
-        assert config.SITE["alerts"]["site_url"] == "https://records.gnoshcodes.com/"
+        assert config.SITE["alerts"]["site_url"] == "https://daylight.gnoshcodes.com/"
         assert config.max_files() == 3000
     finally:
         monkeypatch.undo()
