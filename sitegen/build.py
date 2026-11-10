@@ -737,10 +737,11 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
             bulk = morning_mod.bulk_urls(morning_manifests, morning_mod.settings()["backfill"]["initial_run_hours"])
             docs = morning_mod.documents(ix, cixs, rpx, ax, fx, bg, first)
             # the latest fetch day of every body, as the pages print it (localdates.span)
-            sp = localdates.span([*ix.facts["sources"], *(s for c in cixs for s in c.facts["sources"]),
-                                  *(rpx.facts["sources"] if rpx else [])])
-            as_of = sp[1] if sp else ""
-            morning_note = morning_mod.write(out, built_day, docs, first, data_as_of=as_of, bulk=bulk)
+            # a plain day; data_as_of_utc says when it is a stored UTC day (morning-digest/as-of-contract)
+            as_of, exact = localdates.latest([*ix.facts["sources"], *(s for c in cixs for s in c.facts["sources"]),
+                                              *(rpx.facts["sources"] if rpx else [])]) or ("", True)
+            morning_note = morning_mod.write(out, built_day, docs, first, data_as_of=as_of, bulk=bulk,
+                                             data_as_of_utc=not exact)
         except morning_mod.MorningError as exc:
             raise BuildError(str(exc)) from exc
     if site["alerts"]:

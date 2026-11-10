@@ -55,7 +55,7 @@ the local day of some recorded instant, or labelled.
 | sitegen/budget_views.py:259 -> fin_index.html.j2:14 | "FY.., fetched D" per budget book | fixed |
 | sitegen/views.py:1151 -> district.html.j2:30; views.py:1226,1228 -> index.html.j2:87 (landing, not edited) | map lines "fetched D" | wards: fixed (maps manifest row); county districts PDF: no manifest row, labelled (UTC day) |
 | sitegen/views.py:1057 `changes` -> changes.html.j2:9 | change date | fixed for source replacements (collector/store.py logs `first_fetched_at[:10]`; looked up by url and the new sha256); hand-written rows are civil dates, left |
-| sitegen/build.py:726 morning note `data_as_of` (JSON for the sender) | machine field | fixed (`span`, the same day the footer shows) |
+| sitegen/build.py:726 morning note `data_as_of` (JSON for the sender) | machine field | fixed (`localdates.latest`: a plain day, the local day when every source has its instant, else the UTC day with `data_as_of_utc: true`; morning-digest/as-of-contract) |
 | sitegen/feeds.py `_day`, `_instant`, `_added` | entry summaries "fetched D", updated | kept from the first hit (instant from the manifests). Its fallback with no manifest row (fixture builds only) printed the bare UTC day: now `_fetched_day`, the day pages print for the source (labelled). The entry's `updated` there stays noon of the stored day (machine value) |
 | sitegen/morning.py window, note_day; morning_page.py | note day, window stamps | left: already site_timezone instants |
 | sitegen/days.py today, county_agendas.py on_build_day | the build day | left: `today_in_zone` is already the local day |

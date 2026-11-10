@@ -64,6 +64,9 @@ today's), `morning/index.html`. Files are always written, an empty `entries` mea
    "district": 7, "ward": 6, "href": "rpc/meetings/2026.html#...", "source": {"url": "...", "page": 3}}],
  "unplaced_zoning": 0}
 ```
+`data_as_of` is a plain YYYY-MM-DD: the latest fetch day of every body's sources, the America/Chicago day of its
+manifest instant (docs/architecture/local-dates.md). Beside it, `data_as_of_utc` (bool, additive) is `true` when some
+source has no manifest row, so the day is a stored UTC day instead (a fixture build).
 T1 additions (additive; T3 and the sender may rely on them):
 - every entry carries `seat_body`: `"district"` (county entries), `"ward"` (council entries) or `null`; `select()`'s
   `seats` rule is "`seat_body` is district and a district is stored, or ward and a ward is stored";
