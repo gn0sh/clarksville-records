@@ -280,7 +280,7 @@ def _ix(facts) -> Index:
 
 
 NAV = (  # design 2.2: fixed order, the same on every page. (label, href, page_name that marks it current, coming)
-    ("Map (home)", "index.html", "Map", False),
+    ("Home", "index.html", "Home", False),
     ("Today", "today.html", "Today", False),   # Daylight M2: the week strip and day cards (sitegen/days.py)
     ("Search", "search.html", "Search", False),
     ("Votes", "votes/index.html", "Votes", False),
@@ -1130,35 +1130,20 @@ def district_rows(ix: Index) -> list[dict]:
     return rows
 
 
-def map_context(districts: dict | None, highlight: int | None = None, ward_hrefs: dict | None = None) -> dict | None:
-    """The inline SVG's data. Every district path gets the same class; the fill never encodes anything (design 3.2).
-    No date of the lines is passed: the cutover is inferred and never rendered (invariant `provenance`).
-    Ward shapes are drawn only when the map holds them (wards "status": "available"); `ward_hrefs` ({number: page})
-    makes each a link to its council seat, as the landing list does."""
+def map_context(districts: dict | None, highlight: int | None = None) -> dict | None:
+    """The seat page's small outline SVG (design 4): every district path gets the same class, the fill never encodes
+    anything (design 3.2), and the page's own district is hatched. No date of the lines is passed: the cutover is
+    inferred and never rendered (invariant `provenance`). The landing draws no map (CEO, 2026-11-10)."""
     if districts is None:
         return None
-    wards = districts.get("wards") or {}
-    live = georef_mod.wards_of(districts) is not None
-    width = float(str(districts["viewBox"]).split()[2])
     return {
         "viewBox": districts["viewBox"],
-        # label size in the map's own units, so numbers read the same at any map scale (one size for every district)
-        "label_size": round(width / 42, 1), "label_halo": round(width / 42 / 3.5, 1),
         "outline": districts.get("outline_path"),
         "river": districts.get("river_path"),
-        "districts": [{"number": d["number"], "path": d["path"], "x": d["label_xy"][0], "y": d["label_xy"][1],
-                       "href": f"districts/{int(d['number']):02d}.html", "this": d["number"] == highlight}
+        "districts": [{"number": d["number"], "path": d["path"], "this": d["number"] == highlight}
                       for d in sorted(districts["districts"], key=lambda d: d["number"])],
-        "wards": [{"number": w["number"], "path": w["path"], "x": w["label_xy"][0], "y": w["label_xy"][1],
-                   "href": (ward_hrefs or {}).get(int(w["number"]))}
-                  for w in sorted(wards.get("wards") or [], key=lambda w: w["number"])] if live else [],
-        "wards_status": wards.get("status", config.SITE["wards_status"]),
-        # the ward lines' own source (N4), shown under the map when the ward layer is on
-        "wards_source": ({"url": wards["source_url"], "title": wards["source_title"], "fetched": wards["fetched"]}
-                         if live else None),
         "source_url": districts["source_url"], "source_title": districts.get("source_title") or "county map",
         "fetched": districts["fetched"],
-        "swap": swap_context(),
     }
 
 
@@ -1193,12 +1178,15 @@ def script_hash(js: str) -> str:
     return "sha256-" + base64.b64encode(hashlib.sha256(js.encode("utf-8")).digest()).decode("ascii")
 
 
-def address_context(districts: dict | None, georef: dict | None, geocoder: bool = True) -> dict | None:
-    """The landing address box's settings (static/address.js), or None when there is no map, no georef fitted to it,
-    no geocoder configured, or the build was asked for none (`--no-geocoder`, the claude.ai preview): then no box is
-    drawn. Emitted into the page as JSON; the district shapes themselves are read from the map the page draws, so the
-    lookup and the map can never disagree. Every word the box shows comes from config/site.yml (the build has checked
-    that the geocoder and lookup labels are set)."""
+def address_context(districts: dict | None, georef: dict | None, geocoder: bool = True,
+                    ward_hrefs: dict | None = None) -> dict | None:
+    """The landing address box's settings (static/address.js), or None when there is no districts file, no georef
+    fitted to it, no geocoder configured, or the build was asked for none (`--no-geocoder`, the claude.ai preview):
+    then no box is drawn. Emitted into the page as JSON. The landing draws no map (CEO, 2026-11-10), so the traced
+    district paths (and the ward paths, when the file holds them) travel here as data: the lookup places the Census
+    point against them (docs/research/map-removal-2026-11-10.md). `ward_hrefs` ({number: seat page}) links each ward
+    the way the landing list does. Every word the box shows comes from config/site.yml (the build has checked that
+    the geocoder and lookup labels are set)."""
     cfg = config.SITE
     if not geocoder or districts is None or georef is None or not cfg.get("geocoder_url"):
         return None
@@ -1208,14 +1196,32 @@ def address_context(districts: dict | None, georef: dict | None, geocoder: bool 
            "county": cfg["county_name"], "district_label": cfg["district_label"],
            "lookup_url": cfg.get("district_lookup_url") or "",
            "lookup_label": cfg.get("district_lookup_label") or "",
-           "frame": geocode_frame_script()}
+           "frame": geocode_frame_script(),
+           "districts": [{"number": d["number"], "path": d["path"], "href": f"districts/{int(d['number']):02d}.html"}
+                         for d in sorted(districts["districts"], key=lambda d: d["number"])]}
     wards = georef_mod.wards_of(districts)
     if wards is not None:
         # the ward shapes sit in the same page space (same georef); only their margin is their own
         out.update({"ward_margin_m": wards["boundary_margin_m"], "ward_label": cfg["ward_label"],
                     "city": cfg["city_name"], "ward_map_owner": cfg["ward_map_owner"],
-                    "ward_map_date": wards["source_updated"]})
+                    "ward_map_date": wards["source_updated"],
+                    "wards": [{"number": w["number"], "path": w["path"],
+                               "href": (ward_hrefs or {}).get(int(w["number"]))}
+                              for w in sorted(wards["wards"], key=lambda w: w["number"])]})
     return out
+
+
+def lookup_sources(districts: dict | None) -> dict | None:
+    """The traced lines' own sources (N4), named under the address box ("How the address lookup works") now that no
+    map carries them: the district lines' PDF, the 19/20 numbering line, and the ward poster when wards are live."""
+    if districts is None:
+        return None
+    wards = georef_mod.wards_of(districts)
+    return {"districts": {"url": districts["source_url"], "title": districts.get("source_title") or "county map",
+                          "fetched": districts["fetched"]},
+            "swap": swap_context(),
+            "wards": ({"url": wards["source_url"], "title": wards["source_title"], "fetched": wards["fetched"]}
+                      if wards is not None else None)}
 
 
 # Content-Security-Policy (third-party-script/no-csp), set by a <meta> on every page (base.html.j2). Scripts come from
@@ -1240,16 +1246,17 @@ def csp(address: dict | None = None, form_origin: str | None = None) -> str:
 def landing(facts, districts: dict | None, georef: dict | None = None, geocoder: bool = True,
             councils=()) -> dict:
     """`councils`: the landing entries of the councils built (council.landing_entry); their ward seats' pages are
-    what the ward shapes on the map link to."""
+    what a ward found by the address lookup links to."""
     ix = _ix(facts)
-    address = address_context(districts, georef, geocoder)
     ward_hrefs = {}
     for c in councils:
         for s in c["seats"]:
             m = re.fullmatch(r"ward-(\d{1,2})", s["seat"])
             if m:
                 ward_hrefs.setdefault(int(m.group(1)), s["href"])
-    return {"csp": csp(address), "rows": district_rows(ix), "map": map_context(districts, ward_hrefs=ward_hrefs),
+    address = address_context(districts, georef, geocoder, ward_hrefs=ward_hrefs)
+    return {"csp": csp(address), "rows": district_rows(ix),
+            "lookup_sources": lookup_sources(districts) if address else None,
             "coverage": ix.coverage,
             "district_count": config.SITE["district_count"],
             "basis": observed_basis(ix) if ix.seats.loaded else None,

@@ -16,12 +16,12 @@
 <link rel="stylesheet" href="{{ root }}static/style.css">
 {% block head %}{% endblock %}
 </head>
-<body{% if page_name == "Map" %} class="page-landing"{% endif %}>
+<body{% if page_name == "Home" %} class="page-landing"{% endif %}>
 <a class="skip" href="#main">Skip to content</a>
 {% if site.fixture %}
 <div class="banner" role="note"><strong>FIXTURE.</strong> This page shows made-up test data, not real records.</div>
 {% endif %}
-<header class="site-header{% if page_name == "Map" %} has-sky{% endif %}">
+<header class="site-header{% if page_name == "Home" %} has-sky{% endif %}">
   {# Daylight name plate (docs/design/daylight): the sun dot, the name and the place, on every page. The landing adds
      the sky: a sun that static/sky.js sets by the viewer's clock (CSS places it at midday without the script) and
      today's date, which stays hidden without the script (a static page can't know today's date). #}
@@ -33,7 +33,7 @@
     <div class="brand">
       <p class="site-name"><a href="{{ root }}index.html"><span class="plate-sun" aria-hidden="true"></span><span class="plate"><span class="plate-name">{{ site.site_name }}</span> <span class="plate-place">{{ site.cfg.site_place }}</span></span></a></p>
       <p class="unofficial-tag">{{ site.unofficial.tag }}</p>
-      {% if page_name != "Map" %}<p class="kicker">{{ site.coverage.body }} minutes, <span class="nowrap">{{ site.coverage.from }}</span> to <span class="nowrap">{{ site.coverage.to }}</span></p>{% endif %}
+      {% if page_name != "Home" %}<p class="kicker">{{ site.coverage.body }} minutes, <span class="nowrap">{{ site.coverage.from }}</span> to <span class="nowrap">{{ site.coverage.to }}</span></p>{% endif %}
     </div>
   </div>
   {% block sky %}{% endblock %}

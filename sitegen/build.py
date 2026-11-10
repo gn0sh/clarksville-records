@@ -562,7 +562,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                        **{**with_entries(ctx, key, run),
                           "parts": [{**p, "current": i == n} for i, p in enumerate(nav, 1)]})
 
-    render("index.html.j2", "index.html", "Map", **views.landing(ix, districts, georef, geocoder, site["councils"]))
+    render("index.html.j2", "index.html", "Home", **views.landing(ix, districts, georef, geocoder, site["councils"]))
     render("officials.html.j2", "officials.html", "Officials", **views.officials_page(ix))
     render("meetings_index.html.j2", "meetings.html", "Meetings", **views.meetings_page(ix),
            agenda_only=ax.list_entries() if ax else [], agendas_href=agendas_mod.PAGE,

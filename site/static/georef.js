@@ -77,7 +77,7 @@
 
   function round(v, d) { var k = Math.pow(10, d); return Math.round(v * k) / k; }
 
-  /* districts: [{number, path}] (the same paths the map draws); georef: {projection, affine, boundary_margin_m}.
+  /* districts: [{number, path}] (the traced paths); georef: {projection, affine, boundary_margin_m}.
      Returns {district (null outside every shape or in two), distance_m, near_boundary, page_xy, overlap?, closest?}. */
   function districtFor(lon, lat, districts, georef) {
     var xy = toPage(lon, lat, georef), x = xy[0], y = xy[1];
