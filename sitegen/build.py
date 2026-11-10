@@ -410,6 +410,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     if bad:
         raise BuildError("config/site.yml: " + "; ".join(bad))
     ix = views.Index(facts, seat_rows)
+    if ix.seats.loaded and ix.seats.latest < ix.latest:   # M1: say it in the run log, the pages say it in words
+        print(f"sitegen: WARNING: seats.yml is read to {ix.seats.latest}, the facts to {ix.latest}; the seats are "
+              f"worded to {ix.seats.latest}. Re-run tools/derive_seats.py", file=sys.stderr)
     built_day = today or days_mod.today_in_zone()
     # County agendas posted before their minutes (sitegen/county_agendas.py); none for a fixture build
     if county_agendas is DEFAULT:

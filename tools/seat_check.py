@@ -123,7 +123,7 @@ def main(argv=None) -> int:
     dates_all = [m["date"] for m in facts["meetings"]]
     seen, newest = read_to(facts, rows), (max(dates_all) if dates_all else None)
     if seen and newest and seen < newest:
-        print(f"note: the records are read to {seen}; the facts hold meetings to {newest}. "
+        print(f"WARNING: the records are read to {seen}; the facts hold meetings to {newest}. "
               f"Re-run tools/derive_seats.py to read the newer roll calls.")
     print(f"{len(rows)} holder records, {len(problems)} problems")
     return 1 if problems else 0
