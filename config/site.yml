@@ -76,6 +76,7 @@ district_label: District          # "District 7"
 district_page_title: County Commission District   # "County Commission District 7"
 ward_count: 12
 ward_label: Ward
+ward_map_owner: Regional Planning Commission   # whose map the ward lines come from ("on the <owner>'s map of <date>")
 wards_status: coming              # ward pages are M4; until then the landing shows a notice
 # Seats other than numbered districts and wards, in the fixed order the Officials page lists them after the districts.
 other_seats:

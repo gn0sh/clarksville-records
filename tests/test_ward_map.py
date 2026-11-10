@@ -153,6 +153,27 @@ def test_points_land_in_their_ward(ward, where, lonlat):
     assert got["ward"] == ward and not got["near_boundary"], (where, got)
 
 
+# Named crossings from wards-georef.json that lie 76-250 m inside a ward (just beyond the "near" margin), the band where
+# the margin's judgment calls matter most. Expected wards and distances were read off the poster's own unsimplified
+# fills (point placed by the wards-georef fit): ward 10 at 107.5 m, 4 at 250.4 m, 2 at 189.3 m, 4 at 119.7 m, 6 at 232.6 m.
+# hawthorn-mulberry is also the one just inside the city line: its nearest edge, 107.5 m away, is the city outline.
+BAND_POINTS = [
+    (10, "hawthorn-mulberry", "control_points", 107.5),      # 107.5 m inside the city line
+    (4, "galvin-rosemary", "control_points", 250.4),
+    (2, "caskey-glennon", "check_points", 189.3),
+    (4, "linda-wagontrail", "check_points", 119.7),
+    (6, "college-nspring", "check_points", 232.6),
+]
+
+
+@pytest.mark.parametrize("ward,pid,kind,poster_m", BAND_POINTS, ids=[b[1] for b in BAND_POINTS])
+def test_points_76_to_250_m_inside_a_ward_get_a_plain_answer(ward, pid, kind, poster_m):
+    got = gr.ward_for(*_pt(WG[kind], pid), D, G)
+    assert 76 < poster_m <= 251
+    assert got["ward"] == ward and not got["near_boundary"], got
+    assert abs(got["distance_m"] - poster_m) < 3, got         # the traced shapes agree with the poster's own fills
+
+
 def test_every_ward_has_at_least_three_street_crossings_and_its_label():
     by = {}
     for w, where, _ in POINTS:

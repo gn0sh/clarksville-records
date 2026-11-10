@@ -70,7 +70,8 @@ def test_box_settings_come_from_config_and_georef(real_map_site):
                    "district_label": config.SITE["district_label"], "lookup_url": config.SITE["district_lookup_url"],
                    "lookup_label": config.SITE["district_lookup_label"], "frame": views.geocode_frame_script(),
                    "ward_margin_m": wards["boundary_margin_m"], "ward_label": config.SITE["ward_label"],
-                   "city": config.SITE["city_name"]}
+                   "city": config.SITE["city_name"], "ward_map_owner": config.SITE["ward_map_owner"],
+                   "ward_map_date": wards["source_updated"]}
     assert config.SITE["geocoder_url"] == "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress"
 
 
@@ -329,13 +330,17 @@ def test_address_box_in_a_browser(real_site, tmp_path):
     assert c["twosame"]["text"].startswith(both) and c["twosame"]["found"] == ["5"]
     assert c["reachout"]["text"].startswith(both) and not c["reachout"]["pwned"]
     assert c["near"]["text"].startswith("This address is near a district line. Check GoVoteTN to be sure. "
-                                        "It is outside the City of Clarksville wards.")
+                                        "It is outside the City of Clarksville wards on the Regional Planning "
+                                        "Commission's map of 2026-02-25.")
     assert c["near"]["href"] == config.SITE["district_lookup_url"]
     assert c["wardnear"]["text"].startswith(census + "District 4. It is near a ward line. Check with the Election "
                                             "Commission or look it up on GoVoteTN to be sure.")
     assert c["wardnear"]["hrefs"] == ["districts/04.html", config.SITE["district_lookup_url"]]
     assert c["wardnear"]["foundWards"] == [] and c["wardnear"]["pin"]
-    assert c["outsidecity"]["text"].startswith(census + "District 6. It is outside the City of Clarksville wards.")
+    assert c["outsidecity"]["text"].startswith(census + "District 6. It is outside the City of Clarksville wards on the "
+                                          "Regional Planning Commission's map of 2026-02-25. Annexations since then are "
+                                          "not on it. Check with the Election Commission or look it up on GoVoteTN.")
+    assert c["outsidecity"]["hrefs"] == ["districts/06.html", config.SITE["district_lookup_url"]]
     assert c["outside"]["text"].startswith("This address is outside Montgomery County.")
     assert c["spoof"]["text"].startswith("This address is outside Montgomery County.")   # the page's own message ignored
     ambiguous = "More than one address matched. Add the city and ZIP, or check GoVoteTN."

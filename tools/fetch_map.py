@@ -32,7 +32,11 @@ def main(argv=None) -> int:
     ap.add_argument("--label", required=True)
     ap.add_argument("--manifest", default=str(MAPS_MANIFEST))
     a = ap.parse_args(argv)
-    host = urllib.parse.urlsplit(a.url).netloc
+    parts = urllib.parse.urlsplit(a.url)
+    host = parts.netloc
+    if parts.scheme != "https":
+        print("only https URLs are fetched", file=sys.stderr)
+        return 2
     if host not in MAP_HOSTS and host not in ALLOWED_HOSTS:
         print(f"{host} is not a known map host", file=sys.stderr)
         return 2

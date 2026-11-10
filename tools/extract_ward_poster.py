@@ -223,9 +223,12 @@ def main(argv=None) -> int:
         "metres_per_page_unit": round(scale, 4),
         "wards": [{k: w[k] for k in ("number", "path", "label_xy", "printed_label_xy")} for w in wards],
     }
-    dpath.write_text(json.dumps(districts, indent=1) + "\n", encoding="utf-8")
     print(json.dumps(summary, indent=1))
-    return 1 if summary["problems"] or not summary["label_inside"] else 0
+    if summary["problems"] or not summary["label_inside"]:
+        print("not written: the shapes have problems", file=sys.stderr)
+        return 1
+    dpath.write_text(json.dumps(districts, indent=1) + "\n", encoding="utf-8")
+    return 0
 
 
 if __name__ == "__main__":

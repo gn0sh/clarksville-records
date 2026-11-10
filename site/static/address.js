@@ -191,10 +191,12 @@
     if (!w) { return []; }
     if (w.kind === "ward") { return [" The " + cfg.geocoder_short + " places it in ", wardLink(w.ward), "."]; }
     if (w.kind === "near") { return [" It is near a ward line." + CHECK_WARD, lookupLink(), " to be sure."]; }
-    return [" It is outside the " + cfg.city + " wards."];
+    return [" It is outside the " + cfg.city + " wards on the " + cfg.ward_map_owner + "'s map of " + cfg.ward_map_date +
+            ". Annexations since then are not on it." + CHECK_WARD, lookupLink(), "."];
   }
   /* An address lookup answers for both seats: what it found replaces what was kept (static/seats.js, this device
-     only), and a seat it could not place (near a line, or outside the city) is not kept from an earlier address. */
+     only). When it places neither seat, the earlier seats stay; when it places one, both are replaced, so a seat it
+     could not place (near a line, or outside the city) is cleared rather than kept from an earlier address. */
   function keep(r) {
     if (!root.CRSeats) { return; }
     var w = r.ward || null;
