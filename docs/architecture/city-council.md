@@ -191,9 +191,12 @@ name, until another record of the same seat, or another seat of the same member,
 last print) and the page wording says both ("seen in attendance lists from X to P; listed by name in attendance lists
 to L, the latest minutes read"). L is the latest attendance list read (never a roll call at a meeting with no
 list). A name that resolves to no official (CLAUNCH, held by the name-resolution invariant) is never placed, so Ward 2
-says "not yet recorded". One list does not close a record: a member last listed at the list before L whom L's list
-does not name stays current (`held_over`) when L's list is incomplete (an unresolved name, or fewer members than the
-list before) and no successor starts; the dates and the basis line say "not named in the attendance lists of L".
+says "not yet recorded". One list does not close a record, nor keep it current: a member last listed at the list
+before L whom L's list does not name is held over (`held_over`) when L's list is incomplete (an unresolved name, or
+fewer members than the list before) and no successor starts. A held-over record is neither current nor former: its
+seat reads "Current member not yet recorded" with the line "last listed in attendance lists X; not named in the
+attendance lists of L", the member is listed under "Seat not yet recorded", and the member page keeps the dates. A
+wrong current member is the worst failure; "not recorded" is acceptable (re-review of 7895b63).
 `seats.csv` gives `printed_last` (+ source) for the last page printing the seat and `listed_last` (+ source) for the
 last names-only list. (2) `seats.stamp_seen`: a
 county row is seen to its end, or to the meeting of its `last_source` page; when that is before the latest meeting
