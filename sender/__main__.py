@@ -41,6 +41,9 @@ def _plan(args) -> int:
             # the sender is off, so this was the rehearsal: it must never fail the daily site job
             print("sender plan: the sender is disabled, so this was a rehearsal; nothing written, not failing the run",
                   file=sys.stderr)
+            # an Actions annotation so it is seen; fixed text only, never the error's (it may quote the note)
+            print("::warning title=Morning note rehearsal::the sender plan failed while the sender is disabled; "
+                  "see the step log", file=sys.stderr)
             return 0
         return 2
     path = plan_mod.write(Path(args.out), built)

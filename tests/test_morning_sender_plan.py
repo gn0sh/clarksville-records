@@ -232,6 +232,10 @@ def test_a_missing_or_wrong_note_fails_the_run(msite, tmp_path, monkeypatch, cap
     assert main(["plan", "--date", D.isoformat(), "--site", str(site), "--out", str(out), "--rehearse"]) == 0
     err = capsys.readouterr().err
     assert not out.exists() and "sender plan:" in err and "rehearsal" in err and "not failing" in err
+    # plan/rehearse-swallows: still visible in the Actions run, as a warning annotation on one line of fixed text
+    warnings = [line for line in err.splitlines() if line.startswith("::warning")]
+    assert warnings == ["::warning title=Morning note rehearsal::the sender plan failed while the sender is disabled; "
+                        "see the step log"]
 
 
 def test_a_subject_naming_a_government_body_fails_the_run(msite):
