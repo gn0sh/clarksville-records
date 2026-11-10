@@ -339,6 +339,37 @@ def test_a_bare_domain_in_a_title_is_broken_and_the_body_passes_the_deliver_chec
     assert deliver.body_ok(html, CTX["link_hosts"], CTX["link_urls"])
 
 
+@pytest.mark.parametrize("title", ["Budget \xad amendment", "Budget \ufeff amendment", "Budget \u202e amendment",
+                                   "\ufeff Budget", "Budget \u200b", "a \x00 b", "a\t\xad\tb", "\xad", " \u2066 \u2069 x"])
+def test_a_format_character_between_spaces_leaves_no_double_space(title):
+    """render/clean-order: pdftotext output carries soft hyphens, BOMs and bidi controls. clean() drops them before
+    it collapses whitespace, so none leaves the double space deliver refuses (which would lose the whole day)."""
+    from sender import deliver
+    assert "  " not in render.clean(title) and render.clean(title) == render.clean(title).strip()
+    html = html_of(entry(title=title, body_name=title, recorded=title), unplaced_text=title)
+    assert deliver.body_ok(html, CTX["link_hosts"], CTX["link_urls"]), html
+
+
+_PIECES = ["a", "Z", "7", " ", "  ", "\t", "\n", "\r\n", "\x85", "\u2028", "\xa0", "\u3000", "\xad", "\ufeff",
+           "\u202e", "\u2066", "\u200b", "\u200d", "\x00", "\x1b", "\x7f", ".", "\u3002", "\uff0e", "\uff61", "..",
+           "-", "+", "_", "@", ":", "//", "://", "https://", "HTTP://", "www.", "WWW.", "evil.example", "x.y/z",
+           "[", "]", "(", ")", "![", "](", "<", ">", "</p>", "<a href=", "&", "&amp;", "&#58;", "&#x3a;", "{{", "}}",
+           "{%", "*", "`", "#", "~", "|", "!", "$", "%", "=", "\"", "'", "\\", "e\u0301", "\U0001f600", "\u0645",
+           "3.5", "U.S.", "Ord.", "---", "> "]
+
+
+def test_render_writes_a_body_deliver_accepts_for_any_text():
+    """render/clean-order, as a property: thousands of random titles and names, made of format characters, markup
+    characters, dots, brackets and addresses, all come out as bodies deliver accepts (seeded, so a failure repeats)."""
+    import random
+    from sender import deliver
+    rnd = random.Random(20261110)
+    for n in range(3000):
+        text = ["".join(rnd.choice(_PIECES) for _ in range(rnd.randint(0, 25))) for _ in range(4)]
+        html = html_of(entry(title=text[0], body_name=text[1], recorded=text[2]), unplaced_text=text[3])
+        assert deliver.body_ok(html, CTX["link_hosts"], CTX["link_urls"]), (n, text)
+
+
 def test_render_writes_only_bodies_the_deliver_check_accepts():
     """Every hostile field render is given still comes out as a body deliver sends (plan-untrusted/body-unchecked)."""
     from sender import deliver

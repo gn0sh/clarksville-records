@@ -44,10 +44,12 @@ def _https(url) -> bool:
 
 
 def clean(text) -> str:
-    """One line of plain text: runs of whitespace become one space, control and format characters are dropped,
-    and anything past MAX_TITLE characters is cut."""
-    s = " ".join(str(text if text is not None else "").split())
-    s = "".join(c for c in s if unicodedata.category(c) not in ("Cc", "Cf"))
+    """One line of plain text: control and format characters are dropped (whitespace ones stay, as word breaks),
+    then runs of whitespace become one space, and anything past MAX_TITLE characters is cut. In that order
+    (render/clean-order): collapsing first left "a \\xad b" as "a  b", a double space the deliver check refuses."""
+    s = "".join(c for c in str(text if text is not None else "")
+                if c.isspace() or unicodedata.category(c) not in ("Cc", "Cf"))
+    s = " ".join(s.split())
     return s if len(s) <= MAX_TITLE else s[:MAX_TITLE].rstrip() + CUT
 
 
