@@ -1,0 +1,71 @@
+{% extends "base.html.j2" %}
+{% from "_rpc.html.j2" import rpc_docs %}
+{# The Regional Planning Commission's meetings in one year (sitegen/rpc.py meetings_year), oldest first. One section
+   per meeting (#<meeting id>): its documents, its upcoming hearing dates and its case items, every value as the agenda
+   prints it, each case linked to its agenda page. Case text carries data-item-title: words in the document, never
+   linked or reworded. #}
+{% block main %}
+<p class="kicker-line"><a href="{{ root }}{{ rpc_href }}">{{ rpc_label }}</a></p>
+<h1>Meetings in {{ year }}</h1>
+<p class="lede">{{ body }}. Each meeting shows its documents and the cases its agenda lists, as printed, with a link to the agenda page.</p>
+<nav aria-label="Meetings by year" class="year-nav">
+  <ul class="inline-list">
+    {% for y in years %}<li><a href="{{ y }}.html"{% if y == year %} aria-current="page"{% endif %}>{{ y }}</a></li>{% endfor %}
+  </ul>
+</nav>
+<details class="toc-group" open>
+  <summary>{{ meetings | length }} {{ "meeting" if meetings | length == 1 else "meetings" }} in {{ year }}</summary>
+  <ul class="toc">
+    {% for m in meetings %}
+    <li><a href="#{{ m.id }}">{{ m.date }}, {{ m.kind_label }}</a></li>
+    {% endfor %}
+  </ul>
+</details>
+
+{% for m in meetings %}
+<section class="council-meeting" id="{{ m.id }}" aria-labelledby="h-{{ m.id }}">
+  <header class="meeting-head">
+    <p class="kind-line"><span class="chip chip-kind">{{ m.kind_label }}</span>{% if m.cancelled %} <span class="chip chip-status">Cancelled</span>{% endif %}</p>
+    <h2 id="h-{{ m.id }}">{{ m.kind_label }}, <span class="nowrap">{{ m.date_text }}</span></h2>
+    <p class="muted">Listed as: {{ m.printed }}.</p>
+    {% if m.agenda %}
+    <p class="official-record">Unofficial copy. Official record: <a href="{{ m.agenda.url }}" target="_blank" rel="noopener noreferrer">the RPC's agenda PDF<span class="sr-only"> (opens in a new tab)</span></a>.</p>
+    {% endif %}
+  </header>
+  {{ rpc_docs(m) }}
+  {% if m.hearings %}
+  <h3 id="{{ m.id }}-hearings">Upcoming zoning meeting dates, as printed</h3>
+  <ul>
+    {% for h in m.hearings %}
+    <li><span data-item-title>{{ h.printed }}</span> <a href="{{ h.src }}" target="_blank" rel="noopener noreferrer">agenda p. {{ h.page }}<span class="sr-only"> (opens in a new tab)</span></a></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if m.cases %}
+  <h3 id="{{ m.id }}-cases">Cases on the agenda ({{ m.cases | length }})</h3>
+  {% for c in m.cases %}
+  <div class="item" id="{{ c.anchor }}">
+    <p class="item-num">{{ c.case_type }}{% if c.agenda_part %} · {{ c.agenda_part }}{% endif %}</p>
+    <h4 class="item-h">{{ c.number_printed }}{% if c.note %} <span class="chip chip-status">{{ c.note }}</span>{% endif %}</h4>
+    <div class="zoning">
+      <p class="zoning-h">As printed on the agenda, <a href="{{ c.src }}" target="_blank" rel="noopener noreferrer">page {{ c.page }}<span class="sr-only"> (opens in a new tab)</span></a></p>
+      {% if c.rows %}
+      <dl class="zoning-list">
+        {% for r in c.rows %}
+        <div class="zoning-row" data-zoning="{{ r.key }}"><dt>{{ r.label }}</dt><dd data-item-title>{{ r.value }}</dd></div>
+        {% endfor %}
+      </dl>
+      {% else %}
+      <p class="muted">No case details read from this entry; see the agenda page.</p>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+  {% elif m.agenda and m.agenda.no_text %}
+  <p class="muted">The agenda is a scan with no text layer; its cases were not read.</p>
+  {% elif m.agenda %}
+  <p class="muted">No case items read from this agenda.</p>
+  {% endif %}
+</section>
+{% endfor %}
+{% endblock %}

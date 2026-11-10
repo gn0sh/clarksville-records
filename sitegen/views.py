@@ -306,7 +306,7 @@ def alerts_on() -> bool:
     return bool((config.SITE.get("alerts") or {}).get("feed_id"))
 
 
-def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=()) -> list[dict]:
+def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), rpc=None) -> list[dict]:
     """`budget`: the BUDGET_NAV labels whose pages are built (Finance, and Capital projects when its fund is in
     the file); each replaces its "coming" page and drops the Coming chip. `councils`: each council's home page is
     listed after Officials, under its configured label (council.yml nav_label)."""
@@ -325,10 +325,12 @@ def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=()) 
         if label == "Officials":
             out += [{"label": c.nav_label, "href": c.home_href(), "page": c.nav_label, "coming": False}
                     for c in councils]
+            if rpc is not None:   # the Regional Planning Commission (sitegen/rpc.py), after the councils
+                out.append({"label": rpc.nav_label, "href": rpc.home_href(), "page": rpc.nav_label, "coming": False})
     return out
 
 
-def site_context(facts, contracts: bool = False, budget: tuple = (), councils=()) -> dict:
+def site_context(facts, contracts: bool = False, budget: tuple = (), councils=(), rpc=None) -> dict:
     """`contracts`: finance.json is loaded, so the nav lists Bids and awards (design finance-contracts 1).
     `budget`: the budget pages built (see _nav). `councils`: the council.CouncilIndex of each council built."""
     ix = _ix(facts)
@@ -336,7 +338,7 @@ def site_context(facts, contracts: bool = False, budget: tuple = (), councils=()
     return {
         "cfg": cfg,
         "csp": csp(),
-        "nav": _nav(ix, contracts, budget, councils),
+        "nav": _nav(ix, contracts, budget, councils, rpc),
         "alerts": alerts_on(),
         # the footer link exists only when it is switched on and has an address (CEO, 2026-11-08)
         "support_url": (cfg.get("support_url") or "") if cfg.get("support_enabled") is True else "",
@@ -953,6 +955,7 @@ def about(facts) -> dict:
 RECORD_BODY = frozenset({
     "votes_year.html.j2", "items_year.html.j2", "official.html.j2", "official_year.html.j2", "official_roster.html.j2",
     "district.html.j2", "council_home.html.j2", "council_meetings_year.html.j2", "council_items_year.html.j2"})
+RECORD_RPC = frozenset({"rpc_home.html.j2", "rpc_meetings_year.html.j2"})   # the RPC's agendas and minutes page
 RECORD_FINANCE = frozenset({"fin_index.html.j2", "fin_fund.html.j2", "fin_capital.html.j2"})
 
 
@@ -980,6 +983,8 @@ def official_record(template: str, site: dict, ctx: dict) -> dict | None:
             rec = site.get("record")   # no minutes PDF known: the council's own record page
     elif template in RECORD_BODY:
         rec = site.get("record")
+    elif template in RECORD_RPC:
+        rec = site.get("rpc_record")
     elif template in RECORD_FINANCE:
         rec = recs.get("finance")
     elif template == "fin_contracts_index.html.j2":
@@ -1442,7 +1447,7 @@ def _seat_on(ix: Index, seat_labels: list[str], seat_on: dict[str, dict[str, int
             seat_on.setdefault(d, {})[oid] = seat_labels.index(label)
 
 
-def search_index(facts, fin=None, councils=()) -> dict:
+def search_index(facts, fin=None, councils=(), rpc=None) -> dict:
     """The one first-party search index (manager decision Q3), loaded by static/search.js. Unconfirmed roll calls
     carry no outcome and no votes, so a vote or outcome filter can never match one (invariant rules 1 and 5).
     `fin` (a fin_views.Finance) adds the solicitations, type `sol` (finance-contracts F7). `councils` (each a
@@ -1464,6 +1469,9 @@ def search_index(facts, fin=None, councils=()) -> dict:
         records += body_records(cix, cix.body_key)
         bodies.append({"key": cix.body_key, "label": cix.body_name})
         people += [(cix, o) for o in sorted(cix.facts["officials"], key=name_key)]
+    if rpc is not None:   # the RPC's meetings and agenda cases (sitegen/rpc.py); it has no officials in the facts
+        records += rpc.search_records()
+        bodies.append({"key": rpc.body_key, "label": rpc.body})
     years = sorted({y for r in records for y in r["y"]})
     # Compact: seat_on[date][official] is an index into seat_labels, for the officials with a vote on that date.
     seat_labels: list[str] = []
@@ -1490,9 +1498,9 @@ def search_index(facts, fin=None, councils=()) -> dict:
     }
 
 
-def search_page(facts, fin=None, councils=()) -> dict:
+def search_page(facts, fin=None, councils=(), rpc=None) -> dict:
     ix = _ix(facts)
-    idx = search_index(ix, fin, councils)
+    idx = search_index(ix, fin, councils, rpc)
     return {"years": idx["years"], "types": idx["types"], "officials": idx["officials"], "bodies": idx["bodies"],
             "contracts_kind": config.FIN_TEXT["contracts"]["search_kind"] if fin is not None else None}
 

@@ -54,6 +54,35 @@
 - Connection resets: the sandbox relay drops a tunnel when a page takes more than ~10 s (proxy status
   ws_closed_mid_exchange, nothing received from the site). Not a refusal; the fetcher retries once.
 
+## Regional Planning Commission (verified 2026-11-10 by the collector's fetcher, crawl-delay 10; RPC-1)
+- Listing: one page, https://www.cmcrpc.com/documents/agenda-minutes/ (WordPress, 222 KB). robots.txt `User-agent: *`,
+  `crawl-delay: 10`, no Disallow; the fetcher reads it every run. Tables of rows "date [– label] | Agenda | Minutes
+  [| video]"; the label names the body (CDRB, Executive Committee, Special Called) and "*CANCELLED*". A cell that prints
+  "Agenda" or "Minutes" with no link means not posted; "N/A" means none.
+- Fetched 2026-11-10 (`python -m collector rpc fetch`): 97 listed meetings (58 RPC regular, 30 CDRB, 5 Executive
+  Committee, 4 special called), 2022-01-25 to 2026-10-27; 187 links: 169 distinct PDF/DOCX URLs on www.cmcrpc.com
+  (168 stored: 80 agendas, 88 minutes, one of them the DOCX; the 2022-08-23 minutes PDF is over the fetcher's 50 MB
+  limit and was not stored), 16 on drive.google.com (listed, never requested; mostly 2024), 1 YouTube video (listed,
+  not shown). About 30 s a file through the sandbox relay, so a full fetch took about 30 minutes.
+- Source errors seen (kept as listed): the 2025-10-27 CDRB row's minutes link is the 2025-07-29 RPC minutes; the
+  2026-07-28 row's minutes file is named 07.23.2026. A URL listed twice is fetched once.
+- RPC agendas are text PDFs (FileMaker). Each case is a numbered paragraph "1. Z - 19 - 2026 OWNER(S): ... REQUEST: ...
+  LOCATION: ... CO. COMM. DISTRICT: N CITY COUNCIL WARD: N NUMBER OF ACRES: ..." (2025: "1. CASE NUMBER: Z - 29 - 2025
+  APPLICANT Name"). Prefixes seen: Z, ZO (city zoning), CZ, CZO (county zoning), S (subdivision), V (subdivision
+  variance), SR (site review), LA (landscape appeal), AB (abandonment). "UPCOMING (ZONING) MEETINGS DATES/TIMES" lists the
+  Council and Commission hearing dates. Some agendas leave out a "CASE TYPE:" heading (2026-08-25 prints S- plats under
+  COUNTY ZONING), so the case type is read from the prefix. The one CDRB agenda with text (2025-02-24) numbers its
+  design review cases MSCD- and DDR- ("APPLICATION OF :", "REASON FOR THE REQUEST:", "LOCATION OF REQUEST :").
+- Text layers: 60 of the 167 PDFs have text on every page, 2 on some, 105 none (22 of the 23 stored CDRB agendas and 83 of
+  the 88 minutes are image scans with no text; OCR is a follow-up). One agenda prints another year: the 2025-04-11 Executive Committee agenda says
+  "April 11, 2023" (kept as listed, reported by the build).
+- Read (`python -m collector rpc build`): 57 agendas with text, 1,260 case items (931 distinct case numbers; SR 447,
+  Z 344, S 218, CZ 113, V 45, AB 38, ZO 38, CZO 8, LA 5, MSCD 2, DDR 2), each with its agenda page; 52 agendas list
+  upcoming Council and Commission hearing dates. 2022-2023 agendas use another layout ("CASE NUMBER: Z-73-2022
+  APPLICANT(S): ... AGENT: ...", hearing dates as "CITY COUNCIL INFORMAL: 10/27/2022 - 4:30 P.M.", cases separated by
+  rows of asterisks, the text layer sometimes splitting a word: "APPLIC ANT/OWNER", "LOC ATION"). 61 cases lack an
+  applicant, request or location as read (most are text amendments, which print no location).
+
 ## Existing services
 - soar.com "Citizen Portal": AI summaries of Clarksville council meetings with overall tallies, no per-member votes, paywalled video/transcripts.
 

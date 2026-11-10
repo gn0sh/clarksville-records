@@ -81,7 +81,8 @@ NARROW = 360  # AC-F10: the Bids and awards pages are also checked at 360 px
 
 # External links that are not minutes PDFs but are allowed: a holder record's roster source, the map's boundary source,
 # the county redistricting page / old-lines map, and the footer support link. Each must be marked data-ext and https.
-EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder", "corrections", "video", "operator", "record"}
+EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder", "corrections", "video", "operator", "record",
+             "listed"}   # listed: an RPC document on a host we do not collect from (Google Drive), linked as listed
 # the data-transcript attribute itself, not data-transcript-foo
 TRANSCRIPT_TEXT = re.compile(r"(<(span|p)\b[^>]*\sdata-transcript(?=[\s=/>])[^>]*>)[^<]*(</\2>)")
 VIDEO_HREF = re.compile(r"(https://[^#\s]+)(?:#t=(\d+))?")
@@ -128,6 +129,26 @@ def councils(facts: dict) -> list[dict]:
         c = yaml.safe_load((ROOT / "config" / "localities" / loc / "council.yml").read_text(encoding="utf-8"))
         out.append({"slug": c["slug"], "prefix": c["slug"] + "/", "facts": load_facts(ROOT / c["facts"])})
     return out
+
+
+def rpc_facts(facts: dict) -> dict | None:
+    """The Regional Planning Commission facts a real build shows (config/site.yml `rpc:`), or None (a fixture build,
+    no `rpc:`, or no facts file yet)."""
+    import yaml
+    loc = _site_cfg().get("rpc")
+    if facts.get("fixture") or not loc:
+        return None
+    c = yaml.safe_load((ROOT / "config" / "localities" / loc / "rpc.yml").read_text(encoding="utf-8"))
+    p = ROOT / c["facts"]
+    return {**load_facts(p), "_cfg": c} if p.is_file() else None
+
+
+def rpc_allowed(rpc: dict | None) -> set[str]:
+    """The RPC's record page and every listed link we did not collect (shown with data-ext="listed")."""
+    if not rpc:
+        return set()
+    return {rpc["_cfg"]["record_url"]} | {d["url"] for m in rpc["meetings"] for d in m["documents"]
+                                          if not d["fetched"] and d["url"].startswith("https://")}
 
 
 def default_inputs(facts: dict) -> tuple[Path | None, Path | None]:
@@ -1081,6 +1102,8 @@ def page_type(rel: str) -> str | None:
         return "finance_index" if rel == "finance/index.html" else "fund"
     if head == "capital":
         return "capital"
+    if head == _rpc_slug():
+        return "rpc_home" if rel.count("/") == 1 else "rpc_meetings"
     for c in _council_slugs():
         if head == c:
             parts = rel.split("/")
@@ -1093,7 +1116,14 @@ def page_type(rel: str) -> str | None:
 NARROW_TYPES = ("contracts_index", "contract", "finance_index", "fund", "capital",  # AC-F10: also at 360 px
                 "council_home", "council_member", "council_meetings", "council_items",  # M4: compact at 360 px
                 "council_transcript",
+                "rpc_home", "rpc_meetings",  # RPC-1: phone widths, no sideways scroll
                 "alerts")
+
+
+def _rpc_slug() -> str | None:
+    import yaml
+    loc = _site_cfg().get("rpc")
+    return yaml.safe_load((ROOT / "config" / "localities" / loc / "rpc.yml").read_text(encoding="utf-8"))["slug"] if loc else None
 
 
 def _council_slugs() -> list[str]:
@@ -1305,10 +1335,14 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("links", check_links(site, pages, no_export), "internal links, #anchors and assets" + ("; data/ skipped" if no_export and not (site / "data").exists() else ""))
     cs = [c for c in councils(facts) if any(rel.startswith(c["prefix"]) for rel in pages)]
     missing = [c["slug"] for c in councils(facts) if c not in cs]
-    all_sources = {"sources": [*facts["sources"], *(s for c in cs for s in c["facts"]["sources"])]}
+    rpc = rpc_facts(facts)
+    all_sources = {"sources": [*facts["sources"], *(s for c in cs for s in c["facts"]["sources"]),
+                               *(rpc or {}).get("sources", [])]}   # an RPC DOCX has no page count: linked whole only
     videos = {m["video_url"] for c in cs for m in c["facts"]["meetings"] if m.get("video_url")}
-    problems, note = check_sources(site, pages, all_sources, store_extra, allowed_external(cfg, seats_path, districts_path), finance,
-                                   videos)
+    problems, note = check_sources(site, pages, all_sources, store_extra,
+                                   allowed_external(cfg, seats_path, districts_path) | rpc_allowed(rpc), finance, videos)
+    if rpc is not None and not any(rel.startswith(rpc["_cfg"]["slug"] + "/") for rel in pages):
+        problems.append(f"no pages under {rpc['_cfg']['slug']}/ for the configured RPC")
     rep.add("sources", problems + [f"no pages under {m}/ for the configured council" for m in missing], note)
     county_pages = {rel: pg for rel, pg in pages.items() if not any(rel.startswith(c["prefix"]) for c in cs)}
     problems = check_unverified(site, county_pages, facts, internal, fin=finance)

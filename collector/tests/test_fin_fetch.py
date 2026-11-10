@@ -113,7 +113,7 @@ def test_a_docx_body_is_not_pdf_and_not_stored(tmp_path):
 
 def test_bad_expect_value_is_an_error(tmp_path):
     with pytest.raises(ValueError):
-        fetch_into_store(FakeFetcher(b"", ""), store(tmp_path), ARCHIVE, expect="docx")
+        fetch_into_store(FakeFetcher(b"", ""), store(tmp_path), ARCHIVE, expect="xlsx")   # docx is valid since RPC-1
 
 
 def test_finance_hosts_carry_no_literal_in_the_fetcher():
