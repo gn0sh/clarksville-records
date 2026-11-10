@@ -266,7 +266,7 @@ def _index_order(sols: list[dict]) -> list[dict]:
     return dated + sorted((s for s in sols if not s["archive_date"]), key=lambda s: s["row"])
 
 
-def contracts_index(fx: Finance) -> dict:
+def contracts_index(fx: Finance, export: bool = True) -> dict:
     rows = []
     for sol in _index_order(fx.fin["solicitations"]):
         tab = sol["bid_tab"]
@@ -291,7 +291,8 @@ def contracts_index(fx: Finance) -> dict:
     years = sorted({r["year"] for r in rows if r["year"] is not None}, reverse=True)
     return {"rows": rows, "depts": depts, "years": years, "coverage_sentence": coverage_sentence(fx.coverage),
             "notes": notes(), "c": C, "words": _words(C["words"]), "disclosure": False,
-            "exports": EXPORTS_READY and not fx.fixture}   # a fixture build has no finance export
+            # a fixture build, or a preview built without the open-data export, has no finance export to link
+            "exports": EXPORTS_READY and not fx.fixture and export}
 
 
 def solicitation(sol_id: str, fx: Finance) -> dict:

@@ -249,7 +249,7 @@ def _names(bg: Budget, fund_no: str) -> list[dict]:
     return out
 
 
-def finance_index(bg: Budget) -> dict:
+def finance_index(bg: Budget, export: bool = True) -> dict:
     """finance/index.html (design 6): books, then funds in the book's order, the same row for every fund and no
     amounts. No committee roster: finance.json names no one (AC-F9 has nothing to link here yet)."""
     books = []
@@ -261,7 +261,7 @@ def finance_index(bg: Budget) -> dict:
              for no in bg.funds]
     from .fin_views import EXPORTS_READY
     return dict(_common(bg), books=books, funds=funds, missing=_actuals_missing(bg), words=_words(B["words"]),
-                capital_href=CAPITAL if bg.capital_fund else None, exports=EXPORTS_READY and not bg.fx.fixture)
+                capital_href=CAPITAL if bg.capital_fund else None, exports=EXPORTS_READY and not bg.fx.fixture and export)
 
 
 def _place(books: list[dict], keep, page: str, part_of: dict | None, sections_key: str | None) -> None:

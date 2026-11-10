@@ -16,7 +16,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 from . import county_agendas as agendas_mod
 from . import rpc as rpc_mod
 from . import budget_views, config, council as council_mod, days as days_mod, feeds as feeds_mod, fin_views, \
-    georef as georef_mod, \
+    georef as georef_mod, morning as morning_mod, \
     transcripts as transcripts_mod, \
     seats as seats_mod, views
 
@@ -173,14 +173,18 @@ def read_report(path: Path | None) -> dict | None:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
-def _clean(out: Path, extra_dirs=()) -> None:
-    """Remove what this generator owns. `data/` belongs to the collector's export and is left alone. `extra_dirs`:
-    each council's page folder (council.yml slug)."""
+def _clean(out: Path, extra_dirs=(), export: bool = True) -> None:
+    """Remove what this generator owns. `data/` belongs to the collector's export and is left alone, unless the build
+    goes without the export (`export` False): then an earlier export there is removed, so no stale data/ file is
+    published beside a data.html that says the files are not there. `extra_dirs`: each council's page folder
+    (council.yml slug)."""
     out.mkdir(parents=True, exist_ok=True)
+    if not export:
+        shutil.rmtree(out / "data", ignore_errors=True)
     for p in out.glob("*.html"):
         p.unlink()
     for d in ("officials", "meetings", "items", "static", "districts", "votes", "contracts", "finance", "capital",
-              feeds_mod.FOLDER, *extra_dirs):
+              feeds_mod.FOLDER, morning_mod.FOLDER, *extra_dirs):
         shutil.rmtree(out / d, ignore_errors=True)
 
 
@@ -308,7 +312,7 @@ def site_url_problems(cfg: dict) -> list[str]:
         if cfg.get(link):
             out += [f"{k} must be set when {link} is" for k in needs
                     if not isinstance(cfg.get(k), str) or not cfg[k].strip()]
-    return out + corrections_problems(cfg) + feeds_mod.problems(cfg)
+    return out + corrections_problems(cfg) + feeds_mod.problems(cfg) + morning_mod.problems(cfg)
 
 
 # config/site.yml `corrections:` (views.corrections_context): a GitHub owner/name and a plain e-mail address. Both go
@@ -344,7 +348,8 @@ def corrections_problems(cfg: dict) -> list[str]:
 def build(facts_path, out_dir, internal: bool = False, changes_path=None, report_path=None,
           seats_path=DEFAULT, districts_path=DEFAULT, geocoder: bool = True, finance_path=DEFAULT,
           capital_fund=DEFAULT, councils=DEFAULT, target: str | None = None, transcripts: bool = True,
-          rpc=DEFAULT, today=None, county_agendas=DEFAULT) -> dict:
+          rpc=DEFAULT, today=None, county_agendas=DEFAULT, morning_manifests=DEFAULT,
+          export: bool = True) -> dict:
     """`geocoder=False` (`--no-geocoder`) draws no landing address box and allows no geocoder in the CSP: the build
     for the claude.ai preview, where the box could not reach the geocoder. The plain lookup line shows instead.
     `seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
@@ -368,7 +373,14 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     (or RECORDS_TODAY).
     `county_agendas`: the county agendas file (collector/county_agenda.py) whose meetings the minutes do not cover yet
     are shown as agenda-only meetings (sitegen/county_agendas.py); left out, config.COUNTY_AGENDAS for a real build
-    and none for a fixture build. None: no agenda-only meetings."""
+    and none for a fixture build. None: no agenda-only meetings.
+    `morning_manifests`: the collectors' manifests the morning note (sitegen/morning.py) reads first_fetched_at from;
+    left out, config/site.yml `morning_note.manifests` for a real build and none for a fixture build (made-up sources
+    have no manifest rows). None: no morning/ files. The preview target writes none.
+    `export`: whether the open-data export (collector export, data/) goes with this build. A preview still over its
+    cap without the transcript pages is built again with export=False: no page (data.html, about.html, the finance
+    and contracts indexes) links a data/ file, data.html and about.html say the files are on the full site, and any
+    earlier export in `out_dir/data` is removed."""
     target = target or config.DEFAULT_TARGET
     if target not in config.MAX_FILES_BY_TARGET:
         raise BuildError(f"unknown target {target!r}; one of {', '.join(sorted(config.MAX_FILES_BY_TARGET))}")
@@ -438,12 +450,13 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     if report_path is None:
         report_path = out.parent / "report.json"
 
-    _clean(out, [c.slug for c in cixs] + ([rpx.slug] if rpx else []))
+    _clean(out, [c.slug for c in cixs] + ([rpx.slug] if rpx else []), export=export)
     site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs, rpc=rpx)
     site["internal"] = internal
     site["councils"] = [council_mod.landing_entry(c) for c in cixs]
     site["transcripts_omitted"] = not transcripts
     site["ward_map"] = ward_map
+    site["export_omitted"] = not export
     if rpx is not None:
         site["rpc_record"] = {"url": rpx.cfg["record_url"], "label": rpx.cfg["record_label"]}
     written: list[str] = []
@@ -566,14 +579,15 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
            **views.data_page(cixs, finance=fx is not None and fin_views.EXPORTS_READY and not fixture))
     if fx is not None:
         title = config.FIN_TEXT["contracts"]["title"]
-        render("fin_contracts_index.html.j2", "contracts/index.html", title, **fin_views.contracts_index(fx))
+        render("fin_contracts_index.html.j2", "contracts/index.html", title,
+               **fin_views.contracts_index(fx, export=export))
         for sol in fin_data["solicitations"]:
             ctx = fin_views.solicitation(sol["id"], fx)
             render("fin_solicitation.html.j2", f"contracts/{sol['slug']}.html", f"{title}: {sol['title']}", **ctx)
         render("glossary.html.j2", "glossary.html", "Glossary", **fin_views.glossary())
     if bg is not None:
         title = config.FIN_TEXT["budget"]["title"]
-        render("fin_index.html.j2", budget_views.INDEX, title, **budget_views.finance_index(bg))
+        render("fin_index.html.j2", budget_views.INDEX, title, **budget_views.finance_index(bg, export=export))
         # Fund and capital pages over config.PAGE_BYTES are split in parts by heading (finance-pages/page-weight):
         # every fund is planned first, so each line's row has its part before any page links to it.
         split = []
@@ -669,6 +683,24 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         for rel, body in feeds_mod.build_feeds(ix, cixs).items():
             (out / rel).parent.mkdir(parents=True, exist_ok=True)
             (out / rel).write_bytes(body)
+    if morning_manifests is DEFAULT:
+        mn = morning_mod.settings()
+        morning_manifests = None if fixture or mn is None else mn["manifests"]
+    morning_note = None
+    if morning_manifests is not None and morning_mod.settings() is not None and target != "preview":
+        # The morning note (Daylight M3, sitegen/morning.py): after every page, so each entry's link knows its part.
+        # T3 renders morning/index.html from `morning_note` (today's note). Pages target only: the claude.ai preview
+        # may leave sections out (docs/status.md Decisions, 2026-11-09) and is at its file cap.
+        try:
+            first = morning_mod.first_fetched(morning_manifests)
+            bulk = morning_mod.bulk_urls(morning_manifests, morning_mod.settings()["backfill"]["initial_run_hours"])
+            docs = morning_mod.documents(ix, cixs, rpx, ax, fx, bg, first)
+            as_of = max([x for x in [ix.data_as_of(), *(c.data_as_of() for c in cixs)] if x != "unknown"]
+                        + [s["fetched_at"] for s in (rpx.facts["sources"] if rpx else []) if s.get("fetched_at")],
+                        default="")
+            morning_note = morning_mod.write(out, built_day, docs, first, data_as_of=as_of, bulk=bulk)
+        except morning_mod.MorningError as exc:
+            raise BuildError(str(exc)) from exc
     if internal:
         render("review.html.j2", "review.html", "Review (internal)",
                **views.review(ix, read_report(report_path)))
@@ -685,14 +717,22 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     # The target's file cap, counting the export still to come (data/ in `out` now may be an older export's).
     cap = config.max_files(target)
     built = sum(1 for p in out.rglob("*") if p.is_file() and p.relative_to(out).parts[0] != "data")
-    expected = built + export_file_count(fixture, cixs, fx is not None and fin_views.EXPORTS_READY)
+    expected = built + (export_file_count(fixture, cixs, fx is not None and fin_views.EXPORTS_READY) if export else 0)
     tx_pages = sum(len(p[5]) for p in tx_plans)
     if expected > cap and tx_pages and target == "preview":
         print(f"sitegen: {expected} files with the export is over the {target} cap of {cap}; building again without "
               f"the {tx_pages} transcript pages", file=sys.stderr)
         return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
                      finance_path, capital_fund, councils, target, transcripts=False, rpc=rpc, today=today,
-                     county_agendas=county_agendas)
+                     county_agendas=county_agendas, morning_manifests=morning_manifests, export=export)
+    if expected > cap and export and target == "preview":
+        print(f"sitegen: {expected} files with the export is over the {target} cap of {cap}; building again without "
+              f"the open-data export (do not run `collector export` for this preview; data.html says the files are "
+              f"on the full site)", file=sys.stderr)
+        return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
+                     finance_path, capital_fund, councils, target, transcripts=transcripts, rpc=rpc, today=today,
+                     county_agendas=county_agendas, morning_manifests=morning_manifests, export=False)
     manifest = write_publish_manifest(out, target)
     return {"pages": written, "files": len(manifest) + 1, "target": target, "transcripts": transcripts,
-            "transcript_pages": tx_pages, "files_with_export": expected}
+            "transcript_pages": tx_pages, "files_with_export": expected,
+            "morning": morning_note, "export": export}

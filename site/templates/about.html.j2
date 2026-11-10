@@ -131,6 +131,9 @@
 <section aria-labelledby="exports">
   <h2 id="exports">Open data</h2>
   <p>All shown facts, with their sources, are available as files so this site is not the only copy. The files carry the same facts as the pages: official ids and names, each motion's kind, whether each roll call and vote is confirmed, and links to the source pages, but not the program's raw reading of names, vote wording or motion sentences.</p>
+  {% if site.export_omitted %}
+  <p>The files are left out of this preview copy of the site, which is limited in size. The full site carries them.</p>
+  {% else %}
   <ul>
     <li><a href="{{ root }}data/facts.json">facts.json</a> (all shown facts and sources)</li>
     <li><a href="{{ root }}data/officials.csv">officials.csv</a></li>
@@ -143,5 +146,6 @@
     <li><a href="{{ root }}data/item_events.csv">item_events.csv</a></li>
     <li><a href="{{ root }}data/sources.csv">sources.csv</a></li>
   </ul>
+  {% endif %}
 </section>
 {% endblock %}
