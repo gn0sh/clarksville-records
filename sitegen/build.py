@@ -692,7 +692,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
             raise BuildError(str(exc)) from exc
     feed_rows = feeds_mod.feed_list(cixs, rpc=rpx, fin=fin_data, target=target) if site["alerts"] else []
     if site["alerts"]:   # Alerts v1 (sitegen/feeds.py): written last, when every item and meeting link knows its part
-        for rel, body in feeds_mod.build_feeds(ix, cixs, rpc=rpx, fin=fin_data, target=target, first=first).items():
+        for rel, body in feeds_mod.build_feeds(ix, cixs, rpc=rpx, fin=fin_data, target=target, first=first,
+                                                agendas=ax).items():
             (out / rel).parent.mkdir(parents=True, exist_ok=True)
             (out / rel).write_bytes(body)
     morning_note = None
