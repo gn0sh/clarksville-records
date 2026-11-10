@@ -8,6 +8,8 @@ motions, as tests/test_rpc_minutes_pages.py); the committed rpc.json for the sta
 """
 import csv
 import io
+import re
+from html import unescape
 import json
 from pathlib import Path
 
@@ -578,6 +580,16 @@ def test_the_built_data_page_links_every_exported_rpc_file(tmp_path):
     assert "A motion appears in these files only when it is confirmed" in html
     # the Data page names no person and never says "unanimous"
     assert "unanim" not in html.casefold() and "Fixture Mover" not in html
+    # the closing copy is true of the RPC's rows: a meeting row cites its listing and files, a sources row is the file,
+    # and a motion not confirmed is left out (not an empty cell with its check)
+    body = rpc.load(cfg, True).body
+    plain_text = " ".join(unescape(re.sub(r"<[^>]+>", " ", html)).split())
+    assert (f"In the {body}'s files, a meeting row names the listing page it was taken from and its agenda and "
+            "minutes files, and a sources row is the fetched file itself.") in plain_text
+    assert (f"A {body} motion that is not confirmed is not in its files at all; its meeting row counts it "
+            "(motions_not_confirmed).") in plain_text
     plain = tmp_path / "plain" / "site"
     build(FIXTURE, plain, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, rpc=None)
-    assert "data/rpc/" not in (plain / "data.html").read_text(encoding="utf-8")
+    text = (plain / "data.html").read_text(encoding="utf-8")
+    assert "data/rpc/" not in text and "meeting row names the listing page" not in text
+    assert "is not in its files at all" not in text

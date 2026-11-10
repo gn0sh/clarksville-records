@@ -1601,4 +1601,4 @@ def data_page(councils=(), finance: bool = False, rpc=None) -> dict:
                        "files": [{"name": n, "about": a} for n, a in FIN_EXPORT_FILES]})
     for g in groups:
         g.setdefault("note", None)
-    return {"groups": groups, "files": groups[0]["files"]}
+    return {"groups": groups, "files": groups[0]["files"], "rpc_body": rpc.body if rpc is not None else None}
