@@ -33,6 +33,8 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               alternate link) with unique tag: ids, newest first, at most alerts.max_entries; each alternate link
               resolves to a built page and its #anchor, each related link is a fetched source document; alerts.html
               links every feed and no other (Alerts v1, sitegen/feeds.py)
+  rpc-cases   (a build with the Regional Planning Commission) every "CASE NUMBER:" an agenda prints was read as a case
+              (the completeness check of collector/rpc_agenda.py: a missed case is never silent)
   files       at most the target's file cap: --target preview (claude.ai artifact, 500) or pages (GitHub Pages, 3000)
   transcripts every line of a transcript page (<folder>/transcripts/*.html) has its time linked to its meeting's own
               video as <video_url>#t=<whole seconds>, the "Transcript" label and the notice; every call-on entry on a
@@ -141,6 +143,17 @@ def rpc_facts(facts: dict) -> dict | None:
     c = yaml.safe_load((ROOT / "config" / "localities" / loc / "rpc.yml").read_text(encoding="utf-8"))
     p = ROOT / c["facts"]
     return {**load_facts(p), "_cfg": c} if p.is_file() else None
+
+
+def check_rpc_cases(rpc: dict | None) -> tuple[list[str], str]:
+    """The completeness check: an agenda that prints "CASE NUMBER:" more times than the cases read from it."""
+    if not rpc:
+        return [], "no RPC facts"
+    read = [m for m in rpc["meetings"] if m.get("case_numbers_printed") is not None]
+    problems = [f"{m['id']}: the agenda prints CASE NUMBER: {m['case_numbers_printed']} times, "
+                f"{m['case_numbers_read']} of those cases read" for m in read
+                if m["case_numbers_printed"] > (m.get("case_numbers_read") or 0)]
+    return problems, f"{len(read)} agendas read, {sum(m['case_count'] for m in read)} cases"
 
 
 def rpc_allowed(rpc: dict | None) -> set[str]:
@@ -1348,6 +1361,9 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     if rpc is not None and not any(rel.startswith(rpc["_cfg"]["slug"] + "/") for rel in pages):
         problems.append(f"no pages under {rpc['_cfg']['slug']}/ for the configured RPC")
     rep.add("sources", problems + [f"no pages under {m}/ for the configured council" for m in missing], note)
+    if rpc is not None:
+        problems, note = check_rpc_cases(rpc)
+        rep.add("rpc-cases", problems, note)
     county_pages = {rel: pg for rel, pg in pages.items() if not any(rel.startswith(c["prefix"]) for c in cs)}
     problems = check_unverified(site, county_pages, facts, internal, fin=finance)
     for c in cs:

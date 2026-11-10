@@ -671,4 +671,4 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                      finance_path, capital_fund, councils, target, transcripts=False, rpc=rpc)
     manifest = write_publish_manifest(out, target)
     return {"pages": written, "files": len(manifest) + 1, "target": target, "transcripts": transcripts,
-            "transcript_pages": tx_pages}
+            "transcript_pages": tx_pages, "files_with_export": expected}

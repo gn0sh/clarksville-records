@@ -44,7 +44,14 @@ def main(argv=None) -> int:
     print(f"sitegen: wrote {len(result['pages'])} pages, {result['files']} files in total, to {args.out} "
           f"(target {result['target']}, cap {config.max_files(result['target'])} with the export; transcript pages "
           f"{result['transcript_pages'] if result['transcripts'] else 'left out'})")
+    print(headroom_line(result))
     return 0
+
+
+def headroom_line(result: dict) -> str:
+    """The files still free under the target's cap: the cap minus the files the site has once the export is in."""
+    cap, n = config.max_files(result["target"]), result["files_with_export"]
+    return f"sitegen: file headroom {cap - n} ({result['target']} cap {cap} minus {n} files with the export)"
 
 
 if __name__ == "__main__":

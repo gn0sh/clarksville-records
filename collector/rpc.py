@@ -305,7 +305,14 @@ def main(argv: list[str]) -> int:
         report["build"] = summary
     write_json(p["report"], {**report, "fetch_log": log.get("fetch_log", [])})
     print(json.dumps(report, indent=1, default=str)[:4000])
-    return 2 if any(f["stage"] == "listing" for f in log["failures"]) else 0
+    if any(f["stage"] == "listing" for f in log["failures"]):
+        return 2
+    short = report.get("build", {}).get("case_shortfalls") or []
+    if short:   # the completeness check: an agenda prints more "CASE NUMBER:" than the cases read
+        print(f"FAIL  rpc case completeness: {len(short)} agendas with cases not read: {', '.join(short)}",
+              file=sys.stderr)
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 """Regional Planning Commission (RPC-1): config, the listing page, the polite fetch and the agenda case reader.
 No network: the listing is a trimmed copy of the real page, the agenda texts are pdftotext output of real agendas."""
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -243,3 +244,142 @@ def test_build_cites_pages_and_lists_what_was_not_read(cfg, rows, tmp_path):
     drive = [d for d in by_id["2024-08-13-special"]["documents"] if d["host"] == "drive.google.com"][0]
     assert drive["fetched"] is False and drive["source_id"] is None
     assert summary["cases"] == 27 and summary["meetings"] == 11
+    assert (m["case_numbers_printed"], m["case_numbers_read"], summary["case_shortfalls"]) == (0, 0, [])
+
+
+# ------------------------------------------------------------------ cases whose number is not on the item's line
+# (code review 2026-11-10, rpc/case-dropped-silently): real agendas 2022-2024 print the item number on a line of its
+# own before or after "CASE NUMBER:", or none at all. Each fixture is the whole agenda (pdftotext -layout), so the
+# completeness count (every printed "CASE NUMBER:" read as a case) is checked on the real document.
+def cases_of(name: str) -> tuple[dict, list[dict]]:
+    res = rpc_agenda.parse_pages(agenda_pages(name))
+    return res, [rpc_agenda.case_record(c, "m", "s") for c in res["cases"]]
+
+
+@pytest.mark.parametrize("name,total", [
+    ("agenda_2022-01-25.txt", 15), ("agenda_2022-02-22.txt", 23), ("agenda_2022-04-26.txt", 28),
+    ("agenda_2022-11-22.txt", 24), ("agenda_2023-03-28.txt", 26), ("agenda_2023-08-29.txt", 28),
+    ("agenda_2024-07-23.txt", 18), ("agenda_2024-10-29.txt", 23)])
+def test_every_printed_case_number_is_read(name, total):
+    res, recs = cases_of(name)
+    assert res["case_numbers_printed"] == res["case_numbers_read"] == total and len(recs) == total
+
+
+def test_item_number_on_the_line_before_the_case_number():
+    _, recs = cases_of("agenda_2022-02-22.txt")
+    by = {r["number"]: r for r in recs}
+    sr7, sr8 = by["SR-7-2022"], by["SR-8-2022"]
+    assert (sr7["item"], sr7["page"], sr7["applicant"], sr7["agent"]) == (5, 8, "Vintage Clarksville Owner, LLC",
+                                                                          "Cal McKay")
+    assert (sr8["item"], sr8["agent"], sr8["note"]) == (6, "Cal Burchett", "DEFERRED")
+    assert by["SR-6-2022"]["agent"] == "TTL, Inc."           # not the next case's AGENT
+    # 2024-07-23: "5." / DRAFT watermark letters / "CASE NUMBER: V - 4 - 2024 ..."; "7." / "AF" / "S - 20 - 2024"
+    _, recs = cases_of("agenda_2024-07-23.txt")
+    by = {r["number"]: r for r in recs}
+    assert (by["V-4-2024"]["item"], by["V-4-2024"]["page"], by["V-4-2024"]["applicant"]) == (
+        5, 3, "Ligon Home Builders LLC")
+    assert (by["S-20-2024"]["item"], by["S-20-2024"]["ward"], by["S-20-2024"]["heading_printed"]) == (
+        7, 6, "SUBDIVISION(S)")
+    assert by["V-2-2024"]["location"].endswith("terminus of Givens Lane.")   # V-4 used to run on into it
+
+
+def test_item_number_on_the_line_after_the_case_number():
+    _, recs = cases_of("agenda_2024-10-29.txt")      # "CASE NUMBER: CZ - 07 - 2024 OWNER(S): ..." / " 8."
+    cz = {r["number"]: r for r in recs}["CZ-7-2024"]
+    assert (cz["item"], cz["page"], cz["applicant"], cz["heading_printed"]) == (
+        8, 3, "Katherine Sharp & David Sharp", "COUNTY ZONING")
+    assert cz["request"] == "O-1 - Office District to C-2 - General Commercial District"
+    _, recs = cases_of("agenda_2022-04-26.txt")      # "CASE NUMBER: Z-28-2022 ..." / "10. REQUEST: ..."
+    z = {r["number"]: r for r in recs}["Z-28-2022"]
+    assert (z["item"], z["applicant"], z["ward"]) == (10, "Reda Homebuilders Inc", 4)
+    assert z["request"].startswith("R-1 Single-Family Residential District")
+
+
+def test_case_number_with_no_item_number():
+    _, recs = cases_of("agenda_2023-08-29.txt")
+    by = {r["number"]: r for r in recs}
+    assert (by["AB-5-2023"]["item"], by["AB-5-2023"]["page"], by["AB-5-2023"]["applicant"],
+            by["AB-5-2023"]["agent"]) == (None, 11, "Montgomery County Highway Department", "Jeff Bryant")
+    assert by["AB-4-2023"]["agent"] == "Houston Smith"
+    # 2023-03-28 "I. CASE NUMBER: V-1-2023." is a case, not a section heading
+    _, recs = cases_of("agenda_2023-03-28.txt")
+    assert {r["number"]: r for r in recs}["V-1-2023"]["applicant"] == "Progress Properties"
+    # 2022-01-25: a symbol-font bullet (a control character) before "CASE NUMBER: S-2-2022 (VARIANCE ONLY)"; the
+    # same cases printed again on the consent agenda are kept as printed, twice
+    _, recs = cases_of("agenda_2022-01-25.txt")
+    assert [r["number"] for r in recs].count("S-3-2022") == 2
+    assert all("\x03" not in (r["location"] or "") for r in recs)
+
+
+def test_lines_between_an_item_number_and_its_case_number_belong_to_that_case():
+    # 2022-11-22: "2." / "APPLICANT/OWNER: AVA HOMES LLC" / rule / "CASE NUMBER: S-99-2022"
+    res, recs = cases_of("agenda_2022-11-22.txt")
+    i = [r["number"] for r in recs].index("S-99-2022")
+    assert (recs[i]["item"], recs[i]["applicant"]) == (2, "AVA HOMES LLC")
+    assert "AVA HOMES" not in res["cases"][i - 1]["text"]
+
+
+def test_a_case_number_that_cannot_be_read_is_never_credited_to_the_case_before():
+    pages = ["1. Z - 1 - 2026 OWNER(S): First Owner REQUEST: R-1 to R-2\n"
+             "LOCATION: Main St\n"
+             "CASE NUMBER: (to be assigned) OWNER(S): Second Owner\n"
+             "AGENT: Second Agent\n"
+             "CITY COUNCIL WARD: 9\n"]
+    res = rpc_agenda.parse_pages(pages)
+    assert (res["case_numbers_printed"], res["case_numbers_read"], len(res["cases"])) == (1, 0, 1)
+    rec = rpc_agenda.case_record(res["cases"][0], "m", "s")
+    assert (rec["applicant"], rec["agent"], rec["ward"], rec["location"]) == ("First Owner", None, None, "Main St")
+
+
+def test_lone_item_number_after_a_long_unnumbered_case_starts_the_next_case():
+    pages = ["CASE NUMBER: AB-1-2023 APPLICANT: One\nAGENT: A1\nDEVELOPMENT: D1\nLOCATION: L1\n"
+             "2.\n"
+             "APPLICANT: Two\n"
+             "CASE NUMBER: AB-2-2023\nAGENT: A2\n"]
+    res = rpc_agenda.parse_pages(pages)
+    a, b = (rpc_agenda.case_record(c, "m", "s") for c in res["cases"])
+    assert (a["item"], a["applicant"], a["agent"], a["location"]) == (None, "One", "A1", "L1")
+    assert (b["item"], b["applicant"], b["agent"]) == (2, "Two", "A2")
+
+
+def test_draft_watermark_letters_stay_out_of_values():
+    # rpc/watermark-in-values: the DRAFT watermark's letters print on lines of their own ("T", "AF", "R", "D")
+    _, recs = cases_of("agenda_2022-04-26.txt")
+    by = {r["number"]: r for r in recs}
+    assert by["Z-8-2022"]["applicant"] == "Raymon Sheppard" and by["Z-8-2022"]["acres"] == ".24 +/-"
+    assert by["Z-21-2022"]["location"].endswith("Tiny Town Rd. & Tower Dr. intersection.")
+    _, recs2 = cases_of("agenda_2024-07-23.txt")
+    by2 = {r["number"]: r for r in recs2}
+    assert by2["Z-28-2024"]["request"].endswith("R-6 - Single-Family Residential District")
+    assert by2["S-41-2024"]["request"] == "Revised Preliminary Plat Approval of Autumnwood Farms Cluster"
+    assert by2["SR-35-2024"]["request"] == "Hilton Hotel - Clay Lewis Rd"
+    wm = re.compile(r"(?:^|\s)(?:T|AF|R|D)$")
+    for r in recs + recs2:
+        for k in ("applicant", "agent", "request", "location", "acres", "proposed_use"):
+            assert not wm.search(r[k] or ""), (r["number"], k, r[k])
+    assert rpc_agenda.WATERMARK.match("                              AF") and not rpc_agenda.WATERMARK.match(" ABC")
+
+
+def test_build_reports_a_case_shortfall_as_a_failing_check(cfg, rows, tmp_path, monkeypatch, capsys):
+    rs, _ = rows
+    store = Store(manifest_path=tmp_path / "manifest.json", root=tmp_path / "store")
+    agenda_url = "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-10.27.2026.pdf"
+    store.put(agenda_url, b"%PDF agenda", {}, {"kind": "agenda", "meeting_date": "2026-10-27"})
+    short = ["October 27, 2026\n1. Z - 1 - 2026 OWNER(S): A\nCASE NUMBER: pending OWNER(S): B\n"]
+    facts, summary = rpc_agenda.build(cfg, rs, store, extract=lambda p: short)
+    m = {m["id"]: m for m in facts["meetings"]}["2026-10-27-regular"]
+    assert (m["case_count"], m["case_numbers_printed"], m["case_numbers_read"]) == (1, 1, 0)
+    assert summary["case_shortfalls"] == ["2026-10-27-regular"]
+    assert any("prints CASE NUMBER: 1 times, 0 of those cases read" in p for p in summary["problems"])
+    facts_ok, summary_ok = rpc_agenda.build(cfg, rs, store, extract=lambda p: agenda_pages("agenda_2022-02-22.txt"))
+    assert summary_ok["case_shortfalls"] == []
+    # `python -m collector rpc build` exits 1 on a shortfall, after writing its report
+    monkeypatch.setattr(rpc, "paths", lambda c, root=None: {
+        "listing": tmp_path / "listing.json", "manifest": tmp_path / "manifest.json", "facts": tmp_path / "rpc.json",
+        "report": tmp_path / "report.json"})
+    (tmp_path / "listing.json").write_text(json.dumps(rs), encoding="utf-8")
+    monkeypatch.setattr(rpc_agenda, "build", lambda c, r, s, extract=None: (facts, summary))
+    assert rpc.main(["build"]) == 1
+    assert "FAIL  rpc case completeness: 1 agendas" in capsys.readouterr().err
+    monkeypatch.setattr(rpc_agenda, "build", lambda c, r, s, extract=None: (facts_ok, summary_ok))
+    assert rpc.main(["build"]) == 0

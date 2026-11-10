@@ -136,3 +136,24 @@ def test_a_fixture_build_reads_no_real_rpc(tmp_path):
     assert not (out / "rpc").exists()
     assert "Planning Commission" not in (out / "index.html").read_text(encoding="utf-8")
     assert views.RECORD_RPC == {"rpc_home.html.j2", "rpc_meetings_year.html.j2"}
+
+
+def test_rpc_cases_check_fails_on_a_case_number_not_read(rpc_cfg):
+    # the completeness check (rpc/case-dropped-silently): every "CASE NUMBER:" an agenda prints is read as a case
+    rfacts = json.loads(Path(rpc_cfg["facts_path"]).read_text(encoding="utf-8"))
+    assert site_checks.check_rpc_cases(rfacts)[0] == []
+    m = {**rfacts["meetings"][0], "case_numbers_printed": 3, "case_numbers_read": 2}
+    problems, _ = site_checks.check_rpc_cases({**rfacts, "meetings": [m]})
+    assert problems == [f"{m['id']}: the agenda prints CASE NUMBER: 3 times, 2 of those cases read"]
+    assert site_checks.check_rpc_cases(None) == ([], "no RPC facts")
+
+
+def test_sitegen_reports_the_file_headroom(tmp_path, capsys):
+    # rpc/file-cap-headroom: one line, the target's cap minus the files the site has with the export
+    from sitegen.__main__ import headroom_line, main
+    assert headroom_line({"target": "preview", "files_with_export": 488}) == \
+        "sitegen: file headroom 12 (preview cap 500 minus 488 files with the export)"
+    assert main(["--facts", str(FIXTURE), "--out", str(tmp_path / "site"), "--seats", str(FIXTURE_SEATS),
+                 "--districts", str(FIXTURE_DISTRICTS)]) == 0
+    out = capsys.readouterr().out
+    assert re.search(r"^sitegen: file headroom -?\d+ \(preview cap 500 minus \d+ files with the export\)$", out, re.M)

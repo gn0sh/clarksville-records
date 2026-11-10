@@ -103,7 +103,8 @@ class Rpc:
     def meeting(self, m: dict) -> dict:
         agenda = self.sources.get(m.get("agenda_source_id") or "")
         cases = []
-        for c in sorted(self.cases_by_meeting.get(m["id"], []), key=lambda c: (c["page"], c["item"])):
+        # by page, then as printed (the facts keep agenda order; an item number may be unprinted, or restart per section)
+        for c in sorted(self.cases_by_meeting.get(m["id"], []), key=lambda c: c["page"]):
             rows = []
             for key, label in CASE_FIELDS:
                 if not c.get(key):

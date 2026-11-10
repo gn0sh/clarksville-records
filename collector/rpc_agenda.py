@@ -11,6 +11,12 @@ grouped under "CASE TYPE: CITY ZONING" (COUNTY ZONING, SUBDIVISION(S), SITE REVI
 own words with whitespace joined; nothing is summarised or reworded, and a field that is not printed is left empty.
 Each case keeps the PDF page its number is printed on, so the site links straight to it.
 
+2022-2024 agendas also print a case as "CASE NUMBER: SR-7-2022 ..." with its item number on a line of its own before
+or after it, or with none. Every "CASE NUMBER:" line starts a case, and the build's completeness check reports any
+agenda that prints "CASE NUMBER:" more often than cases were read from it (summary case_shortfalls; `python -m
+collector rpc build` exits 1; qa.site_checks rpc-cases fails). The letters of a DRAFT watermark, each printed on a
+line of its own, are skipped.
+
 Not read here (follow-ups): the minutes' motions and votes, and links from CZ- cases to county commission items.
 """
 from __future__ import annotations
@@ -21,11 +27,23 @@ from pathlib import Path
 
 from .extract import MIN_CHARS_PER_PAGE, extract_pages
 
-# A case number at the start of a numbered agenda paragraph: "1. Z - 19 - 2026", "12. S - 44 - 2026",
-# "7. ZO - 2A - 2026", 2025 agendas "1.   CASE NUMBER: Z - 29 - 2025". Group 1 the agenda's item number, 2 the
+# A case starts at its number: a numbered agenda paragraph "1. Z - 19 - 2026", "12. S - 44 - 2026",
+# "7. ZO - 2A - 2026", 2025 agendas "1.   CASE NUMBER: Z - 29 - 2025", or a "CASE NUMBER:" line with no item number
+# on it (2022-2024: the number is on a line of its own before or after it, or not printed at all; a variance section
+# may letter it "I. CASE NUMBER: V-1-2023."). Group 1 the agenda's item number (None when not on the line), 2 the
 # prefix, 3 the case's number, 4 the year.
-ITEM = re.compile(r"^\s*(\d{1,3})\s*\.\s+(?:CASE\s+NUMBER\s*:\s*)?"
+ITEM = re.compile(r"^\s*(?:(\d{1,3})\s*\.\s+(?:CASE\s+NUMBER\s*:\s*)?|(?:[IVX]{1,5}\s*\.\s+)?CASE\s+NUMBER\s*:\s*)"
                   r"([A-Z]{1,4})\s*-\s*([0-9]{1,3}[A-Z]?)\s*-\s*((?:19|20)\d\d)\b")
+# Every printed "CASE NUMBER:", loosely (anywhere on a line, any number after it): the completeness check counts
+# these against the cases read, so a case the reader misses is reported, never dropped silently.
+CASE_NUMBER_LOOSE = re.compile(r"CASE\s+NUMBER\s*:", re.I)
+# An item number on a line of its own ("5.", 2022 "4.   *****"): the next case's, or the current case's when it
+# follows that case's unnumbered "CASE NUMBER:" line. TRAILING_ITEM: "10. REQUEST: ..." under such a line.
+LONE_ITEM = re.compile(r"^\s*(\d{1,3})\s*\.\s*(?:\*{5,})?\s*$")
+TRAILING_ITEM = re.compile(r"^\s*(\d{1,3})\s*\.\s+(?=[A-Z][A-Z .#()/]*:)")
+# The letters of a DRAFT watermark, each on a line of its own ("T", "AF", "R", "D"), 2022-2024 agendas.
+WATERMARK = re.compile(r"^\s*[A-Z]{1,2}\s*$")
+CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 CASE_TYPE = re.compile(r"^\s*CASE\s+TYPE\s*:\s*(.+?)\s*$", re.I)
 # The agenda's own section headings ("V. REGULAR AGENDA ITEMS: ...", "VII. OTHER BUSINESS"): a case ends at one.
 SECTION = re.compile(r"^\s*(?:[IVX]{1,5})\s*\.\s+([A-Z][A-Z /&'-]+)")
@@ -115,8 +133,12 @@ def text_layer(pages: list[str]) -> str:
 
 
 def parse_pages(pages: list[str]) -> dict:
-    """{printed_date, hearings: [{printed, date, page}], cases: [...]} from an agenda's page texts (1-based pages)."""
-    lines = [(n, line) for n, p in enumerate(pages, 1) for line in p.splitlines()]
+    """{printed_date, hearings: [{printed, date, page}], cases: [...], case_numbers_printed, case_numbers_read} from an
+    agenda's page texts (1-based pages). For the completeness check (build): case_numbers_printed is the loose count of
+    "CASE NUMBER:" in the text, case_numbers_read the cases read from a "CASE NUMBER:" line."""
+    # a text layer's control characters (a symbol-font bullet "\x14" before "CASE NUMBER:", "LOCATION:\x03East") are
+    # spaces
+    lines = [(n, CONTROL.sub(" ", line)) for n, p in enumerate(pages, 1) for line in p.splitlines()]
     printed_date = None
     for n, line in lines[:15]:
         d = iso_date(line)
@@ -126,19 +148,48 @@ def parse_pages(pages: list[str]) -> dict:
     hearings, cases = [], []
     case_type = agenda_part = None
     cur = None
+    # An item number printed on a line of its own, waiting for its case: (item, lines printed between them). Those
+    # lines belong to that case (2022: "2." / "APPLICANT/OWNER: ..." / rule / "CASE NUMBER: S-99-2022"), never to
+    # the case before; they are dropped if a heading comes first.
+    pending = None
     in_hearings = False
+    labelled = 0
 
     def close():
         nonlocal cur
         if cur is not None:
             body = _join(cur.pop("_lines"))
+            # a "CASE NUMBER:" left in the body is a case whose number could not be read: its text (AGENT, WARD...)
+            # is cut off so it is never credited to this case; the completeness check reports the missing case
+            loose = CASE_NUMBER_LOOSE.search(body)
+            if loose:
+                body = body[:loose.start()].rstrip()
             cur["text"] = body
             cur["fields"] = fields(body)
             cases.append(cur)
         cur = None
 
+    def add(line: str):
+        nm = NOTE.match(line)
+        if nm:
+            cur["note"] = _join([nm.group(1)])
+            return
+        im = INLINE_NOTE.match(line)   # "REQUEST: C-5 ... District          DEFERRED" (2022)
+        if im:
+            cur["note"] = _join([im.group(2)])
+            line = im.group(1)
+        cur["_lines"].append(line)
+
     for n, line in lines:
-        if PAGE_NO.match(line) or FOOTER.match(line) or not line.strip():
+        if PAGE_NO.match(line) or FOOTER.match(line) or WATERMARK.match(line) or not line.strip():
+            continue
+        lone = LONE_ITEM.match(line)
+        if lone:
+            if cur is not None and cur["item"] is None and len(cur["_lines"]) <= 2:
+                cur["item"] = int(lone.group(1))   # "CASE NUMBER: CZ - 07 - 2024 ..." / " 8." (2024-10-29)
+            else:
+                close()
+                pending = (int(lone.group(1)), [])
             continue
         if RULE.match(line):
             if cur is not None and len(cur["_lines"]) > 1:   # a rule right under the number line (2022) does not end it
@@ -154,10 +205,10 @@ def parse_pages(pages: list[str]) -> dict:
         if HEARINGS.search(line):
             in_hearings = True
             continue
-        sec = SECTION.match(line)
+        it = ITEM.match(line)
+        sec = None if it else SECTION.match(line)    # "I. CASE NUMBER: V-1-2023." is a case, not a heading
         part = PART.match(line)
         ct = CASE_TYPE.match(line)
-        it = ITEM.match(line)
         if in_hearings:
             hm = HEARING_LINE.match(line)
             if hm and not it and iso_date(hm.group(1)):
@@ -167,14 +218,17 @@ def parse_pages(pages: list[str]) -> dict:
                 in_hearings = False
         if ct:
             close()
+            pending = None
             case_type = _join([ct.group(1)])
             continue
         if part and not sec:
             close()
+            pending = None
             agenda_part = "Regular agenda" if part.group(1) == "REGULAR" else "Consent agenda"
             continue
         if sec:
             close()
+            pending = None
             word = sec.group(1).upper()
             agenda_part = ("Regular agenda" if "REGULAR" in word else "Consent agenda" if "CONSENT" in word
                            else agenda_part)
@@ -183,24 +237,31 @@ def parse_pages(pages: list[str]) -> dict:
             continue
         if it:
             close()
-            cur = {"item": int(it.group(1)), "prefix": it.group(2),
+            labelled += bool(CASE_NUMBER_LOOSE.search(line[:it.start(2)]))
+            item = int(it.group(1)) if it.group(1) else pending[0] if pending else None
+            before = pending[1] if pending else []
+            pending = None
+            cur = {"item": item, "prefix": it.group(2),
                    "number": case_number(it.group(2), it.group(3), it.group(4)),
                    "number_printed": _join([line[it.start(2):it.end(4)]]),
-                   "case_type": case_type, "agenda_part": agenda_part, "page": n, "note": None,
-                   "_lines": [line[it.end(4):]]}
+                   "case_type": case_type, "agenda_part": agenda_part, "page": n, "note": None, "_lines": []}
+            for b in before:
+                add(b)
+            cur["_lines"].append(line[it.end(4):])
+            continue
+        if pending is not None:
+            pending[1].append(line)
             continue
         if cur is not None:
-            nm = NOTE.match(line)
-            if nm:
-                cur["note"] = _join([nm.group(1)])
-                continue
-            im = INLINE_NOTE.match(line)   # "REQUEST: C-5 ... District          DEFERRED" (2022)
-            if im:
-                cur["note"] = _join([im.group(2)])
-                line = im.group(1)
-            cur["_lines"].append(line)
+            tm = TRAILING_ITEM.match(line)
+            if tm and cur["item"] is None and len(cur["_lines"]) <= 2:
+                cur["item"] = int(tm.group(1))   # "CASE NUMBER: Z-28-2022 ..." / "10. REQUEST: ..." (2022-04-26)
+                line = line[tm.end():]
+            add(line)
     close()
-    return {"printed_date": printed_date, "hearings": hearings, "cases": cases}
+    loose = sum(len(CASE_NUMBER_LOOSE.findall(p)) for p in pages)
+    return {"printed_date": printed_date, "hearings": hearings, "cases": cases, "case_numbers_printed": loose,
+            "case_numbers_read": labelled}
 
 
 OTHER_CASE = "Other case"
@@ -260,7 +321,7 @@ def build(cfg, rows: list[dict], store, extract=extract_pages) -> tuple[dict, di
     the store is listed with its link and no source (never guessed). Only agendas are read for cases."""
     by_url = {e["url"]: e for e in store.current()}
     sources: dict[str, dict] = {}
-    meetings, cases, problems = [], [], []
+    meetings, cases, problems, shortfalls = [], [], [], []
     parsed = 0
     for r in sorted(rows, key=lambda r: (r["date"], r["id"])):
         docs = []
@@ -289,7 +350,8 @@ def build(cfg, rows: list[dict], store, extract=extract_pages) -> tuple[dict, di
                          "source_id": sid, "link_text": d.get("link_text") or d["kind"].capitalize()})
         m = {"id": r["id"], "date": r["date"], "kind": r["kind"], "label": r["label"], "printed": r["printed"],
              "cancelled": r["cancelled"], "documents": docs, "not_linked": r.get("no_doc") or [],
-             "agenda_source_id": agenda_src, "agenda_date": None, "hearings": [], "case_count": 0}
+             "agenda_source_id": agenda_src, "agenda_date": None, "hearings": [], "case_count": 0,
+             "case_numbers_printed": None, "case_numbers_read": None}
         if agenda_src and sources[agenda_src]["_texts"] and sources[agenda_src]["text_layer"] != "none":
             res = parse_pages(sources[agenda_src]["_texts"])
             parsed += 1
@@ -307,6 +369,11 @@ def build(cfg, rows: list[dict], store, extract=extract_pages) -> tuple[dict, di
                                                                     else f"-{seen[rec['number']]}")
                 cases.append(rec)
             m["case_count"] = len(res["cases"])
+            m["case_numbers_printed"], m["case_numbers_read"] = res["case_numbers_printed"], res["case_numbers_read"]
+            if res["case_numbers_printed"] > res["case_numbers_read"]:   # a case the reader missed is never silent
+                shortfalls.append(r["id"])
+                problems.append(f"{r['id']}: the agenda prints CASE NUMBER: {res['case_numbers_printed']} times, "
+                                f"{res['case_numbers_read']} of those cases read (completeness check)")
         elif agenda_src:
             problems.append(f"{r['id']}: agenda has no text layer (not read; OCR is a follow-up)")
         meetings.append(m)
@@ -317,5 +384,5 @@ def build(cfg, rows: list[dict], store, extract=extract_pages) -> tuple[dict, di
              "meetings": meetings, "sources": srcs, "cases": cases}
     summary = {"meetings": len(meetings), "documents_listed": sum(len(m["documents"]) for m in meetings),
                "sources": len(srcs), "link_only": sum(1 for m in meetings for d in m["documents"] if not d["fetched"]),
-               "agendas_read": parsed, "cases": len(cases), "problems": problems}
+               "agendas_read": parsed, "cases": len(cases), "case_shortfalls": shortfalls, "problems": problems}
     return facts, summary
