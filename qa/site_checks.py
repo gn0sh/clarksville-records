@@ -45,6 +45,9 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   transcripts every line of a transcript page (<folder>/transcripts/*.html) has its time linked to its meeting's own
               video as <video_url>#t=<whole seconds>, the "Transcript" label and the notice; every call-on entry on a
               member page links a video time; video links (data-ext="video") go only to a meeting's video_url
+  current-holders  no seat says "Current member not yet recorded" (nor lists its member under Served previously)
+              while the latest list names the member last printed in it: a council's latest attendance list, the
+              county's confirmed roll calls of the latest meeting (city-seats/current-holder-matches-latest-attendance)
   row-height  no table row (or vote / result list item) taller than 60% of the viewport, with long text clamped and row
               details collapsed, at 375x667, 768x1024, 1000x800 and 1280x800 (contracts pages also at 360x640); needs Playwright (node)
   hscroll     no horizontal scroll at 390 px (contracts pages also at 360 px) for the page types (index, official, meeting, items, and when present
@@ -1525,6 +1528,99 @@ def check_transcripts(site: Path, cs: list[dict]) -> tuple[list[str], str]:
     return problems, f"{n_pages} transcript pages, {n_lines} lines; {n_calls} call-on entries on member pages"
 
 
+# ---------------------------------------------------------------- current holders
+# Restated from the invariant `city-seats/current-holder-matches-latest-attendance`, not imported from sitegen: a
+# seat's current holder is the member recorded in that seat who is still listed at the latest meeting read, unless
+# the record shows a successor. So no seat says "Current member not yet recorded", and its member is not under
+# "Served previously", while the latest list (council: attendance; county: confirmed roll calls) lists that member
+# and nobody has been printed in the seat since the member's own latest print.
+NOT_RECORDED = "Current member not yet recorded"
+
+
+def _council_wards(slug: str) -> list[dict]:
+    for loc in _site_cfg().get("councils") or []:
+        c = yaml.safe_load((ROOT / "config" / "localities" / loc / "council.yml").read_text(encoding="utf-8"))
+        if c["slug"] == slug and (ROOT / c["wards"]).is_file():
+            return json.loads((ROOT / c["wards"]).read_text(encoding="utf-8"))
+    return []
+
+
+def expected_ward_holders(wards: list[dict]) -> dict[int, str]:
+    """{ward: member} for each member in the latest attendance list whose own last two ward prints agree on a ward
+    that nobody else has been printed in since."""
+    if not wards:
+        return {}
+    latest = max(w["date"] for w in wards)
+    listed = {w["official_id"] for w in wards if w["date"] == latest and w.get("official_id")}
+    prints = defaultdict(list)          # member -> [(date, ward)]
+    last_in = {}                         # ward -> (date, member) of its latest print
+    for w in sorted(wards, key=lambda w: (w["date"], w["meeting_id"])):
+        if w.get("ward") is None or not w.get("official_id"):
+            continue
+        prints[w["official_id"]].append((w["date"], int(w["ward"])))
+        last_in[int(w["ward"])] = (w["date"], w["official_id"])
+    out = {}
+    for oid in sorted(listed):
+        p = prints.get(oid, [])
+        if len(p) >= 2 and p[-1][1] == p[-2][1] and last_in[p[-1][1]][1] == oid:
+            out[p[-1][1]] = oid
+    return out
+
+
+def expected_district_holders(facts: dict, roster: list[dict]) -> dict[int, str]:
+    """{district: official} for each official with a vote in a confirmed roll call of the latest meeting collected
+    whose own latest district record is a seat no other record starts in after it."""
+    dates = {m["id"]: m["date"] for m in facts["meetings"]}
+    if not dates:
+        return {}
+    latest = max(dates.values())
+    voters = {v["official_id"] for rc in facts["roll_calls"] if dates.get(rc["meeting_id"]) == latest
+              and (rc.get("verification") or {}).get("status") == "verified" for v in rc["votes"] if v.get("official_id")}
+    out = {}
+    for oid in sorted(voters):
+        mine = sorted((r for r in roster if r.get("official_id") == oid and str(r.get("seat", "")).startswith("district-")),
+                      key=lambda r: str(r["start"]))
+        if not mine:
+            continue
+        last = mine[-1]
+        if any(r["seat"] == last["seat"] and str(r["start"]) > str(last["start"]) for r in roster):
+            continue
+        out[int(last["seat"].split("-")[1])] = oid
+    return out
+
+
+def check_current_holders(site: Path, facts: dict, roster: list[dict], cs: list[dict]) -> tuple[list[str], str]:
+    problems, n = [], 0
+    for c in cs:
+        home = site / c["slug"] / "index.html"
+        if not home.is_file():
+            continue
+        body = home.read_text(encoding="utf-8")
+        at = body.find('<details class="officials-section" id="previous"')
+        prev = body[at:body.find("</details>", at)] if at >= 0 else ""
+        for ward, oid in sorted(expected_ward_holders(_council_wards(c["slug"])).items()):
+            n += 1
+            m = re.search(r'<li id="seat-ward-' + str(ward) + r'"[^>]*>(.*?)</li>', body, re.S)
+            row = m.group(1) if m else ""
+            if not m or NOT_RECORDED in row or f"members/{oid}.html" not in row:
+                problems.append(f"{c['slug']}/index.html: ward {ward} does not show {oid}, listed in the latest "
+                                f"attendance list and last printed in that ward")
+            if f"members/{oid}.html" in prev:
+                problems.append(f"{c['slug']}/index.html: {oid} is under Served previously")
+    if roster:
+        for d, oid in sorted(expected_district_holders(facts, roster).items()):
+            page = site / "districts" / f"{d:02d}.html"
+            if not page.is_file():
+                continue
+            n += 1
+            text = page.read_text(encoding="utf-8")
+            cur = text[text.find('id="current-h"'):text.find('id="previous-h"')]
+            if NOT_RECORDED in cur or f"officials/{oid}.html" not in cur:
+                problems.append(f"districts/{d:02d}.html: does not show {oid} as current, who votes in a confirmed "
+                                f"roll call of the latest meeting")
+    return problems, f"{n} seats whose member is in the latest list show that member as current"
+
+
 def run_checks(site: Path, facts: dict, internal=False, no_export=False, operator=OPERATOR, browser=True,
                all_pages=False, sample=3, store_extra=(), seats_path=None, districts_path=None, finance=None,
                target="preview") -> Report:
@@ -1595,6 +1691,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("feeds", problems, note)
     problems, note = check_transcripts(site, cs)
     rep.add("transcripts", problems, note)
+    problems, note = check_current_holders(site, facts, read_roster(seats_path), cs)
+    rep.add("current-holders", problems, note)
     if browser:
         try:
             problems, note = check_hscroll(site, pages, all_pages, sample)
