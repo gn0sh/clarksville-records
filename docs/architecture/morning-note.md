@@ -64,6 +64,24 @@ today's), `morning/index.html`. Files are always written, an empty `entries` mea
    "district": 7, "ward": 6, "href": "rpc/meetings/2026.html#...", "source": {"url": "...", "page": 3}}],
  "unplaced_zoning": 0}
 ```
+T1 additions (additive; T3 and the sender may rely on them):
+- every entry carries `seat_body`: `"district"` (county entries), `"ward"` (council entries) or `null`; `select()`'s
+  `seats` rule is "`seat_body` is district and a district is stored, or ward and a ward is stored";
+- a `vote` entry also carries `confirmed` (bool), `outcome` and `tally` (both `null` unless confirmed; RPC: the minutes'
+  own outcome text and tally; county/council: the Passed/Failed label and the printed tally "yes-no[-abstain]");
+  no entry carries any person's name (no mover, seconder, nays or per-official votes);
+- the note carries `unplaced_text` (config text with N filled in, `""` when 0); all connective text is
+  `morning_note.text` in config;
+- an agenda or minutes with no item or motion read gives one `document` entry ("Agenda posted"/"Minutes posted"),
+  id `<body>/meeting/<meeting id>/<agenda|minutes>` (the feeds' scheme); votes are `<body>/vote/<roll call or motion
+  id>`; county agenda-only items `county/item/<number>/<meeting id>`; RPC cases `<rpc body_key>/item/<case id>/<meeting
+  id>`; budget books `finance/book/<book id>`; a solicitation is new on the day its first document is first fetched
+  (`contracts/solicitation/<id>`), and each document first fetched on a later day is `contracts/document/<sol>/<doc>`;
+- the manifest paths are config (`morning_note.manifests`, they name localities); a fixture build writes no note
+  unless a test passes `morning_manifests=`;
+- file budget: the `preview` target writes today's dated file and `latest.json` only (2 files); `pages` writes
+  `keep_days` + 1.
+
 `select(day, lists, seats) -> list[entry]` (Python, `sitegen/morning.py`) is the one filter: `seats` and `budget`/
 `contracts` membership is by `lists`; `zoning` and `seats` also need the seat match above. `morning.js` mirrors it;
 a parity test runs both over the fixture (as `test_georef_js.py` does). Titles are the record's own words; all

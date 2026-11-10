@@ -16,7 +16,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 from . import county_agendas as agendas_mod
 from . import rpc as rpc_mod
 from . import budget_views, config, council as council_mod, days as days_mod, feeds as feeds_mod, fin_views, \
-    georef as georef_mod, \
+    georef as georef_mod, morning as morning_mod, \
     transcripts as transcripts_mod, \
     seats as seats_mod, views
 
@@ -180,7 +180,7 @@ def _clean(out: Path, extra_dirs=()) -> None:
     for p in out.glob("*.html"):
         p.unlink()
     for d in ("officials", "meetings", "items", "static", "districts", "votes", "contracts", "finance", "capital",
-              feeds_mod.FOLDER, *extra_dirs):
+              feeds_mod.FOLDER, morning_mod.FOLDER, *extra_dirs):
         shutil.rmtree(out / d, ignore_errors=True)
 
 
@@ -308,7 +308,7 @@ def site_url_problems(cfg: dict) -> list[str]:
         if cfg.get(link):
             out += [f"{k} must be set when {link} is" for k in needs
                     if not isinstance(cfg.get(k), str) or not cfg[k].strip()]
-    return out + corrections_problems(cfg) + feeds_mod.problems(cfg)
+    return out + corrections_problems(cfg) + feeds_mod.problems(cfg) + morning_mod.problems(cfg)
 
 
 # config/site.yml `corrections:` (views.corrections_context): a GitHub owner/name and a plain e-mail address. Both go
@@ -344,7 +344,7 @@ def corrections_problems(cfg: dict) -> list[str]:
 def build(facts_path, out_dir, internal: bool = False, changes_path=None, report_path=None,
           seats_path=DEFAULT, districts_path=DEFAULT, geocoder: bool = True, finance_path=DEFAULT,
           capital_fund=DEFAULT, councils=DEFAULT, target: str | None = None, transcripts: bool = True,
-          rpc=DEFAULT, today=None, county_agendas=DEFAULT) -> dict:
+          rpc=DEFAULT, today=None, county_agendas=DEFAULT, morning_manifests=DEFAULT) -> dict:
     """`geocoder=False` (`--no-geocoder`) draws no landing address box and allows no geocoder in the CSP: the build
     for the claude.ai preview, where the box could not reach the geocoder. The plain lookup line shows instead.
     `seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
@@ -368,7 +368,10 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     (or RECORDS_TODAY).
     `county_agendas`: the county agendas file (collector/county_agenda.py) whose meetings the minutes do not cover yet
     are shown as agenda-only meetings (sitegen/county_agendas.py); left out, config.COUNTY_AGENDAS for a real build
-    and none for a fixture build. None: no agenda-only meetings."""
+    and none for a fixture build. None: no agenda-only meetings.
+    `morning_manifests`: the collectors' manifests the morning note (sitegen/morning.py) reads first_fetched_at from;
+    left out, config/site.yml `morning_note.manifests` for a real build and none for a fixture build (made-up sources
+    have no manifest rows). None: no morning/ files."""
     target = target or config.DEFAULT_TARGET
     if target not in config.MAX_FILES_BY_TARGET:
         raise BuildError(f"unknown target {target!r}; one of {', '.join(sorted(config.MAX_FILES_BY_TARGET))}")
@@ -668,6 +671,23 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         for rel, body in feeds_mod.build_feeds(ix, cixs).items():
             (out / rel).parent.mkdir(parents=True, exist_ok=True)
             (out / rel).write_bytes(body)
+    if morning_manifests is DEFAULT:
+        mn = morning_mod.settings()
+        morning_manifests = None if fixture or mn is None else mn["manifests"]
+    morning_note = None
+    if morning_manifests is not None and morning_mod.settings() is not None:
+        # The morning note (Daylight M3, sitegen/morning.py): after every page, so each entry's link knows its part.
+        # T3 renders morning/index.html from `morning_note` (today's note).
+        try:
+            first = morning_mod.first_fetched(morning_manifests)
+            docs = morning_mod.documents(ix, cixs, rpx, ax, fx, bg, first)
+            as_of = max([x for x in [ix.data_as_of(), *(c.data_as_of() for c in cixs)] if x != "unknown"]
+                        + [s["fetched_at"] for s in (rpx.facts["sources"] if rpx else []) if s.get("fetched_at")],
+                        default="")
+            morning_note = morning_mod.write(out, built_day, docs, first, data_as_of=as_of,
+                                           keep_days=morning_mod.PREVIEW_KEEP_DAYS if target == "preview" else None)
+        except morning_mod.MorningError as exc:
+            raise BuildError(str(exc)) from exc
     if internal:
         render("review.html.j2", "review.html", "Review (internal)",
                **views.review(ix, read_report(report_path)))
@@ -691,7 +711,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
               f"the {tx_pages} transcript pages", file=sys.stderr)
         return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
                      finance_path, capital_fund, councils, target, transcripts=False, rpc=rpc, today=today,
-                     county_agendas=county_agendas)
+                     county_agendas=county_agendas, morning_manifests=morning_manifests)
     manifest = write_publish_manifest(out, target)
     return {"pages": written, "files": len(manifest) + 1, "target": target, "transcripts": transcripts,
-            "transcript_pages": tx_pages, "files_with_export": expected}
+            "transcript_pages": tx_pages, "files_with_export": expected,
+            "morning": morning_note}

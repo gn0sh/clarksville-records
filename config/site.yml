@@ -52,6 +52,44 @@ alerts:
   max_entries: 50     # newest entries per feed
   topics: [rezoning, budget, resolution, ordinance, appointment]
 
+# The morning note (Daylight M3, sitegen/morning.py, docs/architecture/morning-note.md). Each build writes the last
+# `keep_days` days' "what's new" as morning/YYYY-MM-DD.json plus morning/latest.json: every document whose
+# first_fetched_at (in the collectors' own manifests below) falls in [day before at `cutoff`, day at `cutoff`) in
+# site_timezone. Nothing is sent: email is a later step behind the CEO's provider pick (hard stops 3-5). The build
+# refuses `enabled: true` without an https form_action and privacy_url, and any form_action while enabled is false.
+# Leave the whole block out to write no note.
+morning_note:
+  lists:          # keys are fixed (morning.LIST_KEYS); labels are what the page and the note print
+    - {key: zoning, label: Zoning near me}
+    - {key: seats, label: My two seats}
+    - {key: budget, label: Budget}
+    - {key: contracts, label: Contracts}
+  cutoff: "07:00"
+  keep_days: 7
+  zoning_prefixes: [Z, ZO, CZ, CZO, HZ]   # rpc.yml City/County/Historic zoning case types
+  # The collectors' manifests (first_fetched_at by source URL). Every document the note reads must have a row in one.
+  manifests:
+    - data/manifest.json
+    - data/county-agendas/manifest.json
+    - data/localities/clarksville-tn/manifest.json
+    - data/localities/cmc-rpc/manifest.json
+  # Every connective word of the note (entries otherwise carry only the record's own words).
+  text:
+    agenda_item: On the agenda
+    vote: Recorded in the minutes
+    vote_unconfirmed: Recorded in the minutes; not confirmed
+    agenda: Agenda posted
+    minutes: Minutes posted
+    budget_book: Budget book posted
+    solicitation: New on the purchasing archive
+    contract_document: New document
+    unplaced_zoning: "{n} zoning cases printed no district or ward"
+  enabled: false        # true only after the CEO picks a provider (hard stops 3-5)
+  provider: ""          # label for the record only; code never branches on it
+  form_action: ""       # https URL the sign-up form POSTs to (the provider's hosted endpoint)
+  form_fields: {email: email, lists: tags, district: metadata__district, ward: metadata__ward}
+  privacy_url: ""       # the provider's privacy policy, required when enabled
+
 county_name: Montgomery County
 county_body: Montgomery County Commission
 city_name: City of Clarksville
