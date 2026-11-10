@@ -43,6 +43,7 @@ PAGE = "alerts.html"
 # Feeds capped at max_entries of each body, not of the feed (feeds/rezoning-keeps-every-body). The one list:
 # build_feeds() renders by it and qa/site_checks.py check_feeds counts by it.
 PER_BODY_FEEDS = (f"{FOLDER}/topic-rezoning.xml",)
+CONTRACTS_FEED = f"{FOLDER}/topic-contracts.xml"   # the one feed whose entries link finance.json documents
 
 # A tag: URI prefix (RFC 4151): "tag:<domain>,<date>:". It names every feed and entry id, so it never changes.
 _TAG = re.compile(r"tag:[a-z0-9.-]+\.[a-z]{2,},\d{4}(?:-\d{2}(?:-\d{2})?)?:")
@@ -113,7 +114,7 @@ def feed_list(councils=(), cfg: dict | None = None, rpc=None, fin: dict | None =
                     "title": f"{labels[t]} items: {names}",
                     "about": f"Each item the {labels[t]} type rule matches, at each meeting it appears at."})
     if fin is not None:
-        out.append({"file": f"{FOLDER}/topic-contracts.xml", "kind": "topic", "key": "contracts",
+        out.append({"file": CONTRACTS_FEED, "kind": "topic", "key": "contracts",
                     "title": a["contracts_title"],
                     "about": "Each purchasing solicitation (bid or request for proposals) when it is added to this site."})
     if rpc is not None and target == SEAT_TARGET:
@@ -192,14 +193,6 @@ def _rpc_cases(rpc, cfg: dict) -> list[tuple[dict, dict]]:
             if c["prefix"] in want and c["meeting_id"] in meetings]
 
 
-def _source_link(url: str) -> str:
-    """A source document's URL as an Atom link's href, else "" (the entry then carries no source link).
-    morning-security/href-scheme-defense: RPC source URLs are not schema-checked (sitegen/rpc.py load), so the one
-    rule for a link (build._is_https_uri) is applied here."""
-    from .build import _is_https_uri   # build imports this module
-    return url if isinstance(url, str) and _is_https_uri(url) else ""
-
-
 def _rpc_entries(rpc, cases: list[tuple[dict, dict]]) -> list[dict]:
     out = []
     for c, m in cases:
@@ -211,7 +204,9 @@ def _rpc_entries(rpc, cases: list[tuple[dict, dict]]) -> list[dict]:
             "title": title,
             "updated": m["date"],
             "href": f"{rpc.year_href(m['date'][:4])}#{rpc.case_anchor(c)}",
-            "source": _source_link(f"{s['url']}#page={c['page']}"),
+            # morning-security/href-scheme-defense: RPC source URLs are not schema-checked (sitegen/rpc.py load),
+            # so the one link rule applies here; "" gives an entry with no source link, which qa.site_checks fails
+            "source": config.https_link(f"{s['url']}#page={c['page']}"),
             "summary": f"{rpc.body}, {kind} agenda, {m['date']}. {c['case_type']}. Source: agenda, page {c['page']}.",
             "sort": (m["date"], m["id"], -c["page"], c["id"]),
         })

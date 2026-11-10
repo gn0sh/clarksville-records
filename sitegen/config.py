@@ -1,6 +1,7 @@
 """Site-wide constants. The operator name is read from here for the footer and the About page (spec G1)."""
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -156,6 +157,25 @@ OUTCOME_TAIL_WORDS = "by the following roll call vote"
 
 # Source URLs must use this scheme; anything else fails the build.
 ALLOWED_URL_SCHEMES = ("https",)
+
+
+def is_https_uri(value) -> bool:
+    """The one rule for a URL this site links: an absolute https URL with a host and no whitespace, quotes or angle
+    brackets. Also `format: uri` in our schemas (build.FORMAT_CHECKER), which is why a non-string passes: a format
+    check judges strings only. Defined here, in a module that imports no other sitegen module, so build, feeds and
+    morning_page share it without importing each other."""
+    if not isinstance(value, str):
+        return True
+    if any(c.isspace() or c in "\"'<>`\\" or ord(c) < 32 for c in value):
+        return False
+    u = urlsplit(value)
+    return u.scheme.lower() in ALLOWED_URL_SCHEMES and bool(u.netloc) and value.lower().startswith("https://")
+
+
+def https_link(url) -> str:
+    """`url` when it may become a link's href (a non-empty string passing is_https_uri), else "". For URLs from data
+    files that are not schema-checked (the RPC facts, the county agendas): morning-security/href-scheme-defense."""
+    return url if isinstance(url, str) and url and is_https_uri(url) else ""
 # Hosts whose meeting videos get timestamp links (sitegen/transcripts.py video_ok): the city's CivicClerk media host.
 # A transcript of a video anywhere else shows its times as text only.
 VIDEO_HOSTS = ("cpmedia.azureedge.net",)

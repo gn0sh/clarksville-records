@@ -1,6 +1,7 @@
 # ruff: noqa: E501
 """Alerts v1 (M5, sitegen/feeds.py): static Atom feeds per body and per topic, and the Alerts page."""
 import copy
+import re
 import shutil
 import xml.etree.ElementTree as ET
 
@@ -283,7 +284,7 @@ def test_site_checks_know_a_finance_source_in_the_contracts_feed_only(site):
     pages = {f.relative_to(site).as_posix(): site_checks.parse(f) for f in site.rglob("*.html")}
     check = lambda: site_checks.check_feeds(site, pages, FACTS["sources"], config.SITE,  # noqa: E731
                                             finance_sources=[{"url": fin_url}])[0]
-    assert site_checks.CONTRACTS_FEED == f"{feeds.FOLDER}/topic-contracts.xml"
+    assert site_checks.CONTRACTS_FEED is feeds.CONTRACTS_FEED == "feeds/topic-contracts.xml"   # a name: imported
     shutil.copy(site / "feeds" / "county-meetings.xml", site / site_checks.CONTRACTS_FEED)
     _relink(site / site_checks.CONTRACTS_FEED, fin_url)
     assert [p for p in check() if "not a fetched source" in p] == []
@@ -495,3 +496,22 @@ def test_an_rpc_source_url_that_is_not_an_https_link_is_dropped(county, zoning_r
 def test_a_good_rpc_source_url_is_still_linked(zoning_rpc):
     e = feeds._rpc_entries(zoning_rpc, feeds._rpc_cases(zoning_rpc, CFG))[0]
     assert e["source"] == "https://example.invalid/agenda.pdf#page=1"
+
+
+# -- source-link-always/feed-drop-silent: an entry without its source link fails qa.site_checks
+
+def test_site_checks_fail_a_feed_entry_without_a_source_link(site):
+    pages = {f.relative_to(site).as_posix(): site_checks.parse(f) for f in site.rglob("*.html")}
+    check = lambda: [p for p in site_checks.check_feeds(site, pages, FACTS["sources"], config.SITE)[0]  # noqa: E731
+                     if "no source link" in p]
+    assert check() == []                                 # as built: every entry of every feed links its source
+    f = site / "feeds" / "county-meetings.xml"
+    xml = f.read_text(encoding="utf-8")
+    cut, n = re.subn(r"\s*<link [^>]*rel=\"related\"[^>]*/>", "", xml, count=1)
+    assert n == 1
+    f.write_text(cut, encoding="utf-8")
+    try:
+        bad = check()
+    finally:
+        f.write_text(xml, encoding="utf-8")
+    assert len(bad) == 1 and bad[0].startswith("feeds/county-meetings.xml: entry ")

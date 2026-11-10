@@ -78,7 +78,11 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from qa.common import OPERATOR, ROOT, find_pdf, load_facts, pdf_page_count  # noqa: E402
-from sitegen.feeds import PER_BODY_FEEDS  # noqa: E402  the one list of feeds capped per body, shared with the build
+# One rule for what QA takes from the build (qa-constants/mixed-sourcing): the NAMES of build outputs (which file is
+# which feed) are imported, so a renamed file cannot leave a check looking at nothing; every RULE a page must meet
+# (allowed URLs, the CSP, form actions, caps, schemes) is restated in this file and never computed by the code under
+# test.
+from sitegen.feeds import CONTRACTS_FEED, PER_BODY_FEEDS  # noqa: E402
 
 # Per build target (sitegen.config.MAX_FILES_BY_TARGET says the same): preview 500, under the artifact limit of 511
 # files per version; pages 3000 (GitHub Pages has no such limit). MAX_FILES is the preview's.
@@ -1196,15 +1200,13 @@ ATOM = "{http://www.w3.org/2005/Atom}"
 RFC3339 = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})")
 
 
-CONTRACTS_FEED = "feeds/topic-contracts.xml"   # sitegen/feeds.py: the one feed whose entries link finance.json documents
-
-
 def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: dict,
                 finance_sources: list[dict] | tuple = ()) -> tuple[list[str], str]:
     """Alerts v1 (sitegen/feeds.py): each feeds/*.xml is valid Atom (RFC 4287 required elements), its entry ids are
     unique tag: URIs, newest first, capped (sitegen.feeds.PER_BODY_FEEDS: per body, the entry id's first part); its
     links go to a built page (and #anchor) or a fetched source document (`sources`: every facts file's;
-    `finance_sources`: finance.json's, known to CONTRACTS_FEED only). No link carries a scheme other than http(s)."""
+    `finance_sources`: finance.json's, known to CONTRACTS_FEED only), and every entry has a source link. No link
+    carries a scheme other than http(s)."""
     import xml.etree.ElementTree as ET
     problems: list[str] = []
     feeds = sorted((site / "feeds").glob("*.xml")) if (site / "feeds").is_dir() else []
@@ -1287,11 +1289,15 @@ def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: di
                     problems.append(f"{rel}: entry {eid} links {href!r}, no such page")
                 elif u.fragment and target in pages and u.fragment not in pages[target].ids:
                     problems.append(f"{rel}: entry {eid} links {href!r}, no #{u.fragment} on {target}")
-            for x in links:
-                if x.get("rel") == "related":
-                    src = (x.get("href") or "").split("#")[0]
-                    if src not in known:
-                        problems.append(f"{rel}: entry {eid} source {src!r} is not a fetched source document")
+            # every entry links its source document (source-link-always/feed-drop-silent): the build drops a
+            # source URL that is not an https link, so an entry without the link is a data error, never a pass
+            related = [x for x in links if x.get("rel") == "related"]
+            if not related:
+                problems.append(f"{rel}: entry {eid} has no source link (rel=\"related\")")
+            for x in related:
+                src = (x.get("href") or "").split("#")[0]
+                if src not in known:
+                    problems.append(f"{rel}: entry {eid} source {src!r} is not a fetched source document")
         if dates != sorted(dates, reverse=True):
             problems.append(f"{rel}: entries are not newest first")
     linked = set()

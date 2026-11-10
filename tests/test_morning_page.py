@@ -470,8 +470,11 @@ def test_enabled_build_never_says_the_seats_are_never_sent(enabled_site):
 def test_enabled_build_says_what_is_sent_on_the_landing_and_method_pages(enabled_site):
     _, pages, cfg = enabled_site
     t = cfg["morning_note"]["page"]
-    seats_sent = t["seats_sent"].format(provider="Example Mail")
-    assert "Example Mail" in seats_sent and "Include my saved seats" in seats_sent
+    seats_sent = t["seats_sent"].replace("{provider}", "Example Mail")
+    box = t["seats_include"].rstrip(":")
+    assert "{box}" in seats_sent and box == "Include my saved seats"    # the sentence names the box by its own label
+    seats_sent = seats_sent.format(box=box)
+    assert "Example Mail" in seats_sent and f'"{box}"' in seats_sent
     landing = " ".join(parse(pages["index.html"]).all_text().split())
     assert f"Saved only in this browser, on this device. {seats_sent} No cookies are used." in landing
     method = _words(pages["method.html"])
@@ -480,7 +483,8 @@ def test_enabled_build_says_what_is_sent_on_the_landing_and_method_pages(enabled
     sec = pages["method.html"].split('<section aria-labelledby="note-sent-h">')[1].split("</section>")[0]
     text = " ".join(parse(sec).all_text().split())
     assert f"<h2 id=\"note-sent-h\">{t['method_heading']}</h2>" in sec
-    assert t["method_sent"].format(provider="Example Mail") in text and t["method_unsubscribe"] in text
+    assert t["method_sent"].format(provider="Example Mail", box=box) in text and t["method_unsubscribe"] in text
+    assert f'"{box}"' in text and "{box}" not in text
     for word in ("email address", "lists", "district and ward", "Example Mail", "unsubscribe"):
         assert word in text, word
     assert '<a data-ext="provider" href="https://example.net/privacy" rel="noopener noreferrer">Example Mail: ' \
@@ -492,18 +496,22 @@ def test_privacy_text_is_config_text(tmp_path, monkeypatch):
     cfg = copy.deepcopy(config.SITE)
     cfg["morning_note"].update(ENABLED)
     cfg["morning_note"]["page"].update({
-        "seats_sent": "SEATS-SENT to {provider}.", "method_heading": "METHOD-HEADING",
-        "method_sent": "METHOD-SENT to {provider}.", "method_unsubscribe": "METHOD-STOP.",
-        "method_signup_link": "METHOD-LINK", "seats_include": "SEATS-INCLUDE"})
+        "seats_sent": "SEATS-SENT to {provider} [{box}].", "method_heading": "METHOD-HEADING",
+        "method_sent": "METHOD-SENT to {provider} [{box}].", "method_unsubscribe": "METHOD-STOP.",
+        "method_signup_link": "METHOD-LINK", "seats_include": "SEATS-INCLUDE: "})
     pages = _build(tmp_path / "site", monkeypatch, cfg)
-    for want in ("SEATS-SENT to Example Mail.", "METHOD-HEADING", "METHOD-SENT to Example Mail.", "METHOD-STOP.",
+    # {box} is the form's own label without its colon (privacy-text/label-wording-drift)
+    for want in ("SEATS-SENT to Example Mail [SEATS-INCLUDE].", "METHOD-HEADING",
+                 "METHOD-SENT to Example Mail [SEATS-INCLUDE].", "METHOD-STOP.",
                  "METHOD-LINK"):
         assert want in pages["method.html"], want
-    assert "SEATS-SENT to Example Mail." in pages["index.html"] and "SEATS-INCLUDE" in pages["alerts.html"]
+    assert "SEATS-SENT to Example Mail [SEATS-INCLUDE]." in pages["index.html"] and "SEATS-INCLUDE" in pages["alerts.html"]
 
 
 @pytest.mark.parametrize("key, value, why", [
     ("seats_sent", "", "must be set"), ("seats_sent", "They go to the provider.", "must contain {provider}"),
+    ("seats_sent", "They go to {provider}.", "must contain {box}"),
+    ("method_sent", "It is sent to {provider}.", "must contain {box}"),
     ("method_sent", "It is sent.", "must contain {provider}"), ("method_heading", " ", "must be set"),
     ("method_unsubscribe", None, "must be set"), ("seats_include", "", "must be set"),
     ("method_signup_link", "", "must be set")])
@@ -690,6 +698,17 @@ const base = process.argv[1];
   out.stillOff = await state(p);
   await p.click('#mn-seats label');
   out.reticked = await state(p);
+  // the box unticked with no change event (a browser restoring form state after the script ran): the fields are
+  // recomputed when the page is shown and again at submit (seat-consent/state-recompute-on-submit)
+  await p.evaluate(() => { document.getElementById('note-seats').checked = false; });
+  out.restoredStale = await state(p);
+  await p.evaluate(() => window.dispatchEvent(new Event('pageshow')));
+  out.restoredShown = await state(p);
+  await p.evaluate(() => { document.getElementById('note-seats').checked = true; window.dispatchEvent(new Event('pageshow'));
+                           document.getElementById('note-seats').checked = false;
+                           const f = document.getElementById('note').closest('form') || document.querySelector('#note form') || document.getElementById('note');
+                           f.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); });
+  out.atSubmit = await state(p);
   await p.evaluate(() => localStorage.setItem('cr-your-seats', JSON.stringify({ district: 7, ward: null })));
   await p.reload();
   out.districtOnly = await state(p);
@@ -739,6 +758,10 @@ def test_seat_consent_in_a_browser(enabled_site):
         assert out[k]["ticked"] is False and seat_posts(out[k]) == [] and out[k]["fields"] == off, (k, out[k])
         assert out[k]["row"] is True and out[k]["words"] == "District 5, Ward 3"   # still shown, so it can be re-ticked
     assert seat_posts(out["reticked"]) == sorted([[ff["district"], "5"], [ff["ward"], "3"]])
+    # unticked without a change event: stale until the page is shown or the form is submitted, then nothing is posted
+    assert out["restoredStale"]["ticked"] is False and seat_posts(out["restoredStale"]) != []
+    for k in ("restoredShown", "atSubmit"):
+        assert out[k]["ticked"] is False and seat_posts(out[k]) == [] and out[k]["fields"] == off, (k, out[k])
     d = out["districtOnly"]
     assert d["words"] == "District 7" and seat_posts(d) == [[ff["district"], "7"]]
     assert d["fields"] == [[ff["district"], "7", False], [ff["ward"], "", True]]
@@ -802,3 +825,10 @@ def test_site_checks_hold_formaction_to_the_forms_exact_action_rule(enabled_site
     assert problems("index.html", exact)                       # only on that page
     assert problems("alerts.html", exact, config.SITE)              # only while the note is enabled
     assert problems("alerts.html", '<button formaction="alerts.html">x</button>') == []   # on the site, like a form action
+
+
+def test_morning_js_recomputes_the_note_on_pageshow_and_submit():
+    # seat-consent/state-recompute-on-submit (the browser test above exercises it when Playwright is there)
+    js = MORNING_JS.read_text(encoding="utf-8")
+    assert 'note.addEventListener("submit", updateNote);' in js
+    assert 'root.addEventListener("pageshow", updateNote);' in js

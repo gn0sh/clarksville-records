@@ -667,3 +667,38 @@ def test_data_as_of_counts_agendas_and_finance_and_differs_by_day(inputs, tmp_pa
     assert got["2026-11-09"] == "2026-11-09"                               # the county agenda
     assert got["2026-11-12"] == max(x for x in others | {"2026-11-09"} if x <= "2026-11-12")
     assert all(v <= k for k, v in got.items()) and len(set(got.values())) > 1
+
+
+# ------------------------------------------------------------------ a dropped source link fails QA
+def test_a_build_with_a_bad_rpc_source_url_fails_site_checks(inputs, tmp_path):
+    """source-link-always/feed-drop-silent: the build drops an RPC source URL that is not an https link (the entry
+    stays, with no source link); qa.site_checks then fails that feed entry instead of passing it."""
+    from conftest import parse as _  # noqa: F401  (tests dir on the path)
+    from qa import site_checks
+    rpcf = copy.deepcopy(inputs["rpcf"])
+    agenda = next(s for s in rpcf["sources"] if s["kind"] == "agenda")
+    good, bad = agenda["url"], agenda["url"].replace("https://", "http://", 1)
+    assert good.startswith("https://") and bad != good
+
+    def checked(name, url):
+        agenda["url"] = url
+        (tmp_path / f"{name}.json").write_text(json.dumps(rpcf), encoding="utf-8")
+        rows = json.loads(inputs["manifests"][0].read_text(encoding="utf-8")) + [{"url": url, "first_fetched_at": OLD}]
+        (tmp_path / f"{name}-manifest.json").write_text(json.dumps(rows), encoding="utf-8")
+        out = tmp_path / name / "site"
+        make(inputs, out, rpc={**inputs["rpc"], "facts_path": tmp_path / f"{name}.json"},
+             morning_manifests=[tmp_path / f"{name}-manifest.json"])
+        pages = {f.relative_to(out).as_posix(): site_checks.parse(f) for f in out.rglob("*.html")}
+        sources = inputs["county"]["sources"] + rpcf["sources"]
+        fin = json.loads(FIN.read_text(encoding="utf-8"))["sources"]
+        problems, _note = site_checks.check_feeds(out, pages, sources, config.SITE, finance_sources=fin)
+        return out, [p for p in problems if "source" in p and "contracts" not in p]   # the finance fixture aside
+
+    out, problems = checked("good", good)
+    assert problems == []
+    out, problems = checked("bad", bad)
+    feed = (out / "feeds" / "topic-rezoning.xml").read_text(encoding="utf-8")
+    assert bad not in feed                                           # the build dropped the link ...
+    missing = [p for p in problems if "has no source link" in p]
+    assert missing and all("rpc/item/" in p or "/item/" in p for p in missing)    # ... and QA fails each such entry
+    assert any(p.startswith("feeds/topic-rezoning.xml: entry ") for p in missing)

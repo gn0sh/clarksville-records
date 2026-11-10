@@ -8,7 +8,6 @@ import re
 import shutil
 import sys
 from pathlib import Path
-from urllib.parse import urlsplit
 
 import jinja2
 from jsonschema import Draft202012Validator, FormatChecker
@@ -29,16 +28,9 @@ class BuildError(Exception):
 FORMAT_CHECKER = FormatChecker()
 
 
-@FORMAT_CHECKER.checks("uri")
-def _is_https_uri(value) -> bool:
-    """`format: uri` in our schemas means an absolute https URL with a host and no whitespace, quotes or angle
-    brackets. jsonschema's own uri check needs an optional package, so the rule is defined here, in one place."""
-    if not isinstance(value, str):
-        return True
-    if any(c.isspace() or c in "\"'<>`\\" or ord(c) < 32 for c in value):
-        return False
-    u = urlsplit(value)
-    return u.scheme.lower() in config.ALLOWED_URL_SCHEMES and bool(u.netloc) and value.lower().startswith("https://")
+# `format: uri` in our schemas is the site's one link rule (config.is_https_uri); jsonschema's own uri check needs an
+# optional package.
+_is_https_uri = FORMAT_CHECKER.checks("uri")(config.is_https_uri)
 
 
 def _validator(schema_path: Path) -> Draft202012Validator:

@@ -126,8 +126,12 @@ the form shows a visible, ticked "Include my saved seats: District 5, Ward 3" bo
 shown only when seats are stored); unticked, or without the script, both seat fields stay disabled and nothing about
 a seat is posted. On, the landing and Method pages also stop saying the seats are "never sent anywhere"
 (`morning_page.privacy()`, text `page.seats_sent`) and the Method page gains a "Morning note" paragraph: what is
-sent, to whom, how to unsubscribe, and the `privacy_url` link (`page.method_*`; finding 1). `qa.site_checks` allows
-that one off-site form action and CSP origin on alerts.html only while `enabled` is true. `build.problems()` refuses `enabled: true` without an https `form_action` and a
+sent, to whom, how to unsubscribe, and the `privacy_url` link (`page.method_*`; finding 1). `page.seats_sent` and
+`page.method_sent` must contain `{box}`, filled with `page.seats_include` without its colon, so they name the box by
+the label it shows. `morning.js` recomputes the seat fields on `change`, `pageshow` and `submit`. `qa.site_checks`
+allows that one off-site form action (a `formaction` attribute meets the same rule) and CSP origin on alerts.html
+only while `enabled` is true, and fails any feed entry without its `rel="related"` source link (the build drops a
+source URL that fails the one link rule, `config.https_link`). `build.problems()` refuses `enabled: true` without an https `form_action` and a
 `privacy_url`, and refuses a non-empty `form_action` while `enabled` is false. The sender (later) is a scheduled job
 that reads `morning/latest.json`, groups subscribers by (lists, district, ward), calls `select()` per group and mails
 non-empty results through the provider API; that job and its secret are a later task behind the CEO's go-ahead.
