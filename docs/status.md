@@ -81,6 +81,13 @@
 | 2026-11-09 | frontend-engineer | opus/high | Daylight M1 look + landing | done, 969be7e: 1640 pass, site_checks PASS |
 | 2026-11-09 | code-reviewer | opus/medium | review b4d0fa9 Daylight M1 | approve with nits (daylight/*: 3 should-fix, 3 nits) |
 | 2026-11-09 | frontend-engineer | sonnet/medium | fix daylight/* findings | done, f2e08c2: 72 pass, site_checks PASS |
+| 2026-11-09 | backend-engineer | opus/high | city ward lookup from RPC poster | done, d9af8dc: 1775 pass |
+| 2026-11-09 | code-reviewer | opus/medium | review d9af8dc wards | approve with nits (wards/*: 3 should-fix, 2 nits, reuse-permission escalated to go-live gate) |
+| 2026-11-09 | backend-engineer | sonnet/medium | fix wards/* | done, 611c5b4: 325 pass, site_checks PASS |
+| 2026-11-09 | backend-engineer | opus/medium | RPC M1 collector + pages | done, 8b4d521: 1649 pass, 97 meetings, 168 docs |
+| 2026-11-09 | code-reviewer | opus/medium | review 8b4d521 RPC | request changes (rpc/case-dropped-silently must-fix) |
+| 2026-11-09 | backend-engineer | opus/high | fix rpc/* | done, c574381: 1856 pass, 1285 cases, 0 shortfalls |
+| 2026-11-09 | code-reviewer | opus/medium | delta re-review c574381 | approve with nits (rpc/completeness-scope, rpc/watermark-overmatch -> RPC M2) |
 | 2026-11-08 | frontend-engineer | sonnet/medium | GoVoteTN lookup line | done, 1d2fe84; review approve with 3 nits |
 | 2026-11-08 | backend-engineer | opus/high | georeference district map (pin M1) | done, 187d5a4: 575 pass, held-out max 4.5 m |
 | 2026-11-08 | frontend-engineer | opus/medium | address pin M2 (box, georef.js, Census JSONP) | done, b470a4f: 614 pass, site_checks PASS; live geocoder untested (blocked here) |
