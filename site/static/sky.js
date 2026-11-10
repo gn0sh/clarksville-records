@@ -14,7 +14,7 @@
   }
 
 
-  /* Today's weekday and date in the site's zone (data-tz on the hero), so "<weekday> in Clarksville <date>" is true
+  /* Today's weekday and date in the site's zone (data-tz on the hero), so the "<weekday> in <place> <date>" line is true
      for every viewer. The sun stays on the viewer's own clock. */
   function render() {
     var doc = root.document || (typeof document !== "undefined" ? document : null);
