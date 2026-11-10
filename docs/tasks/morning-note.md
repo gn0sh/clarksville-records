@@ -110,11 +110,12 @@ Done when tests against the fake show:
 - **never twice**: a second run of the same plan sends nothing new; a run that died after edition 1 of 3, run again,
   sends editions 2 and 3 only; a day claimed with a different `note_sha256` sends nothing; a failed or short listing
   sends nothing and exits non-zero;
-- only `type == "regular"` subscribers are recipients; with `canary_only` only those with `canary: "1"`; an edition
+- only `type == "regular"` subscribers are recipients; with `canary_only` only the ids in `MORNING_NOTE_CANARY_IDS`
+  (as built; never subscriber metadata); an edition
   with no recipient creates no email; hostile metadata (`district: "7; drop"`, `lists: ["zoning", "x"]`, a list of
   5,000 values) is ignored, not passed on;
 - `stamp` writes the whole metadata object back with the other keys unchanged, and the filter value is exactly
-  `"<D>.<key>"`; no code path can create an email with an empty filter while `sender.mode` is `stamp`;
+  the stamp `"<D>.<key>.<mac>"` (as built); no code path can create an email with an empty filter while `sender.mode` is `stamp`;
 - 429 with `Retry-After` is obeyed, three tries, then stop; over `max_recipients` sends nothing;
 - **no personal data out**: with a fake that returns addresses, capture stdout, stderr and every raised exception
   text across success and each failure path, and assert no address, subscriber id or response body appears; the
@@ -126,6 +127,18 @@ The plan step and artifact in `update`; the `note` job exactly as in the archite
 Done when: `actionlint` passes; a test or a script asserts the `note` job's `if:` holds all three conditions, that
 `needs` names `deploy`, that the secret appears in exactly one step's `env`, and that the job has no `pip` and no
 artifact upload; a run on a branch with the variable unset shows the `note` job skipped (paste the run link).
+Go-live checklist from the security review of afdb0f0 (each one checked in the PR, by a test or a pasted line):
+- the `note` job runs on the `schedule` trigger only; never `pull_request_target` or `workflow_run`;
+- the `morning-note` environment is limited to branch `main`; the job has `permissions: contents: read` only;
+- the failure issue is opened by a separate `if: failure()` job with fixed text, not by the job holding the key;
+- the job checks out `github.sha`, not `needs.update.outputs.sha` (L6);
+- the `morning-send` artifact is downloaded to `$RUNNER_TEMP`, never into the checkout; no cache; no `pip install`;
+  the step runs `python -E -s -m sender deliver ...`;
+- each canary id is masked with `::add-mask::` before anything else runs;
+- the artifact check allows up to `MAX_PLAN_BYTES` (`sender/common.py`), not 2 MB;
+- `sender/buttondown.py` (T4.4's adapter) uses `http.client` to the pinned host only, with timeouts, follows no
+  redirect, and refuses a pagination `next` link off that host; it passes the API key to `deliver.run` as
+  `stamp_secret`.
 
 ### T4.6 Enable conditions on the site (security review findings 1 to 3)
 `site/templates/method.html.j2`, `index.html.j2`, `alerts.html.j2`, `site/static/morning.js`, `seats.js` header,
@@ -137,8 +150,10 @@ names the IP address.
 
 ### T4.7 Runbook (`docs/ops/launch-runbook.md`, a "Morning note" section; `docs/platform-facts.md`)
 Brian's steps as one-action lines with links: create the account, sending domain DNS, double opt-in on, tracking
-off, metadata keys (`lists` multi-select, `district`, `ward`, `canary`), a scoped key, the `morning-note`
-environment and secret, the variable. Then the canary week, how to widen (`canary_only: false` by PR), and rollback
+off, metadata keys (`lists` multi-select, `district`, `ward`; no `canary` key: canaries are the ids in the
+`MORNING_NOTE_CANARY_IDS` environment secret), a scoped API key (the least access the chosen mode needs), reply-to
+set to a team address, the `morning-note` environment (branch `main` only) and its secrets, the variable. Add the
+site's host to `morning_note.sender.link_hosts` before enabling. Then the canary week, how to widen (`canary_only: false` by PR), and rollback
 (unset the variable; delete a scheduled email in the dashboard before 7:00). Record each provider setting in
 `docs/platform-facts.md` once someone has seen it in the account.
 
@@ -151,7 +166,11 @@ the email list return `metadata` and in what order; is `{{ }}` in a body evaluat
 apply; does a re-submit by an existing subscriber update their lists; which features need the paid add-on; and
 (audience/stamp-self-set) **the public form must not accept `metadata__note_edition` or `metadata__canary`**: post
 each to the embed form from a team address and confirm the subscriber's metadata does not get it. If it does, `stamp`
-mode is unsafe (deliver also stops on a stray stamp, but the form must not offer the field). Then set `sender.mode`.
+mode is unsafe (deliver also stops on a stray stamp, but the form must not offer the field). Also: re-submitting an
+existing address must not change a confirmed subscriber's metadata; `{{ subscriber.email }}` in a body renders
+literally; no preferences page lets a subscriber edit metadata; the negative tests pass (stamp one of two team
+subscribers and the other gets nothing; creating a draft sends nothing); which subscriber types a filtered email
+reaches. Then set `sender.mode`.
 If neither mode passes, stop and return to the architect.
 
 ### T4.8 Security review
