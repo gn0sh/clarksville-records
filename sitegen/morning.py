@@ -153,6 +153,17 @@ _HHMM = re.compile(r"(?:[01]\d|2[0-3]):[0-5]\d")
 _API_BASE = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~/-]*)?")
 
 
+def reader_problems(path=None) -> list[str]:
+    """settings-parity: the deliver job reads config/site.yml without PyYAML (sender/settings.py). Every value it
+    reads must be what PyYAML reads from the same file, or the build fails. The file itself, not config.SITE: the
+    environment may override alerts.site_url there, and the deliver job sees only the file."""
+    import yaml
+
+    from sender import settings as sender_settings
+    text = Path(path or config.SITE_CONFIG_PATH).read_text(encoding="utf-8")
+    return sender_settings.parity(text, yaml.safe_load(text))
+
+
 def sender_problems(cfg: dict) -> list[str]:
     """The sender block's shape and its switch rules. Left out: no sender, nothing to check. `enabled: true` is
     refused unless the sign-up form is enabled too and the site URL is set (an email links only live pages)."""

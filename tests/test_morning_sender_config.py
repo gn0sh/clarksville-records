@@ -155,6 +155,109 @@ def test_anything_the_reader_cannot_read_is_an_error_never_a_guess(old, new):
         settings_mod.from_values(**settings_mod.parse(BASE.replace(old, new, 1)))
 
 
+SENDER_END = "    canary_only: true\n"
+PAGE = "  page:\n"
+
+
+# settings-parity/unmatched-line-skipped: every one of these reads differently in PyYAML (or not at all), so the
+# reader must refuse the file rather than skip the line it does not understand.
+@pytest.mark.parametrize("old, new", [
+    (SENDER_END, SENDER_END + "    \"enabled\": true\n"),                         # a quoted key
+    (SENDER_END, SENDER_END + "    'canary_only': false\n"),
+    (SENDER_END, SENDER_END + "    enabled : true\n"),                            # a space before the colon
+    (SENDER_END, SENDER_END + "    ? canary_only\n    : false\n"),               # the explicit-key form
+    (SENDER_END, SENDER_END + "    <<: {canary_only: false}\n"),                  # a merge key
+    (PAGE, "  sender: {enabled: true}\n" + PAGE),                                  # a second sender, flow style
+    (PAGE, "  sender:\n    enabled: true\n" + PAGE),                              # a second sender, block style
+    ("  sender:\n    enabled: false", "  sender: &s\n    enabled: false"),        # sender must be a plain block
+    ("  sender:\n    enabled: false", "  \"sender\":\n    enabled: false"),
+    (BASE[-20:], BASE[-20:] + "morning_note:\n  sender:\n    enabled: true\n"),   # a second morning_note
+    (BASE[-20:], BASE[-20:] + "\"morning_note\":\n  sender:\n    enabled: true\n"),
+    (BASE[-20:], BASE[-20:] + "? morning_note\n: {sender: {enabled: true}}\n"),
+    ("morning_note:\n", "morning_note: &m\n"),
+    ("    max_recipients: 2000", "    max_recipients: 0100"),                     # PyYAML reads 64
+    ("    max_recipients: 2000", "    max_recipients: 1_000"), ("    max_recipients: 2000", "    max_recipients: 0x10"),
+    ("    max_recipients: 2000", "    max_recipients: 2000.0"), ("    max_recipients: 2000", "    max_recipients: +2000"),
+    ("    max_editions: 80", "    max_editions: 1:20"),                           # sexagesimal: PyYAML reads 80
+    ("    send_at: \"07:00\"", "    send_at: 07:00"), ("    latest_send: '10:00'", "    latest_send: 10:00"),
+    ("    provider: buttondown", "    provider: yes"), ("    provider: buttondown", "    provider: null"),
+    ("    provider: buttondown", "    provider: ~"), ("    provider: buttondown", "    provider: On"),
+    ("    send_at: \"07:00\"", "    send_at: \"07:\\x30\""),                     # an escape PyYAML would expand
+    ("    latest_send: '10:00'", "    latest_send: '10:''00'"),
+    ("    enabled: false\n", "    enabled: false\x0b    enabled: true\n"),          # VT: a line break to splitlines()
+    ("    enabled: false\n", "    enabled: false\x1c\n"), ("    enabled: false\n", "    enabled: false\x85\n"),
+    ("    enabled: false\n", "    enabled: false \n"), ("    enabled: false\n", "    enabled: false\r    enabled: true\n"),
+    ("    enabled: false\n", "    enabled: false​\n"),
+    ("    enabled: false\n    provider", "    enabled: false\n     canary_only: false\n    provider"),   # deeper: continues a value
+    ("    provider: buttondown", "   provider: buttondown"),                       # an indent no sibling has
+    ("    provider: buttondown", "\tprovider: buttondown"),
+    (SENDER_END, SENDER_END + "    - enabled: true\n"),
+    ("    send_at: \"07:00\"", "    send_at: \"07:00\n      \""),                 # a value over two lines
+    ("  lists:\n    - {key: zoning, label: Zoning}", "  lists:\n    - {key: zoning,\n  sender: x}"),
+    ("site_timezone: America/Chicago   # a comment", "site_timezone: America/Chicago\nsite_timezone: Europe/Paris"),
+    ("site_timezone: America/Chicago   # a comment", "site_timezone:\n  x: 1")])
+def test_a_line_the_reader_does_not_understand_is_an_error(old, new):
+    assert old in BASE
+    text = BASE.replace(old, new, 1)
+    with pytest.raises(settings_mod.SettingsError):
+        settings_mod.parse(text)
+
+
+def test_line_endings_and_a_byte_order_mark_read_the_same():
+    want = settings_mod.parse(BASE)
+    assert settings_mod.parse(BASE.replace("\n", "\r\n")) == want
+    assert settings_mod.parse("﻿" + BASE) == want
+
+
+def test_parity_with_pyyaml_on_the_shipped_file():
+    text = SITE_YML.read_text(encoding="utf-8")
+    assert settings_mod.parity(text, yaml.safe_load(text)) == []
+
+
+@pytest.mark.parametrize("path, value", [
+    (("morning_note", "sender", "enabled"), True), (("morning_note", "sender", "canary_only"), False),
+    (("morning_note", "sender", "max_recipients"), 64), (("morning_note", "sender", "max_recipients"), "2000"),
+    (("morning_note", "sender", "enabled"), 0), (("ward_count",), 13)])
+def test_parity_names_any_value_pyyaml_reads_differently(path, value):
+    text = SITE_YML.read_text(encoding="utf-8")
+    loaded = yaml.safe_load(text)
+    node = loaded
+    for k in path[:-1]:
+        node = node[k]
+    node[path[-1]] = value
+    got = settings_mod.parity(text, loaded)
+    assert len(got) == 1 and path[-1] in got[0], got
+
+
+def test_parity_reports_a_file_the_reader_refuses():
+    text = SITE_YML.read_text(encoding="utf-8").replace("    canary_only: true", "    \"canary_only\": false", 1)
+    got = settings_mod.parity(text, yaml.safe_load(text))
+    assert got and "sender/settings.py" in got[0]
+
+
+def test_the_build_refuses_a_config_the_reader_reads_differently(tmp_path, monkeypatch):
+    from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS
+    from sitegen.build import BuildError, build
+    bad = tmp_path / "site.yml"
+    bad.write_text(SITE_YML.read_text(encoding="utf-8").replace("    max_recipients: 2000", "    max_recipients: 0100"),
+                   encoding="utf-8")
+    assert morning.reader_problems(SITE_YML) == []
+    assert morning.reader_problems(bad)
+    monkeypatch.setattr(config, "SITE_CONFIG_PATH", bad)
+    with pytest.raises(BuildError, match="sender/settings.py"):
+        build(FIXTURE, tmp_path / "s", seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS)
+
+
+def test_the_plan_command_refuses_a_config_the_reader_reads_differently(tmp_path, monkeypatch, capsys):
+    from sender.__main__ import main
+    cfg = copy.deepcopy(config.SITE)
+    cfg["morning_note"]["sender"]["canary_only"] = False       # what PyYAML gave is not what the deliver job reads
+    monkeypatch.setattr(config, "SITE", cfg)
+    assert main(["plan", "--site", str(tmp_path / "site"), "--out", str(tmp_path / "out")]) == 2
+    assert "canary_only" in capsys.readouterr().err
+    assert not (tmp_path / "out").exists()
+
+
 def test_a_missing_config_file_is_an_error(tmp_path):
     with pytest.raises(settings_mod.SettingsError):
         settings_mod.load(tmp_path / "nope.yml")

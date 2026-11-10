@@ -419,7 +419,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         ward_map = georef_mod.wards_of(districts) is not None    # the landing map draws the wards and finds them
     except (seats_mod.SeatsError, ValueError) as exc:
         raise BuildError(str(exc)) from exc
-    bad = site_url_problems(config.SITE)
+    bad = site_url_problems(config.SITE) + morning_mod.reader_problems()
     if bad:
         raise BuildError("config/site.yml: " + "; ".join(bad))
     ix = views.Index(facts, seat_rows)

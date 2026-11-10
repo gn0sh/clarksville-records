@@ -20,8 +20,10 @@ def _plan(args) -> int:
     from sitegen import config, morning
 
     from . import plan as plan_mod
+    from . import settings
     cfg = config.SITE
-    problems = morning.problems(cfg)
+    # settings-parity: what this job loaded with PyYAML must be what the deliver job reads without it
+    problems = morning.problems(cfg) + settings.parity(config.SITE_CONFIG_PATH.read_text(encoding="utf-8"), cfg)
     if problems or not plan_mod.sender_settings(cfg):
         for p in problems or ["config/site.yml has no morning_note.sender block"]:
             print(f"sender plan: {p}", file=sys.stderr)
