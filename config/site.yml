@@ -224,3 +224,21 @@ coming:
     title: Capital projects
     lede: "Coming. Capital projects named in county budget books and commission resolutions are planned. Nothing is shown here until it is collected from the source documents, and every project will link to its page."
     planned: ["Projects named in approved budgets", "Commission resolutions that fund or change a project"]
+
+# Independent and unofficial (launch blocker, owner 2026-11-10; sitegen/unofficial.py, qa/site_checks.py
+# unofficial/notice-on-every-page). The ONE place this wording lives: the footer of every page, the header tag, the home
+# page and About, every feed, the morning note's text and sign-up, the export README, <meta> and Open Graph tags and
+# the <title> suffix all read it. Change a word here and every surface follows. {operator} is `operator` above and
+# {bodies} is the `bodies` list below, joined "A, B, C, or D".
+unofficial:
+  tag: Independent, unofficial          # next to the site name on every page and in each <title>
+  notice: "{site_name} is an independent, unofficial site run by {operator}. It is not affiliated with, endorsed by, or operated by {bodies}. The official record held by each body controls."
+  correction_label: How to report a correction
+  differ: If this site and the official document differ, the official document is right.
+  not_advice: Nothing on this site is legal advice.
+  email_line: "Independent, unofficial: not from or endorsed by any government body."   # short form for a mail footer
+  bodies:     # names as the notice prints them; url is each body's own official site (About links each one)
+    - {name: the City of Clarksville, label: City of Clarksville, url: "https://www.cityofclarksville.com/"}
+    - {name: Montgomery County, label: Montgomery County government, url: "https://www.montgomerytn.gov/"}
+    - {name: the Clarksville-Montgomery County School System (CMCSS), label: Clarksville-Montgomery County School System (CMCSS), url: "https://www.cmcss.net/"}
+    - {name: the Clarksville-Montgomery County Regional Planning Commission, label: Clarksville-Montgomery County Regional Planning Commission, url: "https://www.cmcrpc.com/"}

@@ -33,7 +33,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from . import config, views
+from . import config, unofficial, views
 
 SCHEMA = "morning-note/1"
 FOLDER = "morning"
@@ -524,7 +524,10 @@ def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None 
             "lists": [{"key": x["key"], "label": x["label"]} for x in mn["lists"]],
             "backfill": backfill, "counts": counts,
             "entries": entries, "unplaced_zoning": unplaced,
-            "unplaced_text": unplaced_text(unplaced, cfg)}
+            "unplaced_text": unplaced_text(unplaced, cfg),
+            # the mail sender prints these in every note's text and footer (unofficial/notice-on-every-page)
+            "notice": unofficial.load(cfg if "unofficial" in cfg else None)["notice"],
+            "email_line": unofficial.load(cfg if "unofficial" in cfg else None)["email_line"]}
 
 
 def unplaced_text(n: int, cfg: dict | None = None) -> str:

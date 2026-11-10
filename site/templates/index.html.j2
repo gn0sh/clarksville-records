@@ -1,4 +1,5 @@
 {% extends "base.html.j2" %}
+{% from "_unofficial.html.j2" import home_line %}
 {% from "_map.html.j2" import county_map %}
 {% block head %}<script src="{{ root }}static/js-flag.js"></script>{% endblock %}
 {% block sky_sun %}<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>{% endblock %}
@@ -14,6 +15,7 @@
 <div class="landing">
   <h1 class="purpose">{{ site.cfg.purpose }}</h1>
   <p class="muted purpose-sub"><span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>. {% for c in site.councils %}<a href="{{ root }}{{ c.href }}">{{ c.label }}</a>: <span class="nowrap">{{ c.from }} to {{ c.to }}</span>.{% if not loop.last %} {% endif %}{% else %}{{ site.cfg.city_coming }}{% endfor %}</p>
+  {{ home_line(site, root) }}
 
   {# Address search first (CEO decision, Nov 9): most first-time visitors do not know their ward or district. The
      form stays hidden until static/address.js shows it (it needs the script; without it a submit would only put the

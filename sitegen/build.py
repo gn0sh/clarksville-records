@@ -17,7 +17,7 @@ from . import county_agendas as agendas_mod
 from . import rpc as rpc_mod
 from . import morning_page
 from . import budget_views, config, council as council_mod, days as days_mod, feeds as feeds_mod, fin_views, \
-    georef as georef_mod, morning as morning_mod, \
+    georef as georef_mod, morning as morning_mod, unofficial as unofficial_mod, \
     transcripts as transcripts_mod, \
     seats as seats_mod, views
 
@@ -313,7 +313,7 @@ def site_url_problems(cfg: dict) -> list[str]:
         if cfg.get(link):
             out += [f"{k} must be set when {link} is" for k in needs
                     if not isinstance(cfg.get(k), str) or not cfg[k].strip()]
-    return out + corrections_problems(cfg) + feeds_mod.problems(cfg) + morning_mod.problems(cfg)
+    return out + corrections_problems(cfg) + feeds_mod.problems(cfg) + morning_mod.problems(cfg) + unofficial_mod.problems(cfg)
 
 
 # config/site.yml `corrections:` (views.corrections_context): a GitHub owner/name and a plain e-mail address. Both go
@@ -458,6 +458,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     site["transcripts_omitted"] = not transcripts
     site["ward_map"] = ward_map
     site["export_omitted"] = not export
+    site["unofficial"] = unofficial_mod.load()   # the one notice text (config/site.yml `unofficial:`)
     # None unless the morning note's sign-up form is enabled: then the landing and Method pages drop "never sent"
     site["morning_note"] = morning_page.privacy()
     if rpx is not None:
@@ -728,10 +729,13 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     # when it is in this list (report-frag/text-spoof).
     (out / "static" / "pages.js").write_text(
         "window.BUILT_PAGES = " + json.dumps(sorted(written), separators=(",", ":")) + ";\n", encoding="utf-8")
+    if export:   # the export's own README: who we are and are not (collector/ stays untouched; this file is ours)
+        (out / "data").mkdir(parents=True, exist_ok=True)
+        (out / "data" / "README.txt").write_text(unofficial_mod.export_readme(), encoding="utf-8")
     # The target's file cap, counting the export still to come (data/ in `out` now may be an older export's).
     cap = config.max_files(target)
     built = sum(1 for p in out.rglob("*") if p.is_file() and p.relative_to(out).parts[0] != "data")
-    expected = built + (export_file_count(fixture, cixs, fx is not None and fin_views.EXPORTS_READY) if export else 0)
+    expected = built + (1 + export_file_count(fixture, cixs, fx is not None and fin_views.EXPORTS_READY) if export else 0)
     tx_pages = sum(len(p[5]) for p in tx_plans)
     if expected > cap and tx_pages and target == "preview":
         print(f"sitegen: {expected} files with the export is over the {target} cap of {cap}; building again without "

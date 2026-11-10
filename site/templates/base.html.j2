@@ -1,3 +1,4 @@
+{% from "_unofficial.html.j2" import footer_notice %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -5,7 +6,12 @@
 <meta http-equiv="Content-Security-Policy" content="{{ csp if csp is defined else site.csp }}">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>{{ site.site_name }} | {{ page_name }}</title>
+<title>{{ site.site_name }} | {{ page_name }} | {{ site.unofficial.tag }}</title>
+<meta name="description" content="{{ site.unofficial.notice }}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{ site.site_name }} ({{ site.unofficial.tag | lower }})">
+<meta property="og:title" content="{{ page_name }} | {{ site.site_name }} | {{ site.unofficial.tag }}">
+<meta property="og:description" content="{{ site.unofficial.notice }}">
 <link rel="icon" href="{{ root }}static/brand/favicon.ico" sizes="any">
 <link rel="stylesheet" href="{{ root }}static/style.css">
 {% block head %}{% endblock %}
@@ -26,6 +32,7 @@
     <a id="nav-open" class="menu-btn" href="#site-nav"><span class="menu-icon" aria-hidden="true"></span><span class="menu-word">Menu</span></a>
     <div class="brand">
       <p class="site-name"><a href="{{ root }}index.html"><span class="plate-sun" aria-hidden="true"></span><span class="plate"><span class="plate-name">{{ site.site_name }}</span> <span class="plate-place">{{ site.cfg.site_place }}</span></span></a></p>
+      <p class="unofficial-tag">{{ site.unofficial.tag }}</p>
       {% if page_name != "Map" %}<p class="kicker">{{ site.coverage.body }} minutes, <span class="nowrap">{{ site.coverage.from }}</span> to <span class="nowrap">{{ site.coverage.to }}</span></p>{% endif %}
     </div>
   </div>
@@ -43,6 +50,7 @@
 {% endif %}
 </main>
 <footer class="site-footer">
+  {{ footer_notice(site, root) }}
   <p>Provided as a free service by {% if site.operator_url %}<a data-ext="operator" href="{{ site.operator_url }}" rel="noopener noreferrer">{{ site.operator }}</a>{% else %}{{ site.operator }}{% endif %}.{% if site.support_url %} <a data-ext="support" href="{{ site.support_url }}" rel="noopener noreferrer">{{ site.support_label }}</a>{% endif %}</p>
   <p class="gc-credit"><img class="gc-logo gc-logo-light" src="{{ root }}static/brand/gnoshcodes-wordmark-color-light.svg" alt="gnoshcodes" width="160" height="29"><img class="gc-logo gc-logo-dark" src="{{ root }}static/brand/gnoshcodes-wordmark-color-dark.svg" alt="gnoshcodes" width="160" height="29"><span>A gnoshcodes project.</span></p>
   <p><a href="{{ root }}about.html">About this site and its data rules.</a> Data as of {{ site.data_as_of }}</p>

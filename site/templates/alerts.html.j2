@@ -19,6 +19,7 @@
 {% endif %}
   <h2 id="note-h">{{ note.text.heading }}</h2>
   <p class="small">{{ note.text.about }}</p>
+  <p class="small mn-unofficial">{{ site.unofficial.email_line }}</p>
   {{ picker(note, note.enabled) }}
   {% if note.enabled %}
   <input type="hidden" name="{{ note.fields.district }}" value="" data-seat-field="district" disabled>

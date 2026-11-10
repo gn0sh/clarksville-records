@@ -9,7 +9,7 @@ import pytest
 from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, parse
 from qa import site_checks
 from qa.common import load_facts
-from sitegen import config, feeds, views
+from sitegen import config, feeds, unofficial, views
 from sitegen.build import build, site_url_problems
 from test_site_neutrality import BANNED
 
@@ -123,7 +123,7 @@ def test_text_is_escaped():
     assert b"<script>" not in raw and b"<b>" not in raw
     root = ET.fromstring(raw)
     assert text(root.find(A + "entry"), "title") == nasty
-    assert text(root, "subtitle") == nasty
+    assert text(root, "subtitle") == f"{nasty} {unofficial.load()['notice']}"
 
 
 def test_absolute_links_with_site_url():
@@ -317,7 +317,7 @@ def test_illegal_xml_characters_are_stripped_and_whitespace_collapsed():
     raw = feeds.render(feed, [entry(1, nasty)])
     root = ET.fromstring(raw)
     assert text(root.find(A + "entry"), "title") == "Zoning of the lot at 5\ufffa"
-    assert text(root, "subtitle") == "Zoning of the lot at 5\ufffa"
+    assert text(root, "subtitle") == f"Zoning of the lot at 5\ufffa {unofficial.load()['notice']}"
     assert b"\x0c" not in raw and b"\x00" not in raw
 
 

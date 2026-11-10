@@ -94,6 +94,7 @@ NARROW = 360  # AC-F10: the Bids and awards pages are also checked at 360 px
 # the county redistricting page / old-lines map, and the footer support link. Each must be marked data-ext and https.
 EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder", "corrections", "video", "operator", "record",
              "listed", "school", "provider"}   # listed: an RPC document on a host we do not collect from (Google Drive), linked as listed
+EXT_KINDS = EXT_KINDS | {"body"}   # body: About's link to each body's own official site (config/site.yml unofficial.bodies)
 # provider: the morning note provider's privacy policy (config morning_note.privacy_url), only while it is enabled
 # school: the day page's one plain link to the school board's site (config/site.yml school_board.url; never fetched)
 # the data-transcript attribute itself, not data-transcript-foo
@@ -355,6 +356,7 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
         out.add(cfg["geocoder_privacy_url"])         # the address box's "<geocoder>'s privacy policy" link
     out |= {v["url"] for v in (cfg.get("official_records") or {}).values()}   # "Official record:" lines
     out |= council_record_urls(cfg)
+    out |= {b["url"] for b in (cfg.get("unofficial") or {}).get("bodies") or []}   # About's "official sites" list
     if (cfg.get("school_board") or {}).get("url"):
         out.add(cfg["school_board"]["url"])          # the day page's "coming" school board link
     out |= corrections_log_urls(corrections_path)    # the corrections page's "Source" links
@@ -1186,6 +1188,68 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
     return problems
 
 
+def _plain(markup: str) -> str:
+    """Visible text of a markup string, whitespace collapsed (tags dropped, entities decoded)."""
+    return " ".join(html.unescape(re.sub(r"<[^>]+>", " ", markup)).split())
+
+
+def unofficial_notice(cfg: dict) -> str:
+    """The notice text, restated from config/site.yml `unofficial:` (not called from sitegen's templates)."""
+    names = [b["name"] for b in cfg["unofficial"]["bodies"]]
+    joined = ", ".join(names[:-1]) + ", or " + names[-1] if len(names) > 2 else " or ".join(names)
+    return " ".join(cfg["unofficial"]["notice"].format(site_name=cfg["site_name"], operator=cfg["operator"],
+                                                       bodies=joined).split())
+
+
+def check_unofficial(site: Path, pages: dict[str, Page], cfg: dict | None = None) -> tuple[list[str], str]:
+    """unofficial/notice-on-every-page: the independent-and-unofficial notice (config/site.yml `unofficial:`) is in the
+    text of every built HTML page, in its <meta name=description> and og:description, with the tag in its <title> and
+    beside the site name; in every feed's subtitle; in every morning note's "notice" and "email_line"; and in
+    data/README.txt when the build has an export. Each missing one is a problem."""
+    import xml.etree.ElementTree as ET
+    cfg = _site_cfg() if cfg is None else cfg
+    u = cfg.get("unofficial")
+    if not u:
+        return ["config/site.yml has no unofficial: block"], ""
+    notice = unofficial_notice(cfg)
+    problems = []
+    for rel in sorted(pages):
+        raw = (site / rel).read_text(encoding="utf-8")
+        if notice not in _plain(raw.split("<body", 1)[-1]):
+            problems.append(f"{rel}: the unofficial notice is not in the page text")
+        meta = re.findall(r'<meta\s+(?:name="description"|property="og:description")\s+content="([^"]*)"', raw)
+        if len(meta) != 2 or any(" ".join(html.unescape(m).split()) != notice for m in meta):
+            problems.append(f"{rel}: description and og:description meta tags do not both carry the notice")
+        title = re.search(r"<title>(.*?)</title>", raw, re.S)
+        if not title or u["tag"] not in html.unescape(title.group(1)):
+            problems.append(f"{rel}: <title> does not carry {u['tag']!r}")
+        if '<p class="unofficial-tag">' not in raw:
+            problems.append(f"{rel}: no '{u['tag']}' tag by the site name")
+    feeds = sorted(site.rglob("*.xml"))
+    for f in feeds:
+        rel = f.relative_to(site).as_posix()
+        try:
+            sub = ET.parse(f).getroot().find(ATOM + "subtitle")
+        except ET.ParseError:
+            problems.append(f"{rel}: feed is not valid XML")
+            continue
+        if sub is None or notice not in " ".join((sub.text or "").split()):
+            problems.append(f"{rel}: the feed subtitle lacks the unofficial notice")
+    notes = sorted((site / "morning").glob("*.json")) if (site / "morning").is_dir() else []
+    for f in notes:
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+        except ValueError:
+            problems.append(f"morning/{f.name}: not valid JSON")
+            continue
+        if d.get("notice") != notice or d.get("email_line") != u["email_line"]:
+            problems.append(f"morning/{f.name}: the note lacks the unofficial notice or email line")
+    readme = site / "data" / "README.txt"
+    if (site / "data").is_dir() and not (readme.is_file() and notice in " ".join(readme.read_text(encoding="utf-8").split())):
+        problems.append("data/README.txt is missing or lacks the unofficial notice")
+    return problems, f"{len(pages)} pages, {len(feeds)} feeds, {len(notes)} morning notes"
+
+
 ATOM = "{http://www.w3.org/2005/Atom}"
 RFC3339 = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})")
 
@@ -1595,6 +1659,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("feeds", problems, note)
     problems, note = check_transcripts(site, cs)
     rep.add("transcripts", problems, note)
+    problems, note = check_unofficial(site, pages, cfg)
+    rep.add("unofficial/notice-on-every-page", problems, note)
     if browser:
         try:
             problems, note = check_hscroll(site, pages, all_pages, sample)
