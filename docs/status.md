@@ -76,6 +76,11 @@
 | 2026-11-09 | frontend-engineer | opus/medium | address-first landing + remember seats on device | done, de57078: 1615 pass, site_checks PASS |
 | 2026-11-09 | code-reviewer | sonnet/medium | review 58d7db1 landing | approve with nits (4: your-seats/*) |
 | 2026-11-09 | frontend-engineer | sonnet/medium | fix your-seats nits | done, 58f12a1: 35 pass, site_checks PASS |
+| 2026-11-09 | backend-engineer | sonnet/medium | RPC + CMCSS source survey | done: RPC open 2022-2026; CMCSS Cloudflare-blocked |
+| 2026-11-09 | backend-engineer | sonnet/medium | ward boundary source survey | done: RPC poster PDF usable; APSU needs permission |
+| 2026-11-09 | frontend-engineer | opus/high | Daylight M1 look + landing | done, 969be7e: 1640 pass, site_checks PASS |
+| 2026-11-09 | code-reviewer | opus/medium | review b4d0fa9 Daylight M1 | approve with nits (daylight/*: 3 should-fix, 3 nits) |
+| 2026-11-09 | frontend-engineer | sonnet/medium | fix daylight/* findings | done, f2e08c2: 72 pass, site_checks PASS |
 | 2026-11-08 | frontend-engineer | sonnet/medium | GoVoteTN lookup line | done, 1d2fe84; review approve with 3 nits |
 | 2026-11-08 | backend-engineer | opus/high | georeference district map (pin M1) | done, 187d5a4: 575 pass, held-out max 4.5 m |
 | 2026-11-08 | frontend-engineer | opus/medium | address pin M2 (box, georef.js, Census JSONP) | done, b470a4f: 614 pass, site_checks PASS; live geocoder untested (blocked here) |
