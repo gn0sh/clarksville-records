@@ -38,7 +38,8 @@ def test_every_built_page_carries_the_notice_tag_meta_and_title(built, pages):
     for rel, html in pages.items():
         assert NOTICE in " ".join(re.sub(r"<[^>]+>", " ", html.split("<body", 1)[1]).replace("&#39;", "'").split()), rel
         assert html.count(f'content="{NOTICE}"') == 2, rel          # description and og:description
-        assert re.search(r"<title>[^<]*\| Independent, unofficial</title>", html), rel
+        assert re.search(r"<title>Daylight \(independent, unofficial\) \| [^<]+</title>", html), rel
+        assert re.search(r'<meta property="og:title" content="Daylight \(independent, unofficial\) \| [^"]+">', html), rel
         assert '<p class="unofficial-tag">Independent, unofficial</p>' in html, rel
         assert 'class="unofficial-notice"' in html and "report.html" in html, rel
     assert run(built, pages) == []

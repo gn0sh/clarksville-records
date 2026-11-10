@@ -1226,9 +1226,11 @@ def check_unofficial(site: Path, pages: dict[str, Page], cfg: dict | None = None
         meta = re.findall(r'<meta\s+(?:name="description"|property="og:description")\s+content="([^"]*)"', raw)
         if len(meta) != 2 or any(" ".join(html.unescape(m).split()) != notice for m in meta):
             problems.append(f"{rel}: description and og:description meta tags do not both carry the notice")
-        title = re.search(r"<title>(.*?)</title>", raw, re.S)
-        if not title or u["tag"] not in html.unescape(title.group(1)):
-            problems.append(f"{rel}: <title> does not carry {u['tag']!r}")
+        lead = f"{cfg['site_name']} ({u['tag'].lower()}) | "   # the tag leads the title and the share card
+        for what, m in (("<title>", re.search(r"<title>(.*?)</title>", raw, re.S)),
+                        ("og:title", re.search(r'<meta\s+property="og:title"\s+content="([^"]*)"', raw))):
+            if not m or not html.unescape(m.group(1)).strip().startswith(lead):
+                problems.append(f"{rel}: {what} does not start with {lead!r}")
         if '<p class="unofficial-tag">' not in raw:
             problems.append(f"{rel}: no '{u['tag']}' tag by the site name")
     feeds = sorted(site.rglob("*.xml"))

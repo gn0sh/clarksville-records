@@ -6,11 +6,12 @@
 <meta http-equiv="Content-Security-Policy" content="{{ csp if csp is defined else site.csp }}">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>{{ site.site_name }} | {{ page_name }} | {{ site.unofficial.tag }}</title>
+{% set brand = site.site_name ~ " (" ~ (site.unofficial.tag | lower) ~ ")" %}{# the tag leads every title and share card #}
+<title>{{ brand }} | {{ page_name }}</title>
 <meta name="description" content="{{ site.unofficial.notice }}">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="{{ site.site_name }} ({{ site.unofficial.tag | lower }})">
-<meta property="og:title" content="{{ page_name }} | {{ site.site_name }} | {{ site.unofficial.tag }}">
+<meta property="og:site_name" content="{{ brand }}">
+<meta property="og:title" content="{{ brand }} | {{ page_name }}">
 <meta property="og:description" content="{{ site.unofficial.notice }}">
 <link rel="icon" href="{{ root }}static/brand/favicon.ico" sizes="any">
 <link rel="stylesheet" href="{{ root }}static/style.css">
