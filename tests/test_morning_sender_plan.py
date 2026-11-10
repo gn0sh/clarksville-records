@@ -138,6 +138,17 @@ def test_the_deliver_command_refuses_a_plan_file_over_the_ceiling(msite, tmp_pat
     assert "MAX_PLAN_BYTES" in capsys.readouterr().err
 
 
+
+def test_the_plan_stage_runs_the_deliver_body_check_on_every_edition(msite, monkeypatch):  # noqa: F811
+    """render/clean-order: a body render writes but deliver would refuse fails the plan itself, so the daily
+    rehearsal shows the gap (its ::warning) long before go-live, and a live day fails loudly, never drops quietly."""
+    real = plan_mod.render.body_html
+    monkeypatch.setattr(plan_mod.render, "body_html", lambda *a: real(*a).replace("</p>", "  </p>", 1))
+    with pytest.raises(plan_mod.PlanError, match="body"):
+        plan_mod.build(msite, NEXT, cfg_with(enabled=True))
+    with pytest.raises(plan_mod.PlanError, match="body"):
+        plan_mod.build(msite, NEXT, cfg_with(enabled=False), rehearse=True)
+
 # ------------------------------------------------------------------ the contract
 def test_plan_shape(built, msite):
     p = built["plan"]

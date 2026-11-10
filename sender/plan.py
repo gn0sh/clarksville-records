@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 
 from sitegen import morning
 
-from . import common, render
+from . import common, deliver, render
 from .common import LIST_KEYS, NOTE_SCHEMA, PLAN_SCHEMA, signature
 
 
@@ -125,8 +125,13 @@ def build(site: Path, day: date, cfg: dict, rehearse: bool = False) -> dict:
     texts = {}
     for key in sorted(editions):
         rows = [by_id[i] for i in editions[key]]
+        body = render.body_html(ctx, note, rows)
+        # render/clean-order: the deliver stage's own body check, here too, so any render/deliver gap fails the plan
+        # (the rehearsal's ::warning while the sender is off; a failed run once it is on), never a day lost at 7:00
+        if not deliver.body_ok(body, ctx["link_hosts"], ctx["link_urls"]):
+            raise PlanError(f"edition {key}: render wrote a body the deliver stage's body check refuses")
         plan["editions"].append({"key": key, "subject": render.subject(ctx, plan["date"]),
-                                 "body": render.body_html(ctx, note, rows), "entry_ids": editions[key]})
+                                 "body": body, "entry_ids": editions[key]})
         texts[key] = render.body_text(ctx, note, rows)
     plan["signatures"] = dict(sorted(plan["signatures"].items()))
     plan["send"], plan["reason"] = (True, "ok") if on else (False, "disabled")
