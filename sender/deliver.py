@@ -40,7 +40,7 @@ import unicodedata
 from html import unescape
 
 from .common import (ADDRESS, DATE_RE, KEY_RE, LIST_KEYS, MARKUP, PLAN_SCHEMA, REASONS, REFS, SIGNATURE_RE,
-                     link_ok, signature)
+                     exact_url_ok, link_ok, signature)
 from .settings import Settings
 
 NAMESPACE = uuid.UUID("6f1d2c1e-8b0a-5d3e-9c47-2a1b7e5d4c30")     # fixed: the idempotency keys must not change
@@ -168,15 +168,17 @@ _TAG = re.compile(r"<[^<>]*>")
 _HREF_OF = re.compile(r'<a href="([^"]*)">')
 
 
-def _line_ok(line: str, hosts) -> bool:
+def _line_ok(line: str, hosts, urls=()) -> bool:
     """One line of the body as render writes it: one of its forms, only its references, every link to one of
-    `hosts`, and no text a mail client could link (common.ADDRESS) once the references are read."""
+    `hosts` or exactly one of `urls`, and no text a mail client could link (common.ADDRESS) once the references
+    are read."""
     if not _LINE.fullmatch(line) or "  " in line:
         return False
     if any(int(n) not in REFS for n in re.findall(r"&#([0-9]+);", line)):
         return False
     for href in _HREF_OF.findall(line):     # render writes "&" in a URL as "&amp;" and nothing else as a reference
-        if re.search(r"&(?!amp;)", href) or not link_ok(href.replace("&amp;", "&"), hosts):
+        url = href.replace("&amp;", "&")
+        if re.search(r"&(?!amp;)", href) or not (link_ok(url, hosts) or (url in urls and exact_url_ok(url))):
             return False
     raw = _TAG.sub("", line)
     if any(unicodedata.category(c) in ("Cc", "Cf") or (c.isspace() and c != " ") for c in raw):
@@ -185,7 +187,7 @@ def _line_ok(line: str, hosts) -> bool:
     return not ADDRESS.search(shown)
 
 
-def body_ok(body: str, hosts) -> bool:
+def body_ok(body: str, hosts, urls=()) -> bool:
     """True when `body` could have come from render.body_html with these link hosts: the site name's <h1> first,
     every line one of render's forms, lists closed, and the body ending in a complete line and a newline. Anything
     else (an unclosed tag at the end, an attribute, a comment, a raw bracket, a bare address) is refused."""
@@ -193,7 +195,7 @@ def body_ok(body: str, hosts) -> bool:
         return False
     in_list = False
     for line in body[:-1].split("\n"):
-        if not _line_ok(line, hosts):
+        if not _line_ok(line, hosts, urls):
             return False
         if line in ("<ul>", "</ul>"):
             if in_list == (line == "<ul>"):
@@ -204,7 +206,7 @@ def body_ok(body: str, hosts) -> bool:
     return not in_list and body.count("<h1>") == 1
 
 
-def check_plan(plan, link_hosts=()) -> dict:
+def check_plan(plan, link_hosts=(), link_urls=()) -> dict:
     """The plan as the plan stage writes it, or PlanInvalid. The file crosses from the job that parses untrusted
     documents to the job that holds the key, so every field deliver reads is checked here first, each body
     against the tags render writes and `link_hosts` (from the repository's config, not the plan)."""
@@ -231,7 +233,8 @@ def check_plan(plan, link_hosts=()) -> dict:
         if not (isinstance(ed["subject"], str) and 0 < len(ed["subject"]) <= MAX_SUBJECT and ed["subject"].isprintable()
                 and ed["subject"] == ed["subject"].strip()):
             raise PlanInvalid("an edition's subject")
-        if not (isinstance(ed["body"], str) and 0 < len(ed["body"]) <= MAX_BODY and body_ok(ed["body"], link_hosts)):
+        if not (isinstance(ed["body"], str) and 0 < len(ed["body"]) <= MAX_BODY
+                and body_ok(ed["body"], link_hosts, link_urls)):
             raise PlanInvalid("an edition's body")
         if not (isinstance(ed["entry_ids"], list) and ed["entry_ids"]
                 and all(isinstance(i, str) for i in ed["entry_ids"])):
@@ -422,7 +425,7 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
     `stamp_secret`: the HMAC key of the stamps (the provider's API key, passed by the adapter), needed in `stamp`
     mode. `clock`: a callable giving the current time (default: `now` when given, else the system clock)."""
     try:
-        plan = check_plan(plan, settings.link_hosts)
+        plan = check_plan(plan, settings.link_hosts, settings.link_urls)
     except PlanInvalid as exc:
         out(f"morning note: the plan file is not valid ({exc}); nothing sent")
         return Outcome(2, "bad-plan")

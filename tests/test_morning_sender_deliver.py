@@ -1010,11 +1010,42 @@ def test_a_body_is_held_to_the_exact_lines_render_writes(plan, body):
         deliver.check_plan(bad, s.link_hosts)
 
 
+@pytest.mark.parametrize("href, ok", [("https://tips.example.com/x", True), ("https://tips.example.com/other", False),
+                                       ("https://tips.example.com/x?y=1", False), ("https://tips.example.com/x/", False),
+                                       ("https://records.example.com/items/2026.html", True)])
+def test_the_support_url_is_allowed_exactly_not_its_host(plan, href, ok):
+    """Low (a): a page anyone could host on the support link's host is refused; the configured URL passes."""
+    hosts = tuple(h for h in settings().link_hosts if h != "tips.example.com")
+    urls = settings().link_urls + ("https://tips.example.com/x",)        # the fixture's own support link too
+    body = _with(f'<p>Please help. <a href="{href}">Tips</a></p>')
+    assert deliver.body_ok(body, hosts, urls) is ok
+    assert not deliver.body_ok(_with('<p>Please help. <a href="https://tips.example.com/x">Tips</a></p>'), hosts)
+    good = copy.deepcopy(plan)
+    good["editions"][0]["body"] = body
+    if ok:
+        deliver.check_plan(good, hosts, urls)
+    else:
+        with pytest.raises(deliver.PlanInvalid, match="body"):
+            deliver.check_plan(good, hosts, urls)
+
+
+def test_the_run_allows_the_settings_support_url(plan):
+    s = dataclasses.replace(settings(), link_hosts=tuple(h for h in settings().link_hosts if h != "tips.example.com"))
+    good = copy.deepcopy(plan)
+    good["editions"][0]["body"] = _with('<p>Please help. <a href="https://tips.example.com/x">Tips</a></p>')
+    res, _ = go(good, Fake(people(plan)), s=s)
+    assert res.status == "bad-plan"
+    res, _ = go(good, Fake(people(plan)), s=dataclasses.replace(s, link_urls=s.link_urls + ("https://tips.example.com/x",)))
+    assert res.status != "bad-plan"
+
+
 def test_the_bodies_render_writes_pass_the_check(plan):
     s = settings()
-    deliver.check_plan(copy.deepcopy(plan), s.link_hosts)
+    deliver.check_plan(copy.deepcopy(plan), s.link_hosts, s.link_urls)
     good = copy.deepcopy(plan)
     good["editions"][0]["body"] = GOOD_BODY
-    deliver.check_plan(good, s.link_hosts)
+    deliver.check_plan(good, s.link_hosts, s.link_urls)
     with pytest.raises(deliver.PlanInvalid, match="body"):
-        deliver.check_plan(copy.deepcopy(plan), ("www.cmcrpc.com",))      # the site host is not a link host
+        deliver.check_plan(copy.deepcopy(plan), ("www.cmcrpc.com",), s.link_urls)     # the site host is not one
+    with pytest.raises(deliver.PlanInvalid, match="body"):
+        deliver.check_plan(copy.deepcopy(plan), s.link_hosts)               # nor is the support link's host

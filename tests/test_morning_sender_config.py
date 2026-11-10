@@ -104,7 +104,7 @@ def test_the_stdlib_reader_agrees_with_yaml_on_the_shipped_file():
     got = settings_mod.parse(SITE_YML.read_text(encoding="utf-8"))
     full = yaml.safe_load(SITE_YML.read_text(encoding="utf-8"))
     assert got["sender"] == {k: v for k, v in full["morning_note"]["sender"].items() if k != "text"}
-    assert got["top"] == {k: full[k] for k in ("site_timezone", "district_count", "ward_count")}
+    assert got["top"] == {k: full[k] for k in ("site_timezone", "district_count", "ward_count", "support_url")}
     s = settings_mod.load(SITE_YML)
     assert (s.enabled, s.canary_only, s.mode, s.max_recipients, s.timezone) == (False, True, "stamp", 2000, "America/Chicago")
     assert (s.district_count, s.ward_count, s.send_at, s.latest_send) == (21, 12, "07:00", "10:00")
@@ -373,8 +373,27 @@ def test_the_link_hosts_cover_every_collector_source_and_the_support_link():
     for path in config.SITE["morning_note"]["manifests"]:
         seen |= set(re_mod.findall(r"https://([A-Za-z0-9.-]+)", (ROOT / path).read_text(encoding="utf-8")))
     assert seen and seen <= hosts, seen - hosts
-    assert config.SITE["support_url"].split("/")[2] in hosts
+    # Low (a): anyone can host a page on the support link's host, so that host is not a link host; the one
+    # support URL is allowed exactly instead (settings.link_urls, from the top-level support_url)
+    assert config.SITE["support_url"].split("/")[2] not in hosts
     assert set(settings_mod.load(SITE_YML).link_hosts) == hosts          # the deliver stage reads the same list
+    assert settings_mod.load(SITE_YML).link_urls == (config.SITE["support_url"],)
+
+
+@pytest.mark.parametrize("value", ["http://tips.example.com/", "https://user" + "@tips.example.com/",
+                                   "https://tips.example.com:444/", 'https://tips.example.com/"x', "tips.example.com",
+                                   "https://Tips.example.com/", 7])
+def test_a_support_url_the_deliver_stage_could_not_allow_exactly_is_refused(value):
+    got = settings_mod.parse(SITE_YML.read_text(encoding="utf-8"))
+    with pytest.raises(settings_mod.SettingsError, match="support_url"):
+        settings_mod.from_values({**got["top"], "support_url": value}, got["sender"])
+    assert any("support_url" in p for p in morning.sender_problems({**config.SITE, "support_url": value}))
+
+
+def test_no_support_url_allows_no_exact_link():
+    got = settings_mod.parse(SITE_YML.read_text(encoding="utf-8"))
+    top = {k: v for k, v in got["top"].items() if k != "support_url"}
+    assert settings_mod.from_values(top, got["sender"]).link_urls == ()
 
 
 @pytest.mark.parametrize("value", ["", "Example.com", "a..b", "https://example.com", "example.com/x", "ex ample.com",

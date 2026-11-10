@@ -211,7 +211,10 @@ def sender_problems(cfg: dict) -> list[str]:
         subj = text.get("subject")
         if isinstance(subj, str) and AUTHORITY.search(subj.replace("{site_name}", str(cfg.get("site_name") or ""))):
             out.append(f"{at}.text.subject must not name a government body or say official, got {subj!r}")
-    from sender.common import parse_hosts       # plan-untrusted/body-unchecked: the hosts an email may link to
+    from sender.common import exact_url_ok, parse_hosts     # plan-untrusted/body-unchecked: what an email links
+    if "support_url" in cfg and not exact_url_ok(cfg["support_url"]):
+        out.append(f"support_url must be one https URL on a lower-case host, with no user or port (the deliver "
+                   f"stage allows the note's support link as exactly this URL), got {cfg['support_url']!r}")
     hosts: tuple = ()
     if "link_hosts" in s:
         try:

@@ -141,7 +141,7 @@ def test_every_word_outside_the_record_is_config_text():
     ctx = {"site_name": "SITE", "site_url": SITE_URL, "source_label": "SRC", "page_label": "PG",
            "text": {"subject": "{site_name} S {date}", "why": "WHY", "open_site": "OPEN"},
            "notice": "NOTICE", "email_line": "LINE", "support_label": "TIPS",
-           "link_hosts": ("records.example.com", "example.com", "tips.example.com")}
+           "link_hosts": ("records.example.com", "example.com"), "link_urls": ("https://tips.example.com/x",)}
     n = note_of(entry(body_name="BODY", recorded="REC", title="TITLE"), unplaced_text="UNPLACED",
                 support_line="SUPPORT", support_url="https://tips.example.com/x")
     n["lists"] = [{"key": k, "label": f"L-{k}"} for k in morning.LIST_KEYS]
@@ -336,7 +336,7 @@ def test_a_bare_domain_in_a_title_is_broken_and_the_body_passes_the_deliver_chec
     shown = next(n for n in parse(html).walk() if n.tag == "strong").all_text()
     assert shown.replace("\u200b", "") == title
     assert not re.search(r"(?i)www\.|://|[\w-][.\u3002\uff0e\uff61]\w", shown), shown
-    assert deliver.body_ok(html, CTX["link_hosts"])
+    assert deliver.body_ok(html, CTX["link_hosts"], CTX["link_urls"])
 
 
 def test_render_writes_only_bodies_the_deliver_check_accepts():
@@ -344,7 +344,7 @@ def test_render_writes_only_bodies_the_deliver_check_accepts():
     from sender import deliver
     html = html_of(entry(title=HOSTILE, body_name=HOSTILE, recorded=HOSTILE), entry(id="b", title="second"),
                    unplaced_text=HOSTILE)
-    assert deliver.body_ok(html, CTX["link_hosts"])
+    assert deliver.body_ok(html, CTX["link_hosts"], CTX["link_urls"])
 
 
 @pytest.mark.parametrize("on, url, want", [(True, "https://tips.example.com/", True),
@@ -367,6 +367,17 @@ def test_a_source_on_a_host_that_is_not_a_link_host_gives_no_link():
 def test_no_site_link_when_the_site_host_is_not_a_link_host():
     ctx = {**CTX, "link_hosts": ("example.com",)}
     assert links(html_of(entry(), ctx=ctx)) == ["https://example.com/fixture/agenda.pdf#page=2"]
+
+
+def test_the_support_link_is_the_configured_url_exactly():
+    """Low (a): another page on the support link's host gives no support link; the configured URL does."""
+    assert CTX["link_urls"] == (config.SITE["support_url"],)
+    host = config.SITE["support_url"].split("/")[2]
+    assert host not in CTX["link_hosts"]
+    n = note_of(entry(), support_line="Please help.", support_url=f"https://{host}/someone-else")
+    assert "someone-else" not in render.body_html(CTX, n, n["entries"])
+    n = note_of(entry(), support_line="Please help.", support_url=config.SITE["support_url"])
+    assert links(render.body_html(CTX, n, n["entries"]))[-1] == config.SITE["support_url"]
 
 
 def test_no_support_link_off_the_link_hosts():

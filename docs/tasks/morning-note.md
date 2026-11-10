@@ -139,6 +139,8 @@ Go-live checklist from the security review of afdb0f0 (each one checked in the P
 - `sender/buttondown.py` (T4.4's adapter) uses `http.client` to the pinned host only, with timeouts, follows no
   redirect, and refuses a pagination `next` link off that host; it passes the API key to `deliver.run` as
   `stamp_secret`.
+- (security delta at a168d24) no government source host in `link_hosts` has an open redirect an allowed-host link
+  could use to land elsewhere (unverified so far: check each host, record the result in `docs/platform-facts.md`).
 
 ### T4.6 Enable conditions on the site (security review findings 1 to 3)
 `site/templates/method.html.j2`, `index.html.j2`, `alerts.html.j2`, `site/static/morning.js`, `seats.js` header,

@@ -333,8 +333,11 @@ morning_note:
   `www.`, no `://` and no dot between two word characters (`evil.example/login`; CJK and full-width dots too),
   which render breaks with a zero-width space (`common.ADDRESS`). Each `href` is one https URL on a host in
   `morning_note.sender.link_hosts` (read from the repository). The plan stage links only to the
-  same hosts (sources, site pages, the support link). `link_hosts` ships with the collectors' source hosts and the
-  support host; the build refuses `enabled: true` until it also holds the site's host.
+  same hosts (sources, site pages). `link_hosts` ships with the collectors' source hosts only; the build refuses
+  `enabled: true` until it also holds the site's host. The support link is allowed as exactly the top-level
+  `support_url` (`Settings.link_urls`, read by the stdlib reader and held to parity), never as its host: anyone can
+  host a page on `buymeacoffee.com` (security Low (a)). Unverified: whether any government source host has an open
+  redirect that would let an allowed-host link land elsewhere; check before go-live (T4.5).
 - **Each stamp write re-reads that subscriber first** (security L2): until the T4.0 probe shows that a metadata
   update merges keys, the write sends the whole object, so it is built from `Provider.subscriber(id)` read just
   before the write, not from the listing. Someone whose type or shape changed since the listing is not stamped (no

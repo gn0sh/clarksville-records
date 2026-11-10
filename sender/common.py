@@ -31,10 +31,19 @@ ZWSP = "\u200b"
 # the only numeric references render writes: a markup character, a leading "-", "+" or space, the zero-width space
 REFS = frozenset({ord(c) for c in MARKUP} | {ord("-"), ord("+"), ord(" "), ord(ZWSP)})
 
-# plan-untrusted/body-unchecked: the hosts an email may link to (`morning_note.sender.link_hosts`: the site's host,
-# the collectors' source hosts and the support link's), one rule for the plan stage, the deliver check and the build
+# plan-untrusted/body-unchecked: the hosts an email may link to (`morning_note.sender.link_hosts`: the site's host
+# and the collectors' source hosts), one rule for the plan stage, the deliver check and the build. The support link
+# is allowed as its one exact URL (top-level `support_url`), never its host: anyone can host a page there.
 _HOST = re.compile(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+")
 _URL_CHARS = re.compile(r"[!#-&(-;=?-\[\]-_a-z|~]+", re.IGNORECASE)     # printable ASCII but " ' < > \ ` { }
+
+
+def exact_url_ok(url) -> bool:
+    """True for an https URL that may be allowed exactly (the support link, Low (a)): link_ok's characters and a
+    lower-case host with no user and no port."""
+    if not (isinstance(url, str) and _URL_CHARS.fullmatch(url) and url.startswith("https://")):
+        return False
+    return bool(_HOST.fullmatch(re.split(r"[/?#]", url[len("https://"):], maxsplit=1)[0]))
 
 
 def parse_hosts(text) -> tuple:

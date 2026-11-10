@@ -117,8 +117,9 @@ morning_note:
     max_recipients: 2000
     canary_only: true        # true: only the subscriber ids in the note job's MORNING_NOTE_CANARY_IDS secret; none listed: nobody
     # The only hosts an email may link to (the plan stage drops any other link; the deliver stage refuses a body with
-    # one): the collectors' source hosts and the support link's. Add the site's own host before enabling.
-    link_hosts: "www.clarksvilletn.gov,montgomerytn.gov,www.cmcrpc.com,clarksvilletn.api.civicclerk.com,montgomeryminutes.bisonline.com,mcgtn.org,buymeacoffee.com"
+    # one): the collectors' source hosts. Add the site's own host before enabling. The support link is allowed as
+    # exactly the top-level support_url, never its host: anyone can host a page there.
+    link_hosts: "www.clarksvilletn.gov,montgomerytn.gov,www.cmcrpc.com,clarksvilletn.api.civicclerk.com,montgomeryminutes.bisonline.com,mcgtn.org"
     # Every word of the email that is ours. Neutral connective text only: no summary, no claim about anyone.
     text:
       subject: "{site_name} morning note, {date}"

@@ -21,7 +21,7 @@ import re
 import unicodedata
 from datetime import date
 
-from .common import DOTS, MARKUP, ZWSP, link_ok, parse_hosts
+from .common import DOTS, MARKUP, ZWSP, exact_url_ok, link_ok, parse_hosts
 
 TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": ()}
 MAX_TITLE = 600         # a longer title is cut here and marked with CUT; the site's page carries all of it
@@ -109,7 +109,9 @@ def context(cfg: dict) -> dict:
             "text": dict(mn["sender"]["text"]), "source_label": mn["page"]["source_label"],
             "page_label": mn["page"]["page_label"], "notice": u["notice"], "email_line": u["email_line"],
             "support_label": cfg.get("support_label") or "",
-            "link_hosts": parse_hosts(mn["sender"]["link_hosts"])}
+            "link_hosts": parse_hosts(mn["sender"]["link_hosts"]),
+            # the support link, allowed as this one URL and never as its host (Low (a)); settings.link_urls
+            "link_urls": (cfg["support_url"],) if exact_url_ok(cfg.get("support_url")) else ()}
 
 
 def own_text(ctx: dict, note: dict) -> list[str]:
@@ -131,11 +133,12 @@ def subject(ctx: dict, iso: str) -> str:
 
 
 def support_of(ctx: dict, note: dict) -> tuple[str, str, str] | None:
-    """(line, link label, https URL) when the note carries a support line and a link that passes the https rule,
-    as the site's own note does (sitegen.morning: only while support_enabled); else None."""
+    """(line, link label, https URL) when the note carries a support line and a link that passes the https rule
+    and is exactly the configured support URL, as the site's own note does (sitegen.morning: only while
+    support_enabled); else None."""
     line, url = note.get("support_line"), note.get("support_url")
     if not (isinstance(line, str) and clean(line) and ctx.get("support_label") and _https(url)
-            and link_ok(url, ctx.get("link_hosts", ()))):
+            and url in ctx.get("link_urls", ())):
         return None
     return line, ctx["support_label"], url
 

@@ -154,7 +154,7 @@ def test_plan_shape(built, msite):
         assert e["key"] == plan_mod.edition_key(p["date"], e["entry_ids"]) and e["entry_ids"]
     assert all(common.SIGNATURE_RE.fullmatch(s) for s in p["signatures"])
     hosts = common.parse_hosts(cfg_with()["morning_note"]["sender"]["link_hosts"])
-    assert deliver.check_plan(p, hosts) is p                            # the deliver stage accepts what plan writes
+    assert deliver.check_plan(p, hosts, (config.SITE["support_url"],)) is p     # deliver accepts what plan writes
 
 
 def test_shared_constants_match_the_digest():
