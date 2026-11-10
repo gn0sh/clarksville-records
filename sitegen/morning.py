@@ -33,7 +33,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from . import config, views
+from . import config, unofficial, views
 
 SCHEMA = "morning-note/1"
 FOLDER = "morning"
@@ -576,12 +576,18 @@ def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None 
               "unplaced_zoning": unplaced}
     if backfill:
         entries, unplaced = [], 0
+    u = unofficial.load(cfg if "unofficial" in cfg else None)
     return {"schema": SCHEMA, "date": d.isoformat(),
             "window": {"from": _stamp(start), "to": _stamp(end)}, "data_as_of": data_as_of,
             "lists": [{"key": x["key"], "label": x["label"]} for x in mn["lists"]],
             "backfill": backfill, "counts": counts,
             "entries": entries, "unplaced_zoning": unplaced,
-            "unplaced_text": unplaced_text(unplaced, cfg)}
+            "unplaced_text": unplaced_text(unplaced, cfg),
+            # the mail sender prints these in every note's text and footer (unofficial/notice-on-every-page)
+            "notice": u["notice"], "email_line": u["email_line"],
+            # the ask for support, printed in the footer when the support link is on (Brian, 2026-11-10)
+            "support_line": (cfg.get("support_line") or "") if cfg.get("support_enabled") is True and cfg.get("support_url") else "",
+            "support_url": cfg.get("support_url") or "" if cfg.get("support_enabled") is True else ""}
 
 
 def unplaced_text(n: int, cfg: dict | None = None) -> str:

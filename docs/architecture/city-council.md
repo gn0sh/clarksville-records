@@ -172,6 +172,55 @@ None may re-resolve a printed name; each reads `official_id` (null when held).
 | One-vote check | `collector/invariants.py` `one_vote_violations` | votes per (item, roll call) |
 | QA spot check | `qa/spot_check.py` `candidates` | the names shown to the checker |
 
+## Seat holder invariant (problem family `city-seats`, keys `current-holder-matches-latest-attendance`, M1 `pipeline/seats-stale-on-new-county-meeting`)
+
+**Invariant.** A seat's current holder is the member recorded in that seat (a printed ward, a confirmed roll call for
+a title seat, a district in the county's roll-call tables) who is still listed at L, the latest meeting read, unless
+the record shows a successor; when the record cannot place anyone in a seat, the seat says "Current member not yet
+recorded".
+
+**Why it broke (2026-11-10).** `council.holder_rows` took L as the latest end over all records. Ward records end at
+the last attendance list that printed a ward (2025-03-06: the CivicClerk minutes from 2025-04 print names only) and
+the mayor's at the last confirmed roll call (2026-02-05), so every ward record was closed while the same lists still
+listed each member to 2026-06-04. The county had the same shape: an open row of the hand-derived `seats.yml` was
+worded "to L, the latest meeting collected" with L from the facts, so one new meeting dated every open row past the
+page it cites.
+
+**Rule.** (1) `council.extend_by_listings`: a record runs on through later attendance lists that list its holder by
+name, until another record of the same seat, or another seat of the same member, starts; it keeps `printed_to` (the
+last print) and the page wording says both ("seen in attendance lists from X to P; listed by name in attendance lists
+to L, the latest minutes read"). L is the latest attendance list read (never a roll call at a meeting with no
+list). A name that resolves to no official (CLAUNCH, held by the name-resolution invariant) is never placed, so Ward 2
+says "not yet recorded". One list does not close a record, nor keep it current: a member last listed at the list
+before L whom L's list does not name is held over (`held_over`) when L's list is incomplete (an unresolved name, or
+fewer members than the list before) and no successor starts. A held-over record is neither current nor former: its
+seat reads "Current member not yet recorded" with the line "last listed in attendance lists X; not named in the
+attendance lists of L", the member is listed under "Not named in the latest minutes" (never as a seat's holder; the site check fails a
+held-over member shown as holder, or a note naming someone not held over in that seat), and the member page keeps the dates. A
+wrong current member is the worst failure; "not recorded" is acceptable (re-review of 7895b63).
+`seats.csv` gives `printed_last` (+ source) for the last page printing the seat and `listed_last` (+ source) for the
+last names-only list. (2) `seats.stamp_seen`: a
+county row is seen to its end, or to the meeting of its `last_source` page; when that is before the latest meeting
+collected, L is that meeting, worded "the latest meeting read for seats", and no seat covers a later vote.
+`tools/seat_check.py` check 4 judges open rows against the same L (`read_to`), so a new meeting no longer fails the
+suite; a new voter with no seat still does (a successor to read: re-run `tools/derive_seats.py`).
+
+| Consumer of seat ranges | Where | Reads |
+|---|---|---|
+| City home: seats list, Current / Served previously, basis line | `council.seat_list`, `home`; `views.officials_page`, `observed_basis` | `Seats.current_of_seat`, `is_current`, `latest` |
+| Landing: county districts, council seats, ward map links, "Your seats" (`static/seats.js`, reads the landing rows), address lookup (links `#seat-ward-N`) | `views.district_rows`, `council.landing` | `current_of_seat` |
+| County seat pages `districts/NN.html` | `views` district context | `for_seat`, `current_of_seat`, `view`, `basis` |
+| Officials page and member page headers | `views.officials_page`, `official` (`header_text`, `seat_text`) | `dates_text` |
+| Seat beside each vote and attendance row (meeting, vote-history and year pages) | `views` (`Seats.on`) | record start/end (`seen_to` for an open county row) |
+| Search index (`st`, officials labels) | `views.search_index` | `seat_text` |
+| CSV export `seats.csv` | `collector/export.py` `seats_csv` (county: raw `seats.yml`; city: `cix._rows`) | `start`, `end`, `last_source` |
+| Seat check | `tools/seat_check.py` | `seats.yml` against the facts |
+| Site check `current-holders` | `qa/site_checks.py` `check_current_holders` | built pages vs `wards.json` / roll calls |
+| Feeds, morning note | none: they read a case's printed district or ward, never holder records | — |
+
+Tests: `tests/test_city_seats.py` (the rule, the committed city data, the county with one new meeting),
+`tests/test_map_seats.py` (seat check with a new meeting), `tests/test_council_pages.py`.
+
 ## Call-on invariant (problem family `transcripts/call-on-misattribution`)
 
 Stated after the family's second hit (review of the transcript feature, 2026-11-09). A "call-on" is the moment the

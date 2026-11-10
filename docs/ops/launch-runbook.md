@@ -56,7 +56,9 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
 5. Deploy now instead of waiting for 09:07 UTC: Actions > Daily update > Run workflow > main. With a warm cache it takes
    minutes. Collect = false rebuilds and deploys from the committed data with no fetching.
 6. Look: https://daylight.gnoshcodes.com/ loads over HTTPS, footer shows the operator, alerts.html feeds link to
-   `https://daylight.gnoshcodes.com/...`. Then do the uptime step below.
+   `https://daylight.gnoshcodes.com/...`. The footer of every page, and the top of About, say the site is independent
+   and unofficial (wording: `unofficial:` in `config/site.yml`; check: `qa.site_checks` line
+   `unofficial/notice-on-every-page` must PASS). Then do the uptime step below.
 
 ## Before the morning note's email is switched on (not part of go-live; email is OFF)
 `morning_note.enabled` stays `false` in `config/site.yml` at launch: the site sends nothing. Switching it on is a
@@ -84,7 +86,7 @@ come from `docs/reviews/security-review-morning-2b4796b.md`.
 Described diff for `monitor.config.json`, add one entry to `targets` (not applied; that repo is not touched here):
 ```diff
      { "name": "gnoshcodes.com", "url": "https://gnoshcodes.com/" }
-+    ,{ "name": "Clarksville Records", "url": "https://daylight.gnoshcodes.com/" }
++    ,{ "name": "Daylight", "url": "https://daylight.gnoshcodes.com/" }
    ]
 ```
 (JSON needs the comma after the previous last entry; put it there rather than on a new line.)

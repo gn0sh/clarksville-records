@@ -18,7 +18,7 @@ district_lookup_label: GoVoteTN
 # required when geocoder_url is set, as district_lookup_label is when district_lookup_url is. A build with
 # `python -m sitegen --no-geocoder` draws no box (the claude.ai preview), only the plain lookup line.
 geocoder_url: https://geocoding.geo.census.gov/geocoder/locations/onelineaddress
-geocoder_label: the U.S. Census Bureau's geocoder   # "Your address is sent to <label> to find it on the map."
+geocoder_label: the U.S. Census Bureau's geocoder   # "Your address is sent to <label> to find where it is."
 geocoder_short: Census                               # "The Census places this address in ...", "Census's privacy policy"
 geocoder_privacy_url: https://www.census.gov/about/policies/privacy.html
 
@@ -34,6 +34,8 @@ official_records:
 # Enabled 2026-11-09: Brian says his council seat is not a factor (he leaves it before anything goes live).
 support_url: https://buymeacoffee.com/gnoshcodes
 support_label: Buy Me a Coffee
+# The ask shown beside the morning note sign-up and printed in the note's footer (Brian, 2026-11-10). Only with the support link on.
+support_line: "This service is free and always will be, but web hosting and sending email cost money. If it is useful to you, please consider supporting the project."
 support_enabled: true
 
 # Report an error (M1.5, docs/design/correction-intake.md). Every fact page links report.html, which offers these
@@ -124,7 +126,7 @@ morning_note:
     state_off: Email starts at launch; follow by feed now.
     feeds_heading: Feeds for your list
     no_feed: No feed for this list yet.
-    seats_hint: No seats are saved on this device, so every feed for this list is shown. Find your district or ward on the map page and this device keeps it.
+    seats_hint: No seats are saved on this device, so every feed for this list is shown. Find your district or ward by address on the home page and this device keeps it.
     seats_link: Find your seats
     preview_link: See today's note as it would read
     email_label: Email
@@ -155,11 +157,10 @@ county_name: Montgomery County
 county_body: Montgomery County Commission
 city_name: City of Clarksville
 city_body: Clarksville City Council
-city_label: Clarksville             # the one place label drawn on the map
 county_key: county                  # search index body key ("b") for county records
-# Map layer names (landing layer switch and list headings). `short` is the phone-width form.
+# Seat list names (landing list headings). `short` is the phone-width form.
 district_layer: {label: County commission districts, short: Districts}
-ward_layer: {label: City wards, short: Wards, coming: true}
+ward_layer: {label: City wards, short: Wards}
 # Landing purpose line (h1). Neutral: what the site holds, no claim about anyone.
 purpose: Votes and records of the Montgomery County Commission, linked to the county's own minutes.
 city_coming: City of Clarksville records are coming.   # shown only when no council is listed below
@@ -169,14 +170,13 @@ councils: [clarksville-tn]
 # and its page folder (sitegen/rpc.py). Leave it out to build no RPC pages.
 rpc: cmc-rpc
 
-# County commission seats drawn on the map and given a page each (districts/<nn>.html).
+# County commission seats, each given a page (districts/<nn>.html).
 district_count: 21
 district_label: District          # "District 7"
 district_page_title: County Commission District   # "County Commission District 7"
 ward_count: 12
 ward_label: Ward
 ward_map_owner: Regional Planning Commission   # whose map the ward lines come from ("on the <owner>'s map of <date>")
-wards_status: coming              # ward pages are M4; until then the landing shows a notice
 # Seats other than numbered districts and wards, in the fixed order the Officials page lists them after the districts.
 other_seats:
   - {seat: county-mayor, label: County Mayor}
@@ -244,3 +244,23 @@ coming:
     title: Capital projects
     lede: "Coming. Capital projects named in county budget books and commission resolutions are planned. Nothing is shown here until it is collected from the source documents, and every project will link to its page."
     planned: ["Projects named in approved budgets", "Commission resolutions that fund or change a project"]
+
+# Independent and unofficial (launch blocker, owner 2026-11-10; sitegen/unofficial.py, qa/site_checks.py
+# unofficial/notice-on-every-page). The ONE place this wording lives: the footer of every page, the header tag, the home
+# page and About, every feed, the morning note's text and sign-up, the export README, <meta> and Open Graph tags and
+# the <title> suffix all read it. Change a word here and every surface follows. {operator} is `operator` above and
+# {bodies} is the `bodies` list below, joined "A, B, C, or D".
+unofficial:
+  tag: Independent, unofficial          # next to the site name on every page and in each <title>
+  notice: "{site_name} is an independent, unofficial site run by {operator}. It is not affiliated with, endorsed by, or operated by {bodies}. The official record held by each body controls."
+  correction_label: How to report a correction
+  differ: If this site and the official document differ, the official document is right.
+  not_advice: Nothing on this site is legal advice.
+  email_line: "Independent, unofficial: not from or endorsed by any government body."   # short form for a mail footer
+  # the home page's first-screen line (the full notice is in its footer, as on every page); {bodies} joins `short`
+  short: "Not affiliated with or endorsed by {bodies}."
+  bodies:     # name: as the notice prints it; short: in `short`; url: the body's own official site (About links each)
+    - {name: the City of Clarksville, short: the City of Clarksville, label: City of Clarksville, url: "https://www.cityofclarksville.com/"}
+    - {name: Montgomery County, short: Montgomery County, label: Montgomery County government, url: "https://www.montgomerytn.gov/"}
+    - {name: the Clarksville-Montgomery County School System (CMCSS), short: CMCSS, label: Clarksville-Montgomery County School System (CMCSS), url: "https://www.cmcss.net/"}
+    - {name: the Clarksville-Montgomery County Regional Planning Commission, short: the Regional Planning Commission, label: Clarksville-Montgomery County Regional Planning Commission, url: "https://www.cmcrpc.com/"}

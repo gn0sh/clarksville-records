@@ -1,0 +1,33 @@
+{# Independent and unofficial (config/site.yml `unofficial:`, sitegen/unofficial.py): the one place the notice markup
+   lives. `footer_notice` is in the footer of every page (base.html.j2); `home_line` is on the landing; `about_section`
+   is the fuller section on About. All words come from site.unofficial, never from here. #}
+{% macro footer_notice(site, root) %}
+<section class="unofficial-notice" aria-labelledby="unofficial-h">
+  {# a <p>, not a heading: every page of a kind keeps the same heading outline (neutrality N1 skeleton tests) #}
+  <p id="unofficial-h" class="unofficial-h"><strong>{{ site.unofficial.tag }}</strong></p>
+  <p>{{ site.unofficial.notice }} <a href="{{ root }}report.html">{{ site.unofficial.correction_label }}</a>.</p>
+</section>
+{% endmacro %}
+
+{% macro home_line(site, root) %}
+{# The short form, so the landing's first screen (purpose, this line, the address box and its answer) fits a phone
+   (tests/test_address_box.py); the full notice is in this page's footer, as on every page, and on About. #}
+<p class="unofficial-intro"><strong>{{ site.unofficial.tag }}.</strong> {{ site.unofficial.short }} <a href="{{ root }}about.html#unofficial">More on About</a></p>
+{% endmacro %}
+
+{% macro about_section(site, root) %}
+<section aria-labelledby="unofficial">
+  <h2 id="unofficial">{{ site.unofficial.tag }}</h2>
+  <p>{{ site.unofficial.notice }}</p>
+  <p><strong>Who runs it.</strong> {{ site.site_name }} is run by {% if site.operator_url %}<a data-ext="operator" href="{{ site.operator_url }}" rel="noopener noreferrer">{{ site.operator }}</a>{% else %}{{ site.operator }}{% endif %}, a small software company. No government body or office runs, pays for, reviews or approves this site. It uses no government seal, logo or insignia.</p>
+  <p><strong>Where the records come from.</strong> The records shown here are public documents that each body publishes itself. This site collects them, links each fact to its source document, and does not speak for the body that wrote it. The official sites:</p>
+  <ul>
+    {% for b in site.unofficial.bodies %}
+    <li><a data-ext="body" href="{{ b.url }}" target="_blank" rel="noopener noreferrer">{{ b.label }}<span class="sr-only"> (opens in a new tab)</span></a></li>
+    {% endfor %}
+  </ul>
+  <p><strong>If they differ.</strong> {{ site.unofficial.differ }} Check the source document linked from each page before you rely on anything here.</p>
+  <p><strong>Corrections.</strong> If a fact on this site does not match its source document, <a href="{{ root }}report.html">{{ site.unofficial.correction_label | lower }}</a>.</p>
+  <p><strong>Not advice.</strong> {{ site.unofficial.not_advice }}</p>
+</section>
+{% endmacro %}

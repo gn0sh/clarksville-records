@@ -77,6 +77,12 @@ PROVENANCE: dict[str, str] = {
     "seats.source_url": "derived: link to the page that prints it (observed: first meeting's roll call)",
     "seats.last_source_url": "derived: link to the last meeting's roll-call page (observed rows)",
     "seats.last_page": "derived: page of that roll call",
+    # a council's rows (sitegen/council.py): the seat is printed to printed_last, the name alone listed after it
+    "seats.printed_last": "derived: last meeting whose roll call or attendance list prints this holder in this seat",
+    "seats.printed_last_source": "derived: link to that meeting's page",
+    "seats.listed_last": "derived: last attendance list naming the holder without the seat (council rows carried on "
+                         "by name; empty otherwise)",
+    "seats.listed_last_source": "derived: link to that attendance list's page",
 }
 for _k, _v in _CITE.items():
     PROVENANCE.setdefault(f"seats.{_k}", _v)
@@ -305,10 +311,21 @@ def tables(facts: dict, all_facts: dict, internal: bool = False, seats: list[dic
 
 SEAT_COLS = ["official_id", "official_name", "seat", "seat_label", "dates", "seen_first", "seen_last", "printed_term",
              "dates_basis", "lines", "source_url", "source_sha256", "page", "fetched_at", "last_source_url",
-             "last_page"]
+             "last_page", "printed_last", "printed_last_source", "listed_last", "listed_last_source"]
 DATES_BASIS = {"observed": "first and last meetings whose roll-call tables print this holder in this seat; "
                            "not term dates",
                "sourced": "the term as the source prints it"}
+
+
+def _council_basis(r: dict) -> str:
+    """dates_basis of a council row (it carries `evidence`): what printed the seat, and what only named the holder
+    (provenance/seats-csv-name-only)."""
+    text = (f"seen_first and printed_last: first and last meetings whose {r.get('seen_evidence') or r['evidence']} "
+            f"print this holder in this seat")
+    if r.get("printed_to"):
+        text += (f"; seen_last and listed_last: the last {r['evidence']} that name the holder by name only, without "
+                 f"the seat")
+    return text + "; empty seen_last = seen at the latest minutes read; not term dates"
 
 
 def seats_csv(rows: list[dict], facts: dict, names: dict) -> str:
@@ -316,8 +333,10 @@ def seats_csv(rows: list[dict], facts: dict, names: dict) -> str:
     (never named as a term); a sourced row carries only the source's own wording (printed_term). A source the team
     holds in the store gets its hash and fetch time."""
     import re
-    from sitegen.seats import seat_label
+    from sitegen.seats import seat_label, stamp_seen
     by_url = {s["url"]: s for s in facts["sources"]}
+    # a county row read from seats.yml has no seen_to: date an open one by its last page, as the site does
+    rows = [r if "seen_to" in r else st for r, st in zip(rows, stamp_seen(rows, facts) or [])]
 
     def split(url):
         url = url or ""
@@ -333,15 +352,22 @@ def seats_csv(rows: list[dict], facts: dict, names: dict) -> str:
         _, last_page = split(r.get("last_source"))
         s = by_url.get(base) or {}
         obs = kind == "observed"
+        carried = obs and bool(r.get("printed_to"))
         out.append({"official_id": r.get("official_id"),
                     "official_name": names.get(r.get("official_id")) or r.get("name"),
                     "seat": r["seat"], "seat_label": seat_label(r["seat"]), "dates": kind,
                     "seen_first": str(r["start"]) if obs and r.get("start") else None,
-                    "seen_last": str(r["end"]) if obs and r.get("end") else None,
-                    "printed_term": None if obs else r.get("printed"), "dates_basis": DATES_BASIS[kind],
+                    "seen_last": str(r.get("end") or (r["seen_to"] if r.get("held_over") else "")) or None if obs else None,
+                    "printed_term": None if obs else r.get("printed"),
+                    "dates_basis": _council_basis(r) if obs and "evidence" in r else DATES_BASIS[kind],
                     "lines": r.get("lines"), "source_url": r.get("source"), "source_sha256": s.get("sha256"),
                     "page": page, "fetched_at": s.get("fetched_at"), "last_source_url": r.get("last_source"),
-                    "last_page": last_page})
+                    "last_page": last_page,
+                    "printed_last": (str(r["printed_to"]) if carried else
+                                     str(r.get("seen_to") or r.get("end") or "") or None) if obs else None,
+                    "printed_last_source": (r.get("printed_source") if carried else r.get("last_source")) if obs else None,
+                    "listed_last": str(r.get("seen_to")) if carried else None,
+                    "listed_last_source": r.get("last_source") if carried else None})
     return _csv(out, SEAT_COLS)
 
 
@@ -388,10 +414,15 @@ def export_council(cfg: dict, out_dir: Path, internal: bool = False) -> list[Pat
     return write_facts(facts, Path(out_dir) / "data" / council_dir(cfg), internal, cix._rows, ix=cix)
 
 
+_DEFAULT_RPC = object()     # export_site `rpc` left out: the site config decides
+
+
 def export_site(facts: dict, out_dir: Path, internal: bool = False, seats: list[dict] | None = None,
-                finance_path: Path | None = None, councils=None) -> list[Path]:
-    """Everything under <out_dir>/data/: the county's facts, each council's (config `councils`, per locality) and the
-    finance tables when `finance_path` exists (collector/fin_export.py)."""
+                finance_path: Path | None = None, councils=None, rpc=_DEFAULT_RPC) -> list[Path]:
+    """Everything under <out_dir>/data/: the county's facts, each council's (config `councils`, per locality), the
+    Regional Planning Commission's (collector/rpc_export.py) and the finance tables when `finance_path` exists
+    (collector/fin_export.py). `rpc`: the RPC's rpc.yml as sitegen.rpc.load_config returns it, or None for no RPC
+    files; left out, config/site.yml `rpc:` for real facts and none for fixture facts, as the site build."""
     from sitegen import config
 
     written = export(facts, out_dir, internal, seats)
@@ -400,6 +431,13 @@ def export_site(facts: dict, out_dir: Path, internal: bool = False, seats: list[
         councils = () if fixture else config.COUNCILS
     for cfg in councils:
         written += export_council(cfg, out_dir, internal)
+    from sitegen import rpc as rpc_mod
+    if rpc is _DEFAULT_RPC:
+        rpc = None if fixture else rpc_mod.load_config(config.SITE.get("rpc"))
+    rpx = rpc_mod.load(rpc, fixture)   # None with no config or no facts file yet; refuses fixture beside real facts
+    if rpx is not None:
+        from .rpc_export import export_rpc
+        written += export_rpc(rpx, out_dir, internal, councils=councils)
     if finance_path is not None and Path(finance_path).is_file() and not fixture:
         from .fin_export import export_finance
         fin = json.loads(Path(finance_path).read_text(encoding="utf-8"))

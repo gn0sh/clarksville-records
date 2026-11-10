@@ -26,7 +26,7 @@
 <p class="note">District lines changed with the county's <a data-ext="county" href="{{ redistricting_page }}" target="_blank" rel="noopener noreferrer">{{ redistricting_label }}<span class="sr-only"> (opens in a new tab)</span></a>. {{ notice }}{% if swap %} <span class="swap-line">{{ swap.before }}<a data-ext="county" href="{{ swap.url }}" target="_blank" rel="noopener noreferrer">{{ swap.link }}<span class="sr-only"> (opens in a new tab)</span></a>{{ swap.after }}</span>{% endif %}</p>
 {% if map %}
 <p class="sr-only">{{ label }} is shown on the county map.</p>
-{{ county_map(map, root, site.cfg, links=false) }}
+{{ county_map(map, root, site.cfg) }}
 <p class="map-caption">Current district lines. Boundaries: <a data-ext="map" href="{{ map.source_url }}" target="_blank" rel="noopener noreferrer">{{ map.source_title }}<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ map.fetched }}.</p>
 {% endif %}
 

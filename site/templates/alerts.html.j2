@@ -19,6 +19,7 @@
 {% endif %}
   <h2 id="note-h">{{ note.text.heading }}</h2>
   <p class="small">{{ note.text.about }}</p>
+  <p class="small mn-unofficial">{{ site.unofficial.email_line }}</p>
   {{ picker(note, note.enabled) }}
   {% if note.enabled %}
   <input type="hidden" name="{{ note.fields.district }}" value="" data-seat-field="district" disabled>
@@ -30,6 +31,7 @@
   <label class="f" for="note-email">{{ note.text.email_label }}<input type="email" id="note-email" name="{{ note.fields.email }}" autocomplete="email" required></label>
   <p class="small">{{ note.sent_line }} <a data-ext="provider" href="{{ note.privacy_url }}" rel="noopener noreferrer">{{ note.text.privacy_label }}</a></p>
   <button class="btn" type="submit">{{ note.text.submit }}</button>
+  {% if site.support_url and site.cfg.support_line %}<p class="small mn-support">{{ site.cfg.support_line }} <a data-ext="support" href="{{ site.support_url }}" rel="noopener noreferrer">{{ site.support_label }}</a></p>{% endif %}
   {% else %}
   <p class="mn-state"><strong>{{ note.text.state_off }}</strong></p>
   {% endif %}

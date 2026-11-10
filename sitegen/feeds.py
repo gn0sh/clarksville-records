@@ -31,7 +31,7 @@ import posixpath
 import re
 import xml.etree.ElementTree as ET
 
-from . import config, views
+from . import config, unofficial, views
 
 DEFAULT_ZONING_PREFIXES = ("Z", "ZO", "CZ", "CZO", "HZ")
 SEAT_TARGET = "pages"
@@ -289,7 +289,7 @@ def render(feed: dict, entries: list[dict], cfg: dict | None = None, data_as_of:
     root = ET.Element(f"{{{ATOM}}}feed")
     _sub(root, "id", a["feed_id"] + feed["file"][:-len(".xml")])
     _sub(root, "title", f"{config.SITE_NAME}: {feed['title']}")
-    _sub(root, "subtitle", feed["about"])
+    _sub(root, "subtitle", f"{feed['about']} {unofficial.load()['notice']}")   # unofficial/notice-on-every-page
     updated = max([e["updated"] for e in entries] + ([data_as_of] if data_as_of else []), default="1970-01-01")
     _sub(root, "updated", _stamp(updated))
     author = _sub(root, "author")

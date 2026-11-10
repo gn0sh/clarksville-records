@@ -1,3 +1,4 @@
+{% from "_unofficial.html.j2" import footer_notice %}
 <!doctype html>
 <html lang="en">
 <head>
@@ -5,17 +6,23 @@
 <meta http-equiv="Content-Security-Policy" content="{{ csp if csp is defined else site.csp }}">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>{{ site.site_name }} | {{ page_name }}</title>
+{% set brand = site.site_name ~ " (" ~ (site.unofficial.tag | lower) ~ ")" %}{# the tag leads every title and share card #}
+<title>{{ brand }} | {{ page_name }}</title>
+<meta name="description" content="{{ site.unofficial.notice }}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{ brand }}">
+<meta property="og:title" content="{{ brand }} | {{ page_name }}">
+<meta property="og:description" content="{{ site.unofficial.notice }}">
 <link rel="icon" href="{{ root }}static/brand/favicon.ico" sizes="any">
 <link rel="stylesheet" href="{{ root }}static/style.css">
 {% block head %}{% endblock %}
 </head>
-<body{% if page_name == "Map" %} class="page-landing"{% endif %}>
+<body{% if page_name == "Home" %} class="page-landing"{% endif %}>
 <a class="skip" href="#main">Skip to content</a>
 {% if site.fixture %}
 <div class="banner" role="note"><strong>FIXTURE.</strong> This page shows made-up test data, not real records.</div>
 {% endif %}
-<header class="site-header{% if page_name == "Map" %} has-sky{% endif %}">
+<header class="site-header{% if page_name == "Home" %} has-sky{% endif %}">
   {# Daylight name plate (docs/design/daylight): the sun dot, the name and the place, on every page. The landing adds
      the sky: a sun that static/sky.js sets by the viewer's clock (CSS places it at midday without the script) and
      today's date, which stays hidden without the script (a static page can't know today's date). #}
@@ -26,7 +33,8 @@
     <a id="nav-open" class="menu-btn" href="#site-nav"><span class="menu-icon" aria-hidden="true"></span><span class="menu-word">Menu</span></a>
     <div class="brand">
       <p class="site-name"><a href="{{ root }}index.html"><span class="plate-sun" aria-hidden="true"></span><span class="plate"><span class="plate-name">{{ site.site_name }}</span> <span class="plate-place">{{ site.cfg.site_place }}</span></span></a></p>
-      {% if page_name != "Map" %}<p class="kicker">{{ site.coverage.body }} minutes, <span class="nowrap">{{ site.coverage.from }}</span> to <span class="nowrap">{{ site.coverage.to }}</span></p>{% endif %}
+      <p class="unofficial-tag">{{ site.unofficial.tag }}</p>
+      {% if page_name != "Home" %}<p class="kicker">{{ site.coverage.body }} minutes, <span class="nowrap">{{ site.coverage.from }}</span> to <span class="nowrap">{{ site.coverage.to }}</span></p>{% endif %}
     </div>
   </div>
   {% block sky %}{% endblock %}
@@ -43,6 +51,7 @@
 {% endif %}
 </main>
 <footer class="site-footer">
+  {{ footer_notice(site, root) }}
   <p>Provided as a free service by {% if site.operator_url %}<a data-ext="operator" href="{{ site.operator_url }}" rel="noopener noreferrer">{{ site.operator }}</a>{% else %}{{ site.operator }}{% endif %}.{% if site.support_url %} <a data-ext="support" href="{{ site.support_url }}" rel="noopener noreferrer">{{ site.support_label }}</a>{% endif %}</p>
   <p class="gc-credit"><img class="gc-logo gc-logo-light" src="{{ root }}static/brand/gnoshcodes-wordmark-color-light.svg" alt="gnoshcodes" width="160" height="29"><img class="gc-logo gc-logo-dark" src="{{ root }}static/brand/gnoshcodes-wordmark-color-dark.svg" alt="gnoshcodes" width="160" height="29"><span>A gnoshcodes project.</span></p>
   <p><a href="{{ root }}about.html">About this site and its data rules.</a> Data as of {{ site.data_as_of }}</p>

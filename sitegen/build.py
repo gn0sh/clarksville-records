@@ -17,7 +17,7 @@ from . import county_agendas as agendas_mod
 from . import rpc as rpc_mod
 from . import morning_page
 from . import budget_views, config, council as council_mod, days as days_mod, feeds as feeds_mod, fin_views, \
-    georef as georef_mod, morning as morning_mod, \
+    georef as georef_mod, morning as morning_mod, unofficial as unofficial_mod, \
     transcripts as transcripts_mod, \
     seats as seats_mod, views
 
@@ -189,6 +189,15 @@ def _clean(out: Path, extra_dirs=(), export: bool = True) -> None:
         shutil.rmtree(out / d, ignore_errors=True)
 
 
+def seat_warnings(ix) -> list[str]:
+    """Run-log warnings about the seat rows (M1 pipeline/seats-stale-on-new-county-meeting): seats.yml read to an
+    earlier meeting than the facts hold. The pages stay true (worded to that meeting); the run log says it."""
+    if ix.seats.loaded and ix.seats.latest and ix.latest and ix.seats.latest < ix.latest:
+        return [f"seats.yml is read to {ix.seats.latest}, the facts to {ix.latest}; the seats are worded to "
+                f"{ix.seats.latest}. Re-run tools/derive_seats.py"]
+    return []
+
+
 def load_councils(councils, fixture: bool) -> list:
     """Each council (a config.COUNCILS entry): its facts file, schema- and reference-checked like the county's, and
     its wards file, as a council.CouncilIndex. A FIXTURE council is never built beside real county facts, nor a real
@@ -219,13 +228,16 @@ def write_publish_manifest(out: Path, target: str | None = None) -> dict:
     return manifest
 
 
-def export_file_count(fixture: bool, councils, finance: bool) -> int:
+def export_file_count(fixture: bool, councils, finance: bool, rpc: bool = False) -> int:
     """How many files the open-data export (collector/export.py export_site) adds under data/: facts.json plus one
-    CSV per table for the county and for each council, and finance.json plus its CSVs when finance is built."""
+    CSV per table for the county and for each council, the Regional Planning Commission's facts.json and CSVs when its
+    pages are built (`rpc`), and finance.json plus its CSVs when finance is built."""
     from collector.export import CSV_FILES
     from collector.fin_export import FIN_FILES
+    from collector.rpc_export import RPC_FILES
     per_body = 1 + len(CSV_FILES)
-    return per_body * (1 + len(councils)) + ((1 + len(FIN_FILES)) if finance and not fixture else 0)
+    return (per_body * (1 + len(councils)) + ((1 + len(RPC_FILES)) if rpc else 0)
+            + ((1 + len(FIN_FILES)) if finance and not fixture else 0))
 
 
 def balanced_chunks(weights: list[int], k: int) -> list[range]:
@@ -313,7 +325,8 @@ def site_url_problems(cfg: dict) -> list[str]:
         if cfg.get(link):
             out += [f"{k} must be set when {link} is" for k in needs
                     if not isinstance(cfg.get(k), str) or not cfg[k].strip()]
-    return out + corrections_problems(cfg) + feeds_mod.problems(cfg) + morning_mod.problems(cfg)
+    return (out + corrections_problems(cfg) + feeds_mod.problems(cfg) + morning_mod.problems(cfg)
+            + unofficial_mod.problems(cfg))
 
 
 # config/site.yml `corrections:` (views.corrections_context): a GitHub owner/name and a plain e-mail address. Both go
@@ -400,7 +413,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         raise BuildError(f"{finance_path}: no such finance file")
     fin_data = load_finance(finance_path, fixture) if finance_path is not None else None
     try:
-        seat_rows = seats_mod.load_rows(seats_path)
+        seat_rows = seats_mod.stamp_seen(seats_mod.load_rows(seats_path), facts)   # seen_to / read_to (M1)
         districts = seats_mod.load_districts(districts_path)
         georef = georef_mod.load_for_map(districts_path, districts)
         ward_map = georef_mod.wards_of(districts) is not None    # the landing map draws the wards and finds them
@@ -410,6 +423,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     if bad:
         raise BuildError("config/site.yml: " + "; ".join(bad))
     ix = views.Index(facts, seat_rows)
+    warnings = seat_warnings(ix)       # M1: in the result (collector run writes them to build/run-log.json)
+    for w in warnings:
+        print(f"sitegen: WARNING: {w}", file=sys.stderr)
     built_day = today or days_mod.today_in_zone()
     # County agendas posted before their minutes (sitegen/county_agendas.py); none for a fixture build
     if county_agendas is DEFAULT:
@@ -561,7 +577,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                        **{**with_entries(ctx, key, run),
                           "parts": [{**p, "current": i == n} for i, p in enumerate(nav, 1)]})
 
-    render("index.html.j2", "index.html", "Map", **views.landing(ix, districts, georef, geocoder, site["councils"]))
+    render("index.html.j2", "index.html", "Home", **views.landing(ix, districts, georef, geocoder, site["councils"]))
     render("officials.html.j2", "officials.html", "Officials", **views.officials_page(ix))
     render("meetings_index.html.j2", "meetings.html", "Meetings", **views.meetings_page(ix),
            agenda_only=ax.list_entries() if ax else [], agendas_href=agendas_mod.PAGE,
@@ -579,7 +595,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
             continue
         render("coming.html.j2", f"{c['slug']}.html", c["title"], **views.coming(c["slug"]))
     render("data.html.j2", "data.html", "Data downloads",
-           **views.data_page(cixs, finance=fx is not None and fin_views.EXPORTS_READY and not fixture))
+           **views.data_page(cixs, finance=fx is not None and fin_views.EXPORTS_READY and not fixture, rpc=rpx))
     if fx is not None:
         title = config.FIN_TEXT["contracts"]["title"]
         render("fin_contracts_index.html.j2", "contracts/index.html", title,
@@ -728,10 +744,14 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     # when it is in this list (report-frag/text-spoof).
     (out / "static" / "pages.js").write_text(
         "window.BUILT_PAGES = " + json.dumps(sorted(written), separators=(",", ":")) + ";\n", encoding="utf-8")
+    if export:   # the export's own README: who we are and are not (collector/ stays untouched; this file is ours)
+        (out / "data").mkdir(parents=True, exist_ok=True)
+        (out / "data" / "README.txt").write_text(unofficial_mod.export_readme(), encoding="utf-8")
     # The target's file cap, counting the export still to come (data/ in `out` now may be an older export's).
     cap = config.max_files(target)
     built = sum(1 for p in out.rglob("*") if p.is_file() and p.relative_to(out).parts[0] != "data")
-    expected = built + (export_file_count(fixture, cixs, fx is not None and fin_views.EXPORTS_READY) if export else 0)
+    expected = built + (1 + export_file_count(fixture, cixs, fx is not None and fin_views.EXPORTS_READY, rpx is not None)
+                        if export else 0)
     tx_pages = sum(len(p[5]) for p in tx_plans)
     if expected > cap and tx_pages and target == "preview":
         print(f"sitegen: {expected} files with the export is over the {target} cap of {cap}; building again without "
@@ -749,4 +769,4 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     manifest = write_publish_manifest(out, target)
     return {"pages": written, "files": len(manifest) + 1, "target": target, "transcripts": transcripts,
             "transcript_pages": tx_pages, "files_with_export": expected,
-            "morning": morning_note, "export": export}
+            "morning": morning_note, "export": export, "warnings": warnings}

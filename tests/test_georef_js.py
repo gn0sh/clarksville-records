@@ -126,7 +126,7 @@ def test_js_ward_lookup_matches_python(run, i):
 
 def test_classify_with_wards(run):
     a = run["wardAnswers"]
-    assert a["d5w6"] == {"kind": "district", "district": 5, "matched": "1 TEST ST", "page_xy": a["d5w6"]["page_xy"],
+    assert a["d5w6"] == {"kind": "district", "district": 5, "matched": "1 TEST ST",
                          "ward": {"kind": "ward", "ward": 6}}
     assert a["ward_near"]["ward"]["kind"] == "near"
     assert a["outside_city"]["kind"] == "district" and a["outside_city"]["ward"] == {"kind": "outside", "ward": None}
@@ -153,7 +153,7 @@ def test_parity_covers_inside_near_and_outside(run):
 
 def test_classify_match_near_outside(run):
     a = run["answers"]
-    assert a["in5"] == {"kind": "district", "district": 5, "matched": "1 TEST ST", "page_xy": a["in5"]["page_xy"]}
+    assert a["in5"] == {"kind": "district", "district": 5, "matched": "1 TEST ST"}
     assert a["line"]["kind"] == "near"
     assert a["ky"]["kind"] == "outside" and a["ky"]["district"] is None
 
@@ -207,4 +207,4 @@ def test_scripts_store_nothing_and_call_out_only_from_the_submit_handler():
     assert "e.source !== w" in js and 'e.origin !== "null"' in js and "JSON.parse(d.json)" in js
     assert js.index('addEventListener("submit"') < js.index('createElement("iframe")')
     assert "removeChild(req.frame)" in js
-    assert "http://www.w3.org/2000/svg" in js and js.count("https://") == 2   # the SVG namespace; the https checks
+    assert "http://" not in js and js.count("https://") == 2   # no map, so no SVG namespace; the https checks
