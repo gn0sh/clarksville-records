@@ -165,6 +165,22 @@ def rpc_allowed(rpc: dict | None) -> set[str]:
                                           if not d["fetched"] and d["url"].startswith("https://")}
 
 
+def calendar_agenda_urls(facts: dict) -> set[str]:
+    """The https agenda links on each council's calendar file: the today page links a scheduled meeting's agenda
+    (data-ext="listed") before the collector has it in the facts. None for a fixture facts file."""
+    import yaml
+    out: set[str] = set()
+    if facts.get("fixture"):
+        return out
+    for loc in _site_cfg().get("councils") or []:
+        c = yaml.safe_load((ROOT / "config" / "localities" / loc / "council.yml").read_text(encoding="utf-8"))
+        p = ROOT / c["calendar"] if c.get("calendar") else None
+        if p is not None and p.is_file():
+            out |= {r["agenda_url"] for r in json.loads(p.read_text(encoding="utf-8"))
+                    if isinstance(r, dict) and isinstance(r.get("agenda_url"), str) and r["agenda_url"].startswith("https://")}
+    return out
+
+
 def county_agendas(facts: dict) -> dict | None:
     """The county agendas a real build shows (data/county-agendas/agendas.json, collector/county_agenda.py), or None
     (a fixture build, or no agendas file yet). Their PDFs are sources like the minutes; their page is a record link."""
@@ -1372,6 +1388,7 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     videos = {m["video_url"] for c in cs for m in c["facts"]["meetings"] if m.get("video_url")}
     problems, note = check_sources(site, pages, all_sources, store_extra,
                                    allowed_external(cfg, seats_path, districts_path) | rpc_allowed(rpc)
+                                   | calendar_agenda_urls(facts)
                                    | ({agendas["index_url"]} if agendas else set()), finance, videos)
     if rpc is not None and not any(rel.startswith(rpc["_cfg"]["slug"] + "/") for rel in pages):
         problems.append(f"no pages under {rpc['_cfg']['slug']}/ for the configured RPC")

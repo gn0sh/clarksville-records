@@ -58,7 +58,7 @@
   {% elif c.state == "agenda" %}
   <p class="day-none">The agenda is linked above. Its items are not read on this site, and no votes are shown until the minutes are read.</p>
   {% elif c.state == "scheduled" %}
-  <p class="day-none">On the city's calendar as of {{ c.built_text }}{% if c.cal_title %}: <span data-item-title>{{ c.cal_title }}</span>{% endif %}. {% if c.agenda_url %}<a href="{{ c.agenda_url }}" target="_blank" rel="noopener noreferrer">Agenda<span class="sr-only"> (opens in a new tab)</span></a>.{% else %}No agenda posted.{% endif %}</p>
+  <p class="day-none">On the city's calendar as of {{ c.built_text }}{% if c.cal_title %}: <span data-item-title>{{ c.cal_title }}</span>{% endif %}. {% if c.agenda_url %}<a href="{{ c.agenda_url }}" data-ext="listed" target="_blank" rel="noopener noreferrer">Agenda<span class="sr-only"> (opens in a new tab)</span></a>.{% else %}No agenda posted.{% endif %}</p>
   {% elif c.state == "bids" %}
   <ul class="day-items">
     {% for s in c.sols %}

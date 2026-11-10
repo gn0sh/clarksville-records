@@ -418,3 +418,20 @@ def test_the_strip_turns_the_page_in_a_browser_and_nothing_scrolls_sideways(site
         assert x["stripTop"] == 0, (w, x)                  # the strip stays at the top
         assert not x["errs"], (w, x)
     assert out["nojs"] == ["none", ["2024-11-04", "2024-12-09"], 375]
+
+
+def test_site_checks_hold_a_scheduled_agenda_link_not_in_the_facts(tmp_path):
+    rows = [{"date": "2026-11-13", "kind": "regular", "title": "Regular Session", "agenda_url": "https://example.gov/a.pdf"},
+            {"date": "2026-11-14", "kind": "regular", "title": "Regular Session", "agenda_url": "http://example.gov/b.pdf"}]
+    got = days.scheduled_cards(_sched(tmp_path, rows), date(2026, 11, 1), date(2026, 12, 12), date(2026, 11, 10))
+    assert "http://example.gov/b.pdf" not in jinja_card(got[1][1]) and "No agenda posted" in jinja_card(got[1][1])
+    site = tmp_path / "site"
+    site.mkdir()
+    (site / "today.html").write_text("<html><body>" + jinja_card(got[0][1]) + "</body></html>", encoding="utf-8")
+    pages = {"today.html": site_checks.parse(site / "today.html")}
+    assert 'data-ext="listed"' in (site / "today.html").read_text(encoding="utf-8")
+    probs, _ = site_checks.check_sources(site, pages, {"sources": []}, (), set())
+    assert any("https://example.gov/a.pdf" in p and "not a URL from the config" in p for p in probs), probs
+    probs, _ = site_checks.check_sources(site, pages, {"sources": []}, (),
+                                       {"https://example.gov/a.pdf", "https://example.gov/portal"})
+    assert not probs, probs

@@ -168,7 +168,7 @@ def scheduled_cards(cix, start: date, end: date, today: date | None = None) -> l
             "kind": "council", "dot": DOTS["council"], "id": f"{cix.slug}-{row['date']}-{row['kind']}-scheduled",
             "body": cix.body_name, "title": cix.kind_labels.get(row["kind"], row["kind"]), "href": None,
             "docs": [], "video": None, "votes": [], "state": "scheduled", "cases": [], "sols": [],
-            "minutes_note": None, "cal_title": row.get("title") or "", "agenda_url": row.get("agenda_url") or "",
+            "minutes_note": None, "cal_title": row.get("title") or "", "agenda_url": row["agenda_url"] if views.https_url(row.get("agenda_url")) else "",
             "built_text": date_text(today),
             "record": {"url": cix.cfg["record_url"], "label": cix.cfg["record_label"], "ext": True}}))
     return out
@@ -258,7 +258,7 @@ def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None,
                 sols[s["archive_date"]].append(s)
         for d, ss in sols.items():
             by_day[d].append(bids_card(fx, ss))
-            counts["bids"] += 1
+            counts["bids"] += len(ss)
     for cards in by_day.values():   # the keys every card carries (the templates are strict)
         for c in cards:
             c.setdefault("cancelled", False)
