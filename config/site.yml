@@ -119,6 +119,13 @@ days:
   weeks_before: 4
   weeks_after: 4
   week_start: sunday
+# County Commission meetings with an agenda and no minutes on this site yet (sitegen/county_agendas.py): the line a
+# past meeting shows, as of the build date ({date}). Informal sessions: what this site holds, not a claim about the
+# county's own pages (neutrality/unverified-county-claim). `list_lede` heads the list on meetings.html.
+county_agendas:
+  minutes_note: "Minutes not yet posted by the county, as of {date}."
+  minutes_note_informal: "This site holds no minutes for informal sessions, as of {date}."
+  list_lede: "Meetings the minutes on this site do not cover, from the agendas the county posted."
 # The school board on the day page: a "coming soon" placeholder with one plain link, no collection. cmcss.net answers
 # automated requests with a bot challenge (docs/research/rpc-cmcss-sources.md), so nothing is fetched from it and the
 # board page's own path could not be read; the link is the district's home page until a person confirms the board

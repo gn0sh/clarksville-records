@@ -117,7 +117,7 @@ def county_agenda_card(ix: views.Index, ax, m: dict) -> dict:
             "docs": [{"word": "Agenda", "url": doc["url"], "fetched": doc["fetched"],
                       "what": f"PDF, {doc['pages']} {'page' if doc['pages'] == 1 else 'pages'}" if doc["pages"] else "PDF"}],
             "minutes_note": ctx["minutes_note"], "video": None, "votes": [], "state": "agenda", "cases": [],
-            "sols": [], "agenda_items": ctx["entries"],
+            "sols": [], "agenda_items": ctx["entries"], "agenda_only": True,
             "record": {"url": doc["url"], "label": "the county's agenda PDF", "ext": False}}
 
 

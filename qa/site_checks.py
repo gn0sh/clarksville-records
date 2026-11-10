@@ -485,6 +485,9 @@ def check_sources(site: Path, pages: dict[str, Page], facts: dict, store_extra,
                     doc_level += 1      # e.g. the meeting page header "minutes PDF, 25 pages": names the document, not a fact
                 continue
             n = int(m.group(1))
+            if not src.get("pages"):      # no page count (agenda-data/pages-none): a #page link cannot be checked
+                problems.append(f"{rel}: {href!r}: source {src['id']} has no page count")
+                continue
             if not 1 <= n <= src["pages"]:
                 problems.append(f"{rel}: {href!r}: page {n} outside 1..{src['pages']}")
                 continue

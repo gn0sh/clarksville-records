@@ -1,9 +1,10 @@
 """County Commission agenda-only meetings (docs/research/county-recency.md, Fix 1 and Fix 2).
 
 Input: data/county-agendas/agendas.json (collector/county_agenda.py). A meeting there is shown only while the county's
-minutes do not cover it: a formal or special meeting drops out once data/facts.json holds a minutes meeting of the
-same date (its votes then come from the minutes, on its own meeting page). Informal sessions have no minutes on the
-clerk's page, so theirs stay.
+minutes do not cover it: a meeting drops out once data/facts.json holds a minutes meeting of the same date and kind
+(its votes then come from the minutes, on its own meeting page). A special session on the day of a formal one stays
+until its own minutes are read. This site holds no minutes for informal sessions, so theirs stay. A source without a
+page count is left out (every item link cites a page). Copy: config/site.yml county_agendas.
 
 Page (one, so the preview build stays near its file budget): meetings/agendas.html, one section per meeting
 (#<meeting id>), newest first, with its agenda PDF, its items as the agenda prints them (each linked to the agenda page
@@ -15,6 +16,8 @@ from __future__ import annotations
 import json
 from datetime import date
 from pathlib import Path
+
+from . import config
 
 
 PAGE = "meetings/agendas.html"
@@ -39,10 +42,14 @@ class Agendas:
         self.ix = ix
         self.today = today
         self.sources = {s["id"]: s for s in data.get("sources", [])}
-        minutes_dates = {m["date"] for m in ix.facts["meetings"]}
+        self.text = config.COUNTY_AGENDAS_TEXT
+        self.sources = {k: s for k, s in self.sources.items() if s.get("pages")}   # agenda-data/pages-none
+        # covered by the minutes: the same meeting id, or the same date and kind (idempotence/special-hidden-by-same-
+        # day-formal: a special session on a formal meeting's day is its own meeting)
+        covered = {(m["date"], m["kind"]) for m in ix.facts["meetings"]}
         self.meetings = [m for m in data.get("meetings", [])
                          if m["id"] not in ix.meetings
-                         and not (m["kind"] != "informal" and m["date"] in minutes_dates)
+                         and (m["date"], m["kind"]) not in covered
                          and m["source_id"] in self.sources]
         self.meetings.sort(key=lambda m: (m["date"], m["id"]), reverse=True)
 
@@ -58,9 +65,8 @@ class Agendas:
         if m["date"] >= self.today.isoformat():
             return None
         when = _date_text(self.today.isoformat())
-        if m["kind"] == "informal":
-            return f"The county clerk's minutes page lists no minutes for informal sessions, as of {when}."
-        return f"Minutes not yet posted by the county, as of {when}."
+        key = "minutes_note_informal" if m["kind"] == "informal" else "minutes_note"
+        return self.text[key].format(date=when)
 
     def meeting(self, m: dict) -> dict:
         src = self.sources[m["source_id"]]

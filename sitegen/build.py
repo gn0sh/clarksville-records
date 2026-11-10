@@ -548,7 +548,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     render("index.html.j2", "index.html", "Map", **views.landing(ix, districts, georef, geocoder, site["councils"]))
     render("officials.html.j2", "officials.html", "Officials", **views.officials_page(ix))
     render("meetings_index.html.j2", "meetings.html", "Meetings", **views.meetings_page(ix),
-           agenda_only=ax.list_entries() if ax else [], agendas_href=agendas_mod.PAGE)
+           agenda_only=ax.list_entries() if ax else [], agendas_href=agendas_mod.PAGE,
+           agenda_list_lede=config.COUNTY_AGENDAS_TEXT["list_lede"])
     if ax and ax.meetings:
         render("county_agendas.html.j2", agendas_mod.PAGE, "Agendas without minutes yet", **ax.page())
     for n in range(1, config.SITE["district_count"] + 1):

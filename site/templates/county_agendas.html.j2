@@ -20,7 +20,7 @@
   <header class="meeting-head">
     <p class="kind-line"><span class="chip chip-kind">{{ m.kind_label }}</span> <span class="chip chip-status">Agenda</span></p>
     <h2 id="h-{{ m.id }}">{{ m.kind_label }}, <span class="nowrap">{{ m.date_text }}</span></h2>
-    <p class="source-line">Agenda: <a href="{{ m.doc.url }}" target="_blank" rel="noopener noreferrer">PDF, {{ m.doc.pages }} pages<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ m.doc.fetched }}.{% if m.minutes_note %} {{ m.minutes_note }}{% elif m.on_build_day %} The meeting is on the day this page was built ({{ built_text }}).{% elif m.upcoming %} The meeting has not been held yet.{% endif %}</p>
+    <p class="source-line">Agenda: <a href="{{ m.doc.url }}" target="_blank" rel="noopener noreferrer">PDF, {{ m.doc.pages }} {{ "page" if m.doc.pages == 1 else "pages" }}<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ m.doc.fetched }}.{% if m.minutes_note %} {{ m.minutes_note }}{% elif m.on_build_day %} The meeting is on the day this page was built ({{ built_text }}).{% elif m.upcoming %} The meeting has not been held yet.{% endif %}</p>
     <p class="official-record">Unofficial copy. Official record: <a href="{{ m.doc.url }}" target="_blank" rel="noopener noreferrer">the county's agenda PDF<span class="sr-only"> (opens in a new tab)</span></a>.</p>
   </header>
   {% if m.entries %}
@@ -30,7 +30,7 @@
     <li class="day-item" id="{{ it.anchor }}">
       <p class="say"><strong>{{ it.printed }}</strong>{% if it.section %} <span class="muted">{{ it.section }}</span>{% endif %}</p>
       <p><span data-item-title>{{ it.title }}</span></p>
-      <p class="meta"><a href="{{ it.src }}" target="_blank" rel="noopener noreferrer">agenda p. {{ it.page }}<span class="sr-only"> (opens in a new tab)</span></a>{% if it.item_href %} <a href="{{ root }}{{ it.item_href }}">Earlier record of {{ it.number }}</a>{% endif %}</p>
+      <p class="meta"><a href="{{ it.src }}" target="_blank" rel="noopener noreferrer">agenda p. {{ it.page }}<span class="sr-only"> (opens in a new tab)</span></a>{% if it.item_href %} <a href="{{ root }}{{ it.item_href }}">Record of {{ it.number }} in the minutes</a>{% endif %}</p>
     </li>
     {% endfor %}
   </ul>

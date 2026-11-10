@@ -202,3 +202,99 @@ def test_build_writes_meetings_keyed_like_the_minutes_and_keeps_the_file_when_by
     shutil.rmtree(tmp_path / "store")
     C.run_step(log, offline=True, agendas_path=path, manifest_path=tmp_path / "manifest.json")
     assert path.read_text(encoding="utf-8") == "{\"kept\": true}\n" and "left unchanged" in log["county_agendas"]["kept"]
+
+
+# ------------------------------------------------------------------ review fixes (7e54c2e security + code review)
+def _facts(tmp_path, d="2026-10-19"):
+    facts = tmp_path / "facts.json"
+    facts.write_text(json.dumps({"meetings": [{"date": d}]}), encoding="utf-8")
+    return facts
+
+
+def test_off_allowlist_and_unsafe_links_are_skipped_without_their_url():
+    page = ("<h3>2026</h3><table><tr><th>November ( <a href='https://evil.example/nov-informal.pdf'>Informal</a> | "
+            "<a href='javascript:alert(1)'>Formal</a> | <a href='https://cityofclarksville.com/x.pdf'>Special</a> | "
+            "<a href='https://mcgtn.org/a/nov-formal.pdf'>Formal</a> )</th></tr></table>")
+    links, skipped = C.parse_index(page)
+    assert [x["url"] for x in links] == ["https://mcgtn.org/a/nov-formal.pdf"]
+    assert [(s["url"], s["reason"]) for s in skipped] == [
+        (None, "a host this site does not collect from"), (None, "not an https PDF link"),
+        (None, "a host this site does not collect from")]                  # agenda-data/unvalidated-skipped-urls
+    assert C.allowed_url("https://mcgtn.org/x.pdf") and not C.allowed_url("http://mcgtn.org/x.pdf")
+    assert not C.allowed_url("https://dev2.montgomerytn.gov/x.pdf")
+
+
+def test_a_refused_redirect_skips_that_link_and_the_run_goes_on(tmp_path):
+    # agenda-fetch/hostrefused-stops-run: one link our policy refuses must not stop every later agenda
+    lm = {"Last-Modified": "Mon, 09 Nov 2026 21:03:12 GMT"}
+    f, net = fetcher(page_routes({BASE + "oct-informal.pdf": (302, b"", {"Location": "https://evil.example/x.pdf"}),
+                                  BASE + "oct-formal.pdf": (200, REAL + b"2", lm)}))
+    store = Store(tmp_path / "m.json", root=tmp_path / "s")
+    log = {}
+    skipped = C.cmd_fetch(store, log, fetcher=f, today=date(2026, 11, 10), facts_path=_facts(tmp_path),
+                          agendas_path=tmp_path / "agendas.json")
+    asked = [u for u, _, _ in net.calls]
+    assert "https://evil.example/x.pdf" not in asked and BASE + "oct-formal.pdf" in asked
+    assert any(e["url"] == BASE + "oct-formal.pdf" for e in store.entries)
+    assert [x["error"].split(":")[0] for x in log["failures"]] == ["HostRefused"]
+    assert any(s["url"] == BASE + "oct-informal.pdf" and "host policy" in s["reason"] for s in skipped)
+
+
+class FakeFetcher:
+    """Records each URL asked; answers from a dict url -> (status, body, headers)."""
+
+    def __init__(self, routes):
+        self.routes, self.asked = routes, []
+
+    def get(self, url):
+        self.asked.append(url)
+        return self.routes.get(url, (404, b"", {}))
+
+
+def test_a_stored_agenda_is_asked_again_once_per_run_until_its_meeting_date(tmp_path):
+    # provenance/agenda-revised-in-place
+    index = (FIX / "index.html").read_bytes()
+    lm = {"Last-Modified": "Mon, 09 Nov 2026 21:03:12 GMT"}
+    nov = BASE + "nov-formal.pdf"
+    facts, agendas = _facts(tmp_path, "2026-11-01"), tmp_path / "agendas.json"
+    days = iter(range(1, 28))
+    store = Store(tmp_path / "m.json", root=tmp_path / "s", now=lambda: f"2026-11-{next(days):02d}T00:00:00+00:00")
+    store.put(nov, REAL + b"v1", lm, {"kind": "agenda_formal", "meeting_date": "2026-11", "label": "2026 November Formal"})
+    sha1 = store.latest(nov)["sha256"]
+    agendas.write_text(json.dumps({"sources": [{"id": f"src-{sha1[:12]}", "url": nov}],
+                                   "meetings": [{"id": "2026-11-09-formal", "date": "2026-11-09",
+                                                 "source_id": f"src-{sha1[:12]}"}]}), encoding="utf-8")
+    ff = FakeFetcher({C.INDEX_URL: (200, index, {}), nov: (200, REAL + b"v2", lm)})
+    log = {}
+    C.cmd_fetch(store, log, fetcher=ff, today=date(2026, 11, 5), facts_path=facts, agendas_path=agendas)
+    assert ff.asked.count(nov) == 1 and log["fetched"].get("changed") == 1
+    assert store.latest(nov)["sha256"] != sha1                                  # the revision is a new version
+    assert next(e for e in store.entries if e["sha256"] == sha1)["superseded_by"] == store.latest(nov)["sha256"]
+    # the same bytes again change nothing; a placeholder answer keeps the stored agenda
+    ff = FakeFetcher({C.INDEX_URL: (200, index, {}), nov: (200, REAL + b"v2", lm)})
+    log = {}
+    C.cmd_fetch(store, log, fetcher=ff, today=date(2026, 11, 9), facts_path=facts, agendas_path=agendas)
+    assert ff.asked.count(nov) == 1 and log["fetched"].get("unchanged") == 1
+    ff = FakeFetcher({C.INDEX_URL: (200, index, {}), nov: (200, b"%PDF tiny", {})})
+    log = {}
+    C.cmd_fetch(store, log, fetcher=ff, today=date(2026, 11, 9), facts_path=facts, agendas_path=agendas)
+    assert log["fetched"].get("kept") == 1 and store.latest(nov)["bytes"] == len(REAL + b"v2")
+    # after the meeting date: never asked again
+    ff = FakeFetcher({C.INDEX_URL: (200, index, {}), nov: (200, REAL + b"v3", lm)})
+    C.cmd_fetch(store, {}, fetcher=ff, today=date(2026, 11, 10), facts_path=facts, agendas_path=agendas)
+    assert nov not in ff.asked
+    # without a read meeting date, the last day of the listed month is the limit
+    assert C.recheck_due({"url": "u", "year": 2026, "month": 12}, {}, date(2026, 12, 31))
+    assert not C.recheck_due({"url": "u", "year": 2026, "month": 12}, {}, date(2027, 1, 1))
+
+
+def test_an_agenda_without_a_page_count_is_a_problem_and_shows_no_meeting(tmp_path):
+    # agenda-data/pages-none
+    store = Store(tmp_path / "manifest.json", root=tmp_path / "store")
+    store.put(BASE + "nov-formal.pdf", REAL + b"a", {}, {"kind": "agenda_formal", "meeting_date": "2026-11"})
+    out, summary = C.build(store, [{"url": "javascript:alert(1)", "reason": "x"}],
+                           read=lambda p: text_pages("2026-11-formal.txt"), page_count=lambda p: None,
+                           agendas_path=tmp_path / "agendas.json")
+    assert out["meetings"] == [] and out["sources"] == []
+    assert summary["problems"][0]["problem"].startswith("no page count")
+    assert out["skipped"] == [{"url": None, "reason": "x"}]

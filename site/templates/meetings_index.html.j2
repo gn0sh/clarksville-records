@@ -5,7 +5,7 @@
 {% if agenda_only %}
 <section aria-labelledby="agenda-only-h">
 <h2 id="agenda-only-h">Agendas without minutes yet</h2>
-<p>Meetings after the minutes on this site, from the agendas the county posted. <a href="{{ agendas_href }}">All agenda items</a>.</p>
+<p>{{ agenda_list_lede }} <a href="{{ agendas_href }}">All agenda items</a>.</p>
 <ol class="timeline meetings" aria-label="Meetings with an agenda and no minutes yet">
   {% for m in agenda_only %}
   <li class="ev-meeting">

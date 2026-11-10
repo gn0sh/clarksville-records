@@ -11,7 +11,12 @@ Rules:
 - requests go through collector.fetch.PoliteFetcher: allowlist, robots.txt before every request, at least 10 s between
   requests per host, our honest User-Agent, a 403/429 stops the host for the run;
 - only links for months on or after the month of the newest county minutes we hold, and no later than next month, are
-  requested (the page lists every agenda back to 2006). A stored agenda is never requested again;
+  requested (the page lists every agenda back to 2006). A link to a host outside collector.fetch.ALLOWED_HOSTS (or on
+  its denied list) is skipped with the reason and never requested;
+- a stored agenda is requested again, once per run, until its meeting date has passed: the county may replace the PDF
+  at the same URL (a revised agenda). New bytes are a new store version (the old one stays as its own source); the
+  same bytes change nothing. The request is a plain GET through the same fetcher (PoliteFetcher sends no conditional
+  headers). After the meeting date a stored agenda is never requested again;
 - the county keeps placeholder files at the links of meetings it has not posted yet (dec-formal.pdf was a 6 KB file
   dated 2026-04-02). A file under PLACEHOLDER_BYTES, or last modified more than PLACEHOLDER_DAYS before the first day of
   the month it is listed under, is not stored: it is recorded in `skipped` with the reason and asked for again on a
@@ -34,7 +39,8 @@ from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
 from pathlib import Path
 
-from .fetch import FetchFailed, HostBlocked, HostRefused, PoliteFetcher, ProxyRefused, RobotsDisallowed
+from .fetch import (ALLOWED_HOSTS, DENIED_HOSTS, FetchFailed, HostBlocked, HostRefused, PoliteFetcher, ProxyRefused,
+                    RobotsDisallowed, _host_matches)
 from .store import Store
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -98,6 +104,21 @@ def _clean(s: str) -> str:
     return re.sub(r"\s+", " ", html.unescape(s or "")).strip()
 
 
+def allowed_url(url: str) -> bool:
+    """An https URL on a host the fetcher may ask (ALLOWED_HOSTS, not DENIED_HOSTS). Only such a URL is ever kept in a
+    skipped entry, so agendas.json (committed, and possibly shown later) never carries a javascript:, http: or
+    off-allowlist link as printed on the county's page (agenda-data/unvalidated-skipped-urls)."""
+    parts = urllib.parse.urlsplit(url or "")
+    host = parts.hostname or ""
+    return (parts.scheme == "https" and bool(host) and _host_matches(host, ALLOWED_HOSTS)
+            and not _host_matches(host, DENIED_HOSTS))
+
+
+def _skip(url: str, label: str, reason: str) -> dict:
+    """A skipped link; its URL is kept only when allowed_url says so, otherwise None (the reason says why)."""
+    return {"url": url if allowed_url(url) else None, "label": label, "reason": reason}
+
+
 def parse_index(page: str, base: str = INDEX_URL) -> tuple[list[dict], list[dict]]:
     """-> (agenda links [{url, label, year, month, kind}], skipped [{url, label, reason}]) in page order.
 
@@ -116,10 +137,14 @@ def parse_index(page: str, base: str = INDEX_URL) -> tuple[list[dict], list[dict
         y = re.match(r"((?:19|20)\d\d)\b", a["section"])
         mo = re.match(r"(" + "|".join(MONTHS) + r")\b", a["cell"], re.I)
         if not y or not mo:
-            skipped.append({"url": url, "label": label, "reason": "the page prints no year or month for this link"})
+            skipped.append(_skip(url, label, "the page prints no year or month for this link"))
             continue
         if urllib.parse.urlsplit(url).scheme != "https" or not urllib.parse.urlsplit(url).path.lower().endswith(".pdf"):
-            skipped.append({"url": url, "label": label, "reason": "not an https PDF link"})
+            skipped.append(_skip(url, label, "not an https PDF link"))
+            continue
+        if not allowed_url(url):
+            # one off-allowlist link must not reach the fetcher (agenda-fetch/hostrefused-stops-run)
+            skipped.append(_skip(url, label, "a host this site does not collect from"))
             continue
         if url in seen:
             continue
@@ -177,9 +202,36 @@ def placeholder_reason(body: bytes, headers: dict, year: int, month: int) -> str
     return None
 
 
+def _last_day(y: int, m: int) -> date:
+    return date(y + m // 12, m % 12 + 1, 1) - timedelta(days=1)
+
+
+def meeting_dates(agendas_path: Path | None) -> dict[str, str]:
+    """url -> the latest meeting date its stored agenda printed (the last agendas.json), for the re-request rule."""
+    p = Path(agendas_path or AGENDAS)
+    if not p.is_file():
+        return {}
+    data = json.loads(p.read_text(encoding="utf-8"))
+    url_of = {s["id"]: s["url"] for s in data.get("sources", [])}
+    out: dict[str, str] = {}
+    for m in data.get("meetings", []):
+        u = url_of.get(m.get("source_id"))
+        if u and m.get("date"):
+            out[u] = max(out.get(u, ""), m["date"])
+    return out
+
+
+def recheck_due(x: dict, dates: dict[str, str], today: date) -> bool:
+    """A stored agenda is asked for again while its meeting date has not passed (provenance/agenda-revised-in-place):
+    the date the agenda printed when known, else the last day of the month the page lists it under."""
+    when = dates.get(x["url"]) or _last_day(x["year"], x["month"]).isoformat()
+    return today.isoformat() <= when
+
+
 def cmd_fetch(store: Store, log: dict, fetcher: PoliteFetcher | None = None, today: date | None = None,
-              facts_path: Path = FACTS) -> list[dict]:
-    """One GET of the agenda page, then each wanted agenda not in the store yet. Returns the skipped links."""
+              facts_path: Path = FACTS, agendas_path: Path | None = None) -> list[dict]:
+    """One GET of the agenda page, then each wanted agenda not in the store yet, and once each stored agenda whose
+    meeting date has not passed (a revision). Returns the skipped links."""
     f = fetcher or PoliteFetcher()
     today = today or datetime.now(timezone.utc).date()
     log.setdefault("failures", [])
@@ -196,20 +248,36 @@ def cmd_fetch(store: Store, log: dict, fetcher: PoliteFetcher | None = None, tod
     todo += [x for x in links if x["url"] in lacking and x not in todo]
     log["listed"], log["unread_links"], log["wanted"] = len(links), len(unread), len(todo)
     skipped: list[dict] = []
+    dates = meeting_dates(agendas_path)
+    asked: set[str] = set()                              # each URL at most once per run
     for x in todo:
+        if x["url"] in asked:
+            continue
         known = store.latest(x["url"])
-        if known and store.has_bytes(known["sha256"]):
+        recheck = bool(known and store.has_bytes(known["sha256"]))
+        if recheck and not recheck_due(x, dates, today):
             log["fetched"]["cached"] = log["fetched"].get("cached", 0) + 1
             continue
+        asked.add(x["url"])
         try:
             status, body, headers = f.get(x["url"])
         except STOP as e:
             log["failures"].append({"stage": "agenda_fetch", "url": x["url"], "error": f"{type(e).__name__}: {e}"})
-            if isinstance(e, (HostBlocked, HostRefused)):
-                break
+            if isinstance(e, HostBlocked):
+                break                                    # the site said 403/429: stop asking it for this run
+            if isinstance(e, HostRefused):
+                # our own policy refused this one link (off the allowlist, e.g. after a redirect): skip it and go on
+                skipped.append(_skip(x["url"], x["label"], f"refused by the fetcher's host policy: {e}"))
             continue
         except FetchFailed as e:
             log["failures"].append({"stage": "agenda_fetch", "url": x["url"], "error": f"{type(e).__name__}: {e}"})
+            continue
+        if recheck and (status != 200 or body[:4] != b"%PDF"
+                        or placeholder_reason(body, headers, x["year"], x["month"])):
+            # the stored agenda stays as it is; a server error is still a failure the run reports
+            if status not in (200, 404):
+                log["failures"].append({"stage": "agenda_fetch", "url": x["url"], "error": f"HTTP {status}"})
+            log["fetched"]["kept"] = log["fetched"].get("kept", 0) + 1
             continue
         if status == 404:
             skipped.append({"url": x["url"], "label": x["label"], "reason": "not found (HTTP 404)"})
@@ -342,7 +410,13 @@ def build(store: Store, skipped: list[dict] | None, read=first_pages, page_count
         except Exception as ex:          # one bad document must not stop the run; it is reported
             problems.append({"url": e["url"], "problem": f"text not read: {type(ex).__name__}: {ex}"})
             continue
-        src = source_record(e, page_count(p))
+        n_pages = page_count(p)
+        if not n_pages:
+            # no page count (pdfinfo failed): every item link cites a page, so the meeting is left out and reported
+            # (agenda-data/pages-none)
+            problems.append({"url": e["url"], "problem": "no page count (pdfinfo); meeting left out"})
+            continue
+        src = source_record(e, n_pages)
         sources.append(src)
         h = header(pages)
         if not h["date"] or not h["kind"]:
@@ -367,6 +441,8 @@ def build(store: Store, skipped: list[dict] | None, read=first_pages, page_count
     if skipped is None:
         skipped = (json.loads(agendas_path.read_text(encoding="utf-8")).get("skipped", [])
                    if agendas_path.is_file() else [])
+    # skipped URLs are https on allowlisted hosts only (allowed_url), also for a file written before that rule
+    skipped = [{**s, "url": s.get("url") if allowed_url(s.get("url") or "") else None} for s in skipped]
     out = {"body": "Montgomery County Commission", "index_url": INDEX_URL,
            "meetings": sorted(meetings.values(), key=lambda m: (m["date"], m["id"])),
            "sources": sorted(sources, key=lambda s: s["id"]), "skipped": skipped, "problems": problems}
@@ -394,7 +470,7 @@ def run_step(log: dict, offline: bool, fetcher: PoliteFetcher | None = None, age
     alog: dict = {"failures": [], "fetched": {}}
     skipped = None
     if not offline:
-        skipped = cmd_fetch(store, alog, fetcher=fetcher, today=today)
+        skipped = cmd_fetch(store, alog, fetcher=fetcher, today=today, agendas_path=agendas_path)
         if any(f["stage"] == "agenda_page" for f in alog["failures"]):
             skipped = None                               # the page was not read: keep the last known skips
     out, summary = build(store, skipped, agendas_path=agendas_path)
