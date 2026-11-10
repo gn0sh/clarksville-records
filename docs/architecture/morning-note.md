@@ -268,10 +268,13 @@ own list answers the same question.
 | `morning_note.sender.enabled: true` | `config/site.yml`, by a reviewed PR | the team, after the security review |
 | Repository variable `MORNING_NOTE_SEND == 'true'` | GitHub settings | Brian (hard stop 1: the first send) |
 | Secret `BUTTONDOWN_API_KEY` in the `morning-note` environment | GitHub settings | Brian (hard stop 5) |
+| Secret `MORNING_NOTE_CANARY_IDS` in the `morning-note` environment (the team's own subscriber ids) | GitHub settings | Brian, with the key |
 The `note` job also needs the `deploy` job to have succeeded, so it cannot run while the deploy is locked, and an
 email never links a page that is not live. `build.problems()` refuses `sender.enabled: true` unless
 `morning_note.enabled` is true and the site URL is set. `sender.canary_only: true` (the default) limits recipients to
-subscribers whose metadata has `canary: "1"`, so the first live days reach only the team's own addresses.
+the subscriber ids listed (comma separated) in `MORNING_NOTE_CANARY_IDS`, an environment secret of the `note` job, so
+the first live days reach only the team's own addresses. Never subscriber metadata: the public form writes it. With
+`canary_only` true and no list, the run sends to nobody ("no-canary", exit 0) and makes no provider call.
 
 ```
 morning_note:
@@ -305,6 +308,8 @@ morning_note:
   example editions that have a recipient, which only the deliver stage knows).
 - **Open: the unplaced line** is printed in every edition of a day that has one, as "Body" above says; the preview
   page shows it only to a reader who picked zoning.
+- **Canary ids come from the environment** (`MORNING_NOTE_CANARY_IDS`; review `audience/canary-self-set`), not
+  from subscriber metadata, which any subscriber can set through the form. No id is in the repository.
 - `--live` is refused by the command line until the provider adapter (`sender/buttondown.py`) exists and has had its
   security review.
 

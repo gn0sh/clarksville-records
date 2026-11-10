@@ -37,7 +37,8 @@ Actions logs are public. Sending, the account, the key and any cost are hard sto
 
 ## Consequences
 - The key needs subscriber access (write for `stamp`, read for `ids`). This is the main thing the security review
-  must weigh; `max_recipients` and `canary_only` bound a mistake.
+  must weigh; `max_recipients` and `canary_only` bound a mistake. The canary list is subscriber ids in the `note`
+  job's environment secret `MORNING_NOTE_CANARY_IDS`, never subscriber metadata (a subscriber can write their own).
 - `stamp` may need Buttondown's paid "Tagging & segmentation" add-on (+$9 a month as shown on 2026-11-10; unverified
   for metadata filters). The free tier covers the first 100 subscribers. Both are Brian's spend decisions.
 - A document collected between the first send and 7:00 is not mailed that day or the next; it is on the site and feeds.

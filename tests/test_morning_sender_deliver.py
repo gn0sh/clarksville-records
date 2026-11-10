@@ -118,9 +118,9 @@ def people(plan) -> list[dict]:
             sub(7, [])]                                                # confirmed, but picked no list
 
 
-def go(plan, provider, s=None, now=AT_5, live=True, sleeps=None):
+def go(plan, provider, s=None, now=AT_5, live=True, sleeps=None, canary_ids=None):
     lines = []
-    res = deliver.run(plan, s or settings(), provider=provider, live=live, now=now,
+    res = deliver.run(plan, s or settings(), provider=provider, live=live, now=now, canary_ids=canary_ids,
                       sleep=(sleeps.append if sleeps is not None else lambda _s: None), out=lines.append)
     return res, "\n".join(lines)
 
@@ -332,14 +332,52 @@ def test_only_regular_subscribers_are_recipients(plan, type_):
     assert "note_edition" not in fake.subs["sub-0001-secret"]["metadata"]
 
 
-def test_canary_only_reaches_only_canary_subscribers(plan):
-    rows = [sub(1, ["budget"]), sub(2, ["budget"], canary="1"), sub(3, ["contracts"], canary=1),
-            sub(4, ["contracts"], canary="yes"), sub(5, ["budget"], canary="1", type_="unactivated")]
+def test_canary_only_reaches_only_the_ids_the_environment_names(plan):
+    """audience/canary-self-set: a subscriber writes their own metadata through the public form, so a canary is
+    named only by MORNING_NOTE_CANARY_IDS (the note job's environment), never by metadata."""
+    rows = [sub(1, ["budget"]), sub(2, ["budget"]), sub(3, ["contracts"], canary="1"),
+            sub(4, ["contracts"], canary=1), sub(5, ["budget"], type_="unactivated")]
     fake = Fake(rows)
-    res, _ = go(plan, fake, s=settings(canary_only=True))
+    res, _ = go(plan, fake, s=settings(canary_only=True), canary_ids=frozenset({"sub-0002-secret", "sub-0005-secret"}))
     assert (res.editions, res.recipients) == (1, 1)
     assert [fake.audience(p) for p in fake.created] == [{"sub-0002-secret"}]
     assert settings_mod.load(ROOT / "config" / "site.yml").canary_only is True      # the shipped default
+
+
+@pytest.mark.parametrize("ids", [None, frozenset()])
+def test_canary_only_with_no_canary_list_sends_to_nobody(plan, ids):
+    fake = Fake([sub(1, ["budget"], canary="1"), sub(2, ["contracts"], canary="1")])
+    res, text = go(plan, fake, s=settings(canary_only=True), canary_ids=ids)
+    assert (res.code, res.status, res.editions, res.recipients) == (0, "no-canary", 0, 0)
+    assert fake.calls == [] and "MORNING_NOTE_CANARY_IDS" in text
+
+
+def test_metadata_canary_is_not_read_at_all():
+    r = deliver.recipient(sub(1, ["budget"], canary="1"), settings())
+    assert not hasattr(r, "canary")
+    src = (ROOT / "sender" / "deliver.py").read_text(encoding="utf-8")
+    assert 'get("canary")' not in src and "['canary']" not in src
+
+
+@pytest.mark.parametrize("text, want", [
+    (None, None), ("", frozenset()), ("  ", frozenset()), ("a1b2-c3", frozenset({"a1b2-c3"})),
+    ("a, b\nc", frozenset({"a", "b", "c"}))])
+def test_the_canary_list_is_read_from_the_environment_text(text, want):
+    assert deliver.canary_ids(text) == want
+
+
+@pytest.mark.parametrize("text", ["a;b", "a b@example.com", "x" * 65, "a,,b", "\u0661"])
+def test_a_malformed_canary_list_is_an_error(text):
+    with pytest.raises(deliver.PlanInvalid):
+        deliver.canary_ids(text)
+
+
+def test_the_cli_reads_the_canary_list_from_the_environment(monkeypatch):
+    import sender.__main__ as cli
+    monkeypatch.setenv("MORNING_NOTE_CANARY_IDS", "abc,def")
+    assert cli._canary_from_env() == frozenset({"abc", "def"})
+    monkeypatch.delenv("MORNING_NOTE_CANARY_IDS")
+    assert cli._canary_from_env() is None
 
 
 @pytest.mark.parametrize("meta, expect", [
@@ -381,7 +419,7 @@ def test_a_subscriber_row_that_is_not_a_record_is_skipped(plan):
 def test_the_address_is_dropped_at_the_boundary(plan):
     r = deliver.recipient(sub(1, ["budget"], district=7), settings())
     assert "example.com" not in repr(dataclasses.asdict(r)) and "sub-0001" not in repr(r)
-    assert sorted(f.name for f in dataclasses.fields(r)) == ["canary", "district", "id", "lists", "metadata", "ward"]
+    assert sorted(f.name for f in dataclasses.fields(r)) == ["district", "id", "lists", "metadata", "ward"]
 
 
 def test_over_max_recipients_sends_nothing(plan):

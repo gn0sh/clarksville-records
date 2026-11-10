@@ -15,7 +15,9 @@ Order of work, each check stopping before the first write:
     plan sends nothing; the same plan continues with the editions not yet created; a listing that fails sends
     nothing and fails the run (fail closed).
  5. recipients: confirmed (`type == "regular"`) subscribers only, each reduced at once to Recipient; the address
-    and every other field stop there. With `canary_only`, only those whose metadata has `canary: "1"`.
+    and every other field stop there. With `canary_only`, only the subscriber ids listed in the note job's
+    environment (`MORNING_NOTE_CANARY_IDS`); with no list, nobody and no provider call. Never subscriber metadata:
+    a subscriber writes their own through the public form.
  6. per edition, in key order, by `mode` (`stamp` or `ids`).
 
 Privacy: nothing here prints a subscriber id, an address, a signature, a per-edition count or any text that came
@@ -43,6 +45,10 @@ STAMP_FIELD = "subscriber.metadata.note_edition"
 STAMP_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\.[0-9a-f]{12}")
 _SHA_RE = re.compile(r"[0-9a-f]{64}")
 _NUMBER = re.compile(r"[1-9][0-9]{0,3}")
+# audience/canary-self-set: the canary list lives in the note job's environment (a `morning-note` environment
+# secret), never in the repository and never in subscriber metadata, which subscribers write themselves.
+CANARY_ENV = "MORNING_NOTE_CANARY_IDS"
+_CANARY_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
 
 
 class ProviderError(Exception):
@@ -59,6 +65,17 @@ class RateLimited(ProviderError):
 
 class PlanInvalid(Exception):
     """The plan file is not what the plan stage writes. The text names a field, never its content."""
+
+
+def canary_ids(text: str | None) -> frozenset | None:
+    """The canary subscriber ids from the environment's text (comma or whitespace separated): None when unset.
+    A malformed entry is an error, so a typo never widens or silently empties the canary list."""
+    if text is None:
+        return None
+    parts = [p for p in re.split(r"[\s,]+", text.strip()) if p] if text.strip() else []
+    if text.strip() and (re.search(r",\s*,", text) or not all(_CANARY_ID.fullmatch(p) for p in parts)):
+        raise PlanInvalid(f"{CANARY_ENV} must be subscriber ids separated by commas")
+    return frozenset(parts)
 
 
 class Provider:
@@ -94,7 +111,6 @@ class Recipient:
     lists: tuple
     district: int | None
     ward: int | None
-    canary: bool
     metadata: dict
 
     def __repr__(self) -> str:      # never the id or the metadata, should one ever reach a traceback
@@ -190,8 +206,7 @@ def recipient(raw, settings: Settings) -> Recipient | None:
     meta = dict(meta) if isinstance(meta, dict) else {}
     return Recipient(id=sid, lists=_lists(meta.get("lists")),
                      district=_number(meta.get("district"), settings.district_count),
-                     ward=_number(meta.get("ward"), settings.ward_count), canary=meta.get("canary") == "1",
-                     metadata=meta)
+                     ward=_number(meta.get("ward"), settings.ward_count), metadata=meta)
 
 
 # ------------------------------------------------------------------------------------------------ provider calls
@@ -279,7 +294,7 @@ def describe(plan: dict, settings: Settings) -> list[str]:
 
 
 def run(plan, settings: Settings, provider: Provider | None = None, live: bool = False,
-        now: datetime | None = None, sleep=time_mod.sleep, out=print) -> Outcome:
+        now: datetime | None = None, sleep=time_mod.sleep, out=print, canary_ids: frozenset | None = None) -> Outcome:
     """Deliver one plan. Returns the outcome; prints the dry run's description or one summary line of totals."""
     try:
         plan = check_plan(plan)
@@ -321,6 +336,8 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
 
     if now > at(settings.latest_send):
         return end(0, "missed", why="now is past latest_send; a note is never sent late")
+    if settings.canary_only and not canary_ids:
+        return end(0, "no-canary", why=f"canary_only is true and {CANARY_ENV} names nobody")
     sent = people = 0
     step = "email listing"
     try:
@@ -334,7 +351,7 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         audience = [r for r in (recipient(x, settings) for x in raw) if r is not None]
         del raw
         if settings.canary_only:
-            audience = [r for r in audience if r.canary]
+            audience = [r for r in audience if r.id in canary_ids]
         if len(audience) > settings.max_recipients:
             return end(2, "over-limit", why="more recipients than max_recipients")
         by_key: dict[str, list[Recipient]] = {}

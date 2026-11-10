@@ -45,6 +45,14 @@ def _plan(args) -> int:
     return 0
 
 
+def _canary_from_env():
+    """The canary subscriber ids, from the note job's environment only (deliver.CANARY_ENV); None when unset."""
+    import os
+
+    from . import deliver
+    return deliver.canary_ids(os.environ.get(deliver.CANARY_ENV))
+
+
 def _deliver(args) -> int:
     from . import deliver, settings
     if args.live:
@@ -61,7 +69,12 @@ def _deliver(args) -> int:
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         print("sender deliver: the plan file cannot be read; nothing sent", file=sys.stderr)
         return 2
-    return deliver.run(plan, cfg, provider=None, live=False).code
+    try:
+        canary = _canary_from_env()
+    except deliver.PlanInvalid as exc:
+        print(f"sender deliver: {exc}; nothing sent", file=sys.stderr)
+        return 2
+    return deliver.run(plan, cfg, provider=None, live=False, canary_ids=canary).code
 
 
 def main(argv=None) -> int:

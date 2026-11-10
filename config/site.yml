@@ -115,7 +115,7 @@ morning_note:
     latest_send: "10:00"     # a run that ends later than this skips the day; a note is never sent late
     max_editions: 80
     max_recipients: 2000
-    canary_only: true        # true: only subscribers whose metadata has canary "1" (the team's own addresses)
+    canary_only: true        # true: only the subscriber ids in the note job's MORNING_NOTE_CANARY_IDS secret; none listed: nobody
     # Every word of the email that is ours. Neutral connective text only: no summary, no claim about anyone.
     text:
       subject: "{site_name} morning note, {date}"
