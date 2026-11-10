@@ -250,3 +250,12 @@ def test_site_check_in_a_fixture_build_wants_every_day_labelled(tmp_path):
     problems, _ = site_checks.check_local_dates(
         tmp_path, _one_page(tmp_path, f'<a href="{URL}">p. 1, fetched 2026-11-09</a>'), cfg, True)
     assert problems   # a fixture build reads no manifests: an unlabelled day has no instant behind it
+
+
+def test_one_manifest_list_for_pages_feeds_and_the_morning_note():
+    """dates/two-manifest-lists: config/site.yml fetch_manifests is the one list; the morning note (and with it the
+    feeds' date added) reads the same files the pages' fetch days come from."""
+    from sitegen import config, morning
+    assert "manifests" not in config.SITE["morning_note"]
+    assert morning.manifest_paths(config.SITE) == config.SITE["fetch_manifests"]
+    assert any("fetch_manifests" in p for p in morning.problems({**config.SITE, "fetch_manifests": []}))

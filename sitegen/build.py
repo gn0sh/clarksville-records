@@ -392,7 +392,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     are shown as agenda-only meetings (sitegen/county_agendas.py); left out, config.COUNTY_AGENDAS for a real build
     and none for a fixture build. None: no agenda-only meetings.
     `morning_manifests`: the collectors' manifests the morning note (sitegen/morning.py) reads first_fetched_at from;
-    left out, config/site.yml `morning_note.manifests` for a real build and none for a fixture build (made-up sources
+    left out, config/site.yml `fetch_manifests` (the one list, morning.manifest_paths) for a real build and none for a fixture build (made-up sources
     have no manifest rows). None: no morning/ files. The preview target writes none.
     `export`: whether the open-data export (collector export, data/) goes with this build. A preview still over its
     cap without the transcript pages is built again with export=False: no page (data.html, about.html, the finance
@@ -716,7 +716,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     render("report.html.j2", "report.html", "Report an error", **views.report_page())
     if morning_manifests is DEFAULT:
         mn = morning_mod.settings()
-        morning_manifests = None if fixture or mn is None else mn["manifests"]
+        morning_manifests = None if fixture or mn is None else morning_mod.manifest_paths()
     first = None   # {source URL: first_fetched_at}: the feeds' date added and the morning note's window
     if morning_manifests is not None:
         try:

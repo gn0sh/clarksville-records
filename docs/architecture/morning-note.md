@@ -80,7 +80,7 @@ T1 additions (additive; T3 and the sender may rely on them):
   id>`; county agenda-only items `county/item/<number>/<meeting id>`; RPC cases `<rpc body_key>/item/<case id>/<meeting
   id>`; budget books `finance/book/<book id>`; a solicitation is new on the day its first document is first fetched
   (`contracts/solicitation/<id>`), and each document first fetched on a later day is `contracts/document/<sol>/<doc>`;
-- the manifest paths are config (`morning_note.manifests`, they name localities); a fixture build writes no note
+- the manifest paths are config (`fetch_manifests`, the one list pages also use; they name localities); a fixture build writes no note
   unless a test passes `morning_manifests=`;
 - file budget (manager decision 2026-11-10): `morning/` (JSON and T3's `morning/index.html`) is built on the `pages`
   target only; the preview writes none. A preview still over 500 with the export after leaving out transcript pages

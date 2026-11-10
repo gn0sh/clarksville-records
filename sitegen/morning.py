@@ -63,6 +63,12 @@ def settings(cfg: dict | None = None) -> dict | None:
     return cfg.get("morning_note")
 
 
+def manifest_paths(cfg: dict | None = None) -> list:
+    """The collectors' manifests the note reads: config/site.yml `fetch_manifests`, the one list the pages' fetch days
+    come from too (sitegen/localdates.py; dates/two-manifest-lists)."""
+    return list((config.SITE if cfg is None else cfg).get("fetch_manifests") or [])
+
+
 def problems(cfg: dict) -> list[str]:
     """config/site.yml `morning_note:` shape and the provider seam rules; the build refuses anything else."""
     mn = cfg.get("morning_note")
@@ -94,9 +100,11 @@ def problems(cfg: dict) -> list[str]:
     if not isinstance(bf, dict) or not all(isinstance(bf.get(k), int) and not isinstance(bf.get(k), bool)
                                            and bf[k] >= 1 for k in ("initial_run_hours", "max_entries")):
         out.append("morning_note.backfill must set initial_run_hours and max_entries, each a whole number >= 1")
-    man = mn.get("manifests")
+    if "manifests" in mn:
+        out.append("morning_note.manifests is gone: the note reads fetch_manifests (dates/two-manifest-lists)")
+    man = cfg.get("fetch_manifests")
     if not isinstance(man, list) or not man or not all(isinstance(p, str) and p for p in man):
-        out.append("morning_note.manifests must list the collectors' manifest files")
+        out.append("fetch_manifests must list the collectors' manifest files (the morning note reads them)")
     text = mn.get("text")
     if not isinstance(text, dict):
         out.append("morning_note.text must be a mapping")

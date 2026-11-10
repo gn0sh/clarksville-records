@@ -71,13 +71,25 @@ note). Left with a reason: 5 (morning window, build day, civil dates, export col
 ## Days that cannot be made exact
 
 - **County districts PDF** (districts.json `fetched: 2026-11-08`, hand-written, no manifest row). Shown as
-  "fetched 2026-11-08 (UTC day)". The map was traced and committed at 2026-11-08 00:43Z (18:43 on 11-07 in
-  Clarksville), so the day in Clarksville was probably 2026-11-07, but that is an inference, so it is not shown.
-  Fix: fetch it through the collector (a manifest row) the next time the map is re-traced.
+  "fetched 2026-11-08 (UTC day)". Derivation: if that day is a UTC day, the fetch was at or after 2026-11-08 00:00Z;
+  the trace was committed at 2026-11-08 00:43Z (ee4a48f), so the fetch was between 18:00 and 18:43 on 2026-11-07 in
+  Clarksville, and the Clarksville day is 2026-11-07. That rests on the hand-written day being a UTC day, which no
+  record states, so the page still shows the stored day labelled (UTC day). Fix: fetch it through the collector (a
+  manifest row) the next time the map is re-traced.
 - **Finance links never fetched** (3 `.docx` bid tabs, status not_pdf, "not requested" in data/fin_fetch_status.json):
   `fetched_at` is the day of the fetch run (collector/fin_run.py, a UTC day). They were never fetched, so the row
   prints no "Document fetched" line. A dead link keeps the day the fetch was tried in its note, labelled (UTC day).
 - **Fixture builds**: made-up sources have no manifest rows, so every fetch day is labelled (UTC day).
+
+## One manifest list; why feed summaries use the earliest row
+
+config/site.yml `fetch_manifests` is the one list: the pages' fetch days (localdates.load) and the morning note and
+feeds (morning.manifest_paths -> first_fetched) read the same files (dates/two-manifest-lists). The pages take the row of
+the source's own sha256 (the copy the page cites); the feeds and the morning note take the earliest row per URL
+(morning.first_fetched), on purpose: a feed entry and a note entry are "when this document was added to the site",
+must not move or re-alert when the county replaces the file, and the summary's "fetched <day>" is the day of the
+entry's own `updated`. The two differ only for a URL with two copies (none in today's manifests); the replacement then
+has its own row on the Changes page. The site check accepts any row of the URL for a feed summary.
 
 ## Wording
 
