@@ -17,7 +17,7 @@
 <section aria-labelledby="never-h">
   <h2 id="never-h">What is never done</h2>
   <p>No official is put in an order by how they voted, and no number is used to judge anyone. Counts appear only as plain totals with the dates they cover, worded the same way for everyone. See <a href="{{ root }}about.html#neutrality">Neutrality rules</a>.</p>
-  <p>This site sets no cookies and has no accounts. If you use the address search or click a district on the map, your district number is kept in your own browser (local storage, one key, <code>cr-your-seats</code>) so the home page can show "Your seats" next time. {% if site.morning_note %}{{ site.morning_note.seats_sent }}{% else %}It stays on your device and is never sent anywhere.{% endif %} The Forget button on that box removes it. The address you type is not kept.</p>
+  <p>This site sets no cookies and has no accounts. If you use the address search, your district and ward numbers are kept in your own browser (local storage, one key, <code>cr-your-seats</code>) so the home page can show "Your seats" next time. {% if site.morning_note %}{{ site.morning_note.seats_sent }}{% else %}It stays on your device and is never sent anywhere.{% endif %} The Forget button on that box removes it. The address you type is not kept.</p>
 </section>
 {% if site.morning_note %}
 {# Only while the morning note's sign-up form is enabled (sitegen/morning_page.py privacy()); config text. #}

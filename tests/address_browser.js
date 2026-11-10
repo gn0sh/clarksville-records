@@ -3,7 +3,7 @@
 // Usage: node tests/address_browser.js <index.html> <points.json>   (driven by tests/test_address_box.py)
 // points.json: {"district": [lon, lat], "near": [lon, lat], "outside": [lon, lat], "other": [lon, lat],
 //               "wardnear": [lon, lat], "outsidecity": [lon, lat]}
-// Prints JSON: {fit: {...}, cases: {name: {text, href, pin, requests, frame, frames, csp, ...}}}
+// Prints JSON: {fit: {...}, cases: {name: {text, href, requests, frame, frames, csp, ...}}}
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
@@ -58,8 +58,7 @@ function consoleCsp(page) {
                formShown: !!f && !f.hidden, formBottom: r && Math.round(r.bottom),
                mainBottom: Math.round(document.querySelector('main').getBoundingClientRect().bottom),
                resultBottom: Math.round(document.getElementById('addr-result').getBoundingClientRect().bottom),
-               pin: (() => { const p = document.querySelector('.addr-pin'); if (!p) return null;
-                             const b = p.getBoundingClientRect(); return [Math.round(b.top), Math.round(b.bottom)]; })() };
+               svgs: document.querySelectorAll('main svg').length };
     });
     out.fit[`${w}x${h}`] = await measure();
     // with the privacy line and a district answer showing (the tallest the box gets), focus kept in the box
@@ -128,9 +127,7 @@ function consoleCsp(page) {
       const a = res.querySelector('a');
       return { text: res.textContent, href: a && a.getAttribute('href'), html: res.innerHTML,
                hrefs: [...res.querySelectorAll('a')].map((x) => x.getAttribute('href')),
-               pin: !!document.querySelector('svg.county-map .addr-pin'),
-               found: [...document.querySelectorAll('#layer-districts a.is-found')].map((x) => x.getAttribute('data-district')),
-               foundWards: [...document.querySelectorAll('#layer-wards .is-found')].map((x) => x.getAttribute('data-ward')),
+               svgs: document.querySelectorAll('main svg').length,
                scripts: document.querySelectorAll('script[src*="census.gov"]').length,
                frames: document.querySelectorAll('iframe').length,
                pwned: document.body.hasAttribute('data-pwned'), csp: window.__csp,

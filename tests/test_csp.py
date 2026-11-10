@@ -1,7 +1,7 @@
 """third-party-script/no-csp: every page carries one Content-Security-Policy <meta>, before any script or stylesheet;
 script-src is 'self' everywhere but the landing with the address box (tests/test_address_box.py covers that one).
 The browser run (tests/csp_browser.js, Playwright, over a local http server) checks the site still works under it:
-nav drawer, landing search submit and results, Show more, the map highlight, the bar widths, the address box's
+nav drawer, landing search submit and results, Show more, the bar widths, the address box's
 iframe path, and no CSP violation on any page visited."""
 import functools
 import http.server
@@ -83,7 +83,7 @@ def test_site_works_under_its_csp_in_a_browser(served_site):
     for name, r in pg.items():
         assert r["violations"] == [] and r["refused"] == [], (name, r["violations"], r["refused"])
     land = pg["landing"]
-    assert "census.gov" in land["landingCsp"] and land["drawerOpen"] and land["addrShown"] and "5" in land["mapLit"]
+    assert "census.gov" in land["landingCsp"] and land["drawerOpen"] and land["addrShown"]
     assert land["addrResult"].startswith("No match was found")            # the iframe path answered under the CSP
     assert land["searchHits"] > 0                                          # form-action 'self' lets the search go
     assert pg["landing-phone"]["drawerOpen"] and pg["meeting"]["clampButtons"] > 0

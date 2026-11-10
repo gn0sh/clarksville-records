@@ -10,8 +10,8 @@
 {% endmacro %}
 
 {% macro home_line(site, root) %}
-{# The short form, so the landing's first screen still fits a phone (tests/test_address_box.py); the full notice is in
-   this page's footer, as on every page, and on About. #}
+{# The short form, so the landing's first screen (purpose, this line, the address box and its answer) fits a phone
+   (tests/test_address_box.py); the full notice is in this page's footer, as on every page, and on About. #}
 <p class="unofficial-intro"><strong>{{ site.unofficial.tag }}.</strong> {{ site.unofficial.short }} <a href="{{ root }}about.html#unofficial">More on About</a></p>
 {% endmacro %}
 

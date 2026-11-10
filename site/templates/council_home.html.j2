@@ -22,7 +22,7 @@
     <li id="seat-{{ s.seat }}" data-seat="{{ s.seat }}"><span class="d-label">{{ s.label }}</span> <span class="d-holder">{% if s.holder %}<a href="{{ root }}{{ s.holder.href }}">{{ s.holder.name }}</a>{% else %}Current member not yet recorded{% endif %}</span></li>
     {% endfor %}
   </ol>
-  <p class="muted">{% if site.ward_map %}Find your ward by address on the <a href="{{ root }}index.html">map</a>.{% else %}A ward map is not available yet.{% endif %} Each member's ward is read from the attendance lists the minutes print.</p>
+  <p class="muted">{% if site.ward_map %}Find your ward by address on the <a href="{{ root }}index.html">home page</a>.{% else %}A ward map is not available yet.{% endif %} Each member's ward is read from the attendance lists the minutes print.</p>
 </section>
 
 <section aria-labelledby="meetings-h">

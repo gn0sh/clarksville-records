@@ -1,4 +1,4 @@
-/* "Your seats" (landing). After an address lookup finds a district or ward, or a click on a map area, the visitor's
+/* "Your seats" (landing). After an address lookup finds a district or ward, the visitor's
    district and ward numbers are kept in this browser only: one localStorage key, two small numbers,
    never sent anywhere by this script, no cookies. (The one way they can leave the device: the morning note's sign-up
    form, when it is enabled, posts them while its visible "include my saved seats" box is ticked; static/morning.js.) On a later visit the "Your seats" box links to those seats' pages, built from this
@@ -28,7 +28,7 @@
     try { return parse(s.getItem(KEY)); } catch (e) { return null; }
   }
 
-  /* Keep what is new, and what was kept for the other seat (a map click names one seat). With `replace` (an address
+  /* Keep what is new, and what was kept for the other seat (a save that names one seat). With `replace` (an address
      lookup, which answers for both seats at once) a seat it did not find is cleared, never kept from an earlier
      address. Returns true when written. */
   function save(seats, replace) {
@@ -53,20 +53,6 @@
 
   var doc = root.document;
   if (!doc) { return; }
-
-  /* A click on a map area is a choice of district: keep it, and let the link go on to the district's page. */
-  var areas = doc.querySelectorAll("#layer-districts a[data-district]");
-  for (var i = 0; i < areas.length; i++) {
-    areas[i].addEventListener("click", function (e) {
-      save({ district: Number(e.currentTarget.getAttribute("data-district")) });
-    });
-  }
-  var wardAreas = doc.querySelectorAll("#layer-wards a[data-ward]");   // the same for a ward, when wards are live
-  for (var k = 0; k < wardAreas.length; k++) {
-    wardAreas[k].addEventListener("click", function (e) {
-      save({ ward: Number(e.currentTarget.getAttribute("data-ward")) });
-    });
-  }
 
   var box = doc.getElementById("your-seats");
   var list = box ? box.querySelector(".your-seats-list") : null;

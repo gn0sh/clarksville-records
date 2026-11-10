@@ -4,11 +4,12 @@
    cannot touch this page, its storage or cookies). The iframe's one inline script (config "frame", allowed by hash in
    the page's CSP) loads the JSONP and posts the answer back as JSON text; this page accepts a message only from that
    iframe, parses it as data, validates it (classify) and shows it as text. The iframe is removed after each lookup.
-   The answer's point is placed on the drawn map with CRGeoref.districtFor (static/georef.js) against the same
-   district paths the map draws, and, when the map draws city wards, against the ward paths too (same page space and
-   georef, the wards' own margin). The address is never stored or logged; the found district and ward numbers (not
-   the address) are kept in this browser only, by static/seats.js. If the geocoder cannot load (a sandboxed
-   preview, a blocker, offline) the box says so and points to the official lookup.
+   The answer's point is placed with CRGeoref.districtFor (static/georef.js) against the traced district paths in the
+   settings block, and, when it holds city wards, against the ward paths too (same page space and georef, the wards'
+   own margin). No map is drawn (CEO, 2026-11-10): the answer is the sentence. The address is never stored or
+   logged; the found district and ward numbers (not the address) are kept in this browser only, by static/seats.js.
+   If the geocoder cannot load (a sandboxed preview, a blocker, offline) the box says so and points to the official
+   lookup.
    Exposes CRAddress.classify / jsonpUrl / frameDoc for tests (module.exports under node). */
 (function (root) {
   "use strict";
@@ -28,15 +29,15 @@
   }
 
   /* A ward answer -> {kind: "ward" | "near" | "outside", ward}. "outside": in no ward, so outside the city as the
-     ward map draws it; the city line counts as a ward line, so a point close to it is "near". */
+     traced ward lines place it; the city line counts as a ward line, so a point close to it is "near". */
   function wardKind(w) {
     return { kind: w.near_boundary ? "near" : (w.ward === null ? "outside" : "ward"), ward: w.ward };
   }
 
-  /* The geocoder answer -> what to tell the visitor. `locate(lon, lat)` is districtFor bound to the map. More than one
+  /* The geocoder answer -> what to tell the visitor. `locate(lon, lat)` is districtFor bound to the district shapes. More than one
      match is answered only when every match lands in the same district (or all outside the county) and none is near
      a district line; otherwise the visitor is asked to add the city and ZIP (addr-pin/ambiguous-match).
-     `locateWard(lon, lat)` -> {ward, near_boundary}, given only when the map has ward shapes: the answer then also
+     `locateWard(lon, lat)` -> {ward, near_boundary}, given only when there are ward shapes: the answer then also
      carries `ward` (wardKind), and several matches must agree on the ward too, none near a ward line. */
   function classify(data, locate, locateWard) {
     var res = data && typeof data === "object" ? data.result : null;
@@ -60,7 +61,7 @@
     }
     var matched = typeof ms[0].matchedAddress === "string" ? ms[0].matchedAddress.slice(0, 200) : "";
     var kind = first.near_boundary ? "near" : (first.district === null ? "outside" : "district");
-    var out = { kind: kind, district: first.district, matched: matched, page_xy: first.page_xy };
+    var out = { kind: kind, district: first.district, matched: matched };
     if (locateWard) { out.ward = wardKind(wards[0]); }
     return out;
   }
@@ -85,35 +86,26 @@
 
   var form = document.getElementById("addr-form");
   var cfgEl = document.getElementById("addr-config");
-  var svg = document.querySelector("svg.county-map");
-  if (!form || !cfgEl || !svg || !root.CRGeoref) { return; }
+  if (!form || !cfgEl || !root.CRGeoref) { return; }
   var cfg;
   try { cfg = JSON.parse(cfgEl.textContent); } catch (e) { return; }
   if (!cfg || typeof cfg.geocoder !== "string" || cfg.geocoder.indexOf("https://") !== 0 ||
       typeof cfg.frame !== "string" || !cfg.frame) { return; }
 
-  var shapes = [];
-  var anchors = svg.querySelectorAll("#layer-districts a[data-district]");
-  for (var i = 0; i < anchors.length; i++) {
-    var p = anchors[i].querySelector("path");
-    if (p) {
-      shapes.push({ number: Number(anchors[i].getAttribute("data-district")), path: p.getAttribute("d") || "",
-                    href: anchors[i].getAttribute("href"), el: anchors[i] });
-    }
+  /* The traced shapes, from the settings block (sitegen views.address_context): [{number, path, href}]. */
+  function shapesOf(list) {
+    return (Array.isArray(list) ? list : []).filter(function (s) {
+      return s && typeof s.number === "number" && typeof s.path === "string" && s.path;
+    }).map(function (s) {
+      return { number: s.number, path: s.path, href: typeof s.href === "string" ? s.href : null };
+    });
   }
+  var shapes = shapesOf(cfg.districts);
   if (!shapes.length) { return; }
   function locate(lon, lat) { return root.CRGeoref.districtFor(lon, lat, shapes, cfg.georef); }
 
-  /* City wards, when the map draws them: the same page space and georef, the wards' own boundary margin. */
-  var wardShapes = [];
-  var wardEls = svg.querySelectorAll("#layer-wards [data-ward]");
-  for (var k = 0; k < wardEls.length; k++) {
-    var wp = wardEls[k].tagName.toLowerCase() === "path" ? wardEls[k] : wardEls[k].querySelector("path");
-    if (wp) {
-      wardShapes.push({ number: Number(wardEls[k].getAttribute("data-ward")), path: wp.getAttribute("d") || "",
-                        href: wardEls[k].getAttribute("href"), el: wardEls[k] });
-    }
-  }
+  /* City wards, when the settings hold them: the same page space and georef, the wards' own boundary margin. */
+  var wardShapes = shapesOf(cfg.wards);
   var locateWard = null;
   if (wardShapes.length && typeof cfg.ward_margin_m === "number" && cfg.ward_margin_m > 0) {
     var wardGeo = { projection: cfg.georef.projection, affine: cfg.georef.affine, boundary_margin_m: cfg.ward_margin_m };
@@ -156,37 +148,13 @@
     }
   }
 
-  var SVGNS = "http://www.w3.org/2000/svg";
-  function clearPin() {
-    var old = svg.querySelector(".addr-pin");
-    if (old) { old.parentNode.removeChild(old); }
-    shapes.concat(wardShapes).forEach(function (s) { s.el.classList.remove("is-found"); });
-  }
-  function pin(xy) {
-    var vb = (svg.getAttribute("viewBox") || "").split(/\s+/).map(Number);
-    if (vb.length !== 4 || !(xy[0] >= vb[0] && xy[0] <= vb[0] + vb[2] && xy[1] >= vb[1] && xy[1] <= vb[1] + vb[3])) {
-      return;   // off the drawn map (far outside the county): no pin, the sentence says where it is
-    }
-    var r = vb[2] / 70;
-    var g = document.createElementNS(SVGNS, "g");
-    g.setAttribute("class", "addr-pin");
-    var ring = document.createElementNS(SVGNS, "circle");
-    ring.setAttribute("cx", xy[0]); ring.setAttribute("cy", xy[1]); ring.setAttribute("r", r);
-    var dot = document.createElementNS(SVGNS, "circle");
-    dot.setAttribute("class", "addr-pin-dot");
-    dot.setAttribute("cx", xy[0]); dot.setAttribute("cy", xy[1]); dot.setAttribute("r", r / 3);
-    g.appendChild(ring); g.appendChild(dot);
-    svg.appendChild(g);
-  }
-
   function wardLink(n) {
     var s = wardShapes.filter(function (x) { return x.number === n; })[0];
     var label = cfg.ward_label + " " + n;
-    if (s) { s.el.classList.add("is-found"); }
     return s && s.href ? link(s.href, label) : label;
   }
   var CHECK_WARD = " Check with the Election Commission or look it up on ";
-  /* The ward sentence after the district one (none when the map has no wards). */
+  /* The ward sentence after the district one (none when there are no ward shapes). */
   function wardTail(w) {
     if (!w) { return []; }
     if (w.kind === "ward") { return [" The " + cfg.geocoder_short + " places it in ", wardLink(w.ward), "."]; }
@@ -209,8 +177,7 @@
   }
 
   function show(r) {
-    clearPin();
-    var w = r.ward || null;      // null: the map has no ward shapes, so the answer names the district only
+    var w = r.ward || null;      // null: no ward shapes, so the answer names the district only
     if (r.kind === "district") {
       var s = shapes.filter(function (x) { return x.number === r.district; })[0];
       var label = cfg.district_label + " " + r.district;
@@ -221,8 +188,6 @@
       } else {
         say(["The " + cfg.geocoder_short + " places this address in ", where, "."].concat(wardTail(w)), r.matched);
       }
-      if (s) { s.el.classList.add("is-found"); }
-      pin(r.page_xy);
       keep(r);
     } else if (r.kind === "near") {
       if (w && w.kind === "near") {
@@ -232,11 +197,9 @@
         say(["This address is near a district line. Check ", lookupLink(), " to be sure."].concat(wardTail(w)),
             r.matched);
       }
-      pin(r.page_xy);
       keep(r);
     } else if (r.kind === "outside") {
       say(["This address is outside " + cfg.county + "."], r.matched);
-      pin(r.page_xy);
     } else if (r.kind === "ambiguous") {
       say(["More than one address matched. Add the city and ZIP, or check ", lookupLink(), "."]);
     } else if (r.kind === "nomatch") {
