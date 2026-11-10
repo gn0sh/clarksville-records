@@ -47,13 +47,23 @@ header tag, home intro, About section, `<title>`, `<meta description>`, `og:*`, 
 JSON (`notice`, `email_line`), the sign-up card on Alerts, `data/README.txt` in the export, and the launch runbook.
 Check: `qa/site_checks.py` line `unofficial/notice-on-every-page` (444 pages, 41 feeds, 8 notes on the real build).
 
+Second pass (same day, re-verified on a fresh build): `data/README.txt` now opens with the tag and names the correction
+route (`<site_url>/report.html`); the Data downloads page states the notice and links the README; Who runs this
+(`who.html.j2:6`) named only "the county, the city" and now names all four bodies from the same config list and links
+About's section; the morning note preview page (`morning/index.html`, the closest thing to the email template in this
+repo) prints `email_line` as the sign-up card does. Contrast measured from `style.css` tokens (WCAG formula): notice
+text 14.7:1 light / 13.5:1 dark on its panel, its link 6.8:1 / 7.3:1, header tag 13.3:1 / 12.9:1 on the sky band. Notice
+text is 1rem (16 px) everywhere, including the landing page where the rest of the footer is smaller.
+
 ## Not done, and why
 - `facts.json` and the CSVs carry no in-file notice: the export code is in `collector/` (off limits for this task) and a
   CSV cannot hold a header line without breaking readers. A README sits beside them. A later collector task could add a
   `"notice"` key to `facts.json`.
 - The mail sender does not exist in this repo (`sender/` is on another branch). It must print `notice` and `email_line`
-  from the note JSON in every email's body and footer, and must not use an official-sounding From name or subject. Add
-  the same check there.
+  from the note JSON in every email's body and footer, and must not use an official-sounding From name or subject
+  (suggested: From "Daylight (independent)", subject starting "Daylight morning note"; never "City of", "County", "CMCSS",
+  "RPC" or "official" in either). Add the same check there. No email subject or From name exists in `config/site.yml`
+  today, so nothing to fix on this branch.
 - No 404.html: a root-relative one would break its CSS at depth. If one is added later it must extend `base.html.j2`.
 - "How to report a correction" links `report.html`; until `corrections.github_repo` or `corrections.email` is set in
   `config/site.yml`, that page says corrections open at launch. Brian must pick a channel before go-live.

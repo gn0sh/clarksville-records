@@ -313,7 +313,8 @@ def site_url_problems(cfg: dict) -> list[str]:
         if cfg.get(link):
             out += [f"{k} must be set when {link} is" for k in needs
                     if not isinstance(cfg.get(k), str) or not cfg[k].strip()]
-    return out + corrections_problems(cfg) + feeds_mod.problems(cfg) + morning_mod.problems(cfg) + unofficial_mod.problems(cfg)
+    return (out + corrections_problems(cfg) + feeds_mod.problems(cfg) + morning_mod.problems(cfg)
+            + unofficial_mod.problems(cfg))
 
 
 # config/site.yml `corrections:` (views.corrections_context): a GitHub owner/name and a plain e-mail address. Both go

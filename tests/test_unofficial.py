@@ -4,7 +4,6 @@ import copy
 import re
 import shutil
 
-import pytest
 
 from qa import site_checks
 from sitegen import config, unofficial
