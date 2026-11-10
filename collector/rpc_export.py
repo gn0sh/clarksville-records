@@ -37,8 +37,9 @@ _COUNT = "derived: counted"
 _RULE = "derived: the reader's checks on the minutes (every value read from the minutes' own words)"
 
 MEETING_COLS = ["id", "date", "date_printed", "kind", "kind_label", "label", "cancelled", "source_url", "agenda_url",
-                "agenda_collected", "agenda_source_sha256", "agenda_fetched_at", "minutes_url", "minutes_collected",
-                "minutes_source_sha256", "minutes_fetched_at", "cases", "motions_confirmed", "motions_not_confirmed"]
+                "agenda_collected", "agenda_source_sha256", "agenda_fetched_at", "agenda_read_as_meeting",
+                "minutes_url", "minutes_collected", "minutes_source_sha256", "minutes_fetched_at",
+                "minutes_read_as_meeting", "cases", "motions_confirmed", "motions_not_confirmed"]
 CASE_FIELDS = ["number", "number_printed", "prefix", "case_type", "heading_printed", "agenda_part", "item",
                "applicant_label", "applicant", "agent", "request_label", "request", "proposed_use", "location",
                "ward_printed", "ward", "district", "acres", "note", "read_by"]
@@ -59,9 +60,12 @@ _MEETING = {
     "source_url": "derived: link to the listing page the meeting was taken from",
     "agenda_url": "derived: link to the listed agenda file", "agenda_collected": "derived: whether the team fetched it",
     "agenda_source_sha256": _C["source_sha256"], "agenda_fetched_at": _C["fetched_at"],
+    "agenda_read_as_meeting": "derived: whether the reader took the fetched file as this meeting's agenda",
     "minutes_url": "derived: link to the listed minutes file",
     "minutes_collected": "derived: whether the team fetched it",
     "minutes_source_sha256": _C["source_sha256"], "minutes_fetched_at": _C["fetched_at"],
+    "minutes_read_as_meeting": "derived: whether the reader took the fetched file as this meeting's minutes (its "
+                               "printed date)",
     "cases": _COUNT, "motions_confirmed": _COUNT, "motions_not_confirmed": _COUNT,
 }
 _CASE = {
@@ -181,12 +185,19 @@ def tables(pub: dict, internal: bool = False) -> dict[str, str]:
         return {"source_url": s["url"], "source_sha256": s["sha256"], "page": page, "fetched_at": s["fetched_at"]}
 
     def doc(m, kind):
-        """The meeting's listed `kind` file: its link, and its hash and fetch time when the team holds it."""
-        d = next((d for d in m["documents"] if d["kind"] == kind), None)
-        s = src.get(m.get(f"{kind}_source_id") or "") or {}
-        return {f"{kind}_url": s.get("url") or (d["url"] if d else None),
-                f"{kind}_collected": bool(s) if (s or d) else None,
-                f"{kind}_source_sha256": s.get("sha256"), f"{kind}_fetched_at": s.get("fetched_at")}
+        """The meeting's listed `kind` file: its link, and its hash and fetch time when the team holds it, from the
+        listed file's own source (as facts.json's documents and sources.csv), whether or not the reader took it as
+        this meeting's own (`<kind>_read_as_meeting`: the meeting's `<kind>_source_id`, set only when its date
+        matched). With no file of that kind listed, the file the meeting was read from, if any."""
+        attached = m.get(f"{kind}_source_id")
+        ds = [d for d in m["documents"] if d["kind"] == kind]
+        d = next((d for d in ds if attached and d.get("source_id") == attached), ds[0] if ds else None)
+        s = (src.get(d.get("source_id") or "") if d else src.get(attached or "")) or {}
+        listed = bool(s or d)
+        return {f"{kind}_url": d["url"] if d else s.get("url"), f"{kind}_collected": bool(s) if listed else None,
+                f"{kind}_source_sha256": s.get("sha256"), f"{kind}_fetched_at": s.get("fetched_at"),
+                f"{kind}_read_as_meeting": (bool(attached) and (d is None or d.get("source_id") == attached))
+                if listed else None}
 
     def joined(names):
         return "; ".join(names) if names else None

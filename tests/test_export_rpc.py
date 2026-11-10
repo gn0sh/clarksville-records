@@ -245,6 +245,61 @@ def test_meetings_name_the_listing_and_their_files(files, rpx):
     assert {d["kind"] for d in jm["documents"]} >= {"agenda"} and all("fetched" not in d for d in jm["documents"])
 
 
+def test_a_fetched_file_not_read_as_the_meetings_own_is_still_collected(tmp_path):
+    """`<kind>_collected`, hash and fetch date are the listed file's own (its source_id), as facts.json's documents and
+    sources.csv say: a file the team holds but the reader did not take as this meeting's minutes (another date
+    printed, as real 2025-04-11-executive) is collected, with `minutes_read_as_meeting` False."""
+    facts = facts_with_motions(tmp_path)
+    m = next(m for m in facts["meetings"] if m["id"] == "2025-07-29-regular")
+    d = next(d for d in m["documents"] if d["kind"] == "minutes")
+    d.update(fetched=True, source_id="src-unattached")
+    facts["sources"].append({"id": "src-unattached", "url": d["url"], "sha256": "a" * 64, "kind": "minutes",
+                             "meeting_date": "2025-07-29", "fetched_at": "2026-11-09", "pages": 4,
+                             "text_layer": "text", "format": "pdf", "read_by": "text layer"})
+    assert not m.get("minutes_source_id")
+    written = {p.name: p for p in RE.export_rpc(load(tmp_path, facts), tmp_path / "out")}
+    ms = {r["id"]: r for r in rows(written["meetings.csv"])}
+    r = ms["2025-07-29-regular"]
+    assert (r["minutes_url"], r["minutes_collected"], r["minutes_source_sha256"], r["minutes_fetched_at"]) == \
+        (d["url"], "True", "a" * 64, "2026-11-09")
+    assert r["minutes_read_as_meeting"] == "False"
+    # the meeting's own files: collected and read as its own; a file listed but not fetched: neither
+    own = ms[MEETING]
+    assert (own["agenda_collected"], own["agenda_read_as_meeting"]) == ("True", "True")
+    assert (own["minutes_collected"], own["minutes_read_as_meeting"]) == ("True", "True")
+    assert (r["agenda_collected"], r["agenda_read_as_meeting"], r["agenda_source_sha256"]) == ("False", "False", "")
+    # no file of that kind listed: empty
+    assert ms["2026-01-27-regular"]["minutes_collected"] == ms["2026-01-27-regular"]["minutes_read_as_meeting"] == ""
+    # every meeting row agrees with facts.json's documents and with sources.csv
+    data = json.loads(written["facts.json"].read_text(encoding="utf-8"))
+    hashes = {s["source_url"]: s["source_sha256"] for s in rows(written["sources.csv"])}
+    for jm in data["meetings"]:
+        for doc in jm["documents"]:
+            if doc["kind"] in ("agenda", "minutes"):
+                row = ms[jm["id"]]
+                assert row[f"{doc['kind']}_collected"] == str(doc["collected"]), (jm["id"], doc["kind"])
+                assert row[f"{doc['kind']}_source_sha256"] == (hashes[doc["url"]] if doc["collected"] else "")
+
+
+def test_the_committed_record_meeting_rows_agree_with_their_documents(tmp_path):
+    """The real rows the review found (2022-04-25-executive agenda, 2025-04-11-executive and 2025-10-27-cdrb minutes:
+    fetched, not read as the meeting's own) say collected, with the hash sources.csv gives."""
+    rx = rpc.load(rpc.load_config(config.SITE.get("rpc")), False)
+    if rx is None:
+        pytest.skip("no committed RPC facts")
+    written = {p.name: p for p in RE.export_rpc(rx, tmp_path)}
+    ms = {r["id"]: r for r in rows(written["meetings.csv"])}
+    hashes = {s["source_url"]: s["source_sha256"] for s in rows(written["sources.csv"])}
+    for m in rx.facts["meetings"]:
+        for d in m["documents"]:
+            if d["kind"] not in ("agenda", "minutes"):
+                continue
+            r = ms[m["id"]]
+            assert r[f"{d['kind']}_collected"] == str(bool(d["fetched"])), (m["id"], d["kind"])
+            assert r[f"{d['kind']}_source_sha256"] == (hashes[d["url"]] if d["fetched"] else ""), (m["id"], d["kind"])
+            assert r[f"{d['kind']}_read_as_meeting"] == str(bool(m.get(f"{d['kind']}_source_id")))
+
+
 def test_sources_list_every_collected_file(files, rpx):
     ss = rows(files["sources.csv"])
     assert {r["source_url"] for r in ss} == {s["url"] for s in rpx.facts["sources"]}
