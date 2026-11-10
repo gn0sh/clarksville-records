@@ -124,6 +124,28 @@ def corrections_links(cfg: dict) -> tuple[str, str]:
             f"mailto:{email}" if email else "")
 
 
+REPORT_CHANNEL_TARGETS = ("pages",)   # the hosts real readers use (GitHub Pages); the preview may stay closed
+
+
+def check_report_channel(pages: dict[str, "Page"], cfg: dict, target: str) -> tuple[list[str], str]:
+    """corrections/channel-set-in-production-build: a pages build never ships report.html without a way to send a
+    report. It must link the GitHub issue form or the mailto that config/site.yml `corrections:` sets (the ids
+    report-issue / report-mail), and must not say corrections are not open yet."""
+    if target not in REPORT_CHANNEL_TARGETS:
+        return [], f"{target} target: not checked"
+    pg = pages.get("report.html")
+    if pg is None:
+        return ["report.html is not built"], ""
+    issue, mail = corrections_links(cfg)
+    if not (issue or mail):
+        return ["config/site.yml corrections: sets no github_repo or email, so report.html offers no channel"], ""
+    hrefs = set(pg.hrefs)
+    problems = [f"report.html does not link {u}" for u in (issue, mail) if u and u not in hrefs]
+    if "report-closed" in pg.ids:
+        problems.append("report.html still says corrections are not open")
+    return problems, "report.html links " + " and ".join(u for u in (issue, mail) if u)
+
+
 def _site_cfg() -> dict:
     import yaml
     cfg = yaml.safe_load((ROOT / "config" / "site.yml").read_text(encoding="utf-8"))
@@ -1589,6 +1611,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("name-links", problems, note)
     rep.add("footer", check_footer(pages, operator), f"'Provided as a free service by {operator}.' on {len(pages)} pages")
     rep.add("external", check_external(pages, site, cfg))
+    problems, note = check_report_channel(pages, cfg, target)
+    rep.add("report-channel", problems, note)
     # the contracts feed links each solicitation's first document, a finance.json source
     problems, note = check_feeds(site, pages, all_sources["sources"], cfg,
                                  finance_sources=list((finance or {}).get("sources") or []))

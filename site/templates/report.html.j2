@@ -26,7 +26,7 @@
 {% if corr.open %}
 <ul class="report-channels">
   {% if corr.issue_url %}
-  <li><a id="report-issue" data-ext="corrections" href="{{ corr.issue_url }}" target="_blank" rel="noopener noreferrer">Report it on GitHub<span class="sr-only"> (opens in a new tab)</span></a>. Needs a free GitHub account; the report is public.</li>
+  <li><a id="report-issue" data-ext="corrections" href="{{ corr.issue_url }}" target="_blank" rel="noopener noreferrer">Open an issue on GitHub<span class="sr-only"> (opens in a new tab)</span></a>: a short form asking for the three things above. Needs a free GitHub account; the report is public, so it asks for no personal details.</li>
   {% endif %}
   {% if corr.mailto %}
   <li><a id="report-mail" data-ext="corrections" href="{{ corr.mailto }}">Send it by email</a>.</li>
@@ -38,7 +38,7 @@
 
 <h2>What happens next</h2>
 <p>The report is checked against the source document. The site shows what the source document says, never a changed value without a source, and every change is recorded on the <a href="{{ root }}changes.html">Changes</a> page. See <a href="{{ root }}about.html#how-corrections-work">how corrections work</a>.</p>
-<p class="muted">This page stores nothing about you and sends nothing. The links above open GitHub or your email program only when you choose them.</p>
+<p class="muted">This page stores nothing about you and sends nothing.{% if corr.issue_url and corr.mailto %} The links above open GitHub or your email program only when you choose them.{% elif corr.issue_url %} The link above opens GitHub only when you choose it.{% elif corr.mailto %} The link above opens your email program only when you choose it.{% endif %}</p>
 {% endblock %}
 {% block scripts %}
 <script src="{{ root }}static/pages.js" defer></script>

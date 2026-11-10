@@ -40,8 +40,11 @@ support_enabled: true
 # channels to the reader. Both empty (the default): report.html says corrections open when the site launches. Brian
 # chooses the values; the build refuses anything else than the shapes below.
 corrections:
-  github_repo: ""   # "owner/name" of the PUBLIC repo: a prefilled issue from .github/ISSUE_TEMPLATE/correction.yml
-  email: ""         # an address for a mailto link (no address is set until Brian picks one)
+  # Manager decision 2026-11-10 (corrections/channel-set-in-production-build): GitHub issues on the public repo. The
+  # form must be on the repo's default branch for GitHub to show it. A pages build without a channel fails
+  # qa/site_checks.py (report-channel).
+  github_repo: "gn0sh/clarksville-records"   # "owner/name" of the PUBLIC repo: a prefilled issue from .github/ISSUE_TEMPLATE/correction.yml
+  email: ""         # an address for a mailto link (Brian may add one at go-live)
 
 # Alerts v1 (M5, sitegen/feeds.py): free Atom feeds on alerts.html. We keep no list of followers and run no
 # sign-up. One "new agendas and minutes" feed per body (the county and each council below), and one feed per topic
