@@ -1,0 +1,10 @@
+{# Regional Planning Commission blocks (sitegen/rpc.py). A meeting's documents: a collected file links to the RPC's own
+   copy; a file on a host we do not collect from is listed with its link and says so. #}
+{% macro rpc_docs(m) -%}
+<ul class="doc-links">
+  {% for d in m.docs %}
+  <li>{{ d.label }}: {% if d.collected %}<a href="{{ d.url }}" target="_blank" rel="noopener noreferrer">{{ d.what }}<span class="sr-only"> (opens in a new tab)</span></a> <span class="doc-note">fetched {{ d.fetched }}{% if d.no_text %}; a scan with no text layer, not read{% endif %}</span>{% else %}<a data-ext="listed" href="{{ d.url }}" target="_blank" rel="noopener noreferrer">link on {{ d.host }}<span class="sr-only"> (opens in a new tab)</span></a> <span class="doc-note">listed on the RPC page; not collected or read</span>{% endif %}</li>
+  {% endfor %}
+  {% for k in m.not_posted %}<li>{{ k }}: <span class="doc-note">not linked on the RPC page</span></li>{% endfor %}
+</ul>
+{%- endmacro %}

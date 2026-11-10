@@ -148,9 +148,10 @@ def fetch_into_store(fetcher, store: Store, url: str, meta: dict | None = None,
     """Return the stored entry for url, downloading only when its bytes are not in the store.
 
     expect="pdf" (minutes, finance documents): a body that is not a PDF raises NotPdf (a FetchFailed) and is not
-    stored. expect="html" (the purchasing archive page): the body must be an HTML page, stored as a source."""
-    if expect not in ("pdf", "html"):
-        raise ValueError(f"expect must be 'pdf' or 'html', not {expect!r}")
+    stored. expect="html" (the purchasing archive page): the body must be an HTML page, stored as a source.
+    expect="docx" (an RPC agenda posted as Word): the body must be a zip container (Office Open XML)."""
+    if expect not in ("pdf", "html", "docx"):
+        raise ValueError(f"expect must be 'pdf', 'html' or 'docx', not {expect!r}")
     known = store.latest(url)
     if known and store.has_bytes(known["sha256"]):
         changed = False
@@ -165,6 +166,9 @@ def fetch_into_store(fetcher, store: Store, url: str, meta: dict | None = None,
     if expect == "html":
         if not _looks_html(body, headers):
             raise FetchFailed(f"not an HTML page: {url} ({headers.get('Content-Type')})")
+    elif expect == "docx":
+        if body[:4] != b"PK\x03\x04":
+            raise FetchFailed(f"not a DOCX: {url} ({headers.get('Content-Type')})")
     elif body[:4] != b"%PDF":
         raise NotPdf(f"not a PDF: {url} ({headers.get('Content-Type')})")
     return store.put(url, body, headers, meta)

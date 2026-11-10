@@ -1,0 +1,27 @@
+{% extends "base.html.j2" %}
+{% from "_rpc.html.j2" import rpc_docs %}
+{# The Regional Planning Commission's home (sitegen/rpc.py home): every listed meeting, newest first, by year, with its
+   documents. Each meeting's agenda cases are on its year page. #}
+{% block main %}
+<h1>{{ body }}</h1>
+<p class="lede">Meetings, agendas and minutes listed on the commission's own page, <span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>: {{ n_meetings }} meetings, {{ n_docs }} documents collected{% if fetched_to %} (latest fetched {{ fetched_to }}){% endif %}, {{ n_cases }} case items read from the agendas.{% if n_link_only %} {{ n_link_only }} documents are linked on another host and were not collected.{% endif %}</p>
+<p class="muted">Case items are shown as each agenda prints them, with a link to the agenda page. Minutes are linked but not yet read for motions and votes.</p>
+<nav aria-label="Meetings by year" class="year-nav">
+  <ul class="inline-list">
+    {% for y in years %}<li><a href="{{ y.href }}">{{ y.year }}</a></li>{% endfor %}
+  </ul>
+</nav>
+{% for y in years %}
+<section aria-labelledby="y{{ y.year }}-h">
+  <h2 id="y{{ y.year }}-h"><a href="{{ y.href }}">{{ y.year }}</a> <span class="muted">({{ y.meetings | length }} {{ "meeting" if y.meetings | length == 1 else "meetings" }})</span></h2>
+  {% for m in y.meetings %}
+  <div class="item" id="{{ m.id }}">
+    <p class="item-num"><span class="nowrap">{{ m.date }}</span></p>
+    <h3 class="item-h"><a href="{{ root }}{{ m.href }}">{{ m.kind_label }}</a>{% if m.cancelled %} <span class="chip chip-status">Cancelled</span>{% endif %}</h3>
+    <p class="muted">Listed as: {{ m.printed }}.{% if m.cases %} {{ m.cases | length }} {{ "case" if m.cases | length == 1 else "cases" }} on the agenda.{% endif %}</p>
+    {{ rpc_docs(m) }}
+  </div>
+  {% endfor %}
+</section>
+{% endfor %}
+{% endblock %}

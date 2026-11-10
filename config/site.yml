@@ -66,6 +66,9 @@ purpose: Votes and records of the Montgomery County Commission, linked to the co
 city_coming: City of Clarksville records are coming.   # shown only when no council is listed below
 # Councils with their own pages beside the county (M4): each is config/localities/<locality>/council.yml.
 councils: [clarksville-tn]
+# The Regional Planning Commission's pages (milestone RPC-1): config/localities/<locality>/rpc.yml names its facts file
+# and its page folder (sitegen/rpc.py). Leave it out to build no RPC pages.
+rpc: cmc-rpc
 
 # County commission seats drawn on the map and given a page each (districts/<nn>.html).
 district_count: 21

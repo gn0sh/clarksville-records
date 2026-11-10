@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 import jinja2
 from jsonschema import Draft202012Validator, FormatChecker
 
+from . import rpc as rpc_mod
 from . import budget_views, config, council as council_mod, feeds as feeds_mod, fin_views, georef as georef_mod, \
     transcripts as transcripts_mod, \
     seats as seats_mod, views
@@ -318,7 +319,8 @@ REPORT_TEMPLATES = frozenset({
     "meeting.html.j2", "items_year.html.j2", "votes_year.html.j2", "official.html.j2", "official_year.html.j2",
     "official_roster.html.j2", "district.html.j2", "council_home.html.j2", "council_meetings_year.html.j2",
     "council_items_year.html.j2", "fin_index.html.j2", "fin_fund.html.j2", "fin_capital.html.j2",
-    "fin_contracts_index.html.j2", "fin_solicitation.html.j2", "transcript.html.j2"})
+    "fin_contracts_index.html.j2", "fin_solicitation.html.j2", "transcript.html.j2", "rpc_home.html.j2",
+    "rpc_meetings_year.html.j2"})
 
 
 def corrections_problems(cfg: dict) -> list[str]:
@@ -339,7 +341,8 @@ def corrections_problems(cfg: dict) -> list[str]:
 
 def build(facts_path, out_dir, internal: bool = False, changes_path=None, report_path=None,
           seats_path=DEFAULT, districts_path=DEFAULT, geocoder: bool = True, finance_path=DEFAULT,
-          capital_fund=DEFAULT, councils=DEFAULT, target: str | None = None, transcripts: bool = True) -> dict:
+          capital_fund=DEFAULT, councils=DEFAULT, target: str | None = None, transcripts: bool = True,
+          rpc=DEFAULT) -> dict:
     """`geocoder=False` (`--no-geocoder`) draws no landing address box and allows no geocoder in the CSP: the build
     for the claude.ai preview, where the box could not reach the geocoder. The plain lookup line shows instead.
     `seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
@@ -356,7 +359,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     `target`: "preview" (the claude.ai artifact, config.MAX_FILES_BY_TARGET caps it at 500 files) or "pages" (GitHub
     Pages). When the preview build with its export would pass its cap, it is built again without the transcript
     pages (`transcripts=False`): each meeting with a transcript then says so, and the member pages keep their
-    call-ons with the video links (sitegen/transcripts.py). Year and meeting pages are never split to make room."""
+    call-ons with the video links (sitegen/transcripts.py). Year and meeting pages are never split to make room.
+    `rpc`: the Regional Planning Commission's rpc.yml as rpc.load_config returns it, or None for no RPC pages; left
+    out, config/site.yml `rpc:` for a real build and none for a fixture build (sitegen/rpc.py)."""
     target = target or config.DEFAULT_TARGET
     if target not in config.MAX_FILES_BY_TARGET:
         raise BuildError(f"unknown target {target!r}; one of {', '.join(sorted(config.MAX_FILES_BY_TARGET))}")
@@ -393,6 +398,12 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
             c.tx = transcripts_mod.Transcripts(c, transcripts_mod.load(c.cfg["facts_path"], c.facts), pages=transcripts)
         except transcripts_mod.TranscriptLoadError as exc:
             raise BuildError(str(exc)) from exc
+    try:
+        if rpc is DEFAULT:   # a fixture build reads no real RPC facts
+            rpc = None if fixture else rpc_mod.load_config(config.SITE.get("rpc"))
+        rpx = rpc_mod.load(rpc, fixture)
+    except (rpc_mod.RpcError, OSError, ValueError) as exc:
+        raise BuildError(str(exc)) from exc
     fx = fin_views.Finance(fin_data, facts["officials"]) if fin_data is not None else None
     if capital_fund is DEFAULT:
         capital_fund = config.FIXTURE_CAPITAL_FUND if fixture else config.CAPITAL_FUND
@@ -413,12 +424,14 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     if report_path is None:
         report_path = out.parent / "report.json"
 
-    _clean(out, [c.slug for c in cixs])
-    site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs)
+    _clean(out, [c.slug for c in cixs] + ([rpx.slug] if rpx else []))
+    site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs, rpc=rpx)
     site["internal"] = internal
     site["councils"] = [council_mod.landing_entry(c) for c in cixs]
     site["transcripts_omitted"] = not transcripts
     site["ward_map"] = ward_map
+    if rpx is not None:
+        site["rpc_record"] = {"url": rpx.cfg["record_url"], "label": rpx.cfg["record_label"]}
     written: list[str] = []
 
     def html_of(template: str, rel: str, page_name: str, site_ctx=None, **ctx) -> str:
@@ -526,7 +539,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         render("district.html.j2", f"districts/{n:02d}.html", ctx["title"], **ctx)
     for year in site["vote_years_desc"]:
         render("votes_year.html.j2", f"votes/{year}.html", f"Votes {year}", **views.votes_year(year, ix))
-    render("search.html.j2", "search.html", "Search", **views.search_page(ix, fx, cixs))
+    render("search.html.j2", "search.html", "Search", **views.search_page(ix, fx, cixs, rpx))
     for c in config.SITE["coming"]:
         if c["slug"] in {coming_slugs[p] for p in budget_pages}:
             continue
@@ -615,6 +628,11 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                 run = [g for g in ctx["row_groups"] if g["year"] in {x["year"] for x in run}]
                 rel, (name, s), kw = year_page(run, ctx)
                 render("official_year.html.j2", rel, name, s, **kw)
+    if rpx is not None:   # Regional Planning Commission (sitegen/rpc.py): home and one page per year of meetings
+        render("rpc_home.html.j2", rpx.home_href(), rpx.page_name(), **rpx.home())
+        for y in rpx.years():
+            render("rpc_meetings_year.html.j2", rpx.year_href(y), rpx.page_name(f"Meetings {y}"),
+                   rpc_href=rpx.home_href(), rpc_label=rpx.nav_label, **rpx.meetings_year(y))
     render("about.html.j2", "about.html", "About", **views.about(ix), glance=views.record_glance(ix))
     trust = views.trust_pages(ix)
     render("who.html.j2", "who-runs-this.html", "Who runs this", **trust)
@@ -634,7 +652,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
 
     shutil.copytree(config.STATIC_DIR, out / "static")
     # A script, not a JSON file, so search also works when the site is opened from files or a zip (no fetch).
-    index_js = "window.SEARCH_INDEX = " + json.dumps(views.search_index(ix, fx, cixs), separators=(",", ":"),
+    index_js = "window.SEARCH_INDEX = " + json.dumps(views.search_index(ix, fx, cixs, rpx), separators=(",", ":"),
                                                      ensure_ascii=True) + ";\n"
     (out / "static" / "search-index.js").write_text(index_js, encoding="utf-8")
     # The built page paths, for static/report.js: a page path in a report link is shown as a page of this site only
@@ -650,7 +668,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         print(f"sitegen: {expected} files with the export is over the {target} cap of {cap}; building again without "
               f"the {tx_pages} transcript pages", file=sys.stderr)
         return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
-                     finance_path, capital_fund, councils, target, transcripts=False)
+                     finance_path, capital_fund, councils, target, transcripts=False, rpc=rpc)
     manifest = write_publish_manifest(out, target)
     return {"pages": written, "files": len(manifest) + 1, "target": target, "transcripts": transcripts,
             "transcript_pages": tx_pages}
