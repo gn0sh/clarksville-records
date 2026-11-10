@@ -33,6 +33,9 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               alternate link) with unique tag: ids, newest first, at most alerts.max_entries; each alternate link
               resolves to a built page and its #anchor, each related link is a fetched source document; alerts.html
               links every feed and no other (Alerts v1, sitegen/feeds.py)
+  dates/no-raw-utc-day  every fetch day a page, the search index or a feed entry shows is the site_timezone day of
+              its source's manifest instant (config/site.yml fetch_manifests), or is labelled "(UTC day)" when the
+              source has none (docs/architecture/local-dates.md)
   rpc-cases   (a build with the Regional Planning Commission) every "CASE NUMBER:" and numbered case line an agenda prints was read as a case
               (the completeness check of collector/rpc_agenda.py: a missed case is never silent)
   rpc-motions (a build with the Regional Planning Commission) docs/architecture/rpc-motion-invariant.md, from rpc.json
@@ -1515,6 +1518,119 @@ RFC3339 = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{
 CONTRACTS_FEED = "feeds/topic-contracts.xml"   # sitegen/feeds.py: the one feed whose entries link finance.json documents
 
 
+# dates/no-raw-utc-day (docs/architecture/local-dates.md), restated here on purpose (no call into sitegen): every fetch
+# day a reader sees is the site_timezone day of the manifest instant (first_fetched_at), never the stored UTC day.
+FETCH_DAY = re.compile(
+    r'href="(?P<href>https?://[^"]+)"'
+    r"|(?P<kind>[Ff]etched between|[Ff]etched on|latest fetched|Data as of|[Ff]etched|at fetch \()\s"
+    r"(?P<day>\d{4}-\d{2}-\d{2})(?P<utc> \(UTC day\))?(?: and (?P<day2>\d{4}-\d{2}-\d{2})(?P<utc2> \(UTC day\))?)?")
+FETCH_AGGREGATE = ("fetched between", "fetched on", "latest fetched", "data as of")
+UTC_DAY_LABEL = " (UTC day)"
+
+
+def fetch_instants(cfg: dict, fixture: bool) -> dict[str, set[tuple[str, str]]]:
+    """{url: {(UTC day, site_timezone day)}} of every row of config/site.yml `fetch_manifests` (none for a fixture
+    build: its made-up sources have no rows)."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    out: dict[str, set[tuple[str, str]]] = defaultdict(set)
+    if fixture:
+        return out
+    zone = ZoneInfo(cfg["site_timezone"])
+    for rel in cfg.get("fetch_manifests") or []:
+        for row in json.loads((ROOT / rel).read_text(encoding="utf-8")):
+            when = datetime.fromisoformat(row["first_fetched_at"])
+            if when.tzinfo is None:
+                raise ValueError(f"{rel}: {row['url']} first_fetched_at has no time zone")
+            out[row["url"]].add((when.astimezone(ZoneInfo("UTC")).date().isoformat(),
+                                 when.astimezone(zone).date().isoformat()))
+    return out
+
+
+def _fetch_day_ok(day: str, labelled: bool, urls, instants) -> str | None:
+    """Why a fetch day shown next to the source links `urls` breaks the rule, or None."""
+    if labelled:
+        return None   # an honest UTC day: the source has no recorded instant
+    rows = {r for u in urls for r in instants.get(u, ())}
+    if not rows:
+        return f"fetched {day} next to {sorted(urls) or 'no source link'}, which has no recorded instant: label it (UTC day)"
+    if day not in {local for _, local in rows}:
+        utc = " (the stored UTC day)" if day in {u for u, _ in rows} else ""
+        return f"fetched {day}{utc}, but the site_timezone day of {sorted(urls)} is {sorted({lo for _, lo in rows})}"
+    return None
+
+
+def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bool) -> tuple[list[str], str]:
+    """dates/no-raw-utc-day: (1) each per-document fetch day on a page ("fetched D", "Fetched D.", "at fetch (D)")
+    is the site_timezone day of a manifest instant of a source linked just before it (the links since the previous
+    fetch day, else the previous fetch day's links: a Details list after its links), or is labelled "(UTC day)"
+    when no linked source has an instant; (2) an aggregate ("fetched between A and B", "fetched on", "latest
+    fetched", "Data as of") is labelled or the site_timezone day of some instant; (3) the same for the search
+    index's s.f beside s.u and (4) each feed entry's summary "fetched D" beside its related link."""
+    import xml.etree.ElementTree as ET
+    instants = fetch_instants(cfg, fixture)
+    local_days = {lo for rows in instants.values() for _, lo in rows}
+    problems: list[str] = []
+    n = labelled_n = 0
+    for rel in sorted(pages):
+        text = (site / rel).read_text(encoding="utf-8")
+        cands: list[str] = []
+        prev: list[str] = []
+        for m in FETCH_DAY.finditer(text):
+            if m["href"]:
+                cands.append(html.unescape(m["href"]).split("#", 1)[0])
+                continue
+            n += 1
+            labelled_n += bool(m["utc"])
+            if m["kind"].lower() in FETCH_AGGREGATE:
+                for day, utc in ((m["day"], m["utc"]), (m["day2"], m["utc2"])):
+                    if day and not utc and day not in local_days:
+                        problems.append(f"{rel}: '{m['kind']} {day}' is no recorded instant's site_timezone day: "
+                                        f"label it (UTC day)")
+                continue
+            urls = cands or prev
+            why = _fetch_day_ok(m["day"], bool(m["utc"]), set(urls), instants)
+            if why:
+                problems.append(f"{rel}: {why}")
+            prev, cands = urls, []
+    idx = site / "static" / "search-index.js"
+    n_search = 0
+    if idx.is_file():
+        body = idx.read_text(encoding="utf-8")
+        data = json.loads(body[body.index("=") + 1:].strip().rstrip(";"))
+
+        def walk(v):
+            if isinstance(v, dict):
+                if isinstance(v.get("u"), str) and isinstance(v.get("f"), str):
+                    yield v
+                for x in v.values():
+                    yield from walk(x)
+            elif isinstance(v, list):
+                for x in v:
+                    yield from walk(x)
+        for s in walk(data):
+            n_search += 1
+            day, lab = (s["f"][:-len(UTC_DAY_LABEL)], True) if s["f"].endswith(UTC_DAY_LABEL) else (s["f"], False)
+            why = _fetch_day_ok(day, lab, {s["u"].split("#", 1)[0]}, instants)
+            if why:
+                problems.append(f"static/search-index.js: {why}")
+    A = "{http://www.w3.org/2005/Atom}"
+    n_feed = 0
+    for f in sorted((site / "feeds").glob("*.xml")) if (site / "feeds").is_dir() else []:
+        for e in ET.parse(f).getroot().iter(A + "entry"):
+            m = re.search(r"fetched (\d{4}-\d{2}-\d{2})( \(UTC day\))?", e.findtext(A + "summary") or "")
+            rel_links = [x.get("href") for x in e.findall(A + "link") if x.get("rel") == "related"]
+            if not m or not rel_links:
+                continue
+            n_feed += 1
+            why = _fetch_day_ok(m[1], bool(m[2]), {u.split("#", 1)[0] for u in rel_links}, instants)
+            if why:
+                problems.append(f"feeds/{f.name} {e.findtext(A + 'id')}: {why}")
+    return problems, (f"{n} fetch days on {len(pages)} pages ({labelled_n} labelled UTC day), {n_search} search "
+                      f"records, {n_feed} feed entries against {sum(len(v) for v in instants.values())} manifest "
+                      f"instants in {cfg['site_timezone']}")
+
+
 def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: dict,
                 finance_sources: list[dict] | tuple = ()) -> tuple[list[str], str]:
     """Alerts v1 (sitegen/feeds.py): each feeds/*.xml is valid Atom (RFC 4287 required elements), its entry ids are
@@ -2124,6 +2240,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     problems, note = check_feeds(site, pages, all_sources["sources"], cfg,
                                  finance_sources=list((finance or {}).get("sources") or []))
     rep.add("feeds", problems, note)
+    problems, note = check_local_dates(site, pages, cfg, bool(facts.get("fixture")))
+    rep.add("dates/no-raw-utc-day", problems, note)
     problems, note = check_transcripts(site, cs)
     rep.add("transcripts", problems, note)
     problems, note = check_unofficial(site, pages, cfg)
