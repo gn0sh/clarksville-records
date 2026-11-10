@@ -1202,7 +1202,8 @@ def address_context(districts: dict | None, georef: dict | None, geocoder: bool 
     if wards is not None:
         # the ward shapes sit in the same page space (same georef); only their margin is their own
         out.update({"ward_margin_m": wards["boundary_margin_m"], "ward_label": cfg["ward_label"],
-                    "city": cfg["city_name"]})
+                    "city": cfg["city_name"], "ward_map_owner": cfg["ward_map_owner"],
+                    "ward_map_date": wards["source_updated"]})
     return out
 
 
