@@ -237,8 +237,10 @@ unofficial:
   differ: If this site and the official document differ, the official document is right.
   not_advice: Nothing on this site is legal advice.
   email_line: "Independent, unofficial: not from or endorsed by any government body."   # short form for a mail footer
-  bodies:     # names as the notice prints them; url is each body's own official site (About links each one)
-    - {name: the City of Clarksville, label: City of Clarksville, url: "https://www.cityofclarksville.com/"}
-    - {name: Montgomery County, label: Montgomery County government, url: "https://www.montgomerytn.gov/"}
-    - {name: the Clarksville-Montgomery County School System (CMCSS), label: Clarksville-Montgomery County School System (CMCSS), url: "https://www.cmcss.net/"}
-    - {name: the Clarksville-Montgomery County Regional Planning Commission, label: Clarksville-Montgomery County Regional Planning Commission, url: "https://www.cmcrpc.com/"}
+  # the home page's first-screen line (the full notice is in its footer, as on every page); {bodies} joins `short`
+  short: "Not affiliated with or endorsed by {bodies}."
+  bodies:     # name: as the notice prints it; short: in `short`; url: the body's own official site (About links each)
+    - {name: the City of Clarksville, short: the City of Clarksville, label: City of Clarksville, url: "https://www.cityofclarksville.com/"}
+    - {name: Montgomery County, short: Montgomery County, label: Montgomery County government, url: "https://www.montgomerytn.gov/"}
+    - {name: the Clarksville-Montgomery County School System (CMCSS), short: CMCSS, label: Clarksville-Montgomery County School System (CMCSS), url: "https://www.cmcss.net/"}
+    - {name: the Clarksville-Montgomery County Regional Planning Commission, short: the Regional Planning Commission, label: Clarksville-Montgomery County Regional Planning Commission, url: "https://www.cmcrpc.com/"}

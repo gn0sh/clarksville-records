@@ -46,6 +46,8 @@ def test_every_built_page_carries_the_notice_tag_meta_and_title(built, pages):
 
 def test_home_and_about_carry_the_fuller_text(pages):
     assert 'class="unofficial-intro"' in pages["index.html"]
+    assert ("Not affiliated with or endorsed by the City of Clarksville, Montgomery County, CMCSS, or the Regional "
+            "Planning Commission.") == unofficial.load()["short"] and unofficial.load()["short"] in pages["index.html"]
     about = pages["about.html"]
     for want in ("Who runs it.", "Where the records come from.", "If this site and the official document differ, "
                  "the official document is right.", "Nothing on this site is legal advice.", 'id="unofficial"'):

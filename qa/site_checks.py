@@ -514,6 +514,12 @@ def bad_scheme(href: str) -> bool:
     cleaned = re.sub(r"[\t\n\r]", "", href).lstrip("".join(map(chr, range(0x21))))
     return bool(re.match(r"[A-Za-z][A-Za-z0-9+.-]*:", cleaned)) and urlsplit(cleaned).scheme not in LINK_SCHEMES
 
+def _has_export(site: Path) -> bool:
+    """data/ holds the collector's export, not only the README.txt sitegen writes beside it (sitegen/unofficial.py)."""
+    d = site / "data"
+    return d.is_dir() and any(p.name != "README.txt" for p in d.iterdir())
+
+
 def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str]:
     problems = []
     mailto = corrections_links(_site_cfg())[1]   # the one mailto allowed: report.html's, from config `corrections:`
@@ -531,7 +537,7 @@ def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str
             if target is None:
                 problems.append(f"{rel}: href {href!r} leaves the site")
                 continue
-            if no_export and target.startswith("data/") and not (site / "data").exists():
+            if no_export and target.startswith("data/") and target != "data/README.txt" and not _has_export(site):
                 continue
             f = site / target
             if not f.is_file():
@@ -1605,7 +1611,7 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     # one rule everywhere (sitegen/config.py max_files): a build is within its cap at most at the cap (<= cap)
     rep.add("files", [f"{len(files)} files, over the limit of {cap} for the {target} target"] if len(files) > cap else [],
             f"{len(files)} files, {len(pages)} pages, {target} target (cap {cap})")
-    rep.add("links", check_links(site, pages, no_export), "internal links, #anchors and assets" + ("; data/ skipped" if no_export and not (site / "data").exists() else ""))
+    rep.add("links", check_links(site, pages, no_export), "internal links, #anchors and assets" + ("; data/ skipped" if no_export and not _has_export(site) else ""))
     cs = [c for c in councils(facts) if any(rel.startswith(c["prefix"]) for rel in pages)]
     missing = [c["slug"] for c in councils(facts) if c not in cs]
     rpc = rpc_facts(facts)

@@ -459,7 +459,6 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     site["transcripts_omitted"] = not transcripts
     site["ward_map"] = ward_map
     site["export_omitted"] = not export
-    site["unofficial"] = unofficial_mod.load()   # the one notice text (config/site.yml `unofficial:`)
     # None unless the morning note's sign-up form is enabled: then the landing and Method pages drop "never sent"
     site["morning_note"] = morning_page.privacy()
     if rpx is not None:

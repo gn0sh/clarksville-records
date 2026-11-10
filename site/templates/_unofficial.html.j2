@@ -3,13 +3,16 @@
    is the fuller section on About. All words come from site.unofficial, never from here. #}
 {% macro footer_notice(site, root) %}
 <section class="unofficial-notice" aria-labelledby="unofficial-h">
-  <h2 id="unofficial-h" class="unofficial-h">{{ site.unofficial.tag }}</h2>
+  {# a <p>, not a heading: every page of a kind keeps the same heading outline (neutrality N1 skeleton tests) #}
+  <p id="unofficial-h" class="unofficial-h"><strong>{{ site.unofficial.tag }}</strong></p>
   <p>{{ site.unofficial.notice }} <a href="{{ root }}report.html">{{ site.unofficial.correction_label }}</a>.</p>
 </section>
 {% endmacro %}
 
 {% macro home_line(site, root) %}
-<p class="unofficial-intro"><strong>{{ site.unofficial.tag }}.</strong> {{ site.unofficial.notice }} <a href="{{ root }}about.html#unofficial">More on About</a>.</p>
+{# The short form, so the landing's first screen still fits a phone (tests/test_address_box.py); the full notice is in
+   this page's footer, as on every page, and on About. #}
+<p class="unofficial-intro"><strong>{{ site.unofficial.tag }}.</strong> {{ site.unofficial.short }} <a href="{{ root }}about.html#unofficial">More on About</a></p>
 {% endmacro %}
 
 {% macro about_section(site, root) %}

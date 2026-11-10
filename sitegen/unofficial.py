@@ -9,13 +9,14 @@ def _join(names: list[str]) -> str:
 
 
 def load(cfg: dict | None = None) -> dict:
-    """{tag, notice, correction_label, differ, not_advice, email_line, bodies}."""
+    """{tag, notice, short, correction_label, differ, not_advice, email_line, bodies}."""
     cfg = config.SITE if cfg is None else cfg
     u = cfg["unofficial"]
     notice = u["notice"].format(site_name=cfg["site_name"], operator=cfg["operator"],
                                 bodies=_join([b["name"] for b in u["bodies"]]))
-    return {"tag": u["tag"], "notice": notice, "correction_label": u["correction_label"], "differ": u["differ"],
-            "not_advice": u["not_advice"], "email_line": u["email_line"], "bodies": u["bodies"]}
+    short = u["short"].format(bodies=_join([b["short"] for b in u["bodies"]]))
+    return {"tag": u["tag"], "notice": notice, "short": short, "correction_label": u["correction_label"],
+            "differ": u["differ"], "not_advice": u["not_advice"], "email_line": u["email_line"], "bodies": u["bodies"]}
 
 
 def problems(cfg: dict | None = None) -> list[str]:
@@ -25,10 +26,10 @@ def problems(cfg: dict | None = None) -> list[str]:
     if not isinstance(u, dict):
         return ["unofficial: block is missing"]
     bad = [f"unofficial.{k} is missing" for k in ("tag", "notice", "correction_label", "differ", "not_advice",
-                                                  "email_line", "bodies") if not u.get(k)]
+                                                  "email_line", "short", "bodies") if not u.get(k)]
     for b in u.get("bodies") or []:
-        if not (b.get("name") and b.get("label") and str(b.get("url", "")).startswith("https://")):
-            bad.append(f"unofficial.bodies entry {b!r} needs name, label and an https url")
+        if not (b.get("name") and b.get("short") and b.get("label") and str(b.get("url", "")).startswith("https://")):
+            bad.append(f"unofficial.bodies entry {b!r} needs name, short, label and an https url")
     if len(u.get("bodies") or []) < 4:
         bad.append("unofficial.bodies must name the City, the County, CMCSS and the Regional Planning Commission")
     return bad

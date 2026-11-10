@@ -56,6 +56,7 @@ function consoleCsp(page) {
       return { scrollHeight: document.documentElement.scrollHeight, innerHeight: window.innerHeight,
                scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth,
                formShown: !!f && !f.hidden, formBottom: r && Math.round(r.bottom),
+               mainBottom: Math.round(document.querySelector('main').getBoundingClientRect().bottom),
                resultBottom: Math.round(document.getElementById('addr-result').getBoundingClientRect().bottom),
                pin: (() => { const p = document.querySelector('.addr-pin'); if (!p) return null;
                              const b = p.getBoundingClientRect(); return [Math.round(b.top), Math.round(b.bottom)]; })() };

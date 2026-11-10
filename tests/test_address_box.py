@@ -317,8 +317,9 @@ def test_address_box_in_a_browser(real_site, tmp_path):
         if vp.endswith("answered"):     # privacy line + answer shown: the answer and the pin are on the first screen
             assert m["resultBottom"] <= m["innerHeight"], (vp, m)
             assert m["pin"] and 0 <= m["pin"][0] and m["pin"][1] <= m["innerHeight"], (vp, m)
-        else:                           # before any lookup the whole landing fits one screen
-            assert m["scrollHeight"] <= m["innerHeight"], (vp, m)
+        else:   # before any lookup the landing's content fits one screen; the footer, with the full independent and
+            #     unofficial notice every page carries (config/site.yml `unofficial:`, 2026-11-10), may sit below it
+            assert m["mainBottom"] <= m["innerHeight"], (vp, m)
     assert set(out["fit"]) == {"375x667", "1280x800", "375x667 answered", "1280x800 answered"}
     c = out["cases"]
     census = "The Census places this address in "

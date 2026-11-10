@@ -16,6 +16,7 @@ from urllib.parse import urlsplit
 from collector.fetch import USER_AGENT   # the Method page quotes the collector's own User-Agent, never a copy
 
 from . import config, fin_views, georef as georef_mod
+from . import unofficial
 import datetime as dt
 
 from .seats import Seats, basis_text, seat_order, source_label
@@ -362,6 +363,7 @@ def site_context(facts, contracts: bool = False, budget: tuple = (), councils=()
         "coverage": ix.coverage,
         "show_unconfirmed_values": config.SHOW_UNCONFIRMED_VALUES,
         "internal": False,
+        "unofficial": unofficial.load(),   # the one notice text (config/site.yml `unofficial:`), on every page
     }
 
 
