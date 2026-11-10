@@ -102,7 +102,8 @@ def test_check_fails_when_a_page_feed_or_note_lacks_the_notice(built, tmp_path, 
 NOTICE_SECTION = re.compile(r'<section class="unofficial-notice".*?</section>', re.S)
 
 
-@pytest.mark.parametrize("how", ["comment", "hidden", "aria-hidden", "inline-style", "template", "out-of-footer"])
+@pytest.mark.parametrize("how", ["comment", "hidden", "aria-hidden", "inline-style", "template", "out-of-footer",
+                                 "sr-only", "opacity", "font-size"])
 def test_check_fails_for_a_notice_nobody_can_see(built, tmp_path, pages, how):
     site = tmp_path / "site"
     shutil.copytree(built, site)
@@ -113,7 +114,10 @@ def test_check_fails_for_a_notice_nobody_can_see(built, tmp_path, pages, how):
               "hidden": sec.replace("<section ", "<section hidden ", 1),
               "aria-hidden": sec.replace("<section ", '<section aria-hidden="true" ', 1),
               "inline-style": sec.replace("<section ", '<section style="display: none" ', 1),
-              "template": f"<template>{sec}</template>"}.get(how)
+              "template": f"<template>{sec}</template>",
+              "sr-only": f'<div class="sr-only">{sec}</div>',
+              "opacity": sec.replace("<section ", '<section style="opacity: 0" ', 1),
+              "font-size": sec.replace("<p>", '<p style="font-size:0px">', 1)}.get(how)
     if how == "out-of-footer":   # in the page, but not in the footer of every page
         raw = raw.replace(sec, "").replace("</main>", sec + "</main>", 1)
     else:
@@ -144,6 +148,31 @@ def test_check_fails_when_css_hides_the_notice(built, tmp_path):
     css.write_text(css.read_text(encoding="utf-8") + rule, encoding="utf-8")
     assert site_checks.check_unofficial(site, {})[0] == [
         "static/style.css: '.unofficial-intro-full' hides the unofficial notice"]
+
+
+@pytest.mark.parametrize("rule, flagged", [
+    ("footer { display: none }", "footer"),
+    (".page-landing .site-footer { visibility: hidden; }", ".page-landing .site-footer"),
+    ("footer section { opacity: 0 }", "footer section"),
+    (".site-footer > section { font-size: 0 }", ".site-footer > section"),
+    ("main p, .unofficial-notice p { font-size: 0px !important }", ".unofficial-notice p"),
+])
+def test_check_fails_when_css_hides_the_footer(built, tmp_path, rule, flagged):
+    site = tmp_path / "site"
+    shutil.copytree(built, site)
+    css = site / "static" / "style.css"
+    css.write_text(css.read_text(encoding="utf-8") + "\n" + rule + "\n", encoding="utf-8")
+    assert site_checks.check_unofficial(site, {})[0] == [f"static/style.css: {flagged!r} hides the unofficial notice"]
+
+
+@pytest.mark.parametrize("rule", [".site-footer .nav-list { display: none }", ".site-footer { opacity: 0.9 }",
+                                  "main section { display: none }", ".site-footer p { font-size: 0.9rem }"])
+def test_css_that_leaves_the_notice_alone_passes(built, tmp_path, rule):
+    site = tmp_path / "site"
+    shutil.copytree(built, site)
+    css = site / "static" / "style.css"
+    css.write_text(css.read_text(encoding="utf-8") + "\n" + rule + "\n", encoding="utf-8")
+    assert site_checks.check_unofficial(site, {})[0] == []
 
 
 def test_only_real_feeds_are_checked_as_feeds(built, tmp_path):
