@@ -352,6 +352,24 @@ def test_enabled_without_privacy_or_action_renders_the_off_state(tmp_path, monke
     assert not morning_page.enabled(cfg) and morning_page.form_origin(cfg) is None
 
 
+@pytest.mark.parametrize("action", [
+    "https://evil.example;script-src *", "https://evil.example; script-src *", "https://user@evil.example/x",
+    "https://evil.example *", "http://forms.example.net/x", "https://evil.example\nscript-src *",
+    "https://evil.example\u2028x", "//forms.example.net/x", "javascript:alert(1)", ["https://forms.example.net/x"]])
+def test_form_origin_checks_the_action_itself(action):
+    # morning-security/csp-origin-self-validating: called without morning.problems(), a bad action adds no CSP origin
+    cfg = copy.deepcopy(config.SITE)
+    cfg["morning_note"].update({**ENABLED, "form_action": action})
+    assert morning_page.form_origin(cfg) is None
+    assert "csp" not in morning_page.alerts_context([], cfg)
+
+
+def test_form_origin_of_a_good_action():
+    cfg = copy.deepcopy(config.SITE)
+    cfg["morning_note"].update({**ENABLED, "form_action": "https://forms.example.net:8443/subscribe/x?a=1"})
+    assert morning_page.form_origin(cfg) == "https://forms.example.net:8443"
+
+
 # -- in a browser
 
 def _browser_ok():

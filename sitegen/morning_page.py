@@ -13,7 +13,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from urllib.parse import urlsplit
 
-from . import config
+from . import config, morning
 
 PAGE = "morning/index.html"
 DEFAULT_PICKS = ("zoning", "seats")   # the mock's two checked lists
@@ -42,10 +42,16 @@ def enabled(cfg: dict | None = None) -> bool:
 
 
 def form_origin(cfg: dict | None = None) -> str | None:
-    """The one origin the Alerts page's CSP form-action gains when the note is enabled, else None."""
+    """The one origin the Alerts page's CSP form-action gains when the note is enabled, else None. It checks the
+    value itself (morning-security/csp-origin-self-validating): the origin goes into a CSP, so anything but the
+    https URL shape morning.problems() accepts (no space, `;`, `*` or userinfo in the host) gives None, whether or
+    not the caller ran problems() first."""
     if not enabled(cfg):
         return None
-    u = urlsplit(settings(cfg)["form_action"])
+    action = settings(cfg)["form_action"]
+    if not (isinstance(action, str) and morning._HTTPS.fullmatch(action)):
+        return None
+    u = urlsplit(action)
     return f"{u.scheme}://{u.netloc}" if u.scheme == "https" and u.netloc else None
 
 
