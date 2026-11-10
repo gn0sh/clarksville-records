@@ -124,6 +124,7 @@ def test_who_runs_this_data_and_morning_preview_name_it(pages):
     assert "No government body or office runs, pays for, reviews or approves this site." in pages["about.html"]
     assert 'href="about.html#unofficial"' in pages["who-runs-this.html"]
     assert NOTICE in pages["data.html"] and 'href="data/README.txt"' in pages["data.html"]
+    assert "beside these files" in pages["data.html"] and "Every download carries" not in pages["data.html"]
 
 
 def test_morning_preview_and_sign_up_carry_the_email_line(tmp_path, monkeypatch):
