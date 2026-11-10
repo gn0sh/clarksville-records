@@ -44,7 +44,7 @@ def test_your_seats_box_has_a_forget_button_and_the_storage_line(addr_site):
     assert btn.attrs["aria-label"] == "Forget my saved seats"
     status = next(n for n in parse(html).walk() if n.attrs.get("id") == "seats-status")
     assert status.attrs["aria-live"] == "polite"
-    assert "or a click on the map, only the district number is kept" in html  # the note covers map clicks too
+    assert "or a click on the map, only the district and ward numbers are kept" in html   # map clicks too
     assert "Saved only in this browser, on this device." in " ".join(box.all_text().split())
     assert "no cookies" in box.all_text()
     assert "No cookies." in html                                              # the address box's own one-line notice
@@ -121,6 +121,13 @@ assert.strictEqual(api.save({{ ward: 3 }}), true);
 eq(api.read(), {{ district: 5, ward: 3 }});
 eq(Object.keys(f.data), ['cr-your-seats']);
 eq(JSON.parse(f.data['cr-your-seats']), {{ district: 5, ward: 3 }});
+// an address lookup replaces both seats: a seat it could not place is cleared, not kept from an earlier address
+assert.strictEqual(api.save({{ district: 7, ward: null }}, true), true);
+eq(api.read(), {{ district: 7, ward: null }});
+assert.strictEqual(api.save({{ district: null, ward: null }}, true), false);
+eq(api.read(), {{ district: 7, ward: null }});
+assert.strictEqual(api.save({{ district: 5, ward: 3 }}, true), true);
+eq(api.read(), {{ district: 5, ward: 3 }});
 assert.ok(f.calls.every((c) => c[1] === 'cr-your-seats'));
 assert.strictEqual(api.forget(), true); eq(f.data, {{}});
 // 2. junk in, nothing out; junk never written

@@ -123,6 +123,15 @@ def load_districts(path: Path | None) -> dict | None:
     for x in d["districts"]:
         if not re.fullmatch(r"[MmLlHhVvCcSsQqTtAaZz0-9eE.,\s+-]+", x["path"]):
             raise SeatsError(f"{path}: district {x.get('number')} path has characters outside SVG path data")
+    wards = d.get("wards") or {}
+    if wards.get("status") == "available":
+        if not str(wards.get("source_url", "")).startswith("https://") or not wards.get("fetched"):
+            raise SeatsError(f"{path}: wards need an https source_url and a fetch date (N4)")
+        if sorted(w["number"] for w in wards.get("wards") or []) != list(range(1, config.SITE["ward_count"] + 1)):
+            raise SeatsError(f"{path}: wards must be numbered 1 to {config.SITE['ward_count']}, once each")
+        for x in wards["wards"]:
+            if not re.fullmatch(r"[MLZ0-9. -]+", x["path"]):
+                raise SeatsError(f"{path}: ward {x.get('number')} path has characters outside M/L/Z path data")
     return d
 
 

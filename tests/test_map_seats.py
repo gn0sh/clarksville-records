@@ -90,13 +90,23 @@ def test_19_and_20_carry_the_adopted_numbers(districts):
     assert area(by[19]["path"]) > 10 * area(by[20]["path"])
 
 
-def test_map_is_small_enough_to_inline():
-    assert DISTRICTS.stat().st_size < 60_000
+def test_map_is_small_enough_to_inline(districts):
+    """The landing inlines both layers: the district drawing as before, and the ward paths (tests/test_ward_map.py
+    checks their accuracy; 0.12 pt simplification keeps them within 5 m of the trace)."""
+    county = {k: v for k, v in districts.items() if k != "wards"}
+    assert len(json.dumps(county, indent=1)) < 60_000
+    assert sum(len(w["path"]) for w in districts["wards"].get("wards") or []) < 35_000
 
 
-def test_wards_state_why_they_are_missing(districts):
-    assert districts["wards"]["status"] in ("unavailable", "coming")
-    assert districts["wards"]["note"]
+def test_wards_are_drawn_or_say_why_not(districts):
+    w = districts["wards"]
+    assert w["status"] in ("unavailable", "coming", "available")
+    assert w["note"]
+    if w["status"] == "available":
+        assert [x["number"] for x in w["wards"]] == list(range(1, 13))
+        for x in w["wards"]:
+            assert SVG_PATH.match(x["path"]), x["number"]
+            assert inside(x["path"], *x["label_xy"]) and inside(x["path"], *x["printed_label_xy"]), x["number"]
 
 
 # --- seats.yml --------------------------------------------------------------------------------------------------

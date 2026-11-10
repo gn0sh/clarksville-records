@@ -378,6 +378,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         seat_rows = seats_mod.load_rows(seats_path)
         districts = seats_mod.load_districts(districts_path)
         georef = georef_mod.load_for_map(districts_path, districts)
+        ward_map = georef_mod.wards_of(districts) is not None    # the landing map draws the wards and finds them
     except (seats_mod.SeatsError, ValueError) as exc:
         raise BuildError(str(exc)) from exc
     bad = site_url_problems(config.SITE)
@@ -417,6 +418,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     site["internal"] = internal
     site["councils"] = [council_mod.landing_entry(c) for c in cixs]
     site["transcripts_omitted"] = not transcripts
+    site["ward_map"] = ward_map
     written: list[str] = []
 
     def html_of(template: str, rel: str, page_name: str, site_ctx=None, **ctx) -> str:
@@ -516,7 +518,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                        **{**with_entries(ctx, key, run),
                           "parts": [{**p, "current": i == n} for i, p in enumerate(nav, 1)]})
 
-    render("index.html.j2", "index.html", "Map", **views.landing(ix, districts, georef, geocoder))
+    render("index.html.j2", "index.html", "Map", **views.landing(ix, districts, georef, geocoder, site["councils"]))
     render("officials.html.j2", "officials.html", "Officials", **views.officials_page(ix))
     render("meetings_index.html.j2", "meetings.html", "Meetings", **views.meetings_page(ix))
     for n in range(1, config.SITE["district_count"] + 1):

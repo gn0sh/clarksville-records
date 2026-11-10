@@ -7,7 +7,8 @@ the same few lines can be ported to the browser.
 
 district_for() answers with the district whose shape holds the point, its distance to the nearest district line in
 metres, and whether that distance is under the locality's boundary margin (then the page should say "near a district
-line, check the official lookup" instead of a plain answer).
+line, check the official lookup" instead of a plain answer). ward_for() does the same for the city wards, which
+tools/extract_ward_poster.py traces into the same page space, with their own margin.
 """
 from __future__ import annotations
 
@@ -144,17 +145,53 @@ def district_for(lon: float, lat: float, districts: dict | None = None, georef: 
         georef = georef if georef is not None else g0
     if georef.get("source_sha256") != districts.get("source_sha256"):
         raise ValueError("georef.json was fitted to a different source PDF than districts.json")
+    return _locate("district", [(d["number"], d["path"]) for d in districts["districts"]], lon, lat, georef,
+                   float(georef["boundary_margin_m"]))
+
+
+def ward_for(lon: float, lat: float, districts: dict | None = None, georef: dict | None = None) -> dict | None:
+    """The city ward at (lon, lat), or None when the map has no ward shapes.
+
+    The ward paths (districts.json "wards", traced by tools/extract_ward_poster.py) are stored in the district map's
+    page space, so the same georef.json places the point, and the district fit's own error cancels out. The margin is
+    the wards' own (boundary_margin_m, basis in wards-georef.json). Same answer shape as district_for, keyed "ward":
+    a point in no ward is outside the city as the ward map draws it, and the city line counts as a ward line."""
+    if districts is None or georef is None:
+        d0, g0 = _locality_files()
+        districts = districts if districts is not None else d0
+        georef = georef if georef is not None else g0
+    wards = wards_of(districts)
+    if wards is None:
+        return None
+    if georef.get("source_sha256") != districts.get("source_sha256"):
+        raise ValueError("georef.json was fitted to a different source PDF than districts.json")
+    return _locate("ward", [(w["number"], w["path"]) for w in wards["wards"]], lon, lat, georef,
+                   float(wards["boundary_margin_m"]))
+
+
+def wards_of(districts: dict | None) -> dict | None:
+    """The map's ward block when it holds ward shapes ("status": "available"), else None (the landing then keeps the
+    district-only lookup and the "coming" ward layer). Shapes with no margin are an error, never a silent default."""
+    w = (districts or {}).get("wards") or {}
+    if w.get("status") != "available" or not w.get("wards"):
+        return None
+    if not float(w.get("boundary_margin_m") or 0) > 0:
+        raise ValueError("districts.json wards: boundary_margin_m must be set (basis in wards-georef.json)")
+    return w
+
+
+def _locate(key: str, shapes, lon: float, lat: float, georef: dict, margin: float) -> dict:
+    """Point in shape over [(number, path)] in the georef's page space; the answer district_for/ward_for return."""
     x, y = to_page(lon, lat, georef)
     scale = metres_per_unit(georef["affine"])
-    margin = float(georef["boundary_margin_m"])
     hits, best = [], (math.inf, None)
-    for num, rs in ((d["number"], rings(d["path"])) for d in districts["districts"]):
+    for num, rs in ((n, rings(p)) for n, p in shapes):
         dist = _edge_dist(rs, x, y) * scale
         if dist < best[0]:
             best = (dist, num)
         if _inside(rs, x, y):
             hits.append(num)
-    out = {"district": hits[0] if len(hits) == 1 else None, "distance_m": round(best[0], 1),
+    out = {key: hits[0] if len(hits) == 1 else None, "distance_m": round(best[0], 1),
            "near_boundary": best[0] < margin or len(hits) > 1, "page_xy": (round(x, 2), round(y, 2))}
     if len(hits) > 1:
         out["overlap"] = sorted(hits)

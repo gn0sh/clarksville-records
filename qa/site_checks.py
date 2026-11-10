@@ -188,7 +188,11 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
         out.add(cfg["support_url"])
     out |= {u for u in corrections_links(cfg) if u.startswith("https://")}   # the report page's GitHub issue link
     if districts_path is not None and Path(districts_path).is_file():
-        out.add(json.loads(Path(districts_path).read_text(encoding="utf-8"))["source_url"])
+        d = json.loads(Path(districts_path).read_text(encoding="utf-8"))
+        out.add(d["source_url"])
+        wards = d.get("wards") or {}
+        if wards.get("status") == "available" and wards.get("source_url"):
+            out.add(wards["source_url"])             # the ward lines' source, under the map's ward layer
     for r in read_roster(seats_path):
         out |= {r[k] for k in ("source", "last_source") if r.get(k)}
     return out

@@ -36,5 +36,5 @@ Politeness: UA `ClarksvilleRecordsBot/0.1 (+https://github.com/gn0sh/clarksville
 
 ## Recommendation
 1. Ask the manager to allow-list `apnsgis4.apsu.edu` and `cmcrpc.maps.arcgis.com` + `www.arcgis.com` (+ `services.arcgis.com`, `services1.arcgis.com` if the web map uses them). Re-run the queries above, compare feature count (12) and shapes with the Feb 2026 poster.
-2. If not allowed, trace Candidate B (cited, current, same method as the county map).
+2. If not allowed, trace Candidate B (cited, current, same method as the county map). Done 2026-11-10: traced from the poster, see `docs/platform-facts.md` "City ward map".
 3. Either way, get written reuse confirmation from RPC/APSU before publishing if we want to ship the geometry (Brian's email, hard stop 4). Until then, the preview is internal.

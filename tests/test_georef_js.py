@@ -1,4 +1,5 @@
-"""site/static/georef.js is a port of sitegen/georef.py district_for: both must place every point in the same district
+"""site/static/georef.js is a port of sitegen/georef.py district_for (and so of ward_for, the same lookup over the ward
+paths with their own margin): both must place every point in the same district or ward
 with the same near-boundary flag. site/static/address.js turns a Census geocoder answer into what the visitor reads.
 Runs the scripts under node (no browser) on the held-out points of tests/test_georef.py and on stubbed answers."""
 import json
@@ -9,6 +10,7 @@ import pytest
 
 from sitegen import georef as gr
 from test_georef import D, G, ROOT
+from test_ward_map import POINTS as WARD_TEST_POINTS, WG
 
 GEOREF_JS = ROOT / "site" / "static" / "georef.js"
 ADDRESS_JS = ROOT / "site" / "static" / "address.js"
@@ -26,6 +28,19 @@ const locate = (lon, lat) => geo.districtFor(lon, lat, districts, inp.georef);
 const out = { points: inp.points.map(p => locate(p[0], p[1])), answers: {} };
 for (const [k, v] of Object.entries(inp.answers)) {
   try { out.answers[k] = addr.classify(v, locate); } catch (e) { out.answers[k] = { threw: String(e) }; }
+}
+// the wards: the same districtFor over the ward paths, with the wards' own margin (as static/address.js binds it)
+const wardShapes = inp.districts.wards.wards.map(w => ({ number: w.number, path: w.path }));
+const wardGeo = Object.assign({}, inp.georef, { boundary_margin_m: inp.districts.wards.boundary_margin_m });
+const wardFull = (lon, lat) => geo.districtFor(lon, lat, wardShapes, wardGeo);
+const locateWard = (lon, lat) => {
+  const g = wardFull(lon, lat);
+  return { ward: g.district, near_boundary: g.near_boundary };
+};
+out.wardPoints = inp.wardPoints.map(p => wardFull(p[0], p[1]));
+out.wardAnswers = {};
+for (const [k, v] of Object.entries(inp.wardAnswers)) {
+  try { out.wardAnswers[k] = addr.classify(v, locate, locateWard); } catch (e) { out.wardAnswers[k] = { threw: String(e) }; }
 }
 out.url = addr.jsonpUrl("https://geo.example/x", "1 Main St, Apt #2 & <b>", "cb_1");
 out.timeout = addr.TIMEOUT_MS;
@@ -70,6 +85,25 @@ ANSWERS = {
 }
 
 
+def _wpt(pid):
+    return next(p["lonlat"] for p in WG["control_points"] + WG["check_points"] if p["id"] == pid)
+
+
+# the ward lookup's points: every ward test point, the poster's road crossings, and the outside / edge points
+WARD_POINTS = ([p for _w, _n, p in WARD_TEST_POINTS] + [p["lonlat"] for p in WG["control_points"] + WG["check_points"]]
+               + POINTS)
+
+WARD_ANSWERS = {
+    "d5w6": _match(*_pt("franklin-2nd")),                                    # District 5, Ward 6
+    "ward_near": _match(*_wpt("ashlandcity-sevenmileferry")),                # on the ward 6 / 7 line
+    "outside_city": _match(*_pt("slayden-hwy13")),                           # District 6, no ward
+    "ky": _match(-87.44, 36.665),
+    "two_same": _match(_pt("franklin-2nd"), _pt("franklin-2nd")),
+    "two_wards_one_district": _match(_wpt("pinetree-raintree"), [-87.422012, 36.587303]),   # District 10: Wards 2, 3
+    "two_one_ward_near": _match(_pt("franklin-2nd"), _wpt("college-nspring"), _wpt("ashlandcity-sevenmileferry")),
+}
+
+
 @pytest.fixture(scope="module")
 def run(tmp_path_factory):
     if not shutil.which("node"):
@@ -77,8 +111,30 @@ def run(tmp_path_factory):
     h = tmp_path_factory.mktemp("georef") / "harness.js"
     h.write_text(HARNESS, encoding="utf-8")
     res = subprocess.run(["node", str(h), str(GEOREF_JS), str(ADDRESS_JS)], capture_output=True, text=True, check=True,
-                         input=json.dumps({"districts": D, "georef": G, "points": POINTS, "answers": ANSWERS}))
+                         input=json.dumps({"districts": D, "georef": G, "points": POINTS, "answers": ANSWERS,
+                                           "wardPoints": WARD_POINTS, "wardAnswers": WARD_ANSWERS}))
     return json.loads(res.stdout)
+
+
+@pytest.mark.parametrize("i", range(len(WARD_POINTS)))
+def test_js_ward_lookup_matches_python(run, i):
+    py, js = gr.ward_for(*WARD_POINTS[i], D, G), run["wardPoints"][i]
+    assert js["district"] == py["ward"] and js["near_boundary"] == py["near_boundary"], (WARD_POINTS[i], py, js)
+    assert abs(js["distance_m"] - py["distance_m"]) <= 0.11
+    assert js.get("overlap") == py.get("overlap") and js.get("closest") == py.get("closest")
+
+
+def test_classify_with_wards(run):
+    a = run["wardAnswers"]
+    assert a["d5w6"] == {"kind": "district", "district": 5, "matched": "1 TEST ST", "page_xy": a["d5w6"]["page_xy"],
+                         "ward": {"kind": "ward", "ward": 6}}
+    assert a["ward_near"]["ward"]["kind"] == "near"
+    assert a["outside_city"]["kind"] == "district" and a["outside_city"]["ward"] == {"kind": "outside", "ward": None}
+    assert a["ky"]["kind"] == "outside"
+    assert a["two_same"]["ward"] == {"kind": "ward", "ward": 6}
+    # several matches must agree on the ward too, and none may be near a ward line
+    assert a["two_wards_one_district"] == {"kind": "ambiguous", "count": 2}
+    assert a["two_one_ward_near"] == {"kind": "ambiguous", "count": 3}
 
 
 @pytest.mark.parametrize("i", range(len(POINTS)))
