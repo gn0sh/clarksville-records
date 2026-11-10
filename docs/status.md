@@ -92,6 +92,9 @@
 | 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
 
 ## Decisions
+- 2026-11-09 (manager): **Preview file cap.** The claude.ai artifact preview is capped at 500 files, and the real build is now at 500 after dropping its transcript page. From now on the review surface is the gh-pages preview (pages target, cap 3000), not the artifact. The artifact preview, if still used, may leave out sections. Reason: Daylight, RPC and wards each add files; the artifact limit can't grow.
+- 2026-11-09 (manager): **Go-live gate.** Before public launch, ask the RPC for written OK to reuse geometry traced from its ward poster and from the county district map. This is outreach (hard stop 4), so it goes in the go-live batch. The internal preview is fine meanwhile.
+- 2026-11-09 (manager): **Daylight name.** The trademark and domain check goes in the go-live batch.
 - 2026-11-07 G1: footer line on every page + About page naming the operator (CEO, card).
 
 ## Problem keys
