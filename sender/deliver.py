@@ -109,6 +109,10 @@ class Provider:
         """Every subscriber as the provider returns it. deliver reduces each to Recipient at once."""
         raise NotImplementedError
 
+    def subscriber(self, subscriber_id: str) -> dict | None:
+        """One subscriber as the provider holds it now (None when there is no such subscriber)."""
+        raise NotImplementedError
+
     def set_metadata(self, subscriber_id: str, metadata: dict, idempotency_key: str) -> None:
         """Replace one subscriber's metadata with `metadata` (the whole object). Nothing else may change."""
         raise NotImplementedError
@@ -524,10 +528,24 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
             meta = {"note_date": day, "note_edition": edition_id, "note_sha256": plan["note_sha256"]}
             payload = {"subject": ed["subject"], "body": ed["body"], "archival_mode": "disabled", "metadata": meta}
             if settings.mode == "stamp":
-                step = "subscriber stamp"
+                # L2: the write replaces the whole metadata object (until the T4.0 probe shows the provider merges
+                # it, then only note_edition is sent), so it is built from a fresh read of that one subscriber just
+                # before the write: a change made since the listing survives. Someone whose type or shape changed
+                # since is not stamped and gets nothing today.
+                stamped = []
                 for r in to:
-                    _call(sleep, provider.set_metadata, r.id, {**r.metadata, "note_edition": meta["note_edition"]},
+                    step = "subscriber re-read"
+                    fresh = recipient(_call(sleep, provider.subscriber, r.id), settings)
+                    if fresh is None or fresh.id != r.id or not fresh.lists or \
+                            signature(fresh.lists, fresh.district, fresh.ward) != signature(r.lists, r.district, r.ward):
+                        continue
+                    step = "subscriber stamp"
+                    _call(sleep, provider.set_metadata, r.id, {**fresh.metadata, "note_edition": meta["note_edition"]},
                           idempotency_key(day, key, f"stamp/{r.id}"))
+                    stamped.append(r)
+                if not stamped:
+                    continue
+                to = stamped
                 # never "now": the stored email is checked (and taken back if wrong) before it can leave. Worked
                 # out from the clock per edition, after the stamps, which can take minutes (L1).
                 publish = max(send_at, clock() + PUBLISH_MARGIN)

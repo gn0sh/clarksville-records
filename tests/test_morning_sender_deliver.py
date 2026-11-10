@@ -55,6 +55,7 @@ class Fake(deliver.Provider):
     def __init__(self, subscribers=(), emails=(), fail=None, echo=None):
         self.echo = echo        # echo(stored row) -> what create_email returns: a provider that stored something else
         self.stuck = False      # unschedule() answers but the email stays scheduled
+        self.after_listing = None
         self.unscheduled = []
         self.subs = {s["id"]: copy.deepcopy(s) for s in subscribers}
         self.email_rows = [copy.deepcopy(e) for e in emails]
@@ -78,7 +79,14 @@ class Fake(deliver.Provider):
 
     def subscribers(self):
         self._hit("subscribers")
-        return copy.deepcopy(list(self.subs.values()))
+        rows = copy.deepcopy(list(self.subs.values()))
+        if self.after_listing:
+            self.after_listing(self.subs)       # what subscribers change between the listing and the writes
+        return rows
+
+    def subscriber(self, subscriber_id):
+        self._hit("subscriber")
+        return copy.deepcopy(self.subs.get(subscriber_id))
 
     def set_metadata(self, subscriber_id, metadata, idempotency_key):
         self._hit("set_metadata")
@@ -315,6 +323,33 @@ def test_stamp_sends_one_scheduled_email_per_edition_to_exactly_its_people(plan)
         assert sorted(p) == ["archival_mode", "body", "filters", "metadata", "publish_date", "status", "subject"]
     assert [p["metadata"]["note_edition"] for p in fake.created] == sorted(by_key)    # in key order
     assert not fake.sent_drafts and len(set(fake.keys)) == len(fake.keys) == 7        # 4 stamps + 3 emails
+
+
+def test_stamp_rereads_each_subscriber_just_before_the_write_and_keeps_their_changes(plan):
+    """L2: the write replaces the whole metadata object, so it is built from a fresh read of that subscriber, not
+    from the listing: a change made since (a new key, a new seat) survives. Someone whose shape or type changed is
+    not stamped (they get nothing today) and is not counted."""
+    def change(subs):
+        subs["sub-0004-secret"]["metadata"]["favourite"] = "green"                 # same shape: kept
+        subs["sub-0002-secret"]["metadata"]["lists"] = ["contracts"]               # another shape: skipped
+        subs["sub-0003-secret"]["type"] = "unsubscribed"                           # left: skipped
+    fake = Fake(people(plan))
+    fake.after_listing = change
+    res, _ = go(plan, fake)
+    assert (res.status, res.editions, res.recipients) == ("sent", 2, 2)
+    assert fake.subs["sub-0004-secret"]["metadata"]["favourite"] == "green"
+    assert fake.subs["sub-0004-secret"]["metadata"]["note_edition"] == stamp(key_for(plan, ["budget", "contracts"]))
+    assert "note_edition" not in fake.subs["sub-0002-secret"]["metadata"]
+    assert "note_edition" not in fake.subs["sub-0003-secret"]["metadata"]
+    assert sorted(sorted(fake.audience(p)) for p in fake.created) == [["sub-0001-secret"], ["sub-0004-secret"]]
+    assert fake.calls.count("subscriber") == 4                                     # one re-read per write
+
+
+def test_a_failed_reread_stops_before_the_write(plan):
+    fake = Fake(people(plan), fail={"subscriber": deliver.ProviderError(SECRET_BODY)})
+    res, text = go(plan, fake)
+    assert (res.code, res.status, res.editions) == (1, "failed", 0) and "set_metadata" not in fake.calls
+    assert "subscriber re-read" in text and SECRET_BODY not in text
 
 
 def test_stamp_writes_the_whole_metadata_back_and_touches_nobody_else(plan):
@@ -875,7 +910,7 @@ def test_the_deliver_stage_opens_no_connection(plan, monkeypatch):
 def test_the_base_provider_does_nothing():
     p = deliver.Provider()
     for call in (p.emails, p.subscribers, lambda: p.set_metadata("a", {}, "k"), lambda: p.create_email({}, "k"),
-                 lambda: p.send_draft("a", [], "k"), lambda: p.unschedule("a", "k")):
+                 lambda: p.send_draft("a", [], "k"), lambda: p.unschedule("a", "k"), lambda: p.subscriber("a")):
         with pytest.raises(NotImplementedError):
             call()
 

@@ -330,6 +330,10 @@ morning_note:
   (read from the repository), no comment or declaration, no literal `{` or `}`. The plan stage links only to the
   same hosts (sources, site pages, the support link). `link_hosts` ships with the collectors' source hosts and the
   support host; the build refuses `enabled: true` until it also holds the site's host.
+- **Each stamp write re-reads that subscriber first** (security L2): until the T4.0 probe shows that a metadata
+  update merges keys, the write sends the whole object, so it is built from `Provider.subscriber(id)` read just
+  before the write, not from the listing. Someone whose type or shape changed since the listing is not stamped (no
+  email today). If the probe shows the provider merges, the adapter sends only `note_edition` instead.
 - **A stray stamp stops a `stamp` run** (review `audience/stamp-self-set`): before any write the deliver stage exits
   2 ("stray-stamp") if any subscriber holds exactly one of today's stamps and is not in that edition's audience. Any
   other value is ignored (the filter does not match it), so one subscriber cannot stop every send. The T4.0 probe also checks that the public form
