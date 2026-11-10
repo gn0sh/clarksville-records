@@ -188,7 +188,9 @@ def _cfg(tmp_path):
 @pytest.mark.parametrize("body, ok", [
     (f'<a href="{URL}#page=2">p. 2, fetched 2026-11-09</a>', True),
     (f'<a href="{URL}#page=2">p. 2, fetched 2026-11-10</a>', False),           # the raw UTC day
-    (f'<a href="{URL}">PDF</a>, fetched 2026-11-10 (UTC day).', True),          # labelled: honest
+    # labelled although the linked source has its instant for that UTC day: a lost conversion (dates/check-labelled-passes)
+    (f'<a href="{URL}">PDF</a>, fetched 2026-11-10 (UTC day).', False),
+    (f'<a href="{URL}">PDF</a>, fetched 2026-11-08 (UTC day).', True),          # labelled, not this row's UTC day
     ('<a href="https://example.invalid/other.pdf">PDF</a>, fetched 2026-11-08.', False),   # no instant, unlabelled
     ('<a href="https://example.invalid/other.pdf">PDF</a>, fetched 2026-11-08 (UTC day).', True),
     (f'<a href="{URL}">A</a> <details><p>Fetched 2026-11-09.</p></details>', True),

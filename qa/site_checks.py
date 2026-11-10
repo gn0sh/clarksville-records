@@ -1549,9 +1549,13 @@ def fetch_instants(cfg: dict, fixture: bool) -> dict[str, set[tuple[str, str]]]:
 
 def _fetch_day_ok(day: str, labelled: bool, urls, instants) -> str | None:
     """Why a fetch day shown next to the source links `urls` breaks the rule, or None."""
-    if labelled:
-        return None   # an honest UTC day: the source has no recorded instant
     rows = {r for u in urls for r in instants.get(u, ())}
+    if labelled:
+        # an honest UTC day only when no linked source has a recorded instant on that UTC day (else the lookup
+        # failed and labelled a day it could have converted: dates/check-labelled-passes)
+        hit = sorted(u for u in urls if any(utc == day for utc, _ in instants.get(u, ())))
+        return (f"fetched {day} (UTC day), but {hit} has a recorded instant on that UTC day: show its site_timezone "
+                f"day") if hit else None
     if not rows:
         return f"fetched {day} next to {sorted(urls) or 'no source link'}, which has no recorded instant: label it (UTC day)"
     if day not in {local for _, local in rows}:
