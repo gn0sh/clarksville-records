@@ -235,38 +235,79 @@ def _cs(facts, wards):
     return [{"slug": "city", "prefix": "city/", "facts": facts, "wards": wards, "cfg": CFG}]
 
 
-def test_one_list_that_does_not_name_a_member_does_not_unseat_them(real_city, tmp_path):
-    """Must-fix 1 (one-list drop): Zacharias left out of the 2026-06-04 list (as ZAHARIAS was on 2025-09-04). That
-    list also prints an unresolved name and resolves fewer members, so it cannot show he has gone: he stays in Ward 1,
-    and the words say the latest list does not name him."""
-    facts, wards = _drop(*real_city[:2], "city-brian-zacharias", "2026-06-04")
+def _cut(facts, wards, last):
+    """The committed city data as it stood when `last` was the latest meeting held."""
+    keep = {m["id"] for m in facts["meetings"] if m["date"] <= last}
+    facts = {**facts, "meetings": [m for m in facts["meetings"] if m["id"] in keep],
+             **{k: [x for x in facts[k] if x["meeting_id"] in keep] for k in ("roll_calls", "motions", "item_events")}}
+    return facts, [w for w in wards if w["date"] <= last]
+
+
+def _sections(cix) -> dict:
+    return {s["key"]: {c["id"] for c in s["cards"]} for s in views.officials_page(cix)["sections"]}
+
+
+def test_a_member_who_left_is_never_shown_current_for_one_more_list(real_city, tmp_path):
+    """Must-fix (re-review): replay L = 2026-02-05, the first list without McLaughlin (that month the minutes list
+    Ward 2 applicants: the seat was vacant). The list is shorter than the one before, so it cannot show she has gone,
+    but it does not show she is there either: Ward 2 reads "not yet recorded" with a neutral line, and she is in
+    neither Current nor Served previously on the seat lists. Her page keeps her dates."""
+    facts, wards = _cut(*real_city[:2], "2026-02-05")
     cix = council.load({**CFG}, facts, wards)
-    assert _shown(cix)["ward-1"] == "city-brian-zacharias" and cix.seats.is_current("city-brian-zacharias")
-    rec = cix.seats.current_of_seat("ward-1")
-    text = cix.seats.dates_text(rec)
+    oid = "city-deanna-mclaughlin"
+    assert cix.seats.latest == "2026-02-05"
+    assert not cix.seats.is_current(oid) and cix.seats.current_of_seat("ward-2") is None
+    row = next(s for s in council.seat_list(cix) if s["seat"] == "ward-2")
+    assert row["holder"] is None and row["note"]["href"] == cix.official_href(oid)
+    assert row["note"]["text"] == ("last listed in attendance lists 2026-01-08; not named in the attendance lists "
+                                   "of 2026-02-05")
+    assert site_checks.dates_worded(row["note"]["text"]) == []
+    sec = _sections(cix)
+    assert oid not in sec["current"] and oid not in sec["previous"] and oid in sec.get("unseated", set())
+    assert "listed by name in attendance lists to 2026-01-08; not named in the attendance lists of 2026-02-05" \
+        in cix.seats.header_text(oid)
+    # the site check allows the held-over member's seat to read "not yet recorded" (allowed, not required)
+    assert site_checks.check_current_holders(_home(tmp_path, _shown(cix)), facts, [], _cs(facts, wards))[0] == []
+
+
+def test_one_list_that_does_not_name_a_member_shows_no_wrong_holder_and_the_next_list_restores_them(real_city, tmp_path):
+    """Zacharias left out of the 2026-06-04 list (as ZAHARIAS was on 2025-09-04): Ward 1 is not shown with a wrong
+    holder (it reads "not yet recorded" for that list), he is not under Served previously, and when the next list
+    names him he is current in Ward 1 again."""
+    oid = "city-brian-zacharias"
+    facts, wards = _drop(*real_city[:2], oid, "2026-06-04")
+    cix = council.load({**CFG}, facts, wards)
+    assert _shown(cix)["ward-1"] is None and not cix.seats.is_current(oid)
+    text = cix.seats.header_text(oid)
     assert "to 2026-05-07; not named in the attendance lists of 2026-06-04, the latest minutes read" in text
     assert site_checks.dates_worded(text) == []
-    assert "Ward 1: its member is not named in the attendance lists of 2026-06-04" in views.observed_basis(cix)
-    previous = next(s for s in views.officials_page(cix)["sections"] if s["key"] == "previous")
-    assert "city-brian-zacharias" not in {c["id"] for c in previous["cards"]}
-    # the site check reads the same lists on its own: it expects him in Ward 1, and fails the page that dropped him
-    assert site_checks.expected_ward_holders(wards, facts)[1] == "city-brian-zacharias"
-    dropped = {**_shown(cix), "ward-1": None}
-    problems, _ = site_checks.check_current_holders(_home(tmp_path, dropped, ["city-brian-zacharias"]), facts, [],
-                                                    _cs(facts, wards))
-    assert any("ward 1 does not show city-brian-zacharias" in p for p in problems)
-    assert any("city-brian-zacharias is under Served previously" in p for p in problems)
+    sec = _sections(cix)
+    assert oid not in sec["current"] and oid not in sec["previous"]
+    assert site_checks.check_current_holders(_home(tmp_path, _shown(cix)), facts, [], _cs(facts, wards))[0] == []
+    # the page that puts him under Served previously fails
+    problems, _ = site_checks.check_current_holders(_home(tmp_path, _shown(cix), [oid]), facts, [], _cs(facts, wards))
+    assert any(f"{oid} is under Served previously" in p for p in problems)
+    # the next list names him again
+    nxt = [{**w, "date": "2026-07-02", "meeting_id": "2026-07-02-regular"} for w in real_city[1]
+           if w["date"] == "2026-06-04"]
+    meeting = next(m for m in real_city[0]["meetings"] if m["id"] == "2026-06-04-regular")
+    facts2 = {**facts, "meetings": [*facts["meetings"], {**meeting, "id": "2026-07-02-regular", "date": "2026-07-02"}]}
+    cix2 = council.load({**CFG}, facts2, wards + nxt)
+    assert _shown(cix2)["ward-1"] == oid and cix2.seats.is_current(oid)
 
 
 def test_a_cut_off_latest_list_holds_over_and_a_complete_one_closes():
-    """The latest list names fewer members than the one before (cut off): b is held over. A complete latest list
-    (a new member named in full, nobody unresolved) that leaves b out closes b's record; so does a second list."""
+    """The latest list names fewer members than the one before (cut off): b is held over, not current and not
+    former. A complete latest list (a new member named in full, nobody unresolved) that leaves b out closes b's
+    record; so does a second list."""
     base = [_w("2020-01-01", "a", 1), _w("2020-02-01", "a", 1), _w("2020-01-01", "b", 2), _w("2020-02-01", "b", 2),
             _w("2020-03-01", "a", None), _w("2020-03-01", "b", None), _w("2020-04-01", "a", None)]
     rows, latest = council.holder_rows(base, _facts("a", "b", "c"), CFG)
     b = next(r for r in rows if r["official_id"] == "b")
     assert latest == "2020-04-01" and b["end"] is None and b["held_over"] and b["seen_to"] == "2020-03-01"
-    assert _seats(rows, latest).is_current("b")
+    s = _seats(rows, latest)
+    assert not s.is_current("b") and s.is_held_over("b") and s.current_of_seat("ward-2") is None
+    assert s.on("b", "2020-03-01") == "Ward 2" and s.on("b", "2020-04-01") is None
     rows, _ = council.holder_rows(base + [_w("2020-04-01", "c", None)], _facts("a", "b", "c"), CFG)
     assert next(r for r in rows if r["official_id"] == "b")["end"] == "2020-03-01"
     rows, _ = council.holder_rows(base + [_w("2020-05-01", "a", None)], _facts("a", "b", "c"), CFG)
@@ -344,3 +385,60 @@ def test_stale_seats_are_reported_by_the_site_check_and_the_seat_check(tmp_path,
     p.write_text(json.dumps(facts), encoding="utf-8")
     seat_check.main(["--facts", str(p), "--seats", str(config.SEATS_PATH), "--roster", str(tmp_path / "none.yml")])
     assert f"WARNING: the records are read to {read}" in capsys.readouterr().out
+
+
+def test_the_site_check_fails_one_member_in_two_seats_and_a_holder_in_the_wrong_ward(real_city, tmp_path):
+    """Should-fix 2: Carlos Peters shown in Ward 2 and Ward 3 fails; so does a member shown in another member's
+    ward."""
+    facts, wards, cix = real_city
+    shown = _shown(cix)
+    problems, _ = site_checks.check_current_holders(_home(tmp_path, {**shown, "ward-2": "city-carlos-peters"}), facts,
+                                                    [], _cs(facts, wards))
+    assert any("city-carlos-peters is shown in 2 seats" in p for p in problems)
+    assert any("ward-2 shows city-carlos-peters" in p for p in problems)
+    swapped = {**shown, "ward-4": shown["ward-5"], "ward-5": shown["ward-4"]}
+    problems, _ = site_checks.check_current_holders(_home(tmp_path, swapped), facts, [], _cs(facts, wards))
+    assert any(p.startswith("city/index.html: ward-4 shows") for p in problems)
+
+
+def test_stale_seats_go_into_the_build_result_for_the_run_log():
+    """Should-fix 3: the build returns the stale-seats warning; `collector run` writes it into build/run-log.json
+    (`warnings`)."""
+    from sitegen.build import seat_warnings
+    facts, read = _county_plus_one_meeting()
+    ix = views.Index(facts, stamp_seen(load_rows(config.SEATS_PATH), facts))
+    assert [w for w in seat_warnings(ix) if f"seats.yml is read to {read}" in w]
+    current = json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8"))
+    assert seat_warnings(views.Index(current, stamp_seen(load_rows(config.SEATS_PATH), current))) == []
+    src = (ROOT / "collector" / "__main__.py").read_text(encoding="utf-8")
+    assert 'log["warnings"]' in src
+
+
+def test_county_seats_csv_dates_its_open_rows_with_their_source():
+    """Nit 4: an open county row's printed_last and printed_last_source are both given (from its last page)."""
+    import csv
+    import io
+
+    from collector.export import seats_csv
+    facts = json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8"))
+    rows = load_rows(config.SEATS_PATH)
+    out = list(csv.DictReader(io.StringIO(seats_csv(rows, facts, {}))))
+    for row, r in zip(out, rows):
+        if r["dates"] == "observed":
+            assert bool(row["printed_last"]) == bool(row["printed_last_source"]), row
+            if r["end"] is None:
+                assert row["printed_last"] == max(m["date"] for m in facts["meetings"]) and row["seen_last"] == ""
+
+
+def test_an_open_record_seen_after_l_is_dated_to_where_it_was_seen():
+    """Nit 5: a mayor roll call at a meeting with no attendance list, after L: the text names that meeting, which
+    its cited page shows, not L."""
+    facts = _facts("a", mayors=("m",))
+    facts["meetings"] = [{"id": "2020-09-01-special", "date": "2020-09-01"}]
+    facts["roll_calls"] = [{"id": "rc1", "meeting_id": "2020-09-01-special", "source_id": "s1", "page": 2,
+                            "verification": {"status": "verified"}, "votes": [{"official_id": "m"}]}]
+    wards = [_w("2020-01-01", "a", 1), _w("2020-02-01", "a", 1), _w("2020-03-01", "a", None)]
+    rows, latest = council.holder_rows(wards, facts, CFG)
+    s = _seats(rows, latest)
+    m = s.current_of_seat("city-mayor")
+    assert s.dates_text(m) == "seen in roll calls from 2020-09-01 to 2020-09-01"

@@ -1577,12 +1577,9 @@ def latest_listed(facts: dict | None, wards: list[dict]) -> tuple[str | None, se
     return latest, named, may_hold
 
 
-def expected_ward_holders(wards: list[dict], facts: dict | None = None) -> dict[int, str]:
-    """{ward: member} for each member who may hold a seat at the latest list (latest_listed `may_hold`) and whose
-    own last two ward prints agree on a ward that nobody else has been printed in since."""
-    if not wards:
-        return {}
-    _, _, may_hold = latest_listed(facts, wards)
+def last_wards(wards: list[dict], members) -> dict[str, int]:
+    """{member: ward} for each of `members` whose own last two ward prints agree on a ward that nobody else has been
+    printed in since."""
     prints = defaultdict(list)          # member -> [(date, ward)]
     last_in = {}                         # ward -> (date, member) of its latest print
     for w in sorted(wards, key=lambda w: (w["date"], w["meeting_id"])):
@@ -1591,11 +1588,20 @@ def expected_ward_holders(wards: list[dict], facts: dict | None = None) -> dict[
         prints[w["official_id"]].append((w["date"], int(w["ward"])))
         last_in[int(w["ward"])] = (w["date"], w["official_id"])
     out = {}
-    for oid in sorted(may_hold):
+    for oid in sorted(members):
         p = prints.get(oid, [])
         if len(p) >= 2 and p[-1][1] == p[-2][1] and last_in[p[-1][1]][1] == oid:
-            out[p[-1][1]] = oid
+            out[oid] = p[-1][1]
     return out
+
+
+def expected_ward_holders(wards: list[dict], facts: dict | None = None) -> dict[int, str]:
+    """{ward: member} for each member the latest list names (latest_listed `named`; a may-hold member is allowed in
+    their seat but not required) whose own last two ward prints agree on a ward nobody has been printed in since."""
+    if not wards:
+        return {}
+    _, named, _ = latest_listed(facts, wards)
+    return {ward: oid for oid, ward in last_wards(wards, named).items()}
 
 
 def expected_district_holders(facts: dict, roster: list[dict]) -> dict[int, str]:
@@ -1621,11 +1627,14 @@ def expected_district_holders(facts: dict, roster: list[dict]) -> dict[int, str]
 
 
 def check_current_holders(site: Path, facts: dict, roster: list[dict], cs: list[dict]) -> tuple[list[str], str]:
-    """Both ways, per council: every member who may hold a ward at the latest list is shown in it and not under
-    Served previously; every holder shown (a ward or a title seat such as the mayor) may hold a seat at the latest
-    list, and a title seat shows the one official of that title the latest list names. County: every official voting
-    in a confirmed roll call of the latest meeting is current in their latest district. A council entry may carry
-    its own `wards` and `cfg` (tests); otherwise they are read from its council.yml."""
+    """Both ways, per council (city-seats/current-holder-matches-latest-attendance):
+    - every member the latest list names, and last printed in a ward, is shown in that ward; no member the latest
+      list may still hold (latest_listed `may_hold`) is under Served previously;
+    - every shown holder is that ward's expected member, or a may-hold member with no other seat; nobody is shown in
+      two seats; a title seat (the mayor) shows an official of that title who may hold a seat at the latest list,
+      and the one such official the latest list names, if there is one.
+    County: every official voting in a confirmed roll call of the latest meeting is current in their latest
+    district. A council entry may carry its own `wards` and `cfg` (tests); otherwise its council.yml is read."""
     problems, n = [], 0
     for c in cs:
         home = site / c["slug"] / "index.html"
@@ -1637,27 +1646,46 @@ def check_current_holders(site: Path, facts: dict, roster: list[dict], cs: list[
         wards = c["wards"] if "wards" in c else _council_wards(c["slug"])
         cfg = c["cfg"] if "cfg" in c else _council_cfg(c["slug"])
         latest, named, may_hold = latest_listed(c["facts"], wards)
-        rows = {m.group(1): m.group(2) for m in re.finditer(r'<li id="seat-([^"]+)"[^>]*>(.*?)</li>', body, re.S)}
-        for ward, oid in sorted(expected_ward_holders(wards, c["facts"]).items()):
+        expected = expected_ward_holders(wards, c["facts"])
+        placed = last_wards(wards, may_hold)              # where each may-hold member was last printed
+        shown = {}                                         # seat -> the member its holder span links
+        for m in re.finditer(r'<li id="seat-([^"]+)"[^>]*>(.*?)</li>', body, re.S):
+            h = re.search(r'<span class="d-holder">(.*?)</span>', m.group(2), re.S)
+            ids = re.findall(r'members/([^"/]+)\.html', h.group(1) if h else "")
+            shown[m.group(1)] = ids[0] if ids else None
+        for ward, oid in sorted(expected.items()):
             n += 1
-            row = rows.get(f"ward-{ward}", "")
-            if NOT_RECORDED in row or f"members/{oid}.html" not in row:
+            if shown.get(f"ward-{ward}") != oid:
                 problems.append(f"{c['slug']}/index.html: ward {ward} does not show {oid}, listed in the latest "
                                 f"attendance list and last printed in that ward")
+        for oid in sorted(may_hold):
             if f"members/{oid}.html" in prev:
                 problems.append(f"{c['slug']}/index.html: {oid} is under Served previously")
         titles = {o["id"]: o.get("title") for o in c["facts"]["officials"]}
+        title_of_seat = {seat: title for title, seat in ((cfg or {}).get("title_seats") or {}).items()}
         for title, seat in ((cfg or {}).get("title_seats") or {}).items():
             n += 1
             want = sorted(o for o in named if titles.get(o) == title)
-            if len(want) == 1 and f"members/{want[0]}.html" not in rows.get(seat, ""):
+            if len(want) == 1 and shown.get(seat) != want[0]:
                 problems.append(f"{c['slug']}/index.html: {seat} does not show {want[0]}, the {title} named in the "
                                 f"latest attendance list ({latest})")
-        for seat, row in sorted(rows.items()):
-            for oid in re.findall(r'members/([^"/]+)\.html', row):
-                if oid not in may_hold:
-                    problems.append(f"{c['slug']}/index.html: {seat} shows {oid}, whom the latest attendance list "
-                                    f"({latest}) does not name")
+        seats_of = defaultdict(list)
+        for seat, oid in sorted(shown.items()):
+            if oid is None:
+                continue
+            seats_of[oid].append(seat)
+            if seat in title_of_seat:
+                ok = oid in may_hold and titles.get(oid) == title_of_seat[seat]
+            else:
+                ward = int(seat.rsplit("-", 1)[1])
+                ok = expected.get(ward) == oid or (ward not in expected and oid in may_hold
+                                                   and oid not in expected.values() and placed.get(oid) == ward)
+            if not ok:
+                problems.append(f"{c['slug']}/index.html: {seat} shows {oid}, whom the latest attendance list "
+                                f"({latest}) does not place there")
+        for oid, seats in sorted(seats_of.items()):
+            if len(seats) > 1:
+                problems.append(f"{c['slug']}/index.html: {oid} is shown in {len(seats)} seats ({', '.join(seats)})")
     if roster:
         for d, oid in sorted(expected_district_holders(facts, roster).items()):
             page = site / "districts" / f"{d:02d}.html"
@@ -1767,6 +1795,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     note = seats_fresh_note(facts, read_roster(seats_path))
     if note.startswith("WARNING"):
         print(note, file=sys.stderr)
+        if os.environ.get("GITHUB_ACTIONS"):
+            print(f"::warning title=seats.yml is stale::{note}")   # an annotation on the workflow run
     rep.add("seats-fresh", [], note)
     if browser:
         try:

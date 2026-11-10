@@ -225,6 +225,9 @@ class Seats:
                     and not r.get("held_over"):     # held over: not named in an incomplete latest list (council.py)
                 end = r["seen_to"]
             current = end is None or end > (self.latest if r.get("dates") == "observed" else latest)
+            # A held-over record is neither current nor former: the latest list does not name its member, but cannot
+            # show they have gone either. Its seat reads "not yet recorded" (never a wrong current member).
+            current = current and not r.get("held_over")
             self.records.append({**r, "end": end, "label": seat_label(r["seat"]), "current": current,
                                  "district": district_number(r["seat"]),
                                  "src_label": source_label(r["source"]),
@@ -244,6 +247,8 @@ class Seats:
         if rec["official_id"] is None:
             return f"shown as vacant in {ev} from {rec['start']} to {rec['end'] or self.latest}"
         to = f"{self.latest}, {self.wording['latest']}" if rec["end"] is None else rec["end"]
+        if rec["end"] is None and rec.get("seen_to") and rec["seen_to"] > self.latest:
+            to = rec["seen_to"]   # seen after L (a roll call at a meeting with no list): the date its page shows
         if rec.get("held_over"):
             # open, but the latest list does not name the member (council.holder_rows): say so, never "to L"
             to = f"{rec['seen_to']}; not named in the {self.wording['evidence']} of {self.latest}, {self.wording['latest']}"
@@ -258,14 +263,12 @@ class Seats:
         return f"seen in {ev} {rec['start']} to {rec['end']}"
 
     def basis(self, rec: dict) -> str:
-        return basis_text(rec, self.latest, self.wording) + self.held_over_note([rec])
+        return basis_text(rec, self.latest, self.wording)
 
-    def held_over_note(self, records: list[dict]) -> str:
-        """The clause a basis line adds for current records whose member the latest list does not name."""
-        held = sorted((r for r in records if r.get("held_over")), key=lambda r: seat_order(r["seat"]))
+    def held_over_text(self, rec: dict) -> str:
+        """The neutral line beside a seat whose record is held over (council.holder_rows)."""
         ev = self.wording["evidence"]
-        return "".join(f"; {r['label']}: its member is not named in the {ev} of {self.latest} and was last listed "
-                       f"in {ev} {r['seen_to']}" for r in held)
+        return f"last listed in {ev} {rec['seen_to']}; not named in the {ev} of {self.latest}"
 
     def view(self, rec: dict) -> dict:
         """What a page may know about a record: label, wording and sources, never a bare start/end."""
@@ -281,6 +284,15 @@ class Seats:
 
     def is_current(self, official_id: str) -> bool:
         return any(r["current"] for r in self.by_official.get(official_id, []))
+
+    def is_held_over(self, official_id: str) -> bool:
+        """Not current, and not former either: a held-over record (the seat lists show the member in neither)."""
+        recs = self.by_official.get(official_id, [])
+        return any(r.get("held_over") for r in recs) and not any(r["current"] for r in recs)
+
+    def held_over_of_seat(self, seat: str) -> dict | None:
+        held = [r for r in self.for_seat(seat) if r.get("held_over")]
+        return max(held, key=lambda r: r["start"]) if held else None
 
     @staticmethod
     def covers_to(rec: dict) -> str | None:

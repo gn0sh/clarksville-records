@@ -515,10 +515,9 @@ def observed_basis(ix: Index, records: list[dict] | None = None) -> str:
         by_ev.setdefault(r.get("evidence") or ix.seats.wording["evidence"], []).append(r["label"])
     if len(by_ev) <= 1:
         ev = next(iter(by_ev), None)
-        return basis_text({"dates": "observed", "evidence": ev}, ix.seats.latest, ix.seats.wording) \
-            + ix.seats.held_over_note(records)   # a member the latest list does not name (city-seats, one-list drop)
+        return basis_text({"dates": "observed", "evidence": ev}, ix.seats.latest, ix.seats.wording)
     parts = " and ".join(f"the {ev} ({_seat_group(labels)})" for ev, labels in by_ev.items())
-    return f"Current: in {parts} of {ix.seats.wording['latest']}, {ix.seats.latest}" + ix.seats.held_over_note(records)
+    return f"Current: in {parts} of {ix.seats.wording['latest']}, {ix.seats.latest}"
 
 
 def officials_page(facts) -> dict:
@@ -533,7 +532,7 @@ def officials_page(facts) -> dict:
     current, former, unseated = [], [], []
     for o in sorted([*officials, *ix.seats.roster_only.values()], key=name_key):
         recs = ix.seats.of(o["id"])
-        if not recs:
+        if not recs or ix.seats.is_held_over(o["id"]):   # held over: neither current nor former (city-seats)
             unseated.append(o)
         elif ix.seats.is_current(o["id"]):
             current.append(o)

@@ -278,7 +278,14 @@ def seat_list(cix: CouncilIndex) -> list[dict]:
         holder = None
         if rec is not None and rec["official_id"] in cix.officials:
             holder = {"name": cix.officials[rec["official_id"]]["name"], "href": cix.official_href(rec["official_id"])}
-        out.append({"seat": seat, "label": seat_label(seat), "holder": holder})
+        # a held-over record (holder_rows): the seat reads "not yet recorded", with one neutral line naming who the
+        # record last placed there and that the latest list does not name them; never shown as the current member
+        held = cix.seats.held_over_of_seat(seat) if holder is None else None
+        note = None
+        if held is not None and held["official_id"] in cix.officials:
+            note = {"name": cix.officials[held["official_id"]]["name"], "href": cix.official_href(held["official_id"]),
+                    "text": cix.seats.held_over_text(held)}
+        out.append({"seat": seat, "label": seat_label(seat), "holder": holder, "note": note})
     return out
 
 
