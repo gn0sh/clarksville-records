@@ -620,3 +620,9 @@ def test_the_built_data_page_links_every_exported_rpc_file(tmp_path):
     text = (plain / "data.html").read_text(encoding="utf-8")
     assert "data/rpc/" not in text and "meeting row names the listing page" not in text
     assert "is not in its files at all" not in text
+
+
+def test_the_internal_export_folder_is_never_committed():
+    """With `--out build` or `--out site` the internal export lands at <repo>/internal-data/: ignored wherever it is."""
+    lines = [ln.strip() for ln in (ROOT / ".gitignore").read_text(encoding="utf-8").splitlines()]
+    assert "internal-data/" in lines
