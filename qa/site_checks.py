@@ -531,7 +531,7 @@ def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str
             if target is None:
                 problems.append(f"{rel}: href {href!r} leaves the site")
                 continue
-            if no_export and target.startswith("data/") and not (site / "data").exists():
+            if no_export and target.startswith("data/") and not (site / "data" / "facts.json").exists():
                 continue
             f = site / target
             if not f.is_file():
@@ -1605,7 +1605,7 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     # one rule everywhere (sitegen/config.py max_files): a build is within its cap at most at the cap (<= cap)
     rep.add("files", [f"{len(files)} files, over the limit of {cap} for the {target} target"] if len(files) > cap else [],
             f"{len(files)} files, {len(pages)} pages, {target} target (cap {cap})")
-    rep.add("links", check_links(site, pages, no_export), "internal links, #anchors and assets" + ("; data/ skipped" if no_export and not (site / "data").exists() else ""))
+    rep.add("links", check_links(site, pages, no_export), "internal links, #anchors and assets" + ("; data/ skipped" if no_export and not (site / "data" / "facts.json").exists() else ""))
     cs = [c for c in councils(facts) if any(rel.startswith(c["prefix"]) for rel in pages)]
     missing = [c["slug"] for c in councils(facts) if c not in cs]
     rpc = rpc_facts(facts)

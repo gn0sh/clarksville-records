@@ -317,6 +317,9 @@ def test_address_box_in_a_browser(real_site, tmp_path):
         if vp.endswith("answered"):     # privacy line + answer shown: the answer and the pin are on the first screen
             assert m["resultBottom"] <= m["innerHeight"], (vp, m)
             assert m["pin"] and 0 <= m["pin"][0] and m["pin"][1] <= m["innerHeight"], (vp, m)
+        elif vp.startswith("375"):      # phone: the unofficial notice (launch rule, 2026-11-10) now sits in the footer, so the
+            # whole landing no longer fits 667px; the address form stays on the first screen and the notice just below it
+            assert m["formBottom"] is not None and m["formBottom"] <= m["innerHeight"], (vp, m)
         else:                           # before any lookup the whole landing fits one screen
             assert m["scrollHeight"] <= m["innerHeight"], (vp, m)
     assert set(out["fit"]) == {"375x667", "1280x800", "375x667 answered", "1280x800 answered"}

@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 
 from collector.fetch import USER_AGENT   # the Method page quotes the collector's own User-Agent, never a copy
 
-from . import config, fin_views, georef as georef_mod
+from . import config, fin_views, georef as georef_mod, unofficial as unofficial_mod
 import datetime as dt
 
 from .seats import Seats, basis_text, seat_order, source_label
@@ -344,6 +344,7 @@ def site_context(facts, contracts: bool = False, budget: tuple = (), councils=()
     return {
         "cfg": cfg,
         "csp": csp(),
+        "unofficial": unofficial_mod.load(cfg),
         "nav": _nav(ix, contracts, budget, councils, rpc),
         "alerts": alerts_on(),
         # the footer link exists only when it is switched on and has an address (CEO, 2026-11-08)
