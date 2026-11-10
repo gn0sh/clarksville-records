@@ -9,6 +9,8 @@ SCHEMA_PATH = REPO_ROOT / "schema" / "facts.schema.json"
 CHANGES_SCHEMA_PATH = REPO_ROOT / "schema" / "changes.schema.json"
 FINANCE_SCHEMA_PATH = REPO_ROOT / "schema" / "finance.schema.json"
 TEMPLATE_DIR = REPO_ROOT / "site" / "templates"
+# County Commission agendas posted before their minutes (collector/county_agenda.py; sitegen/county_agendas.py)
+COUNTY_AGENDAS = REPO_ROOT / "data" / "county-agendas" / "agendas.json"
 STATIC_DIR = REPO_ROOT / "site" / "static"
 
 # Locality and branding text (config/site.yml): body and place names, purpose line, footer support link, seat

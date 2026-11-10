@@ -122,6 +122,9 @@ def sandbox(tmp_path, monkeypatch):
         return state["fin_code"]
     monkeypatch.setattr(M, "run_finance", fake_finance)
     monkeypatch.setattr(M, "FINANCE", tmp_path / "finance.json")
+    state["agenda_calls"] = []
+    monkeypatch.setattr(M, "run_agendas",
+                        lambda log, offline, fetcher=None: state["agenda_calls"].append((offline, fetcher)))
     return state
 
 
@@ -170,3 +173,42 @@ def test_discovery_block_is_a_logged_failure_not_a_crash(monkeypatch):
         log = []
     M.cmd_fetch(Store(Path("/nonexistent/manifest.json")), log, fetcher=F())
     assert log["failures"][0]["stage"] == "discover" and "HostBlocked" in log["failures"][0]["error"]
+
+
+def test_online_run_reads_the_county_agendas_with_the_same_fetcher(sandbox, monkeypatch):
+    """Fix 2 (docs/research/county-recency.md): `run` includes the county agenda step, so the daily update runs it."""
+    seen = {}
+    monkeypatch.setattr(M, "cmd_fetch", lambda store, log, fetcher=None: seen.setdefault("votes", fetcher))
+    M.main(["run"])
+    assert sandbox["agenda_calls"] == [(False, seen["votes"])]
+    M.main(["run", "--offline"])
+    assert sandbox["agenda_calls"][-1] == (True, None)
+
+
+def test_minutes_missing_from_the_store_are_refetched_at_their_manifest_url_only(tmp_path):
+    """The 2020-2021 packets the index no longer lists: requested again at the URL the manifest recorded, nothing else."""
+    import hashlib
+    body = b"%PDF-1.4 minutes"
+    sha = hashlib.sha256(body).hexdigest()
+    url = "https://montgomeryminutes.bisonline.com/viewpdf.php?id=abc"
+    (tmp_path / "manifest.json").write_text(json.dumps([{"url": url, "sha256": sha, "bytes": len(body), "kind": "minutes",
+                                                         "meeting_date": "2020-03", "label": "March 2020 Minutes",
+                                                         "first_fetched_at": "2026-11-07T00:00:00+00:00"}]))
+    store = Store(tmp_path / "manifest.json", root=tmp_path / "store")
+    store.save()                                                           # the manifest in its committed form
+    before = (tmp_path / "manifest.json").read_bytes()
+
+    class F:
+        calls = []
+
+        def get(self, u):
+            self.calls.append(u)
+            return 200, body, {}
+    log = {"new": [], "failures": []}
+    M.refetch_missing(store, log, F(), listed=set())
+    store.save()
+    assert F.calls == [url] and log["refetched"] == {url: "unchanged"} and store.has_bytes(sha)
+    assert (tmp_path / "manifest.json").read_bytes() == before            # same bytes: the manifest is unchanged
+    F.calls.clear()
+    M.refetch_missing(store, log, F(), listed=set())
+    assert F.calls == []                                                   # nothing missing: nothing requested

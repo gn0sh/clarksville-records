@@ -13,6 +13,7 @@ from urllib.parse import urlsplit
 import jinja2
 from jsonschema import Draft202012Validator, FormatChecker
 
+from . import county_agendas as agendas_mod
 from . import rpc as rpc_mod
 from . import budget_views, config, council as council_mod, days as days_mod, feeds as feeds_mod, fin_views, \
     georef as georef_mod, \
@@ -321,7 +322,7 @@ REPORT_TEMPLATES = frozenset({
     "official_roster.html.j2", "district.html.j2", "council_home.html.j2", "council_meetings_year.html.j2",
     "council_items_year.html.j2", "fin_index.html.j2", "fin_fund.html.j2", "fin_capital.html.j2",
     "fin_contracts_index.html.j2", "fin_solicitation.html.j2", "transcript.html.j2", "rpc_home.html.j2",
-    "rpc_meetings_year.html.j2", "today.html.j2"})
+    "rpc_meetings_year.html.j2", "today.html.j2", "county_agendas.html.j2"})
 
 
 def corrections_problems(cfg: dict) -> list[str]:
@@ -343,7 +344,7 @@ def corrections_problems(cfg: dict) -> list[str]:
 def build(facts_path, out_dir, internal: bool = False, changes_path=None, report_path=None,
           seats_path=DEFAULT, districts_path=DEFAULT, geocoder: bool = True, finance_path=DEFAULT,
           capital_fund=DEFAULT, councils=DEFAULT, target: str | None = None, transcripts: bool = True,
-          rpc=DEFAULT, today=None) -> dict:
+          rpc=DEFAULT, today=None, county_agendas=DEFAULT) -> dict:
     """`geocoder=False` (`--no-geocoder`) draws no landing address box and allows no geocoder in the CSP: the build
     for the claude.ai preview, where the box could not reach the geocoder. The plain lookup line shows instead.
     `seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
@@ -364,7 +365,10 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     `rpc`: the Regional Planning Commission's rpc.yml as rpc.load_config returns it, or None for no RPC pages; left
     out, config/site.yml `rpc:` for a real build and none for a fixture build (sitegen/rpc.py).
     `today`: the date the day page (sitegen/days.py, today.html) is built around; left out, today in the site's zone
-    (or RECORDS_TODAY)."""
+    (or RECORDS_TODAY).
+    `county_agendas`: the county agendas file (collector/county_agenda.py) whose meetings the minutes do not cover yet
+    are shown as agenda-only meetings (sitegen/county_agendas.py); left out, config.COUNTY_AGENDAS for a real build
+    and none for a fixture build. None: no agenda-only meetings."""
     target = target or config.DEFAULT_TARGET
     if target not in config.MAX_FILES_BY_TARGET:
         raise BuildError(f"unknown target {target!r}; one of {', '.join(sorted(config.MAX_FILES_BY_TARGET))}")
@@ -393,6 +397,11 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     if bad:
         raise BuildError("config/site.yml: " + "; ".join(bad))
     ix = views.Index(facts, seat_rows)
+    built_day = today or days_mod.today_in_zone()
+    # County agendas posted before their minutes (sitegen/county_agendas.py); none for a fixture build
+    if county_agendas is DEFAULT:
+        county_agendas = None if fixture else config.COUNTY_AGENDAS
+    ax = agendas_mod.make(ix, built_day, county_agendas)
     if councils is DEFAULT:
         councils = () if fixture else config.COUNCILS
     cixs = load_councils(councils, fixture)
@@ -536,7 +545,10 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
 
     render("index.html.j2", "index.html", "Map", **views.landing(ix, districts, georef, geocoder, site["councils"]))
     render("officials.html.j2", "officials.html", "Officials", **views.officials_page(ix))
-    render("meetings_index.html.j2", "meetings.html", "Meetings", **views.meetings_page(ix))
+    render("meetings_index.html.j2", "meetings.html", "Meetings", **views.meetings_page(ix),
+           agenda_only=ax.list_entries() if ax else [], agendas_href=agendas_mod.PAGE)
+    if ax and ax.meetings:
+        render("county_agendas.html.j2", agendas_mod.PAGE, "Agendas without minutes yet", **ax.page())
     for n in range(1, config.SITE["district_count"] + 1):
         ctx = views.district(n, ix, districts)
         render("district.html.j2", f"districts/{n:02d}.html", ctx["title"], **ctx)
@@ -638,7 +650,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                    rpc_href=rpx.home_href(), rpc_label=rpx.nav_label, **rpx.meetings_year(y))
     # Day by day (Daylight M2): after the year pages, so every council meeting link knows its part
     try:
-        render("today.html.j2", days_mod.PAGE, "Today", **days_mod.page(ix, cixs, rpx, fx, today))
+        render("today.html.j2", days_mod.PAGE, "Today", **days_mod.page(ix, cixs, rpx, fx, built_day, ax=ax))
     except days_mod.DaysError as exc:
         raise BuildError(str(exc)) from exc
     render("about.html.j2", "about.html", "About", **views.about(ix), glance=views.record_glance(ix))
@@ -676,7 +688,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         print(f"sitegen: {expected} files with the export is over the {target} cap of {cap}; building again without "
               f"the {tx_pages} transcript pages", file=sys.stderr)
         return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
-                     finance_path, capital_fund, councils, target, transcripts=False, rpc=rpc, today=today)
+                     finance_path, capital_fund, councils, target, transcripts=False, rpc=rpc, today=today,
+                     county_agendas=county_agendas)
     manifest = write_publish_manifest(out, target)
     return {"pages": written, "files": len(manifest) + 1, "target": target, "transcripts": transcripts,
             "transcript_pages": tx_pages, "files_with_export": expected}

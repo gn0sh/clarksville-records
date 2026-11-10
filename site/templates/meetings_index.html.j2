@@ -2,6 +2,20 @@
 {% block main %}
 <h1>Meetings</h1>
 <p class="lede">{{ coverage.body }}, {{ coverage.from }} to {{ coverage.to }}. Newest first. Each meeting page shows attendance, motions and roll calls.</p>
+{% if agenda_only %}
+<section aria-labelledby="agenda-only-h">
+<h2 id="agenda-only-h">Agendas without minutes yet</h2>
+<p>Meetings after the minutes on this site, from the agendas the county posted. <a href="{{ agendas_href }}">All agenda items</a>.</p>
+<ol class="timeline meetings" aria-label="Meetings with an agenda and no minutes yet">
+  {% for m in agenda_only %}
+  <li class="ev-meeting">
+    <p class="tl-head"><a class="date" href="{{ m.href }}">{{ m.date }}</a> <span class="tl-kind">{{ m.kind_label }}</span></p>
+    <p class="tl-sub">Agenda: {{ m.n_items }} {{ "item" if m.n_items == 1 else "items" }}{% if m.note %} <span class="sep" aria-hidden="true">&middot;</span> {{ m.note }}{% endif %}</p>
+  </li>
+  {% endfor %}
+</ol>
+</section>
+{% endif %}
 {% if meetings_by_year %}
 <details class="menu year-jump">
   <summary>Jump to year</summary>

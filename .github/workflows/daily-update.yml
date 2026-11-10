@@ -86,7 +86,9 @@ jobs:
         run: |
           set +e
           # City first: it rewrites data/localities/clarksville-tn/*. The county run then builds facts, finance and
-          # the site (build/site) from everything. Exit 0 ok, 2 fetch/parse failures, 3 gate failure.
+          # the site (build/site) from everything; it also reads the County Commission agenda page and any new agenda
+          # PDFs (collector/county_agenda.py: one page request, new PDFs only, the same polite fetcher).
+          # Exit 0 ok, 2 fetch/parse failures, 3 gate failure.
           python -m collector city run; city=$?
           python -m collector run; county=$?
           echo "city_exit=$city county_exit=$county"

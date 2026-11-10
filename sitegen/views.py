@@ -986,6 +986,8 @@ def official_record(template: str, site: dict, ctx: dict) -> dict | None:
         rec = site.get("record")
     elif template in RECORD_RPC:
         rec = site.get("rpc_record")
+    elif template == "county_agendas.html.j2":
+        rec = ctx.get("record")       # the county's agendas page; each meeting section links its own agenda PDF
     elif template in RECORD_FINANCE:
         rec = recs.get("finance")
     elif template == "fin_contracts_index.html.j2":

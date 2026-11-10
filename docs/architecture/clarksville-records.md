@@ -72,6 +72,22 @@ schema/changes.schema.json one line of data/changes.jsonl (collector -> sitegen)
   request about 60 minutes PDFs take about 10 minutes. Manifest entries also carry `label` (the index link text).
 - `data/changes.jsonl` lines follow `schema/changes.schema.json` (date, fact_id `src-<sha12>` of the replaced
   source, field `sha256`, old, new, note, source_url, page null).
+- Store repair (2026-11-10): `fetch` and `run` also request, at the exact manifest URL, any in-range minutes entry
+  whose bytes the store lacks and the index no longer lists (the 2020-2021 packets). No other URL is tried.
+
+### County agendas (`collector/county_agenda.py`, `sitegen/county_agendas.py`; docs/research/county-recency.md)
+- Part of `collector run` (so of the daily update), after finance: one GET of https://montgomerytn.gov/commission/agenda,
+  then each agenda PDF the page links for months from the newest minutes meeting to next month that is not stored
+  yet. Placeholders (under 100 KB, or Last-Modified over 45 days before the listed month) are not stored and are asked
+  for again on later runs. No search form (BIS Online) is ever used.
+- Files: `data/county-agendas/manifest.json` (its own Store manifest, kind `agenda_<informal|formal|special>`) and
+  `data/county-agendas/agendas.json`: `meetings[] {id "<date>-<kind>", date, kind, source_id, date_page, items[]
+  {id, number, printed, title, section, page, year, link_basis "number"}}`, `sources[] {id, url, sha256, kind, label,
+  fetched_at, pages}`, `skipped[] {url, label, reason}`, `problems[]`. Date and kind come from page 1 of the PDF.
+  An offline run with agendas missing from the store leaves the committed file unchanged.
+- Site: a meeting is shown while `data/facts.json` has no minutes meeting with its id (formal/special: no minutes
+  meeting that date): `meetings/agendas.html` (one section per meeting), a list on `meetings.html`, and day cards on
+  `today.html` ("Agenda" with the PDF and items; past dates say the minutes are not yet posted, as of the build date).
 
 ### Parser (`collector/parse.py` from M0, wrapped by `collector/minutes.py`)
 - Meetings are dated from each "BE IT REMEMBERED ... met in <x> session, on <weekday>, <date>" header, never from the
