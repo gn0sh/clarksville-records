@@ -5,7 +5,7 @@ site_name: Daylight                 # working product name (design/daylight, 202
 site_place: Clarksville-Montgomery County   # name plate line under the name, on every page
 site_timezone: America/Chicago   # the zone of the landing date line (static/sky.js); the sun follows the viewer's own clock
 today_place: Clarksville            # landing sky: "Tuesday in Clarksville" (static/sky.js reads it from the page)
-operator: gnoshcodes               # CEO decision 2026-11-09: a gnoshcodes product, no personal operator credit
+operator: gnoshcodes LLC           # CEO decisions 2026-11-09 (a gnoshcodes product, no personal credit) and 2026-11-10 (the LLC)
 operator_url: https://gnoshcodes.com/
 
 # "Not sure of your district?" lookup link on the landing (the state elections site). Empty renders nothing; another
