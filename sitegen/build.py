@@ -665,8 +665,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     render("changes.html.j2", "changes.html", "Changes", **views.changes(read_changes(changes_path)))
     render("report.html.j2", "report.html", "Report an error", **views.report_page())
     if site["alerts"]:   # Alerts v1 (sitegen/feeds.py): written last, when every item and meeting link knows its part
-        feed_rows = feeds_mod.feed_list(cixs)
-        alerts_ctx = feeds_mod.alerts_page(cixs)
+        feed_rows = feeds_mod.feed_list(cixs, rpc=rpx, fin=fin_data, target=target)
+        alerts_ctx = feeds_mod.alerts_page(cixs, rpc=rpx, fin=fin_data, target=target)
         alerts_ctx.setdefault("seat_feeds", [f for f in feed_rows if f.get("kind") == "zoning-seat"])
         alerts_ctx.update(morning_page.alerts_context(feed_rows))   # the morning note's #note section (M3 T3)
         render("alerts.html.j2", feeds_mod.PAGE, "Alerts", **alerts_ctx)
@@ -674,7 +674,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
             note_day = morning_mod.day(built_day, ix=ix, councils=cixs, rpc=rpx, finance=fx)
             render("morning.html.j2", morning_page.PAGE, morning_page.title(),
                    **morning_page.preview(note_day, feed_rows))
-        for rel, body in feeds_mod.build_feeds(ix, cixs).items():
+        for rel, body in feeds_mod.build_feeds(ix, cixs, rpc=rpx, fin=fin_data, target=target).items():
             (out / rel).parent.mkdir(parents=True, exist_ok=True)
             (out / rel).write_bytes(body)
     if internal:
