@@ -221,7 +221,8 @@ class Seats:
             # Current is derived: observed = seen at L, the latest meeting read (no end); sourced = no end printed.
             # An open observed row last seen before L is not current: it ends where it was last seen.
             end = r["end"]
-            if r.get("dates") == "observed" and end is None and r.get("seen_to") and r["seen_to"] < self.latest:
+            if r.get("dates") == "observed" and end is None and r.get("seen_to") and r["seen_to"] < self.latest \
+                    and not r.get("held_over"):     # held over: not named in an incomplete latest list (council.py)
                 end = r["seen_to"]
             current = end is None or end > (self.latest if r.get("dates") == "observed" else latest)
             self.records.append({**r, "end": end, "label": seat_label(r["seat"]), "current": current,
@@ -243,6 +244,11 @@ class Seats:
         if rec["official_id"] is None:
             return f"shown as vacant in {ev} from {rec['start']} to {rec['end'] or self.latest}"
         to = f"{self.latest}, {self.wording['latest']}" if rec["end"] is None else rec["end"]
+        if rec.get("held_over"):
+            # open, but the latest list does not name the member (council.holder_rows): say so, never "to L"
+            to = f"{rec['seen_to']}; not named in the {self.wording['evidence']} of {self.latest}, {self.wording['latest']}"
+            if not rec.get("printed_to"):
+                return f"seen in {ev} from {rec['start']} to {to}"
         if rec.get("printed_to"):
             # carried on by name only (council.extend_by_listings): what printed the seat, then the name-only lists
             seen = rec.get("seen_evidence") or ev
@@ -252,7 +258,14 @@ class Seats:
         return f"seen in {ev} {rec['start']} to {rec['end']}"
 
     def basis(self, rec: dict) -> str:
-        return basis_text(rec, self.latest, self.wording)
+        return basis_text(rec, self.latest, self.wording) + self.held_over_note([rec])
+
+    def held_over_note(self, records: list[dict]) -> str:
+        """The clause a basis line adds for current records whose member the latest list does not name."""
+        held = sorted((r for r in records if r.get("held_over")), key=lambda r: seat_order(r["seat"]))
+        ev = self.wording["evidence"]
+        return "".join(f"; {r['label']}: its member is not named in the {ev} of {self.latest} and was last listed "
+                       f"in {ev} {r['seen_to']}" for r in held)
 
     def view(self, rec: dict) -> dict:
         """What a page may know about a record: label, wording and sources, never a bare start/end."""
@@ -269,15 +282,21 @@ class Seats:
     def is_current(self, official_id: str) -> bool:
         return any(r["current"] for r in self.by_official.get(official_id, []))
 
+    @staticmethod
+    def covers_to(rec: dict) -> str | None:
+        """The last date a record covers (None: no end). An open observed row covers no meeting after the one it was
+        last seen at (a meeting collected since seats.yml was derived is not read for seats yet: M1
+        pipeline/seats-stale-on-new-county-meeting). Every reader of a record's dates (on, the seat pages' vote
+        blocks) uses this, so a seat page and a meeting page agree."""
+        return rec["end"] if rec["end"] is not None or rec.get("dates") != "observed" else rec.get("seen_to")
+
     def on(self, official_id: str | None, date: str) -> str | None:
         """The seat label held on a date ('District 7', or 'District 7 (old lines)' for a record under the old
         lines). None when no record covers the date (the page then says the seat is not recorded; never guessed)."""
         if not self.loaded or not official_id:
             return None
         for r in self.by_official.get(official_id, []):
-            # an open observed row covers no meeting after the one it was last seen at (a meeting collected since
-            # seats.yml was derived is not read for seats yet: M1 pipeline/seats-stale-on-new-county-meeting)
-            end = r["end"] if r["end"] is not None or r.get("dates") != "observed" else r.get("seen_to")
+            end = self.covers_to(r)
             if r["start"] <= date and (end is None or date <= end):
                 if r.get("lines") is not None:
                     old = r["district"] is not None and r["lines"] == "old"

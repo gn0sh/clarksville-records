@@ -143,26 +143,54 @@ def extend_by_listings(rows: list[dict], wards: list[dict], facts: dict, cfg: di
         if not later:
             continue
         last = later[-1]
-        r.update({"printed_to": printed, "seen_evidence": r["evidence"], "evidence": cfg["evidence"]["ward"],
-                  "end": last["date"], "last_source": _src(sources, last["source_id"], last["page"])})
+        r.update({"printed_to": printed, "printed_source": r["last_source"], "seen_evidence": r["evidence"],
+                  "evidence": cfg["evidence"]["ward"], "end": last["date"],
+                  "last_source": _src(sources, last["source_id"], last["page"])})
+
+
+def latest_list_incomplete(wards: list[dict], facts: dict, latest: str | None, prev: str | None) -> bool:
+    """True when the latest attendance list cannot show that a member of the list before it has gone: it prints a
+    name that resolves to no official (a misspelling such as ZAHARIAS, or a new name the record cannot place yet),
+    or it resolves fewer members than the list before it (a list cut off, or a page not read)."""
+    if latest is None or prev is None:
+        return False
+    officials = {o["id"] for o in facts["officials"]}
+    resolved = {d: {w["official_id"] for w in wards if w["date"] == d and w.get("official_id") in officials}
+                for d in (latest, prev)}
+    unresolved = any(w["date"] == latest and w.get("official_id") not in officials for w in wards) or any(
+        not a.get("official_id") for m in facts.get("meetings", []) if m.get("date") == latest
+        for a in m.get("attendance") or [])
+    return unresolved or len(resolved[latest]) < len(resolved[prev])
 
 
 def holder_rows(wards: list[dict], facts: dict, cfg: dict) -> tuple[list[dict], str | None]:
     """(records, L). L is the latest minutes read: the latest meeting with an attendance list (wards.json lists every
-    member each list prints, ward or not), or a later record's end. A record seen at L has no end (current); every
-    record keeps `seen_to`, the last meeting it was seen at.
+    member each list prints, ward or not); only without any list, the latest record end. A record seen at L (or
+    later) has no end (current); every record keeps `seen_to`, the last meeting it was seen at.
 
-    L is not the latest end of any one kind of evidence: the wards printed in the attendance lists stop at 2025-03-06
-    and the confirmed roll calls at another date, so taking L from the records alone closed every ward record that
-    still ran on (city-seats/current-holder-matches-latest-attendance). extend_by_listings carries each record on
-    through the lists that still list its holder."""
+    L is never the latest end of one kind of evidence: the wards printed in the attendance lists stop at 2025-03-06
+    and the confirmed roll calls at another date, so taking L from the records closed every ward record that still
+    ran on (city-seats/current-holder-matches-latest-attendance); a confirmed roll call at a meeting with no
+    attendance list would do the same, so L comes from the lists alone. extend_by_listings carries each record on
+    through the lists that still list its holder.
+
+    One list is not enough to close a record (city-seats, one-list drop): a record last seen at the list before L,
+    whose member L's list does not name, stays open (`held_over`) when that list is incomplete
+    (latest_list_incomplete) and the record shows no successor. Seats words it as not named at L."""
     rows = ward_rows(wards, facts, cfg) + title_rows(facts, cfg)
     extend_by_listings(rows, wards, facts, cfg)
-    latest = max([*(r["end"] for r in rows), *(w["date"] for w in wards)], default=None)
+    lists = sorted({w["date"] for w in wards})
+    latest = lists[-1] if lists else max((r["end"] for r in rows), default=None)
+    prev = lists[-2] if len(lists) > 1 else None
+    short = latest_list_incomplete(wards, facts, latest, prev)
     for r in rows:
-        r["seen_to"] = r["end"]
-        if r["end"] == latest:
+        r["seen_to"], r["held_over"] = r["end"], False
+        if r["end"] >= latest:
             r["end"] = None
+        elif short and r["official_id"] and r["end"] == prev and not any(
+                x is not r and x["start"] > prev and (x["seat"] == r["seat"] or x["official_id"] == r["official_id"])
+                for x in rows):
+            r["end"], r["held_over"] = None, True
     return rows, latest
 
 

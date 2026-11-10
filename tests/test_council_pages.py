@@ -322,7 +322,9 @@ def test_each_council_list_on_the_landing_has_its_own_basis_line(cpages, cix):
     own = re.search(r'<p class="basis muted">(.*?)</p>\s*<nav aria-label="' + CFG["nav_label"] + ' seats">',
                     council_part, re.S).group(1)
     assert own != county
-    assert own.endswith(f"{CFG['latest_words']}, {cix.seats.latest}.")
+    # the fixture's latest list (a special session) names fewer members than the one before, so the line goes on to
+    # name the seats whose member it does not name (city-seats, one-list drop)
+    assert f"{CFG['latest_words']}, {cix.seats.latest}" in own and own.endswith(".")
     assert views.observed_basis(cix) + "." == own
 
 

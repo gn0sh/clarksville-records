@@ -515,9 +515,10 @@ def observed_basis(ix: Index, records: list[dict] | None = None) -> str:
         by_ev.setdefault(r.get("evidence") or ix.seats.wording["evidence"], []).append(r["label"])
     if len(by_ev) <= 1:
         ev = next(iter(by_ev), None)
-        return basis_text({"dates": "observed", "evidence": ev}, ix.seats.latest, ix.seats.wording)
+        return basis_text({"dates": "observed", "evidence": ev}, ix.seats.latest, ix.seats.wording) \
+            + ix.seats.held_over_note(records)   # a member the latest list does not name (city-seats, one-list drop)
     parts = " and ".join(f"the {ev} ({_seat_group(labels)})" for ev, labels in by_ev.items())
-    return f"Current: in {parts} of {ix.seats.wording['latest']}, {ix.seats.latest}"
+    return f"Current: in {parts} of {ix.seats.wording['latest']}, {ix.seats.latest}" + ix.seats.held_over_note(records)
 
 
 def officials_page(facts) -> dict:
@@ -1345,7 +1346,7 @@ def district(n: int, facts, districts: dict | None) -> dict:
     for r in sorted(recs, key=lambda r: r["start"], reverse=True):  # newest first, by date only
         if r["official_id"] is None or r["official_id"] not in ix.officials:
             continue
-        end = r["end"]
+        end = ix.seats.covers_to(r)   # an open row stops at the meeting it was last seen at (M1)
         # current lines: [max(start, eff), end]; old lines: [start, min(end, eff - 1 day)]; clipped to the data
         if end is None or end >= eff:
             s0 = max(r["start"], eff, lo)
