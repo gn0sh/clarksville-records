@@ -19,6 +19,7 @@ CONFIG_DIR = REPO_ROOT / "config"
 SITE_CONFIG_PATH = CONFIG_DIR / "site.yml"
 SITE = yaml.safe_load(SITE_CONFIG_PATH.read_text(encoding="utf-8"))
 LOCALITY = SITE["locality"]
+COUNTY_AGENDAS_TEXT = SITE["county_agendas"]       # the agenda-only meetings' copy (config/site.yml county_agendas)
 # Launch-time override (docs/ops/launch-runbook.md): the daily-update workflow sets RECORDS_SITE_URL so feeds carry
 # absolute links to the public site without editing alerts.site_url in config/site.yml. Unset: the file's value.
 if os.environ.get("RECORDS_SITE_URL"):

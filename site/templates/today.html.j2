@@ -10,7 +10,7 @@
 <article class="day-card day-card-{{ c.kind }}" id="{{ c.id }}" aria-labelledby="{{ c.id }}-h">
   <header class="day-card-hd">
     <h3 id="{{ c.id }}-h"><span class="dot dot-{{ c.dot }}" aria-hidden="true"></span>{{ c.body }}</h3>
-    {% if c.title %}<p class="day-card-kind">{{ c.title }}{% if c.state == "scheduled" %} <span class="chip chip-status">Scheduled</span>{% endif %}{% if c.cancelled %} <span class="chip chip-status">Cancelled</span>{% endif %}</p>{% elif c.cancelled %}<p class="day-card-kind"><span class="chip chip-status">Cancelled</span></p>{% endif %}
+    {% if c.title %}<p class="day-card-kind">{{ c.title }}{% if c.state == "scheduled" %} <span class="chip chip-status">Scheduled</span>{% endif %}{% if c.get("agenda_only") %} <span class="chip chip-status">Agenda</span>{% endif %}{% if c.cancelled %} <span class="chip chip-status">Cancelled</span>{% endif %}</p>{% elif c.cancelled %}<p class="day-card-kind"><span class="chip chip-status">Cancelled</span></p>{% endif %}
   </header>
   {% if c.kind == "rpc" %}{{ rpc_docs(c.rpc) }}{% endif %}
   {% if c.docs or c.video or c.href or c.minutes_note %}

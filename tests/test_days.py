@@ -331,6 +331,40 @@ def test_county_agenda_meetings_show_as_agenda_with_the_pdf_and_the_minutes_note
     assert "Agendas without minutes yet" in meetings and "Agenda: 1 item <span" in meetings
 
 
+def test_county_agenda_review_fixes(tmp_path):
+    """7e54c2e review: a special session on a formal minutes day stays (idempotence/special-hidden-by-same-day-formal),
+    the informal note says what this site holds (neutrality/unverified-county-claim), the day card has the Agenda chip
+    (verified-gate/agenda-card-chip), the list lede claims no "after" (neutrality/after-the-minutes-copy), a known item
+    links as "Record of N in the minutes" (item-history/earlier-record-label), a source without pages is left out."""
+    p = county_agendas(tmp_path)
+    data = json.loads(p.read_text(encoding="utf-8"))
+    nopages = {**data["sources"][0], "id": "src-bbbbbbbbbbbb", "pages": None}
+    data["sources"].append(nopages)
+    known = {"id": "y/24-12-91", "number": "24-12-91", "printed": "24-12-91", "title": "A known item",
+             "section": "RESOLUTIONS", "page": 3, "year": 2024, "link_basis": "number"}
+    data["meetings"] += [{"id": "2024-12-09-special", "date": "2024-12-09", "kind": "special",
+                          "source_id": "src-aaaaaaaaaaaa", "date_page": 1, "items": [known]},
+                         {"id": "2024-12-02-informal", "date": "2024-12-02", "kind": "informal",
+                          "source_id": "src-aaaaaaaaaaaa", "date_page": 1, "items": []},
+                         {"id": "2024-12-18-formal", "date": "2024-12-18", "kind": "formal",
+                          "source_id": nopages["id"], "date_page": 1, "items": []}]
+    p.write_text(json.dumps(data), encoding="utf-8")
+    out = tmp_path / "site"
+    build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, today=date(2024, 12, 20),
+          county_agendas=p)
+    page = (out / "meetings" / "agendas.html").read_text(encoding="utf-8")
+    assert 'id="2024-12-09-special"' in page and 'id="2024-12-09-formal"' not in page
+    assert "Record of 24-12-91 in the minutes</a>" in page and "Earlier record" not in page
+    assert "This site holds no minutes for informal sessions, as of December 20, 2024." in page
+    assert "clerk" not in page and 'id="2024-12-18-formal"' not in page and "None pages" not in page
+    html = (out / "today.html").read_text(encoding="utf-8")
+    card = section(html, "2024-12-16")
+    assert 'Formal meeting <span class="chip chip-status">Agenda</span>' in card
+    assert section(html, "2024-12-09").count('<span class="chip chip-status">Agenda</span>') == 1   # the special only
+    meetings = (out / "meetings.html").read_text(encoding="utf-8")
+    assert config.COUNTY_AGENDAS_TEXT["list_lede"] in meetings and "Meetings after the minutes" not in meetings
+
+
 def test_a_fixture_build_reads_no_county_agendas_unless_named(site):
     assert not (site / "meetings" / "agendas.html").exists()
     assert "Agendas without minutes yet" not in (site / "meetings.html").read_text(encoding="utf-8")
