@@ -79,8 +79,15 @@ T1 additions (additive; T3 and the sender may rely on them):
   (`contracts/solicitation/<id>`), and each document first fetched on a later day is `contracts/document/<sol>/<doc>`;
 - the manifest paths are config (`morning_note.manifests`, they name localities); a fixture build writes no note
   unless a test passes `morning_manifests=`;
-- file budget: the `preview` target writes today's dated file and `latest.json` only (2 files); `pages` writes
-  `keep_days` + 1.
+- file budget (manager decision 2026-11-10): `morning/` (JSON and T3's `morning/index.html`) is built on the `pages`
+  target only; the preview writes none. A preview still over 500 with the export after leaving out transcript pages
+  is built again without the open-data export (log line; data.html and about.html link no data/ file then);
+- backfill guard: a day holding any document from a collector's initial run (first fetched within
+  `morning_note.backfill.initial_run_hours` of its manifest's earliest row) or more than `backfill.max_entries`
+  entries has `"backfill": true` and `entries: []`; `counts` (`entries`, `lists` per key, `unplaced_zoning`) is kept.
+  The sender sends nothing for such a day;
+- the neutrality scan (`BANNED`) runs over our own words only (`morning.own_text`: list labels, connective text,
+  body names), not verbatim titles or URLs.
 
 `select(day, lists, seats) -> list[entry]` (Python, `sitegen/morning.py`) is the one filter: `seats` and `budget`/
 `contracts` membership is by `lists`; `zoning` and `seats` also need the seat match above. `morning.js` mirrors it;

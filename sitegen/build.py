@@ -344,7 +344,8 @@ def corrections_problems(cfg: dict) -> list[str]:
 def build(facts_path, out_dir, internal: bool = False, changes_path=None, report_path=None,
           seats_path=DEFAULT, districts_path=DEFAULT, geocoder: bool = True, finance_path=DEFAULT,
           capital_fund=DEFAULT, councils=DEFAULT, target: str | None = None, transcripts: bool = True,
-          rpc=DEFAULT, today=None, county_agendas=DEFAULT, morning_manifests=DEFAULT) -> dict:
+          rpc=DEFAULT, today=None, county_agendas=DEFAULT, morning_manifests=DEFAULT,
+          export: bool = True) -> dict:
     """`geocoder=False` (`--no-geocoder`) draws no landing address box and allows no geocoder in the CSP: the build
     for the claude.ai preview, where the box could not reach the geocoder. The plain lookup line shows instead.
     `seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
@@ -371,7 +372,10 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     and none for a fixture build. None: no agenda-only meetings.
     `morning_manifests`: the collectors' manifests the morning note (sitegen/morning.py) reads first_fetched_at from;
     left out, config/site.yml `morning_note.manifests` for a real build and none for a fixture build (made-up sources
-    have no manifest rows). None: no morning/ files."""
+    have no manifest rows). None: no morning/ files. The preview target writes none.
+    `export`: whether the open-data export (collector export, data/) goes with this build. A preview still over its
+    cap without the transcript pages is built again with export=False: data.html and about.html then link no data/
+    file and say the files are on the full site."""
     target = target or config.DEFAULT_TARGET
     if target not in config.MAX_FILES_BY_TARGET:
         raise BuildError(f"unknown target {target!r}; one of {', '.join(sorted(config.MAX_FILES_BY_TARGET))}")
@@ -447,6 +451,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     site["councils"] = [council_mod.landing_entry(c) for c in cixs]
     site["transcripts_omitted"] = not transcripts
     site["ward_map"] = ward_map
+    site["export_omitted"] = not export
     if rpx is not None:
         site["rpc_record"] = {"url": rpx.cfg["record_url"], "label": rpx.cfg["record_label"]}
     written: list[str] = []
@@ -675,17 +680,18 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         mn = morning_mod.settings()
         morning_manifests = None if fixture or mn is None else mn["manifests"]
     morning_note = None
-    if morning_manifests is not None and morning_mod.settings() is not None:
+    if morning_manifests is not None and morning_mod.settings() is not None and target != "preview":
         # The morning note (Daylight M3, sitegen/morning.py): after every page, so each entry's link knows its part.
-        # T3 renders morning/index.html from `morning_note` (today's note).
+        # T3 renders morning/index.html from `morning_note` (today's note). Pages target only: the claude.ai preview
+        # may leave sections out (docs/status.md Decisions, 2026-11-09) and is at its file cap.
         try:
             first = morning_mod.first_fetched(morning_manifests)
+            bulk = morning_mod.bulk_urls(morning_manifests, morning_mod.settings()["backfill"]["initial_run_hours"])
             docs = morning_mod.documents(ix, cixs, rpx, ax, fx, bg, first)
             as_of = max([x for x in [ix.data_as_of(), *(c.data_as_of() for c in cixs)] if x != "unknown"]
                         + [s["fetched_at"] for s in (rpx.facts["sources"] if rpx else []) if s.get("fetched_at")],
                         default="")
-            morning_note = morning_mod.write(out, built_day, docs, first, data_as_of=as_of,
-                                           keep_days=morning_mod.PREVIEW_KEEP_DAYS if target == "preview" else None)
+            morning_note = morning_mod.write(out, built_day, docs, first, data_as_of=as_of, bulk=bulk)
         except morning_mod.MorningError as exc:
             raise BuildError(str(exc)) from exc
     if internal:
@@ -704,15 +710,22 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     # The target's file cap, counting the export still to come (data/ in `out` now may be an older export's).
     cap = config.max_files(target)
     built = sum(1 for p in out.rglob("*") if p.is_file() and p.relative_to(out).parts[0] != "data")
-    expected = built + export_file_count(fixture, cixs, fx is not None and fin_views.EXPORTS_READY)
+    expected = built + (export_file_count(fixture, cixs, fx is not None and fin_views.EXPORTS_READY) if export else 0)
     tx_pages = sum(len(p[5]) for p in tx_plans)
     if expected > cap and tx_pages and target == "preview":
         print(f"sitegen: {expected} files with the export is over the {target} cap of {cap}; building again without "
               f"the {tx_pages} transcript pages", file=sys.stderr)
         return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
                      finance_path, capital_fund, councils, target, transcripts=False, rpc=rpc, today=today,
-                     county_agendas=county_agendas, morning_manifests=morning_manifests)
+                     county_agendas=county_agendas, morning_manifests=morning_manifests, export=export)
+    if expected > cap and export and target == "preview":
+        print(f"sitegen: {expected} files with the export is over the {target} cap of {cap}; building again without "
+              f"the open-data export (do not run `collector export` for this preview; data.html says the files are "
+              f"on the full site)", file=sys.stderr)
+        return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
+                     finance_path, capital_fund, councils, target, transcripts=transcripts, rpc=rpc, today=today,
+                     county_agendas=county_agendas, morning_manifests=morning_manifests, export=False)
     manifest = write_publish_manifest(out, target)
     return {"pages": written, "files": len(manifest) + 1, "target": target, "transcripts": transcripts,
             "transcript_pages": tx_pages, "files_with_export": expected,
-            "morning": morning_note}
+            "morning": morning_note, "export": export}

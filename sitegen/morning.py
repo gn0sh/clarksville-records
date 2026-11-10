@@ -42,9 +42,6 @@ KINDS = ("agenda_item", "vote", "document", "solicitation")
 TEXT_KEYS = ("agenda_item", "vote", "vote_unconfirmed", "agenda", "minutes", "budget_book", "solicitation",
              "contract_document", "unplaced_zoning")
 FORM_FIELD_KEYS = ("email", "lists", "district", "ward")
-# The preview target (claude.ai artifact, 500 files) keeps only today's dated file beside latest.json; the pages
-# target, where a sender would read from, keeps morning_note.keep_days.
-PREVIEW_KEEP_DAYS = 1
 _HTTPS = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[^\s\"'<>`\\]*)?")
 
 
@@ -84,6 +81,10 @@ def problems(cfg: dict) -> list[str]:
     zp = mn.get("zoning_prefixes")
     if not isinstance(zp, list) or not zp or not all(isinstance(p, str) and re.fullmatch(r"[A-Z]+", p) for p in zp):
         out.append(f"morning_note.zoning_prefixes must be a list of case prefixes like Z, CZ, got {zp!r}")
+    bf = mn.get("backfill")
+    if not isinstance(bf, dict) or not all(isinstance(bf.get(k), int) and not isinstance(bf.get(k), bool)
+                                           and bf[k] >= 1 for k in ("initial_run_hours", "max_entries")):
+        out.append("morning_note.backfill must set initial_run_hours and max_entries, each a whole number >= 1")
     man = mn.get("manifests")
     if not isinstance(man, list) or not man or not all(isinstance(p, str) and p for p in man):
         out.append("morning_note.manifests must list the collectors' manifest files")
@@ -138,6 +139,23 @@ def first_fetched(paths) -> dict[str, datetime]:
             if url not in out or when < out[url]:
                 out[url] = when
     return out
+
+
+def bulk_urls(paths, hours: int) -> frozenset[str]:
+    """Source URLs a collector first fetched in its initial (bulk) run: within `hours` of the earliest
+    first_fetched_at in that collector's manifest. A new collector's first run counts the same way."""
+    out = set()
+    for p in paths:
+        p = Path(p)
+        if not p.is_absolute():
+            p = config.REPO_ROOT / p
+        whens = [(r["url"], datetime.fromisoformat(r["first_fetched_at"]))
+                 for r in json.loads(p.read_text(encoding="utf-8"))]
+        if not whens:
+            continue
+        start = min(w for _, w in whens)
+        out |= {u for u, w in whens if w < start + timedelta(hours=hours)}
+    return frozenset(out)
 
 
 def window(day: date, cutoff: str, tz: str) -> tuple[datetime, datetime]:
@@ -426,15 +444,19 @@ def resolve(docs: list[dict], first: dict[str, datetime]) -> None:
 
 # ---------------------------------------------------------------------------------------------- the day, select
 def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None = None,
-        data_as_of: str = "") -> dict:
-    """The note for day `d` (the output contract): every entry of every document first fetched in d's window."""
+        data_as_of: str = "", bulk: frozenset[str] = frozenset()) -> dict:
+    """The note for day `d` (the output contract): every entry of every document first fetched in d's window.
+    Backfill guard: a day holding any document from a collector's initial run (`bulk`, bulk_urls) or more than
+    morning_note.backfill.max_entries entries is a backfill day: `"backfill": true` and `entries: []` (nothing to
+    send), its counts kept in `counts`."""
     cfg = config.SITE if cfg is None else cfg
     mn = settings(cfg)
     resolve(docs, first)
     start, end = window(d, mn["cutoff"], cfg["site_timezone"])
-    entries, ids = [], set()
+    entries, ids, from_bulk = [], set(), False
     for doc in docs:
         if start <= first[doc["url"]] < end:
+            from_bulk = from_bulk or doc["url"] in bulk
             for e in doc["entries"]:
                 if e["lists"] and e["id"] not in ids:
                     ids.add(e["id"])
@@ -442,11 +464,26 @@ def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None 
     entries.sort(key=lambda e: (LIST_KEYS.index(e["lists"][0]), e["body"], e["meeting_date"] or "",
                                 e["source"]["page"] or 0, e["id"]))
     unplaced = sum(1 for e in entries if "zoning" in e["lists"] and e["district"] is None and e["ward"] is None)
+    backfill = from_bulk or len(entries) > mn["backfill"]["max_entries"]
+    counts = {"entries": len(entries), "lists": {k: sum(1 for e in entries if k in e["lists"]) for k in LIST_KEYS},
+              "unplaced_zoning": unplaced}
+    if backfill:
+        entries, unplaced = [], 0
     return {"schema": SCHEMA, "date": d.isoformat(),
             "window": {"from": _stamp(start), "to": _stamp(end)}, "data_as_of": data_as_of,
             "lists": [{"key": x["key"], "label": x["label"]} for x in mn["lists"]],
+            "backfill": backfill, "counts": counts,
             "entries": entries, "unplaced_zoning": unplaced,
             "unplaced_text": mn["text"]["unplaced_zoning"].format(n=unplaced) if unplaced else ""}
+
+
+def own_text(note: dict) -> list[str]:
+    """Every string of the note that is ours, not the record's: list labels, connective text and body names (all
+    config). Verbatim titles and source URLs are the record's own words and are left out of the neutrality scan."""
+    out = [x["label"] for x in note["lists"]] + ([note["unplaced_text"]] if note["unplaced_text"] else [])
+    for e in note["entries"]:
+        out += [e["recorded"], e["body_name"]]
+    return out
 
 
 def _seat_match(e: dict, key: str, seats: dict) -> bool:
@@ -469,16 +506,16 @@ def select(note: dict, lists, seats: dict | None = None) -> list[dict]:
 
 # ---------------------------------------------------------------------------------------------- files
 def write(out: Path, today: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None = None,
-          data_as_of: str = "", keep_days: int | None = None) -> dict:
-    """morning/YYYY-MM-DD.json for the last keep_days days (config, unless `keep_days` is given: the preview target
-    keeps today's only, PREVIEW_KEEP_DAYS, for its file cap) and morning/latest.json; returns today's note."""
+          data_as_of: str = "", bulk: frozenset[str] = frozenset()) -> dict:
+    """morning/YYYY-MM-DD.json for the last keep_days days and morning/latest.json; returns today's note. Written
+    on the pages target only (build.py): the preview may leave sections out (docs/status.md, 2026-11-09)."""
     cfg = config.SITE if cfg is None else cfg
     folder = Path(out) / FOLDER
     folder.mkdir(parents=True, exist_ok=True)
     today_note = None
-    for back in range(keep_days or settings(cfg)["keep_days"]):
+    for back in range(settings(cfg)["keep_days"]):
         d = today - timedelta(days=back)
-        note = day(d, docs, first, cfg, data_as_of)
+        note = day(d, docs, first, cfg, data_as_of, bulk)
         text = json.dumps(note, ensure_ascii=False, indent=1, sort_keys=False) + "\n"
         (folder / f"{d.isoformat()}.json").write_text(text, encoding="utf-8")
         if back == 0:

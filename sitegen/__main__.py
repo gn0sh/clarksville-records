@@ -43,7 +43,8 @@ def main(argv=None) -> int:
         return 1
     print(f"sitegen: wrote {len(result['pages'])} pages, {result['files']} files in total, to {args.out} "
           f"(target {result['target']}, cap {config.max_files(result['target'])} with the export; transcript pages "
-          f"{result['transcript_pages'] if result['transcripts'] else 'left out'})")
+          f"{result['transcript_pages'] if result['transcripts'] else 'left out'}"
+          f"{'' if result.get('export', True) else '; open-data export left out'})")
     print(headroom_line(result))
     return 0
 

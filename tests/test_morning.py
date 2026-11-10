@@ -245,13 +245,86 @@ def test_unconfirmed_motions_carry_no_outcome_tally_or_names(site):
     assert county_unverified["recorded"] == text["vote_unconfirmed"]
 
 
-def test_no_names_and_no_banned_words(site, inputs):
+def test_no_names_in_any_note(site, inputs):
     raw = "".join(p.read_text(encoding="utf-8") for p in (site["out"] / "morning").glob("*.json"))
     for name in ("Fixture Mover", "Fixture Seconder", "Fixture Nay"):
         assert name not in raw
     for o in inputs["county"]["officials"]:
         assert o["name"] not in raw and o["id"] not in raw   # (fixture surnames are "Example", a word titles print)
-    assert not BANNED.search(raw)
+
+
+def banned_in_own_text(n: dict) -> list[str]:
+    """The neutrality scan over our own words only (morning.own_text): verbatim titles and URLs are the record's."""
+    return [t for t in morning.own_text(n) if BANNED.search(t)]
+
+
+def test_own_text_passes_the_neutrality_scan(site):
+    for f in (site["out"] / "morning").glob("*.json"):
+        n = json.loads(f.read_text(encoding="utf-8"))
+        assert not banned_in_own_text(n), f
+    assert morning.own_text(note(site, D))     # the scan reads something
+
+
+@pytest.mark.parametrize("where", ["text", "label"])
+def test_a_banned_word_in_our_own_text_still_fails(inputs, tmp_path, monkeypatch, where):
+    """A record's title may print any word (left out of the scan); our own connective text or label may not."""
+    mn = copy.deepcopy(config.SITE["morning_note"])
+    if where == "text":
+        mn["text"]["agenda_item"] = "Ranked on the agenda"
+    else:
+        mn["lists"][0]["label"] = "Best zoning near me"
+    monkeypatch.setitem(config.SITE, "morning_note", mn)
+    make(inputs, tmp_path / "site")
+    n = json.loads((tmp_path / "site" / "morning" / f"{D.isoformat()}.json").read_text(encoding="utf-8"))
+    assert banned_in_own_text(n)
+
+
+def test_a_record_title_is_not_scanned(site):
+    n = note(site, D)
+    titled = dict(n["entries"][0], title="the best use of this land, 50%",
+                  source={"url": "https://example.invalid/a%20b.pdf", "page": 1})
+    assert not banned_in_own_text({**n, "entries": [titled]})
+
+
+# ------------------------------------------------------------------ backfill guard
+def test_a_collectors_initial_run_is_a_backfill_day(inputs, tmp_path):
+    """The RPC, agendas and finance rows in a manifest of their own, all first fetched on D: that manifest's
+    initial run, so D is a backfill day: no entries to send, the counts kept."""
+    rows = json.loads(inputs["manifests"][0].read_text())
+    county_urls = {s["url"] for s in inputs["county"]["sources"]}
+    (tmp_path / "a.json").write_text(json.dumps([r for r in rows if r["url"] in county_urls]))
+    (tmp_path / "b.json").write_text(json.dumps([r for r in rows if r["url"] not in county_urls]))
+    out = tmp_path / "site"
+    make(inputs, out, morning_manifests=[tmp_path / "a.json", tmp_path / "b.json"])
+    n = json.loads((out / "morning" / "2026-11-11.json").read_text())
+    assert n["backfill"] is True and n["entries"] == [] and n["unplaced_zoning"] == 0
+    assert n["counts"]["entries"] > 0 and n["counts"]["lists"]["zoning"] > 0 and n["counts"]["unplaced_zoning"] == 3
+    assert morning.select(n, morning.LIST_KEYS, {"district": 6, "ward": 3}) == []
+
+
+def test_ordinary_day_is_not_backfill_and_counts_match(site):
+    n = note(site, D)
+    assert n["backfill"] is False and n["entries"]
+    assert n["counts"]["entries"] == len(n["entries"]) <= config.SITE["morning_note"]["backfill"]["max_entries"]
+    assert n["counts"]["lists"]["contracts"] == sum(1 for e in n["entries"] if "contracts" in e["lists"])
+
+
+def test_more_than_max_entries_is_a_backfill_day(site, inputs):
+    n = note(site, D)
+    first = {"https://example.invalid/bulk.pdf": datetime.fromisoformat(IN_D)}
+    many = [dict(n["entries"][0], id=f"x/{k}") for k in range(config.SITE["morning_note"]["backfill"]["max_entries"] + 1)]
+    big = morning.day(D, [{"url": "https://example.invalid/bulk.pdf", "entries": many}], first)
+    assert big["backfill"] is True and big["entries"] == [] and big["counts"]["entries"] == len(many)
+    ok = morning.day(D, [{"url": "https://example.invalid/bulk.pdf", "entries": many[:-1]}], first)
+    assert ok["backfill"] is False and len(ok["entries"]) == len(many) - 1
+
+
+def test_bulk_urls_are_the_first_hours_of_each_manifest(tmp_path):
+    rows = [{"url": "https://example.invalid/1.pdf", "first_fetched_at": "2026-11-01T10:00:00+00:00"},
+            {"url": "https://example.invalid/2.pdf", "first_fetched_at": "2026-11-03T09:59:00+00:00"},
+            {"url": "https://example.invalid/3.pdf", "first_fetched_at": "2026-11-03T10:00:00+00:00"}]
+    (tmp_path / "m.json").write_text(json.dumps(rows))
+    assert morning.bulk_urls([tmp_path / "m.json"], 48) == {"https://example.invalid/1.pdf", "https://example.invalid/2.pdf"}
 
 
 # ------------------------------------------------------------------ every document has a manifest row
@@ -303,8 +376,20 @@ def test_form_action_refused_while_disabled_and_shape_checks():
 
 
 # ------------------------------------------------------------------ file budget
-def test_preview_build_keeps_today_only_and_stays_under_its_cap(inputs, tmp_path):
+def test_preview_build_writes_no_note_and_stays_under_its_cap(inputs, tmp_path):
     result = make(inputs, tmp_path / "site", target="preview")
-    folder = tmp_path / "site" / "morning"
-    assert sorted(p.name for p in folder.iterdir()) == ["2026-11-12.json", "latest.json"]
-    assert result["files_with_export"] <= config.max_files("preview")
+    assert not (tmp_path / "site" / "morning").exists() and result["morning"] is None
+    assert result["export"] is True and result["files_with_export"] <= config.max_files("preview")
+
+
+def test_preview_still_over_its_cap_leaves_the_export_out(inputs, tmp_path, monkeypatch, capsys):
+    full = make(inputs, tmp_path / "a", target="preview")
+    monkeypatch.setitem(config.MAX_FILES_BY_TARGET, "preview", full["files_with_export"] - 1)
+    out = tmp_path / "b"
+    r = make(inputs, out, target="preview")
+    assert r["export"] is False and r["files_with_export"] <= config.max_files("preview")
+    assert "building again without the open-data export" in capsys.readouterr().err
+    for page in ("data.html", "about.html"):
+        html = (out / page).read_text(encoding="utf-8")
+        assert 'href="data/' not in html and "left out of this preview" in html
+    assert 'href="data/' in (tmp_path / "a" / "data.html").read_text(encoding="utf-8")
