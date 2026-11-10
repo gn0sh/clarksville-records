@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -118,24 +118,40 @@ def problems(cfg: dict) -> list[str]:
 
 
 # ---------------------------------------------------------------------------------------------- manifests, window
+def manifest_rows(path) -> list[tuple[str, datetime]]:
+    """One collector manifest's rows as (url, first_fetched_at), each row checked: a URL and an aware timestamp."""
+    p = Path(path)
+    if not p.is_absolute():
+        p = config.REPO_ROOT / p
+    if not p.is_file():
+        raise MorningError(f"morning note: no manifest {p}")
+    try:
+        rows = json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise MorningError(f"{p}: not valid JSON ({exc})") from None
+    if not isinstance(rows, list):
+        raise MorningError(f"{p}: a manifest is a list of rows")
+    out = []
+    for n, row in enumerate(rows, 1):
+        url = row.get("url") if isinstance(row, dict) else None
+        if not isinstance(url, str) or not url:
+            raise MorningError(f"{p}: row {n} has no url")
+        raw = row.get("first_fetched_at")
+        try:
+            when = datetime.fromisoformat(raw)
+        except (TypeError, ValueError):
+            raise MorningError(f"{p}: {url!r} has no usable first_fetched_at ({raw!r})") from None
+        if when.tzinfo is None:
+            raise MorningError(f"{p}: {url!r} first_fetched_at has no time zone ({raw!r})")
+        out.append((url, when))
+    return out
+
+
 def first_fetched(paths) -> dict[str, datetime]:
     """{source URL: first_fetched_at} over the collectors' manifests (the earliest, should a URL be in two)."""
     out: dict[str, datetime] = {}
     for p in paths:
-        p = Path(p)
-        if not p.is_absolute():
-            p = config.REPO_ROOT / p
-        if not p.is_file():
-            raise MorningError(f"morning note: no manifest {p}")
-        for row in json.loads(p.read_text(encoding="utf-8")):
-            raw = row.get("first_fetched_at")
-            try:
-                when = datetime.fromisoformat(raw)
-            except (TypeError, ValueError):
-                raise MorningError(f"{p}: {row.get('url')!r} has no usable first_fetched_at ({raw!r})") from None
-            if when.tzinfo is None:
-                raise MorningError(f"{p}: {row.get('url')!r} first_fetched_at has no time zone ({raw!r})")
-            url = row["url"]
+        for url, when in manifest_rows(p):
             if url not in out or when < out[url]:
                 out[url] = when
     return out
@@ -146,11 +162,7 @@ def bulk_urls(paths, hours: int) -> frozenset[str]:
     first_fetched_at in that collector's manifest. A new collector's first run counts the same way."""
     out = set()
     for p in paths:
-        p = Path(p)
-        if not p.is_absolute():
-            p = config.REPO_ROOT / p
-        whens = [(r["url"], datetime.fromisoformat(r["first_fetched_at"]))
-                 for r in json.loads(p.read_text(encoding="utf-8"))]
+        whens = manifest_rows(p)
         if not whens:
             continue
         start = min(w for _, w in whens)
@@ -168,10 +180,11 @@ def window(day: date, cutoff: str, tz: str) -> tuple[datetime, datetime]:
 
 
 def note_day(when: datetime, cutoff: str, tz: str) -> date:
-    """The note a document first fetched at `when` belongs to: the day whose window holds it."""
-    local = when.astimezone(ZoneInfo(tz))
-    hh, mm = (int(x) for x in cutoff.split(":"))
-    return local.date() + timedelta(days=1) if (local.hour, local.minute) >= (hh, mm) else local.date()
+    """The note a document first fetched at `when` belongs to: the day whose window() holds it (one rule)."""
+    d = when.astimezone(ZoneInfo(tz)).date()
+    start, end = (x.astimezone(timezone.utc) for x in window(d, cutoff, tz))   # compare instants, not wall clocks
+    at = when.astimezone(timezone.utc)
+    return d + timedelta(days=1) if at >= end else d - timedelta(days=1) if at < start else d
 
 
 def _stamp(dt: datetime) -> str:
@@ -182,8 +195,8 @@ def _stamp(dt: datetime) -> str:
 # ---------------------------------------------------------------------------------------------- documents
 def _entry(**kw) -> dict:
     e = {"id": None, "lists": [], "kind": None, "body": None, "body_name": None, "meeting_date": None, "title": None,
-         "recorded": None, "district": None, "ward": None, "seat_body": None, "href": None,
-         "source": {"url": None, "page": None}}
+         "title_ours": False, "recorded": None, "district": None, "ward": None, "case": None, "seat_body": None,
+         "href": None, "source": {"url": None, "page": None}}
     e.update(kw)
     e["lists"] = [k for k in LIST_KEYS if k in e["lists"]]
     return e
@@ -226,18 +239,24 @@ class _Zoning:
 
 
 def _seat_fields(case: dict | None) -> dict:
+    """A zoning entry's printed district and ward, and `case`: the case number in its one comparable form
+    (rpc_minutes.link_key), so the unplaced count counts each case once however many entries name it."""
     if case is None:
         return {}
-    return {"district": case.get("district"), "ward": case.get("ward")}
+    from collector.rpc_minutes import link_key
+    return {"district": case.get("district"), "ward": case.get("ward"),
+            "case": link_key(case["number"]) or case["number"]}
 
 
 def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, zoning: _Zoning | None) -> list[dict]:
-    """A county or council facts file: each minutes (or agenda) source, with its entries."""
-    by_source: dict[str, dict] = {}
+    """A county or council facts file: each minutes (or agenda) source, with its entries. One source can be named by
+    more than one meeting (minutes covering two meetings), so every entry takes its meeting, and with it the date,
+    label and link, from the fact's own meeting_id; the source gives only the document's URL."""
+    by_source: dict[str, list] = {}     # source id: every meeting naming it, in the facts' order
     for m in ix.facts["meetings"]:
         for sid in dict.fromkeys(x for x in (m["source_id"], m.get("agenda_source_id")) if x):
-            if sid in ix.sources and sid not in by_source:
-                by_source[sid] = m
+            if sid in ix.sources:
+                by_source.setdefault(sid, []).append(m)
     rcs_by_source: dict[str, list] = {}
     for rc in ix.facts["roll_calls"]:
         rcs_by_source.setdefault(rc["source_id"], []).append(rc)
@@ -247,12 +266,13 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
         if mo["id"] not in with_rc:
             mos_by_source.setdefault(mo["source_id"], []).append(mo)
     docs = []
-    for sid, m in by_source.items():
+    for sid, named_by in by_source.items():
         s = ix.sources[sid]
         entries = []
         if s["kind"] == "minutes":
             for fact in sorted(rcs_by_source.get(sid, []) + mos_by_source.get(sid, []),
                                key=lambda f: (f["page"], f["id"])):
+                m = ix.meetings[fact["meeting_id"]]
                 is_rc = "votes" in fact
                 it = ix.items.get(fact.get("item_id") or "")
                 confirmed = bool(is_rc and views.is_verified(fact))
@@ -271,28 +291,29 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
                            if tally else None),
                     href=ix.item_href(it) if it else ix.meeting_href(m["id"]),
                     source={"url": f"{s['url']}#page={fact['page']}", "page": fact["page"]},
-                    **_seat_fields(case)))
+                    title_ours=not (it and it.get("title")), **_seat_fields(case)))
         else:   # an agenda: the items printed on it, as the facts record them
             seen = {}
             for e in ix.facts["item_events"]:
                 if e["source_id"] == sid and e["item_id"] in ix.items:
-                    seen.setdefault(e["item_id"], e)
-            for item_id, e in sorted(seen.items(), key=lambda kv: (kv[1]["page"], kv[1]["order"], kv[0])):
+                    seen.setdefault((e["item_id"], e["meeting_id"]), e)
+            for (item_id, _), e in sorted(seen.items(), key=lambda kv: (kv[1]["page"], kv[1]["order"], kv[0])):
                 it = ix.items[item_id]
+                m = ix.meetings[e["meeting_id"]]
                 case = zoning.county_case(it.get("number")) if zoning else None
                 entries.append(_entry(
                     id=f"{body}/item/{item_id}/{m['id']}", kind="agenda_item", body=body, body_name=body_name,
                     meeting_date=m["date"], title=_number_title(it.get("number"), ix.item_title(it)),
                     lists=["seats"] + (["budget"] if "budget" in views.item_types(it) else [])
-                    + (["zoning"] if case else []),
+                    + (["zoning"] if case else []), title_ours=not it.get("title"),
                     recorded=txt["agenda_item"], seat_body=seat_body, href=ix.item_href(it),
                     source={"url": f"{s['url']}#page={e['page']}", "page": e["page"]}, **_seat_fields(case)))
-        if not entries:
-            entries.append(_entry(
+        if not entries:     # nothing itemised: the document itself, once for each meeting naming it
+            entries += [_entry(
                 id=f"{body}/meeting/{m['id']}/{s['kind']}", kind="document", body=body, body_name=body_name,
-                meeting_date=m["date"], title=ix.meeting_label(m), lists=["seats"], seat_body=seat_body,
-                recorded=txt["minutes"] if s["kind"] == "minutes" else txt["agenda"],
-                href=ix.meeting_href(m["id"]), source={"url": s["url"], "page": None}))
+                meeting_date=m["date"], title=ix.meeting_label(m), title_ours=True, lists=["seats"],
+                seat_body=seat_body, recorded=txt["minutes"] if s["kind"] == "minutes" else txt["agenda"],
+                href=ix.meeting_href(m["id"]), source={"url": s["url"], "page": None}) for m in named_by]
         docs.append({"url": s["url"], "entries": entries})
     return docs
 
@@ -329,7 +350,7 @@ def _agenda_only_documents(ax, ix, body: str, body_name: str, txt: dict, zoning:
             entries.append(_entry(
                 id=f"{body}/meeting/{m['id']}/agenda", kind="document", body=body, body_name=body_name,
                 meeting_date=m["date"], title=f"{m['date']}, {ix.kind_labels.get(m['kind'], m['kind']).lower()}",
-                lists=["seats"], seat_body="district", recorded=txt["agenda"],
+                title_ours=True, lists=["seats"], seat_body="district", recorded=txt["agenda"],
                 href=ax.href(m["id"]) if m["id"] in listed else county_agendas.PAGE,
                 source={"url": s["url"], "page": None}))
         docs.append({"url": s["url"], "entries": entries})
@@ -357,7 +378,7 @@ def _rpc_documents(rpx, txt: dict, zoning: _Zoning) -> list[dict]:
             m = meetings[f["meeting_id"]]
             href = f"{rpx.year_href(m['date'][:4])}#{rpx.case_anchor(c)}" if c["meeting_id"] in meetings else None
             common = dict(body=body, body_name=name, meeting_date=m["date"], title=_case_title(c), lists=["zoning"],
-                          district=c.get("district"), ward=c.get("ward"), href=href,
+                          **_seat_fields(c), href=href,
                           source={"url": f"{s['url']}#page={f['page']}", "page": f["page"]})
             if what == "case":
                 entries.append(_entry(id=f"{body}/item/{c['id']}/{m['id']}", kind="agenda_item",
@@ -463,7 +484,9 @@ def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None 
                     entries.append(e)
     entries.sort(key=lambda e: (LIST_KEYS.index(e["lists"][0]), e["body"], e["meeting_date"] or "",
                                 e["source"]["page"] or 0, e["id"]))
-    unplaced = sum(1 for e in entries if "zoning" in e["lists"] and e["district"] is None and e["ward"] is None)
+    # distinct cases, not entries: one case on an agenda and in the minutes is one case that printed no seat
+    unplaced = len({e["case"] or e["id"] for e in entries
+                    if "zoning" in e["lists"] and e["district"] is None and e["ward"] is None})
     backfill = from_bulk or len(entries) > mn["backfill"]["max_entries"]
     counts = {"entries": len(entries), "lists": {k: sum(1 for e in entries if k in e["lists"]) for k in LIST_KEYS},
               "unplaced_zoning": unplaced}
@@ -478,11 +501,12 @@ def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None 
 
 
 def own_text(note: dict) -> list[str]:
-    """Every string of the note that is ours, not the record's: list labels, connective text and body names (all
-    config). Verbatim titles and source URLs are the record's own words and are left out of the neutrality scan."""
+    """Every string of the note that is ours, not the record's: list labels, connective text, body names (all
+    config) and the titles we make (`title_ours`: a meeting's label, an agenda's date and kind). Verbatim titles and
+    source URLs are the record's own words and are left out of the neutrality scan."""
     out = [x["label"] for x in note["lists"]] + ([note["unplaced_text"]] if note["unplaced_text"] else [])
     for e in note["entries"]:
-        out += [e["recorded"], e["body_name"]]
+        out += [e["recorded"], e["body_name"]] + ([e["title"]] if e.get("title_ours") else [])
     return out
 
 

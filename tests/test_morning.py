@@ -6,13 +6,14 @@ facts throughout: the county fixture, the RPC agenda reader's own output on a re
 made-up motions, a made-up county agendas file and the finance fixture, each source given a made-up manifest row."""
 import copy
 import json
+import re
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 
 from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS
-from sitegen import config, morning, rpc
+from sitegen import config, fin_views, morning, rpc, views
 from sitegen.build import BuildError, build, site_url_problems
 from test_rpc_pages import rpc_facts
 from test_site_neutrality import BANNED
@@ -140,18 +141,42 @@ def test_0659_is_today_and_0700_is_tomorrow(site, inputs):
     county = inputs["county"]
     at = {rc["id"]: rc["source_id"] for rc in county["roll_calls"]}
     today_ids, next_ids = ids(note(site, D)["entries"]), ids(note(site, date(2026, 11, 12))["entries"])
+    seen = {MIN_0659: 0, MIN_0700: 0}
     for rc, sid in at.items():
         eid = f"county/vote/{rc}"
         if sid == MIN_0659:
             assert eid in today_ids and eid not in next_ids
         elif sid == MIN_0700:
             assert eid in next_ids and eid not in today_ids
+        if sid in seen:
+            seen[sid] += 1
+    assert all(seen.values()), seen     # each side of the cutoff was checked on at least one roll call
 
 
 def test_note_day_boundaries():
     tz = config.SITE["site_timezone"]
     assert morning.note_day(datetime.fromisoformat(AT_0659), "07:00", tz) == D
     assert morning.note_day(datetime.fromisoformat(AT_0700), "07:00", tz) == date(2026, 11, 12)
+
+
+@pytest.mark.parametrize("d, hours, start, end, inside", [
+    # clocks fall back at 02:00 on Nov 1: 01:30 happens twice (06:30 and 07:30 UTC), both in Nov 1's note
+    (date(2026, 11, 1), 25, "2026-10-31T07:00-05:00", "2026-11-01T07:00-06:00",
+     ["2026-11-01T06:30:00+00:00", "2026-11-01T07:30:00+00:00"]),
+    # clocks spring forward at 02:00 on Mar 8: 01:30 CST is 07:30 UTC, 03:30 CDT is 08:30 UTC
+    (date(2026, 3, 8), 23, "2026-03-07T07:00-06:00", "2026-03-08T07:00-05:00",
+     ["2026-03-08T07:30:00+00:00", "2026-03-08T08:30:00+00:00"]),
+])
+def test_window_across_a_dst_change(d, hours, start, end, inside):
+    tz = config.SITE["site_timezone"]
+    a, b = morning.window(d, "07:00", tz)
+    assert b.astimezone(timezone.utc) - a.astimezone(timezone.utc) == timedelta(hours=hours)
+    assert (morning._stamp(a), morning._stamp(b)) == (start, end)
+    # note_day agrees with window() on both edges and inside the repeated or skipped hour
+    assert morning.note_day(a, "07:00", tz) == d and morning.note_day(b, "07:00", tz) == d + timedelta(days=1)
+    assert morning.note_day(b - timedelta(minutes=1), "07:00", tz) == d
+    for at in map(datetime.fromisoformat, inside):
+        assert a <= at < b and morning.note_day(at, "07:00", tz) == d
 
 
 def test_refetched_document_does_not_reappear(site, tmp_path, inputs):
@@ -199,9 +224,11 @@ def test_zoning_matches_by_district_and_by_ward_never_neither(site):
         for w in range(1, 13):
             assert zo not in ids(morning.select(n, ["zoning"], {"district": d_, "ward": w}))
             assert zo not in ids(morning.select(n, ["zoning", "seats", "budget", "contracts"], {"district": d_, "ward": w}))
-    # the agenda's ZO-2A and CZO-1 cases and the motion on ZO-2A print neither
-    assert n["unplaced_zoning"] == 3
-    assert n["unplaced_text"] == config.SITE["morning_note"]["text"]["unplaced_zoning"].format(n=3)
+    # the agenda's ZO-2A and CZO-1 cases and the motion on ZO-2A print neither: three entries, two cases
+    unplaced = [e for e in n["entries"] if "zoning" in e["lists"] and e["district"] is None and e["ward"] is None]
+    assert len(unplaced) == 3 and {e["case"] for e in unplaced} == {"ZO-2A-2026", "CZO-1-2026"}
+    assert n["unplaced_zoning"] == 2
+    assert n["unplaced_text"] == config.SITE["morning_note"]["text"]["unplaced_zoning"].format(n=2)
 
 
 def test_linked_county_cz_item_inherits_its_case_district(site):
@@ -279,6 +306,17 @@ def test_a_banned_word_in_our_own_text_still_fails(inputs, tmp_path, monkeypatch
     assert banned_in_own_text(n)
 
 
+def test_titles_we_make_are_scanned(site):
+    """A meeting's label (minutes with nothing itemised) is our title, not the record's: the scan reads it."""
+    n = {**note(site, D), "entries": [e for d in morning.documents(views.Index(shared_source_facts()["facts"]))
+                                       for e in d["entries"]]}
+    ours = [e for e in n["entries"] if e["title_ours"]]
+    assert ours and all(e["kind"] == "document" for e in ours)
+    assert all(e["title"] in morning.own_text(n) for e in ours)
+    assert not [e for e in n["entries"] if not e["title_ours"] and e["title"] in morning.own_text(n)]
+    assert banned_in_own_text({**n, "entries": [dict(ours[0], title="2024-12-09, best meeting")]})
+
+
 def test_a_record_title_is_not_scanned(site):
     n = note(site, D)
     titled = dict(n["entries"][0], title="the best use of this land, 50%",
@@ -298,7 +336,7 @@ def test_a_collectors_initial_run_is_a_backfill_day(inputs, tmp_path):
     make(inputs, out, morning_manifests=[tmp_path / "a.json", tmp_path / "b.json"])
     n = json.loads((out / "morning" / "2026-11-11.json").read_text())
     assert n["backfill"] is True and n["entries"] == [] and n["unplaced_zoning"] == 0
-    assert n["counts"]["entries"] > 0 and n["counts"]["lists"]["zoning"] > 0 and n["counts"]["unplaced_zoning"] == 3
+    assert n["counts"]["entries"] > 0 and n["counts"]["lists"]["zoning"] > 0 and n["counts"]["unplaced_zoning"] == 2
     assert morning.select(n, morning.LIST_KEYS, {"district": 6, "ward": 3}) == []
 
 
@@ -339,6 +377,16 @@ def test_manifest_row_without_first_fetched_at_fails(tmp_path):
     (tmp_path / "m.json").write_text(json.dumps([{"url": "https://example.invalid/x.pdf", "first_fetched_at": None}]))
     with pytest.raises(morning.MorningError, match="first_fetched_at"):
         morning.first_fetched([tmp_path / "m.json"])
+
+
+def test_manifest_row_without_url_fails_clearly(tmp_path):
+    (tmp_path / "m.json").write_text(json.dumps([{"first_fetched_at": IN_D}]))
+    for read in (morning.first_fetched, lambda p: morning.bulk_urls(p, 48)):
+        with pytest.raises(morning.MorningError, match="row 1 has no url"):
+            read([tmp_path / "m.json"])
+    (tmp_path / "n.json").write_text(json.dumps([{"url": "https://example.invalid/x.pdf", "first_fetched_at": "x"}]))
+    with pytest.raises(morning.MorningError, match="first_fetched_at"):
+        morning.bulk_urls([tmp_path / "n.json"], 48)     # bulk_urls checks rows the same way
 
 
 def test_fixture_build_without_manifests_writes_no_note(built):
@@ -393,3 +441,101 @@ def test_preview_still_over_its_cap_leaves_the_export_out(inputs, tmp_path, monk
         html = (out / page).read_text(encoding="utf-8")
         assert 'href="data/' not in html and "left out of this preview" in html
     assert 'href="data/' in (tmp_path / "a" / "data.html").read_text(encoding="utf-8")
+
+
+def test_preview_without_the_export_links_no_data_file_on_any_page(inputs, tmp_path, monkeypatch):
+    """morning-digest/preview-export-links: the finance and contracts indexes link data/ only when the export goes
+    with the build. The finance fixture links none in any build, so it is built here as if it were real."""
+    init = fin_views.Finance.__init__
+
+    def as_real(self, *a, **kw):
+        init(self, *a, **kw)
+        self.fixture = False
+    monkeypatch.setattr(fin_views.Finance, "__init__", as_real)
+    link = re.compile(r'href="(?:\.\./)*data/')
+    full = make(inputs, tmp_path / "a", target="preview")
+    for page in ("contracts/index.html", "finance/index.html"):
+        assert link.search((tmp_path / "a" / page).read_text(encoding="utf-8")), page    # the check bites
+    monkeypatch.setitem(config.MAX_FILES_BY_TARGET, "preview", full["files_with_export"] - 1)
+    out = tmp_path / "b"
+    assert make(inputs, out, target="preview")["export"] is False
+    pages = list(out.rglob("*.html"))
+    assert len(pages) > 50
+    assert not [p.relative_to(out).as_posix() for p in pages if link.search(p.read_text(encoding="utf-8"))]
+
+
+def test_preview_without_the_export_removes_an_earlier_export(inputs, tmp_path, monkeypatch):
+    """morning-digest/preview-stale-export: the preview recipe reuses build/site, so an earlier export may sit in
+    data/. A build without the export removes it: nothing stale is published, nor counted against the cap."""
+    full = make(inputs, tmp_path / "a", target="preview")
+    out = tmp_path / "build" / "site"
+    for k in range(12):
+        (out / "data" / "old").mkdir(parents=True, exist_ok=True)
+        (out / "data" / ("old" if k % 2 else "") / f"stale-{k}.csv").write_text("x\n")
+    monkeypatch.setitem(config.MAX_FILES_BY_TARGET, "preview", full["files_with_export"] - 1)
+    r = make(inputs, out, target="preview")
+    assert r["export"] is False and not (out / "data").exists()
+    published = json.loads((out.parent / "publish-files.json").read_text(encoding="utf-8"))
+    assert not [k for k in published if k.startswith("data/")]
+
+
+def test_a_preview_with_the_export_keeps_data(inputs, tmp_path):
+    """The collector's export in data/ is still left alone when the export goes with the build."""
+    out = tmp_path / "site"
+    (out / "data").mkdir(parents=True)
+    (out / "data" / "facts.json").write_text("{}")
+    assert make(inputs, out, target="preview")["export"] is True
+    assert (out / "data" / "facts.json").read_text() == "{}"
+
+
+# ------------------------------------------------------------------ one source, two meetings
+def shared_source_facts() -> dict:
+    """The county fixture with its 2024-12-09 minutes also named by a made-up 2025-01-13 meeting that holds one of
+    its roll calls (real data: src-7325525d58ca is the source of 2020-02-10-formal and 2020-03-09-formal), its
+    2024-10-07 minutes (no roll call) named by a second meeting too, and one agenda named by two meetings."""
+    f = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    ms = {m["id"]: m for m in f["meetings"]}
+    f["meetings"].append({**ms["2024-12-09-formal"], "id": "2025-01-13-formal", "date": "2025-01-13"})
+    f["meetings"].append({**ms["2024-10-07-formal"], "id": "2024-10-21-formal", "date": "2024-10-21"})
+    rc = next(r for r in f["roll_calls"] if r["source_id"] == MIN_0659)
+    rc["meeting_id"] = "2025-01-13-formal"
+    f["sources"].append({**next(s for s in f["sources"] if s["id"] == MIN_0659), "id": "src-agenda000001",
+                         "kind": "agenda", "url": "https://example.invalid/fixture/agenda-two-meetings.pdf"})
+    for mid in ("2024-11-04-formal", "2025-01-13-formal"):
+        next(m for m in f["meetings"] if m["id"] == mid)["agenda_source_id"] = "src-agenda000001"
+    ev = next(e for e in f["item_events"] if e["meeting_id"] == "2024-11-04-formal")
+    f["item_events"] += [{**ev, "id": f"ev-agenda-{mid}", "ref": None, "meeting_id": mid, "source_id": "src-agenda000001",
+                          "page": 3} for mid in ("2024-11-04-formal", "2025-01-13-formal")]
+    return {"facts": f, "rc": rc, "item": ev["item_id"]}
+
+
+def test_each_entry_takes_its_own_meeting_when_two_meetings_share_a_source():
+    """morning-digest/vote-meeting-date: a vote's date, label and link are its own meeting's, not those of the first
+    meeting naming the minutes."""
+    x = shared_source_facts()
+    ix = views.Index(x["facts"])
+    docs = morning.documents(ix)
+    entries = {e["id"]: e for d in docs for e in d["entries"]}
+    moved = entries[f"county/vote/{x['rc']['id']}"]
+    assert moved["meeting_date"] == "2025-01-13"
+    if not ix.items.get(x["rc"].get("item_id") or ""):
+        assert moved["title"] == "2025-01-13, formal meeting" and moved["href"] == "meetings/2025-01-13-formal.html"
+    stayed = [e for e in entries.values() if e["kind"] == "vote" and e["source"]["url"].startswith(
+        ix.sources[MIN_0659]["url"]) and e["id"] != moved["id"]]
+    assert stayed and all(e["meeting_date"] == "2024-12-09" for e in stayed)
+    # every vote entry: the date of its roll call's or motion's own meeting
+    facts = {f"county/vote/{f['id']}": f for f in x["facts"]["roll_calls"] + x["facts"]["motions"]}
+    for eid, e in entries.items():
+        if e["kind"] == "vote":
+            assert e["meeting_date"] == ix.meetings[facts[eid]["meeting_id"]]["date"], eid
+    # an agenda named by two meetings: one entry for each meeting's printing of the item, each with its own date
+    item = {k: v for k, v in entries.items() if k.startswith(f"county/item/{x['item']}/")}
+    assert {(k, v["meeting_date"]) for k, v in item.items()} == {
+        (f"county/item/{x['item']}/2024-11-04-formal", "2024-11-04"),
+        (f"county/item/{x['item']}/2025-01-13-formal", "2025-01-13")}
+    # minutes with nothing itemised, named by two meetings: the document once for each meeting
+    old = next(d for d in docs if d["url"] == ix.sources[MIN_REFETCHED]["url"])
+    assert sorted((e["meeting_date"], e["title"], e["href"]) for e in old["entries"]) == [
+        ("2024-10-07", "2024-10-07, formal meeting", "meetings/2024-10-07-formal.html"),
+        ("2024-10-21", "2024-10-21, formal meeting", "meetings/2024-10-21-formal.html")]
+    assert len({e["id"] for d in docs for e in d["entries"]}) == sum(len(d["entries"]) for d in docs)

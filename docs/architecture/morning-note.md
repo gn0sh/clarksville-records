@@ -81,13 +81,21 @@ T1 additions (additive; T3 and the sender may rely on them):
   unless a test passes `morning_manifests=`;
 - file budget (manager decision 2026-11-10): `morning/` (JSON and T3's `morning/index.html`) is built on the `pages`
   target only; the preview writes none. A preview still over 500 with the export after leaving out transcript pages
-  is built again without the open-data export (log line; data.html and about.html link no data/ file then);
+  is built again without the open-data export (log line; then no page links a data/ file, data.html and about.html
+  say the files are on the full site, and an earlier export left in the build's `data/` is removed);
 - backfill guard: a day holding any document from a collector's initial run (first fetched within
   `morning_note.backfill.initial_run_hours` of its manifest's earliest row) or more than `backfill.max_entries`
   entries has `"backfill": true` and `entries: []`; `counts` (`entries`, `lists` per key, `unplaced_zoning`) is kept.
   The sender sends nothing for such a day;
 - the neutrality scan (`BANNED`) runs over our own words only (`morning.own_text`: list labels, connective text,
-  body names), not verbatim titles or URLs.
+  body names, and titles we make), not verbatim titles or URLs. Every entry carries `title_ours` (bool): true when
+  the title is ours, not the record's (a meeting's label for minutes with nothing itemised or a vote with no item, an
+  agenda-only meeting's date and kind, an untitled item's fallback);
+- each entry's meeting (`meeting_date`, the id's meeting part, a fallback title and link) is the fact's own
+  `meeting_id`; a source named by two meetings (minutes covering both) gives each fact its own meeting, and a
+  `document` entry for each meeting when nothing in it is itemised;
+- every zoning entry carries `case`: the case number in its one comparable form (rpc_minutes.link_key), `null` on
+  other entries; `unplaced_zoning` counts distinct cases (a case on an agenda and in the minutes is one case).
 
 `select(day, lists, seats) -> list[entry]` (Python, `sitegen/morning.py`) is the one filter: `seats` and `budget`/
 `contracts` membership is by `lists`; `zoning` and `seats` also need the seat match above. `morning.js` mirrors it;
