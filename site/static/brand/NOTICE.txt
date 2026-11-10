@@ -1,3 +1,5 @@
-Fonts: Outfit (Copyright 2021 The Outfit Project Authors) and Inter (Copyright 2016 The Inter Project Authors) are
-licensed under the SIL Open Font License, Version 1.1 (https://openfontlicense.org); the full text is in OFL.txt beside this file. The woff2 files here are
-Latin-range subsets. Logos and favicon: gnoshcodes brand kit v1 (placeholder logo drawn by AI agents).
+Fonts: Outfit (Copyright 2021 The Outfit Project Authors), Inter (Copyright 2016 The Inter Project Authors) and
+JetBrains Mono (Copyright 2020 The JetBrains Mono Project Authors) are licensed under the SIL Open Font License,
+Version 1.1 (https://openfontlicense.org); the full text is in OFL.txt beside this file. The woff2 files here are
+Latin-range subsets (Outfit-var and JetBrainsMono-var are the variable-weight Latin files from Google Fonts).
+Logos and favicon: gnoshcodes brand kit v1 (placeholder logo drawn by AI agents).

@@ -1,36 +1,45 @@
-/* Clarksville Records, a gnoshcodes project. Colours and type come from the gnoshcodes brand kit (v1): Digital blue
-   #2B4BA5, Human orange #EF5E35, Orange-for-text #B8401A, Ink/Muted/Line/Paper/Surface neutrals; Outfit for display,
-   Inter for body (both SIL OFL 1.1, self-hosted from static/brand/, no outside fonts, scripts or trackers).
-   Branding is chrome only (header band, links, rules, footer logo). Every vote value is drawn in the same --mark ink
+/* Daylight (docs/design/daylight), a gnoshcodes project. Tokens follow the Daylight mock: paper, sky, ink, muted and
+   line neutrals, Digital blue #2B4BA5 for links and buttons, the sun #EF5E35 for the sun, the name plate dot and focus
+   rings. Outfit for display, Inter for body, JetBrains Mono for small labels (all SIL OFL 1.1, self-hosted from
+   static/brand/, no outside fonts, scripts or trackers).
+   Branding is chrome only (sky band, links, rules, footer logo). Every vote value is drawn in the same --mark ink
    and told apart by pattern and by its word, so no value looks "good" or "bad" and the page reads in greyscale.
-   Contrast (WCAG 2.2): body/link/muted/orange-text pairs are 4.5:1 or better in both themes; checked in the PR. */
-@font-face { font-family: "Outfit"; font-weight: 700; font-style: normal; font-display: swap; src: url("brand/Outfit-700.woff2") format("woff2"); }
+   Contrast (WCAG 2.2): body/link/muted/orange-text pairs are 4.5:1 or better in both themes, on --bg, --surface and
+   --sky; focus rings (the sun) are 3:1 or better on --bg and --surface, and the sky band uses an ink ring instead. */
+@font-face { font-family: "Outfit"; font-weight: 100 900; font-style: normal; font-display: swap; src: url("brand/Outfit-var.woff2") format("woff2"); }
 @font-face { font-family: "Inter"; font-weight: 400; font-style: normal; font-display: swap; src: url("brand/Inter-400.woff2") format("woff2"); }
 @font-face { font-family: "Inter"; font-weight: 600; font-style: normal; font-display: swap; src: url("brand/Inter-600.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 100 800; font-style: normal; font-display: swap; src: url("brand/JetBrainsMono-var.woff2") format("woff2"); }
 :root {
-  --bg: #F7F8FC;              /* gc-paper */
-  --surface: #FFFFFF;         /* gc-surface */
-  --surface-2: #EDF0F8;
-  --fg: #141A2E;              /* gc-ink */
-  --muted: #4A5470;           /* gc-muted */
-  --border: #D5DAE8;          /* gc-line: decorative rules only */
-  --link: #2B4BA5;            /* gc-blue */
+  --bg: #F7F8FC;              /* paper */
+  --sky: #D6E2FB;             /* top of the sky band */
+  --surface: #FFFFFF;
+  --surface-2: #E8EDFA;       /* wash */
+  --fg: #141A2E;              /* ink */
+  --muted: #4A5470;
+  --border: #D5DAE8;          /* line: decorative rules only */
+  --link: #2B4BA5;            /* Digital blue */
   --link-visited: #5c3f7a;
-  --focus: #2B4BA5;
+  --blue: #2B4BA5;            /* buttons */
+  --on-blue: #FFFFFF;
+  --sun: #EF5E35;             /* Human orange: the sun, the plate dot, focus rings. Never text. */
+  --halo: #F9B9A4;
+  --focus: #EF5E35;
   --band-bg: #2B4BA5;
   --band-fg: #FFFFFF;
   --band-muted: #DCE3F7;
-  --seal: #B8401A;            /* gc-orange-text: initials ring and ornaments; never text on --band-bg */
+  --seal: #B8401A;            /* orange-for-text: initials ring and ornaments */
   --mark: #2E3A57;            /* the one data-mark colour: bars, chips, timeline nodes */
   --mark-soft: #7C86A3;
   --banner-bg: #fff1b8;
   --banner-fg: #4a3800;
   --font-head: Outfit, "Avenir Next", "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
   --font-body: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --gutter: 16px;
   --measure: 64rem;
   --radius: 6px;
+  --radius-lg: 12px;
   --t-xs: 0.8rem;
   --t-sm: 0.9rem;
   --t-md: 1rem;
@@ -42,18 +51,23 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0E1324; --surface: #182038; --surface-2: #212A47; --fg: #EEF1F8; --muted: #A3ACC4;
-    --border: #2C3552; --link: #8EA6F0; --link-visited: #C9B0EC; --focus: #8EA6F0;
+    --bg: #0D1224; --sky: #18245A; --surface: #161C33; --surface-2: #1B2443; --fg: #EEF1F8; --muted: #A3ACC4;
+    --border: #2C3552; --link: #9DB1F5; --link-visited: #C9B0EC; --blue: #3D5FC4; --on-blue: #FFFFFF;
+    --sun: #EF5E35; --halo: #7A3320; --focus: #EF5E35;
     --band-bg: #1B2E6B; --band-fg: #EEF1F8; --band-muted: #C5D0F2; --seal: #EF5E35;
     --mark: #D5DAE8; --mark-soft: #7C86A3; --banner-bg: #3a3000; --banner-fg: #ffe58a;
+    color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0E1324; --surface: #182038; --surface-2: #212A47; --fg: #EEF1F8; --muted: #A3ACC4;
-  --border: #2C3552; --link: #8EA6F0; --link-visited: #C9B0EC; --focus: #8EA6F0;
+  --bg: #0D1224; --sky: #18245A; --surface: #161C33; --surface-2: #1B2443; --fg: #EEF1F8; --muted: #A3ACC4;
+  --border: #2C3552; --link: #9DB1F5; --link-visited: #C9B0EC; --blue: #3D5FC4; --on-blue: #FFFFFF;
+  --sun: #EF5E35; --halo: #7A3320; --focus: #EF5E35;
   --band-bg: #1B2E6B; --band-fg: #EEF1F8; --band-muted: #C5D0F2; --seal: #EF5E35;
   --mark: #D5DAE8; --mark-soft: #7C86A3; --banner-bg: #3a3000; --banner-fg: #ffe58a;
+  color-scheme: dark;
 }
+:root[data-theme="light"] { color-scheme: light; }
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -90,33 +104,42 @@ a:focus-visible, [tabindex]:focus-visible, select:focus-visible {
   font-size: 0.95rem;
 }
 
-/* ---- Masthead ---------------------------------------------------------------------------------------------- */
-.site-header { background: var(--band-bg); color: var(--band-fg); }
+/* ---- Masthead: the sky band (Daylight) ------------------------------------------------------------------- */
+/* A sky that fades to the paper, over a 2px ink horizon. Text on it is ink and muted (4.5:1 or better on --sky in
+   both themes); focus rings on it are ink, because the sun ring is under 3:1 on the light sky. */
+.site-header {
+  position: relative; overflow: hidden; color: var(--fg); background: var(--sky);
+  background: linear-gradient(var(--sky), color-mix(in srgb, var(--sky) 35%, var(--bg)));
+  border-bottom: 2px solid var(--fg); --focus: var(--fg);
+}
 .masthead {
-  max-width: var(--measure); margin: 0 auto; padding: 18px var(--gutter) 14px;
+  position: relative; max-width: var(--measure); margin: 0 auto; padding: 18px var(--gutter) 14px;
   display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 32px;
 }
-.site-name { margin: 0; font-family: var(--font-head); font-weight: 600; font-size: 1.6rem; line-height: 1.15; letter-spacing: .005em; }
-.site-name a, .site-name a:visited { color: var(--band-fg); text-decoration: none; }
-.kicker { margin: 4px 0 0; color: var(--band-muted); font-size: var(--t-sm); }
+.site-name { margin: 0; font-family: var(--font-head); font-weight: 800; font-size: 1.35rem; line-height: 1.05; letter-spacing: -.02em; }
+.site-name a, .site-name a:visited { display: inline-flex; align-items: center; gap: 10px; color: var(--fg); text-decoration: none; }
+.site-name a:hover .plate-name { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.plate-sun { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--sun); box-shadow: 0 0 0 4px var(--halo); }
+.plate { display: grid; }
+.plate-place { font-family: var(--font-mono); font-size: .62rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); line-height: 1.5; }
+.kicker { margin: 4px 0 0; color: var(--muted); font-size: var(--t-sm); }
 .site-header nav > ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0 18px; }
 .site-header nav a, .site-header nav a:visited {
-  display: inline-block; padding: 8px 0 6px; color: var(--band-fg); text-decoration: none; font-size: var(--t-sm);
+  display: inline-block; padding: 8px 0 6px; color: var(--fg); text-decoration: none; font-size: var(--t-sm);
   border-bottom: 2px solid transparent;
 }
-.site-header nav a:hover { border-bottom-color: var(--band-muted); }
-.site-header nav a[aria-current="page"] { border-bottom-color: var(--band-fg); font-weight: 600; }
-.site-header a:focus-visible { outline: 3px solid var(--band-fg); outline-offset: 1px; }
-.rule-double { border-bottom: 3px double var(--border); height: 5px; }
+.site-header nav a:hover { border-bottom-color: var(--muted); }
+.site-header nav a[aria-current="page"] { border-bottom-color: var(--fg); font-weight: 600; }
+.site-header a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
 
 main, .site-footer { max-width: var(--measure); margin: 0 auto; padding-left: var(--gutter); padding-right: var(--gutter); }
 main { padding-top: 20px; padding-bottom: 40px; }
 
 /* ---- Type -------------------------------------------------------------------------------------------------- */
 h1, h2, h3, .stat-num, .site-name, .card-name, .badge { font-family: var(--font-head); }
-h1 { font-size: var(--t-2xl); line-height: 1.2; margin: 0.3em 0 0.25em; font-weight: 600; }
-h2 { font-size: var(--t-xl); line-height: 1.2; margin: 1.9em 0 0.5em; padding-bottom: 6px; border-bottom: 1px solid var(--border); font-weight: 600; }
-h3 { font-size: var(--t-lg); line-height: 1.25; margin: 1.3em 0 0.4em; font-weight: 600; }
+h1 { font-size: var(--t-2xl); line-height: 1.2; margin: 0.3em 0 0.25em; font-weight: 700; letter-spacing: -.015em; }
+h2 { font-size: var(--t-xl); line-height: 1.2; margin: 1.9em 0 0.5em; padding-bottom: 6px; border-bottom: 1px solid var(--border); font-weight: 700; letter-spacing: -.01em; }
+h3 { font-size: var(--t-lg); line-height: 1.25; margin: 1.3em 0 0.4em; font-weight: 700; }
 p { margin: 0.5em 0; }
 code { font-family: var(--font-mono); font-size: 0.85em; overflow-wrap: anywhere; }
 small { font-size: var(--t-sm); }
@@ -434,16 +457,16 @@ details.year-group > summary .year-label { font-family: var(--font-head); font-s
 .site-header .menu-list a[aria-current="page"] { font-weight: 600; box-shadow: inset 3px 0 0 var(--link); }
 
 /* ==== Landing, drawer, seats, search (docs/design/landing-search-nav.md) ==================================== */
-.masthead { justify-content: flex-start; align-items: center; gap: 10px 16px; flex-wrap: nowrap; padding-top: 10px; padding-bottom: 10px; min-height: 48px; }
+.masthead { justify-content: flex-start; align-items: flex-start; gap: 10px 16px; flex-wrap: nowrap; padding-top: 10px; padding-bottom: 10px; min-height: 48px; }
 .brand { min-width: 0; }
 .menu-btn {
   display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 12px 6px 10px; flex: 0 0 auto;
-  font: inherit; font-size: var(--t-sm); font-weight: 600; color: var(--band-fg); background: transparent;
-  border: 1px solid var(--band-muted); border-radius: var(--radius); text-decoration: none; cursor: pointer;
+  font: inherit; font-size: var(--t-sm); font-weight: 600; color: var(--fg); background: color-mix(in srgb, var(--surface) 55%, transparent);
+  border: 2px solid var(--fg); border-radius: var(--radius-lg); text-decoration: none; cursor: pointer;
 }
-.menu-btn:visited { color: var(--band-fg); }
-.menu-btn:hover { background: rgba(255, 255, 255, .08); }
-.menu-btn:focus-visible { outline: 3px solid var(--band-fg); outline-offset: 2px; }
+.menu-btn:visited { color: var(--fg); }
+.menu-btn:hover { background: var(--surface); }
+.menu-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .menu-icon, .menu-icon::before, .menu-icon::after { display: block; width: 18px; height: 2px; background: currentColor; border-radius: 1px; }
 .menu-icon { position: relative; }
 .menu-icon::before, .menu-icon::after { content: ""; position: absolute; left: 0; }
@@ -489,15 +512,16 @@ dialog.drawer::backdrop { background: rgb(0 0 0 / .4); }
 /* Search boxes */
 .search-row { display: flex; gap: 8px; }
 .search-row input[type="search"] {
-  flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 8px 10px; font: inherit; color: var(--fg); background: var(--bg);
-  border: 1px solid var(--mark); border-radius: var(--radius);
+  flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 8px 12px; font: inherit; color: var(--fg); background: var(--surface);
+  border: 2px solid var(--fg); border-radius: var(--radius-lg);
 }
 button { font: inherit; }
 .search-row button, .results-bar button, #more, .apply {
-  min-height: 44px; padding: 8px 14px; color: var(--band-fg); background: var(--band-bg); border: 1px solid var(--band-bg);
-  border-radius: var(--radius); cursor: pointer; font-weight: 600;
+  min-height: 44px; padding: 8px 16px; color: var(--on-blue); background: var(--blue); border: 1px solid var(--blue);
+  border-radius: var(--radius-lg); cursor: pointer; font-family: var(--font-head); font-weight: 700; font-size: 1.02rem;
 }
-.results-bar button { color: var(--fg); background: var(--surface); border-color: var(--mark); font-weight: 500; }
+.search-row button:hover, #more:hover, .apply:hover { filter: brightness(1.12); }
+.results-bar button { color: var(--fg); background: var(--surface); border-color: var(--mark); font-weight: 500; font-family: inherit; font-size: inherit; }
 input:focus-visible, button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
 /* Landing */
@@ -520,7 +544,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--focus); out
 svg.county-map { display: block; width: 100%; height: auto; max-height: 60vh; }
 /* One screen (QA landing/one-screen): the map takes what the viewport leaves after the purpose line, search, layer
    switch, the two disclosures and the footer line, so the whole landing fits 375x667 and 1280x800 unscrolled. */
-.page-landing svg.county-map { max-height: max(12rem, calc(100vh - 450px)); max-height: max(12rem, calc(100svh - 450px)); }
+/* Daylight (M1): the sky band with today's date is about 90px taller than the old masthead; the map gives it up. */
+.page-landing svg.county-map { max-height: max(12rem, calc(100vh - 540px)); max-height: max(12rem, calc(100svh - 540px)); }
 .landing-list { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0 20px; }
 .landing-list > details { flex: 1 1 100%; }
 .landing-list > details:not([open]) { flex: 0 1 auto; }
@@ -540,7 +565,7 @@ svg.county-map { display: block; width: 100%; height: auto; max-height: 60vh; }
 .your-seats-note { flex: 1 1 100%; margin: 0; font-size: var(--t-xs); color: var(--muted); }
 /* With the box shown (address.js), its privacy line carries the official-lookup link, so the separate line goes. */
 .landing.has-addr .district-lookup { display: none; }
-.addr-form .search-row input { flex: 1 1 auto; width: 0; min-width: 0; min-height: 44px; padding: 8px 10px; font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--mark); border-radius: var(--radius); }
+.addr-form .search-row input { flex: 1 1 auto; width: 0; min-width: 0; min-height: 44px; padding: 8px 12px; font: inherit; color: var(--fg); background: var(--surface); border: 2px solid var(--fg); border-radius: var(--radius-lg); }
 .addr-form .search-row button:disabled { opacity: 0.6; cursor: progress; }
 .addr-privacy { margin: 4px 0 0; font-size: var(--t-xs); color: var(--muted); }
 .addr-result { margin: 4px 0 0; }
@@ -558,12 +583,12 @@ details.map-about .map-caption { font-size: var(--t-sm); }
 .page-landing .site-footer p { margin: 2px 0; }
 .page-landing main { padding-bottom: 0; }
 @media (max-width: 899px) {
-  .page-landing svg.county-map { max-height: max(12rem, calc(100vh - 435px)); max-height: max(12rem, calc(100svh - 435px)); }
+  .page-landing svg.county-map { max-height: max(12rem, calc(100vh - 475px)); max-height: max(12rem, calc(100svh - 475px)); }
   .purpose { font-size: var(--t-md); line-height: 1.3; margin-bottom: 2px; }
   /* the support link joins the operator line, which now wraps on a phone: smaller footer type and the map gives up 16px */
   .page-landing .site-footer { font-size: var(--t-xs); line-height: 1.35; }
   /* the coverage line also names the city council (2026-11-09): the map gives up 24px more (the 12rem floor at 667) */
-  .page-landing svg.county-map { max-height: max(12rem, calc(100vh - 475px)); max-height: max(12rem, calc(100svh - 475px)); }
+  .page-landing svg.county-map { max-height: max(12rem, calc(100vh - 515px)); max-height: max(12rem, calc(100svh - 515px)); }
   .purpose-sub { font-size: var(--t-xs); }
   .landing-search { margin: 6px 0; }
   .layer-switch { margin: 0 0 2px; }
@@ -576,7 +601,8 @@ details.map-about .map-caption { font-size: var(--t-sm); }
   /* the longer label takes its own line above the input row: 24px more */
   .addr-form .search-row { flex-wrap: wrap; }
   .addr-form label { flex: 1 1 100%; }
-  .landing.has-addr svg.county-map { max-height: max(10rem, calc(100vh - 525px)); max-height: max(10rem, calc(100svh - 525px)); }
+  /* Daylight (M1): the sky's date line takes about 40px on a phone, so the map's floor drops from 10rem to 9rem */
+  .landing.has-addr svg.county-map { max-height: max(9rem, calc(100vh - 560px)); max-height: max(9rem, calc(100svh - 560px)); }
   .addr-form:not(:focus-within):not(.has-result) .addr-privacy { display: none; }
 }
 svg.county-map-small { max-width: 18rem; max-height: 14rem; margin: 10px 0 0; }
@@ -865,3 +891,56 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 }
 
 .official-record { margin: 1.4em 0 0.4em; padding-top: 8px; border-top: 1px solid var(--border); font-size: var(--t-sm); color: var(--muted); }
+
+/* ==== Daylight (docs/design/daylight, M1): the landing sky, Your seats, the footer ============================= */
+/* The sun: a disc with two halo rings, anchored on the horizon (the band's bottom edge) at the right of the page
+   column. static/sky.js sets --sun-alt from the viewer's clock (0 on the horizon, 1 at the top of its arc, below 0 at
+   night); without the script it stays at .6. --sun-max keeps it clear of the name plate on a phone. Decorative only:
+   aria-hidden, behind the text, never under text that needs contrast. */
+.sky-sun-frame { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.sky-sun {
+  --sun-alt: .6; --sun-max: .85; --sun-size: clamp(76px, 15vw, 190px);
+  position: absolute; bottom: 0; right: max(var(--gutter), calc(50% - var(--measure) / 2 + var(--gutter)));
+  width: var(--sun-size); height: var(--sun-size); border-radius: 50%; background: var(--sun);
+  box-shadow: 0 0 0 clamp(8px, 2vw, 22px) color-mix(in srgb, var(--halo) 55%, transparent),
+              0 0 0 clamp(18px, 4.5vw, 48px) color-mix(in srgb, var(--halo) 26%, transparent);
+  transform: translateY(calc((1 - var(--sun-alt) * var(--sun-max)) * 100%));
+}
+@media (prefers-reduced-motion: no-preference) { .sky-sun { transition: transform 1.4s cubic-bezier(.2, .7, .2, 1); } }
+.has-sky .masthead { z-index: 1; }
+.sky-hero { position: relative; z-index: 1; max-width: var(--measure); margin: 0 auto; padding: 0 var(--gutter) 10px; }
+.sky-hero[hidden] { display: none; }
+.sky-day { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; font-family: var(--font-head); line-height: 1.1; }
+.sky-dow { font-weight: 500; font-size: 1.05rem; letter-spacing: -.01em; }
+.sky-date { font-weight: 800; font-size: 1.9rem; line-height: 1; letter-spacing: -.035em; }
+@media (max-width: 699px) {
+  .sky-in { display: none; }
+  .sky-sun { --sun-max: .5; }
+  /* without the script there is no date line, so on a phone only a sliver of sun shows, clear of the name plate */
+  .has-sky:has(#sky-hero[hidden]) .sky-sun { --sun-max: .15; }
+  .sky-hero { padding-bottom: 6px; }
+  .sky-date { font-size: 1.8rem; }
+  /* the landing must fit one phone screen: there the support link stays a plain link on the operator line */
+  .page-landing .site-footer a[data-ext="support"] { display: inline; padding: 0; border: 0; color: var(--link); font: inherit; text-decoration: underline; }
+}
+@media (min-width: 700px) {
+  .sky-day { gap: 0 16px; }
+  .sky-dow { font-size: clamp(1.1rem, 2vw, 1.35rem); }
+  .sky-date { font-size: clamp(2.6rem, 5vw, 3.4rem); line-height: .9; letter-spacing: -.045em; }
+  .sky-hero { padding-bottom: 14px; }
+}
+
+/* Your seats: the visitor's saved seats as pills (seats.js fills the list). */
+.your-seats { border-left: 0; border-radius: var(--radius-lg); background: var(--surface-2); }
+.your-seats-list a { min-height: 36px; line-height: 32px; padding: 0 14px; border: 2px solid var(--link); border-radius: 999px; background: var(--surface); color: var(--fg); font-family: var(--font-head); font-weight: 700; text-decoration: none; }
+.your-seats-list a:visited { color: var(--fg); }
+.your-seats-list a:hover { text-decoration: underline; }
+.your-seats-forget { border-radius: var(--radius-lg); background: var(--surface); }
+
+/* Footer: one thin rule, and the support link as a pill. */
+.site-footer { border-top: 1px solid var(--border); }
+.site-footer a[data-ext="support"] {
+  display: inline-block; padding: 0 12px; border: 2px solid var(--fg); border-radius: 999px; color: var(--fg);
+  font-family: var(--font-head); font-weight: 700; text-decoration: none;
+}
+.site-footer a[data-ext="support"]:hover { background: var(--fg); color: var(--bg); }

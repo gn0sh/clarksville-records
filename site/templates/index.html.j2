@@ -1,5 +1,11 @@
 {% extends "base.html.j2" %}
 {% from "_map.html.j2" import county_map %}
+{% block sky_sun %}<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>{% endblock %}
+{% block sky %}
+<div class="sky-hero" id="sky-hero" hidden>
+  <p class="sky-day"><span class="sky-dow"><span id="sky-weekday"></span><span class="sky-in"> in {{ site.cfg.today_place }}</span></span> <time class="sky-date" id="sky-date"></time></p>
+</div>
+{% endblock %}
 {% block main %}
 {# Landing (design 3): purpose, search, layer switch, map, the district list (collapsed: the map is the primary
    picker) and a small "About this map" disclosure. The whole landing fits one screen on a phone and a desktop. #}
@@ -99,7 +105,8 @@
   </div>
 </div>
 {% endblock %}
-{% block scripts %}{% if map %}<script src="{{ root }}static/map.js" defer></script>{% endif %}{% if map or address %}
+{% block scripts %}<script src="{{ root }}static/sky.js" defer></script>
+{% if map %}<script src="{{ root }}static/map.js" defer></script>{% endif %}{% if map or address %}
 <script src="{{ root }}static/seats.js" defer></script>{% endif %}{% if address %}
 <script src="{{ root }}static/georef.js" defer></script>
 <script src="{{ root }}static/address.js" defer></script>{% endif %}{% endblock %}

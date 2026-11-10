@@ -15,18 +15,22 @@
 {% if site.fixture %}
 <div class="banner" role="note"><strong>FIXTURE.</strong> This page shows made-up test data, not real records.</div>
 {% endif %}
-<header class="site-header">
+<header class="site-header{% if page_name == "Map" %} has-sky{% endif %}">
+  {# Daylight name plate (docs/design/daylight): the sun dot, the name and the place, on every page. The landing adds
+     the sky: a sun that static/sky.js sets by the viewer's clock (CSS places it at midday without the script) and
+     today's date, which stays hidden without the script (a static page can't know today's date). #}
+  {% block sky_sun %}{% endblock %}
   <div class="masthead">
     {# Design 2.1: without JS this is a link to the full list in the footer; static/nav.js swaps it for a button that
        opens the drawer (a native <dialog> built from that same list, so the footer list is the single source). #}
     <a id="nav-open" class="menu-btn" href="#site-nav"><span class="menu-icon" aria-hidden="true"></span><span class="menu-word">Menu</span></a>
     <div class="brand">
-      <p class="site-name"><a href="{{ root }}index.html">{{ site.site_name }}</a></p>
+      <p class="site-name"><a href="{{ root }}index.html"><span class="plate-sun" aria-hidden="true"></span><span class="plate"><span class="plate-name">{{ site.site_name }}</span> <span class="plate-place">{{ site.cfg.site_place }}</span></span></a></p>
       {% if page_name != "Map" %}<p class="kicker">{{ site.coverage.body }} minutes, <span class="nowrap">{{ site.coverage.from }}</span> to <span class="nowrap">{{ site.coverage.to }}</span></p>{% endif %}
     </div>
   </div>
+  {% block sky %}{% endblock %}
 </header>
-<div class="rule-double" aria-hidden="true"></div>
 <main id="main">
 {% block main %}{% endblock %}
 {# M1.5: every fact-bearing page (build.REPORT_TEMPLATES) links the report page; static/nav.js adds this page's path
