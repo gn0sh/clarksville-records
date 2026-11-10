@@ -1,7 +1,8 @@
 // Browser test of the landing address box (static/address.js) against a stubbed Census geocoder, under the page's
 // own CSP meta. The JSONP runs in the box's sandboxed srcdoc iframe; page.route answers its script request.
 // Usage: node tests/address_browser.js <index.html> <points.json>   (driven by tests/test_address_box.py)
-// points.json: {"district": [lon, lat], "near": [lon, lat], "outside": [lon, lat], "other": [lon, lat]}
+// points.json: {"district": [lon, lat], "near": [lon, lat], "outside": [lon, lat], "other": [lon, lat],
+//               "wardnear": [lon, lat], "outsidecity": [lon, lat]}
 // Prints JSON: {fit: {...}, cases: {name: {text, href, pin, requests, frame, frames, csp, ...}}}
 const path = require('path');
 const fs = require('fs');
@@ -73,6 +74,8 @@ function consoleCsp(page) {
   const cases = {
     district: (cb) => `${cb}(${JSON.stringify(match(pts.district))})`,
     near: (cb) => `${cb}(${JSON.stringify(match(pts.near))})`,
+    wardnear: (cb) => `${cb}(${JSON.stringify(match(pts.wardnear))})`,
+    outsidecity: (cb) => `${cb}(${JSON.stringify(match(pts.outsidecity))})`,
     outside: (cb) => `${cb}(${JSON.stringify(match(pts.outside))})`,
     twosame: (cb) => `${cb}(${JSON.stringify(match(pts.district, pts.district))})`,
     ambiguous: (cb) => `${cb}(${JSON.stringify(match(pts.district, pts.other))})`,
@@ -123,8 +126,10 @@ function consoleCsp(page) {
       const res = document.getElementById('addr-result');
       const a = res.querySelector('a');
       return { text: res.textContent, href: a && a.getAttribute('href'), html: res.innerHTML,
+               hrefs: [...res.querySelectorAll('a')].map((x) => x.getAttribute('href')),
                pin: !!document.querySelector('svg.county-map .addr-pin'),
                found: [...document.querySelectorAll('#layer-districts a.is-found')].map((x) => x.getAttribute('data-district')),
+               foundWards: [...document.querySelectorAll('#layer-wards .is-found')].map((x) => x.getAttribute('data-ward')),
                scripts: document.querySelectorAll('script[src*="census.gov"]').length,
                frames: document.querySelectorAll('iframe').length,
                pwned: document.body.hasAttribute('data-pwned'), csp: window.__csp,

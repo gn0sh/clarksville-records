@@ -1,0 +1,468 @@
+{
+ "about": "Georeference of the RPC City Council Wards poster: projected metres -> page space of the poster PDF. Fitted by tools/georef_fit.py from control_points; check_points are held out of the fit. Used by tools/extract_ward_poster.py to move the ward shapes into districts.json's page space.",
+ "source_sha256": "742f2c13c8c88e1b46d63acf7a0c63e798c142fae7364da3159ce76fb0ea7c0e",
+ "source_url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/02/ClarksvilleCityWardsPoster.pdf",
+ "source_title": "City Council Wards (36x36 poster), Clarksville-Montgomery County Regional Planning Commission, updated February 25, 2026",
+ "source_page": "https://www.cmcrpc.com/maps/",
+ "source_updated": "2026-02-25",
+ "page_space": "PDF user space of the poster page (2592 x 2592 pt), y down",
+ "projection": {
+  "name": "NAD83 / Tennessee State Plane (EPSG:32136), metres",
+  "method": "lambert_conformal_conic_2sp",
+  "ellipsoid": "GRS80",
+  "semi_major_m": 6378137.0,
+  "inverse_flattening": 298.257222101,
+  "lat_1": 35.25,
+  "lat_2": 36.416666666667,
+  "lat_0": 34.333333333333,
+  "lon_0": -86.0,
+  "x_0": 600000.0,
+  "y_0": 0.0,
+  "datum_note": "Inputs are NAD83 degrees; WGS84 (what a geocoder returns) differs by about 1 m here, far below the margin."
+ },
+ "projection_finding": "The poster is drawn in Tennessee State Plane, north up: the fitted affine has no measurable rotation (-0.002 deg) and equal x/y scale (ratio 1.00005), at 9.83 m per point. Its road lines are the TIGER road lines: 32,002 points sampled every 6 pt along the drawn roads lie a median 0.38 m (p90 2.2 m) from the nearest TIGER road line after the fit; the p99 of 40 m is roads drawn on the poster that TIGER lacks or routes differently.",
+ "method": "Control and check points are crossings of two named roads inside the city where each road runs straight through (4 legs, each over 80 m, crossing angle over 60 deg). lonlat is the TIGER node (NAD83); page_xy is the crossing of the two drawn centre lines (0.8 or 2.0 pt black strokes) whose directions match the TIGER legs within 8 deg, near the spot predicted by a first alignment of the whole drawn road network to TIGER. Points were picked to cover every side of the city; dual carriageways (I-24) were left out. Working scripts were one-off; tools/georef_fit.py refits from the points stored here and tools/extract_ward_poster.py moves the ward shapes into districts.json's page space.",
+ "sources": {
+  "tiger-roads-tnm": {
+   "title": "USGS The National Map Transportation for Tennessee (Trans_RoadSegment), whose road lines in Montgomery County come from Census TIGER/Line (2016 BAS All Roads; some segments from the 2018 MAF/TIGER extract)",
+   "url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/Tran/GPKG/TRAN_Tennessee_State_GPKG.zip",
+   "fetched": "2026-11-10",
+   "licence": "Public domain (U.S. federal government work)"
+  },
+  "tiger-place-2025": {
+   "title": "2025 TIGER/Line Shapefile, Place (U.S. Census Bureau), Clarksville city, TN, as redistributed in USGS The National Map Governmental Unit Boundaries for Tennessee (GU_IncorporatedPlace, load date 2025-09-29)",
+   "url": "https://prd-tnm.s3.amazonaws.com/StagedProducts/GovtUnit/GPKG/GOVTUNIT_Tennessee_State_GPKG.zip",
+   "fetched": "2026-11-10",
+   "licence": "Public domain (U.S. federal government work; USGS metadata: no use constraints)"
+  },
+  "access_note": "Read from the USGS redistribution of TIGER, as for georef.json (the Census hosts are not reachable from the build sandbox). Nothing from APSU or mcgtn GIS services was used."
+ },
+ "boundary_margin_m": 76,
+ "boundary_margin_basis": {
+  "transform_m": 3,
+  "transform_note": "largest leave-one-out control error (2.3 m); held-out check points max 1.8 m",
+  "traced_shapes_m": 5,
+  "traced_shapes_note": "districts.json ward paths are simplified (0.12 pt) and rounded to 0.1 pt in the county map's page space; tools/extract_ward_poster.py measures the max Hausdorff distance to the unsimplified trace (wards.max_simplify_error_m, 4.8 m)",
+  "source_drawing_m": 3,
+  "source_drawing_note": "judgment call, not measured: the poster's vectors are an ArcGIS Pro export, which can drop vertices closer than its output resolution (about 0.24 pt = 2.4 m at 300 dpi)",
+  "geocoder_m": 65,
+  "geocoder_note": "the same allowance as georef.json: the Census geocoder interpolates along street address ranges on the street centre line, and many ward lines follow street centre lines. Judgment call, not measured.",
+  "district_map_note": "the ward paths are stored in the district map's page space through georef.json, so a looked-up point and the ward lines pass through the same district affine: its error cancels and adds nothing here",
+  "outline_check": "TIGER 2025 Clarksville place outline (tiger-place-2025) sampled every 50 m against the poster's city outline (union of the wards) after the fit: median 0.3 m, p90 0.7 m, 93.5% within 10 m, 96.5% within 76 m. The rest are annexations: 0.36 km2 is in the wards but not in the 2025 TIGER place (annexed since), 0.06 km2 the other way, of 261.5 km2."
+ },
+ "control_points": [
+  {
+   "id": "appleton-caskey",
+   "feature": "Appleton Dr crosses Caskey Dr (centre lines)",
+   "lonlat": [
+    -87.444538,
+    36.572836
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    389.5,
+    993.54
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "eva-peggy",
+   "feature": "Eva Dr crosses Peggy Dr (centre lines)",
+   "lonlat": [
+    -87.425371,
+    36.592196
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    567.2,
+    777.54
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "mallard-tobacco",
+   "feature": "Mallard Dr crosses Tobacco Rd (centre lines)",
+   "lonlat": [
+    -87.407158,
+    36.635822
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    740.0,
+    287.54
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "russet-russetridge",
+   "feature": "Russet Dr crosses Russet Ridge Dr (centre lines)",
+   "lonlat": [
+    -87.342038,
+    36.590273
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    1325.3,
+    809.94
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "benjamin-gainelynn",
+   "feature": "Benjamin Dr crosses Gaine Lynn Dr (centre lines)",
+   "lonlat": [
+    -87.287523,
+    36.636643
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    1828.4,
+    293.24
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "rossview-warfield",
+   "feature": "Rossview Rd crosses Warfield Blvd (centre lines)",
+   "lonlat": [
+    -87.287882,
+    36.560958
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    1814.1,
+    1147.44
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "hawthorn-mulberry",
+   "feature": "Hawthorn Dr crosses Mulberry Pl (centre lines)",
+   "lonlat": [
+    -87.215539,
+    36.533224
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    2468.6,
+    1468.94
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "sango-williamsburg",
+   "feature": "Sango Rd crosses Williamsburg Rd (centre lines)",
+   "lonlat": [
+    -87.222684,
+    36.519632
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    2401.7,
+    1621.54
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "oldfarmers-sr76",
+   "feature": "Old Farmers Rd crosses State Rte 76 (centre lines)",
+   "lonlat": [
+    -87.250391,
+    36.516897
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    2148.9,
+    1649.24
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "ashlandcity-sevenmileferry",
+   "feature": "Ashland City Rd crosses Seven Mile Ferry Rd N (centre lines)",
+   "lonlat": [
+    -87.33941,
+    36.499632
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    1335.2,
+    1833.14
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "galvin-rosemary",
+   "feature": "Galvin Dr crosses Rosemary Dr (centre lines)",
+   "lonlat": [
+    -87.416946,
+    36.545059
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    636.1,
+    1310.64
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  }
+ ],
+ "check_points": [
+  {
+   "id": "caskey-glennon",
+   "feature": "Caskey Dr crosses Glennon Dr (centre lines)",
+   "lonlat": [
+    -87.440132,
+    36.574368
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    429.9,
+    976.74
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "linda-wagontrail",
+   "feature": "Linda Ln crosses Wagon Trail Rd (centre lines)",
+   "lonlat": [
+    -87.425297,
+    36.552316
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    561.2,
+    1227.64
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "pinetree-raintree",
+   "feature": "Pinetree Rd crosses Raintree Dr (centre lines)",
+   "lonlat": [
+    -87.421295,
+    36.571075
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    600.8,
+    1016.44
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "belair-stonemountain",
+   "feature": "Bel Air Blvd crosses Stone Mountain Rd (centre lines)",
+   "lonlat": [
+    -87.398499,
+    36.574619
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    808.9,
+    979.44
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "northwood-ryan",
+   "feature": "Northwood Ter crosses Ryan Dr (centre lines)",
+   "lonlat": [
+    -87.392105,
+    36.573772
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    867.0,
+    989.84
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "college-nspring",
+   "feature": "College St crosses N Spring St (centre lines)",
+   "lonlat": [
+    -87.362823,
+    36.529419
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    1126.5,
+    1494.14
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "crossland-greenwood",
+   "feature": "Crossland Ave crosses Greenwood Ave (centre lines)",
+   "lonlat": [
+    -87.347298,
+    36.519798
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    1266.5,
+    1604.74
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "cedar-reynolds",
+   "feature": "Cedar St crosses Reynolds St (centre lines)",
+   "lonlat": [
+    -87.337467,
+    36.531628
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    1357.9,
+    1472.44
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "liberty-madison",
+   "feature": "Liberty Pkwy crosses Madison St (centre lines)",
+   "lonlat": [
+    -87.329082,
+    36.519266
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    1432.5,
+    1612.94
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "oldrussellville-rossview",
+   "feature": "Old Russellville Pike crosses Rossview Rd (centre lines)",
+   "lonlat": [
+    -87.302219,
+    36.565535
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    1684.1,
+    1094.24
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "benjamin-isaac",
+   "feature": "Benjamin Dr crosses Isaac Dr (centre lines)",
+   "lonlat": [
+    -87.288806,
+    36.632405
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    1816.1,
+    340.94
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "wmor-windermere",
+   "feature": "W Mor Dr crosses Windermere Dr (centre lines)",
+   "lonlat": [
+    -87.229015,
+    36.534176
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    2346.1,
+    1456.64
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "ambleside-greenlandfarms",
+   "feature": "Ambleside Dr crosses Greenland Farms Dr (centre lines)",
+   "lonlat": [
+    -87.365631,
+    36.487247
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    1094.3,
+    1969.74
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  },
+  {
+   "id": "central-woodard",
+   "feature": "Central Ave crosses Woodard St (centre lines)",
+   "lonlat": [
+    -87.344017,
+    36.516663
+   ],
+   "lonlat_source": "tiger-roads-tnm",
+   "page_xy": [
+    1295.9,
+    1640.54
+   ],
+   "page_source": "crossing of the two drawn road centre lines on the poster"
+  }
+ ],
+ "affine": [
+  [
+   0.101717207454,
+   2.852982e-06,
+   -47489.93457445476
+  ],
+  [
+   2.191983e-06,
+   -0.101712108299,
+   26362.78305004198
+  ]
+ ],
+ "fit": {
+  "metres_per_page_unit": 9.8314,
+  "rotation_deg": -0.0016,
+  "scale_ratio_x_to_y": 1.00005,
+  "residual_m": {
+   "appleton-caskey": 0.8,
+   "eva-peggy": 0.3,
+   "mallard-tobacco": 0.3,
+   "russet-russetridge": 0.4,
+   "benjamin-gainelynn": 0.5,
+   "rossview-warfield": 2.1,
+   "hawthorn-mulberry": 1.0,
+   "sango-williamsburg": 0.4,
+   "oldfarmers-sr76": 0.6,
+   "ashlandcity-sevenmileferry": 1.4,
+   "galvin-rosemary": 0.4
+  },
+  "rms_residual_m": 0.91,
+  "leave_one_out_m": {
+   "appleton-caskey": 1.1,
+   "eva-peggy": 0.4,
+   "mallard-tobacco": 0.5,
+   "russet-russetridge": 0.5,
+   "benjamin-gainelynn": 1.0,
+   "rossview-warfield": 2.3,
+   "hawthorn-mulberry": 1.4,
+   "sango-williamsburg": 0.5,
+   "oldfarmers-sr76": 0.8,
+   "ashlandcity-sevenmileferry": 2.1,
+   "galvin-rosemary": 0.5
+  },
+  "check_error_m": {
+   "caskey-glennon": 0.5,
+   "linda-wagontrail": 0.8,
+   "pinetree-raintree": 0.0,
+   "belair-stonemountain": 0.1,
+   "northwood-ryan": 0.2,
+   "college-nspring": 0.7,
+   "crossland-greenwood": 0.4,
+   "cedar-reynolds": 0.3,
+   "liberty-madison": 1.5,
+   "oldrussellville-rossview": 1.8,
+   "benjamin-isaac": 0.3,
+   "wmor-windermere": 0.1,
+   "ambleside-greenlandfarms": 0.4,
+   "central-woodard": 0.5
+  },
+  "max_check_error_m": 1.8
+ }
+}

@@ -1,5 +1,5 @@
-/* "Your seats" (landing). After an address lookup finds a district, or a click on a map area, the visitor's district
-   (and ward, when a lookup supplies one) number is kept in this browser only: one localStorage key, two small numbers,
+/* "Your seats" (landing). After an address lookup finds a district or ward, or a click on a map area, the visitor's
+   district and ward numbers are kept in this browser only: one localStorage key, two small numbers,
    never sent anywhere, no cookies. On a later visit the "Your seats" box links to those seats' pages, built from this
    page's own lists (a stored number that matches no list row shows nothing), and its Forget button clears the key.
    Every storage call is wrapped: if storage is blocked or full the box simply never shows and nothing breaks.
@@ -27,11 +27,13 @@
     try { return parse(s.getItem(KEY)); } catch (e) { return null; }
   }
 
-  /* Keep what is new, and what was kept for the other seat. Returns true when written. */
-  function save(seats) {
+  /* Keep what is new, and what was kept for the other seat (a map click names one seat). With `replace` (an address
+     lookup, which answers for both seats at once) a seat it did not find is cleared, never kept from an earlier
+     address. Returns true when written. */
+  function save(seats, replace) {
     var s = store();
     if (!s || !seats || typeof seats !== "object") { return false; }
-    var old = read() || { district: null, ward: null };
+    var old = replace === true ? { district: null, ward: null } : (read() || { district: null, ward: null });
     var d = num(seats.district) !== null ? seats.district : old.district;
     var w = num(seats.ward) !== null ? seats.ward : old.ward;
     if (d === null && w === null) { return false; }
@@ -56,6 +58,12 @@
   for (var i = 0; i < areas.length; i++) {
     areas[i].addEventListener("click", function (e) {
       save({ district: Number(e.currentTarget.getAttribute("data-district")) });
+    });
+  }
+  var wardAreas = doc.querySelectorAll("#layer-wards a[data-ward]");   // the same for a ward, when wards are live
+  for (var k = 0; k < wardAreas.length; k++) {
+    wardAreas[k].addEventListener("click", function (e) {
+      save({ ward: Number(e.currentTarget.getAttribute("data-ward")) });
     });
   }
 

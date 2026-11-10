@@ -608,6 +608,9 @@ svg.county-map-small { max-width: 18rem; max-height: 14rem; margin: 10px 0 0; }
 .district.is-this { fill: url(#hatch); stroke-width: 2px; }
 .hatch-line { fill: var(--mark); }
 .ward { fill: none; stroke: var(--mark-soft); stroke-width: 1px; vector-effect: non-scaling-stroke; }
+/* live wards (the map holds ward shapes and the council has seat pages): drawn and picked like districts */
+#layer-wards a .ward { fill: var(--surface); stroke: var(--fg); }
+#layer-wards a:hover .ward, #layer-wards a.is-found .ward { fill: var(--surface-2); stroke: var(--focus); stroke-width: 2px; }
 .river { fill: var(--mark-soft); fill-opacity: .35; stroke: none; pointer-events: none; }  /* water areas, filled */
 .district-num, .ward-num {
   font-family: var(--font-head); font-weight: 600; fill: var(--fg); text-anchor: middle; dominant-baseline: central;

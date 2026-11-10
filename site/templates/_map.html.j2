@@ -1,7 +1,8 @@
 {# The county map as inline SVG (design 3.2). aria-hidden: the district list is the accessible equivalent, and the
    links take tabindex="-1" so nothing is announced or focused twice (D4). Every district path has the same class
    and no inline fill: the fill never encodes anything (design 10). `links=false` draws the small outline map of a
-   seat page, with that one district hatched. #}
+   seat page, with that one district hatched. Ward shapes (when the map has them) link to their council seat, and
+   carry data-ward either way: static/address.js reads the ward lookup's shapes from here. #}
 {% macro county_map(map, root, cfg, links=true) %}
 <svg class="county-map{% if not links %} county-map-small{% endif %}" viewBox="{{ map.viewBox }}" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
   {% if not links %}<defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="hatch-line" width="2" height="6"/></pattern></defs>{% endif %}
@@ -23,7 +24,7 @@
   {% if links %}
   <g id="layer-wards" font-size="{{ map.label_size }}">
     {% for w in map.wards %}
-    <path class="ward" d="{{ w.path }}"/>
+    {% if w.href %}<a href="{{ root }}{{ w.href }}" tabindex="-1" data-ward="{{ w.number }}"><path class="ward" d="{{ w.path }}"/></a>{% else %}<path class="ward" data-ward="{{ w.number }}" d="{{ w.path }}"/>{% endif %}
     <text class="ward-num" x="{{ w.x }}" y="{{ w.y }}">{{ w.number }}</text>
     {% endfor %}
   </g>

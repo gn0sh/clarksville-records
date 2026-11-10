@@ -11,8 +11,9 @@ import pytest
 
 from conftest import FIXTURE, ROOT, build, parse
 from qa import site_checks
-from sitegen import build as sitegen_build, config, views
+from sitegen import build as sitegen_build, config, georef, views
 from test_georef import G
+from test_ward_map import WG
 
 REAL_DISTRICTS = config.DISTRICTS_PATH
 
@@ -46,10 +47,11 @@ def test_box_is_hidden_until_the_script_shows_it_and_names_the_privacy_rule(real
     form = next(n for n in parse(html).walk() if n.attrs.get("id") == "addr-form")
     assert "hidden" in form.attrs and "action" not in form.attrs and "method" not in form.attrs
     text = " ".join(form.all_text().split())
-    assert text.startswith("Find your county district by address")     # ward lookup is not built yet
+    assert text.startswith("Find your ward and county district by address")     # the real map holds the wards
     assert ("Your address is sent to the U.S. Census Bureau's geocoder to find it on the map. "
             "This site doesn't store it. Census's privacy policy applies. Or look it up on GoVoteTN.") in text
-    assert "only the district number is kept, in this browser on this device" in text
+    assert "only the district and ward numbers are kept, in this browser on this device" in text
+    assert "City ward lookup is coming" not in text
     assert f'<a data-ext="lookup" href="{config.SITE["district_lookup_url"]}" rel="noopener">GoVoteTN</a>' in html
     assert (f'<a data-ext="geocoder" href="{config.SITE["geocoder_privacy_url"]}" rel="noopener">'
             "Census's privacy policy</a> applies.") in html
@@ -60,13 +62,40 @@ def test_box_is_hidden_until_the_script_shows_it_and_names_the_privacy_rule(real
 
 def test_box_settings_come_from_config_and_georef(real_map_site):
     cfg = addr_config((real_map_site / "index.html").read_text(encoding="utf-8"))
+    wards = json.loads(REAL_DISTRICTS.read_text(encoding="utf-8"))["wards"]
     assert cfg == {"georef": {"projection": G["projection"], "affine": G["affine"],
                               "boundary_margin_m": G["boundary_margin_m"]},
                    "geocoder": config.SITE["geocoder_url"], "geocoder_short": "Census",
                    "county": config.SITE["county_name"],
                    "district_label": config.SITE["district_label"], "lookup_url": config.SITE["district_lookup_url"],
-                   "lookup_label": config.SITE["district_lookup_label"], "frame": views.geocode_frame_script()}
+                   "lookup_label": config.SITE["district_lookup_label"], "frame": views.geocode_frame_script(),
+                   "ward_margin_m": wards["boundary_margin_m"], "ward_label": config.SITE["ward_label"],
+                   "city": config.SITE["city_name"]}
     assert config.SITE["geocoder_url"] == "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress"
+
+
+def test_map_without_ward_shapes_keeps_the_district_lookup(tmp_path):
+    """A map file whose wards are not drawn yet: the box, the layer switch and the settings stay district-only."""
+    d = json.loads(REAL_DISTRICTS.read_text(encoding="utf-8"))
+    d["wards"] = {"status": "coming", "note": "not traced"}
+    (tmp_path / "districts.json").write_text(json.dumps(d), encoding="utf-8")
+    shutil.copy(REAL_DISTRICTS.parent / "georef.json", tmp_path / "georef.json")
+    out = tmp_path / "site"
+    build(FIXTURE, out, seats_path=None, districts_path=tmp_path / "districts.json")
+    html = (out / "index.html").read_text(encoding="utf-8")
+    assert "Find your county district by address" in html and "Find your ward" not in html
+    assert "only the district number is kept" in html and "City ward lookup is coming" in html
+    assert "City wards (coming)" in html and 'data-ward="' not in html
+    assert "ward_margin_m" not in addr_config(html)
+
+
+def test_ward_layer_is_live_with_its_source(real_map_site):
+    html = (real_map_site / "index.html").read_text(encoding="utf-8")
+    wards = json.loads(REAL_DISTRICTS.read_text(encoding="utf-8"))["wards"]
+    assert "(coming)" not in html and html.count('data-ward="') == 12
+    assert (f'Ward lines traced from <a data-ext="map" href="{wards["source_url"]}" target="_blank" '
+            f'rel="noopener noreferrer">{wards["source_title"]}') in html
+    assert f'fetched {wards["fetched"]}' in html
 
 
 def test_settings_json_is_escaped_for_the_script_element(real_map_site, monkeypatch, tmp_path):
@@ -267,6 +296,12 @@ def test_address_box_in_a_browser(real_site, tmp_path):
            for k, pid in (("district", "franklin-2nd"), ("near", "hwy48-loneoak"))}
     pts["outside"] = [-87.44, 36.665]
     pts["other"] = next(p["lonlat"] for p in G["check_points"] if p["id"] == "rossview-wilma")   # District 14
+    # the ward lookup (tests/test_ward_map.py): on the ward 6 / 7 line in District 4, and District 6 outside the city
+    pts["wardnear"] = next(p["lonlat"] for p in WG["control_points"] if p["id"] == "ashlandcity-sevenmileferry")
+    pts["outsidecity"] = next(p["lonlat"] for p in G["check_points"] if p["id"] == "slayden-hwy13")
+    for k, d in (("wardnear", 4), ("outsidecity", 6)):
+        got = georef.district_for(*pts[k])
+        assert got["district"] == d and not got["near_boundary"], k
     f = tmp_path / "pts.json"
     f.write_text(json.dumps(pts), encoding="utf-8")
     env = dict(os.environ)
@@ -286,13 +321,21 @@ def test_address_box_in_a_browser(real_site, tmp_path):
     assert set(out["fit"]) == {"375x667", "1280x800", "375x667 answered", "1280x800 answered"}
     c = out["cases"]
     census = "The Census places this address in "
-    assert c["district"]["text"].startswith(census + "District 5.") and c["district"]["href"] == "districts/05.html"
+    both = census + "District 5 and Ward 6."                 # the combined lookup: the real map holds the wards
+    assert c["district"]["text"].startswith(both) and c["district"]["href"] == "districts/05.html"
+    assert c["district"]["hrefs"][1].endswith("#seat-ward-6")             # the ward's seat on the council page
     assert "Census match: 1 TEST ST" in c["district"]["text"]
-    assert c["district"]["pin"] and c["district"]["found"] == ["5"]
-    assert c["twosame"]["text"].startswith(census + "District 5.") and c["twosame"]["found"] == ["5"]
-    assert c["reachout"]["text"].startswith(census + "District 5.") and not c["reachout"]["pwned"]
-    assert c["near"]["text"].startswith("This address is near a district line. Check GoVoteTN to be sure.")
+    assert c["district"]["pin"] and c["district"]["found"] == ["5"] and c["district"]["foundWards"] == ["6"]
+    assert c["twosame"]["text"].startswith(both) and c["twosame"]["found"] == ["5"]
+    assert c["reachout"]["text"].startswith(both) and not c["reachout"]["pwned"]
+    assert c["near"]["text"].startswith("This address is near a district line. Check GoVoteTN to be sure. "
+                                        "It is outside the City of Clarksville wards.")
     assert c["near"]["href"] == config.SITE["district_lookup_url"]
+    assert c["wardnear"]["text"].startswith(census + "District 4. It is near a ward line. Check with the Election "
+                                            "Commission or look it up on GoVoteTN to be sure.")
+    assert c["wardnear"]["hrefs"] == ["districts/04.html", config.SITE["district_lookup_url"]]
+    assert c["wardnear"]["foundWards"] == [] and c["wardnear"]["pin"]
+    assert c["outsidecity"]["text"].startswith(census + "District 6. It is outside the City of Clarksville wards.")
     assert c["outside"]["text"].startswith("This address is outside Montgomery County.")
     assert c["spoof"]["text"].startswith("This address is outside Montgomery County.")   # the page's own message ignored
     ambiguous = "More than one address matched. Add the city and ZIP, or check GoVoteTN."
@@ -309,11 +352,15 @@ def test_address_box_in_a_browser(real_site, tmp_path):
         q = v["requests"][0]
         assert q == ("?address=1%20Test%20St%2C%20Clarksville%20TN%20%3Cb%3E%26%22&benchmark=Public_AR_Current"
                      "&format=jsonp&callback=crGeocode"), q
-        # the address is never stored; only a found district number, under the one key (the reachout's own write failed)
-        want = ["cr-your-seats"] if k in ("district", "twosame", "reachout") else []
+        # the address is never stored; only the found district and ward numbers, under the one key (the reachout's
+        # own write failed); a seat the lookup could not place is stored as null, never guessed
+        seats = {"district": {"district": 5, "ward": 6}, "twosame": {"district": 5, "ward": 6},
+                 "reachout": {"district": 5, "ward": 6}, "wardnear": {"district": 4, "ward": None},
+                 "outsidecity": {"district": 6, "ward": None}}
+        want = ["cr-your-seats"] if k in seats else []
         assert v["storage"] == want and v["scripts"] == 0 and v["frames"] == 0, k
         if want:
-            assert v["seats"] == {"district": 5, "ward": None}, k
+            assert v["seats"] == seats[k], k
             assert "Test St" not in v["storageText"], k
         assert "<b>" not in v["html"], k                                      # census text is never markup
         assert v["frame"] == [{"sandbox": "allow-scripts", "referrerpolicy": "no-referrer", "hidden": True,

@@ -10,7 +10,7 @@
 {% block main %}
 {# Landing (design 3): purpose, search, layer switch, map, the district list (collapsed: the map is the primary
    picker) and a small "About this map" disclosure. The whole landing fits one screen on a phone and a desktop. #}
-{% set dl = site.cfg.district_layer %}{% set wl = site.cfg.ward_layer %}
+{% set dl = site.cfg.district_layer %}{% set wl = site.cfg.ward_layer %}{% set wards_live = map and map.wards %}{% set wl_coming = wl.coming and not wards_live %}
 <div class="landing">
   <h1 class="purpose">{{ site.cfg.purpose }}</h1>
   <p class="muted purpose-sub"><span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>. {% for c in site.councils %}<a href="{{ root }}{{ c.href }}">{{ c.label }}</a>: <span class="nowrap">{{ c.from }} to {{ c.to }}</span>.{% if not loop.last %} {% endif %}{% else %}{{ site.cfg.city_coming }}{% endfor %}</p>
@@ -29,12 +29,12 @@
 {% if address %}
   <form class="addr-form" id="addr-form" hidden>
     <div class="search-row">
-      <label for="addr-q">{% if map and map.wards %}Find your ward and county district by address{% else %}Find your county district by address{% endif %}</label>
+      <label for="addr-q">{% if wards_live %}Find your ward and county district by address{% else %}Find your county district by address{% endif %}</label>
       <input id="addr-q" type="text" autocomplete="street-address" maxlength="200" placeholder="Street address, city" aria-describedby="addr-privacy">
       <button type="submit">Find</button>
     </div>
     <p class="addr-privacy" id="addr-privacy">Your address is sent to {{ site.cfg.geocoder_label }} to find it on the map. This site doesn't store it. <a data-ext="geocoder" href="{{ site.cfg.geocoder_privacy_url }}" rel="noopener">{{ site.cfg.geocoder_short }}'s privacy policy</a> applies.{% if site.cfg.district_lookup_url %} <span class="addr-alt">Or look it up on <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">{{ site.cfg.district_lookup_label }}</a>.</span>{% endif %}</p>
-    <p class="addr-privacy addr-seats-note">After a lookup or a click on the map, only the district number is kept, in this browser on this device, to show "Your seats" next time, with a Forget button. No cookies.{% if not (map and map.wards) %} City ward lookup is coming; the wards are listed below the map.{% endif %}</p>
+    <p class="addr-privacy addr-seats-note">After a lookup or a click on the map, only the {% if wards_live %}district and ward numbers are{% else %}district number is{% endif %} kept, in this browser on this device, to show "Your seats" next time, with a Forget button. No cookies.{% if not wards_live %} City ward lookup is coming; the wards are listed below the map.{% endif %}</p>
     <p class="addr-result" id="addr-result" role="status" aria-live="polite"></p>
   </form>
   <script type="application/json" id="addr-config">{{ address|tojson }}</script>
@@ -53,9 +53,11 @@
       <fieldset class="layer-switch">
         <legend>Map shows</legend>
         <label><input type="radio" name="layer" id="show-districts" value="districts" checked> <span class="wide-only">{{ dl.label }}</span><span class="narrow-only" aria-hidden="true">{{ dl.short }}</span></label>
-        <label><input type="radio" name="layer" id="show-wards" value="wards"> <span class="wide-only">{{ wl.label }}{% if wl.coming %} (coming){% endif %}</span><span class="narrow-only" aria-hidden="true">{{ wl.short }}{% if wl.coming %} (coming){% endif %}</span></label>
+        <label><input type="radio" name="layer" id="show-wards" value="wards"> <span class="wide-only">{{ wl.label }}{% if wl_coming %} (coming){% endif %}</span><span class="narrow-only" aria-hidden="true">{{ wl.short }}{% if wl_coming %} (coming){% endif %}</span></label>
       </fieldset>
-      {% if site.councils %}
+      {% if wards_live %}
+      <p class="wards-note note">Ward lines traced from <a data-ext="map" href="{{ map.wards_source.url }}" target="_blank" rel="noopener noreferrer">{{ map.wards_source.title }}<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ map.wards_source.fetched }}. {% for c in site.councils %}<a href="{{ root }}{{ c.href }}#seats-h">{{ c.label }} seats</a>.{% endfor %}</p>
+      {% elif site.councils %}
       <p class="wards-note note">A map of the {{ site.cfg.city_name }} wards is not available yet. {% for c in site.councils %}<a href="{{ root }}{{ c.href }}#seats-h">{{ c.label }} seats</a>.{% endfor %}</p>
       {% else %}
       <p class="wards-note note">{{ site.cfg.city_name }} wards are coming. The city's records have not been collected yet.</p>

@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 
 from collector.fetch import USER_AGENT   # the Method page quotes the collector's own User-Agent, never a copy
 
-from . import config, fin_views
+from . import config, fin_views, georef as georef_mod
 import datetime as dt
 
 from .seats import Seats, basis_text, seat_order, source_label
@@ -1114,12 +1114,15 @@ def district_rows(ix: Index) -> list[dict]:
     return rows
 
 
-def map_context(districts: dict | None, highlight: int | None = None) -> dict | None:
+def map_context(districts: dict | None, highlight: int | None = None, ward_hrefs: dict | None = None) -> dict | None:
     """The inline SVG's data. Every district path gets the same class; the fill never encodes anything (design 3.2).
-    No date of the lines is passed: the cutover is inferred and never rendered (invariant `provenance`)."""
+    No date of the lines is passed: the cutover is inferred and never rendered (invariant `provenance`).
+    Ward shapes are drawn only when the map holds them (wards "status": "available"); `ward_hrefs` ({number: page})
+    makes each a link to its council seat, as the landing list does."""
     if districts is None:
         return None
     wards = districts.get("wards") or {}
+    live = georef_mod.wards_of(districts) is not None
     width = float(str(districts["viewBox"]).split()[2])
     return {
         "viewBox": districts["viewBox"],
@@ -1130,9 +1133,13 @@ def map_context(districts: dict | None, highlight: int | None = None) -> dict | 
         "districts": [{"number": d["number"], "path": d["path"], "x": d["label_xy"][0], "y": d["label_xy"][1],
                        "href": f"districts/{int(d['number']):02d}.html", "this": d["number"] == highlight}
                       for d in sorted(districts["districts"], key=lambda d: d["number"])],
-        "wards": [{"number": w["number"], "path": w["path"], "x": w["label_xy"][0], "y": w["label_xy"][1]}
-                  for w in sorted(wards.get("wards") or [], key=lambda w: w["number"])],
+        "wards": [{"number": w["number"], "path": w["path"], "x": w["label_xy"][0], "y": w["label_xy"][1],
+                   "href": (ward_hrefs or {}).get(int(w["number"]))}
+                  for w in sorted(wards.get("wards") or [], key=lambda w: w["number"])] if live else [],
         "wards_status": wards.get("status", config.SITE["wards_status"]),
+        # the ward lines' own source (N4), shown under the map when the ward layer is on
+        "wards_source": ({"url": wards["source_url"], "title": wards["source_title"], "fetched": wards["fetched"]}
+                         if live else None),
         "source_url": districts["source_url"], "source_title": districts.get("source_title") or "county map",
         "fetched": districts["fetched"],
         "swap": swap_context(),
@@ -1179,13 +1186,19 @@ def address_context(districts: dict | None, georef: dict | None, geocoder: bool 
     cfg = config.SITE
     if not geocoder or districts is None or georef is None or not cfg.get("geocoder_url"):
         return None
-    return {"georef": {"projection": georef["projection"], "affine": georef["affine"],
-                       "boundary_margin_m": georef["boundary_margin_m"]},
-            "geocoder": cfg["geocoder_url"], "geocoder_short": cfg["geocoder_short"],
-            "county": cfg["county_name"], "district_label": cfg["district_label"],
-            "lookup_url": cfg.get("district_lookup_url") or "",
-            "lookup_label": cfg.get("district_lookup_label") or "",
-            "frame": geocode_frame_script()}
+    out = {"georef": {"projection": georef["projection"], "affine": georef["affine"],
+                      "boundary_margin_m": georef["boundary_margin_m"]},
+           "geocoder": cfg["geocoder_url"], "geocoder_short": cfg["geocoder_short"],
+           "county": cfg["county_name"], "district_label": cfg["district_label"],
+           "lookup_url": cfg.get("district_lookup_url") or "",
+           "lookup_label": cfg.get("district_lookup_label") or "",
+           "frame": geocode_frame_script()}
+    wards = georef_mod.wards_of(districts)
+    if wards is not None:
+        # the ward shapes sit in the same page space (same georef); only their margin is their own
+        out.update({"ward_margin_m": wards["boundary_margin_m"], "ward_label": cfg["ward_label"],
+                    "city": cfg["city_name"]})
+    return out
 
 
 # Content-Security-Policy (third-party-script/no-csp), set by a <meta> on every page (base.html.j2). Scripts come from
@@ -1203,10 +1216,20 @@ def csp(address: dict | None = None) -> str:
     return "; ".join([CSP_BASE[0], "script-src " + " ".join(scripts), *CSP_BASE[1:]])
 
 
-def landing(facts, districts: dict | None, georef: dict | None = None, geocoder: bool = True) -> dict:
+def landing(facts, districts: dict | None, georef: dict | None = None, geocoder: bool = True,
+            councils=()) -> dict:
+    """`councils`: the landing entries of the councils built (council.landing_entry); their ward seats' pages are
+    what the ward shapes on the map link to."""
     ix = _ix(facts)
     address = address_context(districts, georef, geocoder)
-    return {"csp": csp(address), "rows": district_rows(ix), "map": map_context(districts), "coverage": ix.coverage,
+    ward_hrefs = {}
+    for c in councils:
+        for s in c["seats"]:
+            m = re.fullmatch(r"ward-(\d{1,2})", s["seat"])
+            if m:
+                ward_hrefs.setdefault(int(m.group(1)), s["href"])
+    return {"csp": csp(address), "rows": district_rows(ix), "map": map_context(districts, ward_hrefs=ward_hrefs),
+            "coverage": ix.coverage,
             "district_count": config.SITE["district_count"],
             "basis": observed_basis(ix) if ix.seats.loaded else None,
             "address": address}
