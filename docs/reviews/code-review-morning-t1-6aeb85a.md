@@ -90,3 +90,28 @@ meetings on one source.
 ## Assumptions
 - I reviewed against architecture "T1 additions" and the T1 task as written.
 - I treated the preview's dead links as must-fix because the real data reaches that path today, not just in theory.
+
+## Delta re-review 0deb62c
+
+Scope: 6aeb85a..0deb62c (14cfd76 report copy, 02e8c3f preview export fixes, 0deb62c morning.py fixes). I checked
+only the open findings and whether the fixes add a new problem.
+
+**Verdict: APPROVE WITH NITS.** All four blocking findings are closed. No new finding.
+
+| Key | Status | Evidence |
+|---|---|---|
+| morning-digest/vote-meeting-date | closed | Each fact now takes its meeting from its own `meeting_id` (`ix.meetings[fact["meeting_id"]]`). Agenda items are keyed by (item, meeting), and the fallback gives one `document` entry per meeting that names the source. Real data with the guard off: 390 county votes, 0 with the wrong date (59 before). The new test covers two meetings sharing a source. |
+| morning-digest/preview-export-links | closed | `contracts_index` and `finance_index` take `export`. I rebuilt the real-data preview (cap 480, same path as the real 503 > 500): `qa.site_checks --target preview` gives RESULT: PASS (the links check failed before). The new test scans every page for a `data/` link. |
+| morning-digest/preview-stale-export | closed | `_clean(export=False)` removes `out/data`. I seeded 30 stale files: the rebuild left no `data/` folder. The fixture repro gives `export False`, 80 files, 0 `data/` files in `publish-files.json` (it raised BuildError before). A test covers it, and another shows a normal preview keeps `data/`. |
+| morning-digest/unplaced-count-claims-cases | closed | The count is now of distinct `case` values (`link_key`). Real 2026-11-10 note: 33 cases from 120 entries. The test expects 2 cases from 3 entries. |
+| nit tests-vacuous | closed | The test asserts each side of the cutoff was checked on at least one roll call. |
+| nit window-single-source and DST tests | closed | `note_day` now compares instants against `window()`. Parametrised tests for the 25 h and 23 h days, with the boundaries. |
+| nit own-text-scope (`title_ours`) | closed | Titles we make are scanned. Real notes: 0 banned words in our own text (5,221 strings on 11-09). Samples: "2016-11-03, regular session" and "ORDINANCE 24-2023-24: Title not read from the minutes". |
+| nit manifest-errors (`manifest_rows`) | closed | One checked parser shared by `first_fetched` and `bulk_urls`. A row with no url raises MorningError. |
+| nits vote-entries-indistinct, data-as-of | not taken | Still open as nits, not blocking. |
+
+**New fields:** `title_ours` (bool) and `case` (link_key, `null` off zoning) are additive and documented in the
+architecture T1 additions.
+
+**Tests:** `tests/test_morning.py` 37 passed (8.0s). Real-data preview `qa.site_checks --target preview --no-browser`:
+RESULT: PASS.
