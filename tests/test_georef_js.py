@@ -207,4 +207,4 @@ def test_scripts_store_nothing_and_call_out_only_from_the_submit_handler():
     assert "e.source !== w" in js and 'e.origin !== "null"' in js and "JSON.parse(d.json)" in js
     assert js.index('addEventListener("submit"') < js.index('createElement("iframe")')
     assert "removeChild(req.frame)" in js
-    assert "http://www.w3.org/2000/svg" in js and js.count("https://") == 2   # the SVG namespace; the https checks
+    assert "http://" not in js and js.count("https://") == 2   # no map, so no SVG namespace; the https checks

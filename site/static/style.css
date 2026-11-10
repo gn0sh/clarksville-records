@@ -1044,7 +1044,7 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 @media (min-width: 700px) {
   .page-landing .unofficial-notice { order: 0; flex: 1 0 100%; margin-bottom: 4px; }
 }
-/* Phone landing: with no map the full home line fits (2026-11-10); only its margin tightens. */
+/* Phone landing: the home line (the same short form as on a wide screen, nothing hidden) sits tight under the purpose. */
 @media (max-width: 699px) {
   .page-landing .unofficial-intro { margin: 2px 0; }
 }

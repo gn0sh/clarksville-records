@@ -15,7 +15,7 @@
 <div class="landing">
   <h1 class="purpose">{{ site.cfg.purpose }}</h1>
   <p class="muted purpose-sub"><span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>. {% for c in site.councils %}<a href="{{ root }}{{ c.href }}">{{ c.label }}</a>: <span class="nowrap">{{ c.from }} to {{ c.to }}</span>.{% if not loop.last %} {% endif %}{% else %}{{ site.cfg.city_coming }}{% endfor %}</p>
-  {# the full independent and unofficial notice, on phones too: with no map there is room (CEO, 2026-11-10) #}
+  {# right under the purpose again (no map since 2026-11-10); the same line on every screen width #}
   {{ home_line(site, root) }}
 
   {# Address search first (CEO decision, Nov 9): most first-time visitors do not know their ward or district. The
