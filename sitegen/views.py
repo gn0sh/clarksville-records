@@ -333,6 +333,13 @@ def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), 
                     for c in councils]
             if rpc is not None:   # the Regional Planning Commission (sitegen/rpc.py), after the councils
                 out.append({"label": rpc.nav_label, "href": rpc.home_href(), "page": rpc.nav_label, "coming": False})
+            # The school board's "coming" page (config/site.yml school_board.page), after the bodies we collect. The
+            # entry carries the block (`school`) so the build renders the page exactly when the menu lists it.
+            sb = config.SITE.get("school_board") or {}
+            pg = sb.get("page") or {}
+            if sb.get("label") and https_url(sb.get("url")) and pg.get("slug") and pg.get("title"):
+                out.append({"label": pg.get("nav_label") or pg["title"], "href": f"{pg['slug']}.html",
+                            "page": pg["title"], "coming": True, "school": sb})
     return out
 
 
