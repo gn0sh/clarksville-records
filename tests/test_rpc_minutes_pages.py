@@ -160,7 +160,7 @@ def test_record_doubts_restates_the_record_checks():
     d = rpc.record_doubts(ms)
     assert d == {"2026-10-27-regular-motion-1": (["a member named as voting nay is the mover or seconder"], False),
                  "2026-10-27-regular-motion-2": (["a member named as voting nay is the mover or seconder"], False)}
-    shown = {mv["id"]: mv for mv in rpc.shown_motions(ms)}
+    shown = {mv["id"]: mv for mv in rpc.shown_motions(ms, rpc.MOTION_RULES)}
     assert shown["2026-10-27-regular-motion-1"]["case_id"] == "c1"      # the doubt is not about the case
     assert not shown["2026-10-27-regular-motion-1"]["confirmed"] and shown["2026-10-27-regular-motion-4"]["confirmed"]
 

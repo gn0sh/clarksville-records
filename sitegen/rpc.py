@@ -92,10 +92,11 @@ def record_doubts(motions: list[dict]) -> dict[str, tuple[list[str], bool]]:
     return out
 
 
-def shown_motions(motions: list[dict], rules: str | None = MOTION_RULES) -> list[dict]:
+def shown_motions(motions: list[dict], rules: str | None) -> list[dict]:
     """The motions as the pages treat them: one the stored record shows failing the invariant is not confirmed, and
-    one whose case is in doubt is placed under no case (record_doubts). `rules`: the record's `motion_rules`; any
-    other than MOTION_RULES (a record written before the reader's rules) confirms none and places none under a case."""
+    one whose case is in doubt is placed under no case (record_doubts). `rules`: the record's `motion_rules` (no
+    default, so a caller cannot skip it); any other than MOTION_RULES (a record written before the reader's rules)
+    confirms none and places none under a case."""
     if rules != MOTION_RULES:
         return [{**mv, "confirmed": False, "reasons": list(mv.get("reasons") or []) + [WHY_STALE], "case_id": None}
                 for mv in motions]

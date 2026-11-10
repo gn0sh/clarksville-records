@@ -105,3 +105,12 @@ before/after confirmed counts (1307 motions, 1088 confirmed at 0927bfe) by reaso
 - **Expected loss**: 2022-layout minutes approvals ("asked for a motion for approval of the minutes. Mrs. Streetman
   moved to recommend approval") read as "Motion for approval" with no case and become "subject not read". A later
   rule could read the "Approval of Minutes" heading; not added (any doubt).
+- **Fix review 5769870 (backend-engineer, 2026-11-10), deviations from the review, each toward under-confirming:**
+  (1) a stale record (no current `motion_rules`) also drops every `case_id`, not only `confirmed`, since rule 2a/2c
+  never ran on it; `shown_motions` takes `rules` with no default. (2) The vote-word list is wider than the review
+  asked (any form of "vote", a tally outside the outcome, ayes/noes, refrain, disagree, not support, conflict of
+  interest), the scan after the outcome has no PARA_MAX cap, and the UNMODELLED patterns read the same span. (3) The
+  section-level guard uses its own C1 reason ("the case section prints another case on this meeting's agenda"), not
+  WHY_OTHER_CASE, so the reason counts in build/rpc-report.json tell the two apart. Measured on the four real OCR
+  minutes fixtures: 9 of 16 motions confirmed before and after (no real-data cost visible there; the full effect
+  shows only at the rebuild).
