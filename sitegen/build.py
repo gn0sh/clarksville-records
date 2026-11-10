@@ -14,7 +14,8 @@ import jinja2
 from jsonschema import Draft202012Validator, FormatChecker
 
 from . import rpc as rpc_mod
-from . import budget_views, config, council as council_mod, feeds as feeds_mod, fin_views, georef as georef_mod, \
+from . import budget_views, config, council as council_mod, days as days_mod, feeds as feeds_mod, fin_views, \
+    georef as georef_mod, \
     transcripts as transcripts_mod, \
     seats as seats_mod, views
 
@@ -320,7 +321,7 @@ REPORT_TEMPLATES = frozenset({
     "official_roster.html.j2", "district.html.j2", "council_home.html.j2", "council_meetings_year.html.j2",
     "council_items_year.html.j2", "fin_index.html.j2", "fin_fund.html.j2", "fin_capital.html.j2",
     "fin_contracts_index.html.j2", "fin_solicitation.html.j2", "transcript.html.j2", "rpc_home.html.j2",
-    "rpc_meetings_year.html.j2"})
+    "rpc_meetings_year.html.j2", "today.html.j2"})
 
 
 def corrections_problems(cfg: dict) -> list[str]:
@@ -342,7 +343,7 @@ def corrections_problems(cfg: dict) -> list[str]:
 def build(facts_path, out_dir, internal: bool = False, changes_path=None, report_path=None,
           seats_path=DEFAULT, districts_path=DEFAULT, geocoder: bool = True, finance_path=DEFAULT,
           capital_fund=DEFAULT, councils=DEFAULT, target: str | None = None, transcripts: bool = True,
-          rpc=DEFAULT) -> dict:
+          rpc=DEFAULT, today=None) -> dict:
     """`geocoder=False` (`--no-geocoder`) draws no landing address box and allows no geocoder in the CSP: the build
     for the claude.ai preview, where the box could not reach the geocoder. The plain lookup line shows instead.
     `seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
@@ -361,7 +362,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     pages (`transcripts=False`): each meeting with a transcript then says so, and the member pages keep their
     call-ons with the video links (sitegen/transcripts.py). Year and meeting pages are never split to make room.
     `rpc`: the Regional Planning Commission's rpc.yml as rpc.load_config returns it, or None for no RPC pages; left
-    out, config/site.yml `rpc:` for a real build and none for a fixture build (sitegen/rpc.py)."""
+    out, config/site.yml `rpc:` for a real build and none for a fixture build (sitegen/rpc.py).
+    `today`: the date the day page (sitegen/days.py, today.html) is built around; left out, today in the site's zone
+    (or RECORDS_TODAY)."""
     target = target or config.DEFAULT_TARGET
     if target not in config.MAX_FILES_BY_TARGET:
         raise BuildError(f"unknown target {target!r}; one of {', '.join(sorted(config.MAX_FILES_BY_TARGET))}")
@@ -633,6 +636,11 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         for y in rpx.years():
             render("rpc_meetings_year.html.j2", rpx.year_href(y), rpx.page_name(f"Meetings {y}"),
                    rpc_href=rpx.home_href(), rpc_label=rpx.nav_label, **rpx.meetings_year(y))
+    # Day by day (Daylight M2): after the year pages, so every council meeting link knows its part
+    try:
+        render("today.html.j2", days_mod.PAGE, "Today", **days_mod.page(ix, cixs, rpx, fx, today))
+    except days_mod.DaysError as exc:
+        raise BuildError(str(exc)) from exc
     render("about.html.j2", "about.html", "About", **views.about(ix), glance=views.record_glance(ix))
     trust = views.trust_pages(ix)
     render("who.html.j2", "who-runs-this.html", "Who runs this", **trust)
@@ -668,7 +676,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         print(f"sitegen: {expected} files with the export is over the {target} cap of {cap}; building again without "
               f"the {tx_pages} transcript pages", file=sys.stderr)
         return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
-                     finance_path, capital_fund, councils, target, transcripts=False, rpc=rpc)
+                     finance_path, capital_fund, councils, target, transcripts=False, rpc=rpc, today=today)
     manifest = write_publish_manifest(out, target)
     return {"pages": written, "files": len(manifest) + 1, "target": target, "transcripts": transcripts,
             "transcript_pages": tx_pages, "files_with_export": expected}

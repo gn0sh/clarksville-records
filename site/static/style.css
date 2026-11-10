@@ -933,6 +933,13 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
   .js .sky-hero[hidden] .sky-day { min-height: clamp(2.34rem, 4.5vw, 3.06rem); }
 }
 
+/* Daylight M2: today's date on the landing opens the day page (today.html). Ink on the sky, a sun underline. */
+.sky-link { color: var(--fg); text-decoration: none; display: inline-flex; align-items: baseline; gap: 6px; }
+.sky-link:visited { color: var(--fg); }
+.sky-link .sky-date { text-decoration: underline; text-decoration-color: var(--sun); text-decoration-thickness: 3px; text-underline-offset: 5px; }
+.sky-link:hover .sky-date { text-decoration-thickness: 5px; }
+.sky-go { font-family: var(--font-head); font-weight: 800; font-size: 1.5rem; line-height: 1; }
+
 /* Your seats: the visitor's saved seats as pills (seats.js fills the list). */
 .your-seats { border-left: 0; border-radius: var(--radius-lg); background: var(--surface-2); --focus: var(--fg); }
 .menu-list a:hover:focus-visible { --focus: var(--fg); }
@@ -948,3 +955,75 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
   font-family: var(--font-head); font-weight: 700; text-decoration: none;
 }
 .site-footer a[data-ext="support"]:hover { background: var(--fg); color: var(--bg); }
+
+/* ==== Day by day (docs/design/daylight, M2; today.html, static/days.js) ======================================== */
+/* The week strip is sticky at the top while a day's cards scroll under it. Text pairs are the M1 ones (ink and muted
+   on paper and surface); the pressed day is paper on ink. Dots are decorative: each button names its day and count. */
+.days > h1 { margin-bottom: 4px; }
+.days-note { color: var(--muted); font-size: var(--t-sm); margin: 4px 0; }
+.js .days-nojs { display: none; }
+.day-strip {
+  position: sticky; top: 0; z-index: 5; margin: 12px calc(-1 * var(--gutter)) 0; padding: 8px var(--gutter);
+  background: var(--bg); border-block: 1px solid var(--border);
+}
+.day-strip[hidden] { display: none; }
+.strip-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) 36px; gap: 4px; align-items: stretch; }
+.strip-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.strip-week[hidden] { display: none; }
+.day-strip button {
+  display: grid; justify-items: center; align-content: center; gap: 1px; min-width: 0; min-height: 52px; padding: 5px 0 6px;
+  border: 2px solid transparent; border-radius: var(--radius-lg); background: transparent; color: var(--fg); cursor: pointer;
+}
+.day-strip button:hover { border-color: var(--border); }
+.day-strip button:focus-visible { outline: 3px solid var(--fg); outline-offset: 1px; }
+.day-strip .wk-step { font-family: var(--font-head); font-size: 1.6rem; line-height: 1; border-color: var(--border); }
+.day-strip .wk-step:disabled { color: var(--muted); cursor: default; opacity: .55; }
+.day-dow { font-family: var(--font-mono); font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.day-strip .day b { font-family: var(--font-head); font-size: 1.3rem; font-weight: 800; line-height: 1.1; }
+.day-strip .day em { display: flex; gap: 3px; height: 6px; }
+.day-strip .day[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+.day-strip .day[aria-pressed="true"] .day-dow { color: var(--bg); }
+.day-strip .day.today b { text-decoration: underline; text-decoration-color: var(--sun); text-decoration-thickness: 3px; text-underline-offset: 4px; }
+.dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--link); flex: none; }
+.dot-county { background: var(--sun); }
+.dot-rpc { background: var(--mark-soft); }
+.dot-bids { background: transparent; box-shadow: inset 0 0 0 1.5px var(--fg); }
+.day-strip .day[aria-pressed="true"] .dot-bids { box-shadow: inset 0 0 0 1.5px var(--bg); }
+.day-card-hd .dot { width: 10px; height: 10px; margin-right: 8px; vertical-align: middle; }
+
+.day-list { display: grid; gap: 0; }
+.day-sheet { padding: 22px 0 6px; scroll-margin-top: 84px; }
+.day-sheet[hidden] { display: none; }
+html:not(.js) .day-sheet.is-empty { display: none; }
+.day-head { display: grid; gap: 2px; margin-bottom: 12px; }
+.day-head h2 { margin: 0; font-family: var(--font-head); font-size: clamp(1.6rem, 4vw, 2.3rem); font-weight: 800; line-height: 1.05; letter-spacing: -.02em; }
+.day-head h2:focus { outline: none; }
+.day-when { margin: 0; min-height: 1.2em; font-family: var(--font-mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; font-variant-caps: normal; color: var(--muted); }
+.day-empty { color: var(--muted); margin: 6px 0 18px; }
+.day-card {
+  display: grid; gap: 8px; min-width: 0; margin: 0 0 14px; padding: clamp(14px, 2.6vw, 22px);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+}
+.day-card-hd { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 16px; }
+.day-card-hd h3 { margin: 0; font-family: var(--font-head); font-size: 1.14rem; font-weight: 700; line-height: 1.25; }
+.day-card-kind { margin: 0; font-family: var(--font-head); font-weight: 700; color: var(--muted); }
+.day-docs, .day-none { margin: 0; font-size: var(--t-sm); }
+.day-none { color: var(--muted); }
+.day-part { margin: 6px 0 0; color: var(--muted); font-size: var(--t-sm); }
+.day-items { list-style: none; margin: 0; padding: 0; }
+.day-item { display: grid; gap: 4px; min-width: 0; padding: 11px 0; border-top: 1px solid var(--border); }
+.day-item p { margin: 0; }
+.day-item .say { font-size: 1.02rem; }
+.day-item .meta { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin: 0; padding: 0; border: 0; color: var(--fg); font-size: var(--t-sm); }
+.day-item .v { font-family: var(--font-head); font-weight: 800; }
+.day-card details.roll summary { cursor: pointer; font-weight: 600; color: var(--link); font-size: var(--t-sm); width: max-content; max-width: 100%; }
+.day-card details.roll .vote-grid { margin-top: 8px; }
+.day-card .official-record { margin: 4px 0 0; }
+.day-bodies { margin-top: 28px; padding-top: 10px; border-top: 2px solid var(--fg); }
+.day-bodies h2 { font-family: var(--font-head); font-size: 1.3rem; margin: 6px 0 8px; }
+.day-cover { margin: 0; padding-left: 1.1rem; display: grid; gap: 6px; font-size: var(--t-sm); }
+@media (max-width: 400px) {
+  .strip-row { grid-template-columns: 30px minmax(0, 1fr) 30px; gap: 2px; }
+  .strip-week { gap: 2px; }
+  .day-strip .day b { font-size: 1.15rem; }
+}

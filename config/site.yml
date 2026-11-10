@@ -111,6 +111,23 @@ item_types:
   - {key: ordinance, label: Ordinance, prefixes: [], words: ["ordinance"]}
   - {key: appointment, label: Appointment, prefixes: [], words: ["appoint", "nominat"]}
 
+# Day by day (Daylight M2, sitegen/days.py, today.html): the week strip and day cards. The build writes every day from
+# the start of the week `weeks_before` weeks before today (in site_timezone) to the end of the week `weeks_after`
+# weeks after it; weeks start on `week_start`. static/days.js picks today in the same zone. The daily update rebuilds
+# it, so the window moves with the date; a build left unrefreshed says which days it covers.
+days:
+  weeks_before: 4
+  weeks_after: 4
+  week_start: sunday
+# The school board on the day page: a "coming soon" placeholder with one plain link, no collection. cmcss.net answers
+# automated requests with a bot challenge (docs/research/rpc-cmcss-sources.md), so nothing is fetched from it and the
+# board page's own path could not be read; the link is the district's home page until a person confirms the board
+# page URL. Leave the block out to show no placeholder.
+school_board:
+  label: Clarksville-Montgomery County School System board
+  url: https://www.cmcss.net/
+  link_label: CMCSS website
+
 # "Coming" pages (design 6). No numbers, no sample charts, no example values.
 coming:
   - slug: finance
