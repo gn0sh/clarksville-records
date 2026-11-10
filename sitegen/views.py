@@ -529,11 +529,13 @@ def officials_page(facts) -> dict:
     if not ix.seats.loaded:
         return {"seats_loaded": False, "sections": [
             {"key": "all", "heading": None, "order": "surname", "cards": [_card(ix, o) for o in officials]}]}
-    current, former, unseated = [], [], []
+    current, former, unseated, held = [], [], [], []
     for o in sorted([*officials, *ix.seats.roster_only.values()], key=name_key):
         recs = ix.seats.of(o["id"])
-        if not recs or ix.seats.is_held_over(o["id"]):   # held over: neither current nor former (city-seats)
+        if not recs:
             unseated.append(o)
+        elif ix.seats.is_held_over(o["id"]):   # held over: neither current nor former (city-seats)
+            held.append(o)
         elif ix.seats.is_current(o["id"]):
             current.append(o)
         else:
@@ -551,6 +553,9 @@ def officials_page(facts) -> dict:
     if unseated:
         sections.append({"key": "unseated", "heading": "Seat not yet recorded", "order": "surname",
                          "cards": [_card(ix, o) for o in unseated]})
+    if held:
+        sections.append({"key": "held", "heading": "Not named in the latest minutes", "order": "surname",
+                         "cards": [_card(ix, o) for o in held]})
     return {"seats_loaded": True, "sections": sections}
 
 

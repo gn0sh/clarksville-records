@@ -1648,11 +1648,12 @@ def check_current_holders(site: Path, facts: dict, roster: list[dict], cs: list[
         latest, named, may_hold = latest_listed(c["facts"], wards)
         expected = expected_ward_holders(wards, c["facts"])
         placed = last_wards(wards, may_hold)              # where each may-hold member was last printed
-        shown = {}                                         # seat -> the member its holder span links
+        shown, noted = {}, {}                              # seat -> the member its holder / held-over note links
         for m in re.finditer(r'<li id="seat-([^"]+)"[^>]*>(.*?)</li>', body, re.S):
-            h = re.search(r'<span class="d-holder">(.*?)</span>', m.group(2), re.S)
-            ids = re.findall(r'members/([^"/]+)\.html', h.group(1) if h else "")
-            shown[m.group(1)] = ids[0] if ids else None
+            for cls, into in (("d-holder", shown), ("d-note", noted)):
+                h = re.search(r'<span class="' + cls + r'[^"]*">(.*?)</span>', m.group(2), re.S)
+                ids = re.findall(r'members/([^"/]+)\.html', h.group(1) if h else "")
+                into[m.group(1)] = ids[0] if ids else None
         for ward, oid in sorted(expected.items()):
             n += 1
             if shown.get(f"ward-{ward}") != oid:
@@ -1674,15 +1675,25 @@ def check_current_holders(site: Path, facts: dict, roster: list[dict], cs: list[
             if oid is None:
                 continue
             seats_of[oid].append(seat)
+            # a holder is always named in the latest list: a may-hold member it does not name is held over, shown
+            # only as "not yet recorded" with a note (second re-review of bfee967)
             if seat in title_of_seat:
-                ok = oid in may_hold and titles.get(oid) == title_of_seat[seat]
+                ok = oid in named and titles.get(oid) == title_of_seat[seat]
             else:
                 ward = int(seat.rsplit("-", 1)[1])
-                ok = expected.get(ward) == oid or (ward not in expected and oid in may_hold
+                ok = expected.get(ward) == oid or (ward not in expected and oid in named
                                                    and oid not in expected.values() and placed.get(oid) == ward)
             if not ok:
                 problems.append(f"{c['slug']}/index.html: {seat} shows {oid}, whom the latest attendance list "
                                 f"({latest}) does not place there")
+        for seat, oid in sorted(noted.items()):
+            if oid is None:
+                continue
+            here = (titles.get(oid) == title_of_seat[seat] if seat in title_of_seat
+                    else placed.get(oid) == int(seat.rsplit("-", 1)[1]))
+            if shown.get(seat) is not None or oid not in may_hold - named or not here:
+                problems.append(f"{c['slug']}/index.html: {seat} notes {oid}, who is not held over in that seat "
+                                f"(named at {latest}, or not last placed there)")
         for oid, seats in sorted(seats_of.items()):
             if len(seats) > 1:
                 problems.append(f"{c['slug']}/index.html: {oid} is shown in {len(seats)} seats ({', '.join(seats)})")

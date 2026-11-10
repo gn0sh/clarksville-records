@@ -195,7 +195,8 @@ says "not yet recorded". One list does not close a record, nor keep it current: 
 before L whom L's list does not name is held over (`held_over`) when L's list is incomplete (an unresolved name, or
 fewer members than the list before) and no successor starts. A held-over record is neither current nor former: its
 seat reads "Current member not yet recorded" with the line "last listed in attendance lists X; not named in the
-attendance lists of L", the member is listed under "Seat not yet recorded", and the member page keeps the dates. A
+attendance lists of L", the member is listed under "Not named in the latest minutes" (never as a seat's holder; the site check fails a
+held-over member shown as holder, or a note naming someone not held over in that seat), and the member page keeps the dates. A
 wrong current member is the worst failure; "not recorded" is acceptable (re-review of 7895b63).
 `seats.csv` gives `printed_last` (+ source) for the last page printing the seat and `listed_last` (+ source) for the
 last names-only list. (2) `seats.stamp_seen`: a

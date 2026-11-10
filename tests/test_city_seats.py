@@ -213,10 +213,14 @@ def _drop(facts, wards, oid, date):
     return facts, [w for w in wards if not (w["official_id"] == oid and w["date"] == date)]
 
 
-def _home(tmp_path, seats: dict, previous=()):
-    """A city/index.html with the seat rows and the Served previously list in the template's shape."""
+def _home(tmp_path, seats: dict, previous=(), notes=None):
+    """A city/index.html with the seat rows (and held-over notes) and the Served previously list in the template's
+    shape."""
+    notes = notes or {}
     lis = "".join(f'<li id="seat-{k}" data-seat="{k}"><span class="d-label">{k}</span> <span class="d-holder">'
-                  + (f'<a href="../city/members/{v}.html">{v}</a>' if v else site_checks.NOT_RECORDED) + "</span></li>"
+                  + (f'<a href="../city/members/{v}.html">{v}</a>' if v else site_checks.NOT_RECORDED) + "</span>"
+                  + (f' <span class="d-note muted"><a href="../city/members/{notes[k]}.html">{notes[k]}</a>: last listed'
+                     f'</span>' if k in notes else "") + "</li>"
                   for k, v in seats.items())
     prev = "".join(f'<a href="../city/members/{o}.html">{o}</a>' for o in previous)
     (tmp_path / "city").mkdir(exist_ok=True)
@@ -263,7 +267,7 @@ def test_a_member_who_left_is_never_shown_current_for_one_more_list(real_city, t
                                    "of 2026-02-05")
     assert site_checks.dates_worded(row["note"]["text"]) == []
     sec = _sections(cix)
-    assert oid not in sec["current"] and oid not in sec["previous"] and oid in sec.get("unseated", set())
+    assert oid not in sec["current"] and oid not in sec["previous"] and oid in sec.get("held", set())
     assert "listed by name in attendance lists to 2026-01-08; not named in the attendance lists of 2026-02-05" \
         in cix.seats.header_text(oid)
     # the site check allows the held-over member's seat to read "not yet recorded" (allowed, not required)
@@ -287,6 +291,19 @@ def test_one_list_that_does_not_name_a_member_shows_no_wrong_holder_and_the_next
     # the page that puts him under Served previously fails
     problems, _ = site_checks.check_current_holders(_home(tmp_path, _shown(cix), [oid]), facts, [], _cs(facts, wards))
     assert any(f"{oid} is under Served previously" in p for p in problems)
+    # the page that shows him as the Ward 1 holder fails: the latest list does not name him (second re-review)
+    problems, _ = site_checks.check_current_holders(_home(tmp_path, {**_shown(cix), "ward-1": oid}), facts, [],
+                                                    _cs(facts, wards))
+    assert any(f"ward-1 shows {oid}" in p for p in problems)
+    # his held-over note in Ward 1 passes; a note naming someone not held over in that seat fails
+    ok = _home(tmp_path, _shown(cix), notes={"ward-1": oid})
+    assert site_checks.check_current_holders(ok, facts, [], _cs(facts, wards))[0] == []
+    bad = _home(tmp_path, _shown(cix), notes={"ward-1": oid, "ward-2": "city-carlos-peters"})
+    problems, _ = site_checks.check_current_holders(bad, facts, [], _cs(facts, wards))
+    assert any("ward-2 notes city-carlos-peters" in p for p in problems)
+    bad = _home(tmp_path, _shown(cix), notes={"ward-3": oid})
+    problems, _ = site_checks.check_current_holders(bad, facts, [], _cs(facts, wards))
+    assert any(f"ward-3 notes {oid}" in p for p in problems)
     # the next list names him again
     nxt = [{**w, "date": "2026-07-02", "meeting_id": "2026-07-02-regular"} for w in real_city[1]
            if w["date"] == "2026-06-04"]
