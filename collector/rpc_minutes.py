@@ -45,12 +45,14 @@ motion's sentences is left unexplained; any doubt is a reason, in plain words, i
 3. (C3) every member named as voting nay or abstaining is read only after the seconder (so "seconded by Mr. Powers
    and Mrs. Streetman voted nay" names Mrs. Streetman alone), matches a member present by the same rule, and is
    neither the mover nor the seconder. Every vote word (LEFTOVER_VOTE: nay, nav, against, opposed, dissent, recused,
-   did not vote, abstain, voted no) in the motion's sentences and in the one sentence after the outcome sits inside
-   a nay, abstention, "in favor" or outcome phrase the reader models; "Mr. Long opposed.", "Nays: Mr. Long.",
-   "Motion passed. Mr. Long voted nay." are not read, they are doubts. No other wording the reader does not model is
-   there either: a tie or a vote of the chair, members named as voting in favour, "except" a member without a vote
-   word, an amendment, a substitute, a reconsideration, a second motion before the outcome. A printed tally ("5-1")
-   agrees with the members named as voting nay. Unanimity is never inferred from a missing nay;
+   did not vote, abstain, any form of "vote", voted "no", no vote, not in favor, negative, object, ayes, noes, a
+   tally) in the motion's sentences sits inside a nay, abstention, "in favor" or outcome phrase the reader models,
+   and none is printed after the outcome up to the next motion or the section's end; "Mr. Long opposed.",
+   "Nays: Mr. Long.", 'Mr. Long voted "no".', "Motion passed. Mrs. Streetman thanked staff. Mr. Long voted nay." are
+   not read, they are doubts. No other wording the reader does not model is there either: a tie or a vote of the
+   chair, members named as voting in favour, "except" a member without a vote word, an amendment, a substitute, a
+   reconsideration, a second motion before the outcome. A printed tally ("5-1") agrees with the members named as
+   voting nay. Unanimity is never inferred from a missing nay;
 4. (C4) one outcome from the fixed vocabulary is printed, ending its sentence, and it does not name another kind of
    motion ("made the motion for disapproval ... Motion for approval passed" is not confirmed). When no outcome
    sentence follows "All others were in favor." / "All members voted in favor.", that sentence is the outcome as
@@ -148,10 +150,15 @@ BUSINESS_OUTCOME = ((re.compile(r"^(?:the\s+)?minutes\s+(?:were|was)\s+approved$
                      "Motion to approve the deferrals"),
                     (re.compile(r"^(?:the\s+)?consent\s+agenda\s+(?:was\s+)?(?:passed|approved|passes|carried)"
                                 r"(?:\s+unanimously)?$", re.I), "Motion to approve the consent agenda"))
-# rule 3: a vote word anywhere in the motion's sentences (and the one after its outcome) that no modelled nay,
-# abstention, "in favor" or outcome phrase explains
-LEFTOVER_VOTE = re.compile(r"\bna[yv]s?\b|against|oppos|dissent|recus|did\s+not\s+vote|abstain|voted\s+no|voting\s+no",
-                           re.I)
+# rule 3: a vote word anywhere in the motion's sentences, or after its outcome up to the next motion or the section's
+# end, that no modelled nay, abstention, "in favor" or outcome phrase explains. A denylist, so it is wide on purpose:
+# any form of "vote" ('voted "no"', "cast the only no vote", "a vote of 5 to 1"), a tally printed outside the outcome,
+# "not in favor", "negative", "object", "ayes"/"noes", and the recusal words. Any match is a doubt (under-confirm).
+LEFTOVER_VOTE = re.compile(r"\bna[yv]s?\b|against|oppos|dissent|recus|did\s+not\s+vote|abstain|voted\s+no|voting\s+no"
+                           r"|\bvot\w*\s+[\"“”'‘’]?\s*no\b|\bno\s+votes?\b|\bvot(?:e|es|ed|ing)\b"
+                           r"|not\s+in\s+favou?r|not\s+support|negative|object|disagree|refrain"
+                           r"|conflict\s+of\s+interest|\bayes?\b|\bnoes\b"
+                           r"|(?<![\w-])\d{1,2}\s*(?:-|to)\s*\d{1,2}(?![\w-])", re.I)
 # rule 1: a case heading printed too loosely for CASE_HEAD to read ("CASE NUMBFR", "C ASE NUMRER")
 LOOSE_HEAD = re.compile(r"C\s*A\s*S\s*E\s+N\S{3,6}R")
 # rule 1: a case number in the motion's own sentences
@@ -168,7 +175,6 @@ WHY_VOTE_WORD = "unmodelled wording: a vote word the reader does not read"
 WHY_NAY_IS_MOVER = "a member named as voting nay is the mover or seconder"
 CASE_REASONS = frozenset({WHY_HEAD, WHY_NUMBER, WHY_TWO, WHY_REPEATED, WHY_OTHER_CASE, WHY_OFF_AGENDA, WHY_SUBJECT})
 PARA_MAX = 900          # characters a motion's sentences may span before its outcome
-SENTENCE_MAX = 300      # characters of the one sentence after the outcome scanned for vote words (rule 3)
 # The rules this reader applies (docs/architecture/rpc-motion-invariant.md). rpc_agenda.build writes it into rpc.json
 # as `motion_rules`; sitegen/rpc.py and qa/site_checks.py restate it and show every motion of a record without it as
 # not confirmed. Change it whenever a rule changes what is confirmed, so an older record is never shown under rules
@@ -441,17 +447,15 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
             if resolve(n, members, roster) in movers or _surname(n) in mover_names:
                 reasons.append(WHY_NAY_IS_MOVER)
                 break
-        # rule 3: every vote word in the motion's sentences, and in the one sentence after its outcome
-        # ("Motion passed. Mr. Long voted nay."), sits inside a modelled phrase
-        tail = ""
-        if oc:
-            rest = window[len(para):]
-            tail = rest[:min(_sentence_end(rest, 0), SENTENCE_MAX)]
+        # rule 3: every vote word in the motion's sentences sits inside a modelled phrase, and none is printed after
+        # its outcome up to the next motion or the section's end ("Motion passed. Mrs. Streetman thanked staff.
+        # Mr. Long voted nay."): no character cap, since a cap could only ever confirm more
+        tail = text[m.start() + len(para):nxt]
         scan = after + tail
         if any(not any(a <= x.start() and x.end() <= b for a, b in modelled) for x in LEFTOVER_VOTE.finditer(scan)):
             reasons.append(WHY_VOTE_WORD)
         for why, rx in UNMODELLED:
-            if rx.search(after):
+            if rx.search(scan):
                 reasons.append(f"unmodelled wording: {why}")
         if mv.tally:
             a, b = (int(x) for x in mv.tally.split("-"))

@@ -257,6 +257,49 @@ def test_a_vote_word_the_reader_does_not_read_is_not_confirmed(votes):
     assert not m.confirmed and R.WHY_VOTE_WORD in m.reasons, m.reasons
 
 
+# code review 5769870 finding 2 (rpc-motion/c3-vote-words): each phrasing came back confirmed with nays=[]
+@pytest.mark.parametrize("votes", [
+    'Mr. Long voted "no". Motion passed.',
+    "Mr. Long voted “no”. Motion passed.",                  # curly quotes
+    "Mr. Long voted ‘no’. Motion passed.",
+    "Mr. Long was not in favor. Motion passed.",
+    "Motion passed. Mr. Long was not in favor.",
+    "Mr. Long cast the only no vote. Motion passed.",
+    "Motion passed with one no vote.",
+    "Motion passed with Mr. Long voting in the negative.",
+    "Motion passed, Mr. Long objecting.",
+    "Motion passed. Mrs. Streetman thanked staff. Mr. Long voted nay.",     # two sentences after the outcome
+    # the same family, wider than the review's list (the list is a denylist: wide on purpose)
+    "Motion passed. Mrs. Streetman thanked staff for the report on the traffic study and the drainage plan, and the "
+    "chairman thanked the applicant for coming. Staff noted the next step. Mr. Long voted nay.",   # to section end
+    "The vote was 5 to 1. Motion passed.",
+    "By a vote of 5-1, the motion passed.",
+    "Ayes: Mr. Hadley, Mr. Powers. Noes: Mr. Long. Motion passed.",
+    "Mr. Long declared a conflict of interest. Motion passed.",
+    "Mr. Long refrained. Motion passed.",
+    "Mr. Long did not support the motion. Motion passed.",
+    "Mr. Long disagreed. Motion passed.",
+    "Motion passed. Mr. Long asked that his vote be recorded.",
+])
+def test_a_vote_word_anywhere_up_to_the_next_motion_is_not_confirmed(votes):
+    m = _case(MOVED + votes)[0]
+    assert not m.confirmed and R.WHY_VOTE_WORD in m.reasons, m.reasons
+    assert m.nays == [] or not m.confirmed
+
+
+def test_the_scan_after_the_outcome_stops_at_the_next_motion():
+    ms = _one("Mr. Hadley made a motion to approve the minutes. Mr. Powers seconded. Motion passed. "
+              "Mr. Long made a motion to adjourn, seconded by Mr. Powers. Mrs. Streetman voted nay. All others were "
+              "in favor.\nCASE NUMBER: Z-5-2026\n")
+    assert [(m.kind, m.confirmed) for m in ms] == [("Motion to approve the minutes", True), ("Motion to adjourn", True)]
+    assert ms[1].nays == ["Mrs. Streetman"] and ms[0].nays == []
+
+
+def test_words_after_the_outcome_with_no_vote_word_stay_confirmed():
+    m = _case(MOVED + "Motion passed. Mrs. Streetman thanked staff.")[0]
+    assert m.confirmed, m.reasons
+
+
 @pytest.mark.parametrize("votes", ["Mrs. Streetman voted nay. All others were in favor.",
                                    "Mrs. Streetman voted nay. All others were in favor. Motion passed."])
 def test_a_modelled_nay_stays_confirmed(votes):
