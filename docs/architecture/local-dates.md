@@ -27,7 +27,8 @@ One helper, `sitegen/localdates.py`:
   day as its UTC day, labelled (local and UTC days are never compared).
 
 The conversion is done where a view picks the source (the template sees only a day string and no sha256), so the
-templates keep `{{ src.fetched }}` unchanged. `qa/site_checks.py` `dates/no-raw-utc-day` checks the built pages and
+templates keep `{{ src.fetched }}` unchanged. A template that ever prints an instant uses the Jinja filter
+`local_day` (sitegen/build.py make_env; none does today). `qa/site_checks.py` `dates/no-raw-utc-day` checks the built pages and
 feeds: every "fetched D" next to a source link is that source's local day, or is labelled (UTC day) when the
 source has no recorded instant; every aggregate fetch day ("fetched between", "latest fetched", "Data as of") is
 the local day of some recorded instant, or labelled.
@@ -55,10 +56,31 @@ the local day of some recorded instant, or labelled.
 | sitegen/views.py:1151 -> district.html.j2:30; views.py:1226,1228 -> index.html.j2:87 (landing, not edited) | map lines "fetched D" | wards: fixed (maps manifest row); county districts PDF: no manifest row, labelled (UTC day) |
 | sitegen/views.py:1057 `changes` -> changes.html.j2:9 | change date | fixed for source replacements (collector/store.py logs `first_fetched_at[:10]`; looked up by url and the new sha256); hand-written rows are civil dates, left |
 | sitegen/build.py:726 morning note `data_as_of` (JSON for the sender) | machine field | fixed (`span`, the same day the footer shows) |
-| sitegen/feeds.py `_day`, `_instant`, `_added` | entry summaries "fetched D", updated | left: fixed in the first hit (instant from the manifests). Its fallback (no manifest row: fixture builds only) prints the bare day; the site check also checks feed summaries |
+| sitegen/feeds.py `_day`, `_instant`, `_added` | entry summaries "fetched D", updated | kept from the first hit (instant from the manifests). Its fallback with no manifest row (fixture builds only) printed the bare UTC day: now `_fetched_day`, the day pages print for the source (labelled). The entry's `updated` there stays noon of the stored day (machine value) |
 | sitegen/morning.py window, note_day; morning_page.py | note day, window stamps | left: already site_timezone instants |
 | sitegen/days.py today, county_agendas.py on_build_day | the build day | left: `today_in_zone` is already the local day |
 | Meeting dates, coverage from/to, item years, seats seen_to, record_glance | civil dates | left: never shifted (test) |
 | collector/export.py, rpc_export.py, fin_export.py `fetched_at`, `*_fetched_at` columns | data | left: machine data, the UTC day as stored; data.html.j2 and data/README.txt now say so |
 | about.html.j2:17,120; method.html.j2:6; data.html.j2:19 | wording | about and data: one sentence on what day is shown; method points to about |
 | config/localities/montgomery-tn/georef.json, wards-georef.json `fetched` | not shown on any page | left |
+
+Count: 26 rows. Fixed 19 (3 are not printed today and use the helper so they cannot drift; the finance document
+row and the map row convert what has an instant and label the rest). Labelled only, no instant exists: 1 (dead link
+note). Left with a reason: 5 (morning window, build day, civil dates, export columns, georef files). Wording: 1.
+
+## Days that cannot be made exact
+
+- **County districts PDF** (districts.json `fetched: 2026-11-08`, hand-written, no manifest row). Shown as
+  "fetched 2026-11-08 (UTC day)". The map was traced and committed at 2026-11-08 00:43Z (18:43 on 11-07 in
+  Clarksville), so the day in Clarksville was probably 2026-11-07, but that is an inference, so it is not shown.
+  Fix: fetch it through the collector (a manifest row) the next time the map is re-traced.
+- **Finance links never fetched** (3 `.docx` bid tabs, status not_pdf): `fetched_at` is the day of the fetch run
+  (collector/fin_run.py, a UTC day). Shown as "Document fetched 2026-11-08 (UTC day)." The word "fetched" for a link
+  that was not requested is older wording, left for the finance owner (not a date question).
+- **Fixture builds**: made-up sources have no manifest rows, so every fetch day is labelled (UTC day).
+
+## Wording
+
+The About page says the date shown is the day in Clarksville (config `today_place`) and what "(UTC day)" means. The
+Data page and data/README.txt say `fetched_at` in the files is the UTC day. The Method page points to About for dates
+and is unchanged.
