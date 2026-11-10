@@ -134,7 +134,8 @@ def test_a_fixture_build_reads_no_real_rpc(tmp_path):
     out = tmp_path / "site"
     build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS)
     assert not (out / "rpc").exists()
-    assert "Planning Commission" not in (out / "index.html").read_text(encoding="utf-8")
+    home = re.sub(r"<meta[^>]*>|<(section|p)[^>]*unofficial[^>]*>.*?</\1>", "", (out / "index.html").read_text(encoding="utf-8"), flags=re.S)   # the unofficial notice names the RPC on every page
+    assert "Planning Commission" not in home
     assert views.RECORD_RPC == {"rpc_home.html.j2", "rpc_meetings_year.html.j2"}
 
 
