@@ -418,3 +418,39 @@ def test_the_strip_turns_the_page_in_a_browser_and_nothing_scrolls_sideways(site
         assert x["stripTop"] == 0, (w, x)                  # the strip stays at the top
         assert not x["errs"], (w, x)
     assert out["nojs"] == ["none", ["2024-11-04", "2024-12-09"], 375]
+
+
+def test_site_checks_hold_a_scheduled_agenda_link_not_in_the_facts(tmp_path):
+    rows = [{"date": "2026-11-13", "kind": "regular", "title": "Regular Session", "agenda_url": "https://example.gov/a.pdf"},
+            {"date": "2026-11-14", "kind": "regular", "title": "Regular Session", "agenda_url": "http://example.gov/b.pdf"}]
+    got = days.scheduled_cards(_sched(tmp_path, rows), date(2026, 11, 1), date(2026, 12, 12), date(2026, 11, 10))
+    assert "http://example.gov/b.pdf" not in jinja_card(got[1][1]) and "No agenda posted" in jinja_card(got[1][1])
+    site = tmp_path / "site"
+    site.mkdir()
+    (site / "today.html").write_text("<html><body>" + jinja_card(got[0][1]) + "</body></html>", encoding="utf-8")
+    pages = {"today.html": site_checks.parse(site / "today.html")}
+    assert 'data-ext="listed"' in (site / "today.html").read_text(encoding="utf-8")
+    probs, _ = site_checks.check_sources(site, pages, {"sources": []}, (), set())
+    assert any("https://example.gov/a.pdf" in p and "not a URL from the config" in p for p in probs), probs
+    probs, _ = site_checks.check_sources(site, pages, {"sources": []}, (),
+                                       {"https://example.gov/a.pdf", "https://example.gov/portal"})
+    assert not probs, probs
+
+
+def test_calendar_agenda_urls_keep_only_configured_hosts_and_report_unreadable_files(tmp_path, monkeypatch):
+    loc = tmp_path / "config" / "localities" / "town"
+    loc.mkdir(parents=True)
+    (loc / "council.yml").write_text("record_url: https://portal.example.gov/\ncalendar: cal.json\n", encoding="utf-8")
+    (loc / "civicclerk.yml").write_text("api_host: api.example.gov\n", encoding="utf-8")
+    cal = tmp_path / "cal.json"
+    cal.write_text(json.dumps([{"agenda_url": "https://api.example.gov/a"}, {"agenda_url": "https://portal.example.gov/b"},
+                               {"agenda_url": "https://evil.example.net/c"}, {"agenda_url": "http://api.example.gov/d"},
+                               {"agenda_url": None}]), encoding="utf-8")
+    monkeypatch.setattr(site_checks, "ROOT", tmp_path)
+    monkeypatch.setattr(site_checks, "_site_cfg", lambda: {"councils": ["town"]})
+    urls, probs = site_checks.calendar_agenda_urls({})
+    assert urls == {"https://api.example.gov/a", "https://portal.example.gov/b"} and not probs
+    assert site_checks.calendar_agenda_urls({"fixture": True}) == (set(), [])
+    cal.write_text("{not json", encoding="utf-8")
+    urls, probs = site_checks.calendar_agenda_urls({})
+    assert urls == set() and len(probs) == 1 and "town" in probs[0]
