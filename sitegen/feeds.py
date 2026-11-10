@@ -22,7 +22,9 @@ Entries (invariant: an id never changes, so a reader never alerts twice for one 
 `updated` and `published` are when the entry's document was added to this site (feeds/entry-date-is-local-day): its
 `first_fetched_at` in the collectors' manifests (`first`), which never changes on a re-fetch, written in site_timezone
 with its offset. A document without a manifest row (a fixture build) is dated by its source's `fetched_at` day, else
-its meeting's day, at noon in site_timezone, so every reader shows that day. Which entries a feed keeps is still by
+its meeting's day, at noon in site_timezone (a reader in the Americas shows that day; `fetched_at` is a UTC day, so it
+can be one day after the site_timezone day of the fetch, sweep L1). An entry's summary prints "fetched <day>": the
+site_timezone day of its own `updated`, so the two never disagree. Which entries a feed keeps is still by
 meeting: the newest max_entries meetings' entries, except `topic-rezoning.xml`, which keeps the newest
 max_entries of each body (RPC agendas are dated ahead and come often; one cap would push every county and council
 entry out); the kept entries are then listed newest `updated` first. A reader shows an entry it has not seen as new
@@ -103,6 +105,11 @@ def _stamp(when, zone: ZoneInfo | None = None) -> str:
     return _instant(when, zone or _zone()).isoformat(timespec="seconds")
 
 
+def _day(when, zone: ZoneInfo | None = None) -> str:
+    """The site_timezone day of an entry's date, as its summary prints it (the same day as its updated)."""
+    return _instant(when, zone or _zone()).date().isoformat()
+
+
 def _added(first: dict | None, url: str, *fallbacks) -> datetime | str:
     """When the document at `url` was added to this site: its first_fetched_at, else the first set fallback day."""
     if first and url in first:
@@ -158,7 +165,7 @@ def feed_list(councils=(), cfg: dict | None = None, rpc=None, fin: dict | None =
     return out
 
 
-def _body_entries(key: str, ix: views.Index, first: dict | None = None) -> list[dict]:
+def _body_entries(key: str, ix: views.Index, first: dict | None = None, zone: ZoneInfo | None = None) -> list[dict]:
     out = []
     for m in ix.facts["meetings"]:
         docs = {m["source_id"]}
@@ -169,34 +176,37 @@ def _body_entries(key: str, ix: views.Index, first: dict | None = None) -> list[
             if s is None:
                 continue
             word = "Agenda" if s["kind"] == "agenda" else "Minutes"
+            added = _added(first, s["url"], s.get("fetched_at"), m["date"])
             out.append({
                 "id": f"{key}/meeting/{m['id']}/{s['kind']}", "body": key,
                 "title": f"{word}: {ix.meeting_label(m)}",
-                "updated": _added(first, s["url"], s.get("fetched_at"), m["date"]),
+                "updated": added,
                 "href": ix.meeting_href(m["id"]),
                 "source": s["url"],
                 "summary": f"{m['body']}, {ix.meeting_label(m)}. {word} ({s['pages']} "
-                           f"{views.plural(s['pages'], 'page', 'pages')}), fetched {s['fetched_at']}.",
+                           f"{views.plural(s['pages'], 'page', 'pages')}), fetched {_day(added, zone)}.",
                 "sort": (m["date"], m["id"], s["kind"] == "minutes"),
             })
     return out
 
 
-def _agenda_entries(key: str, ix: views.Index, agendas, first: dict | None = None) -> list[dict]:
+def _agenda_entries(key: str, ix: views.Index, agendas, first: dict | None = None,
+                    zone: ZoneInfo | None = None) -> list[dict]:
     """The county's agenda-only meetings (sitegen/county_agendas.Agendas.meetings: no minutes yet), one entry each,
     with the id a minutes meeting of the same id gives its agenda, so the entry never alerts twice."""
     out = []
     for m in agendas.meetings:
         s = agendas.sources[m["source_id"]]
         label = f"{m['date']}, {ix.kind_labels.get(m['kind'], m['kind']).lower()}"
+        added = _added(first, s["url"], s.get("fetched_at"), m["date"])
         out.append({
             "id": f"{key}/meeting/{m['id']}/agenda", "body": key,
             "title": f"Agenda: {label}",
-            "updated": _added(first, s["url"], s.get("fetched_at"), m["date"]),
+            "updated": added,
             "href": agendas.href(m["id"]),
             "source": s["url"],
             "summary": f"{agendas.data.get('body') or ix.coverage['body']}, {label}. Agenda ({s['pages']} "
-                       f"{views.plural(s['pages'], 'page', 'pages')}), fetched {s['fetched_at']}.",
+                       f"{views.plural(s['pages'], 'page', 'pages')}), fetched {_day(added, zone)}.",
             "sort": (m["date"], m["id"], False),
         })
     return out
@@ -381,9 +391,9 @@ def build_feeds(county: views.Index, councils=(), cfg: dict | None = None, rpc=N
         as_of = max(b.data_as_of() for _, _, b in bodies)
         if feed["kind"] == "body":
             ix = next(b for k, _, b in bodies if k == feed["key"])
-            entries = _body_entries(feed["key"], ix, first)
+            entries = _body_entries(feed["key"], ix, first, _zone(cfg))
             if agendas is not None and feed["key"] == cfg["county_key"]:
-                entries += _agenda_entries(feed["key"], ix, agendas, first)
+                entries += _agenda_entries(feed["key"], ix, agendas, first, _zone(cfg))
             as_of = ix.data_as_of()
         elif feed["kind"] == "zoning-seat":
             field = feed["seat"]

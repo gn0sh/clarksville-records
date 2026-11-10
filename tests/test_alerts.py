@@ -527,7 +527,7 @@ def test_entries_are_dated_when_their_document_was_added_and_ids_do_not_change(c
     meeting's date at midnight UTC), the feed lists entries by it, and every id is what it was without it."""
     from datetime import datetime, timedelta, timezone
     srcs = sorted(FACTS["sources"], key=lambda s: s["id"])
-    base = datetime(2026, 11, 7, 23, 0, tzinfo=timezone.utc)         # 17:00 CST on November 7
+    base = datetime(2026, 11, 10, 3, 0, tzinfo=timezone.utc)         # 21:00 CST on November 9: UTC is a day ahead
     first = {s["url"]: base + timedelta(hours=k) for k, s in enumerate(srcs)}
     plain = feeds.build_feeds(county, cfg=CFG)
     dated = feeds.build_feeds(county, cfg=CFG, first=first)
@@ -541,6 +541,9 @@ def test_entries_are_dated_when_their_document_was_added_and_ids_do_not_change(c
         want = first[by_source[m["source_id"]]["url"]].astimezone(feeds._zone()).isoformat(timespec="seconds")
         assert text(e, "updated") == text(e, "published") == want
         assert text(e, "updated")[19:] == "-06:00"
+        # feeds/entry-date-is-local-day/summary-fetched-utc: the summary's day is the entry's own Chicago day
+        assert text(e, "summary").endswith(f", fetched {want[:10]}."), text(e, "summary")
+    assert all(text(e, "summary").endswith("fetched 2026-11-09.") for e in root.findall(A + "entry"))   # not 11-07 or 11-10
     dates = [text(e, "updated") for e in root.findall(A + "entry")]
     assert dates == sorted(dates, reverse=True) and text(root, "updated") == dates[0]
 
@@ -576,7 +579,7 @@ def test_county_agenda_only_meetings_join_the_county_feed(county):
     assert text(e, "updated") == text(e, "published") == "2026-11-09T22:33:47-06:00"
     links = {x.get("rel"): x.get("href") for x in e.findall(A + "link")}
     assert links == {"alternate": "../meetings/agendas.html#2026-11-16-formal", "related": src["url"]}
-    assert "Agenda (9 pages), fetched 2026-11-10." in text(e, "summary")
+    assert "Agenda (9 pages), fetched 2026-11-09." in text(e, "summary")   # the Chicago day, not the UTC 11-10
 
 
 def test_the_home_page_lets_a_reader_discover_the_feeds(built, pages):
@@ -598,3 +601,4 @@ def test_without_a_manifest_row_an_entry_is_its_fetched_day_at_local_noon(built)
     for e in root.findall(A + "entry"):
         up = text(e, "updated")
         assert up == text(e, "published") and up[:10] in fetched and up[10:19] == "T12:00:00", up
+        assert text(e, "summary").endswith(f", fetched {up[:10]}."), text(e, "summary")   # one day, both places
