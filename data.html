@@ -2,27 +2,33 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="robots" content="noindex">
 <meta http-equiv="Content-Security-Policy" content="default-src &#39;self&#39;; script-src &#39;self&#39;; style-src &#39;self&#39; &#39;unsafe-inline&#39;; style-src-elem &#39;self&#39;; connect-src &#39;none&#39;; img-src &#39;self&#39; data:; object-src &#39;none&#39;; base-uri &#39;none&#39;; form-action &#39;self&#39;; frame-src &#39;self&#39;">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<title>Daylight | Data downloads</title>
+<title>Daylight | Data downloads | Independent, unofficial</title>
+<meta name="description" content="Daylight is an independent, unofficial site run by gnoshcodes. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Daylight (independent, unofficial)">
+<meta property="og:title" content="Data downloads | Daylight | Independent, unofficial">
+<meta property="og:description" content="Daylight is an independent, unofficial site run by gnoshcodes. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.">
 <link rel="icon" href="static/brand/favicon.ico" sizes="any">
 <link rel="stylesheet" href="static/style.css">
 </head>
-<body><div style="background:#B8401A;color:#fff;padding:6px 12px;font:14px/1.4 system-ui,sans-serif;text-align:center">Preview, not yet launched. Shared for review only.</div>
+<body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="masthead">
     <a id="nav-open" class="menu-btn" href="#site-nav"><span class="menu-icon" aria-hidden="true"></span><span class="menu-word">Menu</span></a>
     <div class="brand">
       <p class="site-name"><a href="index.html"><span class="plate-sun" aria-hidden="true"></span><span class="plate"><span class="plate-name">Daylight</span> <span class="plate-place">Clarksville-Montgomery County</span></span></a></p>
+      <p class="unofficial-tag">Independent, unofficial</p>
 <p class="kicker">Montgomery County Commission minutes, <span class="nowrap">2020-02-10</span> to <span class="nowrap">2026-05-11</span></p>    </div>
   </div>
 </header>
 <main id="main">
 <h1>Data downloads</h1>
 <p class="lede">Every shown fact, with its source, as files: so this site is not the only copy. The files carry what the pages show, and none of the program's raw reading of names, vote wording or motion sentences.</p>
+<p class="unofficial-intro"><strong>Independent, unofficial.</strong> Daylight is an independent, unofficial site run by gnoshcodes. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls. Every download carries this notice in <a href="data/README.txt">README.txt</a>.</p>
 <h2>Montgomery County Commission</h2><ul class="data-files">
   <li><a href="data/facts.json">facts.json</a>: All shown facts and their sources, in one file.</li>
   <li><a href="data/officials.csv">officials.csv</a>: One row per official.</li>
@@ -49,7 +55,14 @@
   <li><a href="data/city/sources.csv">city/sources.csv</a>: Every source document, with its address and fetch date.</li>
   <li><a href="data/city/seats.csv">city/seats.csv</a>: Seat holder records: first and last meetings seen in roll calls, or a term as its source prints it.</li>
 </ul>
-<h2>Bids, awards and budgets</h2><ul class="data-files">
+<h2>Clarksville-Montgomery County Regional Planning Commission</h2><ul class="data-files">
+  <li><a href="data/rpc/facts.json">rpc/facts.json</a>: The meetings, agenda cases, confirmed motions and sources, in one file.</li>
+  <li><a href="data/rpc/meetings.csv">rpc/meetings.csv</a>: One row per listed meeting, with its agenda and minutes files and how many motions were and were not confirmed.</li>
+  <li><a href="data/rpc/cases.csv">rpc/cases.csv</a>: One row per case on an agenda, in the agenda&#39;s own words.</li>
+  <li><a href="data/rpc/motions.csv">rpc/motions.csv</a>: One row per confirmed motion in the minutes, as printed.</li>
+  <li><a href="data/rpc/sources.csv">rpc/sources.csv</a>: Every agenda and minutes file collected, with its address and fetch date.</li>
+</ul>
+<p>A motion appears in these files only when it is confirmed: every value read from the minutes&#39; own words. A motion that is not confirmed is left out of them; the meeting&#39;s page links the minutes page that prints it.</p><h2>Bids, awards and budgets</h2><ul class="data-files">
   <li><a href="data/finance.json">finance.json</a>: Bids and awards and the budget books, as the pages show them, with every source.</li>
   <li><a href="data/solicitations.csv">solicitations.csv</a>: One row per solicitation in the purchasing archive.</li>
   <li><a href="data/bidders.csv">bidders.csv</a>: One row per bidder on a bid tab that was read, in the tab&#39;s printed order.</li>
@@ -58,16 +71,21 @@
   <li><a href="data/budget_checks.csv">budget_checks.csv</a>: Each subtotal and total line per column: the printed total, the sum of its lines and the difference.</li>
 </ul>
 <p>Every row names the document that prints it (source_url, page) and when it was fetched. A value held back as "Not confirmed" is empty in these files, with the check that held it.</p>
-<p>A text cell that would begin with =, +, - or @ (or a tab or carriage return) starts with an apostrophe, so a spreadsheet shows it as text; number columns are left as they are.</p>
+<p>In the Clarksville-Montgomery County Regional Planning Commission's files, a meeting row names the listing page it was taken from and its agenda and minutes files, and a sources row is the fetched file itself. A Clarksville-Montgomery County Regional Planning Commission motion that is not confirmed is not in its files at all; its meeting row counts it (motions_not_confirmed).</p><p>A text cell that would begin with =, +, - or @ (or a tab or carriage return) starts with an apostrophe, so a spreadsheet shows it as text; number columns are left as they are.</p>
 </main>
 <footer class="site-footer">
+  <section class="unofficial-notice" aria-labelledby="unofficial-h">
+  <p id="unofficial-h" class="unofficial-h"><strong>Independent, unofficial</strong></p>
+  <p>Daylight is an independent, unofficial site run by gnoshcodes. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls. <a href="report.html">How to report a correction</a>.</p>
+</section>
+
   <p>Provided as a free service by <a data-ext="operator" href="https://gnoshcodes.com/" rel="noopener noreferrer">gnoshcodes</a>. <a data-ext="support" href="https://buymeacoffee.com/gnoshcodes" rel="noopener noreferrer">Buy Me a Coffee</a></p>
   <p class="gc-credit"><img class="gc-logo gc-logo-light" src="static/brand/gnoshcodes-wordmark-color-light.svg" alt="gnoshcodes" width="160" height="29"><img class="gc-logo gc-logo-dark" src="static/brand/gnoshcodes-wordmark-color-dark.svg" alt="gnoshcodes" width="160" height="29"><span>A gnoshcodes project.</span></p>
   <p><a href="about.html">About this site and its data rules.</a> Data as of 2026-11-07</p>
   <nav id="site-nav" class="site-nav" aria-label="All pages" data-root="" data-search="search.html">
     <h2 class="site-nav-h">All pages</h2>
     <ul class="nav-list">
-      <li><a href="index.html">Map (home)</a></li>
+      <li><a href="index.html">Home</a></li>
       <li><a href="today.html">Today</a></li>
       <li><a href="search.html">Search</a></li>
       <li><a href="votes/2026.html">Votes</a></li>
