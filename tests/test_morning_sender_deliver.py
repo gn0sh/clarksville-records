@@ -199,12 +199,60 @@ def test_a_plan_with_another_time_zone_or_too_many_editions_sends_nothing(plan):
     {"editions": [{"key": "0123456789ab", "subject": "s\nBcc: x", "body": "b", "entry_ids": ["a"]}]},
     {"editions": [{"key": "0123456789ab", "subject": "s", "body": "b", "entry_ids": ["a"], "filters": {}}]},
     {"editions": [{"key": "0123456789ab", "subject": "s", "body": "b" * 600_000, "entry_ids": ["a"]}]},
-    {"editions": [], "signatures": {}}])
+    {"editions": [], "signatures": {}},
+    # plan-untrusted/log-injection: the plan comes from the job that parses untrusted PDFs, and the dry run prints
+    # its reason and subjects into a public Actions log
+    {"reason": "ok\n::error title=INJECTED::x"}, {"reason": "something"}, {"reason": None}, {"reason": "quiet"},
+    {"send": False, "reason": "ok"},
+    {"date": "\u0662\u0660\u0662\u0666-\u0661\u0661-\u0661\u0661"},          # Arabic-Indic digits match \d
+])
 def test_a_malformed_plan_sends_nothing(plan, change):
     fake = Fake(people(plan))
     res, text = go({**plan, **change}, fake)
     assert (res.code, res.status) == (2, "bad-plan") and fake.calls == [] and "nothing sent" in text
     assert go([], fake)[0].code == 2 and go(None, fake)[0].code == 2
+
+
+@pytest.mark.parametrize("subject", ["s\nBcc: x", "s\u2028::error title=INJECTED::x", "s\u0085x", "s\u2029x",
+                                     "s\x1b[2Kx", "s\u202ex", "s\x0bx", "s\u200bx", "s\u00a0x", ""])
+def test_a_subject_that_is_not_one_printable_line_sends_nothing(plan, subject):
+    """Each edition stays valid but for its subject, so the subject check is what refuses it."""
+    bad = copy.deepcopy(plan)
+    bad["editions"][0]["subject"] = subject
+    fake = Fake(people(plan))
+    res, text = go(bad, fake)
+    assert (res.code, res.status) == (2, "bad-plan") and "subject" in text and fake.calls == []
+    assert go(copy.deepcopy(plan), Fake(people(plan)))[0].status == "sent"
+
+
+def test_a_signature_with_non_ascii_digits_sends_nothing(plan):
+    bad = copy.deepcopy(plan)
+    bad["signatures"]["budget|1\u0667|-"] = next(iter(bad["signatures"].values()))
+    res, text = go(bad, Fake(people(plan)))
+    assert (res.code, res.status) == (2, "bad-plan") and "signature" in text
+
+
+def test_a_malformed_plan_is_refused_in_the_dry_run_too(plan):
+    """The dry run prints the plan's reason and subjects; an injected line must never reach the log."""
+    res, text = go({**plan, "reason": "ok\n::error title=INJECTED::x"}, Fake(), live=False)
+    assert (res.code, res.status) == (2, "bad-plan") and "INJECTED" not in text
+
+
+def test_the_shared_patterns_take_ascii_digits_only():
+    arabic = "\u0662\u0660\u0662\u0666-\u0661\u0661-\u0661\u0661"
+    assert common.DATE_RE.fullmatch(arabic) is None and common.DATE_RE.fullmatch("2026-11-11")
+    assert deliver.STAMP_RE.fullmatch(arabic + ".0123456789ab") is None
+    assert common.TIME_RE.fullmatch("0\u0667:00") is None and common.TIME_RE.fullmatch("07:00")
+    assert common.SIGNATURE_RE.fullmatch("budget|1\u0667|-") is None and common.SIGNATURE_RE.fullmatch("budget|7|-")
+    for rx in (common.DATE_RE, common.TIME_RE, common.SIGNATURE_RE, deliver.STAMP_RE):
+        assert "\\d" not in rx.pattern
+
+
+@pytest.mark.parametrize("reason", ["quiet", "backfill", "disabled"])
+def test_every_no_send_reason_the_plan_stage_writes_is_accepted(plan, reason):
+    assert deliver.REASONS == ("ok", "quiet", "backfill", "disabled")
+    res, text = go({**plan, "send": False, "reason": reason}, Fake(), live=False)
+    assert res.status == "dry-run" and f"({reason})" in text
 
 
 # ------------------------------------------------------------------ a normal morning, both modes

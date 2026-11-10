@@ -30,7 +30,7 @@ from dataclasses import dataclass
 from datetime import datetime, time, timezone
 from zoneinfo import ZoneInfo
 
-from .common import DATE_RE, KEY_RE, LIST_KEYS, PLAN_SCHEMA, SIGNATURE_RE, signature
+from .common import DATE_RE, KEY_RE, LIST_KEYS, PLAN_SCHEMA, REASONS, SIGNATURE_RE, signature
 from .settings import Settings
 
 NAMESPACE = uuid.UUID("6f1d2c1e-8b0a-5d3e-9c47-2a1b7e5d4c30")     # fixed: the idempotency keys must not change
@@ -40,7 +40,7 @@ MAX_LIST_VALUES = 16        # a subscriber's `lists` with more values than this 
 MAX_BODY = 500_000
 MAX_SUBJECT = 300
 STAMP_FIELD = "subscriber.metadata.note_edition"
-STAMP_RE = re.compile(r"\d{4}-\d{2}-\d{2}\.[0-9a-f]{12}")
+STAMP_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\.[0-9a-f]{12}")
 _SHA_RE = re.compile(r"[0-9a-f]{64}")
 _NUMBER = re.compile(r"[1-9][0-9]{0,3}")
 
@@ -119,6 +119,11 @@ def check_plan(plan) -> dict:
         raise PlanInvalid("date")
     if not isinstance(plan.get("send"), bool) or not isinstance(plan.get("timezone"), str):
         raise PlanInvalid("send or timezone")
+    # plan-untrusted/log-injection: the dry run prints the reason and each subject into a public Actions log, so
+    # the reason is one of four words and a subject one printable line (no Cc, Cf, Zl, Zp: no newline, NEL,
+    # U+2028, escape or bidi control that could start a log line such as "::error ...")
+    if plan.get("reason") not in REASONS or (plan["reason"] == "ok") != plan["send"]:
+        raise PlanInvalid("reason")
     editions, sigs = plan.get("editions"), plan.get("signatures")
     if not isinstance(editions, list) or not isinstance(sigs, dict):
         raise PlanInvalid("editions or signatures")
@@ -128,8 +133,8 @@ def check_plan(plan) -> dict:
             raise PlanInvalid("an edition's fields")
         if not (isinstance(ed["key"], str) and KEY_RE.fullmatch(ed["key"])):
             raise PlanInvalid("an edition's key")
-        if not (isinstance(ed["subject"], str) and 0 < len(ed["subject"]) <= MAX_SUBJECT and "\n" not in ed["subject"]
-                and "\r" not in ed["subject"]):
+        if not (isinstance(ed["subject"], str) and 0 < len(ed["subject"]) <= MAX_SUBJECT and ed["subject"].isprintable()
+                and ed["subject"] == ed["subject"].strip()):
             raise PlanInvalid("an edition's subject")
         if not (isinstance(ed["body"], str) and 0 < len(ed["body"]) <= MAX_BODY):
             raise PlanInvalid("an edition's body")

@@ -195,8 +195,8 @@ PAGE = "  page:\n"
     ("    latest_send: '10:00'", "    latest_send: '10:''00'"),
     ("    enabled: false\n", "    enabled: false\x0b    enabled: true\n"),          # VT: a line break to splitlines()
     ("    enabled: false\n", "    enabled: false\x1c\n"), ("    enabled: false\n", "    enabled: false\x85\n"),
-    ("    enabled: false\n", "    enabled: false \n"), ("    enabled: false\n", "    enabled: false\r    enabled: true\n"),
-    ("    enabled: false\n", "    enabled: false​\n"),
+    ("    enabled: false\n", "    enabled: false\u2028\n"), ("    enabled: false\n", "    enabled: false\r    enabled: true\n"),
+    ("    enabled: false\n", "    enabled: false\u200b\n"),
     ("    enabled: false\n    provider", "    enabled: false\n     canary_only: false\n    provider"),   # deeper: continues a value
     ("    provider: buttondown", "   provider: buttondown"),                       # an indent no sibling has
     ("    provider: buttondown", "\tprovider: buttondown"),
@@ -215,7 +215,7 @@ def test_a_line_the_reader_does_not_understand_is_an_error(old, new):
 def test_line_endings_and_a_byte_order_mark_read_the_same():
     want = settings_mod.parse(BASE)
     assert settings_mod.parse(BASE.replace("\n", "\r\n")) == want
-    assert settings_mod.parse("﻿" + BASE) == want
+    assert settings_mod.parse("\ufeff" + BASE) == want
 
 
 def test_parity_with_pyyaml_on_the_shipped_file():
