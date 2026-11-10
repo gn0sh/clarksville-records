@@ -74,3 +74,22 @@ RECORDS_STORE); at writing it holds 19 files, tesseract is **not installed** (`a
 pdftoppm is present). Do not commit a rebuilt rpc.json until the store is complete: a missing file is listed with no
 source, so a partial store silently shrinks the data. Check 97 meetings / 168 sources before committing, and paste the
 before/after confirmed counts (1307 motions, 1088 confirmed at 0927bfe) by reason into the PR.
+
+## Implementation notes (backend-engineer, 2026-11-10; deviations called out)
+- **Record-level re-check in sitegen** (`sitegen/rpc.py record_doubts`/`shown_motions`): the checks rpc.json alone
+  allows are applied again at page time, so a record written before this fix never shows more: C1 off-agenda case
+  (`case` set, `case_id` None), >1 disposing motion for one case at one meeting, caseless non-business kind; C3 a
+  nay/abstainer whose surname is the mover's or seconder's. C1 doubts also drop the placement. Needs a rebuild:
+  rule 1 vote words, 2a loose headings, 2c another case named, rule 3 seconder swallow, rule 7 roster.
+- **site_checks `rpc-motions` (b)-(d) judge the blocks the pages show confirmed** (no `nc` class), not the raw record,
+  and any block shown confirmed must be `confirmed: true` in rpc.json. On the committed record the stricter raw form
+  would fail until the rebuild; the page form is what readers see and passes now.
+- **Caseless relabel**: with no case, a "Motion for approval"/bare "Motion" whose outcome as printed is "deferrals
+  were approved" / "minutes were approved" / "consent agenda passed" takes that fixed business label (keeps the
+  deferrals-list test confirmed and site_checks (c) strict on kinds).
+- **Rule 7 "garbled member line"**: a members'-column line whose first cell fails MEMBER_NAME, or a one-column line
+  that splits into more than one cell ("Bill Kimb   h").
+- **Rule 3** uses the same reason for an abstainer who is the mover/seconder.
+- **Expected loss**: 2022-layout minutes approvals ("asked for a motion for approval of the minutes. Mrs. Streetman
+  moved to recommend approval") read as "Motion for approval" with no case and become "subject not read". A later
+  rule could read the "Approval of Minutes" heading; not added (any doubt).

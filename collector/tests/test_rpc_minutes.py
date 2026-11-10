@@ -66,9 +66,12 @@ def test_motions_as_printed_2022_layout(may2022):
     by_case = {}
     for m in may2022.motions:
         by_case.setdefault(m.case, []).append(m)
+    # "Mrs. Streetman moved to recommend approval": the minutes are named only in the sentence before, so the
+    # motion's own sentences do not read its subject (rule 1)
     minutes = by_case[None][0]
     assert (minutes.mover, minutes.seconder, minutes.outcome, minutes.confirmed) == \
-        ("Mrs. Streetman", "Mr. Kimbrough", "carried unanimously", True)
+        ("Mrs. Streetman", "Mr. Kimbrough", "carried unanimously", False)
+    assert minutes.reasons == [R.WHY_SUBJECT]
     defer = by_case["Z-16-2022"][0]
     assert (defer.kind, defer.mover, defer.seconder, defer.abstained, defer.outcome, defer.confirmed) == \
         ("Motion to defer", "Mr. Hadley", "Mr. Powers", ["Mr. Rocconi"], "Motion passed", True)
@@ -83,13 +86,20 @@ def test_a_name_spelled_unlike_the_header_is_not_confirmed(may2022):
     assert "seconder is not one member present" in z30.reasons
 
 
+GARBLED_HEADER = ("MEMBERS PRESENT:\nCharlie Patterson\nStacey Streetman\nBill Kimb   h\nCindy Greene\n"
+                  "STAFF PRESENT:\nJeff Tyndall\nMeeting was called to order.\nCASE NUMBER: S-1-2025\n")
+
+
 def test_named_nay_and_abstention_after_except():
     roster = ["Charlie Patterson", "Stacey Streetman", "Cindy Greene", "Bill Kimbrough"]
-    r = R.read_minutes(pages("minutes_2025-06-24_p17_ocr.txt"), set(), PREFIXES, roster)
+    p17 = pages("minutes_2025-06-24_p17_ocr.txt")
+    r = R.read_minutes([GARBLED_HEADER + p17[0]], {"S-1-2025"}, PREFIXES, roster)
+    assert r.header_garbled and "Bill Kimbrough" not in r.members
     m = r.motions[0]
     assert (m.mover, m.seconder, m.nays, m.abstained) == ("Charlie Patterson", "Stacey Streetman",
                                                           ["Bill Kimbrough"], ["Cindy Greene"])
-    assert m.outcome == "All members voted in favor" and m.confirmed      # rule 2a: names from the roster
+    assert m.outcome == "All members voted in favor" and m.confirmed, m.reasons   # rule 2a: the garbled header line
+    assert m.case == "S-1-2025"
 
 
 def _one(text: str, members=("Wade Hadley", "Bryce Powers", "Stacey Streetman", "Bill Kimbrough", "Michael Long")):
@@ -116,7 +126,8 @@ def test_anything_uncertain_is_not_confirmed(text, reason):
 
 
 def test_a_motion_that_dies_for_lack_of_a_second_needs_no_seconder():
-    m = _one("Stacey Streetman made a motion for disapproval. Motion falls for a lack of a second. Mr. Long asked.")[0]
+    m = _one("CASE NUMBER: Z-5-2026\nStacey Streetman made a motion for disapproval. Motion falls for a lack of a "
+             "second. Mr. Long asked.")[0]
     assert m.seconder is None and m.outcome == "Motion falls for a lack of a second" and m.confirmed
 
 
@@ -126,7 +137,9 @@ def test_motions_after_other_business_or_to_adjourn_belong_to_no_case():
               "Motion passed.\nMr. Long made a motion to adjourn, seconded by Mr. Powers. All members voted in favor.")
     assert [(m.case, m.kind) for m in ms] == [("Z-5-2026", "Motion for approval"), (None, "Motion for approval"),
                                              (None, "Motion to adjourn")]
-    assert all(m.confirmed for m in ms)
+    # the P & L approval has no case and is not the meeting's own business in the reader's list: subject not read
+    assert [m.confirmed for m in ms] == [True, False, True]
+    assert ms[1].reasons == [R.WHY_SUBJECT]
 
 
 # ------------------------------------------------------------------ build: OCR, attachment, date rule
@@ -213,3 +226,179 @@ def test_the_watermark_skip_never_drops_a_zoning_code():
         assert rpc_agenda.is_watermark(f"   {letters}  ")
     res = rpc_agenda.parse_pages(["1. CZ - 3 - 2024 OWNER(S): A REQUEST: R-1 to\nAG\nLOCATION: B\nR\n"])
     assert res["cases"][0]["fields"]["request"] == "R-1 to AG"
+
+
+# ------------------------------------------------------------------ docs/architecture/rpc-motion-invariant.md
+def _read(text: str, members=("Wade Hadley", "Bryce Powers", "Stacey Streetman", "Bill Kimbrough", "Michael Long"),
+          roster=()):
+    page = "Members Present          Others Present\n" + "\n".join(members) + "\nMeeting was called to order.\n" + text
+    return R.read_minutes([page], set(), PREFIXES, roster)
+
+
+def _case(text: str):
+    return _one("CASE NUMBER: Z-5-2026\n" + text)
+
+
+MOVED = "Mr. Hadley made the motion for approval. Mr. Powers seconded. "
+
+
+@pytest.mark.parametrize("votes", [
+    "Mr. Long opposed. Motion passed.",
+    "Voting nay were Mr. Long and Mrs. Streetman. Motion passed.",
+    "Mr. Long voted nav. Motion passed.",                   # OCR's "nay"
+    "Mr. Long recused himself. Motion passed.",
+    "Mr. Long dissenting. Motion passed.",
+    "Nays: Mr. Long. Motion passed.",
+    "Mr. Long did not vote. Motion passed.",
+    "Motion passed. Mr. Long voted nay.",                   # the one sentence after the outcome
+])
+def test_a_vote_word_the_reader_does_not_read_is_not_confirmed(votes):
+    m = _case(MOVED + votes)[0]
+    assert not m.confirmed and R.WHY_VOTE_WORD in m.reasons, m.reasons
+
+
+@pytest.mark.parametrize("votes", ["Mrs. Streetman voted nay. All others were in favor.",
+                                   "Mrs. Streetman voted nay. All others were in favor. Motion passed."])
+def test_a_modelled_nay_stays_confirmed(votes):
+    m = _case(MOVED + votes)[0]
+    assert m.confirmed and m.nays == ["Mrs. Streetman"], m.reasons
+
+
+@pytest.mark.parametrize("mangled", ["CASE NUMBFR: Z-6-2026", "C ASE NUMRER"])
+def test_a_mangled_case_heading_starts_its_own_section(mangled):
+    r = _read(f"CASE NUMBER: Z-5-2026\n{MOVED}Motion passed.\n{mangled}\n"
+              "Mrs. Streetman made the motion for approval. Mr. Long seconded. Motion passed.\n"
+              f"CASE NUMBER: Z-7-2026\n{MOVED}Motion passed.\n")
+    first, second, third = r.motions
+    assert first.case == "Z-5-2026" and first.confirmed
+    assert second.case is None and not second.confirmed and R.WHY_HEAD in second.reasons
+    assert third.case == "Z-7-2026" and third.confirmed
+    assert (r.case_heads_printed, r.case_heads_read) == (3, 2)
+
+
+def test_two_disposing_motions_on_one_case_section_are_both_unconfirmed():
+    ms = _case(f"{MOVED}Motion passed. Mrs. Streetman made the motion for approval. Mr. Long seconded. Motion passed.")
+    assert len(ms) == 2 and all(not m.confirmed and R.WHY_TWO in m.reasons for m in ms)
+
+
+def test_a_seconder_joined_to_a_nay_is_never_read_as_voting_nay():
+    m = _case("Mr. Hadley made the motion for approval, seconded by Mr. Powers and Mrs. Streetman voted nay. "
+              "Motion passed.")[0]
+    assert "Mr. Powers" not in m.nays
+    assert m.nays == ["Mrs. Streetman"] or not m.confirmed
+
+
+def test_the_mover_named_as_voting_nay_is_not_confirmed():
+    m = _case(MOVED + "Mr. Hadley voted nay. Motion passed.")[0]
+    assert not m.confirmed and R.WHY_NAY_IS_MOVER in m.reasons
+
+
+def test_a_motion_naming_another_case_is_not_confirmed():
+    m = _case("Mr. Hadley made the motion for approval of Z-6-2026. Mr. Powers seconded. Motion passed.")[0]
+    assert not m.confirmed and R.WHY_OTHER_CASE in m.reasons
+    own = _case("Mr. Hadley made the motion for approval of Z-05-2026. Mr. Powers seconded. Motion passed.")[0]
+    assert own.confirmed, own.reasons        # its own case, as printed with zero padding
+
+
+CASELESS = [
+    ("Mr. Hadley made the motion for approval. Mr. Powers seconded. Motion passed.", "Motion for approval", False),
+    ("Mr. Hadley made a motion to defer. Mr. Powers seconded. Motion passed.", "Motion to defer", False),
+    ("Mr. Hadley made the motion. Mr. Powers seconded. Motion passed.", "Motion", False),
+    ("Mr. Hadley made a motion to approve the minutes. Mr. Powers seconded. Motion passed.",
+     "Motion to approve the minutes", True),
+    ("Mr. Hadley made a motion to adjourn, seconded by Mr. Powers. All members voted in favor.",
+     "Motion to adjourn", True),
+    ("Mr. Hadley made a motion to elect Mrs. Streetman as chair. Mr. Powers seconded. Motion passed.",
+     "Motion to elect", True),
+    ("Mr. Hadley made a motion to approve the consent agenda. Mr. Powers seconded. Motion passed.",
+     "Motion to approve the consent agenda", True),
+    ("Mr. Hadley made a motion of approval, Mr. Powers seconded. All others voted in favor, and deferrals were "
+     "approved.", "Motion to approve the deferrals", True),
+]
+
+
+@pytest.mark.parametrize("where", ["before the first case", "under other business"])
+@pytest.mark.parametrize("text,kind,confirmed", CASELESS)
+def test_a_caseless_motion_is_confirmed_only_as_the_meetings_own_business(where, text, kind, confirmed):
+    body = (f"{text}\nCASE NUMBER: Z-5-2026\n" if where == "before the first case"
+            else f"CASE NUMBER: Z-5-2026\nOTHER BUSINESS:\n{text}\n")
+    m = [m for m in _one(body) if m.case is None][0]
+    assert m.kind == kind and m.confirmed is confirmed, m.reasons
+    if not confirmed:
+        assert m.reasons == [R.WHY_SUBJECT]
+
+
+def test_the_roster_is_asked_only_when_the_header_shows_a_garbled_member_line():
+    roster = ["Wade Hadley", "Bryce Powers", "Michael Long"]
+    text = "CASE NUMBER: Z-5-2026\nMr. Long made the motion for approval. Mr. Powers seconded. Motion passed.\n"
+    clean = _read(text, members=("Wade Hadley", "Bryce Powers"), roster=roster)
+    assert not clean.header_garbled
+    assert not clean.motions[0].confirmed and "mover is not one member present" in clean.motions[0].reasons
+    garbled = _read(text, members=("Wade Hadley", "Bryce Powers", "Mich@el L0ng"), roster=roster)
+    assert garbled.header_garbled and garbled.motions[0].confirmed, garbled.motions[0].reasons
+
+
+def _agenda_page(numbers):
+    return "October 27, 2026\n" + "".join(f"{k}. {n.replace('-', ' - ')} OWNER(S): Owner {k}\n"
+                                          for k, n in enumerate(numbers, 1))
+
+
+MINUTES_TEXT = ("REGIONAL PLANNING COMMISSION MINUTES\nOctober 27, 2026\nMEMBERS PRESENT:\nWade Hadley\nBryce Powers\n"
+                "Stacey Streetman\nSTAFF PRESENT:\nJeff Tyndall\nThe meeting was called to order.\n"
+                "Mr. Hadley made a motion to approve the minutes. Mr. Powers seconded. Motion passed.\n"
+                "CASE NUMBER: Z-1-2026\n" + MOVED + "Motion passed.\n"
+                "CASE NUMBER: ZO-4-2024\n" + MOVED + "Motion passed.\n"
+                "CASE NUMBER: Z-2-2026\n" + MOVED + "Motion passed.\n"
+                "CASE NUMBER: Z-2-2026\nMrs. Streetman made a motion to defer. Mr. Powers seconded. Motion passed.\n"
+                "CASE NUMBER: Z-3-2026\n" + MOVED + "Motion passed. Mrs. Streetman made the motion for approval. "
+                "Mr. Hadley seconded. Motion passed.\n")
+
+
+@pytest.fixture()
+def attached(tmp_path):
+    cfg = rpc.load_config()
+    a_url, m_url = "https://www.cmcrpc.com/a-10-27-2026.pdf", "https://www.cmcrpc.com/m-10-27-2026.pdf"
+    rows = rpc.assign_ids([{"date": "2026-10-27", "label": "RPC", "printed": "10/27/2026", "kind": "regular",
+                            "cancelled": False, "no_doc": [],
+                            "docs": [{"kind": "agenda", "url": a_url, "host": "www.cmcrpc.com", "fetch": True},
+                                     {"kind": "minutes", "url": m_url, "host": "www.cmcrpc.com", "fetch": True}]}])
+    store = Store(manifest_path=tmp_path / "manifest.json", root=tmp_path / "store")
+    store.put(a_url, b"%PDF a", {}, {"kind": "agenda"})
+    store.put(m_url, b"%PDF m", {}, {"kind": "minutes"})
+    texts = {store.latest(a_url)["sha256"]: [_agenda_page(["Z-1-2026", "Z-2-2026", "Z-3-2026", "Z-7-2026",
+                                                            "Z-8-2026", "Z-9-2026"])],
+             store.latest(m_url)["sha256"]: [MINUTES_TEXT]}
+    audit = tmp_path / "build" / "rpc-motions-audit.jsonl"
+    facts, summary = rpc_agenda.build(cfg, rows, store, extract=lambda p: texts[p.stem], audit_path=audit)
+    return facts, summary, audit
+
+
+def test_attach_places_a_motion_under_its_case_only_while_nothing_doubts_the_case(attached):
+    facts, summary, _ = attached
+    by_case = {}
+    for mv in facts["motions"]:
+        by_case.setdefault(mv["case"], []).append(mv)
+    assert [(mv["kind"], mv["confirmed"], mv["case_id"]) for mv in by_case[None]] == \
+        [("Motion to approve the minutes", True, None)]
+    z1 = by_case["Z-1-2026"][0]
+    assert z1["confirmed"] and z1["case_id"] == "2026-10-27-regular-z-1-2026"
+    off = by_case["ZO-4-2024"][0]      # read cleanly, but not on this meeting's agenda
+    assert not off["confirmed"] and off["case_id"] is None and R.WHY_OFF_AGENDA in off["reasons"]
+    assert len(by_case["Z-2-2026"]) == 2 and all(not mv["confirmed"] and mv["case_id"] is None
+                                                 and R.WHY_REPEATED in mv["reasons"] for mv in by_case["Z-2-2026"])
+    assert len(by_case["Z-3-2026"]) == 2 and all(not mv["confirmed"] and mv["case_id"] is None
+                                                 and R.WHY_TWO in mv["reasons"] for mv in by_case["Z-3-2026"])
+    assert summary["motions_confirmed"] == 2 and summary["motions_on_agenda_cases"] == 1
+    assert summary["motions_not_confirmed_by_reason"] == {R.WHY_REPEATED: 2, R.WHY_TWO: 2, R.WHY_OFF_AGENDA: 1}
+    assert any("the minutes read 5 case headings, the agenda lists 6 cases" in p for p in summary["problems"])
+
+
+def test_the_motions_audit_is_internal_one_line_per_motion(attached, tmp_path):
+    import json
+    facts, _, audit = attached
+    rows = [json.loads(x) for x in audit.read_text(encoding="utf-8").splitlines()]
+    assert [r["id"] for r in rows] == [mv["id"] for mv in facts["motions"]]
+    assert all(set(r) == {"id", "source_id", "page", "confirmed", "reasons", "para"} and r["para"] for r in rows)
+    assert not any("para" in mv for mv in facts["motions"])       # the sentences never go into rpc.json
+    with pytest.raises(ValueError, match="never written into a built site"):
+        rpc_agenda.write_audit(tmp_path / "build" / "site" / "audit.jsonl", rows)

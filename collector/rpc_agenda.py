@@ -368,10 +368,13 @@ def ocr_document(pdf: Path, sha: str, pages: int) -> list[str]:
     return [cache_path(sha, p).read_text() for p in range(1, pages + 1)]
 
 
-def build(cfg, rows: list[dict], store, extract=extract_pages, ocr=ocr_document) -> tuple[dict, dict]:
+def build(cfg, rows: list[dict], store, extract=extract_pages, ocr=ocr_document,
+          audit_path: Path | None = None) -> tuple[dict, dict]:
     """(facts, summary) from the committed listing and the stored files. A listed document whose bytes are not in
     the store is listed with its link and no source (never guessed). Agendas are read for cases (a scanned agenda by
-    OCR), minutes for motions (collector/rpc_minutes.py)."""
+    OCR), minutes for motions (collector/rpc_minutes.py). `audit_path` (build/rpc-motions-audit.jsonl): one JSON line
+    per motion with its reasons and the sentences read, for QA sampling. Internal: never under build/site, never
+    committed (build/ is gitignored), never exported."""
     by_url = {e["url"]: e for e in store.current()}
     sources: dict[str, dict] = {}
     meetings, cases, problems, shortfalls = [], [], [], []
@@ -457,7 +460,11 @@ def build(cfg, rows: list[dict], store, extract=extract_pages, ocr=ocr_document)
         elif agenda_src:
             problems.append(f"{r['id']}: agenda has no text layer and was not read by OCR")
         meetings.append(m)
-    motions, minutes_summary = read_all_minutes(cfg, rows, meetings, cases, sources, by_url, scanned_texts, problems)
+    audit: list[dict] = []
+    motions, minutes_summary = read_all_minutes(cfg, rows, meetings, cases, sources, by_url, scanned_texts, problems,
+                                                audit)
+    if audit_path is not None:
+        write_audit(Path(audit_path), audit)
     srcs = [{k: v for k, v in s.items() if not k.startswith("_")} for s in sorted(sources.values(), key=lambda s: s["id"])]
     dates = [m["date"] for m in meetings]
     facts = {"schema": "rpc-1", "body": cfg.body, "listing_url": cfg.listing_url,
@@ -470,6 +477,15 @@ def build(cfg, rows: list[dict], store, extract=extract_pages, ocr=ocr_document)
     return facts, summary
 
 
+def write_audit(path: Path, rows: list[dict]) -> None:
+    """The internal motions audit (rule 6 of docs/architecture/rpc-motion-invariant.md): never inside a built site."""
+    if "site" in path.parts:
+        raise ValueError(f"{path}: the motions audit holds OCR text and is never written into a built site")
+    import json
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("".join(json.dumps(r, ensure_ascii=False, sort_keys=True) + "\n" for r in rows), encoding="utf-8")
+
+
 def _family(kind: str) -> str:
     """The members' body a meeting kind belongs to: the CDRB has its own members; the RPC's regular, special and
     Executive Committee meetings share theirs."""
@@ -480,10 +496,13 @@ ROSTER_YEARS = 1     # rule 2a: the roster of a meeting is every member read cle
                      # within this many years of it
 
 
-def read_all_minutes(cfg, rows, meetings, cases, sources, by_url, scanned_texts, problems) -> tuple[list, dict]:
+def read_all_minutes(cfg, rows, meetings, cases, sources, by_url, scanned_texts, problems,
+                     audit: list | None = None) -> tuple[list, dict]:
     """Every listed minutes document read for motions (collector/rpc_minutes.py), attached to the meeting whose
-    date the minutes print. Returns (motions, summary counts)."""
+    date the minutes print. Returns (motions, summary counts). `audit` gets one row per motion with the sentences
+    read (OCR text: internal, for QA sampling; never published)."""
     from . import rpc_minutes as RM
+    audit = [] if audit is None else audit
     row_of = {r["id"]: r for r in rows}
     texts_of: dict[str, list[str]] = {}
     pairs = []      # (meeting, minutes source id)
@@ -532,14 +551,30 @@ def read_all_minutes(cfg, rows, meetings, cases, sources, by_url, scanned_texts,
         if res.case_heads_printed > res.case_heads_read:
             problems.append(f"{m['id']}: the minutes print {res.case_heads_printed} case headings, "
                             f"{res.case_heads_read} of their numbers read (motions under the others not confirmed)")
+        if res.case_heads_read < len(on_agenda):    # reported, not a gate: a list of deferrals prints no heading
+            problems.append(f"{m['id']}: the minutes read {res.case_heads_read} case headings, the agenda lists "
+                            f"{len(on_agenda)} cases")
         for k, mv in enumerate(res.motions, 1):
-            reasons = list(mv.reasons) + ([] if printed else ["the minutes' date was not read"])
-            out.append({
-                "id": f"{m['id']}-motion-{k}", "meeting_id": m["id"], "source_id": sid, "page": mv.page,
-                "case": mv.case, "case_id": on_agenda.get(mv.case) if mv.case else None, "kind": mv.kind,
-                "moved_by": mv.mover, "seconded_by": mv.seconder, "nays": mv.nays, "abstained": mv.abstained,
-                "outcome": mv.outcome, "tally": mv.tally, "confirmed": not reasons, "reasons": reasons})
+            reasons = list(mv.reasons)
+            if mv.case and mv.case not in on_agenda:    # rule 1 (C1): read cleanly, but not on this meeting's agenda
+                reasons.append(RM.WHY_OFF_AGENDA)
+            if not printed:
+                reasons.append("the minutes' date was not read")
+            # placed under its agenda case only while nothing doubts the case itself (C1)
+            case_ok = mv.case and not RM.CASE_REASONS.intersection(reasons)
+            rec = {"id": f"{m['id']}-motion-{k}", "meeting_id": m["id"], "source_id": sid, "page": mv.page,
+                   "case": mv.case, "case_id": on_agenda.get(mv.case) if case_ok else None, "kind": mv.kind,
+                   "moved_by": mv.mover, "seconded_by": mv.seconder, "nays": mv.nays, "abstained": mv.abstained,
+                   "outcome": mv.outcome, "tally": mv.tally, "confirmed": not reasons, "reasons": reasons}
+            out.append(rec)
+            audit.append({"id": rec["id"], "source_id": sid, "page": mv.page, "confirmed": rec["confirmed"],
+                          "reasons": reasons, "para": mv.para})
+    why: dict[str, int] = {}
+    for x in out:
+        for r in x["reasons"]:
+            why[r] = why.get(r, 0) + 1
     summary = {"minutes_read": read, "minutes_attached": attached, "motions": len(out),
                "motions_confirmed": sum(1 for x in out if x["confirmed"]),
-               "motions_on_agenda_cases": sum(1 for x in out if x["case_id"])}
+               "motions_on_agenda_cases": sum(1 for x in out if x["case_id"]),
+               "motions_not_confirmed_by_reason": dict(sorted(why.items(), key=lambda kv: (-kv[1], kv[0])))}
     return out, summary

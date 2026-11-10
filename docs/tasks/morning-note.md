@@ -1,7 +1,9 @@
 # Tasks: Daylight M3, the morning note
 
 Architecture: `docs/architecture/morning-note.md` (the output contract and seam there are fixed; T1-T3 build against
-them in parallel). Tests run in session (`python -m pytest -q`); paste the output in the PR. No task sends mail,
+them in parallel). An RPC minutes motion in the note (a `vote` entry, the zoning list) follows
+`docs/architecture/rpc-motion-invariant.md`: outcome/tally only when confirmed, else "Recorded in the minutes; not
+confirmed"; joins the zoning list only via `case_id`, never an unconfirmed `case`. Tests run in session (`python -m pytest -q`); paste the output in the PR. No task sends mail,
 creates an account or stores an email.
 
 | Task | Owner | Depends on | Parallel |

@@ -381,10 +381,10 @@ def test_build_reports_a_case_shortfall_as_a_failing_check(cfg, rows, tmp_path, 
     # `python -m collector rpc build` exits 1 on a shortfall, after writing its report
     monkeypatch.setattr(rpc, "paths", lambda c, root=None: {
         "listing": tmp_path / "listing.json", "manifest": tmp_path / "manifest.json", "facts": tmp_path / "rpc.json",
-        "report": tmp_path / "report.json"})
+        "report": tmp_path / "report.json", "audit": tmp_path / "rpc-motions-audit.jsonl"})
     (tmp_path / "listing.json").write_text(json.dumps(rs), encoding="utf-8")
-    monkeypatch.setattr(rpc_agenda, "build", lambda c, r, s, extract=None: (facts, summary))
+    monkeypatch.setattr(rpc_agenda, "build", lambda c, r, s, extract=None, audit_path=None: (facts, summary))
     assert rpc.main(["build"]) == 1
     assert "FAIL  rpc case completeness: 1 agendas" in capsys.readouterr().err
-    monkeypatch.setattr(rpc_agenda, "build", lambda c, r, s, extract=None: (facts_ok, summary_ok))
+    monkeypatch.setattr(rpc_agenda, "build", lambda c, r, s, extract=None, audit_path=None: (facts_ok, summary_ok))
     assert rpc.main(["build"]) == 0

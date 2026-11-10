@@ -10,12 +10,14 @@
 </ul>
 {%- endmacro %}
 
-{# One motion read from the minutes (collector/rpc_minutes.py). Confirmed: its type in fixed words, then who moved,
-   seconded, voted nay or abstained and the outcome, each in the minutes' own words (data-item-title: text in the
-   document, never linked or reworded). Not confirmed: its type and the county's "Not confirmed" note only. #}
+{# One motion read from the minutes (collector/rpc_minutes.py, docs/architecture/rpc-motion-invariant.md). Confirmed:
+   its type in fixed words, then who moved, seconded, voted nay or abstained and the outcome, each in the minutes' own
+   words (data-item-title: text in the document, never linked or reworded); nays only as named, an empty list shows
+   nothing, and nothing here says a vote was unanimous. Not confirmed: its type and the county's "Not confirmed" note
+   only: no names, outcome or case number. #}
 {% macro rpc_motion(mv) -%}
 <div class="rpc-motion{% if not mv.confirmed %} nc{% endif %}" id="{{ mv.id }}">
-  <p class="motion-line"><strong>{{ mv.kind }}{% if mv.case %} ({{ mv.case }}){% endif %}.</strong>{% if not mv.confirmed %} <span class="chip chip-status"><span aria-hidden="true">*</span> Not confirmed</span>{% endif %}</p>
+  <p class="motion-line"><strong>{{ mv.kind }}{% if mv.confirmed and mv.case %} ({{ mv.case }}){% endif %}.</strong>{% if not mv.confirmed %} <span class="chip chip-status"><span aria-hidden="true">*</span> Not confirmed</span>{% endif %}</p>
   {% if mv.confirmed %}
   <p>{% if mv.moved_by %}Moved by <span data-item-title>{{ mv.moved_by }}</span>{% endif %}{% if mv.seconded_by %}, seconded by <span data-item-title>{{ mv.seconded_by }}</span>{% else %}; no second{% endif %}.</p>
   {% if mv.nays %}<p>Voted nay, as printed: <span data-item-title>{{ mv.nays | join(", ") }}</span>.</p>{% endif %}

@@ -12,7 +12,9 @@ upcoming hearing dates and its case items. Never one page per meeting: the previ
 Rules: every case value is the agenda's own words (no summary, no wording about the people named); every case links
 the agenda PDF page it is printed on; a document on a host we do not collect from (Google Drive) is listed with its
 link and says it was not collected. A motion the reader confirmed shows its values in the minutes' own words; one it
-did not shows its type and the county's "Not confirmed" note, with no names or outcome (config.SHOW_UNCONFIRMED_VALUES).
+did not shows its type and the county's "Not confirmed" note, with no names, outcome or case number
+(config.SHOW_UNCONFIRMED_VALUES). The invariant is docs/architecture/rpc-motion-invariant.md; the checks it allows
+on the stored record alone are applied again here (record_doubts), so an older facts file never shows more.
 """
 from __future__ import annotations
 
@@ -39,6 +41,62 @@ COUNTY_LABEL = "County Commission"
 
 class RpcError(Exception):
     pass
+
+
+# docs/architecture/rpc-motion-invariant.md, restated on the stored record so a facts file written before a rule
+# existed is still shown under it: the meeting's own business (the only motions confirmed with no case), and the
+# checks that need nothing but rpc.json. The rest (vote words left unread, loose case headings, another case named in
+# the sentences, the roster fallback) need the minutes' text and apply when collector/rpc_agenda.py rebuilds it.
+MEETING_BUSINESS = frozenset({"Motion to elect", "Motion to adjourn", "Motion to approve the minutes",
+                              "Motion to approve the consent agenda", "Motion to approve the deferrals"})
+
+
+def _surname(name: str) -> str:
+    parts = (name or "").split()
+    return "".join(ch for ch in parts[-1].casefold() if ch.isalpha()) if parts else ""
+
+
+def record_doubts(motions: list[dict]) -> dict[str, tuple[list[str], bool]]:
+    """{motion id: (reasons, whether a reason doubts its case)} for each motion the stored record already shows
+    fails the invariant: C1 a case number off this meeting's agenda, more than one disposing motion read for one
+    case at one meeting, a caseless motion that is not the meeting's own business; C3 a member named as voting nay or
+    abstaining who is (by surname) the mover or seconder."""
+    groups: dict[tuple[str, str], list[dict]] = defaultdict(list)
+    for mv in motions:
+        if mv.get("case"):
+            groups[(mv["meeting_id"], mv["case"])].append(mv)
+    crowded = {mv["id"] for g in groups.values() if sum(1 for x in g if x["kind"] not in MEETING_BUSINESS) > 1
+               for mv in g}
+    out: dict[str, tuple[list[str], bool]] = {}
+    for mv in motions:
+        why = []
+        if mv.get("case") and not mv.get("case_id"):
+            why.append("case number not on this meeting's agenda")
+        if mv["id"] in crowded:
+            why.append("more than one motion on one case section")
+        if not mv.get("case") and mv["kind"] not in MEETING_BUSINESS:
+            why.append("subject not read")
+        case_doubt = bool(why)
+        movers = {_surname(x) for x in (mv.get("moved_by"), mv.get("seconded_by")) if x}
+        if any(_surname(n) in movers for n in (mv.get("nays") or []) + (mv.get("abstained") or [])):
+            why.append("a member named as voting nay is the mover or seconder")
+        if why:
+            out[mv["id"]] = (why, case_doubt)
+    return out
+
+
+def shown_motions(motions: list[dict]) -> list[dict]:
+    """The motions as the pages treat them: one the stored record shows failing the invariant is not confirmed, and
+    one whose case is in doubt is placed under no case (record_doubts)."""
+    doubts = record_doubts(motions)
+    out = []
+    for mv in motions:
+        if mv["id"] in doubts:
+            why, case_doubt = doubts[mv["id"]]
+            mv = {**mv, "confirmed": False, "reasons": list(mv.get("reasons") or []) + why,
+                  "case_id": None if case_doubt else mv["case_id"]}
+        out.append(mv)
+    return out
 
 
 def load_config(locality: str | None) -> dict | None:
@@ -69,11 +127,13 @@ class Rpc:
         self.cases_by_meeting: dict[str, list[dict]] = defaultdict(list)
         for c in facts["cases"]:
             self.cases_by_meeting[c["meeting_id"]].append(c)
-        # minutes motions (collector/rpc_minutes.py): on their agenda case when the case is on the meeting's agenda,
-        # else in the meeting's own list
+        # minutes motions (collector/rpc_minutes.py), as the pages treat them (shown_motions): on their agenda case
+        # when the record places them there (case_id: only while nothing doubts the case), else in the meeting's own
+        # list, with no case number
+        self.motions = shown_motions(facts.get("motions", []))
         self.motions_by_case: dict[str, list[dict]] = defaultdict(list)
         self.motions_by_meeting: dict[str, list[dict]] = defaultdict(list)
-        for mv in facts.get("motions", []):
+        for mv in self.motions:
             if mv["case_id"]:
                 self.motions_by_case[mv["case_id"]].append(mv)
             else:
@@ -82,7 +142,7 @@ class Rpc:
         self.county_items: dict[str, dict] = {}     # link key -> county item (CZ-, CZO- cases)
         bad = [c["id"] for c in facts["cases"] if c["source_id"] not in self.sources
                or not 1 <= c["page"] <= (self.sources[c["source_id"]]["pages"] or 0)]
-        bad += [mv["id"] for mv in facts.get("motions", []) if mv["source_id"] not in self.sources
+        bad += [mv["id"] for mv in self.motions if mv["source_id"] not in self.sources
                 or not 1 <= mv["page"] <= (self.sources[mv["source_id"]]["pages"] or 0)]
         if bad:
             raise RpcError(f"{cfg['facts_path']}: cases or motions cite a missing source or a page outside it: "
@@ -126,12 +186,13 @@ class Rpc:
     def motion(self, mv: dict) -> dict:
         """A motion as the minutes print it. Confirmed (collector/rpc_minutes.py rule): its type, who moved and
         seconded it, who voted nay or abstained and the outcome, each as printed. Not confirmed: its type and the
-        "Not confirmed" note only, while config.SHOW_UNCONFIRMED_VALUES is off (as for the county's roll calls)."""
+        "Not confirmed" note only, while config.SHOW_UNCONFIRMED_VALUES is off (as for the county's roll calls): no
+        names, outcome or case number. Nays only as named; nothing here ever says a vote was unanimous."""
         s = self.sources[mv["source_id"]]
         shown = mv["confirmed"] or config.SHOW_UNCONFIRMED_VALUES
         src = {"url": f"{s['url']}#page={mv['page']}", "page": mv["page"], "kind": "minutes"}
         return {"id": mv["id"], "kind": mv["kind"], "confirmed": mv["confirmed"], "src": src,
-                "case": mv["case"] if not mv["case_id"] else None,
+                "case": mv["case"] if shown and not mv["case_id"] else None,
                 "moved_by": mv["moved_by"] if shown else None, "seconded_by": mv["seconded_by"] if shown else None,
                 "nays": mv["nays"] if shown else [], "abstained": mv["abstained"] if shown else [],
                 "outcome": mv["outcome"] if shown else None}
@@ -221,8 +282,8 @@ class Rpc:
         return {"body": self.body, "coverage": cov, "listing_url": self.cfg["listing_url"],
                 "record_label": self.cfg["record_label"],
                 "n_meetings": len(self.facts["meetings"]), "n_cases": len(self.facts["cases"]),
-                "n_motions": len(self.facts.get("motions", [])),
-                "n_motions_confirmed": sum(1 for mv in self.facts.get("motions", []) if mv["confirmed"]),
+                "n_motions": len(self.motions),
+                "n_motions_confirmed": sum(1 for mv in self.motions if mv["confirmed"]),
                 "n_docs": len(self.facts["sources"]),
                 "n_link_only": sum(1 for m in self.facts["meetings"] for d in m["documents"]
                                    if not d["fetched"] and d["kind"] != "video"),
