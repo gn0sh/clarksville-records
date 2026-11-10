@@ -121,9 +121,9 @@ a seat is posted. On, the landing and Method pages also stop saying the seats ar
 (`morning_page.privacy()`, text `page.seats_sent`) and the Method page gains a "Morning note" paragraph: what is
 sent, to whom, how to unsubscribe, and the `privacy_url` link (`page.method_*`; finding 1). `qa.site_checks` allows
 that one off-site form action and CSP origin on alerts.html only while `enabled` is true. `build.problems()` refuses `enabled: true` without an https `form_action` and a
-`privacy_url`, and refuses a non-empty `form_action` while `enabled` is false. The sender (later) is a scheduled job
-that reads `morning/latest.json`, groups subscribers by (lists, district, ward), calls `select()` per group and mails
-non-empty results through the provider API; that job and its secret are a later task behind the CEO's go-ahead.
+`privacy_url`, and refuses a non-empty `form_action` while `enabled` is false. The sender is designed in "T4 sender"
+below: it reads `morning/<date>.json`, groups subscribers by (lists, district, ward) with `select()` and mails
+non-empty results through the provider API. It and its secret stay off behind the CEO's go-ahead.
 
 ## Privacy and neutrality
 - M3: nothing about the visitor leaves the device. Seats come from `localStorage["cr-your-seats"]`; picks live in the
@@ -143,6 +143,7 @@ records place no item in a district or ward", which predates the RPC case fields
 `test_one_feed_per_body_and_per_topic`.
 
 ## Provider options for the CEO (all pricing unverified, checked from memory, not from vendor pages)
+**Decided: A, Buttondown (Brian, 2026-11-10).** What its public docs say is in "T4 sender", "Buttondown: verified and assumed".
 | Option | Cost (unverified) | Personal data it holds | Fit |
 |---|---|---|---|
 | A. Buttondown (newsletter service, API, tags + metadata, double opt-in) | free tier for a small list (~100 subscribers), paid above | email, tags (lists), district/ward metadata, open/click data unless turned off | Hosted form endpoint, one-tap unsubscribe, API send per tag group; smallest surface |
@@ -156,4 +157,234 @@ review of the sender job (hard stops 3, 4, 5, and 1 for the first send).
 - Window rule depends on every collector manifest keeping `first_fetched_at`; T1 must assert every digest document resolves to a manifest row (fail the build, do not skip).
 - RPC printed district is the agenda's claim; a case near a line still matches one district only. Say "as printed".
 - Digest wording drift into commentary: guarded by config-only connective text and the BANNED scan.
-- No ADR: every choice here is reversible (static files, config off by default). Write one when a provider is chosen.
+- ADR: `docs/adr/0004-morning-note-sender.md` (provider and sending approach).
+
+## T4 sender (designed 2026-11-10; ADR 0004)
+
+Provider: Buttondown (Brian, 2026-11-10). He creates the account, sets DNS and pays at go-live. The API key will be a
+GitHub Actions secret that does not exist yet; no key, address or subscriber field is ever written to the repo.
+Nothing in T4 sends until three separate switches are on (see "Switches").
+
+### Decision: editions, not per-person mails and not fixed per-list segments
+Each subscriber gets **at most one email a day, holding exactly what `select()` returns for their lists and seats**,
+and nothing on a day when that is empty. Subscribers whose selection is identical share one email, an **edition**.
+The sender creates one Buttondown email per edition (a handful a day), never one per person.
+
+| Option | Why not |
+|---|---|
+| One API send per subscriber | N requests a day, and the body differs per person only through data the edition already captures. Same result as editions at higher cost and more failure points. |
+| A fixed set of segment emails (one per list, per district, per ward) | Needs no subscriber read, which is its one real advantage. But a person on three lists gets three emails at once, and a city zoning case that prints both a ward and a district reaches the same person twice. That breaks "a short email ... quiet on every other day". |
+| One email to everyone with per-person conditional content | Depends on template conditionals and OR filters we could not verify, and cannot stay quiet for a person whose sections are all empty. |
+
+Cost of the choice: the sender must read each active subscriber's lists, district and ward (never the address; see
+Privacy), so its key needs subscriber access. Recorded as threat point 2.
+
+### Two stages, in two jobs
+| Stage | Where | Network, secret | Does |
+|---|---|---|---|
+| `python -m sender plan` | `update` job, after "Site checks", every day, from launch day one | none, none | Reads `build/site/morning/<D>.json`; writes the would-send payloads to `build/morning-send/<D>/`. This is the dry run, and it runs daily as a rehearsal whether or not sending is on. |
+| `python -m sender deliver` | new `note` job, `needs: [update, deploy]` | `api.buttondown.com` only; `BUTTONDOWN_API_KEY` | Reads only the plan file; talks to the provider. Standard library only: no `pip install` and no `sitegen` import in the job that holds the key. Without `--live` it prints what it would do and opens no connection. |
+
+New top-level package `sender/` (not under `sitegen/`, which must stay network-free): `plan.py` (pure), `render.py`
+(subject and body), `deliver.py` (guards and day claim), `buttondown.py` (the only module that opens a connection;
+host fixed to the config `api_base`, https only), `__main__.py`.
+
+### Plan stage (the dry run)
+Input guards, each ending in `send: false` with a `reason`, exit 0, unless marked fail:
+- the note file for D is missing or not `schema: "morning-note/1"`: **fail** (exit 2, the run's failure issue opens);
+- `note.date` is not D, where D is today in `site_timezone`: fail;
+- `backfill` is true: `reason: "backfill"` (the T1 guard; a backfill day never mails);
+- `entries` is empty: `reason: "quiet"`;
+- more than `sender.max_editions` editions: fail (something is wrong with the data, not a busy day).
+
+Otherwise, for every possible signature (each non-empty subset of the four lists x district none or 1..`district_count`
+x ward none or 1..`ward_count`; 15 x 22 x 13 = 4,290 calls of `morning.select`, cheap), take the selected entry ids.
+Signatures with the same non-empty id list share an edition; its key is the first 12 hex of
+`sha256(date + "\n" + ids joined by "\n")`. Signatures with an empty selection are left out: those people get nothing.
+
+`build/morning-send/<D>/plan.json` (and `edition-<key>.html` / `.txt` beside it for a person to read):
+```
+{"schema": "morning-send/1", "date": "2026-11-11", "note_sha256": "<of the note file>", "timezone": "America/Chicago",
+ "send": true, "reason": "ok", "send_at": "2026-11-11T07:00:00-06:00", "latest_send": "2026-11-11T10:00:00-06:00",
+ "editions": [{"key": "3fa9c1d2e07b", "subject": "...", "body": "<html>", "entry_ids": ["rpc/item/..."]}],
+ "signatures": {"zoning|7|-": "3fa9c1d2e07b", "budget,zoning|7|3": "91c0..."}}
+```
+The plan is a pure function of the note and config: two runs on the same note give byte-identical files. It holds
+no subscriber data, so it is safe as a build artifact in a public repository.
+
+Body (`render.py`): the site name and date, then per picked list its config label and its entries: body name,
+`recorded`, the verbatim title, a link to the site page (`alerts.site_url` + `href`) and the source link; then
+`unplaced_text` when set; then one config line saying why the reader got this. Rules:
+- every title and URL is HTML-escaped, and `{{`, `{%` and a leading `---` are neutralised, because the body goes
+  through the provider's own template and Markdown step (a record's title is untrusted text);
+- links are only `site_url` pages and `source.url` values that pass `build._is_https_uri`; anything else drops the link;
+- every word that is ours comes from `morning_note.sender.text` in config and runs through the `BANNED` scan with
+  `morning.own_text`; no official's name outside a verbatim title; no summary. The email adds nothing the preview
+  page (`morning/index.html`) does not already show;
+- the unsubscribe link and footer are the provider's; we add no unsubscribe mechanism of our own.
+
+### Deliver stage
+Order of work for `deliver --live` (any failed check stops before the first write, exit non-zero, nothing sent):
+1. **No-send exits**: `plan.send` is false: exit 0 with no connection at all (the fail-safe for quiet and backfill days).
+2. **Date guard**: `plan.date` must be today in `plan.timezone`. A re-run tomorrow of today's workflow run sends nothing.
+   Now later than `latest_send`: exit 0 as "missed", open the failure issue, send nothing. The records still reach
+   readers by the site and the feeds; a note is never sent the next day.
+3. **Day claim (idempotence)**: list the provider's recent emails and keep those with `metadata.note_date == D`.
+   - none: the day is unclaimed, go on;
+   - some, all with `metadata.note_sha256 == plan.note_sha256`: a re-run of the same plan; go on, but only for editions
+     whose key is not among them (finishes a run that died half way);
+   - any with a different `note_sha256`: the day belongs to an earlier, different plan. Send nothing, exit 0. (A second
+     collection before 7:00 that adds a document changes the note; its additions are on the site and feeds only.)
+   - the listing fails, is cut short or cannot be read: send nothing, exit non-zero. **Fail closed.**
+4. **Recipients**: page through subscribers, keep `type == "regular"` (confirmed; `unactivated`, `unsubscribed` and
+   the rest are never mailed), and reduce each at the adapter boundary to `(id, lists, district, ward)`. The address
+   and every other field are dropped there and never reach the rest of the program. Lists not in `LIST_KEYS`, and
+   district or ward values that are not whole numbers in range, are ignored (treated as not set). More than
+   `sender.max_recipients`: stop, send nothing.
+5. **Per edition** (in key order): the subscribers whose signature maps to it. None: skip, no email is created.
+   Otherwise deliver by the mode the T4.0 probe selected:
+   - `stamp` (preferred): set each recipient's metadata `note_edition` to `"<D>.<key>"` (always writing back the whole
+     metadata object, so district and ward survive), then create one email with `filters` = `subscriber.metadata.
+     note_edition equals "<D>.<key>"`, `status: "scheduled"`, `publish_date` = `send_at` (or immediate when `send_at`
+     has passed), `archival_mode: "disabled"`, `metadata: {note_date, note_edition, note_sha256}`. A stamp from an
+     earlier day can never match, because the value carries the date. The email sits scheduled until 7:00, so a
+     person can still delete it in the provider's dashboard.
+   - `ids` (fallback): create the email as a draft with the same metadata, then `POST /v1/emails/{id}/send-draft` with
+     `subscribers: [ids]`. Needs subscriber read only, but sends at once (about 4 AM local).
+   Every write carries `X-Idempotency-Key` = `uuid5(namespace, "daylight-note/<D>/<key>/<step>")`.
+6. **Log**: totals only (see Privacy).
+
+Rate: one request at a time, at most 5 a second, obeying `Retry-After` on 429 and stopping after 3 tries. With 500
+recipients on a busy day `stamp` makes about 510 requests, under the limit of 600 a minute.
+
+Idempotence, in layers: the workflow's `concurrency: daily-update` group (one run at a time); the date guard; the
+day claim read from the provider (the record of truth, because it survives a lost runner); the idempotency key on
+each write. We keep no "sent" file in the repo: the `note` job would need a write token for it, and the provider's
+own list answers the same question.
+
+### Switches (all three must be on; each is off or absent today)
+| Switch | Where | Who turns it |
+|---|---|---|
+| `morning_note.sender.enabled: true` | `config/site.yml`, by a reviewed PR | the team, after the security review |
+| Repository variable `MORNING_NOTE_SEND == 'true'` | GitHub settings | Brian (hard stop 1: the first send) |
+| Secret `BUTTONDOWN_API_KEY` in the `morning-note` environment | GitHub settings | Brian (hard stop 5) |
+The `note` job also needs the `deploy` job to have succeeded, so it cannot run while the deploy is locked, and an
+email never links a page that is not live. `build.problems()` refuses `sender.enabled: true` unless
+`morning_note.enabled` is true and the site URL is set. `sender.canary_only: true` (the default) limits recipients to
+subscribers whose metadata has `canary: "1"`, so the first live days reach only the team's own addresses.
+
+```
+morning_note:
+  sender:
+    enabled: false
+    provider: buttondown
+    api_base: https://api.buttondown.com/v1
+    mode: stamp              # stamp | ids, set by the T4.0 probe
+    send_at: "07:00"         # site_timezone
+    latest_send: "10:00"
+    max_editions: 80
+    max_recipients: 2000
+    canary_only: true
+    text: {subject: "{site_name} morning note, {date}", why: "...", open_site: "..."}
+```
+
+### Workflow changes (`.github/workflows/daily-update.yml`)
+- `update` job: after "Site checks", `python -m sender plan --date <D> --site build/site --out build/morning-send`,
+  then upload `build/morning-send` as artifact `morning-send` (2 days). No secret; this job still parses untrusted PDFs.
+- new `note` job: `needs: [update, deploy]`; `if: github.event_name == 'schedule' && vars.MORNING_NOTE_SEND == 'true'
+  && github.ref == 'refs/heads/main'`; `environment: morning-note` (secret scoped to it, deployment branch `main`
+  only); `permissions: contents: read, issues: write`; timeout 15 minutes. Steps: check out the commit the update job
+  built on with `persist-credentials: false`, set up Python with no pip step, download `morning-send`, validate it
+  (one `plan.json` and `edition-*` files only, regular files, under 2 MB, schema and field types checked, every link
+  on the site origin or an https source), run `python -m sender deliver --plan ... --live`. The key is passed as
+  `env:` on that one step only. On failure, the same one-issue step as the other jobs, with a fixed text.
+- A manual run (`workflow_dispatch`) never sends.
+
+### Privacy (no personal data in the repo or the logs)
+- The repository is public, so its Actions logs and artifacts are public. The `note` job uploads no artifact.
+- `buttondown.py` never logs a request or response body, a subscriber id or an address. An error prints the method,
+  the path template (`/subscribers/{id}`) and the status code. No `set -x`; no debug flag that prints payloads.
+- The run prints totals only: editions sent, recipients in total. Never a per-edition count or a signature, since
+  "1 recipient: contracts, district 7, ward 3" could point at a person.
+- The address is dropped at the adapter boundary (step 4) and no test fixture holds a real one (`example.org` only).
+- Sign-up, double opt-in, unsubscribe, bounces and the stored list are the provider's. We hold no copy.
+
+### Buttondown: verified and assumed
+Read from docs.buttondown.com and buttondown.com/pricing on 2026-11-10. Nothing was tested against an account (there
+is none), so "verified" means "the public documentation says so".
+
+| Fact | Status |
+|---|---|
+| Base `https://api.buttondown.com/v1`; header `Authorization: Token <key>` | verified (api-authentication) |
+| Keys can be scoped per area (`subscriber_access`, `email_access`, `sending_access`, ...; write, read or none); the primary key is always full access | verified (api-authentication) |
+| 600 requests a minute on every endpoint; 429 with `Retry-After`; `X-RateLimit-*` headers on every response | verified (api-rate-limits) |
+| `POST /v1/subscribers` is capped at 100 a day (answers 400 beyond it). We never call it; sign-ups go through the hosted form | verified (api-rate-limits) |
+| `X-Idempotency-Key` on any request, a string up to 200 characters; a repeat returns the first response | verified (api-idempotency-keys). How long a key is remembered: not stated |
+| `POST /v1/emails` fields: `subject`, `body`, `status`, `publish_date`, `filters`, `metadata`, `archival_mode` (`disabled` keeps it off the public archive) | verified (api-emails-create) |
+| Creating an email through the API "will instantly trigger sending"; a `scheduled` email goes out at its `publish_date` | verified as documented (api-emails-introduction). Which `status` to post for an immediate send: **assumed**, probe |
+| Filter shape `{"filters": [{"field": "subscriber.metadata.<key>", "operator": "equals", "value": "..."}], "groups": [], "predicate": "and"}` | verified for segments (api-segments-create). That an email's `filters` takes the same rule: **assumed**, probe. The field name for a tag and any operator but `equals`: not found |
+| `POST /v1/emails/{id}/send-draft` takes `subscribers` (ids) or `recipients` (addresses) | verified it exists (api-emails-send-draft). Whether it is a real send with the unsubscribe link or a test send: **assumed unknown**, probe |
+| Hosted form: POST to `https://buttondown.com/api/emails/embed-subscribe/<username>` with `email`, `embed=1`, `tag`, `metadata__<key>` (the key must be set up in the account; multi-select allowed); must be a plain form post, not `fetch` | verified (building-your-subscriber-base). Matches the seam's `form_fields` |
+| Subscriber `type` values include `regular`, `unactivated`, `unsubscribed`; API-created subscribers are double opt-in by default | verified (api-subscribers-create). Double opt-in for **form** sign-ups: not stated on the pages read, verify in the account |
+| Listing subscribers can filter by metadata; listing emails cannot | verified (api-filtering). So the day claim reads `metadata` from the email list client-side; list order and date filters: **assumed**, probe |
+| Tags are a paid feature; the pricing page shows "Tagging & segmentation" as a +$9 a month add-on, and the first 100 subscribers free | verified as shown on 2026-11-10. Whether metadata filters (the `stamp` mode) fall under that add-on: **assumed yes**. Brian owns the spend (hard stop 3) |
+| Updating a subscriber's metadata keeps other keys | **assumed no** (we always write the whole object back), probe |
+| The provider adds an unsubscribe link to every email; open and click tracking can be turned off | **assumed**, verify in the account (precondition 3) |
+| Template variables in a body (`{{ ... }}`) are evaluated by the provider | **assumed yes**, which is why titles are neutralised |
+
+Consequence for the sign-up form: set `form_fields.lists` to `metadata__lists` (a multi-select metadata key) instead of
+`tags`. The sender reads lists from metadata, the form works without the tags add-on, and only `stamp` mode's filter
+may need it. Config only; the seam already takes any plain field name.
+Consequence for the copy: `page.about` says "at 7:00 AM"; with `ids` mode the mail leaves when the run ends (about
+4 AM). Change it to "by 7:00 AM", which is true in both modes.
+
+### Launch preconditions (before `morning_note.enabled` or `sender.enabled` is set to true)
+From `docs/reviews/security-review-morning-2b4796b.md`:
+1. Finding 1 (medium, blocks enabling): the "never sent anywhere" sentences in `method.html.j2:20` and
+   `index.html.j2:26,37` depend on `note.enabled`; Method gains a Morning note paragraph (what is sent, to whom, how
+   to unsubscribe, `privacy_url`); a test proves an enabled build has neither sentence; `seats.js` header updated.
+2. Finding 3: the form shows the seat values it will send, or a visible ticked "include my saved seats" box.
+3. Finding 2, at account setup, recorded in `docs/platform-facts.md`: double opt-in on for form sign-ups, open and
+   click tracking off, and `sent_line` extended ("...and, like any website, your IP address").
+4. Findings 4 and 5: source URLs checked with `build._is_https_uri` before they become links (the sender's renderer
+   does this too), `site_checks` fails on any other href scheme, `form_origin()` validates its own input. Commit
+   1d638db on `claude/sqv6p9-morning-sec` claims these; its security delta is pending and it is not on this branch.
+5. Item 6: one real form submit on the live origin, to see that the provider's redirect stays within the CSP
+   `form-action` origin (fix on the provider's side, never by widening the CSP).
+6. "Not checked: the sender job and API key": a fresh security review of T4 before the workflow job merges.
+Added by this design:
+7. T4.0 probe done on a test newsletter with team addresses only, and `sender.mode` set from it.
+8. A scoped API key (not the primary key): email and sending write, subscribers write for `stamp` or read for `ids`,
+   every other area none. Stored only as the `morning-note` environment secret.
+9. Sending domain DNS (SPF, DKIM) set by Brian; one canary week with `canary_only: true` before he widens it.
+
+### Threat points for the security review
+1. **The key.** Scope, storage in an environment limited to `main`, exposure to exactly one step, no pip install and
+   no third-party action beyond the pinned checkout and download in that job, no run on pull requests or manual runs.
+2. **Subscriber access.** `stamp` needs subscriber write: a bug could change or blank metadata for the whole list.
+   Check that the adapter can only PATCH `metadata`, writes the whole object back, never creates, deletes or changes
+   `type`, and that `max_recipients` and `canary_only` bound the damage. Weigh this against `ids` (read only).
+3. **Untrusted text in the body.** Record titles come from parsed PDFs. HTML, Markdown and provider template syntax
+   in a title; a hostile `source.url`; a very long title. The plan artifact crosses from the job that parses untrusted
+   PDFs to the job that holds the key: is its validation enough, and can anything in it steer the request (host,
+   path, headers, filter value)?
+4. **Wrong audience.** A filter that matches more people than intended (an empty or malformed filter means everyone);
+   a stale stamp; a signature parsed from hostile metadata (a subscriber can post any `metadata__district` through the
+   public form). Wrong type handling, so an unconfirmed address is mailed.
+5. **Double send and replay.** Re-run of a failed job, re-run of an old run on a later day, two runs in one morning,
+   a listing call that fails or is paged short, clock and timezone edges around 7:00 and the DST change.
+6. **Personal data in public logs.** Exception text and tracebacks that carry a response body, the HTTP library's
+   debug output, per-edition counts, subscriber ids in URLs, the failure issue's text.
+7. **Sending when we should not.** Backfill day, quiet day, a first run after a long outage, a note built from a
+   fixture, sender enabled while the form is off.
+8. **Sign-up abuse** (carried over from finding 2): someone else's address entered in the form; double opt-in is the
+   only control, so it must be confirmed on.
+9. **Neutrality.** Subject and connective text are config and scanned; the email must not add wording the site does
+   not carry, and must treat every body and seat the same way.
+
+### Risks
+- Three provider behaviours the design rests on are unverified (email filters on metadata, send-draft semantics, the
+  email list as a claim record). T4.0 exists to settle them before any delivery code is written; if both modes fail
+  the probe, come back to the architect, do not improvise a third.
+- GitHub's scheduler can start late. With `stamp` the email still leaves at 7:00; past `latest_send` the day is skipped.
+- The free tier ends at 100 subscribers (as shown today). Past that it costs money: Brian's call, not the sender's.
