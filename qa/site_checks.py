@@ -438,6 +438,10 @@ class Page(HTMLParser):
             self.resources.append((tag, a["src"]))
         if tag == "form" and a.get("action"):
             self.resources.append((tag, a["action"]))
+        if a.get("formaction"):
+            # a button's or input's formaction overrides its form's action, so it meets the same rule
+            # (morning-security/qa-formaction-gap); on any tag, since only this check would notice a stray one
+            self.resources.append(("formaction", a["formaction"]))
 
     def handle_data(self, d):
         if self._json_id is not None:
@@ -542,7 +546,7 @@ def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str
         # static assets referenced by <link>/<script>
         for tag, src in pg.resources:
             if bad_scheme(src):     # never skipped: a javascript: form action or a data: script is a failure
-                problems.append(f"{rel}: <{tag}> with scheme {src!r}")
+                problems.append(f"{rel}: {'formaction' if tag == 'formaction' else f'<{tag}>'} with scheme {src!r}")
                 continue
             if urlsplit(src).scheme or src.startswith("//"):
                 continue
@@ -1128,10 +1132,12 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
     note_action = mn.get("form_action") if mn.get("enabled") is True and isinstance(mn.get("form_action"), str) else None
     for rel, pg in pages.items():
         for tag, src in pg.resources:
-            if tag == "form" and note_action and rel == NOTE_PAGE and src == note_action and src.startswith("https://"):
+            if tag in ("form", "formaction") and note_action and rel == NOTE_PAGE and src == note_action \
+                    and src.startswith("https://"):
                 continue
             if urlsplit(src).scheme or src.startswith("//"):
-                problems.append(f"{rel}: third-party <{tag}> {src!r}")
+                what = "formaction on a button or input" if tag == "formaction" else f"<{tag}>"
+                problems.append(f"{rel}: third-party {what} {src!r}")
     if site is None:
         return problems
     want = (cfg or {}).get("geocoder_url") or None

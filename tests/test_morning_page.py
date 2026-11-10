@@ -315,7 +315,9 @@ def test_site_checks_fail_a_link_with_another_scheme(site, tmp_path, href):
 
 
 @pytest.mark.parametrize("tag", ['<form action="javascript:alert(1)"></form>', '<script src="data:text/javascript,x"></script>',
-                                 '<img src="javascript:x" alt="">', '<iframe src="data:text/html,x"></iframe>'])
+                                 '<img src="javascript:x" alt="">', '<iframe src="data:text/html,x"></iframe>',
+                                 '<form><button formaction="javascript:alert(1)">x</button></form>',
+                                 '<form><input type="submit" formaction="data:text/html,x"></form>'])
 def test_site_checks_fail_a_resource_with_another_scheme(site, tmp_path, tag):
     out, _ = site
     dst = tmp_path / "site"
@@ -776,3 +778,27 @@ def test_note_and_preview_in_a_browser(served):
         assert not x["foreign"], (w, x)                                         # nothing leaves the site
     assert out["nojs"] == [len(DAY["entries"]), "none", 360]
     assert out["nojsAlerts"] == [len(LISTS), 360]
+
+
+def test_site_checks_hold_formaction_to_the_forms_exact_action_rule(enabled_site):
+    # morning-security/qa-formaction-gap: a button's or input's formaction overrides the form's action
+    out, _, cfg = enabled_site
+    action = cfg["morning_note"]["form_action"]
+
+    def problems(rel, tag, conf=cfg):
+        pages = {rel: site_checks.parse(out / rel)}
+        extra = site_checks.Page()
+        extra.feed(tag)
+        pages[rel].resources += extra.resources
+        return [p for p in site_checks.check_external(pages, None, conf) if "formaction" in p]
+
+    for tag in ('<button formaction="https://evil.example/collect">x</button>',
+                '<input type="submit" formaction="//evil.example/collect">',
+                '<input type="image" formaction="https://forms.example.net/subscribe/other" alt="">',
+                f'<button formaction="{action}?x=1">x</button>'):
+        assert problems("alerts.html", tag), tag
+    exact = f'<button formaction="{action}">x</button>'
+    assert problems("alerts.html", exact) == []                     # the configured action itself, on the sign-up page
+    assert problems("index.html", exact)                       # only on that page
+    assert problems("alerts.html", exact, config.SITE)              # only while the note is enabled
+    assert problems("alerts.html", '<button formaction="alerts.html">x</button>') == []   # on the site, like a form action
