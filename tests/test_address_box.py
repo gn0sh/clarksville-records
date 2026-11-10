@@ -109,6 +109,7 @@ def test_landing_draws_no_map_and_names_the_lines_sources(real_map_site):
     for gone in ("<svg", "county-map", "layer-switch", "Map shows", "map.js", "addr-pin", "About this map",
                  'data-ward="'):
         assert gone not in html, gone
+    assert '<details class="district-list">' in html                     # collapsed beside the address box
     about = html[html.index('<details class="lookup-about">'):]
     about = about[:about.index("</details>")]
     assert "How the address lookup works" in about
