@@ -1,4 +1,4 @@
-# Daily update and GitHub Pages deploy for https://records.gnoshcodes.com/
+# Daily update and GitHub Pages deploy for https://daylight.gnoshcodes.com/
 #
 # update job : collect politely, rebuild, check, upload the refreshed data/ and the site as artifacts. It parses
 #              untrusted downloaded PDFs, so it has read-only repo access and no persisted token. It never publishes.
@@ -81,7 +81,7 @@ jobs:
         id: collect
         if: github.event_name == 'schedule' || inputs.collect
         env:
-          RECORDS_SITE_URL: https://records.gnoshcodes.com/
+          RECORDS_SITE_URL: https://daylight.gnoshcodes.com/
           RECORDS_BUILD_TARGET: pages
         run: |
           set +e
@@ -100,7 +100,7 @@ jobs:
       - name: Rebuild site from committed data
         if: github.event_name == 'workflow_dispatch' && !inputs.collect
         env:
-          RECORDS_SITE_URL: https://records.gnoshcodes.com/
+          RECORDS_SITE_URL: https://daylight.gnoshcodes.com/
           RECORDS_BUILD_TARGET: pages
         run: |
           python -m sitegen --facts data/facts.json --out build/site
@@ -108,7 +108,7 @@ jobs:
 
       - name: Site checks
         env:
-          RECORDS_SITE_URL: https://records.gnoshcodes.com/
+          RECORDS_SITE_URL: https://daylight.gnoshcodes.com/
           RECORDS_BUILD_TARGET: pages
         run: python -m qa.site_checks --site build/site --facts data/facts.json --store data/store --no-browser
 

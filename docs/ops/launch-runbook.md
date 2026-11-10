@@ -1,4 +1,4 @@
-# Launch runbook: records.gnoshcodes.com on GitHub Pages
+# Launch runbook: daylight.gnoshcodes.com on GitHub Pages
 
 Owner: devops-engineer. Go-live is the CEO's hard stop 1: nothing below marked **CEO** happens without his go-ahead.
 Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are free). Workflow:
@@ -18,7 +18,7 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
 - The downloaded PDFs (about 3 GB, not in git) live in the Actions cache (`records-store-v1-*`, 10 GB repo limit, evicted
   after 7 days unused; the daily run keeps it warm). A cold cache refetches about 930 documents at 10 s each: 3 to 5
   hours. The job limit is 355 minutes.
-- Build overrides set by the workflow: `RECORDS_SITE_URL=https://records.gnoshcodes.com/` (feeds carry absolute links;
+- Build overrides set by the workflow: `RECORDS_SITE_URL=https://daylight.gnoshcodes.com/` (feeds carry absolute links;
   `alerts.site_url` in `config/site.yml` stays empty, so no config edit is needed at launch) and `RECORDS_BUILD_TARGET=pages` (3000-file cap)
   (the 500-file cap is the claude.ai preview limit; Pages has none).
 
@@ -44,10 +44,10 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
 1. Pages source. Open https://github.com/gn0sh/clarksville-records/settings/pages > Build and deployment > Source:
    **GitHub Actions** (replaces the gh-pages branch preview). Expected: the page shows "Your site is ready to be published".
 2. Custom domain, then DNS, back to back (never leave the CNAME pointing at Pages with no custom domain set):
-   a. On the same Pages settings page, Custom domain: `records.gnoshcodes.com` > Save.
-   b. Straight away, at Porkbun (DNS page above) add one record only:
-      Type **CNAME**, Host **records**, Answer **gn0sh.github.io**, TTL 600. Leave every existing MX and TXT record alone.
-      Check: `dig +short records.gnoshcodes.com CNAME` prints `gn0sh.github.io.` (a few minutes).
+   a. On the same Pages settings page, Custom domain: `daylight.gnoshcodes.com` > Save.
+   b. Straight away, at Porkbun > gnoshcodes.com > DNS > add one record only:
+      Type **CNAME**, Host **daylight**, Answer **gn0sh.github.io**, TTL 600. Leave every existing MX and TXT record alone.
+      Check: `dig +short daylight.gnoshcodes.com CNAME` prints `gn0sh.github.io.` (a few minutes).
 3. Wait for the green "DNS check successful" on the Pages settings page (up to 15 minutes), then tick **Enforce HTTPS**
    (certificate issues within about an hour).
 4. Enable the deploy lock: https://github.com/gn0sh/clarksville-records/settings/variables/actions > New repository
@@ -55,14 +55,14 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
    --repo gn0sh/clarksville-records`.)
 5. Deploy now instead of waiting for 09:07 UTC: Actions > Daily update > Run workflow > main. With a warm cache it takes
    minutes. Collect = false rebuilds and deploys from the committed data with no fetching.
-6. Look: https://records.gnoshcodes.com/ loads over HTTPS, footer shows the operator, alerts.html feeds link to
-   `https://records.gnoshcodes.com/...`. Then do the uptime step below.
+6. Look: https://daylight.gnoshcodes.com/ loads over HTTPS, footer shows the operator, alerts.html feeds link to
+   `https://daylight.gnoshcodes.com/...`. Then do the uptime step below.
 
 ## Add to the uptime monitor (after the first deploy is live; devops, separate PR in gn0sh/gnosh-uptime)
 Described diff for `monitor.config.json`, add one entry to `targets` (not applied; that repo is not touched here):
 ```diff
      { "name": "gnoshcodes.com", "url": "https://gnoshcodes.com/" }
-+    ,{ "name": "Clarksville Records", "url": "https://records.gnoshcodes.com/" }
++    ,{ "name": "Clarksville Records", "url": "https://daylight.gnoshcodes.com/" }
    ]
 ```
 (JSON needs the comma after the previous last entry; put it there rather than on a new line.)
