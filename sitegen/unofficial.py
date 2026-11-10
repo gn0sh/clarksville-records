@@ -38,5 +38,9 @@ def export_readme(cfg: dict | None = None) -> str:
     """data/README.txt, written beside the export's files."""
     t = load(cfg)
     links = "\n".join(f"  {b['label']}: {b['url']}" for b in t["bodies"])
-    return (f"{t['notice']}\n\n{t['differ']} {t['not_advice']}\n\nThe official sites:\n{links}\n\n"
-            "These files carry the facts the pages show, each with the source document it came from.\n")
+    base = str(((config.SITE if cfg is None else cfg).get("alerts") or {}).get("site_url") or "").strip()
+    report = f"{base.rstrip('/')}/report.html" if base else "the Report an error page (report.html) on the site"
+    return (f"{t['tag']}.\n\n{t['notice']}\n\n{t['differ']} {t['not_advice']}\n\n"
+            f"{t['correction_label']}: {report}\n\nThe official sites:\n{links}\n\n"
+            "These files carry the facts the pages show, each with the source document it came from. This notice "
+            "applies to every file in this folder, including a file copied away from it.\n")

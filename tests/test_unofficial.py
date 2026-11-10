@@ -96,8 +96,36 @@ def test_check_fails_when_a_page_feed_or_note_lacks_the_notice(built, tmp_path, 
     assert any("morning/latest.json" in x for x in site_checks.check_unofficial(site, {})[0])
 
 
-@pytest.mark.parametrize("key", ["tag", "notice"])
-def test_check_needs_the_config_block(built, key):
+def test_check_needs_the_config_block(built):
     cfg = copy.deepcopy(config.SITE)
     del cfg["unofficial"]
     assert site_checks.check_unofficial(built, {}, cfg)[0] == ["config/site.yml has no unofficial: block"]
+
+
+def test_export_readme_names_the_correction_route_and_every_official_site():
+    cfg = copy.deepcopy(config.SITE)
+    cfg.setdefault("alerts", {})["site_url"] = "https://daylight.example/"
+    text = unofficial.export_readme(cfg)
+    assert text.startswith("Independent, unofficial.\n\n" + NOTICE)
+    assert "How to report a correction: https://daylight.example/report.html" in text
+    assert all(b["url"] in text for b in cfg["unofficial"]["bodies"])
+    cfg["alerts"]["site_url"] = ""
+    assert "How to report a correction: the Report an error page (report.html)" in unofficial.export_readme(cfg)
+
+
+def test_who_runs_this_data_and_morning_preview_name_it(pages):
+    who = " ".join(re.sub(r"<[^>]+>", " ", pages["who-runs-this.html"]).split())
+    assert ("not run by, paid by or approved by " + ", ".join(b["name"] for b in config.SITE["unofficial"]["bodies"])
+            + ", or any official") in who
+    assert 'href="about.html#unofficial"' in pages["who-runs-this.html"]
+    assert NOTICE in pages["data.html"] and 'href="data/README.txt"' in pages["data.html"]
+
+
+def test_morning_preview_and_sign_up_carry_the_email_line(tmp_path, monkeypatch):
+    from test_morning_page import _build   # a fixture build with the morning note's preview page
+    pages = _build(tmp_path / "site", monkeypatch)
+    line = config.SITE["unofficial"]["email_line"]
+    assert "morning/index.html" in pages
+    for rel in ("morning/index.html", "alerts.html"):
+        assert f'<p class="small mn-unofficial">{line}</p>' in pages[rel], rel
+    assert site_checks.check_unofficial(tmp_path / "site", pages)[0] == []

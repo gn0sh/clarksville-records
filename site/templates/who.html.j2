@@ -3,7 +3,7 @@
 <h1>Who runs this</h1>
 <section aria-labelledby="operator-h">
   <h2 id="operator-h">The operator</h2>
-  <p>This site is run by <a data-ext="operator" href="{{ site.operator_url }}" rel="noopener noreferrer">{{ site.operator }}</a>, a small software company. It is independent. It is not an official government site, and it is not run by, paid by or approved by the county, the city or any official, candidate, party or campaign.</p>
+  <p>This site is run by <a data-ext="operator" href="{{ site.operator_url }}" rel="noopener noreferrer">{{ site.operator }}</a>, a small software company. It is independent. It is not an official government site, and it is not run by, paid by or approved by {% for b in site.unofficial.bodies %}{{ b.name }}, {% endfor %}or any official, candidate, party or campaign. <a href="{{ root }}about.html#unofficial">More on what that means</a>.</p>
   <p>Every record page is an unofficial copy of public records and links the official record. <a href="{{ root }}our-rules.html">Our rules</a> say how coverage is decided and what no one can buy. <a href="{{ root }}method.html">Method</a> says how the records are collected and checked.</p>
 </section>
 <section aria-labelledby="funding-h">
