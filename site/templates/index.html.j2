@@ -1,6 +1,7 @@
 {% extends "base.html.j2" %}
 {% from "_unofficial.html.j2" import home_line %}
-{% block head %}<script src="{{ root }}static/js-flag.js"></script>{% endblock %}
+{% from "_feed_links.html.j2" import feed_links %}
+{% block head %}<script src="{{ root }}static/js-flag.js"></script>{{ feed_links(home_feeds | default([]), root) }}{% endblock %}
 {% block sky_sun %}<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>{% endblock %}
 {% block sky %}
 <div class="sky-hero" id="sky-hero" data-tz="{{ site.cfg.site_timezone }}" hidden>

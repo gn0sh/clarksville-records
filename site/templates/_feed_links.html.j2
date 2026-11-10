@@ -1,0 +1,5 @@
+{# Feed autodiscovery (feeds/autodiscovery-on-index, plan F6): a reader given a home page finds its feeds.
+   `feeds`: sitegen/feeds.py feed_list rows. #}
+{% macro feed_links(feeds, root) %}{% for f in feeds %}
+<link rel="alternate" type="application/atom+xml" title="{{ f.title }}" href="{{ root }}{{ f.file }}">
+{%- endfor %}{% endmacro %}
