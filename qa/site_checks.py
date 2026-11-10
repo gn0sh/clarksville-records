@@ -1062,9 +1062,13 @@ ATOM = "{http://www.w3.org/2005/Atom}"
 RFC3339 = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})")
 
 
+PER_BODY_FEEDS = ("feeds/topic-rezoning.xml",)   # sitegen/feeds.py: capped at max_entries per body, not per feed
+
+
 def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: dict) -> tuple[list[str], str]:
     """Alerts v1 (sitegen/feeds.py): each feeds/*.xml is valid Atom (RFC 4287 required elements), its entry ids are
-    unique tag: URIs, newest first, capped; its links go to a built page (and #anchor) or a fetched source document."""
+    unique tag: URIs, newest first, capped (PER_BODY_FEEDS: per body, the entry id's first part); its links go to a
+    built page (and #anchor) or a fetched source document (`sources`: every facts file's, finance's included)."""
     import xml.etree.ElementTree as ET
     problems: list[str] = []
     feeds = sorted((site / "feeds").glob("*.xml")) if (site / "feeds").is_dir() else []
@@ -1100,7 +1104,14 @@ def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: di
             problems.append(f"{rel}: no feed author and an entry without one")
         if not any(link.get("rel") == "self" for link in root.findall(ATOM + "link")):
             problems.append(f"{rel}: no rel=self link")
-        if cap and len(entries) > cap:
+        if cap and rel in PER_BODY_FEEDS:
+            per: dict[str, int] = {}
+            for e in entries:
+                body = text(e, "id").removeprefix(alerts.get("feed_id") or "").split("/")[0]
+                per[body] = per.get(body, 0) + 1
+            problems += [f"{rel}: {n} {body} entries, more than alerts.max_entries {cap} per body"
+                         for body, n in sorted(per.items()) if n > cap]
+        elif cap and len(entries) > cap:
             problems.append(f"{rel}: {len(entries)} entries, more than alerts.max_entries {cap}")
         ids, dates = set(), []
         for e in entries:
@@ -1442,7 +1453,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("name-links", problems, note)
     rep.add("footer", check_footer(pages, operator), f"'Provided as a free service by {operator}.' on {len(pages)} pages")
     rep.add("external", check_external(pages, site, cfg))
-    problems, note = check_feeds(site, pages, all_sources["sources"], cfg)
+    # the contracts feed links each solicitation's first document, a finance.json source
+    problems, note = check_feeds(site, pages, all_sources["sources"] + list((finance or {}).get("sources") or []), cfg)
     rep.add("feeds", problems, note)
     problems, note = check_transcripts(site, cs)
     rep.add("transcripts", problems, note)

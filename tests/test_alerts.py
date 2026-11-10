@@ -232,6 +232,41 @@ def test_site_checks_catch_a_duplicate_id_and_an_unlinked_feed(site):
     assert any("does not link feeds/extra.xml" in p for p in problems)
 
 
+def test_site_checks_cap_the_rezoning_feed_per_body(site, monkeypatch):
+    # feeds/rezoning-keeps-every-body: topic-rezoning.xml holds max_entries of each body, so the check counts per body
+    f = site / "feeds" / "topic-rezoning.xml"
+    root = parsed(f)
+    es = root.findall(A + "entry")
+    assert len(es) >= 2
+    pre = config.SITE["alerts"]["feed_id"]
+    for n, e in enumerate(es):          # one RPC entry beside each county entry, same date: still newest first
+        twin = copy.deepcopy(e)
+        twin.find(A + "id").text = f"{pre}rpc/item/case-{n}/rpc-meeting"
+        root.insert(list(root).index(e) + 1, twin)
+    ET.ElementTree(root).write(f, encoding="utf-8", xml_declaration=True)
+    cfg = copy.deepcopy(config.SITE)
+    cfg["alerts"]["max_entries"] = len(es)          # the feed holds 2x the cap, each body exactly the cap
+    monkeypatch.setattr(config, "SITE", cfg)
+    pages = {p.relative_to(site).as_posix(): site_checks.parse(p) for p in site.rglob("*.html")}
+    check = lambda: [p for p in site_checks.check_feeds(site, pages, FACTS["sources"], cfg)[0] if "rezoning" in p]  # noqa: E731
+    assert check() == []
+    cfg["alerts"]["max_entries"] = len(es) - 1
+    assert sorted(check()) == sorted(f"feeds/topic-rezoning.xml: {len(es)} {b} entries, more than alerts.max_entries "
+                                     f"{len(es) - 1} per body" for b in ("county", "rpc"))
+
+
+def test_site_checks_know_the_finance_sources_the_contracts_feed_links(site, monkeypatch):
+    seen = {}
+
+    def spy(site_dir, pages, sources, cfg):
+        seen["urls"] = {s["url"] for s in sources}
+        return [], "spy"
+    monkeypatch.setattr(site_checks, "check_feeds", spy)
+    fin = {"sources": [{"url": "https://example.invalid/fin/rfp-1.pdf"}], "documents": [], "solicitations": []}
+    site_checks.run_checks(site, FACTS, browser=False, no_export=True, finance=fin)
+    assert "https://example.invalid/fin/rfp-1.pdf" in seen["urls"] and FACTS["sources"][0]["url"] in seen["urls"]
+
+
 def test_illegal_xml_characters_are_stripped_and_whitespace_collapsed():
     """PDF text carries NUL, form feed and U+FFFE: none is legal in XML 1.0, so the feed must still parse."""
     nasty = "Zoning\x00 of  the\x0c lot\ufffe\n at  5\ufffa"
