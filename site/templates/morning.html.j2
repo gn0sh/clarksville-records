@@ -15,7 +15,7 @@
   <ol class="mn-entries">
     {% for e in entries %}
     <li class="mn-entry" data-lists="{{ e.lists_attr }}" data-body="{{ e.body }}"{% if e.seat_body %} data-seat-body="{{ e.seat_body }}"{% endif %}{% if e.district is not none %} data-district="{{ e.district }}"{% endif %}{% if e.ward is not none %} data-ward="{{ e.ward }}"{% endif %}>
-      <p class="mn-meta"><span class="chip chip-kind">{{ e.recorded }}</span> {{ e.body_name }}{% if e.meeting_date %}, <span class="nowrap">{{ e.meeting_date }}</span>{% endif %}{% if e.district is not none %} <span class="nowrap">{{ text.district_label }} {{ e.district }}</span>{% endif %}{% if e.ward is not none %} <span class="nowrap">{{ text.ward_label }} {{ e.ward }}</span>{% endif %}</p>
+      <p class="mn-meta"><span class="chip chip-kind">{{ e.recorded }}</span> {{ e.body_name }}{% if e.meeting_date %}, <span class="nowrap">{{ e.meeting_date }}</span>{% endif %}{% if e.vote_on %}, <span class="nowrap mn-vote-on">{{ text.vote_on_label }}: {{ e.vote_on }}</span>{% endif %}{% if e.district is not none %} <span class="nowrap">{{ text.district_label }} {{ e.district }}</span>{% endif %}{% if e.ward is not none %} <span class="nowrap">{{ text.ward_label }} {{ e.ward }}</span>{% endif %}</p>
       <p class="mn-title">{% if e.href %}<a href="{{ root }}{{ e.href }}">{{ e.title }}</a>{% else %}{{ e.title }}{% endif %}</p>
       {% if e.source.url %}<p class="mn-src"><a href="{{ e.source.url }}" target="_blank" rel="noopener noreferrer">{{ text.source_label }}{% if e.source.page %}, {{ text.page_label }} {{ e.source.page }}{% endif %}<span class="sr-only"> (opens in a new tab)</span></a></p>{% endif %}
     </li>

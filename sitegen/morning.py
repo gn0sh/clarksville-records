@@ -49,7 +49,8 @@ PAGE_KEYS = {"heading": (), "about": (), "legend": (), "state_off": (), "feeds_h
              "seats_include": (), "seats_sent": ("{provider}",), "method_heading": (),
              "method_sent": ("{provider}",), "method_unsubscribe": (), "method_signup_link": (),
              "preview_lede": ("{date}", "{from}", "{to}"), "preview_mine": (), "quiet": (), "backfill": (),
-             "unplaced_link": (), "source_label": (), "page_label": (), "district_label": (), "ward_label": ()}
+             "unplaced_link": (), "source_label": (), "page_label": (), "district_label": (), "ward_label": (),
+             "vote_on_label": ()}
 FORM_FIELD_KEYS = ("email", "lists", "district", "ward")
 _HTTPS = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[^\s\"'<>`\\]*)?")
 
@@ -306,13 +307,17 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
                 case = zoning.county_case(it.get("number")) if (zoning and it) else None
                 title = _number_title(it.get("number"), ix.item_title(it)) if it else ix.meeting_label(m)
                 tally = fact.get("stated_tally") if confirmed else None
+                # what the roll call voted on, as its own outcome clause states it ("Amendment", "Resolution, as
+                # amended": views.outcome_kind_label, the site's "Vote on" rule), so two votes on one item read apart
+                # (morning-digest/vote-entries-indistinct). Confirmed roll calls only, like the outcome; no name.
+                vote_on = views.outcome_kind_label(fact.get("outcome_text")) if confirmed else None
                 entries.append(_entry(
                     id=f"{body}/vote/{fact['id']}", kind="vote", body=body, body_name=body_name,
                     meeting_date=m["date"], title=title,
                     lists=["seats"] + (["budget"] if it and "budget" in views.item_types(it) else [])
                     + (["zoning"] if case else []),
                     recorded=txt["vote"] if confirmed else txt["vote_unconfirmed"], seat_body=seat_body,
-                    confirmed=confirmed,
+                    confirmed=confirmed, vote_on=vote_on,
                     outcome=config.OUTCOME_LABELS[fact["outcome"]] if confirmed else None,
                     tally=(f"{tally['yes']}-{tally['no']}" + (f"-{tally['abstain']}" if tally.get("abstain") else "")
                            if tally else None),
@@ -491,9 +496,22 @@ def resolve(docs: list[dict], first: dict[str, datetime]) -> None:
 
 
 # ---------------------------------------------------------------------------------------------- the day, select
+def as_of(d: date, fetch_dates) -> str:
+    """A note's `data_as_of`: the newest fetch date on or before the note's day `d`, "" when there is none
+    (morning-digest/data-as-of). `fetch_dates` is every source's fetch date (YYYY-MM-DD, longer stamps are cut) from
+    every data file the note reads, so each day's note states its own date, not the build's. A plain string is one
+    date for every day, as given."""
+    if isinstance(fetch_dates, str):
+        return fetch_dates
+    dates = [x[:10] for x in fetch_dates or () if isinstance(x, str) and x[:10] <= d.isoformat()
+             and re.fullmatch(r"\d{4}-\d\d-\d\d", x[:10])]
+    return max(dates, default="")
+
+
 def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None = None,
-        data_as_of: str = "", bulk: frozenset[str] = frozenset()) -> dict:
+        data_as_of="", bulk: frozenset[str] = frozenset()) -> dict:
     """The note for day `d` (the output contract): every entry of every document first fetched in d's window.
+    `data_as_of`: every source's fetch date (as_of picks the day's), or one string for every day.
     Backfill guard: a day holding any document from a collector's initial run (`bulk`, bulk_urls) or more than
     morning_note.backfill.max_entries entries is a backfill day: `"backfill": true` and `entries: []` (nothing to
     send), its counts kept in `counts`."""
@@ -520,7 +538,7 @@ def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None 
     if backfill:
         entries, unplaced = [], 0
     return {"schema": SCHEMA, "date": d.isoformat(),
-            "window": {"from": _stamp(start), "to": _stamp(end)}, "data_as_of": data_as_of,
+            "window": {"from": _stamp(start), "to": _stamp(end)}, "data_as_of": as_of(d, data_as_of),
             "lists": [{"key": x["key"], "label": x["label"]} for x in mn["lists"]],
             "backfill": backfill, "counts": counts,
             "entries": entries, "unplaced_zoning": unplaced,
@@ -542,6 +560,7 @@ def own_text(note: dict) -> list[str]:
     out = [x["label"] for x in note["lists"]] + ([note["unplaced_text"]] if note["unplaced_text"] else [])
     for e in note["entries"]:
         out += [e["recorded"], e["body_name"]] + ([e["title"]] if e.get("title_ours") else [])
+        out += [e["vote_on"]] if e.get("vote_on") else []       # a fixed config label, never the record's text
     return out
 
 
@@ -565,7 +584,7 @@ def select(note: dict, lists, seats: dict | None = None) -> list[dict]:
 
 # ---------------------------------------------------------------------------------------------- files
 def write(out: Path, today: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None = None,
-          data_as_of: str = "", bulk: frozenset[str] = frozenset()) -> dict:
+          data_as_of="", bulk: frozenset[str] = frozenset()) -> dict:
     """morning/YYYY-MM-DD.json for the last keep_days days and morning/latest.json; returns today's note. Written
     on the pages target only (build.py): the preview may leave sections out (docs/status.md, 2026-11-09)."""
     cfg = config.SITE if cfg is None else cfg

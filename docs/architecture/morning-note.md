@@ -70,6 +70,13 @@ T1 additions (additive; T3 and the sender may rely on them):
 - a `vote` entry also carries `confirmed` (bool), `outcome` and `tally` (both `null` unless confirmed; RPC: the minutes'
   own outcome text and tally; county/council: the Passed/Failed label and the printed tally "yes-no[-abstain]");
   no entry carries any person's name (no mover, seconder, nays or per-official votes);
+- a county/council `vote` entry also carries `vote_on` (additive, 2026-11-10): what the roll call voted on
+  ("Amendment", "Resolution, as amended"), the site's fixed "Vote on" label for the roll call's own outcome clause
+  (`views.outcome_kind_label`, about.html#vote-on); `null` unless confirmed and a pattern matches, and absent on RPC
+  votes. Two votes on one item share title, date and `recorded`; `vote_on` and `source.page` tell them apart. The
+  preview prints it after `morning_note.page.vote_on_label`;
+- `data_as_of` is per note: the newest source fetch date on or before the note's `date`, over every file the note
+  reads (county minutes, councils, RPC, county agendas, finance); `""` when there is none;
 - the note carries `unplaced_text` (config text with N filled in, `""` when 0); all connective text is
   `morning_note.text` in config;
 - an agenda or minutes with no item or motion read gives one `document` entry ("Agenda posted"/"Minutes posted"),

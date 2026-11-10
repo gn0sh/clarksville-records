@@ -698,10 +698,13 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
             first = morning_mod.first_fetched(morning_manifests)
             bulk = morning_mod.bulk_urls(morning_manifests, morning_mod.settings()["backfill"]["initial_run_hours"])
             docs = morning_mod.documents(ix, cixs, rpx, ax, fx, bg, first)
-            as_of = max([x for x in [ix.data_as_of(), *(c.data_as_of() for c in cixs)] if x != "unknown"]
-                        + [s["fetched_at"] for s in (rpx.facts["sources"] if rpx else []) if s.get("fetched_at")],
-                        default="")
-            morning_note = morning_mod.write(out, built_day, docs, first, data_as_of=as_of, bulk=bulk)
+            # every source's fetch date in every file the note reads (minutes, councils, RPC, county agendas,
+            # finance); each day's note takes the newest one on or before its day (morning-digest/data-as-of)
+            fetch_dates = [s.get("fetched_at") for src in (
+                ix.facts["sources"], *(c.facts["sources"] for c in cixs), rpx.facts["sources"] if rpx else [],
+                ax.sources.values() if ax else [], fx.fin["sources"] if fx else []) for s in src]
+            morning_note = morning_mod.write(out, built_day, docs, first,
+                                             data_as_of=[x for x in fetch_dates if x], bulk=bulk)
         except morning_mod.MorningError as exc:
             raise BuildError(str(exc)) from exc
     if site["alerts"]:

@@ -130,6 +130,7 @@ morning_note:
     page_label: page
     district_label: District
     ward_label: Ward
+    vote_on_label: Vote on      # before what a confirmed roll call voted on ("Vote on: Amendment"; about.html#vote-on)
 
 county_name: Montgomery County
 county_body: Montgomery County Commission
