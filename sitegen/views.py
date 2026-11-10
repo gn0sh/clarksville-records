@@ -291,6 +291,7 @@ NAV = (  # design 2.2: fixed order, the same on every page. (label, href, page_n
     ("Capital projects", "capital-projects.html", "Capital projects", True),
     ("Data downloads", "data.html", "Data downloads", False),
     ("Alerts", "alerts.html", "Alerts", False),  # only when config/site.yml has `alerts:` (sitegen/feeds.py)
+    ("Morning note", "alerts.html#note", "Morning note", False),  # with Alerts and `morning_note:` (morning_page.py)
     ("Who runs this", "who-runs-this.html", "Who runs this", False),
     ("Our rules", "our-rules.html", "Our rules", False),
     ("Corrections", "corrections.html", "Corrections", False),
@@ -319,6 +320,8 @@ def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), 
         if label == "Bids and awards" and not contracts:
             continue
         if label == "Alerts" and not alerts_on():
+            continue
+        if label == "Morning note" and not (alerts_on() and config.SITE.get("morning_note")):
             continue
         if label in budget:
             href, coming = BUDGET_NAV[label], False
@@ -1221,11 +1224,15 @@ CSP_BASE = ("default-src 'self'", "style-src 'self' 'unsafe-inline'", "style-src
             "img-src 'self' data:", "object-src 'none'", "base-uri 'none'", "form-action 'self'", "frame-src 'self'")
 
 
-def csp(address: dict | None = None) -> str:
+def csp(address: dict | None = None, form_origin: str | None = None) -> str:
+    """`form_origin`: the one https origin form-action gains on the Alerts page when the morning note is enabled
+    (sitegen/morning_page.py); never set while it is off, so the policy is unchanged."""
     scripts = ["'self'"]
     if address:
         scripts += [f"'{script_hash(address['frame'])}'", address["geocoder"]]
-    return "; ".join([CSP_BASE[0], "script-src " + " ".join(scripts), *CSP_BASE[1:]])
+    rest = [f"form-action 'self' {form_origin}" if form_origin and d == "form-action 'self'" else d
+            for d in CSP_BASE[1:]]
+    return "; ".join([CSP_BASE[0], "script-src " + " ".join(scripts), *rest])
 
 
 def landing(facts, districts: dict | None, georef: dict | None = None, geocoder: bool = True,

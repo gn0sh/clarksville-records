@@ -15,6 +15,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from . import county_agendas as agendas_mod
 from . import rpc as rpc_mod
+from . import morning_page
 from . import budget_views, config, council as council_mod, days as days_mod, feeds as feeds_mod, fin_views, \
     georef as georef_mod, morning as morning_mod, \
     transcripts as transcripts_mod, \
@@ -326,7 +327,7 @@ REPORT_TEMPLATES = frozenset({
     "official_roster.html.j2", "district.html.j2", "council_home.html.j2", "council_meetings_year.html.j2",
     "council_items_year.html.j2", "fin_index.html.j2", "fin_fund.html.j2", "fin_capital.html.j2",
     "fin_contracts_index.html.j2", "fin_solicitation.html.j2", "transcript.html.j2", "rpc_home.html.j2",
-    "rpc_meetings_year.html.j2", "today.html.j2", "county_agendas.html.j2"})
+    "rpc_meetings_year.html.j2", "today.html.j2", "county_agendas.html.j2", "morning.html.j2"})
 
 
 def corrections_problems(cfg: dict) -> list[str]:
@@ -678,9 +679,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     render("method.html.j2", "method.html", "Method", **trust)
     render("changes.html.j2", "changes.html", "Changes", **views.changes(read_changes(changes_path)))
     render("report.html.j2", "report.html", "Report an error", **views.report_page())
+    feed_rows = feeds_mod.feed_list(cixs, rpc=rpx, fin=fin_data, target=target) if site["alerts"] else []
     if site["alerts"]:   # Alerts v1 (sitegen/feeds.py): written last, when every item and meeting link knows its part
-        render("alerts.html.j2", feeds_mod.PAGE, "Alerts", **feeds_mod.alerts_page(cixs))
-        for rel, body in feeds_mod.build_feeds(ix, cixs).items():
+        for rel, body in feeds_mod.build_feeds(ix, cixs, rpc=rpx, fin=fin_data, target=target).items():
             (out / rel).parent.mkdir(parents=True, exist_ok=True)
             (out / rel).write_bytes(body)
     if morning_manifests is DEFAULT:
@@ -689,8 +690,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     morning_note = None
     if morning_manifests is not None and morning_mod.settings() is not None and target != "preview":
         # The morning note (Daylight M3, sitegen/morning.py): after every page, so each entry's link knows its part.
-        # T3 renders morning/index.html from `morning_note` (today's note). Pages target only: the claude.ai preview
-        # may leave sections out (docs/status.md Decisions, 2026-11-09) and is at its file cap.
+        # Pages target only: the claude.ai preview may leave sections out (docs/status.md Decisions, 2026-11-09) and
+        # is at its file cap.
         try:
             first = morning_mod.first_fetched(morning_manifests)
             bulk = morning_mod.bulk_urls(morning_manifests, morning_mod.settings()["backfill"]["initial_run_hours"])
@@ -701,6 +702,17 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
             morning_note = morning_mod.write(out, built_day, docs, first, data_as_of=as_of, bulk=bulk)
         except morning_mod.MorningError as exc:
             raise BuildError(str(exc)) from exc
+    if site["alerts"]:
+        # The Alerts page and its #note section (M3 T3), after the note: the preview link is there only when the
+        # preview page (morning/index.html, today's note from write()) is built.
+        has_preview = morning_note is not None and morning_page.on()
+        alerts_ctx = feeds_mod.alerts_page(cixs, rpc=rpx, fin=fin_data, target=target)
+        alerts_ctx.setdefault("seat_feeds", [f for f in feed_rows if f.get("kind") == "zoning-seat"])
+        alerts_ctx.update(morning_page.alerts_context(feed_rows))
+        render("alerts.html.j2", feeds_mod.PAGE, "Alerts", **alerts_ctx)
+        if has_preview:
+            render("morning.html.j2", morning_page.PAGE, morning_page.title(),
+                   **morning_page.preview(morning_note, feed_rows))
     if internal:
         render("review.html.j2", "review.html", "Review (internal)",
                **views.review(ix, read_report(report_path)))
