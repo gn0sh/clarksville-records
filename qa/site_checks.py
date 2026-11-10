@@ -78,6 +78,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from qa.common import OPERATOR, ROOT, find_pdf, load_facts, pdf_page_count  # noqa: E402
+from sitegen.feeds import PER_BODY_FEEDS  # noqa: E402  the one list of feeds capped per body, shared with the build
 
 # Per build target (sitegen.config.MAX_FILES_BY_TARGET says the same): preview 500, under the artifact limit of 511
 # files per version; pages 3000 (GitHub Pages has no such limit). MAX_FILES is the preview's.
@@ -496,6 +497,17 @@ def resolve(page_rel: str, href: str) -> str | None:
 
 # ---------------------------------------------------------------- the checks
 
+LINK_SCHEMES = ("http", "https")
+
+
+def bad_scheme(href: str) -> bool:
+    """A link or resource address with a scheme other than http(s): `javascript:`, `data:`, `vbscript:`, `file:`,
+    `mailto:`, `tel:` and the rest (morning-security/href-scheme-defense). A relative address has none. The site's
+    one legitimate exception, report.html's mailto from config `corrections:`, is allowed by check_links alone.
+    Browsers drop tabs, newlines and leading control characters before reading the scheme; so does this."""
+    cleaned = re.sub(r"[\t\n\r]", "", href).lstrip("".join(map(chr, range(0x21))))
+    return bool(re.match(r"[A-Za-z][A-Za-z0-9+.-]*:", cleaned)) and urlsplit(cleaned).scheme not in LINK_SCHEMES
+
 def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str]:
     problems = []
     mailto = corrections_links(_site_cfg())[1]   # the one mailto allowed: report.html's, from config `corrections:`
@@ -506,7 +518,7 @@ def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str
                 continue
             if mailto and rel == "report.html" and href == mailto:
                 continue
-            if u.scheme or href.startswith("//"):
+            if u.scheme or href.startswith("//") or bad_scheme(href):
                 problems.append(f"{rel}: href with scheme {href!r}")
                 continue
             target = resolve(rel, href)
@@ -525,6 +537,9 @@ def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str
                     problems.append(f"{rel}: {href!r} -> no #{u.fragment} on {target}")
         # static assets referenced by <link>/<script>
         for tag, src in pg.resources:
+            if bad_scheme(src):     # never skipped: a javascript: form action or a data: script is a failure
+                problems.append(f"{rel}: <{tag}> with scheme {src!r}")
+                continue
             if urlsplit(src).scheme or src.startswith("//"):
                 continue
             target = resolve(rel, src)
@@ -1158,13 +1173,15 @@ ATOM = "{http://www.w3.org/2005/Atom}"
 RFC3339 = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})")
 
 
-PER_BODY_FEEDS = ("feeds/topic-rezoning.xml",)   # sitegen/feeds.py: capped at max_entries per body, not per feed
+CONTRACTS_FEED = "feeds/topic-contracts.xml"   # sitegen/feeds.py: the one feed whose entries link finance.json documents
 
 
-def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: dict) -> tuple[list[str], str]:
+def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: dict,
+                finance_sources: list[dict] | tuple = ()) -> tuple[list[str], str]:
     """Alerts v1 (sitegen/feeds.py): each feeds/*.xml is valid Atom (RFC 4287 required elements), its entry ids are
-    unique tag: URIs, newest first, capped (PER_BODY_FEEDS: per body, the entry id's first part); its links go to a
-    built page (and #anchor) or a fetched source document (`sources`: every facts file's, finance's included)."""
+    unique tag: URIs, newest first, capped (sitegen.feeds.PER_BODY_FEEDS: per body, the entry id's first part); its
+    links go to a built page (and #anchor) or a fetched source document (`sources`: every facts file's;
+    `finance_sources`: finance.json's, known to CONTRACTS_FEED only). No link carries a scheme other than http(s)."""
     import xml.etree.ElementTree as ET
     problems: list[str] = []
     feeds = sorted((site / "feeds").glob("*.xml")) if (site / "feeds").is_dir() else []
@@ -1172,10 +1189,12 @@ def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: di
     if not feeds:
         return (["config/site.yml has alerts: but the build has no feeds/*.xml"] if alerts.get("feed_id") else []), "no feeds"
     cap = alerts.get("max_entries") or 0
-    known = {s["url"] for s in sources}
+    records = {s["url"] for s in sources}
+    with_finance = records | {s["url"] for s in finance_sources}
     entries_n = 0
     for f in feeds:
         rel = f.relative_to(site).as_posix()
+        known = with_finance if rel == CONTRACTS_FEED else records
         try:
             root = ET.parse(f).getroot()
         except ET.ParseError as exc:
@@ -1196,6 +1215,8 @@ def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: di
             problems.append(f"{rel}: feed updated {text(root, 'updated')!r} is not an RFC 3339 date-time")
         entries = root.findall(ATOM + "entry")
         entries_n += len(entries)
+        problems += [f"{rel}: link with scheme {x.get('href')!r}" for x in root.iter(ATOM + "link")
+                     if bad_scheme(x.get("href") or "")]
         if root.find(f"{ATOM}author/{ATOM}name") is None and any(e.find(ATOM + "author") is None for e in entries):
             problems.append(f"{rel}: no feed author and an entry without one")
         if not any(link.get("rel") == "self" for link in root.findall(ATOM + "link")):
@@ -1552,7 +1573,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("footer", check_footer(pages, operator), f"'Provided as a free service by {operator}.' on {len(pages)} pages")
     rep.add("external", check_external(pages, site, cfg))
     # the contracts feed links each solicitation's first document, a finance.json source
-    problems, note = check_feeds(site, pages, all_sources["sources"] + list((finance or {}).get("sources") or []), cfg)
+    problems, note = check_feeds(site, pages, all_sources["sources"], cfg,
+                                 finance_sources=list((finance or {}).get("sources") or []))
     rep.add("feeds", problems, note)
     problems, note = check_transcripts(site, cs)
     rep.add("transcripts", problems, note)

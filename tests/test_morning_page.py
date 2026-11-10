@@ -268,6 +268,73 @@ def test_site_link_check_passes_on_the_note_pages(site):
     assert bad == []
 
 
+# -- morning-security/href-scheme-defense
+
+BAD_URLS = ["javascript:alert(1)", "JAVASCRIPT:alert(1)//.pdf", "http://example.org/a.pdf", "data:text/html,x",
+            "https://example.org/a b.pdf", "//example.org/a.pdf", "vbscript:x", "https://example.org/a\"onclick=\"x"]
+
+
+def _day_with_source(url):
+    day = copy.deepcopy(DAY)
+    day["entries"][0]["source"] = {"url": url, "page": 3}
+    return day
+
+
+@pytest.mark.parametrize("url", BAD_URLS)
+def test_preview_drops_a_source_url_that_is_not_an_https_link(url):
+    ctx = morning_page.preview(_day_with_source(url), [])
+    assert ctx["entries"][0]["source"] == {"url": "", "page": None}
+    assert ctx["entries"][0]["title"] == DAY["entries"][0]["title"]          # the entry itself stays
+    assert [e["source"]["url"] for e in ctx["entries"][1:]] == \
+        [(e.get("source") or {}).get("url") or "" for e in DAY["entries"][1:]]   # good links untouched
+
+
+def test_preview_page_renders_no_link_for_a_bad_source_url(tmp_path, monkeypatch):
+    pages = _build(tmp_path / "site", monkeypatch, note=_day_with_source("javascript:alert(1)"))
+    html = pages["morning/index.html"]
+    assert "javascript:" not in html
+    first = html.split('class="mn-entry"')[1]
+    assert DAY["entries"][0]["title"] in first and 'class="mn-src"' not in first
+    assert html.count('class="mn-src"') == sum(1 for e in DAY["entries"] if (e.get("source") or {}).get("url")) - 1
+
+
+@pytest.mark.parametrize("href", ["javascript:alert(1)", "JaVaScRiPt:alert(1)", " javascript:alert(1)",
+                                  "java&#9;script:alert(1)", "&#106;avascript:alert(1)", "data:text/html,x",
+                                  "vbscript:x", "file:///etc/passwd", "tel:+19315550100", "mailto:someone@example.org",
+                                  "//example.org/x"])
+def test_site_checks_fail_a_link_with_another_scheme(site, tmp_path, href):
+    # site_checks never skips a non-http(s) href: the only one allowed is report.html's own mailto from the config
+    out, _ = site
+    dst = tmp_path / "site"
+    shutil.copytree(out, dst)
+    f = dst / "morning" / "index.html"
+    f.write_text(f.read_text(encoding="utf-8").replace("</main>", f'<a href="{href}">x</a></main>'), encoding="utf-8")
+    pages = {p.relative_to(dst).as_posix(): site_checks.parse(p) for p in dst.rglob("*.html")}
+    bad = [m for m in site_checks.check_links(dst, pages, no_export=True) if "href with scheme" in m]
+    assert len(bad) == 1 and bad[0].startswith("morning/index.html"), bad
+
+
+@pytest.mark.parametrize("tag", ['<form action="javascript:alert(1)"></form>', '<script src="data:text/javascript,x"></script>',
+                                 '<img src="javascript:x" alt="">', '<iframe src="data:text/html,x"></iframe>'])
+def test_site_checks_fail_a_resource_with_another_scheme(site, tmp_path, tag):
+    out, _ = site
+    dst = tmp_path / "site"
+    shutil.copytree(out, dst)
+    f = dst / "morning" / "index.html"
+    f.write_text(f.read_text(encoding="utf-8").replace("</main>", tag + "</main>"), encoding="utf-8")
+    pages = {p.relative_to(dst).as_posix(): site_checks.parse(p) for p in dst.rglob("*.html")}
+    assert [m for m in site_checks.check_links(dst, pages, no_export=True) if "with scheme" in m]
+
+
+@pytest.mark.parametrize("href, bad", [
+    ("meetings.html", False), ("../a/b.html#x", False), ("#top", False), ("https://example.org/a.pdf#page=2", False),
+    ("http://example.org/", False), ("?q=a:b", False), ("a/b:c.html", False), ("", False),
+    ("javascript:x", True), ("\x01javascript:x", True), ("jav\nascript:x", True), ("mailto:a@example.org", True),
+    ("tel:1", True), ("data:,x", True), ("blob:https://example.org/1", True), ("ftp://example.org/a", True)])
+def test_bad_scheme(href, bad):
+    assert site_checks.bad_scheme(href) is bad
+
+
 # -- JS select() == Python select()
 
 def _node():

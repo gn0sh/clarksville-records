@@ -40,6 +40,9 @@ ATOM = "http://www.w3.org/2005/Atom"
 ET.register_namespace("", ATOM)
 FOLDER = "feeds"
 PAGE = "alerts.html"
+# Feeds capped at max_entries of each body, not of the feed (feeds/rezoning-keeps-every-body). The one list:
+# build_feeds() renders by it and qa/site_checks.py check_feeds counts by it.
+PER_BODY_FEEDS = (f"{FOLDER}/topic-rezoning.xml",)
 
 # A tag: URI prefix (RFC 4151): "tag:<domain>,<date>:". It names every feed and entry id, so it never changes.
 _TAG = re.compile(r"tag:[a-z0-9.-]+\.[a-z]{2,},\d{4}(?:-\d{2}(?:-\d{2})?)?:")
@@ -189,6 +192,14 @@ def _rpc_cases(rpc, cfg: dict) -> list[tuple[dict, dict]]:
             if c["prefix"] in want and c["meeting_id"] in meetings]
 
 
+def _source_link(url: str) -> str:
+    """A source document's URL as an Atom link's href, else "" (the entry then carries no source link).
+    morning-security/href-scheme-defense: RPC source URLs are not schema-checked (sitegen/rpc.py load), so the one
+    rule for a link (build._is_https_uri) is applied here."""
+    from .build import _is_https_uri   # build imports this module
+    return url if isinstance(url, str) and _is_https_uri(url) else ""
+
+
 def _rpc_entries(rpc, cases: list[tuple[dict, dict]]) -> list[dict]:
     out = []
     for c, m in cases:
@@ -200,7 +211,7 @@ def _rpc_entries(rpc, cases: list[tuple[dict, dict]]) -> list[dict]:
             "title": title,
             "updated": m["date"],
             "href": f"{rpc.year_href(m['date'][:4])}#{rpc.case_anchor(c)}",
-            "source": f"{s['url']}#page={c['page']}",
+            "source": _source_link(f"{s['url']}#page={c['page']}"),
             "summary": f"{rpc.body}, {kind} agenda, {m['date']}. {c['case_type']}. Source: agenda, page {c['page']}.",
             "sort": (m["date"], m["id"], -c["page"], c["id"]),
         })
@@ -293,7 +304,8 @@ def render(feed: dict, entries: list[dict], cfg: dict | None = None, data_as_of:
         _sub(en, "updated", _stamp(e["updated"]))
         _sub(en, "published", _stamp(e["updated"]))
         _sub(en, "link", rel="alternate", type="text/html", href=_abs(e["href"], feed["file"], a["site_url"]))
-        _sub(en, "link", rel="related", type="application/pdf", href=e["source"], title="Source document")
+        if e["source"]:
+            _sub(en, "link", rel="related", type="application/pdf", href=e["source"], title="Source document")
         _sub(en, "summary", e["summary"])
     ET.indent(root)
     return ET.tostring(root, encoding="utf-8", xml_declaration=True) + b"\n"
@@ -323,7 +335,7 @@ def build_feeds(county: views.Index, councils=(), cfg: dict | None = None, rpc=N
             if feed["key"] == "rezoning" and rpc is not None:
                 entries += _rpc_entries(rpc, zoning)
         out[feed["file"]] = render(feed, entries, cfg, "" if as_of == "unknown" else as_of,
-                                   per_body=feed["kind"] == "topic" and feed["key"] == "rezoning")
+                                   per_body=feed["file"] in PER_BODY_FEEDS)
     return out
 
 

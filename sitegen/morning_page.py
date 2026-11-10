@@ -131,6 +131,15 @@ def _when(stamp: str) -> str:
     return f"{t:%B} {t.day}, {hour}:{t:%M} {'AM' if t.hour < 12 else 'PM'}"
 
 
+def _source_url(url) -> str:
+    """A source link as the preview page may render it in an href, else "" (the entry then shows no source link).
+    morning-security/href-scheme-defense: the RPC facts and the county agendas are not schema-checked the way
+    facts.json and finance.json are, so the one rule for a link (build._is_https_uri: absolute https, a host, no
+    whitespace, quote or angle bracket) is applied here, where the URL becomes a link."""
+    from .build import _is_https_uri   # build imports this module
+    return url if isinstance(url, str) and url and _is_https_uri(url) else ""
+
+
 def preview(day: dict, feeds: list[dict], cfg: dict | None = None) -> dict:
     """Context for morning.html.j2 from one day of the digest (the contract's day dict, as in latest.json: the note
     sitegen/morning.py write() returns). The unplaced line is the note's own `unplaced_text`; a backfill day (no
@@ -146,10 +155,11 @@ def preview(day: dict, feeds: list[dict], cfg: dict | None = None) -> dict:
     entries = []
     for e in day.get("entries") or []:
         src = e.get("source") or {}
+        url = _source_url(src.get("url"))
         entries.append({**e, "href": e.get("href") or "",
                         "lists_attr": " ".join(e.get("lists") or []), "seat_body": e.get("seat_body"),
                         "district": e.get("district"), "ward": e.get("ward"),
-                        "source": {"url": src.get("url") or "", "page": src.get("page")}})
+                        "source": {"url": url, "page": src.get("page") if url else None}})
     return {"day": day, "entries": entries, "lede": lede, "backfill": day.get("backfill") is True,
             "unplaced": {"n": n, "text": day.get("unplaced_text") or "",
                          "feed": all_zoning["file"] if all_zoning else ""} if n else None,
