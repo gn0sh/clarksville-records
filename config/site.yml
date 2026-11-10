@@ -34,6 +34,8 @@ official_records:
 # Enabled 2026-11-09: Brian says his council seat is not a factor (he leaves it before anything goes live).
 support_url: https://buymeacoffee.com/gnoshcodes
 support_label: Buy Me a Coffee
+# The ask shown beside the morning note sign-up and printed in the note's footer (Brian, 2026-11-10). Only with the support link on.
+support_line: "This service is free and always will be, but web hosting and sending email cost money. If it is useful to you, please consider supporting the project."
 support_enabled: true
 
 # Report an error (M1.5, docs/design/correction-intake.md). Every fact page links report.html, which offers these

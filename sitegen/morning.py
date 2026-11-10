@@ -527,7 +527,10 @@ def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None 
             "entries": entries, "unplaced_zoning": unplaced,
             "unplaced_text": unplaced_text(unplaced, cfg),
             # the mail sender prints these in every note's text and footer (unofficial/notice-on-every-page)
-            "notice": u["notice"], "email_line": u["email_line"]}
+            "notice": u["notice"], "email_line": u["email_line"],
+            # the ask for support, printed in the footer when the support link is on (Brian, 2026-11-10)
+            "support_line": (cfg.get("support_line") or "") if cfg.get("support_enabled") is True and cfg.get("support_url") else "",
+            "support_url": cfg.get("support_url") or "" if cfg.get("support_enabled") is True else ""}
 
 
 def unplaced_text(n: int, cfg: dict | None = None) -> str:
