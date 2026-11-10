@@ -288,6 +288,26 @@ morning_note:
     text: {subject: "{site_name} morning note, {date}", why: "...", open_site: "..."}
 ```
 
+### As built (T4.1 to T4.4, 2026-11-10; no provider client yet)
+- **A disabled sender plans nothing.** With `sender.enabled: false`, `python -m sender plan` writes a `plan.json` with
+  `send: false`, `reason: "disabled"`, no edition and no signature, and does not read the note. The daily rehearsal
+  is `python -m sender plan --rehearse`: it writes the editions for a person to read and still says `send: false`.
+  T4.5's plan step should pass `--rehearse`.
+- **The deliver stage reads its limits from the repository, not from the plan.** `sender/settings.py` reads
+  `enabled`, `mode`, `canary_only`, `max_recipients`, `api_base` and the two times from `config/site.yml` with the
+  standard library (no PyYAML in the job that holds the key). The plan file comes from the job that parses untrusted
+  PDFs, so it may not carry them. Each value in the block must stay one plain value on its own line.
+- **`ids` mode: a draft is the claim.** A run that dies between creating a draft and sending it does not send that
+  edition on a re-run (never twice before never missed).
+- **Open: `max_editions: 80` is too low for a planning commission agenda day.** The fixture's real RPC agenda (27
+  cases printing 7 districts and 3 wards) gives 191 editions, so that day's plan exits 2. The count grows with
+  (districts printed + 1) x (wards printed + 1). The architect should raise the cap or change what it counts (for
+  example editions that have a recipient, which only the deliver stage knows).
+- **Open: the unplaced line** is printed in every edition of a day that has one, as "Body" above says; the preview
+  page shows it only to a reader who picked zoning.
+- `--live` is refused by the command line until the provider adapter (`sender/buttondown.py`) exists and has had its
+  security review.
+
 ### Workflow changes (`.github/workflows/daily-update.yml`)
 - `update` job: after "Site checks", `python -m sender plan --date <D> --site build/site --out build/morning-send`,
   then upload `build/morning-send` as artifact `morning-send` (2 days). No secret; this job still parses untrusted PDFs.
