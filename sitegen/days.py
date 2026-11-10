@@ -28,7 +28,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from . import config, views
+from . import config, localdates, views
 
 WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 # Minutes states of a council meeting (schema meeting.minutes_status) other than "read", in plain words.
@@ -95,7 +95,7 @@ def _doc(src: dict | None, word: str) -> dict | None:
         return None
     pages = src.get("pages")
     return {"word": word, "url": src["url"], "what": f"PDF, {pages} {'page' if pages == 1 else 'pages'}" if pages
-            else "PDF", "fetched": src.get("fetched_at")}
+            else "PDF", "fetched": localdates.fetched(src)}
 
 
 def county_card(ix: views.Index, m: dict) -> dict:

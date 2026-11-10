@@ -4,6 +4,14 @@ locality: montgomery-tn
 site_name: Daylight                 # working product name (design/daylight, 2026-11-09); trademark check before go-live
 site_place: Clarksville-Montgomery County   # name plate line under the name, on every page
 site_timezone: America/Chicago   # the zone of the landing date line (static/sky.js); the sun follows the viewer's own clock
+# The collectors' manifests (first_fetched_at by url and sha256). Every fetch day a page prints is the site_timezone
+# day of that instant; a source with no row shows its stored UTC day labelled "(UTC day)" (docs/architecture/local-dates.md).
+fetch_manifests:
+  - data/manifest.json
+  - data/county-agendas/manifest.json
+  - data/localities/clarksville-tn/manifest.json
+  - data/localities/cmc-rpc/manifest.json
+  - data/maps/manifest.json
 today_place: Clarksville            # landing sky: "Tuesday in Clarksville" (static/sky.js reads it from the page)
 operator: gnoshcodes               # CEO decision 2026-11-09: a gnoshcodes product, no personal operator credit
 operator_url: https://gnoshcodes.com/

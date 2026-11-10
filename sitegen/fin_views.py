@@ -10,7 +10,7 @@ from __future__ import annotations
 import datetime as dt
 import re
 
-from . import config
+from . import config, localdates
 
 T = config.FIN_TEXT
 C = T["contracts"]
@@ -112,7 +112,7 @@ class Finance:
         url = f"{s['url']}#page={page}" if pdf and page else s["url"]
         word = C["source_words"].get(s["kind"], C["source_words"]["other"])
         label = f"{word} p. {page}" if pdf and page else C["archive_link"]
-        return {"url": url, "page": page, "label": label, "fetched": s["fetched_at"],
+        return {"url": url, "page": page, "label": label, "fetched": localdates.fetched(s),
                 "kind": C["archive_link"] if not pdf else word}
 
     def person(self, name: str) -> dict:
@@ -143,6 +143,13 @@ def _doc_date(text: str | None) -> str | None:
     return None
 
 
+def doc_fetched(fx: Finance, d: dict) -> str | None:
+    """A document's fetch day as pages print it: its source's (localdates.fetched). A link with no source (not a
+    PDF, dead at fetch) has only the fetch run's UTC day, shown labelled (localdates.UTC_LABEL)."""
+    s = fx.sources.get(d.get("source_id") or "")
+    return localdates.fetched(s) if s else localdates.day_of(None, None, d.get("fetched_at"))
+
+
 def _doc_link(fx: Finance, d: dict, sol: dict) -> dict:
     """One document link with its state words (design 5 states). `note` is shown beside the link."""
     # the row's own link text (schema solicitation.document_labels, parallel to document_ids), not the shared
@@ -150,7 +157,7 @@ def _doc_link(fx: Finance, d: dict, sol: dict) -> dict:
     label = sol["document_labels"][sol["document_ids"].index(d["id"])]
     note = None
     if d["status"] == "dead_at_fetch":
-        note = C["dead_link"].format(date=d["fetched_at"])
+        note = C["dead_link"].format(date=doc_fetched(fx, d))
     elif d["status"] == "not_pdf":
         note = C["not_pdf"]
     elif d["status"] == "link_only":
@@ -159,7 +166,7 @@ def _doc_link(fx: Finance, d: dict, sol: dict) -> dict:
         note = C["shared"]
     return {"id": d["id"], "stage": d["stage"], "stage_label": stage_label(d["stage"]), "label": label,
             "href": None if d["status"] == "dead_at_fetch" else d["url"], "scanned": d["scanned"], "note": note,
-            "fetched": d["fetched_at"]}
+            "fetched": doc_fetched(fx, d)}
 
 
 def _held_fields(sol: dict) -> dict[str, str]:

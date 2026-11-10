@@ -205,7 +205,8 @@ def test_department_awardee_and_archive_date_lines_cite_their_page(fpages):
                      html)
     assert re.search(r"Awardee as printed on the bid tab: Gamma Minerals LLC\. Source: "
                      r"<a href=\"[^\"]+tab-salt\.pdf#page=2\""
-                     r"[^>]*>bid tab p\. 2<span[^>]*>[^<]*</span></a>, fetched 2026-11-07\.", html)
+                     r"[^>]*>bid tab p\. 2<span[^>]*>[^<]*</span></a>, fetched 2026-11-07 \(UTC day\)\.", html)
+    # a fixture source has no manifest row, so its stored UTC day is shown labelled (docs/architecture/local-dates.md)
 
 
 # ---- states (design 5) ----------------------------------------------------------------------------------------------

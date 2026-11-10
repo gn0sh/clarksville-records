@@ -7,7 +7,7 @@ lines or books). Rows keep the book's order, (book, page, row) parsed from the l
 fixed sentence comes from config/finance_text.yml (`budget`, `held`, `notes`, `edition_note`)."""
 from __future__ import annotations
 
-from . import config
+from . import config, localdates
 from .fin_views import Finance, FinanceError, held_check, notes, _words
 
 T = config.FIN_TEXT
@@ -256,7 +256,7 @@ def finance_index(bg: Budget, export: bool = True) -> dict:
     for b in bg.books:
         s = bg.fx.sources[b["source_id"]]
         books.append({"title": b["title"], "edition": b["edition"], "fiscal_year": b["fiscal_year"],
-                      "url": s["url"], "fetched": s["fetched_at"]})
+                      "url": s["url"], "fetched": localdates.fetched(s)})
     funds = [{"no": no, "href": bg.fund_href(no), "names": _names(bg, no), "fact_id": f"fund/{no}"}
              for no in bg.funds]
     from .fin_views import EXPORTS_READY

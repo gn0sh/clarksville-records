@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from . import config, views
+from . import config, localdates, views
 from .seats import Seats
 
 
@@ -319,7 +319,7 @@ def meetings_year(year: str, cix: CouncilIndex) -> dict:
         out.append({**ctx, "id": m["id"], "has_minutes": src["kind"] == "minutes",
                     "video_url": m.get("video_url"),
                     "transcript": cix.tx.meeting_entry(m["id"]) if cix.tx is not None else None,
-                    "agenda": ({"url": agenda["url"], "pages": agenda["pages"], "fetched": agenda["fetched_at"]}
+                    "agenda": ({"url": agenda["url"], "pages": agenda["pages"], "fetched": localdates.fetched(agenda)}
                                if agenda and agenda["id"] != src["id"] else None)})
     return {"year": year, "meetings": out, "years": cix.meeting_years(), "body": cix.body_name, "parts": []}
 
