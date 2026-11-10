@@ -127,10 +127,13 @@ def corrections_links(cfg: dict) -> tuple[str, str]:
 REPORT_CHANNEL_TARGETS = ("pages",)   # the hosts real readers use (GitHub Pages); the preview may stay closed
 
 
-def check_report_channel(pages: dict[str, "Page"], cfg: dict, target: str) -> tuple[list[str], str]:
+def check_report_channel(pages: dict[str, "Page"], cfg: dict, target: str,
+                         form: Path | None = None) -> tuple[list[str], str]:
     """corrections/channel-set-in-production-build: a pages build never ships report.html without a way to send a
-    report. It must link the GitHub issue form or the mailto that config/site.yml `corrections:` sets (the ids
-    report-issue / report-mail), and must not say corrections are not open yet."""
+    report. It must link the GitHub issue form or the mailto that config/site.yml `corrections:` sets, on the ids
+    static/report.js fills (report-issue / report-mail), and must not say corrections are not open yet. With
+    github_repo set, the issue form (`form`, default .github/ISSUE_TEMPLATE/correction.yml) must be in this repo
+    (corrections/form-on-default-branch: GitHub shows it only from the default branch, which a file check cannot see)."""
     if target not in REPORT_CHANNEL_TARGETS:
         return [], f"{target} target: not checked"
     pg = pages.get("report.html")
@@ -141,6 +144,11 @@ def check_report_channel(pages: dict[str, "Page"], cfg: dict, target: str) -> tu
         return ["config/site.yml corrections: sets no github_repo or email, so report.html offers no channel"], ""
     hrefs = set(pg.hrefs)
     problems = [f"report.html does not link {u}" for u in (issue, mail) if u and u not in hrefs]
+    problems += [f"report.html has no id={i!r} link (static/report.js fills it)"
+                 for u, i in ((issue, "report-issue"), (mail, "report-mail")) if u and i not in pg.ids]
+    form = ROOT / ".github" / "ISSUE_TEMPLATE" / "correction.yml" if form is None else Path(form)
+    if issue and not form.is_file():
+        problems.append(f"corrections.github_repo is set but the issue form {form.name} is not in the repo ({form})")
     if "report-closed" in pg.ids:
         problems.append("report.html still says corrections are not open")
     return problems, "report.html links " + " and ".join(u for u in (issue, mail) if u)
