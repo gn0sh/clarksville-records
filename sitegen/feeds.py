@@ -18,7 +18,9 @@ Entries (invariant: an id never changes, so a reader never alerts twice for one 
   id <feed_id><body>/meeting/<meeting id>/<agenda|minutes>;
 - a topic feed has one entry per item per meeting it appears at; id <feed_id><body>/item/<item id>/<meeting id>.
 `updated` is the meeting's date, which never changes (so a reader never marks an entry as changed); entries are
-newest meeting first, at most `alerts.max_entries` per feed. A reader shows an entry it has not seen as new whatever its
+newest meeting first, at most `alerts.max_entries` per feed, except `topic-rezoning.xml`, which keeps the newest
+max_entries of each body (RPC agendas are dated ahead and come often; one cap would push every county and council
+entry out). A reader shows an entry it has not seen as new whatever its
 date, so minutes posted weeks after their meeting still alert, as long as the meeting is within the newest entries.
 Titles are the document's own text, escaped by the XML writer, and never link to an official (DECISION 2026-11-09):
 an entry links only its page on this site and its source document.
@@ -132,7 +134,7 @@ def _body_entries(key: str, ix: views.Index) -> list[dict]:
                 continue
             word = "Agenda" if s["kind"] == "agenda" else "Minutes"
             out.append({
-                "id": f"{key}/meeting/{m['id']}/{s['kind']}",
+                "id": f"{key}/meeting/{m['id']}/{s['kind']}", "body": key,
                 "title": f"{word}: {ix.meeting_label(m)}",
                 "updated": m["date"],
                 "href": ix.meeting_href(m["id"]),
@@ -164,7 +166,7 @@ def _topic_entries(topic: str, key: str, ix: views.Index) -> list[dict]:
             src = ix.src(first["source_id"], first["page"])
             labels = list(dict.fromkeys(config.EVENT_TYPE_LABELS[e["type"]] for e in evs))
             out.append({
-                "id": f"{key}/item/{it['id']}/{mid}",
+                "id": f"{key}/item/{it['id']}/{mid}", "body": key,
                 "title": _item_title(ix, it),
                 "updated": m["date"],
                 "href": ix.item_href(it),
@@ -191,7 +193,7 @@ def _rpc_entries(rpc, cases: list[tuple[dict, dict]]) -> list[dict]:
         kind = rpc.cfg["kind_labels"].get(m["kind"], m["kind"])
         title = c["number_printed"] + (f": {c['request']}" if c.get("request") else "")
         out.append({
-            "id": f"{rpc.body_key}/item/{c['id']}/{m['id']}",
+            "id": f"{rpc.body_key}/item/{c['id']}/{m['id']}", "body": rpc.body_key,
             "title": title,
             "updated": m["date"],
             "href": f"{rpc.year_href(m['date'][:4])}#{rpc.case_anchor(c)}",
@@ -211,7 +213,7 @@ def _contract_entries(fin: dict) -> list[dict]:
             continue
         when = s.get("archive_date") or first.get("fetched_at") or "1970-01-01"
         out.append({
-            "id": f"contracts/solicitation/{s['id']}",
+            "id": f"contracts/solicitation/{s['id']}", "body": "contracts",
             "title": s["title"],
             "updated": when,
             "href": f"contracts/{s['slug']}.html",
@@ -248,11 +250,28 @@ def _sub(parent, tag: str, text: str | None = None, **attrs) -> ET.Element:
     return el
 
 
-def render(feed: dict, entries: list[dict], cfg: dict | None = None, data_as_of: str = "") -> bytes:
+def newest(entries: list[dict], cap: int, per_body: bool = False) -> list[dict]:
+    """Entries newest meeting first (then the meeting, then document order): at most `cap`, or with `per_body` at
+    most `cap` of each entry's `body`, so one body's many entries never push another body's out."""
+    entries = sorted(entries, key=lambda e: e["sort"], reverse=True)
+    if not per_body:
+        return entries[:cap]
+    kept: dict[str, int] = {}
+    out = []
+    for e in entries:
+        if kept.get(e["body"], 0) < cap:
+            kept[e["body"]] = kept.get(e["body"], 0) + 1
+            out.append(e)
+    return out
+
+
+def render(feed: dict, entries: list[dict], cfg: dict | None = None, data_as_of: str = "",
+           per_body: bool = False) -> bytes:
     """One Atom document. Entries newest meeting first (then the meeting, then document order), at most
-    max_entries. The feed's `updated` is its newest entry's date or the data date, whichever is later."""
+    max_entries (of each body, with `per_body`). The feed's `updated` is its newest entry's date or the data date,
+    whichever is later."""
     a = settings(cfg)
-    entries = sorted(entries, key=lambda e: e["sort"], reverse=True)[:a["max_entries"]]
+    entries = newest(entries, a["max_entries"], per_body)
     root = ET.Element(f"{{{ATOM}}}feed")
     _sub(root, "id", a["feed_id"] + feed["file"][:-len(".xml")])
     _sub(root, "title", f"{config.SITE_NAME}: {feed['title']}")
@@ -300,7 +319,8 @@ def build_feeds(county: views.Index, councils=(), cfg: dict | None = None, rpc=N
             entries = [e for k, _, b in bodies for e in _topic_entries(feed["key"], k, b)]
             if feed["key"] == "rezoning" and rpc is not None:
                 entries += _rpc_entries(rpc, zoning)
-        out[feed["file"]] = render(feed, entries, cfg, "" if as_of == "unknown" else as_of)
+        out[feed["file"]] = render(feed, entries, cfg, "" if as_of == "unknown" else as_of,
+                                   per_body=feed["kind"] == "topic" and feed["key"] == "rezoning")
     return out
 
 

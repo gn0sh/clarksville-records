@@ -128,7 +128,9 @@ non-empty results through the provider API; that job and its secret are a later 
 
 ## Feeds added (file budget)
 `feeds/topic-contracts.xml` (one entry per solicitation, id `contracts/solicitation/<id>`); RPC zoning cases join
-`topic-rezoning.xml` (new ids `rpc/item/<case id>/<meeting id>`; existing ids unchanged). Per-seat zoning feeds
+`topic-rezoning.xml` (new ids `rpc/item/<case id>/<meeting id>`; existing ids unchanged). Decision (manager,
+2026-11-10, review `feeds/rezoning-keeps-every-body`): one rezoning feed URL, capped per body (each body keeps its
+newest `alerts.max_entries`), so RPC cases dated ahead never push county or council items out. Per-seat zoning feeds
 `feeds/zoning-district-NN.xml` (21) and `feeds/zoning-ward-NN.xml` (12) are built on the `pages` target only
 (cap 3000); the `preview` target (cap 500) links the all-zoning feed instead. This reverses the feeds.py note "the
 records place no item in a district or ward", which predates the RPC case fields; update that docstring and

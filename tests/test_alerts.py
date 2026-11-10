@@ -321,6 +321,30 @@ def test_rpc_zoning_cases_join_the_rezoning_feed_and_old_ids_stay(county, zoning
                                    if c["prefix"] != "S")
 
 
+def test_rpc_cases_beyond_max_entries_never_push_county_rezoning_items_out(county, zoning_rpc):
+    # feeds/rezoning-keeps-every-body: RPC agendas are dated ahead and come often, county minutes run months behind;
+    # the rezoning feed keeps the newest max_entries of each body, so every county entry stays.
+    cap = CFG["alerts"]["max_entries"]
+
+    class Many(type(zoning_rpc)):
+        facts = {"meetings": [{"id": f"rpc-2027-{n:03d}", "date": f"2027-{1 + n // 28:02d}-{1 + n % 28:02d}",
+                               "kind": "regular"} for n in range(cap + 10)],
+                 "cases": [zcase(n, meeting=f"rpc-2027-{n:03d}") for n in range(cap + 10)]}
+    county_ids = ids_of(feeds.build_feeds(county, cfg=CFG)["feeds/topic-rezoning.xml"])
+    assert county_ids                                                 # the fixture has county rezoning items
+    got = ids_of(feeds.build_feeds(county, cfg=CFG, rpc=Many())["feeds/topic-rezoning.xml"])
+    assert set(county_ids) <= set(got)
+    rpc_ids = [i for i in got if i.removeprefix(CFG["alerts"]["feed_id"]).startswith("rpc/")]
+    assert len(rpc_ids) == cap and len(got) == cap + len(county_ids)
+    assert f"rpc-2027-{cap + 9:03d}" in rpc_ids[0] and not any("rpc-2027-009/" in i for i in rpc_ids)  # RPC: its newest
+    root = ET.fromstring(feeds.build_feeds(county, cfg=CFG, rpc=Many())["feeds/topic-rezoning.xml"])
+    dates = [text(e, "updated") for e in root.findall(A + "entry")]
+    assert dates == sorted(dates, reverse=True)                       # one list, newest first
+    # every other feed keeps one cap across bodies
+    assert feeds.newest([{"body": b, "sort": (n,)} for b in "ab" for n in range(cap)], cap) == \
+        sorted([{"body": b, "sort": (n,)} for b in "ab" for n in range(cap)], key=lambda e: e["sort"], reverse=True)[:cap]
+
+
 def test_per_seat_feeds_are_pages_target_only(county, zoning_rpc, fin):
     for target in ("preview", None):
         out = feeds.build_feeds(county, cfg=CFG, rpc=zoning_rpc, fin=fin, target=target)
