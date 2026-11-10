@@ -65,6 +65,13 @@ short form (`unofficial.short`, naming all four bodies) and sits beside the map 
 phone (still on the first screen at 375x667, y 520-607), so the answer and pin keep their place. The full notice is in
 the landing's footer like every page's.
 
+Code review of 249cc47 (same day): About and Who runs this no longer say no "official" runs or approves the site (a
+claim that could be false); `<title>` and `og:title` now lead with "Daylight (independent, unofficial) |"; the Data page
+says the notice is in README.txt beside the files (not in each file); `tests/test_unofficial_first_screen.py` asserts
+the header tag and short line are visible on the first 375x667 and 1280x800 screens; the check now reads only visible
+footer text (a commented-out, `hidden`, aria-hidden, inline display:none or template notice fails), the tag's own text,
+any style.css rule hiding an `unofficial-*` class, and Atom feeds only.
+
 ## Not done, and why
 - `facts.json` and the CSVs carry no in-file notice: the export code is in `collector/` (off limits for this task) and a
   CSV cannot hold a header line without breaking readers. A README sits beside them. A later collector task could add a
@@ -87,6 +94,4 @@ the landing's footer like every page's.
    automated reads.
 4. The map: district and ward lines come from county and RPC map files; confirm reuse and attribution terms.
 5. Transcripts are machine-made from the city's own video; confirm terms for the video links and derived text.
-6. The operator's tie to an elected office (docs/status.md: Brian's council seat, "he leaves it before anything goes live"):
-   whether any disclosure is wise if the seat is still held at launch.
-7. The repo `gn0sh/clarksville-records` is public and its name uses the city's name as a product-like title.
+6. The repo `gn0sh/clarksville-records` is public and its name uses the city's name as a product-like title.
