@@ -133,10 +133,12 @@ def placed(rpx, mv: dict) -> bool:
 
 def exported_motions(rpx, internal: bool = False) -> list[dict]:
     """The motions that may leave in a file: those the pages show confirmed (`rpx.motions`, sitegen.rpc.shown_motions:
-    the stored flag, the checks restated on the record, and the `motion_rules` marker) and place (`placed`).
+    the stored flag, the checks restated on the record, and the `motion_rules` marker), with no reason left on them,
+    and place (`placed`).
     `internal` returns every placed motion. The stored record is never read here, so a record written before the
     reader's rules exports none."""
-    return [mv for mv in rpx.motions if placed(rpx, mv) and (internal or mv["confirmed"] is True)]
+    return [mv for mv in rpx.motions
+            if placed(rpx, mv) and (internal or (mv["confirmed"] is True and not mv.get("reasons")))]
 
 
 def public_facts(rpx, internal: bool = False) -> dict:

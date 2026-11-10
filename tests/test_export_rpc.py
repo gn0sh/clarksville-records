@@ -186,6 +186,24 @@ def test_the_stored_confirmed_flag_alone_never_exports_a_motion(tmp_path):
     assert [r["id"] for r in rows(written["motions.csv"])] == [f"{MEETING}-motion-3"]
 
 
+def test_a_motion_stored_confirmed_with_a_reason_is_not_exported(tmp_path):
+    """`confirmed` is `not reasons` in the reader: a record that says both (true, with a reason) is in doubt."""
+    from qa import site_checks as SC
+    facts = facts_with_motions(tmp_path)
+    facts["motions"] = [motion(1, kind="Motion to adjourn", moved_by="Reasoned Mover", reasons=["subject not read"]),
+                        motion(2, kind="Motion to adjourn")]
+    written = {p.name: p for p in RE.export_rpc(load(tmp_path, facts), tmp_path / "site")}
+    assert [r["id"] for r in rows(written["motions.csv"])] == [f"{MEETING}-motion-2"]
+    assert all("Reasoned Mover" not in p.read_text(encoding="utf-8") for p in written.values())
+    # the guard reads it the same way
+    rec = {**facts, "_cfg": rpc.load_config("cmc-rpc")}
+    data = json.loads(written["facts.json"].read_text(encoding="utf-8"))
+    data["motions"].append(dict(data["motions"][0], id=f"{MEETING}-motion-1"))
+    written["facts.json"].write_text(json.dumps(data), encoding="utf-8")
+    assert SC.check_rpc_export(tmp_path / "site", rec)[0] == [
+        f"data/rpc/facts.json: motion {MEETING}-motion-1 is not confirmed in rpc.json"]
+
+
 def test_a_motion_the_pages_place_nowhere_is_not_exported(tmp_path):
     """The export carries what the pages place: a confirmed motion whose case_id is no case on its own meeting's agenda
     (a case of another meeting, or none at all), or whose meeting is not listed, is on no page and in no file."""

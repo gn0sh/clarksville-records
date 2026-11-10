@@ -304,7 +304,7 @@ def check_rpc_export(site: Path, rpc: dict | None) -> tuple[list[str], str]:
         for row in rows:
             mid = row.get("id")
             mv = motions.get(mid)
-            if mv is None or mv.get("confirmed") is not True:
+            if mv is None or mv.get("confirmed") is not True or mv.get("reasons"):
                 problems.append(f"{name}: motion {mid} is not confirmed in rpc.json")
                 continue
             if rules != RPC_MOTION_RULES:
