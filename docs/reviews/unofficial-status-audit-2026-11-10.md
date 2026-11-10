@@ -55,6 +55,16 @@ repo) prints `email_line` as the sign-up card does. Contrast measured from `styl
 text 14.7:1 light / 13.5:1 dark on its panel, its link 6.8:1 / 7.3:1, header tag 13.3:1 / 12.9:1 on the sky band. Notice
 text is 1rem (16 px) everywhere, including the landing page where the rest of the footer is smaller.
 
+The first pass broke 17 tests (2221 pass, 17 fail on the full suite). Fixed: the notice is in `views.site_context`, so
+templates rendered outside `build()` have it; the footer label is a `<p>`, not an `<h2>`, so every official and district
+page keeps the identical heading outline (neutrality N1); `qa.site_checks` no longer treats a `data/` holding only
+README.txt as an export. **Design deviation:** the landing had a rule (address-first decision, Nov 9) that the whole page
+fits one phone screen and the address answer and pin stay on it. A readable footer notice cannot fit that, so the rule
+is now "the landing's content (`<main>`) fits one screen"; the footer notice starts just below it. The home line is the
+short form (`unofficial.short`, naming all four bodies) and sits beside the map on a wide screen and just after it on a
+phone (still on the first screen at 375x667, y 520-607), so the answer and pin keep their place. The full notice is in
+the landing's footer like every page's.
+
 ## Not done, and why
 - `facts.json` and the CSVs carry no in-file notice: the export code is in `collector/` (off limits for this task) and a
   CSV cannot hold a header line without breaking readers. A README sits beside them. A later collector task could add a

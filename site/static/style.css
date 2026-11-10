@@ -1076,6 +1076,7 @@ html:not(.js) .day-sheet.is-empty { display: none; }
    notice. Body-size text in the ink colour (not the muted grey) so it is plain, not fine print. */
 .unofficial-tag { margin: 2px 0 0; color: var(--fg); font-size: var(--t-sm); font-weight: 600; }
 .unofficial-intro { margin: 6px 0; color: var(--fg); font-size: var(--t-sm); }
+.landing-list > .unofficial-intro { flex: 1 1 100%; margin: 0 0 8px; }
 .site-footer .unofficial-notice { margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--border); border-left: 4px solid var(--mark); border-radius: var(--radius); background: var(--surface-2); color: var(--fg); }
 .site-footer .unofficial-notice p { margin: 0; font-size: 1rem; line-height: 1.45; }
 .site-footer .unofficial-h { margin: 0 0 2px; font-size: 1rem; }

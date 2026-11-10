@@ -84,7 +84,7 @@ def test_unverified_outcome_text_in_public_page_is_caught(site):
 
 
 def test_unverified_outcome_text_in_export_is_caught(site):
-    (site / "data").mkdir(exist_ok=True)
+    (site / "data").mkdir(exist_ok=True)   # sitegen already wrote data/README.txt (the unofficial notice)
     (site / "data" / "roll_calls.csv").write_text("outcome\n" + UNVERIFIED_RC["outcome_text"] + "\n", encoding="utf-8")
     assert "unverified" in failed(run(site))
 

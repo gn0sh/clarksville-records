@@ -11,7 +11,7 @@ from collector import rpc as rpc_collector, rpc_agenda
 from collector.store import Store
 from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS
 from qa import site_checks
-from sitegen import config, rpc, views
+from sitegen import config, rpc, unofficial, views
 from sitegen.build import BuildError, build
 
 FIX = Path(__file__).resolve().parent.parent / "collector" / "tests" / "fixtures" / "rpc"
@@ -134,7 +134,9 @@ def test_a_fixture_build_reads_no_real_rpc(tmp_path):
     out = tmp_path / "site"
     build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS)
     assert not (out / "rpc").exists()
-    home = re.sub(r"<meta[^>]*>|<(section|p)[^>]*unofficial[^>]*>.*?</\1>", "", (out / "index.html").read_text(encoding="utf-8"), flags=re.S)   # the unofficial notice names the RPC on every page
+    home = (out / "index.html").read_text(encoding="utf-8")
+    for said in (unofficial.load()["notice"], unofficial.load()["short"]):   # the notice names the RPC on every page
+        home = home.replace(said, "")
     assert "Planning Commission" not in home
     assert views.RECORD_RPC == {"rpc_home.html.j2", "rpc_meetings_year.html.j2"}
 
