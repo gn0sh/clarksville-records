@@ -296,7 +296,8 @@ morning_note:
 - **A disabled sender plans nothing.** With `sender.enabled: false`, `python -m sender plan` writes a `plan.json` with
   `send: false`, `reason: "disabled"`, no edition and no signature, and does not read the note. The daily rehearsal
   is `python -m sender plan --rehearse`: it writes the editions for a person to read and still says `send: false`.
-  T4.5's plan step should pass `--rehearse`.
+  T4.5's plan step should pass `--rehearse`. While the sender is disabled, a plan error (a missing or wrong note,
+  the size ceiling) is printed and the command exits 0: a rehearsal never fails the daily site job.
 - **The deliver stage reads its limits from the repository, not from the plan.** `sender/settings.py` reads
   `enabled`, `mode`, `canary_only`, `max_recipients`, `api_base` and the two times from `config/site.yml` with the
   standard library (no PyYAML in the job that holds the key). The plan file comes from the job that parses untrusted

@@ -28,7 +28,8 @@ from .common import LIST_KEYS, NOTE_SCHEMA, PLAN_SCHEMA, signature
 
 
 class PlanError(Exception):
-    """The run must fail (exit 2): the note is missing or wrong, or the data gave more editions than allowed."""
+    """The run must fail (exit 2): the note is missing or wrong, or the plan is over MAX_PLAN_BYTES. While the
+    sender is disabled (a rehearsal), `python -m sender plan` prints it and exits 0 instead."""
 
 
 def sender_settings(cfg: dict) -> dict:

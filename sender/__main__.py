@@ -37,6 +37,11 @@ def _plan(args) -> int:
         built = plan_mod.build(Path(args.site), day, cfg, rehearse=args.rehearse)
     except plan_mod.PlanError as exc:
         print(f"sender plan: {exc}", file=sys.stderr)
+        if not plan_mod.enabled(cfg):
+            # the sender is off, so this was the rehearsal: it must never fail the daily site job
+            print("sender plan: the sender is disabled, so this was a rehearsal; nothing written, not failing the run",
+                  file=sys.stderr)
+            return 0
         return 2
     path = plan_mod.write(Path(args.out), built)
     p = built["plan"]

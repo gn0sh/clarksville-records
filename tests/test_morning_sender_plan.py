@@ -225,10 +225,13 @@ def test_a_missing_or_wrong_note_fails_the_run(msite, tmp_path, monkeypatch, cap
         (site / "morning" / f"{D.isoformat()}.json").write_text("{", encoding="utf-8")
     with pytest.raises(plan_mod.PlanError):
         plan_mod.build(site, D, cfg_with())
-    monkeypatch.setitem(config.SITE, "morning_note", cfg_with(enabled=False)["morning_note"])
+    # The shipped config has the sender off: a rehearsal must never fail the daily site job. It says what is wrong,
+    # writes nothing and exits 0. (With the sender on, the same error fails the run: the build() call above.)
+    assert config.SITE["morning_note"]["sender"]["enabled"] is False
     out = tmp_path / "send"
-    assert main(["plan", "--date", D.isoformat(), "--site", str(site), "--out", str(out), "--rehearse"]) == 2
-    assert not out.exists() and "sender plan:" in capsys.readouterr().err
+    assert main(["plan", "--date", D.isoformat(), "--site", str(site), "--out", str(out), "--rehearse"]) == 0
+    err = capsys.readouterr().err
+    assert not out.exists() and "sender plan:" in err and "rehearsal" in err and "not failing" in err
 
 
 def test_a_subject_naming_a_government_body_fails_the_run(msite):
