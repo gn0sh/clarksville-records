@@ -231,3 +231,12 @@ def test_real_opener_does_not_follow_redirects():
     from collector import fetch as F
     assert any(isinstance(h, F._NoRedirect) for h in F._OPENER.handlers)
     assert not any(type(h) is urllib.request.HTTPRedirectHandler for h in F._OPENER.handlers)
+
+
+def test_host_matches_is_the_public_host_rule():
+    # the rule adapters share with the fetcher (collector.county_agenda, collector.fin_run): no private import
+    from collector import county_agenda, fetch, fin_run
+    assert fetch.host_matches("WWW.h.example:443", ("h.example",)) and fetch.host_matches("h.example", ("h.example",))
+    assert not fetch.host_matches("evilh.example", ("h.example",)) and not fetch.host_matches("h.example.net", ("h.example",))
+    assert not hasattr(fetch, "_host_matches")
+    assert county_agenda.host_matches is fetch.host_matches and fin_run.host_matches is fetch.host_matches

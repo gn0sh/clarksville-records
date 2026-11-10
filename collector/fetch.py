@@ -80,7 +80,9 @@ class NotPdf(FetchFailed):
     """The body is not a PDF (e.g. a .docx behind a document link). Nothing was stored."""
 
 
-def _host_matches(host: str, names) -> bool:
+def host_matches(host: str, names) -> bool:
+    """True when `host` (a port is ignored) is one of `names` or a subdomain of one. The one host rule: the fetcher's
+    allowlist and denied list use it, and so does any adapter that filters links before asking the fetcher."""
     host = host.lower().split(":")[0]
     return any(host == n or host.endswith("." + n) for n in names)
 
@@ -133,18 +135,18 @@ class PoliteFetcher:
 
     # ------------------------------------------------------------ policy
     def check_host(self, host: str) -> None:
-        if _host_matches(host, DENIED_HOSTS):
+        if host_matches(host, DENIED_HOSTS):
             self.log.append({"event": "refused", "host": host, "detail": "denied host"})
             raise HostRefused(f"{host}: denied in code (never collected)")
-        if _host_matches(host, self.extra_denied):
+        if host_matches(host, self.extra_denied):
             self.log.append({"event": "refused", "host": host, "detail": "denied by config"})
             raise HostRefused(f"{host}: denied by config (never collected)")
-        if not _host_matches(host, self.allowed_hosts):
+        if not host_matches(host, self.allowed_hosts):
             self.log.append({"event": "refused", "host": host, "detail": "not on allowlist"})
             raise HostRefused(f"{host}: not on the allowlist")
 
     def delay_for(self, host: str) -> float:
-        floor = max([self.min_delay] + [v for k, v in HOST_FLOORS.items() if _host_matches(host, (k,))])
+        floor = max([self.min_delay] + [v for k, v in HOST_FLOORS.items() if host_matches(host, (k,))])
         return max(floor, self._delay.get(host, 0.0))
 
     def _wait(self, host: str) -> None:

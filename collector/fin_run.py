@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from .fetch import (FetchFailed, HostBlocked, HostRefused, NotPdf, PoliteFetcher, ProxyRefused, RobotsDisallowed,
-                    _host_matches)
+                    host_matches)
 from .fin_archive import parse_archive
 from .fin_config import FinanceConfig
 from .store import Store, _looks_html, fetch_into_store
@@ -69,9 +69,9 @@ def precheck(url: str, cfg: FinanceConfig, allowed: tuple) -> tuple[str, str] | 
     """(status, detail) for a link that is never requested, else None."""
     parts = urllib.parse.urlsplit(url)
     host = parts.netloc.lower()
-    if _host_matches(host, cfg.bonfire_hosts):
+    if host_matches(host, cfg.bonfire_hosts):
         return "link_only", "bid site (finance.yml bonfire_hosts): never requested"
-    if parts.scheme != "https" or not _host_matches(host, allowed):
+    if parts.scheme != "https" or not host_matches(host, allowed):
         return "link_only", "host not on the allowlist: not requested"
     ext = posixpath.splitext(urllib.parse.unquote(parts.path))[1].lower()
     if ext and ext != ".pdf":
