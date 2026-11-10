@@ -370,7 +370,7 @@ def test_the_link_hosts_cover_every_collector_source_and_the_support_link():
     import re as re_mod
     hosts = set(yaml.safe_load(SITE_YML.read_text(encoding="utf-8"))["morning_note"]["sender"]["link_hosts"].split(","))
     seen = set()
-    for path in config.SITE["morning_note"]["manifests"]:
+    for path in morning.manifest_paths():           # the one list since dates/two-manifest-lists
         seen |= set(re_mod.findall(r"https://([A-Za-z0-9.-]+)", (ROOT / path).read_text(encoding="utf-8")))
     assert seen and seen <= hosts, seen - hosts
     # Low (a): anyone can host a page on the support link's host, so that host is not a link host; the one
