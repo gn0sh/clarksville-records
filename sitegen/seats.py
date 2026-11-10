@@ -2,8 +2,9 @@
 
 Holder records come only from the roster rows (config.SEATS_PATH), each with a source. Nothing here guesses a seat: an official
 with no row has no seat label and is listed under "Seat not yet recorded". When the file is absent the whole site
-falls back to no labels and one officials list. One rule for everyone (N1): current = no `end`, or `end` after the
-latest meeting in the facts. Current is derived and is shown only with its basis line.
+falls back to no labels and one officials list. One rule for everyone (N1): current = no `end` and seen at L, the
+latest meeting the rows were read to (stamp_seen; the latest meeting in the facts unless seats.yml is older), or an
+`end` after it. Current is derived and is shown only with its basis line.
 """
 from __future__ import annotations
 
@@ -144,7 +145,41 @@ def source_label(url: str) -> str:
 # The fixed wording of observed holder records (architecture, invariant `provenance`). `evidence` names what printed
 # the holder in the seat ("roll calls" for the county; a council's attendance lists print each member's ward);
 # `latest` names what the latest date L is. The county's wording is the default; a council passes its own.
-COUNTY_WORDING = {"evidence": "roll calls", "latest": "the latest meeting collected"}
+COUNTY_WORDING = {"evidence": "roll calls", "latest": "the latest meeting collected",
+                  "read_latest": "the latest meeting read for seats"}
+# A record carried on by name only (council.extend_by_listings): the clause after its printed dates.
+LISTED_WORDS = "listed by name in"
+
+
+def stamp_seen(rows: list[dict] | None, facts: dict) -> list[dict] | None:
+    """Each observed row's `seen_to`, the last meeting it was seen at, and on every row `read_to`, the latest meeting
+    the rows were read to (invariant `city-seats/current-holder-matches-latest-attendance`, M1
+    `pipeline/seats-stale-on-new-county-meeting`).
+
+    A closed row was seen to its end. An open row (no end) was seen at the meeting of its `last_source` page: the
+    meeting of the confirmed or unconfirmed roll calls printed on that page. seats.yml is derived by hand
+    (tools/derive_seats.py); when a newer meeting has been collected since, the rows are read to an earlier meeting
+    than the facts hold, and Seats words its dates to that meeting, never to one the cited page does not show. A row
+    whose last page holds no roll call in the facts (a roster, the fixture) gets no `seen_to`, and while any open row
+    has none, no `read_to` is set (the rows are then read to the latest meeting collected, as before)."""
+    if rows is None:
+        return None
+    urls = {s["id"]: s.get("url") for s in facts.get("sources", [])}
+    dates = {m["id"]: m["date"] for m in facts.get("meetings", [])}
+    at: dict[str, set] = {}
+    for rc in facts.get("roll_calls", []):
+        if rc.get("source_id") in urls and rc.get("page") and rc.get("meeting_id") in dates:
+            at.setdefault(f"{urls[rc['source_id']]}#page={rc['page']}", set()).add(dates[rc["meeting_id"]])
+    out = []
+    for r in rows:
+        seen = None
+        if r.get("dates") == "observed":
+            seen = r["end"] if r.get("end") else max(at.get(r.get("last_source") or "", ()), default=None)
+        out.append({**r, "seen_to": seen})
+    if any(r.get("dates") == "observed" and not r.get("end") and not r["seen_to"] for r in out):
+        return out
+    read = max((r["seen_to"] for r in out if r["seen_to"]), default=None)
+    return [{**r, "read_to": read} for r in out] if read else out
 
 
 def basis_text(rec: dict, latest: str, wording: dict | None = None) -> str:
@@ -164,7 +199,13 @@ class Seats:
     def __init__(self, rows: list[dict] | None, officials: dict, latest: str, wording: dict | None = None):
         self.loaded = rows is not None
         self.latest = latest
-        self.wording = wording or COUNTY_WORDING
+        self.wording = {**COUNTY_WORDING, **(wording or {})}
+        # Rows read to an earlier meeting than the facts hold (stamp_seen `read_to`; seats.yml not yet re-derived
+        # after a new meeting): L is that meeting, worded as such, so no open row is dated past what its page shows
+        read_to = next((r["read_to"] for r in rows or [] if r.get("read_to")), None)
+        if read_to and latest and read_to < latest:
+            self.latest = read_to
+            self.wording = {**self.wording, "latest": self.wording["read_latest"]}
         self.records: list[dict] = []
         # A roster person with no facts yet (e.g. a mayor, who has no roll call votes): kept, shown by name with their
         # seat and no history, never linked to a page that does not exist.
@@ -177,9 +218,13 @@ class Seats:
                 self.roster_only.setdefault(oid, {"id": oid, "name": name, "surname": parts[-1],
                                                   "given": " ".join(parts[:-1]), "title": "",
                                                   "aliases": []})
-            # Current is derived: observed = seen at the latest meeting collected (no end); sourced = no end printed.
-            current = r["end"] is None or r["end"] > latest
-            self.records.append({**r, "label": seat_label(r["seat"]), "current": current,
+            # Current is derived: observed = seen at L, the latest meeting read (no end); sourced = no end printed.
+            # An open observed row last seen before L is not current: it ends where it was last seen.
+            end = r["end"]
+            if r.get("dates") == "observed" and end is None and r.get("seen_to") and r["seen_to"] < self.latest:
+                end = r["seen_to"]
+            current = end is None or end > (self.latest if r.get("dates") == "observed" else latest)
+            self.records.append({**r, "end": end, "label": seat_label(r["seat"]), "current": current,
                                  "district": district_number(r["seat"]),
                                  "src_label": source_label(r["source"]),
                                  "last_src_label": source_label(r["last_source"]) if r.get("last_source") else None})
@@ -197,8 +242,13 @@ class Seats:
         ev = rec.get("evidence") or self.wording["evidence"]
         if rec["official_id"] is None:
             return f"shown as vacant in {ev} from {rec['start']} to {rec['end'] or self.latest}"
+        to = f"{self.latest}, {self.wording['latest']}" if rec["end"] is None else rec["end"]
+        if rec.get("printed_to"):
+            # carried on by name only (council.extend_by_listings): what printed the seat, then the name-only lists
+            seen = rec.get("seen_evidence") or ev
+            return f"seen in {seen} from {rec['start']} to {rec['printed_to']}; {LISTED_WORDS} {ev} to {to}"
         if rec["end"] is None:
-            return f"seen in {ev} from {rec['start']} to {self.latest}, {self.wording['latest']}"
+            return f"seen in {ev} from {rec['start']} to {to}"
         return f"seen in {ev} {rec['start']} to {rec['end']}"
 
     def basis(self, rec: dict) -> str:
@@ -225,7 +275,10 @@ class Seats:
         if not self.loaded or not official_id:
             return None
         for r in self.by_official.get(official_id, []):
-            if r["start"] <= date and (r["end"] is None or date <= r["end"]):
+            # an open observed row covers no meeting after the one it was last seen at (a meeting collected since
+            # seats.yml was derived is not read for seats yet: M1 pipeline/seats-stale-on-new-county-meeting)
+            end = r["end"] if r["end"] is not None or r.get("dates") != "observed" else r.get("seen_to")
+            if r["start"] <= date and (end is None or date <= end):
                 if r.get("lines") is not None:
                     old = r["district"] is not None and r["lines"] == "old"
                 else:

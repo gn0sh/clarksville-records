@@ -400,7 +400,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         raise BuildError(f"{finance_path}: no such finance file")
     fin_data = load_finance(finance_path, fixture) if finance_path is not None else None
     try:
-        seat_rows = seats_mod.load_rows(seats_path)
+        seat_rows = seats_mod.stamp_seen(seats_mod.load_rows(seats_path), facts)   # seen_to / read_to (M1)
         districts = seats_mod.load_districts(districts_path)
         georef = georef_mod.load_for_map(districts_path, districts)
         ward_map = georef_mod.wards_of(districts) is not None    # the landing map draws the wards and finds them

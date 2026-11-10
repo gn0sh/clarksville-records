@@ -86,7 +86,7 @@ def ward_rows(wards: list[dict], facts: dict, cfg: dict) -> list[dict]:
                          "source": _src(sources, first["source_id"], first["page"]),
                          "last_source": _src(sources, last["source_id"], last["page"]),
                          "dates": "observed", "printed": None, "lines": None, "note": None, "name": None,
-                         "evidence": cfg["evidence"]["ward"]})
+                         "evidence": cfg["evidence"]["ward"], "printed_to": None})
     return rows
 
 
@@ -111,15 +111,56 @@ def title_rows(facts: dict, cfg: dict) -> list[dict]:
                      "source": _src(sources, first["source_id"], first["page"]),
                      "last_source": _src(sources, last["source_id"], last["page"]),
                      "dates": "observed", "printed": None, "lines": None, "note": None, "name": None,
-                     "evidence": cfg["evidence"]["title"]})
+                     "evidence": cfg["evidence"]["title"], "printed_to": None})
     return rows
 
 
-def holder_rows(wards: list[dict], facts: dict, cfg: dict) -> tuple[list[dict], str | None]:
-    """(records, L): L is the latest meeting any record was seen at. A record seen at L has no end (current)."""
-    rows = ward_rows(wards, facts, cfg) + title_rows(facts, cfg)
-    latest = max((r["end"] for r in rows), default=None)
+def extend_by_listings(rows: list[dict], wards: list[dict], facts: dict, cfg: dict) -> None:
+    """Invariant `city-seats/current-holder-matches-latest-attendance`: a seat's holder record runs on through the
+    later attendance lists that still list its holder by name, until the record shows a successor.
+
+    The evidence that places a member in a seat stops before the record does: the city's CivicClerk minutes (from
+    2025-04) print the attendance names without their wards, and a roll call is used only when confirmed. So a record
+    whose last print P is followed by attendance lists that list its holder is extended to the last of them (its
+    `last_source` that list's page), unless the record shows a successor first: another record of the same seat, or
+    another seat for the same member, starting after P. Then the extension stops before that start. `printed_to`
+    keeps P (and `seen_evidence` the evidence up to P), so the wording says which part was printed and which part
+    only listed the name (Seats.dates_text). A name the attendance list prints but that resolves to no official is
+    never placed in a seat."""
+    sources = {s["id"]: s for s in facts["sources"]}
+    officials = {o["id"] for o in facts["officials"]}
+    listed: dict[str, list[dict]] = defaultdict(list)     # every attendance listing of a member, ward or not
+    for w in sorted(wards, key=lambda w: (w["date"], w["meeting_id"])):
+        if w.get("official_id") in officials:
+            listed[w["official_id"]].append(w)
     for r in rows:
+        if r["official_id"] is None:
+            continue
+        printed = r["end"]
+        cut = min((x["start"] for x in rows if x is not r and x["start"] > printed
+                   and (x["seat"] == r["seat"] or x["official_id"] == r["official_id"])), default=None)
+        later = [w for w in listed[r["official_id"]] if w["date"] > printed and (cut is None or w["date"] < cut)]
+        if not later:
+            continue
+        last = later[-1]
+        r.update({"printed_to": printed, "seen_evidence": r["evidence"], "evidence": cfg["evidence"]["ward"],
+                  "end": last["date"], "last_source": _src(sources, last["source_id"], last["page"])})
+
+
+def holder_rows(wards: list[dict], facts: dict, cfg: dict) -> tuple[list[dict], str | None]:
+    """(records, L). L is the latest minutes read: the latest meeting with an attendance list (wards.json lists every
+    member each list prints, ward or not), or a later record's end. A record seen at L has no end (current); every
+    record keeps `seen_to`, the last meeting it was seen at.
+
+    L is not the latest end of any one kind of evidence: the wards printed in the attendance lists stop at 2025-03-06
+    and the confirmed roll calls at another date, so taking L from the records alone closed every ward record that
+    still ran on (city-seats/current-holder-matches-latest-attendance). extend_by_listings carries each record on
+    through the lists that still list its holder."""
+    rows = ward_rows(wards, facts, cfg) + title_rows(facts, cfg)
+    extend_by_listings(rows, wards, facts, cfg)
+    latest = max([*(r["end"] for r in rows), *(w["date"] for w in wards)], default=None)
+    for r in rows:
+        r["seen_to"] = r["end"]
         if r["end"] == latest:
             r["end"] = None
     return rows, latest
