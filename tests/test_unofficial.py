@@ -4,6 +4,7 @@ import copy
 import re
 import shutil
 
+import pytest
 
 from qa import site_checks
 from sitegen import config, unofficial
@@ -96,6 +97,64 @@ def test_check_fails_when_a_page_feed_or_note_lacks_the_notice(built, tmp_path, 
     (site / "morning").mkdir()
     (site / "morning" / "latest.json").write_text('{"date": "2026-11-10"}', encoding="utf-8")
     assert any("morning/latest.json" in x for x in site_checks.check_unofficial(site, {})[0])
+
+
+NOTICE_SECTION = re.compile(r'<section class="unofficial-notice".*?</section>', re.S)
+
+
+@pytest.mark.parametrize("how", ["comment", "hidden", "aria-hidden", "inline-style", "template", "out-of-footer"])
+def test_check_fails_for_a_notice_nobody_can_see(built, tmp_path, pages, how):
+    site = tmp_path / "site"
+    shutil.copytree(built, site)
+    p = site / "officials.html"
+    raw = p.read_text(encoding="utf-8")
+    sec = NOTICE_SECTION.search(raw).group(0)
+    hidden = {"comment": f"<!-- {sec} -->",
+              "hidden": sec.replace("<section ", "<section hidden ", 1),
+              "aria-hidden": sec.replace("<section ", '<section aria-hidden="true" ', 1),
+              "inline-style": sec.replace("<section ", '<section style="display: none" ', 1),
+              "template": f"<template>{sec}</template>"}.get(how)
+    if how == "out-of-footer":   # in the page, but not in the footer of every page
+        raw = raw.replace(sec, "").replace("</main>", sec + "</main>", 1)
+    else:
+        raw = raw.replace(sec, hidden)
+    p.write_text(raw, encoding="utf-8")
+    assert [x for x in run(site, pages) if x.startswith("officials.html:")] == [
+        "officials.html: the unofficial notice is not in the page text (visible, in the footer)"]
+
+
+@pytest.mark.parametrize("how", ["hidden", "text", "gone"])
+def test_check_reads_the_tag_text_not_only_its_class(built, tmp_path, pages, how):
+    site = tmp_path / "site"
+    shutil.copytree(built, site)
+    p = site / "officials.html"
+    tag = '<p class="unofficial-tag">Independent, unofficial</p>'
+    new = {"hidden": '<p class="unofficial-tag" hidden>Independent, unofficial</p>',
+           "text": '<p class="unofficial-tag">Official</p>', "gone": ""}[how]
+    p.write_text(p.read_text(encoding="utf-8").replace(tag, new), encoding="utf-8")
+    assert [x for x in run(site, pages) if x.startswith("officials.html:")] == [
+        "officials.html: no visible 'Independent, unofficial' tag by the site name"]
+
+
+def test_check_fails_when_css_hides_the_notice(built, tmp_path):
+    site = tmp_path / "site"
+    shutil.copytree(built, site)
+    css = site / "static" / "style.css"
+    rule = "\n@media (max-width: 600px) { .unofficial-intro-full { display:none } }\n"
+    css.write_text(css.read_text(encoding="utf-8") + rule, encoding="utf-8")
+    assert site_checks.check_unofficial(site, {})[0] == [
+        "static/style.css: '.unofficial-intro-full' hides the unofficial notice"]
+
+
+def test_only_real_feeds_are_checked_as_feeds(built, tmp_path):
+    site = tmp_path / "site"
+    shutil.copytree(built, site)
+    n = len(sorted((site / "feeds").glob("*.xml")))
+    (site / "static" / "map.xml").write_text("<svg xmlns='http://www.w3.org/2000/svg'/>", encoding="utf-8")
+    probs, note = site_checks.check_unofficial(site, {})
+    assert probs == [] and f"{n} feeds" in note
+    (site / "feeds" / "broken.xml").write_text("<rss/>", encoding="utf-8")
+    assert site_checks.check_unofficial(site, {})[0] == ["feeds/broken.xml: not an Atom feed"]
 
 
 def test_check_needs_the_config_block(built):

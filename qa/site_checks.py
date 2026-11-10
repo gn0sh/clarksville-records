@@ -93,8 +93,8 @@ NARROW = 360  # AC-F10: the Bids and awards pages are also checked at 360 px
 # External links that are not minutes PDFs but are allowed: a holder record's roster source, the map's boundary source,
 # the county redistricting page / old-lines map, and the footer support link. Each must be marked data-ext and https.
 EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder", "corrections", "video", "operator", "record",
-             "listed", "school", "provider"}   # listed: an RPC document on a host we do not collect from (Google Drive), linked as listed
-EXT_KINDS = EXT_KINDS | {"body"}   # body: About's link to each body's own official site (config/site.yml unofficial.bodies)
+             "listed", "school", "provider", "body"}   # listed: an RPC document on a host we do not collect from (Google Drive), linked as listed
+# body: About's link to each body's own official site (config/site.yml unofficial.bodies)
 # provider: the morning note provider's privacy policy (config morning_note.privacy_url), only while it is enabled
 # school: the day page's one plain link to the school board's site (config/site.yml school_board.url; never fetched)
 # the data-transcript attribute itself, not data-transcript-foo
@@ -1194,9 +1194,51 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
     return problems
 
 
-def _plain(markup: str) -> str:
-    """Visible text of a markup string, whitespace collapsed (tags dropped, entities decoded)."""
-    return " ".join(html.unescape(re.sub(r"<[^>]+>", " ", markup)).split())
+class UnofficialText(HTMLParser):
+    """The text a visitor can see in a page's <footer> and in its `.unofficial-tag` element(s). Comments are not text;
+    script, style, template and noscript content is not shown; an element with `hidden`, aria-hidden="true" or an
+    inline display:none / visibility:hidden hides everything inside it."""
+    VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track",
+            "wbr"}
+    SKIP = {"script", "style", "template", "noscript"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.stack = []        # (tag, hidden, in_footer, in_tag)
+        self.footer, self.tags = [], []   # tags: the text parts of each visible .unofficial-tag element
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        _, hid, foot, intag = self.stack[-1] if self.stack else ("", False, False, False)
+        style = (a.get("style") or "").replace(" ", "").lower()
+        hid = (hid or tag in self.SKIP or "hidden" in a or (a.get("aria-hidden") or "").lower() == "true"
+               or "display:none" in style or "visibility:hidden" in style)
+        is_tag = "unofficial-tag" in (a.get("class") or "").split()
+        if is_tag and not hid and not intag:
+            self.tags.append([])
+        if tag not in self.VOID:
+            self.stack.append((tag, hid, foot or tag == "footer", intag or (is_tag and not hid)))
+
+    def handle_endtag(self, tag):
+        for i in range(len(self.stack) - 1, -1, -1):
+            if self.stack[i][0] == tag:
+                del self.stack[i:]
+                return
+
+    def handle_data(self, data):
+        if self.stack and not self.stack[-1][1]:
+            if self.stack[-1][2]:
+                self.footer.append(data)
+            if self.stack[-1][3]:
+                self.tags[-1].append(data)
+
+
+def _hiding_rules(site: Path) -> list[str]:
+    """Selectors in the built style.css that name an unofficial-* class and hide it (display:none, visibility:hidden)."""
+    css = site / "static" / "style.css"
+    text = re.sub(r"/\*.*?\*/", "", css.read_text(encoding="utf-8"), flags=re.S) if css.is_file() else ""
+    return [" ".join(sel.split()) for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", text)
+            if "unofficial" in sel and re.search(r"display\s*:\s*none|visibility\s*:\s*hidden", body)]
 
 
 def unofficial_notice(cfg: dict) -> str:
@@ -1218,11 +1260,16 @@ def check_unofficial(site: Path, pages: dict[str, Page], cfg: dict | None = None
     if not u:
         return ["config/site.yml has no unofficial: block"], ""
     notice = unofficial_notice(cfg)
-    problems = []
+    problems = [f"static/style.css: {sel!r} hides the unofficial notice" for sel in _hiding_rules(site)]
     for rel in sorted(pages):
         raw = (site / rel).read_text(encoding="utf-8")
-        if notice not in _plain(raw.split("<body", 1)[-1]):
-            problems.append(f"{rel}: the unofficial notice is not in the page text")
+        seen = UnofficialText()
+        seen.feed(raw)
+        seen.close()
+        if notice not in " ".join("".join(seen.footer).split()):
+            problems.append(f"{rel}: the unofficial notice is not in the page text (visible, in the footer)")
+        if not seen.tags or any(" ".join("".join(t).split()) != u["tag"] for t in seen.tags):
+            problems.append(f"{rel}: no visible '{u['tag']}' tag by the site name")
         meta = re.findall(r'<meta\s+(?:name="description"|property="og:description")\s+content="([^"]*)"', raw)
         if len(meta) != 2 or any(" ".join(html.unescape(m).split()) != notice for m in meta):
             problems.append(f"{rel}: description and og:description meta tags do not both carry the notice")
@@ -1231,16 +1278,21 @@ def check_unofficial(site: Path, pages: dict[str, Page], cfg: dict | None = None
                         ("og:title", re.search(r'<meta\s+property="og:title"\s+content="([^"]*)"', raw))):
             if not m or not html.unescape(m.group(1)).strip().startswith(lead):
                 problems.append(f"{rel}: {what} does not start with {lead!r}")
-        if '<p class="unofficial-tag">' not in raw:
-            problems.append(f"{rel}: no '{u['tag']}' tag by the site name")
-    feeds = sorted(site.rglob("*.xml"))
-    for f in feeds:
+    feeds = []   # every Atom feed anywhere; any other .xml in feeds/ is a problem, other .xml files are not feeds
+    for f in sorted(site.rglob("*.xml")):
         rel = f.relative_to(site).as_posix()
         try:
-            sub = ET.parse(f).getroot().find(ATOM + "subtitle")
+            root = ET.parse(f).getroot()
         except ET.ParseError:
-            problems.append(f"{rel}: feed is not valid XML")
+            if rel.startswith("feeds/"):
+                problems.append(f"{rel}: feed is not valid XML")
             continue
+        if root.tag != ATOM + "feed":
+            if rel.startswith("feeds/"):
+                problems.append(f"{rel}: not an Atom feed")
+            continue
+        feeds.append(f)
+        sub = root.find(ATOM + "subtitle")
         if sub is None or notice not in " ".join((sub.text or "").split()):
             problems.append(f"{rel}: the feed subtitle lacks the unofficial notice")
     notes = sorted((site / "morning").glob("*.json")) if (site / "morning").is_dir() else []
