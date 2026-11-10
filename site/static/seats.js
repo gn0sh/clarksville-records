@@ -1,6 +1,7 @@
 /* "Your seats" (landing). After an address lookup finds a district or ward, or a click on a map area, the visitor's
    district and ward numbers are kept in this browser only: one localStorage key, two small numbers,
-   never sent anywhere, no cookies. On a later visit the "Your seats" box links to those seats' pages, built from this
+   never sent anywhere by this script, no cookies. (The one way they can leave the device: the morning note's sign-up
+   form, when it is enabled, posts them while its visible "include my saved seats" box is ticked; static/morning.js.) On a later visit the "Your seats" box links to those seats' pages, built from this
    page's own lists (a stored number that matches no list row shows nothing), and its Forget button clears the key.
    Every storage call is wrapped: if storage is blocked or full the box simply never shows and nothing breaks.
    First-party, no network calls. Exposes CRSeats for tests and for static/address.js (module.exports under node). */

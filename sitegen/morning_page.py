@@ -5,7 +5,9 @@ While `morning_note.enabled` is false (M3) there is no email field, no submit, n
 section shows the list picker, the state line and, per picked list, the feeds that follow it now. Nothing about the
 visitor leaves the device: static/morning.js reads the seats static/seats.js keeps and the picks in the page's own
 #fragment, and makes no network call. The enabled path (a later CEO decision) posts straight to `form_action`, and
-only the Alerts page's CSP form-action gains that one origin. Every word around a record's own title is config text
+only the Alerts page's CSP form-action gains that one origin. Enabled, the stored seats are posted only while the
+form's visible "include my saved seats" box is ticked (it prints the numbers), and privacy() gives the landing and
+Method pages the text that replaces "never sent anywhere". Every word around a record's own title is config text
 (`morning_note.page`).
 """
 from __future__ import annotations
@@ -53,6 +55,23 @@ def form_origin(cfg: dict | None = None) -> str | None:
         return None
     u = urlsplit(action)
     return f"{u.scheme}://{u.netloc}" if u.scheme == "https" and u.netloc else None
+
+
+def privacy(cfg: dict | None = None) -> dict | None:
+    """What the landing and Method pages say about the sign-up form, or None while the note is not enabled
+    (morning-security/privacy-text-matches-data-flow). Off, those pages say the stored seats are never sent anywhere,
+    which is true: there is no form. Enabled, the form can post them to the provider, so the pages print
+    `seats_sent` instead and the Method page gains a paragraph: what is sent, to whom, how to stop, and the
+    provider's privacy policy. Every word is config text (`morning_note.page`)."""
+    cfg = config.SITE if cfg is None else cfg
+    if not (on(cfg) and enabled(cfg)):
+        return None
+    m = settings(cfg)
+    t, provider = m["page"], m.get("provider") or ""
+    return {"provider": provider, "privacy_url": m["privacy_url"], "privacy_label": t["privacy_label"],
+            "seats_sent": t["seats_sent"].format(provider=provider), "heading": t["method_heading"],
+            "sent": t["method_sent"].format(provider=provider), "unsubscribe": t["method_unsubscribe"],
+            "signup_link": t["method_signup_link"], "signup_href": "alerts.html#note"}
 
 
 def _feeds_for(key: str, feeds: list[dict], cfg: dict) -> list[dict]:

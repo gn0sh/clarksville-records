@@ -111,6 +111,15 @@ morning_note:
     submit: Send me the morning note
     sent_line: "Sending this form gives {provider} your email address, the lists you picked and your saved district and ward."
     privacy_label: Privacy policy
+    # Enabled state only (morning-security/seat-consent, privacy-text-matches-data-flow). seats_include labels the
+    # form's visible box; the saved numbers are printed after it ("District 5, Ward 3"). seats_sent replaces the
+    # "never sent anywhere" sentences on the landing and Method pages. method_* is the Method page's paragraph.
+    seats_include: "Include my saved seats:"
+    seats_sent: "Your saved district and ward leave this device only if you sign up for the morning note and keep \"Include my saved seats\" ticked; then they go to {provider}."
+    method_heading: Morning note
+    method_sent: "The morning note is an email you sign up for on the Alerts page. Sending the sign-up form gives {provider} your email address and the lists you picked. Your saved district and ward go with it only while \"Include my saved seats\" is ticked; the form shows the numbers before you send it. Nothing is sent until you send the form."
+    method_unsubscribe: "To stop the email, use the unsubscribe link in any morning note."
+    method_signup_link: Sign up on the Alerts page
     preview_title: Today's morning note
     preview_lede: "The note as it would read on {date}: what was added to this site from {from} to {to}. Nothing is emailed yet."
     preview_mine: The lists you pick stay in this page's address on this device; nothing is sent.

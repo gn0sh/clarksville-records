@@ -93,7 +93,8 @@ NARROW = 360  # AC-F10: the Bids and awards pages are also checked at 360 px
 # External links that are not minutes PDFs but are allowed: a holder record's roster source, the map's boundary source,
 # the county redistricting page / old-lines map, and the footer support link. Each must be marked data-ext and https.
 EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder", "corrections", "video", "operator", "record",
-             "listed", "school"}   # listed: an RPC document on a host we do not collect from (Google Drive), linked as listed
+             "listed", "school", "provider"}   # listed: an RPC document on a host we do not collect from (Google Drive), linked as listed
+# provider: the morning note provider's privacy policy (config morning_note.privacy_url), only while it is enabled
 # school: the day page's one plain link to the school board's site (config/site.yml school_board.url; never fetched)
 # the data-transcript attribute itself, not data-transcript-foo
 TRANSCRIPT_TEXT = re.compile(r"(<(span|p)\b[^>]*\sdata-transcript(?=[\s=/>])[^>]*>)[^<]*(</\2>)")
@@ -361,6 +362,9 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
         out.add(cfg["operator_url"])                 # the footer's "gnoshcodes" link
     if cfg.get("support_enabled") is True and cfg.get("support_url"):
         out.add(cfg["support_url"])
+    mn = cfg.get("morning_note") or {}
+    if mn.get("enabled") is True and mn.get("privacy_url"):
+        out.add(mn["privacy_url"])                   # the sign-up form's and the Method page's privacy policy link
     out |= {u for u in corrections_links(cfg) if u.startswith("https://")}   # the report page's GitHub issue link
     if districts_path is not None and Path(districts_path).is_file():
         d = json.loads(Path(districts_path).read_text(encoding="utf-8"))
@@ -1108,14 +1112,24 @@ def parse_csp(text: str) -> dict[str, list[str]]:
     return out
 
 
+NOTE_PAGE = "alerts.html"   # the morning note's sign-up form (sitegen/morning_page.py)
+
+
 def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict | None = None) -> list[str]:
     """No third-party resource in the HTML. The one runtime call out, the landing address box's geocoder (only on
     submit, from a sandboxed iframe), may go only to config/site.yml geocoder_url, exactly: the box's settings block
     and the page's CSP script-src both hold it. A page that loads address.js without its settings block fails
     (qa-guard/addr-config-silent-miss), as does a page without the CSP meta (third-party-script/no-csp)."""
     problems = []
+    # The one form that may post off the site: the morning note's sign-up form on alerts.html, only while config
+    # morning_note.enabled is true, and only to its form_action exactly; that page's CSP form-action then holds
+    # 'self' and that one origin (restated here, not called from sitegen/morning_page.py).
+    mn = (cfg or {}).get("morning_note") or {}
+    note_action = mn.get("form_action") if mn.get("enabled") is True and isinstance(mn.get("form_action"), str) else None
     for rel, pg in pages.items():
         for tag, src in pg.resources:
+            if tag == "form" and note_action and rel == NOTE_PAGE and src == note_action and src.startswith("https://"):
+                continue
             if urlsplit(src).scheme or src.startswith("//"):
                 problems.append(f"{rel}: third-party <{tag}> {src!r}")
     if site is None:
@@ -1146,6 +1160,9 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
             continue
         pol = parse_csp(pg.csp[0])
         for k, v in CSP_FIXED.items():
+            if k == "form-action" and note_action and rel == NOTE_PAGE:
+                u = urlsplit(note_action)
+                v = [*v, f"{u.scheme}://{u.netloc}"]
             if pol.get(k) != v:
                 problems.append(f"{rel}: CSP {k} is {pol.get(k)!r}, want {v!r}")
         scripts = pol.get("script-src")

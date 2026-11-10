@@ -2,6 +2,8 @@
    page (morning/index.html). Everything happens on this device: the seats come from static/seats.js (CRSeats, the
    one "cr-your-seats" key it keeps), the picked lists from the checkboxes and the preview page's own #lists= fragment.
    This script makes no network call, stores nothing new, and never submits or claims to have sent anything.
+   The enabled sign-up form (a later decision) posts the stored seats only while its visible "include my saved
+   seats" box is ticked: seatPost() decides the two fields, seatWords() the numbers printed beside the box.
    select() mirrors sitegen/morning.py select(): an entry is kept when one of its lists is picked and, for "zoning",
    its printed district or ward equals a stored seat, for "seats", the stored seat its seat_body names is set (the
    county's documents need a district, a council's a ward). tests/test_morning_page.py runs both over the same
@@ -45,7 +47,23 @@
     return keys.filter(function (k) { return picked.indexOf(k) >= 0; });
   }
 
-  var api = { select: select, matches: matches, parseLists: parseLists };
+  /* The enabled form's two seat fields: each stored seat as text, or null (the field stays disabled and empty, so it
+     is not posted). Nothing unless `include` is exactly true: the visible box is there and ticked. */
+  function seatPost(seats, include) {
+    var d = seats && include === true ? num(seats.district) : null;
+    var w = seats && include === true ? num(seats.ward) : null;
+    return { district: d === null ? null : String(d), ward: w === null ? null : String(w) };
+  }
+
+  /* The stored seats as the form prints them beside the box: "District 5, Ward 3", or "" when none is stored. */
+  function seatWords(seats, labels) {
+    var d = seats ? num(seats.district) : null, w = seats ? num(seats.ward) : null, out = [];
+    if (d !== null) { out.push(labels.district + " " + d); }
+    if (w !== null) { out.push(labels.ward + " " + w); }
+    return out.join(", ");
+  }
+
+  var api = { select: select, matches: matches, parseLists: parseLists, seatPost: seatPost, seatWords: seatWords };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; return; }
   root.CRMorning = api;
 
@@ -62,6 +80,7 @@
   var note = doc.getElementById("note");
   if (note) {
     showPicker(note);
+    var seatsBox = doc.getElementById("note-seats"), seatsRow = doc.getElementById("mn-seats");
     var updateNote = function () {
       var lists = picked(note);
       each(note, ".mn-lists > li[data-list]", function (li) {
@@ -79,13 +98,22 @@
       var link = doc.getElementById("mn-preview");
       var base = note.getAttribute("data-preview");
       if (link && base) { link.setAttribute("href", base + "#lists=" + lists.join(",")); }
-      each(note, "input[data-seat-field]", function (inp) {   // the enabled form only: the stored seats, if any
-        var v = seats ? num(seats[inp.getAttribute("data-seat-field")]) : null;
-        inp.value = v === null ? "" : String(v);
+      // The enabled form only: the stored seats, shown beside a visible box and posted only while it is ticked.
+      var words = doc.getElementById("mn-seats-values");
+      var said = words ? seatWords(seats, { district: words.getAttribute("data-district-label") || "",
+                                            ward: words.getAttribute("data-ward-label") || "" }) : "";
+      if (words) { words.textContent = said; }
+      if (seatsRow) { seatsRow.hidden = said === ""; }
+      var post = seatPost(seats, !!seatsBox && !!seatsRow && said !== "" && seatsBox.checked);
+      each(note, "input[data-seat-field]", function (inp) {
+        var v = post[inp.getAttribute("data-seat-field")];
+        v = typeof v === "string" ? v : null;
+        inp.value = v === null ? "" : v;
         inp.disabled = v === null;
       });
     };
     boxes(note).forEach(function (b) { b.addEventListener("change", updateNote); });
+    if (seatsBox) { seatsBox.addEventListener("change", updateNote); }
     updateNote();
   }
 
