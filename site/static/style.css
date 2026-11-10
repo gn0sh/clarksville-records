@@ -422,10 +422,6 @@ details.menu[open] > summary::after { transform: translateY(0) rotate(225deg); }
 .menu-list a:hover { background: var(--surface-2); }
 .menu-list a[aria-current="page"] { font-weight: 600; box-shadow: inset 3px 0 0 var(--link); }
 .menu-list a:focus-visible, details.menu > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; }
-.site-header details.menu > summary { color: var(--band-fg); }
-.site-header details.menu > summary:hover, .site-header details.menu[open] > summary { border-bottom-color: var(--band-muted); }
-.site-header details.menu > summary.current { border-bottom-color: var(--band-fg); font-weight: 600; }
-.site-header details.menu > summary:focus-visible { outline: 3px solid var(--band-fg); outline-offset: 1px; }
 .site-header .menu-list a, .site-header .menu-list a:visited { color: var(--fg); }
 .site-header .menu-list a:focus-visible { outline-color: var(--focus); outline-offset: -3px; }
 .nav-drop { position: relative; }
@@ -743,7 +739,7 @@ table.attendance td.cite details.row-details { display: inline-block; }
   min-height: 44px; padding: 8px 14px; border: 1px solid var(--mark); border-radius: var(--radius);
   background: var(--surface); color: var(--fg); cursor: pointer;
 }
-.sol-filters button[type="submit"] { background: var(--link); border-color: var(--link); color: var(--band-fg); }
+.sol-filters button[type="submit"] { background: var(--blue); border-color: var(--blue); color: var(--on-blue); }
 .sol-filters button:focus-visible, .more-btn:focus-visible, .empty-note button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .f-actions { display: flex; gap: 8px; }
 .more-btn { margin: 8px 0; }
@@ -910,6 +906,9 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 .has-sky .masthead { z-index: 1; }
 .sky-hero { position: relative; z-index: 1; max-width: var(--measure); margin: 0 auto; padding: 0 var(--gutter) 10px; }
 .sky-hero[hidden] { display: none; }
+/* with the script the date line keeps its space before it is filled (js-flag.js), so nothing jumps */
+.js .sky-hero[hidden] { display: block; visibility: hidden; }
+.js .sky-hero[hidden] .sky-day { min-height: 1.8rem; }
 .sky-day { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; font-family: var(--font-head); line-height: 1.1; }
 .sky-dow { font-weight: 500; font-size: 1.05rem; letter-spacing: -.01em; }
 .sky-date { font-weight: 800; font-size: 1.9rem; line-height: 1; letter-spacing: -.035em; }
@@ -917,7 +916,7 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
   .sky-in { display: none; }
   .sky-sun { --sun-max: .5; }
   /* without the script there is no date line, so on a phone only a sliver of sun shows, clear of the name plate */
-  .has-sky:has(#sky-hero[hidden]) .sky-sun { --sun-max: .15; }
+  html:not(.js) .has-sky:has(#sky-hero[hidden]) .sky-sun { --sun-max: .15; }
   .sky-hero { padding-bottom: 6px; }
   .sky-date { font-size: 1.8rem; }
   /* the landing must fit one phone screen: there the support link stays a plain link on the operator line */
@@ -928,10 +927,12 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
   .sky-dow { font-size: clamp(1.1rem, 2vw, 1.35rem); }
   .sky-date { font-size: clamp(2.6rem, 5vw, 3.4rem); line-height: .9; letter-spacing: -.045em; }
   .sky-hero { padding-bottom: 14px; }
+  .js .sky-hero[hidden] .sky-day { min-height: clamp(2.34rem, 4.5vw, 3.06rem); }
 }
 
 /* Your seats: the visitor's saved seats as pills (seats.js fills the list). */
-.your-seats { border-left: 0; border-radius: var(--radius-lg); background: var(--surface-2); }
+.your-seats { border-left: 0; border-radius: var(--radius-lg); background: var(--surface-2); --focus: var(--fg); }
+.menu-list a:hover:focus-visible { --focus: var(--fg); }
 .your-seats-list a { min-height: 36px; line-height: 32px; padding: 0 14px; border: 2px solid var(--link); border-radius: 999px; background: var(--surface); color: var(--fg); font-family: var(--font-head); font-weight: 700; text-decoration: none; }
 .your-seats-list a:visited { color: var(--fg); }
 .your-seats-list a:hover { text-decoration: underline; }

@@ -1,6 +1,7 @@
 """Daylight M1 (docs/design/daylight): the name plate on every page, the landing sky (static/sky.js: the sun by the
 viewer's clock, today's date, hidden without the script), self-hosted brand fonts and Daylight tokens in both themes."""
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -97,19 +98,47 @@ def _ratio(a, b):
     return (la + 0.05) / (lb + 0.05)
 
 
-@pytest.mark.parametrize("fg,bg", [
-    ("#141A2E", "#D6E2FB"), ("#4A5470", "#D6E2FB"), ("#4A5470", "#F7F8FC"), ("#2B4BA5", "#F7F8FC"),   # light
-    ("#FFFFFF", "#2B4BA5"), ("#2B4BA5", "#E8EDFA"),
-    ("#EEF1F8", "#18245A"), ("#A3ACC4", "#18245A"), ("#A3ACC4", "#0D1224"), ("#9DB1F5", "#0D1224"),   # dark
-    ("#9DB1F5", "#161C33"), ("#FFFFFF", "#3D5FC4"), ("#A3ACC4", "#1B2443"),
-])
-def test_text_pairs_meet_aa(fg, bg):
-    assert _ratio(fg, bg) >= 4.5, (fg, bg, round(_ratio(fg, bg), 2))
+def _tokens(block_start):
+    css = CSS.read_text(encoding="utf-8")
+    block = css[css.index(block_start):]
+    block = block[:block.index("}")]
+    return dict(re.findall(r"(--[a-z0-9-]+):\s*(#[0-9A-Fa-f]{6})", block))
 
 
-@pytest.mark.parametrize("bg", ["#F7F8FC", "#FFFFFF", "#0D1224", "#161C33"])
-def test_sun_focus_ring_is_visible_off_the_sky(bg):
-    assert _ratio("#EF5E35", bg) >= 3, bg
+LIGHT = _tokens(":root {")
+DARK = _tokens(':root[data-theme="dark"] {')
+# (theme, text token, background token), read from the CSS so a palette change is checked, not a copy of it
+PAIRS = [
+    (LIGHT, "--fg", "--sky"), (LIGHT, "--muted", "--sky"), (LIGHT, "--muted", "--bg"), (LIGHT, "--link", "--bg"),
+    (LIGHT, "--on-blue", "--blue"), (LIGHT, "--link", "--surface-2"), (LIGHT, "--fg", "--surface-2"),
+    (DARK, "--fg", "--sky"), (DARK, "--muted", "--sky"), (DARK, "--muted", "--bg"), (DARK, "--link", "--bg"),
+    (DARK, "--link", "--surface"), (DARK, "--on-blue", "--blue"), (DARK, "--muted", "--surface-2"),
+    (DARK, "--fg", "--surface-2"),
+]
+
+
+@pytest.mark.parametrize("theme,fg,bg", PAIRS)
+def test_text_pairs_meet_aa(theme, fg, bg):
+    assert _ratio(theme[fg], theme[bg]) >= 4.5, (fg, bg, round(_ratio(theme[fg], theme[bg]), 2))
+
+
+@pytest.mark.parametrize("theme", [LIGHT, DARK])
+@pytest.mark.parametrize("bg", ["--bg", "--surface"])
+def test_sun_focus_ring_is_visible_off_the_sky(theme, bg):
+    assert _ratio(theme["--sun"], theme[bg]) >= 3, bg
+
+
+def test_focus_ring_on_the_wash_is_ink():
+    css = CSS.read_text(encoding="utf-8")
+    assert re.search(r"\.your-seats \{[^}]*--focus: var\(--fg\)", css)
+    assert re.search(r"\.menu-list a:hover:focus-visible \{ --focus: var\(--fg\)", css)
+    for theme in (LIGHT, DARK):                       # ink on the #E8EDFA wash (and its dark twin) is 3:1 or better
+        assert _ratio(theme["--fg"], theme["--surface-2"]) >= 3
+
+
+def test_filter_submit_button_uses_the_button_tokens():
+    assert re.search(r'\.sol-filters button\[type="submit"\] \{ background: var\(--blue\);[^}]*color: var\(--on-blue\)',
+                     CSS.read_text(encoding="utf-8"))
 
 
 @pytest.fixture(scope="module")
@@ -126,3 +155,25 @@ def test_sun_altitude_follows_the_clock(node):
     night, early, rise, morning, noon, afternoon, set_, late, bad, text = json.loads(res.stdout)
     assert night == early == rise == set_ == late == bad == text < 0     # below the horizon at night, and on junk
     assert noon == 1 and 0 < morning < noon and 0 < afternoon < noon
+
+
+def test_hero_date_is_clarksvilles_not_the_viewers(node):
+    probe = r"""
+const RealDate = Date, fixed = RealDate.UTC(2026, 10, 10, 16, 0, 0);   // Wed 02:00 in Brisbane, Tue 10:00 in Chicago
+global.Date = class extends RealDate { constructor(...a) { a.length ? super(...a) : super(fixed); } };
+const els = {};
+const mk = id => (els[id] = { hidden: true, textContent: "", attrs: {}, style: { setProperty() {} },
+  getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }, setAttribute(k, v) { this.attrs[k] = v; } });
+mk("sky-hero").attrs["data-tz"] = "America/Chicago"; mk("sky-weekday"); mk("sky-date"); mk("sky-sun");
+global.window = global;
+global.document = { getElementById: id => els[id] || null };
+global.addEventListener = () => {};
+require(process.argv[1]).render();
+console.log(JSON.stringify([els["sky-weekday"].textContent, els["sky-date"].textContent,
+  els["sky-date"].attrs.datetime, els["sky-hero"].hidden, new RealDate(fixed).toLocaleDateString("en-US", {weekday: "long"})]));
+"""
+    res = subprocess.run([node, "-e", probe, str(SKY_JS)], capture_output=True, text=True, check=True,
+                         env={**os.environ, "TZ": "Australia/Brisbane"})
+    weekday, date, iso, hidden, viewer_weekday = json.loads(res.stdout)
+    assert viewer_weekday == "Wednesday"             # the viewer's own zone is already on the next day
+    assert (weekday, date, iso, hidden) == ("Tuesday", "November 10", "2026-11-10", False)
