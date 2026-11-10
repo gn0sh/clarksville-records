@@ -296,9 +296,17 @@ def idempotency_key(day: str, key: str, step: str) -> str:
     return str(uuid.uuid5(NAMESPACE, f"daylight-note/{day}/{key}/{step}"))
 
 
+MIN_SECRET = 32         # bytes (security Low (b)): a shorter HMAC key could make a stamp guessable
+
+
+def secret_ok(secret) -> bool:
+    """True for a stamp secret deliver may use: bytes, at least MIN_SECRET of them. Nothing else stands in."""
+    return isinstance(secret, bytes) and len(secret) >= MIN_SECRET
+
+
 def stamp_value(day: str, key: str, secret: bytes) -> str:
     """"<day>.<key>.<mac>". Deterministic for one secret, so a re-run writes and filters the same value."""
-    if not isinstance(secret, bytes) or not secret:
+    if not secret_ok(secret):
         raise PlanInvalid("the stamp secret")
     base = f"{day}.{key}"
     value = f"{base}.{hmac.new(secret, base.encode('utf-8'), hashlib.sha256).hexdigest()[:16]}"
@@ -469,8 +477,8 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         return end(MISSED_EXIT, "missed", why="now is past latest_send; a note is never sent late")
     if settings.canary_only and not canary_ids:
         return end(0, "no-canary", why=f"canary_only is true and {CANARY_ENV} names nobody")
-    if settings.mode == "stamp" and not (isinstance(stamp_secret, bytes) and stamp_secret):
-        return end(2, "no-secret", why="stamp mode needs the stamp secret (the provider key)")
+    if settings.mode == "stamp" and not secret_ok(stamp_secret):
+        return end(2, "no-secret", why=f"stamp mode needs the stamp secret (the provider key), at least {MIN_SECRET} bytes")
     sent = people = 0
     step = "email listing"
 

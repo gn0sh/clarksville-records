@@ -25,7 +25,8 @@ TZ = ZoneInfo("America/Chicago")
 DAY = D.isoformat()
 AT_5 = datetime(2026, 11, 11, 5, 0, tzinfo=TZ)            # the run ends before send_at (07:00)
 SECRET_BODY = "RESPONSE-BODY-WITH-jane.roe@example.com"
-SECRET = b"made-up-test-key-not-a-real-one"     # the HMAC key of the stamps (live: the provider's API key)
+SECRET = b"made-up-test-key-not-a-real-one-32b"   # the HMAC key of the stamps (live: the provider's API key)
+OTHER_SECRET = b"another-made-up-test-key-of-32-bytes"
 
 
 def stamp(key: str, day: str = DAY) -> str:
@@ -532,10 +533,20 @@ def test_the_stamp_is_unguessable_from_the_public_note_and_stable_across_runs():
     key = "0123456789ab"
     want = f"{DAY}.{key}." + hmac.new(SECRET, f"{DAY}.{key}".encode(), hashlib.sha256).hexdigest()[:16]
     assert deliver.stamp_value(DAY, key, SECRET) == want == stamp(key)
-    assert deliver.STAMP_RE.fullmatch(want) and deliver.stamp_value(DAY, key, b"another key") != want
-    for secret in (b"", None, "text"):
+    assert deliver.STAMP_RE.fullmatch(want) and deliver.stamp_value(DAY, key, OTHER_SECRET) != want
+    for secret in (b"", None, "text", SECRET[:31], b"x" * 31, SECRET.decode()):
         with pytest.raises(deliver.PlanInvalid):
             deliver.stamp_value(DAY, key, secret)
+
+
+@pytest.mark.parametrize("short", [b"", b"x" * 31, SECRET[:31], "a-text-secret-of-more-than-32-chars"])
+def test_a_stamp_secret_under_32_bytes_sends_nothing_and_nothing_stands_in(plan, short):
+    """Low (b): a short key would make the stamp guessable; no other value is tried in its place."""
+    assert len(SECRET) >= 32 and len(OTHER_SECRET) >= 32
+    fake = Fake(people(plan))
+    res, _ = go(plan, fake, secret=short)
+    assert (res.code, res.status) == (2, "no-secret") and fake.calls == []
+    assert go(plan, Fake(people(plan)), secret=b"x" * 32)[0].status == "sent"
 
 
 def test_stamp_mode_without_the_secret_sends_nothing(plan):
@@ -813,7 +824,7 @@ def test_the_audience_check_accepts_only_the_editions_own_filter():
     good = {"status": "scheduled", "filters": deliver.stamp_filter(DAY, key, SECRET)}
     deliver._check_audience("stamp", good, DAY, key, SECRET)
     for payload in ({**good, "status": "draft"}, {"status": "scheduled"}, {**good, "filters": deliver.stamp_filter("2026-11-10", key, SECRET)},
-                    {**good, "filters": deliver.stamp_filter(DAY, key, b"another key")}):
+                    {**good, "filters": deliver.stamp_filter(DAY, key, OTHER_SECRET)}):
         with pytest.raises(deliver.ProviderError):
             deliver._check_audience("stamp", payload, DAY, key, SECRET)
     with pytest.raises(deliver.ProviderError):

@@ -324,7 +324,7 @@ morning_note:
   `<D>.<key>.<HMAC-SHA256(API key, "<D>.<key>")[:16]>`, since `<D>.<key>` alone is computable from the public
   `morning/<D>.json`. It is deterministic, so a re-run writes and filters the same value; do not rotate the key
   between a day's first run and 7:00 (the scheduled emails would match nobody). `stamp` mode refuses to run without
-  the secret ("no-secret", exit 2). `ids` emails carry `<D>.<key>` only (no filter reads it).
+  the secret, or with one under 32 bytes, and tries nothing in its place ("no-secret", exit 2; security Low (b)). `ids` emails carry `<D>.<key>` only (no filter reads it).
 - **The deliver stage checks each body** (security `plan-untrusted/body-unchecked`, M3) against render's exact
   output, not by parsing HTML: `<h1>` first, every line one of render's forms (`<h1>T</h1>`, `<h2>T</h2>`,
   `<p>…</p>`, `<ul>`, `</ul>`, `<li>…</li>`, inside them only `<br>`, `<strong>T</strong>`, `<a href="U">T</a>`),
