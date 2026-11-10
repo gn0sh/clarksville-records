@@ -1,4 +1,4 @@
-"""Landing: the address search leads and the map is second; "Your seats" (static/seats.js) keeps the visitor's ward and
+"""Landing: the address search leads (no map since 2026-11-10); "Your seats" (static/seats.js) keeps the visitor's ward and
 district numbers in this browser only, under one namespaced key, and survives blocked or throwing storage."""
 import json
 import re
@@ -22,10 +22,11 @@ def addr_site(tmp_path_factory):
     return out
 
 
-def test_address_search_precedes_the_map_in_the_dom(addr_site):
+def test_address_search_precedes_the_lists_in_the_dom(addr_site):
     html = (addr_site / "index.html").read_text(encoding="utf-8")
-    assert html.index('id="your-seats"') < html.index('id="addr-form"') < html.index("<svg class=\"county-map")
-    assert html.index('id="addr-form"') < html.index('class="landing-grid"') < html.index("<svg class=\"county-map")
+    assert "<svg" not in html                                                # no map (CEO, 2026-11-10)
+    assert html.index('id="your-seats"') < html.index('id="addr-form"') < html.index('class="landing-search"')
+    assert html.index('id="addr-form"') < html.index('class="district-list"')
     form = next(n for n in parse(html).walk() if n.attrs.get("id") == "addr-form")
     label = next(n for n in form.walk() if n.tag == "label")
     assert " ".join(label.all_text().split()).startswith("Find your ")
@@ -44,7 +45,7 @@ def test_your_seats_box_has_a_forget_button_and_the_storage_line(addr_site):
     assert btn.attrs["aria-label"] == "Forget my saved seats"
     status = next(n for n in parse(html).walk() if n.attrs.get("id") == "seats-status")
     assert status.attrs["aria-live"] == "polite"
-    assert "or a click on the map, only the district and ward numbers are kept" in html   # map clicks too
+    assert "After a lookup, only the district and ward numbers are kept" in html
     assert "Saved only in this browser, on this device." in " ".join(box.all_text().split())
     assert "no cookies" in box.all_text()
     assert "No cookies." in html                                              # the address box's own one-line notice

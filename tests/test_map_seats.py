@@ -91,7 +91,7 @@ def test_19_and_20_carry_the_adopted_numbers(districts):
 
 
 def test_map_is_small_enough_to_inline(districts):
-    """The landing inlines both layers: the district drawing as before, and the ward paths (tests/test_ward_map.py
+    """The landing address box inlines the district and ward paths as data (tests/test_ward_map.py
     checks their accuracy; 0.12 pt simplification keeps them within 5 m of the trace)."""
     county = {k: v for k, v in districts.items() if k != "wards"}
     assert len(json.dumps(county, indent=1)) < 60_000

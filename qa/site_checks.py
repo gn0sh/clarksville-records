@@ -373,7 +373,7 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
         out.add(d["source_url"])
         wards = d.get("wards") or {}
         if wards.get("status") == "available" and wards.get("source_url"):
-            out.add(wards["source_url"])             # the ward lines' source, under the map's ward layer
+            out.add(wards["source_url"])             # the ward lines' source, named under the address box
     for r in read_roster(seats_path):
         out |= {r[k] for k in ("source", "last_source") if r.get(k)}
     return out

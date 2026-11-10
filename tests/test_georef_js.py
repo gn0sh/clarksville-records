@@ -126,7 +126,7 @@ def test_js_ward_lookup_matches_python(run, i):
 
 def test_classify_with_wards(run):
     a = run["wardAnswers"]
-    assert a["d5w6"] == {"kind": "district", "district": 5, "matched": "1 TEST ST", "page_xy": a["d5w6"]["page_xy"],
+    assert a["d5w6"] == {"kind": "district", "district": 5, "matched": "1 TEST ST",
                          "ward": {"kind": "ward", "ward": 6}}
     assert a["ward_near"]["ward"]["kind"] == "near"
     assert a["outside_city"]["kind"] == "district" and a["outside_city"]["ward"] == {"kind": "outside", "ward": None}
@@ -153,7 +153,7 @@ def test_parity_covers_inside_near_and_outside(run):
 
 def test_classify_match_near_outside(run):
     a = run["answers"]
-    assert a["in5"] == {"kind": "district", "district": 5, "matched": "1 TEST ST", "page_xy": a["in5"]["page_xy"]}
+    assert a["in5"] == {"kind": "district", "district": 5, "matched": "1 TEST ST"}
     assert a["line"]["kind"] == "near"
     assert a["ky"]["kind"] == "outside" and a["ky"]["district"] is None
 

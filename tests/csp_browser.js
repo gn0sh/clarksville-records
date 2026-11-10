@@ -1,5 +1,5 @@
 // The site still works under its own CSP meta (third-party-script/no-csp): nav drawer, landing search submit,
-// search results, Show more (clamp), the map's list-to-shape highlight, the official page's bar widths, and no
+// search results, Show more (clamp), the official page's bar widths, and no
 // CSP violation anywhere. The geocoder is stubbed (page.route) so the address box's iframe path runs too.
 // Usage: node tests/csp_browser.js <base URL of a built site, ending in />   (driven by tests/test_csp.py)
 // Prints JSON: {pages: {name: {refused: [...], violations: [...], ...probe}}}
@@ -50,8 +50,6 @@ const WATCH = () => {
     await page.click('#nav-open');
     r.drawerOpen = await page.evaluate(() => !!document.querySelector('dialog.drawer[open]'));
     await page.keyboard.press('Escape');
-    await page.hover('#layer-districts a[data-district="5"]');
-    r.mapLit = await page.evaluate(() => [...document.querySelectorAll('.is-lit')].map((e) => e.getAttribute('data-district')));
     r.addrShown = await page.evaluate(() => { const f = document.getElementById('addr-form'); return !!f && !f.hidden; });
     if (r.addrShown) {
       await page.fill('#addr-q', '1 Test St');
