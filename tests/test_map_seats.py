@@ -139,6 +139,22 @@ def test_committed_seats_pass_the_seat_check(rows):
     assert seat_check.check(facts, rows, roster) == []
 
 
+def test_committed_seats_pass_the_seat_check_after_one_new_meeting(rows):
+    """M1 pipeline/seats-stale-on-new-county-meeting, on the committed data: the latest meeting repeated a month
+    later (the same voters, roll calls not read for seats). The check still passes; the site words every open row to
+    the meeting its last page shows, never to the new one (test_city_seats.py covers the wording)."""
+    facts = json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8"))
+    roster = yaml.safe_load((LOCALITY / "roster-current.yml").read_text(encoding="utf-8"))
+    latest = max(m["date"] for m in facts["meetings"])
+    new = {"id": "2099-01-01-formal", "date": "2099-01-01"}
+    old_ids = {m["id"] for m in facts["meetings"] if m["date"] == latest}
+    rcs = [{**rc, "id": rc["id"] + "-new", "meeting_id": new["id"], "page": 9999}
+           for rc in facts["roll_calls"] if rc["meeting_id"] in old_ids]
+    facts = {**facts, "meetings": [*facts["meetings"], new], "roll_calls": [*facts["roll_calls"], *rcs]}
+    assert seat_check.read_to(facts, rows) == latest
+    assert seat_check.check(facts, rows, roster) == []
+
+
 def test_roster_copy_holds_no_contact_details():
     text = (LOCALITY / "roster-current.yml").read_text(encoding="utf-8")
     assert not re.search(r"\b\d{3}-\d{4}\b|@|\b(Dr|Rd|Way|Ave|Pike|Cir)\b\.?\s*$", text, re.M)
@@ -242,11 +258,35 @@ def test_a_run_is_open_only_when_it_reaches_the_latest_meeting_in_the_facts():
 
 
 def test_check_flags_an_open_run_not_seen_at_the_latest_meeting():
+    """An open run must be seen at L, the latest meeting the records were read to: here another row was read to
+    2023-03-13, so an open row last seen at 2023-02-13 is flagged."""
+    facts = _facts(("2023-02-13", "b"), ("2023-03-13", "b"), ("2023-03-13", "c"))
+    facts["sources"] = [{"id": "s", "url": "https://x.test/m.pdf"}]
+    facts["roll_calls"][0].update(source_id="s", page=3)
+    facts["roll_calls"][1].update(source_id="s", page=9)
+    facts["roll_calls"][2].update(source_id="s", page=9)
+    row = dict(_row("b", "district-1", "2023-02-13"), dates="observed", last_source="https://x.test/m.pdf#page=3")
+    other = dict(_row("c", "district-2", "2023-02-13", "2023-03-13"), dates="observed",
+                 last_source="https://x.test/m.pdf#page=9")
+    assert any("not at the latest meeting the records were read to (2023-03-13)" in x
+               for x in seat_check.check(facts, [row, other]))
+    row["last_source"] = "https://x.test/m.pdf#page=9"
+    assert seat_check.check(facts, [row, other]) == []
+
+
+def test_a_meeting_collected_after_the_seats_were_derived_does_not_fail_the_check():
+    """M1 pipeline/seats-stale-on-new-county-meeting: one new meeting in the facts, seats.yml not re-derived yet. The
+    rows are read to the earlier meeting (seat_check.read_to), which the site says (sitegen/seats.py stamp_seen); the
+    holders who vote at the new meeting still hold their open seats, so the check passes."""
     facts = _facts(("2023-02-13", "b"), ("2023-03-13", "b"))
     facts["sources"] = [{"id": "s", "url": "https://x.test/m.pdf"}]
     facts["roll_calls"][0].update(source_id="s", page=3)
     facts["roll_calls"][1].update(source_id="s", page=9)
     row = dict(_row("b", "district-1", "2023-02-13"), dates="observed", last_source="https://x.test/m.pdf#page=3")
-    assert any("not at the latest meeting collected (2023-03-13)" in x for x in seat_check.check(facts, [row]))
-    row["last_source"] = "https://x.test/m.pdf#page=9"
+    assert seat_check.read_to(facts, [row]) == "2023-02-13"
     assert seat_check.check(facts, [row]) == []
+    # a new voter at the new meeting holds no seat: that is a change to read (a successor), and it is flagged
+    facts = _facts(("2023-02-13", "b"), ("2023-03-13", "z"))
+    facts["sources"] = [{"id": "s", "url": "https://x.test/m.pdf"}]
+    facts["roll_calls"][0].update(source_id="s", page=3)
+    assert any("2023-03-13 z" in x and "holds 0 seats" in x for x in seat_check.check(facts, [row]))

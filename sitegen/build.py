@@ -189,6 +189,15 @@ def _clean(out: Path, extra_dirs=(), export: bool = True) -> None:
         shutil.rmtree(out / d, ignore_errors=True)
 
 
+def seat_warnings(ix) -> list[str]:
+    """Run-log warnings about the seat rows (M1 pipeline/seats-stale-on-new-county-meeting): seats.yml read to an
+    earlier meeting than the facts hold. The pages stay true (worded to that meeting); the run log says it."""
+    if ix.seats.loaded and ix.seats.latest and ix.latest and ix.seats.latest < ix.latest:
+        return [f"seats.yml is read to {ix.seats.latest}, the facts to {ix.latest}; the seats are worded to "
+                f"{ix.seats.latest}. Re-run tools/derive_seats.py"]
+    return []
+
+
 def load_councils(councils, fixture: bool) -> list:
     """Each council (a config.COUNCILS entry): its facts file, schema- and reference-checked like the county's, and
     its wards file, as a council.CouncilIndex. A FIXTURE council is never built beside real county facts, nor a real
@@ -404,7 +413,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         raise BuildError(f"{finance_path}: no such finance file")
     fin_data = load_finance(finance_path, fixture) if finance_path is not None else None
     try:
-        seat_rows = seats_mod.load_rows(seats_path)
+        seat_rows = seats_mod.stamp_seen(seats_mod.load_rows(seats_path), facts)   # seen_to / read_to (M1)
         districts = seats_mod.load_districts(districts_path)
         georef = georef_mod.load_for_map(districts_path, districts)
         ward_map = georef_mod.wards_of(districts) is not None    # the landing map draws the wards and finds them
@@ -414,6 +423,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     if bad:
         raise BuildError("config/site.yml: " + "; ".join(bad))
     ix = views.Index(facts, seat_rows)
+    warnings = seat_warnings(ix)       # M1: in the result (collector run writes them to build/run-log.json)
+    for w in warnings:
+        print(f"sitegen: WARNING: {w}", file=sys.stderr)
     built_day = today or days_mod.today_in_zone()
     # County agendas posted before their minutes (sitegen/county_agendas.py); none for a fixture build
     if county_agendas is DEFAULT:
@@ -757,4 +769,4 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     manifest = write_publish_manifest(out, target)
     return {"pages": written, "files": len(manifest) + 1, "target": target, "transcripts": transcripts,
             "transcript_pages": tx_pages, "files_with_export": expected,
-            "morning": morning_note, "export": export}
+            "morning": morning_note, "export": export, "warnings": warnings}

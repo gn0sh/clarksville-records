@@ -531,11 +531,13 @@ def officials_page(facts) -> dict:
     if not ix.seats.loaded:
         return {"seats_loaded": False, "sections": [
             {"key": "all", "heading": None, "order": "surname", "cards": [_card(ix, o) for o in officials]}]}
-    current, former, unseated = [], [], []
+    current, former, unseated, held = [], [], [], []
     for o in sorted([*officials, *ix.seats.roster_only.values()], key=name_key):
         recs = ix.seats.of(o["id"])
         if not recs:
             unseated.append(o)
+        elif ix.seats.is_held_over(o["id"]):   # held over: neither current nor former (city-seats)
+            held.append(o)
         elif ix.seats.is_current(o["id"]):
             current.append(o)
         else:
@@ -553,6 +555,9 @@ def officials_page(facts) -> dict:
     if unseated:
         sections.append({"key": "unseated", "heading": "Seat not yet recorded", "order": "surname",
                          "cards": [_card(ix, o) for o in unseated]})
+    if held:
+        sections.append({"key": "held", "heading": "Not named in the latest minutes", "order": "surname",
+                         "cards": [_card(ix, o) for o in held]})
     return {"seats_loaded": True, "sections": sections}
 
 
@@ -1354,7 +1359,7 @@ def district(n: int, facts, districts: dict | None) -> dict:
     for r in sorted(recs, key=lambda r: r["start"], reverse=True):  # newest first, by date only
         if r["official_id"] is None or r["official_id"] not in ix.officials:
             continue
-        end = r["end"]
+        end = ix.seats.covers_to(r)   # an open row stops at the meeting it was last seen at (M1)
         # current lines: [max(start, eff), end]; old lines: [start, min(end, eff - 1 day)]; clipped to the data
         if end is None or end >= eff:
             s0 = max(r["start"], eff, lo)
