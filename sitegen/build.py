@@ -561,7 +561,10 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                        **{**with_entries(ctx, key, run),
                           "parts": [{**p, "current": i == n} for i, p in enumerate(nav, 1)]})
 
-    render("index.html.j2", "index.html", "Map", **views.landing(ix, districts, georef, geocoder, site["councils"]))
+    feed_rows = feeds_mod.feed_list(cixs, rpc=rpx, fin=fin_data, target=target) if site["alerts"] else []
+    body_feeds = [f for f in feed_rows if f["kind"] == "body"]   # autodiscovery on the home pages (plan F6)
+    render("index.html.j2", "index.html", "Map", **views.landing(ix, districts, georef, geocoder, site["councils"]),
+           home_feeds=body_feeds)
     render("officials.html.j2", "officials.html", "Officials", **views.officials_page(ix))
     render("meetings_index.html.j2", "meetings.html", "Meetings", **views.meetings_page(ix),
            agenda_only=ax.list_entries() if ax else [], agendas_href=agendas_mod.PAGE,
@@ -637,7 +640,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     for c in cixs:  # council pages (council.py): home, one page per member and per year of their history
         cs = council_mod.site_for(site, c)
         render("council_home.html.j2", c.home_href(), c.page_name(), cs, council=c.nav_label,
-               council_href=c.home_href(), **council_mod.home(c))
+               council_href=c.home_href(), **council_mod.home(c),
+               home_feeds=[f for f in body_feeds if f["key"] == c.body_key])
         for o in c.facts["officials"]:
             ctx = council_mod.member(o["id"], c)
             groups = [g for g in ctx["row_groups"] if g["year"]]
@@ -690,7 +694,6 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
             first = morning_mod.first_fetched(morning_manifests)
         except morning_mod.MorningError as exc:
             raise BuildError(str(exc)) from exc
-    feed_rows = feeds_mod.feed_list(cixs, rpc=rpx, fin=fin_data, target=target) if site["alerts"] else []
     if site["alerts"]:   # Alerts v1 (sitegen/feeds.py): written last, when every item and meeting link knows its part
         for rel, body in feeds_mod.build_feeds(ix, cixs, rpc=rpx, fin=fin_data, target=target, first=first,
                                                 agendas=ax).items():

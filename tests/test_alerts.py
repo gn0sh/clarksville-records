@@ -545,6 +545,52 @@ def test_entries_are_dated_when_their_document_was_added_and_ids_do_not_change(c
     assert dates == sorted(dates, reverse=True) and text(root, "updated") == dates[0]
 
 
+def test_county_agenda_only_meetings_join_the_county_feed(county):
+    """alerts/county-agendas-not-in-feed: each agenda-only county meeting (no minutes yet) is one entry of the
+    county's agendas-and-minutes feed, id county/meeting/<id>/agenda, linked to meetings/agendas.html; a meeting the
+    minutes cover is not; the other feeds and every earlier id are unchanged."""
+    from datetime import date, datetime
+    from sitegen import county_agendas
+    covered = FACTS["meetings"][0]
+    src = {"id": "src-agenda1", "url": "https://example.invalid/nov-formal.pdf", "kind": "agenda", "pages": 9,
+           "fetched_at": "2026-11-10", "label": "2026 November Formal", "sha256": "a" * 64}
+    data = {"body": "Montgomery County Commission", "index_url": "https://example.invalid/agendas", "skipped": [],
+            "problems": [], "sources": [src],
+            "meetings": [{"id": "2026-11-16-formal", "date": "2026-11-16", "kind": "formal", "source_id": src["id"],
+                          "date_page": 1, "items": []},
+                         {"id": covered["id"], "date": covered["date"], "kind": covered["kind"],
+                          "source_id": src["id"], "date_page": 1, "items": []}]}
+    ax = county_agendas.Agendas(data, county, date(2026, 11, 10))
+    plain = feeds.build_feeds(county, cfg=CFG)
+    first = {src["url"]: datetime.fromisoformat("2026-11-10T04:33:47+00:00")}   # the evening of November 9 here
+    out = feeds.build_feeds(county, cfg=CFG, agendas=ax, first=first)
+    prefix = CFG["alerts"]["feed_id"]
+    added = sorted(set(ids_of(out["feeds/county-meetings.xml"])) - set(ids_of(plain["feeds/county-meetings.xml"])))
+    assert added == [f"{prefix}county/meeting/2026-11-16-formal/agenda"]
+    assert set(ids_of(plain["feeds/county-meetings.xml"])) <= set(ids_of(out["feeds/county-meetings.xml"]))
+    assert {k: v for k, v in out.items() if k != "feeds/county-meetings.xml"} == \
+        {k: v for k, v in plain.items() if k != "feeds/county-meetings.xml"}
+    e = next(e for e in ET.fromstring(out["feeds/county-meetings.xml"]).findall(A + "entry")
+             if text(e, "id") == added[0])
+    assert text(e, "title") == "Agenda: 2026-11-16, formal meeting"   # as a minutes entry labels it
+    assert text(e, "updated") == text(e, "published") == "2026-11-09T22:33:47-06:00"
+    links = {x.get("rel"): x.get("href") for x in e.findall(A + "link")}
+    assert links == {"alternate": "../meetings/agendas.html#2026-11-16-formal", "related": src["url"]}
+    assert "Agenda (9 pages), fetched 2026-11-10." in text(e, "summary")
+
+
+def test_the_home_page_lets_a_reader_discover_the_feeds(built, pages):
+    """feeds/autodiscovery-on-index (plan F6): index.html carries a rel=alternate Atom link per body feed, each to
+    a built feed."""
+    import re
+    links = re.findall(r'<link rel="alternate" type="application/atom\+xml" title="([^"]+)" href="([^"]+)">',
+                       pages["index.html"].split("</head>")[0])
+    want = [f for f in feeds.feed_list() if f["kind"] == "body"]
+    assert [h for _, h in links] == [f["file"] for f in want] and want
+    assert [t for t, _ in links] == [f["title"] for f in want]
+    assert all((built / h).is_file() for _, h in links)
+
+
 def test_without_a_manifest_row_an_entry_is_its_fetched_day_at_local_noon(built):
     """A fixture build has no manifests: each entry is its source's fetched day (never the meeting's) at noon."""
     fetched = {s["fetched_at"] for s in FACTS["sources"]}
