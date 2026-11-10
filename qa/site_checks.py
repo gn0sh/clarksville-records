@@ -38,8 +38,9 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   rpc-motions (a build with the Regional Planning Commission) docs/architecture/rpc-motion-invariant.md, from rpc.json
               alone: a motion block not confirmed holds no names, outcome or case number; a block shown confirmed is
               confirmed in the record, the only disposing motion on its case, under its own agenda case (or the
-              meeting's own business with no case), with no nay or abstainer who is its mover or seconder; no RPC
-              page says "unanimous" outside the minutes' own words
+              meeting's own business with no case), with no nay or abstainer who is its mover or seconder, and none
+              is shown confirmed from a record without the reader's current motion_rules; no page with RPC content
+              (RPC pages, index, today, any RPC card) says "unanimous" outside the minutes' own words
   files       at most the target's file cap: --target preview (claude.ai artifact, 500) or pages (GitHub Pages, 3000)
   transcripts every line of a transcript page (<folder>/transcripts/*.html) has its time linked to its meeting's own
               video as <video_url>#t=<whole seconds>, the "Transcript" label and the notice; every call-on entry on a
@@ -165,9 +166,14 @@ def check_rpc_cases(rpc: dict | None) -> tuple[list[str], str]:
 # rpc-motions (docs/architecture/rpc-motion-invariant.md), restated here from rpc.json alone (no import from collector)
 RPC_BUSINESS = {"Motion to elect", "Motion to adjourn", "Motion to approve the minutes",
                 "Motion to approve the consent agenda", "Motion to approve the deferrals"}
+# the reader's rules (collector/rpc_minutes.py MOTION_RULES): a record written without them shows no motion confirmed
+RPC_MOTION_RULES = "rpc-motion-invariant-1"
 MOTION_BLOCK = re.compile(r'<div class="rpc-motion(?P<nc> nc)?" id="(?P<id>[^"]+)">(?P<body>.*?)</div>', re.S)
 RPC_PLACE = re.compile(r'id="(?:case-(?P<case>[^"]+)|(?P<meeting>[^"]+)-motions)"')
 ITEM_TITLE_SPAN = re.compile(r"<span data-item-title>.*?</span>", re.S)
+# RPC content outside the RPC's own pages: a motion block, or a day card (today.html); the front pages are always read
+RPC_CARD = re.compile(r'class="(?:rpc-motion|day-card day-card-rpc)\b')
+RPC_FRONT_PAGES = ("index.html", "today.html")
 
 
 def _rpc_surname(name: str) -> str:
@@ -178,21 +184,26 @@ def _rpc_surname(name: str) -> str:
 def check_rpc_motions(site: Path, pages: dict[str, "Page"], rpc: dict | None) -> tuple[list[str], str]:
     """Every motion block on the built pages against rpc.json: (a) a block whose motion is not confirmed in the
     record, or that the page marks not confirmed, holds none of its names, outcome or case number, nor "Moved by" /
-    "Outcome, as printed"; a block the page shows confirmed is confirmed in the record; then for every block shown
-    confirmed: (b) no case holds more than one disposing motion; (c) it sits under its record's case_id, a case on its
-    meeting's agenda, or is the meeting's own business with no case; (d) no nay or abstainer is (by surname) its mover
-    or seconder; (e) no RPC page says "unanimous" outside the minutes' own words (data-item-title)."""
+    "Outcome, as printed"; a block the page shows confirmed is confirmed in the record; (f) a record whose
+    `motion_rules` is not the reader's current rules (written before them) has no block shown confirmed, and every
+    block of it is held to (a); then for every block shown confirmed: (b) no case holds more than one disposing motion
+    (counted by motion id, so a block shown on two pages counts once); (c) it sits under its record's case_id, a case
+    on its meeting's agenda, or is the meeting's own business with no case; (d) no nay or abstainer is (by surname)
+    its mover or seconder; (e) no page with RPC content (the RPC's own pages, index.html, today.html, any page with an
+    RPC card or motion block) says "unanimous" outside the minutes' own words (data-item-title)."""
     if not rpc:
         return [], "no RPC facts"
     motions = {mv["id"]: mv for mv in rpc.get("motions", [])}
     cases = {c["id"]: c for c in rpc["cases"]}
+    rules = rpc.get("motion_rules")
+    current = rules == RPC_MOTION_RULES
     problems: list[str] = []
     seen, shown_ok = 0, 0
-    per_case: dict[str, list[str]] = defaultdict(list)
+    per_case: dict[str, set[str]] = defaultdict(set)     # case id -> ids of the disposing motions shown confirmed
     slug = rpc["_cfg"]["slug"]
     for rel in sorted(pages):
         raw = (site / rel).read_text(encoding="utf-8")
-        if rel.startswith(slug + "/"):
+        if rel.startswith(slug + "/") or rel in RPC_FRONT_PAGES or RPC_CARD.search(raw):
             plain = html.unescape(re.sub(r"<[^>]+>", " ", ITEM_TITLE_SPAN.sub(" ", raw)))
             if re.search(r"unanimous", plain, re.I):
                 problems.append(f"{rel}: says 'unanimous' outside the minutes' own words")
@@ -206,9 +217,12 @@ def check_rpc_motions(site: Path, pages: dict[str, "Page"], rpc: dict | None) ->
             if mv is None:
                 problems.append(f"{rel}#{mid}: a motion block with no motion in the RPC facts")
                 continue
-            confirmed = bool(mv.get("confirmed") is True and not b.group("nc"))
+            confirmed = bool(mv.get("confirmed") is True and not b.group("nc") and current)
             if not b.group("nc") and mv.get("confirmed") is not True:
                 problems.append(f"{rel}#{mid}: shown confirmed, not confirmed in the RPC facts")
+            if not b.group("nc") and not current:
+                problems.append(f"{rel}#{mid}: shown confirmed, but rpc.json was not written under the reader's "
+                                f"current motion rules (motion_rules {rules!r}, want {RPC_MOTION_RULES!r})")
             if not confirmed:
                 held = [mv.get("moved_by"), mv.get("seconded_by"), mv.get("outcome"), mv.get("case"),
                         *(mv.get("nays") or []), *(mv.get("abstained") or []), "Moved by", "Outcome, as printed"]
@@ -219,10 +233,8 @@ def check_rpc_motions(site: Path, pages: dict[str, "Page"], rpc: dict | None) ->
             shown_ok += 1
             before = [p for p in places if p[0] < b.start()]
             under = before[-1][1] if before else None
-            if under:
-                per_case[under].append(mid)
-                if mv["kind"] not in RPC_BUSINESS:
-                    per_case[under + "\x00disposing"].append(mid)
+            if under and mv["kind"] not in RPC_BUSINESS:
+                per_case[under].add(mid)
             if mv.get("case_id"):
                 c = cases.get(mv["case_id"])
                 if c is None or c["meeting_id"] != mv["meeting_id"] or under != mv["case_id"]:
@@ -232,12 +244,13 @@ def check_rpc_motions(site: Path, pages: dict[str, "Page"], rpc: dict | None) ->
             movers = {_rpc_surname(x) for x in (mv.get("moved_by"), mv.get("seconded_by")) if x}
             if any(_rpc_surname(n) in movers for n in (mv.get("nays") or []) + (mv.get("abstained") or [])):
                 problems.append(f"{rel}#{mid}: confirmed, with a nay or abstainer who is its mover or seconder")
-    for key, ids in per_case.items():
-        if key.endswith("\x00disposing") and len(ids) > 1:
-            problems.append(f"case-{key.split(chr(0))[0]}: {len(ids)} confirmed disposing motions on one case "
-                            f"({', '.join(ids[:3])})")
+    for case, ids in sorted(per_case.items()):
+        if len(ids) > 1:
+            problems.append(f"case-{case}: {len(ids)} confirmed disposing motions on one case "
+                            f"({', '.join(sorted(ids)[:3])})")
     rec = sum(1 for mv in motions.values() if mv.get("confirmed") is True)
-    return problems, f"{seen} motion blocks, {shown_ok} shown confirmed ({rec} confirmed in rpc.json)"
+    return problems, (f"{seen} motion blocks, {shown_ok} shown confirmed ({rec} confirmed in rpc.json; motion_rules "
+                      + (rules if current else f"not current: {rules!r}") + ")")
 
 
 def rpc_allowed(rpc: dict | None) -> set[str]:

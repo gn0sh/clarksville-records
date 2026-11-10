@@ -393,6 +393,12 @@ def test_attach_places_a_motion_under_its_case_only_while_nothing_doubts_the_cas
     assert any("the minutes read 5 case headings, the agenda lists 6 cases" in p for p in summary["problems"])
 
 
+def test_the_build_writes_the_readers_motion_rules_into_the_record(attached):
+    facts, summary, _ = attached
+    assert facts["motion_rules"] == R.MOTION_RULES == "rpc-motion-invariant-1"
+    assert facts["schema"] == "rpc-1"          # the record's layout is unchanged; only the rules it was read by
+
+
 def test_the_motions_audit_is_internal_one_line_per_motion(attached, tmp_path):
     import json
     facts, _, audit = attached

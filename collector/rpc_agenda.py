@@ -467,7 +467,9 @@ def build(cfg, rows: list[dict], store, extract=extract_pages, ocr=ocr_document,
         write_audit(Path(audit_path), audit)
     srcs = [{k: v for k, v in s.items() if not k.startswith("_")} for s in sorted(sources.values(), key=lambda s: s["id"])]
     dates = [m["date"] for m in meetings]
-    facts = {"schema": "rpc-1", "body": cfg.body, "listing_url": cfg.listing_url,
+    from .rpc_minutes import MOTION_RULES
+    # motion_rules: the reader's rules the motions were read by; the pages confirm no motion of a record without it
+    facts = {"schema": "rpc-1", "motion_rules": MOTION_RULES, "body": cfg.body, "listing_url": cfg.listing_url,
              "coverage": {"from": min(dates) if dates else None, "to": max(dates) if dates else None},
              "meetings": meetings, "sources": srcs, "cases": cases, "motions": motions}
     summary = {"meetings": len(meetings), "documents_listed": sum(len(m["documents"]) for m in meetings),

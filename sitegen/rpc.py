@@ -14,7 +14,9 @@ the agenda PDF page it is printed on; a document on a host we do not collect fro
 link and says it was not collected. A motion the reader confirmed shows its values in the minutes' own words; one it
 did not shows its type and the county's "Not confirmed" note, with no names, outcome or case number
 (config.SHOW_UNCONFIRMED_VALUES). The invariant is docs/architecture/rpc-motion-invariant.md; the checks it allows
-on the stored record alone are applied again here (record_doubts), so an older facts file never shows more.
+on the stored record alone are applied again here (record_doubts), so an older facts file never shows more, and a
+facts file whose `motion_rules` is not the reader's current rules (MOTION_RULES) shows no motion confirmed and none
+under a case.
 """
 from __future__ import annotations
 
@@ -49,6 +51,11 @@ class RpcError(Exception):
 # the sentences, the roster fallback) need the minutes' text and apply when collector/rpc_agenda.py rebuilds it.
 MEETING_BUSINESS = frozenset({"Motion to elect", "Motion to adjourn", "Motion to approve the minutes",
                               "Motion to approve the consent agenda", "Motion to approve the deferrals"})
+# The reader's rules (collector/rpc_minutes.py MOTION_RULES), restated: a record whose `motion_rules` is not this was
+# written before them (vote words, loose headings, another case named, the seconder and roster rules never ran on
+# it), so none of its motions is shown confirmed and none is placed under a case (C1 is in doubt too)
+MOTION_RULES = "rpc-motion-invariant-1"
+WHY_STALE = "record written before the motion invariant"
 
 
 def _surname(name: str) -> str:
@@ -85,9 +92,13 @@ def record_doubts(motions: list[dict]) -> dict[str, tuple[list[str], bool]]:
     return out
 
 
-def shown_motions(motions: list[dict]) -> list[dict]:
+def shown_motions(motions: list[dict], rules: str | None = MOTION_RULES) -> list[dict]:
     """The motions as the pages treat them: one the stored record shows failing the invariant is not confirmed, and
-    one whose case is in doubt is placed under no case (record_doubts)."""
+    one whose case is in doubt is placed under no case (record_doubts). `rules`: the record's `motion_rules`; any
+    other than MOTION_RULES (a record written before the reader's rules) confirms none and places none under a case."""
+    if rules != MOTION_RULES:
+        return [{**mv, "confirmed": False, "reasons": list(mv.get("reasons") or []) + [WHY_STALE], "case_id": None}
+                for mv in motions]
     doubts = record_doubts(motions)
     out = []
     for mv in motions:
@@ -130,7 +141,7 @@ class Rpc:
         # minutes motions (collector/rpc_minutes.py), as the pages treat them (shown_motions): on their agenda case
         # when the record places them there (case_id: only while nothing doubts the case), else in the meeting's own
         # list, with no case number
-        self.motions = shown_motions(facts.get("motions", []))
+        self.motions = shown_motions(facts.get("motions", []), facts.get("motion_rules"))
         self.motions_by_case: dict[str, list[dict]] = defaultdict(list)
         self.motions_by_meeting: dict[str, list[dict]] = defaultdict(list)
         for mv in self.motions:

@@ -25,6 +25,7 @@ outcome as printed; (C5) the minutes print the meeting's date. Any doubt: not co
 | 5 | accept | A caseless section (before the first case, OTHER BUSINESS etc.) confirms only meeting-business kinds: MEETING_KINDS, consent agenda, deferrals/withdrawals list. Any other kind -> "subject not read". |
 | 6 | accept (nit) | rpc_agenda.build writes `build/rpc-motions-audit.jsonl` (id, page, reasons, `para`): internal, never under build/site, never committed. data/ocr stays uncommitted (size). QA samples from it. |
 | 7 | accept part | Rule 2a roster fallback only when the header shows a garbled member line (a member-column line that failed MEMBER_NAME); else "mover/seconder is not one member present". **Reject** the title-gender check: inferring gender from a first name is a guess and not neutral; a wrong title already fails exact surname matching often enough. |
+| 8 | accept (fix review 5769870 #1, `rpc-motion/c3-stale-record`) | `rpc_minutes.MOTION_RULES` (`"rpc-motion-invariant-1"`): rpc_agenda.build writes it into rpc.json as `motion_rules` (schema stays `rpc-1`). sitegen/rpc.py `shown_motions` and qa/site_checks.py restate it: a record whose `motion_rules` is not the current value shows **every** motion not confirmed, reason "record written before the motion invariant", and `case_id` None (rules 1-3, 7 never ran on it, so C1 is in doubt too). Change the value whenever a rule changes what is confirmed. With the committed rpc.json (no marker) the pages show 0 confirmed motions until the rebuild: intended. |
 Also: module docstring rules 1-6 restated with C1-C5; reasons stay plain text in `reasons` (never shown publicly).
 
 ## Every consumer and what it must do
@@ -33,7 +34,7 @@ Also: module docstring rules 1-6 restated with C1-C5; reasons stay plain text in
 | Reader | `rpc_minutes.read_minutes`, `read_motions`, `Motion.confirmed`, `MinutesReading.case_heads_*`, `sections` | apply rules 1-5, 7; `confirmed` stays `not reasons` |
 | Attach | `rpc_agenda.read_all_minutes` | rule 4; set `case_id` only if confirmed or the reasons carry no C1 reason; date gate; summary counts `motions_confirmed`, `motions_on_agenda_cases` follow |
 | Report | `rpc_agenda.build` summary, `collector/rpc.py main` -> build/rpc-report.json | add count per reason; audit file (rule 6) |
-| Committed record | `data/localities/cmc-rpc/rpc.json` | internal record like data/facts.json: keeps raw values of unconfirmed motions (repo is public: same accepted pattern as the county file). Any future site export must strip them as `collector/export.py` does |
+| Committed record | `data/localities/cmc-rpc/rpc.json` | internal record like data/facts.json: keeps raw values of unconfirmed motions (repo is public: same accepted pattern as the county file). Any future site export must strip them as `collector/export.py` does. Carries `motion_rules` (rule 8); every page consumer goes through `Rpc.motions` (`shown_motions`), never `facts["motions"]` directly |
 | Motion context | `sitegen/rpc.py Rpc.motion` | when not shown: `moved_by`, `seconded_by`, `nays`, `abstained`, `outcome` None/[] (as now) **and `case` None** (today it leaks an off-agenda case number on unconfirmed motions) |
 | Placement | `Rpc.__init__` motions_by_case / motions_by_meeting; `Rpc.meeting` `cases[].motions`, `other_motions`, `n_motions` | placement from `case_id` only; C1-doubtful motions land in "Other motions" without a case |
 | Home count | `Rpc.home` `n_motions_confirmed`; rpc_home.html.j2 line 8 | count only; wording claims nothing about unanimity |
@@ -65,7 +66,9 @@ Also: module docstring rules 1-6 restated with C1-C5; reasons stay plain text in
 motion lacks `confirmed: true` holds none of its moved_by/seconded_by/nays/abstained/outcome/case strings, nor
 "Moved by"/"Outcome, as printed"; (b) no `case_id` with >1 confirmed disposing motion; (c) every confirmed motion has a
 `case_id` on its meeting's agenda or a meeting-business kind; (d) no confirmed nay/abstainer equals its mover/seconder;
-(e) no RPC page contains "unanimous" outside a `data-item-title` span.
+(e) no page with RPC content (every `<slug>/` page, index.html, today.html, any page with an RPC day card or motion
+block) contains "unanimous" outside a `data-item-title` span; (f) when rpc.json's `motion_rules` is not the current
+value, no block is shown confirmed and every block is held to (a). Per-case counts in (b) are sets of motion ids.
 
 ## Re-running the build (OCR needed)
 `python -m collector rpc build` re-OCRs every scanned minutes page: the OCR cache (data/ocr, RECORDS_OCR_CACHE) is not

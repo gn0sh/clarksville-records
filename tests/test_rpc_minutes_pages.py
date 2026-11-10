@@ -189,7 +189,8 @@ def test_site_checks_rpc_motions_passes_on_the_built_pages(site):
     from qa import site_checks as SC
     pages = {f.relative_to(site).as_posix(): SC.parse(f) for f in site.rglob("*.html")}
     problems, note = SC.check_rpc_motions(site, pages, _site_rpc(site))
-    assert problems == [] and "8 motion blocks, 2 shown confirmed (6 confirmed in rpc.json)" in note, problems
+    assert problems == [] and ("8 motion blocks, 2 shown confirmed (6 confirmed in rpc.json; motion_rules "
+                               "rpc-motion-invariant-1)") in note, problems
 
 
 def test_site_checks_rpc_motions_catches_a_leak_a_misplaced_motion_and_unanimous(site, tmp_path):
@@ -223,12 +224,134 @@ def test_site_checks_rpc_motions_on_a_record_the_reader_never_wrote(tmp_path):
     blocks = "".join(f'<div class="rpc-motion" id="m-{k}"><p>x</p></div>' for k in (1, 2))
     page.write_text(f'<section id="mt"><div id="case-c1">{blocks}</div><h3 id="mt-motions"></h3>'
                     '<div class="rpc-motion" id="m-3"><p>x</p></div></section>', encoding="utf-8")
-    rec = {"_cfg": {"slug": "rpc"}, "cases": [{"id": "c1", "meeting_id": "mt"}], "motions": [
-        motion(1, id="m-1", meeting_id="mt", case="Z-1-2026", case_id="c1"),
-        motion(2, id="m-2", meeting_id="mt", case="Z-1-2026", case_id="c1", nays=["Mr. Mover"]),
-        motion(3, id="m-3", meeting_id="mt")]}
+    rec = _guard_record(motion(1, id="m-1", meeting_id="mt", case="Z-1-2026", case_id="c1"),
+                        motion(2, id="m-2", meeting_id="mt", case="Z-1-2026", case_id="c1", nays=["Mr. Mover"]),
+                        motion(3, id="m-3", meeting_id="mt"))
     pages = {"rpc/meetings/2026.html": SC.parse(page)}
     text = "\n".join(SC.check_rpc_motions(tmp_path, pages, rec)[0])
     assert "case-c1: 2 confirmed disposing motions on one case" in text
     assert "m-3: confirmed with no agenda case, and not the meeting's own business" in text
     assert "m-2: confirmed, with a nay or abstainer who is its mover or seconder" in text
+
+
+# ------------------------------------------------------------------ rpc-motion/c3-stale-record: the motion_rules marker
+def test_the_motion_rules_marker_is_one_value_in_the_reader_the_pages_and_the_site_check():
+    from collector import rpc_minutes
+    from qa import site_checks as SC
+    assert rpc_minutes.MOTION_RULES == rpc.MOTION_RULES == SC.RPC_MOTION_RULES == "rpc-motion-invariant-1"
+
+
+@pytest.mark.parametrize("rules", [None, "rpc-motion-invariant-0"])
+def test_a_record_without_the_current_motion_rules_confirms_nothing_and_places_nothing(rules):
+    ms = [motion(1, case="Z-1-2026", case_id="c1"), motion(2, kind="Motion to adjourn")]
+    shown = rpc.shown_motions(ms, rules)
+    assert [(mv["confirmed"], mv["case_id"]) for mv in shown] == [(False, None), (False, None)]
+    assert all(rpc.WHY_STALE in mv["reasons"] for mv in shown)
+    assert [mv["confirmed"] for mv in rpc.shown_motions(ms, rpc.MOTION_RULES)] == [True, True]
+
+
+@pytest.fixture(scope="module")
+def stale_site(tmp_path_factory):
+    """The site built from a record written before the reader's motion rules (no `motion_rules`), as the committed
+    data/localities/cmc-rpc/rpc.json is until its rebuild: two motions it marks confirmed, one on its agenda case."""
+    d = tmp_path_factory.mktemp("rpcstale")
+    facts = rpc_facts(d)
+    assert facts.pop("motion_rules") == rpc.MOTION_RULES       # rpc_agenda.build writes it
+    facts["sources"].append({"id": "src-fixturemin", "url": MINUTES, "sha256": "0" * 64, "kind": "minutes",
+                             "meeting_date": "2026-10-27", "fetched_at": "2026-11-10", "pages": 3,
+                             "text_layer": "none", "format": "pdf", "read_by": "OCR"})
+    facts["motions"] = [motion(1, case="CZ-12-2026", case_id=CASE, moved_by="Stale Case Mover",
+                               outcome="Motion passes for approval 6-0", tally="6-0"),
+                        motion(2, kind="Motion to adjourn", moved_by="Stale Adjourn Mover",
+                               outcome="carried unanimously")]
+    (d / "rpc.json").write_text(json.dumps(facts), encoding="utf-8")
+    out = d / "build" / "site"
+    build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS,
+          rpc={**rpc.load_config("cmc-rpc"), "facts_path": d / "rpc.json"})
+    return out
+
+
+def test_a_stale_record_shows_every_motion_not_confirmed_in_the_meetings_own_list(stale_site):
+    sec = section(stale_site)
+    case = sec[sec.index(f'id="case-{CASE}"'):sec.index('id="2026-10-27-regular-motions"')]
+    assert "rpc-motion" not in case             # C1 is in doubt too: placed under no case
+    other = sec[sec.index('id="2026-10-27-regular-motions"'):]
+    for k in (1, 2):
+        assert f'<div class="rpc-motion nc" id="2026-10-27-regular-motion-{k}">' in other
+    for hidden in ("Stale Case Mover", "Stale Adjourn Mover", "Fixture Seconder", "6-0", "carried unanimously",
+                   "(CZ-12-2026)", "Moved by", "Outcome, as printed"):
+        assert hidden not in sec
+    home = (stale_site / "rpc/index.html").read_text(encoding="utf-8")
+    assert "2 motions are read from the minutes (0 confirmed)" in home
+
+
+def test_site_checks_passes_a_stale_record_shown_with_nothing_confirmed(stale_site):
+    from qa import site_checks as SC
+    pages = {f.relative_to(stale_site).as_posix(): SC.parse(f) for f in stale_site.rglob("*.html")}
+    problems, note = SC.check_rpc_motions(stale_site, pages, _site_rpc(stale_site))
+    assert problems == [], problems
+    assert "2 motion blocks, 0 shown confirmed (2 confirmed in rpc.json; motion_rules not current: None)" in note
+
+
+def test_site_checks_fails_a_stale_record_shown_confirmed(stale_site, tmp_path):
+    """(f): the record marks the motion confirmed, but it was not read under the current rules, so the page may not
+    show it confirmed, and its values count as a leak."""
+    import shutil
+    from qa import site_checks as SC
+    bad = tmp_path / "site"
+    shutil.copytree(stale_site, bad)
+    page = bad / "rpc/meetings/2026.html"
+    html = page.read_text(encoding="utf-8")
+    html = html.replace('<div class="rpc-motion nc" id="2026-10-27-regular-motion-2">',
+                        '<div class="rpc-motion" id="2026-10-27-regular-motion-2">Stale Adjourn Mover')
+    page.write_text(html, encoding="utf-8")
+    pages = {f.relative_to(bad).as_posix(): SC.parse(f) for f in bad.rglob("*.html")}
+    problems, note = SC.check_rpc_motions(bad, pages, _site_rpc(stale_site))
+    text = "\n".join(problems)
+    assert "motion-2: shown confirmed, but rpc.json was not written under the reader's current motion rules" in text
+    assert "motion-2: a motion not confirmed shows Stale Adjourn Mover" in text
+    assert "0 shown confirmed" in note
+
+
+# ------------------------------------------------------------------ rpc-motion/qa-guard nits
+def _guard_page(tmp_path: Path, rel: str, body: str) -> Path:
+    page = tmp_path / rel
+    page.parent.mkdir(parents=True, exist_ok=True)
+    page.write_text(body, encoding="utf-8")
+    return page
+
+
+def _guard_record(*motions) -> dict:
+    return {"_cfg": {"slug": "rpc"}, "motion_rules": rpc.MOTION_RULES,
+            "cases": [{"id": "c1", "meeting_id": "mt"}], "motions": list(motions)}
+
+
+def test_site_checks_counts_a_motion_shown_on_two_pages_once(tmp_path):
+    from qa import site_checks as SC
+    block = '<section id="mt"><div id="case-c1"><div class="rpc-motion" id="m-1"><p>x</p></div></div></section>'
+    pages = {rel: SC.parse(_guard_page(tmp_path, rel, block))
+             for rel in ("rpc/meetings/2026.html", "rpc/meetings/copy.html")}
+    rec = _guard_record(motion(1, id="m-1", meeting_id="mt", case="Z-1-2026", case_id="c1"))
+    problems, note = SC.check_rpc_motions(tmp_path, pages, rec)
+    assert problems == [] and "2 motion blocks, 2 shown confirmed" in note, problems
+
+
+@pytest.mark.parametrize("rel,body", [
+    ("today.html", '<article class="day-card day-card-rpc" id="rpc-x"><p>The vote was unanimous.</p></article>'),
+    ("index.html", "<p>Every Planning Commission vote was unanimous.</p>"),
+    ("meetings.html", '<article class="day-card day-card-rpc" id="rpc-x"><p>Unanimous.</p></article>'),
+])
+def test_site_checks_reads_every_page_with_rpc_content_for_unanimous(tmp_path, rel, body):
+    from qa import site_checks as SC
+    pages = {rel: SC.parse(_guard_page(tmp_path, rel, body))}
+    problems, _ = SC.check_rpc_motions(tmp_path, pages, _guard_record())
+    assert problems == [f"{rel}: says 'unanimous' outside the minutes' own words"]
+    words = re.sub(r"<p>(.*?)</p>", r"<p><span data-item-title>\1</span></p>", body)    # the document's own words
+    pages = {rel: SC.parse(_guard_page(tmp_path, rel, words))}
+    assert SC.check_rpc_motions(tmp_path, pages, _guard_record())[0] == []
+
+
+def test_site_checks_leaves_a_county_page_without_rpc_content_to_its_own_checks(tmp_path):
+    from qa import site_checks as SC
+    pages = {"items/2026.html": SC.parse(_guard_page(tmp_path, "items/2026.html", "<p>unanimous</p>"))}
+    assert SC.check_rpc_motions(tmp_path, pages, _guard_record())[0] == []

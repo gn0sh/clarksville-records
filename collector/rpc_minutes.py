@@ -169,6 +169,11 @@ WHY_NAY_IS_MOVER = "a member named as voting nay is the mover or seconder"
 CASE_REASONS = frozenset({WHY_HEAD, WHY_NUMBER, WHY_TWO, WHY_REPEATED, WHY_OTHER_CASE, WHY_OFF_AGENDA, WHY_SUBJECT})
 PARA_MAX = 900          # characters a motion's sentences may span before its outcome
 SENTENCE_MAX = 300      # characters of the one sentence after the outcome scanned for vote words (rule 3)
+# The rules this reader applies (docs/architecture/rpc-motion-invariant.md). rpc_agenda.build writes it into rpc.json
+# as `motion_rules`; sitegen/rpc.py and qa/site_checks.py restate it and show every motion of a record without it as
+# not confirmed. Change it whenever a rule changes what is confirmed, so an older record is never shown under rules
+# it was not read by.
+MOTION_RULES = "rpc-motion-invariant-1"
 
 
 def _clean(line: str) -> str:
