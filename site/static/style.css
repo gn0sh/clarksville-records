@@ -743,7 +743,8 @@ table.attendance td.cite details.row-details { display: inline-block; }
   background: var(--surface); color: var(--fg); cursor: pointer;
 }
 .sol-filters button[type="submit"] { background: var(--blue); border-color: var(--blue); color: var(--on-blue); }
-.sol-filters button:focus-visible, .more-btn:focus-visible, .empty-note button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.sol-filters button:focus-visible, .more-btn:focus-visible, .empty-note button:focus-visible, .sol-filters input:focus-visible,
+.note-phone > summary:focus-visible, details.words > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .f-actions { display: flex; gap: 8px; }
 .more-btn { margin: 8px 0; }
 .exports { font-size: var(--t-sm); }
@@ -760,7 +761,6 @@ table.fin-stack .num { text-align: right; font-variant-numeric: tabular-nums; wh
 table.sol-index td.c-date { white-space: nowrap; }
 table.sol-index td.c-source { min-width: 9rem; }
 table.sol-index td.c-docs { min-width: 12rem; }   /* Inter runs wider than the old fallback: keep the doc note from stacking tall */
-@media (min-width: 641px) { table.fin-stack tbody tr:nth-child(even) { background: var(--surface); } }
 details.words { margin: 16px 0; font-size: var(--t-sm); }
 details.words > summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
 table.sol-index th.c-title { min-width: 11rem; }
@@ -804,7 +804,7 @@ dl.glossary dt:target { outline: 2px solid var(--focus); outline-offset: 2px; }
 .fin-section h3 .g-n, details.fin-group .g-n { font-weight: 400; color: var(--muted); font-size: var(--t-sm); }
 details.fin-group { margin: 4px 0; }
 details.fin-group > summary { cursor: pointer; min-height: 44px; padding: 10px 0; font-weight: 600; }
-details.fin-group > summary:focus-visible, details.fin-jump > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+details.fin-group > summary:focus-visible, details.fin-jump > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 details.fin-jump { margin: 4px 0 8px; font-size: var(--t-sm); }
 details.fin-jump > summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
 details.fin-jump ul { columns: 16rem; margin: 0; padding-left: 1.2em; }
@@ -836,6 +836,73 @@ table.budget td.c-source { min-width: 9rem; }
   table.budget th.c-line { min-width: 0; }
   /* the visually hidden header row stays one line tall (row-height check), still read by screen readers */
   table.budget thead tr { display: block; height: 1px; overflow: hidden; }
+}
+
+/* Finance, bids and capital in the Daylight look (docs/design/daylight, M3; the mock's "Money in the open" band).
+   Every rule sits under .fin (the wrapper in fin_*.html.j2) or a finance-only class, so no other page changes.
+   Tables are the mock's: a 2px ink rule on top, hairlines between rows, mono labels for column heads, mono tabular
+   figures; no box and no stripes. Text pairs are the M1 ones (ink, muted and link on paper and surface, 4.5:1 or
+   better in both themes); focus rings are the sun at 3px on paper and surface. State is still words only. */
+.fin > h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 800; line-height: 1.05; letter-spacing: -.02em; margin: 0.2em 0 0.35em; text-wrap: balance; }
+.fin h2 { font-weight: 800; letter-spacing: -.02em; }
+.fin .crumb, .fin .h1-sub { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; }
+.fin .crumb { margin: 0; }
+.fin .crumb a { display: inline-block; padding: 6px 0; }
+.fin .h1-sub { letter-spacing: .08em; vertical-align: middle; }
+.fin .coverage { font-size: 1.02rem; }
+.fin .note { padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
+.fin .note-phone { padding: 0 14px; }
+.fin .note-phone > summary, .fin details.words > summary, .fin details.fin-jump > summary { border-radius: var(--radius); }
+.fin details.words > summary, .fin details.fin-jump > summary { font-weight: 600; color: var(--link); width: max-content; max-width: 100%; }
+.fin .sol-filters.toolbar { padding: 14px 16px; border-radius: 18px; }
+.fin .sol-filters label { font-family: var(--font-mono); font-size: .68rem; font-variant-caps: normal; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px; }
+.fin .sol-filters input[type="search"] { border: 2px solid var(--fg); border-radius: var(--radius-lg); background: var(--surface); }
+.fin .sol-filters select { border-radius: var(--radius-lg); background: var(--surface); }
+.fin .sol-filters button, .fin .more-btn, .fin .empty-note button { font-family: var(--font-head); font-weight: 700; font-size: var(--t-md); border-radius: var(--radius-lg); }
+.fin .sol-filters button[type="submit"]:hover { filter: brightness(1.12); }
+.fin .fin-scroll { border: 0; border-top: 2px solid var(--fg); border-radius: 0; background: transparent; }
+.fin table.fin-stack thead th {
+  background: transparent; font-family: var(--font-mono); font-size: .68rem; font-weight: 400; font-variant-caps: normal;
+  text-transform: uppercase; letter-spacing: .1em; color: var(--muted);
+}
+.fin table.budget thead th.num { font-size: .74rem; letter-spacing: .02em; text-transform: none; color: var(--fg); }  /* the header as printed */
+.fin table.budget thead th .kind { font-family: var(--font-body); letter-spacing: 0; }
+.fin table.fin-stack .num, .fin table.fin-stack .date, .fin table.fin-stack td.c-fundno, .fin table.budget td.c-acct {
+  font-family: var(--font-mono); font-size: .8rem; font-variant-numeric: tabular-nums;
+}
+.fin table.fin-stack td.num { color: var(--fg); }
+.fin table.fin-stack caption { padding-left: 0; padding-right: 0; }
+.fin table.sol-bidders caption { font-family: var(--font-head); font-weight: 700; font-size: 1.14rem; letter-spacing: -.01em; }
+.fin table.sol-index td.c-dept { overflow-wrap: break-word; }
+.fin .fin-toc ul { padding: 10px 0; border-block: 1px solid var(--border); }
+.fin details.fin-group { margin: 0; border-top: 1px solid var(--border); }
+.fin details.fin-group > summary { font-family: var(--font-head); font-weight: 700; font-size: 1.06rem; border-radius: var(--radius); }
+.fin details.fin-group .g-n, .fin .fin-section h3 .g-n { font-family: var(--font-body); }
+.fin details.fin-group[open] { padding-bottom: 10px; }
+/* the long part labels here wrap on a phone: a rounded box instead of a pill, text from the left */
+.fin .parts-nav a { border-radius: var(--radius-lg); padding-block: 8px; line-height: 1.35; }
+.fin .parts-nav a[aria-current="page"] { border-width: 2px; border-color: var(--fg); font-weight: 600; }
+/* every toggle on these pages (row Details, Show more included) gets the same 3px sun ring as links */
+.fin summary:focus-visible, .fin .clamp-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--radius); }
+@media (min-width: 641px) {
+  .fin table.fin-stack th, .fin table.fin-stack td { padding: 9px 16px 9px 0; }
+  .fin table.fin-stack tr > :last-child { padding-right: 0; }
+  .fin table.sol-index td.c-dept { min-width: 7.5rem; }
+  .fin table.sol-index td.c-tab { white-space: nowrap; }
+  /* compact rows: the row's Details toggle sits beside its one source link, not under it */
+  .fin table.budget td.c-source, .fin table.sol-bidders td.c-source, .fin table.sol-docs td.c-source { min-width: 12.5rem; }
+  .fin table.budget td.c-source details.row-details, .fin table.sol-bidders td.c-source details.row-details,
+  .fin table.sol-docs td.c-source details.row-details { display: inline-block; vertical-align: top; margin: 0 0 0 10px; }
+}
+@media (max-width: 640px) {
+  .fin .fin-scroll { border: 0; }
+  /* the visually hidden header row stays one line tall (row-height check), as the budget tables' already does */
+  .fin table.fin-stack thead tr { display: block; height: 1px; overflow: hidden; }
+  .fin table.fin-stack tbody tr { padding: 12px 14px; border-radius: 14px; }
+  .fin table.fin-stack tbody tr:has(+ .b-diffrow) { border-radius: 14px 14px 0 0; }
+  .fin table.fin-stack tbody tr.b-diffrow { border-radius: 0 0 14px 14px; padding-top: 0; }
+  .fin table.fin-stack .num { font-size: var(--t-sm); }
+  .fin table.sol-index tbody th.c-title { font-family: var(--font-head); font-weight: 700; font-size: 1.06rem; line-height: 1.25; padding: 2px 0 4px; }
 }
 
 /* Council pages (M4): the home's jump links, year lists and seat rows; the "<council>" line above a page title */
