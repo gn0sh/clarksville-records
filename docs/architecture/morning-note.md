@@ -228,7 +228,7 @@ Body (`render.py`): the site name and date, then per picked list its config labe
 Order of work for `deliver --live` (any failed check stops before the first write, exit non-zero, nothing sent):
 1. **No-send exits**: `plan.send` is false: exit 0 with no connection at all (the fail-safe for quiet and backfill days).
 2. **Date guard**: `plan.date` must be today in `plan.timezone`. A re-run tomorrow of today's workflow run sends nothing.
-   Now later than `latest_send`: exit 0 as "missed", open the failure issue, send nothing. The records still reach
+   Now later than `latest_send`: exit 3 as "missed" (as built: a distinct non-zero code, so the job fails), open the failure issue, send nothing. The records still reach
    readers by the site and the feeds; a note is never sent the next day.
 3. **Day claim (idempotence)**: list the provider's recent emails and keep those with `metadata.note_date == D`.
    - none: the day is unclaimed, go on;

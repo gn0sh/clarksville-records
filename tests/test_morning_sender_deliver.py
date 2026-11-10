@@ -171,7 +171,7 @@ def test_a_plan_for_another_day_sends_nothing(plan, now):
     fake = Fake(people(plan))
     if now.tzinfo.key == "UTC":
         res, _ = go(plan, fake, now=now)
-        assert res.status == "missed" and fake.calls == []            # still Nov 11 in the site's zone, but late
+        assert (res.code, res.status) == (3, "missed") and fake.calls == []            # still Nov 11 in the site's zone, but late
         return
     res, _ = go(plan, fake, now=now)
     assert (res.code, res.status) == (0, "wrong-date") and fake.calls == []
@@ -188,7 +188,7 @@ def test_the_day_is_judged_in_the_sites_zone_not_utc(plan):
 def test_past_latest_send_is_missed_and_sends_nothing(plan):
     fake = Fake(people(plan))
     res, text = go(plan, fake, now=datetime(2026, 11, 11, 10, 1, tzinfo=TZ))
-    assert (res.code, res.status) == (0, "missed") and fake.calls == [] and "missed" in text
+    assert (res.code, res.status) == (deliver.MISSED_EXIT, "missed") and deliver.MISSED_EXIT == 3 and fake.calls == [] and "missed" in text
     assert go(plan, Fake(people(plan)), now=datetime(2026, 11, 11, 10, 0, tzinfo=TZ))[0].status == "sent"
 
 

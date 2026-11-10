@@ -10,7 +10,7 @@ Order of work, each check stopping before the first write:
  0. not live: say what would happen; no provider call.
  1. `morning_note.sender.enabled` is not true (read from the repository, not from the plan): nothing.
  2. `plan.send` is false (a quiet day, a backfill day, a disabled or rehearsal plan): nothing.
- 3. the plan's date is not today in the site's zone, or now is past `latest_send` ("missed"): nothing.
+ 3. the plan's date is not today in the site's zone, or now is past `latest_send` ("missed", exit 3): nothing.
  4. day claim, read from the provider's own emails (`metadata.note_date`, `note_sha256`): a day claimed by another
     plan sends nothing; the same plan continues with the editions not yet created; a listing that fails sends
     nothing and fails the run (fail closed).
@@ -38,7 +38,8 @@ from .common import DATE_RE, KEY_RE, LIST_KEYS, PLAN_SCHEMA, REASONS, SIGNATURE_
 from .settings import Settings
 
 NAMESPACE = uuid.UUID("6f1d2c1e-8b0a-5d3e-9c47-2a1b7e5d4c30")     # fixed: the idempotency keys must not change
-TRIES = 3                   # a rate-limited call is tried this many times, then the run stops
+MISSED_EXIT = 3             # "missed" (past latest_send): its own non-zero code, so the job fails and opens the issue
+TRIES = 3                  # a rate-limited call is tried this many times, then the run stops
 MAX_WAIT = 120              # seconds: the longest Retry-After that is obeyed in one wait
 MAX_LIST_VALUES = 16        # a subscriber's `lists` with more values than this is not a picker's output: ignored
 MAX_BODY = 500_000
@@ -365,7 +366,7 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         return datetime.combine(the_day, time(int(hhmm[:2]), int(hhmm[3:])), zone)
 
     if now > at(settings.latest_send):
-        return end(0, "missed", why="now is past latest_send; a note is never sent late")
+        return end(MISSED_EXIT, "missed", why="now is past latest_send; a note is never sent late")
     if settings.canary_only and not canary_ids:
         return end(0, "no-canary", why=f"canary_only is true and {CANARY_ENV} names nobody")
     sent = people = 0
