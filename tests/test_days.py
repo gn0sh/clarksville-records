@@ -279,6 +279,63 @@ def test_a_bad_window_setting_stops_the_build(tmp_path, monkeypatch):
         build(FIXTURE, tmp_path / "s", seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, today=TODAY)
 
 
+# ---------------------------------------------------------------- county agendas without minutes (county-recency Fix 1)
+AGENDA_URL = "https://mcgtn.org/storage/departments/commission/agendas-and-resolutions/2024/dec-formal.pdf"
+
+
+def county_agendas(tmp_path):
+    src = {"id": "src-aaaaaaaaaaaa", "url": AGENDA_URL, "sha256": "a" * 64, "kind": "agenda", "label": "2024 December Formal",
+           "fetched_at": "2024-12-02", "pages": 12}
+    item = {"id": "x/24-12-1", "number": "24-12-1", "printed": "24-12-1*", "title": "Resolution to Accept a Donation",
+            "section": "RESOLUTIONS", "page": 2, "year": 2024, "link_basis": "number"}
+    meetings = [{"id": "2024-12-09-formal", "date": "2024-12-09", "kind": "formal", "source_id": src["id"], "date_page": 1,
+                 "items": [item]},                                      # the minutes cover it: not shown
+                {"id": "2024-12-16-formal", "date": "2024-12-16", "kind": "formal", "source_id": src["id"], "date_page": 1,
+                 "items": [item]},
+                {"id": "2024-12-23-informal", "date": "2024-12-23", "kind": "informal", "source_id": src["id"],
+                 "date_page": 1, "items": []}]
+    p = tmp_path / "agendas.json"
+    p.write_text(json.dumps({"body": "Montgomery County Commission", "index_url": "https://montgomerytn.gov/commission/agenda",
+                             "meetings": meetings, "sources": [src], "skipped": [], "problems": []}), encoding="utf-8")
+    return p
+
+
+def test_county_agenda_meetings_show_as_agenda_with_the_pdf_and_the_minutes_note(tmp_path):
+    out = tmp_path / "site"
+    build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, today=date(2024, 12, 20),
+          county_agendas=county_agendas(tmp_path))
+    html = (out / "today.html").read_text(encoding="utf-8")
+    past = section(html, "2024-12-16")
+    assert 'id="county-2024-12-16-formal"' in past
+    assert f'Agenda: <a href="{AGENDA_URL}" target="_blank" rel="noopener noreferrer">PDF, 12 pages' in past
+    assert "Minutes not yet posted by the county, as of December 20, 2024." in past
+    assert f'{LINE} <a href="{AGENDA_URL}"' in past
+    assert "Items on the agenda, as printed (1)" in past and f'href="{AGENDA_URL}#page=2"' in past
+    assert '<span data-item-title>Resolution to Accept a Donation</span>' in past
+    assert 'href="meetings/agendas.html#2024-12-16-formal">Meeting page</a>' in past
+    upcoming = section(html, "2024-12-23")
+    assert 'id="county-2024-12-23-informal"' in upcoming and "not yet posted" not in upcoming
+    assert "No numbered items were read from it" in upcoming                      # no items read: said so
+    # the minutes cover Dec 9: its card is the minutes card only
+    assert section(html, "2024-12-09").count('id="county-2024-12-09-formal"') == 1
+    assert "and the agendas the county posted for meetings after that." in html
+
+    page = (out / "meetings" / "agendas.html").read_text(encoding="utf-8")
+    assert 'id="2024-12-16-formal"' in page and 'id="2024-12-09-formal"' not in page
+    assert "Minutes not yet posted by the county, as of December 20, 2024." in page
+    assert f'Official record: <a href="{AGENDA_URL}"' in page                       # each meeting's own agenda
+    assert 'data-ext="record" href="https://montgomerytn.gov/commission/agenda"' in page   # the page's record line
+    assert page.count(LINE) == 3 and 'id="2024-12-16-formal-24-12-1"' in page
+    meetings = (out / "meetings.html").read_text(encoding="utf-8")
+    assert 'href="meetings/agendas.html#2024-12-16-formal">2024-12-16</a>' in meetings
+    assert "Agendas without minutes yet" in meetings and "Agenda: 1 item <span" in meetings
+
+
+def test_a_fixture_build_reads_no_county_agendas_unless_named(site):
+    assert not (site / "meetings" / "agendas.html").exists()
+    assert "Agendas without minutes yet" not in (site / "meetings.html").read_text(encoding="utf-8")
+
+
 # ---------------------------------------------------------------- the script
 
 

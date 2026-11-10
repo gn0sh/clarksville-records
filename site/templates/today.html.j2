@@ -40,6 +40,21 @@
     </li>
     {% endfor %}
   </ul>
+  {% elif c.state == "agenda" and c.kind == "county" %}
+  {% if c.agenda_items %}
+  <p class="label day-part">Items on the agenda, as printed ({{ c.agenda_items | length }})</p>
+  <ul class="day-items">
+    {% for x in c.agenda_items %}
+    <li class="day-item">
+      <p class="say"><strong>{{ x.printed }}</strong>{% if x.section %} <span class="muted">{{ x.section }}</span>{% endif %}</p>
+      <p>{% call clamp(2) %}<span data-item-title>{{ x.title }}</span>{% endcall %}</p>
+      <p class="meta"><a href="{{ x.src }}" target="_blank" rel="noopener noreferrer">agenda p. {{ x.page }}<span class="sr-only"> (opens in a new tab)</span></a></p>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="day-none">The agenda is linked above. No numbered items were read from it, and no votes are shown until the minutes are posted.</p>
+  {% endif %}
   {% elif c.state == "agenda" %}
   <p class="day-none">The agenda is linked above. Its items are not read on this site, and no votes are shown until the minutes are read.</p>
   {% elif c.state == "scheduled" %}

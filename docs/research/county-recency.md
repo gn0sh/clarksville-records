@@ -27,3 +27,13 @@ The gap is the county's posting lag, not a collector bug and not the "4 missing"
 3. Optional: BIS Online search check for June to Oct minutes. About 0.5 day after the policy decision.
 4. Refetch the 4 old minutes: 1 hour, low.
 5. Run the collector on the normal schedule; the minutes will appear by themselves once the county posts them. Show an "as of" date on county pages so the lag is visible.
+
+## Done (2026-11-10)
+- Fix 2: collector/county_agenda.py, run by `collector run` (so the daily update; workflow permissions and limits unchanged).
+  First run: 1 page request, 16 links wanted (May to Dec 2026), 14 agendas stored (May to Nov, informal and formal),
+  2 placeholders skipped (Dec informal and formal, 6,097 bytes), 142 items read, 0 problems. 13 meetings shown as
+  agenda-only (May 11 formal is covered by its minutes).
+- Fix 1: day cards and meetings/agendas.html (sitegen/county_agendas.py).
+- The 4 missing minutes (2020-03, 2020-10, 2021-02, 2021-08) were requested again at their manifest URLs: all 4 landed,
+  byte-identical to the manifest (status unchanged), so data/manifest.json and facts are unchanged.
+- Decision recorded: no BIS Online search-form requests (fix 3 not done).

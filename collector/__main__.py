@@ -3,9 +3,10 @@ python -m collector fin {fetch,build,census}   (finance and contracts: collector
 python -m collector city {fetch,build,run}     (City Council, Agenda Center: collector/city_run.py)
 python -m collector rpc {fetch,build,run}      (Regional Planning Commission: collector/rpc.py)
 python -m collector transcripts import <dir>   (meeting video transcripts: collector/transcripts.py)
-
-run: discover -> fetch new (polite) -> parse -> resolve names -> verify -> data/facts.json -> finance fetch and
-build (fin_run.run_step: data/finance.json, build/report.json `finance`) -> sitegen -> export -> build/report.json,
+run: discover -> fetch new (polite), and refetch any manifest minutes whose bytes the store lacks -> parse ->
+resolve names -> verify -> data/facts.json -> finance fetch and
+build (fin_run.run_step: data/finance.json, build/report.json `finance`) -> county agendas (county_agenda.run_step:
+the agenda page, new agenda PDFs, data/county-agendas/agendas.json) -> sitegen -> export -> build/report.json,
 build/run-log.json. Exit 0 ok, 2 on fetch/parse failures (votes or finance), 3 on a gate failure (votes gates, or
 finance parity 'review needed'). On 2 or 3 it prints the `gh issue create` command it would run (task D1).
 --offline skips discovery and fetching (votes and finance) and uses the store (data/store/, or RECORDS_STORE).
@@ -78,8 +79,29 @@ def cmd_fetch(store: Store, log: dict, fetcher: PoliteFetcher | None = None) -> 
                 log["new"].append(d["url"])
         except (HostBlocked, HostRefused, ProxyRefused, RobotsDisallowed, FetchFailed) as e:
             log["failures"].append({"stage": "fetch", "url": d["url"], "error": f"{type(e).__name__}: {e}"})
+    refetch_missing(store, log, f, {d["url"] for d in found})
     store.save()
     log["fetch_log"] = f.log
+
+
+def refetch_missing(store: Store, log: dict, f, listed: set[str]) -> None:
+    """Minutes the manifest lists (in range) whose bytes are not in the store and that the index no longer lists (the
+    2020-2021 packets came from the M0 index): requested again at the exact URL the manifest recorded, through the same
+    polite fetcher. No other URL is tried (spec A4). Same bytes leave the manifest unchanged; new bytes are a new
+    version, like any changed document. log['refetched']: {url: status or error}."""
+    out = log.setdefault("refetched", {})
+    for e in missing_inputs(store):
+        if e["url"] in listed:
+            continue                                 # discovery just tried it
+        try:
+            _, status = fetch_into_store(f, store, e["url"], {"kind": "minutes", "meeting_date": e["meeting_date"],
+                                                              "label": e["label"]})
+            out[e["url"]] = status
+            if status in ("new", "changed"):
+                log["new"].append(e["url"])
+        except (HostBlocked, HostRefused, ProxyRefused, RobotsDisallowed, FetchFailed) as ex:
+            out[e["url"]] = f"{type(ex).__name__}: {ex}"
+            log["failures"].append({"stage": "refetch", "url": e["url"], "error": f"{type(ex).__name__}: {ex}"})
 
 
 def finance_fetcher() -> PoliteFetcher:
@@ -92,6 +114,12 @@ def finance_fetcher() -> PoliteFetcher:
 def run_finance(store: Store, log: dict, offline: bool, **kw) -> int:
     from .fin_run import run_step
     return run_step(store, log, offline, **kw)
+
+
+def run_agendas(log: dict, offline: bool, fetcher: PoliteFetcher | None = None) -> None:
+    """County Commission agendas (collector/county_agenda.py): its own manifest and data/county-agendas/agendas.json."""
+    from .county_agenda import run_step
+    run_step(log, offline, fetcher=fetcher)
 
 
 # ------------------------------------------------------------------ build
@@ -306,6 +334,7 @@ def cmd_run(args) -> int:
     write_if_changed(BUILD / "name-candidates.json", dumps(name_candidates(b, load_roster(NAMES))))
     fin_code = run_finance(store, log, args.offline, fetcher=fetcher, finance_path=FINANCE,
                            report_path=BUILD / "report.json")
+    run_agendas(log, args.offline, fetcher=fetcher)
     site = BUILD / "site"
     try:
         from sitegen.build import build as site_build, write_publish_manifest

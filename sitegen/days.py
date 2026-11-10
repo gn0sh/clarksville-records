@@ -5,7 +5,9 @@ the week `weeks_before` weeks before today to the end of the week `weeks_after` 
 site's zone (`site_timezone`). Each day lists the records we hold that are dated that day, one card per meeting or
 listing, from every body the site collects:
 
-- the county commission (its minutes: the votes and roll calls, each linked to its minutes page);
+- the county commission (its minutes: the votes and roll calls, each linked to its minutes page; a meeting the
+  minutes do not cover yet, from the agenda the county posted, as "Agenda" with its items, and once its date has passed,
+  a line that the county has not posted the minutes, as of the build date: sitegen/county_agendas.py);
 - each council (its meetings from the Agenda Center and CivicClerk: the votes and roll calls when the minutes were
   read, otherwise the agenda; a meeting the city's calendar schedules that is not in the facts yet, as scheduled);
 - the Regional Planning Commission (each agenda's cases as printed, each linked to its agenda page);
@@ -106,6 +108,19 @@ def county_card(ix: views.Index, m: dict) -> dict:
             "record": {"url": src["url"], "label": "the minutes PDF", "ext": False}}
 
 
+def county_agenda_card(ix: views.Index, ax, m: dict) -> dict:
+    """A county meeting the minutes do not cover yet: its agenda PDF and items, as the agenda prints them."""
+    ctx = ax.meeting(m)
+    doc = ctx["doc"]
+    return {"kind": "county", "dot": DOTS["county"], "id": f"county-{m['id']}", "body": ix.facts["coverage"]["body"],
+            "title": ctx["kind_label"], "href": ctx["href"],
+            "docs": [{"word": "Agenda", "url": doc["url"], "fetched": doc["fetched"],
+                      "what": f"PDF, {doc['pages']} {'page' if doc['pages'] == 1 else 'pages'}" if doc["pages"] else "PDF"}],
+            "minutes_note": ctx["minutes_note"], "video": None, "votes": [], "state": "agenda", "cases": [],
+            "sols": [], "agenda_items": ctx["entries"],
+            "record": {"url": doc["url"], "label": "the county's agenda PDF", "ext": False}}
+
+
 def council_card(cix, m: dict) -> dict:
     src = cix.sources[m["source_id"]]
     agenda = cix.sources.get(m.get("agenda_source_id") or "")
@@ -186,10 +201,11 @@ def bids_card(fx, sols: list[dict]) -> dict:
 # the page
 
 
-def _coverage(ix, cixs, rpx, fx, start: date, end: date, counts: dict) -> list[dict]:
+def _coverage(ix, cixs, rpx, fx, start: date, end: date, counts: dict, ax=None) -> list[dict]:
     """What the page holds, body by body: the newest dated record, and how many cards fall in these weeks."""
     out = [{"body": ix.facts["coverage"]["body"], "n": counts["county"],
-            "what": f"Minutes from {ix.coverage['from']} to {ix.coverage['to']}."}]
+            "what": f"Minutes from {ix.coverage['from']} to {ix.coverage['to']}"
+                    + (", and the agendas the county posted for meetings after that." if ax and ax.meetings else ".")}]
     for c in cixs:
         out.append({"body": c.body_name, "n": counts[c.slug],
                     "what": f"Meetings from {c.coverage['from']} to {c.coverage['to']}"
@@ -209,7 +225,7 @@ def _coverage(ix, cixs, rpx, fx, start: date, end: date, counts: dict) -> list[d
     return out
 
 
-def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None) -> dict:
+def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None, ax=None) -> dict:
     today = today or today_in_zone()
     start, end = window(today)
     by_day: dict[str, list[dict]] = defaultdict(list)
@@ -217,6 +233,10 @@ def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None)
     for m in sorted(ix.facts["meetings"], key=lambda m: (m["date"], m["id"])):
         if _in(m["date"], start, end):
             by_day[m["date"]].append(county_card(ix, m))
+            counts["county"] += 1
+    for m in sorted(ax.meetings if ax else [], key=lambda m: (m["date"], m["id"])):
+        if _in(m["date"], start, end):
+            by_day[m["date"]].append(county_agenda_card(ix, ax, m))
             counts["county"] += 1
     for c in cixs:
         for m in sorted(c.facts["meetings"], key=lambda m: (m["date"], m["id"])):
@@ -243,6 +263,7 @@ def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None)
         for c in cards:
             c.setdefault("cancelled", False)
             c.setdefault("rpc", None)
+            c.setdefault("agenda_items", [])
     weeks, d = [], start
     while d <= end:
         days = []
@@ -265,7 +286,7 @@ def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None)
             "start_text": date_text(start), "end_text": date_text(end), "built_text": date_text(today),
             "tz": config.SITE["site_timezone"], "school": school,
             "n_cards": sum(len(v) for v in by_day.values()),
-            "coverage": _coverage(ix, cixs, rpx, fx, start, end, counts)}
+            "coverage": _coverage(ix, cixs, rpx, fx, start, end, counts, ax)}
 
 
 PAGE = "today.html"

@@ -165,6 +165,15 @@ def rpc_allowed(rpc: dict | None) -> set[str]:
                                           if not d["fetched"] and d["url"].startswith("https://")}
 
 
+def county_agendas(facts: dict) -> dict | None:
+    """The county agendas a real build shows (data/county-agendas/agendas.json, collector/county_agenda.py), or None
+    (a fixture build, or no agendas file yet). Their PDFs are sources like the minutes; their page is a record link."""
+    p = ROOT / "data" / "county-agendas" / "agendas.json"
+    if facts.get("fixture") or not p.is_file():
+        return None
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
 def default_inputs(facts: dict) -> tuple[Path | None, Path | None]:
     """(roster, map) files the build read: the fixture's for a fixture facts file, else the locality's."""
     if facts.get("fixture"):
@@ -1356,11 +1365,14 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     cs = [c for c in councils(facts) if any(rel.startswith(c["prefix"]) for rel in pages)]
     missing = [c["slug"] for c in councils(facts) if c not in cs]
     rpc = rpc_facts(facts)
+    agendas = county_agendas(facts)
     all_sources = {"sources": [*facts["sources"], *(s for c in cs for s in c["facts"]["sources"]),
-                               *(rpc or {}).get("sources", [])]}   # an RPC DOCX has no page count: linked whole only
+                               *(rpc or {}).get("sources", []),   # an RPC DOCX has no page count: linked whole only
+                               *(agendas or {}).get("sources", [])]}
     videos = {m["video_url"] for c in cs for m in c["facts"]["meetings"] if m.get("video_url")}
     problems, note = check_sources(site, pages, all_sources, store_extra,
-                                   allowed_external(cfg, seats_path, districts_path) | rpc_allowed(rpc), finance, videos)
+                                   allowed_external(cfg, seats_path, districts_path) | rpc_allowed(rpc)
+                                   | ({agendas["index_url"]} if agendas else set()), finance, videos)
     if rpc is not None and not any(rel.startswith(rpc["_cfg"]["slug"] + "/") for rel in pages):
         problems.append(f"no pages under {rpc['_cfg']['slug']}/ for the configured RPC")
     rep.add("sources", problems + [f"no pages under {m}/ for the configured council" for m in missing], note)

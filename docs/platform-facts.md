@@ -4,6 +4,13 @@
 - Site montgomerytn.gov (also mcgtn.org, d6.mcgtn.org for old files). robots.txt: `User-agent: * / Disallow:` (allows all). Verified by fetch.
 - Commission agendas and resolutions: https://montgomerytn.gov/commission/agenda, monthly informal + formal PDFs, 2006 to 2026.
   Pattern (2016+): `mcgtn.org/storage/departments/commission/agendas-and-resolutions/YYYY/mon-informal.pdf` / `mon-formal.pdf`. Some links on the page are wrong (e.g. Oct 2023 formal points to informal).
+  Verified 2026-11-10 by the collector's fetcher (collector/county_agenda.py): 482 agenda links in year tables (`<h3>YYYY</h3>`,
+  then "January ( Informal | Formal )" cells; "YYYY Special Called Agendas" tables); some 2026 links are relative
+  (`/storage/...`, so on montgomerytn.gov). Jun to Nov 2026 agendas are real PDFs (7 to 36 MB, 59 to 270 pages, a text
+  layer); Dec 2026 informal and formal are 6,097-byte placeholders. Page 1 prints "BOARD OF COMMISSIONERS ... AGENDA
+  <MONTH D, YYYY>" (formal) or "INFORMAL COMMISSION MEETING ... <MONTH D, YYYY>"; the agenda list (numbered resolutions
+  and zoning cases) ends at ADJOURN on page 2 or 3. Dates do not always follow the Monday pattern (Oct 19 formal, Sep 8
+  informal, a Tuesday).
 - Commission minutes: listed at https://montgomerytn.gov/clerk/county-commission-minutes (production) for 2022 to May 2026
   (55 links on 2026-11-07), files on `montgomeryminutes.bisonline.com/viewpdf.php?id=<encoded>`; pre-2020 via that site's
   search. The dev2 host listed 2020-2024 but now answers 403 (see below). In the 59 documents read, every link label matched
