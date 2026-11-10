@@ -95,7 +95,8 @@ morning_note:
   enabled: false        # true only after the CEO picks a provider (hard stops 3-5)
   provider: ""          # who receives the form, printed in its sent line; required when enabled; code never branches on it
   form_action: ""       # https URL the sign-up form POSTs to (the provider's hosted endpoint)
-  form_fields: {email: email, lists: tags, district: metadata__district, ward: metadata__ward}
+  # lists: a multi-select metadata key, not tags: the sender reads a subscriber's lists from metadata.lists
+  form_fields: {email: email, lists: metadata__lists, district: metadata__district, ward: metadata__ward}
   privacy_url: ""       # the provider's privacy policy, required when enabled
   # The sender (ADR 0004; architecture "T4 sender"; package sender/). OFF: nothing is sent, and there is no provider
   # client, key or workflow job yet. `python -m sender plan --rehearse` writes the would-send editions as a dry run.
@@ -121,7 +122,7 @@ morning_note:
   # records' own titles. Neutral connective text only: no summary, no claim about anyone.
   page:
     heading: Get the morning note
-    about: A short email at 7:00 AM on days when something on your list is on an agenda or was voted on. Quiet on every other day.
+    about: A short email by 7:00 AM on days when something on your list is on an agenda or was voted on. Quiet on every other day.
     legend: Put on my list
     state_off: Email starts at launch; follow by feed now.
     feeds_heading: Feeds for your list

@@ -37,6 +37,15 @@ def test_the_shipped_block_is_off_and_clean():
     assert tuple(s) == morning.SENDER_KEYS
 
 
+def test_the_form_sends_lists_where_the_sender_reads_them_and_the_page_promises_no_exact_time():
+    """task-contract/t43-form-fields: the deliver stage reads a subscriber's lists from `metadata.lists`; a form that
+    sent them as tags would reach nobody while the run says "sent". `ids` mode mails when the run ends, so the page
+    says "by 7:00 AM", true in both modes."""
+    mn = yaml.safe_load(SITE_YML.read_text(encoding="utf-8"))["morning_note"]
+    assert mn["form_fields"]["lists"] == "metadata__lists"
+    assert "by 7:00 AM" in mn["page"]["about"] and "at 7:00 AM" not in mn["page"]["about"]
+
+
 def test_no_secret_or_address_is_in_the_config():
     raw = SITE_YML.read_text(encoding="utf-8")
     block = raw[raw.index("  sender:"):raw.index("  page:")]
