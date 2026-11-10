@@ -29,9 +29,11 @@ One helper, `sitegen/localdates.py`:
 The conversion is done where a view picks the source (the template sees only a day string and no sha256), so the
 templates keep `{{ src.fetched }}` unchanged. A template that ever prints an instant uses the Jinja filter
 `local_day` (sitegen/build.py make_env; none does today). `qa/site_checks.py` `dates/no-raw-utc-day` checks the built pages and
-feeds: every "fetched D" next to a source link is that source's local day, or is labelled (UTC day) when the
-source has no recorded instant; every aggregate fetch day ("fetched between", "latest fetched", "Data as of") is
-the local day of some recorded instant, or labelled.
+feeds: every "fetched D" (or "collected", "added" D) next to a source link is that source's local day; a day
+labelled (UTC day) passes only when no linked source has a row on that UTC day; every aggregate ("fetched between",
+"fetched on", "Data as of", and the RPC's "latest fetched") is exactly its own page's sources' earliest or latest
+day (a council's pages by the council's sources, the rest by the county's), labelled exactly when one of them has
+no row; "the latest meeting collected, D" is a meeting date of the page's facts.
 
 ## Consumers
 
