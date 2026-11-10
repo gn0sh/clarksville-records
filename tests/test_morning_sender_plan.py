@@ -18,6 +18,7 @@ from test_morning import D, inputs, make  # noqa: F401  (inputs: the fixture the
 
 ROOT = Path(__file__).resolve().parent.parent
 SITE_URL = "https://records.example.com/"
+TEST_HOSTS = "records.example.com,example.com,example.invalid,tips.example.com"
 NEXT = D + timedelta(days=1)
 _CACHE: dict = {}
 
@@ -28,6 +29,8 @@ def cfg_with(enabled=True, site_url=SITE_URL, max_editions=500, **sender) -> dic
     deliver stage's, over editions that have a recipient)."""
     cfg = copy.deepcopy(config.SITE)
     cfg["alerts"]["site_url"] = site_url
+    # the made-up site and the fixture's sources join the shipped link hosts (plan-untrusted/body-unchecked)
+    sender.setdefault("link_hosts", cfg["morning_note"]["sender"]["link_hosts"] + "," + TEST_HOSTS)
     cfg["morning_note"]["sender"].update(enabled=enabled, max_editions=max_editions, **sender)
     return cfg
 
@@ -99,6 +102,8 @@ def test_a_disabled_sender_cli_writes_no_edition_and_delivers_nothing(msite, tmp
     provider = CountingProvider()
     s = settings_mod.load(ROOT / "config" / "site.yml")
     assert s.enabled is False
+    import dataclasses
+    s = dataclasses.replace(s, link_hosts=s.link_hosts + tuple(TEST_HOSTS.split(",")))   # the made-up site's links
     now = plan_mod._at(D, "05:00", config.SITE["site_timezone"])
     from datetime import datetime
     for the_plan in (p, plan_mod.build(msite, D, cfg_with())["plan"]):
@@ -148,7 +153,8 @@ def test_plan_shape(built, msite):
         assert sorted(e) == ["body", "entry_ids", "key", "subject"] and common.KEY_RE.fullmatch(e["key"])
         assert e["key"] == plan_mod.edition_key(p["date"], e["entry_ids"]) and e["entry_ids"]
     assert all(common.SIGNATURE_RE.fullmatch(s) for s in p["signatures"])
-    assert deliver.check_plan(p) is p                                   # the deliver stage accepts what plan writes
+    hosts = common.parse_hosts(cfg_with()["morning_note"]["sender"]["link_hosts"])
+    assert deliver.check_plan(p, hosts) is p                            # the deliver stage accepts what plan writes
 
 
 def test_shared_constants_match_the_digest():
@@ -263,6 +269,7 @@ def test_the_fixtures_rpc_agenda_day_plans_with_the_shipped_config(msite, tmp_pa
     cfg = copy.deepcopy(config.SITE)
     cfg["alerts"]["site_url"] = SITE_URL
     cfg["morning_note"]["sender"]["enabled"] = True       # the shipped max_editions (80) and everything else
+    cfg["morning_note"]["sender"]["link_hosts"] += "," + TEST_HOSTS       # but the fixture's links
     built = plan_mod.build(msite, D, cfg)
     assert len(built["plan"]["editions"]) > cfg["morning_note"]["sender"]["max_editions"]
     assert 2_000_000 < plan_mod.size_of(built) < common.MAX_PLAN_BYTES

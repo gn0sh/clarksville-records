@@ -31,7 +31,7 @@ def test_the_shipped_block_is_off_and_clean():
     s = yaml.safe_load(SITE_YML.read_text(encoding="utf-8"))["morning_note"]["sender"]   # the file, not the env
     assert s == {"enabled": False, "provider": "buttondown", "api_base": "https://api.buttondown.com/v1",
                  "mode": "stamp", "send_at": "07:00", "latest_send": "10:00", "max_editions": 80,
-                 "max_recipients": 2000, "canary_only": True, "text": s["text"]}
+                 "max_recipients": 2000, "canary_only": True, "link_hosts": s["link_hosts"], "text": s["text"]}
     assert sorted(s["text"]) == ["open_site", "subject", "why"]
     assert morning.problems(config.SITE) == [] and site_url_problems(config.SITE) == []
     assert tuple(s) == morning.SENDER_KEYS
@@ -59,7 +59,8 @@ def test_enabling_the_sender_needs_the_form_enabled_and_a_site_url():
     assert any("morning_note.enabled must be true" in p for p in off_form)
     no_url = problems({"enabled": True}, FORM_ON, site_url="")
     assert no_url and all("site_url" in p for p in no_url)
-    assert problems({"enabled": True}, FORM_ON) == []
+    hosts = config.SITE["morning_note"]["sender"]["link_hosts"] + ",records.example.com"
+    assert problems({"enabled": True, "link_hosts": hosts}, FORM_ON) == []
     cfg = copy.deepcopy(config.SITE)                                     # and the build's own check refuses it
     cfg["morning_note"]["sender"]["enabled"] = True
     assert any("morning_note.sender.enabled" in p for p in site_url_problems(cfg))
@@ -129,6 +130,7 @@ morning_note:
     max_editions: 80
     max_recipients: 2000
     canary_only: true
+    link_hosts: "example.com,www.cmcrpc.com"
     text:
       enabled: true
       subject: "{site_name} morning note, {date}"
@@ -360,3 +362,33 @@ def test_a_missing_config_file_is_an_error(tmp_path):
 def test_reader_and_build_checks_use_the_same_rules():
     assert settings_mod.SCALARS + ("text",) == morning.SENDER_KEYS
     assert settings_mod._API_BASE.pattern == morning._API_BASE.pattern
+
+
+
+# ------------------------------------------------------------------ plan-untrusted/body-unchecked: link hosts
+def test_the_link_hosts_cover_every_collector_source_and_the_support_link():
+    import re as re_mod
+    hosts = set(yaml.safe_load(SITE_YML.read_text(encoding="utf-8"))["morning_note"]["sender"]["link_hosts"].split(","))
+    seen = set()
+    for path in config.SITE["morning_note"]["manifests"]:
+        seen |= set(re_mod.findall(r"https://([A-Za-z0-9.-]+)", (ROOT / path).read_text(encoding="utf-8")))
+    assert seen and seen <= hosts, seen - hosts
+    assert config.SITE["support_url"].split("/")[2] in hosts
+    assert set(settings_mod.load(SITE_YML).link_hosts) == hosts          # the deliver stage reads the same list
+
+
+@pytest.mark.parametrize("value", ["", "Example.com", "a..b", "https://example.com", "example.com/x", "ex ample.com",
+                                   "example.com,", "-a.example", "localhost"])
+def test_a_malformed_link_host_list_is_refused(value):
+    assert any("link_hosts" in p for p in problems({"link_hosts": value}))
+    with pytest.raises(settings_mod.SettingsError, match="link_hosts"):
+        settings_mod.from_values(**{**settings_mod.parse(SITE_YML.read_text(encoding="utf-8")),
+                                    "sender": {**settings_mod.parse(SITE_YML.read_text(encoding="utf-8"))["sender"],
+                                               "link_hosts": value}})
+
+
+def test_enabling_needs_the_site_host_among_the_link_hosts():
+    got = problems({"enabled": True}, FORM_ON)
+    assert any("link_hosts" in p and "records.example.com" in p for p in got), got
+    base = config.SITE["morning_note"]["sender"]["link_hosts"]
+    assert problems({"enabled": True, "link_hosts": base + ",records.example.com"}, FORM_ON) == []

@@ -324,6 +324,11 @@ morning_note:
   `morning/<D>.json`. It is deterministic, so a re-run writes and filters the same value; do not rotate the key
   between a day's first run and 7:00 (the scheduled emails would match nobody). `stamp` mode refuses to run without
   the secret ("no-secret", exit 2). `ids` emails carry `<D>.<key>` only (no filter reads it).
+- **The deliver stage checks each body** (security `plan-untrusted/body-unchecked`): only the tags render writes
+  (`h1 h2 p ul li br strong a`), no attribute but one https `href` on a host in `morning_note.sender.link_hosts`
+  (read from the repository), no comment or declaration, no literal `{` or `}`. The plan stage links only to the
+  same hosts (sources, site pages, the support link). `link_hosts` ships with the collectors' source hosts and the
+  support host; the build refuses `enabled: true` until it also holds the site's host.
 - **A stray stamp stops a `stamp` run** (review `audience/stamp-self-set`): before any write the deliver stage exits
   2 ("stray-stamp") if any subscriber holds exactly one of today's stamps and is not in that edition's audience. Any
   other value is ignored (the filter does not match it), so one subscriber cannot stop every send. The T4.0 probe also checks that the public form

@@ -36,7 +36,9 @@ from dataclasses import dataclass
 from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from .common import DATE_RE, KEY_RE, LIST_KEYS, PLAN_SCHEMA, REASONS, SIGNATURE_RE, signature
+from html.parser import HTMLParser
+
+from .common import DATE_RE, KEY_RE, LIST_KEYS, PLAN_SCHEMA, REASONS, SIGNATURE_RE, link_ok, signature
 from .settings import Settings
 
 NAMESPACE = uuid.UUID("6f1d2c1e-8b0a-5d3e-9c47-2a1b7e5d4c30")     # fixed: the idempotency keys must not change
@@ -148,9 +150,63 @@ class Outcome:
 
 
 # ------------------------------------------------------------------------------------------------ the plan file
-def check_plan(plan) -> dict:
+BODY_TAGS = frozenset({"h1", "h2", "p", "ul", "li", "br", "strong", "a"})      # all render.body_html writes
+
+
+class _Body(HTMLParser):
+    """plan-untrusted/body-unchecked: an edition body may hold only what render.body_html writes: its tags, no
+    attribute but one https `href` on a link host, no comment, declaration or processing instruction."""
+
+    def __init__(self, hosts):
+        super().__init__(convert_charrefs=True)
+        self.hosts, self.ok = tuple(hosts), True
+
+    def handle_starttag(self, tag, attrs):
+        if tag not in BODY_TAGS:
+            self.ok = False
+        elif tag == "a":
+            self.ok &= len(attrs) == 1 and attrs[0][0] == "href" and link_ok(attrs[0][1], self.hosts)
+        elif attrs:
+            self.ok = False
+
+    def handle_startendtag(self, tag, attrs):
+        self.ok = False         # render writes <br>, never <br/>
+
+    def handle_endtag(self, tag):
+        if tag not in BODY_TAGS or tag == "br":
+            self.ok = False
+
+    def handle_comment(self, data):
+        self.ok = False
+
+    def handle_decl(self, decl):
+        self.ok = False
+
+    def handle_pi(self, data):
+        self.ok = False
+
+    def unknown_decl(self, data):
+        self.ok = False
+
+
+def body_ok(body: str, hosts) -> bool:
+    """True when `body` could have come from render.body_html with these link hosts. A literal brace is refused:
+    render writes every brace as a character reference, so one here could reach the provider's template step."""
+    if "{" in body or "}" in body:
+        return False
+    check = _Body(hosts)
+    try:
+        check.feed(body)
+        check.close()
+    except Exception:       # noqa: BLE001  any parse trouble means it is not render's output
+        return False
+    return check.ok
+
+
+def check_plan(plan, link_hosts=()) -> dict:
     """The plan as the plan stage writes it, or PlanInvalid. The file crosses from the job that parses untrusted
-    documents to the job that holds the key, so every field deliver reads is checked here first."""
+    documents to the job that holds the key, so every field deliver reads is checked here first, each body
+    against the tags render writes and `link_hosts` (from the repository's config, not the plan)."""
     if not isinstance(plan, dict) or plan.get("schema") != PLAN_SCHEMA:
         raise PlanInvalid("schema")
     if not (isinstance(plan.get("date"), str) and DATE_RE.fullmatch(plan["date"])):
@@ -174,7 +230,7 @@ def check_plan(plan) -> dict:
         if not (isinstance(ed["subject"], str) and 0 < len(ed["subject"]) <= MAX_SUBJECT and ed["subject"].isprintable()
                 and ed["subject"] == ed["subject"].strip()):
             raise PlanInvalid("an edition's subject")
-        if not (isinstance(ed["body"], str) and 0 < len(ed["body"]) <= MAX_BODY):
+        if not (isinstance(ed["body"], str) and 0 < len(ed["body"]) <= MAX_BODY and body_ok(ed["body"], link_hosts)):
             raise PlanInvalid("an edition's body")
         if not (isinstance(ed["entry_ids"], list) and ed["entry_ids"]
                 and all(isinstance(i, str) for i in ed["entry_ids"])):
@@ -355,7 +411,7 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
     `stamp_secret`: the HMAC key of the stamps (the provider's API key, passed by the adapter), needed in `stamp`
     mode. `clock`: a callable giving the current time (default: `now` when given, else the system clock)."""
     try:
-        plan = check_plan(plan)
+        plan = check_plan(plan, settings.link_hosts)
     except PlanInvalid as exc:
         out(f"morning note: the plan file is not valid ({exc}); nothing sent")
         return Outcome(2, "bad-plan")

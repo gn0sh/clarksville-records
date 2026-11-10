@@ -19,6 +19,30 @@ MAX_PLAN_BYTES = 32_000_000
 REASONS = ("ok", "quiet", "backfill", "disabled")          # plan.reason: "ok" exactly when send is true
 
 
+# plan-untrusted/body-unchecked: the hosts an email may link to (`morning_note.sender.link_hosts`: the site's host,
+# the collectors' source hosts and the support link's), one rule for the plan stage, the deliver check and the build
+_HOST = re.compile(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+")
+_URL_CHARS = re.compile(r"[!#-&(-;=?-\[\]-_a-z|~]+", re.IGNORECASE)     # printable ASCII but " ' < > \ ` { }
+
+
+def parse_hosts(text) -> tuple:
+    """"a.example,b.example" -> ("a.example", "b.example"). ValueError unless every entry is a lower-case host."""
+    if not isinstance(text, str) or not text:
+        raise ValueError("link_hosts must be host names separated by commas")
+    hosts = tuple(text.split(","))
+    if not all(_HOST.fullmatch(h) for h in hosts):
+        raise ValueError("link_hosts must be lower-case host names separated by commas, nothing else")
+    return hosts
+
+
+def link_ok(url, hosts) -> bool:
+    """True for an https URL on exactly one of `hosts`: no user, no port, no character that could leave an href."""
+    if not (isinstance(url, str) and _URL_CHARS.fullmatch(url) and url.startswith("https://")):
+        return False
+    netloc = re.split(r"[/?#]", url[len("https://"):], maxsplit=1)[0]     # a user or port stays in it: no match
+    return netloc in hosts
+
+
 def signature(lists, district, ward) -> str:
     """One subscriber shape as the plan's `signatures` keys write it: "budget,zoning|7|-" (list keys in
     alphabetical order, then the district and the ward, "-" for none). Unknown list keys are left out."""

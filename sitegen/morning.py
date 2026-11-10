@@ -146,7 +146,7 @@ def problems(cfg: dict) -> list[str]:
 
 # `morning_note.sender` (ADR 0004; package sender/): every key, and the placeholders each text must keep.
 SENDER_KEYS = ("enabled", "provider", "api_base", "mode", "send_at", "latest_send", "max_editions",
-               "max_recipients", "canary_only", "text")
+               "max_recipients", "canary_only", "link_hosts", "text")
 SENDER_MODES = ("stamp", "ids")
 SENDER_TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": ()}
 _HHMM = re.compile(r"(?:[01]\d|2[0-3]):[0-5]\d")
@@ -211,7 +211,18 @@ def sender_problems(cfg: dict) -> list[str]:
         subj = text.get("subject")
         if isinstance(subj, str) and AUTHORITY.search(subj.replace("{site_name}", str(cfg.get("site_name") or ""))):
             out.append(f"{at}.text.subject must not name a government body or say official, got {subj!r}")
+    from sender.common import parse_hosts       # plan-untrusted/body-unchecked: the hosts an email may link to
+    hosts: tuple = ()
+    if "link_hosts" in s:
+        try:
+            hosts = parse_hosts(s["link_hosts"])
+        except ValueError as exc:
+            out.append(f"{at}.{exc}, got {s['link_hosts']!r}")
     if s.get("enabled") is True:
+        site = str((cfg.get("alerts") or {}).get("site_url") or "")
+        if site.startswith("https://") and site[len("https://"):].split("/")[0] not in hosts:
+            out.append(f"{at}.enabled is true, so link_hosts must hold the site's host "
+                       f"({site[len('https://'):].split('/')[0]}): an email links its pages")
         if mn.get("enabled") is not True:
             out.append(f"{at}.enabled is true, so morning_note.enabled must be true (the sign-up form)")
         if not (cfg.get("alerts") or {}).get("site_url"):

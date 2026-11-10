@@ -18,7 +18,7 @@ import pytest
 from sitegen import config
 from sender import common, deliver, plan as plan_mod, settings as settings_mod
 from test_morning import D, inputs  # noqa: F401
-from test_morning_sender_plan import cfg_with, msite  # noqa: F401
+from test_morning_sender_plan import TEST_HOSTS, cfg_with, msite  # noqa: F401
 
 ROOT = Path(__file__).resolve().parent.parent
 TZ = ZoneInfo("America/Chicago")
@@ -34,7 +34,8 @@ def stamp(key: str, day: str = DAY) -> str:
 
 def settings(**kw) -> settings_mod.Settings:
     base = settings_mod.load(ROOT / "config" / "site.yml")
-    return dataclasses.replace(base, **{"enabled": True, "canary_only": False, **kw})
+    hosts = base.link_hosts + tuple(TEST_HOSTS.split(","))
+    return dataclasses.replace(base, **{"enabled": True, "canary_only": False, "link_hosts": hosts, **kw})
 
 
 def sub(n: int, lists=("budget",), district=None, ward=None, type_="regular", **meta) -> dict:
@@ -167,6 +168,7 @@ def test_a_disabled_config_sends_nothing_even_with_a_send_true_plan(plan):
     assert (res.code, res.status, res.editions, res.recipients) == (0, "disabled", 0, 0) and fake.calls == []
     assert "emails created 0; recipients in total 0" in text
     shipped = settings_mod.load(ROOT / "config" / "site.yml")           # the repository as it is: off
+    shipped = dataclasses.replace(shipped, link_hosts=settings().link_hosts)   # (the made-up site's links)
     assert shipped.enabled is False and go(plan, fake, s=shipped)[0].status == "disabled" and fake.calls == []
 
 
@@ -854,3 +856,39 @@ def test_fixture_subscribers_are_all_at_example_com():
     import re
     assert set(re.findall(r"[A-Za-z0-9._+-]+@([A-Za-z0-9-]+\.[a-z]{2,})", src)) == {"example.com"}
     assert config.SITE["morning_note"]["sender"]["enabled"] is False
+
+
+# ------------------------------------------------------------------ plan-untrusted/body-unchecked
+GOOD_BODY = ('<h1>Daylight</h1>\n<p>November 11, 2026</p>\n<ul>\n<li>A<br><strong>T</strong><br>'
+             '<a href="https://records.example.com/items/2026.html#i-x">Open</a> &middot; '
+             '<a href="https://www.cmcrpc.com/a.pdf?x=1&amp;y=%7B2%7D">Source</a></li>\n</ul>\n<p>&#123;why&#125;</p>\n')
+
+
+@pytest.mark.parametrize("body", [
+    "<script>alert(1)</script>", '<img src="https://records.example.com/x.png">', '<p class="x">x</p>',
+    '<a href="https://evil.example/">x</a>', '<a href="http://records.example.com/x">x</a>',
+    '<a href="https://user' + '@records.example.com/x">x</a>', '<a href="https://records.example.com:8443/x">x</a>',
+    '<a href="javascript:alert(1)">x</a>', "<a>x</a>", '<a href="https://records.example.com/" title="t">x</a>',
+    "<p>{{ subscriber.email }}</p>", "<p>{% if x %}</p>", "<p>a}b</p>", "<!-- note -->", "<!DOCTYPE html>",
+    "<?php x ?>", '<a href="https://RECORDS.example.com.evil.example/">x</a>', "<style>p{}</style>", "<br/>x<iframe>"])
+def test_a_body_that_render_could_not_have_written_sends_nothing(plan, body):
+    """The plan crosses from the job that parses untrusted PDFs: deliver accepts only the tags render writes, no
+    attribute but an https href on a link host, and no literal brace (render writes braces as references)."""
+    s = settings()
+    bad = copy.deepcopy(plan)
+    bad["editions"][0]["body"] = body
+    with pytest.raises(deliver.PlanInvalid, match="body"):
+        deliver.check_plan(bad, s.link_hosts)
+    fake = Fake(people(plan))
+    res, text = go(bad, fake, s=s)
+    assert (res.code, res.status) == (2, "bad-plan") and fake.calls == [] and "body" in text
+
+
+def test_the_bodies_render_writes_pass_the_check(plan):
+    s = settings()
+    deliver.check_plan(copy.deepcopy(plan), s.link_hosts)
+    good = copy.deepcopy(plan)
+    good["editions"][0]["body"] = GOOD_BODY
+    deliver.check_plan(good, s.link_hosts)
+    with pytest.raises(deliver.PlanInvalid, match="body"):
+        deliver.check_plan(copy.deepcopy(plan), ("www.cmcrpc.com",))      # the site host is not a link host

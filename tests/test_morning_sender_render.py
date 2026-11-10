@@ -100,7 +100,7 @@ def test_a_source_url_that_is_not_plain_https_gives_no_link(url):
 def test_braces_in_a_source_url_cannot_reach_the_template_step():
     html = html_of(entry(source={"url": "https://example.com/a?b={{subscriber.email}}&c=1", "page": None}))
     assert "{{" not in html and "}}" not in html
-    assert links(html)[1] == "https://example.com/a?b=%7B%7Bsubscriber.email%7D%7D&c=1"
+    assert links(html) == [SITE_URL + "items/2026.html#i-x"]                    # a brace in a URL: no link at all
 
 
 @pytest.mark.parametrize("href", ["https://evil.example.com/", "//evil.example.com/x", "/abs.html", "../up.html",
@@ -140,7 +140,8 @@ def test_every_word_outside_the_record_is_config_text():
     """Change every config text and label: nothing of the old wording is left, so none of it is hard-coded."""
     ctx = {"site_name": "SITE", "site_url": SITE_URL, "source_label": "SRC", "page_label": "PG",
            "text": {"subject": "{site_name} S {date}", "why": "WHY", "open_site": "OPEN"},
-           "notice": "NOTICE", "email_line": "LINE", "support_label": "TIPS"}
+           "notice": "NOTICE", "email_line": "LINE", "support_label": "TIPS",
+           "link_hosts": ("records.example.com", "example.com", "tips.example.com")}
     n = note_of(entry(body_name="BODY", recorded="REC", title="TITLE"), unplaced_text="UNPLACED",
                 support_line="SUPPORT", support_url="https://tips.example.com/x")
     n["lists"] = [{"key": k, "label": f"L-{k}"} for k in morning.LIST_KEYS]
@@ -331,3 +332,22 @@ def test_the_note_carries_the_support_link_only_while_support_is_on(on, url, wan
     cfg = {**config.SITE, "support_enabled": on, "support_url": url}
     n = morning.day(D, [], {}, cfg)
     assert (bool(n["support_line"]), n["support_url"]) == (want, url if want else "")
+
+
+
+# ------------------------------------------------------------------ L5: links only to the configured hosts
+def test_a_source_on_a_host_that_is_not_a_link_host_gives_no_link():
+    html = html_of(entry(source={"url": "https://elsewhere.example.org/a.pdf", "page": 1}))
+    assert links(html) == [SITE_URL + "items/2026.html#i-x"]
+    assert "elsewhere.example.org" not in html
+
+
+def test_no_site_link_when_the_site_host_is_not_a_link_host():
+    ctx = {**CTX, "link_hosts": ("example.com",)}
+    assert links(html_of(entry(), ctx=ctx)) == ["https://example.com/fixture/agenda.pdf#page=2"]
+
+
+def test_no_support_link_off_the_link_hosts():
+    n = note_of(entry(), support_line="Please help.", support_url="https://tips.elsewhere.example/")
+    html = render.body_html(CTX, n, n["entries"])
+    assert "tips.elsewhere.example" not in html and "Please help." not in html

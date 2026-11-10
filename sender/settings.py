@@ -14,10 +14,10 @@ import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 
-from .common import MODES, TIME_RE
+from .common import MODES, TIME_RE, parse_hosts
 
 SCALARS = ("enabled", "provider", "api_base", "mode", "send_at", "latest_send", "max_editions", "max_recipients",
-           "canary_only")
+           "canary_only", "link_hosts")
 _TOP = ("site_timezone", "district_count", "ward_count")
 _LINE = re.compile(r"( *)([A-Za-z_][A-Za-z0-9_]*):(?: +(.*))?")
 _INT = re.compile(r"0|[1-9][0-9]*")                    # no leading zero: PyYAML reads 0100 as octal 64
@@ -46,6 +46,7 @@ class Settings:
     max_editions: int
     max_recipients: int
     canary_only: bool
+    link_hosts: tuple
     timezone: str
     district_count: int
     ward_count: int
@@ -271,12 +272,16 @@ def from_values(top: dict, sender: dict) -> Settings:
         raise SettingsError("morning_note.sender.send_at must be before latest_send")
     if not isinstance(top["site_timezone"], str) or not isinstance(sender["provider"], str):
         raise SettingsError("site_timezone and morning_note.sender.provider must be text")
+    try:
+        hosts = parse_hosts(sender["link_hosts"])
+    except ValueError as exc:
+        raise SettingsError(f"morning_note.sender.{exc}") from None
     return Settings(
         enabled=sender["enabled"], provider=sender["provider"], api_base=sender["api_base"], mode=sender["mode"],
         send_at=sender["send_at"], latest_send=sender["latest_send"],
         max_editions=_whole(sender["max_editions"], "morning_note.sender.max_editions"),
         max_recipients=_whole(sender["max_recipients"], "morning_note.sender.max_recipients"),
-        canary_only=sender["canary_only"], timezone=top["site_timezone"],
+        canary_only=sender["canary_only"], link_hosts=hosts, timezone=top["site_timezone"],
         district_count=_whole(top["district_count"], "district_count", 0),
         ward_count=_whole(top["ward_count"], "ward_count", 0))
 

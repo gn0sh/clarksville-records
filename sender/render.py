@@ -21,6 +21,8 @@ import re
 import unicodedata
 from datetime import date
 
+from .common import link_ok, parse_hosts
+
 TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": ()}
 MAX_TITLE = 600         # a longer title is cut here and marked with CUT; the site's page carries all of it
 CUT = "..."
@@ -65,22 +67,25 @@ def _attr(url: str) -> str:
             .replace("'", "%27").replace("<", "%3C").replace(">", "%3E"))
 
 
-def site_link(site_url, href) -> str:
+def site_link(site_url, href, hosts=()) -> str:
     """The site's page for an entry, `site_url` + `href`, or "" when either is not what we wrote ourselves: the
-    base must be an https URL ending in "/", the href a plain relative path with no "..", scheme or host."""
-    if not (_https(site_url) and site_url.endswith("/") and "#" not in site_url and "?" not in site_url):
+    base must be an https URL ending in "/" on one of `hosts`, the href a plain relative path with no "..", scheme
+    or host."""
+    if not (_https(site_url) and site_url.endswith("/") and "#" not in site_url and "?" not in site_url
+            and link_ok(site_url, hosts)):
         return ""
     if not (isinstance(href, str) and _HREF.fullmatch(href)) or ".." in href or "//" in href:
         return ""
     url = site_url + href
-    return url if _https(url) else ""
+    return url if _https(url) and link_ok(url, hosts) else ""
 
 
-def source_link(entry: dict) -> tuple[str, int | None]:
-    """(the entry's source URL, its page) when the URL passes the https rule, else ("", None)."""
+def source_link(entry: dict, hosts=()) -> tuple[str, int | None]:
+    """(the entry's source URL, its page) when the URL passes the https rule and is on one of `hosts`, else
+    ("", None). The deliver stage refuses a body with a link to any other host (plan-untrusted/body-unchecked)."""
     src = entry.get("source") or {}
     url = src.get("url")
-    if not _https(url):
+    if not (_https(url) and link_ok(url, hosts)):
         return "", None
     page = src.get("page")
     return url, page if isinstance(page, int) and not isinstance(page, bool) and page > 0 else None
@@ -100,7 +105,8 @@ def context(cfg: dict) -> dict:
     return {"site_name": cfg["site_name"], "site_url": (cfg.get("alerts") or {}).get("site_url") or "",
             "text": dict(mn["sender"]["text"]), "source_label": mn["page"]["source_label"],
             "page_label": mn["page"]["page_label"], "notice": u["notice"], "email_line": u["email_line"],
-            "support_label": cfg.get("support_label") or ""}
+            "support_label": cfg.get("support_label") or "",
+            "link_hosts": parse_hosts(mn["sender"]["link_hosts"])}
 
 
 def own_text(ctx: dict, note: dict) -> list[str]:
@@ -125,7 +131,8 @@ def support_of(ctx: dict, note: dict) -> tuple[str, str, str] | None:
     """(line, link label, https URL) when the note carries a support line and a link that passes the https rule,
     as the site's own note does (sitegen.morning: only while support_enabled); else None."""
     line, url = note.get("support_line"), note.get("support_url")
-    if not (isinstance(line, str) and clean(line) and ctx.get("support_label") and _https(url)):
+    if not (isinstance(line, str) and clean(line) and ctx.get("support_label") and _https(url)
+            and link_ok(url, ctx.get("link_hosts", ()))):
         return None
     return line, ctx["support_label"], url
 
@@ -154,8 +161,8 @@ def body_html(ctx: dict, note: dict, entries: list[dict]) -> str:
     for label, rows in sections(note, entries):
         out += [f"<h2>{inert(label)}</h2>", "<ul>"]
         for e in rows:
-            page_url = site_link(ctx["site_url"], e.get("href"))
-            src, page = source_link(e)
+            page_url = site_link(ctx["site_url"], e.get("href"), ctx.get("link_hosts", ()))
+            src, page = source_link(e, ctx.get("link_hosts", ()))
             links = ([f'<a href="{_attr(page_url)}">{inert(ctx["text"]["open_site"])}</a>'] if page_url else []) + \
                     ([f'<a href="{_attr(src)}">{inert(_source_words(ctx, page))}</a>'] if src else [])
             parts = [inert(e.get("body_name")), inert(e.get("recorded")), f"<strong>{inert(e.get('title'))}</strong>"]
@@ -176,8 +183,8 @@ def body_text(ctx: dict, note: dict, entries: list[dict]) -> str:
     for label, rows in sections(note, entries):
         out += [clean(label), ""]
         for e in rows:
-            page_url = site_link(ctx["site_url"], e.get("href"))
-            src, page = source_link(e)
+            page_url = site_link(ctx["site_url"], e.get("href"), ctx.get("link_hosts", ()))
+            src, page = source_link(e, ctx.get("link_hosts", ()))
             out += [f"  {clean(e.get('body_name'))}", f"  {clean(e.get('recorded'))}", f"  {clean(e.get('title'))}"]
             out += [f"  {clean(ctx['text']['open_site'])}: {page_url}"] if page_url else []
             out += [f"  {clean(_source_words(ctx, page))}: {src}"] if src else []
