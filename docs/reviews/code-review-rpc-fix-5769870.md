@@ -102,3 +102,44 @@ That is not related to this diff.
 - Attach clears case_id on CASE_REASONS. C5 (the minutes' date) still gates.
 - rpc.json carries no `para`. The MOTION_BLOCK regex is safe because the macro has no nested div.
 - The site_checks leak, misplacement and "unanimous" checks are each exercised by tests.
+
+## Delta re-review cf7a0ef (2026-11-10)
+Range 5769870..cf7a0ef. **Verdict: APPROVE WITH NITS.** All 5 findings are closed. There are no new must-fix or
+should-fix findings.
+
+Tests: 168 RPC tests pass. site_checks --target pages: rpc-motions PASS (1307 blocks, 0 shown confirmed,
+"motion_rules not current: None"), rpc-cases PASS, all other checks PASS except `links`. `links` fails only on the
+missing data/*.csv export files, which is not related to this diff (same as before). I re-ran my probe from the first
+review:
+- All 10 dissent phrasings are now not confirmed.
+- All 6 mangled CASE headings are not confirmed and carry no case. Each has two reasons: case heading not read, and
+  the section prints another agenda case.
+- The modelled nays stay confirmed.
+
+1. c3-stale-record: **closed**.
+   - The build writes `motion_rules`, and `shown_motions(motions, rules)` has no default for it.
+   - A record that is stale (or has no marker) shows nothing confirmed and drops `case_id`.
+   - site_checks (f) FAILs any block shown confirmed from such a record.
+   - The three copies of MOTION_RULES are pinned equal by tests/test_rpc_minutes_pages.py:241.
+2. c3-vote-words: **closed**. The word list is wider, the scan runs from the outcome to the next motion or the
+   section's end with no cap, UNMODELLED is applied to the same span, row 1 of the invariant is edited, and there are
+   19 tests.
+3. c1-case-heading: **closed**. LOOSE_HEAD now also catches a mangled CASE word near the line's start, and a
+   section-level guard (other_cases through read_number, so a misread prefix still counts) gives
+   WHY_SECTION_OTHER_CASE, which is in CASE_REASONS.
+4. qa-guard: **closed**. Motions are counted in sets by id. The "unanimous" check now covers index, today and any
+   page with an RPC card.
+5. c2-roster: **closed**. MEMBERS_STOP now stops at "call to order". Only a cell that `_name_like` accepts marks the
+   header garbled. A name split across a line is no longer added as a member.
+
+Wider-than-asked changes:
+- These only add reasons, drop placements or shrink the members/roster lists, so they can only reduce confirmations:
+  the extra vote words, the uncapped scan, UNMODELLED on the wider span, the stale record also losing its case
+  placement, the MEMBERS_STOP change and the split-line rule.
+- One exception in theory: a wider LOOSE_HEAD can split a section in two. That could clear WHY_TWO for the earlier
+  motion, which then stays under its own correct heading. I could not trigger it with realistic prose; not a finding.
+
+New, nit `rpc-motion/c3-vote-words-overreach`, collector/rpc_minutes.py:72-76. The bare `vote` word now also catches
+modelled sentences that FAVOUR misses because a comma or "except" follows "in favor". Example: "All members voted in
+favor except Mr. Long, who voted nay." is no longer confirmed. This under-confirms only. Measure the loss at the
+rebuild with build/rpc-motions-audit.jsonl before narrowing anything.
