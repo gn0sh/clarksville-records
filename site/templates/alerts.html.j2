@@ -13,9 +13,9 @@
 {% if note %}
 {# Morning note (Daylight M3, sitegen/morning_page.py). Off: no email field, no submit, no form action. #}
 {% if note.enabled %}
-<form class="mn-card" id="note" action="{{ note.action }}" method="post" aria-labelledby="note-h" data-county="{{ note.county_key }}" data-preview="{{ root }}{{ note.preview }}">
+<form class="mn-card" id="note" action="{{ note.action }}" method="post" aria-labelledby="note-h"{% if note.preview %} data-preview="{{ root }}{{ note.preview }}"{% endif %}>
 {% else %}
-<section class="mn-card" id="note" aria-labelledby="note-h" data-county="{{ note.county_key }}" data-preview="{{ root }}{{ note.preview }}">
+<section class="mn-card" id="note" aria-labelledby="note-h"{% if note.preview %} data-preview="{{ root }}{{ note.preview }}"{% endif %}>
 {% endif %}
   <h2 id="note-h">{{ note.text.heading }}</h2>
   <p class="small">{{ note.text.about }}</p>
@@ -32,7 +32,7 @@
   <div class="mn-panel">
     {{ feed_links(note, root) }}
   </div>
-  <p class="mn-preview"><a id="mn-preview" href="{{ root }}{{ note.preview }}">{{ note.text.preview_link }}</a></p>
+  {% if note.preview %}<p class="mn-preview"><a id="mn-preview" href="{{ root }}{{ note.preview }}">{{ note.text.preview_link }}</a></p>{% endif %}
 {% if note.enabled %}
 </form>
 {% else %}

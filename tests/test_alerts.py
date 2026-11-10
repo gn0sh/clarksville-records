@@ -143,6 +143,8 @@ def test_absolute_links_with_site_url():
     ({"max_entries": 0}, "max_entries"),
     ({"max_entries": "50"}, "max_entries"),
     ({"topics": ["rezoning", "parking"]}, "parking"),
+    ({"contracts_title": ""}, "contracts_title"),
+    ({"contracts_title": None}, "contracts_title"),
 ])
 def test_config_problems(change, bad):
     cfg = copy.deepcopy(config.SITE)
@@ -310,6 +312,11 @@ def test_contracts_feed_has_one_entry_per_solicitation(county, fin):
     root = ET.fromstring(out["feeds/topic-contracts.xml"])
     titles = {text(e, "title") for e in root.findall(A + "entry")}
     assert titles <= {s["title"] for s in fin["solicitations"]}
+    assert text(root, "title") == f"{config.SITE_NAME}: {CFG['alerts']['contracts_title']}"   # config text, not code
+    cfg = copy.deepcopy(CFG)
+    cfg["alerts"]["contracts_title"] = "Contracts: test title"
+    assert text(ET.fromstring(feeds.build_feeds(county, cfg=cfg, fin=fin)["feeds/topic-contracts.xml"]), "title") \
+        .endswith(": Contracts: test title")
 
 
 def test_rpc_zoning_cases_join_the_rezoning_feed_and_old_ids_stay(county, zoning_rpc):

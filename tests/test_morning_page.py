@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Morning note, the visitor's side (Daylight M3 T3, docs/tasks/morning-note.md): the #note section on alerts.html,
 the preview page morning/index.html and static/morning.js. Off (M3): no email field, no submit, no form action and no
 success text; the CSP is unchanged; morning.js makes no network call and its select() matches sitegen/morning.py
@@ -38,14 +39,24 @@ SUCCESS = re.compile(r"\b(subscribed|thank you|thanks|you're on|you are on|signe
 CSP_META = re.compile(r'<meta http-equiv="Content-Security-Policy" content="([^"]*)">')
 
 
-def _build(out, monkeypatch, cfg=None, seat_feeds=False):
-    monkeypatch.setattr(morning, "day", lambda date, **kw: copy.deepcopy(DAY))
+def _no_second_day(*a, **kw):
+    raise AssertionError("the preview page renders the note write() returned; day() is never called again")
+
+
+def _build(out, monkeypatch, cfg=None, seat_feeds=False, note=None, **kw):
+    """A fixture build whose note (sitegen/morning.py write()) is `note` (the fixture day by default). A fixture
+    build reads no manifests, so an empty manifest list stands in: write() still runs, as on the pages target."""
+    note = DAY if note is None else note
+    monkeypatch.setattr(morning, "write", lambda out, today, docs, first, **k: copy.deepcopy(note))
+    monkeypatch.setattr(morning, "day", _no_second_day)
     if cfg is not None:
         monkeypatch.setattr(config, "SITE", cfg)
     if seat_feeds:
         orig = morning_page.alerts_context
-        monkeypatch.setattr(morning_page, "alerts_context", lambda feeds, cfg=None: orig(feeds + SEAT_FEEDS, cfg))
-    build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS)
+        monkeypatch.setattr(morning_page, "alerts_context",
+                            lambda feeds, cfg=None, preview=False: orig(feeds + SEAT_FEEDS, cfg, preview))
+    build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS,
+          **{"morning_manifests": [], "target": "pages", **kw})
     return {p.relative_to(out).as_posix(): p.read_text(encoding="utf-8") for p in out.rglob("*.html")}
 
 
@@ -174,13 +185,79 @@ def test_preview_page_renders_every_entry_with_its_filter_data(site):
 
 
 def test_quiet_day_says_so_and_sends_nothing(tmp_path, monkeypatch):
-    quiet = {**copy.deepcopy(DAY), "entries": [], "unplaced_zoning": 0}
-    monkeypatch.setattr(morning, "day", lambda date, **kw: quiet)
+    quiet = {**copy.deepcopy(DAY), "entries": [], "unplaced_zoning": 0, "unplaced_text": ""}
+    html = _build(tmp_path / "site", monkeypatch, note=quiet)["morning/index.html"]
+    q = re.search(r'<p class="mn-quiet"[^>]*>([^<]*)<', html)
+    assert "hidden" not in q.group(0) and q.group(1) == config.SITE["morning_note"]["page"]["quiet"]
+    assert config.SITE["morning_note"]["page"]["backfill"] not in html
+
+
+def test_backfill_day_says_the_first_collection_is_not_sent(tmp_path, monkeypatch):
+    # morning-preview/backfill-day: a first-collection day has many new records and no note; "Nothing new" is false
+    t = config.SITE["morning_note"]["page"]
+    bf = {**copy.deepcopy(DAY), "backfill": True, "entries": [], "unplaced_zoning": 0, "unplaced_text": "",
+          "counts": {"entries": 412, "lists": {"zoning": 40, "seats": 300, "budget": 60, "contracts": 12},
+                     "unplaced_zoning": 9}}
+    html = _build(tmp_path / "site", monkeypatch, note=bf)["morning/index.html"]
+    q = re.search(r'<p class="mn-quiet"[^>]*>([^<]*)<', html)
+    assert "hidden" not in q.group(0) and q.group(1) == t["backfill"]
+    assert t["quiet"] not in html
+    assert BANNED.search(t["backfill"]) is None and SUCCESS.search(t["backfill"]) is None
+
+
+def test_entries_without_a_meeting_date_print_no_none(site):
+    # morning-preview/no-None-text: budget books, solicitations and contract documents carry meeting_date None
+    _, pages = site
+    assert [e for e in DAY["entries"] if e["meeting_date"] is None]
+    tree = parse(_main(pages["morning/index.html"]))
+    metas = [n.all_text() for n in tree.walk() if n.tag == "p" and n.attrs.get("class") == "mn-meta"]
+    assert len(metas) == len(DAY["entries"])
+    assert not [m for m in metas if "None" in m]
+    for m, e in zip(metas, DAY["entries"]):
+        assert (e["meeting_date"] or "") in m and (", " + e["meeting_date"] if e["meeting_date"] else "") in m
+        if e["meeting_date"] is None:
+            assert not m.rstrip().endswith(",")
+
+
+def test_unplaced_line_is_the_notes_own_text(site):
+    # morning-text/one-source: the page prints the note's unplaced_text, not a second copy in the page block
+    _, pages = site
+    li = re.search(r'<li class="mn-entry mn-unplaced"[^>]*>(.*?)</li>', pages["morning/index.html"], re.S).group(1)
+    assert li.startswith(DAY["unplaced_text"] + ": ")
+    assert morning.unplaced_text(DAY["unplaced_zoning"]) == DAY["unplaced_text"]
+
+
+def test_every_entry_carries_its_seat_body(site):
+    # morning-signup/seats-match-by-seat_body: the page emits T1's seat_body; the JS matches on it, not on the body
+    _, pages = site
+    tree = parse(_main(pages["morning/index.html"]))
+    lis = [n for n in tree.walk() if n.tag == "li" and "mn-entry" in n.attrs.get("class", "")
+           and "data-unplaced" not in n.attrs]
+    assert all("seat_body" in e for e in DAY["entries"])
+    assert [n.attrs.get("data-seat-body") for n in lis] == [e["seat_body"] for e in DAY["entries"]]
+    assert "data-county" not in pages["morning/index.html"] and "countyKey" not in MORNING_JS.read_text()
+
+
+@pytest.mark.parametrize("why", ["fixture build", "preview target"])
+def test_no_note_means_no_preview_page_and_no_link_to_it(tmp_path, monkeypatch, why):
+    # morning-preview/pages-only: the page is built only from the note write() returned (pages target, manifests)
+    monkeypatch.setattr(morning, "day", _no_second_day)
     out = tmp_path / "site"
-    build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS)
-    html = (out / "morning" / "index.html").read_text(encoding="utf-8")
-    q = re.search(r'<p class="mn-quiet"[^>]*>', html).group(0)
-    assert "hidden" not in q and config.SITE["morning_note"]["page"]["quiet"] in html
+    kw = {"target": "preview", "morning_manifests": []} if why == "preview target" else {"target": "pages"}
+    build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, **kw)
+    assert not (out / "morning").exists()
+    html = (out / "alerts.html").read_text(encoding="utf-8")
+    assert 'id="note"' in html                                         # the sign-up section and its feeds stay
+    assert 'id="mn-preview"' not in html and "data-preview" not in html and "morning/index.html" not in html
+    assert config.SITE["morning_note"]["page"]["preview_link"] not in html
+    pages = {f.relative_to(out).as_posix(): site_checks.parse(f) for f in out.rglob("*.html")}
+    assert [m for m in site_checks.check_links(out, pages, no_export=True) if "morning" in m] == []
+
+
+def test_preview_link_when_the_page_is_built(site):
+    _, pages = site
+    html = pages["alerts.html"]
+    assert 'id="mn-preview" href="morning/index.html"' in html and 'data-preview="morning/index.html"' in html
 
 
 def test_site_link_check_passes_on_the_note_pages(site):
@@ -201,22 +278,30 @@ def _node():
 def test_js_select_matches_python_select_for_every_list_and_seat_combination():
     combos = [list(c) for r in range(len(LISTS) + 1) for c in itertools.combinations(LISTS, r)]
     cases = [{"lists": c, "seats": s} for c in combos for s in SEATS]
+    # seat_body decides "seats", not the body key: one entry of a body other than the county's tied to a district,
+    # and one with no seat at all, which the old body === county rule would have read differently
+    day = copy.deepcopy(DAY)
+    day["entries"] += [
+        {**DAY["entries"][5], "id": "rpc/vote/x-1", "body": "rpc", "seat_body": "district", "lists": ["seats"]},
+        {**DAY["entries"][5], "id": "rpc/vote/x-2", "body": "rpc", "seat_body": None, "lists": ["seats"]}]
     prog = ("const m = require(process.argv[1]); const inp = JSON.parse(require('fs').readFileSync(0, 'utf8'));"
-            "console.log(JSON.stringify(inp.cases.map(c => m.select(inp.day, c.lists, c.seats, inp.county)"
+            "console.log(JSON.stringify(inp.cases.map(c => m.select(inp.day, c.lists, c.seats)"
             ".map(e => e.id))));")
     r = subprocess.run(["node", "-e", prog, str(MORNING_JS)], capture_output=True, text=True, timeout=60,
-                       input=json.dumps({"day": DAY, "cases": cases, "county": config.SITE["county_key"]}))
+                       input=json.dumps({"day": day, "cases": cases}))
     assert r.returncode == 0, r.stderr
     js = json.loads(r.stdout)
-    py = [[e["id"] for e in morning.select(DAY, c["lists"], c["seats"])] for c in cases]
+    py = [[e["id"] for e in morning.select(day, c["lists"], c["seats"])] for c in cases]
     assert js == py
+    seats_d7 = [e["id"] for e in morning.select(day, ["seats"], {"district": 7, "ward": None})]
+    assert "rpc/vote/x-1" in seats_d7 and "rpc/vote/x-2" not in seats_d7
     # and the rule itself, as the architecture states it
     sel = lambda lists, seats: [e["id"].split("/")[2] for e in morning.select(DAY, lists, seats)]  # noqa: E731
     assert sel(["zoning"], {"district": 7, "ward": None}) == ["Z-1-2024", "CZ-5-2024"]
     assert sel(["zoning"], {"district": None, "ward": 2}) == ["Z-3-2024"]
     assert sel(["zoning"], None) == []
     assert "CZO-4-2024" not in sel(["zoning"], {"district": 7, "ward": 6})
-    assert sel(["seats"], {"district": None, "ward": 6}) == ["c-1"]
+    assert sel(["seats"], {"district": None, "ward": 6}) == ["rc-1"]
 
 
 def test_js_parse_lists_keeps_known_keys_only():

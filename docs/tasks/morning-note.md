@@ -38,10 +38,13 @@ cases whose printed district/ward equals its number.
 - `#note` on alerts.html: picker with the four config lists, state line "Email starts at launch; follow by feed now"
   (config text), and per picked list the matching feed links (zoning: the per-seat feed for the stored district/ward
   on pages, else all-zoning; seats: the county/council body feed). With `enabled: false` there is no email field, no
-  submit and no form `action`. No-JS: all lists and all feed links shown.
+  submit and no form `action`. No-JS: all lists and all feed links shown, except the per-seat zoning feeds, which stay
+  hidden in `#note` without JS (deviation, review nit `morning-signup/no-js-feeds`: they need the stored seat, and
+  each is listed in the page's "Zoning cases by district or ward" section).
 - Nav "Morning note" links `alerts.html#note`; landing still fits one screen.
 - `morning/index.html`: today's entries from `latest.json` data rendered server-side with `data-lists`,
-  `data-district`, `data-ward`; `morning.js` filters by `#lists=` and `cr-your-seats`, mirrors `select()`.
+  `data-seat-body`, `data-district`, `data-ward` (built on the pages target only, from the note `write()` returns;
+  nothing links to it otherwise); `morning.js` filters by `#lists=` and `cr-your-seats`, mirrors `select()`.
 - Enabled path rendered only in a test config: email field, `action=form_action`, CSP `form-action` gains exactly
   that origin, privacy line with `privacy_url`.
 Done when tests show: no success text anywhere while disabled; no `fetch`/`XMLHttpRequest`/beacon in morning.js; JS

@@ -49,7 +49,8 @@ def settings(cfg: dict | None = None) -> dict:
     cfg = config.SITE if cfg is None else cfg
     a = cfg.get("alerts") or {}
     return {"feed_id": a.get("feed_id") or "", "site_url": a.get("site_url") or "",
-            "max_entries": a.get("max_entries"), "topics": list(a.get("topics") or [])}
+            "max_entries": a.get("max_entries"), "topics": list(a.get("topics") or []),
+            "contracts_title": a.get("contracts_title")}
 
 
 def problems(cfg: dict) -> list[str]:
@@ -67,6 +68,8 @@ def problems(cfg: dict) -> list[str]:
         out.append(f"alerts.max_entries must be a whole number from 1 to 200, got {a['max_entries']!r}")
     keys = [t["key"] for t in cfg.get("item_types") or []]
     out += [f"alerts.topics names {t!r}, which is not an item_types key" for t in a["topics"] if t not in keys]
+    if not (isinstance(a["contracts_title"], str) and a["contracts_title"].strip()):
+        out.append("alerts.contracts_title must be set (the contracts feed's title)")
     return out
 
 
@@ -108,7 +111,7 @@ def feed_list(councils=(), cfg: dict | None = None, rpc=None, fin: dict | None =
                     "about": f"Each item the {labels[t]} type rule matches, at each meeting it appears at."})
     if fin is not None:
         out.append({"file": f"{FOLDER}/topic-contracts.xml", "kind": "topic", "key": "contracts",
-                    "title": "Contracts: bids and awards",
+                    "title": a["contracts_title"],
                     "about": "Each purchasing solicitation (bid or request for proposals) when it is added to this site."})
     if rpc is not None and target == SEAT_TARGET:
         for seat, label_key, count_key in (("district", "district_label", "district_count"),
@@ -325,9 +328,10 @@ def build_feeds(county: views.Index, councils=(), cfg: dict | None = None, rpc=N
 
 
 def alerts_page(councils=(), cfg: dict | None = None, rpc=None, fin: dict | None = None,
-                target: str | None = None) -> dict:
+                target: str | None = None, feeds: list[dict] | None = None) -> dict:
+    """The Alerts page's feed lists. `feeds`: feed_list()'s result, when the caller has it already."""
     a = settings(cfg)
-    feeds = feed_list(councils, cfg, rpc, fin, target)
+    feeds = feed_list(councils, cfg, rpc, fin, target) if feeds is None else feeds
     return {"body_feeds": [f for f in feeds if f["kind"] == "body"],
             "topic_feeds": [f for f in feeds if f["kind"] == "topic"],
             "site_url": a["site_url"], "max_entries": a["max_entries"]}

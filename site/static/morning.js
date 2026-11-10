@@ -3,33 +3,38 @@
    one "cr-your-seats" key it keeps), the picked lists from the checkboxes and the preview page's own #lists= fragment.
    This script makes no network call, stores nothing new, and never submits or claims to have sent anything.
    select() mirrors sitegen/morning.py select(): an entry is kept when one of its lists is picked and, for "zoning",
-   its printed district or ward equals a stored seat, for "seats", the stored seat of its body is set (the county's
-   documents need a district, a council's a ward). tests/test_morning_page.py runs both over the same fixture.
+   its printed district or ward equals a stored seat, for "seats", the stored seat its seat_body names is set (the
+   county's documents need a district, a council's a ward). tests/test_morning_page.py runs both over the same
+   fixture.
    Exposes CRMorning (module.exports under node). */
 (function (root) {
   "use strict";
 
   function num(v) { return typeof v === "number" && isFinite(v) && Math.floor(v) === v ? v : null; }
 
-  function seatMatch(entry, key, seats, countyKey) {
+  /* An entry's seat_body ("district": the county's, "ward": a council's; anything else: no seat) names which stored
+     seat a "seats" entry needs, as sitegen/morning.py _seat_match decides it. */
+  function seatMatch(entry, key, seats) {
     var d = seats ? num(seats.district) : null, w = seats ? num(seats.ward) : null;
     if (key === "zoning") {
       return (d !== null && num(entry.district) === d) || (w !== null && num(entry.ward) === w);
     }
-    if (key === "seats") { return entry.body === countyKey ? d !== null : w !== null; }
+    if (key === "seats") {
+      return (entry.seat_body === "district" && d !== null) || (entry.seat_body === "ward" && w !== null);
+    }
     return true;
   }
 
-  function matches(entry, lists, seats, countyKey) {
+  function matches(entry, lists, seats) {
     var own = entry.lists || [];
     for (var i = 0; i < own.length; i++) {
-      if (lists.indexOf(own[i]) >= 0 && seatMatch(entry, own[i], seats, countyKey)) { return true; }
+      if (lists.indexOf(own[i]) >= 0 && seatMatch(entry, own[i], seats)) { return true; }
     }
     return false;
   }
 
-  function select(day, lists, seats, countyKey) {
-    return (day.entries || []).filter(function (e) { return matches(e, lists || [], seats, countyKey); });
+  function select(day, lists, seats) {
+    return (day.entries || []).filter(function (e) { return matches(e, lists || [], seats); });
   }
 
   /* "#lists=zoning,budget" -> ["zoning", "budget"] (known keys only, in the given order), or null when absent. */
@@ -87,13 +92,13 @@
   /* Preview page: today's entries for the picked lists and the stored seats. */
   var page = doc.getElementById("mn-day");
   if (page) {
-    var countyKey = page.getAttribute("data-county");
     var keys = boxes(page).map(function (b) { return b.value; });
     showPicker(page);
     each(page, ".mn-mine", function (p) { p.hidden = false; });
     var entryOf = function (li) {
       var d = li.getAttribute("data-district"), w = li.getAttribute("data-ward");
-      return { lists: (li.getAttribute("data-lists") || "").split(" ").filter(Boolean), body: li.getAttribute("data-body"),
+      return { lists: (li.getAttribute("data-lists") || "").split(" ").filter(Boolean),
+               seat_body: li.getAttribute("data-seat-body"),
                district: d === null ? null : Number(d), ward: w === null ? null : Number(w) };
     };
     var show = function (lists) {
@@ -101,7 +106,7 @@
       var shown = 0;
       each(page, ".mn-entry", function (li) {
         li.hidden = li.hasAttribute("data-unplaced") ? lists.indexOf("zoning") < 0
-          : !matches(entryOf(li), lists, seats, countyKey);
+          : !matches(entryOf(li), lists, seats);
         if (!li.hidden && !li.hasAttribute("data-unplaced")) { shown++; }
       });
       each(page, ".mn-quiet", function (p) { p.hidden = shown > 0; });

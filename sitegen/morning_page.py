@@ -16,19 +16,18 @@ from urllib.parse import urlsplit
 from . import config
 
 PAGE = "morning/index.html"
-
-
-def title(cfg: dict | None = None) -> str:
-    """The preview page's name (config `page.preview_title`). Never "Morning note ...": base.html.j2 would then mark
-    the nav's alerts.html#note link as the current page."""
-    return settings(cfg)["page"]["preview_title"]
-SECTION = "alerts.html#note"
 DEFAULT_PICKS = ("zoning", "seats")   # the mock's two checked lists
 
 
 def settings(cfg: dict | None = None) -> dict | None:
     cfg = config.SITE if cfg is None else cfg
     return cfg.get("morning_note") or None
+
+
+def title(cfg: dict | None = None) -> str:
+    """The preview page's name (config `page.preview_title`). Never "Morning note ...": base.html.j2 would then mark
+    the nav's alerts.html#note link as the current page."""
+    return settings(cfg)["page"]["preview_title"]
 
 
 def on(cfg: dict | None = None) -> bool:
@@ -82,7 +81,9 @@ def _lists(feeds: list[dict], cfg: dict) -> list[dict]:
             for x in m["lists"]]
 
 
-def _section(feeds: list[dict], cfg: dict) -> dict:
+def _section(feeds: list[dict], cfg: dict, preview: bool = False) -> dict:
+    """The #note section. `preview`: the preview page is built (pages target, a note written), so the section links
+    it; otherwise nothing links to it."""
     m = settings(cfg)
     fields = m.get("form_fields") or {}
     on_ = enabled(cfg)
@@ -90,16 +91,17 @@ def _section(feeds: list[dict], cfg: dict) -> dict:
             "action": m["form_action"] if on_ else "", "fields": fields if on_ else {},
             "sent_line": m["page"]["sent_line"].format(provider=m.get("provider") or "") if on_ else "",
             "privacy_url": m.get("privacy_url") if on_ else "",
-            "preview": PAGE, "county_key": cfg["county_key"]}
+            "preview": PAGE if preview else ""}
 
 
-def alerts_context(feeds: list[dict], cfg: dict | None = None) -> dict:
-    """Extra context for alerts.html.j2: `note` (None when the block is out) and, when enabled, the page's CSP."""
+def alerts_context(feeds: list[dict], cfg: dict | None = None, preview: bool = False) -> dict:
+    """Extra context for alerts.html.j2: `note` (None when the block is out) and, when enabled, the page's CSP.
+    `preview`: morning/index.html is built beside it (build.py: only from the note sitegen/morning.py wrote)."""
     from . import views
     cfg = config.SITE if cfg is None else cfg
     if not on(cfg):
         return {"note": None}
-    ctx = {"note": _section(feeds, cfg)}
+    ctx = {"note": _section(feeds, cfg, preview)}
     origin = form_origin(cfg)
     if origin:
         ctx["csp"] = views.csp(form_origin=origin)
@@ -124,7 +126,9 @@ def _when(stamp: str) -> str:
 
 
 def preview(day: dict, feeds: list[dict], cfg: dict | None = None) -> dict:
-    """Context for morning.html.j2 from one day of the digest (the contract's day dict, as in latest.json)."""
+    """Context for morning.html.j2 from one day of the digest (the contract's day dict, as in latest.json: the note
+    sitegen/morning.py write() returns). The unplaced line is the note's own `unplaced_text`; a backfill day (no
+    entries: a source's first collection) says so in config text instead of the quiet line."""
     cfg = config.SITE if cfg is None else cfg
     m = settings(cfg)
     t = m["page"]
@@ -137,10 +141,10 @@ def preview(day: dict, feeds: list[dict], cfg: dict | None = None) -> dict:
     for e in day.get("entries") or []:
         src = e.get("source") or {}
         entries.append({**e, "href": e.get("href") or "",
-                        "lists_attr": " ".join(e.get("lists") or []),
+                        "lists_attr": " ".join(e.get("lists") or []), "seat_body": e.get("seat_body"),
                         "district": e.get("district"), "ward": e.get("ward"),
                         "source": {"url": src.get("url") or "", "page": src.get("page")}})
-    return {"day": day, "entries": entries, "lede": lede,
-            "unplaced": {"n": n, "text": t["unplaced_one"] if n == 1 else t["unplaced"].format(n=n),
+    return {"day": day, "entries": entries, "lede": lede, "backfill": day.get("backfill") is True,
+            "unplaced": {"n": n, "text": day.get("unplaced_text") or "",
                          "feed": all_zoning["file"] if all_zoning else ""} if n else None,
-            "note": _section(feeds, cfg), "text": t}
+            "note": _section(feeds, cfg, preview=True), "text": t}

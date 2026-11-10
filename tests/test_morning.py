@@ -116,7 +116,7 @@ def test_files_for_keep_days_and_latest(site):
     folder = site["out"] / "morning"
     keep = config.SITE["morning_note"]["keep_days"]
     tomorrow = D.toordinal() + 1
-    want = {f"{date.fromordinal(tomorrow - k).isoformat()}.json" for k in range(keep)} | {"latest.json"}
+    want = {f"{date.fromordinal(tomorrow - k).isoformat()}.json" for k in range(keep)} | {"latest.json", "index.html"}
     assert {p.name for p in folder.iterdir()} == want
     assert (folder / "latest.json").read_text() == (folder / f"{date.fromordinal(tomorrow).isoformat()}.json").read_text()
     assert site["result"]["morning"]["date"] == date.fromordinal(tomorrow).isoformat()
@@ -410,7 +410,8 @@ def test_enabled_needs_https_form_action_and_privacy_url():
     assert any("privacy_url" in p for p in seam(enabled=True, form_action="https://example.org/subscribe"))
     assert any("form_action" in p for p in seam(enabled=True, form_action="http://example.org/s",
                                                   privacy_url="https://example.org/privacy"))
-    assert seam(enabled=True, form_action="https://example.org/subscribe", privacy_url="https://example.org/p") == []
+    assert seam(enabled=True, form_action="https://example.org/subscribe", privacy_url="https://example.org/p",
+                provider="Example Mail") == []
 
 
 def test_form_action_refused_while_disabled_and_shape_checks():
@@ -539,3 +540,47 @@ def test_each_entry_takes_its_own_meeting_when_two_meetings_share_a_source():
         ("2024-10-07", "2024-10-07, formal meeting", "meetings/2024-10-07-formal.html"),
         ("2024-10-21", "2024-10-21, formal meeting", "meetings/2024-10-21-formal.html")]
     assert len({e["id"] for d in docs for e in d["entries"]}) == sum(len(d["entries"]) for d in docs)
+
+
+# ------------------------------------------------------------------ one source of text, config guards
+def test_unplaced_text_is_singular_for_one_case_and_comes_from_text():
+    # morning-text/one-source: the preview page prints the note's own unplaced_text; the page block has no copy
+    t = config.SITE["morning_note"]["text"]
+    assert morning.unplaced_text(0) == ""
+    assert morning.unplaced_text(1) == t["unplaced_zoning_one"]
+    assert morning.unplaced_text(3) == t["unplaced_zoning"].format(n=3)
+    page = config.SITE["morning_note"]["page"]
+    assert not [k for k in page if k.startswith("unplaced") and k != "unplaced_link"]
+
+
+@pytest.mark.parametrize("key", sorted(morning.PAGE_KEYS))
+def test_every_page_key_is_validated(key):
+    cfg = copy.deepcopy(config.SITE)
+    del cfg["morning_note"]["page"][key]
+    assert f"morning_note.page.{key} must be set" in morning.problems(cfg)
+
+
+def test_page_text_keeps_its_placeholders_and_must_be_a_mapping():
+    cfg = copy.deepcopy(config.SITE)
+    cfg["morning_note"]["page"]["preview_lede"] = "The note for {date}."
+    assert {p for p in morning.problems(cfg) if "preview_lede" in p} == \
+        {"morning_note.page.preview_lede must contain {from}", "morning_note.page.preview_lede must contain {to}"}
+    assert any("page must be a mapping" in p for p in seam(page="text"))
+    assert seam(text={**config.SITE["morning_note"]["text"], "unplaced_zoning_one": ""})
+
+
+def test_a_second_council_fails_until_seats_name_a_body():
+    # morning-signup/one-council: cr-your-seats keeps a ward but not its council
+    cfg = copy.deepcopy(config.SITE)
+    assert len(cfg["councils"]) == 1 and morning.problems(cfg) == []
+    cfg["councils"] = cfg["councils"] + ["another-council"]
+    assert any("supports one council" in p for p in morning.problems(cfg))
+    del cfg["morning_note"]
+    assert morning.problems(cfg) == []
+
+
+def test_enabled_needs_a_provider_name():
+    on = dict(enabled=True, form_action="https://example.org/subscribe", privacy_url="https://example.org/p")
+    assert any("provider" in p for p in seam(**on))
+    assert any("provider" in p for p in seam(**on, provider="  "))
+    assert seam(**on, provider="Example Mail") == []

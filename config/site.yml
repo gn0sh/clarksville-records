@@ -49,8 +49,9 @@ corrections:
 alerts:
   feed_id: "tag:records.gnoshcodes.com,2026-11-09:"   # names every feed and entry id; never change it (readers re-alert)
   site_url: ""        # the public site's https base ending in "/", set at launch: feeds then carry absolute links
-  max_entries: 50     # newest entries per feed
+  max_entries: 50     # newest entries per feed (topic-rezoning.xml: per body)
   topics: [rezoning, budget, resolution, ordinance, appointment]
+  contracts_title: "Contracts: purchasing solicitations"   # feeds/topic-contracts.xml (one entry per solicitation)
 
 # The morning note (Daylight M3, sitegen/morning.py, docs/architecture/morning-note.md). Each build writes the last
 # `keep_days` days' "what's new" as morning/YYYY-MM-DD.json plus morning/latest.json: every document whose
@@ -88,8 +89,9 @@ morning_note:
     solicitation: New on the purchasing archive
     contract_document: New document
     unplaced_zoning: "{n} zoning cases printed no district or ward"
+    unplaced_zoning_one: "1 zoning case printed no district or ward"
   enabled: false        # true only after the CEO picks a provider (hard stops 3-5)
-  provider: ""          # label for the record only; code never branches on it
+  provider: ""          # who receives the form, printed in its sent line; required when enabled; code never branches on it
   form_action: ""       # https URL the sign-up form POSTs to (the provider's hosted endpoint)
   form_fields: {email: email, lists: tags, district: metadata__district, ward: metadata__ward}
   privacy_url: ""       # the provider's privacy policy, required when enabled
@@ -113,8 +115,7 @@ morning_note:
     preview_lede: "The note as it would read on {date}: what was added to this site from {from} to {to}. Nothing is emailed yet."
     preview_mine: The lists you pick stay in this page's address on this device; nothing is sent.
     quiet: Nothing new on your list. On a day like this no note is sent.
-    unplaced: "{n} zoning cases printed no district or ward:"
-    unplaced_one: "1 zoning case printed no district or ward:"
+    backfill: This day holds the first collection of a source, which is not sent as a note.
     unplaced_link: follow every zoning case
     source_label: Source
     page_label: page

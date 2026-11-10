@@ -40,7 +40,14 @@ FOLDER = "morning"
 LIST_KEYS = ("zoning", "seats", "budget", "contracts")
 KINDS = ("agenda_item", "vote", "document", "solicitation")
 TEXT_KEYS = ("agenda_item", "vote", "vote_unconfirmed", "agenda", "minutes", "budget_book", "solicitation",
-             "contract_document", "unplaced_zoning")
+             "contract_document", "unplaced_zoning", "unplaced_zoning_one")
+# `morning_note.page`: every word the sign-up section and the preview page print (sitegen/morning_page.py), and the
+# placeholders each one must keep.
+PAGE_KEYS = {"heading": (), "about": (), "legend": (), "state_off": (), "feeds_heading": (), "no_feed": (),
+             "seats_hint": (), "seats_link": (), "preview_link": (), "email_label": (), "submit": (),
+             "sent_line": ("{provider}",), "privacy_label": (), "preview_title": (),
+             "preview_lede": ("{date}", "{from}", "{to}"), "preview_mine": (), "quiet": (), "backfill": (),
+             "unplaced_link": (), "source_label": (), "page_label": (), "district_label": (), "ward_label": ()}
 FORM_FIELD_KEYS = ("email", "lists", "district", "ward")
 _HTTPS = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[^\s\"'<>`\\]*)?")
 
@@ -96,6 +103,22 @@ def problems(cfg: dict) -> list[str]:
                 if not (isinstance(text.get(k), str) and text[k].strip())]
         if isinstance(text.get("unplaced_zoning"), str) and "{n}" not in text["unplaced_zoning"]:
             out.append("morning_note.text.unplaced_zoning must contain {n}")
+    page = mn.get("page")
+    if not isinstance(page, dict):
+        out.append("morning_note.page must be a mapping (the sign-up section's and preview page's text)")
+    else:
+        for k, marks in PAGE_KEYS.items():
+            v = page.get(k)
+            if not (isinstance(v, str) and v.strip()):
+                out.append(f"morning_note.page.{k} must be set")
+            else:
+                out += [f"morning_note.page.{k} must contain {m}" for m in marks if m not in v]
+    # cr-your-seats (static/seats.js) keeps a ward number but not which council it is a ward of; every council's
+    # entries are seat_body "ward". With two councils a stored ward would match both councils' items.
+    councils = cfg.get("councils") or []
+    if len(councils) > 1:
+        out.append(f"morning_note supports one council (got {len(councils)}): the stored seats name a ward but not "
+                   f"its council; name the council in cr-your-seats before adding a second")
     # provider seam (architecture "Provider seam"): off by default; on only with an https endpoint and a privacy page
     enabled = mn.get("enabled")
     if not isinstance(enabled, bool):
@@ -104,6 +127,8 @@ def problems(cfg: dict) -> list[str]:
     if not isinstance(mn.get("provider", ""), str):
         out.append("morning_note.provider must be text")
     if enabled is True:
+        if not (isinstance(mn.get("provider"), str) and mn["provider"].strip()):
+            out.append("morning_note.enabled is true, so provider must name who receives the form")
         if not (isinstance(action, str) and _HTTPS.fullmatch(action)):
             out.append(f"morning_note.enabled is true, so form_action must be an https URL, got {action!r}")
         if not (isinstance(privacy, str) and _HTTPS.fullmatch(privacy)):
@@ -497,7 +522,15 @@ def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None 
             "lists": [{"key": x["key"], "label": x["label"]} for x in mn["lists"]],
             "backfill": backfill, "counts": counts,
             "entries": entries, "unplaced_zoning": unplaced,
-            "unplaced_text": mn["text"]["unplaced_zoning"].format(n=unplaced) if unplaced else ""}
+            "unplaced_text": unplaced_text(unplaced, cfg)}
+
+
+def unplaced_text(n: int, cfg: dict | None = None) -> str:
+    """The one line for `n` zoning cases that printed no district or ward (config text, singular for one)."""
+    if not n:
+        return ""
+    text = settings(cfg)["text"]
+    return text["unplaced_zoning_one"] if n == 1 else text["unplaced_zoning"].format(n=n)
 
 
 def own_text(note: dict) -> list[str]:

@@ -706,9 +706,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         # The Alerts page and its #note section (M3 T3), after the note: the preview link is there only when the
         # preview page (morning/index.html, today's note from write()) is built.
         has_preview = morning_note is not None and morning_page.on()
-        alerts_ctx = feeds_mod.alerts_page(cixs, rpc=rpx, fin=fin_data, target=target)
+        alerts_ctx = feeds_mod.alerts_page(cixs, rpc=rpx, fin=fin_data, target=target, feeds=feed_rows)
         alerts_ctx.setdefault("seat_feeds", [f for f in feed_rows if f.get("kind") == "zoning-seat"])
-        alerts_ctx.update(morning_page.alerts_context(feed_rows))
+        alerts_ctx.update(morning_page.alerts_context(feed_rows, preview=has_preview))
         render("alerts.html.j2", feeds_mod.PAGE, "Alerts", **alerts_ctx)
         if has_preview:
             render("morning.html.j2", morning_page.PAGE, morning_page.title(),
