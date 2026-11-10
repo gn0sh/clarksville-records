@@ -1575,14 +1575,32 @@ FIN_EXPORT_FILES = (
 )
 
 
-def data_page(councils=(), finance: bool = False) -> dict:
+def data_page(councils=(), finance: bool = False, rpc=None) -> dict:
     """The Data downloads page: the county's files, then each council's (data/<slug>/, the same files), then the
-    finance files when the finance pages are built. A held value is empty in every file, with the check that held it."""
+    Regional Planning Commission's (`rpc`: the pages' sitegen.rpc.Rpc, data/<slug>/; collector/rpc_export.py), then
+    the finance files when the finance pages are built. A held value is empty in every file, with the check that held
+    it; an RPC motion that is not confirmed is in no file, and `note` on its group says so."""
     groups = [{"heading": config.SITE["county_body"], "files": [{"name": n, "about": a} for n, a in EXPORT_FILES]}]
     for c in councils:
         groups.append({"heading": c.body_name,
                        "files": [{"name": f"{c.slug}/{n}", "about": a} for n, a in EXPORT_FILES]})
+    if rpc is not None:
+        rpc_files = (
+            ("facts.json", "The meetings, agenda cases, confirmed motions and sources, in one file."),
+            ("meetings.csv", "One row per listed meeting, with its agenda and minutes files and how many motions "
+                             "were and were not confirmed."),
+            ("cases.csv", "One row per case on an agenda, in the agenda's own words."),
+            ("motions.csv", "One row per confirmed motion in the minutes, as printed."),
+            ("sources.csv", "Every agenda and minutes file collected, with its address and fetch date."),
+        )
+        groups.append({"heading": rpc.body,
+                       "files": [{"name": f"{rpc.slug}/{n}", "about": a} for n, a in rpc_files],
+                       "note": "A motion appears in these files only when it is confirmed: every value read from "
+                               "the minutes' own words. A motion that is not confirmed is left out of them; the "
+                               "meeting's page links the minutes page that prints it."})
     if finance:
         groups.append({"heading": "Bids, awards and budgets",
                        "files": [{"name": n, "about": a} for n, a in FIN_EXPORT_FILES]})
-    return {"groups": groups, "files": groups[0]["files"]}
+    for g in groups:
+        g.setdefault("note", None)
+    return {"groups": groups, "files": groups[0]["files"], "rpc_body": rpc.body if rpc is not None else None}

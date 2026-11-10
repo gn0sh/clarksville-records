@@ -193,3 +193,21 @@ def test_lines_cutover_is_stated_and_immaterial():
         assert end is None or (end < eff) == (start < eff), r
     # the day the commissioners were sworn (the stated cutover) sits strictly between the two boundary meetings
     assert before[-1] < eff <= after[0]
+
+
+def test_the_rpc_export_has_its_own_registry_under_the_same_rule():
+    """collector/rpc_export.py RPC_PROVENANCE: every RPC CSV column and facts.json key, stated or derived, in its own
+    namespace (rpc/...), so no RPC row borrows a county entry (tests/test_export_rpc.py walks the written files)."""
+    from collector import rpc_export as RE
+    assert not set(RE.RPC_PROVENANCE) & set(PROVENANCE)
+    cols = {"meetings": RE.MEETING_COLS, "cases": RE.CASE_COLS, "sources": RE.SOURCE_COLS,
+            "motions": RE.MOTION_COLS + RE.MOTION_INTERNAL + RE.SRC_COLS}
+    assert set(cols) == set(RE.RPC_FILES)
+    for name, cs in cols.items():
+        for c in cs:
+            v = RE.RPC_PROVENANCE[f"rpc/{name}.{c}"]
+            assert v == "stated" or v.startswith("derived: "), (name, c)
+    # what the minutes print is stated; whether the team confirmed it is derived
+    assert {RE.RPC_PROVENANCE[f"rpc/motions.{c}"] for c in ("moved_by", "seconded_by", "nays", "abstained",
+                                                           "outcome")} == {"stated"}
+    assert RE.RPC_PROVENANCE["rpc/motions.confirmed"].startswith("derived: ")
