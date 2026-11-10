@@ -176,11 +176,17 @@ def test_export_readme_names_the_correction_route_and_every_official_site():
 
 def test_who_runs_this_data_and_morning_preview_name_it(pages):
     who = " ".join(re.sub(r"<[^>]+>", " ", pages["who-runs-this.html"]).split())
-    assert ("not run by, paid by or approved by " + ", ".join(b["name"] for b in config.SITE["unofficial"]["bodies"])
-            + ", or any candidate, party or campaign.") in who
-    # no claim that can be false while an officeholder is involved (review unofficial/untrue-claim)
-    assert "or any official" not in who and "office or official" not in pages["about.html"]
-    assert "No government body or office runs, pays for, reviews or approves this site." in pages["about.html"]
+    assert ("It is not run by, paid by or approved by the City of Clarksville, Montgomery County, CMCSS or the Regional "
+            "Planning Commission. It is not run or approved by any candidate, party or campaign, and does not work for "
+            "one.") in who
+    assert "No one pays for what this site covers; tips do not buy anything." in who
+    # no claim that can turn false (review unofficial/untrue-claim): officials, offices, tippers nobody checks
+    for false_soon in ("or any official", "paid by or approved by any candidate",
+                       "No person, company, office or group pays"):
+        assert false_soon not in who, false_soon
+    about = " ".join(re.sub(r"<[^>]+>", " ", pages["about.html"]).split())
+    assert "office or official" not in about and "body or office" not in about
+    assert "No government body or agency runs, pays for, reviews or approves this site." in about
     assert 'href="about.html#unofficial"' in pages["who-runs-this.html"]
     assert NOTICE in pages["data.html"] and 'href="data/README.txt"' in pages["data.html"]
     assert "beside these files" in pages["data.html"] and "Every download carries" not in pages["data.html"]
