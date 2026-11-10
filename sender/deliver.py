@@ -438,7 +438,9 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         zone = ZoneInfo(settings.timezone)
     except (ZoneInfoNotFoundError, ValueError):     # an unknown name, or one that is not a plain zone key
         return end(2, "failed", why="site_timezone is not a known time zone")
-    now = now or datetime.now(timezone.utc)
+    if clock is None:
+        clock = (lambda: now) if now is not None else (lambda: datetime.now(timezone.utc))
+    now = clock()
     if now.tzinfo is None:
         return end(2, "failed", why="the clock has no time zone")
     local = now.astimezone(zone)
@@ -513,9 +515,7 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
             return end(2, "stray-stamp", why="a subscriber holds a stamp for today outside that edition's audience; "
                                              "the provider's filter would mail them")
         del everyone
-        send_at = at(settings.send_at)
-        # never "now": the stored email is checked (and taken back if wrong) before it can leave
-        publish = max(send_at, now + PUBLISH_MARGIN).astimezone(zone).isoformat(timespec="seconds")
+        send_at, latest = at(settings.send_at), at(settings.latest_send)
         for ed in sorted(plan["editions"], key=lambda e: e["key"]):
             key, to = ed["key"], by_key.get(ed["key"], [])
             if key in done or not to:
@@ -528,7 +528,14 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
                 for r in to:
                     _call(sleep, provider.set_metadata, r.id, {**r.metadata, "note_edition": meta["note_edition"]},
                           idempotency_key(day, key, f"stamp/{r.id}"))
-                payload.update(status="scheduled", publish_date=publish, filters=stamp_filter(day, key, stamp_secret))
+                # never "now": the stored email is checked (and taken back if wrong) before it can leave. Worked
+                # out from the clock per edition, after the stamps, which can take minutes (L1).
+                publish = max(send_at, clock() + PUBLISH_MARGIN)
+                if publish > latest:
+                    return end(2, "late", sent, people, why="this edition could not be scheduled a margin ahead "
+                                                            "before latest_send; it and the rest are not sent")
+                payload.update(status="scheduled", publish_date=publish.astimezone(zone).isoformat(timespec="seconds"),
+                               filters=stamp_filter(day, key, stamp_secret))
                 step = "email create"
                 _check_audience("stamp", payload, day, key, stamp_secret)
                 stored = _call(sleep, provider.create_email, payload, idempotency_key(day, key, "email"))

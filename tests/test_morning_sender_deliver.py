@@ -201,7 +201,8 @@ def test_past_latest_send_is_missed_and_sends_nothing(plan):
     fake = Fake(people(plan))
     res, text = go(plan, fake, now=datetime(2026, 11, 11, 10, 1, tzinfo=TZ))
     assert (res.code, res.status) == (deliver.MISSED_EXIT, "missed") and deliver.MISSED_EXIT == 3 and fake.calls == [] and "missed" in text
-    assert go(plan, Fake(people(plan)), now=datetime(2026, 11, 11, 10, 0, tzinfo=TZ))[0].status == "sent"
+    assert go(plan, Fake(people(plan)), now=datetime(2026, 11, 11, 10, 0, tzinfo=TZ))[0].status == "late"   # no margin left
+    assert go(plan, Fake(people(plan)), now=datetime(2026, 11, 11, 9, 55, tzinfo=TZ))[0].status == "sent"
 
 
 def test_a_clock_without_a_zone_sends_nothing(plan):
@@ -334,7 +335,7 @@ def test_stamp_writes_the_whole_metadata_back_and_touches_nobody_else(plan):
     (datetime(2026, 11, 11, 8, 15, tzinfo=TZ), "2026-11-11T08:20:00-06:00"),
     (datetime(2026, 11, 11, 6, 57, tzinfo=TZ), "2026-11-11T07:02:00-06:00"),
     (datetime(2026, 11, 11, 6, 55, tzinfo=TZ), "2026-11-11T07:00:00-06:00"),
-    (datetime(2026, 11, 11, 9, 58, 30, tzinfo=TZ), "2026-11-11T10:03:30-06:00")])
+    (datetime(2026, 11, 11, 9, 55, tzinfo=TZ), "2026-11-11T10:00:00-06:00")])
 def test_a_late_run_schedules_the_email_a_margin_ahead(plan, now, want):
     """provider-echo/immediate-after-send_at: never "now", so the echo check (and a take-back) runs before the email
     can leave: publish_date = max(send_at, now + 5 minutes). A run that starts before latest_send still sends."""
@@ -343,6 +344,34 @@ def test_a_late_run_schedules_the_email_a_margin_ahead(plan, now, want):
     assert go(plan, fake, now=now)[0].status == "sent"
     assert {p["publish_date"] for p in fake.created} == {want}
     assert {p["status"] for p in fake.created} == {"scheduled"}
+
+
+def clock_of(*times):
+    """A clock that gives these times in turn, then keeps giving the last."""
+    left = list(times)
+    return lambda: left.pop(0) if len(left) > 1 else left[0]
+
+
+def test_publish_date_is_worked_out_per_edition_from_the_clock(plan):
+    """provider-echo L1: stamping one edition's people can take minutes, so each edition's publish_date comes from
+    the clock just before its email is created, not from the run's start."""
+    at = lambda h, m: datetime(2026, 11, 11, h, m, tzinfo=TZ)              # noqa: E731
+    fake = Fake(people(plan))
+    res, _ = go(plan, fake, now=None, clock=clock_of(at(6, 50), at(6, 58), at(7, 10), at(7, 20)))
+    assert res.status == "sent"
+    assert [p["publish_date"] for p in fake.created] == ["2026-11-11T07:03:00-06:00", "2026-11-11T07:15:00-06:00",
+                                                         "2026-11-11T07:25:00-06:00"]
+
+
+def test_an_edition_that_could_not_leave_by_latest_send_stops_the_run(plan):
+    """Under the margin: the email would be scheduled after latest_send, so it is not created; exit 2."""
+    at = lambda h, m: datetime(2026, 11, 11, h, m, tzinfo=TZ)              # noqa: E731
+    fake = Fake(people(plan))
+    res, text = go(plan, fake, now=None, clock=clock_of(at(5, 0), at(5, 1), at(9, 56)))
+    assert (res.code, res.status, res.editions) == (2, "late", 1) and len(fake.created) == 1
+    assert "latest_send" in text
+    fake = Fake(people(plan))
+    assert go(plan, fake, now=at(9, 58))[0].status == "late" and fake.created == []
 
 
 def test_ids_mode_drafts_then_sends_to_ids_and_never_writes_a_subscriber(plan):
