@@ -237,7 +237,8 @@ def test_host_matches_is_the_public_host_rule():
     # the rule adapters share with the fetcher (collector.county_agenda, collector.fin_run): no private import
     from collector import county_agenda, fetch, fin_run
     assert fetch.host_matches("WWW.h.example:443", ("h.example",)) and fetch.host_matches("h.example", ("h.example",))
-    assert not fetch.host_matches("evilh.example", ("h.example",)) and not fetch.host_matches("h.example.net", ("h.example",))
+    assert not fetch.host_matches("evilh.example", ("h.example",))
+    assert not fetch.host_matches("h.example.net", ("h.example",))
     assert not hasattr(fetch, "_host_matches")
     assert county_agenda.host_matches is fetch.host_matches and fin_run.host_matches is fetch.host_matches
 
