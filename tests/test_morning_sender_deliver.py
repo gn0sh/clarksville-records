@@ -440,6 +440,26 @@ def test_a_subscriber_row_that_is_not_a_record_is_skipped(plan):
     assert deliver.recipient({"type": "regular", "id": "a", "metadata": "x"}, s).lists == ()
 
 
+def test_a_subscriber_listed_twice_is_one_recipient(plan):
+    row = sub(1, ["budget"])
+    for mode in ("stamp", "ids"):
+        fake = Fake([row])
+        fake.subscribers = lambda: [copy.deepcopy(row), copy.deepcopy(row)]       # a paged listing that overlaps
+        res, _ = go(plan, fake, s=settings(mode=mode))
+        assert (res.editions, res.recipients) == (1, 1)
+        if mode == "stamp":
+            assert fake.calls.count("set_metadata") == 1
+        else:
+            assert fake.sent_drafts[0][1] == ["sub-0001-secret"]
+
+
+@pytest.mark.parametrize("zone", ["Mars/Olympus", "../../etc/passwd", ""])
+def test_an_unknown_time_zone_is_a_clean_error(plan, zone):
+    fake = Fake(people(plan))
+    res, text = go({**plan, "timezone": zone}, fake, s=settings(timezone=zone))
+    assert (res.code, res.status) == (2, "failed") and "time zone" in text and fake.calls == []
+
+
 def test_the_address_is_dropped_at_the_boundary(plan):
     r = deliver.recipient(sub(1, ["budget"], district=7), settings())
     assert "example.com" not in repr(dataclasses.asdict(r)) and "sub-0001" not in repr(r)

@@ -65,7 +65,7 @@ def test_a_hostile_title_comes_out_inert():
     assert "{{" not in html and "{%" not in html and "---" not in html and "](" not in html
     # and a reader still sees the record's own words, unchanged apart from the whitespace
     shown = next(n for n in parse(html).walk() if n.tag == "strong").all_text()
-    assert shown == " ".join(HOSTILE.split())
+    assert shown.replace("\u200b", "") == " ".join(HOSTILE.split())
 
 
 def test_every_field_of_an_entry_is_escaped_not_only_the_title():
@@ -309,3 +309,16 @@ def test_the_subject_never_borrows_a_governments_name(subject):
     with pytest.raises(ValueError):
         render.subject({**CTX, "text": {**CTX["text"], "subject": subject}}, "2026-11-11")
     assert not render.AUTHORITY.search(render.subject(CTX, "2026-11-11"))
+
+
+@pytest.mark.parametrize("title", ["See www.evil.example now", "WWW.EVIL.EXAMPLE", "go to http://evil.example/x",
+                                   "HTTPS://evil.example", "ftp://evil.example/f", "(www.a.example)"])
+def test_a_bare_address_in_a_title_is_not_left_for_the_mail_client_to_link(title):
+    """A mail client turns a bare www. or scheme:// into a link; a zero-width space after it keeps the record's words
+    on screen and leaves nothing to link."""
+    html = html_of(entry(title=title))
+    strong = html.split("<strong>")[1].split("</strong>")[0]
+    shown = next(n for n in parse(html).walk() if n.tag == "strong").all_text()
+    assert not re.search(r"(?i)www\.|[a-z]+://", shown)
+    assert shown.replace("\u200b", "") == title and "&#8203;" in strong
+    assert links(html) == [SITE_URL + "items/2026.html#i-x", "https://example.com/fixture/agenda.pdf#page=2"]

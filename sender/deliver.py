@@ -32,7 +32,7 @@ import time as time_mod
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, time, timezone
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .common import DATE_RE, KEY_RE, LIST_KEYS, PLAN_SCHEMA, REASONS, SIGNATURE_RE, signature
 from .settings import Settings
@@ -353,7 +353,10 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         return end(2, "no-provider", why="this build has no provider adapter")
     if plan["timezone"] != settings.timezone:
         return end(2, "bad-plan", why="the plan's time zone is not the site's")
-    zone = ZoneInfo(settings.timezone)
+    try:
+        zone = ZoneInfo(settings.timezone)
+    except (ZoneInfoNotFoundError, ValueError):     # an unknown name, or one that is not a plain zone key
+        return end(2, "failed", why="site_timezone is not a known time zone")
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         return end(2, "failed", why="the clock has no time zone")
@@ -394,7 +397,12 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         raw = _call(sleep, provider.subscribers)
         if not isinstance(raw, (list, tuple)):
             raise ProviderError("subscriber listing")
-        audience = [r for r in (recipient(x, settings) for x in raw) if r is not None]
+        audience, seen = [], set()
+        for r in (recipient(x, settings) for x in raw):
+            if r is not None and r.id not in seen:      # a listing that repeats a row (paging overlap): once each
+                seen.add(r.id)
+                audience.append(r)
+        del seen
         del raw
         if settings.canary_only:
             audience = [r for r in audience if r.id in canary_ids]

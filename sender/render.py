@@ -31,6 +31,8 @@ _LINE_START = re.compile(r"^[-+\s]+")       # a leading "---" (a rule or front m
 # Words that would let a reader take the note for a government's own mail. Never in the subject (nor in the From
 # name, which is the provider account's setting: the site name). "official" also catches "unofficial".
 AUTHORITY = re.compile(r"city of|county|cmcss|\brpc\b|official", re.IGNORECASE)
+_WWW = re.compile(r"(?i)\b(www)\.")
+_SCHEME = re.compile(r"(?i)\b([a-z][a-z0-9+.-]*):(?=//)")
 _HREF = re.compile(r"[A-Za-z0-9][A-Za-z0-9._~/%-]*(?:#[A-Za-z0-9._~%:-]*)?")
 
 
@@ -52,7 +54,9 @@ def inert(text) -> str:
     s = clean(text)
     lead = _LINE_START.match(s)
     head = "".join(f"&#{ord(c)};" for c in lead.group(0)) if lead else ""
-    return head + s[len(lead.group(0)) if lead else 0:].translate(_INERT)
+    s = head + s[len(lead.group(0)) if lead else 0:].translate(_INERT)
+    # A mail client links a bare "www." or "scheme://" in the text: a zero-width space keeps the words and breaks it
+    return _SCHEME.sub(r"\1&#8203;:", _WWW.sub(r"\1&#8203;.", s))
 
 
 def _attr(url: str) -> str:
