@@ -9,6 +9,16 @@
 ## Run ledger
 | Date | Role | Model/effort | Task | Outcome |
 |---|---|---|---|---|
+| 2026-11-10 | manager | - | full suite + site_checks on cf9ef18 (new container; store not present, built from committed data) | 1929 pass, 5 skip; site_checks PASS (pages target) |
+| 2026-11-10 | code-reviewer | opus/high | fresh review RPC M2 0927bfe | request changes: verified-gate/unread-dissent-confirmed, attribution/missed-heading-merges-cases (must); 3 should-fix, 2 nits |
+| 2026-11-10 | software-architect | opus/high | RPC motion invariant (loop rule) | done, c98e53e docs/architecture/rpc-motion-invariant.md |
+| 2026-11-10 | code-reviewer | opus/medium | county agendas 7e54c2e | approve with nits (2 should-fix, 4 nits) |
+| 2026-11-10 | security-engineer | opus/high | county agendas 7e54c2e + workflow | pass with conditions (3 low) |
+| 2026-11-10 | backend-engineer | opus/medium | county agenda review fixes | done, 18bb9ee: 1934 pass |
+| 2026-11-10 | code-reviewer / security-engineer | opus (resumed) | delta re-reviews 18bb9ee | approve with nits / PASS; merged cab905c |
+| 2026-11-10 | frontend-engineer | sonnet/medium | days/scheduled-agenda-link, days/coverage-count + review nits | done, c529f60: 1931 pass; review approve with nits (sonnet), nits fixed; merged |
+| 2026-11-10 | software-architect | opus/medium | morning note M3 design + tasks | done, b96fc8b |
+| 2026-11-10 | backend-engineer | sonnet/medium | morning note T2 feeds | done, 01640a5: 1934 pass |
 | 2026-11-07 | product-manager | sonnet/medium | spec v1 | done, 23ad7c5 |
 | 2026-11-07 | brain-trust x6 | opus/high (api) | spec review | 5 Fix First, 1 Rethink; ~$0.37 |
 | 2026-11-07 | backend-engineer | opus/high | M0 parse spike | done, a9e1262: 95.8% Verified (138/144), 0 wrong of 380 hand-labelled votes |
@@ -110,6 +120,11 @@
 - 2026-11-09 (manager): **Go-live gate.** Before public launch, ask the RPC for written OK to reuse geometry traced from its ward poster and from the county district map. This is outreach (hard stop 4), so it goes in the go-live batch. The internal preview is fine meanwhile.
 - 2026-11-09 (manager): **Daylight name.** The trademark and domain check goes in the go-live batch.
 - 2026-11-07 G1: footer line on every page + About page naming the operator (CEO, card).
+
+## Blockers (2026-11-10)
+- RPC rebuild: cmcrpc.com answered 429 after 51 of 168 files on the refetch into this container's store (05:50Z). Obeying it; retry scheduled 07:25Z, then back off. rpc.json is not rebuilt until the store is complete.
+- Transcripts: results are on DESKTOP-NEL11IQ (C:\\Users\\bezac\\records-transcripts\\out); this thread needs Brian's device link to fetch them.
+- Follow-up nits: politeness/daily-full-pdf-recheck (HEAD instead of GET), idempotence/kind-mismatch-double-card, private fetch._host_matches import.
 
 ## Problem keys
 | Family | Hits | Keys |
