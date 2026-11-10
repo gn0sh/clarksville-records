@@ -18,7 +18,9 @@ Order of work, each check stopping before the first write:
     and every other field stop there. With `canary_only`, only the subscriber ids listed in the note job's
     environment (`MORNING_NOTE_CANARY_IDS`); with no list, nobody and no provider call. Never subscriber metadata:
     a subscriber writes their own through the public form.
- 6. per edition, in key order, by `mode` (`stamp` or `ids`).
+ 6. per edition, in key order, by `mode` (`stamp` or `ids`). The email the provider says it stored must echo the
+    status, claim metadata and filter that were sent (`ids`: no filter), or it is taken back to a draft and the run
+    fails before anything else is sent (audience/provider-echo).
 
 Privacy: nothing here prints a subscriber id, an address, a signature, a per-edition count or any text that came
 back from the provider. A provider error is reported by the name of the step only. The summary line has totals.
@@ -63,6 +65,14 @@ class RateLimited(ProviderError):
         self.retry_after = retry_after
 
 
+class EchoMismatch(ProviderError):
+    """The provider stored an email other than the one deliver sent. `email_id`: its id, when one came back."""
+
+    def __init__(self, email_id: str | None):
+        super().__init__("email check")
+        self.email_id = email_id
+
+
 class PlanInvalid(Exception):
     """The plan file is not what the plan stage writes. The text names a field, never its content."""
 
@@ -95,8 +105,13 @@ class Provider:
         """Replace one subscriber's metadata with `metadata` (the whole object). Nothing else may change."""
         raise NotImplementedError
 
-    def create_email(self, payload: dict, idempotency_key: str) -> str:
-        """Create one email; returns its id."""
+    def create_email(self, payload: dict, idempotency_key: str) -> dict:
+        """Create one email; returns it as the provider stored it: {"id", "status", "metadata", "filters" (when it
+        has one)}, read back from the provider's answer, never copied from `payload`."""
+        raise NotImplementedError
+
+    def unschedule(self, email_id: str, idempotency_key: str) -> None:
+        """Take one email back to a draft (it then goes to nobody). Used when its stored form is not what was sent."""
         raise NotImplementedError
 
     def send_draft(self, email_id: str, subscriber_ids: list[str], idempotency_key: str) -> None:
@@ -244,6 +259,23 @@ def _check_audience(mode: str, payload: dict, day: str, key: str) -> None:
         raise ProviderError("audience check")
 
 
+def _check_echo(mode: str, payload: dict, stored) -> str:
+    """audience/provider-echo: the email as the provider stored it decides who gets it, so it must carry exactly
+    the status, claim metadata and (in `stamp` mode) filter deliver sent, and an `ids` draft no filter at all.
+    Returns its id; raises EchoMismatch (with the id when one came back) otherwise."""
+    sid = stored.get("id") if isinstance(stored, dict) else stored if isinstance(stored, str) else None
+    sid = sid if isinstance(sid, str) and sid else None
+    ok = isinstance(stored, dict) and sid is not None and stored.get("status") == payload["status"] \
+        and stored.get("metadata") == payload["metadata"]
+    if ok and mode == "stamp":
+        ok = stored.get("filters") == payload["filters"]
+    elif ok:
+        ok = stored.get("filters") is None          # a draft for send-draft carries no audience of its own
+    if not ok:
+        raise EchoMismatch(sid)
+    return sid
+
+
 def _call(sleep, fn, *args):
     """One provider call, obeying Retry-After on a rate limit: TRIES tries, then the run stops."""
     for attempt in range(1, TRIES + 1):
@@ -262,9 +294,9 @@ def _claim(emails, plan: dict) -> tuple[str, set]:
         raise ProviderError("email listing")
     done, state = set(), "free"
     for em in emails:
-        if not isinstance(em, dict):
-            raise ProviderError("email listing")
-        meta = em.get("metadata")
+        if not isinstance(em, dict) or "metadata" not in em:
+            raise ProviderError("email listing")     # a row without metadata cannot say whether it claims the day
+        meta = em["metadata"]
         if meta is None or meta == {}:
             continue
         if not isinstance(meta, dict):
@@ -340,6 +372,21 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         return end(0, "no-canary", why=f"canary_only is true and {CANARY_ENV} names nobody")
     sent = people = 0
     step = "email listing"
+
+    def checked(payload: dict, stored, key: str) -> str:
+        """The stored email's id once its echo matches; otherwise it is taken back to a draft (when an id came
+        back) and the run fails at "email check" before the next edition. A failed take-back is named as such:
+        that email may still be scheduled, so a person must look at it."""
+        nonlocal step
+        try:
+            return _check_echo(settings.mode, payload, stored)
+        except EchoMismatch as exc:
+            if exc.email_id is not None:
+                step = "email unschedule after a failed email check (an email may still be scheduled)"
+                _call(sleep, provider.unschedule, exc.email_id, idempotency_key(day, key, "unschedule"))
+            step = "email check"
+            raise
+
     try:
         state, done = _claim(_call(sleep, provider.emails), plan)
         if state == "other":
@@ -375,7 +422,9 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
                 payload.update(status="scheduled", publish_date=publish, filters=stamp_filter(day, key))
                 step = "email create"
                 _check_audience("stamp", payload, day, key)
-                _call(sleep, provider.create_email, payload, idempotency_key(day, key, "email"))
+                stored = _call(sleep, provider.create_email, payload, idempotency_key(day, key, "email"))
+                step = "email check"
+                checked(payload, stored, key)
             else:
                 # Never twice before never missed: a run that dies between the draft and its send leaves the
                 # edition claimed (the draft carries the metadata), so a re-run does not send it again. That
@@ -383,9 +432,9 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
                 payload.update(status="draft")
                 step = "email create"
                 _check_audience("ids", payload, day, key)
-                email_id = _call(sleep, provider.create_email, payload, idempotency_key(day, key, "email"))
-                if not isinstance(email_id, str) or not email_id:
-                    raise ProviderError("email create")
+                stored = _call(sleep, provider.create_email, payload, idempotency_key(day, key, "email"))
+                step = "email check"
+                email_id = checked(payload, stored, key)
                 step = "draft send"
                 _call(sleep, provider.send_draft, email_id, [r.id for r in to], idempotency_key(day, key, "send"))
             sent += 1

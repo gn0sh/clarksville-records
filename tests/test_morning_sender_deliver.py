@@ -47,7 +47,9 @@ def sub(n: int, lists=("budget",), district=None, ward=None, type_="regular", **
 class Fake(deliver.Provider):
     """An in-memory provider. `fail`: {method name: exception or [exceptions, then success]}."""
 
-    def __init__(self, subscribers=(), emails=(), fail=None):
+    def __init__(self, subscribers=(), emails=(), fail=None, echo=None):
+        self.echo = echo        # echo(stored row) -> what create_email returns: a provider that stored something else
+        self.unscheduled = []
         self.subs = {s["id"]: copy.deepcopy(s) for s in subscribers}
         self.email_rows = [copy.deepcopy(e) for e in emails]
         self.fail = {k: (list(v) if isinstance(v, list) else v) for k, v in (fail or {}).items()}
@@ -82,9 +84,19 @@ class Fake(deliver.Provider):
         self.keys.append(idempotency_key)
         row = {"id": f"em-{len(self.email_rows) + 1}", "status": payload["status"],
                "metadata": copy.deepcopy(payload["metadata"])}
+        if "filters" in payload:
+            row["filters"] = copy.deepcopy(payload["filters"])
         self.email_rows.append(row)
         self.created.append(copy.deepcopy(payload))
-        return row["id"]
+        return self.echo(copy.deepcopy(row)) if self.echo else copy.deepcopy(row)
+
+    def unschedule(self, email_id, idempotency_key):
+        self._hit("unschedule")
+        self.keys.append(idempotency_key)
+        self.unscheduled.append(email_id)
+        for row in self.email_rows:
+            if row["id"] == email_id:
+                row["status"] = "draft"
 
     def send_draft(self, email_id, subscriber_ids, idempotency_key):
         self._hit("send_draft")
@@ -475,9 +487,65 @@ def test_a_day_claimed_by_a_different_note_sends_nothing(plan):
 
 def test_emails_of_other_days_and_other_kinds_do_not_claim_the_day(plan):
     rows = [{"id": "em-1", "status": "sent", "metadata": {"note_date": "2026-11-10", "note_sha256": "0" * 64}},
-            {"id": "em-2", "status": "sent", "metadata": {}}, {"id": "em-3", "status": "sent"},
-            {"id": "em-4", "status": "sent", "metadata": None}]
+            {"id": "em-2", "status": "sent", "metadata": {}}, {"id": "em-4", "status": "sent", "metadata": None}]
     assert go(plan, Fake(people(plan), emails=rows))[0].editions == 3
+
+
+def test_a_listed_email_without_a_metadata_key_fails_closed(plan):
+    """audience/provider-echo: a listing whose rows lack `metadata` cannot tell a claimed day from a free one."""
+    fake = Fake(people(plan), emails=[{"id": "em-3", "status": "sent"}])
+    res, text = go(plan, fake)
+    assert (res.code, res.status, res.editions) == (1, "failed", 0) and fake.calls == ["emails"]
+    assert "email listing" in text
+
+
+def _drop_filter(row):
+    row.pop("filters", None)
+    return row
+
+
+@pytest.mark.parametrize("echo", [
+    _drop_filter, lambda r: {**r, "filters": {"filters": [], "groups": [], "predicate": "and"}},
+    lambda r: {**r, "filters": {**r["filters"], "predicate": "or"}}, lambda r: {**r, "status": "about_to_send"},
+    lambda r: {**r, "metadata": {**r["metadata"], "note_sha256": "0" * 64}}, lambda r: r["id"], lambda r: None,
+    lambda r: {**r, "id": ""}])
+def test_stamp_unschedules_an_email_the_provider_stored_differently(plan, echo):
+    """audience/provider-echo: the stored email decides who gets it, so it must echo exactly the filter, status and
+    claim deliver sent; otherwise it is taken back to a draft and the run fails before the next edition."""
+    fake = Fake(people(plan), echo=echo)
+    res, text = go(plan, fake)
+    assert (res.code, res.status, res.editions) == (1, "failed", 0) and fake.calls.count("create_email") == 1
+    assert "email check" in text
+    stored = fake.email_rows[0]
+    got = echo(copy.deepcopy(stored))
+    if (isinstance(got, dict) and got.get("id")) or (isinstance(got, str) and got):
+        assert fake.unscheduled == [stored["id"]] and stored["status"] == "draft"
+    else:
+        assert fake.unscheduled == []        # no id came back: nothing can be named; the run still fails
+
+
+@pytest.mark.parametrize("echo", [lambda r: {**r, "status": "scheduled"},
+                                  lambda r: {**r, "filters": {"filters": [], "groups": [], "predicate": "and"}},
+                                  lambda r: {**r, "metadata": {}}, lambda r: r["id"]])
+def test_ids_never_sends_a_draft_the_provider_stored_differently(plan, echo):
+    fake = Fake(people(plan), echo=echo)
+    res, text = go(plan, fake, s=settings(mode="ids"))
+    assert (res.code, res.status, res.editions) == (1, "failed", 0) and fake.sent_drafts == []
+    assert "send_draft" not in fake.calls and "email check" in text
+
+
+def test_a_failed_take_back_is_named_in_the_output(plan):
+    fake = Fake(people(plan), echo=_drop_filter, fail={"unschedule": deliver.ProviderError(SECRET_BODY)})
+    res, text = go(plan, fake)
+    assert (res.code, res.status) == (1, "failed") and "an email may still be scheduled" in text
+    assert SECRET_BODY not in text
+
+
+def test_a_faithful_echo_sends_and_unschedules_nothing(plan):
+    for mode in ("stamp", "ids"):
+        fake = Fake(people(plan))
+        res, _ = go(plan, fake, s=settings(mode=mode))
+        assert (res.code, res.editions) == (0, 3) and fake.unscheduled == [] and "unschedule" not in fake.calls
 
 
 @pytest.mark.parametrize("failure", [
@@ -648,7 +716,7 @@ def test_the_deliver_stage_opens_no_connection(plan, monkeypatch):
 def test_the_base_provider_does_nothing():
     p = deliver.Provider()
     for call in (p.emails, p.subscribers, lambda: p.set_metadata("a", {}, "k"), lambda: p.create_email({}, "k"),
-                 lambda: p.send_draft("a", [], "k")):
+                 lambda: p.send_draft("a", [], "k"), lambda: p.unschedule("a", "k")):
         with pytest.raises(NotImplementedError):
             call()
 
