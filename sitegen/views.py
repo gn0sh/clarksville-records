@@ -278,6 +278,7 @@ def _ix(facts) -> Index:
 
 NAV = (  # design 2.2: fixed order, the same on every page. (label, href, page_name that marks it current, coming)
     ("Map (home)", "index.html", "Map", False),
+    ("Today", "today.html", "Today", False),   # Daylight M2: the week strip and day cards (sitegen/days.py)
     ("Search", "search.html", "Search", False),
     ("Votes", "votes/index.html", "Votes", False),
     ("Meetings", "meetings.html", "Meetings", False),

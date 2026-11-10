@@ -84,7 +84,8 @@ NARROW = 360  # AC-F10: the Bids and awards pages are also checked at 360 px
 # External links that are not minutes PDFs but are allowed: a holder record's roster source, the map's boundary source,
 # the county redistricting page / old-lines map, and the footer support link. Each must be marked data-ext and https.
 EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder", "corrections", "video", "operator", "record",
-             "listed"}   # listed: an RPC document on a host we do not collect from (Google Drive), linked as listed
+             "listed", "school"}   # listed: an RPC document on a host we do not collect from (Google Drive), linked as listed
+# school: the day page's one plain link to the school board's site (config/site.yml school_board.url; never fetched)
 # the data-transcript attribute itself, not data-transcript-foo
 TRANSCRIPT_TEXT = re.compile(r"(<(span|p)\b[^>]*\sdata-transcript(?=[\s=/>])[^>]*>)[^<]*(</\2>)")
 VIDEO_HREF = re.compile(r"(https://[^#\s]+)(?:#t=(\d+))?")
@@ -215,6 +216,8 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
         out.add(cfg["geocoder_privacy_url"])         # the address box's "<geocoder>'s privacy policy" link
     out |= {v["url"] for v in (cfg.get("official_records") or {}).values()}   # "Official record:" lines
     out |= council_record_urls(cfg)
+    if (cfg.get("school_board") or {}).get("url"):
+        out.add(cfg["school_board"]["url"])          # the day page's "coming" school board link
     out |= corrections_log_urls(corrections_path)    # the corrections page's "Source" links
     if cfg.get("operator_url"):
         out.add(cfg["operator_url"])                 # the footer's "gnoshcodes" link
@@ -1110,7 +1113,7 @@ def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: di
 def page_type(rel: str) -> str | None:
     if rel == "index.html":
         return "index"
-    if rel in ("officials.html", "search.html", "alerts.html"):
+    if rel in ("officials.html", "search.html", "alerts.html", "today.html"):
         return rel[:-5]
     head = rel.split("/")[0]
     if head == "contracts":
@@ -1134,7 +1137,7 @@ NARROW_TYPES = ("contracts_index", "contract", "finance_index", "fund", "capital
                 "council_home", "council_member", "council_meetings", "council_items",  # M4: compact at 360 px
                 "council_transcript",
                 "rpc_home", "rpc_meetings",  # RPC-1: phone widths, no sideways scroll
-                "alerts")
+                "alerts", "today")  # today: the day page (Daylight M2)
 
 
 def _rpc_slug() -> str | None:

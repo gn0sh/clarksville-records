@@ -4,7 +4,7 @@
 {% block sky_sun %}<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>{% endblock %}
 {% block sky %}
 <div class="sky-hero" id="sky-hero" data-tz="{{ site.cfg.site_timezone }}" hidden>
-  <p class="sky-day"><span class="sky-dow"><span id="sky-weekday"></span><span class="sky-in"> in {{ site.cfg.today_place }}</span></span> <time class="sky-date" id="sky-date"></time></p>
+  <p class="sky-day"><span class="sky-dow"><span id="sky-weekday"></span><span class="sky-in"> in {{ site.cfg.today_place }}</span></span> <a class="sky-link" href="today.html"><time class="sky-date" id="sky-date"></time><span class="sky-go" aria-hidden="true">&rsaquo;</span><span class="sr-only">: meetings day by day</span></a></p>
 </div>
 {% endblock %}
 {% block main %}

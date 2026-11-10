@@ -10,6 +10,9 @@ nav_label: City Council              # the menu entry and the page names ("City 
 slug: city                           # every page of this body lives under <slug>/ (index, members, meetings, items)
 facts: data/localities/clarksville-tn/facts.json
 wards: data/localities/clarksville-tn/wards.json   # each member's ward as printed in each meeting's attendance list
+# The CivicClerk events listing (collector/civicclerk.py). The day page (sitegen/days.py) lists a meeting the city's
+# calendar schedules that is not in the facts file yet as "scheduled", linked to record_url. Optional.
+calendar: data/localities/clarksville-tn/civicclerk-listing.json
 
 # Seats (design 4.1, invariant `provenance`). A ward holder record is a run of meetings whose attendance list prints
 # the member with that ward number, dates observed (the first and last such meetings), never term dates. A ward
