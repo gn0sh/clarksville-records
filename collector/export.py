@@ -333,8 +333,10 @@ def seats_csv(rows: list[dict], facts: dict, names: dict) -> str:
     (never named as a term); a sourced row carries only the source's own wording (printed_term). A source the team
     holds in the store gets its hash and fetch time."""
     import re
-    from sitegen.seats import seat_label
+    from sitegen.seats import seat_label, stamp_seen
     by_url = {s["url"]: s for s in facts["sources"]}
+    # a county row read from seats.yml has no seen_to: date an open one by its last page, as the site does
+    rows = [r if "seen_to" in r else st for r, st in zip(rows, stamp_seen(rows, facts) or [])]
 
     def split(url):
         url = url or ""
