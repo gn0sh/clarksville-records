@@ -78,7 +78,7 @@
   {% endif %}
   {% if m.other_motions %}
   <h3 id="{{ m.id }}-motions">Other motions in the minutes ({{ m.other_motions | length }})</h3>
-  <p class="muted">The meeting's own business, and cases its agenda does not list as read here{% if m.minutes and m.minutes.ocr %}; read by OCR from a scan{% endif %}.</p>
+  <p class="muted">The meeting's own business, and motions not placed under one of the agenda's cases here{% if m.minutes and m.minutes.ocr %}; read by OCR from a scan{% endif %}.</p>
   {% for mv in m.other_motions %}{{ rpc_motion(mv) }}{% endfor %}
   {% endif %}
 </section>

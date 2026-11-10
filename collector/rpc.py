@@ -17,7 +17,9 @@ Files (per locality, so no other body's manifest or facts are touched):
 - data/localities/cmc-rpc/listing.json    every listed meeting as printed (committed; a build reads it offline)
 - data/localities/cmc-rpc/manifest.json   one entry per fetched file (committed), bytes in the gitignored store
 - data/localities/cmc-rpc/rpc.json        meetings, their documents (sources) and the agendas' case items
-- build/rpc-report.json                   counts, problems, the fetch log
+- build/rpc-report.json                   counts (motions not confirmed, by reason), problems, the fetch log
+- build/rpc-motions-audit.jsonl           one line per motion: id, page, reasons and the sentences read (OCR text,
+                                          internal, for QA sampling: never under build/site, never committed)
 """
 from __future__ import annotations
 
@@ -228,7 +230,7 @@ def write_json(p: Path, obj) -> bool:
 def paths(cfg: RpcConfig, root: Path = ROOT) -> dict:
     d = root / "data" / "localities" / cfg.locality
     return {"dir": d, "listing": d / "listing.json", "manifest": d / "manifest.json", "facts": root / cfg.facts,
-            "report": root / "build" / "rpc-report.json"}
+            "report": root / "build" / "rpc-report.json", "audit": root / "build" / "rpc-motions-audit.jsonl"}
 
 
 def fetch_listing(f: PoliteFetcher, cfg: RpcConfig) -> str:
@@ -300,7 +302,7 @@ def main(argv: list[str]) -> int:
     if a.command in ("build", "run"):
         from .rpc_agenda import build
         rows = json.loads(p["listing"].read_text(encoding="utf-8")) if p["listing"].exists() else []
-        facts, summary = build(cfg, rows, store)
+        facts, summary = build(cfg, rows, store, audit_path=p["audit"])
         write_json(p["facts"], facts)
         report["build"] = summary
     write_json(p["report"], {**report, "fetch_log": log.get("fetch_log", [])})
