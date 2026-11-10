@@ -209,8 +209,9 @@ def _key(s: str) -> str:
 # ------------------------------------------------------------------ members present
 MEMBER_HEAD = re.compile(r"\bmembers?\s+present\b", re.I)
 OTHERS_SAME_LINE = re.compile(r"\b(?:others|staff)\s+present\b|\bstaff\b", re.I)
-MEMBERS_STOP = re.compile(r"called\s+(?:the\s+)?meeting\s+to\s+order|meeting\s+was\s+called|^\s*(?:others\s+present|"
-                          r"(?:regional\s+planning\s+)?staff\b|members?\s+absent|absent\b|approval\s+of)", re.I)
+MEMBERS_STOP = re.compile(r"called\s+(?:the\s+)?meeting\s+to\s+order|meeting\s+was\s+called|\bcall\s+to\s+order|"
+                          r"^\s*(?:others\s+present|(?:regional\s+planning\s+)?staff\b|members?\s+absent|absent\b|"
+                          r"approval\s+of)", re.I)
 MEMBER_NAME = re.compile(r"^(?P<name>[A-Z][a-z'’]+(?:\s+[A-Z]\.)?"
                          r"(?:\s+(?:Mc|Mac|O['’])?[A-Z][a-z'’]+(?:-[A-Z][a-z'’]+)?){1,2})"
                          r"(?:\s*,\s*(?:Vice[\s-]+)?Chair(?:man|woman|person)?|\s*,\s*Secretary)?$")
@@ -241,12 +242,23 @@ def members_header(lines: list[str]) -> tuple[list[str], bool]:
             if two_col and start >= COLUMN_GAP:
                 continue          # a line of the "Others Present" column only
             m = MEMBER_NAME.match(_clean(cell))
-            if m and m.group("name") not in out:
-                out.append(m.group("name"))
-            if (not m and _clean(cell)) or (not two_col and len(cells) > 1):
-                garbled = True    # a members' line not read whole as one clean name ("Bill Kimb   h")
+            split = not two_col and len(cells) > 1      # one name printed in pieces ("Bill Kimb   h")
+            if m and not split and m.group("name") not in out:
+                out.append(m.group("name"))             # a line read whole as one clean name only
+            # a members' line not read whole as one clean name ("Bill Kimb   h", "Mich@el L0ng"); a heading or a
+            # line of marks is not a member's name, so it never opens the roster fallback
+            if _name_like(_clean(cell)) and (not m or split):
+                garbled = True
         break
     return out, garbled
+
+
+def _name_like(cell: str) -> bool:
+    """A cell that looks like a member's name with a defect: it starts with a capital letter, is mostly letters and
+    is not all capitals (a heading such as "PLEDGE OF ALLEGIANCE" is not a name)."""
+    chars = [ch for ch in cell if not ch.isspace()]
+    return (bool(chars) and cell[:1].isupper() and any(ch.islower() for ch in chars)
+            and sum(ch.isalpha() for ch in chars) >= 0.7 * len(chars))
 
 
 def resolve(printed: str, members: list[str], roster=()) -> str | None:

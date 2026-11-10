@@ -429,6 +429,21 @@ def test_the_roster_is_asked_only_when_the_header_shows_a_garbled_member_line():
     assert garbled.header_garbled and garbled.motions[0].confirmed, garbled.motions[0].reasons
 
 
+# code review 5769870 finding 5 (rpc-motion/c2-roster): only a line that looks like a member's name with a defect
+# marks the header garbled; a heading or a line of marks never opens the roster fallback
+@pytest.mark.parametrize("line,garbled", [("CALL TO ORDER", False), ("I. CALL TO ORDER", False),
+                                          ("PLEDGE OF ALLEGIANCE", False), ("|  ~ —", False), ("1.", False),
+                                          ("Mich@el L0ng", True), ("Bill Kimb   h", True)])
+def test_only_a_name_with_a_defect_marks_the_header_garbled(line, garbled):
+    lines = ["MEMBERS PRESENT:", "Wade Hadley", line, "Bryce Powers", "STAFF PRESENT:", "Jeff Tyndall"]
+    members, got = R.members_header(lines)
+    assert got is garbled
+    if "CALL TO ORDER" in line:
+        assert members == ["Wade Hadley"]          # the header's list stops at the call to order
+    else:
+        assert members == ["Wade Hadley", "Bryce Powers"]
+
+
 def _agenda_page(numbers):
     return "October 27, 2026\n" + "".join(f"{k}. {n.replace('-', ' - ')} OWNER(S): Owner {k}\n"
                                           for k, n in enumerate(numbers, 1))

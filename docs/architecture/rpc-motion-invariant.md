@@ -97,7 +97,10 @@ before/after confirmed counts (1307 motions, 1088 confirmed at 0927bfe) by reaso
   were approved" / "minutes were approved" / "consent agenda passed" takes that fixed business label (keeps the
   deferrals-list test confirmed and site_checks (c) strict on kinds).
 - **Rule 7 "garbled member line"**: a members'-column line whose first cell fails MEMBER_NAME, or a one-column line
-  that splits into more than one cell ("Bill Kimb   h").
+  that splits into more than one cell ("Bill Kimb   h"). Fix review 5769870 #5 (`rpc-motion/c2-roster`): only a cell
+  that looks like a name with a defect counts (starts with a capital, mostly letters, not all capitals), so a heading
+  ("PLEDGE OF ALLEGIANCE") or a line of marks never opens the fallback; MEMBERS_STOP also stops at "call to order";
+  a split line adds no member (it was not read whole as one clean name).
 - **Rule 3** uses the same reason for an abstainer who is the mover/seconder.
 - **Expected loss**: 2022-layout minutes approvals ("asked for a motion for approval of the minutes. Mrs. Streetman
   moved to recommend approval") read as "Motion for approval" with no case and become "subject not read". A later
