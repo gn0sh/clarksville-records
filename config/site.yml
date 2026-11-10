@@ -1,7 +1,9 @@
 # Locality and branding text for the site. Templates read every place name, body name and branding line from here,
 # so another locality is a new copy of this file plus its own config/localities/<locality>/ (docs/status.md, ZIP note).
 locality: montgomery-tn
-site_name: Clarksville Records
+site_name: Daylight                 # working product name (design/daylight, 2026-11-09); trademark check before go-live
+site_place: Clarksville-Montgomery County   # name plate line under the name, on every page
+today_place: Clarksville            # landing sky: "Tuesday in Clarksville" (static/sky.js reads it from the page)
 operator: gnoshcodes               # CEO decision 2026-11-09: a gnoshcodes product, no personal operator credit
 operator_url: https://gnoshcodes.com/
 
