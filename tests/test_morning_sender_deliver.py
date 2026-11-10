@@ -29,8 +29,7 @@ SECRET_BODY = "RESPONSE-BODY-WITH-jane.roe@example.com"
 
 def settings(**kw) -> settings_mod.Settings:
     base = settings_mod.load(ROOT / "config" / "site.yml")
-    # day D's RPC agenda gives more editions than the shipped max_editions (see test_morning_sender_plan.py)
-    return dataclasses.replace(base, **{"enabled": True, "canary_only": False, "max_editions": 500, **kw})
+    return dataclasses.replace(base, **{"enabled": True, "canary_only": False, **kw})
 
 
 def sub(n: int, lists=("budget",), district=None, ward=None, type_="regular", **meta) -> dict:
@@ -198,10 +197,23 @@ def test_a_clock_without_a_zone_sends_nothing(plan):
     assert go(plan, fake, now=datetime(2026, 11, 11, 5, 0))[0].code == 2 and fake.calls == []
 
 
-def test_a_plan_with_another_time_zone_or_too_many_editions_sends_nothing(plan):
+def test_a_plan_with_another_time_zone_sends_nothing(plan):
     fake = Fake(people(plan))
     assert go({**plan, "timezone": "Pacific/Kiritimati"}, fake)[0].code == 2 and fake.calls == []
-    assert go(plan, fake, s=settings(max_editions=1))[0].status == "over-limit" and fake.calls == []
+
+
+def test_max_editions_counts_only_editions_with_a_recipient_before_the_first_write(plan):
+    """The plan holds every edition any shape could get (191 on day D); max_editions bounds the emails this run
+    would create, so it counts the editions that have a recipient, and stops before any write."""
+    assert len(plan["editions"]) > 3
+    for mode in ("stamp", "ids"):
+        fake = Fake(people(plan))                          # people(): three editions with a recipient
+        res, text = go(plan, fake, s=settings(mode=mode, max_editions=2))
+        assert (res.code, res.status, res.editions) == (2, "over-limit", 0) and "max_editions" in text
+        assert fake.calls == ["emails", "subscribers"]     # listings only: no stamp, no email
+        assert go(plan, Fake(people(plan)), s=settings(mode=mode, max_editions=3))[0].editions == 3
+    shipped = settings_mod.load(ROOT / "config" / "site.yml").max_editions
+    assert go(plan, Fake(people(plan)), s=settings(max_editions=shipped))[0].status == "sent"
 
 
 @pytest.mark.parametrize("change", [

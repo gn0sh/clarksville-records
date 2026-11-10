@@ -64,7 +64,12 @@ def _deliver(args) -> int:
     except settings.SettingsError as exc:
         print(f"sender deliver: {exc}; nothing sent", file=sys.stderr)
         return 2
+    from . import common
     try:
+        if Path(args.plan).stat().st_size > common.MAX_PLAN_BYTES:
+            print(f"sender deliver: the plan file is over MAX_PLAN_BYTES ({common.MAX_PLAN_BYTES}); nothing sent",
+                  file=sys.stderr)
+            return 2
         plan = json.loads(Path(args.plan).read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         print("sender deliver: the plan file cannot be read; nothing sent", file=sys.stderr)

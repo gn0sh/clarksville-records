@@ -12,6 +12,10 @@ KEY_RE = re.compile(r"[0-9a-f]{12}")
 DATE_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 TIME_RE = re.compile(r"(?:[01][0-9]|2[0-3]):[0-5][0-9]")
 SIGNATURE_RE = re.compile(r"[a-z]+(?:,[a-z]+)*\|(?:-|[1-9][0-9]{0,3})\|(?:-|[1-9][0-9]{0,3})")
+# The plan stage's ceiling on what it writes (plan.json plus the edition files), and the most the deliver stage
+# reads. A real RPC agenda day is about 2.7 MB over 191 editions; this is about twelve such days at once, so
+# hitting it means something is wrong with the data, not a busy morning.
+MAX_PLAN_BYTES = 32_000_000
 REASONS = ("ok", "quiet", "backfill", "disabled")          # plan.reason: "ok" exactly when send is true
 
 

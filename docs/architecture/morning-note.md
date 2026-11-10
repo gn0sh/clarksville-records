@@ -195,7 +195,8 @@ Input guards, each ending in `send: false` with a `reason`, exit 0, unless marke
 - `note.date` is not D, where D is today in `site_timezone`: fail;
 - `backfill` is true: `reason: "backfill"` (the T1 guard; a backfill day never mails);
 - `entries` is empty: `reason: "quiet"`;
-- more than `sender.max_editions` editions: fail (something is wrong with the data, not a busy day).
+- the plan's files over `MAX_PLAN_BYTES` (32 MB, `sender/common.py`): fail (something is wrong with the data, not a
+  busy day). As built, `sender.max_editions` is applied by the deliver stage to editions that have a recipient.
 
 Otherwise, for every possible signature (each non-empty subset of the four lists x district none or 1..`district_count`
 x ward none or 1..`ward_count`; 15 x 22 x 13 = 4,290 calls of `morning.select`, cheap), take the selected entry ids.
@@ -302,10 +303,12 @@ morning_note:
   PDFs, so it may not carry them. Each value in the block must stay one plain value on its own line.
 - **`ids` mode: a draft is the claim.** A run that dies between creating a draft and sending it does not send that
   edition on a re-run (never twice before never missed).
-- **Open: `max_editions: 80` is too low for a planning commission agenda day.** The fixture's real RPC agenda (27
-  cases printing 7 districts and 3 wards) gives 191 editions, so that day's plan exits 2. The count grows with
-  (districts printed + 1) x (wards printed + 1). The architect should raise the cap or change what it counts (for
-  example editions that have a recipient, which only the deliver stage knows).
+- **`max_editions` counts editions that have a recipient**, in the deliver stage, before the first write (exit 2,
+  "over-limit"). The plan stage instead caps the size of what it writes (`MAX_PLAN_BYTES`, 32 MB), and the deliver
+  command refuses a larger plan file. The fixture's real RPC agenda (27 cases printing 7 districts and 3 wards)
+  gives 191 editions and about 2.7 MB of files (plan.json about 1.1 MB), so **T4.5's "under 2 MB" artifact check
+  must be raised** (to `MAX_PLAN_BYTES`). The shipped `max_editions: 80` is kept for the canary weeks; revisit it
+  before `canary_only` goes false.
 - **Open: the unplaced line** is printed in every edition of a day that has one, as "Body" above says; the preview
   page shows it only to a reader who picked zoning.
 - **Every edition says the site is independent and unofficial** (review `render/no-independence-line`): the
@@ -325,7 +328,7 @@ morning_note:
   && github.ref == 'refs/heads/main'`; `environment: morning-note` (secret scoped to it, deployment branch `main`
   only); `permissions: contents: read, issues: write`; timeout 15 minutes. Steps: check out the commit the update job
   built on with `persist-credentials: false`, set up Python with no pip step, download `morning-send`, validate it
-  (one `plan.json` and `edition-*` files only, regular files, under 2 MB, schema and field types checked, every link
+  (one `plan.json` and `edition-*` files only, regular files, under `MAX_PLAN_BYTES` in total (as built; was 2 MB), schema and field types checked, every link
   on the site origin or an https source), run `python -m sender deliver --plan ... --live`. The key is passed as
   `env:` on that one step only. On failure, the same one-issue step as the other jobs, with a fixed text.
 - A manual run (`workflow_dispatch`) never sends.

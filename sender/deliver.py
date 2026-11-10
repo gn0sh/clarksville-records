@@ -352,8 +352,6 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         return end(2, "no-provider", why="this build has no provider adapter")
     if plan["timezone"] != settings.timezone:
         return end(2, "bad-plan", why="the plan's time zone is not the site's")
-    if len(plan["editions"]) > settings.max_editions:
-        return end(2, "over-limit", why="more editions than max_editions")
     zone = ZoneInfo(settings.timezone)
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
@@ -406,6 +404,10 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
             key = plan["signatures"].get(signature(r.lists, r.district, r.ward)) if r.lists else None
             if key is not None:
                 by_key.setdefault(key, []).append(r)
+        # max_editions bounds the emails a run creates: the editions that have a recipient (the plan holds every
+        # edition any shape could get), counted before the first write
+        if len(by_key) > settings.max_editions:
+            return end(2, "over-limit", why="more editions with a recipient than max_editions")
         send_at = at(settings.send_at)
         publish = (send_at if now < send_at else now).astimezone(zone).isoformat(timespec="seconds")
         for ed in sorted(plan["editions"], key=lambda e: e["key"]):

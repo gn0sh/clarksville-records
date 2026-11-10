@@ -23,8 +23,9 @@ _CACHE: dict = {}
 
 
 def cfg_with(enabled=True, site_url=SITE_URL, max_editions=500, **sender) -> dict:
-    """The shipped config with the sender switched on, a site URL, and room for day D: its RPC agenda (a real one,
-    27 cases printing 7 districts and 3 wards) alone gives 191 editions, more than the shipped max_editions."""
+    """The shipped config with the sender switched on and a site URL. Day D's RPC agenda (a real one, 27 cases
+    printing 7 districts and 3 wards) gives 191 editions; the plan stage no longer counts them (max_editions is the
+    deliver stage's, over editions that have a recipient)."""
     cfg = copy.deepcopy(config.SITE)
     cfg["alerts"]["site_url"] = site_url
     cfg["morning_note"]["sender"].update(enabled=enabled, max_editions=max_editions, **sender)
@@ -120,6 +121,16 @@ def test_the_cli_refuses_live(msite, tmp_path, capsys):
     main(["plan", "--date", NEXT.isoformat(), "--site", str(msite), "--out", str(out), "--rehearse"])
     assert main(["deliver", "--plan", str(out / NEXT.isoformat() / "plan.json"), "--live"]) == 2
     assert "nothing sent" in capsys.readouterr().err
+
+
+def test_the_deliver_command_refuses_a_plan_file_over_the_ceiling(msite, tmp_path, capsys, monkeypatch):
+    out = tmp_path / "send"
+    main(["plan", "--date", NEXT.isoformat(), "--site", str(msite), "--out", str(out), "--rehearse"])
+    path = out / NEXT.isoformat() / "plan.json"
+    assert main(["deliver", "--plan", str(path)]) == 0
+    monkeypatch.setattr(common, "MAX_PLAN_BYTES", path.stat().st_size - 1)
+    assert main(["deliver", "--plan", str(path)]) == 2
+    assert "MAX_PLAN_BYTES" in capsys.readouterr().err
 
 
 # ------------------------------------------------------------------ the contract
@@ -227,20 +238,29 @@ def test_a_subject_naming_a_government_body_fails_the_run(msite):
         plan_mod.build(msite, D, cfg)
 
 
-def test_more_than_max_editions_fails_the_run(msite, built):
-    n = len(built["plan"]["editions"])
-    assert plan_mod.build(msite, D, cfg_with(max_editions=n))["plan"]["send"] is True
-    with pytest.raises(plan_mod.PlanError, match="max_editions"):
-        plan_mod.build(msite, D, cfg_with(max_editions=n - 1))
+def test_a_plan_over_the_size_ceiling_fails_the_run(msite, built, monkeypatch, tmp_path):
+    """The plan stage caps the plan's size, not its edition count: only the deliver stage knows which editions
+    have a recipient (max_editions counts those)."""
+    size = plan_mod.size_of(built)
+    assert size == sum(p.stat().st_size for p in plan_mod.write(tmp_path, built).parent.iterdir())
+    monkeypatch.setattr(common, "MAX_PLAN_BYTES", size)
+    assert plan_mod.build(msite, D, cfg_with())["plan"]["send"] is True
+    monkeypatch.setattr(common, "MAX_PLAN_BYTES", size - 1)
+    with pytest.raises(plan_mod.PlanError, match="MAX_PLAN_BYTES"):
+        plan_mod.build(msite, D, cfg_with())
 
 
-def test_the_shipped_cap_is_below_the_fixtures_rpc_agenda_day(msite, tmp_path, capsys):
-    """Recorded for the architect: one real RPC agenda day gives more editions than the shipped max_editions, so
-    its rehearsal exits 2 (the run fails; nothing is written). The cap or the edition rule needs a decision."""
-    cap = config.SITE["morning_note"]["sender"]["max_editions"]
-    assert len(plan_mod.build(msite, D, cfg_with())["plan"]["editions"]) > cap
-    assert main(["plan", "--date", D.isoformat(), "--site", str(msite), "--out", str(tmp_path / "o"), "--rehearse"]) == 2
-    assert "max_editions" in capsys.readouterr().err and not (tmp_path / "o").exists()
+def test_the_fixtures_rpc_agenda_day_plans_with_the_shipped_config(msite, tmp_path, capsys):
+    """A real RPC agenda day (27 cases printing 7 districts and 3 wards) gives 191 editions and about 2.7 MB of
+    files: more than the old cap of 80 editions and the 2 MB artifact check, well under the ceiling."""
+    cfg = copy.deepcopy(config.SITE)
+    cfg["alerts"]["site_url"] = SITE_URL
+    cfg["morning_note"]["sender"]["enabled"] = True       # the shipped max_editions (80) and everything else
+    built = plan_mod.build(msite, D, cfg)
+    assert len(built["plan"]["editions"]) > cfg["morning_note"]["sender"]["max_editions"]
+    assert 2_000_000 < plan_mod.size_of(built) < common.MAX_PLAN_BYTES
+    assert main(["plan", "--date", D.isoformat(), "--site", str(msite), "--out", str(tmp_path / "o"), "--rehearse"]) == 0
+    assert (tmp_path / "o" / D.isoformat() / "plan.json").is_file()
 
 
 def test_a_bad_date_argument_exits_2(msite, tmp_path):

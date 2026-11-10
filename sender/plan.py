@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 
 from sitegen import morning
 
-from . import render
+from . import common, render
 from .common import LIST_KEYS, NOTE_SCHEMA, PLAN_SCHEMA, signature
 
 
@@ -116,9 +116,6 @@ def build(site: Path, day: date, cfg: dict, rehearse: bool = False) -> dict:
         if editions.setdefault(key, ids) != ids:
             raise PlanError(f"two different selections share the edition key {key}")
         plan["signatures"][signature(lists, district, ward)] = key
-    if len(editions) > s["max_editions"]:
-        raise PlanError(f"{len(editions)} editions, more than max_editions ({s['max_editions']}): "
-                        f"something is wrong with the data")
     ctx = render.context(cfg)
     try:
         render.subject(ctx, plan["date"])
@@ -132,7 +129,25 @@ def build(site: Path, day: date, cfg: dict, rehearse: bool = False) -> dict:
         texts[key] = render.body_text(ctx, note, rows)
     plan["signatures"] = dict(sorted(plan["signatures"].items()))
     plan["send"], plan["reason"] = (True, "ok") if on else (False, "disabled")
-    return {"plan": plan, "texts": texts}
+    built = {"plan": plan, "texts": texts}
+    # A size ceiling, not an edition count: only the deliver stage knows which editions have a recipient, and it
+    # applies max_editions to those.
+    size = size_of(built)
+    if size > common.MAX_PLAN_BYTES:
+        raise PlanError(f"the plan's files would be {size} bytes, over the MAX_PLAN_BYTES ceiling "
+                        f"({common.MAX_PLAN_BYTES}): something is wrong with the data")
+    return built
+
+
+def size_of(built: dict) -> int:
+    """The bytes write() puts on disk for `built`: plan.json and every edition's .html and .txt."""
+    plan = built["plan"]
+    return len(dumps(plan).encode("utf-8")) + sum(
+        len(ed["body"].encode("utf-8")) + len(_text_file(ed, built["texts"]).encode("utf-8")) for ed in plan["editions"])
+
+
+def _text_file(ed: dict, texts: dict) -> str:
+    return ed["subject"] + "\n\n" + texts[ed["key"]]
 
 
 def dumps(plan: dict) -> str:
@@ -150,8 +165,7 @@ def write(out: Path, built: dict) -> Path:
             old.unlink()
     for ed in plan["editions"]:
         (folder / f"edition-{ed['key']}.html").write_text(ed["body"], encoding="utf-8")
-        (folder / f"edition-{ed['key']}.txt").write_text(
-            ed["subject"] + "\n\n" + built["texts"][ed["key"]], encoding="utf-8")
+        (folder / f"edition-{ed['key']}.txt").write_text(_text_file(ed, built["texts"]), encoding="utf-8")
     (folder / "plan.json").write_text(dumps(plan), encoding="utf-8")
     return folder / "plan.json"
 
