@@ -207,6 +207,10 @@ def sender_problems(cfg: dict) -> list[str]:
                 out.append(f"{at}.text.{k} must be set")
             else:
                 out += [f"{at}.text.{k} must contain {m}" for m in marks if m not in v]
+        from sender.render import AUTHORITY      # render/no-independence-line: never a government's name or "official"
+        subj = text.get("subject")
+        if isinstance(subj, str) and AUTHORITY.search(subj.replace("{site_name}", str(cfg.get("site_name") or ""))):
+            out.append(f"{at}.text.subject must not name a government body or say official, got {subj!r}")
     if s.get("enabled") is True:
         if mn.get("enabled") is not True:
             out.append(f"{at}.enabled is true, so morning_note.enabled must be true (the sign-up form)")

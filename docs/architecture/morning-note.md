@@ -308,6 +308,11 @@ morning_note:
   example editions that have a recipient, which only the deliver stage knows).
 - **Open: the unplaced line** is printed in every edition of a day that has one, as "Body" above says; the preview
   page shows it only to a reader who picked zoning.
+- **Every edition says the site is independent and unofficial** (review `render/no-independence-line`): the
+  `unofficial.email_line` under the date, the full `unofficial.notice` at the foot, then the note's `support_line`
+  and link when the note carries them (the site's note does only while `support_enabled`). The subject may not
+  contain "City of", "County", "CMCSS", "RPC" or "official" (`render.AUTHORITY`; the build and the plan both
+  refuse it). The From name is the provider account's setting: the site name only, set at go-live (T4.7).
 - **Canary ids come from the environment** (`MORNING_NOTE_CANARY_IDS`; review `audience/canary-self-set`), not
   from subscriber metadata, which any subscriber can set through the form. No id is in the repository.
 - `--live` is refused by the command line until the provider adapter (`sender/buttondown.py`) exists and has had its

@@ -220,6 +220,13 @@ def test_a_missing_or_wrong_note_fails_the_run(msite, tmp_path, monkeypatch, cap
     assert not out.exists() and "sender plan:" in capsys.readouterr().err
 
 
+def test_a_subject_naming_a_government_body_fails_the_run(msite):
+    cfg = cfg_with()
+    cfg["morning_note"]["sender"]["text"]["subject"] = "{site_name} official note, {date}"
+    with pytest.raises(plan_mod.PlanError, match="official"):
+        plan_mod.build(msite, D, cfg)
+
+
 def test_more_than_max_editions_fails_the_run(msite, built):
     n = len(built["plan"]["editions"])
     assert plan_mod.build(msite, D, cfg_with(max_editions=n))["plan"]["send"] is True

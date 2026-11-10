@@ -3,9 +3,12 @@ no connection.
 
 The body is the site name and the date, then per list its config label and that list's entries (body name, the
 connective text, the record's own title, a link to the site's page and a link to the source document), then the
-note's unplaced line when set, then one config line saying why the reader got this. It adds nothing the preview
+note's unplaced line when set, then one config line saying why the reader got this. The site's independence
+line (`unofficial.email_line`) stands under the date and its full notice (`unofficial.notice`) at the foot, then the
+note's support line and link when the note carries them (render/no-independence-line). It adds nothing the preview
 page (morning/index.html) does not show: no outcome, no tally, no person's name outside a verbatim title, no
-summary. Every word that is ours is config text (`morning_note.sender.text`, `morning_note.page`, the list labels).
+summary. Every word that is ours is config text (`morning_note.sender.text`, `morning_note.page`, `unofficial:`,
+`support_line`, the list labels). The subject never names a government body or says "official" (AUTHORITY).
 
 A record's title is untrusted text (it comes from a parsed PDF) and the body goes through the provider's own
 template and Markdown step, so inert() turns every character either of them could read as markup into an HTML
@@ -25,6 +28,9 @@ CUT = "..."
 _MARKUP = "&<>\"'{}[]()*_`#\\~|!$%@="
 _INERT = {ord(c): f"&#{ord(c)};" for c in _MARKUP}
 _LINE_START = re.compile(r"^[-+\s]+")       # a leading "---" (a rule or front matter), a "+" or "-" list mark
+# Words that would let a reader take the note for a government's own mail. Never in the subject (nor in the From
+# name, which is the provider account's setting: the site name). "official" also catches "unofficial".
+AUTHORITY = re.compile(r"city of|county|cmcss|\brpc\b|official", re.IGNORECASE)
 _HREF = re.compile(r"[A-Za-z0-9][A-Za-z0-9._~/%-]*(?:#[A-Za-z0-9._~%:-]*)?")
 
 
@@ -84,22 +90,40 @@ def day_words(iso: str) -> str:
 
 def context(cfg: dict) -> dict:
     """What the renderer needs from config/site.yml, and nothing else."""
+    from sitegen import unofficial          # the one source of the independence wording (config `unofficial:`)
     mn = cfg["morning_note"]
+    u = unofficial.load(cfg)
     return {"site_name": cfg["site_name"], "site_url": (cfg.get("alerts") or {}).get("site_url") or "",
             "text": dict(mn["sender"]["text"]), "source_label": mn["page"]["source_label"],
-            "page_label": mn["page"]["page_label"]}
+            "page_label": mn["page"]["page_label"], "notice": u["notice"], "email_line": u["email_line"],
+            "support_label": cfg.get("support_label") or ""}
 
 
 def own_text(ctx: dict, note: dict) -> list[str]:
     """Every string of an email that is ours and not the record's, for the neutrality scan: the sender's config
     text, the labels it borrows from the page, and the note's own (sitegen.morning.own_text)."""
     from sitegen.morning import own_text as note_text
+    support = support_of(ctx, note)
     return [subject(ctx, note["date"]), ctx["text"]["why"], ctx["text"]["open_site"], ctx["source_label"],
-            ctx["page_label"]] + note_text(note)
+            ctx["page_label"], ctx["email_line"], ctx["notice"]] + (list(support[:2]) if support else []) + \
+        note_text(note)
 
 
 def subject(ctx: dict, iso: str) -> str:
-    return clean(ctx["text"]["subject"].replace("{site_name}", ctx["site_name"]).replace("{date}", day_words(iso)))
+    """The subject line. ValueError when it would name a government body or say "official"."""
+    s = clean(ctx["text"]["subject"].replace("{site_name}", ctx["site_name"]).replace("{date}", day_words(iso)))
+    if AUTHORITY.search(s):
+        raise ValueError("the subject would name a government body or say official")
+    return s
+
+
+def support_of(ctx: dict, note: dict) -> tuple[str, str, str] | None:
+    """(line, link label, https URL) when the note carries a support line and a link that passes the https rule,
+    as the site's own note does (sitegen.morning: only while support_enabled); else None."""
+    line, url = note.get("support_line"), note.get("support_url")
+    if not (isinstance(line, str) and clean(line) and ctx.get("support_label") and _https(url)):
+        return None
+    return line, ctx["support_label"], url
 
 
 def sections(note: dict, entries: list[dict]) -> list[tuple[str, list[dict]]]:
@@ -121,7 +145,8 @@ def _source_words(ctx: dict, page) -> str:
 
 def body_html(ctx: dict, note: dict, entries: list[dict]) -> str:
     """The HTML body. No blank line and no indented line, so a Markdown step sees one HTML block and nothing else."""
-    out = [f"<h1>{inert(ctx['site_name'])}</h1>", f"<p>{inert(day_words(note['date']))}</p>"]
+    out = [f"<h1>{inert(ctx['site_name'])}</h1>", f"<p>{inert(day_words(note['date']))}</p>",
+           f"<p>{inert(ctx['email_line'])}</p>"]
     for label, rows in sections(note, entries):
         out += [f"<h2>{inert(label)}</h2>", "<ul>"]
         for e in rows:
@@ -134,13 +159,16 @@ def body_html(ctx: dict, note: dict, entries: list[dict]) -> str:
         out.append("</ul>")
     if note.get("unplaced_text"):
         out.append(f"<p>{inert(note['unplaced_text'])}</p>")
-    out.append(f"<p>{inert(ctx['text']['why'])}</p>")
+    out += [f"<p>{inert(ctx['text']['why'])}</p>", f"<p>{inert(ctx['notice'])}</p>"]
+    support = support_of(ctx, note)
+    if support:
+        out.append(f'<p>{inert(support[0])} <a href="{_attr(support[2])}">{inert(support[1])}</a></p>')
     return "\n".join(out) + "\n"
 
 
 def body_text(ctx: dict, note: dict, entries: list[dict]) -> str:
     """The same edition as plain text, for a person reading the dry run. It is not what is sent."""
-    out = [clean(ctx["site_name"]), day_words(note["date"]), ""]
+    out = [clean(ctx["site_name"]), day_words(note["date"]), clean(ctx["email_line"]), ""]
     for label, rows in sections(note, entries):
         out += [clean(label), ""]
         for e in rows:
@@ -152,5 +180,8 @@ def body_text(ctx: dict, note: dict, entries: list[dict]) -> str:
             out.append("")
     if note.get("unplaced_text"):
         out += [clean(note["unplaced_text"]), ""]
-    out.append(clean(ctx["text"]["why"]))
+    out += [clean(ctx["text"]["why"]), "", clean(ctx["notice"])]
+    support = support_of(ctx, note)
+    if support:
+        out += ["", f"{clean(support[0])} {clean(support[1])}: {support[2]}"]
     return "\n".join(out) + "\n"

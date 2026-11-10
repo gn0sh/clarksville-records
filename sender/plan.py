@@ -120,6 +120,10 @@ def build(site: Path, day: date, cfg: dict, rehearse: bool = False) -> dict:
         raise PlanError(f"{len(editions)} editions, more than max_editions ({s['max_editions']}): "
                         f"something is wrong with the data")
     ctx = render.context(cfg)
+    try:
+        render.subject(ctx, plan["date"])
+    except ValueError as exc:
+        raise PlanError(str(exc)) from None
     texts = {}
     for key in sorted(editions):
         rows = [by_id[i] for i in editions[key]]

@@ -123,7 +123,8 @@ def test_site_links_are_site_url_plus_href_for_every_fixture_entry(msite):  # no
     with_href = [e for e in note["entries"] if e["href"]]
     assert with_href and all(SITE_URL + e["href"] in got for e in with_href)        # every real href is linkable
     assert all(e["source"]["url"] in got for e in note["entries"])
-    assert all(u.startswith(SITE_URL) or u in {e["source"]["url"] for e in note["entries"]} for u in got)
+    assert got[-1] == note["support_url"]                                        # and the support link, last
+    assert all(u.startswith(SITE_URL) or u in {e["source"]["url"] for e in note["entries"]} for u in got[:-1])
 
 
 # ------------------------------------------------------------------ our own words: config text, neutral
@@ -138,13 +139,16 @@ def test_own_text_passes_the_neutrality_scan(msite):  # noqa: F811
 def test_every_word_outside_the_record_is_config_text():
     """Change every config text and label: nothing of the old wording is left, so none of it is hard-coded."""
     ctx = {"site_name": "SITE", "site_url": SITE_URL, "source_label": "SRC", "page_label": "PG",
-           "text": {"subject": "{site_name} S {date}", "why": "WHY", "open_site": "OPEN"}}
-    n = note_of(entry(body_name="BODY", recorded="REC", title="TITLE"), unplaced_text="UNPLACED")
+           "text": {"subject": "{site_name} S {date}", "why": "WHY", "open_site": "OPEN"},
+           "notice": "NOTICE", "email_line": "LINE", "support_label": "TIPS"}
+    n = note_of(entry(body_name="BODY", recorded="REC", title="TITLE"), unplaced_text="UNPLACED",
+                support_line="SUPPORT", support_url="https://tips.example.com/x")
     n["lists"] = [{"key": k, "label": f"L-{k}"} for k in morning.LIST_KEYS]
     text = " ".join(t for node in parse(render.body_html(ctx, n, n["entries"])).walk() for t in node.text)
     words = re.sub(r"November 11, 2026|\d", "", text)
     assert sorted(set(re.findall(r"[A-Za-z-]+", words))) == sorted(
-        ["SITE", "L-budget", "BODY", "REC", "TITLE", "OPEN", "SRC", "PG", "UNPLACED", "WHY"])
+        ["SITE", "L-budget", "BODY", "REC", "TITLE", "OPEN", "SRC", "PG", "UNPLACED", "WHY", "NOTICE", "LINE",
+         "SUPPORT", "TIPS"])
     assert render.subject(ctx, "2026-11-11") == "SITE S November 11, 2026"
 
 
@@ -221,11 +225,11 @@ def test_sections_follow_the_notes_order_under_config_labels(msite):  # noqa: F8
     assert [n.all_text() for n in parse(html).walk() if n.tag == "h2"] == [label for label, _ in secs]
 
 
-def test_unplaced_line_and_why_line_close_the_body():
+def test_unplaced_line_and_why_line_close_the_entries_then_the_notice():
     html = html_of(entry(), unplaced_text="2 zoning cases printed no district or ward")
     paras = [n.all_text() for n in parse(html).walk() if n.tag == "p"]
-    assert paras[-2:] == ["2 zoning cases printed no district or ward", CTX["text"]["why"]]
-    assert [n.all_text() for n in parse(html_of(entry())).walk() if n.tag == "p"][-1] == CTX["text"]["why"]
+    assert paras[-3:] == ["2 zoning cases printed no district or ward", CTX["text"]["why"], CTX["notice"]]
+    assert [n.all_text() for n in parse(html_of(entry())).walk() if n.tag == "p"][-2:] == [CTX["text"]["why"], CTX["notice"]]
     assert "unsubscribe" not in html.lower()                           # the provider's link, not ours
 
 
@@ -233,4 +237,75 @@ def test_the_text_version_reads_the_same_edition():
     n = note_of(entry(title="A  title\nover two lines"), unplaced_text="1 zoning case printed no district or ward")
     text = render.body_text(CTX, n, n["entries"])
     assert "A title over two lines" in text and SITE_URL + "items/2026.html#i-x" in text
-    assert "https://example.com/fixture/agenda.pdf#page=2" in text and text.rstrip().endswith(CTX["text"]["why"])
+    assert "https://example.com/fixture/agenda.pdf#page=2" in text and text.rstrip().endswith(CTX["notice"])
+    assert CTX["text"]["why"] in text and CTX["email_line"] in text
+
+
+# ------------------------------------------------------------------ render/no-independence-line
+UNOFF = config.SITE["unofficial"]
+SUPPORT = {"support_line": config.SITE["support_line"], "support_url": config.SITE["support_url"]}
+
+
+def test_both_bodies_say_the_site_is_independent_and_unofficial():
+    """The short line under the date and the full notice at the foot, both from config/site.yml `unofficial:`."""
+    from sitegen import unofficial
+    u = unofficial.load(config.SITE)
+    assert (CTX["email_line"], CTX["notice"]) == (u["email_line"], u["notice"]) and UNOFF["email_line"] == u["email_line"]
+    n = note_of(entry())
+    html = render.body_html(CTX, n, n["entries"])
+    paras = [p.all_text() for p in parse(html).walk() if p.tag == "p"]
+    assert paras[1] == u["email_line"] and paras[-1] == u["notice"]
+    text = render.body_text(CTX, n, n["entries"])
+    assert text.count(u["email_line"]) == 1 and text.count(u["notice"]) == 1
+
+
+def test_the_support_line_closes_the_body_when_the_note_carries_it():
+    n = note_of(entry(), **SUPPORT)
+    html = render.body_html(CTX, n, n["entries"])
+    last = [p for p in parse(html).walk() if p.tag == "p"][-1]
+    assert last.all_text() == f"{SUPPORT['support_line']} {config.SITE['support_label']}"
+    assert links(html)[-1] == SUPPORT["support_url"]
+    text = render.body_text(CTX, n, n["entries"])
+    assert text.rstrip().endswith(f"{SUPPORT['support_line']} {config.SITE['support_label']}: {SUPPORT['support_url']}")
+
+
+@pytest.mark.parametrize("extra", [{}, {"support_line": "", "support_url": ""},
+                                   {"support_line": "Please help.", "support_url": "http://tips.example.com/"},
+                                   {"support_line": "Please help.", "support_url": "javascript:alert(1)"},
+                                   {"support_line": "", "support_url": "https://tips.example.com/"}])
+def test_no_support_line_without_both_a_line_and_an_https_link(extra):
+    n = note_of(entry(), **extra)
+    html = render.body_html(CTX, n, n["entries"])
+    assert "Please help." not in html and "tips.example.com" not in html
+    assert [p.all_text() for p in parse(html).walk() if p.tag == "p"][-1] == CTX["notice"]
+
+
+def test_the_shipped_note_carries_the_support_line_into_every_edition(msite):  # noqa: F811
+    built = plan_mod.build(msite, D, cfg_with())
+    note = read_note(msite)
+    assert note["support_line"] and note["support_url"]
+    for ed in built["plan"]["editions"]:
+        assert note["notice"] in ed["body"] or render.inert(note["notice"]) in ed["body"]
+        assert render.inert(note["support_line"]) in ed["body"] and note["support_url"] in ed["body"]
+
+
+def test_the_notice_is_in_the_neutrality_scan(msite):  # noqa: F811
+    note = read_note(msite)
+    ours = render.own_text(CTX, {**note, **SUPPORT})
+    for t in (CTX["notice"], CTX["email_line"], SUPPORT["support_line"], config.SITE["support_label"]):
+        assert t in ours
+    assert not [t for t in ours if BANNED.search(t)]
+
+
+@pytest.mark.parametrize("subject", ["{site_name} official note, {date}", "{site_name} County note, {date}",
+                                     "City of {site_name}, {date}", "{site_name} CMCSS {date}", "{site_name} rpc {date}",
+                                     "{site_name} unofficial note {date}"])
+def test_the_subject_never_borrows_a_governments_name(subject):
+    """Nobody may read the note as coming from a government body: no "City of", "County", "CMCSS", "RPC" or
+    "official" in the subject (the provider account's From name is the site name, set at go-live)."""
+    cfg = cfg_with()
+    cfg["morning_note"]["sender"]["text"]["subject"] = subject
+    assert any("text.subject" in p for p in morning.sender_problems(cfg))
+    with pytest.raises(ValueError):
+        render.subject({**CTX, "text": {**CTX["text"], "subject": subject}}, "2026-11-11")
+    assert not render.AUTHORITY.search(render.subject(CTX, "2026-11-11"))
