@@ -25,11 +25,12 @@ with its offset. A document without a manifest row (a fixture build) is dated by
 its meeting's day, at noon in site_timezone (a reader in the Americas shows that day; `fetched_at` is a UTC day, so it
 can be one day after the site_timezone day of the fetch, sweep L1). An entry's summary prints "fetched <day>": the
 site_timezone day of its own `updated`, so the two never disagree. Which entries a feed keeps is still by
-meeting: the newest max_entries meetings' entries, except `topic-rezoning.xml`, which keeps the newest
-max_entries of each body (RPC agendas are dated ahead and come often; one cap would push every county and council
-entry out); the kept entries are then listed newest `updated` first. A reader shows an entry it has not seen as new
-whatever its date, so minutes posted weeks after their meeting still alert, as long as the meeting is within the
-newest entries.
+meeting: at most max_entries entries (not meetings), taken newest meeting first (then the meeting, then document
+order), except `topic-rezoning.xml`, which keeps at most max_entries entries of each body (RPC agendas are dated ahead
+and come often; one cap would push every county and council entry out); the kept entries are then listed newest
+`updated` first, compared as instants in UTC, and written in site_timezone (cfg's, else config.SITE's). A reader
+shows an entry it has not seen as new whatever its date, so minutes posted weeks after their meeting still alert, as
+long as the meeting is within the newest entries.
 Titles are the document's own text, escaped by the XML writer, and never link to an official (DECISION 2026-11-09):
 an entry links only its page on this site and its source document.
 """
@@ -38,7 +39,7 @@ from __future__ import annotations
 import posixpath
 import re
 import xml.etree.ElementTree as ET
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from zoneinfo import ZoneInfo
 
 from . import config, views
@@ -349,16 +350,19 @@ def render(feed: dict, entries: list[dict], cfg: dict | None = None, data_as_of:
     its newest entry's date or the data date, whichever is later."""
     a = settings(cfg)
     zone = _zone(cfg)
-    entries = [{**e, "updated": _instant(e["updated"], zone)} for e in newest(entries, a["max_entries"], per_body)]
-    # newest first as the RFC 3339 text reads (qa/site_checks.py check_feeds compares the text); ties by meeting
-    entries.sort(key=lambda e: (_stamp(e["updated"]), e["sort"]), reverse=True)
-    data_as_of = _instant(data_as_of, zone) if data_as_of else ""
+    # Dates held in UTC so sort and max compare instants: two datetimes sharing one ZoneInfo compare by wall clock,
+    # which puts 01:30-05:00 after 01:15-06:00 in the fall-back hour. Written out in `zone` (_stamp).
+    entries = [{**e, "updated": _instant(e["updated"], zone).astimezone(timezone.utc)}
+               for e in newest(entries, a["max_entries"], per_body)]
+    # newest first by instant, as qa/site_checks.py check_feeds compares them; ties by meeting
+    entries.sort(key=lambda e: (e["updated"], e["sort"]), reverse=True)
+    data_as_of = _instant(data_as_of, zone).astimezone(timezone.utc) if data_as_of else ""
     root = ET.Element(f"{{{ATOM}}}feed")
     _sub(root, "id", a["feed_id"] + feed["file"][:-len(".xml")])
     _sub(root, "title", f"{config.SITE_NAME}: {feed['title']}")
     _sub(root, "subtitle", feed["about"])
     updated = max([e["updated"] for e in entries] + ([data_as_of] if data_as_of else []), default="1970-01-01")
-    _sub(root, "updated", _stamp(updated))
+    _sub(root, "updated", _stamp(updated, zone))
     author = _sub(root, "author")
     _sub(author, "name", config.SITE_NAME)
     _sub(root, "link", rel="self", type="application/atom+xml",
@@ -368,8 +372,8 @@ def render(feed: dict, entries: list[dict], cfg: dict | None = None, data_as_of:
         en = _sub(root, "entry")
         _sub(en, "id", a["feed_id"] + e["id"])
         _sub(en, "title", e["title"])
-        _sub(en, "updated", _stamp(e["updated"]))
-        _sub(en, "published", _stamp(e["updated"]))
+        _sub(en, "updated", _stamp(e["updated"], zone))
+        _sub(en, "published", _stamp(e["updated"], zone))
         _sub(en, "link", rel="alternate", type="text/html", href=_abs(e["href"], feed["file"], a["site_url"]))
         if e["source"]:
             _sub(en, "link", rel="related", type="application/pdf", href=e["source"], title="Source document")

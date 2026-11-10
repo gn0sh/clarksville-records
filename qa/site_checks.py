@@ -1291,7 +1291,9 @@ def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: di
             up = text(e, "updated")
             if up and not RFC3339.fullmatch(up):
                 problems.append(f"{rel}: entry {eid} updated {up!r} is not an RFC 3339 date-time")
-            dates.append(up)
+            elif up:   # as an instant: text order breaks in the fall-back hour (01:30-05:00 is before 01:15-06:00)
+                from datetime import datetime
+                dates.append(datetime.fromisoformat(up))
             links = e.findall(ATOM + "link")
             alt = [x.get("href") or "" for x in links if (x.get("rel") or "alternate") == "alternate"]
             if not alt:

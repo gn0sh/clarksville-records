@@ -602,3 +602,36 @@ def test_without_a_manifest_row_an_entry_is_its_fetched_day_at_local_noon(built)
         up = text(e, "updated")
         assert up == text(e, "published") and up[:10] in fetched and up[10:19] == "T12:00:00", up
         assert text(e, "summary").endswith(f", fetched {up[:10]}."), text(e, "summary")   # one day, both places
+
+
+# ------------------------------------------------------------------ the fall-back hour: newest first by instant, not text
+FOLD_EARLY, FOLD_LATE = "2026-11-01T01:30:00-05:00", "2026-11-01T01:15:00-06:00"   # 06:30Z, then 07:15Z
+
+
+def test_feed_lists_the_fall_back_hour_by_instant():
+    from datetime import datetime
+    es = [dict(entry(1), updated=datetime.fromisoformat(FOLD_EARLY), sort=("2026-11-01", 2)),
+          dict(entry(2), updated=datetime.fromisoformat(FOLD_LATE), sort=("2026-11-01", 1))]
+    root = ET.fromstring(feeds.render({"file": "feeds/t.xml", "title": "T", "about": "A"}, es))
+    assert [text(e, "updated") for e in root.findall(A + "entry")] == [FOLD_LATE, FOLD_EARLY]
+    assert text(root, "updated") == FOLD_LATE
+
+
+@pytest.mark.parametrize("order, ok", [((FOLD_LATE, FOLD_EARLY), True), ((FOLD_EARLY, FOLD_LATE), False)])
+def test_site_checks_compare_entry_dates_as_instants(site, order, ok):
+    import re
+    f = site / "feeds" / "county-meetings.xml"
+    head, _, rest = f.read_text(encoding="utf-8").partition("<entry>")
+    dates = iter(order + ("2026-10-01T12:00:00-05:00",) * 10)
+    rest = re.sub(r"<updated>[^<]+</updated>", lambda m: f"<updated>{next(dates)}</updated>", rest)
+    f.write_text(head + "<entry>" + rest, encoding="utf-8")
+    newest = [p for p in feeds_check(site) if "newest first" in p]
+    assert (newest == []) if ok else newest, newest
+
+
+def test_render_writes_the_configured_zone():
+    """site_timezone comes from the cfg render is given, not only from config.SITE."""
+    cfg = {**CFG, "site_timezone": "America/New_York"}
+    root = ET.fromstring(feeds.render({"file": "feeds/t.xml", "title": "T", "about": "A"}, [entry(200)], cfg))
+    assert text(root.find(A + "entry"), "updated") == "2026-08-05T12:00:00-04:00"   # EDT
+    assert text(root, "updated") == "2026-08-05T12:00:00-04:00"
