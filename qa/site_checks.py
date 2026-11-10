@@ -262,14 +262,16 @@ def check_rpc_motions(site: Path, pages: dict[str, "Page"], rpc: dict | None) ->
 
 
 RPC_EXPORT_HELD_KEYS = ("confirmed", "reasons", "tally")      # never in a site's data/<slug>/ (internal: build/)
+RPC_EXPORT_FILES = {"facts.json", "meetings.csv", "cases.csv", "motions.csv", "sources.csv"}
 
 
 def check_rpc_export(site: Path, rpc: dict | None) -> tuple[list[str], str]:
     """The RPC's export (data/<slug>/motions.csv and facts.json, collector/rpc_export.py) against rpc.json, as the
     county guard on data/facts.json: every exported motion is `confirmed: true` in the record, which was written under
     the reader's current motion_rules; it sits on its record's case_id, a case on its own meeting's agenda, or is the
-    meeting's own business with no case; no case_id holds more than one disposing motion; and no file carries a
-    confirmed, reasons or tally key or column (the reader's checks stay out of the site in every build)."""
+    meeting's own business with no case; no case_id holds more than one disposing motion; no file carries a
+    confirmed, reasons or tally key or column, and data/<slug>/ holds no file but the export's own (the internal
+    export goes beside the site, in every build)."""
     if not rpc:
         return [], "no RPC facts"
     slug = rpc["_cfg"]["slug"]
@@ -281,6 +283,10 @@ def check_rpc_export(site: Path, rpc: dict | None) -> tuple[list[str], str]:
     rules = rpc.get("motion_rules")
     problems: list[str] = []
     exported: dict[str, list[dict]] = {}
+    for p in sorted(d.rglob("*")):
+        if p.is_file() and p.relative_to(d).as_posix() not in RPC_EXPORT_FILES:
+            problems.append(f"data/{slug}/{p.relative_to(d).as_posix()}: not a file the RPC export writes (a "
+                            f"leftover; internal files never go in the site)")
     if (d / "motions.csv").is_file():
         with (d / "motions.csv").open(encoding="utf-8", newline="") as f:
             r = csv.DictReader(f)

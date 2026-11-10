@@ -295,13 +295,46 @@ def test_the_committed_record_exports_only_what_its_pages_show(tmp_path):
     assert "reasons" not in written["facts.json"].read_text(encoding="utf-8")
 
 
-def test_internal_export_keeps_every_motion_with_its_reasons(tmp_path, rpx):
-    written = {p.name: p for p in RE.export_rpc(rpx, tmp_path, internal=True)}
+def test_internal_export_keeps_every_motion_with_its_reasons_outside_the_site(tmp_path, rpx):
+    site = tmp_path / "build" / "site"
+    paths = RE.export_rpc(rpx, site, internal=True)
+    idir = RE.internal_dir(rpx, site)
+    assert idir == tmp_path / "build" / "internal-data" / "rpc" and not idir.is_relative_to(site)
+    written = {p.name: p for p in paths if p.parent == idir}
+    assert sorted(written) == sorted(["facts.json"] + [f"{n}.csv" for n in RE.RPC_FILES])
+    # the site itself gets the public files only, the same as a public build
+    public = {p.name: p for p in paths if p.parent == site / "data" / "rpc"}
+    assert sorted(public) == sorted(written) and len(paths) == 2 * len(written)
+    for name, p in public.items():
+        assert p.read_bytes() == (RE.export_rpc(rpx, tmp_path / "pub")[0].parent / name).read_bytes(), name
     ms = {r["id"]: r for r in rows(written["motions.csv"])}
     assert len(ms) == 8
     assert ms[f"{MEETING}-motion-2"]["confirmed"] == "False" and ms[f"{MEETING}-motion-1"]["confirmed"] == "True"
     assert ms[f"{MEETING}-motion-2"]["reasons"] == "mover is not one member present"
     assert ms[f"{MEETING}-motion-4"]["confirmed"] == "False"       # the record's own doubt, as the pages
+
+
+def test_a_public_export_removes_stale_files_it_did_not_write(tmp_path, rpx):
+    """An earlier export's leftovers under data/rpc/ (an old internal export at the public names, a renamed file) are
+    removed; files of other bodies are left alone. site_checks rpc-export fails a leftover the export did not write."""
+    from qa import site_checks as SC
+    site = tmp_path / "site"
+    d = site / "data" / "rpc"
+    (d / "old").mkdir(parents=True)
+    (d / "motions.csv").write_text("id,confirmed,reasons\nx,False,mover is not one member present\n", encoding="utf-8")
+    (d / "motions-internal.csv").write_text("leftover", encoding="utf-8")
+    (d / "old" / "facts.json").write_text("{}", encoding="utf-8")
+    (site / "data" / "facts.json").write_text("{}", encoding="utf-8")
+    written = RE.export_rpc(rpx, site)
+    assert sorted(p.relative_to(d).as_posix() for p in d.rglob("*")) == sorted(p.name for p in written)
+    assert "reasons" not in (d / "motions.csv").read_text(encoding="utf-8")
+    assert (site / "data" / "facts.json").read_text(encoding="utf-8") == "{}"
+    rec = {**rpx.facts, "_cfg": rpc.load_config("cmc-rpc")}
+    assert SC.check_rpc_export(site, rec)[0] == []
+    (d / "motions-internal.csv").write_text("leftover", encoding="utf-8")
+    assert SC.check_rpc_export(site, rec)[0] == [
+        "data/rpc/motions-internal.csv: not a file the RPC export writes (a leftover; internal files never go in the "
+        "site)"]
 
 
 # ------------------------------------------------------------------ cases, meetings, sources
@@ -437,7 +470,9 @@ def test_every_registry_value_is_stated_or_says_how_it_is_derived():
 
 @pytest.mark.parametrize("internal", [False, True])
 def test_every_column_and_key_is_registered(tmp_path, rpx, internal):
-    written = {p.name: p for p in RE.export_rpc(rpx, tmp_path, internal=internal)}
+    paths = RE.export_rpc(rpx, tmp_path / "site", internal=internal)
+    where = RE.internal_dir(rpx, tmp_path / "site") if internal else tmp_path / "site" / "data" / "rpc"
+    written = {p.name: p for p in paths if p.parent == where}
     for name in RE.RPC_FILES:
         header = next(csv.reader(io.StringIO(written[f"{name}.csv"].read_text(encoding="utf-8"))))
         missing = [c for c in header if f"rpc/{name}.{c}" not in RE.RPC_PROVENANCE]

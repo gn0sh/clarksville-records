@@ -14,8 +14,10 @@ what the pages hold back):
   no pages of their own on this site, so there is no official id to resolve them to).
 - Every case and motion row carries `source_url`, `source_sha256`, `page` and `fetched_at` of the document that prints
   it. A meeting row names the listing page it was taken from and its agenda and minutes files.
-- The reader's reasons for not confirming a motion, and every value of an unconfirmed motion, are in internal builds
-  only (`internal`), which export every motion with `confirmed` and `reasons`.
+- The reader's reasons for not confirming a motion, and every value of an unconfirmed motion, are in an internal
+  export only (`internal`), which writes every motion with `confirmed` and `reasons` beside the site, never in it
+  (`internal_dir`, build/internal-data/<slug>/). data/<slug>/ holds the public files in every build, and nothing
+  else: the export removes any file there it did not write.
 - Order by date and id or printed order only.
 """
 from __future__ import annotations
@@ -231,17 +233,38 @@ def rpc_dir(rpx) -> str:
     return rpx.slug
 
 
-def export_rpc(rpx, out_dir: Path, internal: bool = False) -> list[Path]:
-    """The RPC's files into <out_dir>/data/<slug>/. `rpx`: the pages' own view of the RPC facts (sitegen.rpc.Rpc)."""
-    data_dir = Path(out_dir) / "data" / rpc_dir(rpx)
-    data_dir.mkdir(parents=True, exist_ok=True)
-    pub = public_facts(rpx, internal)
-    written = []
-    p = data_dir / "facts.json"
+def internal_dir(rpx, out_dir: Path) -> Path:
+    """Where an internal export puts every motion with the reader's checks: beside the site, never in it
+    (<out_dir>/../internal-data/<slug>/, e.g. build/internal-data/rpc/, as build/rpc-motions-audit.jsonl), so no
+    build ever ships it and no public build is left with it at the public names."""
+    return Path(out_dir).resolve().parent / "internal-data" / rpc_dir(rpx)
+
+
+def _write(pub: dict, d: Path, internal: bool) -> list[Path]:
+    d.mkdir(parents=True, exist_ok=True)
+    p = d / "facts.json"
     p.write_text(json.dumps(pub, indent=2, sort_keys=True, ensure_ascii=False) + "\n", encoding="utf-8")
-    written.append(p)
+    written = [p]
     for name, text in tables(pub, internal).items():
-        p = data_dir / f"{name}.csv"
+        p = d / f"{name}.csv"
         p.write_text(text, encoding="utf-8")
         written.append(p)
+    return written
+
+
+def export_rpc(rpx, out_dir: Path, internal: bool = False) -> list[Path]:
+    """The RPC's public files into <out_dir>/data/<slug>/, in every build, and any other file there (an earlier
+    export's) removed; `internal` also writes every motion with `confirmed` and `reasons` to `internal_dir`, outside
+    the site. `rpx`: the pages' own view of the RPC facts (sitegen.rpc.Rpc)."""
+    data_dir = Path(out_dir) / "data" / rpc_dir(rpx)
+    written = _write(public_facts(rpx), data_dir, False)
+    keep = set(written)
+    for p in sorted(data_dir.rglob("*"), reverse=True):     # deepest first, so an emptied folder goes too
+        if p.is_dir():
+            if not any(p.iterdir()):
+                p.rmdir()
+        elif p not in keep:
+            p.unlink()
+    if internal:
+        written += _write(public_facts(rpx, internal=True), internal_dir(rpx, out_dir), True)
     return written
