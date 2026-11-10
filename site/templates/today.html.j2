@@ -43,7 +43,7 @@
   {% elif c.state == "agenda" %}
   <p class="day-none">The agenda is linked above. Its items are not read on this site, and no votes are shown until the minutes are read.</p>
   {% elif c.state == "scheduled" %}
-  <p class="day-none">On the city's meeting calendar. No agenda was posted when the calendar was last read.</p>
+  <p class="day-none">On the city's calendar as of {{ c.built_text }}{% if c.cal_title %}: <span data-item-title>{{ c.cal_title }}</span>{% endif %}. {% if c.agenda_url %}<a href="{{ c.agenda_url }}" target="_blank" rel="noopener noreferrer">Agenda<span class="sr-only"> (opens in a new tab)</span></a>.{% else %}No agenda posted.{% endif %}</p>
   {% elif c.state == "bids" %}
   <ul class="day-items">
     {% for s in c.sols %}
@@ -97,7 +97,7 @@
     <h2 id="day-bodies-h">What this page holds</h2>
     <ul class="day-cover">
       {% for b in coverage %}
-      <li><strong>{{ b.body }}.</strong> {{ b.what }} On this page: {{ b.n }}.</li>
+      <li><strong>{{ b.body }}.</strong> {{ b.what }} On this page: {{ b.n }} {{ b.get("unit", "meeting") }}{{ "" if b.n == 1 else "s" }}.</li>
       {% endfor %}
       {% if school %}
       <li class="day-coming"><strong>{{ school.label }}.</strong> <span class="chip chip-coming">Coming</span> Its meetings are not collected yet, so none are shown here. <a data-ext="school" href="{{ school.url }}" target="_blank" rel="noopener noreferrer">{{ school.link_label }}<span class="sr-only"> (opens in a new tab)</span></a>.</li>

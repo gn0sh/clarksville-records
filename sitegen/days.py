@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -124,9 +125,15 @@ def council_card(cix, m: dict) -> dict:
             "record": rec}
 
 
-def scheduled_cards(cix, start: date, end: date) -> list[tuple[str, dict]]:
+_CALLED_OFF = re.compile(r"moved|cancell?ed|postponed", re.I)
+
+
+def scheduled_cards(cix, start: date, end: date, today: date | None = None) -> list[tuple[str, dict]]:
     """Meetings on the city's calendar (council.yml `calendar`) in the window that the facts file does not hold yet:
-    the calendar's own title and date only, linked to the council's record page. One card per date and kind."""
+    the calendar's own title and date only, linked to the agenda when the calendar has one, else to the council's
+    record page. One card per date and kind. Rows before the build day, or whose title says moved, cancelled or
+    postponed, are not shown, and rows without a date or kind are skipped."""
+    today = today or today_in_zone()
     path = cix.cfg.get("calendar")
     if not path or cix.fixture or not views.https_url(cix.cfg.get("record_url")):
         return []
@@ -137,14 +144,17 @@ def scheduled_cards(cix, start: date, end: date) -> list[tuple[str, dict]]:
     seen, out = set(), []
     for row in sorted(json.loads(p.read_text(encoding="utf-8")), key=lambda r: (r.get("date") or "", r.get("kind") or "")):
         key = (row.get("date"), row.get("kind"))
-        if not _in(row.get("date"), start, end) or key in held or key in seen:
+        if not all(key) or row["date"] < today.isoformat() or _CALLED_OFF.search(row.get("title") or ""):
+            continue
+        if not _in(row["date"], start, end) or key in held or key in seen:
             continue
         seen.add(key)
         out.append((row["date"], {
             "kind": "council", "dot": DOTS["council"], "id": f"{cix.slug}-{row['date']}-{row['kind']}-scheduled",
             "body": cix.body_name, "title": cix.kind_labels.get(row["kind"], row["kind"]), "href": None,
             "docs": [], "video": None, "votes": [], "state": "scheduled", "cases": [], "sols": [],
-            "minutes_note": None,
+            "minutes_note": None, "cal_title": row.get("title") or "", "agenda_url": row.get("agenda_url") or "",
+            "built_text": date_text(today),
             "record": {"url": cix.cfg["record_url"], "label": cix.cfg["record_label"], "ext": True}}))
     return out
 
@@ -192,7 +202,7 @@ def _coverage(ix, cixs, rpx, fx, start: date, end: date, counts: dict) -> list[d
     if fx is not None:
         dated = sorted(s["archive_date"] for s in fx.fin["solicitations"] if s.get("archive_date"))
         if dated:
-            out.append({"body": config.FIN_TEXT["contracts"]["title"], "n": counts["bids"],
+            out.append({"body": config.FIN_TEXT["contracts"]["title"], "n": counts["bids"], "unit": "bid listing",
                         "what": f"Solicitations on the dates the purchasing archive prints, {dated[0]} to "
                                 f"{dated[-1]}. Budget books are by fiscal year, not by day, so they are on the "
                                 f"Finance page."})
@@ -213,7 +223,7 @@ def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None)
             if _in(m["date"], start, end):
                 by_day[m["date"]].append(council_card(c, m))
                 counts[c.slug] += 1
-        for d, card in scheduled_cards(c, start, end):
+        for d, card in scheduled_cards(c, start, end, today):
             by_day[d].append(card)
             counts[c.slug] += 1
     if rpx is not None:

@@ -193,11 +193,58 @@ def test_scheduled_meetings_come_from_the_city_calendar_once_per_date_and_kind(t
     cix = SimpleNamespace(cfg={"calendar": str(cal), "record_url": "https://example.gov/portal", "record_label": "portal"},
                           fixture=False, slug="city", body_name="A council", kind_labels={"regular": "Regular session"},
                           facts={"meetings": [{"date": "2026-11-05", "kind": "regular"}]})
-    got = days.scheduled_cards(cix, date(2026, 10, 11), date(2026, 12, 12))
+    got = days.scheduled_cards(cix, date(2026, 10, 11), date(2026, 12, 12), date(2026, 11, 10))
     assert [(d, c["state"], c["title"]) for d, c in got] == [("2026-12-03", "scheduled", "Regular session")]
     assert got[0][1]["record"]["url"] == "https://example.gov/portal"
     assert days.scheduled_cards(SimpleNamespace(**{**vars(cix), "fixture": True}), date(2026, 10, 11),
-                                date(2026, 12, 12)) == []
+                                date(2026, 12, 12), date(2026, 11, 10)) == []
+
+
+def jinja_card(c: dict) -> str:
+    from sitegen.build import make_env
+    src = (config.TEMPLATE_DIR / "today.html.j2").read_text(encoding="utf-8")      # the card macro, without the page shell
+    head = "".join(ln + "\n" for ln in src.splitlines()[:3] if ln.startswith("{% from"))
+    macro = src[src.index("{% macro card"):src.index("{% endmacro %}") + len("{% endmacro %}")]
+    return make_env().from_string(head + macro + "{{ card(c) }}").render(c={"cancelled": False, **c}, root="")
+
+
+def _sched(tmp_path, rows):
+    cal = tmp_path / "calendar.json"
+    cal.write_text(json.dumps(rows), encoding="utf-8")
+    return SimpleNamespace(cfg={"calendar": str(cal), "record_url": "https://example.gov/portal", "record_label": "portal"},
+                           fixture=False, slug="city", body_name="A council", kind_labels={"regular": "Regular session"},
+                           facts={"meetings": []})
+
+
+def test_scheduled_drops_rows_before_the_build_day_and_called_off_titles(tmp_path):
+    rows = [{"date": "2026-11-09", "kind": "regular", "title": "Regular Session"},                  # before build day
+            {"date": "2026-11-12", "kind": "regular", "title": "(Meeting moved to June 20th)"},
+            {"date": "2026-11-13", "kind": "regular", "title": "CANCELLED - Regular Session"},
+            {"date": "2026-11-14", "kind": "regular", "title": "Canceled Session"},
+            {"date": "2026-11-15", "kind": "regular", "title": "Postponed: Regular Session"},
+            {"date": "2026-11-10", "kind": "regular", "title": "Regular Session"}]
+    got = days.scheduled_cards(_sched(tmp_path, rows), date(2026, 11, 1), date(2026, 12, 12), date(2026, 11, 10))
+    assert [d for d, _ in got] == ["2026-11-10"]
+
+
+def test_scheduled_card_shows_the_printed_title_the_built_date_and_the_agenda_or_none(tmp_path):
+    rows = [{"date": "2026-11-12", "kind": "regular", "title": "Regular Session & Work Sess.", "agenda_url": ""},
+            {"date": "2026-11-13", "kind": "regular", "title": "Regular Session",
+             "agenda_url": "https://example.gov/a.pdf"},
+            {"date": "2026-11-14", "kind": "regular", "title": "Regular Session", "agenda_url": None}]
+    got = days.scheduled_cards(_sched(tmp_path, rows), date(2026, 11, 1), date(2026, 12, 12), date(2026, 11, 10))
+    html = [jinja_card(c) for _, c in got]
+    assert 'data-item-title>Regular Session &amp; Work Sess.</span>' in html[0]
+    assert all("On the city's calendar as of " + days.date_text(date(2026, 11, 10)) in h for h in html)
+    assert "No agenda posted" in html[0] and "No agenda posted" in html[2]
+    assert 'href="https://example.gov/a.pdf"' in html[1] and "No agenda posted" not in html[1]
+
+
+def test_scheduled_skips_rows_without_a_date_or_kind(tmp_path):
+    rows = [{"kind": "regular", "title": "x"}, {"date": "2026-11-12", "title": "x"},
+            {"date": None, "kind": None}, {"date": "2026-11-12", "kind": "regular", "title": "ok"}]
+    got = days.scheduled_cards(_sched(tmp_path, rows), date(2026, 11, 1), date(2026, 12, 12), date(2026, 11, 10))
+    assert [d for d, _ in got] == ["2026-11-12"]
 
 
 def test_rpc_cards_list_each_case_as_printed_with_its_agenda_page(tmp_path):
@@ -248,11 +295,17 @@ def test_days_js_picks_the_day_in_the_site_zone():
             "d.pick('#d-2026-11-05','2026-11-10','2026-10-11','2026-12-12',()=>true),"
             "d.pick('#d-2030-01-01','2026-11-10','2026-10-11','2026-12-12',()=>false),"
             "d.pick('','2027-01-20','2026-10-11','2026-12-12',()=>true),"
-            "d.addDays('2026-10-31',7)]))")
+            "d.addDays('2026-10-31',7),"
+            "d.isoInZone(new Date('2026-03-08T05:30:00Z'),'America/Chicago'),"   # before the spring jump: still 03-07 (CST)
+            "d.isoInZone(new Date('2026-03-08T06:30:00Z'),'America/Chicago'),"   # 00:30 CST on 03-08
+            "d.isoInZone(new Date('2026-11-01T05:30:00Z'),'America/Chicago'),"   # 00:30 CDT on 11-01
+            "d.isoInZone(new Date('2026-11-01T06:30:00Z'),'America/Chicago'),"   # 01:30 CDT on 11-01
+            "d.isoInZone(new Date('2027-01-01T05:30:00Z'),'America/Chicago')]))")
     r = subprocess.run(["node", "-e", prog], capture_output=True, text=True, timeout=60)
     assert r.returncode == 0, r.stderr
     assert json.loads(r.stdout) == ["2026-11-09", "2026-11-10", "2026-11-05", "2026-11-10", "2026-12-12",
-                                    "2026-11-07"]
+                                    "2026-11-07", "2026-03-07", "2026-03-08", "2026-11-01", "2026-11-01",
+                                    "2026-12-31"]
 
 
 def _browser_ok():
