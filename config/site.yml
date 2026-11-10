@@ -89,6 +89,7 @@ morning_note:
     preview_mine: The lists you pick stay in this page's address on this device; nothing is sent.
     quiet: Nothing new on your list. On a day like this no note is sent.
     unplaced: "{n} zoning cases printed no district or ward:"
+    unplaced_one: "1 zoning case printed no district or ward:"
     unplaced_link: follow every zoning case
     source_label: Source
     page_label: page

@@ -859,6 +859,48 @@ ul.feed-list a { font-weight: 600; }
 .feed-about { display: block; color: var(--muted); font-size: var(--t-sm); margin-top: 2px; }
 .feed-url { display: block; margin-top: 4px; }
 ol.alert-steps { max-width: 44rem; }
+ul.feed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr)); gap: 0 24px; max-width: 64rem; }
+
+/* Morning note (Daylight M3, sitegen/morning_page.py, static/morning.js): the mock's blue "Get the morning note" card
+   on the Alerts page, and the preview page's entries. The list picks are pill checkboxes, a real <input> under each
+   label (keyboard: Tab to a pill, Space toggles it). On the blue card the ring is white, not the sun (the sun on
+   Digital blue is under 3:1). */
+.mn-card { background: var(--blue); color: var(--on-blue); border-radius: 18px; padding: clamp(18px, 3.2vw, 30px); display: grid; gap: 14px; max-width: 44rem; margin: 1.2em 0 1.6em; min-width: 0; }
+.mn-card h2 { margin: 0; font-size: var(--t-xl); font-weight: 800; color: var(--on-blue); }
+.mn-card h3 { margin: 0 0 6px; font-size: var(--t-md); color: var(--on-blue); }
+.mn-card p { margin: 0; }
+.mn-card .small { color: var(--on-blue); opacity: .92; font-size: var(--t-sm); }
+.mn-card a, .mn-card a:visited { color: var(--on-blue); text-decoration: underline; text-underline-offset: 3px; }
+.mn-card a:focus-visible, .mn-card input:focus-visible + span, .mn-card button:focus-visible, .mn-card input:focus-visible { outline: 3px solid var(--on-blue); outline-offset: 3px; }
+.mn-picker { border: 0; margin: 0; padding: 0; display: flex; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.mn-picker legend { font-weight: 600; font-size: var(--t-sm); padding: 0; margin-bottom: 8px; }
+.pick { position: relative; }
+.pick input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; width: 100%; height: 100%; }
+.pick span { display: block; padding: 7px 13px; min-height: 24px; border-radius: 999px; border: 2px solid var(--blue); color: var(--link); font-weight: 600; font-size: var(--t-sm); }
+.pick input:checked + span { background: var(--blue); color: var(--on-blue); }
+.pick input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
+.mn-card .pick span { border-color: var(--on-blue); color: var(--on-blue); }
+.mn-card .pick input:checked + span { background: var(--on-blue); color: #2B4BA5; }
+.mn-card label.f { font-weight: 600; font-size: var(--t-sm); display: grid; gap: 6px; }
+.mn-card input[type=email] { font: inherit; padding: 13px 14px; border-radius: 12px; border: 0; background: #FFFFFF; color: #141A2E; width: 100%; box-sizing: border-box; }
+.mn-card .btn { font: inherit; font-weight: 700; border: 0; border-radius: 999px; padding: 12px 20px; background: var(--sun); color: #1A0B05; cursor: pointer; justify-self: start; }
+.mn-state { font-size: var(--t-md); }
+.mn-panel { border-top: 1px solid rgba(255, 255, 255, .35); padding-top: 12px; min-width: 0; }
+.mn-lists, .mn-feeds { list-style: none; margin: 0; padding: 0; }
+.mn-lists > li { padding: 6px 0; overflow-wrap: anywhere; }
+.mn-list-label { font-weight: 700; }
+.mn-feeds > li { margin: 4px 0 0 0; }
+.mn-hint, .mn-none { font-size: var(--t-sm); margin: 4px 0 0; }
+.mn-preview-page { max-width: 44rem; display: grid; gap: 12px; min-width: 0; }
+.mn-preview-page .mn-hint { color: var(--muted); }
+ol.mn-entries { list-style: none; margin: 0; padding: 0; border-top: 2px solid var(--fg); }
+.mn-entry { padding: 12px 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.mn-entry p { margin: 0; }
+.mn-meta { font-size: var(--t-sm); color: var(--muted); }
+.mn-title { margin-top: 4px; font-weight: 600; }
+.mn-src { margin-top: 4px; font-size: var(--t-sm); }
+.mn-quiet { color: var(--muted); }
+.mn-picker[hidden], .mn-card [hidden], .mn-preview-page [hidden] { display: none; }
 
 /* Meeting transcripts (sitegen/transcripts.py): one line per segment, its time linked to the video. */
 .transcript-notice { max-width: 44rem; padding: 8px 12px; border: 1px solid var(--border); background: var(--surface); }

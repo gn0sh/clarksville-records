@@ -15,6 +15,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from . import county_agendas as agendas_mod
 from . import rpc as rpc_mod
+from . import morning as morning_mod, morning_page
 from . import budget_views, config, council as council_mod, days as days_mod, feeds as feeds_mod, fin_views, \
     georef as georef_mod, \
     transcripts as transcripts_mod, \
@@ -180,7 +181,7 @@ def _clean(out: Path, extra_dirs=()) -> None:
     for p in out.glob("*.html"):
         p.unlink()
     for d in ("officials", "meetings", "items", "static", "districts", "votes", "contracts", "finance", "capital",
-              feeds_mod.FOLDER, *extra_dirs):
+              feeds_mod.FOLDER, "morning", *extra_dirs):
         shutil.rmtree(out / d, ignore_errors=True)
 
 
@@ -322,7 +323,7 @@ REPORT_TEMPLATES = frozenset({
     "official_roster.html.j2", "district.html.j2", "council_home.html.j2", "council_meetings_year.html.j2",
     "council_items_year.html.j2", "fin_index.html.j2", "fin_fund.html.j2", "fin_capital.html.j2",
     "fin_contracts_index.html.j2", "fin_solicitation.html.j2", "transcript.html.j2", "rpc_home.html.j2",
-    "rpc_meetings_year.html.j2", "today.html.j2", "county_agendas.html.j2"})
+    "rpc_meetings_year.html.j2", "today.html.j2", "county_agendas.html.j2", "morning.html.j2"})
 
 
 def corrections_problems(cfg: dict) -> list[str]:
@@ -664,7 +665,15 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     render("changes.html.j2", "changes.html", "Changes", **views.changes(read_changes(changes_path)))
     render("report.html.j2", "report.html", "Report an error", **views.report_page())
     if site["alerts"]:   # Alerts v1 (sitegen/feeds.py): written last, when every item and meeting link knows its part
-        render("alerts.html.j2", feeds_mod.PAGE, "Alerts", **feeds_mod.alerts_page(cixs))
+        feed_rows = feeds_mod.feed_list(cixs)
+        alerts_ctx = feeds_mod.alerts_page(cixs)
+        alerts_ctx.setdefault("seat_feeds", [f for f in feed_rows if f.get("kind") == "zoning-seat"])
+        alerts_ctx.update(morning_page.alerts_context(feed_rows))   # the morning note's #note section (M3 T3)
+        render("alerts.html.j2", feeds_mod.PAGE, "Alerts", **alerts_ctx)
+        if morning_page.on():   # the preview page: today's note as it would read (T1 writes the JSON beside it)
+            note_day = morning_mod.day(built_day, ix=ix, councils=cixs, rpc=rpx, finance=fx)
+            render("morning.html.j2", morning_page.PAGE, morning_page.title(),
+                   **morning_page.preview(note_day, feed_rows))
         for rel, body in feeds_mod.build_feeds(ix, cixs).items():
             (out / rel).parent.mkdir(parents=True, exist_ok=True)
             (out / rel).write_bytes(body)
