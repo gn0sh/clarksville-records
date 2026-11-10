@@ -27,10 +27,12 @@ Confirmed (written rule, docs/architecture/rpc-motion-invariant.md C1-C5; anythi
 values held back as for the county's roll calls). Every value is read from the minutes' own words and nothing in the
 motion's sentences is left unexplained; any doubt is a reason, in plain words, in `reasons` (never shown publicly):
 1. (C1) the motion's case, if any, is a heading read on its own line (a loosely printed heading the reader cannot
-   read, "CASE NUMBFR", "C ASE NUMRER", starts a section of its own whose motions are not confirmed, so they never
-   fall into the case before it), the case is on the same meeting's agenda (collector/rpc_agenda.py), its section
-   appears once in the minutes, it is the only disposing motion in that section (the meeting's business, CASE_KINDS
-   aside) and the motion's sentences name no other case number. A motion with no case is the meeting's own business
+   read, "CASE NUMBFR", "C ASE NUMRER", or near a line's start "GASE NUMBER", "Case Numbr", "CASE NO.", "CASE #",
+   starts a section of its own whose motions are not confirmed, so they never fall into the case before it), the
+   case is on the same meeting's agenda (collector/rpc_agenda.py), its section appears once in the minutes, it is the
+   only disposing motion in that section (the meeting's business, CASE_KINDS aside), the motion's sentences name no
+   other case number, and the section's text, anywhere, prints no other case on the meeting's agenda (a heading the
+   reader missed may have merged two cases' sections). A motion with no case is the meeting's own business
    only (MEETING_BUSINESS: the minutes, electing, adjourning, the consent agenda, the deferrals and withdrawals list),
    before the first case or after an "OTHER BUSINESS" / "PUBLIC COMMENT" / "ADJOURN" heading; any other motion with
    no case is "subject not read";
@@ -159,21 +161,31 @@ LEFTOVER_VOTE = re.compile(r"\bna[yv]s?\b|against|oppos|dissent|recus|did\s+not\
                            r"|not\s+in\s+favou?r|not\s+support|negative|object|disagree|refrain"
                            r"|conflict\s+of\s+interest|\bayes?\b|\bnoes\b"
                            r"|(?<![\w-])\d{1,2}\s*(?:-|to)\s*\d{1,2}(?![\w-])", re.I)
-# rule 1: a case heading printed too loosely for CASE_HEAD to read ("CASE NUMBFR", "C ASE NUMRER")
-LOOSE_HEAD = re.compile(r"C\s*A\s*S\s*E\s+N\S{3,6}R")
+# rule 1: a case heading printed too loosely for CASE_HEAD to read: "CASE NUMBFR", "C ASE NUMRER" anywhere on the
+# line, or near the line's start (after an item number) a mangled CASE word, any case, then N... / NO / #:
+# "GASE NUMBER", "CASF NUMBER", "Case Numbr", "CASE NO.", "CASE #"
+LOOSE_HEAD = re.compile(r"C\s*A\s*S\s*E\s+N\S{3,6}R"
+                        r"|^\W{0,4}(?:[\[(]?(?:\d{1,3}|[A-Za-z])\s*[.,)]\s*)?"
+                        r"(?i:[CG]\s*[A4]\s*[S5$§]\s*[EF]\s*(?:N\S{0,6}|#))")
 # rule 1: a case number in the motion's own sentences
 CASE_IN_TEXT = re.compile(r"\b[A-Z]{1,4}\s*-\s*[0-9OIl|]{1,3}[A-Z]?\s*-\s*(?:19|20)\d\d\b")
+# rule 1: a case number anywhere in a case section's text, its prefix as printed (read_number repairs a misread
+# prefix only onto the meeting's agenda)
+CASE_TOKEN = re.compile(r"(?<![A-Za-z0-9§$|])(?P<pre>[A-Za-z0-9§$|]{1,5})\s*-\s*(?P<n>[0-9OIl|]{1,3}[A-Z]?)\s*-\s*"
+                        r"(?P<y>(?:19|20)\s?\d\s?\d)(?!\d)")
 # the reasons that are doubts about the motion's case (C1): a motion with one of them is placed under no case
 WHY_HEAD = "case heading not read"
 WHY_NUMBER = "case number not read"
 WHY_TWO = "more than one motion on one case section"
 WHY_REPEATED = "case section repeated"
 WHY_OTHER_CASE = "the motion's sentences name another case number"
+WHY_SECTION_OTHER_CASE = "the case section prints another case on this meeting's agenda"
 WHY_OFF_AGENDA = "case number not on this meeting's agenda"       # collector/rpc_agenda.read_all_minutes
 WHY_SUBJECT = "subject not read"
 WHY_VOTE_WORD = "unmodelled wording: a vote word the reader does not read"
 WHY_NAY_IS_MOVER = "a member named as voting nay is the mover or seconder"
-CASE_REASONS = frozenset({WHY_HEAD, WHY_NUMBER, WHY_TWO, WHY_REPEATED, WHY_OTHER_CASE, WHY_OFF_AGENDA, WHY_SUBJECT})
+CASE_REASONS = frozenset({WHY_HEAD, WHY_NUMBER, WHY_TWO, WHY_REPEATED, WHY_OTHER_CASE, WHY_SECTION_OTHER_CASE,
+                          WHY_OFF_AGENDA, WHY_SUBJECT})
 PARA_MAX = 900          # characters a motion's sentences may span before its outcome
 # The rules this reader applies (docs/architecture/rpc-motion-invariant.md). rpc_agenda.build writes it into rpc.json
 # as `motion_rules`; sitegen/rpc.py and qa/site_checks.py restate it and show every motion of a record without it as
@@ -273,6 +285,13 @@ def read_number(rest: str, agenda: set[str], prefixes: set[str]) -> tuple[str | 
         fixed = pre.lstrip("§$|!'‘")
     c = link_key(f"{fixed}-{n}-{y}") if fixed else None
     return (c, printed) if c and c in agenda else (None, printed)
+
+
+def other_cases(text: str, agenda: set[str], prefixes: set[str]) -> list[str | None]:
+    """Every case number printed in `text`, each read by read_number (a misread prefix repaired only onto the
+    agenda; None when it is not read)."""
+    return [read_number(f"{x.group('pre')}-{x.group('n')}-{x.group('y')}", agenda, prefixes)[0]
+            for x in CASE_TOKEN.finditer(text)]
 
 
 def link_key(number: str) -> str | None:
@@ -545,6 +564,10 @@ def read_minutes(pages: list[str], agenda: set[str], prefixes: set[str], roster=
                 doubts.append(WHY_REPEATED)     # the same case number heads two sections
             if sum(1 for mv in got if mv.kind not in MEETING_BUSINESS) > 1:
                 doubts.append(WHY_TWO)          # no "modelled sequence" exception: any doubt
+            # another case on this meeting's agenda printed anywhere in the section (not only in a motion's
+            # sentences): a heading the reader missed may have merged two cases' sections
+            if any(c and c in agenda and c != num for c in other_cases(text, agenda, prefixes)):
+                doubts.append(WHY_SECTION_OTHER_CASE)
             for mv in got:
                 mv.reasons += [d for d in doubts if d not in mv.reasons]
         motions += got

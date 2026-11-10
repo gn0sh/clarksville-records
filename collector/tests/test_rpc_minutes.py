@@ -319,6 +319,54 @@ def test_a_mangled_case_heading_starts_its_own_section(mangled):
     assert (r.case_heads_printed, r.case_heads_read) == (3, 2)
 
 
+def _read_on(text: str, agenda: set[str]):
+    page = ("Members Present          Others Present\n" + "\n".join(
+        ("Wade Hadley", "Bryce Powers", "Stacey Streetman", "Bill Kimbrough", "Michael Long"))
+        + "\nMeeting was called to order.\n" + text)
+    return R.read_minutes([page], agenda, PREFIXES)
+
+
+NEXT = "Mrs. Streetman made the motion for approval. Mr. Long seconded. Motion passed.\n"
+
+
+# code review 5769870 finding 3 (rpc-motion/c1-case-heading): under Z-5-2026, with Z-6-2026 on the agenda, a section
+# with no motion of its own, then a heading with a mangled CASE word: the next motion was confirmed under Z-5-2026
+@pytest.mark.parametrize("mangled", ["GASE NUMBER: Z-6-2026", "CASF NUMBER: Z-6-2026", "Case Numbr: Z-6-2026",
+                                     "CASE NO. Z-6-2026", "CASE #: Z-6-2026", "2. GASE NUMBER: Z-6-2026"])
+def test_a_mangled_case_word_starts_its_own_section(mangled):
+    r = _read_on(f"CASE NUMBER: Z-5-2026\nStaff presented the request. No one spoke.\n{mangled}\n{NEXT}",
+                 {"Z-5-2026", "Z-6-2026"})
+    (m,) = r.motions
+    assert m.case is None and not m.confirmed and R.WHY_HEAD in m.reasons, (m.case, m.reasons)
+    assert (r.case_heads_printed, r.case_heads_read) == (2, 1)
+
+
+def test_another_agenda_case_printed_in_a_case_section_unconfirms_its_motions():
+    """The robust guard: a heading no pattern reads ("The next item, Z-6-2026, ..."), so the section of Z-5-2026
+    runs on; the other agenda case printed in it, outside the motion's own sentences, unconfirms the section."""
+    for printed in ("Z-6-2026", "Z - 06 - 2026", "2-6-2026"):         # as printed, zero padded, Z read as 2
+        r = _read_on(f"CASE NUMBER: Z-5-2026\nStaff presented the request.\nThe next item, {printed}, was "
+                     f"presented by staff.\n{NEXT}", {"Z-5-2026", "Z-6-2026"})
+        (m,) = r.motions
+        assert m.case == "Z-5-2026" and not m.confirmed and R.WHY_SECTION_OTHER_CASE in m.reasons, (printed, m.reasons)
+        assert R.WHY_SECTION_OTHER_CASE in R.CASE_REASONS     # rpc_agenda places it under no case
+
+
+def test_a_case_section_naming_only_its_own_case_or_an_old_case_stays_confirmed():
+    r = _read_on(f"CASE NUMBER: Z-5-2026\nStaff said Z-05-2026 follows an earlier rezoning, Z-3-2015.\n{NEXT}",
+                 {"Z-5-2026", "Z-6-2026"})
+    (m,) = r.motions
+    assert m.case == "Z-5-2026" and m.confirmed, m.reasons
+
+
+@pytest.mark.parametrize("line,loose", [("Mr. Long asked about the case number of the request.", False),
+                                        ("asked for the Case No. of the request.", False),
+                                        # near a line's start it counts (any doubt): the section after it is unread
+                                        ("Case not heard by the board tonight, said staff.", True)])
+def test_the_loose_case_word_reads_near_a_line_start_only(line, loose):
+    assert bool(R.LOOSE_HEAD.search(R._clean(line))) is loose
+
+
 def test_two_disposing_motions_on_one_case_section_are_both_unconfirmed():
     ms = _case(f"{MOVED}Motion passed. Mrs. Streetman made the motion for approval. Mr. Long seconded. Motion passed.")
     assert len(ms) == 2 and all(not m.confirmed and R.WHY_TWO in m.reasons for m in ms)
