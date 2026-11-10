@@ -82,7 +82,8 @@ Done when tests show: a quiet day and a backfill day give `send: false` and no e
 schema or a note for another date exits 2; a signature with an empty selection is absent from `signatures`; two
 signatures with the same entries share one edition and two with different entries do not; every signature's edition
 holds exactly `select()`'s ids for it (checked over all 4,290 on the fixture); two runs give byte-identical output;
-more than `max_editions` exits 2; the module imports nothing that can open a connection (a test greps `sender/plan.py`
+a plan over `MAX_PLAN_BYTES` exits 2 (as built: `max_editions` is the deliver stage's, over editions with a
+recipient; a disabled sender's rehearsal prints the error and exits 0); the module imports nothing that can open a connection (a test greps `sender/plan.py`
 and `render.py` for `urllib`, `socket`, `http`, `requests`, `subprocess`).
 
 ### T4.2 Renderer (`sender/render.py`, `tests/test_morning_sender_render.py`)
@@ -147,8 +148,11 @@ On a test newsletter, answer each "assumed" row of the architecture's table and 
 those subscribers; which `status` sends at once and does `scheduled` + `publish_date` hold until then; is
 `send-draft` with `subscribers` a real send with the unsubscribe link; does a metadata update keep other keys; does
 the email list return `metadata` and in what order; is `{{ }}` in a body evaluated; does the form's double opt-in
-apply; does a re-submit by an existing subscriber update their lists; which features need the paid add-on. Then set
-`sender.mode`. If neither mode passes, stop and return to the architect.
+apply; does a re-submit by an existing subscriber update their lists; which features need the paid add-on; and
+(audience/stamp-self-set) **the public form must not accept `metadata__note_edition` or `metadata__canary`**: post
+each to the embed form from a team address and confirm the subscriber's metadata does not get it. If it does, `stamp`
+mode is unsafe (deliver also stops on a stray stamp, but the form must not offer the field). Then set `sender.mode`.
+If neither mode passes, stop and return to the architect.
 
 ### T4.8 Security review
 Fresh review at the T4.5 commit against the nine threat points in the architecture. The workflow job does not merge

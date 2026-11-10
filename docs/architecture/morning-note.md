@@ -319,6 +319,10 @@ morning_note:
   refuse it). The From name is the provider account's setting: the site name only, set at go-live (T4.7).
 - **Canary ids come from the environment** (`MORNING_NOTE_CANARY_IDS`; review `audience/canary-self-set`), not
   from subscriber metadata, which any subscriber can set through the form. No id is in the repository.
+- **A stray stamp stops a `stamp` run** (review `audience/stamp-self-set`): the stamp value is computable from the
+  public note, so before any write the deliver stage exits 2 ("stray-stamp") if any confirmed subscriber holds a
+  `note_edition` naming today and is not in that edition's audience. The T4.0 probe also checks that the public form
+  does not accept `metadata__note_edition` or `metadata__canary`.
 - `--live` is refused by the command line until the provider adapter (`sender/buttondown.py`) exists and has had its
   security review.
 
@@ -387,7 +391,8 @@ From `docs/reviews/security-review-morning-2b4796b.md`:
    `form-action` origin (fix on the provider's side, never by widening the CSP).
 6. "Not checked: the sender job and API key": a fresh security review of T4 before the workflow job merges.
 Added by this design:
-7. T4.0 probe done on a test newsletter with team addresses only, and `sender.mode` set from it.
+7. T4.0 probe done on a test newsletter with team addresses only, and `sender.mode` set from it. It includes: the
+   public form does not accept `metadata__note_edition` or `metadata__canary` (audience/stamp-self-set).
 8. A scoped API key (not the primary key): email and sending write, subscribers write for `stamp` or read for `ids`,
    every other area none. Stored only as the `morning-note` environment secret.
 9. Sending domain DNS (SPF, DKIM) set by Brian; one canary week with `canary_only: true` before he widens it.

@@ -440,6 +440,34 @@ def test_a_subscriber_row_that_is_not_a_record_is_skipped(plan):
     assert deliver.recipient({"type": "regular", "id": "a", "metadata": "x"}, s).lists == ()
 
 
+def test_a_subscriber_holding_todays_stamp_outside_its_audience_stops_the_run(plan):
+    """audience/stamp-self-set: the stamp value is computable from the public note, so a stranger could set it on
+    themselves through the form and the provider's filter would mail them. Any regular subscriber holding a stamp
+    for today who is not in that edition's audience stops the run before any write."""
+    stamp = f"{DAY}.{key_for(plan, ['budget'])}"
+    stranger = sub(9, ["contracts"], note_edition=stamp)                   # picked contracts, stamped for budget
+    for rows, s in ((people(plan) + [stranger], settings()),
+                    ([sub(1, ["budget"]), sub(9, ["budget"], note_edition=stamp)],          # not a canary
+                     settings(canary_only=True)),
+                    (people(plan) + [sub(9, [], note_edition=f"{DAY}.ffffffffffff")], settings()),
+                    (people(plan) + [sub(9, ["budget"], note_edition=[stamp])], settings())):
+        fake = Fake(rows)
+        res, text = go(plan, fake, s=s, canary_ids=frozenset({"sub-0001-secret"}))
+        assert (res.code, res.status, res.editions) == (2, "stray-stamp", 0), text
+        assert fake.calls == ["emails", "subscribers"] and "sub-0009" not in text
+
+
+def test_stamps_from_an_earlier_run_of_the_same_plan_or_another_day_are_fine(plan):
+    fake = Fake(people(plan), fail={"create_email": [None, deliver.ProviderError("x")]})
+    assert go(plan, fake)[0].status == "failed"                             # stamped edition 1 and 2's people
+    fake.fail = {}
+    assert go(plan, fake)[0].status == "sent"                               # their stamps are in `to`: fine
+    old = sub(9, ["budget"], note_edition="2026-11-10.0123456789ab")         # yesterday's stamp
+    unconfirmed = sub(8, ["contracts"], type_="unactivated", note_edition=f"{DAY}.{key_for(plan, ['budget'])}")
+    assert go(plan, Fake(people(plan) + [old, unconfirmed]))[0].status == "sent"
+    assert go(plan, Fake(people(plan) + [unconfirmed]), s=settings(mode="ids"))[0].status == "sent"
+
+
 def test_a_subscriber_listed_twice_is_one_recipient(plan):
     row = sub(1, ["budget"])
     for mode in ("stamp", "ids"):

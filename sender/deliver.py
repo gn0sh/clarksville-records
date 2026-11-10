@@ -260,6 +260,22 @@ def _check_audience(mode: str, payload: dict, day: str, key: str) -> None:
         raise ProviderError("audience check")
 
 
+def _stray_stamp(everyone: list, by_key: dict, day: str) -> bool:
+    """audience/stamp-self-set: in `stamp` mode the provider mails whoever holds "<day>.<key>", and that value is
+    computable from the public note, so a subscriber could set it on themselves through the form. True when any
+    confirmed subscriber holds anything naming today in `note_edition` and is not in that edition's audience (a
+    stamp written by an earlier run of this plan always is)."""
+    members = {key: {m.id for m in to} for key, to in by_key.items()}
+    for r in everyone:
+        value = r.metadata.get("note_edition")
+        if value is None or day not in str(value):
+            continue
+        key = value[len(day) + 1:] if isinstance(value, str) and value.startswith(day + ".") else None
+        if r.id not in members.get(key, ()):
+            return True
+    return False
+
+
 def _check_echo(mode: str, payload: dict, stored) -> str:
     """audience/provider-echo: the email as the provider stored it decides who gets it, so it must carry exactly
     the status, claim metadata and (in `stamp` mode) filter deliver sent, and an `ids` draft no filter at all.
@@ -404,6 +420,7 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
                 audience.append(r)
         del seen
         del raw
+        everyone = list(audience)       # every confirmed subscriber, before the canary filter (stray-stamp check)
         if settings.canary_only:
             audience = [r for r in audience if r.id in canary_ids]
         if len(audience) > settings.max_recipients:
@@ -417,6 +434,10 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         # edition any shape could get), counted before the first write
         if len(by_key) > settings.max_editions:
             return end(2, "over-limit", why="more editions with a recipient than max_editions")
+        if settings.mode == "stamp" and _stray_stamp(everyone, by_key, day):
+            return end(2, "stray-stamp", why="a subscriber holds a stamp for today outside that edition's audience; "
+                                             "the provider's filter would mail them")
+        del everyone
         send_at = at(settings.send_at)
         publish = (send_at if now < send_at else now).astimezone(zone).isoformat(timespec="seconds")
         for ed in sorted(plan["editions"], key=lambda e: e["key"]):
