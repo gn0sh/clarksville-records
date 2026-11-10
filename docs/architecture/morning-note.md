@@ -247,7 +247,8 @@ Order of work for `deliver --live` (any failed check stops before the first writ
    - `stamp` (preferred): set each recipient's metadata `note_edition` to the stamp `"<D>.<key>.<mac>"` (as built; always writing back the whole
      metadata object, so district and ward survive), then create one email with `filters` = `subscriber.metadata.
      note_edition equals <stamp>`, `status: "scheduled"`, `publish_date` = `send_at` (as built: at least 5 minutes after
-     the run's clock), `archival_mode: "disabled"`, `metadata: {note_date, note_edition, note_sha256}`. A stamp from an
+     the clock, read per edition just before its email is created; past `latest_send`, exit 2 "late" and the rest
+     are not sent), `archival_mode: "disabled"`, `metadata: {note_date, note_edition, note_sha256}`. A stamp from an
      earlier day can never match, because the value carries the date. The email sits scheduled until 7:00, so a
      person can still delete it in the provider's dashboard.
    - `ids` (fallback): create the email as a draft with the same metadata, then `POST /v1/emails/{id}/send-draft` with
