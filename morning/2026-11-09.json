@@ -1,0 +1,41 @@
+{
+ "schema": "morning-note/1",
+ "date": "2026-11-09",
+ "window": {
+  "from": "2026-11-08T07:00-06:00",
+  "to": "2026-11-09T07:00-06:00"
+ },
+ "data_as_of": "2026-11-10",
+ "lists": [
+  {
+   "key": "zoning",
+   "label": "Zoning near me"
+  },
+  {
+   "key": "seats",
+   "label": "My two seats"
+  },
+  {
+   "key": "budget",
+   "label": "Budget"
+  },
+  {
+   "key": "contracts",
+   "label": "Contracts"
+  }
+ ],
+ "backfill": true,
+ "counts": {
+  "entries": 2255,
+  "lists": {
+   "zoning": 0,
+   "seats": 2163,
+   "budget": 217,
+   "contracts": 90
+  },
+  "unplaced_zoning": 0
+ },
+ "entries": [],
+ "unplaced_zoning": 0,
+ "unplaced_text": ""
+}

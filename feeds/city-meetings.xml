@@ -1,16 +1,16 @@
 <?xml version='1.0' encoding='utf-8'?>
 <feed xmlns="http://www.w3.org/2005/Atom">
-  <id>tag:records.gnoshcodes.com,2026-11-09:feeds/city-meetings</id>
-  <title>Clarksville Records: Clarksville City Council: new agendas and minutes</title>
+  <id>tag:daylight.gnoshcodes.com,2026-11-09:feeds/city-meetings</id>
+  <title>Daylight: Clarksville City Council: new agendas and minutes</title>
   <subtitle>Each agenda and each set of minutes when it is added to this site.</subtitle>
   <updated>2026-11-09T00:00:00Z</updated>
   <author>
-    <name>Clarksville Records</name>
+    <name>Daylight</name>
   </author>
   <link rel="self" type="application/atom+xml" href="city-meetings.xml" />
   <link rel="alternate" type="text/html" href="../alerts.html" />
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-11-05-regular/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-11-05-regular/agenda</id>
     <title>Agenda: 2026-11-05, regular session</title>
     <updated>2026-11-05T00:00:00Z</updated>
     <published>2026-11-05T00:00:00Z</published>
@@ -19,7 +19,7 @@
     <summary>Clarksville City Council, 2026-11-05, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-10-29-executive/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-10-29-executive/agenda</id>
     <title>Agenda: 2026-10-29, executive session</title>
     <updated>2026-10-29T00:00:00Z</updated>
     <published>2026-10-29T00:00:00Z</published>
@@ -28,7 +28,7 @@
     <summary>Clarksville City Council, 2026-10-29, executive session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-10-01-regular/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-10-01-regular/agenda</id>
     <title>Agenda: 2026-10-01, regular session</title>
     <updated>2026-10-01T00:00:00Z</updated>
     <published>2026-10-01T00:00:00Z</published>
@@ -37,7 +37,7 @@
     <summary>Clarksville City Council, 2026-10-01, regular session. Agenda (3 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-09-24-executive/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-09-24-executive/agenda</id>
     <title>Agenda: 2026-09-24, executive session</title>
     <updated>2026-09-24T00:00:00Z</updated>
     <published>2026-09-24T00:00:00Z</published>
@@ -46,7 +46,7 @@
     <summary>Clarksville City Council, 2026-09-24, executive session. Agenda (3 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-09-03-regular/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-09-03-regular/agenda</id>
     <title>Agenda: 2026-09-03, regular session</title>
     <updated>2026-09-03T00:00:00Z</updated>
     <published>2026-09-03T00:00:00Z</published>
@@ -55,7 +55,7 @@
     <summary>Clarksville City Council, 2026-09-03, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-08-27-executive/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-08-27-executive/agenda</id>
     <title>Agenda: 2026-08-27, executive session</title>
     <updated>2026-08-27T00:00:00Z</updated>
     <published>2026-08-27T00:00:00Z</published>
@@ -64,7 +64,7 @@
     <summary>Clarksville City Council, 2026-08-27, executive session. Agenda (3 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-08-06-regular/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-08-06-regular/agenda</id>
     <title>Agenda: 2026-08-06, regular session</title>
     <updated>2026-08-06T00:00:00Z</updated>
     <published>2026-08-06T00:00:00Z</published>
@@ -73,7 +73,7 @@
     <summary>Clarksville City Council, 2026-08-06, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-07-30-executive/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-07-30-executive/agenda</id>
     <title>Agenda: 2026-07-30, executive session</title>
     <updated>2026-07-30T00:00:00Z</updated>
     <published>2026-07-30T00:00:00Z</published>
@@ -82,7 +82,7 @@
     <summary>Clarksville City Council, 2026-07-30, executive session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-06-25-executive/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-06-25-executive/agenda</id>
     <title>Agenda: 2026-06-25, executive session</title>
     <updated>2026-06-25T00:00:00Z</updated>
     <published>2026-06-25T00:00:00Z</published>
@@ -91,7 +91,7 @@
     <summary>Clarksville City Council, 2026-06-25, executive session. Agenda (3 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-06-04-regular/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-06-04-regular/minutes</id>
     <title>Minutes: 2026-06-04, regular session</title>
     <updated>2026-06-04T00:00:00Z</updated>
     <published>2026-06-04T00:00:00Z</published>
@@ -100,7 +100,7 @@
     <summary>Clarksville City Council, 2026-06-04, regular session. Minutes (10 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-06-04-regular/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-06-04-regular/agenda</id>
     <title>Agenda: 2026-06-04, regular session</title>
     <updated>2026-06-04T00:00:00Z</updated>
     <published>2026-06-04T00:00:00Z</published>
@@ -109,7 +109,7 @@
     <summary>Clarksville City Council, 2026-06-04, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-05-28-executive/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-05-28-executive/agenda</id>
     <title>Agenda: 2026-05-28, executive session</title>
     <updated>2026-05-28T00:00:00Z</updated>
     <published>2026-05-28T00:00:00Z</published>
@@ -118,7 +118,7 @@
     <summary>Clarksville City Council, 2026-05-28, executive session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-05-07-regular/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-05-07-regular/minutes</id>
     <title>Minutes: 2026-05-07, regular session</title>
     <updated>2026-05-07T00:00:00Z</updated>
     <published>2026-05-07T00:00:00Z</published>
@@ -127,7 +127,7 @@
     <summary>Clarksville City Council, 2026-05-07, regular session. Minutes (9 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-05-07-regular/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-05-07-regular/agenda</id>
     <title>Agenda: 2026-05-07, regular session</title>
     <updated>2026-05-07T00:00:00Z</updated>
     <published>2026-05-07T00:00:00Z</published>
@@ -136,7 +136,7 @@
     <summary>Clarksville City Council, 2026-05-07, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-04-30-executive/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-04-30-executive/agenda</id>
     <title>Agenda: 2026-04-30, executive session</title>
     <updated>2026-04-30T00:00:00Z</updated>
     <published>2026-04-30T00:00:00Z</published>
@@ -145,7 +145,7 @@
     <summary>Clarksville City Council, 2026-04-30, executive session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-04-02-regular/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-04-02-regular/minutes</id>
     <title>Minutes: 2026-04-02, regular session</title>
     <updated>2026-04-02T00:00:00Z</updated>
     <published>2026-04-02T00:00:00Z</published>
@@ -154,7 +154,7 @@
     <summary>Clarksville City Council, 2026-04-02, regular session. Minutes (7 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-04-02-regular/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-04-02-regular/agenda</id>
     <title>Agenda: 2026-04-02, regular session</title>
     <updated>2026-04-02T00:00:00Z</updated>
     <published>2026-04-02T00:00:00Z</published>
@@ -163,7 +163,7 @@
     <summary>Clarksville City Council, 2026-04-02, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-03-26-executive/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-03-26-executive/agenda</id>
     <title>Agenda: 2026-03-26, executive session</title>
     <updated>2026-03-26T00:00:00Z</updated>
     <published>2026-03-26T00:00:00Z</published>
@@ -172,7 +172,7 @@
     <summary>Clarksville City Council, 2026-03-26, executive session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-03-05-regular/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-03-05-regular/minutes</id>
     <title>Minutes: 2026-03-05, regular session</title>
     <updated>2026-03-05T00:00:00Z</updated>
     <published>2026-03-05T00:00:00Z</published>
@@ -181,7 +181,7 @@
     <summary>Clarksville City Council, 2026-03-05, regular session. Minutes (9 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-03-05-regular/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-03-05-regular/agenda</id>
     <title>Agenda: 2026-03-05, regular session</title>
     <updated>2026-03-05T00:00:00Z</updated>
     <published>2026-03-05T00:00:00Z</published>
@@ -190,7 +190,7 @@
     <summary>Clarksville City Council, 2026-03-05, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-02-26-executive/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-02-26-executive/agenda</id>
     <title>Agenda: 2026-02-26, executive session</title>
     <updated>2026-02-26T00:00:00Z</updated>
     <published>2026-02-26T00:00:00Z</published>
@@ -199,7 +199,7 @@
     <summary>Clarksville City Council, 2026-02-26, executive session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-02-05-regular/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-02-05-regular/minutes</id>
     <title>Minutes: 2026-02-05, regular session</title>
     <updated>2026-02-05T00:00:00Z</updated>
     <published>2026-02-05T00:00:00Z</published>
@@ -208,7 +208,7 @@
     <summary>Clarksville City Council, 2026-02-05, regular session. Minutes (5 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-02-05-regular/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-02-05-regular/agenda</id>
     <title>Agenda: 2026-02-05, regular session</title>
     <updated>2026-02-05T00:00:00Z</updated>
     <published>2026-02-05T00:00:00Z</published>
@@ -217,7 +217,7 @@
     <summary>Clarksville City Council, 2026-02-05, regular session. Agenda (2 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-02-03-executive/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-02-03-executive/agenda</id>
     <title>Agenda: 2026-02-03, executive session</title>
     <updated>2026-02-03T00:00:00Z</updated>
     <published>2026-02-03T00:00:00Z</published>
@@ -226,7 +226,7 @@
     <summary>Clarksville City Council, 2026-02-03, executive session. Agenda (2 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-01-08-regular/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-01-08-regular/minutes</id>
     <title>Minutes: 2026-01-08, regular session</title>
     <updated>2026-01-08T00:00:00Z</updated>
     <published>2026-01-08T00:00:00Z</published>
@@ -235,7 +235,7 @@
     <summary>Clarksville City Council, 2026-01-08, regular session. Minutes (9 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-01-08-regular/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-01-08-regular/agenda</id>
     <title>Agenda: 2026-01-08, regular session</title>
     <updated>2026-01-08T00:00:00Z</updated>
     <published>2026-01-08T00:00:00Z</published>
@@ -244,7 +244,7 @@
     <summary>Clarksville City Council, 2026-01-08, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2026-01-06-executive/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-01-06-executive/agenda</id>
     <title>Agenda: 2026-01-06, executive session</title>
     <updated>2026-01-06T00:00:00Z</updated>
     <published>2026-01-06T00:00:00Z</published>
@@ -253,7 +253,7 @@
     <summary>Clarksville City Council, 2026-01-06, executive session. Agenda (3 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-12-04-regular/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-12-04-regular/minutes</id>
     <title>Minutes: 2025-12-04, regular session</title>
     <updated>2025-12-04T00:00:00Z</updated>
     <published>2025-12-04T00:00:00Z</published>
@@ -262,7 +262,7 @@
     <summary>Clarksville City Council, 2025-12-04, regular session. Minutes (8 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-12-04-regular/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-12-04-regular/agenda</id>
     <title>Agenda: 2025-12-04, regular session</title>
     <updated>2025-12-04T00:00:00Z</updated>
     <published>2025-12-04T00:00:00Z</published>
@@ -271,7 +271,7 @@
     <summary>Clarksville City Council, 2025-12-04, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-12-01-executive/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-12-01-executive/agenda</id>
     <title>Agenda: 2025-12-01, executive session</title>
     <updated>2025-12-01T00:00:00Z</updated>
     <published>2025-12-01T00:00:00Z</published>
@@ -280,7 +280,7 @@
     <summary>Clarksville City Council, 2025-12-01, executive session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-11-06-regular/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-11-06-regular/agenda</id>
     <title>Agenda: 2025-11-06, regular session</title>
     <updated>2025-11-06T00:00:00Z</updated>
     <published>2025-11-06T00:00:00Z</published>
@@ -289,7 +289,7 @@
     <summary>Clarksville City Council, 2025-11-06, regular session. Agenda (5 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-10-30-executive/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-10-30-executive/agenda</id>
     <title>Agenda: 2025-10-30, executive session</title>
     <updated>2025-10-30T00:00:00Z</updated>
     <published>2025-10-30T00:00:00Z</published>
@@ -298,7 +298,7 @@
     <summary>Clarksville City Council, 2025-10-30, executive session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-10-02-regular/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-10-02-regular/minutes</id>
     <title>Minutes: 2025-10-02, regular session</title>
     <updated>2025-10-02T00:00:00Z</updated>
     <published>2025-10-02T00:00:00Z</published>
@@ -307,7 +307,7 @@
     <summary>Clarksville City Council, 2025-10-02, regular session. Minutes (5 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-10-02-regular/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-10-02-regular/agenda</id>
     <title>Agenda: 2025-10-02, regular session</title>
     <updated>2025-10-02T00:00:00Z</updated>
     <published>2025-10-02T00:00:00Z</published>
@@ -316,7 +316,7 @@
     <summary>Clarksville City Council, 2025-10-02, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-09-25-executive/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-09-25-executive/agenda</id>
     <title>Agenda: 2025-09-25, executive session</title>
     <updated>2025-09-25T00:00:00Z</updated>
     <published>2025-09-25T00:00:00Z</published>
@@ -325,7 +325,7 @@
     <summary>Clarksville City Council, 2025-09-25, executive session. Agenda (3 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-09-04-regular/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-09-04-regular/minutes</id>
     <title>Minutes: 2025-09-04, regular session</title>
     <updated>2025-09-04T00:00:00Z</updated>
     <published>2025-09-04T00:00:00Z</published>
@@ -334,7 +334,7 @@
     <summary>Clarksville City Council, 2025-09-04, regular session. Minutes (11 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-09-04-regular/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-09-04-regular/agenda</id>
     <title>Agenda: 2025-09-04, regular session</title>
     <updated>2025-09-04T00:00:00Z</updated>
     <published>2025-09-04T00:00:00Z</published>
@@ -343,7 +343,7 @@
     <summary>Clarksville City Council, 2025-09-04, regular session. Agenda (5 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-08-28-executive/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-08-28-executive/agenda</id>
     <title>Agenda: 2025-08-28, executive session</title>
     <updated>2025-08-28T00:00:00Z</updated>
     <published>2025-08-28T00:00:00Z</published>
@@ -352,7 +352,7 @@
     <summary>Clarksville City Council, 2025-08-28, executive session. Agenda (5 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-08-07-regular/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-08-07-regular/minutes</id>
     <title>Minutes: 2025-08-07, regular session</title>
     <updated>2025-08-07T00:00:00Z</updated>
     <published>2025-08-07T00:00:00Z</published>
@@ -361,7 +361,7 @@
     <summary>Clarksville City Council, 2025-08-07, regular session. Minutes (9 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-08-07-regular/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-08-07-regular/agenda</id>
     <title>Agenda: 2025-08-07, regular session</title>
     <updated>2025-08-07T00:00:00Z</updated>
     <published>2025-08-07T00:00:00Z</published>
@@ -370,7 +370,7 @@
     <summary>Clarksville City Council, 2025-08-07, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-07-31-executive/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-07-31-executive/agenda</id>
     <title>Agenda: 2025-07-31, executive session</title>
     <updated>2025-07-31T00:00:00Z</updated>
     <published>2025-07-31T00:00:00Z</published>
@@ -379,7 +379,7 @@
     <summary>Clarksville City Council, 2025-07-31, executive session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-07-01-regular/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-07-01-regular/minutes</id>
     <title>Minutes: 2025-07-01, regular session</title>
     <updated>2025-07-01T00:00:00Z</updated>
     <published>2025-07-01T00:00:00Z</published>
@@ -388,7 +388,7 @@
     <summary>Clarksville City Council, 2025-07-01, regular session. Minutes (10 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-07-01-regular/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-07-01-regular/agenda</id>
     <title>Agenda: 2025-07-01, regular session</title>
     <updated>2025-07-01T00:00:00Z</updated>
     <published>2025-07-01T00:00:00Z</published>
@@ -397,7 +397,7 @@
     <summary>Clarksville City Council, 2025-07-01, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-06-26-special/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-06-26-special/minutes</id>
     <title>Minutes: 2025-06-26, special session</title>
     <updated>2025-06-26T00:00:00Z</updated>
     <published>2025-06-26T00:00:00Z</published>
@@ -406,7 +406,7 @@
     <summary>Clarksville City Council, 2025-06-26, special session. Minutes (2 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-06-26-special/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-06-26-special/agenda</id>
     <title>Agenda: 2025-06-26, special session</title>
     <updated>2025-06-26T00:00:00Z</updated>
     <published>2025-06-26T00:00:00Z</published>
@@ -415,7 +415,7 @@
     <summary>Clarksville City Council, 2025-06-26, special session. Agenda (1 page), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-06-26-executive/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-06-26-executive/agenda</id>
     <title>Agenda: 2025-06-26, executive session</title>
     <updated>2025-06-26T00:00:00Z</updated>
     <published>2025-06-26T00:00:00Z</published>
@@ -424,7 +424,7 @@
     <summary>Clarksville City Council, 2025-06-26, executive session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-06-12-work-session/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-06-12-work-session/minutes</id>
     <title>Minutes: 2025-06-12, work session</title>
     <updated>2025-06-12T00:00:00Z</updated>
     <published>2025-06-12T00:00:00Z</published>
@@ -433,7 +433,7 @@
     <summary>Clarksville City Council, 2025-06-12, work session. Minutes (1 page), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-06-12-work-session/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-06-12-work-session/agenda</id>
     <title>Agenda: 2025-06-12, work session</title>
     <updated>2025-06-12T00:00:00Z</updated>
     <published>2025-06-12T00:00:00Z</published>
@@ -442,7 +442,7 @@
     <summary>Clarksville City Council, 2025-06-12, work session. Agenda (1 page), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-06-05-regular/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-06-05-regular/minutes</id>
     <title>Minutes: 2025-06-05, regular session</title>
     <updated>2025-06-05T00:00:00Z</updated>
     <published>2025-06-05T00:00:00Z</published>
@@ -451,7 +451,7 @@
     <summary>Clarksville City Council, 2025-06-05, regular session. Minutes (8 pages), fetched 2026-11-09.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:city/meeting/2025-06-05-regular/agenda</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-06-05-regular/agenda</id>
     <title>Agenda: 2025-06-05, regular session</title>
     <updated>2025-06-05T00:00:00Z</updated>
     <published>2025-06-05T00:00:00Z</published>

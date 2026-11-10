@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8'?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <id>tag:daylight.gnoshcodes.com,2026-11-09:feeds/zoning-ward-05</id>
+  <title>Daylight: Zoning cases, Ward 5</title>
+  <subtitle>Each zoning case whose agenda prints Ward 5, at each meeting it appears at. Cases that print no ward are in the Rezoning feed.</subtitle>
+  <updated>2026-11-09T00:00:00Z</updated>
+  <author>
+    <name>Daylight</name>
+  </author>
+  <link rel="self" type="application/atom+xml" href="zoning-ward-05.xml" />
+  <link rel="alternate" type="text/html" href="../alerts.html" />
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2023-11-28-regular-z-57-2023/2023-11-28-regular</id>
+    <title>Z-57-2023: AG Agricultural District to R-2A Single-Family Residential District/ C-5 Highway &amp; Arterial Commercial District &amp; C-2 General Commercial District</title>
+    <updated>2023-11-28T00:00:00Z</updated>
+    <published>2023-11-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2023.html#case-2023-11-28-regular-z-57-2023" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2023/11/Agenda-11-28-2023.pdf#page=1" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2023-11-28. City zoning. Source: agenda, page 1.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2022-09-27-regular-z-63-2022/2022-09-27-regular</id>
+    <title>Z-63-2022: R-1A Single-Family Residential District to R-2 Single-Family Residential District</title>
+    <updated>2022-09-27T00:00:00Z</updated>
+    <published>2022-09-27T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2022.html#case-2022-09-27-regular-z-63-2022" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2022/09/Agenda-9-27-2022-1.pdf#page=1" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2022-09-27. City zoning. Source: agenda, page 1.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2022-08-23-regular-z-63-2022/2022-08-23-regular</id>
+    <title>Z-63-2022: R-1A Single-Family Residential District to R-2 Single-Family Residential District</title>
+    <updated>2022-08-23T00:00:00Z</updated>
+    <published>2022-08-23T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2022.html#case-2022-08-23-regular-z-63-2022" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2022/08/Agenda-8-23-2022.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2022-08-23. City zoning. Source: agenda, page 3.</summary>
+  </entry>
+</feed>

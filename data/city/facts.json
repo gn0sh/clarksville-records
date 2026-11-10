@@ -57215,6 +57215,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -57333,6 +57337,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -57453,6 +57461,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -57546,6 +57558,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -57666,6 +57682,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -57759,6 +57779,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -57878,6 +57902,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -57971,6 +57999,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -58091,6 +58123,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -58184,6 +58220,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -58279,6 +58319,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -58372,6 +58416,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -58467,6 +58515,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -58524,6 +58576,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -58644,6 +58700,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -58762,6 +58822,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -58882,6 +58946,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -59001,6 +59069,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -59094,6 +59166,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -59214,6 +59290,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -59307,6 +59387,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -59427,6 +59511,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -59545,6 +59633,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -59665,6 +59757,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -59783,6 +59879,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -59903,6 +60003,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -60022,6 +60126,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -60115,6 +60223,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -60210,6 +60322,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -60303,6 +60419,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -60398,6 +60518,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -60492,6 +60616,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -60585,6 +60713,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -60705,6 +60837,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -60823,6 +60959,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -60943,6 +61083,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -61061,6 +61205,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -61181,6 +61329,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -61274,6 +61426,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -61394,6 +61550,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -61512,6 +61672,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -61632,6 +61796,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -61750,6 +61918,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -61870,6 +62042,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -61989,6 +62165,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -62081,6 +62261,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -62176,6 +62360,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -62270,6 +62458,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -62363,6 +62555,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -62483,6 +62679,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -62576,6 +62776,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -62671,6 +62875,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -62764,6 +62972,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -62884,6 +63096,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -62977,6 +63193,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -63097,6 +63317,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -63215,6 +63439,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -63335,6 +63563,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -63453,6 +63685,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -63791,6 +64027,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -63909,6 +64149,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -64029,6 +64273,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -64122,6 +64370,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -64237,6 +64489,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -64325,6 +64581,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -64440,6 +64700,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -64528,6 +64792,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -64622,6 +64890,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -64742,6 +65014,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -64860,6 +65136,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -65005,6 +65285,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -65124,6 +65408,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -65242,6 +65530,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -65336,6 +65628,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -65428,6 +65724,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -65548,6 +65848,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -65666,6 +65970,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -65786,6 +66094,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -65905,6 +66217,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -65999,6 +66315,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -66091,6 +66411,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -66211,6 +66535,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -66304,6 +66632,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -66399,6 +66731,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -66487,6 +66823,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -66581,6 +66921,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -66700,6 +67044,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -66920,6 +67268,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -67013,6 +67365,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -67108,6 +67464,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -67202,6 +67562,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -67294,6 +67658,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -67389,6 +67757,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -67481,6 +67853,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -67600,6 +67976,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -67734,6 +68114,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "unverified"
@@ -67828,6 +68212,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -67921,6 +68309,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -68041,6 +68433,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -68135,6 +68531,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -68192,6 +68592,10 @@
           {
             "check": "present_listed",
             "ok": false
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "unverified"
@@ -68285,6 +68689,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -68405,6 +68813,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -68494,6 +68906,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -68562,6 +68978,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -68646,6 +69066,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -68766,6 +69190,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -68860,6 +69288,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -68953,6 +69385,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -69073,6 +69509,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -69166,6 +69606,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -69311,6 +69755,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -69404,6 +69852,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -69524,6 +69976,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -69617,6 +70073,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -69712,6 +70172,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -69805,6 +70269,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -69975,6 +70443,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -70068,6 +70540,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -70155,6 +70631,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -70249,6 +70729,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -70444,6 +70928,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -70577,6 +71065,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -70722,6 +71214,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -70804,6 +71300,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -70898,6 +71398,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -71042,6 +71546,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -71161,6 +71669,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -71255,6 +71767,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -71313,6 +71829,10 @@
           {
             "check": "present_listed",
             "ok": false
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "unverified"
@@ -71407,6 +71927,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -71465,6 +71989,10 @@
           {
             "check": "present_listed",
             "ok": false
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "unverified"
@@ -71554,6 +72082,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -71642,6 +72174,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -71757,6 +72293,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -71845,6 +72385,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -71935,6 +72479,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -71992,6 +72540,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           },
           {
@@ -72115,6 +72667,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -72260,6 +72816,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -72354,6 +72914,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -72447,6 +73011,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -72567,6 +73135,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -72686,6 +73258,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -72804,6 +73380,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -72949,6 +73529,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -73068,6 +73652,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -73181,6 +73769,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -73301,6 +73893,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -73393,6 +73989,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -73512,6 +74112,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -73873,6 +74477,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -74217,6 +74825,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -74335,6 +74947,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -74489,6 +75105,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -74583,6 +75203,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -74665,6 +75289,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -74844,6 +75472,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -74937,6 +75569,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -75082,6 +75718,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -75226,6 +75866,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -75319,6 +75963,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -75553,6 +76201,15 @@
     {
       "agenda_source_id": "src-0d828dee6eab",
       "agenda_url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=1860,plainText=false)",
+      "also_listed": [
+        {
+          "agenda_source_id": "src-0d828dee6eab",
+          "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01042024-1624",
+          "minutes_url": null,
+          "source": "agenda-center",
+          "title": "City Council Regular Session Agenda - January 4, 2023"
+        }
+      ],
       "attendance": [
         {
           "official_id": "city-brian-zacharias",
@@ -75638,6 +76295,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -75785,6 +76446,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -75904,6 +76569,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -76051,6 +76720,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -76145,6 +76818,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -76266,6 +76943,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -76419,6 +77100,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -76569,6 +77254,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -76694,6 +77383,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -76847,6 +77540,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -76972,6 +77669,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -77148,6 +77849,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           }
         ],
@@ -77403,6 +78108,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -77547,6 +78256,10 @@
           {
             "check": "present_listed",
             "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "ok": true
           }
         ],
         "status": "verified"
@@ -77671,6 +78384,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           },
           {
@@ -77800,6 +78517,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           },
           {
@@ -77933,6 +78654,10 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
             "ok": true
           }
@@ -78060,6 +78785,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           },
           {
@@ -78226,6 +78955,10 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
             "ok": true
           }
@@ -78327,6 +79060,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           },
           {
@@ -78460,6 +79197,10 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
             "ok": true
           }
@@ -78521,6 +79262,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           },
           {
@@ -78651,6 +79396,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           },
           {
@@ -78836,6 +79585,10 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
             "ok": true
           }
@@ -78966,6 +79719,10 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
             "ok": true
           }
@@ -79090,6 +79847,10 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
             "ok": true
           }
@@ -79150,6 +79911,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           },
           {
@@ -79217,6 +79982,10 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
             "ok": false
           }
@@ -79281,6 +80050,10 @@
             "ok": true
           },
           {
+            "check": "presiding_resolves",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
             "ok": false
           }
@@ -79342,6 +80115,10 @@
           },
           {
             "check": "present_listed",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
             "ok": true
           },
           {

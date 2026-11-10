@@ -1,16 +1,466 @@
 <?xml version='1.0' encoding='utf-8'?>
 <feed xmlns="http://www.w3.org/2005/Atom">
-  <id>tag:records.gnoshcodes.com,2026-11-09:feeds/topic-rezoning</id>
-  <title>Clarksville Records: Rezoning items: Montgomery County Commission and Clarksville City Council</title>
+  <id>tag:daylight.gnoshcodes.com,2026-11-09:feeds/topic-rezoning</id>
+  <title>Daylight: Rezoning items: Montgomery County Commission and Clarksville City Council</title>
   <subtitle>Each item the Rezoning type rule matches, at each meeting it appears at.</subtitle>
   <updated>2026-11-09T00:00:00Z</updated>
   <author>
-    <name>Clarksville Records</name>
+    <name>Daylight</name>
   </author>
   <link rel="self" type="application/atom+xml" href="topic-rezoning.xml" />
   <link rel="alternate" type="text/html" href="../alerts.html" />
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-3-2026/2026-04-13-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-10-27-regular-z-19-2026/2026-10-27-regular</id>
+    <title>Z - 19 - 2026: AG - Agricultural District to R-2A - Single-Family Residential District, R-4 - Multiple-Family Residential District, R-5 - Residential District &amp; C-3 - Regional Shopping Center District</title>
+    <updated>2026-10-27T00:00:00Z</updated>
+    <published>2026-10-27T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-10-27-regular-z-19-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-10.27.2026.pdf#page=1" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-10-27. City zoning. Source: agenda, page 1.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-10-27-regular-z-33-2026/2026-10-27-regular</id>
+    <title>Z - 33 - 2026: O-1 - Office District to R-6 - Single-Family Residential District</title>
+    <updated>2026-10-27T00:00:00Z</updated>
+    <published>2026-10-27T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-10-27-regular-z-33-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-10.27.2026.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-10-27. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-10-27-regular-z-32-2026/2026-10-27-regular</id>
+    <title>Z - 32 - 2026: R-1 -Single- Family Residential District to M-1 - Light Industrial District</title>
+    <updated>2026-10-27T00:00:00Z</updated>
+    <published>2026-10-27T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-10-27-regular-z-32-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-10.27.2026.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-10-27. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-10-27-regular-z-31-2026/2026-10-27-regular</id>
+    <title>Z - 31 - 2026: C -3 - Regional Shopping Center District to C-2 - General Commercial District</title>
+    <updated>2026-10-27T00:00:00Z</updated>
+    <published>2026-10-27T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-10-27-regular-z-31-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-10.27.2026.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-10-27. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-10-27-regular-z-30-2026/2026-10-27-regular</id>
+    <title>Z - 30 - 2026: R-1 - Single-Family Residential District &amp; R-3 - Three Family Residential District to R-2A - Single-Family Residential District</title>
+    <updated>2026-10-27T00:00:00Z</updated>
+    <published>2026-10-27T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-10-27-regular-z-30-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-10.27.2026.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-10-27. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-10-27-regular-zo-2a-2026/2026-10-27-regular</id>
+    <title>ZO - 2A - 2026: Amend verbiage governing site plan review procedures</title>
+    <updated>2026-10-27T00:00:00Z</updated>
+    <published>2026-10-27T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-10-27-regular-zo-2a-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-10.27.2026.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-10-27. City zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-10-27-regular-z-34-2026/2026-10-27-regular</id>
+    <title>Z - 34 - 2026: R-1 - Single-Family Residential District to R-2A - Single-Family Residential District</title>
+    <updated>2026-10-27T00:00:00Z</updated>
+    <published>2026-10-27T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-10-27-regular-z-34-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-10.27.2026.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-10-27. City zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-10-27-regular-czo-1-2026/2026-10-27-regular</id>
+    <title>CZO - 1 - 2026: Review County Commission amendments to Data Center Regulations.</title>
+    <updated>2026-10-27T00:00:00Z</updated>
+    <published>2026-10-27T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-10-27-regular-czo-1-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-10.27.2026.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-10-27. County zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-10-27-regular-cz-13-2026/2026-10-27-regular</id>
+    <title>CZ - 13 - 2026: R-1 - Single-Family Residential District to C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-10-27T00:00:00Z</updated>
+    <published>2026-10-27T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-10-27-regular-cz-13-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-10.27.2026.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-10-27. County zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-10-27-regular-cz-12-2026/2026-10-27-regular</id>
+    <title>CZ - 12 - 2026: AG - Agricultural District to E-1 Single-Family Estate District</title>
+    <updated>2026-10-27T00:00:00Z</updated>
+    <published>2026-10-27T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-10-27-regular-cz-12-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-10.27.2026.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-10-27. County zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-09-22-regular-z-19-2026/2026-09-22-regular</id>
+    <title>Z - 19 - 2026: AG - Agricultural District to R-2A - Single-Family Residential District, R-4 - Multiple-Family Residential District, R-5 - Residential District &amp; C-3 - Regional Shopping Center District</title>
+    <updated>2026-09-22T00:00:00Z</updated>
+    <published>2026-09-22T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-09-22-regular-z-19-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-09.22.2026.pdf#page=1" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-09-22. City zoning. Source: agenda, page 1.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-09-22-regular-zo-2a-2026/2026-09-22-regular</id>
+    <title>ZO - 2A - 2026: Amend verbiage governing site plan review procedures</title>
+    <updated>2026-09-22T00:00:00Z</updated>
+    <published>2026-09-22T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-09-22-regular-zo-2a-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-09.22.2026.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-09-22. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-09-22-regular-z-30-2026/2026-09-22-regular</id>
+    <title>Z - 30 - 2026: R-1 - Single-Family Residential District &amp; R-3 - Three Family Residential District to R-2A - Single-Family Residential District</title>
+    <updated>2026-09-22T00:00:00Z</updated>
+    <published>2026-09-22T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-09-22-regular-z-30-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-09.22.2026.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-09-22. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-09-22-regular-czo-2-2026/2026-09-22-regular</id>
+    <title>CZO - 2 - 2026: To clarify requirements in the County Zoning Resolution in regards to Smelting and similar operations in the M-2 District</title>
+    <updated>2026-09-22T00:00:00Z</updated>
+    <published>2026-09-22T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-09-22-regular-czo-2-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-09.22.2026.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-09-22. County zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-09-22-regular-czo-1-2026/2026-09-22-regular</id>
+    <title>CZO - 1 - 2026: To clarify the Site Plan requirements in the County Zoning Resolution as well as refine regulations of Data Centers</title>
+    <updated>2026-09-22T00:00:00Z</updated>
+    <published>2026-09-22T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-09-22-regular-czo-1-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-09.22.2026.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-09-22. County zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-09-22-regular-czo-3-2026/2026-09-22-regular</id>
+    <title>CZO - 3 - 2026: Amend verbiage governing vape and smoke shop locations and changes to site plan review procedures</title>
+    <updated>2026-09-22T00:00:00Z</updated>
+    <published>2026-09-22T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-09-22-regular-czo-3-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-09.22.2026.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-09-22. County zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-08-25-regular-z-19-2026/2026-08-25-regular</id>
+    <title>Z - 19 - 2026: AG - Agricultural District to R-2A - Single-Family Residential District, R-4 - Multiple-Family Residential District, R-5 - Residential District &amp; C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-08-25T00:00:00Z</updated>
+    <published>2026-08-25T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-08-25-regular-z-19-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/09/Agenda-08.25.2026.pdf#page=1" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-08-25. City zoning. Source: agenda, page 1.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-08-25-regular-zo-2-2026/2026-08-25-regular</id>
+    <title>ZO - 2 - 2026: Amend verbiage governing vape and smoke shop locations, site plan processes, and design guidelines.</title>
+    <updated>2026-08-25T00:00:00Z</updated>
+    <published>2026-08-25T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-08-25-regular-zo-2-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/09/Agenda-08.25.2026.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-08-25. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-08-25-regular-z-29-2026/2026-08-25-regular</id>
+    <title>Z - 29 - 2026: RM-1 - Single-Family Mobile Home Residential District to R-2A - Single-Family Residential District</title>
+    <updated>2026-08-25T00:00:00Z</updated>
+    <published>2026-08-25T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-08-25-regular-z-29-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/09/Agenda-08.25.2026.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-08-25. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-08-25-regular-z-28-2026/2026-08-25-regular</id>
+    <title>Z - 28 - 2026: RM-1 - Single-Family Mobile Home Residential District to R-2A - Single-Family Residential District</title>
+    <updated>2026-08-25T00:00:00Z</updated>
+    <published>2026-08-25T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-08-25-regular-z-28-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/09/Agenda-08.25.2026.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-08-25. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-08-25-regular-cz-10-2026/2026-08-25-regular</id>
+    <title>CZ - 10 - 2026: AG - Agricultural District to E-1 - Single-Family Estate District</title>
+    <updated>2026-08-25T00:00:00Z</updated>
+    <published>2026-08-25T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-08-25-regular-cz-10-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/09/Agenda-08.25.2026.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-08-25. County zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-08-25-regular-cz-11-2026/2026-08-25-regular</id>
+    <title>CZ - 11 - 2026: E-1 - Single-Family Estate District to C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-08-25T00:00:00Z</updated>
+    <published>2026-08-25T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-08-25-regular-cz-11-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/09/Agenda-08.25.2026.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-08-25. County zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-07-28-regular-z-18-2026/2026-07-28-regular</id>
+    <title>Z - 18 - 2026: O-1 - Office District to C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-07-28T00:00:00Z</updated>
+    <published>2026-07-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-07-28-regular-z-18-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-07-28-2026.pdf#page=1" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-07-28. City zoning. Source: agenda, page 1.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-07-28-regular-z-26-2026/2026-07-28-regular</id>
+    <title>Z - 26 - 2026: AG - Agricultural District to R-5 - Residential District</title>
+    <updated>2026-07-28T00:00:00Z</updated>
+    <published>2026-07-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-07-28-regular-z-26-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-07-28-2026.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-07-28. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-07-28-regular-z-25-2026/2026-07-28-regular</id>
+    <title>Z - 25 - 2026: R-1 - Single-Family Residential District to C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-07-28T00:00:00Z</updated>
+    <published>2026-07-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-07-28-regular-z-25-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-07-28-2026.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-07-28. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-07-28-regular-z-24-2026/2026-07-28-regular</id>
+    <title>Z - 24 - 2026: RM-1 - Single-Family Mobile Home Residential District to R-3 - Three Family Residential District</title>
+    <updated>2026-07-28T00:00:00Z</updated>
+    <published>2026-07-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-07-28-regular-z-24-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-07-28-2026.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-07-28. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-07-28-regular-z-19-2026/2026-07-28-regular</id>
+    <title>Z - 19 - 2026: AG - Agricultural District to R-2A - Single-Family Residential District, R-4 - Multiple-Family Residential District, R-5 - Residential District &amp; C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-07-28T00:00:00Z</updated>
+    <published>2026-07-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-07-28-regular-z-19-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-07-28-2026.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-07-28. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-07-28-regular-zo-1-2026/2026-07-28-regular</id>
+    <title>ZO - 1 - 2026: Requested by the Regional Historic Zoning Commission, the RPC initiated a Historic Zoning Language Change</title>
+    <updated>2026-07-28T00:00:00Z</updated>
+    <published>2026-07-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-07-28-regular-zo-1-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-07-28-2026.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-07-28. City zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-07-28-regular-z-27-2026/2026-07-28-regular</id>
+    <title>Z - 27 - 2026: CBD - Central Business District to CBD - Central Business District &amp; H-1 - Historic Overlay</title>
+    <updated>2026-07-28T00:00:00Z</updated>
+    <published>2026-07-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-07-28-regular-z-27-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-07-28-2026.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-07-28. City zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-07-28-regular-cz-8-2026/2026-07-28-regular</id>
+    <title>CZ - 8 - 2026: AG - Agricultural District to E-1 - Single-Family Estate District</title>
+    <updated>2026-07-28T00:00:00Z</updated>
+    <published>2026-07-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-07-28-regular-cz-8-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-07-28-2026.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-07-28. County zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-07-28-regular-cz-9-2026/2026-07-28-regular</id>
+    <title>CZ - 9 - 2026: C-5 - Highway &amp; Arterial Commercial District to R-1 - Single-Family Residential District</title>
+    <updated>2026-07-28T00:00:00Z</updated>
+    <published>2026-07-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-07-28-regular-cz-9-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-07-28-2026.pdf#page=4" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-07-28. County zoning. Source: agenda, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-06-23-regular-z-23-2026/2026-06-23-regular</id>
+    <title>Z - 23 - 2026: R-1 - Single-Family Residential District to C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-06-23T00:00:00Z</updated>
+    <published>2026-06-23T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-06-23-regular-z-23-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-06-23-2026.pdf#page=5" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-06-23. City zoning. Source: agenda, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-06-23-regular-z-22-2026/2026-06-23-regular</id>
+    <title>Z - 22 - 2026: O-1 - Office District to C-2 - General Commercial District</title>
+    <updated>2026-06-23T00:00:00Z</updated>
+    <published>2026-06-23T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-06-23-regular-z-22-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-06-23-2026.pdf#page=5" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-06-23. City zoning. Source: agenda, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-06-23-regular-z-19-2026/2026-06-23-regular</id>
+    <title>Z - 19 - 2026: AG - Agricultural District to R-2A - Single-Family Residential District, R-4 - Multiple-Family Residential District, R-5 - Residential District &amp; C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-06-23T00:00:00Z</updated>
+    <published>2026-06-23T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-06-23-regular-z-19-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-06-23-2026.pdf#page=5" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-06-23. City zoning. Source: agenda, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-06-23-regular-z-18-2026/2026-06-23-regular</id>
+    <title>Z - 18 - 2026: O-1 - Office District to C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-06-23T00:00:00Z</updated>
+    <published>2026-06-23T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-06-23-regular-z-18-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-06-23-2026.pdf#page=5" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-06-23. City zoning. Source: agenda, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-06-23-regular-cz-7-2026/2026-06-23-regular</id>
+    <title>CZ - 7 - 2026: R-1 - Single-Family Residential District to C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-06-23T00:00:00Z</updated>
+    <published>2026-06-23T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-06-23-regular-cz-7-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-06-23-2026.pdf#page=6" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-06-23. County zoning. Source: agenda, page 6.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-06-23-regular-cz-6-2026/2026-06-23-regular</id>
+    <title>CZ - 6 - 2026: AG - Agricultural District to R -1 - Single-Family Residential District</title>
+    <updated>2026-06-23T00:00:00Z</updated>
+    <published>2026-06-23T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-06-23-regular-cz-6-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-06-23-2026.pdf#page=6" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-06-23. County zoning. Source: agenda, page 6.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-06-23-regular-cz-4-2026/2026-06-23-regular</id>
+    <title>CZ - 4 - 2026: AG - Agricultural District to C-2 - General Commercial District</title>
+    <updated>2026-06-23T00:00:00Z</updated>
+    <published>2026-06-23T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-06-23-regular-cz-4-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-06-23-2026.pdf#page=6" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-06-23. County zoning. Source: agenda, page 6.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-05-26-regular-z-6-2026/2026-05-26-regular</id>
+    <title>Z - 6 - 2026: AG - Agricultural District to R-1 -Single- Family Residential District</title>
+    <updated>2026-05-26T00:00:00Z</updated>
+    <published>2026-05-26T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-05-26-regular-z-6-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/06/Agenda-05-26-2026.pdf#page=5" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-05-26. City zoning. Source: agenda, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-05-26-regular-z-17-2026/2026-05-26-regular</id>
+    <title>Z - 17 - 2026: M-2 - General Industrial District to C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-05-26T00:00:00Z</updated>
+    <published>2026-05-26T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-05-26-regular-z-17-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/06/Agenda-05-26-2026.pdf#page=5" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-05-26. City zoning. Source: agenda, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-05-26-regular-z-11-2026/2026-05-26-regular</id>
+    <title>Z - 11 - 2026: C-3 - Regional Shopping Center District to C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-05-26T00:00:00Z</updated>
+    <published>2026-05-26T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-05-26-regular-z-11-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/06/Agenda-05-26-2026.pdf#page=5" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-05-26. City zoning. Source: agenda, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-05-26-regular-z-21-2026/2026-05-26-regular</id>
+    <title>Z - 21 - 2026: M-1 - Light Industrial District to C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-05-26T00:00:00Z</updated>
+    <published>2026-05-26T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-05-26-regular-z-21-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/06/Agenda-05-26-2026.pdf#page=6" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-05-26. City zoning. Source: agenda, page 6.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-05-26-regular-z-20-2026/2026-05-26-regular</id>
+    <title>Z - 20 - 2026: R-1 - Single-Family Residential District to C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-05-26T00:00:00Z</updated>
+    <published>2026-05-26T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-05-26-regular-z-20-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/06/Agenda-05-26-2026.pdf#page=6" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-05-26. City zoning. Source: agenda, page 6.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-05-26-regular-z-19-2026/2026-05-26-regular</id>
+    <title>Z - 19 - 2026: AG - Agricultural District to R-2A - Single-Family Residential District, R-4 - Multiple-Family Residential District, R-5 - Residential District &amp; C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-05-26T00:00:00Z</updated>
+    <published>2026-05-26T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-05-26-regular-z-19-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/06/Agenda-05-26-2026.pdf#page=6" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-05-26. City zoning. Source: agenda, page 6.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-05-26-regular-z-18-2026/2026-05-26-regular</id>
+    <title>Z - 18 - 2026: O-1 - Office District to C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-05-26T00:00:00Z</updated>
+    <published>2026-05-26T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-05-26-regular-z-18-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/06/Agenda-05-26-2026.pdf#page=6" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-05-26. City zoning. Source: agenda, page 6.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-05-26-regular-cz-4-2026/2026-05-26-regular</id>
+    <title>CZ - 4 - 2026: AG - Agricultural District to C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-05-26T00:00:00Z</updated>
+    <published>2026-05-26T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-05-26-regular-cz-4-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/06/Agenda-05-26-2026.pdf#page=7" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-05-26. County zoning. Source: agenda, page 7.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-04-28-regular-z-6-2026/2026-04-28-regular</id>
+    <title>Z - 6 - 2026: AG - Agricultural District to R-1 -Single- Family Residential District</title>
+    <updated>2026-04-28T00:00:00Z</updated>
+    <published>2026-04-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-04-28-regular-z-6-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/05/Agenda-04-28-2026.pdf#page=4" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-04-28. City zoning. Source: agenda, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-04-28-regular-z-57-2025/2026-04-28-regular</id>
+    <title>Z - 57 - 2025: R-1 - Single-Family Residential District to C-1 - Neighborhood Commercial District</title>
+    <updated>2026-04-28T00:00:00Z</updated>
+    <published>2026-04-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-04-28-regular-z-57-2025" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/05/Agenda-04-28-2026.pdf#page=4" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-04-28. City zoning. Source: agenda, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-04-28-regular-z-2-2026/2026-04-28-regular</id>
+    <title>Z - 2 - 2026: R-1 - Single-Family Residential District to R-3 - Three Family Residential District</title>
+    <updated>2026-04-28T00:00:00Z</updated>
+    <published>2026-04-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-04-28-regular-z-2-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/05/Agenda-04-28-2026.pdf#page=4" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-04-28. City zoning. Source: agenda, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-04-28-regular-z-11-2026/2026-04-28-regular</id>
+    <title>Z - 11 - 2026: C-3 - Regional Shopping Center District to C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-04-28T00:00:00Z</updated>
+    <published>2026-04-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-04-28-regular-z-11-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/05/Agenda-04-28-2026.pdf#page=4" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-04-28. City zoning. Source: agenda, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-3-2026/2026-04-13-formal</id>
     <title>CZ-3-2026: Application of Arthur Clark from AG to C-S</title>
     <updated>2026-04-13T00:00:00Z</updated>
     <published>2026-04-13T00:00:00Z</published>
@@ -19,7 +469,7 @@
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-2-2026/2026-04-13-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-2-2026/2026-04-13-formal</id>
     <title>CZ-2-2026: Application of Knox B. Thomas, III &amp; Shirley Thomas from AG/C-S to M-1</title>
     <updated>2026-04-13T00:00:00Z</updated>
     <published>2026-04-13T00:00:00Z</published>
@@ -28,7 +478,7 @@
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-21-2025/2026-02-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-21-2025/2026-02-09-formal</id>
     <title>CZ-21-2025</title>
     <updated>2026-02-09T00:00:00Z</updated>
     <published>2026-02-09T00:00:00Z</published>
@@ -37,7 +487,7 @@
     <summary>Montgomery County Commission, 2026-02-09, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 14.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-22-2025/2026-02-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-22-2025/2026-02-09-formal</id>
     <title>CZ-22-2025</title>
     <updated>2026-02-09T00:00:00Z</updated>
     <published>2026-02-09T00:00:00Z</published>
@@ -46,7 +496,7 @@
     <summary>Montgomery County Commission, 2026-02-09, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 25.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-24-2025/2026-01-12-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-24-2025/2026-01-12-formal</id>
     <title>CZ-24-2025</title>
     <updated>2026-01-12T00:00:00Z</updated>
     <published>2026-01-12T00:00:00Z</published>
@@ -55,7 +505,7 @@
     <summary>Montgomery County Commission, 2026-01-12, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 28.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-23-2025/2025-12-08-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-23-2025/2025-12-08-formal</id>
     <title>CZ-23-2025: Application of Marvin Pitts from AG/C-S to C-5/M-1</title>
     <updated>2025-12-08T00:00:00Z</updated>
     <published>2025-12-08T00:00:00Z</published>
@@ -64,7 +514,7 @@
     <summary>Montgomery County Commission, 2025-12-08, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-19-2025/2025-12-08-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-19-2025/2025-12-08-formal</id>
     <title>CZ-19-2025: Application of DRG Family Partnership from AG to C-5/R-4</title>
     <updated>2025-12-08T00:00:00Z</updated>
     <published>2025-12-08T00:00:00Z</published>
@@ -73,7 +523,7 @@
     <summary>Montgomery County Commission, 2025-12-08, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-16-2025/2025-11-10-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-16-2025/2025-11-10-formal</id>
     <title>CZ-16-2025</title>
     <updated>2025-11-10T00:00:00Z</updated>
     <published>2025-11-10T00:00:00Z</published>
@@ -82,7 +532,7 @@
     <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 15.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-17-2025/2025-11-10-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-17-2025/2025-11-10-formal</id>
     <title>CZ-17-2025</title>
     <updated>2025-11-10T00:00:00Z</updated>
     <published>2025-11-10T00:00:00Z</published>
@@ -91,7 +541,7 @@
     <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 25.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-18-2025/2025-11-10-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-18-2025/2025-11-10-formal</id>
     <title>CZ-18-2025</title>
     <updated>2025-11-10T00:00:00Z</updated>
     <published>2025-11-10T00:00:00Z</published>
@@ -100,7 +550,7 @@
     <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 36.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-21-2025/2025-11-10-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-21-2025/2025-11-10-formal</id>
     <title>CZ-21-2025</title>
     <updated>2025-11-10T00:00:00Z</updated>
     <published>2025-11-10T00:00:00Z</published>
@@ -109,7 +559,7 @@
     <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 47.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-15-2025/2025-10-20-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-15-2025/2025-10-20-formal</id>
     <title>CZ-15-2025: Application of J&amp;N Enterprises from AG to R-1</title>
     <updated>2025-10-20T00:00:00Z</updated>
     <published>2025-10-20T00:00:00Z</published>
@@ -118,7 +568,7 @@
     <summary>Montgomery County Commission, 2025-10-20, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-14-2025/2025-08-11-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-14-2025/2025-08-11-formal</id>
     <title>CZ-14-2025: Application of Billy Riggins 11 from AG to R-1</title>
     <updated>2025-08-11T00:00:00Z</updated>
     <published>2025-08-11T00:00:00Z</published>
@@ -127,7 +577,7 @@
     <summary>Montgomery County Commission, 2025-08-11, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-10-2025/2025-07-14-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-10-2025/2025-07-14-formal</id>
     <title>CZ-10-2025</title>
     <updated>2025-07-14T00:00:00Z</updated>
     <published>2025-07-14T00:00:00Z</published>
@@ -136,7 +586,7 @@
     <summary>Montgomery County Commission, 2025-07-14, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 18.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-11-2025/2025-07-14-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-11-2025/2025-07-14-formal</id>
     <title>CZ-11-2025</title>
     <updated>2025-07-14T00:00:00Z</updated>
     <published>2025-07-14T00:00:00Z</published>
@@ -145,7 +595,7 @@
     <summary>Montgomery County Commission, 2025-07-14, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 28.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-12-2025/2025-07-14-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-12-2025/2025-07-14-formal</id>
     <title>CZ-12-2025</title>
     <updated>2025-07-14T00:00:00Z</updated>
     <published>2025-07-14T00:00:00Z</published>
@@ -154,7 +604,7 @@
     <summary>Montgomery County Commission, 2025-07-14, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 38.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-13-2025/2025-07-14-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-13-2025/2025-07-14-formal</id>
     <title>CZ-13-2025</title>
     <updated>2025-07-14T00:00:00Z</updated>
     <published>2025-07-14T00:00:00Z</published>
@@ -163,7 +613,7 @@
     <summary>Montgomery County Commission, 2025-07-14, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 48.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-9-2025/2025-06-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-9-2025/2025-06-09-formal</id>
     <title>CZ-9-2025: Applicationof David Phillips from AG to C-S</title>
     <updated>2025-06-09T00:00:00Z</updated>
     <published>2025-06-09T00:00:00Z</published>
@@ -172,7 +622,7 @@
     <summary>Montgomery County Commission, 2025-06-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-8-2025/2025-06-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-8-2025/2025-06-09-formal</id>
     <title>CZ-8-2025: Application of Vision Home Builders, LLC from Rd to R-lA</title>
     <updated>2025-06-09T00:00:00Z</updated>
     <published>2025-06-09T00:00:00Z</published>
@@ -181,7 +631,7 @@
     <summary>Montgomery County Commission, 2025-06-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-7-2025/2025-06-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-7-2025/2025-06-09-formal</id>
     <title>CZ-7-2025: Application of Thomas Oliver, Jr. and Teresa Oliver from AG to M-2</title>
     <updated>2025-06-09T00:00:00Z</updated>
     <published>2025-06-09T00:00:00Z</published>
@@ -190,7 +640,7 @@
     <summary>Montgomery County Commission, 2025-06-09, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-5-2025/2025-06-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-5-2025/2025-06-09-formal</id>
     <title>CZ-5-2025: Application of Ben Mimms Portion from AG to C-4</title>
     <updated>2025-06-09T00:00:00Z</updated>
     <published>2025-06-09T00:00:00Z</published>
@@ -199,7 +649,7 @@
     <summary>Montgomery County Commission, 2025-06-09, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-6-2025/2025-05-12-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-6-2025/2025-05-12-formal</id>
     <title>CZ-6-2025: Application of Linda Wortham, etal, from AG to R- 1</title>
     <updated>2025-05-12T00:00:00Z</updated>
     <published>2025-05-12T00:00:00Z</published>
@@ -208,7 +658,7 @@
     <summary>Montgomery County Commission, 2025-05-12, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-4-2025/2025-05-12-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-4-2025/2025-05-12-formal</id>
     <title>CZ-4-2025: Application of Wanda 0. Darnell from E-1 to EM-l</title>
     <updated>2025-05-12T00:00:00Z</updated>
     <published>2025-05-12T00:00:00Z</published>
@@ -217,7 +667,7 @@
     <summary>Montgomery County Commission, 2025-05-12, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-5-6/2025-05-12-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-5-6/2025-05-12-formal</id>
     <title>25-5-6: Resolution Requesting the Regional Planning Commission Create an Amendment to the Montgomery County Zoning Resolution Amending the Minimum Parcel Size Requirements for Agricultural (AG) Zoning Districts in the Rural Area of the Growth Plan to Require a Minimum of Five (5) Acres and Establishing an Effective Date</title>
     <updated>2025-05-12T00:00:00Z</updated>
     <published>2025-05-12T00:00:00Z</published>
@@ -226,7 +676,7 @@
     <summary>Montgomery County Commission, 2025-05-12, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-3-2025/2025-03-17-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-3-2025/2025-03-17-formal</id>
     <title>CZ-3-2025: Application of Leonard &amp; Angela Carter from R-2 to C-2</title>
     <updated>2025-03-17T00:00:00Z</updated>
     <published>2025-03-17T00:00:00Z</published>
@@ -235,7 +685,7 @@
     <summary>Montgomery County Commission, 2025-03-17, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-2-2025/2025-03-17-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-2-2025/2025-03-17-formal</id>
     <title>CZ-2-2025: Application of Carolyn Jackson Houston from AG to R-1</title>
     <updated>2025-03-17T00:00:00Z</updated>
     <published>2025-03-17T00:00:00Z</published>
@@ -244,7 +694,7 @@
     <summary>Montgomery County Commission, 2025-03-17, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-09-2024/2025-01-13-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-09-2024/2025-01-13-formal</id>
     <title>CZ-09-2024: Application of Analeasa Harper from AG to B-I</title>
     <updated>2025-01-13T00:00:00Z</updated>
     <published>2025-01-13T00:00:00Z</published>
@@ -253,7 +703,7 @@
     <summary>Montgomery County Commission, 2025-01-13, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-06-2024/2024-07-08-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-06-2024/2024-07-08-formal</id>
     <title>CZ-06-2024</title>
     <updated>2024-07-08T00:00:00Z</updated>
     <published>2024-07-08T00:00:00Z</published>
@@ -262,7 +712,7 @@
     <summary>Montgomery County Commission, 2024-07-08, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 16.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-02-2024/2024-06-10-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-02-2024/2024-06-10-formal</id>
     <title>CZ-02-2024</title>
     <updated>2024-06-10T00:00:00Z</updated>
     <published>2024-06-10T00:00:00Z</published>
@@ -271,7 +721,7 @@
     <summary>Montgomery County Commission, 2024-06-10, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 16.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-03-2024/2024-06-10-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-03-2024/2024-06-10-formal</id>
     <title>CZ-03-2024</title>
     <updated>2024-06-10T00:00:00Z</updated>
     <published>2024-06-10T00:00:00Z</published>
@@ -280,7 +730,7 @@
     <summary>Montgomery County Commission, 2024-06-10, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 26.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-04-2024/2024-06-10-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-04-2024/2024-06-10-formal</id>
     <title>CZ-04-2024</title>
     <updated>2024-06-10T00:00:00Z</updated>
     <published>2024-06-10T00:00:00Z</published>
@@ -289,7 +739,7 @@
     <summary>Montgomery County Commission, 2024-06-10, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 36.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-05-2024/2024-06-10-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-05-2024/2024-06-10-formal</id>
     <title>CZ-05-2024</title>
     <updated>2024-06-10T00:00:00Z</updated>
     <published>2024-06-10T00:00:00Z</published>
@@ -298,7 +748,7 @@
     <summary>Montgomery County Commission, 2024-06-10, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 47.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-01-2024/2024-03-11-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-01-2024/2024-03-11-formal</id>
     <title>CZ-01-2024</title>
     <updated>2024-03-11T00:00:00Z</updated>
     <published>2024-03-11T00:00:00Z</published>
@@ -307,7 +757,7 @@
     <summary>Montgomery County Commission, 2024-03-11, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 14.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZO-2-2023/2024-02-12-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZO-2-2023/2024-02-12-formal</id>
     <title>CZO-2-2023</title>
     <updated>2024-02-12T00:00:00Z</updated>
     <published>2024-02-12T00:00:00Z</published>
@@ -316,7 +766,7 @@
     <summary>Montgomery County Commission, 2024-02-12, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 35.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZO-1-2024/2024-02-12-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZO-1-2024/2024-02-12-formal</id>
     <title>CZO-1-2024</title>
     <updated>2024-02-12T00:00:00Z</updated>
     <published>2024-02-12T00:00:00Z</published>
@@ -325,7 +775,7 @@
     <summary>Montgomery County Commission, 2024-02-12, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 49.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-20-2023/2024-01-08-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-20-2023/2024-01-08-formal</id>
     <title>CZ-20-2023</title>
     <updated>2024-01-08T00:00:00Z</updated>
     <published>2024-01-08T00:00:00Z</published>
@@ -334,7 +784,7 @@
     <summary>Montgomery County Commission, 2024-01-08, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 15.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-21-2023/2024-01-08-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-21-2023/2024-01-08-formal</id>
     <title>CZ-21-2023</title>
     <updated>2024-01-08T00:00:00Z</updated>
     <published>2024-01-08T00:00:00Z</published>
@@ -343,7 +793,7 @@
     <summary>Montgomery County Commission, 2024-01-08, formal meeting. Recorded: Roll call. Source: minutes, page 25.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-22-2023/2024-01-08-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-22-2023/2024-01-08-formal</id>
     <title>CZ-22-2023</title>
     <updated>2024-01-08T00:00:00Z</updated>
     <published>2024-01-08T00:00:00Z</published>
@@ -352,7 +802,7 @@
     <summary>Montgomery County Commission, 2024-01-08, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 53.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-16-2023/2023-12-11-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-16-2023/2023-12-11-formal</id>
     <title>CZ-16-2023</title>
     <updated>2023-12-11T00:00:00Z</updated>
     <published>2023-12-11T00:00:00Z</published>
@@ -361,7 +811,7 @@
     <summary>Montgomery County Commission, 2023-12-11, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 16.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-18-2023/2023-12-11-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-18-2023/2023-12-11-formal</id>
     <title>CZ-18-2023</title>
     <updated>2023-12-11T00:00:00Z</updated>
     <published>2023-12-11T00:00:00Z</published>
@@ -370,7 +820,7 @@
     <summary>Montgomery County Commission, 2023-12-11, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 26.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-19-2023/2023-12-11-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-19-2023/2023-12-11-formal</id>
     <title>CZ-19-2023</title>
     <updated>2023-12-11T00:00:00Z</updated>
     <published>2023-12-11T00:00:00Z</published>
@@ -379,7 +829,7 @@
     <summary>Montgomery County Commission, 2023-12-11, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 36.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-15-2023/2023-11-13-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-15-2023/2023-11-13-formal</id>
     <title>CZ-15-2023</title>
     <updated>2023-11-13T00:00:00Z</updated>
     <published>2023-11-13T00:00:00Z</published>
@@ -388,7 +838,7 @@
     <summary>Montgomery County Commission, 2023-11-13, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 15.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-17-2023/2023-11-13-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-17-2023/2023-11-13-formal</id>
     <title>CZ-17-2023</title>
     <updated>2023-11-13T00:00:00Z</updated>
     <published>2023-11-13T00:00:00Z</published>
@@ -397,7 +847,7 @@
     <summary>Montgomery County Commission, 2023-11-13, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 27.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-7-2023/2023-09-11-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-7-2023/2023-09-11-formal</id>
     <title>CZ-7-2023: Application of Benjamin Stanley, Danel &amp; CarbI Smith from AG to C-21M-1</title>
     <updated>2023-09-11T00:00:00Z</updated>
     <published>2023-09-11T00:00:00Z</published>
@@ -406,7 +856,7 @@
     <summary>Montgomery County Commission, 2023-09-11, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-2-2023/2023-09-11-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-2-2023/2023-09-11-formal</id>
     <title>CZ-2-2023: Application of Reda Home Builders, Inc. from AG to R-l (deferred from May)</title>
     <updated>2023-09-11T00:00:00Z</updated>
     <published>2023-09-11T00:00:00Z</published>
@@ -415,7 +865,7 @@
     <summary>Montgomery County Commission, 2023-09-11, formal meeting. Recorded: Listed. Source: minutes, page 4.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-13-2023/2023-09-11-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-13-2023/2023-09-11-formal</id>
     <title>CZ-13-2023</title>
     <updated>2023-09-11T00:00:00Z</updated>
     <published>2023-09-11T00:00:00Z</published>
@@ -424,7 +874,7 @@
     <summary>Montgomery County Commission, 2023-09-11, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 12.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-14-2023/2023-09-11-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-14-2023/2023-09-11-formal</id>
     <title>CZ-14-2023</title>
     <updated>2023-09-11T00:00:00Z</updated>
     <published>2023-09-11T00:00:00Z</published>
@@ -433,7 +883,7 @@
     <summary>Montgomery County Commission, 2023-09-11, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 15.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-12-2023/2023-08-14-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-12-2023/2023-08-14-formal</id>
     <title>CZ-12-2023</title>
     <updated>2023-08-14T00:00:00Z</updated>
     <published>2023-08-14T00:00:00Z</published>
@@ -442,7 +892,7 @@
     <summary>Montgomery County Commission, 2023-08-14, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 7.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZO-1-2023/2023-08-14-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZO-1-2023/2023-08-14-formal</id>
     <title>CZO-1-2023</title>
     <updated>2023-08-14T00:00:00Z</updated>
     <published>2023-08-14T00:00:00Z</published>
@@ -451,12 +901,462 @@
     <summary>Montgomery County Commission, 2023-08-14, formal meeting. Recorded: Motion, Roll call. Source: minutes, page 10.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/CZ-2-2023/2023-07-10-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/CZ-2-2023/2023-07-10-formal</id>
     <title>CZ-2-2023: Application of Reda Home Builders, Inc. from AG to R-l (deferred from May)</title>
     <updated>2023-07-10T00:00:00Z</updated>
     <published>2023-07-10T00:00:00Z</published>
     <link rel="alternate" type="text/html" href="../items/2023.html#CZ-2-2023" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=JhDkgwpmqt8sBreYBBhEc8IvgnlpUxneDuX%2BBxKSUo8%3D#page=3" title="Source document" />
     <summary>Montgomery County Commission, 2023-07-10, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/t-3102169e64/2023-05-04-regular</id>
+    <title>ADOPTION OF ZONING</title>
+    <updated>2023-05-04T00:00:00Z</updated>
+    <published>2023-05-04T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2023.html#t-3102169e64" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05042023-1429#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2023-05-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/t-38aaacdd5d/2022-07-07-regular</id>
+    <title>ADOPTION OF ZONING</title>
+    <updated>2022-07-07T00:00:00Z</updated>
+    <published>2022-07-07T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2022-2.html#t-38aaacdd5d" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_07072022-1206#page=7" title="Source document" />
+    <summary>Clarksville City Council, 2022-07-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 7.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/t-835aa0d013/2022-06-02-regular</id>
+    <title>ADOPTION OF ZONING</title>
+    <updated>2022-06-02T00:00:00Z</updated>
+    <published>2022-06-02T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2022.html#t-835aa0d013" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06022022-1178#page=11" title="Source document" />
+    <summary>Clarksville City Council, 2022-06-02, regular session. Recorded: Roll call. Source: minutes, page 11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/t-11a81bb9d8/2022-02-22-special</id>
+    <title>ADOPTION OF ZONING</title>
+    <updated>2022-02-22T00:00:00Z</updated>
+    <published>2022-02-22T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2022.html#t-11a81bb9d8" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02222022-1084#page=7" title="Source document" />
+    <summary>Clarksville City Council, 2022-02-22, special session. Recorded: Motion, Roll call. Source: minutes, page 7.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/t-b5438c52f7/2021-12-02-regular</id>
+    <title>ADOPTION OF ZONING</title>
+    <updated>2021-12-02T00:00:00Z</updated>
+    <published>2021-12-02T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#t-b5438c52f7" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_12022021-1027#page=9" title="Source document" />
+    <summary>Clarksville City Council, 2021-12-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 9.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/t-48977590bc/2021-10-07-regular</id>
+    <title>ADOPTION OF ZONING</title>
+    <updated>2021-10-07T00:00:00Z</updated>
+    <published>2021-10-07T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#t-48977590bc" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-21-2021-22/2021-10-07-regular</id>
+    <title>ORDINANCE 21-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of TDK Properties for Zone Change on property located at the southern terminus of Rufus Johnson Rd. from M-3 Planned Industrial District to C-5 Highway &amp; Aterial Commercial District.</title>
+    <updated>2021-10-07T00:00:00Z</updated>
+    <published>2021-10-07T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-21-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-20-2021-22/2021-10-07-regular</id>
+    <title>ORDINANCE 20-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Olympus Investings, LLC, William Harris-Agent for Zone Change on property located at the intersection of Darnell Place &amp; Cedar Crest Dr. from R-3 Three Family Residential District to R-4 Multiple Family Residential District.</title>
+    <updated>2021-10-07T00:00:00Z</updated>
+    <published>2021-10-07T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-20-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-19-2021-22/2021-10-07-regular</id>
+    <title>ORDINANCE 19-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Reda Home Builders, Inc. for Zone Change on property located at the intersection of Madison St. and Tanglewood Dr. from R-1 Single Family Residential District to C-2 General Commercial District.</title>
+    <updated>2021-10-07T00:00:00Z</updated>
+    <published>2021-10-07T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-19-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-24-2021-22/2021-10-07-regular</id>
+    <title>ORDINANCE 24-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Johnny Piper for Zone Change on property located at the southern frontage of Cave Springs Rd. east of Danko Ln. from R-3 Three Family Residential District to R-6 Single Family Residential District.</title>
+    <updated>2021-10-07T00:00:00Z</updated>
+    <published>2021-10-07T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-24-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=6" title="Source document" />
+    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Roll call. Source: minutes, page 6.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-23-2021-22/2021-10-07-regular</id>
+    <title>ORDINANCE 23-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of William Belew for Zone Change on property located at the intersection of Needmore Rd. &amp; E. Boy Scout Rd. from AG Agricultural District to R-1 Single Family Residential District.</title>
+    <updated>2021-10-07T00:00:00Z</updated>
+    <published>2021-10-07T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-23-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=6" title="Source document" />
+    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 6.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-26-2021-22/2021-10-07-regular</id>
+    <title>ORDINANCE 26-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Trent Gallivan for Zone Change on property located at the intersection of Fairview Ln &amp; W. Rossview Rd. from R-1 Single Family Residential District to R-6 Single Family Residential District.</title>
+    <updated>2021-10-07T00:00:00Z</updated>
+    <published>2021-10-07T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-26-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=7" title="Source document" />
+    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 7.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-25-2021-22/2021-10-07-regular</id>
+    <title>ORDINANCE 25-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of William Revell, Suresh Burle-Agent for Zone Change on property located at the intersection of Tiny Town Rd. &amp; Allen Rd. from AG Agricultural District and C-5 Highway &amp; Arterial Commercial District to AG Agricultural District and R-4 Multiple Family Residential District.</title>
+    <updated>2021-10-07T00:00:00Z</updated>
+    <published>2021-10-07T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-25-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=7" title="Source document" />
+    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Roll call. Source: minutes, page 7.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-6-2021-22/2021-10-07-regular</id>
+    <title>ORDINANCE 6-2021-22: (Second Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Reda Home Builders, Inc. for Zone Change on property located at the intersection of Twin Rivers Rd. and Nolen Rd. from R-1 Single Family Residential District to R-4 Multiple Family Residential District</title>
+    <updated>2021-10-07T00:00:00Z</updated>
+    <published>2021-10-07T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-6-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=14" title="Source document" />
+    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 14.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-7-2021-22/2021-10-07-regular</id>
+    <title>ORDINANCE 7-2021-22: (Second Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Lynda Ann Holt Conner, Stanley Ross, Harvill Ross, PLLC - Agent, for Zone Change on property located at the intersection of Wilson Rd. and Old Farmers Rd. from C-5 Highway &amp; Arterial Commercial District and R-1 Single Family Residential District to R-5 Residential District</title>
+    <updated>2021-10-07T00:00:00Z</updated>
+    <published>2021-10-07T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-7-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=15" title="Source document" />
+    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 15.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-19-2021-22/2021-09-02-regular</id>
+    <title>ORDINANCE 19-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Reda Home Builders, Inc. for Zone Change on property located at the intersection of Madison St. and Tanglewood Dr. from R-1 Single Family Residential District to C-2 General Commercial District.</title>
+    <updated>2021-09-02T00:00:00Z</updated>
+    <published>2021-09-02T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-19-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/t-4fecd33264/2021-09-02-regular</id>
+    <title>ADOPTION OF ZONING</title>
+    <updated>2021-09-02T00:00:00Z</updated>
+    <published>2021-09-02T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#t-4fecd33264" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-23-2021-22/2021-09-02-regular</id>
+    <title>ORDINANCE 23-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of William Belew for Zone Change on property located at the intersection of Needmore Rd. &amp; E. Boy Scout Rd. from AG Agricultural District to R-1 Single Family Residential District.</title>
+    <updated>2021-09-02T00:00:00Z</updated>
+    <published>2021-09-02T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-23-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-21-2021-22/2021-09-02-regular</id>
+    <title>ORDINANCE 21-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of TDK Properties for Zone Change on property located at the southern terminus of Rufus Johnson Rd. from M-3 Planned Industrial District to C-5 Highway &amp; Aterial Commercial District.</title>
+    <updated>2021-09-02T00:00:00Z</updated>
+    <published>2021-09-02T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-21-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-20-2021-22/2021-09-02-regular</id>
+    <title>ORDINANCE 20-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Olympus Investings, LLC, William Harris-Agent for Zone Change on property located at the intersection of Darnell Place &amp; Cedar Crest Dr. from R-3 Three Family Residential District to R-4 Multiple Family Residential District.</title>
+    <updated>2021-09-02T00:00:00Z</updated>
+    <published>2021-09-02T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-20-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-26-2021-22/2021-09-02-regular</id>
+    <title>ORDINANCE 26-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Trent Gallivan for Zone Change on property located at the intersection of Fairview Ln &amp; W. Rossview Rd. from R-1 Single Family Residential District to R-6 Single Family Residential District.</title>
+    <updated>2021-09-02T00:00:00Z</updated>
+    <published>2021-09-02T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-26-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=6" title="Source document" />
+    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 6.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-25-2021-22/2021-09-02-regular</id>
+    <title>ORDINANCE 25-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of William Revell, Suresh Burle-Agent for Zone Change on property located at the intersection of Tiny Town Rd. &amp; Allen Rd. from AG Agricultural District and C-5 Highway &amp; Arterial Commercial District to AG Agricultural District and R-4 Multiple Family Residential District.</title>
+    <updated>2021-09-02T00:00:00Z</updated>
+    <published>2021-09-02T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-25-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=6" title="Source document" />
+    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Roll call. Source: minutes, page 6.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-24-2021-22/2021-09-02-regular</id>
+    <title>ORDINANCE 24-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Johnny Piper for Zone Change on property located at the southern frontage of Cave Springs Rd. east of Danko Ln. from R-3 Three Family Residential District to R-6 Single Family Residential District.</title>
+    <updated>2021-09-02T00:00:00Z</updated>
+    <published>2021-09-02T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-24-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=6" title="Source document" />
+    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Roll call. Source: minutes, page 6.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-7-2021-22/2021-09-02-regular</id>
+    <title>ORDINANCE 7-2021-22: (Second Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Lynda Ann Holt Conner, Stanley Ross, Harvill Ross, PLLC - Agent, for Zone Change on property located at the intersection of Wilson Rd. and Old Farmers Rd. from C-5 Highway &amp; Arterial Commercial District and R-1 Single Family Residential District to R-5 Residential District</title>
+    <updated>2021-09-02T00:00:00Z</updated>
+    <published>2021-09-02T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-7-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=14" title="Source document" />
+    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 14.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-6-2021-22/2021-09-02-regular</id>
+    <title>ORDINANCE 6-2021-22: (Second Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Reda Home Builders, Inc. for Zone Change on property located at the intersection of Twin Rivers Rd. and Nolen Rd. from R-1 Single Family Residential District to R-4 Multiple Family Residential District</title>
+    <updated>2021-09-02T00:00:00Z</updated>
+    <published>2021-09-02T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-6-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=14" title="Source document" />
+    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 14.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-1-2021-22/2021-07-01-regular</id>
+    <title>ORDINANCE 1-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Rick Reda for zone change on property located at the intersection of Evans Rd. and Shaw Dr. from RM-1 Single-Family Mobile Home Residential District to R-4 Multiple-Family Residential District</title>
+    <updated>2021-07-01T00:00:00Z</updated>
+    <published>2021-07-01T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-1-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_07012021-870#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2021-07-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-2-2021-22/2021-07-01-regular</id>
+    <title>ORDINANCE 2-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of City of Clarksville, Joe Pitts, Mayor - Agent for zone change on property located at the intersection of Union St. and South 3rd St. from CBD Central Business District to R-4 Multiple-Family Residential District</title>
+    <updated>2021-07-01T00:00:00Z</updated>
+    <published>2021-07-01T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-3.html#ordinance-2-2021-22" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_07012021-870#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2021-07-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-112-2020-21/2021-06-03-regular</id>
+    <title>ORDINANCE 112-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Satish Prabhu, Matt Ellis-Agent, for zone change on property located at the intersection of Dr. Martin Luther King Jr. Parkway/Hwy. 76 and New South Drive from C-4 Highway Interchange District to R-4 Multiple Family Residential District</title>
+    <updated>2021-06-03T00:00:00Z</updated>
+    <published>2021-06-03T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-112-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-111-2020-21/2021-06-03-regular</id>
+    <title>ORDINANCE 111-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Reda Home Builders, Inc. for zone change on property located at the intersection of Oak Street and Mann Circle from R-3 Three Family Residential District to R-4 Multiple Family Residential District</title>
+    <updated>2021-06-03T00:00:00Z</updated>
+    <published>2021-06-03T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-111-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-117-2020-21/2021-06-03-regular</id>
+    <title>ORDINANCE 117-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Brian Wolff, Houston Smith-Agent, for zone change on property located north of Providence Boulevard and east of Cave Springs Road from R-3 Three Family Residential District and C-2 General Commercial District to C-2 General Commercial District and R-3 Three Family Residential District</title>
+    <updated>2021-06-03T00:00:00Z</updated>
+    <published>2021-06-03T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-117-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-116-2020-21/2021-06-03-regular</id>
+    <title>ORDINANCE 116-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Bristol Ridge Apartments for zone change on property located south of Highway 76 and north of Karmaflux Way from C-5 Highway &amp; Arterial Commercial District and R-1A Single Family Residential District to R-4 Multiple Family Residential District, C-5 Highway &amp; Arterial Commercial District, and R-1A Single Family Residential District</title>
+    <updated>2021-06-03T00:00:00Z</updated>
+    <published>2021-06-03T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-116-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-115-2020-21/2021-06-03-regular</id>
+    <title>ORDINANCE 115-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Syd Hedrick, Syd Hedrick-Agent, for zone change on property located south of Crossland Avenue, north of West High Street, and east of Charlotte Street from R-3 Three Family Residential District and R-6 Single Family Residential District to C-2 General Commercial District Syd Hedrick said his plans included a mixed use development with a commercial component to provide local services to the residential area. In response to Councilperson Reynolds’s question, Mr. Hedrick said he would allow access to the completed Upland Trail. No one spoke against this request.</title>
+    <updated>2021-06-03T00:00:00Z</updated>
+    <published>2021-06-03T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-115-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-114-2020-21/2021-06-03-regular</id>
+    <title>ORDINANCE 114-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Salvador Castro, Rex Hawkins-Agent, for zone change on property located at the intersection of Ft. Campbell Boulevard and Jack Miller Boulevard from C-5 Highway &amp; Arterial Commercial District to C-2 General Commercial District</title>
+    <updated>2021-06-03T00:00:00Z</updated>
+    <published>2021-06-03T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-114-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-113-2020-21/2021-06-03-regular</id>
+    <title>ORDINANCE 113-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Singletary Construction, LLC, Bert Singletary-Agent, for zone change on property located at the intersection of Center Pointe Drive and Center Court from C-5 Highway &amp; Arterial Commercial District to C-2 General Commercial District</title>
+    <updated>2021-06-03T00:00:00Z</updated>
+    <published>2021-06-03T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-113-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-119-2020-21/2021-06-03-regular</id>
+    <title>ORDINANCE 119-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of William Belew, Jr. for zone change on property located at the southeast corner of Needmore Road and Hazelwood Road from R-1A Single Family Residential District to C-5 Highway &amp; Arterial commercial District</title>
+    <updated>2021-06-03T00:00:00Z</updated>
+    <published>2021-06-03T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-119-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=6" title="Source document" />
+    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 6.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-118-2020-21/2021-06-03-regular</id>
+    <title>ORDINANCE 118-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Dan Johnson, Todd Morris-Agent, for zone change on property located at the intersection of Powell Road and Ellie Piper Circle from AG Agricultural District to R-1 Single Family Residential District</title>
+    <updated>2021-06-03T00:00:00Z</updated>
+    <published>2021-06-03T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-118-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=6" title="Source document" />
+    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 6.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-99-2020-21/2021-05-06-regular</id>
+    <title>ORDINANCE 99-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Charles Hand, Brad Martin/Lyle, Cook, Martin) - Agent, for zone change on property located at the intersection of Cedarcroft Drive and Ussery Road from E-1 Single Family Estate District to PUD-1 Planned Unit Development Residential District</title>
+    <updated>2021-05-06T00:00:00Z</updated>
+    <published>2021-05-06T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-99-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05062021-814#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2021-05-06, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-101-2020-21/2021-05-06-regular</id>
+    <title>ORDINANCE 101-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Henry Galvez and Saul Ramos Chavez for zone change on property located at the intersection of Evans Road and Shaw Drive from RM-1 Single Family Mobile Home Residential District to R-1 Single Family Residential District</title>
+    <updated>2021-05-06T00:00:00Z</updated>
+    <published>2021-05-06T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-101-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05062021-814#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2021-05-06, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-100-2020-21/2021-05-06-regular</id>
+    <title>ORDINANCE 100-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Hilldale United Methodist Church, Inc., Mark Holleman-Agent, for zone change on property located at the intersection of Madison Street and Tanglewood Drive from R-1 Single Family Residential District to C-2 General Commercial District</title>
+    <updated>2021-05-06T00:00:00Z</updated>
+    <published>2021-05-06T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-100-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05062021-814#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2021-05-06, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/t-c8ad0b454d/2021-05-06-regular</id>
+    <title>ADOPTION OF ZONING AND ANNEXATION</title>
+    <updated>2021-05-06T00:00:00Z</updated>
+    <published>2021-05-06T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#t-c8ad0b454d" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05062021-814#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2021-05-06, regular session. Recorded: Roll call. Source: minutes, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-102-2020-21/2021-05-06-regular</id>
+    <title>ORDINANCE 102-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Jerry Trotter for zone change on property located at the southern terminus of Viewmont Drive and north of Gibbs Lane from AG Agricultural District to R-2 Single Family Residential District</title>
+    <updated>2021-05-06T00:00:00Z</updated>
+    <published>2021-05-06T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-102-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05062021-814#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2021-05-06, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-68-2020-21/2021-04-13-special</id>
+    <title>RESOLUTION 68-2020-21: Approving appointments to the Community Health Foundation and the Board of Zoning Appeals</title>
+    <updated>2021-04-13T00:00:00Z</updated>
+    <published>2021-04-13T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#resolution-68-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04132021-788#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2021-04-13, special session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-85-2020-21/2021-04-01-regular</id>
+    <title>ORDINANCE 85-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Reda Home Builders, Inc., Reda Home Builders, Inc.-Agent, for zone change on property located at the eastern terminus of the southern Circle Hill Drive right-of-way and at the north frontage of Cave Springs Road from R-1 Single Family Residential District to R-6 Single Family Residential District</title>
+    <updated>2021-04-01T00:00:00Z</updated>
+    <published>2021-04-01T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-85-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04012021-781#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2021-04-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-84-2020-21/2021-04-01-regular</id>
+    <title>ORDINANCE 84-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Reda Home Builders, Inc., Reda Home Builders, Inc.-Agent, for zone change on property located at the intersection of Twin Rivers Road and Nolen Road from R-1 Single Family Residential District to R-4 Multiple Family Residential District No requests were submitted to speak for or against this request.</title>
+    <updated>2021-04-01T00:00:00Z</updated>
+    <published>2021-04-01T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-84-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04012021-781#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2021-04-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-88-2020-21/2021-04-01-regular</id>
+    <title>ORDINANCE 88-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Black Hawk Land-Bert Singletary Development for zone change on property located at the intersection of Peachers Mill Road and Henry Place from R-2 Single Family Residential District to C-5 Highway &amp; Arterial Commercial District</title>
+    <updated>2021-04-01T00:00:00Z</updated>
+    <published>2021-04-01T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-88-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04012021-781#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2021-04-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-87-2020-21/2021-04-01-regular</id>
+    <title>ORDINANCE 87-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Kolbe Homes, LLC, Robert Kolbe for zone change on property located at the intersection of Peachers Mill Road and Randell Drive and at the western-southern terminus of Leigh Ann Drive from R-2D Two Family Residential District to R-4 Multiple Family Residential District</title>
+    <updated>2021-04-01T00:00:00Z</updated>
+    <published>2021-04-01T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-87-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04012021-781#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2021-04-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-86-2020-21/2021-04-01-regular</id>
+    <title>ORDINANCE 86-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Estate of Frank Wooten, Linda Roberts, Executor, Cody Dahl-Agent, for zone change on property located at the intersection of Reynolds Street and Cedar Street from R-3 Three Family Residential District to R-6 Single Family Residential District</title>
+    <updated>2021-04-01T00:00:00Z</updated>
+    <published>2021-04-01T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-86-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04012021-781#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2021-04-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-90-2020-21/2021-04-01-regular</id>
+    <title>ORDINANCE 90-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Cumberland Radio Partnership, Inc., Chris Blackwell-Agent, for zone change on property on the east frontage of Martin Street south of Crossland Avenue from R-3 Three Family Residential District to R-4 Multiple Family Residential District</title>
+    <updated>2021-04-01T00:00:00Z</updated>
+    <published>2021-04-01T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-90-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04012021-781#page=6" title="Source document" />
+    <summary>Clarksville City Council, 2021-04-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 6.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-89-2020-21/2021-04-01-regular</id>
+    <title>ORDINANCE 89-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Johnathan Blick for zone change on property located on the east frontage of N. Ford Street at the southern terminus of N. Ford Street from M-2 General Industrial District to R-4 Multiple Family Residential District</title>
+    <updated>2021-04-01T00:00:00Z</updated>
+    <published>2021-04-01T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021-2.html#ordinance-89-2020-21" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04012021-781#page=6" title="Source document" />
+    <summary>Clarksville City Council, 2021-04-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 6.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/t-3696067a70/2021-03-04-regular</id>
+    <title>ADOPTION OF ZONING</title>
+    <updated>2021-03-04T00:00:00Z</updated>
+    <published>2021-03-04T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../city/items/2021.html#t-3696067a70" />
+    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03042021-749#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2021-03-04, regular session. Recorded: Roll call. Source: minutes, page 3.</summary>
   </entry>
 </feed>

@@ -1,16 +1,16 @@
 <?xml version='1.0' encoding='utf-8'?>
 <feed xmlns="http://www.w3.org/2005/Atom">
-  <id>tag:records.gnoshcodes.com,2026-11-09:feeds/topic-resolution</id>
-  <title>Clarksville Records: Resolution items: Montgomery County Commission and Clarksville City Council</title>
+  <id>tag:daylight.gnoshcodes.com,2026-11-09:feeds/topic-resolution</id>
+  <title>Daylight: Resolution items: Montgomery County Commission and Clarksville City Council</title>
   <subtitle>Each item the Resolution type rule matches, at each meeting it appears at.</subtitle>
   <updated>2026-11-09T00:00:00Z</updated>
   <author>
-    <name>Clarksville Records</name>
+    <name>Daylight</name>
   </author>
   <link rel="self" type="application/atom+xml" href="topic-resolution.xml" />
   <link rel="alternate" type="text/html" href="../alerts.html" />
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-5-4/2026-05-11-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-5-4/2026-05-11-formal</id>
     <title>26-5-4: Resolution to Approve Donation and Development Agreement for Public Safety Complex in the Kirkwood Area ofMontgomery County, Tennessee</title>
     <updated>2026-05-11T00:00:00Z</updated>
     <published>2026-05-11T00:00:00Z</published>
@@ -19,7 +19,7 @@
     <summary>Montgomery County Commission, 2026-05-11, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-5-2/2026-05-11-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-5-2/2026-05-11-formal</id>
     <title>26-5-2: Resolution to Request Unclaimed Balance of Accounts Remitted to State Trea~urer</title>
     <updated>2026-05-11T00:00:00Z</updated>
     <published>2026-05-11T00:00:00Z</published>
@@ -28,7 +28,7 @@
     <summary>Montgomery County Commission, 2026-05-11, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-5-1/2026-05-11-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-5-1/2026-05-11-formal</id>
     <title>26-5-1: Resolution Amending the Fiscal Year 2026 Budget of Montgomery County, Tennessee</title>
     <updated>2026-05-11T00:00:00Z</updated>
     <published>2026-05-11T00:00:00Z</published>
@@ -37,7 +37,7 @@
     <summary>Montgomery County Commission, 2026-05-11, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-5-3/2026-05-11-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-5-3/2026-05-11-formal</id>
     <title>26-5-3: Resolution Accepting Funds from Tennessee Valley Authority (TVA) for Rotary Park Native Restoration and to Appropriate Funds</title>
     <updated>2026-05-11T00:00:00Z</updated>
     <published>2026-05-11T00:00:00Z</published>
@@ -46,7 +46,7 @@
     <summary>Montgomery County Commission, 2026-05-11, formal meeting. Recorded: Roll call. Source: minutes, page 7.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-4-9/2026-04-13-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-4-9/2026-04-13-formal</id>
     <title>26-4-9: Resolution to Establish a Consultant Selection Policy for Projects Funded in Whole or in Part with Funds Provided by the Federal Highway Administration or the Tennessee Department of Transportation</title>
     <updated>2026-04-13T00:00:00Z</updated>
     <published>2026-04-13T00:00:00Z</published>
@@ -55,7 +55,7 @@
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-4-7/2026-04-13-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-4-7/2026-04-13-formal</id>
     <title>26-4-7: Resolution to Acquire Property at 113 South Third Street, Clarksville, Tennessee 37040</title>
     <updated>2026-04-13T00:00:00Z</updated>
     <published>2026-04-13T00:00:00Z</published>
@@ -64,7 +64,7 @@
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-4-6/2026-04-13-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-4-6/2026-04-13-formal</id>
     <title>26-4-6: Resolution to Donate Land Acquired at a Tax Sale Pursuant to Tennessee Code Annotated §67-5-2507(B)</title>
     <updated>2026-04-13T00:00:00Z</updated>
     <published>2026-04-13T00:00:00Z</published>
@@ -73,7 +73,7 @@
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-4-1/2026-04-13-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-4-1/2026-04-13-formal</id>
     <title>26-4-1: Resolution of the Montgomery County Board of Commissioners Approving Amendments to the 2025-2026 School Budget</title>
     <updated>2026-04-13T00:00:00Z</updated>
     <published>2026-04-13T00:00:00Z</published>
@@ -82,7 +82,7 @@
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-4-5/2026-04-13-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-4-5/2026-04-13-formal</id>
     <title>26-4-5: A Resolution to Establish A Mandatory Retirement Age Requirement Pursuant to Tennessee Code Annotated, Section §8-36-205, to Authorize the Payment of the Supplemental Bridge Benefit Pursuant to Tennessee Code Annotated, §Section 8-36- 211, and to Authorize Group 1 Members Who Have Creditable Service in a Group 1 Position Covered by Such Mandatory Age Retirement to Retire on Service Retirement Benefits upon Attainment of Age Fifty-Five (55) with Twenty-Five (25) Years of Creditable Service Pursuant to Tennessee Code Annotated, Section §8-36-201(A)(2) Legacy Plan</title>
     <updated>2026-04-13T00:00:00Z</updated>
     <published>2026-04-13T00:00:00Z</published>
@@ -91,7 +91,7 @@
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-4-4/2026-04-13-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-4-4/2026-04-13-formal</id>
     <title>26-4-4: A Resolution to Establish a Mandatory Retirement Age Requirement Pursuant to Tennessee Code Annotated, Section §8-36-205, to Authorize the Payment of the Supplemental Bridge Benefit Pursuant to Tennessee Code Annotated, Section §8-36- 211, and to Authorize Group I Members Who Have Creditable Service in a Group 1 Position Covered by Such Mandatory Age Retirement to Retire on Service Retirement Benefits upon Attainment of Age Fifty-Five (55) with Twenty-Five (25) Years of Creditable Service Pursuant to Tennessee Code Annotated, Section §8-36-201(A)(2) Hybrid Plan</title>
     <updated>2026-04-13T00:00:00Z</updated>
     <published>2026-04-13T00:00:00Z</published>
@@ -100,7 +100,7 @@
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-4-3/2026-04-13-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-4-3/2026-04-13-formal</id>
     <title>26-4-3: Resolution to Amend Revenues and Expenditures in the Sheriff’s Office and Jail Budgets for Fiscal Year 2026</title>
     <updated>2026-04-13T00:00:00Z</updated>
     <published>2026-04-13T00:00:00Z</published>
@@ -109,7 +109,7 @@
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-4-8/2026-04-13-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-4-8/2026-04-13-formal</id>
     <title>26-4-8: Resolution for Authorization and Approval to Enter into Attorney Fee Agreements and Authorizations to Participate in the Defendant Settlement Agreement with Six Remnant Defendants Proposed Settlement</title>
     <updated>2026-04-13T00:00:00Z</updated>
     <published>2026-04-13T00:00:00Z</published>
@@ -118,7 +118,7 @@
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Roll call. Source: minutes, page 30.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-4-2/2026-04-13-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-4-2/2026-04-13-formal</id>
     <title>26-4-2: Resolution Authorizing the Amendment of Grant Funds from the Tennessee Department of Safety &amp; Homeland Security, Tennessee Highway Safety Office</title>
     <updated>2026-04-13T00:00:00Z</updated>
     <published>2026-04-13T00:00:00Z</published>
@@ -127,7 +127,7 @@
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Roll call. Source: minutes, page 30.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-3-7/2026-03-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-3-7/2026-03-09-formal</id>
     <title>26-3-7: Resolution for a Budget Amendment to Replenish Salt and Rock Following Extreme Weather Events</title>
     <updated>2026-03-09T00:00:00Z</updated>
     <published>2026-03-09T00:00:00Z</published>
@@ -136,7 +136,7 @@
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-3-6/2026-03-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-3-6/2026-03-09-formal</id>
     <title>26-3-6: Resolution to Accept and Appropriate Donated Funds from the Millan Foundation</title>
     <updated>2026-03-09T00:00:00Z</updated>
     <published>2026-03-09T00:00:00Z</published>
@@ -145,7 +145,7 @@
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-3-5/2026-03-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-3-5/2026-03-09-formal</id>
     <title>26-3-5: Resolution to Accept State of Tennessee Endowment Grant Funds for Essential Equipment Purchases for Licensed Ambulance Services in Tennessee and Appropriate Funds</title>
     <updated>2026-03-09T00:00:00Z</updated>
     <published>2026-03-09T00:00:00Z</published>
@@ -154,7 +154,7 @@
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-3-4/2026-03-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-3-4/2026-03-09-formal</id>
     <title>26-3-4: Resolution to Authorize Execution of an Agreement Between the Clarksville Rotary Foundation and the County of Montgomery Regarding a Grant Award from the Clarksville- Montgomery County Community Health Foundation, Inc. for Montgomery County’s Greenway and to Appropriate Funds</title>
     <updated>2026-03-09T00:00:00Z</updated>
     <published>2026-03-09T00:00:00Z</published>
@@ -163,7 +163,7 @@
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-3-3/2026-03-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-3-3/2026-03-09-formal</id>
     <title>26-3-3: Resolution to Accept State of Tennessee Volunteer Firefighter Equipment and Training Grant Program 33501-262521 and Appropriate Funds</title>
     <updated>2026-03-09T00:00:00Z</updated>
     <published>2026-03-09T00:00:00Z</published>
@@ -172,7 +172,7 @@
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-3-2/2026-03-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-3-2/2026-03-09-formal</id>
     <title>26-3-2: Resolution to Amend Budget to Accept Grant Funds from the Tennessee Depailment of Transportation Litter and Trash Collection Program</title>
     <updated>2026-03-09T00:00:00Z</updated>
     <published>2026-03-09T00:00:00Z</published>
@@ -181,7 +181,7 @@
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-3-1/2026-03-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-3-1/2026-03-09-formal</id>
     <title>26-3-1: Resolution Amending the Fiscal Year 2026 Budget ofMontgomery County, Tennessee</title>
     <updated>2026-03-09T00:00:00Z</updated>
     <published>2026-03-09T00:00:00Z</published>
@@ -190,7 +190,7 @@
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-3-9/2026-03-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-3-9/2026-03-09-formal</id>
     <title>26-3-9: Resolution Authorizing the Regional Planning Commission to Exercise Platting per Tennessee Code Annotated 13-3-402</title>
     <updated>2026-03-09T00:00:00Z</updated>
     <published>2026-03-09T00:00:00Z</published>
@@ -199,7 +199,7 @@
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-3-8/2026-03-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-3-8/2026-03-09-formal</id>
     <title>26-3-8: Resolution of the County Commission of Montgomery County, Tennessee Approving the Issuance of Bonds by the Health and Educational Facilities Board of the Metropolitan Government of Nashville and Davidson County, Tennessee, Proceeds of Which in the Amount of $1,500,000,000 Will be Loaned to Vanderbilt University Medical Center and Its Affiliates in Part to Finance Improvements to Their Facilities Located in Montgomery County, Tennessee</title>
     <updated>2026-03-09T00:00:00Z</updated>
     <published>2026-03-09T00:00:00Z</published>
@@ -208,7 +208,7 @@
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-3-10/2026-03-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-3-10/2026-03-09-formal</id>
     <title>26-3-10: Resolution Appropriating Funds from the Opioid Abatement Settlement Funds and National Opioid Settlement Funds</title>
     <updated>2026-03-09T00:00:00Z</updated>
     <published>2026-03-09T00:00:00Z</published>
@@ -217,7 +217,7 @@
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-2-4/2026-02-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-2-4/2026-02-09-formal</id>
     <title>26-2-4: Resolution to Appropriate Funds for the FEMA Hazard Mitigation Grant Program (HMGP) in Support of Montgomery County Fire Department</title>
     <updated>2026-02-09T00:00:00Z</updated>
     <published>2026-02-09T00:00:00Z</published>
@@ -226,7 +226,7 @@
     <summary>Montgomery County Commission, 2026-02-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-2-3/2026-02-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-2-3/2026-02-09-formal</id>
     <title>26-2-3: Resolution to Appoint a County Medical Examiner</title>
     <updated>2026-02-09T00:00:00Z</updated>
     <published>2026-02-09T00:00:00Z</published>
@@ -235,7 +235,7 @@
     <summary>Montgomery County Commission, 2026-02-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-2-2/2026-02-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-2-2/2026-02-09-formal</id>
     <title>26-2-2: Resolution to Retain a Delinquent Tax Attomey for Tax Year 2024</title>
     <updated>2026-02-09T00:00:00Z</updated>
     <published>2026-02-09T00:00:00Z</published>
@@ -244,7 +244,7 @@
     <summary>Montgomery County Commission, 2026-02-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-2-6/2026-02-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-2-6/2026-02-09-formal</id>
     <title>26-2-6: Resolution Authorizing the Revision ofthe Utility Easement on Property at or Near Stowe Court</title>
     <updated>2026-02-09T00:00:00Z</updated>
     <published>2026-02-09T00:00:00Z</published>
@@ -253,7 +253,7 @@
     <summary>Montgomery County Commission, 2026-02-09, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-2-5/2026-02-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-2-5/2026-02-09-formal</id>
     <title>26-2-5: Resolution to Establish Uniform Social Media Consumer Terms ofUse</title>
     <updated>2026-02-09T00:00:00Z</updated>
     <published>2026-02-09T00:00:00Z</published>
@@ -262,7 +262,7 @@
     <summary>Montgomery County Commission, 2026-02-09, formal meeting. Recorded: Listed. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-2-1/2026-02-09-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-2-1/2026-02-09-formal</id>
     <title>26-2-1: Resolution of the Montgomery County Board of Commissioners Approving Amendments to the 2025-2026 School Budget</title>
     <updated>2026-02-09T00:00:00Z</updated>
     <published>2026-02-09T00:00:00Z</published>
@@ -271,7 +271,7 @@
     <summary>Montgomery County Commission, 2026-02-09, formal meeting. Recorded: Roll call. Source: minutes, page 26.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-1-4/2026-01-12-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-1-4/2026-01-12-formal</id>
     <title>26-1-4: ResolutionAmending the Budget of Montgomery County to Appropriate Funds to Add a Security Officer to the County Clerk’s Office at Veteran’s Plaza</title>
     <updated>2026-01-12T00:00:00Z</updated>
     <published>2026-01-12T00:00:00Z</published>
@@ -280,7 +280,7 @@
     <summary>Montgomery County Commission, 2026-01-12, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-1-3/2026-01-12-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-1-3/2026-01-12-formal</id>
     <title>26-1-3: Resolution to Authorize Cooperative Purchasing Agreements for the Use and Benefit of All Montgomery County Departments</title>
     <updated>2026-01-12T00:00:00Z</updated>
     <published>2026-01-12T00:00:00Z</published>
@@ -289,7 +289,7 @@
     <summary>Montgomery County Commission, 2026-01-12, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-1-2/2026-01-12-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-1-2/2026-01-12-formal</id>
     <title>26-1-2: Resolution to Accept Donation Funds for the Montgomery County Fire Service from the Tractor Supply Company Foundation</title>
     <updated>2026-01-12T00:00:00Z</updated>
     <published>2026-01-12T00:00:00Z</published>
@@ -298,7 +298,7 @@
     <summary>Montgomery County Commission, 2026-01-12, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/26-1-1/2026-01-12-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-1-1/2026-01-12-formal</id>
     <title>26-1-1: Resolution Amending the Fiscal Year 2026 Budget of Montgomery County, Tennessee</title>
     <updated>2026-01-12T00:00:00Z</updated>
     <published>2026-01-12T00:00:00Z</published>
@@ -307,7 +307,7 @@
     <summary>Montgomery County Commission, 2026-01-12, formal meeting. Recorded: Roll call. Source: minutes, page 29.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-12-3/2025-12-08-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-12-3/2025-12-08-formal</id>
     <title>25-12-3: Resolution of the County Commission of Montgomery County, Tennessee Approving the Issuance of Bonds by the Health and Educational Facilities Board of the Metropolitan Government of Nashville and Davidson County, Tennessee, Proceeds of Which in the Amount of $650,000,000 Will be Loaned to Vanderbilt University Medical Center and Its Affiliates in Part to Finance Improvements to VUMC’s Facilities Located in Montgomery County, Tennessee</title>
     <updated>2025-12-08T00:00:00Z</updated>
     <published>2025-12-08T00:00:00Z</published>
@@ -316,7 +316,7 @@
     <summary>Montgomery County Commission, 2025-12-08, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-12-4/2025-12-08-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-12-4/2025-12-08-formal</id>
     <title>25-12-4: Resolution Adopting the Britton Springs Neighborhood Plan</title>
     <updated>2025-12-08T00:00:00Z</updated>
     <published>2025-12-08T00:00:00Z</published>
@@ -325,7 +325,7 @@
     <summary>Montgomery County Commission, 2025-12-08, formal meeting. Recorded: Listed. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-12-2/2025-12-08-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-12-2/2025-12-08-formal</id>
     <title>25-12-2: Resolution to Accept and Appropriate Grant Funds from the Department of Finance and Administration and the Tennessee Office of Criminal Justice Programs</title>
     <updated>2025-12-08T00:00:00Z</updated>
     <published>2025-12-08T00:00:00Z</published>
@@ -334,7 +334,7 @@
     <summary>Montgomery County Commission, 2025-12-08, formal meeting. Recorded: Roll call. Source: minutes, page 33.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-12-1/2025-12-08-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-12-1/2025-12-08-formal</id>
     <title>25-12-1: Resolution of the Montgomery County Board of Commissioners Approving Amendments to the 2025-2026 School Budget</title>
     <updated>2025-12-08T00:00:00Z</updated>
     <published>2025-12-08T00:00:00Z</published>
@@ -343,7 +343,7 @@
     <summary>Montgomery County Commission, 2025-12-08, formal meeting. Recorded: Roll call. Source: minutes, page 33.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-11-5/2025-11-10-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-11-5/2025-11-10-formal</id>
     <title>25-11-5: Resolution of the County Commission of the County of Montgomery, Tennessee Approving a Tax-Exempt Bond Financing to be Undertaken by the Health and Educational Facilities Board of Rutherford County with Respect to Certain Projects of Ascension Health Alliance Located in the County of Montgomery, Tennessee</title>
     <updated>2025-11-10T00:00:00Z</updated>
     <published>2025-11-10T00:00:00Z</published>
@@ -352,7 +352,7 @@
     <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-11-4/2025-11-10-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-11-4/2025-11-10-formal</id>
     <title>25-11-4: Resolution to Enter into Lease Agreement for Storage Facilities</title>
     <updated>2025-11-10T00:00:00Z</updated>
     <published>2025-11-10T00:00:00Z</published>
@@ -361,7 +361,7 @@
     <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-11-3/2025-11-10-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-11-3/2025-11-10-formal</id>
     <title>25-11-3: Resolution to Approve Interlocal Agreement Between Multiple City, County and School System Entities Establishing the Handle With Care Program</title>
     <updated>2025-11-10T00:00:00Z</updated>
     <published>2025-11-10T00:00:00Z</published>
@@ -370,7 +370,7 @@
     <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-11-2/2025-11-10-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-11-2/2025-11-10-formal</id>
     <title>25-11-2: Resolution to Accept and Appropriate Donated Funds from Hankook Tire USA</title>
     <updated>2025-11-10T00:00:00Z</updated>
     <published>2025-11-10T00:00:00Z</published>
@@ -379,7 +379,7 @@
     <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-11-1/2025-11-10-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-11-1/2025-11-10-formal</id>
     <title>25-11-1: Resolution Amending the Fiscal Year 2026 Budget ofMontgomery County, Tennessee</title>
     <updated>2025-11-10T00:00:00Z</updated>
     <published>2025-11-10T00:00:00Z</published>
@@ -388,7 +388,7 @@
     <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Listed. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-11-7/2025-11-10-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-11-7/2025-11-10-formal</id>
     <title>25-11-7: A Resolution Authorizing the Issuance of General Obligation Bonds of Montgomery County, Tennessee in the Aggregate Principal Amount of Not to Exceed $51,000,000, in One or More Series; Making Provision for the Issuance, Sale and Payment of Said Bonds, Establishing the Terms Thereof and the Disposition of Proceeds Therefrom; and Providing for the Levy of Taxes for the Payment of Principal of, Premium, if Any, and Interest on the Bonds</title>
     <updated>2025-11-10T00:00:00Z</updated>
     <published>2025-11-10T00:00:00Z</published>
@@ -397,7 +397,7 @@
     <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-11-6/2025-11-10-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-11-6/2025-11-10-formal</id>
     <title>25-11-6: Initial Resolution Authorizing the Issuance of Not to Exceed $51,000,000 General Obligation Bonds of Montgomery County, Tennessee</title>
     <updated>2025-11-10T00:00:00Z</updated>
     <published>2025-11-10T00:00:00Z</published>
@@ -406,7 +406,7 @@
     <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Roll call. Source: minutes, page 48.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-10-6/2025-10-20-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-10-6/2025-10-20-formal</id>
     <title>25-10-6: ResOlution to Adopt the 2026 Legislative Agenda as Presented by the Legislative Liaison Committee</title>
     <updated>2025-10-20T00:00:00Z</updated>
     <published>2025-10-20T00:00:00Z</published>
@@ -415,7 +415,7 @@
     <summary>Montgomery County Commission, 2025-10-20, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-10-5/2025-10-20-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-10-5/2025-10-20-formal</id>
     <title>25-10-5: Resolution to Appoint Two Members of the Montgomery County Board of Conimissioners to Serve as a Non-Voting Ex-Officio Representative with the Montgomery County Youth Engagement Coalition</title>
     <updated>2025-10-20T00:00:00Z</updated>
     <published>2025-10-20T00:00:00Z</published>
@@ -424,7 +424,7 @@
     <summary>Montgomery County Commission, 2025-10-20, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-10-4/2025-10-20-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-10-4/2025-10-20-formal</id>
     <title>25-10-4: Resolution Appropriating Funds for the Purpose ofEmploying Additional Positions in Juvenile Court, Division V, in Montgomery County</title>
     <updated>2025-10-20T00:00:00Z</updated>
     <published>2025-10-20T00:00:00Z</published>
@@ -433,7 +433,7 @@
     <summary>Montgomery County Commission, 2025-10-20, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-10-3/2025-10-20-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-10-3/2025-10-20-formal</id>
     <title>25-10-3: Resolution Amending the Budget of Mongomery County to Appropriate Funds to Add an Emergency Management Mitigation Specialist to the EMA Department</title>
     <updated>2025-10-20T00:00:00Z</updated>
     <published>2025-10-20T00:00:00Z</published>
@@ -442,7 +442,7 @@
     <summary>Montgomery County Commission, 2025-10-20, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-10-2/2025-10-20-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-10-2/2025-10-20-formal</id>
     <title>25-10-2: Resolution Authorizing the Acceptance and Appropriation of Grant Funds from the Tennessee Department of Safety &amp; Homeland Security, Tennessee Highway Safety Office</title>
     <updated>2025-10-20T00:00:00Z</updated>
     <published>2025-10-20T00:00:00Z</published>
@@ -451,7 +451,7 @@
     <summary>Montgomery County Commission, 2025-10-20, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/item/25-10-1/2025-10-20-formal</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-10-1/2025-10-20-formal</id>
     <title>25-10-1: Resolution of the Montgomery County Board of Commissioners Approving Amendments to the 2025-2026 School Budget</title>
     <updated>2025-10-20T00:00:00Z</updated>
     <published>2025-10-20T00:00:00Z</published>

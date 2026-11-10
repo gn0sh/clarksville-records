@@ -1,0 +1,327 @@
+<?xml version='1.0' encoding='utf-8'?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <id>tag:daylight.gnoshcodes.com,2026-11-09:feeds/zoning-district-13</id>
+  <title>Daylight: Zoning cases, District 13</title>
+  <subtitle>Each zoning case whose agenda prints District 13, at each meeting it appears at. Cases that print no district are in the Rezoning feed.</subtitle>
+  <updated>2026-11-09T00:00:00Z</updated>
+  <author>
+    <name>Daylight</name>
+  </author>
+  <link rel="self" type="application/atom+xml" href="zoning-district-13.xml" />
+  <link rel="alternate" type="text/html" href="../alerts.html" />
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-10-27-regular-z-34-2026/2026-10-27-regular</id>
+    <title>Z - 34 - 2026: R-1 - Single-Family Residential District to R-2A - Single-Family Residential District</title>
+    <updated>2026-10-27T00:00:00Z</updated>
+    <published>2026-10-27T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-10-27-regular-z-34-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-10.27.2026.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-10-27. City zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-02-24-regular-z-4-2026/2026-02-24-regular</id>
+    <title>Z - 4 - 2026: M-2 - General Industrial District to R -2A - Single-Family Residential District</title>
+    <updated>2026-02-24T00:00:00Z</updated>
+    <published>2026-02-24T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-02-24-regular-z-4-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/04/Agenda-02-24-2026.pdf#page=7" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-02-24. City zoning. Source: agenda, page 7.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2026-02-24-regular-z-9-2026/2026-02-24-regular</id>
+    <title>Z - 9 - 2026: C-2 - General Commercial District to C-5 - Highway &amp; Arterial Commercial District</title>
+    <updated>2026-02-24T00:00:00Z</updated>
+    <published>2026-02-24T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2026.html#case-2026-02-24-regular-z-9-2026" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/04/Agenda-02-24-2026.pdf#page=8" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2026-02-24. City zoning. Source: agenda, page 8.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2025-10-28-regular-z-39-2025/2025-10-28-regular</id>
+    <title>Z - 39 - 2025: R-1 - Single-Family Residential District to R-4 - Multiple-Family Residential District</title>
+    <updated>2025-10-28T00:00:00Z</updated>
+    <published>2025-10-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2025.html#case-2025-10-28-regular-z-39-2025" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp2025/wp-content/uploads/2025/11/RPC-Agenda-10-28-2025.pdf#page=4" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2025-10-28. City zoning. Source: agenda, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2025-04-22-regular-z-8-2025/2025-04-22-regular</id>
+    <title>Z - 8 - 2025: R-1 - Single-Family Residential District to R-2A Single-Family Residential</title>
+    <updated>2025-04-22T00:00:00Z</updated>
+    <published>2025-04-22T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2025.html#case-2025-04-22-regular-z-8-2025" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2025/05/Agenda-4-22-2025.pdf#page=1" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2025-04-22. City zoning. Source: agenda, page 1.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2025-02-25-regular-z-8-2025/2025-02-25-regular</id>
+    <title>Z - 08 - 2025: R-1 - Single-Family Residential District to R-6 - Single-Family Residential District</title>
+    <updated>2025-02-25T00:00:00Z</updated>
+    <published>2025-02-25T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2025.html#case-2025-02-25-regular-z-8-2025" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2025/03/RPC-Agenda-2-25-2025.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2025-02-25. City zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2024-12-20-regular-z-49-2024/2024-12-20-regular</id>
+    <title>Z - 49 - 2024: M-2 - General Industrial District to R-4 - Multiple-Family Residential District</title>
+    <updated>2024-12-20T00:00:00Z</updated>
+    <published>2024-12-20T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2024.html#case-2024-12-20-regular-z-49-2024" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2024/12/RPC-AGENDA-12-20-2024.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2024-12-20. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2024-12-20-regular-z-50-2024/2024-12-20-regular</id>
+    <title>Z - 50 - 2024: R-4 - Multiple-Family Residential District to R-6 - Single-Family Residential District</title>
+    <updated>2024-12-20T00:00:00Z</updated>
+    <published>2024-12-20T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2024.html#case-2024-12-20-regular-z-50-2024" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2024/12/RPC-AGENDA-12-20-2024.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2024-12-20. City zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2023-12-21-regular-z-69-2023/2023-12-21-regular</id>
+    <title>Z-69-2023: M-2 General Industrial District to R-4 Multiple-Family Residential District</title>
+    <updated>2023-12-21T00:00:00Z</updated>
+    <published>2023-12-21T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2023.html#case-2023-12-21-regular-z-69-2023" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2023/12/Agenda-12-21-2023.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2023-12-21. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2023-11-28-regular-z-62-2023/2023-11-28-regular</id>
+    <title>Z-62-2023: R-1 Single-Family Residential District / R-3 Three Family Residential District to R-4 Multiple-Family Residential District</title>
+    <updated>2023-11-28T00:00:00Z</updated>
+    <published>2023-11-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2023.html#case-2023-11-28-regular-z-62-2023" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2023/11/Agenda-11-28-2023.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2023-11-28. City zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2023-09-26-regular-z-51-2023/2023-09-26-regular</id>
+    <title>Z-51-2023: R-3 Three Family Residential District to R-4 Multiple-Family Residential District</title>
+    <updated>2023-09-26T00:00:00Z</updated>
+    <published>2023-09-26T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2023.html#case-2023-09-26-regular-z-51-2023" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2023/09/Agenda-9-26-2023-1.pdf#page=1" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2023-09-26. City zoning. Source: agenda, page 1.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2023-08-29-regular-z-47-2023/2023-08-29-regular</id>
+    <title>Z-47-2023: R-3 Three Family Residential District to R-4 Multiple-Family Residential District</title>
+    <updated>2023-08-29T00:00:00Z</updated>
+    <published>2023-08-29T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2023.html#case-2023-08-29-regular-z-47-2023" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2023/08/Agenda-8-29-2023-1.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2023-08-29. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2023-08-29-regular-z-40-2023/2023-08-29-regular</id>
+    <title>Z-40-2023: R-1 Single-Family Residential District to AGC Agricultural Commercial District</title>
+    <updated>2023-08-29T00:00:00Z</updated>
+    <published>2023-08-29T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2023.html#case-2023-08-29-regular-z-40-2023" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2023/08/Agenda-8-29-2023-1.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2023-08-29. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2023-06-27-regular-z-36-2023/2023-06-27-regular</id>
+    <title>Z-36-2023: C-2 General Commercial District to C-5 Highway &amp; Arterial Commercial District</title>
+    <updated>2023-06-27T00:00:00Z</updated>
+    <published>2023-06-27T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2023.html#case-2023-06-27-regular-z-36-2023" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2023/03/Agenda-6-27-2023.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2023-06-27. City zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2023-04-25-regular-z-26-2023/2023-04-25-regular</id>
+    <title>Z-26-2023: R-3 Three Family Residential District to R-4 Multiple-Family Residential District</title>
+    <updated>2023-04-25T00:00:00Z</updated>
+    <published>2023-04-25T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2023.html#case-2023-04-25-regular-z-26-2023" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2023/03/Agenda-4-25-2023-1.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2023-04-25. City zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2023-02-21-regular-z-11-2023/2023-02-21-regular</id>
+    <title>Z-11-2023: R-4 Multiple-Family Residential District to R-6 Single-Family Residential District</title>
+    <updated>2023-02-21T00:00:00Z</updated>
+    <published>2023-02-21T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2023.html#case-2023-02-21-regular-z-11-2023" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2023/02/Agenda-2-21-2023-1.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2023-02-21. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2023-02-21-regular-z-15-2023/2023-02-21-regular</id>
+    <title>Z-15-2023: R-1 Single-Family Residential District to R-2 Single-Family Residential District</title>
+    <updated>2023-02-21T00:00:00Z</updated>
+    <published>2023-02-21T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2023.html#case-2023-02-21-regular-z-15-2023" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2023/02/Agenda-2-21-2023-1.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2023-02-21. City zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2023-02-21-regular-z-13-2023/2023-02-21-regular</id>
+    <title>Z-13-2023: R-3 Three Family Residential District to R-6 Single-Family Residential District</title>
+    <updated>2023-02-21T00:00:00Z</updated>
+    <published>2023-02-21T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2023.html#case-2023-02-21-regular-z-13-2023" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2023/02/Agenda-2-21-2023-1.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2023-02-21. City zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2023-01-24-regular-z-4-2023/2023-01-24-regular</id>
+    <title>Z-4-2023: R-1 Single-Family Residential District to C-2 General Commercial District</title>
+    <updated>2023-01-24T00:00:00Z</updated>
+    <published>2023-01-24T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2023.html#case-2023-01-24-regular-z-4-2023" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2023/01/Agenda-1-24-2023.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2023-01-24. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2023-01-24-regular-z-3-2023/2023-01-24-regular</id>
+    <title>Z-3-2023: R-3 Three Family Residential District to R-4 Multiple-Family Residential District</title>
+    <updated>2023-01-24T00:00:00Z</updated>
+    <published>2023-01-24T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2023.html#case-2023-01-24-regular-z-3-2023" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2023/01/Agenda-1-24-2023.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2023-01-24. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2022-12-27-regular-z-85-2022/2022-12-27-regular</id>
+    <title>Z-85-2022: R-4 Multiple-Family Residential District to R-6 Single-Family Residential District</title>
+    <updated>2022-12-27T00:00:00Z</updated>
+    <published>2022-12-27T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2022.html#case-2022-12-27-regular-z-85-2022" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2022/12/Agenda-12-27-2022.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2022-12-27. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2022-12-27-regular-z-84-2022/2022-12-27-regular</id>
+    <title>Z-84-2022: R-3 Three Family Residential District to R-4 Multiple-Family Residential District</title>
+    <updated>2022-12-27T00:00:00Z</updated>
+    <published>2022-12-27T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2022.html#case-2022-12-27-regular-z-84-2022" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2022/12/Agenda-12-27-2022.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2022-12-27. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2022-09-27-regular-z-67-2022/2022-09-27-regular</id>
+    <title>Z-67-2022: R-3 Three Family Residential District to R-4 Multiple-Family Residential District</title>
+    <updated>2022-09-27T00:00:00Z</updated>
+    <published>2022-09-27T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2022.html#case-2022-09-27-regular-z-67-2022" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2022/09/Agenda-9-27-2022-1.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2022-09-27. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2022-08-23-regular-z-65-2022/2022-08-23-regular</id>
+    <title>Z-65-2022: C-5 Highway &amp; Arterial Commercial District / R-1 Single-Family Residential District to C-2 General Commercial District</title>
+    <updated>2022-08-23T00:00:00Z</updated>
+    <published>2022-08-23T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2022.html#case-2022-08-23-regular-z-65-2022" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2022/08/Agenda-8-23-2022.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2022-08-23. City zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2022-08-23-regular-z-67-2022/2022-08-23-regular</id>
+    <title>Z-67-2022: R-3 Three Family Residential District to R-6 Single-Family Residential District</title>
+    <updated>2022-08-23T00:00:00Z</updated>
+    <published>2022-08-23T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2022.html#case-2022-08-23-regular-z-67-2022" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2022/08/Agenda-8-23-2022.pdf#page=4" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2022-08-23. City zoning. Source: agenda, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2022-08-23-regular-z-66-2022/2022-08-23-regular</id>
+    <title>Z-66-2022: R-3 Three Family Residential District to R-6 Single-Family Residential District</title>
+    <updated>2022-08-23T00:00:00Z</updated>
+    <published>2022-08-23T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2022.html#case-2022-08-23-regular-z-66-2022" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2022/08/Agenda-8-23-2022.pdf#page=4" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2022-08-23. City zoning. Source: agenda, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2022-06-28-regular-z-46-2022/2022-06-28-regular</id>
+    <title>Z-46-2022: R-3 Three Family Residential District to R-4 Multiple-Family Residential District</title>
+    <updated>2022-06-28T00:00:00Z</updated>
+    <published>2022-06-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2022.html#case-2022-06-28-regular-z-46-2022" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2022/06/Agenda-6-28-2022-1.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2022-06-28. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2022-06-28-regular-z-48-2022/2022-06-28-regular</id>
+    <title>Z-48-2022: R-3 Three-Family Residential District to R-6 Single-Family Residential District</title>
+    <updated>2022-06-28T00:00:00Z</updated>
+    <published>2022-06-28T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2022.html#case-2022-06-28-regular-z-48-2022" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2022/06/Agenda-6-28-2022-1.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2022-06-28. City zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2022-05-24-regular-z-28-2022/2022-05-24-regular</id>
+    <title>Z-28-2022: R-1 Single-Family Residential District to R-4 Multiple-Family Residential District</title>
+    <updated>2022-05-24T00:00:00Z</updated>
+    <published>2022-05-24T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2022.html#case-2022-05-24-regular-z-28-2022" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2022/05/Agenda-5-24-2022.pdf#page=1" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2022-05-24. City zoning. Source: agenda, page 1.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2022-05-24-regular-z-38-2022/2022-05-24-regular</id>
+    <title>Z-38-2022: R-4 Multiple Family Residential District to R-6 Single-Family Residential District</title>
+    <updated>2022-05-24T00:00:00Z</updated>
+    <published>2022-05-24T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2022.html#case-2022-05-24-regular-z-38-2022" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2022/05/Agenda-5-24-2022.pdf#page=4" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2022-05-24. City zoning. Source: agenda, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2022-04-26-regular-z-25-2022/2022-04-26-regular</id>
+    <title>Z-25-2022: C-2 General Commercial District to C-5 Highway &amp; Arterial Commercial District</title>
+    <updated>2022-04-26T00:00:00Z</updated>
+    <published>2022-04-26T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2022.html#case-2022-04-26-regular-z-25-2022" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2022/04/Agenda-4-26-2022-1.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2022-04-26. City zoning. Source: agenda, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2022-04-26-regular-z-28-2022/2022-04-26-regular</id>
+    <title>Z-28-2022: R-1 Single-Family Residential District to R-4 Multiple-Family Residential District</title>
+    <updated>2022-04-26T00:00:00Z</updated>
+    <published>2022-04-26T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2022.html#case-2022-04-26-regular-z-28-2022" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2022/04/Agenda-4-26-2022-1.pdf#page=4" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2022-04-26. City zoning. Source: agenda, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2022-04-26-regular-z-27-2022/2022-04-26-regular</id>
+    <title>Z-27-2022: O-1 Office District to R-6 Single-Family Residential District</title>
+    <updated>2022-04-26T00:00:00Z</updated>
+    <published>2022-04-26T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2022.html#case-2022-04-26-regular-z-27-2022" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2022/04/Agenda-4-26-2022-1.pdf#page=4" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2022-04-26. City zoning. Source: agenda, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2022-03-29-regular-z-10-2022/2022-03-29-regular</id>
+    <title>Z-10-2022: R-3 Three Family Residential District to R-4 Multiple-Family Residential District</title>
+    <updated>2022-03-29T00:00:00Z</updated>
+    <published>2022-03-29T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2022.html#case-2022-03-29-regular-z-10-2022" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2022/03/Agenda-3-29-2022.pdf#page=2" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2022-03-29. City zoning. Source: agenda, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:rpc/item/2022-03-29-regular-z-15-2022/2022-03-29-regular</id>
+    <title>Z-15-2022: R-1 Single-Family Residential District to R-6 Single-Family Residential District</title>
+    <updated>2022-03-29T00:00:00Z</updated>
+    <published>2022-03-29T00:00:00Z</published>
+    <link rel="alternate" type="text/html" href="../rpc/meetings/2022.html#case-2022-03-29-regular-z-15-2022" />
+    <link rel="related" type="application/pdf" href="https://www.cmcrpc.com/wp-content/uploads/2022/03/Agenda-3-29-2022.pdf#page=3" title="Source document" />
+    <summary>Clarksville-Montgomery County Regional Planning Commission, Regional Planning Commission agenda, 2022-03-29. City zoning. Source: agenda, page 3.</summary>
+  </entry>
+</feed>

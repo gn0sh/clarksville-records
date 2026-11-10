@@ -1,16 +1,16 @@
 <?xml version='1.0' encoding='utf-8'?>
 <feed xmlns="http://www.w3.org/2005/Atom">
-  <id>tag:records.gnoshcodes.com,2026-11-09:feeds/county-meetings</id>
-  <title>Clarksville Records: Montgomery County Commission: new agendas and minutes</title>
+  <id>tag:daylight.gnoshcodes.com,2026-11-09:feeds/county-meetings</id>
+  <title>Daylight: Montgomery County Commission: new agendas and minutes</title>
   <subtitle>Each agenda and each set of minutes when it is added to this site.</subtitle>
   <updated>2026-11-07T00:00:00Z</updated>
   <author>
-    <name>Clarksville Records</name>
+    <name>Daylight</name>
   </author>
   <link rel="self" type="application/atom+xml" href="county-meetings.xml" />
   <link rel="alternate" type="text/html" href="../alerts.html" />
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2026-05-11-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2026-05-11-formal/minutes</id>
     <title>Minutes: 2026-05-11, formal meeting</title>
     <updated>2026-05-11T00:00:00Z</updated>
     <published>2026-05-11T00:00:00Z</published>
@@ -19,7 +19,7 @@
     <summary>Montgomery County Commission, 2026-05-11, formal meeting. Minutes (239 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2026-04-13-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2026-04-13-formal/minutes</id>
     <title>Minutes: 2026-04-13, formal meeting</title>
     <updated>2026-04-13T00:00:00Z</updated>
     <published>2026-04-13T00:00:00Z</published>
@@ -28,7 +28,7 @@
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Minutes (117 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2026-03-09-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2026-03-09-formal/minutes</id>
     <title>Minutes: 2026-03-09, formal meeting</title>
     <updated>2026-03-09T00:00:00Z</updated>
     <published>2026-03-09T00:00:00Z</published>
@@ -37,7 +37,7 @@
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Minutes (173 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2026-02-09-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2026-02-09-formal/minutes</id>
     <title>Minutes: 2026-02-09, formal meeting</title>
     <updated>2026-02-09T00:00:00Z</updated>
     <published>2026-02-09T00:00:00Z</published>
@@ -46,7 +46,7 @@
     <summary>Montgomery County Commission, 2026-02-09, formal meeting. Minutes (171 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2026-01-12-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2026-01-12-formal/minutes</id>
     <title>Minutes: 2026-01-12, formal meeting</title>
     <updated>2026-01-12T00:00:00Z</updated>
     <published>2026-01-12T00:00:00Z</published>
@@ -55,7 +55,7 @@
     <summary>Montgomery County Commission, 2026-01-12, formal meeting. Minutes (132 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2025-12-08-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2025-12-08-formal/minutes</id>
     <title>Minutes: 2025-12-08, formal meeting</title>
     <updated>2025-12-08T00:00:00Z</updated>
     <published>2025-12-08T00:00:00Z</published>
@@ -64,7 +64,7 @@
     <summary>Montgomery County Commission, 2025-12-08, formal meeting. Minutes (181 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2025-11-10-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2025-11-10-formal/minutes</id>
     <title>Minutes: 2025-11-10, formal meeting</title>
     <updated>2025-11-10T00:00:00Z</updated>
     <published>2025-11-10T00:00:00Z</published>
@@ -73,7 +73,7 @@
     <summary>Montgomery County Commission, 2025-11-10, formal meeting. Minutes (195 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2025-10-20-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2025-10-20-formal/minutes</id>
     <title>Minutes: 2025-10-20, formal meeting</title>
     <updated>2025-10-20T00:00:00Z</updated>
     <published>2025-10-20T00:00:00Z</published>
@@ -82,7 +82,7 @@
     <summary>Montgomery County Commission, 2025-10-20, formal meeting. Minutes (121 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2025-09-08-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2025-09-08-formal/minutes</id>
     <title>Minutes: 2025-09-08, formal meeting</title>
     <updated>2025-09-08T00:00:00Z</updated>
     <published>2025-09-08T00:00:00Z</published>
@@ -91,7 +91,7 @@
     <summary>Montgomery County Commission, 2025-09-08, formal meeting. Minutes (210 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2025-08-11-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2025-08-11-formal/minutes</id>
     <title>Minutes: 2025-08-11, formal meeting</title>
     <updated>2025-08-11T00:00:00Z</updated>
     <published>2025-08-11T00:00:00Z</published>
@@ -100,7 +100,7 @@
     <summary>Montgomery County Commission, 2025-08-11, formal meeting. Minutes (422 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2025-07-14-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2025-07-14-formal/minutes</id>
     <title>Minutes: 2025-07-14, formal meeting</title>
     <updated>2025-07-14T00:00:00Z</updated>
     <published>2025-07-14T00:00:00Z</published>
@@ -109,7 +109,7 @@
     <summary>Montgomery County Commission, 2025-07-14, formal meeting. Minutes (94 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2025-06-09-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2025-06-09-formal/minutes</id>
     <title>Minutes: 2025-06-09, formal meeting</title>
     <updated>2025-06-09T00:00:00Z</updated>
     <published>2025-06-09T00:00:00Z</published>
@@ -118,7 +118,7 @@
     <summary>Montgomery County Commission, 2025-06-09, formal meeting. Minutes (244 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2025-05-12-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2025-05-12-formal/minutes</id>
     <title>Minutes: 2025-05-12, formal meeting</title>
     <updated>2025-05-12T00:00:00Z</updated>
     <published>2025-05-12T00:00:00Z</published>
@@ -127,7 +127,7 @@
     <summary>Montgomery County Commission, 2025-05-12, formal meeting. Minutes (162 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2025-04-14-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2025-04-14-formal/minutes</id>
     <title>Minutes: 2025-04-14, formal meeting</title>
     <updated>2025-04-14T00:00:00Z</updated>
     <published>2025-04-14T00:00:00Z</published>
@@ -136,7 +136,7 @@
     <summary>Montgomery County Commission, 2025-04-14, formal meeting. Minutes (168 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2025-03-17-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2025-03-17-formal/minutes</id>
     <title>Minutes: 2025-03-17, formal meeting</title>
     <updated>2025-03-17T00:00:00Z</updated>
     <published>2025-03-17T00:00:00Z</published>
@@ -145,7 +145,7 @@
     <summary>Montgomery County Commission, 2025-03-17, formal meeting. Minutes (178 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2025-02-10-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2025-02-10-formal/minutes</id>
     <title>Minutes: 2025-02-10, formal meeting</title>
     <updated>2025-02-10T00:00:00Z</updated>
     <published>2025-02-10T00:00:00Z</published>
@@ -154,7 +154,7 @@
     <summary>Montgomery County Commission, 2025-02-10, formal meeting. Minutes (151 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2025-01-13-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2025-01-13-formal/minutes</id>
     <title>Minutes: 2025-01-13, formal meeting</title>
     <updated>2025-01-13T00:00:00Z</updated>
     <published>2025-01-13T00:00:00Z</published>
@@ -163,7 +163,7 @@
     <summary>Montgomery County Commission, 2025-01-13, formal meeting. Minutes (173 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2024-12-09-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2024-12-09-formal/minutes</id>
     <title>Minutes: 2024-12-09, formal meeting</title>
     <updated>2024-12-09T00:00:00Z</updated>
     <published>2024-12-09T00:00:00Z</published>
@@ -172,7 +172,7 @@
     <summary>Montgomery County Commission, 2024-12-09, formal meeting. Minutes (207 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2024-11-12-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2024-11-12-formal/minutes</id>
     <title>Minutes: 2024-11-12, formal meeting</title>
     <updated>2024-11-12T00:00:00Z</updated>
     <published>2024-11-12T00:00:00Z</published>
@@ -181,7 +181,7 @@
     <summary>Montgomery County Commission, 2024-11-12, formal meeting. Minutes (86 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2024-10-14-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2024-10-14-formal/minutes</id>
     <title>Minutes: 2024-10-14, formal meeting</title>
     <updated>2024-10-14T00:00:00Z</updated>
     <published>2024-10-14T00:00:00Z</published>
@@ -190,7 +190,7 @@
     <summary>Montgomery County Commission, 2024-10-14, formal meeting. Minutes (131 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2024-09-09-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2024-09-09-formal/minutes</id>
     <title>Minutes: 2024-09-09, formal meeting</title>
     <updated>2024-09-09T00:00:00Z</updated>
     <published>2024-09-09T00:00:00Z</published>
@@ -199,7 +199,7 @@
     <summary>Montgomery County Commission, 2024-09-09, formal meeting. Minutes (185 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2024-08-12-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2024-08-12-formal/minutes</id>
     <title>Minutes: 2024-08-12, formal meeting</title>
     <updated>2024-08-12T00:00:00Z</updated>
     <published>2024-08-12T00:00:00Z</published>
@@ -208,7 +208,7 @@
     <summary>Montgomery County Commission, 2024-08-12, formal meeting. Minutes (621 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2024-07-15-special/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2024-07-15-special/minutes</id>
     <title>Minutes: 2024-07-15, special meeting</title>
     <updated>2024-07-15T00:00:00Z</updated>
     <published>2024-07-15T00:00:00Z</published>
@@ -217,7 +217,7 @@
     <summary>Montgomery County Commission, 2024-07-15, special meeting. Minutes (25 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2024-07-08-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2024-07-08-formal/minutes</id>
     <title>Minutes: 2024-07-08, formal meeting</title>
     <updated>2024-07-08T00:00:00Z</updated>
     <published>2024-07-08T00:00:00Z</published>
@@ -226,7 +226,7 @@
     <summary>Montgomery County Commission, 2024-07-08, formal meeting. Minutes (66 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2024-06-10-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2024-06-10-formal/minutes</id>
     <title>Minutes: 2024-06-10, formal meeting</title>
     <updated>2024-06-10T00:00:00Z</updated>
     <published>2024-06-10T00:00:00Z</published>
@@ -235,7 +235,7 @@
     <summary>Montgomery County Commission, 2024-06-10, formal meeting. Minutes (210 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2024-05-13-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2024-05-13-formal/minutes</id>
     <title>Minutes: 2024-05-13, formal meeting</title>
     <updated>2024-05-13T00:00:00Z</updated>
     <published>2024-05-13T00:00:00Z</published>
@@ -244,7 +244,7 @@
     <summary>Montgomery County Commission, 2024-05-13, formal meeting. Minutes (125 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2024-04-08-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2024-04-08-formal/minutes</id>
     <title>Minutes: 2024-04-08, formal meeting</title>
     <updated>2024-04-08T00:00:00Z</updated>
     <published>2024-04-08T00:00:00Z</published>
@@ -253,7 +253,7 @@
     <summary>Montgomery County Commission, 2024-04-08, formal meeting. Minutes (273 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2024-04-01-special/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2024-04-01-special/minutes</id>
     <title>Minutes: 2024-04-01, special meeting</title>
     <updated>2024-04-01T00:00:00Z</updated>
     <published>2024-04-01T00:00:00Z</published>
@@ -262,7 +262,7 @@
     <summary>Montgomery County Commission, 2024-04-01, special meeting. Minutes (25 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2024-03-11-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2024-03-11-formal/minutes</id>
     <title>Minutes: 2024-03-11, formal meeting</title>
     <updated>2024-03-11T00:00:00Z</updated>
     <published>2024-03-11T00:00:00Z</published>
@@ -271,7 +271,7 @@
     <summary>Montgomery County Commission, 2024-03-11, formal meeting. Minutes (200 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2024-02-12-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2024-02-12-formal/minutes</id>
     <title>Minutes: 2024-02-12, formal meeting</title>
     <updated>2024-02-12T00:00:00Z</updated>
     <published>2024-02-12T00:00:00Z</published>
@@ -280,7 +280,7 @@
     <summary>Montgomery County Commission, 2024-02-12, formal meeting. Minutes (214 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2024-01-08-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2024-01-08-formal/minutes</id>
     <title>Minutes: 2024-01-08, formal meeting</title>
     <updated>2024-01-08T00:00:00Z</updated>
     <published>2024-01-08T00:00:00Z</published>
@@ -289,7 +289,7 @@
     <summary>Montgomery County Commission, 2024-01-08, formal meeting. Minutes (124 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2023-12-11-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2023-12-11-formal/minutes</id>
     <title>Minutes: 2023-12-11, formal meeting</title>
     <updated>2023-12-11T00:00:00Z</updated>
     <published>2023-12-11T00:00:00Z</published>
@@ -298,7 +298,7 @@
     <summary>Montgomery County Commission, 2023-12-11, formal meeting. Minutes (207 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2023-11-13-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2023-11-13-formal/minutes</id>
     <title>Minutes: 2023-11-13, formal meeting</title>
     <updated>2023-11-13T00:00:00Z</updated>
     <published>2023-11-13T00:00:00Z</published>
@@ -307,7 +307,7 @@
     <summary>Montgomery County Commission, 2023-11-13, formal meeting. Minutes (142 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2023-10-09-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2023-10-09-formal/minutes</id>
     <title>Minutes: 2023-10-09, formal meeting</title>
     <updated>2023-10-09T00:00:00Z</updated>
     <published>2023-10-09T00:00:00Z</published>
@@ -316,7 +316,7 @@
     <summary>Montgomery County Commission, 2023-10-09, formal meeting. Minutes (112 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2023-09-11-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2023-09-11-formal/minutes</id>
     <title>Minutes: 2023-09-11, formal meeting</title>
     <updated>2023-09-11T00:00:00Z</updated>
     <published>2023-09-11T00:00:00Z</published>
@@ -325,7 +325,7 @@
     <summary>Montgomery County Commission, 2023-09-11, formal meeting. Minutes (230 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2023-08-14-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2023-08-14-formal/minutes</id>
     <title>Minutes: 2023-08-14, formal meeting</title>
     <updated>2023-08-14T00:00:00Z</updated>
     <published>2023-08-14T00:00:00Z</published>
@@ -334,7 +334,7 @@
     <summary>Montgomery County Commission, 2023-08-14, formal meeting. Minutes (178 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2023-07-10-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2023-07-10-formal/minutes</id>
     <title>Minutes: 2023-07-10, formal meeting</title>
     <updated>2023-07-10T00:00:00Z</updated>
     <published>2023-07-10T00:00:00Z</published>
@@ -343,7 +343,7 @@
     <summary>Montgomery County Commission, 2023-07-10, formal meeting. Minutes (103 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2023-06-12-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2023-06-12-formal/minutes</id>
     <title>Minutes: 2023-06-12, formal meeting</title>
     <updated>2023-06-12T00:00:00Z</updated>
     <published>2023-06-12T00:00:00Z</published>
@@ -352,7 +352,7 @@
     <summary>Montgomery County Commission, 2023-06-12, formal meeting. Minutes (214 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2023-05-08-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2023-05-08-formal/minutes</id>
     <title>Minutes: 2023-05-08, formal meeting</title>
     <updated>2023-05-08T00:00:00Z</updated>
     <published>2023-05-08T00:00:00Z</published>
@@ -361,7 +361,7 @@
     <summary>Montgomery County Commission, 2023-05-08, formal meeting. Minutes (137 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2023-04-10-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2023-04-10-formal/minutes</id>
     <title>Minutes: 2023-04-10, formal meeting</title>
     <updated>2023-04-10T00:00:00Z</updated>
     <published>2023-04-10T00:00:00Z</published>
@@ -370,7 +370,7 @@
     <summary>Montgomery County Commission, 2023-04-10, formal meeting. Minutes (76 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2023-03-13-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2023-03-13-formal/minutes</id>
     <title>Minutes: 2023-03-13, formal meeting</title>
     <updated>2023-03-13T00:00:00Z</updated>
     <published>2023-03-13T00:00:00Z</published>
@@ -379,7 +379,7 @@
     <summary>Montgomery County Commission, 2023-03-13, formal meeting. Minutes (159 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2023-02-13-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2023-02-13-formal/minutes</id>
     <title>Minutes: 2023-02-13, formal meeting</title>
     <updated>2023-02-13T00:00:00Z</updated>
     <published>2023-02-13T00:00:00Z</published>
@@ -388,7 +388,7 @@
     <summary>Montgomery County Commission, 2023-02-13, formal meeting. Minutes (146 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2023-01-09-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2023-01-09-formal/minutes</id>
     <title>Minutes: 2023-01-09, formal meeting</title>
     <updated>2023-01-09T00:00:00Z</updated>
     <published>2023-01-09T00:00:00Z</published>
@@ -397,7 +397,7 @@
     <summary>Montgomery County Commission, 2023-01-09, formal meeting. Minutes (46 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2022-12-12-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2022-12-12-formal/minutes</id>
     <title>Minutes: 2022-12-12, formal meeting</title>
     <updated>2022-12-12T00:00:00Z</updated>
     <published>2022-12-12T00:00:00Z</published>
@@ -406,7 +406,7 @@
     <summary>Montgomery County Commission, 2022-12-12, formal meeting. Minutes (172 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2022-11-14-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2022-11-14-formal/minutes</id>
     <title>Minutes: 2022-11-14, formal meeting</title>
     <updated>2022-11-14T00:00:00Z</updated>
     <published>2022-11-14T00:00:00Z</published>
@@ -415,7 +415,7 @@
     <summary>Montgomery County Commission, 2022-11-14, formal meeting. Minutes (161 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2022-10-10-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2022-10-10-formal/minutes</id>
     <title>Minutes: 2022-10-10, formal meeting</title>
     <updated>2022-10-10T00:00:00Z</updated>
     <published>2022-10-10T00:00:00Z</published>
@@ -424,7 +424,7 @@
     <summary>Montgomery County Commission, 2022-10-10, formal meeting. Minutes (219 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2022-09-12-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2022-09-12-formal/minutes</id>
     <title>Minutes: 2022-09-12, formal meeting</title>
     <updated>2022-09-12T00:00:00Z</updated>
     <published>2022-09-12T00:00:00Z</published>
@@ -433,7 +433,7 @@
     <summary>Montgomery County Commission, 2022-09-12, formal meeting. Minutes (190 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2022-08-08-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2022-08-08-formal/minutes</id>
     <title>Minutes: 2022-08-08, formal meeting</title>
     <updated>2022-08-08T00:00:00Z</updated>
     <published>2022-08-08T00:00:00Z</published>
@@ -442,7 +442,7 @@
     <summary>Montgomery County Commission, 2022-08-08, formal meeting. Minutes (147 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2022-07-11-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2022-07-11-formal/minutes</id>
     <title>Minutes: 2022-07-11, formal meeting</title>
     <updated>2022-07-11T00:00:00Z</updated>
     <published>2022-07-11T00:00:00Z</published>
@@ -451,7 +451,7 @@
     <summary>Montgomery County Commission, 2022-07-11, formal meeting. Minutes (110 pages), fetched 2026-11-07.</summary>
   </entry>
   <entry>
-    <id>tag:records.gnoshcodes.com,2026-11-09:county/meeting/2022-06-13-formal/minutes</id>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2022-06-13-formal/minutes</id>
     <title>Minutes: 2022-06-13, formal meeting</title>
     <updated>2022-06-13T00:00:00Z</updated>
     <published>2022-06-13T00:00:00Z</published>
