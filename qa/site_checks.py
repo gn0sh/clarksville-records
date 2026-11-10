@@ -1522,18 +1522,21 @@ CONTRACTS_FEED = "feeds/topic-contracts.xml"   # sitegen/feeds.py: the one feed 
 # day a reader sees is the site_timezone day of the manifest instant (first_fetched_at), never the stored UTC day.
 FETCH_DAY = re.compile(
     r'href="(?P<href>https?://[^"]+)"'
-    r"|(?P<kind>[Ff]etched between|[Ff]etched on|latest fetched|Data as of|[Ff]etched|at fetch \()\s"
+    r"|(?P<kind>[Ff]etched between|[Ff]etched on|latest fetched|Data as of|[Ff]etched|at fetch \(|"
+    r"(?:[Cc]ollected|[Aa]dded|[Dd]ownloaded|[Rr]etrieved)(?: on)?,?)\s"
     r"(?P<day>\d{4}-\d{2}-\d{2})(?P<utc> \(UTC day\))?(?: and (?P<day2>\d{4}-\d{2}-\d{2})(?P<utc2> \(UTC day\))?)?")
 FETCH_AGGREGATE = ("fetched between", "fetched on", "latest fetched", "data as of")
+# other words a fetch day may follow; after "meeting " ("the latest meeting collected, D") the day is a meeting date
+FETCH_OTHER_WORDS = ("collected", "added", "downloaded", "retrieved")
 UTC_DAY_LABEL = " (UTC day)"
 
 
-def fetch_instants(cfg: dict, fixture: bool) -> dict[str, set[tuple[str, str]]]:
-    """{url: {(UTC day, site_timezone day)}} of every row of config/site.yml `fetch_manifests` (none for a fixture
-    build: its made-up sources have no rows)."""
+def fetch_rows(cfg: dict, fixture: bool) -> dict[tuple[str, str], tuple[str, str]]:
+    """{(url, sha256): (UTC day, site_timezone day)} of every row of config/site.yml `fetch_manifests` (none for a
+    fixture build: its made-up sources have no rows)."""
     from datetime import datetime
     from zoneinfo import ZoneInfo
-    out: dict[str, set[tuple[str, str]]] = defaultdict(set)
+    out: dict[tuple[str, str], tuple[str, str]] = {}
     if fixture:
         return out
     zone = ZoneInfo(cfg["site_timezone"])
@@ -1542,9 +1545,56 @@ def fetch_instants(cfg: dict, fixture: bool) -> dict[str, set[tuple[str, str]]]:
             when = datetime.fromisoformat(row["first_fetched_at"])
             if when.tzinfo is None:
                 raise ValueError(f"{rel}: {row['url']} first_fetched_at has no time zone")
-            out[row["url"]].add((when.astimezone(ZoneInfo("UTC")).date().isoformat(),
-                                 when.astimezone(zone).date().isoformat()))
+            out[(row["url"], row.get("sha256"))] = (when.astimezone(ZoneInfo("UTC")).date().isoformat(),
+                                                    when.astimezone(zone).date().isoformat())
     return out
+
+
+def fetch_instants(cfg: dict, fixture: bool, rows: dict | None = None) -> dict[str, set[tuple[str, str]]]:
+    """{url: {(UTC day, site_timezone day)}} of fetch_rows (a URL may have several copies)."""
+    out: dict[str, set[tuple[str, str]]] = defaultdict(set)
+    for (url, _), days in (fetch_rows(cfg, fixture) if rows is None else rows).items():
+        out[url].add(days)
+    return out
+
+
+def _fetch_span(sources, rows) -> tuple[str, str, bool] | None:
+    """(earliest, latest, exact) fetch day of facts-file sources: site_timezone days when every source has its row
+    (same url and sha256, the row's UTC day its stored fetched_at), else stored UTC days (exact False)."""
+    srcs = [s for s in sources if s.get("fetched_at")]
+    if not srcs:
+        return None
+    hits = [rows.get((s.get("url"), s.get("sha256"))) for s in srcs]
+    if all(h is not None and h[0] == str(s["fetched_at"])[:10] for h, s in zip(hits, srcs)):
+        days = sorted(h[1] for h in hits)
+        return days[0], days[-1], True
+    days = sorted(str(s["fetched_at"])[:10] for s in srcs)
+    return days[0], days[-1], False
+
+
+def _shown(day, utc) -> str:
+    return f"{day}{UTC_DAY_LABEL if utc else ''}"
+
+
+def _aggregate_ok(m, span, rpc_span) -> str | None:
+    """Why an aggregate fetch day on a page breaks the rule: it must be its own sources' latest ("Data as of",
+    "latest fetched": the RPC's), or earliest and latest ("fetched between"), or the one day ("fetched on"), each
+    labelled (UTC day) exactly when a source has no recorded instant (dates/check-aggregate-loose)."""
+    kind = m["kind"].lower()
+    sp = rpc_span if kind == "latest fetched" else span
+    shown = f"'{m['kind']} {_shown(m['day'], m['utc'])}" + (f" and {_shown(m['day2'], m['utc2'])}'" if m["day2"] else "'")
+    if sp is None:
+        return f"{shown}: the page's body has no fetched sources to check it against"
+    lo, hi, exact = sp
+    want = {"data as of": [hi], "latest fetched": [hi], "fetched on": [lo, hi] if lo == hi else None,
+            "fetched between": [lo, hi]}[kind]
+    got = [d for d in (m["day"], m["day2"]) if d]
+    labels = [bool(u) for u, d in ((m["utc"], m["day"]), (m["utc2"], m["day2"])) if d]
+    if kind == "fetched on":
+        got, labels = got * 2, labels * 2
+    if want != got or any(lab == exact for lab in labels):
+        return (f"{shown}, but its sources' fetch days are {_shown(lo, not exact)} to {_shown(hi, not exact)}")
+    return None
 
 
 def _fetch_day_ok(day: str, labelled: bool, urls, instants) -> str | None:
@@ -1564,20 +1614,29 @@ def _fetch_day_ok(day: str, labelled: bool, urls, instants) -> str | None:
     return None
 
 
-def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bool) -> tuple[list[str], str]:
+def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bool, county: dict | None = None,
+                      councils_: list[dict] | tuple = (), rpc: dict | None = None) -> tuple[list[str], str]:
     """dates/no-raw-utc-day: (1) each per-document fetch day on a page ("fetched D", "Fetched D.", "at fetch (D)")
     is the site_timezone day of a manifest instant of a source linked just before it (the links since the previous
     fetch day, else the previous fetch day's links: a Details list after its links), or is labelled "(UTC day)"
     when no linked source has an instant; (2) an aggregate ("fetched between A and B", "fetched on", "latest
-    fetched", "Data as of") is labelled or the site_timezone day of some instant; (3) the same for the search
-    index's s.f beside s.u and (4) each feed entry's summary "fetched D" beside its related link."""
+    fetched", "Data as of") is its own page's sources' day (_aggregate_ok: a council's pages, `councils_` {prefix,
+    facts}, by the council's sources; every other page by `county`'s; "latest fetched" by `rpc`'s); a day after
+    "collected", "added", "downloaded" or "retrieved" is a fetch day as in (1), or after "meeting " a meeting date of
+    the page's facts; (3) the same for the search index's s.f beside s.u and (4) each feed entry's summary "fetched D"
+    beside its related link."""
     import xml.etree.ElementTree as ET
-    instants = fetch_instants(cfg, fixture)
-    local_days = {lo for rows in instants.values() for _, lo in rows}
+    county = county or {}
+    rows = fetch_rows(cfg, fixture)
+    instants = fetch_instants(cfg, fixture, rows)
+    rpc_span = _fetch_span((rpc or {}).get("sources") or [], rows)
+    scopes = [(c["prefix"], c["facts"]) for c in councils_]
+    spans = {id(f): _fetch_span(f.get("sources") or [], rows) for _, f in scopes + [("", county)]}
     problems: list[str] = []
     n = labelled_n = 0
     for rel in sorted(pages):
         text = (site / rel).read_text(encoding="utf-8")
+        own = next((f for pre, f in scopes if rel.startswith(pre)), county)
         cands: list[str] = []
         prev: list[str] = []
         for m in FETCH_DAY.finditer(text):
@@ -1587,10 +1646,15 @@ def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bo
             n += 1
             labelled_n += bool(m["utc"])
             if m["kind"].lower() in FETCH_AGGREGATE:
-                for day, utc in ((m["day"], m["utc"]), (m["day2"], m["utc2"])):
-                    if day and not utc and day not in local_days:
-                        problems.append(f"{rel}: '{m['kind']} {day}' is no recorded instant's site_timezone day: "
-                                        f"label it (UTC day)")
+                why = _aggregate_ok(m, spans[id(own)], rpc_span)
+                if why:
+                    problems.append(f"{rel}: {why}")
+                continue
+            if m["kind"].lower().rstrip(",").removesuffix(" on") in FETCH_OTHER_WORDS and \
+                    text[max(0, m.start() - 8):m.start()] == "meeting ":
+                n -= 1   # a meeting date ("the latest meeting collected, D"): civil, never shifted
+                if m["day"] not in {x.get("date") for x in own.get("meetings") or []}:
+                    problems.append(f"{rel}: 'meeting {m['kind']} {m['day']}' is no meeting date of its facts")
                 continue
             urls = cands or prev
             why = _fetch_day_ok(m["day"], bool(m["utc"]), set(urls), instants)
@@ -2244,7 +2308,7 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     problems, note = check_feeds(site, pages, all_sources["sources"], cfg,
                                  finance_sources=list((finance or {}).get("sources") or []))
     rep.add("feeds", problems, note)
-    problems, note = check_local_dates(site, pages, cfg, bool(facts.get("fixture")))
+    problems, note = check_local_dates(site, pages, cfg, bool(facts.get("fixture")), county=facts, councils_=cs, rpc=rpc)
     rep.add("dates/no-raw-utc-day", problems, note)
     problems, note = check_transcripts(site, cs)
     rep.add("transcripts", problems, note)

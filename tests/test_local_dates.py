@@ -158,10 +158,10 @@ def test_the_built_meeting_page_shows_the_local_fetch_day_and_the_meeting_date_a
 
 
 def test_site_check_passes_the_converted_build_and_fails_a_raw_utc_day(late_site, tmp_path):
-    out, man, src, _ = late_site
+    out, man, src, facts = late_site
     cfg = {**site_checks._site_cfg(), "fetch_manifests": [str(man)]}
     pages = {p.relative_to(out).as_posix(): None for p in out.rglob("*.html")}
-    problems, note = site_checks.check_local_dates(out, pages, cfg, False)
+    problems, note = site_checks.check_local_dates(out, pages, cfg, False, county=facts)
     assert problems == [], problems[:5]
     # the same page with the stored UTC day put back fails
     bad = tmp_path / "bad"
@@ -179,10 +179,21 @@ def _one_page(tmp_path, body):
     return {"p.html": None}
 
 
+URL2, URL3 = "https://example.invalid/older.pdf", "https://example.invalid/rpc.pdf"
+
+
 def _cfg(tmp_path):
     man = tmp_path / "m.json"
-    man.write_text(json.dumps([{"url": URL, "sha256": SHA, "first_fetched_at": "2026-11-10T04:38:00+00:00"}]))
+    man.write_text(json.dumps([{"url": URL, "sha256": SHA, "first_fetched_at": "2026-11-10T04:38:00+00:00"},
+                               # in a manifest, but not a source of the page's body: its day is no aggregate's
+                               {"url": URL2, "sha256": SHA, "first_fetched_at": "2026-11-08T15:00:00+00:00"},
+                               {"url": URL3, "sha256": SHA, "first_fetched_at": "2026-11-08T03:00:00+00:00"}]))
     return {"site_timezone": TZ, "fetch_manifests": [str(man)]}
+
+
+# the page's body: one source fetched at 22:38 CST on 11-09 (stored 11-10), one meeting; the RPC: one source
+COUNTY = {"sources": [{"url": URL, "sha256": SHA, "fetched_at": "2026-11-10"}], "meetings": [{"date": "2026-05-11"}]}
+RPC = {"sources": [{"url": URL3, "sha256": SHA, "fetched_at": "2026-11-08"}]}   # 21:00 CST on 11-07
 
 
 @pytest.mark.parametrize("body, ok", [
@@ -194,13 +205,36 @@ def _cfg(tmp_path):
     ('<a href="https://example.invalid/other.pdf">PDF</a>, fetched 2026-11-08.', False),   # no instant, unlabelled
     ('<a href="https://example.invalid/other.pdf">PDF</a>, fetched 2026-11-08 (UTC day).', True),
     (f'<a href="{URL}">A</a> <details><p>Fetched 2026-11-09.</p></details>', True),
-    ("<p>Minutes fetched between 2026-11-09 and 2026-11-09.</p>", True),
-    ("<p>Minutes fetched between 2026-11-09 and 2026-11-10.</p>", False),      # 11-10 is no instant's local day
-    ("<p>Data as of 2026-11-10 (UTC day)</p>", True),
+    ("<p>Minutes fetched on 2026-11-09.</p>", True),
+    ("<p>Minutes fetched between 2026-11-09 and 2026-11-10.</p>", False),      # 11-10 is the stored UTC day
+    # aggregates are tied to the page's own sources (dates/check-aggregate-loose)
+    ("<p>Data as of 2026-11-09</p>", True),
+    ("<p>Data as of 2026-11-08</p>", False),     # a manifest row's local day, but not this body's latest
+    ("<p>Data as of 2026-11-10 (UTC day)</p>", False),   # the source has its instant: no label
+    ("<p>Minutes fetched between 2026-11-08 and 2026-11-09.</p>", False),
+    ("<p>3 documents collected (latest fetched 2026-11-07)</p>", True),     # the RPC's own latest, local
+    ("<p>3 documents collected (latest fetched 2026-11-08)</p>", False),    # its stored UTC day
+    ("<p>3 documents collected (latest fetched 2026-11-09)</p>", False),    # the county's day, not the RPC's
+    # other words before a fetch day
+    (f'<a href="{URL}">PDF</a>, collected 2026-11-10.', False),
+    (f'<a href="{URL}">PDF</a>, added on 2026-11-09.', True),
+    ("<p>Current: in the roll calls of the latest meeting collected, 2026-05-11.</p>", True),   # a meeting date
+    ("<p>Current: in the roll calls of the latest meeting collected, 2026-05-10.</p>", False),
 ])
 def test_site_check_rule(tmp_path, body, ok):
-    problems, _ = site_checks.check_local_dates(tmp_path, _one_page(tmp_path, body), _cfg(tmp_path), False)
+    problems, _ = site_checks.check_local_dates(tmp_path, _one_page(tmp_path, body), _cfg(tmp_path), False,
+                                                county=COUNTY, rpc=RPC)
     assert (problems == []) is ok, problems
+
+
+def test_site_check_ties_a_council_page_to_the_councils_sources(tmp_path):
+    council = {"sources": [{"url": URL2, "sha256": SHA, "fetched_at": "2026-11-08"}], "meetings": []}
+    (tmp_path / "city").mkdir()
+    (tmp_path / "city" / "p.html").write_text("<p>Data as of 2026-11-08</p>", encoding="utf-8")
+    (tmp_path / "p.html").write_text("<p>Data as of 2026-11-08</p>", encoding="utf-8")
+    problems, _ = site_checks.check_local_dates(tmp_path, {"city/p.html": None, "p.html": None}, _cfg(tmp_path),
+                                                False, county=COUNTY, councils_=[{"prefix": "city/", "facts": council}])
+    assert len(problems) == 1 and problems[0].startswith("p.html: "), problems   # the county's latest is 11-09
 
 
 def test_site_check_in_a_fixture_build_wants_every_day_labelled(tmp_path):
