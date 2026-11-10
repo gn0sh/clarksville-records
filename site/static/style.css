@@ -1083,9 +1083,3 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 @media (min-width: 700px) {
   .page-landing .unofficial-notice { order: 0; flex: 1 0 100%; margin-bottom: 4px; }
 }
-/* Phone landing: the answer and pin must stay on the first screen, so the home line keeps the tag and the About link;
-   the full notice is in the footer of the same page. */
-@media (max-width: 699px) {
-  .page-landing .unofficial-intro-full { display: none; }
-  .page-landing .unofficial-intro { margin: 2px 0; }
-}

@@ -172,8 +172,7 @@ def test_district_pages_exist_for_every_seat_with_one_skeleton(pages):
           for n in names}
     assert len({tuple(v) for v in h2.values()}) == 1
     assert h2["districts/01.html"] == ["Current", "Served previously",
-                                       "Current district lines: roll calls from 2024-11-04", "Old district lines",
-                                       "Independent, unofficial"]   # the footer notice heading
+                                       "Current district lines: roll calls from 2024-11-04", "Old district lines"]
 
 
 def test_district_page_current_previous_and_periods(pages):
