@@ -318,10 +318,18 @@ def test_stamp_writes_the_whole_metadata_back_and_touches_nobody_else(plan):
         assert {k: v for k, v in s.items() if k != "metadata"} == {k: v for k, v in before[sid].items() if k != "metadata"}
 
 
-def test_after_send_at_the_email_is_scheduled_for_now(plan):
+@pytest.mark.parametrize("now, want", [
+    (datetime(2026, 11, 11, 8, 15, tzinfo=TZ), "2026-11-11T08:20:00-06:00"),
+    (datetime(2026, 11, 11, 6, 57, tzinfo=TZ), "2026-11-11T07:02:00-06:00"),
+    (datetime(2026, 11, 11, 6, 55, tzinfo=TZ), "2026-11-11T07:00:00-06:00"),
+    (datetime(2026, 11, 11, 9, 58, 30, tzinfo=TZ), "2026-11-11T10:03:30-06:00")])
+def test_a_late_run_schedules_the_email_a_margin_ahead(plan, now, want):
+    """provider-echo/immediate-after-send_at: never "now", so the echo check (and a take-back) runs before the email
+    can leave: publish_date = max(send_at, now + 5 minutes). A run that starts before latest_send still sends."""
+    assert deliver.PUBLISH_MARGIN == timedelta(minutes=5)
     fake = Fake(people(plan))
-    go(plan, fake, now=datetime(2026, 11, 11, 8, 15, tzinfo=TZ))
-    assert {p["publish_date"] for p in fake.created} == {"2026-11-11T08:15:00-06:00"}
+    assert go(plan, fake, now=now)[0].status == "sent"
+    assert {p["publish_date"] for p in fake.created} == {want}
     assert {p["status"] for p in fake.created} == {"scheduled"}
 
 

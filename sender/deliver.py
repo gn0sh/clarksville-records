@@ -31,14 +31,15 @@ import re
 import time as time_mod
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, time, timezone
+from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .common import DATE_RE, KEY_RE, LIST_KEYS, PLAN_SCHEMA, REASONS, SIGNATURE_RE, signature
 from .settings import Settings
 
 NAMESPACE = uuid.UUID("6f1d2c1e-8b0a-5d3e-9c47-2a1b7e5d4c30")     # fixed: the idempotency keys must not change
-MISSED_EXIT = 3             # "missed" (past latest_send): its own non-zero code, so the job fails and opens the issue
+PUBLISH_MARGIN = timedelta(minutes=5)   # a stamp email is scheduled at least this far ahead of the run's clock
+MISSED_EXIT = 3            # "missed" (past latest_send): its own non-zero code, so the job fails and opens the issue
 TRIES = 3                  # a rate-limited call is tried this many times, then the run stops
 MAX_WAIT = 120              # seconds: the longest Retry-After that is obeyed in one wait
 MAX_LIST_VALUES = 16        # a subscriber's `lists` with more values than this is not a picker's output: ignored
@@ -439,7 +440,8 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
                                              "the provider's filter would mail them")
         del everyone
         send_at = at(settings.send_at)
-        publish = (send_at if now < send_at else now).astimezone(zone).isoformat(timespec="seconds")
+        # never "now": the stored email is checked (and taken back if wrong) before it can leave
+        publish = max(send_at, now + PUBLISH_MARGIN).astimezone(zone).isoformat(timespec="seconds")
         for ed in sorted(plan["editions"], key=lambda e: e["key"]):
             key, to = ed["key"], by_key.get(ed["key"], [])
             if key in done or not to:
