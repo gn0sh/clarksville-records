@@ -196,7 +196,9 @@ jobs:
           path: ${{ runner.temp }}/records-data
 
       # The artifact came from the job that parses untrusted PDFs: treat it as input (pipeline/push-unvalidated-artifact).
-      # Allowed: regular files named *.json or *.yml (all that data/ tracks today), none over 50 MB, no symlinks.
+      # Allowed: regular files named *.json or *.yml, and the change logs the collector appends beside each manifest
+      # when a document changes (files named exactly changes.jsonl: pipeline/changes-jsonl-rejected). None over
+      # 50 MB, no symlinks. The files are only committed, never run or parsed here.
       - name: Validate refreshed data
         run: |
           set -eu
@@ -207,7 +209,7 @@ jobs:
           done < <(find "$dir" ! -type f ! -type d -print0)
           while IFS= read -r -d '' f; do
             case "$f" in
-              *.json|*.yml) ;;
+              *.json|*.yml|*/changes.jsonl) ;;
               *) echo "::error::file type not allowed in data/: $f"; bad=1 ;;
             esac
           done < <(find "$dir" -type f -print0)
@@ -249,11 +251,20 @@ jobs:
           fi
 
   deploy:
-    needs: update
+    needs: [update, push]
     # LOCKED: does not run until the CEO sets the repository variable RECORDS_DEPLOY_ENABLED to 'true' (Settings >
     # Secrets and variables > Actions > Variables). Do not remove this condition. Hard stop 1.
     # Also main only (pipeline/dispatch-non-main-ref).
-    if: vars.RECORDS_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
+    # After the lock (pipeline/deploy-independent-of-push): update must have succeeded, and push must have succeeded
+    # too, so the site never goes live from data that is not on main. The one run where push is skipped by design is
+    # the manual rebuild-only run (collect = false: nothing to commit; the runbook's rollback path), which still
+    # deploys. !cancelled() is there because a job whose `needs` include a skipped job is itself skipped unless its
+    # `if` calls a status function; every job result is then tested by name, so this only ever narrows the lock.
+    if: >-
+      vars.RECORDS_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
+      && !cancelled() && needs.update.result == 'success'
+      && (needs.push.result == 'success'
+      || (needs.push.result == 'skipped' && github.event_name == 'workflow_dispatch' && !inputs.collect))
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:

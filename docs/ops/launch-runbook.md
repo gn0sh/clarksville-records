@@ -9,11 +9,18 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   `pytest`, upload the refreshed `data/` and `build/site` (plus `CNAME`) as artifacts. Read-only repo access, no
   persisted token (it parses downloaded PDFs). It never publishes.
 - `push` job: the only job with `contents: write`; it commits the refreshed `data/` to `main` if it changed, and parses
-  nothing. It validates the artifact first (only `*.json`/`*.yml`, no symlinks, 50 MB cap), commits on the SHA the
+  nothing. It validates the artifact first (only `*.json`/`*.yml` and the `changes.jsonl` change logs, no symlinks,
+  50 MB cap), commits on the SHA the
   `update` job built on, then rebases onto `main`: a concurrent edit to `data/` fails the job instead of being
   reverted. A failure in `update` or `push` opens (or comments on) one "Daily update failed" issue and leaves the live
   site as it was. Both `push` and `deploy` run on `main` only.
 - `deploy` job: publishes the artifact. **Locked:** runs only when repo variable `RECORDS_DEPLOY_ENABLED` is `true`.
+  `deploy` needs both other jobs: `update` green, and `push` green too (so the site never goes live from data that is
+  not on `main`). Only a manual run with collect = false, where there is nothing to commit and `push` is skipped,
+  deploys without a push.
+- Collector exit codes shown in the failure issue: 0 ok, 2 fetch/parse or listing failure, 3 gate failure, 4 offline
+  run refused, 5 (city) a host or robots.txt refused the collector (403/429 and the like). On 5 do not re-run to "try
+  again" and do not change the fetcher: read `build/city-report.json` in the run log and ask the manager.
 - Collection keeps the collector's rules: honest User-Agent, robots.txt, 10 s between requests per host.
 - The downloaded PDFs (about 3 GB, not in git) live in the Actions cache (`records-store-v1-*`, 10 GB repo limit, evicted
   after 7 days unused; the daily run keeps it warm). A cold cache refetches about 930 documents at 10 s each: 3 to 5
