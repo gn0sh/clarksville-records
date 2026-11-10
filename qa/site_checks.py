@@ -24,7 +24,7 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   name-links  every occurrence of an official's display name in the visible text of a page is inside an <a> to that
               official's page (standing rule), except in <title>, <option>, item titles (data-item-title: text in
               the document, never linked), the operator lines (footer, About) and on the official's own page
-  footer      "Provided as a free service by gnoshcodes." on every page
+  footer      "Provided as a free service by gnoshcodes LLC." on every page
   external    no third-party scripts, styles, images or fonts (N6); the landing address box's geocoder (called
               only on submit) is exactly config/site.yml geocoder_url; a page that loads static/address.js carries
               its settings block (addr-config); every page has one CSP meta whose script-src is 'self' only, plus
@@ -542,7 +542,7 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
         out.add(cfg["school_board"]["url"])          # the day page's "coming" school board link
     out |= corrections_log_urls(corrections_path)    # the corrections page's "Source" links
     if cfg.get("operator_url"):
-        out.add(cfg["operator_url"])                 # the footer's "gnoshcodes" link
+        out.add(cfg["operator_url"])                 # the footer's "gnoshcodes LLC" link
     if cfg.get("support_enabled") is True and cfg.get("support_url"):
         out.add(cfg["support_url"])
     mn = cfg.get("morning_note") or {}

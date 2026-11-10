@@ -13,7 +13,7 @@ fetch_manifests:
   - data/localities/cmc-rpc/manifest.json
   - data/maps/manifest.json
 today_place: Clarksville            # landing sky: "Tuesday in Clarksville" (static/sky.js reads it from the page)
-operator: gnoshcodes               # CEO decision 2026-11-09: a gnoshcodes product, no personal operator credit
+operator: gnoshcodes LLC           # CEO decisions 2026-11-09 (a gnoshcodes product, no personal credit) and 2026-11-10 (the LLC)
 operator_url: https://gnoshcodes.com/
 
 # "Not sure of your district?" lookup link on the landing (the state elections site). Empty renders nothing; another

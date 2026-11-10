@@ -18,7 +18,7 @@ def run(site, pages_):
 
 
 def test_notice_wording_is_one_config_block_and_names_the_four_bodies():
-    assert NOTICE.startswith("Daylight is an independent, unofficial site run by gnoshcodes.")
+    assert NOTICE.startswith("Daylight is an independent, unofficial site run by gnoshcodes LLC.")
     assert "not affiliated with, endorsed by, or operated by" in NOTICE
     assert all(b in NOTICE for b in BODIES)
     assert NOTICE.endswith("The official record held by each body controls.")
