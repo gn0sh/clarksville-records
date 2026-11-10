@@ -267,6 +267,24 @@ def test_the_plan_command_refuses_a_config_the_reader_reads_differently(tmp_path
     assert not (tmp_path / "out").exists()
 
 
+@pytest.mark.parametrize("base", [
+    "https://api.buttondown.com.evil.example/v1", "https://evil.example/v1", "https://api.buttondown.com:8443/v1",
+    "https://API.buttondown.com/v1", "https://xapi.buttondown.com/v1", "https://buttondown.com/v1",
+    "https://api.buttondown.com./v1"])
+def test_api_base_is_pinned_to_the_providers_own_host(base):
+    """settings/api-base-host: the host the key is sent to is fixed in code per provider, not taken from config."""
+    with pytest.raises(settings_mod.SettingsError, match="api_base"):
+        settings_mod.from_values(**settings_mod.parse(BASE.replace("https://api.buttondown.com/v1", base, 1)))
+    assert any("api_base" in p for p in problems({"api_base": base}))
+
+
+def test_an_unknown_provider_has_no_host_and_is_refused():
+    with pytest.raises(settings_mod.SettingsError, match="provider"):
+        settings_mod.from_values(**settings_mod.parse(BASE.replace("provider: buttondown", "provider: elsewhere", 1)))
+    assert any("provider" in p for p in problems({"provider": "elsewhere"}))
+    assert settings_mod.PROVIDER_HOSTS == {"buttondown": "api.buttondown.com"}
+
+
 def test_a_missing_config_file_is_an_error(tmp_path):
     with pytest.raises(settings_mod.SettingsError):
         settings_mod.load(tmp_path / "nope.yml")

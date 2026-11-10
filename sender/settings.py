@@ -25,6 +25,8 @@ _INT = re.compile(r"0|[1-9][0-9]*")                    # no leading zero: PyYAML
 _PLAIN = re.compile(r"[A-Za-z][A-Za-z0-9_./:~-]*")     # a word or URL; no space, no ": ", nothing PyYAML resolves
 _YAML_WORDS = {"yes", "no", "on", "off", "true", "false", "null", "y", "n"}
 _BAD_CATEGORIES = {"Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"}
+# settings/api-base-host: the one host each provider's key may be sent to, fixed here rather than read from config
+PROVIDER_HOSTS = {"buttondown": "api.buttondown.com"}
 _API_BASE = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~/-]*)?")
 
 
@@ -208,6 +210,17 @@ def parity(text: str, loaded) -> list[str]:
     return out
 
 
+def api_base_problem(provider, api_base) -> str:
+    """"" when `api_base` is an https URL on exactly the host PROVIDER_HOSTS names for `provider`, with no port."""
+    if not isinstance(provider, str) or provider not in PROVIDER_HOSTS:
+        return f"morning_note.sender.provider must be one of {', '.join(sorted(PROVIDER_HOSTS))}"
+    if not (isinstance(api_base, str) and _API_BASE.fullmatch(api_base)):
+        return "morning_note.sender.api_base must be an https URL"
+    if api_base[len("https://"):].split("/", 1)[0] != PROVIDER_HOSTS[provider]:
+        return f"morning_note.sender.api_base must be on {PROVIDER_HOSTS[provider]}, the provider's own host"
+    return ""
+
+
 def _whole(v, name: str, low: int = 1) -> int:
     if not isinstance(v, int) or isinstance(v, bool) or v < low:
         raise SettingsError(f"{name} must be a whole number >= {low}")
@@ -225,8 +238,9 @@ def from_values(top: dict, sender: dict) -> Settings:
             raise SettingsError(f"morning_note.sender.{k} must be true or false")
     if sender["mode"] not in MODES:
         raise SettingsError("morning_note.sender.mode must be stamp or ids")
-    if not (isinstance(sender["api_base"], str) and _API_BASE.fullmatch(sender["api_base"])):
-        raise SettingsError("morning_note.sender.api_base must be an https URL")
+    problem = api_base_problem(sender["provider"], sender["api_base"])
+    if problem:
+        raise SettingsError(problem)
     for k in ("send_at", "latest_send"):
         if not (isinstance(sender[k], str) and TIME_RE.fullmatch(sender[k])):
             raise SettingsError(f"morning_note.sender.{k} must be HH:MM")

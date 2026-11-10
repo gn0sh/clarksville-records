@@ -183,6 +183,9 @@ def sender_problems(cfg: dict) -> list[str]:
         out.append(f"{at}.provider must name the mail provider")
     if "api_base" in s and not (isinstance(s["api_base"], str) and _API_BASE.fullmatch(s["api_base"])):
         out.append(f"{at}.api_base must be an https URL, got {s['api_base']!r}")
+    elif "provider" in s and "api_base" in s:
+        from sender.settings import api_base_problem     # settings/api-base-host: one rule, the deliver stage's
+        out += [p + f", got {s['api_base']!r}" for p in [api_base_problem(s["provider"], s["api_base"])] if p]
     if "mode" in s and s["mode"] not in SENDER_MODES:
         out.append(f"{at}.mode must be {' or '.join(SENDER_MODES)}, got {s['mode']!r}")
     times = {k: s[k] for k in ("send_at", "latest_send") if k in s}
