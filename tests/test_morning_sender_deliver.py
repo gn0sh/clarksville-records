@@ -48,6 +48,7 @@ class Fake(deliver.Provider):
 
     def __init__(self, subscribers=(), emails=(), fail=None, echo=None):
         self.echo = echo        # echo(stored row) -> what create_email returns: a provider that stored something else
+        self.stuck = False      # unschedule() answers but the email stays scheduled
         self.unscheduled = []
         self.subs = {s["id"]: copy.deepcopy(s) for s in subscribers}
         self.email_rows = [copy.deepcopy(e) for e in emails]
@@ -95,7 +96,10 @@ class Fake(deliver.Provider):
         self.unscheduled.append(email_id)
         for row in self.email_rows:
             if row["id"] == email_id:
-                row["status"] = "draft"
+                if not self.stuck:
+                    row["status"] = "draft"
+                return copy.deepcopy(row)
+        return None
 
     def send_draft(self, email_id, subscriber_ids, idempotency_key):
         self._hit("send_draft")
@@ -588,8 +592,24 @@ def test_stamp_unschedules_an_email_the_provider_stored_differently(plan, echo):
     got = echo(copy.deepcopy(stored))
     if (isinstance(got, dict) and got.get("id")) or (isinstance(got, str) and got):
         assert fake.unscheduled == [stored["id"]] and stored["status"] == "draft"
+        assert "may still be scheduled" not in text                      # taken back, and confirmed a draft
     else:
-        assert fake.unscheduled == []        # no id came back: nothing can be named; the run still fails
+        # provider-echo/no-id-silent: no id came back, so nothing can be taken back: the output says so
+        assert fake.unscheduled == [] and "an email may still be scheduled" in text
+
+
+@pytest.mark.parametrize("answer", ["stuck", "none", "other id"])
+def test_a_take_back_that_is_not_confirmed_a_draft_is_named(plan, answer):
+    fake = Fake(people(plan), echo=_drop_filter)
+    if answer == "stuck":
+        fake.stuck = True
+    real = fake.unschedule
+    if answer == "none":
+        fake.unschedule = lambda i, k: (real(i, k), None)[1]
+    elif answer == "other id":
+        fake.unschedule = lambda i, k: {**real(i, k), "id": "em-999"}
+    res, text = go(plan, fake)
+    assert (res.code, res.status) == (1, "failed") and "an email may still be scheduled" in text
 
 
 @pytest.mark.parametrize("echo", [lambda r: {**r, "status": "scheduled"},

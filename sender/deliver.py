@@ -112,8 +112,9 @@ class Provider:
         has one)}, read back from the provider's answer, never copied from `payload`."""
         raise NotImplementedError
 
-    def unschedule(self, email_id: str, idempotency_key: str) -> None:
-        """Take one email back to a draft (it then goes to nobody). Used when its stored form is not what was sent."""
+    def unschedule(self, email_id: str, idempotency_key: str) -> dict:
+        """Take one email back to a draft (it then goes to nobody). Used when its stored form is not what was sent.
+        Returns the email as the provider now stores it ({"id", "status", ...}); deliver checks it is a draft."""
         raise NotImplementedError
 
     def send_draft(self, email_id: str, subscriber_ids: list[str], idempotency_key: str) -> None:
@@ -400,10 +401,16 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         try:
             return _check_echo(settings.mode, payload, stored)
         except EchoMismatch as exc:
-            if exc.email_id is not None:
-                step = "email unschedule after a failed email check (an email may still be scheduled)"
-                _call(sleep, provider.unschedule, exc.email_id, idempotency_key(day, key, "unschedule"))
-            step = "email check"
+            stuck = "email check failed and an email may still be scheduled"
+            if exc.email_id is None:
+                step = f"{stuck}: no email id came back, so it could not be taken back"
+                raise
+            step = f"{stuck}: taking it back to a draft failed"
+            back = _call(sleep, provider.unschedule, exc.email_id, idempotency_key(day, key, "unschedule"))
+            if not (isinstance(back, dict) and back.get("id") == exc.email_id and back.get("status") == "draft"):
+                step = f"{stuck}: the provider did not confirm it is a draft"
+                raise
+            step = "email check (the email was taken back to a draft)"
             raise
 
     try:
