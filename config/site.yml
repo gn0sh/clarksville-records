@@ -95,6 +95,26 @@ morning_note:
   form_action: ""       # https URL the sign-up form POSTs to (the provider's hosted endpoint)
   form_fields: {email: email, lists: tags, district: metadata__district, ward: metadata__ward}
   privacy_url: ""       # the provider's privacy policy, required when enabled
+  # The sender (ADR 0004; architecture "T4 sender"; package sender/). OFF: nothing is sent, and there is no provider
+  # client, key or workflow job yet. `python -m sender plan --rehearse` writes the would-send editions as a dry run.
+  # The build refuses `enabled: true` unless morning_note.enabled is true and alerts.site_url is set. Going live
+  # also needs Brian's repository variable and secret (hard stops 1 and 5). Keep each value below on its own line as
+  # one plain value: the deliver stage reads this block without PyYAML (sender/settings.py).
+  sender:
+    enabled: false
+    provider: buttondown
+    api_base: https://api.buttondown.com/v1
+    mode: stamp              # stamp | ids, set by the T4.0 probe
+    send_at: "07:00"         # site_timezone
+    latest_send: "10:00"     # a run that ends later than this skips the day; a note is never sent late
+    max_editions: 80
+    max_recipients: 2000
+    canary_only: true        # true: only subscribers whose metadata has canary "1" (the team's own addresses)
+    # Every word of the email that is ours. Neutral connective text only: no summary, no claim about anyone.
+    text:
+      subject: "{site_name} morning note, {date}"
+      why: You get this note because a record on a list you picked was added to the site since yesterday morning.
+      open_site: Open the page on the site
   # Every word the sign-up section (alerts.html#note) and the preview page (morning/index.html) print around the
   # records' own titles. Neutral connective text only: no summary, no claim about anyone.
   page:

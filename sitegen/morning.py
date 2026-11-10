@@ -141,6 +141,63 @@ def problems(cfg: dict) -> list[str]:
     if not isinstance(ff, dict) or sorted(ff) != sorted(FORM_FIELD_KEYS) or \
             not all(isinstance(v, str) and re.fullmatch(r"[A-Za-z0-9_-]+", v) for v in ff.values()):
         out.append(f"morning_note.form_fields must map {', '.join(FORM_FIELD_KEYS)} to plain field names")
+    return out + sender_problems(cfg)
+
+
+# `morning_note.sender` (ADR 0004; package sender/): every key, and the placeholders each text must keep.
+SENDER_KEYS = ("enabled", "provider", "api_base", "mode", "send_at", "latest_send", "max_editions",
+               "max_recipients", "canary_only", "text")
+SENDER_MODES = ("stamp", "ids")
+SENDER_TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": ()}
+_HHMM = re.compile(r"(?:[01]\d|2[0-3]):[0-5]\d")
+_API_BASE = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~/-]*)?")
+
+
+def sender_problems(cfg: dict) -> list[str]:
+    """The sender block's shape and its switch rules. Left out: no sender, nothing to check. `enabled: true` is
+    refused unless the sign-up form is enabled too and the site URL is set (an email links only live pages)."""
+    mn = cfg.get("morning_note")
+    s = mn.get("sender") if isinstance(mn, dict) else None
+    if s is None:
+        return []
+    if not isinstance(s, dict):
+        return ["morning_note.sender must be a mapping"]
+    at = "morning_note.sender"
+    out = [f"{at}.{k} is not a known key" for k in s if k not in SENDER_KEYS]
+    out += [f"{at}.{k} must be set" for k in SENDER_KEYS if k not in s]
+    for k in ("enabled", "canary_only"):
+        if k in s and not isinstance(s[k], bool):
+            out.append(f"{at}.{k} must be true or false, got {s[k]!r}")
+    if "provider" in s and not (isinstance(s["provider"], str) and s["provider"].strip()):
+        out.append(f"{at}.provider must name the mail provider")
+    if "api_base" in s and not (isinstance(s["api_base"], str) and _API_BASE.fullmatch(s["api_base"])):
+        out.append(f"{at}.api_base must be an https URL, got {s['api_base']!r}")
+    if "mode" in s and s["mode"] not in SENDER_MODES:
+        out.append(f"{at}.mode must be {' or '.join(SENDER_MODES)}, got {s['mode']!r}")
+    times = {k: s[k] for k in ("send_at", "latest_send") if k in s}
+    bad = [k for k, v in times.items() if not (isinstance(v, str) and _HHMM.fullmatch(v))]
+    out += [f"{at}.{k} must be HH:MM, got {times[k]!r}" for k in bad]
+    if len(times) == 2 and not bad and not times["send_at"] < times["latest_send"]:
+        out.append(f"{at}.send_at must be before latest_send")
+    for k in ("max_editions", "max_recipients"):
+        if k in s and (not isinstance(s[k], int) or isinstance(s[k], bool) or s[k] < 1):
+            out.append(f"{at}.{k} must be a whole number >= 1, got {s[k]!r}")
+    text = s.get("text")
+    if "text" in s and not isinstance(text, dict):
+        out.append(f"{at}.text must be a mapping")
+    elif isinstance(text, dict):
+        out += [f"{at}.text.{k} is not a known key" for k in text if k not in SENDER_TEXT_KEYS]
+        for k, marks in SENDER_TEXT_KEYS.items():
+            v = text.get(k)
+            if not (isinstance(v, str) and v.strip()):
+                out.append(f"{at}.text.{k} must be set")
+            else:
+                out += [f"{at}.text.{k} must contain {m}" for m in marks if m not in v]
+    if s.get("enabled") is True:
+        if mn.get("enabled") is not True:
+            out.append(f"{at}.enabled is true, so morning_note.enabled must be true (the sign-up form)")
+        if not (cfg.get("alerts") or {}).get("site_url"):
+            out.append(f"{at}.enabled is true, so alerts.site_url must be set: an email links only live pages")
     return out
 
 
