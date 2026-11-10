@@ -27,6 +27,7 @@ _BAD_CATEGORIES = {"Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"}
 _BREAKS = re.compile("\r\n|[\r\n\x85\u2028\u2029]")
 # settings/api-base-host: the one host each provider's key may be sent to, fixed here rather than read from config
 PROVIDER_HOSTS = {"buttondown": "api.buttondown.com"}
+API_PATH = "/v1"            # the API root on that host: api_base is exactly https://<host>/v1
 _API_BASE = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~/-]*)?")
 
 
@@ -238,6 +239,8 @@ def api_base_problem(provider, api_base) -> str:
         return "morning_note.sender.api_base must be an https URL"
     if api_base[len("https://"):].split("/", 1)[0] != PROVIDER_HOSTS[provider]:
         return f"morning_note.sender.api_base must be on {PROVIDER_HOSTS[provider]}, the provider's own host"
+    if api_base != f"https://{PROVIDER_HOSTS[provider]}{API_PATH}":      # settings/api-base-path: no "..", no other path
+        return f"morning_note.sender.api_base must be exactly https://{PROVIDER_HOSTS[provider]}{API_PATH}"
     return ""
 
 

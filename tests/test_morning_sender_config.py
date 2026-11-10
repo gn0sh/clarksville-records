@@ -333,7 +333,11 @@ def test_the_plan_command_refuses_a_config_the_reader_reads_differently(tmp_path
 @pytest.mark.parametrize("base", [
     "https://api.buttondown.com.evil.example/v1", "https://evil.example/v1", "https://api.buttondown.com:8443/v1",
     "https://API.buttondown.com/v1", "https://xapi.buttondown.com/v1", "https://buttondown.com/v1",
-    "https://api.buttondown.com./v1"])
+    "https://api.buttondown.com./v1",
+    # settings/api-base-path: the path is the provider's API root, exactly
+    "https://api.buttondown.com/v1/../x", "https://api.buttondown.com/v1/..", "https://api.buttondown.com/v2",
+    "https://api.buttondown.com/", "https://api.buttondown.com", "https://api.buttondown.com/v1/",
+    "https://api.buttondown.com/v1/emails"])
 def test_api_base_is_pinned_to_the_providers_own_host(base):
     """settings/api-base-host: the host the key is sent to is fixed in code per provider, not taken from config."""
     with pytest.raises(settings_mod.SettingsError, match="api_base"):
