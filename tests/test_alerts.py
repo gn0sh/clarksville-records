@@ -601,7 +601,8 @@ def test_without_a_manifest_row_an_entry_is_its_fetched_day_at_local_noon(built)
     for e in root.findall(A + "entry"):
         up = text(e, "updated")
         assert up == text(e, "published") and up[:10] in fetched and up[10:19] == "T12:00:00", up
-        assert text(e, "summary").endswith(f", fetched {up[:10]}."), text(e, "summary")   # one day, both places
+        # one day, both places; with no recorded instant the summary labels it a UTC day (docs/architecture/local-dates.md)
+        assert text(e, "summary").endswith(f", fetched {up[:10]} (UTC day)."), text(e, "summary")
 
 
 # ------------------------------------------------------------------ the fall-back hour: newest first by instant, not text

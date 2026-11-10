@@ -319,7 +319,8 @@ def test_not_a_listed_bidder_and_documents_differ_states(fpages):
 def test_no_bid_tab_and_not_read_tab_show_words_and_no_amounts(fpages):
     chairs = main_of(fpages["contracts/office-chairs-fixture.html"])
     assert C["no_tab_detail"] in chairs and "$" not in chairs
-    assert C["dead_link"].format(date="2026-11-07") in chairs and C["not_pdf"] in chairs and C["shared"] in chairs
+    # a dead link has only the fetch run's UTC day, labelled (docs/architecture/local-dates.md)
+    assert C["dead_link"].format(date="2026-11-07 (UTC day)") in chairs and C["not_pdf"] in chairs and C["shared"] in chairs
     paving = main_of(fpages["contracts/paving-unit-prices-fixture.html"])
     assert C["not_read"]["layout"] in html_mod.unescape(paving) and "$" not in paving
     idx = parse(fpages["contracts/index.html"])
