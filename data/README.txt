@@ -4,7 +4,7 @@ Daylight is an independent, unofficial site run by gnoshcodes. It is not affilia
 
 If this site and the official document differ, the official document is right. Nothing on this site is legal advice.
 
-How to report a correction: the Report an error page (report.html) on the site
+How to report a correction: https://daylight.gnoshcodes.com/report.html
 
 The official sites:
   City of Clarksville: https://www.cityofclarksville.com/
