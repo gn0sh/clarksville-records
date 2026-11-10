@@ -6,9 +6,12 @@ and run no sign-up. Which feeds exist comes from config, never from a place name
 - one feed per topic in `alerts.topics`, each an item type of `item_types` (the same mechanical rule as the Search
   filter and the About page), across every body.
 
-Why not one feed per county district and per city ward: the records place no item in a district or ward (a rezoning
-case's location is printed text, not a point on the map, and city items carry no ward), so such a feed could only
-repeat the body's feed; and 33 more files would take the site past config.MAX_FILES (about 470 files before feeds).
+Zoning (Daylight M3, docs/architecture/morning-note.md): RPC agenda cases whose prefix is in
+`morning_note.zoning_prefixes` join the rezoning topic feed (id <feed_id>rpc/item/<case id>/<meeting id>; the ids
+of every earlier entry are unchanged). On the `pages` target only, there is also one feed per county commission
+district and per city ward (`zoning-district-NN.xml`, `zoning-ward-NN.xml`): the cases whose agenda PRINTS that
+district or ward, never a guess from the location text. The `preview` target (file cap 500) has no per-seat feeds.
+`topic-contracts.xml` lists each purchasing solicitation (data/finance.json), id contracts/solicitation/<id>.
 
 Entries (invariant: an id never changes, so a reader never alerts twice for one thing):
 - a body feed has one entry per document: a meeting's agenda, and its minutes, each its own entry;
@@ -27,6 +30,9 @@ import re
 import xml.etree.ElementTree as ET
 
 from . import config, views
+
+DEFAULT_ZONING_PREFIXES = ("Z", "ZO", "CZ", "CZO", "HZ")
+SEAT_TARGET = "pages"
 
 ATOM = "http://www.w3.org/2005/Atom"
 ET.register_namespace("", ATOM)
@@ -72,9 +78,16 @@ def _bodies(county, councils) -> list[tuple[str, str, views.Index]]:
         [(c.body_key, c.body_name, c) for c in councils]
 
 
-def feed_list(councils=(), cfg: dict | None = None) -> list[dict]:
+def zoning_prefixes(cfg: dict | None = None) -> set[str]:
+    cfg = config.SITE if cfg is None else cfg
+    return set((cfg.get("morning_note") or {}).get("zoning_prefixes") or DEFAULT_ZONING_PREFIXES)
+
+
+def feed_list(councils=(), cfg: dict | None = None, rpc=None, fin: dict | None = None,
+              target: str | None = None) -> list[dict]:
     """Every feed, in the Alerts page's order: {file, title, kind, about}. `councils`: anything with body_key and
-    body_name (council.CouncilIndex)."""
+    body_name (council.CouncilIndex). `fin`: finance.json (adds the contracts feed). `rpc` and target "pages" add
+    the per-seat zoning feeds (kind "zoning-seat", with seat "district"|"ward" and number)."""
     cfg = config.SITE if cfg is None else cfg
     a = settings(cfg)
     if not a["feed_id"]:
@@ -91,6 +104,19 @@ def feed_list(councils=(), cfg: dict | None = None) -> list[dict]:
         out.append({"file": f"{FOLDER}/topic-{t}.xml", "kind": "topic", "key": t,
                     "title": f"{labels[t]} items: {names}",
                     "about": f"Each item the {labels[t]} type rule matches, at each meeting it appears at."})
+    if fin is not None:
+        out.append({"file": f"{FOLDER}/topic-contracts.xml", "kind": "topic", "key": "contracts",
+                    "title": "Contracts: bids and awards",
+                    "about": "Each purchasing solicitation (bid or request for proposals) when it is added to this site."})
+    if rpc is not None and target == SEAT_TARGET:
+        for seat, label_key, count_key in (("district", "district_label", "district_count"),
+                                           ("ward", "ward_label", "ward_count")):
+            for n in range(1, int(cfg.get(count_key) or 0) + 1):
+                out.append({"file": f"{FOLDER}/zoning-{seat}-{n:02d}.xml", "kind": "zoning-seat", "seat": seat,
+                            "number": n, "key": f"zoning-{seat}-{n:02d}",
+                            "title": f"Zoning cases, {cfg[label_key]} {n}",
+                            "about": f"Each zoning case whose agenda prints {cfg[label_key]} {n}, at each "
+                                     f"meeting it appears at. Cases that print no {seat} are in the Rezoning feed."})
     return out
 
 
@@ -150,6 +176,53 @@ def _topic_entries(topic: str, key: str, ix: views.Index) -> list[dict]:
     return out
 
 
+def _rpc_cases(rpc, cfg: dict) -> list[tuple[dict, dict]]:
+    """(case, meeting) for each RPC agenda case of a zoning prefix."""
+    want = zoning_prefixes(cfg)
+    meetings = {m["id"]: m for m in rpc.facts["meetings"]}
+    return [(c, meetings[c["meeting_id"]]) for c in rpc.facts["cases"]
+            if c["prefix"] in want and c["meeting_id"] in meetings]
+
+
+def _rpc_entries(rpc, cases: list[tuple[dict, dict]]) -> list[dict]:
+    out = []
+    for c, m in cases:
+        s = rpc.sources[c["source_id"]]
+        kind = rpc.cfg["kind_labels"].get(m["kind"], m["kind"])
+        title = c["number_printed"] + (f": {c['request']}" if c.get("request") else "")
+        out.append({
+            "id": f"{rpc.body_key}/item/{c['id']}/{m['id']}",
+            "title": title,
+            "updated": m["date"],
+            "href": f"{rpc.year_href(m['date'][:4])}#{rpc.case_anchor(c)}",
+            "source": f"{s['url']}#page={c['page']}",
+            "summary": f"{rpc.body}, {kind} agenda, {m['date']}. {c['case_type']}. Source: agenda, page {c['page']}.",
+            "sort": (m["date"], m["id"], -c["page"], c["id"]),
+        })
+    return out
+
+
+def _contract_entries(fin: dict) -> list[dict]:
+    docs = {d["id"]: d for d in fin["documents"]}
+    out = []
+    for s in fin["solicitations"]:
+        first = next((docs[i] for i in s["document_ids"] if i in docs), None)
+        if first is None:
+            continue
+        when = s.get("archive_date") or first.get("fetched_at") or "1970-01-01"
+        out.append({
+            "id": f"contracts/solicitation/{s['id']}",
+            "title": s["title"],
+            "updated": when,
+            "href": f"contracts/{s['slug']}.html",
+            "source": first["url"],
+            "summary": f"Purchasing solicitation{' ' + s['number'] if s.get('number') else ''}, "
+                       f"{len(s['document_ids'])} {views.plural(len(s['document_ids']), 'document', 'documents')}.",
+            "sort": (when, s["id"]),
+        })
+    return out
+
+
 def _abs(href: str, feed_rel: str, site_url: str) -> str:
     """A site page's link as the feed carries it: absolute under alerts.site_url when set, else relative to the
     feed file (RFC 4287 resolves it against the feed's own address)."""
@@ -204,26 +277,37 @@ def render(feed: dict, entries: list[dict], cfg: dict | None = None, data_as_of:
     return ET.tostring(root, encoding="utf-8", xml_declaration=True) + b"\n"
 
 
-def build_feeds(county: views.Index, councils=(), cfg: dict | None = None) -> dict[str, bytes]:
+def build_feeds(county: views.Index, councils=(), cfg: dict | None = None, rpc=None, fin: dict | None = None,
+                target: str | None = None) -> dict[str, bytes]:
     """{site-relative path: Atom bytes} for every feed in feed_list."""
     cfg = config.SITE if cfg is None else cfg
     bodies = _bodies(county, councils)
+    zoning = _rpc_cases(rpc, cfg) if rpc is not None else []
     out = {}
-    for feed in feed_list(councils, cfg):
+    for feed in feed_list(councils, cfg, rpc, fin, target):
+        as_of = max(b.data_as_of() for _, _, b in bodies)
         if feed["kind"] == "body":
             ix = next(b for k, _, b in bodies if k == feed["key"])
             entries = _body_entries(feed["key"], ix)
             as_of = ix.data_as_of()
+        elif feed["kind"] == "zoning-seat":
+            field = feed["seat"]
+            entries = _rpc_entries(rpc, [(c, m) for c, m in zoning if c.get(field) == feed["number"]])
+        elif feed["key"] == "contracts":
+            entries = _contract_entries(fin)
+            as_of = ""
         else:
             entries = [e for k, _, b in bodies for e in _topic_entries(feed["key"], k, b)]
-            as_of = max(b.data_as_of() for _, _, b in bodies)
+            if feed["key"] == "rezoning" and rpc is not None:
+                entries += _rpc_entries(rpc, zoning)
         out[feed["file"]] = render(feed, entries, cfg, "" if as_of == "unknown" else as_of)
     return out
 
 
-def alerts_page(councils=(), cfg: dict | None = None) -> dict:
+def alerts_page(councils=(), cfg: dict | None = None, rpc=None, fin: dict | None = None,
+                target: str | None = None) -> dict:
     a = settings(cfg)
-    feeds = feed_list(councils, cfg)
+    feeds = feed_list(councils, cfg, rpc, fin, target)
     return {"body_feeds": [f for f in feeds if f["kind"] == "body"],
             "topic_feeds": [f for f in feeds if f["kind"] == "topic"],
             "site_url": a["site_url"], "max_entries": a["max_entries"]}

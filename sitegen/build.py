@@ -664,8 +664,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     render("changes.html.j2", "changes.html", "Changes", **views.changes(read_changes(changes_path)))
     render("report.html.j2", "report.html", "Report an error", **views.report_page())
     if site["alerts"]:   # Alerts v1 (sitegen/feeds.py): written last, when every item and meeting link knows its part
-        render("alerts.html.j2", feeds_mod.PAGE, "Alerts", **feeds_mod.alerts_page(cixs))
-        for rel, body in feeds_mod.build_feeds(ix, cixs).items():
+        render("alerts.html.j2", feeds_mod.PAGE, "Alerts",
+               **feeds_mod.alerts_page(cixs, rpc=rpx, fin=fin_data, target=target))
+        for rel, body in feeds_mod.build_feeds(ix, cixs, rpc=rpx, fin=fin_data, target=target).items():
             (out / rel).parent.mkdir(parents=True, exist_ok=True)
             (out / rel).write_bytes(body)
     if internal:
