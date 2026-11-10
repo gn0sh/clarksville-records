@@ -117,7 +117,10 @@ def test_export_readme_names_the_correction_route_and_every_official_site():
 def test_who_runs_this_data_and_morning_preview_name_it(pages):
     who = " ".join(re.sub(r"<[^>]+>", " ", pages["who-runs-this.html"]).split())
     assert ("not run by, paid by or approved by " + ", ".join(b["name"] for b in config.SITE["unofficial"]["bodies"])
-            + ", or any official") in who
+            + ", or any candidate, party or campaign.") in who
+    # no claim that can be false while an officeholder is involved (review unofficial/untrue-claim)
+    assert "or any official" not in who and "office or official" not in pages["about.html"]
+    assert "No government body or office runs, pays for, reviews or approves this site." in pages["about.html"]
     assert 'href="about.html#unofficial"' in pages["who-runs-this.html"]
     assert NOTICE in pages["data.html"] and 'href="data/README.txt"' in pages["data.html"]
 

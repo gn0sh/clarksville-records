@@ -19,7 +19,7 @@
 <section aria-labelledby="unofficial">
   <h2 id="unofficial">{{ site.unofficial.tag }}</h2>
   <p>{{ site.unofficial.notice }}</p>
-  <p><strong>Who runs it.</strong> {{ site.site_name }} is run by {% if site.operator_url %}<a data-ext="operator" href="{{ site.operator_url }}" rel="noopener noreferrer">{{ site.operator }}</a>{% else %}{{ site.operator }}{% endif %}, a small software company. No government body, office or official runs, pays for, reviews or approves this site. It uses no government seal, logo or insignia.</p>
+  <p><strong>Who runs it.</strong> {{ site.site_name }} is run by {% if site.operator_url %}<a data-ext="operator" href="{{ site.operator_url }}" rel="noopener noreferrer">{{ site.operator }}</a>{% else %}{{ site.operator }}{% endif %}, a small software company. No government body or office runs, pays for, reviews or approves this site. It uses no government seal, logo or insignia.</p>
   <p><strong>Where the records come from.</strong> The records shown here are public documents that each body publishes itself. This site collects them, links each fact to its source document, and does not speak for the body that wrote it. The official sites:</p>
   <ul>
     {% for b in site.unofficial.bodies %}
