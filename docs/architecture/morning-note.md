@@ -114,7 +114,13 @@ morning_note:
 Off (M3): the form has no `action`, no email field and no submit; it shows the picker, "Email starts at launch;
 follow by feed now", and the picked lists' feed links. On: the build renders the email field, posts directly to
 `form_action` (CSP `form-action 'self'` gains that one origin, computed by the build), and the page says what is sent
-and to whom, linking `privacy_url`. `build.problems()` refuses `enabled: true` without an https `form_action` and a
+and to whom, linking `privacy_url`. On, the stored seats are posted only by consent (security review finding 3):
+the form shows a visible, ticked "Include my saved seats: District 5, Ward 3" box (no `name`, never posted itself,
+shown only when seats are stored); unticked, or without the script, both seat fields stay disabled and nothing about
+a seat is posted. On, the landing and Method pages also stop saying the seats are "never sent anywhere"
+(`morning_page.privacy()`, text `page.seats_sent`) and the Method page gains a "Morning note" paragraph: what is
+sent, to whom, how to unsubscribe, and the `privacy_url` link (`page.method_*`; finding 1). `qa.site_checks` allows
+that one off-site form action and CSP origin on alerts.html only while `enabled` is true. `build.problems()` refuses `enabled: true` without an https `form_action` and a
 `privacy_url`, and refuses a non-empty `form_action` while `enabled` is false. The sender (later) is a scheduled job
 that reads `morning/latest.json`, groups subscribers by (lists, district, ward), calls `select()` per group and mails
 non-empty results through the provider API; that job and its secret are a later task behind the CEO's go-ahead.

@@ -258,13 +258,56 @@ def test_site_checks_cap_the_rezoning_feed_per_body(site, monkeypatch):
 def test_site_checks_know_the_finance_sources_the_contracts_feed_links(site, monkeypatch):
     seen = {}
 
-    def spy(site_dir, pages, sources, cfg):
+    def spy(site_dir, pages, sources, cfg, finance_sources=()):
         seen["urls"] = {s["url"] for s in sources}
+        seen["fin"] = {s["url"] for s in finance_sources}
         return [], "spy"
     monkeypatch.setattr(site_checks, "check_feeds", spy)
     fin = {"sources": [{"url": "https://example.invalid/fin/rfp-1.pdf"}], "documents": [], "solicitations": []}
     site_checks.run_checks(site, FACTS, browser=False, no_export=True, finance=fin)
-    assert "https://example.invalid/fin/rfp-1.pdf" in seen["urls"] and FACTS["sources"][0]["url"] in seen["urls"]
+    assert seen["fin"] == {"https://example.invalid/fin/rfp-1.pdf"} and FACTS["sources"][0]["url"] in seen["urls"]
+    assert "https://example.invalid/fin/rfp-1.pdf" not in seen["urls"]   # finance sources travel apart
+
+
+def _relink(f, url):
+    """Point the first entry's source link of one feed at `url`."""
+    root = parsed(f)
+    link = next(x for x in root.iter(A + "link") if x.get("rel") == "related")
+    link.set("href", url)
+    ET.ElementTree(root).write(f, encoding="utf-8", xml_declaration=True)
+
+
+def test_site_checks_know_a_finance_source_in_the_contracts_feed_only(site):
+    # a finance.json document is a known source in topic-contracts.xml and nowhere else
+    fin_url = "https://example.invalid/fin/rfp-1.pdf"
+    pages = {f.relative_to(site).as_posix(): site_checks.parse(f) for f in site.rglob("*.html")}
+    check = lambda: site_checks.check_feeds(site, pages, FACTS["sources"], config.SITE,  # noqa: E731
+                                            finance_sources=[{"url": fin_url}])[0]
+    assert site_checks.CONTRACTS_FEED == f"{feeds.FOLDER}/topic-contracts.xml"
+    shutil.copy(site / "feeds" / "county-meetings.xml", site / site_checks.CONTRACTS_FEED)
+    _relink(site / site_checks.CONTRACTS_FEED, fin_url)
+    assert [p for p in check() if "not a fetched source" in p] == []
+    _relink(site / "feeds" / "county-meetings.xml", fin_url)
+    assert [p for p in check() if "not a fetched source" in p] == \
+        [p for p in check() if p.startswith("feeds/county-meetings.xml") and fin_url in p] != []
+
+
+@pytest.mark.parametrize("url", ["javascript:alert(1)", "JaVaScRiPt:alert(1)", "data:text/html,x", "file:///etc/passwd",
+                                 "vbscript:x", " javascript:alert(1)", "java\tscript:alert(1)"])
+def test_site_checks_fail_a_feed_link_with_another_scheme(site, url):
+    # morning-security/href-scheme-defense: never skipped
+    _relink(site / "feeds" / "county-meetings.xml", url)
+    assert any("link with scheme" in p for p in feeds_check(site)), feeds_check(site)
+
+
+def test_one_per_body_feed_list_for_the_build_and_the_check(county, zoning_rpc, monkeypatch):
+    assert site_checks.PER_BODY_FEEDS is feeds.PER_BODY_FEEDS == ("feeds/topic-rezoning.xml",)
+    cfg = copy.deepcopy(config.SITE)
+    cfg["alerts"]["max_entries"] = 2
+    both = ids_of(feeds.build_feeds(county, cfg=cfg, rpc=zoning_rpc)["feeds/topic-rezoning.xml"])
+    assert len(both) > 2                                   # 2 of each body
+    monkeypatch.setattr(feeds, "PER_BODY_FEEDS", ())       # the build reads the list: off it, one cap for the feed
+    assert len(ids_of(feeds.build_feeds(county, cfg=cfg, rpc=zoning_rpc)["feeds/topic-rezoning.xml"])) == 2
 
 
 def test_illegal_xml_characters_are_stripped_and_whitespace_collapsed():
@@ -426,3 +469,29 @@ def test_new_feeds_are_valid_atom_and_ids_are_stable(county, zoning_rpc, fin):
             assert text(e, "id").startswith(CFG["alerts"]["feed_id"])
             assert [x for x in e.findall(A + "link") if x.get("rel") == "alternate"]
         assert len(set(ids_of(one[rel]))) == len(ids_of(one[rel]))
+
+
+# -- morning-security/href-scheme-defense: an RPC source URL is a link only when it passes build._is_https_uri
+
+@pytest.mark.parametrize("url", ["javascript:alert(1)//.pdf", "http://example.invalid/agenda.pdf", "data:text/html,x",
+                                 "https://example.invalid/a b.pdf", 'https://example.invalid/a".pdf', "//example.invalid/a",
+                                 "https:///agenda.pdf", ""])
+def test_an_rpc_source_url_that_is_not_an_https_link_is_dropped(county, zoning_rpc, url):
+    class Bad(type(zoning_rpc)):
+        sources = {"src-rpc": {"url": url}}
+    entries = feeds._rpc_entries(Bad(), feeds._rpc_cases(Bad(), CFG))
+    assert entries and all(e["source"] == "" for e in entries)
+    out = feeds.build_feeds(county, cfg=CFG, rpc=Bad(), target="pages")
+    for rel in ("feeds/topic-rezoning.xml", "feeds/zoning-district-03.xml"):
+        root = ET.fromstring(out[rel])
+        rpc_entries = [e for e in root.findall(A + "entry") if "rpc/item/" in text(e, "id")]
+        assert rpc_entries
+        for e in rpc_entries:   # the entry stays, linked to its page here, with no source link
+            assert [x.get("rel") for x in e.findall(A + "link")] == ["alternate"]
+        if url:
+            assert url.encode() not in out[rel]
+
+
+def test_a_good_rpc_source_url_is_still_linked(zoning_rpc):
+    e = feeds._rpc_entries(zoning_rpc, feeds._rpc_cases(zoning_rpc, CFG))[0]
+    assert e["source"] == "https://example.invalid/agenda.pdf#page=1"

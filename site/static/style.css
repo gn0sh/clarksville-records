@@ -884,6 +884,8 @@ ul.feed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(mi
 .mn-card label.f { font-weight: 600; font-size: var(--t-sm); display: grid; gap: 6px; }
 .mn-card input[type=email] { font: inherit; padding: 13px 14px; border-radius: 12px; border: 0; background: #FFFFFF; color: #141A2E; width: 100%; box-sizing: border-box; }
 .mn-card .btn { font: inherit; font-weight: 700; border: 0; border-radius: 999px; padding: 12px 20px; background: var(--sun); color: #1A0B05; cursor: pointer; justify-self: start; }
+.mn-check { display: flex; gap: 10px; align-items: center; font-size: var(--t-sm); font-weight: 600; min-height: 24px; }
+.mn-check input { width: 20px; height: 20px; margin: 0; flex: none; accent-color: var(--sun); }
 .mn-state { font-size: var(--t-md); }
 .mn-panel { border-top: 1px solid rgba(255, 255, 255, .35); padding-top: 12px; min-width: 0; }
 .mn-lists, .mn-feeds { list-style: none; margin: 0; padding: 0; }

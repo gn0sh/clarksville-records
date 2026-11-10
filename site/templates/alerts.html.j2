@@ -23,8 +23,12 @@
   {% if note.enabled %}
   <input type="hidden" name="{{ note.fields.district }}" value="" data-seat-field="district" disabled>
   <input type="hidden" name="{{ note.fields.ward }}" value="" data-seat-field="ward" disabled>
+  {# Seat consent (morning-security/seat-consent): shown by static/morning.js only when this device keeps seats, with
+     the numbers that would be sent. The box has no name (it is never posted itself); unticked, both seat fields
+     stay disabled and empty, so nothing about a seat is posted. Without the script they are never enabled. #}
+  <p class="mn-seats" id="mn-seats" hidden><label class="mn-check" for="note-seats"><input type="checkbox" id="note-seats" checked><span>{{ note.text.seats_include }} <strong id="mn-seats-values" data-district-label="{{ note.text.district_label }}" data-ward-label="{{ note.text.ward_label }}"></strong></span></label></p>
   <label class="f" for="note-email">{{ note.text.email_label }}<input type="email" id="note-email" name="{{ note.fields.email }}" autocomplete="email" required></label>
-  <p class="small">{{ note.sent_line }} <a href="{{ note.privacy_url }}" rel="noopener noreferrer">{{ note.text.privacy_label }}</a></p>
+  <p class="small">{{ note.sent_line }} <a data-ext="provider" href="{{ note.privacy_url }}" rel="noopener noreferrer">{{ note.text.privacy_label }}</a></p>
   <button class="btn" type="submit">{{ note.text.submit }}</button>
   {% else %}
   <p class="mn-state"><strong>{{ note.text.state_off }}</strong></p>

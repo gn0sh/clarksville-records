@@ -46,6 +46,8 @@ TEXT_KEYS = ("agenda_item", "vote", "vote_unconfirmed", "agenda", "minutes", "bu
 PAGE_KEYS = {"heading": (), "about": (), "legend": (), "state_off": (), "feeds_heading": (), "no_feed": (),
              "seats_hint": (), "seats_link": (), "preview_link": (), "email_label": (), "submit": (),
              "sent_line": ("{provider}",), "privacy_label": (), "preview_title": (),
+             "seats_include": (), "seats_sent": ("{provider}",), "method_heading": (),
+             "method_sent": ("{provider}",), "method_unsubscribe": (), "method_signup_link": (),
              "preview_lede": ("{date}", "{from}", "{to}"), "preview_mine": (), "quiet": (), "backfill": (),
              "unplaced_link": (), "source_label": (), "page_label": (), "district_label": (), "ward_label": ()}
 FORM_FIELD_KEYS = ("email", "lists", "district", "ward")

@@ -268,6 +268,73 @@ def test_site_link_check_passes_on_the_note_pages(site):
     assert bad == []
 
 
+# -- morning-security/href-scheme-defense
+
+BAD_URLS = ["javascript:alert(1)", "JAVASCRIPT:alert(1)//.pdf", "http://example.org/a.pdf", "data:text/html,x",
+            "https://example.org/a b.pdf", "//example.org/a.pdf", "vbscript:x", "https://example.org/a\"onclick=\"x"]
+
+
+def _day_with_source(url):
+    day = copy.deepcopy(DAY)
+    day["entries"][0]["source"] = {"url": url, "page": 3}
+    return day
+
+
+@pytest.mark.parametrize("url", BAD_URLS)
+def test_preview_drops_a_source_url_that_is_not_an_https_link(url):
+    ctx = morning_page.preview(_day_with_source(url), [])
+    assert ctx["entries"][0]["source"] == {"url": "", "page": None}
+    assert ctx["entries"][0]["title"] == DAY["entries"][0]["title"]          # the entry itself stays
+    assert [e["source"]["url"] for e in ctx["entries"][1:]] == \
+        [(e.get("source") or {}).get("url") or "" for e in DAY["entries"][1:]]   # good links untouched
+
+
+def test_preview_page_renders_no_link_for_a_bad_source_url(tmp_path, monkeypatch):
+    pages = _build(tmp_path / "site", monkeypatch, note=_day_with_source("javascript:alert(1)"))
+    html = pages["morning/index.html"]
+    assert "javascript:" not in html
+    first = html.split('class="mn-entry"')[1]
+    assert DAY["entries"][0]["title"] in first and 'class="mn-src"' not in first
+    assert html.count('class="mn-src"') == sum(1 for e in DAY["entries"] if (e.get("source") or {}).get("url")) - 1
+
+
+@pytest.mark.parametrize("href", ["javascript:alert(1)", "JaVaScRiPt:alert(1)", " javascript:alert(1)",
+                                  "java&#9;script:alert(1)", "&#106;avascript:alert(1)", "data:text/html,x",
+                                  "vbscript:x", "file:///etc/passwd", "tel:+19315550100", "mailto:someone@example.org",
+                                  "//example.org/x"])
+def test_site_checks_fail_a_link_with_another_scheme(site, tmp_path, href):
+    # site_checks never skips a non-http(s) href: the only one allowed is report.html's own mailto from the config
+    out, _ = site
+    dst = tmp_path / "site"
+    shutil.copytree(out, dst)
+    f = dst / "morning" / "index.html"
+    f.write_text(f.read_text(encoding="utf-8").replace("</main>", f'<a href="{href}">x</a></main>'), encoding="utf-8")
+    pages = {p.relative_to(dst).as_posix(): site_checks.parse(p) for p in dst.rglob("*.html")}
+    bad = [m for m in site_checks.check_links(dst, pages, no_export=True) if "href with scheme" in m]
+    assert len(bad) == 1 and bad[0].startswith("morning/index.html"), bad
+
+
+@pytest.mark.parametrize("tag", ['<form action="javascript:alert(1)"></form>', '<script src="data:text/javascript,x"></script>',
+                                 '<img src="javascript:x" alt="">', '<iframe src="data:text/html,x"></iframe>'])
+def test_site_checks_fail_a_resource_with_another_scheme(site, tmp_path, tag):
+    out, _ = site
+    dst = tmp_path / "site"
+    shutil.copytree(out, dst)
+    f = dst / "morning" / "index.html"
+    f.write_text(f.read_text(encoding="utf-8").replace("</main>", tag + "</main>"), encoding="utf-8")
+    pages = {p.relative_to(dst).as_posix(): site_checks.parse(p) for p in dst.rglob("*.html")}
+    assert [m for m in site_checks.check_links(dst, pages, no_export=True) if "with scheme" in m]
+
+
+@pytest.mark.parametrize("href, bad", [
+    ("meetings.html", False), ("../a/b.html#x", False), ("#top", False), ("https://example.org/a.pdf#page=2", False),
+    ("http://example.org/", False), ("?q=a:b", False), ("a/b:c.html", False), ("", False),
+    ("javascript:x", True), ("\x01javascript:x", True), ("jav\nascript:x", True), ("mailto:a@example.org", True),
+    ("tel:1", True), ("data:,x", True), ("blob:https://example.org/1", True), ("ftp://example.org/a", True)])
+def test_bad_scheme(href, bad):
+    assert site_checks.bad_scheme(href) is bad
+
+
 # -- JS select() == Python select()
 
 def _node():
@@ -350,6 +417,175 @@ def test_enabled_without_privacy_or_action_renders_the_off_state(tmp_path, monke
     cfg = copy.deepcopy(config.SITE)
     cfg["morning_note"].update({**ENABLED, "privacy_url": ""})
     assert not morning_page.enabled(cfg) and morning_page.form_origin(cfg) is None
+    assert morning_page.privacy(cfg) is None
+
+
+# -- morning-security/privacy-text-matches-data-flow and seat-consent (the enabled state, a test config only)
+
+NEVER_SENT = re.compile(r"never\s+sent\s+anywhere|nothing\s+is\s+sent\s+anywhere|is\s+never\s+sent", re.IGNORECASE)
+
+
+@pytest.fixture(scope="module")
+def enabled_site(tmp_path_factory):
+    mp = pytest.MonkeyPatch()
+    out = tmp_path_factory.mktemp("morning-on") / "site"
+    cfg = copy.deepcopy(config.SITE)
+    cfg["morning_note"].update(ENABLED)
+    pages = _build(out, mp, cfg)
+    mp.undo()
+    return out, pages, cfg
+
+
+def _words(html):
+    return " ".join(parse(_main(html)).all_text().split())
+
+
+def test_committed_config_keeps_email_off():
+    mn = config.SITE["morning_note"]
+    assert mn["enabled"] is False and not mn["form_action"] and not mn["provider"] and not mn["privacy_url"]
+    assert morning_page.privacy() is None
+
+
+def test_disabled_build_keeps_the_never_sent_sentences_and_has_no_note_paragraph(site):
+    _, pages = site
+    assert "It stays on your device and is never sent anywhere." in _words(pages["method.html"])
+    assert "Nothing is sent anywhere and no cookies are used." in " ".join(pages["index.html"].split())
+    assert 'id="note-sent-h"' not in pages["method.html"]
+    for rel, html in pages.items():   # none of the enabled-state text is printed while off
+        assert "Include my saved seats" not in html and 'id="note-seats"' not in html, rel
+
+
+def test_enabled_build_never_says_the_seats_are_never_sent(enabled_site):
+    _, pages, _ = enabled_site
+    for rel, html in pages.items():
+        m = NEVER_SENT.search(" ".join(html.split()))
+        assert m is None, (rel, m.group(0))
+    for name in ("seats.js", "address.js", "morning.js"):   # nor does a script print it
+        js = (ROOT / "site" / "static" / name).read_text(encoding="utf-8")
+        assert not re.search(r"""["'][^"'\n]*(never sent|sent anywhere)[^"'\n]*["']""", js, re.IGNORECASE), name
+
+
+def test_enabled_build_says_what_is_sent_on_the_landing_and_method_pages(enabled_site):
+    _, pages, cfg = enabled_site
+    t = cfg["morning_note"]["page"]
+    seats_sent = t["seats_sent"].format(provider="Example Mail")
+    assert "Example Mail" in seats_sent and "Include my saved seats" in seats_sent
+    landing = " ".join(parse(pages["index.html"]).all_text().split())
+    assert f"Saved only in this browser, on this device. {seats_sent} No cookies are used." in landing
+    method = _words(pages["method.html"])
+    assert f'so the home page can show "Your seats" next time. {seats_sent} The Forget button' in method
+    # the Method page's Morning note paragraph: what is sent, to whom, how to stop, the provider's privacy policy
+    sec = pages["method.html"].split('<section aria-labelledby="note-sent-h">')[1].split("</section>")[0]
+    text = " ".join(parse(sec).all_text().split())
+    assert f"<h2 id=\"note-sent-h\">{t['method_heading']}</h2>" in sec
+    assert t["method_sent"].format(provider="Example Mail") in text and t["method_unsubscribe"] in text
+    for word in ("email address", "lists", "district and ward", "Example Mail", "unsubscribe"):
+        assert word in text, word
+    assert '<a data-ext="provider" href="https://example.net/privacy" rel="noopener noreferrer">Example Mail: ' \
+        f'{t["privacy_label"]}</a>' in sec
+    assert f'<a href="alerts.html#note">{t["method_signup_link"]}</a>' in sec
+
+
+def test_privacy_text_is_config_text(tmp_path, monkeypatch):
+    cfg = copy.deepcopy(config.SITE)
+    cfg["morning_note"].update(ENABLED)
+    cfg["morning_note"]["page"].update({
+        "seats_sent": "SEATS-SENT to {provider}.", "method_heading": "METHOD-HEADING",
+        "method_sent": "METHOD-SENT to {provider}.", "method_unsubscribe": "METHOD-STOP.",
+        "method_signup_link": "METHOD-LINK", "seats_include": "SEATS-INCLUDE"})
+    pages = _build(tmp_path / "site", monkeypatch, cfg)
+    for want in ("SEATS-SENT to Example Mail.", "METHOD-HEADING", "METHOD-SENT to Example Mail.", "METHOD-STOP.",
+                 "METHOD-LINK"):
+        assert want in pages["method.html"], want
+    assert "SEATS-SENT to Example Mail." in pages["index.html"] and "SEATS-INCLUDE" in pages["alerts.html"]
+
+
+@pytest.mark.parametrize("key, value, why", [
+    ("seats_sent", "", "must be set"), ("seats_sent", "They go to the provider.", "must contain {provider}"),
+    ("method_sent", "It is sent.", "must contain {provider}"), ("method_heading", " ", "must be set"),
+    ("method_unsubscribe", None, "must be set"), ("seats_include", "", "must be set"),
+    ("method_signup_link", "", "must be set")])
+def test_config_refuses_missing_privacy_text(key, value, why):
+    cfg = copy.deepcopy(config.SITE)
+    cfg["morning_note"]["page"][key] = value
+    assert any(f"morning_note.page.{key}" in p and why in p for p in morning.problems(cfg)), morning.problems(cfg)
+
+
+def test_site_checks_accept_the_enabled_form_and_privacy_link_only_while_enabled(enabled_site):
+    out, _, cfg = enabled_site
+    pages = {f.relative_to(out).as_posix(): site_checks.parse(f) for f in out.rglob("*.html")}
+    assert site_checks.check_external(pages, out, cfg) == []
+    assert "https://example.net/privacy" in site_checks.allowed_external(cfg, None, None)
+    assert [m for m in site_checks.check_links(out, pages, no_export=True) if "alerts.html" in m or "method" in m] == []
+    off = site_checks.check_external(pages, out, config.SITE)       # the same pages against the committed config
+    assert any("third-party <form>" in p for p in off) and any("CSP form-action" in p for p in off)
+    assert "https://example.net/privacy" not in site_checks.allowed_external(config.SITE, None, None)
+    other = copy.deepcopy(cfg)                                       # only that exact action, on that one page
+    other["morning_note"]["form_action"] = "https://forms.example.net/subscribe/y"
+    assert any("third-party <form>" in p for p in site_checks.check_external(pages, out, other))
+    moved = {("index.html" if k == "alerts.html" else "x.html" if k == "index.html" else k): v for k, v in pages.items()}
+    assert any("third-party <form>" in p for p in site_checks.check_external(moved, None, cfg))
+
+
+def test_enabled_form_shows_a_visible_seats_box_and_keeps_the_seat_fields_off_without_the_script(enabled_site):
+    _, pages, cfg = enabled_site
+    note = _note(pages["alerts.html"])
+    ff = cfg["morning_note"]["form_fields"]
+    nodes = list(parse(note).walk())
+    for k in ("district", "ward"):       # without the script the two fields stay disabled and empty: never posted
+        inp = next(n for n in nodes if n.attrs.get("name") == ff[k])
+        assert inp.attrs["type"] == "hidden" and inp.attrs["value"] == "" and "disabled" in inp.attrs
+    box = next(n for n in nodes if n.attrs.get("id") == "note-seats")
+    assert box.attrs["type"] == "checkbox" and "checked" in box.attrs
+    assert "name" not in box.attrs and "hidden" not in box.attrs      # a real, visible box that is never posted itself
+    row = next(n for n in nodes if n.attrs.get("id") == "mn-seats")
+    assert "hidden" in row.attrs                                       # shown by the script only when seats are stored
+    assert cfg["morning_note"]["page"]["seats_include"] in row.all_text()
+    values = next(n for n in nodes if n.attrs.get("id") == "mn-seats-values")
+    assert (values.attrs["data-district-label"], values.attrs["data-ward-label"]) == ("District", "Ward")
+    assert note.index('id="note-seats"') < note.index('type="submit"')   # before the button
+
+
+@pytest.mark.skipif(not _node(), reason="node not available")
+def test_js_seat_post_sends_nothing_unless_the_box_is_ticked():
+    script = (
+        "const m = require(process.argv[1]); const L = {district: 'District', ward: 'Ward'}; const out = [];"
+        "const seats = [null, {district: 5, ward: 3}, {district: 5, ward: null}, {district: null, ward: 3},"
+        " {district: '5', ward: 3.5}, {}];"
+        "for (const s of seats) for (const inc of [true, false, undefined, 'yes', 1])"
+        " out.push([m.seatPost(s, inc), m.seatWords(s, L)]);"
+        "console.log(JSON.stringify(out));")
+    r = subprocess.run(["node", "-e", script, str(MORNING_JS)], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    got = json.loads(r.stdout)
+    none = {"district": None, "ward": None}
+    want_on = [none, {"district": "5", "ward": "3"}, {"district": "5", "ward": None}, {"district": None, "ward": "3"},
+               none, none]
+    words = ["", "District 5, Ward 3", "District 5", "Ward 3", "", ""]
+    it = iter(got)
+    for on, w in zip(want_on, words):
+        for inc in (True, False, None, "yes", 1):
+            post, said = next(it)
+            assert post == (on if inc is True else none), (on, inc, post)   # only a real tick sends anything
+            assert said == w
+
+
+@pytest.mark.parametrize("action", [
+    "https://evil.example;script-src *", "https://evil.example; script-src *", "https://user@evil.example/x",
+    "https://evil.example *", "http://forms.example.net/x", "https://evil.example\nscript-src *",
+    "https://evil.example\u2028x", "//forms.example.net/x", "javascript:alert(1)", ["https://forms.example.net/x"]])
+def test_form_origin_checks_the_action_itself(action):
+    # morning-security/csp-origin-self-validating: called without morning.problems(), a bad action adds no CSP origin
+    cfg = copy.deepcopy(config.SITE)
+    cfg["morning_note"].update({**ENABLED, "form_action": action})
+    assert morning_page.form_origin(cfg) is None
+    assert "csp" not in morning_page.alerts_context([], cfg)
+
+
+def test_form_origin_of_a_good_action():
+    cfg = copy.deepcopy(config.SITE)
+    cfg["morning_note"].update({**ENABLED, "form_action": "https://forms.example.net:8443/subscribe/x?a=1"})
+    assert morning_page.form_origin(cfg) == "https://forms.example.net:8443"
 
 
 # -- in a browser
@@ -420,6 +656,92 @@ const base = process.argv[1];
   console.log(JSON.stringify(out)); await b.close();
 })();
 """
+
+
+CONSENT_JS = r"""
+const path = require('path');
+let pw; for (const r of [process.env.NODE_PATH, '/opt/node22/lib/node_modules'].filter(Boolean)) { try { pw = require(path.join(r, 'playwright')); break; } catch (e) {} }
+const base = process.argv[1];
+(async () => {
+  const b = await pw.chromium.launch(); const out = {};
+  // what a submit would post: the form's own entry list (names and values), as the browser builds it
+  const state = p => p.evaluate(() => {
+    const f = document.getElementById('note');
+    return { posted: [...new FormData(f).entries()].map(e => [e[0], String(e[1])]),
+             row: !document.getElementById('mn-seats').hidden && document.getElementById('mn-seats').getClientRects().length > 0,
+             words: document.getElementById('mn-seats-values').textContent,
+             label: document.querySelector('#mn-seats label').textContent.replace(/\s+/g, ' ').trim(),
+             fields: [...f.querySelectorAll('input[data-seat-field]')].map(i => [i.name, i.value, i.disabled]),
+             ticked: document.getElementById('note-seats').checked };
+  });
+  const ctx = await b.newContext({ viewport: { width: 360, height: 760 } }); const p = await ctx.newPage();
+  const reqs = []; p.on('request', r => reqs.push(r.url()));
+  await p.goto(base + 'alerts.html#note');
+  out.noSeats = await state(p);                               // nothing stored: no row, nothing seat-related
+  await p.evaluate(() => localStorage.setItem('cr-your-seats', JSON.stringify({ district: 5, ward: 3 })));
+  await p.reload();
+  out.both = await state(p);                                  // stored: the row shows the numbers, ticked
+  out.box = await p.evaluate(() => { const r = document.getElementById('note-seats').getBoundingClientRect(); return [r.width, r.height]; });
+  await p.focus('#note-seats'); await p.keyboard.press('Space');
+  out.unticked = await state(p);                              // unticked by keyboard: nothing seat-related
+  await p.uncheck('#n-zoning');                               // another change must not bring the seats back
+  out.stillOff = await state(p);
+  await p.click('#mn-seats label');
+  out.reticked = await state(p);
+  await p.evaluate(() => localStorage.setItem('cr-your-seats', JSON.stringify({ district: 7, ward: null })));
+  await p.reload();
+  out.districtOnly = await state(p);
+  out.sw = await p.evaluate(() => document.documentElement.scrollWidth);
+  out.foreign = reqs.filter(u => !u.startsWith(base));
+  await ctx.close();
+  const c2 = await b.newContext({ viewport: { width: 360, height: 760 }, javaScriptEnabled: false }); const q = await c2.newPage();
+  await q.goto(base + 'alerts.html');
+  await q.addInitScript(() => {});
+  out.nojs = await q.evaluate(() => ({ row: document.getElementById('mn-seats').getClientRects().length > 0,
+    fields: [...document.querySelectorAll('input[data-seat-field]')].map(i => [i.name, i.value, i.disabled]) })).catch(e => String(e));
+  console.log(JSON.stringify(out)); await b.close();
+})();
+"""
+
+
+@pytest.mark.skipif(not _browser_ok(), reason="Playwright (node) not available")
+def test_seat_consent_in_a_browser(enabled_site):
+    out_dir, _, cfg = enabled_site
+    handler = functools.partial(_Quiet, directory=str(out_dir))
+    srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    env = dict(os.environ)
+    if "NODE_PATH" not in env:
+        env["NODE_PATH"] = subprocess.run(["npm", "root", "-g"], capture_output=True, text=True).stdout.strip()
+    try:
+        r = subprocess.run(["node", "-e", CONSENT_JS, f"http://127.0.0.1:{srv.server_address[1]}/"],
+                           capture_output=True, text=True, timeout=300, env=env)
+    finally:
+        srv.shutdown()
+    assert r.returncode == 0, r.stderr
+    out = json.loads(r.stdout)
+    ff = cfg["morning_note"]["form_fields"]
+    seat_names = {ff["district"], ff["ward"]}
+
+    def seat_posts(x):
+        return sorted(e for e in x["posted"] if e[0] in seat_names or e[0] not in (ff["email"], ff["lists"]))
+
+    off = [[ff["district"], "", True], [ff["ward"], "", True]]
+    assert out["noSeats"]["row"] is False and seat_posts(out["noSeats"]) == [] and out["noSeats"]["fields"] == off
+    both = out["both"]
+    assert both["row"] is True and both["ticked"] is True and both["words"] == "District 5, Ward 3"
+    assert both["label"] == f"{cfg['morning_note']['page']['seats_include']} District 5, Ward 3"
+    assert seat_posts(both) == sorted([[ff["district"], "5"], [ff["ward"], "3"]])
+    assert out["box"][0] >= 16 and out["box"][1] >= 16                     # a visible box, not a hidden one
+    for k in ("unticked", "stillOff"):                                     # unticked: nothing seat-related is posted
+        assert out[k]["ticked"] is False and seat_posts(out[k]) == [] and out[k]["fields"] == off, (k, out[k])
+        assert out[k]["row"] is True and out[k]["words"] == "District 5, Ward 3"   # still shown, so it can be re-ticked
+    assert seat_posts(out["reticked"]) == sorted([[ff["district"], "5"], [ff["ward"], "3"]])
+    d = out["districtOnly"]
+    assert d["words"] == "District 7" and seat_posts(d) == [[ff["district"], "7"]]
+    assert d["fields"] == [[ff["district"], "7", False], [ff["ward"], "", True]]
+    assert out["sw"] <= 360 and not out["foreign"]
+    assert out["nojs"] == {"row": False, "fields": off}                    # no script: never enabled, never posted
 
 
 @pytest.mark.skipif(not _browser_ok(), reason="Playwright (node) not available")

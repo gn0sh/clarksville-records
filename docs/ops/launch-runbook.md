@@ -58,6 +58,28 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
 6. Look: https://daylight.gnoshcodes.com/ loads over HTTPS, footer shows the operator, alerts.html feeds link to
    `https://daylight.gnoshcodes.com/...`. Then do the uptime step below.
 
+## Before the morning note's email is switched on (not part of go-live; email is OFF)
+`morning_note.enabled` stays `false` in `config/site.yml` at launch: the site sends nothing. Switching it on is a
+separate CEO decision (provider pick, account, cost: hard stops 3 to 5). Every box below must be ticked first; they
+come from `docs/reviews/security-review-morning-2b4796b.md`.
+- [ ] **Double opt-in is ON at the provider** (finding 2). The form is an open cross-origin POST, so without it anyone
+      can sign up someone else's address. Check: sign up a test address; no note arrives until its confirmation link
+      is used. Owner: devops.
+- [ ] **Open and click tracking are OFF at the provider** (finding 2). Check: a received note has no tracking pixel and
+      its links go straight to daylight.gnoshcodes.com. Owner: devops.
+- [ ] **`morning_note.page.sent_line` is extended** (finding 2) to say the provider also receives, like any website,
+      the visitor's IP address and browser details, and that the saved district and ward go only while "Include my
+      saved seats" is ticked. Keep `method_sent` on the Method page in step with it. Owner: technical-writer.
+- [ ] The two settings above are recorded as verified, with the date and how, in `docs/platform-facts.md`.
+- [ ] Every note carries the provider's unsubscribe link (the Method page says so: `page.method_unsubscribe`).
+- [ ] `page.preview_lede` ("Nothing is emailed yet.") and `page.state_off` are reworded for a site that does send.
+- [ ] One real submit from the built Alerts page reaches the provider's confirm page (finding 6): Chrome applies CSP
+      `form-action` to the redirect after the POST. If it is blocked, fix the provider's redirect, never widen the CSP.
+- [ ] `python -m qa.site_checks` passes on the enabled build, and `pytest tests/test_morning_page.py` passes: an
+      enabled build has no "never sent anywhere" sentence (finding 1) and posts no seat unless the box is ticked
+      (finding 3).
+- [ ] The sender job and its API key have had their own security review (they do not exist yet).
+
 ## Add to the uptime monitor (after the first deploy is live; devops, separate PR in gn0sh/gnosh-uptime)
 Described diff for `monitor.config.json`, add one entry to `targets` (not applied; that repo is not touched here):
 ```diff

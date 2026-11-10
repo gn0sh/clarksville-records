@@ -23,7 +23,7 @@
     <h2 id="your-seats-h">Your seats</h2>
     <ul class="your-seats-list"></ul>
     <button type="button" class="your-seats-forget" id="seats-forget" aria-label="Forget my saved seats">Forget</button>
-    <p class="your-seats-note">Saved only in this browser, on this device. Nothing is sent anywhere and no cookies are used.</p>
+    <p class="your-seats-note">Saved only in this browser, on this device. {% if site.morning_note %}{{ site.morning_note.seats_sent }} No cookies are used.{% else %}Nothing is sent anywhere and no cookies are used.{% endif %}</p>
   </section>
   <p class="sr-only" id="seats-status" role="status" aria-live="polite"></p>
 {% if address %}
@@ -34,7 +34,7 @@
       <button type="submit">Find</button>
     </div>
     <p class="addr-privacy" id="addr-privacy">Your address is sent to {{ site.cfg.geocoder_label }} to find it on the map. This site doesn't store it. <a data-ext="geocoder" href="{{ site.cfg.geocoder_privacy_url }}" rel="noopener">{{ site.cfg.geocoder_short }}'s privacy policy</a> applies.{% if site.cfg.district_lookup_url %} <span class="addr-alt">Or look it up on <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">{{ site.cfg.district_lookup_label }}</a>.</span>{% endif %}</p>
-    <p class="addr-privacy addr-seats-note">After a lookup or a click on the map, only the {% if wards_live %}district and ward numbers are{% else %}district number is{% endif %} kept, in this browser on this device, to show "Your seats" next time, with a Forget button. No cookies.{% if not wards_live %} City ward lookup is coming; the wards are listed below the map.{% endif %}</p>
+    <p class="addr-privacy addr-seats-note">After a lookup or a click on the map, only the {% if wards_live %}district and ward numbers are{% else %}district number is{% endif %} kept, in this browser on this device, to show "Your seats" next time, with a Forget button. No cookies.{% if site.morning_note %} {{ site.morning_note.seats_sent }}{% endif %}{% if not wards_live %} City ward lookup is coming; the wards are listed below the map.{% endif %}</p>
     <p class="addr-result" id="addr-result" role="status" aria-live="polite"></p>
   </form>
   <script type="application/json" id="addr-config">{{ address|tojson }}</script>

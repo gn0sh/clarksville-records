@@ -78,6 +78,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from qa.common import OPERATOR, ROOT, find_pdf, load_facts, pdf_page_count  # noqa: E402
+from sitegen.feeds import PER_BODY_FEEDS  # noqa: E402  the one list of feeds capped per body, shared with the build
 
 # Per build target (sitegen.config.MAX_FILES_BY_TARGET says the same): preview 500, under the artifact limit of 511
 # files per version; pages 3000 (GitHub Pages has no such limit). MAX_FILES is the preview's.
@@ -92,7 +93,8 @@ NARROW = 360  # AC-F10: the Bids and awards pages are also checked at 360 px
 # External links that are not minutes PDFs but are allowed: a holder record's roster source, the map's boundary source,
 # the county redistricting page / old-lines map, and the footer support link. Each must be marked data-ext and https.
 EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder", "corrections", "video", "operator", "record",
-             "listed", "school"}   # listed: an RPC document on a host we do not collect from (Google Drive), linked as listed
+             "listed", "school", "provider"}   # listed: an RPC document on a host we do not collect from (Google Drive), linked as listed
+# provider: the morning note provider's privacy policy (config morning_note.privacy_url), only while it is enabled
 # school: the day page's one plain link to the school board's site (config/site.yml school_board.url; never fetched)
 # the data-transcript attribute itself, not data-transcript-foo
 TRANSCRIPT_TEXT = re.compile(r"(<(span|p)\b[^>]*\sdata-transcript(?=[\s=/>])[^>]*>)[^<]*(</\2>)")
@@ -360,6 +362,9 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
         out.add(cfg["operator_url"])                 # the footer's "gnoshcodes" link
     if cfg.get("support_enabled") is True and cfg.get("support_url"):
         out.add(cfg["support_url"])
+    mn = cfg.get("morning_note") or {}
+    if mn.get("enabled") is True and mn.get("privacy_url"):
+        out.add(mn["privacy_url"])                   # the sign-up form's and the Method page's privacy policy link
     out |= {u for u in corrections_links(cfg) if u.startswith("https://")}   # the report page's GitHub issue link
     if districts_path is not None and Path(districts_path).is_file():
         d = json.loads(Path(districts_path).read_text(encoding="utf-8"))
@@ -496,6 +501,17 @@ def resolve(page_rel: str, href: str) -> str | None:
 
 # ---------------------------------------------------------------- the checks
 
+LINK_SCHEMES = ("http", "https")
+
+
+def bad_scheme(href: str) -> bool:
+    """A link or resource address with a scheme other than http(s): `javascript:`, `data:`, `vbscript:`, `file:`,
+    `mailto:`, `tel:` and the rest (morning-security/href-scheme-defense). A relative address has none. The site's
+    one legitimate exception, report.html's mailto from config `corrections:`, is allowed by check_links alone.
+    Browsers drop tabs, newlines and leading control characters before reading the scheme; so does this."""
+    cleaned = re.sub(r"[\t\n\r]", "", href).lstrip("".join(map(chr, range(0x21))))
+    return bool(re.match(r"[A-Za-z][A-Za-z0-9+.-]*:", cleaned)) and urlsplit(cleaned).scheme not in LINK_SCHEMES
+
 def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str]:
     problems = []
     mailto = corrections_links(_site_cfg())[1]   # the one mailto allowed: report.html's, from config `corrections:`
@@ -506,7 +522,7 @@ def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str
                 continue
             if mailto and rel == "report.html" and href == mailto:
                 continue
-            if u.scheme or href.startswith("//"):
+            if u.scheme or href.startswith("//") or bad_scheme(href):
                 problems.append(f"{rel}: href with scheme {href!r}")
                 continue
             target = resolve(rel, href)
@@ -525,6 +541,9 @@ def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str
                     problems.append(f"{rel}: {href!r} -> no #{u.fragment} on {target}")
         # static assets referenced by <link>/<script>
         for tag, src in pg.resources:
+            if bad_scheme(src):     # never skipped: a javascript: form action or a data: script is a failure
+                problems.append(f"{rel}: <{tag}> with scheme {src!r}")
+                continue
             if urlsplit(src).scheme or src.startswith("//"):
                 continue
             target = resolve(rel, src)
@@ -1093,14 +1112,24 @@ def parse_csp(text: str) -> dict[str, list[str]]:
     return out
 
 
+NOTE_PAGE = "alerts.html"   # the morning note's sign-up form (sitegen/morning_page.py)
+
+
 def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict | None = None) -> list[str]:
     """No third-party resource in the HTML. The one runtime call out, the landing address box's geocoder (only on
     submit, from a sandboxed iframe), may go only to config/site.yml geocoder_url, exactly: the box's settings block
     and the page's CSP script-src both hold it. A page that loads address.js without its settings block fails
     (qa-guard/addr-config-silent-miss), as does a page without the CSP meta (third-party-script/no-csp)."""
     problems = []
+    # The one form that may post off the site: the morning note's sign-up form on alerts.html, only while config
+    # morning_note.enabled is true, and only to its form_action exactly; that page's CSP form-action then holds
+    # 'self' and that one origin (restated here, not called from sitegen/morning_page.py).
+    mn = (cfg or {}).get("morning_note") or {}
+    note_action = mn.get("form_action") if mn.get("enabled") is True and isinstance(mn.get("form_action"), str) else None
     for rel, pg in pages.items():
         for tag, src in pg.resources:
+            if tag == "form" and note_action and rel == NOTE_PAGE and src == note_action and src.startswith("https://"):
+                continue
             if urlsplit(src).scheme or src.startswith("//"):
                 problems.append(f"{rel}: third-party <{tag}> {src!r}")
     if site is None:
@@ -1131,6 +1160,9 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
             continue
         pol = parse_csp(pg.csp[0])
         for k, v in CSP_FIXED.items():
+            if k == "form-action" and note_action and rel == NOTE_PAGE:
+                u = urlsplit(note_action)
+                v = [*v, f"{u.scheme}://{u.netloc}"]
             if pol.get(k) != v:
                 problems.append(f"{rel}: CSP {k} is {pol.get(k)!r}, want {v!r}")
         scripts = pol.get("script-src")
@@ -1158,13 +1190,15 @@ ATOM = "{http://www.w3.org/2005/Atom}"
 RFC3339 = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})")
 
 
-PER_BODY_FEEDS = ("feeds/topic-rezoning.xml",)   # sitegen/feeds.py: capped at max_entries per body, not per feed
+CONTRACTS_FEED = "feeds/topic-contracts.xml"   # sitegen/feeds.py: the one feed whose entries link finance.json documents
 
 
-def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: dict) -> tuple[list[str], str]:
+def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: dict,
+                finance_sources: list[dict] | tuple = ()) -> tuple[list[str], str]:
     """Alerts v1 (sitegen/feeds.py): each feeds/*.xml is valid Atom (RFC 4287 required elements), its entry ids are
-    unique tag: URIs, newest first, capped (PER_BODY_FEEDS: per body, the entry id's first part); its links go to a
-    built page (and #anchor) or a fetched source document (`sources`: every facts file's, finance's included)."""
+    unique tag: URIs, newest first, capped (sitegen.feeds.PER_BODY_FEEDS: per body, the entry id's first part); its
+    links go to a built page (and #anchor) or a fetched source document (`sources`: every facts file's;
+    `finance_sources`: finance.json's, known to CONTRACTS_FEED only). No link carries a scheme other than http(s)."""
     import xml.etree.ElementTree as ET
     problems: list[str] = []
     feeds = sorted((site / "feeds").glob("*.xml")) if (site / "feeds").is_dir() else []
@@ -1172,10 +1206,12 @@ def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: di
     if not feeds:
         return (["config/site.yml has alerts: but the build has no feeds/*.xml"] if alerts.get("feed_id") else []), "no feeds"
     cap = alerts.get("max_entries") or 0
-    known = {s["url"] for s in sources}
+    records = {s["url"] for s in sources}
+    with_finance = records | {s["url"] for s in finance_sources}
     entries_n = 0
     for f in feeds:
         rel = f.relative_to(site).as_posix()
+        known = with_finance if rel == CONTRACTS_FEED else records
         try:
             root = ET.parse(f).getroot()
         except ET.ParseError as exc:
@@ -1196,6 +1232,8 @@ def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: di
             problems.append(f"{rel}: feed updated {text(root, 'updated')!r} is not an RFC 3339 date-time")
         entries = root.findall(ATOM + "entry")
         entries_n += len(entries)
+        problems += [f"{rel}: link with scheme {x.get('href')!r}" for x in root.iter(ATOM + "link")
+                     if bad_scheme(x.get("href") or "")]
         if root.find(f"{ATOM}author/{ATOM}name") is None and any(e.find(ATOM + "author") is None for e in entries):
             problems.append(f"{rel}: no feed author and an entry without one")
         if not any(link.get("rel") == "self" for link in root.findall(ATOM + "link")):
@@ -1552,7 +1590,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("footer", check_footer(pages, operator), f"'Provided as a free service by {operator}.' on {len(pages)} pages")
     rep.add("external", check_external(pages, site, cfg))
     # the contracts feed links each solicitation's first document, a finance.json source
-    problems, note = check_feeds(site, pages, all_sources["sources"] + list((finance or {}).get("sources") or []), cfg)
+    problems, note = check_feeds(site, pages, all_sources["sources"], cfg,
+                                 finance_sources=list((finance or {}).get("sources") or []))
     rep.add("feeds", problems, note)
     problems, note = check_transcripts(site, cs)
     rep.add("transcripts", problems, note)
