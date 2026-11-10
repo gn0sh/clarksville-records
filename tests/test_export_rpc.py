@@ -344,6 +344,33 @@ def test_internal_export_keeps_every_motion_with_its_reasons_outside_the_site(tm
     assert ms[f"{MEETING}-motion-4"]["confirmed"] == "False"       # the record's own doubt, as the pages
 
 
+@pytest.mark.parametrize("slug", ["", ".", "..", "a/b", "../x", "RPC", "rpc "])
+def test_an_unsafe_slug_is_refused_before_any_file_is_touched(tmp_path, slug):
+    """rpc.yml `slug` names a folder under data/ that the export empties of other files, and a page folder the build
+    removes: "" or "." would be data/ (or the site) itself. Only [a-z0-9-]+ is a slug."""
+    facts = facts_with_motions(tmp_path)
+    (tmp_path / "rpc.json").write_text(json.dumps(facts), encoding="utf-8")
+    with pytest.raises(rpc.RpcError, match="slug"):
+        rpc.load({**rpc.load_config("cmc-rpc"), "facts_path": tmp_path / "rpc.json", "slug": slug}, True)
+
+
+def test_the_export_refuses_a_slug_that_is_a_councils_or_a_symlink(tmp_path, rpx):
+    from types import SimpleNamespace
+    site = tmp_path / "site"
+    (site / "data" / "city").mkdir(parents=True)
+    (site / "data" / "city" / "facts.json").write_text("council", encoding="utf-8")
+    city = SimpleNamespace(**{**vars(rpx), "slug": "city"})
+    for councils in ([{"slug": "city"}], None):      # the councils passed, and config.COUNCILS by default
+        with pytest.raises(rpc.RpcError, match="council"):
+            RE.export_rpc(city, site, councils=councils)
+    assert (site / "data" / "city" / "facts.json").read_text(encoding="utf-8") == "council"
+    # data/<slug> a symlink (to another body's folder): refused, nothing written or removed through it
+    (site / "data" / "rpc").symlink_to(site / "data" / "city", target_is_directory=True)
+    with pytest.raises(rpc.RpcError, match="symlink"):
+        RE.export_rpc(rpx, site)
+    assert sorted(p.name for p in (site / "data" / "city").iterdir()) == ["facts.json"]
+
+
 def test_a_public_export_removes_stale_files_it_did_not_write(tmp_path, rpx):
     """An earlier export's leftovers under data/rpc/ (an old internal export at the public names, a renamed file) are
     removed; files of other bodies are left alone. site_checks rpc-export fails a leftover the export did not write."""

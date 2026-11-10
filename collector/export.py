@@ -411,7 +411,7 @@ def export_site(facts: dict, out_dir: Path, internal: bool = False, seats: list[
     rpx = rpc_mod.load(rpc, fixture)   # None with no config or no facts file yet; refuses fixture beside real facts
     if rpx is not None:
         from .rpc_export import export_rpc
-        written += export_rpc(rpx, out_dir, internal)
+        written += export_rpc(rpx, out_dir, internal, councils=councils)
     if finance_path is not None and Path(finance_path).is_file() and not fixture:
         from .fin_export import export_finance
         fin = json.loads(Path(finance_path).read_text(encoding="utf-8"))

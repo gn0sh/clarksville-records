@@ -23,6 +23,7 @@ what the pages hold back):
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 from .export import SRC_COLS, _csv
@@ -261,11 +262,30 @@ def _write(pub: dict, d: Path, internal: bool) -> list[Path]:
     return written
 
 
-def export_rpc(rpx, out_dir: Path, internal: bool = False) -> list[Path]:
+def _safe_data_dir(rpx, out_dir: Path, councils) -> Path:
+    """data/<slug>/, refused (sitegen.rpc.RpcError) unless the slug is [a-z0-9-]+ (never data/ itself), no council's
+    (`councils`, else config.COUNCILS: their facts.json would be overwritten) and data/<slug> is no symlink (the
+    stale-file removal would reach through it)."""
+    from sitegen import config
+    from sitegen.rpc import RpcError
+    slug = rpc_dir(rpx)
+    if not isinstance(slug, str) or not re.fullmatch(r"[a-z0-9-]+", slug):
+        raise RpcError(f"rpc.yml slug {slug!r}: only lowercase letters, digits and '-'")
+    taken = {c["slug"] for c in [*(councils or ()), *config.COUNCILS]}
+    if slug in taken:
+        raise RpcError(f"rpc.yml slug {slug!r} is a council's data folder")
+    data_dir = Path(out_dir) / "data" / slug
+    if data_dir.is_symlink():
+        raise RpcError(f"{data_dir} is a symlink; the RPC export writes and removes files only in a real folder")
+    return data_dir
+
+
+def export_rpc(rpx, out_dir: Path, internal: bool = False, councils=None) -> list[Path]:
     """The RPC's public files into <out_dir>/data/<slug>/, in every build, and any other file there (an earlier
     export's) removed; `internal` also writes every motion with `confirmed` and `reasons` to `internal_dir`, outside
-    the site. `rpx`: the pages' own view of the RPC facts (sitegen.rpc.Rpc)."""
-    data_dir = Path(out_dir) / "data" / rpc_dir(rpx)
+    the site. `rpx`: the pages' own view of the RPC facts (sitegen.rpc.Rpc). `councils`: the councils exported beside
+    it, whose folders the slug may not be (config.COUNCILS always counts too)."""
+    data_dir = _safe_data_dir(rpx, out_dir, councils)
     written = _write(public_facts(rpx), data_dir, False)
     keep = set(written)
     for p in sorted(data_dir.rglob("*"), reverse=True):     # deepest first, so an emptied folder goes too

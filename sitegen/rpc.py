@@ -21,6 +21,7 @@ under a case.
 from __future__ import annotations
 
 import json
+import re
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
@@ -132,6 +133,8 @@ class Rpc:
         self.cfg = cfg
         self.facts = facts
         self.slug = cfg["slug"]
+        if not isinstance(self.slug, str) or not re.fullmatch(r"[a-z0-9-]+", self.slug):   # a folder the build empties
+            raise RpcError(f"rpc.yml slug {self.slug!r}: only lowercase letters, digits and '-'")
         self.nav_label = cfg["nav_label"]
         self.body = cfg["body"]
         self.body_key = cfg["body_key"]
