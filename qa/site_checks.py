@@ -41,6 +41,9 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               meeting's own business with no case), with no nay or abstainer who is its mover or seconder, and none
               is shown confirmed from a record without the reader's current motion_rules; no page with RPC content
               (RPC pages, index, today, any RPC card) says "unanimous" outside the minutes' own words
+  rpc-export  (a build with the RPC export) data/<slug>/motions.csv and facts.json hold only motions confirmed in
+              rpc.json under the current motion_rules, each on its own meeting's case (or the meeting's own business),
+              one disposing motion per case_id, with no confirmed/reasons/tally key or column
   files       at most the target's file cap: --target preview (claude.ai artifact, 500) or pages (GitHub Pages, 3000)
   transcripts every line of a transcript page (<folder>/transcripts/*.html) has its time linked to its meeting's own
               video as <video_url>#t=<whole seconds>, the "Transcript" label and the notice; every call-on entry on a
@@ -59,6 +62,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import csv
 import hashlib
 import html
 import json
@@ -255,6 +259,64 @@ def check_rpc_motions(site: Path, pages: dict[str, "Page"], rpc: dict | None) ->
     rec = sum(1 for mv in motions.values() if mv.get("confirmed") is True)
     return problems, (f"{seen} motion blocks, {shown_ok} shown confirmed ({rec} confirmed in rpc.json; motion_rules "
                       + (rules if current else f"not current: {rules!r}") + ")")
+
+
+RPC_EXPORT_HELD_KEYS = ("confirmed", "reasons", "tally")      # never in a site's data/<slug>/ (internal: build/)
+
+
+def check_rpc_export(site: Path, rpc: dict | None) -> tuple[list[str], str]:
+    """The RPC's export (data/<slug>/motions.csv and facts.json, collector/rpc_export.py) against rpc.json, as the
+    county guard on data/facts.json: every exported motion is `confirmed: true` in the record, which was written under
+    the reader's current motion_rules; it sits on its record's case_id, a case on its own meeting's agenda, or is the
+    meeting's own business with no case; no case_id holds more than one disposing motion; and no file carries a
+    confirmed, reasons or tally key or column (the reader's checks stay out of the site in every build)."""
+    if not rpc:
+        return [], "no RPC facts"
+    slug = rpc["_cfg"]["slug"]
+    d = site / "data" / slug
+    if not d.is_dir():
+        return [], f"no data/{slug}/ export"
+    motions = {mv["id"]: mv for mv in rpc.get("motions", [])}
+    cases = {c["id"]: c for c in rpc["cases"]}
+    rules = rpc.get("motion_rules")
+    problems: list[str] = []
+    exported: dict[str, list[dict]] = {}
+    if (d / "motions.csv").is_file():
+        with (d / "motions.csv").open(encoding="utf-8", newline="") as f:
+            r = csv.DictReader(f)
+            problems += [f"data/{slug}/motions.csv: column {c}" for c in r.fieldnames or [] if c in RPC_EXPORT_HELD_KEYS]
+            exported[f"data/{slug}/motions.csv"] = [{k: (v or None) for k, v in row.items()} for row in r]
+    if (d / "facts.json").is_file():
+        ms = json.loads((d / "facts.json").read_text(encoding="utf-8")).get("motions", [])
+        exported[f"data/{slug}/facts.json"] = ms
+        for mv in ms:
+            held = sorted(k for k in RPC_EXPORT_HELD_KEYS if k in mv)
+            if held:
+                problems.append(f"data/{slug}/facts.json: motion {mv.get('id')} carries {', '.join(held)}")
+    for name, rows in exported.items():
+        per_case: dict[str, set[str]] = defaultdict(set)
+        for row in rows:
+            mid = row.get("id")
+            mv = motions.get(mid)
+            if mv is None or mv.get("confirmed") is not True:
+                problems.append(f"{name}: motion {mid} is not confirmed in rpc.json")
+                continue
+            if rules != RPC_MOTION_RULES:
+                problems.append(f"{name}: motion {mid} exported, but rpc.json was not written under the reader's "
+                                f"current motion rules (motion_rules {rules!r}, want {RPC_MOTION_RULES!r})")
+            if mv.get("case_id"):
+                c = cases.get(mv["case_id"])
+                if c is None or c["meeting_id"] != mv["meeting_id"] or row.get("case_id") != mv["case_id"]:
+                    problems.append(f"{name}: motion {mid} is not under its own case on its meeting's agenda")
+            elif row.get("case_id") or mv["kind"] not in RPC_BUSINESS:
+                problems.append(f"{name}: motion {mid} has no case and is not the meeting's own business")
+            if row.get("case_id") and mv["kind"] not in RPC_BUSINESS:
+                per_case[row["case_id"]].add(mid)
+        problems += [f"{name}: {len(ids)} disposing motions on case {case} ({', '.join(sorted(ids)[:3])})"
+                     for case, ids in sorted(per_case.items()) if len(ids) > 1]
+    n = {len(rows) for rows in exported.values()}
+    return problems, (f"{'/'.join(str(x) for x in sorted(n))} motions in data/{slug}/motions.csv and facts.json "
+                      f"(motion_rules {rules!r})")
 
 
 def rpc_allowed(rpc: dict | None) -> set[str]:
@@ -1563,6 +1625,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
         rep.add("rpc-cases", problems, note)
         problems, note = check_rpc_motions(site, pages, rpc)
         rep.add("rpc-motions", problems, note)
+        problems, note = check_rpc_export(site, rpc)
+        rep.add("rpc-export", problems, note)
     county_pages = {rel: pg for rel, pg in pages.items() if not any(rel.startswith(c["prefix"]) for c in cs)}
     problems = check_unverified(site, county_pages, facts, internal, fin=finance)
     for c in cs:

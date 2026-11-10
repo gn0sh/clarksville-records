@@ -186,6 +186,95 @@ def test_the_stored_confirmed_flag_alone_never_exports_a_motion(tmp_path):
     assert [r["id"] for r in rows(written["motions.csv"])] == [f"{MEETING}-motion-3"]
 
 
+def test_a_motion_the_pages_place_nowhere_is_not_exported(tmp_path):
+    """The export carries what the pages place: a confirmed motion whose case_id is no case on its own meeting's agenda
+    (a case of another meeting, or none at all), or whose meeting is not listed, is on no page and in no file."""
+    facts = facts_with_motions(tmp_path)
+    other = "2026-01-27-regular"
+    facts["motions"] = [
+        motion(1, case="CZ-12-2026", case_id=CASE),
+        {**motion(2, case="CZ-12-2026", case_id=CASE, moved_by="Elsewhere Mover"),
+         "id": f"{other}-motion-1", "meeting_id": other},
+        motion(3, case="Z-77-2026", case_id=f"{MEETING}-z-77-2026", moved_by="Nowhere Mover"),
+        {**motion(4, kind="Motion to adjourn", moved_by="Unlisted Mover"), "id": "2026-12-01-regular-motion-1",
+         "meeting_id": "2026-12-01-regular"},
+        motion(5, kind="Motion to adjourn"),
+    ]
+    rx = load(tmp_path, facts)
+    assert {mv["id"] for mv in rx.motions if mv["confirmed"]} == {mv["id"] for mv in facts["motions"]}
+    written = {p.name: p for p in RE.export_rpc(rx, tmp_path / "out")}
+    assert [r["id"] for r in rows(written["motions.csv"])] == [f"{MEETING}-motion-1", f"{MEETING}-motion-5"]
+    for p in written.values():
+        text = p.read_text(encoding="utf-8")
+        assert not any(t in text for t in ("Elsewhere Mover", "Nowhere Mover", "Unlisted Mover", "z-77")), p.name
+    ms = {r["id"]: r for r in rows(written["meetings.csv"])}
+    assert (ms[MEETING]["motions_confirmed"], ms[MEETING]["motions_not_confirmed"]) == ("2", "1")
+    assert (ms[other]["motions_confirmed"], ms[other]["motions_not_confirmed"]) == ("0", "1")
+
+
+def _export_site_dir(tmp_path: Path, facts: dict) -> tuple[Path, dict]:
+    """A built site's data/rpc/ as the export writes it, and the rpc.json record site_checks reads."""
+    site = tmp_path / "site"
+    RE.export_rpc(load(tmp_path, facts), site)
+    return site, {**json.loads((tmp_path / "rpc.json").read_text(encoding="utf-8")), "_cfg": rpc.load_config("cmc-rpc")}
+
+
+def test_site_checks_rpc_export_passes_on_the_export(tmp_path):
+    from qa import site_checks as SC
+    site, rec = _export_site_dir(tmp_path, facts_with_motions(tmp_path))
+    problems, note = SC.check_rpc_export(site, rec)
+    assert problems == [] and "2 motions in data/rpc/motions.csv and facts.json" in note, problems
+    # no export written (a --no-export build): nothing to check
+    assert SC.check_rpc_export(tmp_path / "none", rec) == ([], "no data/rpc/ export")
+
+
+def test_site_checks_rpc_export_catches_an_unconfirmed_a_crowded_and_an_internal_motion(tmp_path):
+    """Restated from rpc.json: every exported motion is `confirmed: true` under the current motion_rules and placed on
+    its own meeting's case, one disposing motion per case_id, and no confirmed/reasons/tally key or column."""
+    from qa import site_checks as SC
+    site, rec = _export_site_dir(tmp_path, facts_with_motions(tmp_path))
+    d = site / "data" / "rpc"
+    data = json.loads((d / "facts.json").read_text(encoding="utf-8"))
+    held = next(mv for mv in rec["motions"] if mv["id"] == f"{MEETING}-motion-2")
+    crowd = next(mv for mv in rec["motions"] if mv["id"] == f"{MEETING}-motion-5")
+    data["motions"] += [{k: held.get(k) for k in data["motions"][0]}, {k: crowd.get(k) for k in data["motions"][0]}]
+    data["motions"][0]["reasons"] = []
+    data["motions"][0]["tally"] = "5-1"
+    (d / "facts.json").write_text(json.dumps(data), encoding="utf-8")
+    text = (d / "motions.csv").read_text(encoding="utf-8")
+    head, *body = text.splitlines()
+    (d / "motions.csv").write_text("\n".join([head + ",confirmed", *(b + ",True" for b in body),
+                                              held["id"] + "," + MEETING + ",,,,,,,,,,,,,,True"]) + "\n",
+                                   encoding="utf-8")
+    text = "\n".join(SC.check_rpc_export(site, rec)[0])
+    assert f"data/rpc/facts.json: motion {MEETING}-motion-2 is not confirmed in rpc.json" in text
+    assert f"data/rpc/motions.csv: motion {MEETING}-motion-2 is not confirmed in rpc.json" in text
+    assert "data/rpc/motions.csv: column confirmed" in text
+    assert f"data/rpc/facts.json: motion {MEETING}-motion-1 carries reasons, tally" in text
+    # two disposing motions on one case_id (stored confirmed; the pages hold both back as crowded), a motion moved
+    # off its own case, and a caseless approval that is not the meeting's own business
+    by_id = {mv["id"]: mv for mv in rec["motions"]}
+    keys = [k for k in data["motions"][0] if k not in ("reasons", "tally")]
+
+    def row(k, **kw):
+        return {**{key: by_id[f"{MEETING}-motion-{k}"].get(key) for key in keys}, **kw}
+    data["motions"] = [row(5), row(6), row(1, case_id=None), row(7)]
+    (d / "facts.json").write_text(json.dumps(data), encoding="utf-8")
+    text = "\n".join(SC.check_rpc_export(site, rec)[0])
+    assert f"data/rpc/facts.json: 2 disposing motions on case {Z19}" in text
+    assert f"data/rpc/facts.json: motion {MEETING}-motion-1 is not under its own case" in text
+    assert f"data/rpc/facts.json: motion {MEETING}-motion-7 has no case and is not the meeting's own business" in text
+
+
+def test_site_checks_rpc_export_a_stale_record_exports_no_motion(tmp_path):
+    from qa import site_checks as SC
+    facts = facts_with_motions(tmp_path)
+    site, rec = _export_site_dir(tmp_path, facts)       # written under the current rules: two motions
+    rec.pop("motion_rules")
+    text = "\n".join(SC.check_rpc_export(site, rec)[0])
+    assert "rpc.json was not written under the reader's current motion rules" in text and "motion-1" in text
+
+
 def test_the_committed_record_exports_only_what_its_pages_show(tmp_path):
     """The committed rpc.json in whichever state it is: before its rebuild (no `motion_rules`) no motion is exported;
     after, exactly the motions the pages show confirmed, and the reader's reasons never."""

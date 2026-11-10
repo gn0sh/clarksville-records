@@ -121,11 +121,20 @@ RPC_PROVENANCE: dict[str, str] = {
 }
 
 
+def placed(rpx, mv: dict) -> bool:
+    """Whether the pages place the motion at all (sitegen.rpc.Rpc.meeting): its meeting is listed, and its case_id,
+    if any, is a case on that meeting's agenda (a motion keyed to any other case is on no page)."""
+    if not any(m["id"] == mv["meeting_id"] for m in rpx.facts["meetings"]):
+        return False
+    return not mv["case_id"] or any(c["id"] == mv["case_id"] for c in rpx.cases_by_meeting.get(mv["meeting_id"], []))
+
+
 def exported_motions(rpx, internal: bool = False) -> list[dict]:
     """The motions that may leave in a file: those the pages show confirmed (`rpx.motions`, sitegen.rpc.shown_motions:
-    the stored flag, the checks restated on the record, and the `motion_rules` marker). `internal` returns every
-    motion. The stored record is never read here, so a record written before the reader's rules exports none."""
-    return [mv for mv in rpx.motions if internal or mv["confirmed"] is True]
+    the stored flag, the checks restated on the record, and the `motion_rules` marker) and place (`placed`).
+    `internal` returns every placed motion. The stored record is never read here, so a record written before the
+    reader's rules exports none."""
+    return [mv for mv in rpx.motions if placed(rpx, mv) and (internal or mv["confirmed"] is True)]
 
 
 def public_facts(rpx, internal: bool = False) -> dict:
@@ -135,8 +144,9 @@ def public_facts(rpx, internal: bool = False) -> dict:
     shown = exported_motions(rpx, internal)
     n_ok: dict[str, int] = {}
     n_held: dict[str, int] = {}
-    for mv in rpx.motions:
-        d = n_ok if mv["confirmed"] is True else n_held
+    public = {mv["id"] for mv in exported_motions(rpx)}
+    for mv in rpx.motions:      # not confirmed: every motion of the minutes a public file leaves out
+        d = n_ok if mv["id"] in public else n_held
         d[mv["meeting_id"]] = d.get(mv["meeting_id"], 0) + 1
     n_cases = {mid: len(cs) for mid, cs in rpx.cases_by_meeting.items()}
     meetings = []
