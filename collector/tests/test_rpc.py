@@ -232,7 +232,10 @@ def test_build_cites_pages_and_lists_what_was_not_read(cfg, rows, tmp_path):
     def extract(p):
         return texts[p.stem]
 
-    facts, summary = rpc_agenda.build(cfg, rs, store, extract=extract)
+    def no_ocr(pdf, sha, n):   # the scan's OCR (collector/ocr.py) is not run here: it fails, and is reported
+        raise RuntimeError("tesseract not installed")
+
+    facts, summary = rpc_agenda.build(cfg, rs, store, extract=extract, ocr=no_ocr)
     by_id = {m["id"]: m for m in facts["meetings"]}
     m = by_id["2026-10-27-regular"]
     assert m["case_count"] == 27 and m["agenda_date"] == "2026-10-27" and len(m["hearings"]) == 4
@@ -244,7 +247,8 @@ def test_build_cites_pages_and_lists_what_was_not_read(cfg, rows, tmp_path):
     drive = [d for d in by_id["2024-08-13-special"]["documents"] if d["host"] == "drive.google.com"][0]
     assert drive["fetched"] is False and drive["source_id"] is None
     assert summary["cases"] == 27 and summary["meetings"] == 11
-    assert (m["case_numbers_printed"], m["case_numbers_read"], summary["case_shortfalls"]) == (0, 0, [])
+    # numbered case lines ("1. Z - 19 - 2026") count in the completeness check too (code review 2026-11-10)
+    assert (m["case_numbers_printed"], m["case_numbers_read"], summary["case_shortfalls"]) == (27, 27, [])
 
 
 # ------------------------------------------------------------------ cases whose number is not on the item's line
@@ -326,7 +330,7 @@ def test_a_case_number_that_cannot_be_read_is_never_credited_to_the_case_before(
              "AGENT: Second Agent\n"
              "CITY COUNCIL WARD: 9\n"]
     res = rpc_agenda.parse_pages(pages)
-    assert (res["case_numbers_printed"], res["case_numbers_read"], len(res["cases"])) == (1, 0, 1)
+    assert (res["case_numbers_printed"], res["case_numbers_read"], len(res["cases"])) == (2, 1, 1)   # + the numbered line
     rec = rpc_agenda.case_record(res["cases"][0], "m", "s")
     assert (rec["applicant"], rec["agent"], rec["ward"], rec["location"]) == ("First Owner", None, None, "Main St")
 
@@ -368,9 +372,10 @@ def test_build_reports_a_case_shortfall_as_a_failing_check(cfg, rows, tmp_path, 
     short = ["October 27, 2026\n1. Z - 1 - 2026 OWNER(S): A\nCASE NUMBER: pending OWNER(S): B\n"]
     facts, summary = rpc_agenda.build(cfg, rs, store, extract=lambda p: short)
     m = {m["id"]: m for m in facts["meetings"]}["2026-10-27-regular"]
-    assert (m["case_count"], m["case_numbers_printed"], m["case_numbers_read"]) == (1, 1, 0)
+    assert (m["case_count"], m["case_numbers_printed"], m["case_numbers_read"]) == (1, 2, 1)
     assert summary["case_shortfalls"] == ["2026-10-27-regular"]
-    assert any("prints CASE NUMBER: 1 times, 0 of those cases read" in p for p in summary["problems"])
+    assert any("prints 2 case numbers (CASE NUMBER: or a numbered case line), 1 of those cases read" in p
+               for p in summary["problems"])
     facts_ok, summary_ok = rpc_agenda.build(cfg, rs, store, extract=lambda p: agenda_pages("agenda_2022-02-22.txt"))
     assert summary_ok["case_shortfalls"] == []
     # `python -m collector rpc build` exits 1 on a shortfall, after writing its report

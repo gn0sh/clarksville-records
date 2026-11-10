@@ -1,5 +1,6 @@
-"""Regional Planning Commission pages (milestone RPC-1): the RPC's meetings with their documents, and each agenda's
-case items as the agenda prints them.
+"""Regional Planning Commission pages (milestones RPC-1, RPC-2): the RPC's meetings with their documents, each
+agenda's case items as the agenda prints them, the minutes' motions on them (collector/rpc_minutes.py), and the
+Planning Commission -> County Commission link of each county zoning case (link_county).
 
 Inputs: config/localities/<rpc>/rpc.yml (config/site.yml `rpc:` names the locality) and the facts file it names
 (collector/rpc.py and collector/rpc_agenda.py write it). Nothing here names a place.
@@ -10,7 +11,8 @@ upcoming hearing dates and its case items. Never one page per meeting: the previ
 
 Rules: every case value is the agenda's own words (no summary, no wording about the people named); every case links
 the agenda PDF page it is printed on; a document on a host we do not collect from (Google Drive) is listed with its
-link and says it was not collected.
+link and says it was not collected. A motion the reader confirmed shows its values in the minutes' own words; one it
+did not shows its type and the county's "Not confirmed" note, with no names or outcome (config.SHOW_UNCONFIRMED_VALUES).
 """
 from __future__ import annotations
 
@@ -31,6 +33,8 @@ CASE_FIELDS = (("applicant", None), ("agent", "Agent"), ("request", None), ("pro
 
 
 TITLE_MAX = 200
+COUNTY_PREFIXES = ("CZ", "CZO")     # county zoning cases: the County Commission votes on them (link_county)
+COUNTY_LABEL = "County Commission"
 
 
 class RpcError(Exception):
@@ -65,10 +69,72 @@ class Rpc:
         self.cases_by_meeting: dict[str, list[dict]] = defaultdict(list)
         for c in facts["cases"]:
             self.cases_by_meeting[c["meeting_id"]].append(c)
+        # minutes motions (collector/rpc_minutes.py): on their agenda case when the case is on the meeting's agenda,
+        # else in the meeting's own list
+        self.motions_by_case: dict[str, list[dict]] = defaultdict(list)
+        self.motions_by_meeting: dict[str, list[dict]] = defaultdict(list)
+        for mv in facts.get("motions", []):
+            if mv["case_id"]:
+                self.motions_by_case[mv["case_id"]].append(mv)
+            else:
+                self.motions_by_meeting[mv["meeting_id"]].append(mv)
+        self.county = None              # the county Index, once link_county has run
+        self.county_items: dict[str, dict] = {}     # link key -> county item (CZ-, CZO- cases)
         bad = [c["id"] for c in facts["cases"] if c["source_id"] not in self.sources
                or not 1 <= c["page"] <= (self.sources[c["source_id"]]["pages"] or 0)]
+        bad += [mv["id"] for mv in facts.get("motions", []) if mv["source_id"] not in self.sources
+                or not 1 <= mv["page"] <= (self.sources[mv["source_id"]]["pages"] or 0)]
         if bad:
-            raise RpcError(f"{cfg['facts_path']}: cases cite a missing source or a page outside it: {', '.join(bad[:5])}")
+            raise RpcError(f"{cfg['facts_path']}: cases or motions cite a missing source or a page outside it: "
+                           f"{', '.join(bad[:5])}")
+
+    # ------------------------------------------------------------------ Planning Commission -> County Commission
+    def link_county(self, ix) -> int:
+        """Link each county-zoning case (CZ-, CZO-) to the County Commission item with the same case number: exact
+        match of collector.rpc_minutes.link_key on both sides (parse.norm_item's glyph rule, no zero padding), never
+        fuzzy. Sets ix.rpc_links (county item id -> the RPC agenda entries of that case) for the county item pages.
+        Returns the number of linked RPC case entries."""
+        from collector.rpc_minutes import link_key
+        self.county = ix
+        self.county_items = {}
+        for it in ix.facts["items"]:
+            k = link_key(it.get("number") or "")
+            if k and k.split("-")[0] in COUNTY_PREFIXES:
+                self.county_items.setdefault(k, it)
+        links: dict[str, list[dict]] = defaultdict(list)
+        dates = {m["id"]: m for m in self.facts["meetings"]}
+        n = 0
+        for c in sorted(self.facts["cases"], key=lambda c: (dates[c["meeting_id"]]["date"], c["id"])):
+            it = self.county_item(c)
+            if it is None:
+                continue
+            n += 1
+            m = dates[c["meeting_id"]]
+            links[it["id"]].append({"href": f"{self.year_href(m['date'][:4])}#{self.case_anchor(c)}",
+                                    "number": c["number_printed"], "date": m["date"],
+                                    "label": f"{self.cfg['kind_labels'].get(m['kind'], m['kind'])} agenda, "
+                                             f"{_date_text(m['date'])}"})
+        ix.rpc_links = dict(links)
+        return n
+
+    def county_item(self, c: dict) -> dict | None:
+        if c["prefix"] not in COUNTY_PREFIXES:
+            return None
+        from collector.rpc_minutes import link_key
+        return self.county_items.get(link_key(c["number"]) or "")
+
+    def motion(self, mv: dict) -> dict:
+        """A motion as the minutes print it. Confirmed (collector/rpc_minutes.py rule): its type, who moved and
+        seconded it, who voted nay or abstained and the outcome, each as printed. Not confirmed: its type and the
+        "Not confirmed" note only, while config.SHOW_UNCONFIRMED_VALUES is off (as for the county's roll calls)."""
+        s = self.sources[mv["source_id"]]
+        shown = mv["confirmed"] or config.SHOW_UNCONFIRMED_VALUES
+        src = {"url": f"{s['url']}#page={mv['page']}", "page": mv["page"], "kind": "minutes"}
+        return {"id": mv["id"], "kind": mv["kind"], "confirmed": mv["confirmed"], "src": src,
+                "case": mv["case"] if not mv["case_id"] else None,
+                "moved_by": mv["moved_by"] if shown else None, "seconded_by": mv["seconded_by"] if shown else None,
+                "nays": mv["nays"] if shown else [], "abstained": mv["abstained"] if shown else [],
+                "outcome": mv["outcome"] if shown else None}
 
     def home_href(self) -> str:
         return f"{self.slug}/index.html"
@@ -96,7 +162,8 @@ class Rpc:
             what = "DOCX" if s["format"] == "docx" else "PDF"
             pages = f", {s['pages']} {'page' if s['pages'] == 1 else 'pages'}" if s.get("pages") else ""
             return {"label": label, "url": d["url"], "collected": True, "what": f"{what}{pages}",
-                    "fetched": s["fetched_at"], "no_text": s["format"] == "pdf" and s["text_layer"] == "none"}
+                    "fetched": s["fetched_at"], "no_text": s["format"] == "pdf" and s["text_layer"] == "none",
+                    "ocr": s.get("read_by") == "OCR"}
         host = d["host"].removeprefix("www.")
         return {"label": label, "url": d["url"], "collected": False, "host": host}
 
@@ -114,8 +181,14 @@ class Rpc:
                 elif key == "request":
                     label = c["request_label"]
                 rows.append({"key": key, "label": label, "value": c[key]})
+            it = self.county_item(c) if self.county is not None else None
             cases.append({**c, "anchor": self.case_anchor(c), "rows": rows,
-                          "src": f"{agenda['url']}#page={c['page']}" if agenda else None})
+                          "src": f"{agenda['url']}#page={c['page']}" if agenda else None,
+                          "motions": [self.motion(mv) for mv in sorted(self.motions_by_case.get(c["id"], []),
+                                                                       key=lambda x: (x["page"], x["id"]))],
+                          "county": ({"href": self.county.item_href(it), "number": it["number"],
+                                      "label": COUNTY_LABEL} if it else None)})
+        minutes = self.sources.get(m.get("minutes_source_id") or "")
         kinds_linked = {d["kind"] for d in m["documents"]}
         return {"id": m["id"], "date": m["date"], "date_text": _date_text(m["date"]),
                 "kind_label": self.cfg["kind_labels"].get(m["kind"], m["kind"]), "printed": m["printed"],
@@ -124,7 +197,13 @@ class Rpc:
                 "not_posted": [DOC_LABELS.get(k, k) for k in ("agenda", "minutes")
                                if k not in kinds_linked],
                 "agenda": ({"url": agenda["url"], "pages": agenda["pages"], "fetched": agenda["fetched_at"],
-                            "no_text": agenda["text_layer"] == "none"} if agenda else None),
+                            "no_text": agenda["text_layer"] == "none",
+                            "ocr": m.get("agenda_read_by") == "OCR"} if agenda else None),
+                "minutes": ({"url": minutes["url"], "ocr": m.get("minutes_read_by") == "OCR"} if minutes else None),
+                "other_motions": [self.motion(mv) for mv in sorted(self.motions_by_meeting.get(m["id"], []),
+                                                                   key=lambda x: (x["page"], x["id"]))],
+                "n_motions": len(self.motions_by_meeting.get(m["id"], []))
+                + sum(len(c["motions"]) for c in cases),
                 "hearings": [{**h, "src": f"{self.sources[h['source_id']]['url']}#page={h['page']}"}
                              for h in m.get("hearings", [])],
                 "cases": cases, "href": self.meeting_href(m["id"], m["date"])}
@@ -142,6 +221,8 @@ class Rpc:
         return {"body": self.body, "coverage": cov, "listing_url": self.cfg["listing_url"],
                 "record_label": self.cfg["record_label"],
                 "n_meetings": len(self.facts["meetings"]), "n_cases": len(self.facts["cases"]),
+                "n_motions": len(self.facts.get("motions", [])),
+                "n_motions_confirmed": sum(1 for mv in self.facts.get("motions", []) if mv["confirmed"]),
                 "n_docs": len(self.facts["sources"]),
                 "n_link_only": sum(1 for m in self.facts["meetings"] for d in m["documents"]
                                    if not d["fetched"] and d["kind"] != "video"),

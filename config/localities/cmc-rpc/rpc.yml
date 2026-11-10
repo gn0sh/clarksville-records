@@ -52,3 +52,5 @@ case_types:
   AB: Abandonment
   MSCD: Design review     # CDRB agendas: "HISTORIC ZONING COMMISSION & COMMON DESIGN REVIEW BOARD CASES"
   DDR: Design review
+  DO: Design review       # CDRB agendas from 2025-11: corridor overlay design review ("DO - 2 - 2026")
+  HZ: Historic zoning     # CDRB agendas: Historic Zoning Commission cases ("HZ-3- 2025")

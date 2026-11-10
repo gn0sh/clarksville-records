@@ -126,6 +126,8 @@ class Index:
     # -- where a page lives. The county's pages are the default; a council (sitegen/council.py) overrides these, so
     # the view functions below serve every body with one set of rules (N1).
     KIND_LABELS = config.KIND_LABELS
+    # county item id -> the Planning Commission agenda entries of the same case (sitegen/rpc.py Rpc.link_county)
+    rpc_links: dict = {}
 
     def make_seats(self, seat_rows):
         return Seats(seat_rows, self.officials, self.latest)
@@ -897,6 +899,7 @@ def items_year(year: int, facts) -> dict:
             "id": it["id"], "number": it["number"], "title": ix.item_title(it),
             "basis": "Linked by number" if it["link_basis"] == "number" else "Linked by title",
             "zoning": zoning_rows(ix, it),
+            "rpc": ix.rpc_links.get(it["id"], []),
             "events": [_event(ix, e) for e in events],
             "first": events[0]["date"] if events else "",
         })

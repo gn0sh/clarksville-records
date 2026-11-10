@@ -1,5 +1,5 @@
 {% extends "base.html.j2" %}
-{% from "_rpc.html.j2" import rpc_docs %}
+{% from "_rpc.html.j2" import rpc_docs, rpc_motion %}
 {# The Regional Planning Commission's meetings in one year (sitegen/rpc.py meetings_year), oldest first. One section
    per meeting (#<meeting id>): its documents, its upcoming hearing dates and its case items, every value as the agenda
    prints it, each case linked to its agenda page. Case text carries data-item-title: words in the document, never
@@ -43,6 +43,7 @@
   {% endif %}
   {% if m.cases %}
   <h3 id="{{ m.id }}-cases">Cases on the agenda ({{ m.cases | length }})</h3>
+  {% if m.agenda and m.agenda.ocr %}<p class="muted">The agenda is a scan with no text layer; its cases were read by OCR (text recognition), which can misread a character. The agenda page is the record.</p>{% endif %}
   {% for c in m.cases %}
   <div class="item" id="{{ c.anchor }}">
     <p class="item-num">{{ c.case_type }}{% if c.agenda_part %} · {{ c.agenda_part }}{% endif %}</p>
@@ -59,12 +60,26 @@
       <p class="muted">No case details read from this entry; see the agenda page.</p>
       {% endif %}
     </div>
+    {% if c.county %}
+    <p class="rpc-link"><strong>Planning Commission → County Commission:</strong> <a href="{{ root }}{{ c.county.href }}">{{ c.county.label }} item {{ c.county.number }}</a></p>
+    {% endif %}
+    {% if c.motions %}
+    <div class="zoning rpc-motions">
+      <p class="zoning-h">In the minutes{% if m.minutes and m.minutes.ocr %} (read by OCR){% endif %}</p>
+      {% for mv in c.motions %}{{ rpc_motion(mv) }}{% endfor %}
+    </div>
+    {% endif %}
   </div>
   {% endfor %}
   {% elif m.agenda and m.agenda.no_text %}
   <p class="muted">The agenda is a scan with no text layer; its cases were not read.</p>
   {% elif m.agenda %}
   <p class="muted">No case items read from this agenda.</p>
+  {% endif %}
+  {% if m.other_motions %}
+  <h3 id="{{ m.id }}-motions">Other motions in the minutes ({{ m.other_motions | length }})</h3>
+  <p class="muted">The meeting's own business, and cases its agenda does not list as read here{% if m.minutes and m.minutes.ocr %}; read by OCR from a scan{% endif %}.</p>
+  {% for mv in m.other_motions %}{{ rpc_motion(mv) }}{% endfor %}
   {% endif %}
 </section>
 {% endfor %}

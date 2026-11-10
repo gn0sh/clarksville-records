@@ -17,7 +17,9 @@ agenda that prints "CASE NUMBER:" more often than cases were read from it (summa
 collector rpc build` exits 1; qa.site_checks rpc-cases fails). The letters of a DRAFT watermark, each printed on a
 line of its own, are skipped.
 
-Not read here (follow-ups): the minutes' motions and votes, and links from CZ- cases to county commission items.
+A scanned agenda (no text layer: 22 CDRB agendas) is read by OCR (ocr_document, the county minutes' OCR path) and
+then by the same reader; the completeness check applies to it too. The minutes are read for motions by
+collector/rpc_minutes.py (RPC-2). Numbered case lines ("1. Z - 19 - 2026") count in the completeness check as well.
 """
 from __future__ import annotations
 
@@ -41,8 +43,30 @@ CASE_NUMBER_LOOSE = re.compile(r"CASE\s+NUMBER\s*:", re.I)
 # follows that case's unnumbered "CASE NUMBER:" line. TRAILING_ITEM: "10. REQUEST: ..." under such a line.
 LONE_ITEM = re.compile(r"^\s*(\d{1,3})\s*\.\s*(?:\*{5,})?\s*$")
 TRAILING_ITEM = re.compile(r"^\s*(\d{1,3})\s*\.\s+(?=[A-Z][A-Z .#()/]*:)")
-# The letters of a DRAFT watermark, each on a line of its own ("T", "AF", "R", "D"), 2022-2024 agendas.
-WATERMARK = re.compile(r"^\s*[A-Z]{1,2}\s*$")
+# Every numbered case line ("1. Z - 19 - 2026", "12. SR-4..."), loosely: also counted against the cases read, so a
+# numbered case whose number the reader cannot parse is reported too (code review 2026-11-10).
+NUMBERED_LOOSE = re.compile(r"^\s*\d+\.\s+[A-Z]{1,4}\s*-\s*\d", re.M)
+# The letters of a DRAFT watermark, each on a line of its own ("T", "AF", "R", "D"), 2022-2024 agendas. Only one or
+# two letters of D, R, A, F, T, and never a zoning district code (config/localities/<county>/zoning.yml districts):
+# a district printed alone on a line inside a case ("AG") is case text, not a watermark.
+WATERMARK = re.compile(r"^\s*([DRAFT]{1,2})\s*$")
+
+
+def _zoning_codes() -> frozenset:
+    import yaml
+    from .zoning import ROOT as _ROOT, locality
+    p = _ROOT / "config" / "localities" / locality() / "zoning.yml"
+    if not p.exists():
+        return frozenset()
+    return frozenset(str(c).upper() for c in (yaml.safe_load(p.read_text(encoding="utf-8")) or {}).get("districts", {}))
+
+
+ZONING_CODES = _zoning_codes()
+
+
+def is_watermark(line: str) -> bool:
+    m = WATERMARK.match(line)
+    return bool(m) and m.group(1) not in ZONING_CODES
 CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 CASE_TYPE = re.compile(r"^\s*CASE\s+TYPE\s*:\s*(.+?)\s*$", re.I)
 # The agenda's own section headings ("V. REGULAR AGENDA ITEMS: ...", "VII. OTHER BUSINESS"): a case ends at one.
@@ -153,7 +177,7 @@ def parse_pages(pages: list[str]) -> dict:
     # the case before; they are dropped if a heading comes first.
     pending = None
     in_hearings = False
-    labelled = 0
+    labelled = numbered = 0
 
     def close():
         nonlocal cur
@@ -181,7 +205,7 @@ def parse_pages(pages: list[str]) -> dict:
         cur["_lines"].append(line)
 
     for n, line in lines:
-        if PAGE_NO.match(line) or FOOTER.match(line) or WATERMARK.match(line) or not line.strip():
+        if PAGE_NO.match(line) or FOOTER.match(line) or is_watermark(line) or not line.strip():
             continue
         lone = LONE_ITEM.match(line)
         if lone:
@@ -237,7 +261,10 @@ def parse_pages(pages: list[str]) -> dict:
             continue
         if it:
             close()
-            labelled += bool(CASE_NUMBER_LOOSE.search(line[:it.start(2)]))
+            if CASE_NUMBER_LOOSE.search(line[:it.start(2)]):
+                labelled += 1
+            elif it.group(1) and NUMBERED_LOOSE.match(line):
+                numbered += 1
             item = int(it.group(1)) if it.group(1) else pending[0] if pending else None
             before = pending[1] if pending else []
             pending = None
@@ -260,8 +287,10 @@ def parse_pages(pages: list[str]) -> dict:
             add(line)
     close()
     loose = sum(len(CASE_NUMBER_LOOSE.findall(p)) for p in pages)
-    return {"printed_date": printed_date, "hearings": hearings, "cases": cases, "case_numbers_printed": loose,
-            "case_numbers_read": labelled}
+    numbered_loose = sum(1 for _, line in lines if NUMBERED_LOOSE.match(line))
+    return {"printed_date": printed_date, "hearings": hearings, "cases": cases,
+            "case_numbers_printed": loose + numbered_loose, "case_numbers_read": labelled + numbered,
+            "numbered_printed": numbered_loose, "numbered_read": numbered}
 
 
 OTHER_CASE = "Other case"
@@ -316,13 +345,48 @@ def pdf_page_count(p: Path) -> int | None:
     return int(m.group(1)) if m else None
 
 
-def build(cfg, rows: list[dict], store, extract=extract_pages) -> tuple[dict, dict]:
+# OCR of a scanned page reads the scan's border and table rules as marks at the start of a line ("| CASE NUMBER",
+# "1. | CASE NUMBER: DDR - 18 - 2025"); only those marks are dropped, nothing else in the text is changed.
+OCR_MARKS = re.compile(r"^(\s*(?:\d{1,3}\s*\.\s*)?)[|!‘'`~»]+\s+(?=\S)", re.M)
+
+
+def ocr_clean(pages: list[str]) -> list[str]:
+    return [OCR_MARKS.sub(lambda m: m.group(1).rstrip() + (" " if m.group(1).strip() else ""), p) for p in pages]
+
+
+def ocr_document(pdf: Path, sha: str, pages: int) -> list[str]:
+    """Every page of a scanned PDF read by the county minutes' OCR path (collector/ocr.py: its 300 dpi rendering,
+    tesseract settings, per-call timeouts and cache; pages in parallel). Raises when any page fails, so a document is
+    read whole or not at all."""
+    from .minutes import ocr_pages_parallel
+    from .ocr import cache_path
+    errors = ocr_pages_parallel([(str(pdf), p, sha) for p in range(1, pages + 1)])
+    bad = sorted(p for (_, p), err in errors.items() if err)
+    if bad:
+        raise RuntimeError(f"OCR failed on page {bad[0]} ({errors[(sha, bad[0])]})"
+                           + (f" and {len(bad) - 1} more" if len(bad) > 1 else ""))
+    return [cache_path(sha, p).read_text() for p in range(1, pages + 1)]
+
+
+def build(cfg, rows: list[dict], store, extract=extract_pages, ocr=ocr_document) -> tuple[dict, dict]:
     """(facts, summary) from the committed listing and the stored files. A listed document whose bytes are not in
-    the store is listed with its link and no source (never guessed). Only agendas are read for cases."""
+    the store is listed with its link and no source (never guessed). Agendas are read for cases (a scanned agenda by
+    OCR), minutes for motions (collector/rpc_minutes.py)."""
     by_url = {e["url"]: e for e in store.current()}
     sources: dict[str, dict] = {}
     meetings, cases, problems, shortfalls = [], [], [], []
     parsed = 0
+
+    def scanned_texts(sid: str, e: dict) -> list[str] | None:
+        """The OCR texts of a scanned source (cached on the source), or None with the failure reported."""
+        s = sources[sid]
+        if "_ocr" not in s:
+            s["_ocr"] = None
+            try:
+                s["_ocr"] = ocr(store.path_for(e["sha256"]), e["sha256"], s["pages"] or 0) if s["pages"] else None
+            except Exception as ex:   # an OCR failure is reported, never a half-read document
+                problems.append(f"{s['url']}: OCR failed ({type(ex).__name__}: {ex})")
+        return s["_ocr"]
     for r in sorted(rows, key=lambda r: (r["date"], r["id"])):
         docs = []
         agenda_src = None
@@ -341,7 +405,7 @@ def build(cfg, rows: list[dict], store, extract=extract_pages) -> tuple[dict, di
                             layer = text_layer(texts)
                         except Exception as ex:   # one bad file must not stop the build; it is reported
                             problems.append(f"{d['url']}: text not read ({type(ex).__name__}: {ex})")
-                    sources[sid] = {**source_record(e, pages, layer, fmt), "_texts": texts}
+                    sources[sid] = {**source_record(e, pages, layer, fmt), "read_by": None, "_texts": texts}
                 if d["kind"] == "agenda" and agenda_src is None and sources[sid]["format"] == "pdf":
                     agenda_src = sid
             elif d["fetch"]:
@@ -351,9 +415,23 @@ def build(cfg, rows: list[dict], store, extract=extract_pages) -> tuple[dict, di
         m = {"id": r["id"], "date": r["date"], "kind": r["kind"], "label": r["label"], "printed": r["printed"],
              "cancelled": r["cancelled"], "documents": docs, "not_linked": r.get("no_doc") or [],
              "agenda_source_id": agenda_src, "agenda_date": None, "hearings": [], "case_count": 0,
-             "case_numbers_printed": None, "case_numbers_read": None}
+             "case_numbers_printed": None, "case_numbers_read": None, "agenda_read_by": None,
+             "minutes_source_id": None, "minutes_date": None, "minutes_read_by": None,
+             "minutes_case_heads_printed": None, "minutes_case_heads_read": None}
+        texts = None
         if agenda_src and sources[agenda_src]["_texts"] and sources[agenda_src]["text_layer"] != "none":
-            res = parse_pages(sources[agenda_src]["_texts"])
+            texts, m["agenda_read_by"] = sources[agenda_src]["_texts"], "text layer"
+            sources[agenda_src]["read_by"] = "text layer"
+        elif agenda_src and sources[agenda_src]["text_layer"] == "none":
+            e = next(by_url[d["url"]] for d in r["docs"] if by_url.get(d["url"]) and
+                     f"src-{by_url[d['url']]['sha256'][:12]}" == agenda_src)
+            texts = scanned_texts(agenda_src, e)
+            if texts is not None:
+                texts = ocr_clean(texts)
+                m["agenda_read_by"] = "OCR"
+                sources[agenda_src]["read_by"] = "OCR"
+        if texts:
+            res = parse_pages(texts)
             parsed += 1
             if res["printed_date"]:
                 m["agenda_date"] = res["printed_date"]["date"]
@@ -364,6 +442,7 @@ def build(cfg, rows: list[dict], store, extract=extract_pages) -> tuple[dict, di
             seen: dict[str, int] = {}
             for c in res["cases"]:
                 rec = case_record(c, r["id"], agenda_src, cfg.case_types)
+                rec["read_by"] = m["agenda_read_by"]
                 seen[rec["number"]] = seen.get(rec["number"], 0) + 1
                 rec["id"] = f"{r['id']}-{rec['number'].lower()}" + ("" if seen[rec["number"]] == 1
                                                                     else f"-{seen[rec['number']]}")
@@ -372,17 +451,95 @@ def build(cfg, rows: list[dict], store, extract=extract_pages) -> tuple[dict, di
             m["case_numbers_printed"], m["case_numbers_read"] = res["case_numbers_printed"], res["case_numbers_read"]
             if res["case_numbers_printed"] > res["case_numbers_read"]:   # a case the reader missed is never silent
                 shortfalls.append(r["id"])
-                problems.append(f"{r['id']}: the agenda prints CASE NUMBER: {res['case_numbers_printed']} times, "
-                                f"{res['case_numbers_read']} of those cases read (completeness check)")
+                problems.append(f"{r['id']}: the agenda prints {res['case_numbers_printed']} case numbers "
+                                f"(CASE NUMBER: or a numbered case line), {res['case_numbers_read']} of those cases "
+                                f"read (completeness check)")
         elif agenda_src:
-            problems.append(f"{r['id']}: agenda has no text layer (not read; OCR is a follow-up)")
+            problems.append(f"{r['id']}: agenda has no text layer and was not read by OCR")
         meetings.append(m)
-    srcs = [{k: v for k, v in s.items() if k != "_texts"} for s in sorted(sources.values(), key=lambda s: s["id"])]
+    motions, minutes_summary = read_all_minutes(cfg, rows, meetings, cases, sources, by_url, scanned_texts, problems)
+    srcs = [{k: v for k, v in s.items() if not k.startswith("_")} for s in sorted(sources.values(), key=lambda s: s["id"])]
     dates = [m["date"] for m in meetings]
     facts = {"schema": "rpc-1", "body": cfg.body, "listing_url": cfg.listing_url,
              "coverage": {"from": min(dates) if dates else None, "to": max(dates) if dates else None},
-             "meetings": meetings, "sources": srcs, "cases": cases}
+             "meetings": meetings, "sources": srcs, "cases": cases, "motions": motions}
     summary = {"meetings": len(meetings), "documents_listed": sum(len(m["documents"]) for m in meetings),
                "sources": len(srcs), "link_only": sum(1 for m in meetings for d in m["documents"] if not d["fetched"]),
-               "agendas_read": parsed, "cases": len(cases), "case_shortfalls": shortfalls, "problems": problems}
+               "agendas_read": parsed, "agendas_read_by_ocr": sum(1 for m in meetings if m["agenda_read_by"] == "OCR"),
+               "cases": len(cases), "case_shortfalls": shortfalls, **minutes_summary, "problems": problems}
     return facts, summary
+
+
+def _family(kind: str) -> str:
+    """The members' body a meeting kind belongs to: the CDRB has its own members; the RPC's regular, special and
+    Executive Committee meetings share theirs."""
+    return "cdrb" if kind == "cdrb" else "rpc"
+
+
+ROSTER_YEARS = 1     # rule 2a: the roster of a meeting is every member read cleanly from the same body's headers
+                     # within this many years of it
+
+
+def read_all_minutes(cfg, rows, meetings, cases, sources, by_url, scanned_texts, problems) -> tuple[list, dict]:
+    """Every listed minutes document read for motions (collector/rpc_minutes.py), attached to the meeting whose
+    date the minutes print. Returns (motions, summary counts)."""
+    from . import rpc_minutes as RM
+    row_of = {r["id"]: r for r in rows}
+    texts_of: dict[str, list[str]] = {}
+    pairs = []      # (meeting, minutes source id)
+    for m in meetings:
+        for d in m["documents"]:
+            sid = d.get("source_id")
+            if d["kind"] != "minutes" or not sid or sources[sid]["format"] != "pdf":
+                continue
+            s = sources[sid]
+            if sid not in texts_of:
+                if s["text_layer"] == "text":
+                    texts_of[sid] = s["_texts"]
+                    s["read_by"] = "text layer"
+                else:
+                    e = next(by_url[x["url"]] for x in row_of[m["id"]]["docs"] if by_url.get(x["url"])
+                             and f"src-{by_url[x['url']]['sha256'][:12]}" == sid)
+                    texts_of[sid] = scanned_texts(sid, e)
+                    if texts_of[sid] is not None:
+                        s["read_by"] = "OCR"
+            if texts_of[sid]:
+                pairs.append((m, sid))
+    members = {sid: RM.members_present([ln for p in t for ln in p.splitlines() if ln.strip()])
+               for sid, t in texts_of.items() if t}
+    prefixes = set(cfg.case_types)
+    agenda_numbers: dict[str, dict[str, str]] = {}
+    for c in cases:
+        agenda_numbers.setdefault(c["meeting_id"], {}).setdefault(c["number"], c["id"])
+    out, read, attached = [], 0, 0
+    for m, sid in pairs:
+        y = int(m["date"][:4])
+        roster = sorted({n for mm, s2 in pairs if _family(mm["kind"]) == _family(m["kind"])
+                         and abs(int(mm["date"][:4]) - y) <= ROSTER_YEARS for n in members.get(s2, [])})
+        on_agenda = agenda_numbers.get(m["id"], {})
+        res = RM.read_minutes(texts_of[sid], set(on_agenda), prefixes, roster)
+        read += 1
+        printed = res.printed_date["date"] if res.printed_date else None
+        if printed and printed != m["date"]:     # rule 7: minutes of another meeting, listed under this one
+            problems.append(f"{m['id']}: the listed minutes print {res.printed_date['printed']!r} ({printed}); "
+                            f"their motions are not shown under this meeting")
+            m["minutes_date"] = printed
+            continue
+        attached += 1
+        m.update({"minutes_source_id": sid, "minutes_date": printed, "minutes_read_by": sources[sid].get("read_by"),
+                  "minutes_case_heads_printed": res.case_heads_printed,
+                  "minutes_case_heads_read": res.case_heads_read})
+        if res.case_heads_printed > res.case_heads_read:
+            problems.append(f"{m['id']}: the minutes print {res.case_heads_printed} case headings, "
+                            f"{res.case_heads_read} of their numbers read (motions under the others not confirmed)")
+        for k, mv in enumerate(res.motions, 1):
+            reasons = list(mv.reasons) + ([] if printed else ["the minutes' date was not read"])
+            out.append({
+                "id": f"{m['id']}-motion-{k}", "meeting_id": m["id"], "source_id": sid, "page": mv.page,
+                "case": mv.case, "case_id": on_agenda.get(mv.case) if mv.case else None, "kind": mv.kind,
+                "moved_by": mv.mover, "seconded_by": mv.seconder, "nays": mv.nays, "abstained": mv.abstained,
+                "outcome": mv.outcome, "tally": mv.tally, "confirmed": not reasons, "reasons": reasons})
+    summary = {"minutes_read": read, "minutes_attached": attached, "motions": len(out),
+               "motions_confirmed": sum(1 for x in out if x["confirmed"]),
+               "motions_on_agenda_cases": sum(1 for x in out if x["case_id"])}
+    return out, summary
