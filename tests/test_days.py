@@ -435,3 +435,22 @@ def test_site_checks_hold_a_scheduled_agenda_link_not_in_the_facts(tmp_path):
     probs, _ = site_checks.check_sources(site, pages, {"sources": []}, (),
                                        {"https://example.gov/a.pdf", "https://example.gov/portal"})
     assert not probs, probs
+
+
+def test_calendar_agenda_urls_keep_only_configured_hosts_and_report_unreadable_files(tmp_path, monkeypatch):
+    loc = tmp_path / "config" / "localities" / "town"
+    loc.mkdir(parents=True)
+    (loc / "council.yml").write_text("record_url: https://portal.example.gov/\ncalendar: cal.json\n", encoding="utf-8")
+    (loc / "civicclerk.yml").write_text("api_host: api.example.gov\n", encoding="utf-8")
+    cal = tmp_path / "cal.json"
+    cal.write_text(json.dumps([{"agenda_url": "https://api.example.gov/a"}, {"agenda_url": "https://portal.example.gov/b"},
+                               {"agenda_url": "https://evil.example.net/c"}, {"agenda_url": "http://api.example.gov/d"},
+                               {"agenda_url": None}]), encoding="utf-8")
+    monkeypatch.setattr(site_checks, "ROOT", tmp_path)
+    monkeypatch.setattr(site_checks, "_site_cfg", lambda: {"councils": ["town"]})
+    urls, probs = site_checks.calendar_agenda_urls({})
+    assert urls == {"https://api.example.gov/a", "https://portal.example.gov/b"} and not probs
+    assert site_checks.calendar_agenda_urls({"fixture": True}) == (set(), [])
+    cal.write_text("{not json", encoding="utf-8")
+    urls, probs = site_checks.calendar_agenda_urls({})
+    assert urls == set() and len(probs) == 1 and "town" in probs[0]

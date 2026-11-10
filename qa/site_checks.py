@@ -66,6 +66,8 @@ from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
+import yaml
+
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -165,20 +167,34 @@ def rpc_allowed(rpc: dict | None) -> set[str]:
                                           if not d["fetched"] and d["url"].startswith("https://")}
 
 
-def calendar_agenda_urls(facts: dict) -> set[str]:
-    """The https agenda links on each council's calendar file: the today page links a scheduled meeting's agenda
-    (data-ext="listed") before the collector has it in the facts. None for a fixture facts file."""
-    import yaml
+def calendar_agenda_urls(facts: dict) -> tuple[set[str], list[str]]:
+    """(urls, problems): the https agenda links on each council's calendar file whose host is one the locality's config
+    names (the council's record_url host, or the api_host of its civicclerk.yml). The today page links a scheduled
+    meeting's agenda (data-ext="listed") before the collector has it in the facts. A fixture facts file gives nothing;
+    a missing or unreadable calendar or council file is a reported problem, not a crash."""
     out: set[str] = set()
+    problems: list[str] = []
     if facts.get("fixture"):
-        return out
+        return out, problems
     for loc in _site_cfg().get("councils") or []:
-        c = yaml.safe_load((ROOT / "config" / "localities" / loc / "council.yml").read_text(encoding="utf-8"))
-        p = ROOT / c["calendar"] if c.get("calendar") else None
-        if p is not None and p.is_file():
-            out |= {r["agenda_url"] for r in json.loads(p.read_text(encoding="utf-8"))
-                    if isinstance(r, dict) and isinstance(r.get("agenda_url"), str) and r["agenda_url"].startswith("https://")}
-    return out
+        base = ROOT / "config" / "localities" / loc
+        try:
+            c = yaml.safe_load((base / "council.yml").read_text(encoding="utf-8"))
+            if not c.get("calendar"):
+                continue
+            hosts = {urlsplit(c.get("record_url") or "").hostname}
+            if (base / "civicclerk.yml").is_file():
+                hosts.add((yaml.safe_load((base / "civicclerk.yml").read_text(encoding="utf-8")) or {}).get("api_host"))
+            hosts.discard(None)
+            rows = json.loads((ROOT / c["calendar"]).read_text(encoding="utf-8"))
+        except (OSError, ValueError, AttributeError, KeyError, TypeError, yaml.YAMLError) as e:
+            problems.append(f"calendar for {loc}: cannot read ({type(e).__name__}); its agenda links are not allowed")
+            continue
+        for r in rows if isinstance(rows, list) else []:
+            u = r.get("agenda_url") if isinstance(r, dict) else None
+            if isinstance(u, str) and u.startswith("https://") and urlsplit(u).hostname in hosts:
+                out.add(u)
+    return out, problems
 
 
 def county_agendas(facts: dict) -> dict | None:
@@ -1386,12 +1402,13 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
                                *(rpc or {}).get("sources", []),   # an RPC DOCX has no page count: linked whole only
                                *(agendas or {}).get("sources", [])]}
     videos = {m["video_url"] for c in cs for m in c["facts"]["meetings"] if m.get("video_url")}
+    cal_urls, cal_problems = calendar_agenda_urls(facts)
     problems, note = check_sources(site, pages, all_sources, store_extra,
-                                   allowed_external(cfg, seats_path, districts_path) | rpc_allowed(rpc)
-                                   | calendar_agenda_urls(facts)
+                                   allowed_external(cfg, seats_path, districts_path) | rpc_allowed(rpc) | cal_urls
                                    | ({agendas["index_url"]} if agendas else set()), finance, videos)
     if rpc is not None and not any(rel.startswith(rpc["_cfg"]["slug"] + "/") for rel in pages):
         problems.append(f"no pages under {rpc['_cfg']['slug']}/ for the configured RPC")
+    problems += cal_problems
     rep.add("sources", problems + [f"no pages under {m}/ for the configured council" for m in missing], note)
     if rpc is not None:
         problems, note = check_rpc_cases(rpc)
