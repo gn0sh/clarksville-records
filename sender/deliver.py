@@ -329,15 +329,25 @@ def _check_audience(mode: str, payload: dict, day: str, key: str, secret: bytes 
         raise ProviderError("audience check")
 
 
-def _stray_stamp(everyone: list, by_key: dict, expected: dict) -> bool:
+def held_stamps(rows) -> list[tuple[str, object]]:
+    """(id, metadata.note_edition) for every row of a subscriber listing, whatever its `type` (L3: the provider's
+    filter may also reach paying, gifted or trial subscribers, who are never recipients here)."""
+    out = []
+    for raw in rows:
+        meta = raw.get("metadata") if isinstance(raw, dict) else None
+        if isinstance(meta, dict) and "note_edition" in meta:
+            out.append((raw.get("id"), meta["note_edition"]))
+    return out
+
+
+def _stray_stamp(held: list, by_key: dict, expected: dict) -> bool:
     """audience/stamp-self-set: in `stamp` mode the provider mails whoever holds an edition's stamp. True when any
     subscriber holds exactly one of today's stamps (`expected`: {stamp: edition key}) and is not in that edition's
     audience; a stamp written by an earlier run of this plan always is. Any other value is ignored: the filter does
     not match it, and it must not let one subscriber stop every send (audience/stamp-self-set-race)."""
     members = {key: {m.id for m in to} for key, to in by_key.items()}
-    for r in everyone:
-        value = r.metadata.get("note_edition")
-        if isinstance(value, str) and value in expected and r.id not in members.get(expected[value], ()):
+    for sid, value in held:
+        if isinstance(value, str) and value in expected and sid not in members.get(expected[value], ()):
             return True
     return False
 
@@ -492,6 +502,7 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         raw = _call(sleep, provider.subscribers)
         if not isinstance(raw, (list, tuple)):
             raise ProviderError("subscriber listing")
+        held = held_stamps(raw)          # every row, before the type, dedupe and canary filters
         audience, seen = [], set()
         for r in (recipient(x, settings) for x in raw):
             if r is not None and r.id not in seen:      # a listing that repeats a row (paging overlap): once each
@@ -499,7 +510,6 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
                 audience.append(r)
         del seen
         del raw
-        everyone = list(audience)       # every confirmed subscriber, before the canary filter (stray-stamp check)
         if settings.canary_only:
             audience = [r for r in audience if r.id in canary_ids]
         if len(audience) > settings.max_recipients:
@@ -515,10 +525,10 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
             return end(2, "over-limit", why="more editions with a recipient than max_editions")
         expected = {stamp_value(day, ed["key"], stamp_secret): ed["key"] for ed in plan["editions"]} \
             if settings.mode == "stamp" else {}
-        if settings.mode == "stamp" and _stray_stamp(everyone, by_key, expected):
+        if settings.mode == "stamp" and _stray_stamp(held, by_key, expected):
             return end(2, "stray-stamp", why="a subscriber holds a stamp for today outside that edition's audience; "
                                              "the provider's filter would mail them")
-        del everyone
+        del held
         send_at, latest = at(settings.send_at), at(settings.latest_send)
         for ed in sorted(plan["editions"], key=lambda e: e["key"]):
             key, to = ed["key"], by_key.get(ed["key"], [])

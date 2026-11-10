@@ -336,7 +336,10 @@ morning_note:
   email today). If the probe shows the provider merges, the adapter sends only `note_edition` instead.
 - **A stray stamp stops a `stamp` run** (review `audience/stamp-self-set`): before any write the deliver stage exits
   2 ("stray-stamp") if any subscriber holds exactly one of today's stamps and is not in that edition's audience. Any
-  other value is ignored (the filter does not match it), so one subscriber cannot stop every send. The T4.0 probe also checks that the public form
+  other value is ignored (the filter does not match it), so one subscriber cannot stop every send. The check reads
+  every row of the listing whatever its `type` (security L3): the filter may also reach paying, gifted or trial
+  subscribers, who are never recipients here (there is no paid tier; such a subscriber gets nothing, never a
+  wrong email). The T4.0 probe should confirm which types a filtered email reaches. The T4.0 probe also checks that the public form
   does not accept `metadata__note_edition` or `metadata__canary`.
 - `--live` is refused by the command line until the provider adapter (`sender/buttondown.py`) exists and has had its
   security review.

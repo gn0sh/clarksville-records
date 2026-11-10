@@ -574,6 +574,23 @@ def test_a_subscriber_holding_todays_stamp_outside_its_audience_stops_the_run(pl
         assert fake.calls == ["emails", "subscribers"] and "sub-0009" not in text
 
 
+@pytest.mark.parametrize("type_", ["premium", "gifted", "trialed", "churning", "past_due", "unactivated", None])
+def test_a_stamp_held_by_a_subscriber_of_any_type_counts(plan, type_):
+    """L3: the provider's filter may reach receiving types other than "regular" (paying, gifted, trial), which are
+    never recipients here, so the stray check reads every row of the listing, whatever its type."""
+    value = stamp(key_for(plan, ["budget"]))
+    fake = Fake(people(plan) + [sub(9, ["budget"], type_=type_, note_edition=value)])
+    res, _ = go(plan, fake)
+    assert (res.code, res.status) == (2, "stray-stamp") and "set_metadata" not in fake.calls
+
+
+def test_a_paying_or_gifted_subscriber_is_never_a_recipient(plan):
+    """No paid tier exists; such a subscriber gets nothing (never a wrong email) until the sender learns the type."""
+    fake = Fake([sub(1, ["budget"], type_="premium"), sub(2, ["budget"], type_="gifted"), sub(3, ["budget"])])
+    res, _ = go(plan, fake)
+    assert (res.editions, res.recipients) == (1, 1) and [fake.audience(p) for p in fake.created] == [{"sub-0003-secret"}]
+
+
 def test_stamps_from_an_earlier_run_of_the_same_plan_or_another_day_are_fine(plan):
     fake = Fake(people(plan), fail={"create_email": [None, deliver.ProviderError("x")]})
     assert go(plan, fake)[0].status == "failed"                             # stamped edition 1 and 2's people
