@@ -244,10 +244,10 @@ Order of work for `deliver --live` (any failed check stops before the first writ
    `sender.max_recipients`: stop, send nothing.
 5. **Per edition** (in key order): the subscribers whose signature maps to it. None: skip, no email is created.
    Otherwise deliver by the mode the T4.0 probe selected:
-   - `stamp` (preferred): set each recipient's metadata `note_edition` to `"<D>.<key>"` (always writing back the whole
+   - `stamp` (preferred): set each recipient's metadata `note_edition` to the stamp `"<D>.<key>.<mac>"` (as built; always writing back the whole
      metadata object, so district and ward survive), then create one email with `filters` = `subscriber.metadata.
-     note_edition equals "<D>.<key>"`, `status: "scheduled"`, `publish_date` = `send_at` (or immediate when `send_at`
-     has passed), `archival_mode: "disabled"`, `metadata: {note_date, note_edition, note_sha256}`. A stamp from an
+     note_edition equals <stamp>`, `status: "scheduled"`, `publish_date` = `send_at` (as built: at least 5 minutes after
+     the run's clock), `archival_mode: "disabled"`, `metadata: {note_date, note_edition, note_sha256}`. A stamp from an
      earlier day can never match, because the value carries the date. The email sits scheduled until 7:00, so a
      person can still delete it in the provider's dashboard.
    - `ids` (fallback): create the email as a draft with the same metadata, then `POST /v1/emails/{id}/send-draft` with
@@ -319,9 +319,14 @@ morning_note:
   refuse it). The From name is the provider account's setting: the site name only, set at go-live (T4.7).
 - **Canary ids come from the environment** (`MORNING_NOTE_CANARY_IDS`; review `audience/canary-self-set`), not
   from subscriber metadata, which any subscriber can set through the form. No id is in the repository.
-- **A stray stamp stops a `stamp` run** (review `audience/stamp-self-set`): the stamp value is computable from the
-  public note, so before any write the deliver stage exits 2 ("stray-stamp") if any confirmed subscriber holds a
-  `note_edition` naming today and is not in that edition's audience. The T4.0 probe also checks that the public form
+- **The stamp is unguessable** (security `audience/stamp-self-set-race`): `note_edition` is
+  `<D>.<key>.<HMAC-SHA256(API key, "<D>.<key>")[:16]>`, since `<D>.<key>` alone is computable from the public
+  `morning/<D>.json`. It is deterministic, so a re-run writes and filters the same value; do not rotate the key
+  between a day's first run and 7:00 (the scheduled emails would match nobody). `stamp` mode refuses to run without
+  the secret ("no-secret", exit 2). `ids` emails carry `<D>.<key>` only (no filter reads it).
+- **A stray stamp stops a `stamp` run** (review `audience/stamp-self-set`): before any write the deliver stage exits
+  2 ("stray-stamp") if any subscriber holds exactly one of today's stamps and is not in that edition's audience. Any
+  other value is ignored (the filter does not match it), so one subscriber cannot stop every send. The T4.0 probe also checks that the public form
   does not accept `metadata__note_edition` or `metadata__canary`.
 - `--live` is refused by the command line until the provider adapter (`sender/buttondown.py`) exists and has had its
   security review.

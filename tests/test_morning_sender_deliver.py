@@ -25,6 +25,11 @@ TZ = ZoneInfo("America/Chicago")
 DAY = D.isoformat()
 AT_5 = datetime(2026, 11, 11, 5, 0, tzinfo=TZ)            # the run ends before send_at (07:00)
 SECRET_BODY = "RESPONSE-BODY-WITH-jane.roe@example.com"
+SECRET = b"made-up-test-key-not-a-real-one"     # the HMAC key of the stamps (live: the provider's API key)
+
+
+def stamp(key: str, day: str = DAY) -> str:
+    return deliver.stamp_value(day, key, SECRET)
 
 
 def settings(**kw) -> settings_mod.Settings:
@@ -133,9 +138,10 @@ def people(plan) -> list[dict]:
             sub(7, [])]                                                # confirmed, but picked no list
 
 
-def go(plan, provider, s=None, now=AT_5, live=True, sleeps=None, canary_ids=None):
+def go(plan, provider, s=None, now=AT_5, live=True, sleeps=None, canary_ids=None, secret=SECRET, clock=None):
     lines = []
     res = deliver.run(plan, s or settings(), provider=provider, live=live, now=now, canary_ids=canary_ids,
+                      stamp_secret=secret, clock=clock,
                       sleep=(sleeps.append if sleeps is not None else lambda _s: None), out=lines.append)
     return res, "\n".join(lines)
 
@@ -269,7 +275,7 @@ def test_a_malformed_plan_is_refused_in_the_dry_run_too(plan):
 def test_the_shared_patterns_take_ascii_digits_only():
     arabic = "\u0662\u0660\u0662\u0666-\u0661\u0661-\u0661\u0661"
     assert common.DATE_RE.fullmatch(arabic) is None and common.DATE_RE.fullmatch("2026-11-11")
-    assert deliver.STAMP_RE.fullmatch(arabic + ".0123456789ab") is None
+    assert deliver.STAMP_RE.fullmatch(arabic + ".0123456789ab.0123456789abcdef") is None
     assert common.TIME_RE.fullmatch("0\u0667:00") is None and common.TIME_RE.fullmatch("07:00")
     assert common.SIGNATURE_RE.fullmatch("budget|1\u0667|-") is None and common.SIGNATURE_RE.fullmatch("budget|7|-")
     for rx in (common.DATE_RE, common.TIME_RE, common.SIGNATURE_RE, deliver.STAMP_RE):
@@ -293,15 +299,15 @@ def test_stamp_sends_one_scheduled_email_per_edition_to_exactly_its_people(plan)
     want = {key_for(plan, ["budget"]): {"sub-0001-secret", "sub-0002-secret"},
             key_for(plan, ["contracts"]): {"sub-0003-secret"},
             key_for(plan, ["budget", "contracts"]): {"sub-0004-secret"}}
-    assert set(by_key) == {f"{DAY}.{k}" for k in want}
+    assert set(by_key) == {stamp(k) for k in want}
     editions = {e["key"]: e for e in plan["editions"]}
     for key, ids in want.items():
-        p = by_key[f"{DAY}.{key}"]
+        p = by_key[stamp(key)]
         assert fake.audience(p) == ids
-        assert p["filters"]["filters"][0]["value"] == f"{DAY}.{key}"                 # exactly "<D>.<key>"
+        assert p["filters"]["filters"][0]["value"] == stamp(key)                     # exactly "<D>.<key>.<mac>"
         assert p["status"] == "scheduled" and p["publish_date"] == "2026-11-11T07:00:00-06:00"
         assert p["archival_mode"] == "disabled"
-        assert p["metadata"] == {"note_date": DAY, "note_edition": f"{DAY}.{key}", "note_sha256": plan["note_sha256"]}
+        assert p["metadata"] == {"note_date": DAY, "note_edition": stamp(key), "note_sha256": plan["note_sha256"]}
         assert (p["subject"], p["body"]) == (editions[key]["subject"], editions[key]["body"])
         assert sorted(p) == ["archival_mode", "body", "filters", "metadata", "publish_date", "status", "subject"]
     assert [p["metadata"]["note_edition"] for p in fake.created] == sorted(by_key)    # in key order
@@ -314,7 +320,7 @@ def test_stamp_writes_the_whole_metadata_back_and_touches_nobody_else(plan):
     go(plan, fake)
     four = fake.subs["sub-0004-secret"]
     assert four["metadata"] == {**before["sub-0004-secret"]["metadata"],
-                                "note_edition": f"{DAY}.{key_for(plan, ['budget', 'contracts'])}"}
+                                "note_edition": stamp(key_for(plan, ['budget', 'contracts']))}
     assert four["metadata"]["favourite"] == "blue" and four["metadata"]["ward"] == 3
     for sid in ("sub-0005-secret", "sub-0006-secret", "sub-0007-secret"):
         assert fake.subs[sid] == before[sid]                           # unconfirmed, unsubscribed, no list: untouched
@@ -345,7 +351,7 @@ def test_ids_mode_drafts_then_sends_to_ids_and_never_writes_a_subscriber(plan):
     assert "set_metadata" not in fake.calls and list(fake.subs.values()) == before
     assert all(p["status"] == "draft" and "filters" not in p and "publish_date" not in p for p in fake.created)
     sent = {fake.created[int(eid.split("-")[1]) - 1]["metadata"]["note_edition"]: ids for eid, ids in fake.sent_drafts}
-    assert sent == {f"{DAY}.{key_for(plan, ['budget'])}": ["sub-0001-secret", "sub-0002-secret"],
+    assert sent == {f"{DAY}.{key_for(plan, ['budget'])}": ["sub-0001-secret", "sub-0002-secret"],     # ids: no mac
                     f"{DAY}.{key_for(plan, ['contracts'])}": ["sub-0003-secret"],
                     f"{DAY}.{key_for(plan, ['budget', 'contracts'])}": ["sub-0004-secret"]}
 
@@ -441,7 +447,7 @@ def test_hostile_metadata_is_ignored_not_passed_on(plan, meta, expect):
     fake = Fake([{"id": "sub-0001-secret", "type": "regular", "metadata": meta, "email_address": "person1@example.com"}])
     go(plan, fake)
     for p in fake.created:
-        assert p["filters"]["filters"][0]["value"] == f"{DAY}.{plan['signatures'][expect]}"
+        assert p["filters"]["filters"][0]["value"] == stamp(plan['signatures'][expect])
     assert bool(fake.created) == (expect in plan["signatures"])
 
 
@@ -452,17 +458,50 @@ def test_a_subscriber_row_that_is_not_a_record_is_skipped(plan):
     assert deliver.recipient({"type": "regular", "id": "a", "metadata": "x"}, s).lists == ()
 
 
+def test_the_stamp_is_unguessable_from_the_public_note_and_stable_across_runs():
+    """audience/stamp-self-set-race: "<day>.<key>" alone is computable from morning/<D>.json, so the stamp adds
+    HMAC-SHA256(secret, "<day>.<key>")[:16]; the same secret gives the same stamp on a re-run."""
+    import hashlib
+    import hmac
+    key = "0123456789ab"
+    want = f"{DAY}.{key}." + hmac.new(SECRET, f"{DAY}.{key}".encode(), hashlib.sha256).hexdigest()[:16]
+    assert deliver.stamp_value(DAY, key, SECRET) == want == stamp(key)
+    assert deliver.STAMP_RE.fullmatch(want) and deliver.stamp_value(DAY, key, b"another key") != want
+    for secret in (b"", None, "text"):
+        with pytest.raises(deliver.PlanInvalid):
+            deliver.stamp_value(DAY, key, secret)
+
+
+def test_stamp_mode_without_the_secret_sends_nothing(plan):
+    fake = Fake(people(plan))
+    res, text = go(plan, fake, secret=None)
+    assert (res.code, res.status) == (2, "no-secret") and fake.calls == []
+    assert go(plan, Fake(people(plan)), s=settings(mode="ids"), secret=None)[0].status == "sent"   # ids needs none
+
+
+@pytest.mark.parametrize("value", ["2026-11-11", "x 2026-11-11 y", "2026-11-11.{k}", "2026-11-11.{k}.0000000000000000",
+                                   "2026-11-11.ffffffffffff.0123456789abcdef", ["2026-11-11.{k}"], 20261111])
+def test_a_value_that_is_not_an_expected_stamp_neither_blocks_the_run_nor_gets_mail(plan, value):
+    """Narrowed stray check: only exactly an expected stamp for today counts, so nobody can stop every send by
+    putting today's date in their own metadata, and a guessed stamp is mailed nothing."""
+    k = key_for(plan, ["budget"])
+    value = value.replace("{k}", k) if isinstance(value, str) else [v.replace("{k}", k) for v in value] if isinstance(value, list) else value
+    fake = Fake(people(plan) + [sub(9, [], note_edition=value)])                # picked no list: mailed nothing
+    res, _ = go(plan, fake)
+    assert (res.code, res.status, res.editions) == (0, "sent", 3)
+    assert all("sub-0009-secret" not in fake.audience(p) for p in fake.created)
+
+
 def test_a_subscriber_holding_todays_stamp_outside_its_audience_stops_the_run(plan):
     """audience/stamp-self-set: the stamp value is computable from the public note, so a stranger could set it on
     themselves through the form and the provider's filter would mail them. Any regular subscriber holding a stamp
     for today who is not in that edition's audience stops the run before any write."""
-    stamp = f"{DAY}.{key_for(plan, ['budget'])}"
-    stranger = sub(9, ["contracts"], note_edition=stamp)                   # picked contracts, stamped for budget
+    value = stamp(key_for(plan, ['budget']))
+    stranger = sub(9, ["contracts"], note_edition=value)                   # picked contracts, stamped for budget
     for rows, s in ((people(plan) + [stranger], settings()),
-                    ([sub(1, ["budget"]), sub(9, ["budget"], note_edition=stamp)],          # not a canary
+                    ([sub(1, ["budget"]), sub(9, ["budget"], note_edition=value)],          # not a canary
                      settings(canary_only=True)),
-                    (people(plan) + [sub(9, [], note_edition=f"{DAY}.ffffffffffff")], settings()),
-                    (people(plan) + [sub(9, ["budget"], note_edition=[stamp])], settings())):
+                    (people(plan) + [sub(9, [], note_edition=value)], settings())):
         fake = Fake(rows)
         res, text = go(plan, fake, s=s, canary_ids=frozenset({"sub-0001-secret"}))
         assert (res.code, res.status, res.editions) == (2, "stray-stamp", 0), text
@@ -475,7 +514,7 @@ def test_stamps_from_an_earlier_run_of_the_same_plan_or_another_day_are_fine(pla
     fake.fail = {}
     assert go(plan, fake)[0].status == "sent"                               # their stamps are in `to`: fine
     old = sub(9, ["budget"], note_edition="2026-11-10.0123456789ab")         # yesterday's stamp
-    unconfirmed = sub(8, ["contracts"], type_="unactivated", note_edition=f"{DAY}.{key_for(plan, ['budget'])}")
+    unconfirmed = sub(8, ["contracts"], type_="unactivated", note_edition="2026-11-11")
     assert go(plan, Fake(people(plan) + [old, unconfirmed]))[0].status == "sent"
     assert go(plan, Fake(people(plan) + [unconfirmed]), s=settings(mode="ids"))[0].status == "sent"
 
@@ -675,7 +714,7 @@ def test_idempotency_keys_are_stable_per_day_edition_and_step(plan):
     {"filters": [{"field": "subscriber.metadata.note_edition", "operator": "equals", "value": "X"}], "groups": [], "predicate": "or"}])
 def test_no_stamp_email_is_created_with_an_empty_or_wrong_filter(plan, monkeypatch, broken):
     """Even if the filter builder were broken, the last check before the call refuses the email."""
-    def bad(day, key):
+    def bad(day, key, secret):
         f = copy.deepcopy(broken)
         if isinstance(f, dict) and f.get("filters") and f["filters"][0]["value"] == "X":
             f["filters"][0]["value"] = f"{day}.{key}"
@@ -688,15 +727,16 @@ def test_no_stamp_email_is_created_with_an_empty_or_wrong_filter(plan, monkeypat
 
 def test_the_audience_check_accepts_only_the_editions_own_filter():
     key = "0123456789ab"
-    good = {"status": "scheduled", "filters": deliver.stamp_filter(DAY, key)}
-    deliver._check_audience("stamp", good, DAY, key)
-    for payload in ({**good, "status": "draft"}, {"status": "scheduled"}, {**good, "filters": deliver.stamp_filter("2026-11-10", key)}):
+    good = {"status": "scheduled", "filters": deliver.stamp_filter(DAY, key, SECRET)}
+    deliver._check_audience("stamp", good, DAY, key, SECRET)
+    for payload in ({**good, "status": "draft"}, {"status": "scheduled"}, {**good, "filters": deliver.stamp_filter("2026-11-10", key, SECRET)},
+                    {**good, "filters": deliver.stamp_filter(DAY, key, b"another key")}):
         with pytest.raises(deliver.ProviderError):
-            deliver._check_audience("stamp", payload, DAY, key)
+            deliver._check_audience("stamp", payload, DAY, key, SECRET)
     with pytest.raises(deliver.ProviderError):
-        deliver._check_audience("ids", good, DAY, key)                 # an ids email carries no filter, and is a draft
+        deliver._check_audience("ids", good, DAY, key, SECRET)                 # an ids email carries no filter, and is a draft
     with pytest.raises(deliver.PlanInvalid):
-        deliver.stamp_filter(DAY, "not-a-key")
+        deliver.stamp_filter(DAY, "not-a-key", SECRET)
 
 
 # ------------------------------------------------------------------ rate limits
@@ -751,9 +791,9 @@ def test_no_address_id_or_response_body_reaches_the_output(plan, capsys, mode, f
     try:
         lines = []
         res = deliver.run(plan, kw["s"], provider=fake, live=kw.get("live", True), now=kw.get("now", AT_5),
-                          sleep=lambda _s: None, out=lines.append)
+                          sleep=lambda _s: None, out=lines.append, stamp_secret=SECRET)
         res2 = deliver.run(plan, kw["s"], provider=fake, live=kw.get("live", True), now=kw.get("now", AT_5),
-                           sleep=lambda _s: None)                          # and once more, printing for real
+                           sleep=lambda _s: None, stamp_secret=SECRET)                        # and once more, printing for real
     except Exception as exc:  # noqa: BLE001
         raised = f"{exc!r} {exc}"
         res = res2 = None

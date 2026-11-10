@@ -27,6 +27,8 @@ back from the provider. A provider error is reported by the name of the step onl
 """
 from __future__ import annotations
 
+import hashlib
+import hmac
 import re
 import time as time_mod
 import uuid
@@ -46,7 +48,9 @@ MAX_LIST_VALUES = 16        # a subscriber's `lists` with more values than this 
 MAX_BODY = 500_000
 MAX_SUBJECT = 300
 STAMP_FIELD = "subscriber.metadata.note_edition"
-STAMP_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\.[0-9a-f]{12}")
+# "<day>.<edition key>.<mac>": the mac is HMAC-SHA256(secret, "<day>.<key>")[:16] with the provider's API key as the
+# secret, so nobody can compute a stamp from the public note (audience/stamp-self-set-race)
+STAMP_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}\.[0-9a-f]{12}\.[0-9a-f]{16}")
 _SHA_RE = re.compile(r"[0-9a-f]{64}")
 _NUMBER = re.compile(r"[1-9][0-9]{0,3}")
 # audience/canary-self-set: the canary list lives in the note job's environment (a `morning-note` environment
@@ -232,48 +236,48 @@ def idempotency_key(day: str, key: str, step: str) -> str:
     return str(uuid.uuid5(NAMESPACE, f"daylight-note/{day}/{key}/{step}"))
 
 
-def stamp_value(day: str, key: str) -> str:
-    value = f"{day}.{key}"
+def stamp_value(day: str, key: str, secret: bytes) -> str:
+    """"<day>.<key>.<mac>". Deterministic for one secret, so a re-run writes and filters the same value."""
+    if not isinstance(secret, bytes) or not secret:
+        raise PlanInvalid("the stamp secret")
+    base = f"{day}.{key}"
+    value = f"{base}.{hmac.new(secret, base.encode('utf-8'), hashlib.sha256).hexdigest()[:16]}"
     if not STAMP_RE.fullmatch(value):
         raise PlanInvalid("an edition's stamp")
     return value
 
 
-def stamp_filter(day: str, key: str) -> dict:
-    """The one audience of a `stamp` email: subscribers whose `note_edition` is exactly "<day>.<key>". The value
-    carries the day, so a stamp from an earlier day can never match."""
-    return {"filters": [{"field": STAMP_FIELD, "operator": "equals", "value": stamp_value(day, key)}],
+def stamp_filter(day: str, key: str, secret: bytes) -> dict:
+    """The one audience of a `stamp` email: subscribers whose `note_edition` is exactly its stamp. The value carries
+    the day, so a stamp from an earlier day can never match, and the mac, so nobody can set it on themselves."""
+    return {"filters": [{"field": STAMP_FIELD, "operator": "equals", "value": stamp_value(day, key, secret)}],
             "groups": [], "predicate": "and"}
 
 
-def _check_audience(mode: str, payload: dict, day: str, key: str) -> None:
+def _check_audience(mode: str, payload: dict, day: str, key: str, secret: bytes | None) -> None:
     """The last check before an email is created. An empty or malformed filter means everyone, so a `stamp` email
     must carry exactly its edition's filter; an `ids` email is a draft with no audience of its own."""
     if mode == "stamp":
         f = payload.get("filters")
         rules = f.get("filters") if isinstance(f, dict) else None
         ok = isinstance(rules, list) and len(rules) == 1 and rules[0] == {
-            "field": STAMP_FIELD, "operator": "equals", "value": f"{day}.{key}"} \
-            and STAMP_RE.fullmatch(f"{day}.{key}") and f.get("groups") == [] and f.get("predicate") == "and" \
-            and payload.get("status") == "scheduled"
+            "field": STAMP_FIELD, "operator": "equals", "value": stamp_value(day, key, secret)} \
+            and f.get("groups") == [] and f.get("predicate") == "and" and payload.get("status") == "scheduled"
     else:
         ok = payload.get("status") == "draft" and "filters" not in payload
     if not ok:
         raise ProviderError("audience check")
 
 
-def _stray_stamp(everyone: list, by_key: dict, day: str) -> bool:
-    """audience/stamp-self-set: in `stamp` mode the provider mails whoever holds "<day>.<key>", and that value is
-    computable from the public note, so a subscriber could set it on themselves through the form. True when any
-    confirmed subscriber holds anything naming today in `note_edition` and is not in that edition's audience (a
-    stamp written by an earlier run of this plan always is)."""
+def _stray_stamp(everyone: list, by_key: dict, expected: dict) -> bool:
+    """audience/stamp-self-set: in `stamp` mode the provider mails whoever holds an edition's stamp. True when any
+    subscriber holds exactly one of today's stamps (`expected`: {stamp: edition key}) and is not in that edition's
+    audience; a stamp written by an earlier run of this plan always is. Any other value is ignored: the filter does
+    not match it, and it must not let one subscriber stop every send (audience/stamp-self-set-race)."""
     members = {key: {m.id for m in to} for key, to in by_key.items()}
     for r in everyone:
         value = r.metadata.get("note_edition")
-        if value is None or day not in str(value):
-            continue
-        key = value[len(day) + 1:] if isinstance(value, str) and value.startswith(day + ".") else None
-        if r.id not in members.get(key, ()):
+        if isinstance(value, str) and value in expected and r.id not in members.get(expected[value], ()):
             return True
     return False
 
@@ -327,7 +331,7 @@ def _claim(emails, plan: dict) -> tuple[str, set]:
         state = "ours"
         edition = meta.get("note_edition")
         if isinstance(edition, str) and edition.startswith(plan["date"] + "."):
-            done.add(edition[len(plan["date"]) + 1:])
+            done.add(edition[len(plan["date"]) + 1:].split(".")[0])
     return state, done
 
 
@@ -345,8 +349,11 @@ def describe(plan: dict, settings: Settings) -> list[str]:
 
 
 def run(plan, settings: Settings, provider: Provider | None = None, live: bool = False,
-        now: datetime | None = None, sleep=time_mod.sleep, out=print, canary_ids: frozenset | None = None) -> Outcome:
-    """Deliver one plan. Returns the outcome; prints the dry run's description or one summary line of totals."""
+        now: datetime | None = None, sleep=time_mod.sleep, out=print, canary_ids: frozenset | None = None,
+        stamp_secret: bytes | None = None, clock=None) -> Outcome:
+    """Deliver one plan. Returns the outcome; prints the dry run's description or one summary line of totals.
+    `stamp_secret`: the HMAC key of the stamps (the provider's API key, passed by the adapter), needed in `stamp`
+    mode. `clock`: a callable giving the current time (default: `now` when given, else the system clock)."""
     try:
         plan = check_plan(plan)
     except PlanInvalid as exc:
@@ -390,6 +397,8 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         return end(MISSED_EXIT, "missed", why="now is past latest_send; a note is never sent late")
     if settings.canary_only and not canary_ids:
         return end(0, "no-canary", why=f"canary_only is true and {CANARY_ENV} names nobody")
+    if settings.mode == "stamp" and not (isinstance(stamp_secret, bytes) and stamp_secret):
+        return end(2, "no-secret", why="stamp mode needs the stamp secret (the provider key)")
     sent = people = 0
     step = "email listing"
 
@@ -442,7 +451,9 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
         # edition any shape could get), counted before the first write
         if len(by_key) > settings.max_editions:
             return end(2, "over-limit", why="more editions with a recipient than max_editions")
-        if settings.mode == "stamp" and _stray_stamp(everyone, by_key, day):
+        expected = {stamp_value(day, ed["key"], stamp_secret): ed["key"] for ed in plan["editions"]} \
+            if settings.mode == "stamp" else {}
+        if settings.mode == "stamp" and _stray_stamp(everyone, by_key, expected):
             return end(2, "stray-stamp", why="a subscriber holds a stamp for today outside that edition's audience; "
                                              "the provider's filter would mail them")
         del everyone
@@ -453,16 +464,17 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
             key, to = ed["key"], by_key.get(ed["key"], [])
             if key in done or not to:
                 continue        # already created by an earlier run of this plan, or nobody to mail: no email
-            meta = {"note_date": day, "note_edition": stamp_value(day, key), "note_sha256": plan["note_sha256"]}
+            edition_id = stamp_value(day, key, stamp_secret) if settings.mode == "stamp" else f"{day}.{key}"
+            meta = {"note_date": day, "note_edition": edition_id, "note_sha256": plan["note_sha256"]}
             payload = {"subject": ed["subject"], "body": ed["body"], "archival_mode": "disabled", "metadata": meta}
             if settings.mode == "stamp":
                 step = "subscriber stamp"
                 for r in to:
                     _call(sleep, provider.set_metadata, r.id, {**r.metadata, "note_edition": meta["note_edition"]},
                           idempotency_key(day, key, f"stamp/{r.id}"))
-                payload.update(status="scheduled", publish_date=publish, filters=stamp_filter(day, key))
+                payload.update(status="scheduled", publish_date=publish, filters=stamp_filter(day, key, stamp_secret))
                 step = "email create"
-                _check_audience("stamp", payload, day, key)
+                _check_audience("stamp", payload, day, key, stamp_secret)
                 stored = _call(sleep, provider.create_email, payload, idempotency_key(day, key, "email"))
                 step = "email check"
                 checked(payload, stored, key)
@@ -472,7 +484,7 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
                 # edition is then not mailed today; its records are on the site and the feeds.
                 payload.update(status="draft")
                 step = "email create"
-                _check_audience("ids", payload, day, key)
+                _check_audience("ids", payload, day, key, None)
                 stored = _call(sleep, provider.create_email, payload, idempotency_key(day, key, "email"))
                 step = "email check"
                 email_id = checked(payload, stored, key)
