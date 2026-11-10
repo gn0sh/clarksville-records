@@ -93,6 +93,7 @@
 | 2026-11-09 | backend-engineer | sonnet/medium | county recency research | done: county posting lag; no agenda adapter |
 | 2026-11-09 | frontend-engineer | sonnet/medium | fix days/* | done, 2379c01: 19 pass |
 | 2026-11-09 | code-reviewer | opus/medium | delta re-review 2379c01 | approve with nits (days/scheduled-agenda-link should-fix, days/coverage-count) |
+| 2026-11-09 | backend-engineer | opus/high | RPC M2 minutes OCR, motions, CZ links, CDRB OCR | done, 0927bfe: 1894 pass, 10/10 spot check; review pending |
 | 2026-11-08 | frontend-engineer | sonnet/medium | GoVoteTN lookup line | done, 1d2fe84; review approve with 3 nits |
 | 2026-11-08 | backend-engineer | opus/high | georeference district map (pin M1) | done, 187d5a4: 575 pass, held-out max 4.5 m |
 | 2026-11-08 | frontend-engineer | opus/medium | address pin M2 (box, georef.js, Census JSONP) | done, b470a4f: 614 pass, site_checks PASS; live geocoder untested (blocked here) |
