@@ -131,6 +131,13 @@ def placed(rpx, mv: dict) -> bool:
     return not mv["case_id"] or any(c["id"] == mv["case_id"] for c in rpx.cases_by_meeting.get(mv["meeting_id"], []))
 
 
+def motion_order(mv: dict) -> tuple:
+    """Within one meeting and page: the motion's number (`<meeting id>-motion-<n>`, its content position), so motion-10
+    follows motion-9; the id itself only for an id of another shape."""
+    n = mv["id"].rsplit("-", 1)[-1]
+    return (mv["page"], 0, int(n), mv["id"]) if n.isdigit() else (mv["page"], 1, 0, mv["id"])
+
+
 def exported_motions(rpx, internal: bool = False) -> list[dict]:
     """The motions that may leave in a file: those the pages show confirmed (`rpx.motions`, sitegen.rpc.shown_motions:
     the stored flag, the checks restated on the record, and the `motion_rules` marker), with no reason left on them,
@@ -171,7 +178,7 @@ def public_facts(rpx, internal: bool = False) -> dict:
               "page": c["page"], "source_id": c["source_id"]}
              for c in sorted(facts["cases"], key=lambda c: (dates[c["meeting_id"]], c["meeting_id"], c["page"]))]
     motions = []
-    for mv in sorted(shown, key=lambda mv: (dates[mv["meeting_id"]], mv["meeting_id"], mv["page"], mv["id"])):
+    for mv in sorted(shown, key=lambda mv: (dates[mv["meeting_id"]], mv["meeting_id"], *motion_order(mv))):
         row = {"id": mv["id"], "meeting_id": mv["meeting_id"], "case_id": mv["case_id"],
                # the case number only where the pages place the motion under that case (C1)
                "case_number": mv["case"] if mv["case_id"] else None, "kind": mv["kind"],

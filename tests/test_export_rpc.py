@@ -230,6 +230,16 @@ def test_a_motion_the_pages_place_nowhere_is_not_exported(tmp_path):
     assert (ms[other]["motions_confirmed"], ms[other]["motions_not_confirmed"]) == ("0", "1")
 
 
+def test_motions_on_one_page_keep_the_minutes_order(tmp_path):
+    """Same meeting and page: by the motion's number (its content position), so motion-10 follows motion-9."""
+    facts = facts_with_motions(tmp_path)
+    facts["motions"] = [motion(k, kind="Motion to adjourn") for k in (10, 2, 9, 1)]
+    written = {p.name: p for p in RE.export_rpc(load(tmp_path, facts), tmp_path / "out")}
+    want = [f"{MEETING}-motion-{k}" for k in (1, 2, 9, 10)]
+    assert [r["id"] for r in rows(written["motions.csv"])] == want
+    assert [mv["id"] for mv in json.loads(written["facts.json"].read_text(encoding="utf-8"))["motions"]] == want
+
+
 def _export_site_dir(tmp_path: Path, facts: dict) -> tuple[Path, dict]:
     """A built site's data/rpc/ as the export writes it, and the rpc.json record site_checks reads."""
     site = tmp_path / "site"
