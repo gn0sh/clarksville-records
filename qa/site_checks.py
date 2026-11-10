@@ -134,6 +134,36 @@ def corrections_links(cfg: dict) -> tuple[str, str]:
             f"mailto:{email}" if email else "")
 
 
+REPORT_CHANNEL_TARGETS = ("pages",)   # the hosts real readers use (GitHub Pages); the preview may stay closed
+
+
+def check_report_channel(pages: dict[str, "Page"], cfg: dict, target: str,
+                         form: Path | None = None) -> tuple[list[str], str]:
+    """corrections/channel-set-in-production-build: a pages build never ships report.html without a way to send a
+    report. It must link the GitHub issue form or the mailto that config/site.yml `corrections:` sets, on the ids
+    static/report.js fills (report-issue / report-mail), and must not say corrections are not open yet. With
+    github_repo set, the issue form (`form`, default .github/ISSUE_TEMPLATE/correction.yml) must be in this repo
+    (corrections/form-on-default-branch: GitHub shows it only from the default branch, which a file check cannot see)."""
+    if target not in REPORT_CHANNEL_TARGETS:
+        return [], f"{target} target: not checked"
+    pg = pages.get("report.html")
+    if pg is None:
+        return ["report.html is not built"], ""
+    issue, mail = corrections_links(cfg)
+    if not (issue or mail):
+        return ["config/site.yml corrections: sets no github_repo or email, so report.html offers no channel"], ""
+    hrefs = set(pg.hrefs)
+    problems = [f"report.html does not link {u}" for u in (issue, mail) if u and u not in hrefs]
+    problems += [f"report.html has no id={i!r} link (static/report.js fills it)"
+                 for u, i in ((issue, "report-issue"), (mail, "report-mail")) if u and i not in pg.ids]
+    form = ROOT / ".github" / "ISSUE_TEMPLATE" / "correction.yml" if form is None else Path(form)
+    if issue and not form.is_file():
+        problems.append(f"corrections.github_repo is set but the issue form {form.name} is not in the repo ({form})")
+    if "report-closed" in pg.ids:
+        problems.append("report.html still says corrections are not open")
+    return problems, "report.html links " + " and ".join(u for u in (issue, mail) if u)
+
+
 def _site_cfg() -> dict:
     import yaml
     cfg = yaml.safe_load((ROOT / "config" / "site.yml").read_text(encoding="utf-8"))
@@ -1360,7 +1390,7 @@ class UnofficialText(HTMLParser):
         _, hid, foot, intag = self.stack[-1] if self.stack else ("", False, False, False)
         style = (a.get("style") or "").replace(" ", "").lower()
         hid = (hid or tag in self.SKIP or "hidden" in a or (a.get("aria-hidden") or "").lower() == "true"
-               or "display:none" in style or "visibility:hidden" in style)
+               or "sr-only" in (a.get("class") or "").split() or bool(INLINE_HIDE.search(style)))
         is_tag = "unofficial-tag" in (a.get("class") or "").split()
         if is_tag and not hid and not intag:
             self.tags.append([])
@@ -1381,12 +1411,32 @@ class UnofficialText(HTMLParser):
                 self.tags[-1].append(data)
 
 
+_ZERO = r"(?:0+(?:\.0*)?|\.0+)[a-z%]*(?=\s*(?:;|!|$))"   # 0, 0.0, .0, 0px, 0em, 0% (not 0.5)
+INLINE_HIDE = re.compile(rf"display:none|visibility:hidden|opacity:{_ZERO}|font-size:{_ZERO}")
+CSS_HIDE = re.compile(rf"display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*{_ZERO}|font-size\s*:\s*{_ZERO}",
+                      re.M)
+FOOTER_SUBJECT = re.compile(r"^(?:footer|\.site-footer)(?![\w-])")
+
+
+def _hides_notice(selector: str) -> bool:
+    """A selector that can hide the notice: one naming an unofficial-* class, one whose subject is the footer, or one
+    whose subject is a section inside the footer (`footer section`, `.site-footer > section`)."""
+    if "unofficial" in selector:
+        return True
+    parts = [p for p in re.split(r"\s*[>+~]\s*|\s+", selector.strip()) if p]
+    if not parts:
+        return False
+    return bool(FOOTER_SUBJECT.match(parts[-1])) or (
+        parts[-1].startswith("section") and any(FOOTER_SUBJECT.match(p) for p in parts[:-1]))
+
+
 def _hiding_rules(site: Path) -> list[str]:
-    """Selectors in the built style.css that name an unofficial-* class and hide it (display:none, visibility:hidden)."""
+    """Selectors in the built style.css that can hide the notice (_hides_notice) with display:none, visibility:hidden,
+    opacity:0 or font-size:0."""
     css = site / "static" / "style.css"
     text = re.sub(r"/\*.*?\*/", "", css.read_text(encoding="utf-8"), flags=re.S) if css.is_file() else ""
-    return [" ".join(sel.split()) for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", text)
-            if "unofficial" in sel and re.search(r"display\s*:\s*none|visibility\s*:\s*hidden", body)]
+    return [" ".join(sel.split()) for group, body in re.findall(r"([^{}]+)\{([^{}]*)\}", text) if CSS_HIDE.search(body)
+            for sel in group.split(",") if _hides_notice(sel)]
 
 
 def unofficial_notice(cfg: dict) -> str:
@@ -1533,7 +1583,9 @@ def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: di
             up = text(e, "updated")
             if up and not RFC3339.fullmatch(up):
                 problems.append(f"{rel}: entry {eid} updated {up!r} is not an RFC 3339 date-time")
-            dates.append(up)
+            elif up:   # as an instant: text order breaks in the fall-back hour (01:30-05:00 is before 01:15-06:00)
+                from datetime import datetime
+                dates.append(datetime.fromisoformat(up))
             links = e.findall(ATOM + "link")
             alt = [x.get("href") or "" for x in links if (x.get("rel") or "alternate") == "alternate"]
             if not alt:
@@ -2066,6 +2118,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("name-links", problems, note)
     rep.add("footer", check_footer(pages, operator), f"'Provided as a free service by {operator}.' on {len(pages)} pages")
     rep.add("external", check_external(pages, site, cfg))
+    problems, note = check_report_channel(pages, cfg, target)
+    rep.add("report-channel", problems, note)
     # the contracts feed links each solicitation's first document, a finance.json source
     problems, note = check_feeds(site, pages, all_sources["sources"], cfg,
                                  finance_sources=list((finance or {}).get("sources") or []))

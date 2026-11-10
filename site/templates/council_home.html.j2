@@ -1,5 +1,7 @@
 {% extends "base.html.j2" %}
 {% from "_cards.html.j2" import cards %}
+{% from "_feed_links.html.j2" import feed_links %}
+{% block head %}{{ feed_links(home_feeds | default([]), root) }}{% endblock %}
 {# A council's home (council.py home): its seats with current holders, its members, and its meetings and items by
    year. The same layout for every council; every name links to its member page. #}
 {% block main %}

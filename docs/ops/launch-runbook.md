@@ -116,3 +116,10 @@ Do not touch it before then.
 - Browser checks (`hscroll`, `row-height`, 390 px) need Playwright and are not run in CI (`--no-browser`): QA runs them
   by hand before launch (`qa/final.sh`); a daily data refresh does not change layout.
 - Pushes made with `GITHUB_TOKEN` do not start other workflows, so the data commit never re-triggers this one.
+- Feeds (claude/hu3mew-qa-majors): this release changes `updated` and `published` once on all 1,246 existing entries,
+  from the meeting date at 00:00Z to the date the document was added (America/Chicago). Entry ids are unchanged, so
+  readers do not re-alert; a reader that shows changed entries may mark them updated once. The county feed also gains
+  13 agenda-only meeting entries, which push its 13 oldest minutes entries past the 50-entry cap.
+- Corrections go to GitHub issues (`corrections.github_repo`). GitHub shows the issue form only once
+  `.github/ISSUE_TEMPLATE/correction.yml` is on `main`; until then the link opens a blank issue prefilled by report.js.
+  The form's `correction` label does not exist on the repo yet (manager: create it at go-live).
