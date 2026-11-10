@@ -1,7 +1,7 @@
 # Notice
 
 The code, design and written text in this repository are licensed under the PolyForm Noncommercial License 1.0.0
-(see `LICENSE`). Commercial use needs written permission from gnoshcodes.
+(see `LICENSE`). Commercial use needs written permission from gnoshcodes LLC.
 
 The name "Daylight", the gnoshcodes name and wordmark, and the Daylight look (`site/static/brand/`, `docs/design/`) are
 not licensed for use by others. A copy must not present itself as this site or as made by gnoshcodes.

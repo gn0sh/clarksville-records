@@ -166,7 +166,7 @@ def test_every_rendered_record_line_links_a_non_empty_https_url(pages, fpages, c
 def test_footer_operator_is_gnoshcodes_on_every_page(pages):
     for name, html in pages.items():
         m = re.search(r"Provided as a free service by (.*?)\.(?: <a|</p>)", html, re.S)
-        assert m and re.sub(r"<[^>]+>", "", m.group(1)) == "gnoshcodes", name
+        assert m and re.sub(r"<[^>]+>", "", m.group(1)) == "gnoshcodes LLC", name
 
 
 def test_method_page_quotes_the_collectors_own_user_agent(pages):

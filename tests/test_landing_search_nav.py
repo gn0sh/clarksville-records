@@ -317,7 +317,7 @@ def test_footer_support_link_renders_when_switched_on(tmp_path, facts, monkeypat
     monkeypatch.setitem(config.SITE, "support_enabled", True)
     pages = build_pages(tmp_path, facts)
     for name, html in pages.items():
-        assert re.search(r'Provided as a free service by <a data-ext="operator" href="https://gnoshcodes\.com/" rel="noopener noreferrer">gnoshcodes</a>\. '
+        assert re.search(r'Provided as a free service by <a data-ext="operator" href="https://gnoshcodes\.com/" rel="noopener noreferrer">gnoshcodes LLC</a>\. '
                          r'<a data-ext="support" '
                          r'href="https://buymeacoffee\.com/gnoshcodes" rel="noopener noreferrer">Buy Me a Coffee</a>',
                          html), name
