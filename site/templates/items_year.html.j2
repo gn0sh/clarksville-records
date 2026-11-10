@@ -34,6 +34,14 @@
     </dl>
   </div>
   {% endif %}
+  {% if it.rpc %}
+  <div class="rpc-link">
+    <p><strong>Planning Commission → County Commission:</strong> this case on the Regional Planning Commission's agendas, linked by its case number.</p>
+    <ul>
+      {% for r in it.rpc %}<li><a href="{{ root }}{{ r.href }}">{{ r.label }}: {{ r.number }}</a></li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
   <ol class="events timeline">
   {% for e in it.events %}
     <li class="event fact ev-{{ e.type }}{% if e.roll_call and not e.roll_call.confirmed %} nc{% endif %}" data-fact-id="{{ e.id }}">

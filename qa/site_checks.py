@@ -33,7 +33,7 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               alternate link) with unique tag: ids, newest first, at most alerts.max_entries; each alternate link
               resolves to a built page and its #anchor, each related link is a fetched source document; alerts.html
               links every feed and no other (Alerts v1, sitegen/feeds.py)
-  rpc-cases   (a build with the Regional Planning Commission) every "CASE NUMBER:" an agenda prints was read as a case
+  rpc-cases   (a build with the Regional Planning Commission) every "CASE NUMBER:" and numbered case line an agenda prints was read as a case
               (the completeness check of collector/rpc_agenda.py: a missed case is never silent)
   files       at most the target's file cap: --target preview (claude.ai artifact, 500) or pages (GitHub Pages, 3000)
   transcripts every line of a transcript page (<folder>/transcripts/*.html) has its time linked to its meeting's own
@@ -151,7 +151,7 @@ def check_rpc_cases(rpc: dict | None) -> tuple[list[str], str]:
     if not rpc:
         return [], "no RPC facts"
     read = [m for m in rpc["meetings"] if m.get("case_numbers_printed") is not None]
-    problems = [f"{m['id']}: the agenda prints CASE NUMBER: {m['case_numbers_printed']} times, "
+    problems = [f"{m['id']}: the agenda prints {m['case_numbers_printed']} case numbers (CASE NUMBER: or a numbered case line), "
                 f"{m['case_numbers_read']} of those cases read" for m in read
                 if m["case_numbers_printed"] > (m.get("case_numbers_read") or 0)]
     return problems, f"{len(read)} agendas read, {sum(m['case_count'] for m in read)} cases"

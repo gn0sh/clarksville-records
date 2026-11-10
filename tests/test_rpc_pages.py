@@ -144,7 +144,8 @@ def test_rpc_cases_check_fails_on_a_case_number_not_read(rpc_cfg):
     assert site_checks.check_rpc_cases(rfacts)[0] == []
     m = {**rfacts["meetings"][0], "case_numbers_printed": 3, "case_numbers_read": 2}
     problems, _ = site_checks.check_rpc_cases({**rfacts, "meetings": [m]})
-    assert problems == [f"{m['id']}: the agenda prints CASE NUMBER: 3 times, 2 of those cases read"]
+    assert problems == [f"{m['id']}: the agenda prints 3 case numbers (CASE NUMBER: or a numbered case line), "
+                        "2 of those cases read"]
     assert site_checks.check_rpc_cases(None) == ([], "no RPC facts")
 
 

@@ -74,7 +74,7 @@
   COUNTY ZONING), so the case type is read from the prefix. The one CDRB agenda with text (2025-02-24) numbers its
   design review cases MSCD- and DDR- ("APPLICATION OF :", "REASON FOR THE REQUEST:", "LOCATION OF REQUEST :").
 - Text layers: 60 of the 167 PDFs have text on every page, 2 on some, 105 none (22 of the 23 stored CDRB agendas and 83 of
-  the 88 minutes are image scans with no text; OCR is a follow-up). One agenda prints another year: the 2025-04-11 Executive Committee agenda says
+  the 88 minutes are image scans with no text; read by OCR since RPC-2, below). One agenda prints another year: the 2025-04-11 Executive Committee agenda says
   "April 11, 2023" (kept as listed, reported by the build).
 - Read (`python -m collector rpc build`): 57 agendas with text, 1,260 case items (931 distinct case numbers; SR 447,
   Z 344, S 218, CZ 113, V 45, AB 38, ZO 38, CZO 8, LA 5, MSCD 2, DDR 2), each with its agenda page; 52 agendas list
@@ -82,6 +82,24 @@
   APPLICANT(S): ... AGENT: ...", hearing dates as "CITY COUNCIL INFORMAL: 10/27/2022 - 4:30 P.M.", cases separated by
   rows of asterisks, the text layer sometimes splitting a word: "APPLIC ANT/OWNER", "LOC ATION"). 61 cases lack an
   applicant, request or location as read (most are text amendments, which print no location).
+- RPC-2 (verified 2026-11-10, `python -m collector rpc build` with the county minutes' OCR path, tesseract 300 dpi):
+  1,514 scanned pages OCRed in about 16 minutes on 4 cores (cached in data/ocr/, so a rebuild takes about 30 s). The
+  22 scanned CDRB agendas give 56 more cases (1,341 in all; the 1,285 text-layer cases are unchanged by the stricter
+  watermark skip and the numbered-line completeness count); they also number cases DO- (corridor overlay design
+  review, from 2025-11) and HZ- (historic zoning). 87 of 89 minutes read are attached to their meeting; two print
+  another meeting's date (the 2025-10-27 CDRB row links the 2025-07-29 RPC minutes; the 2025-04-11 Executive
+  Committee minutes print "April 25, 2025") and are not attached. 1,307 motions read, 1,088 confirmed by the written
+  rule in collector/rpc_minutes.py (mover, seconder, nays and abstentions each match one member in the minutes' own
+  header, an outcome from a fixed vocabulary, nothing unmodelled). Minutes layouts: 2022-2024 "Mr. Hadley made the
+  motion ... Mr. Powers seconded. Mrs. Streetman voted nay. ... Motion passed."; 2024-06 "Commissioner X"; 2025-2026
+  full names, "except X who voted against", "Motion passes for approval 5-1"; CDRB "DDR-14-2026" alone on a line.
+  Seen on the scans: Z read as "2" ("CASE NUMBER 2-16-2022"), S as "S$" or "$", a member's name spelled two ways in
+  one document ("Maria Jiminez" in the header, "Mrs. Jimenez" in a motion), a motion "for disapproval" whose
+  outcome reads "Motion for approval passed" (2023-12-21, CZ-20-2023), a page printed in a shifted font
+  ("YRWHG LQ IDYRU", 2025-05-27); none of these is repaired or confirmed. Of the 92 County Commission CZ-/CZO- items
+  we hold, 69 match an RPC agenda case by exact number (87 RPC agenda entries link, a case appearing on several
+  agendas); the 23 unmatched are 2020-2021 cases (before the RPC listing starts) and CZ-1 to CZ-6-2024 and CZO-1-2024,
+  which are on no RPC agenda we read (why not checked).
 
 ## Existing services
 - soar.com "Citizen Portal": AI summaries of Clarksville council meetings with overall tallies, no per-member votes, paywalled video/transcripts.

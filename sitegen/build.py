@@ -407,6 +407,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         rpx = rpc_mod.load(rpc, fixture)
     except (rpc_mod.RpcError, OSError, ValueError) as exc:
         raise BuildError(str(exc)) from exc
+    if rpx is not None:   # Planning Commission -> County Commission: CZ- cases link to the county's items both ways
+        rpx.link_county(ix)
     fx = fin_views.Finance(fin_data, facts["officials"]) if fin_data is not None else None
     if capital_fund is DEFAULT:
         capital_fund = config.FIXTURE_CAPITAL_FUND if fixture else config.CAPITAL_FUND
