@@ -31,8 +31,8 @@ def text(el, tag):
 
 
 def test_one_feed_per_body_and_per_topic(built):
-    """The fixture builds the county only: its agendas-and-minutes feed plus one per configured topic. No district
-    or ward feeds (the records place no item in a district or ward; file budget)."""
+    """The fixture builds the county only: its agendas-and-minutes feed plus one per configured topic. Per-seat
+    zoning feeds exist on the pages target only, and only with RPC cases (see the zoning tests below)."""
     names = [f.name for f in feed_files(built)]
     want = ["county-meetings.xml"] + [f"topic-{t}.xml" for t in config.SITE["alerts"]["topics"]]
     assert sorted(names) == sorted(want)
@@ -143,6 +143,8 @@ def test_absolute_links_with_site_url():
     ({"max_entries": 0}, "max_entries"),
     ({"max_entries": "50"}, "max_entries"),
     ({"topics": ["rezoning", "parking"]}, "parking"),
+    ({"contracts_title": ""}, "contracts_title"),
+    ({"contracts_title": None}, "contracts_title"),
 ])
 def test_config_problems(change, bad):
     cfg = copy.deepcopy(config.SITE)
@@ -230,6 +232,41 @@ def test_site_checks_catch_a_duplicate_id_and_an_unlinked_feed(site):
     assert any("does not link feeds/extra.xml" in p for p in problems)
 
 
+def test_site_checks_cap_the_rezoning_feed_per_body(site, monkeypatch):
+    # feeds/rezoning-keeps-every-body: topic-rezoning.xml holds max_entries of each body, so the check counts per body
+    f = site / "feeds" / "topic-rezoning.xml"
+    root = parsed(f)
+    es = root.findall(A + "entry")
+    assert len(es) >= 2
+    pre = config.SITE["alerts"]["feed_id"]
+    for n, e in enumerate(es):          # one RPC entry beside each county entry, same date: still newest first
+        twin = copy.deepcopy(e)
+        twin.find(A + "id").text = f"{pre}rpc/item/case-{n}/rpc-meeting"
+        root.insert(list(root).index(e) + 1, twin)
+    ET.ElementTree(root).write(f, encoding="utf-8", xml_declaration=True)
+    cfg = copy.deepcopy(config.SITE)
+    cfg["alerts"]["max_entries"] = len(es)          # the feed holds 2x the cap, each body exactly the cap
+    monkeypatch.setattr(config, "SITE", cfg)
+    pages = {p.relative_to(site).as_posix(): site_checks.parse(p) for p in site.rglob("*.html")}
+    check = lambda: [p for p in site_checks.check_feeds(site, pages, FACTS["sources"], cfg)[0] if "rezoning" in p]  # noqa: E731
+    assert check() == []
+    cfg["alerts"]["max_entries"] = len(es) - 1
+    assert sorted(check()) == sorted(f"feeds/topic-rezoning.xml: {len(es)} {b} entries, more than alerts.max_entries "
+                                     f"{len(es) - 1} per body" for b in ("county", "rpc"))
+
+
+def test_site_checks_know_the_finance_sources_the_contracts_feed_links(site, monkeypatch):
+    seen = {}
+
+    def spy(site_dir, pages, sources, cfg):
+        seen["urls"] = {s["url"] for s in sources}
+        return [], "spy"
+    monkeypatch.setattr(site_checks, "check_feeds", spy)
+    fin = {"sources": [{"url": "https://example.invalid/fin/rfp-1.pdf"}], "documents": [], "solicitations": []}
+    site_checks.run_checks(site, FACTS, browser=False, no_export=True, finance=fin)
+    assert "https://example.invalid/fin/rfp-1.pdf" in seen["urls"] and FACTS["sources"][0]["url"] in seen["urls"]
+
+
 def test_illegal_xml_characters_are_stripped_and_whitespace_collapsed():
     """PDF text carries NUL, form feed and U+FFFE: none is legal in XML 1.0, so the feed must still parse."""
     nasty = "Zoning\x00 of  the\x0c lot\ufffe\n at  5\ufffa"
@@ -254,3 +291,138 @@ def test_illegal_xml_characters_are_stripped_and_whitespace_collapsed():
 ])
 def test_topic_words_match_at_the_start_of_a_word(title, topic, hit):
     assert (topic in views.item_types({"number": "", "title": title})) is hit
+
+
+# -- Daylight M3 T2: contracts feed, RPC zoning cases, per-seat zoning feeds
+
+FIN = FIXTURE.parent / "finance.sample.json"
+CFG = config.SITE
+
+
+def zcase(n, prefix="Z", district=None, ward=None, meeting="rpc-2026-11-24", date="2026-11-24"):
+    return {"id": f"{date}-{prefix.lower()}-{n}-2026", "meeting_id": meeting, "prefix": prefix,
+            "number": f"{prefix}-{n}-2026", "number_printed": f"{prefix}-{n}-2026", "page": n,
+            "source_id": "src-rpc", "district": district, "ward": ward, "case_type": "City zoning",
+            "request": f"R-1 to R-{n}"}
+
+
+@pytest.fixture(scope="module")
+def zoning_rpc():
+    class R:   # the parts of sitegen.rpc.Rpc the feeds read
+        body, body_key, cfg = "Planning Commission", "rpc", {"kind_labels": {"regular": "Regular"}}
+        sources = {"src-rpc": {"url": "https://example.invalid/agenda.pdf"}}
+        facts = {"meetings": [{"id": "rpc-2026-11-24", "date": "2026-11-24", "kind": "regular"}],
+                 "cases": [zcase(1, district=3), zcase(2, ward=3), zcase(3, "CZ", district=21),
+                           zcase(4, "Z"), zcase(5, "S", district=3), zcase(6, "HZ", district=3, ward=12)]}
+
+        def year_href(self, y):
+            return f"rpc/meetings/{y}.html"
+
+        def case_anchor(self, c):
+            return f"case-{c['id']}"
+    return R()
+
+
+@pytest.fixture(scope="module")
+def county():
+    return views.Index(FACTS)
+
+
+@pytest.fixture(scope="module")
+def fin():
+    import json
+    return json.loads(FIN.read_text(encoding="utf-8"))
+
+
+def ids_of(raw):
+    return [text(e, "id") for e in ET.fromstring(raw).findall(A + "entry")]
+
+
+def test_contracts_feed_has_one_entry_per_solicitation(county, fin):
+    out = feeds.build_feeds(county, cfg=CFG, fin=fin)
+    ids = ids_of(out["feeds/topic-contracts.xml"])
+    assert sorted(i.split(":")[-1] for i in ids) == sorted(f"contracts/solicitation/{s['id']}" for s in fin["solicitations"]
+                                                           if s["document_ids"])
+    assert "feeds/topic-contracts.xml" not in feeds.build_feeds(county, cfg=CFG)
+    root = ET.fromstring(out["feeds/topic-contracts.xml"])
+    titles = {text(e, "title") for e in root.findall(A + "entry")}
+    assert titles <= {s["title"] for s in fin["solicitations"]}
+    assert text(root, "title") == f"{config.SITE_NAME}: {CFG['alerts']['contracts_title']}"   # config text, not code
+    cfg = copy.deepcopy(CFG)
+    cfg["alerts"]["contracts_title"] = "Contracts: test title"
+    assert text(ET.fromstring(feeds.build_feeds(county, cfg=cfg, fin=fin)["feeds/topic-contracts.xml"]), "title") \
+        .endswith(": Contracts: test title")
+
+
+def test_rpc_zoning_cases_join_the_rezoning_feed_and_old_ids_stay(county, zoning_rpc):
+    old = ids_of(feeds.build_feeds(county, cfg=CFG)["feeds/topic-rezoning.xml"])
+    new = ids_of(feeds.build_feeds(county, cfg=CFG, rpc=zoning_rpc)["feeds/topic-rezoning.xml"])
+    assert set(old) <= set(new)
+    added = [i.removeprefix(CFG["alerts"]["feed_id"]) for i in new if i not in old]
+    assert sorted(added) == sorted(f"rpc/item/{c['id']}/rpc-2026-11-24" for c in zoning_rpc.facts["cases"]
+                                   if c["prefix"] != "S")
+
+
+def test_rpc_cases_beyond_max_entries_never_push_county_rezoning_items_out(county, zoning_rpc):
+    # feeds/rezoning-keeps-every-body: RPC agendas are dated ahead and come often, county minutes run months behind;
+    # the rezoning feed keeps the newest max_entries of each body, so every county entry stays.
+    cap = CFG["alerts"]["max_entries"]
+
+    class Many(type(zoning_rpc)):
+        facts = {"meetings": [{"id": f"rpc-2027-{n:03d}", "date": f"2027-{1 + n // 28:02d}-{1 + n % 28:02d}",
+                               "kind": "regular"} for n in range(cap + 10)],
+                 "cases": [zcase(n, meeting=f"rpc-2027-{n:03d}") for n in range(cap + 10)]}
+    county_ids = ids_of(feeds.build_feeds(county, cfg=CFG)["feeds/topic-rezoning.xml"])
+    assert county_ids                                                 # the fixture has county rezoning items
+    got = ids_of(feeds.build_feeds(county, cfg=CFG, rpc=Many())["feeds/topic-rezoning.xml"])
+    assert set(county_ids) <= set(got)
+    rpc_ids = [i for i in got if i.removeprefix(CFG["alerts"]["feed_id"]).startswith("rpc/")]
+    assert len(rpc_ids) == cap and len(got) == cap + len(county_ids)
+    assert f"rpc-2027-{cap + 9:03d}" in rpc_ids[0] and not any("rpc-2027-009/" in i for i in rpc_ids)  # RPC: its newest
+    root = ET.fromstring(feeds.build_feeds(county, cfg=CFG, rpc=Many())["feeds/topic-rezoning.xml"])
+    dates = [text(e, "updated") for e in root.findall(A + "entry")]
+    assert dates == sorted(dates, reverse=True)                       # one list, newest first
+    # every other feed keeps one cap across bodies
+    assert feeds.newest([{"body": b, "sort": (n,)} for b in "ab" for n in range(cap)], cap) == \
+        sorted([{"body": b, "sort": (n,)} for b in "ab" for n in range(cap)], key=lambda e: e["sort"], reverse=True)[:cap]
+
+
+def test_per_seat_feeds_are_pages_target_only(county, zoning_rpc, fin):
+    for target in ("preview", None):
+        out = feeds.build_feeds(county, cfg=CFG, rpc=zoning_rpc, fin=fin, target=target)
+        assert not [f for f in out if "zoning-" in f]
+        assert not [f for f in feeds.feed_list(cfg=CFG, rpc=zoning_rpc, target=target) if f["kind"] == "zoning-seat"]
+    out = feeds.build_feeds(county, cfg=CFG, rpc=zoning_rpc, fin=fin, target="pages")
+    assert len([f for f in out if "zoning-district-" in f]) == CFG["district_count"] == 21
+    assert len([f for f in out if "zoning-ward-" in f]) == CFG["ward_count"] == 12
+    listed = [f for f in feeds.feed_list(cfg=CFG, rpc=zoning_rpc, target="pages") if f["kind"] == "zoning-seat"]
+    assert len(listed) == 33 and {"seat", "number", "file", "title", "about"} <= set(listed[0])
+    assert (listed[0]["seat"], listed[0]["number"], listed[0]["file"]) == ("district", 1, "feeds/zoning-district-01.xml")
+
+
+def test_a_per_seat_feed_holds_only_cases_printing_that_number(county, zoning_rpc):
+    out = feeds.build_feeds(county, cfg=CFG, rpc=zoning_rpc, target="pages")
+    pre = CFG["alerts"]["feed_id"] + "rpc/item/2026-11-24-"
+    cid = {n: f"{pre}{p}-{n}-2026/rpc-2026-11-24" for n, p in ((1, "z"), (2, "z"), (3, "cz"), (4, "z"), (6, "hz"))}
+    assert set(ids_of(out["feeds/zoning-district-03.xml"])) == {cid[1], cid[6]}   # the S- plat is not zoning
+    assert set(ids_of(out["feeds/zoning-district-21.xml"])) == {cid[3]}
+    assert set(ids_of(out["feeds/zoning-ward-03.xml"])) == {cid[2]}
+    assert set(ids_of(out["feeds/zoning-ward-12.xml"])) == {cid[6]}
+    assert ids_of(out["feeds/zoning-district-02.xml"]) == []   # printed nowhere: empty, never guessed
+    assert cid[4] not in "".join(v.decode() for k, v in out.items() if "zoning-" in k)
+
+
+def test_new_feeds_are_valid_atom_and_ids_are_stable(county, zoning_rpc, fin):
+    one = feeds.build_feeds(county, cfg=CFG, rpc=zoning_rpc, fin=fin, target="pages")
+    two = feeds.build_feeds(county, cfg=CFG, rpc=zoning_rpc, fin=fin, target="pages")
+    assert one == two
+    for rel in [f for f in one if "zoning-" in f or "contracts" in f or "rezoning" in f]:
+        root = ET.fromstring(one[rel])
+        assert root.tag == A + "feed"
+        for tag in ("id", "title", "updated", "subtitle"):
+            assert text(root, tag), (rel, tag)
+        for e in root.findall(A + "entry"):
+            assert site_checks.RFC3339.fullmatch(text(e, "updated"))
+            assert text(e, "id").startswith(CFG["alerts"]["feed_id"])
+            assert [x for x in e.findall(A + "link") if x.get("rel") == "alternate"]
+        assert len(set(ids_of(one[rel]))) == len(ids_of(one[rel]))

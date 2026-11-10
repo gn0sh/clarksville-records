@@ -49,8 +49,78 @@ corrections:
 alerts:
   feed_id: "tag:daylight.gnoshcodes.com,2026-11-09:"   # names every feed and entry id; never change it (readers re-alert). Changed from records.* to daylight.* on 2026-11-10, before launch, so no reader was affected
   site_url: ""        # the public site's https base ending in "/", set at launch: feeds then carry absolute links
-  max_entries: 50     # newest entries per feed
+  max_entries: 50     # newest entries per feed (topic-rezoning.xml: per body)
   topics: [rezoning, budget, resolution, ordinance, appointment]
+  contracts_title: "Contracts: purchasing solicitations"   # feeds/topic-contracts.xml (one entry per solicitation)
+
+# The morning note (Daylight M3, sitegen/morning.py, docs/architecture/morning-note.md). Each build writes the last
+# `keep_days` days' "what's new" as morning/YYYY-MM-DD.json plus morning/latest.json: every document whose
+# first_fetched_at (in the collectors' own manifests below) falls in [day before at `cutoff`, day at `cutoff`) in
+# site_timezone (pages target only; the preview build writes none). Nothing is sent: email is a later step behind the CEO's provider pick (hard stops 3-5). The build
+# refuses `enabled: true` without an https form_action and privacy_url, and any form_action while enabled is false.
+# Leave the whole block out to write no note.
+morning_note:
+  lists:          # keys are fixed (morning.LIST_KEYS); labels are what the page and the note print
+    - {key: zoning, label: Zoning near me}
+    - {key: seats, label: My two seats}
+    - {key: budget, label: Budget}
+    - {key: contracts, label: Contracts}
+  cutoff: "07:00"
+  keep_days: 7
+  zoning_prefixes: [Z, ZO, CZ, CZO, HZ]   # rpc.yml City/County/Historic zoning case types
+  # Backfill guard: a day holding a document from a collector's initial run (first fetched within initial_run_hours of
+  # the earliest row of its manifest) or more than max_entries entries is written with "backfill": true and no
+  # entries (its counts kept), so a first collection never becomes a mail.
+  backfill: {initial_run_hours: 48, max_entries: 100}
+  # The collectors' manifests (first_fetched_at by source URL). Every document the note reads must have a row in one.
+  manifests:
+    - data/manifest.json
+    - data/county-agendas/manifest.json
+    - data/localities/clarksville-tn/manifest.json
+    - data/localities/cmc-rpc/manifest.json
+  # Every connective word of the note (entries otherwise carry only the record's own words).
+  text:
+    agenda_item: On the agenda
+    vote: Recorded in the minutes
+    vote_unconfirmed: Recorded in the minutes; not confirmed
+    agenda: Agenda posted
+    minutes: Minutes posted
+    budget_book: Budget book posted
+    solicitation: New on the purchasing archive
+    contract_document: New document
+    unplaced_zoning: "{n} zoning cases printed no district or ward"
+    unplaced_zoning_one: "1 zoning case printed no district or ward"
+  enabled: false        # true only after the CEO picks a provider (hard stops 3-5)
+  provider: ""          # who receives the form, printed in its sent line; required when enabled; code never branches on it
+  form_action: ""       # https URL the sign-up form POSTs to (the provider's hosted endpoint)
+  form_fields: {email: email, lists: tags, district: metadata__district, ward: metadata__ward}
+  privacy_url: ""       # the provider's privacy policy, required when enabled
+  # Every word the sign-up section (alerts.html#note) and the preview page (morning/index.html) print around the
+  # records' own titles. Neutral connective text only: no summary, no claim about anyone.
+  page:
+    heading: Get the morning note
+    about: A short email at 7:00 AM on days when something on your list is on an agenda or was voted on. Quiet on every other day.
+    legend: Put on my list
+    state_off: Email starts at launch; follow by feed now.
+    feeds_heading: Feeds for your list
+    no_feed: No feed for this list yet.
+    seats_hint: No seats are saved on this device, so every feed for this list is shown. Find your district or ward on the map page and this device keeps it.
+    seats_link: Find your seats
+    preview_link: See today's note as it would read
+    email_label: Email
+    submit: Send me the morning note
+    sent_line: "Sending this form gives {provider} your email address, the lists you picked and your saved district and ward."
+    privacy_label: Privacy policy
+    preview_title: Today's morning note
+    preview_lede: "The note as it would read on {date}: what was added to this site from {from} to {to}. Nothing is emailed yet."
+    preview_mine: The lists you pick stay in this page's address on this device; nothing is sent.
+    quiet: Nothing new on your list. On a day like this no note is sent.
+    backfill: This day holds the first collection of a source, which is not sent as a note.
+    unplaced_link: follow every zoning case
+    source_label: Source
+    page_label: page
+    district_label: District
+    ward_label: Ward
 
 county_name: Montgomery County
 county_body: Montgomery County Commission

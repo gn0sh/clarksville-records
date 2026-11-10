@@ -1,6 +1,7 @@
 {% extends "base.html.j2" %}
+{% from "_morning.html.j2" import picker, feed_links %}
 {% block head %}
-{% for f in body_feeds + topic_feeds %}
+{% for f in body_feeds + topic_feeds + seat_feeds %}
 <link rel="alternate" type="application/atom+xml" title="{{ f.title }}" href="{{ root }}{{ f.file }}">
 {% endfor %}
 {% endblock %}
@@ -9,14 +10,48 @@
 <h1>Alerts</h1>
 <p class="lede">Follow new records with a feed. A feed is a link that a feed reader app checks for you: it shows each new agenda, set of minutes or item when it is added to this site.</p>
 
+{% if note %}
+{# Morning note (Daylight M3, sitegen/morning_page.py). Off: no email field, no submit, no form action. #}
+{% if note.enabled %}
+<form class="mn-card" id="note" action="{{ note.action }}" method="post" aria-labelledby="note-h"{% if note.preview %} data-preview="{{ root }}{{ note.preview }}"{% endif %}>
+{% else %}
+<section class="mn-card" id="note" aria-labelledby="note-h"{% if note.preview %} data-preview="{{ root }}{{ note.preview }}"{% endif %}>
+{% endif %}
+  <h2 id="note-h">{{ note.text.heading }}</h2>
+  <p class="small">{{ note.text.about }}</p>
+  {{ picker(note, note.enabled) }}
+  {% if note.enabled %}
+  <input type="hidden" name="{{ note.fields.district }}" value="" data-seat-field="district" disabled>
+  <input type="hidden" name="{{ note.fields.ward }}" value="" data-seat-field="ward" disabled>
+  <label class="f" for="note-email">{{ note.text.email_label }}<input type="email" id="note-email" name="{{ note.fields.email }}" autocomplete="email" required></label>
+  <p class="small">{{ note.sent_line }} <a href="{{ note.privacy_url }}" rel="noopener noreferrer">{{ note.text.privacy_label }}</a></p>
+  <button class="btn" type="submit">{{ note.text.submit }}</button>
+  {% else %}
+  <p class="mn-state"><strong>{{ note.text.state_off }}</strong></p>
+  {% endif %}
+  <div class="mn-panel">
+    {{ feed_links(note, root) }}
+  </div>
+  {% if note.preview %}<p class="mn-preview"><a id="mn-preview" href="{{ root }}{{ note.preview }}">{{ note.text.preview_link }}</a></p>{% endif %}
+{% if note.enabled %}
+</form>
+{% else %}
+</section>
+{% endif %}
+{% endif %}
+
 <h2>How to follow a feed</h2>
 <ol class="alert-steps">
   <li>Copy the link of a feed below: press and hold it (or right-click it) and choose Copy link.</li>
   <li>Paste the link into a feed reader. On the web, Feedly or Inoreader: choose Follow or Add subscription and paste it. On iPhone, an app such as NetNewsWire: choose Add Feed and paste it.</li>
   <li>The reader checks the feed and lists each new entry, linked to its page here and to its source document.</li>
 </ol>
+{% if not (note and note.enabled) %}
 <p>We keep no list of followers and run no sign-up. Each feed holds the newest {{ max_entries }} entries.</p>
-<p>Email alerts are planned. Feeds for a single ward or district are not available yet.</p>
+<p>Email alerts are planned.{% if not seat_feeds %} Feeds for a single ward or district are not available yet.{% endif %}</p>
+{% else %}
+<p>Each feed holds the newest {{ max_entries }} entries.</p>
+{% endif %}
 
 <h2>New agendas and minutes</h2>
 <ul class="feed-list">
@@ -34,4 +69,20 @@
     <span class="feed-about">{{ f.about }}</span>{% if site_url %}<code class="feed-url">{{ site_url }}{{ f.file }}</code>{% endif %}</li>
 {% endfor %}
 </ul>
+{% if seat_feeds %}
+
+<h2>Zoning cases by district or ward</h2>
+<p>A zoning case is in a district's or a ward's feed when its agenda prints that district or ward. A case that prints neither is only in the all-zoning feed above.</p>
+<ul class="feed-list feed-grid">
+{% for f in seat_feeds %}
+  <li><a href="{{ root }}{{ f.file }}" type="application/atom+xml">{{ f.title }}</a></li>
+{% endfor %}
+</ul>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if note %}
+<script src="{{ root }}static/seats.js" defer></script>
+<script src="{{ root }}static/morning.js" defer></script>
+{% endif %}
 {% endblock %}

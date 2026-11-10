@@ -64,6 +64,39 @@ today's), `morning/index.html`. Files are always written, an empty `entries` mea
    "district": 7, "ward": 6, "href": "rpc/meetings/2026.html#...", "source": {"url": "...", "page": 3}}],
  "unplaced_zoning": 0}
 ```
+T1 additions (additive; T3 and the sender may rely on them):
+- every entry carries `seat_body`: `"district"` (county entries), `"ward"` (council entries) or `null`; `select()`'s
+  `seats` rule is "`seat_body` is district and a district is stored, or ward and a ward is stored";
+- a `vote` entry also carries `confirmed` (bool), `outcome` and `tally` (both `null` unless confirmed; RPC: the minutes'
+  own outcome text and tally; county/council: the Passed/Failed label and the printed tally "yes-no[-abstain]");
+  no entry carries any person's name (no mover, seconder, nays or per-official votes);
+- the note carries `unplaced_text` (config text with N filled in, `""` when 0); all connective text is
+  `morning_note.text` in config;
+- an agenda or minutes with no item or motion read gives one `document` entry ("Agenda posted"/"Minutes posted"),
+  id `<body>/meeting/<meeting id>/<agenda|minutes>` (the feeds' scheme); votes are `<body>/vote/<roll call or motion
+  id>`; county agenda-only items `county/item/<number>/<meeting id>`; RPC cases `<rpc body_key>/item/<case id>/<meeting
+  id>`; budget books `finance/book/<book id>`; a solicitation is new on the day its first document is first fetched
+  (`contracts/solicitation/<id>`), and each document first fetched on a later day is `contracts/document/<sol>/<doc>`;
+- the manifest paths are config (`morning_note.manifests`, they name localities); a fixture build writes no note
+  unless a test passes `morning_manifests=`;
+- file budget (manager decision 2026-11-10): `morning/` (JSON and T3's `morning/index.html`) is built on the `pages`
+  target only; the preview writes none. A preview still over 500 with the export after leaving out transcript pages
+  is built again without the open-data export (log line; then no page links a data/ file, data.html and about.html
+  say the files are on the full site, and an earlier export left in the build's `data/` is removed);
+- backfill guard: a day holding any document from a collector's initial run (first fetched within
+  `morning_note.backfill.initial_run_hours` of its manifest's earliest row) or more than `backfill.max_entries`
+  entries has `"backfill": true` and `entries: []`; `counts` (`entries`, `lists` per key, `unplaced_zoning`) is kept.
+  The sender sends nothing for such a day;
+- the neutrality scan (`BANNED`) runs over our own words only (`morning.own_text`: list labels, connective text,
+  body names, and titles we make), not verbatim titles or URLs. Every entry carries `title_ours` (bool): true when
+  the title is ours, not the record's (a meeting's label for minutes with nothing itemised or a vote with no item, an
+  agenda-only meeting's date and kind, an untitled item's fallback);
+- each entry's meeting (`meeting_date`, the id's meeting part, a fallback title and link) is the fact's own
+  `meeting_id`; a source named by two meetings (minutes covering both) gives each fact its own meeting, and a
+  `document` entry for each meeting when nothing in it is itemised;
+- every zoning entry carries `case`: the case number in its one comparable form (rpc_minutes.link_key), `null` on
+  other entries; `unplaced_zoning` counts distinct cases (a case on an agenda and in the minutes is one case).
+
 `select(day, lists, seats) -> list[entry]` (Python, `sitegen/morning.py`) is the one filter: `seats` and `budget`/
 `contracts` membership is by `lists`; `zoning` and `seats` also need the seat match above. `morning.js` mirrors it;
 a parity test runs both over the fixture (as `test_georef_js.py` does). Titles are the record's own words; all
@@ -95,7 +128,9 @@ non-empty results through the provider API; that job and its secret are a later 
 
 ## Feeds added (file budget)
 `feeds/topic-contracts.xml` (one entry per solicitation, id `contracts/solicitation/<id>`); RPC zoning cases join
-`topic-rezoning.xml` (new ids `rpc/item/<case id>/<meeting id>`; existing ids unchanged). Per-seat zoning feeds
+`topic-rezoning.xml` (new ids `rpc/item/<case id>/<meeting id>`; existing ids unchanged). Decision (manager,
+2026-11-10, review `feeds/rezoning-keeps-every-body`): one rezoning feed URL, capped per body (each body keeps its
+newest `alerts.max_entries`), so RPC cases dated ahead never push county or council items out. Per-seat zoning feeds
 `feeds/zoning-district-NN.xml` (21) and `feeds/zoning-ward-NN.xml` (12) are built on the `pages` target only
 (cap 3000); the `preview` target (cap 500) links the all-zoning feed instead. This reverses the feeds.py note "the
 records place no item in a district or ward", which predates the RPC case fields; update that docstring and

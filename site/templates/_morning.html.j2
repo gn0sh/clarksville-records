@@ -1,0 +1,32 @@
+{# Morning note (Daylight M3, sitegen/morning_page.py): the list picker and, per list, the feeds that follow it now.
+   static/morning.js shows the picked lists and the feeds for the seats this device keeps; without it every list and
+   every list's feeds are shown and the picker stays hidden (its boxes would do nothing). While the note is off the
+   boxes carry no name: nothing is ever submitted. #}
+{% macro picker(note, submit) %}
+<fieldset class="mn-picker"{% if not submit %} hidden{% endif %}>
+  <legend>{{ note.text.legend }}</legend>
+  {% for l in note.lists %}
+  <label class="pick"><input type="checkbox" id="n-{{ l.key }}" value="{{ l.key }}"{% if submit %} name="{{ note.fields.lists }}"{% endif %}{% if l.checked %} checked{% endif %}><span>{{ l.label }}</span></label>
+  {% endfor %}
+</fieldset>
+{% endmacro %}
+
+{% macro feed_links(note, root) %}
+<h3 class="mn-feeds-h">{{ note.text.feeds_heading }}</h3>
+<ul class="mn-lists">
+  {% for l in note.lists %}
+  <li data-list="{{ l.key }}"><span class="mn-list-label">{{ l.label }}</span>
+    {% if l.needs_seats %}<p class="mn-hint" data-hint="seats" hidden>{{ note.text.seats_hint }} <a href="{{ root }}index.html">{{ note.text.seats_link }}</a></p>{% endif %}
+    {% if l.feeds %}
+    <ul class="mn-feeds">
+      {% for f in l.feeds %}
+      <li{% if f.per_seat is defined %} data-seat="{{ f.seat }}" data-number="{{ f.number }}" hidden{% elif f.seat is defined %} data-seat="{{ f.seat }}"{% elif f.fallback is defined %} data-fallback{% endif %}><a href="{{ root }}{{ f.file }}" type="application/atom+xml">{{ f.title }}</a></li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="mn-none">{{ note.text.no_feed }}</p>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endmacro %}

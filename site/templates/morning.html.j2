@@ -1,0 +1,34 @@
+{% extends "base.html.j2" %}
+{% from "_morning.html.j2" import picker %}
+{% block main %}
+{# Morning note preview (Daylight M3, sitegen/morning_page.py): one day of the digest (morning/latest.json), every
+   list, rendered here; static/morning.js filters it on this device by the #lists= picks and the seats static/seats.js
+   keeps (the same rule as sitegen/morning.py select(): data-seat-body is the entry's seat_body). Titles are the
+   records' own words; every other word is config text. Nothing is emailed and nothing is sent. Built on the pages
+   target only, from the note sitegen/morning.py wrote. #}
+<h1>{{ text.preview_title }}</h1>
+{% if lede %}<p class="lede">{{ lede }}</p>{% endif %}
+<div class="mn-preview-page" id="mn-day" data-date="{{ day.date }}">
+  {{ picker(note, false) }}
+  <p class="small mn-mine" hidden>{{ text.preview_mine }}</p>
+  <p class="mn-hint" data-hint="seats" hidden>{{ text.seats_hint }} <a href="{{ root }}index.html">{{ text.seats_link }}</a></p>
+  <ol class="mn-entries">
+    {% for e in entries %}
+    <li class="mn-entry" data-lists="{{ e.lists_attr }}" data-body="{{ e.body }}"{% if e.seat_body %} data-seat-body="{{ e.seat_body }}"{% endif %}{% if e.district is not none %} data-district="{{ e.district }}"{% endif %}{% if e.ward is not none %} data-ward="{{ e.ward }}"{% endif %}>
+      <p class="mn-meta"><span class="chip chip-kind">{{ e.recorded }}</span> {{ e.body_name }}{% if e.meeting_date %}, <span class="nowrap">{{ e.meeting_date }}</span>{% endif %}{% if e.district is not none %} <span class="nowrap">{{ text.district_label }} {{ e.district }}</span>{% endif %}{% if e.ward is not none %} <span class="nowrap">{{ text.ward_label }} {{ e.ward }}</span>{% endif %}</p>
+      <p class="mn-title">{% if e.href %}<a href="{{ root }}{{ e.href }}">{{ e.title }}</a>{% else %}{{ e.title }}{% endif %}</p>
+      {% if e.source.url %}<p class="mn-src"><a href="{{ e.source.url }}" target="_blank" rel="noopener noreferrer">{{ text.source_label }}{% if e.source.page %}, {{ text.page_label }} {{ e.source.page }}{% endif %}<span class="sr-only"> (opens in a new tab)</span></a></p>{% endif %}
+    </li>
+    {% endfor %}
+    {% if unplaced %}
+    <li class="mn-entry mn-unplaced" data-lists="zoning" data-unplaced>{{ unplaced.text }}{% if unplaced.feed %}: <a href="{{ root }}{{ unplaced.feed }}" type="application/atom+xml">{{ text.unplaced_link }}</a>{% endif %}</li>
+    {% endif %}
+  </ol>
+  <p class="mn-quiet" aria-live="polite"{% if entries %} hidden{% endif %}>{{ text.backfill if backfill else text.quiet }}</p>
+</div>
+<p class="mn-back"><a href="{{ root }}alerts.html#note">{{ text.heading }}</a></p>
+{% endblock %}
+{% block scripts %}
+<script src="{{ root }}static/seats.js" defer></script>
+<script src="{{ root }}static/morning.js" defer></script>
+{% endblock %}
