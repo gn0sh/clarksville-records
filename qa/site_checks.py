@@ -53,7 +53,7 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   rpc-morning (a build with the RPC) every morning/*.json RPC vote entry (<body_key>/vote/<motion id>) of a motion
               that is not confirmed in rpc.json, or of any motion while hold_motions is on or motion_rules is not
               current, carries confirmed false, no outcome or tally and none of the motion's names; no vote entry
-              of the RPC's body_key has any other id
+              of the RPC's body_key has any other id; a pages build with config morning_note set has morning/*.json
   files       at most the target's file cap: --target preview (claude.ai artifact, 500) or pages (GitHub Pages, 3000)
   transcripts every line of a transcript page (<folder>/transcripts/*.html) has its time linked to its meeting's own
               video as <video_url>#t=<whole seconds>, the "Transcript" label and the notice; every call-on entry on a
@@ -469,15 +469,19 @@ def check_rpc_export(site: Path, rpc: dict | None) -> tuple[list[str], str]:
                       f"motions left out checked)")
 
 
-def check_rpc_morning(site: Path, rpc: dict | None) -> tuple[list[str], str]:
+def check_rpc_morning(site: Path, rpc: dict | None, note_expected: bool = False) -> tuple[list[str], str]:
     """The morning note (morning/*.json, sitegen/morning.py) against rpc.json, restated: an RPC vote entry (id
     <body_key>/vote/<motion id>) may carry `confirmed: true`, an outcome or a tally only for a motion `confirmed: true`
     in rpc.json under the current motion_rules while rpc.yml `hold_motions` is off; any other carries none of those
     and none of its motion's mover, seconder, nays or abstainers (allowed: a value the record's agendas, listing or
-    sources print themselves, as rpc-export)."""
+    sources print themselves, as rpc-export). `note_expected` (config morning_note set, a pages build: build.py writes
+    the note then): a build with no morning/*.json is a problem, not a pass (rpc-hold/morning-dir-absent)."""
     if not rpc:
         return [], "no RPC facts"
     notes = sorted((site / "morning").glob("*.json")) if (site / "morning").is_dir() else []
+    if note_expected and not notes:
+        return ["morning/: no morning note, though config morning_note is set and this is a pages build"], \
+            "0 morning notes"
     motions = {mv["id"]: mv for mv in rpc.get("motions", [])}
     on_hold = rpc_held(rpc)
     current = rpc.get("motion_rules") == RPC_MOTION_RULES and not on_hold
@@ -2367,7 +2371,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
         rep.add("rpc-motions", problems, note)
         problems, note = check_rpc_export(site, rpc)
         rep.add("rpc-export", problems, note)
-        problems, note = check_rpc_morning(site, rpc)
+        # build.py writes the note on every target but preview while config morning_note is set (a real build)
+        problems, note = check_rpc_morning(site, rpc, cfg.get("morning_note") is not None and target != "preview")
         rep.add("rpc-morning", problems, note)
     county_pages = {rel: pg for rel, pg in pages.items() if not any(rel.startswith(c["prefix"]) for c in cs)}
     problems = check_unverified(site, county_pages, facts, internal, fin=finance)

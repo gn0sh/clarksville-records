@@ -259,6 +259,24 @@ def test_site_checks_rpc_morning_fails_an_rpc_vote_entry_under_another_id(inputs
                         "morning/2026-11-11.json: vote entry (no id) of rpc lacks the rpc/vote/<motion id> id"], problems
 
 
+def test_site_checks_rpc_morning_fails_a_missing_note_when_one_is_expected(inputs, tmp_path):
+    """rpc-hold/morning-dir-absent: a pages build with config morning_note set writes morning/; without it (or with
+    no note in it) the check fails instead of passing on zero entries. Not expected (preview, no morning_note): pass."""
+    from qa import site_checks as SC
+    site = tmp_path / "site"
+    shutil.copytree(make_with_note(inputs, True), site)
+    assert SC.check_rpc_morning(site, rec(inputs, True), True)[0] == []
+    for f in (site / "morning").glob("*.json"):
+        f.unlink()
+    for _ in range(2):      # an empty morning/, then none at all
+        problems, msg = SC.check_rpc_morning(site, rec(inputs, True), True)
+        assert problems == ["morning/: no morning note, though config morning_note is set and this is a pages build"]
+        assert msg == "0 morning notes"
+        assert SC.check_rpc_morning(site, rec(inputs, True))[0] == []
+        shutil.rmtree(site / "morning", ignore_errors=True)
+    assert not (site / "morning").exists()
+
+
 def test_show_unconfirmed_values_never_overrides_the_hold(inputs, monkeypatch):
     """config.SHOW_UNCONFIRMED_VALUES on shows a not-confirmed motion's values, but never while the hold is on."""
     facts = json.loads((inputs / "rpc.json").read_text(encoding="utf-8"))
