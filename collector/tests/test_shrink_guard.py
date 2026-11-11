@@ -2,6 +2,7 @@
 G1-G4; problem key pipeline/shrink-guard-freezes-all): per source document and every meeting in it, by sha256; a kept
 document is a warning (exit 7), never a freeze of every other source."""
 import copy
+import hashlib
 import json
 import os
 import shutil
@@ -43,7 +44,19 @@ def rehash(facts, sid):
     new8 = "f" * 8 if old8 != "f" * 8 else "e" * 8
     text = json.dumps(facts)
     assert new8 not in text
-    return json.loads(text.replace(old8, new8)), f"src-{new8}{sid[12:]}"
+    out, new_sid = json.loads(text.replace(old8, new8)), f"src-{new8}{sid[12:]}"
+    # a `t-` item only this document names is salted with its roll call or source id (collector/facts.py item_for):
+    # new bytes give it a new id too (pipeline/votes-changed-salted-item-id)
+    recs = [r for k in ("roll_calls", "motions", "item_events") for r in out[k]]
+    mine = {r["item_id"] for r in recs if r["source_id"] == new_sid and r["item_id"].startswith("t-")}
+    shared = {r["item_id"] for r in recs if r["source_id"] != new_sid}
+    salt = {i: "t-" + hashlib.sha1(f"{i}|{new8}".encode()).hexdigest()[:10] for i in mine - shared}
+    for r in recs:
+        r["item_id"] = salt.get(r["item_id"], r["item_id"])
+    for it in out["items"]:
+        it["id"] = salt.get(it["id"], it["id"])
+    out["items"].sort(key=lambda x: x["id"])
+    return out, new_sid
 
 
 def one_meeting_source(facts):
@@ -103,7 +116,8 @@ def county(tmp_path, monkeypatch):
 
     def site(facts_path_arg, out, **kw):
         state["ran"].append("site")
-        state["site_facts"] = json.loads(Path(facts_path_arg).read_text(encoding="utf-8"))
+        # the real build's first step: schema and every reference (pipeline/test-stubs-hide-reference-check)
+        state["site_facts"] = sitegen.build.load_facts(facts_path_arg)
 
     def export(facts, out, **kw):
         state["export_facts"] = facts
@@ -515,3 +529,61 @@ def test_allow_shrink_leaves_a_trace(county, tmp_path):
         r = subprocess.run(["bash", "-c", 'msg="Daily update' + script + 'echo "$msg"'], cwd=work, text=True,
                            capture_output=True, env={**os.environ, "ALLOWED": ok}, check=True)
         assert (want in r.stdout) if want else ("allow_shrink" not in r.stdout), (ok, r.stdout)
+
+
+# ------------------------------------------------------------------ code review of 5d2f84c
+def test_a_kept_document_leaves_no_dangling_zoning_reference(county):
+    """pipeline/keep-closure-dangling-zoning-ref: S kept, its meetings read from a new document whose readings feed a
+    rezoning case's zoning fields. The new document is dropped with the keep, so those fields take the committed ones;
+    the site build's reference check (load_facts, in the stub) passes. Repro: src-19ac962e4270, CZ-9-2022."""
+    sid = "src-19ac962e4270"
+    old = committed()
+    new, new_sid = moved(old, sid)
+    cz = next(i for i in new["items"] if i["id"] == "CZ-9-2022")
+    assert {f["source_id"] for f in cz["zoning"].values() if f} >= {new_sid}            # cites the new document
+    county["new"] = new
+    assert M.main(["run"]) == M.KEPT                                                    # load_facts raised before
+    written = json.loads(county["path"].read_text())
+    assert next(i for i in written["items"] if i["id"] == "CZ-9-2022") == next(
+        i for i in old["items"] if i["id"] == "CZ-9-2022")
+    # no committed field to fall back on: None, never a dangling id
+    bare = copy.deepcopy(old)
+    next(i for i in bare["items"] if i["id"] == "CZ-9-2022").pop("zoning")
+    kept = M.shrink_guard(new, bare)["kept"]
+    merged = M.keep_documents(new, bare, kept)
+    z = next(i for i in merged["items"] if i["id"] == "CZ-9-2022")["zoning"]
+    assert z["acreage"] is None and z["location"] is None
+    published = {s["id"] for s in merged["sources"]}
+    assert all(f["source_id"] in published for i in merged["items"] for f in (i.get("zoning") or {}).values() if f)
+
+
+def test_a_resalted_consent_agenda_item_is_not_a_vote_change(county):
+    """pipeline/votes-changed-salted-item-id: new bytes rename a "Consent Agenda" item's salted t- id; the votes are the
+    same, so the correction is published with votes_changed False and exit 0."""
+    old = committed()
+    consent = {i["id"] for i in old["items"] if i["title"] == "Consent Agenda"}
+    one = {m["source_id"] for m in old["meetings"]}
+    sid = next(s for s in sorted(one) if sum(m["source_id"] == s for m in old["meetings"]) == 1
+               and any(r["source_id"] == s and r["item_id"] in consent for r in old["roll_calls"]))
+    new, new_sid = rehash(old, sid)
+    ms = [m["id"] for m in old["meetings"] if m["source_id"] == sid]
+    before = {r["item_id"] for r in old["roll_calls"] if r["source_id"] == sid} & consent
+    after = {r["item_id"] for r in new["roll_calls"] if r["source_id"] == new_sid}
+    assert before and not before & after                                        # the salted id did change
+    assert M.vote_content(old, ms) == M.vote_content(new, ms)
+    county["new"] = new
+    assert M.main(["run"]) == 0
+    (c,) = county["log"]()["corrections"]
+    assert c["votes_changed"] is False and json.loads(county["path"].read_text()) == new
+
+
+def test_a_kept_roll_call_never_takes_the_new_readings_source_error():
+    """pipeline/kept-source-error-from-new-reading: the build flagged a source error on an id the guard put back from
+    the committed file (no failed check there): it is not counted as one."""
+    old = committed()
+    rc = next(r for r in old["roll_calls"] if r["verification"]["status"] == "verified")
+
+    class B:
+        source_errors = {rc["id"]}
+    assert rc["id"] in M.merged_source_errors(old, B())
+    assert rc["id"] not in M.merged_source_errors(old, B(), kept_ids={rc["id"]})

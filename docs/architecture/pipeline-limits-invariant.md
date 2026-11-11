@@ -111,6 +111,11 @@ nothing is published confirmed; (iii) `--allow-shrink` from G3 reaches it as now
 **Known gap, not in this fix:** inside RPC one meeting's shrink still holds back every RPC meeting (whole-step
 refusal), which breaks I-2 within RPC. Tolerable while `hold_motions` is on and listing/manifest are all-or-nothing
 too; before `hold_motions` is turned off, give RPC the per-meeting keep (architect task then).
+**Known gap, not in this fix (`pipeline/rpc-correction-unwarned`, code review 5d2f84c):** an RPC correction (new
+minutes bytes, rpc.py `minutes_corrections`) that unconfirms motions is published with exit 0 and only a summary
+line; unlike the county's G1(b) it raises no warning (no exit 7 or issue). Harmless while `hold_motions` is on
+(nothing is published confirmed); **must be done before `hold_motions` is turned off**, with the per-meeting keep
+above.
 
 **G5 Known gap, not in this fix (proposed key `pipeline/parse-failure-freezes-all`):** a fetch or parse failure on one
 county document (e.g. an L8 `pdftotext` timeout, which is not cached and so repeats daily) still sets exit 2 and
@@ -193,6 +198,13 @@ collector/rpc_export.py:10 and qa/site_checks.py:47 (read `hold_motions`, not ex
   is unchanged, meetings.choose) S is kept. A correction raises 7 when its verified count fell **or its votes
   changed** (`votes_changed`: per roll call item, outcome, stated tally, each vote's official, name and value)
   (`pipeline/correction-not-bytes-changed`).
+- Code review 5d2f84c: `vote_content` compares items by `item_key` (the number when linked by number, else the
+  normalised title), since a procedural item's `t-` id is salted with ids a new sha256 renames
+  (`pipeline/votes-changed-salted-item-id`). `keep_documents` drops new items only the replaced records named, and an
+  item's zoning field citing a dropped source takes the committed field, else None
+  (`pipeline/keep-closure-dangling-zoning-ref`). The build's own source errors no longer count for roll calls the
+  guard put back (`pipeline/kept-source-error-from-new-reading`). The guard tests' site stub runs
+  `sitegen.build.load_facts` (schema and references) on the merged file.
 - Both issue steps have `continue-on-error: true`, so a gh failure never holds back upload, push or deploy
   (`ci/notify-step-blocks-publish`). An `allow_shrink` run that replaced documents (run-log `allowed_shrink`) sets
   the update job output `allowed=yes`: the data commit message says `allow_shrink: ...` and the kept-meetings issue

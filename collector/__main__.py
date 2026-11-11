@@ -41,7 +41,7 @@ from pathlib import Path
 from . import limits
 from .config import YEARS
 from .discover import DiscoveryError, classify, discover, fetch_index
-from .facts import Builder, dumps, load_procedural, write_if_changed
+from .facts import Builder, dumps, load_procedural, norm_title, write_if_changed
 from .meetings import choose
 from .fetch import FetchFailed, HostBlocked, HostRefused, PoliteFetcher, ProxyRefused, RobotsDisallowed
 from .names import NAMES, Resolver, load_roster
@@ -228,11 +228,13 @@ def gate_report(facts: dict, source_errors: set, log: dict) -> dict:
     }
 
 
-def merged_source_errors(facts: dict, b) -> set:
-    """Source-document-error roll call ids among `facts`: the build's own (b.source_errors) plus a kept committed roll
-    call's failed `source_consistent` check (collector/facts.py writes that check for exactly those ids)."""
+def merged_source_errors(facts: dict, b, kept_ids=()) -> set:
+    """Source-document-error roll call ids among `facts`: the build's own (b.source_errors) for the records it still
+    supplies (not `kept_ids`, the committed roll calls the guard put back, which may share an id with the new reading:
+    pipeline/kept-source-error-from-new-reading), plus every roll call's failed `source_consistent` check
+    (collector/facts.py writes that check for exactly those ids)."""
     ids = {r["id"] for r in facts["roll_calls"]}
-    own = set(getattr(b, "source_errors", None) or ()) & ids
+    own = (set(getattr(b, "source_errors", None) or ()) & ids) - set(kept_ids)
     return own | {r["id"] for r in facts["roll_calls"]
                   if any(c.get("check") == "source_consistent" and not c.get("ok")
                          for c in (r.get("verification") or {}).get("checks", []))}
@@ -378,11 +380,22 @@ def check_unit(facts: dict, which: str) -> None:
             f"(docs/architecture/pipeline-limits-invariant.md, 'Rule 3: the shrink guard', G1)")
 
 
+def item_key(facts: dict) -> dict:
+    """item id -> a key that does not depend on the document's bytes: its number when it is linked by number, else its
+    normalised title. A `t-` id of a procedural or untitled item (e.g. "Consent Agenda") is salted with the roll call
+    or source id, which a new sha256 renames (pipeline/votes-changed-salted-item-id)."""
+    return {i["id"]: (i.get("number") if i.get("link_basis") == "number" and i.get("number")
+                      else "title:" + norm_title(i.get("title") or "")) for i in facts.get("items", [])}
+
+
 def vote_content(facts: dict, meeting_ids) -> list:
-    """The votes of these meetings without ids, sources or pages (which a new sha256 renames): per roll call its item,
-    outcome, stated tally and each vote's official, name and value, sorted. Equal lists: the correction kept every vote."""
+    """The votes of these meetings without ids, sources or pages (which a new sha256 renames): per roll call its item
+    (item_key), outcome, stated tally and each vote's official, name and value, sorted. Equal lists: the correction
+    kept every vote."""
     ms = set(meeting_ids)
-    return sorted(json.dumps([r.get("meeting_id"), r.get("item_id"), r.get("outcome"), r.get("stated_tally"),
+    key = item_key(facts)
+    return sorted(json.dumps([r.get("meeting_id"), key.get(r.get("item_id"), r.get("item_id")), r.get("outcome"),
+                              r.get("stated_tally"),
                               sorted([v.get("official_id") or "", v.get("raw_name") or "", v.get("value") or ""]
                                      for v in r.get("votes") or [])], sort_keys=True)
                   for r in facts.get("roll_calls", []) if r.get("meeting_id") in ms)
@@ -486,8 +499,9 @@ def keep_documents(new: dict, old: dict, kept: list[dict]) -> dict:
     """G2.1: `new` with every kept document's records replaced by the committed ones, byte for byte. A record is the
     document's when its meeting is one of the kept meetings or its source is the kept source or a new source carrying
     one of them (closed over both files, so no meeting is ever shown twice). Committed items the kept records name are
-    added back when `new` lacks them; officials come from `new`. Lists are sorted as Builder.facts sorts them, so a
-    document kept two days running writes the same file."""
+    added back when `new` lacks them, and new items only the replaced records named are dropped; an item's zoning
+    field that cites a dropped source takes the committed field or None; officials come from `new`. Lists are sorted
+    as Builder.facts sorts them, so a document kept two days running writes the same file."""
     ms, sids = keep_closure(new, old, kept)
 
     def mine(r: dict, key: str = "meeting_id") -> bool:
@@ -501,9 +515,28 @@ def keep_documents(new: dict, old: dict, kept: list[dict]) -> dict:
                             + [s for s in old.get("sources", []) if s["id"] in sids], key=lambda x: x["id"])
     have = {i["id"] for i in new.get("items", [])}
     named = {r.get("item_id") for k in ("roll_calls", "motions", "item_events") for r in old.get(k, []) if mine(r)}
-    out["items"] = sorted(list(new.get("items", [])) + [i for i in old.get("items", [])
-                                                         if i["id"] in named and i["id"] not in have],
+    # every item is named by a record (Builder.items); one only the replaced new records named goes with them
+    used = {r.get("item_id") for k in ("roll_calls", "motions", "item_events") for r in out[k]}
+    out["items"] = sorted([i for i in new.get("items", []) if i["id"] in used]
+                          + [i for i in old.get("items", []) if i["id"] in named and i["id"] not in have],
                           key=lambda x: x["id"])
+    # pipeline/keep-closure-dangling-zoning-ref: an item's zoning field may cite a new source the keep dropped (a
+    # new-only document of the closure); it takes the committed item's field (when its source is published), else None
+    published = {x["id"] for x in out["sources"]}
+    was = {i["id"]: i for i in old.get("items", [])}
+    for n, it in enumerate(out["items"]):
+        z = it.get("zoning")
+        if not z or all(f is None or f.get("source_id") in published for f in z.values()):
+            continue
+        oz = (was.get(it["id"]) or {}).get("zoning") or {}
+        fixed = {}
+        for name, f in z.items():
+            if f is None or f.get("source_id") in published:
+                fixed[name] = f
+            else:
+                o = oz.get(name)
+                fixed[name] = o if o is not None and o.get("source_id") in published else None
+        out["items"][n] = {**it, "zoning": fixed}
     dates = [m["date"] for m in out["meetings"] if m.get("date")]
     if dates and isinstance(new.get("coverage"), dict):       # the published meetings' range, kept ones included
         out["coverage"] = {**new["coverage"], "from": min(dates), "to": max(dates)}
@@ -594,8 +627,10 @@ def cmd_run(args) -> int:
     if allow and guard["kept"]:
         log["allowed_shrink"] = guard["kept"]
     if kept:
+        ms, sids = keep_closure(facts, old, kept)
+        put_back = {r["id"] for r in old.get("roll_calls", []) if r.get("meeting_id") in ms or r.get("source_id") in sids}
         facts = keep_documents(facts, old, kept)
-        report.update(gate_report(facts, merged_source_errors(facts, b), log))      # G2.3
+        report.update(gate_report(facts, merged_source_errors(facts, b, put_back), log))      # G2.3
     for c in guard["corrections"]:
         print(f"collector: {correction_line(c)}", flush=True)
     county_trips = limits.tripped(since)       # the county build; the agendas step is added below
