@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 import urllib.error
 import urllib.parse
@@ -112,6 +113,21 @@ def host_matches(host: str, names) -> bool:
     return any(host == n or host.endswith("." + n) for n in names)
 
 
+PLAIN_HOST = re.compile(r"[a-z0-9.-]+")
+
+
+def plain_hostname(host: str) -> str | None:
+    """The lowercase host name of a netloc (no port, no user info) when it is a plain DNS name: letters, digits, dots
+    and hyphens only. None otherwise (collector-input/host-percent-encoded): urllib decodes %23, %40, %2f in a host
+    before it connects, so a raw netloc like evil.com%23.clarksvilletn.gov must never be matched against the
+    allowlist."""
+    try:
+        name = urllib.parse.urlsplit("//" + host).hostname
+    except ValueError:
+        return None
+    return name if name and PLAIN_HOST.fullmatch(name) else None
+
+
 def site_key(host: str) -> str:
     """One key per site for the per-host state: lowercase, no port, no leading 'www.'."""
     h = host.lower().strip().split(":")[0].rstrip(".")
@@ -174,6 +190,11 @@ class PoliteFetcher:
 
     # ------------------------------------------------------------ policy
     def check_host(self, host: str) -> None:
+        name = plain_hostname(host)
+        if name is None:
+            self.log.append({"event": "refused", "host": host, "detail": "not a plain host name"})
+            raise HostRefused(f"{host!r}: not a plain host name (letters, digits, dots, hyphens)")
+        host = name
         if host_matches(host, DENIED_HOSTS):
             self.log.append({"event": "refused", "host": host, "detail": "denied host"})
             raise HostRefused(f"{host}: denied in code (never collected)")

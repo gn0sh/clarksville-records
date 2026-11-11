@@ -266,6 +266,28 @@ def test_redirect_to_https_on_port_443_is_followed():
     assert f.get("https://h.example/a")[1] == b"%PDF-1"
 
 
+@pytest.mark.parametrize("bad", ["evil.com%23.h.example", "evil.com%40.h.example", "evil.com%2f.h.example",
+                                 "evil.com%2F@h.example", "[::1]", "h_x.h.example", "evil.com\\.h.example"])
+def test_a_host_that_is_not_a_plain_name_is_refused_first_or_on_a_redirect(bad):
+    """collector-input/host-percent-encoded: urllib decodes %23/%40/%2f in a host before connecting, so a raw netloc
+    ending in an allowed name must not pass the allowlist."""
+    f, net, _ = make({f"https://{bad}/x": (200, b"%PDF-1")})
+    with pytest.raises(HostRefused):
+        f.get(f"https://{bad}/x")
+    assert net.calls == []
+    f, net, _ = make({"https://h.example/a": (302, b"", {"Location": f"https://{bad}/x"}),
+                      f"https://{bad}/x": (200, b"%PDF-1")})
+    with pytest.raises(HostRefused):
+        f.get("https://h.example/a")
+    assert [u for u, _ in net.calls] == ["https://h.example/robots.txt", "https://h.example/a"]
+
+
+def test_plain_hostname():
+    from collector.fetch import plain_hostname
+    assert plain_hostname("WWW.H.Example:443") == "www.h.example"
+    assert plain_hostname("evil.com%23.h.example") is None and plain_hostname("[x") is None
+
+
 def test_redirect_loop_fails():
     from collector.fetch import FetchFailed
     f, net, _ = make({"https://h.example/a": (302, b"", {"Location": "https://h.example/a"})})
