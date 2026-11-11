@@ -52,7 +52,8 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               data/<slug>/ holds exactly the export's five files; while rpc.yml hold_motions is on, no motion row
   rpc-morning (a build with the RPC) every morning/*.json RPC vote entry (<body_key>/vote/<motion id>) of a motion
               that is not confirmed in rpc.json, or of any motion while hold_motions is on or motion_rules is not
-              current, carries confirmed false, no outcome or tally and none of the motion's names
+              current, carries confirmed false, no outcome or tally and none of the motion's names; no vote entry
+              of the RPC's body_key has any other id
   files       at most the target's file cap: --target preview (claude.ai artifact, 500) or pages (GitHub Pages, 3000)
   transcripts every line of a transcript page (<folder>/transcripts/*.html) has its time linked to its meeting's own
               video as <video_url>#t=<whole seconds>, the "Transcript" label and the notice; every call-on entry on a
@@ -493,6 +494,10 @@ def check_rpc_morning(site: Path, rpc: dict | None) -> tuple[list[str], str]:
         for e in entries:
             eid = str(e.get("id") or "")
             if not eid.startswith(prefix):
+                # a vote entry of the RPC under any other id would skip every rule below (rpc-hold/morning-id-drift)
+                if e.get("kind") == "vote" and e.get("body") == rpc["_cfg"]["body_key"]:
+                    problems.append(f"morning/{f.name}: vote entry {eid or '(no id)'} of {e['body']} lacks the "
+                                    f"{prefix}<motion id> id")
                 continue
             seen += 1
             mid = eid[len(prefix):]

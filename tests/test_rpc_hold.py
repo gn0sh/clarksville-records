@@ -240,6 +240,25 @@ def test_site_checks_rpc_morning_fails_a_name_or_a_stale_record(inputs, tmp_path
                for p in problems), problems
 
 
+def test_site_checks_rpc_morning_fails_an_rpc_vote_entry_under_another_id(inputs, tmp_path):
+    """rpc-hold/morning-id-drift: a vote entry of the RPC body whose id lacks rpc/vote/ would skip every rule."""
+    from qa import site_checks as SC
+    site = tmp_path / "site"
+    shutil.copytree(make_with_note(inputs, False), site)
+    f = site / "morning/2026-11-11.json"
+    note = json.loads(f.read_text(encoding="utf-8"))
+    first = next(e for e in note["entries"] if e["id"] == f"rpc/vote/{MEETING}-motion-1")
+    assert (first["kind"], first["body"]) == ("vote", "rpc")
+    note["entries"] += [{**first, "id": f"rpc/votes/{MEETING}-motion-1"}, {**first, "id": None},
+                        {**first, "id": "other/vote/x", "body": "other"},                  # another body: not the RPC's
+                        {**first, "id": f"rpc/item/{MEETING}-motion-1", "kind": "agenda_item"}]   # not a vote
+    f.write_text(json.dumps(note), encoding="utf-8")
+    problems, _ = SC.check_rpc_morning(site, rec(inputs, False))
+    assert problems == [f"morning/2026-11-11.json: vote entry rpc/votes/{MEETING}-motion-1 of rpc lacks the "
+                        "rpc/vote/<motion id> id",
+                        "morning/2026-11-11.json: vote entry (no id) of rpc lacks the rpc/vote/<motion id> id"], problems
+
+
 def test_show_unconfirmed_values_never_overrides_the_hold(inputs, monkeypatch):
     """config.SHOW_UNCONFIRMED_VALUES on shows a not-confirmed motion's values, but never while the hold is on."""
     facts = json.loads((inputs / "rpc.json").read_text(encoding="utf-8"))
