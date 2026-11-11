@@ -595,9 +595,12 @@ def resolve(docs: list[dict], first: dict[str, datetime]) -> None:
 # ---------------------------------------------------------------------------------------------- the day, select
 def as_of(d: date, fetch_dates) -> str:
     """A note's `data_as_of`: the newest fetch date on or before the note's day `d`, "" when there is none
-    (morning-digest/data-as-of). `fetch_dates` is every source's fetch day (YYYY-MM-DD, as localdates.days gives it) from
-    every data file the note reads, so each day's note states its own date, not the build's. A plain string is one
-    date for every day, as given."""
+    (morning-digest/data-as-of). `fetch_dates` is every source's fetch day (YYYY-MM-DD, as localdates.days gives
+    it) from every data file the note reads, so each day's note states its own date, not the build's. A plain
+    string is one date for every day, as given.
+    Fallback (data_as_of_utc true: some source has no recorded instant, so these are stored UTC days): the `<= d`
+    comparison is kept on purpose. A UTC day is the local day or the day after it, so a fetch on the evening of `d`
+    (UTC day d+1) is left out of d's note: the note may state an older day, never one after its own."""
     if isinstance(fetch_dates, str):
         return fetch_dates
     dates = [x[:10] for x in fetch_dates or () if isinstance(x, str) and x[:10] <= d.isoformat()

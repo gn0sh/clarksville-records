@@ -672,6 +672,35 @@ def test_data_as_of_counts_agendas_and_finance_and_differs_by_day(inputs, tmp_pa
     assert all(v <= k for k, v in got.items()) and len(set(got.values())) > 1
 
 
+def test_data_as_of_is_the_local_day_when_every_source_has_its_instant(inputs, tmp_path):
+    """local-dates/as-of-exact-untested: with a fetch manifest row for every source, data_as_of is the site_timezone
+    day (data_as_of_utc false). The county agenda's evening fetch, 2026-11-10T04:38Z, is 22:38 Central on Nov 9: the
+    Nov 9 note says 2026-11-09, never the stored UTC day 2026-11-10, and the Nov 8 note does not pick it up."""
+    evening = "2026-11-10T04:38:00+00:00"
+    rpcf = copy.deepcopy(inputs["rpcf"])
+    for s in rpcf["sources"]:
+        s["fetched_at"] = "2026-11-07"
+    (tmp_path / "rpc.json").write_text(json.dumps(rpcf), encoding="utf-8")
+    agendas = json.loads(inputs["agendas"].read_text(encoding="utf-8"))
+    agendas["sources"][0]["fetched_at"] = "2026-11-10"                    # the UTC day of `evening`
+    (tmp_path / "agendas.json").write_text(json.dumps(agendas), encoding="utf-8")
+    fin = json.loads(FIN.read_text(encoding="utf-8"))
+    srcs = inputs["county"]["sources"] + rpcf["sources"] + agendas["sources"] + fin["sources"]
+    assert {s["fetched_at"][:10] for s in srcs} == {"2026-11-07", "2026-11-10"} and all(s.get("sha256") for s in srcs)
+    rows = [{"url": s["url"], "sha256": s["sha256"],
+             "first_fetched_at": evening if s["fetched_at"] == "2026-11-10" else "2026-11-07T15:00:00+00:00"}
+            for s in srcs]
+    (tmp_path / "fetch.json").write_text(json.dumps(rows), encoding="utf-8")
+    out = tmp_path / "build" / "site"
+    make(inputs, out, rpc={**inputs["rpc"], "facts_path": tmp_path / "rpc.json"},
+         county_agendas=tmp_path / "agendas.json", fetch_manifests=[tmp_path / "fetch.json"])
+    notes = {p.stem: json.loads(p.read_text(encoding="utf-8")) for p in (out / "morning").glob("2026-*.json")}
+    assert notes["2026-11-09"]["data_as_of"] == "2026-11-09" and notes["2026-11-09"]["data_as_of_utc"] is False
+    assert notes["2026-11-08"]["data_as_of"] == "2026-11-07" and notes["2026-11-08"]["data_as_of_utc"] is False
+    assert notes["2026-11-10"]["data_as_of"] == "2026-11-09"                # the UTC day 2026-11-10 is never used
+    assert all(n["data_as_of"] != "2026-11-10" for n in notes.values())
+
+
 # ------------------------------------------------------------------ a dropped source link fails QA
 def test_a_build_with_a_bad_rpc_source_url_fails_site_checks(inputs, tmp_path):
     """source-link-always/feed-drop-silent: the build drops an RPC source URL that is not an https link (the entry

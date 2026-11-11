@@ -142,8 +142,3 @@ def days(srcs) -> tuple[list[str], bool] | None:
     return _days(srcs)
 
 
-def latest(srcs) -> tuple[str, bool] | None:
-    """(latest fetch day as a plain YYYY-MM-DD, exact): exact False means it is a stored UTC day (a machine field
-    such as the morning note's data_as_of carries the flag beside the day, never a label in it)."""
-    d = _days(srcs)
-    return (d[0][-1], d[1]) if d else None
