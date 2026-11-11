@@ -2,9 +2,10 @@
 ADR 0004, decisions 2 to 4). Standard library only, and no `sitegen` import: this is what runs in the job that
 holds the mail key.
 
-This module never opens a connection. It talks to a `Provider`, and this package ships none: the real adapter
-(buttondown.py) is a later task, and the tests use an in-memory fake. Without `live=True` and a provider, run()
-prints what it would do and calls nothing.
+This module never opens a connection. It talks to a `Provider`: the real adapter is `buttondown.py` (the one module
+that opens a connection; `python -m sender deliver --live` builds it only when the config enables the sender and the
+key is set), and the tests also use an in-memory fake. Without `live=True` and a provider, run() prints what it
+would do and calls nothing.
 
 Order of work, each check stopping before the first write:
  0. not live: say what would happen; no provider call.
@@ -99,8 +100,8 @@ def canary_ids(text: str | None) -> frozenset | None:
 
 
 class Provider:
-    """What the deliver stage needs from a mail provider. Implementations: the real adapter (a later task, the only
-    module allowed to open a connection) and the tests' in-memory fake. Every method raises ProviderError when the
+    """What the deliver stage needs from a mail provider. Implementations: the real adapter (buttondown.Buttondown,
+    the only module allowed to open a connection) and the tests' in-memory fake. Every method raises ProviderError when the
     call failed or its answer could not be read in full; a listing that is cut short must raise, never return less."""
 
     def emails(self) -> list[dict]:
@@ -453,7 +454,7 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
     if not plan["send"]:
         return end(0, "no-send", why="the plan says send false")
     if provider is None:
-        return end(2, "no-provider", why="this build has no provider adapter")
+        return end(2, "no-provider", why="no provider adapter was given")
     if plan["timezone"] != settings.timezone:
         return end(2, "bad-plan", why="the plan's time zone is not the site's")
     try:
