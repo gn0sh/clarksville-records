@@ -18,6 +18,15 @@ record_url: https://www.cmcrpc.com/documents/agenda-minutes/   # "Unofficial cop
 record_label: Regional Planning Commission agendas and minutes page
 facts: data/localities/cmc-rpc/rpc.json
 
+# Hold every motion as "Not confirmed" (sitegen/rpc.py shown_motions, WHY_HELD). On since 2026-11-11: a review found
+# the minutes reader confirming votes the minutes do not print (2026-05-26-regular-motion-2, 2026-06-23-regular-motion-4
+# stored as "approve the consent agenda / passes"), and a wrong confirmed vote is never shown
+# (docs/architecture/rpc-motion-invariant.md). While on: every page, day card and morning note shows each motion's type
+# and its minutes page only, none under a case, and data/rpc/ exports no motion row; qa/site_checks.py fails any motion
+# shown confirmed or exported. To lift: fix the reader (collector/rpc_minutes.py), rebuild rpc.json, spot-check it
+# against the minutes, then set this to false (or delete the line) in its own reviewed PR.
+hold_motions: true
+
 # Hosts whose documents are fetched (also on collector/fetch.py ALLOWED_HOSTS). A listed link on any other host
 # (Google Drive, YouTube) is kept in the listing with its URL and never requested.
 fetch_hosts: [www.cmcrpc.com, cmcrpc.com]

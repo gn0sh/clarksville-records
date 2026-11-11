@@ -17,7 +17,7 @@ import pytest
 
 from collector import rpc_export as RE
 from collector.export import SRC_COLS, export_site
-from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, rpc_config_unheld
 from sitegen import config, rpc, views
 from sitegen.build import build, export_file_count
 from test_rpc_minutes_pages import CASE, MINUTES, Z19, motion
@@ -59,7 +59,7 @@ def facts_with_motions(d: Path) -> dict:
 
 def load(d: Path, facts: dict) -> rpc.Rpc:
     (d / "rpc.json").write_text(json.dumps(facts), encoding="utf-8")
-    return rpc.load({**rpc.load_config("cmc-rpc"), "facts_path": d / "rpc.json"}, True)
+    return rpc.load({**rpc_config_unheld(), "facts_path": d / "rpc.json"}, True)
 
 
 def rows(path: Path) -> list[dict]:
@@ -198,7 +198,7 @@ def test_a_motion_stored_confirmed_with_a_reason_is_not_exported(tmp_path):
     assert [r["id"] for r in rows(written["motions.csv"])] == [f"{MEETING}-motion-2"]
     assert all("Reasoned Mover" not in p.read_text(encoding="utf-8") for p in written.values())
     # the guard reads it the same way
-    rec = {**facts, "_cfg": rpc.load_config("cmc-rpc")}
+    rec = {**facts, "_cfg": rpc_config_unheld()}
     data = json.loads(written["facts.json"].read_text(encoding="utf-8"))
     data["motions"].append(dict(data["motions"][0], id=f"{MEETING}-motion-1"))
     written["facts.json"].write_text(json.dumps(data), encoding="utf-8")
@@ -246,7 +246,7 @@ def _export_site_dir(tmp_path: Path, facts: dict) -> tuple[Path, dict]:
     """A built site's data/rpc/ as the export writes it, and the rpc.json record site_checks reads."""
     site = tmp_path / "site"
     RE.export_rpc(load(tmp_path, facts), site)
-    return site, {**json.loads((tmp_path / "rpc.json").read_text(encoding="utf-8")), "_cfg": rpc.load_config("cmc-rpc")}
+    return site, {**json.loads((tmp_path / "rpc.json").read_text(encoding="utf-8")), "_cfg": rpc_config_unheld()}
 
 
 def test_site_checks_rpc_export_passes_on_the_export(tmp_path):
@@ -439,7 +439,7 @@ def test_an_unsafe_slug_is_refused_before_any_file_is_touched(tmp_path, slug):
     facts = facts_with_motions(tmp_path)
     (tmp_path / "rpc.json").write_text(json.dumps(facts), encoding="utf-8")
     with pytest.raises(rpc.RpcError, match="slug"):
-        rpc.load({**rpc.load_config("cmc-rpc"), "facts_path": tmp_path / "rpc.json", "slug": slug}, True)
+        rpc.load({**rpc_config_unheld(), "facts_path": tmp_path / "rpc.json", "slug": slug}, True)
 
 
 def test_the_export_refuses_a_slug_that_is_a_councils_or_a_symlink(tmp_path, rpx):
@@ -474,7 +474,7 @@ def test_a_public_export_removes_stale_files_it_did_not_write(tmp_path, rpx):
     assert sorted(p.relative_to(d).as_posix() for p in d.rglob("*")) == sorted(p.name for p in written)
     assert "reasons" not in (d / "motions.csv").read_text(encoding="utf-8")
     assert (site / "data" / "facts.json").read_text(encoding="utf-8") == "{}"
-    rec = {**rpx.facts, "_cfg": rpc.load_config("cmc-rpc")}
+    rec = {**rpx.facts, "_cfg": rpc_config_unheld()}
     assert SC.check_rpc_export(site, rec)[0] == []
     (d / "motions-internal.csv").write_text("leftover", encoding="utf-8")
     assert SC.check_rpc_export(site, rec)[0] == [
@@ -643,7 +643,7 @@ def test_a_field_the_reader_adds_later_is_not_exported_unregistered(tmp_path):
 # ------------------------------------------------------------------ export_site, the file count and the Data page
 def test_export_site_writes_the_rpc_files_beside_the_others(tmp_path):
     county = json.loads(FIXTURE.read_text(encoding="utf-8"))
-    cfg = {**rpc.load_config("cmc-rpc"), "facts_path": tmp_path / "rpc.json"}
+    cfg = {**rpc_config_unheld(), "facts_path": tmp_path / "rpc.json"}
     (tmp_path / "rpc.json").write_text(json.dumps(facts_with_motions(tmp_path)), encoding="utf-8")
     written = export_site(county, tmp_path / "a", rpc=cfg)
     names = {p.relative_to(tmp_path / "a" / "data").as_posix() for p in written}
@@ -659,7 +659,7 @@ def test_export_site_writes_the_rpc_files_beside_the_others(tmp_path):
 
 def test_export_site_refuses_fixture_rpc_facts_beside_real_county_facts(tmp_path):
     (tmp_path / "rpc.json").write_text(json.dumps(facts_with_motions(tmp_path)), encoding="utf-8")
-    cfg = {**rpc.load_config("cmc-rpc"), "facts_path": tmp_path / "rpc.json"}
+    cfg = {**rpc_config_unheld(), "facts_path": tmp_path / "rpc.json"}
     real = {k: v for k, v in json.loads(FIXTURE.read_text(encoding="utf-8")).items() if k != "fixture"}
     with pytest.raises(rpc.RpcError):
         export_site(real, tmp_path / "out", councils=(), rpc=cfg)
@@ -685,7 +685,7 @@ def test_data_page_lists_the_rpc_files(rpx):
 
 def test_the_built_data_page_links_every_exported_rpc_file(tmp_path):
     (tmp_path / "rpc.json").write_text(json.dumps(facts_with_motions(tmp_path)), encoding="utf-8")
-    cfg = {**rpc.load_config("cmc-rpc"), "facts_path": tmp_path / "rpc.json"}
+    cfg = {**rpc_config_unheld(), "facts_path": tmp_path / "rpc.json"}
     out = tmp_path / "build" / "site"
     build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, rpc=cfg)
     export_site(json.loads(FIXTURE.read_text(encoding="utf-8")), out, rpc=cfg)

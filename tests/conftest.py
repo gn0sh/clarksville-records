@@ -16,6 +16,13 @@ FIXTURE_SEATS = ROOT / "site" / "fixtures" / "seats.sample.yml"
 FIXTURE_DISTRICTS = ROOT / "site" / "fixtures" / "districts.sample.json"
 
 
+def rpc_config_unheld(locality: str = "cmc-rpc") -> dict:
+    """The RPC's rpc.yml (sitegen.rpc.load_config) with `hold_motions` off: the tests of the reader's rules on fixture
+    motions. The hold itself, as shipped, is tested in tests/test_rpc_hold.py."""
+    from sitegen import rpc
+    return {**rpc.load_config(locality), "hold_motions": False}
+
+
 @pytest.fixture(scope="session")
 def facts():
     return json.loads(FIXTURE.read_text(encoding="utf-8"))

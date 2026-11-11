@@ -43,12 +43,13 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               confirmed in the record, the only disposing motion on its case, under its own agenda case (or the
               meeting's own business with no case), with no nay or abstainer who is its mover or seconder, and none
               is shown confirmed from a record without the reader's current motion_rules; no page with RPC content
-              (RPC pages, index, today, any RPC card) says "unanimous" outside the minutes' own words
+              (RPC pages, index, today, any RPC card) says "unanimous" outside the minutes' own words; while
+              rpc.yml hold_motions is on, no block is shown confirmed or sits under a case
   rpc-export  (a build with the RPC export) data/<slug>/motions.csv and facts.json hold only motions confirmed in
               rpc.json under the current motion_rules, each on its own meeting's case (or the meeting's own business),
               one disposing motion per case_id, with no confirmed/reasons/tally key or column; each row's values are
               the record's, both files hold the same motions once, no value of a motion left out is in any file, and
-              data/<slug>/ holds exactly the export's five files
+              data/<slug>/ holds exactly the export's five files; while rpc.yml hold_motions is on, no motion row
   files       at most the target's file cap: --target preview (claude.ai artifact, 500) or pages (GitHub Pages, 3000)
   transcripts every line of a transcript page (<folder>/transcripts/*.html) has its time linked to its meeting's own
               video as <video_url>#t=<whole seconds>, the "Transcript" label and the notice; every call-on entry on a
@@ -229,6 +230,12 @@ RPC_CARD = re.compile(r'class="(?:rpc-motion|day-card day-card-rpc)\b')
 RPC_FRONT_PAGES = ("index.html", "today.html")
 
 
+def rpc_held(rpc: dict) -> bool:
+    """rpc.yml `hold_motions` (sitegen/rpc.py shown_motions, restated): on, no motion is shown confirmed, none sits
+    under a case and none is exported. Anything but false or absent counts as on (the safe side)."""
+    return rpc["_cfg"].get("hold_motions", False) is not False
+
+
 def _rpc_surname(name: str) -> str:
     parts = (name or "").split()
     return re.sub(r"[^a-z]", "", parts[-1].casefold()) if parts else ""
@@ -243,13 +250,15 @@ def check_rpc_motions(site: Path, pages: dict[str, "Page"], rpc: dict | None) ->
     (counted by motion id, so a block shown on two pages counts once); (c) it sits under its record's case_id, a case
     on its meeting's agenda, or is the meeting's own business with no case; (d) no nay or abstainer is (by surname)
     its mover or seconder; (e) no page with RPC content (the RPC's own pages, index.html, today.html, any page with an
-    RPC card or motion block) says "unanimous" outside the minutes' own words (data-item-title)."""
+    RPC card or motion block) says "unanimous" outside the minutes' own words (data-item-title); (g) while rpc.yml
+    `hold_motions` is on, no block is shown confirmed or sits under a case, and every block is held to (a)."""
     if not rpc:
         return [], "no RPC facts"
     motions = {mv["id"]: mv for mv in rpc.get("motions", [])}
     cases = {c["id"]: c for c in rpc["cases"]}
     rules = rpc.get("motion_rules")
-    current = rules == RPC_MOTION_RULES
+    on_hold = rpc_held(rpc)
+    current = rules == RPC_MOTION_RULES and not on_hold
     problems: list[str] = []
     seen, shown_ok = 0, 0
     per_case: dict[str, set[str]] = defaultdict(set)     # case id -> ids of the disposing motions shown confirmed
@@ -273,9 +282,15 @@ def check_rpc_motions(site: Path, pages: dict[str, "Page"], rpc: dict | None) ->
             confirmed = bool(mv.get("confirmed") is True and not b.group("nc") and current)
             if not b.group("nc") and mv.get("confirmed") is not True:
                 problems.append(f"{rel}#{mid}: shown confirmed, not confirmed in the RPC facts")
-            if not b.group("nc") and not current:
+            if not b.group("nc") and on_hold:
+                problems.append(f"{rel}#{mid}: shown confirmed while rpc.yml hold_motions is on")
+            elif not b.group("nc") and not current:
                 problems.append(f"{rel}#{mid}: shown confirmed, but rpc.json was not written under the reader's "
                                 f"current motion rules (motion_rules {rules!r}, want {RPC_MOTION_RULES!r})")
+            before = [p for p in places if p[0] < b.start()]
+            under = before[-1][1] if before else None
+            if on_hold and under:
+                problems.append(f"{rel}#{mid}: under case {under} while rpc.yml hold_motions is on")
             if not confirmed:
                 held = [mv.get("moved_by"), mv.get("seconded_by"), mv.get("outcome"), mv.get("case"),
                         *(mv.get("nays") or []), *(mv.get("abstained") or []), "Moved by", "Outcome, as printed"]
@@ -284,8 +299,6 @@ def check_rpc_motions(site: Path, pages: dict[str, "Page"], rpc: dict | None) ->
                     problems.append(f"{rel}#{mid}: a motion not confirmed shows {', '.join(sorted(set(leak)))}")
                 continue
             shown_ok += 1
-            before = [p for p in places if p[0] < b.start()]
-            under = before[-1][1] if before else None
             if under and mv["kind"] not in RPC_BUSINESS:
                 per_case[under].add(mid)
             if mv.get("case_id"):
@@ -302,8 +315,9 @@ def check_rpc_motions(site: Path, pages: dict[str, "Page"], rpc: dict | None) ->
             problems.append(f"case-{case}: {len(ids)} confirmed disposing motions on one case "
                             f"({', '.join(sorted(ids)[:3])})")
     rec = sum(1 for mv in motions.values() if mv.get("confirmed") is True)
-    return problems, (f"{seen} motion blocks, {shown_ok} shown confirmed ({rec} confirmed in rpc.json; motion_rules "
-                      + (rules if current else f"not current: {rules!r}") + ")")
+    return problems, (f"{seen} motion blocks, {shown_ok} shown confirmed ({rec} confirmed in rpc.json; "
+                      + ("hold_motions on; " if on_hold else "") + "motion_rules "
+                      + (rules if rules == RPC_MOTION_RULES else f"not current: {rules!r}") + ")")
 
 
 RPC_EXPORT_HELD_KEYS = ("confirmed", "reasons", "tally")      # never in a site's data/<slug>/ (internal: build/)
@@ -344,7 +358,8 @@ def check_rpc_export(site: Path, rpc: dict | None) -> tuple[list[str], str]:
     nays, abstainers, outcome, case number, source, page) are the record's; motions.csv and facts.json hold the same
     motions, each once; no value of a motion left out is in any of the files; no file carries a confirmed, reasons or
     tally key (anywhere in facts.json) or column; and data/<slug>/ holds the export's files and nothing else (the
-    internal export goes beside the site, in every build). An export written without data/<slug>/ fails."""
+    internal export goes beside the site, in every build); while rpc.yml `hold_motions` is on, no motion row at all.
+    An export written without data/<slug>/ fails."""
     if not rpc:
         return [], "no RPC facts"
     slug = rpc["_cfg"]["slug"]
@@ -358,6 +373,7 @@ def check_rpc_export(site: Path, rpc: dict | None) -> tuple[list[str], str]:
     sources = {s["id"]: s for s in rpc["sources"]}
     dates = {m["id"]: m["date"] for m in rpc["meetings"]}
     rules = rpc.get("motion_rules")
+    on_hold = rpc_held(rpc)
     problems: list[str] = []
     exported: dict[str, list[dict]] = {}
     for p in sorted(d.rglob("*")):
@@ -384,6 +400,9 @@ def check_rpc_export(site: Path, rpc: dict | None) -> tuple[list[str], str]:
         for row in rows:
             mid = row.get("id")
             mv = motions.get(mid)
+            if on_hold:
+                problems.append(f"{name}: motion {mid} exported while rpc.yml hold_motions is on")
+                continue
             if mv is None or mv.get("confirmed") is not True or mv.get("reasons"):
                 problems.append(f"{name}: motion {mid} is not confirmed in rpc.json")
                 continue
@@ -442,7 +461,8 @@ def check_rpc_export(site: Path, rpc: dict | None) -> tuple[list[str], str]:
                          for v, mid in sorted(held.items()) if v in text]
     n = {len(rows) for rows in exported.values()}
     return problems, (f"{'/'.join(str(x) for x in sorted(n))} motions in data/{slug}/motions.csv and facts.json "
-                      f"(motion_rules {rules!r}; {len(held)} values of motions left out checked)")
+                      f"(motion_rules {rules!r}; {'hold_motions on; ' if on_hold else ''}{len(held)} values of "
+                      f"motions left out checked)")
 
 
 def rpc_allowed(rpc: dict | None) -> set[str]:

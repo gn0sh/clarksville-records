@@ -9,7 +9,7 @@ import pytest
 
 from collector import rpc as rpc_collector, rpc_agenda
 from collector.store import Store
-from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, rpc_config_unheld
 from qa import site_checks
 from sitegen import config, rpc, unofficial, views
 from sitegen.build import BuildError, build
@@ -32,7 +32,7 @@ def rpc_facts(tmp: Path) -> dict:
 def rpc_cfg(tmp_path_factory):
     d = tmp_path_factory.mktemp("rpc")
     (d / "rpc.json").write_text(json.dumps(rpc_facts(d)), encoding="utf-8")
-    return {**rpc.load_config("cmc-rpc"), "facts_path": d / "rpc.json"}
+    return {**rpc_config_unheld(), "facts_path": d / "rpc.json"}
 
 
 @pytest.fixture(scope="module")

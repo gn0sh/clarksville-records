@@ -13,9 +13,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, parse
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, parse, rpc_config_unheld
 from qa import site_checks
-from sitegen import config, days, rpc
+from sitegen import config, days
 from sitegen.build import BuildError, build
 
 FIN = ROOT / "site" / "fixtures" / "finance.sample.json"
@@ -250,7 +250,7 @@ def test_scheduled_skips_rows_without_a_date_or_kind(tmp_path):
 def test_rpc_cards_list_each_case_as_printed_with_its_agenda_page(tmp_path):
     from test_rpc_pages import AGENDA, rpc_facts
     (tmp_path / "rpc.json").write_text(json.dumps(rpc_facts(tmp_path)), encoding="utf-8")
-    cfg = {**rpc.load_config("cmc-rpc"), "facts_path": tmp_path / "rpc.json"}
+    cfg = {**rpc_config_unheld(), "facts_path": tmp_path / "rpc.json"}
     out = tmp_path / "site"
     build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, rpc=cfg, today=date(2026, 10, 27))
     sec = section((out / "today.html").read_text(encoding="utf-8"), "2026-10-27")
