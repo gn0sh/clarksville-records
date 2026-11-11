@@ -212,7 +212,7 @@ def test_each_run_summary_prints_the_limits_line(which, monkeypatch, capsys, tmp
     else:
         from collector import city_run
         monkeypatch.setattr(city_run, "write_json", lambda path, obj: None)
-        monkeypatch.setattr(city_run, "listing_rows", lambda p, cfg: ([], []))
+        monkeypatch.setattr(city_run, "listing_rows", lambda p, cfg, store=None: ([], []))
         # a passing build summary: city_run prints its gates line (AC-P1, G4) after the limits line
         passing = {"gates": {"roll_calls": 0, "verified": 0, "verified_rate": 0.0,
                              "verified_rate_gate": {"pass": True},

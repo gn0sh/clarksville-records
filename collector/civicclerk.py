@@ -257,12 +257,18 @@ def _rank(r: dict) -> tuple:
     return (bool(r.get("minutes_url")), r.get("source", AGENDA_CENTER) == AGENDA_CENTER, bool(r.get("agenda_url")))
 
 
-def merge_sources(agenda_center: list[dict], civicclerk: list[dict]) -> tuple[list[dict], list[dict]]:
+def merge_sources(agenda_center: list[dict], civicclerk: list[dict],
+                  page1_ok=None) -> tuple[list[dict], list[dict]]:
     """Join the two listings into one: a meeting listed by both (same date and same kind) is kept once.
 
     -> (rows, duplicates). Every row carries `source`. The kept row of a pair takes the other's video link when it
     has none, and lists the other row under `also_listed` (source and URLs), so nothing is lost. A source's own rows
-    are never merged with each other (two meetings of one kind on one day are both real, e.g. two special sessions)."""
+    are never merged with each other (two meetings of one kind on one day are both real, e.g. two special sessions).
+
+    A D1 row (`page1_required`, from an also_list listing) is paired only when `page1_ok(row)` says page 1 of its
+    stored file prints the body's name (city_build.page1_check, run before pairing: city-verify/d1-merge-before-page1).
+    Without page1_ok, or when it fails, the row is never paired: it stays a row of its own, and the build's own
+    page1_check keeps or skips it alone, so another body's meeting never replaces or joins a council meeting."""
     ac = [{**r, "source": r.get("source") or AGENDA_CENTER} for r in agenda_center]
     by_key: dict[tuple, list[int]] = {}
     for i, r in enumerate(ac):
@@ -270,7 +276,8 @@ def merge_sources(agenda_center: list[dict], civicclerk: list[dict]) -> tuple[li
     out, dups, taken = list(ac), [], set()
     for c in civicclerk:
         key = (c["date"], c["kind"])
-        free = [i for i in by_key.get(key, []) if i not in taken]
+        checked = not c.get("page1_required") or (page1_ok is not None and page1_ok(c))
+        free = [i for i in by_key.get(key, []) if i not in taken] if checked else []
         if not free:
             out.append(dict(c))
             continue

@@ -129,14 +129,18 @@ def fetch_files(f, store: Store, rows: list[dict], log: dict, agendas: bool, lim
     return rows
 
 
-def listing_rows(p: dict, cfg: AgendaCenterConfig) -> tuple[list[dict], list[dict]]:
+def listing_rows(p: dict, cfg: AgendaCenterConfig, store: Store | None = None) -> tuple[list[dict], list[dict]]:
     """Both committed listings joined (civicclerk.merge_sources). The meeting kind is re-read from each title with
-    the current config, as the build does, so the de-duplication and the meeting ids agree."""
+    the current config, as the build does, so the de-duplication and the meeting ids agree. A D1 row is paired only
+    after its page 1 check passes on the stored files (city-verify/d1-merge-before-page1); with no store, never."""
     ac = json.loads(p["listing"].read_text(encoding="utf-8")) if p["listing"].exists() else []
     cc = json.loads(p["cc_listing"].read_text(encoding="utf-8")) if p["cc_listing"].exists() else []
     ac = [{**r, "kind": cfg.kind_of(r["title"])} for r in ac]
     cc = [{**r, "kind": cfg.kind_of(r["title"])} for r in cc]
-    return civicclerk.merge_sources(ac, cc)
+    if store is None:
+        return civicclerk.merge_sources(ac, cc)
+    from .city_build import page1_check
+    return civicclerk.merge_sources(ac, cc, page1_ok=lambda r: page1_check(r, store) is None)
 
 
 def new_log() -> dict:
@@ -169,7 +173,7 @@ def main(argv: list[str]) -> int:
     report = {"fetch": {k: v for k, v in log.items() if k != "fetch_log"}}
     if a.command in ("build", "run"):
         from .city_build import build
-        rows, dups = listing_rows(p, cfg)
+        rows, dups = listing_rows(p, cfg, store)
         facts, summary = build(cfg, rows, store)
         summary["duplicates"] = dups
         write_json(p["wards"], facts.pop("_wards"))

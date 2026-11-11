@@ -471,3 +471,63 @@ def test_build_skips_an_also_listed_event_with_no_stored_file(cfg, acfg):
     facts, summary = build(acfg, [row], Empty(), inspect=lambda p: (3, "text"), pages=lambda p: [""])
     assert facts["meetings"] == []
     assert "no stored agenda or minutes does not print" in summary["skipped_events"][0]["reason"]
+
+
+# ------------------------------------------------------------------ city-verify/d1-merge-before-page1
+def _d1_pair(cfg, acfg, page1, ac_minutes):
+    """A council meeting listed by the Agenda Center on 2026-02-11 (with or without minutes) and the D1 "Special
+    Session" of that day, whose stored page 1 prints `page1`: merged with page1_check before pairing, then built."""
+    from collector.city_build import build, page1_check
+    from collector.city_minutes import parse_text
+    from collector.tests.test_city_minutes import PAGE1, PAGE2, FakeStore, entry
+
+    a = ac_row("2026-02-11", "City Council Special Session", "special", minutes=ac_minutes, aid="02112026-1")
+    d1 = cc.parse_events({"value": [SPECIAL]}, cfg, acfg.kind_of, cfg.also_list[0])[0][0]
+    assert d1["kind"] == a["kind"] and d1["page1_required"]
+    entries = [entry(a["agenda_url"], "agenda", a["date"], 1), entry(d1["agenda_url"], "agenda", d1["date"], 3),
+               entry(d1["minutes_url"], "minutes", d1["date"], 4)]
+    if ac_minutes:
+        entries.append(entry(a["minutes_url"], "minutes", a["date"], 2))
+    store = FakeStore(entries)
+    d1_shas = {e["sha256"] for e in entries[1:3]}
+
+    def pages(p):
+        return [page1 if p.stem in d1_shas else PAGE1_CITY]
+    merged, dups = cc.merge_sources([a], [d1], page1_ok=lambda r: page1_check(r, store, pages) is None)
+    facts, summary = build(acfg, merged, store, parse=lambda p, k: parse_text([PAGE1, PAGE2], k),
+                           inspect=lambda p: (3, "text"), pages=pages)
+    return a, d1, merged, dups, facts, summary
+
+
+@pytest.mark.parametrize("ac_minutes", [False, True])
+def test_a_d1_row_whose_page_1_is_another_body_is_never_paired_with_a_council_meeting(cfg, acfg, ac_minutes):
+    """Before: merge_sources paired the D1 row before its page 1 was checked. With minutes it outranked the Agenda
+    Center row (no minutes) and replaced it, then the build skipped it: the council meeting was lost. Otherwise the
+    council meeting kept it under also_listed and cited another body's files. Now it is never paired: the council
+    meeting stays as listed, the D1 row is skipped on its own, and none of its files is cited."""
+    a, d1, merged, dups, facts, summary = _d1_pair(cfg, acfg, PAGE1_OTHER, ac_minutes)
+    assert dups == [] and len(merged) == 2 and not any(r.get("also_listed") for r in merged)
+    assert [(m["id"], m["listing_source"], m["agenda_url"]) for m in facts["meetings"]] == \
+        [("2026-02-11-special", "agenda-center", a["agenda_url"])]
+    assert "also_listed" not in facts["meetings"][0]
+    assert [e["event_id"] for e in summary["skipped_events"]] == [d1["event_id"]]
+    cited = {s["url"] for s in facts["sources"]}
+    assert d1["agenda_url"] not in cited and d1["minutes_url"] not in cited
+
+
+def test_a_d1_row_whose_page_1_prints_the_council_is_paired_as_before(cfg, acfg):
+    a, d1, merged, dups, facts, summary = _d1_pair(cfg, acfg, PAGE1_CITY, False)
+    assert len(merged) == 1 and dups[0]["kept"] == "civicclerk" and dups[0]["dropped"] == "agenda-center"
+    assert [m["id"] for m in facts["meetings"]] == ["2026-02-11-special"] and not summary["skipped_events"]
+    assert facts["meetings"][0]["minutes_url"] == d1["minutes_url"]
+    assert facts["meetings"][0]["also_listed"][0]["agenda_url"] == a["agenda_url"]
+
+
+def test_a_d1_row_is_never_paired_without_a_page_1_check(cfg, acfg):
+    a = ac_row("2026-02-11", "City Council Special Session", "special", aid="02112026-1")
+    d1 = cc.parse_events({"value": [SPECIAL]}, cfg, acfg.kind_of, cfg.also_list[0])[0][0]
+    rows, dups = cc.merge_sources([a], [d1])
+    assert dups == [] and len(rows) == 2 and not any(r.get("also_listed") for r in rows)
+    calls = []
+    rows, dups = cc.merge_sources([a], [d1], page1_ok=lambda r: calls.append(r["event_id"]) or False)
+    assert dups == [] and len(rows) == 2 and calls == [d1["event_id"]]
