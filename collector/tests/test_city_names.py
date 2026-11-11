@@ -1000,8 +1000,8 @@ def test_n10_a_cited_file_of_another_body_is_never_used_even_on_the_cited_page()
         assert att(facts, "2026-03-05")["CLAUNCH"] is None and summary["skipped_events"]
         calls.clear()
         facts, summary = run_cited(with_members(cfg, CLAUNCH), CLAUNCH_MEETINGS, cite_row=d1,
-                                   cite_pages=("City Council - Special Session\nFebruary 11, 2026 at 4:30 PM\n" + APPLICANTS_P1,
-                                               "page 2", CLAUNCH_P3))
+                                   cite_pages=("City Council - Special Session\nFebruary 11, 2026 at 4:30 PM\n"
+                                               + APPLICANTS_P1, "page 2", CLAUNCH_P3))
         assert calls == [None] and not summary["skipped_events"]
         assert att(facts, "2026-03-05")["CLAUNCH"] == "city-eric-claunch" and summary["members"][0]["ok"]
     finally:
