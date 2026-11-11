@@ -226,6 +226,10 @@ architect.
   run). The run uses that day's workflow file, but the plan is built from today's `main`; the note job now stops with
   "an older run was re-run" when the sender code, config or workflow file differ. Only the workflow file is the old version: the
   `update` job checks out current `main`. Start a new run with **Run workflow** instead.
+  This matters most for runs from before the note job's current checks merged (note-job/rerun-predates-fix):
+  GitHub lets a run be re-run for 30 days, with that day's older note job and weaker checks (no workflow-file
+  diff, no pull request check). Either keep to this rule (and the required reviewer of section 5 step 0 holds such a
+  run too), or set `MORNING_NOTE_SEND` no sooner than 30 days after the last change to the note job's checks merged.
 - **Don't merge changes to `sender/`, `config/site.yml` or `.github/` while a Daily update run is in progress.** The note job's
   stale check would stop and no note would be sent that day.
 - **Before you click Run workflow, open Actions. If a Daily update run is Queued, don't start one.** All runs share
