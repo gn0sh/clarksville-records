@@ -418,6 +418,13 @@ def test_a_repeat_failure_comments_on_the_open_issue(tmp_path, job, open_issue):
 
 # ------------------------------------------------------------------ the morning note (T4.5)
 NOTE_IF = "github.event_name == 'schedule' && vars.MORNING_NOTE_SEND == 'true' && github.ref == 'refs/heads/main'"
+# main-protect/pr-check-path-scope: every python run in the note job is isolated from the checkout (-I -S, the staged
+# sender folder alone on sys.path). LAUNCH_RE matches the sender's entry point; SAFE_PY_RE any isolated run.
+LAUNCH_RE = re.compile(r"""python -I -S -c 'import sys; sys\.path\.insert\(0, sys\.argv\[1\]\); from sender\.__main__ """
+                       r"""import main; sys\.exit\(main\(sys\.argv\[2:\]\)\)' \\\n\s*"\$RUNNER_TEMP/note-lib\"""")
+SAFE_PY_RE = re.compile(r"""python -I -S -c 'import sys; sys\.path\.insert\(0, sys\.argv\[1\]\); from sender\.[a-z_]+ """
+                        r"""import [A-Za-z_]+; [^'\n]*' \\\n\s*"\$RUNNER_TEMP/note-lib\"""")
+STAGE_STEP = "Stage the sender outside the checkout"
 
 
 def _note_steps():
@@ -506,7 +513,7 @@ def test_note_job_least_privilege():
     assert not re.search(r"\bpip\b", runs) and "upload-artifact" not in str(steps) and "cache" not in str(uses)
     assert "GITHUB_STEP_SUMMARY" not in runs and "set -x" not in runs
     assert "${{" not in runs                                                     # nothing interpolated into bash
-    assert "python -E -s -m sender deliver" in _note_steps()["Deliver the morning note"]["run"]
+    assert len(LAUNCH_RE.findall(_note_steps()["Deliver the morning note"]["run"])) == 1
 
 
 def test_the_api_key_is_in_exactly_one_step_and_live_needs_the_variable():
@@ -516,7 +523,8 @@ def test_the_api_key_is_in_exactly_one_step_and_live_needs_the_variable():
     deliver = _note_steps()["Deliver the morning note"]
     assert deliver["env"]["MORNING_NOTE_SEND"] == "${{ vars.MORNING_NOTE_SEND }}"
     for var, live in (("true", True), ("", False), ("false", False), ("TRUE", False)):
-        script = deliver["run"].replace("python -E -s -m sender deliver", "echo ARGS")
+        script = LAUNCH_RE.sub("echo ARGS", deliver["run"])
+        assert script.count("echo ARGS deliver --plan") == 1
         r = subprocess.run(["bash", "-c", script], env={**os.environ, "MORNING_NOTE_SEND": var, "PLAN": "p.json"},
                            capture_output=True, text=True, check=True)
         assert ("--live" in r.stdout) == live, var
@@ -538,10 +546,19 @@ def test_the_plan_step_never_fails_the_daily_job():
     assert "note" not in str(WF["jobs"]["push"].get("needs")) and "note" not in str(WF["jobs"]["deploy"]["needs"])
 
 
-def _validate_plan(tmp_path, layout: dict):
-    """Run the note job's 'Validate the plan files' script over a plan folder built from {relative path: bytes}."""
+def _stage(cwd, runner) -> subprocess.CompletedProcess:
+    """Run the note job's 'Stage the sender outside the checkout' step in checkout `cwd` with RUNNER_TEMP `runner`."""
+    return subprocess.run(["bash", "-c", _note_steps()[STAGE_STEP]["run"]], cwd=cwd, capture_output=True, text=True,
+                          env={**os.environ, "RUNNER_TEMP": str(runner)})
+
+
+def _validate_plan(tmp_path, layout: dict, cwd=ROOT, env=None):
+    """Run the note job's 'Validate the plan files' script over a plan folder built from {relative path: bytes}, after
+    the stage step (the script imports MAX_PLAN_BYTES from the staged sender)."""
     step = _note_steps()["Validate the plan files"]
     root = tmp_path / "runner"
+    root.mkdir(parents=True, exist_ok=True)
+    assert _stage(cwd, root).returncode == 0
     for rel, data in layout.items():
         p = root / "morning-send" / rel
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -552,8 +569,8 @@ def _validate_plan(tmp_path, layout: dict):
     (root / "morning-send").mkdir(parents=True, exist_ok=True)
     env_file = tmp_path / "env"
     env_file.write_text("")
-    r = subprocess.run(["bash", "-c", step["run"]], cwd=ROOT, capture_output=True, text=True,
-                       env={**os.environ, "RUNNER_TEMP": str(root), "GITHUB_ENV": str(env_file)})
+    r = subprocess.run(["bash", "-c", step["run"]], cwd=cwd, capture_output=True, text=True,
+                       env={**os.environ, **(env or {}), "RUNNER_TEMP": str(root), "GITHUB_ENV": str(env_file)})
     return r.returncode, env_file.read_text()
 
 
@@ -643,8 +660,10 @@ def _stale_check(tmp_path, change: str) -> int:
     _git(src, "commit", "-q", "-m", "A")
     sha_a = _git(src, "rev-parse", "HEAD")
     if change:
+        (src / change).parent.mkdir(parents=True, exist_ok=True)
         (src / change).write_text("b\n")
-        _git(src, "commit", "-q", "-am", "B")
+        _git(src, "add", "-A")
+        _git(src, "commit", "-q", "-m", "B")
     _git(src, "push", "-q", f"file://{origin}", "HEAD:refs/heads/main")
     _git(tmp_path, "clone", "-q", "--depth=1", "--no-single-branch", f"file://{origin}", str(work))
     _git(work, "fetch", "-q", "--depth=1", "origin", sha_a)
@@ -653,8 +672,11 @@ def _stale_check(tmp_path, change: str) -> int:
     return r.returncode
 
 
-@pytest.mark.parametrize("change,ok", [("", True), ("data/x.json", True), ("sender/deliver.py", False),
-                                       ("config/site.yml", False), (".github/workflows/daily-update.yml", False)])
+@pytest.mark.parametrize("change,ok", [("", True), ("data/x.json", True), ("data/new.json", True),
+                                       ("sender/deliver.py", False), ("config/site.yml", False),
+                                       (".github/workflows/daily-update.yml", False),
+                                       # main-protect/pr-check-path-scope: everything outside data/ must be main's
+                                       ("json.py", False), ("sitegen/build.py", False), ("pyproject.toml", False)])
 def test_note_refuses_an_older_commit_than_main(tmp_path, change, ok):
     """note-job/stale-rerun: re-running an older run checks out that day's github.sha (and runs that day's workflow
     file) while the plan is built from today's main; the note job must stop unless sender/, config/site.yml and the
@@ -803,6 +825,17 @@ PR_CASES = {
     # a merge pushed straight to main whose merged-in side is a PR's commit: main's own commit (first parent) counts
     "pushed-merge-of-pr-commit": ([("commit", "A", _ALL), ("merge", "M", "E", SENDER)],
                                   {"A": [_pr("A")], "E": [_pr("E")]}, False, ["M"]),
+    # main-protect/pr-check-path-scope: a direct push of anything outside data/ is refused, not only sender/,
+    # config/site.yml and .github/: a root json.py (shadowed the standard library under `python -m`), a sitegen/
+    # module, a root config file; the same files through a PR send
+    "direct-root-py": ([("commit", "A", _ALL), ("commit", "X", ("json.py",)), ("commit", "D", DATA)],
+                       {"A": [_pr("A")]}, False, ["X"]),
+    "direct-sitegen": ([("commit", "A", _ALL), ("commit", "X", ("sitegen/build.py",))], {"A": [_pr("A")]}, False,
+                       ["X"]),
+    "pr-direct-root-pr": ([("commit", "A", _ALL), ("commit", "X", ("pyproject.toml",)), ("commit", "P", SENDER)],
+                          {"A": [_pr("A")], "P": [_pr("P")]}, False, ["P", "X"]),
+    "pr-root-py": ([("commit", "A", _ALL), ("commit", "P", ("json.py", "docs/x.md")), ("commit", "D", DATA)],
+                   {"A": [_pr("A")], "P": [_pr("P")]}, True, ["P", "A"]),
     # no PR at all after the baseline (the team's earlier merges without PRs): refused from go-live
     "no-pr-history": ([("commit", "A", _ALL), ("commit", "D", DATA)], {}, False, ["A"]),
 }
@@ -874,9 +907,103 @@ def test_the_pr_check_runs_before_any_secret_step_with_a_read_only_token():
     assert set(step["env"]) == {"GH_TOKEN", "MAIN_PR_BASELINE"}   # the read-only token and the baseline only
     assert step["env"]["GH_TOKEN"] == "${{ github.token }}"
     assert [s["name"] for s in steps if "GH_TOKEN" in (s.get("env") or {})] == [PR_STEP]
-    assert "sender/ config/site.yml .github/" in step["run"] and "--first-parent" in step["run"]
+    assert """-- . ':(exclude)data/')""" in step["run"] and "--first-parent" in step["run"]
+    assert "sender/ config/site.yml .github/" not in step["run"]
+    assert """git diff --quiet HEAD FETCH_HEAD -- . ':(exclude)data/'""" in _note_steps()[STALE_STEP]["run"]
     assert PR_JQ in " ".join(step["run"].split())
     assert WF["jobs"]["note"]["permissions"] == {"contents": "read", "pull-requests": "read"}
+
+
+# ------------------------------------------------------------------ main-protect/pr-check-path-scope: no checkout import
+def test_every_python_in_the_note_job_is_isolated_from_the_checkout():
+    """No python run in the job that holds the key may put the checkout on sys.path (`-m` and `-c` put the current
+    folder first): each is `python -I -S -c` with the staged sender folder only, staged after both main checks."""
+    steps = WF["jobs"]["note"]["steps"]
+    names = [s.get("name") for s in steps]
+    assert names.index(PR_STEP) < names.index(STAGE_STEP) < names.index("Validate the plan files")
+    total = 0
+    for s in steps:
+        code = "\n".join(line for line in s.get("run", "").splitlines() if not line.lstrip().startswith("#"))
+        calls = re.findall(r"\bpython3?\b", code)
+        assert len(calls) == len(SAFE_PY_RE.findall(code)), s.get("name")
+        assert "-m sender" not in code and "PYTHONPATH" not in code
+        total += len(calls)
+    assert total == 3                                     # the plan size, the dry run and the delivery
+    assert len(LAUNCH_RE.findall(_note_steps()["Check the plan (dry run, no secret)"]["run"])) == 1
+
+
+_PLANTED = ("json.py", "argparse.py", "re.py", "pathlib.py", "dataclasses.py", "winreg.py", "sitecustomize.py",
+            "usercustomize.py", "tzdata/__init__.py", "data/json.py")
+
+
+def _planted_checkout(tmp_path):
+    """A checkout holding the real sender/ and config/site.yml plus a root json.py, argparse.py etc. (and a folder on
+    PYTHONPATH) that each record their import in `marker`, as a direct push to main could plant them."""
+    work, marker, pp = tmp_path / "work", tmp_path / "imported", tmp_path / "pythonpath"
+    (work / "sender").mkdir(parents=True)
+    for f in (ROOT / "sender").glob("*.py"):
+        shutil.copy(f, work / "sender" / f.name)
+    (work / "config").mkdir()
+    shutil.copy(ROOT / "config" / "site.yml", work / "config" / "site.yml")
+    plant = f"open({str(marker)!r}, 'a').write(__name__ + '\\n')\n"
+    for rel in _PLANTED:
+        (work / rel).parent.mkdir(parents=True, exist_ok=True)
+        (work / rel).write_text(plant)
+    pp.mkdir()
+    (pp / "json.py").write_text(plant)
+    env = {**os.environ, "PYTHONPATH": f"{pp}:{work}", "PYTHONSTARTUP": str(work / "json.py")}
+    return work, marker, env
+
+
+def test_a_planted_root_module_never_runs_in_the_note_job(tmp_path):
+    """main-protect/pr-check-path-scope (N1): a root json.py/argparse.py pushed to main shadowed the standard library
+    in `python -E -s -m sender deliver`, the step that holds the key. The control run proves the plant works; the
+    job's own stage, plan-size, dry-run and delivery steps never import it."""
+    work, marker, env = _planted_checkout(tmp_path)
+    old = subprocess.run(["bash", "-c", 'python -E -s -m sender deliver --plan "$PLAN"'], cwd=work, text=True,
+                         capture_output=True, env={**env, "PLAN": str(tmp_path / "none.json")})
+    assert marker.exists() and old.returncode != 0                              # the old command ran the plant
+    marker.unlink()
+    runner = tmp_path / "runner"
+    runner.mkdir()
+    assert _stage(work, runner).returncode == 0
+    for name in ("Check the plan (dry run, no secret)", "Deliver the morning note"):
+        r = subprocess.run(["bash", "-c", _note_steps()[name]["run"]], cwd=work, capture_output=True, text=True,
+                           env={**env, "RUNNER_TEMP": str(runner), "PLAN": str(tmp_path / "none.json"),
+                                "MORNING_NOTE_SEND": "true", "BUTTONDOWN_API_KEY": ""})
+        # the staged sender ran: it read config/site.yml from the checkout, then could not read the plan
+        assert r.returncode == 2 and "the plan file cannot be read; nothing sent" in r.stderr, (name, r.stderr)
+        assert "Traceback" not in r.stderr
+    code, plan_env = _validate_plan(tmp_path / "v", GOOD, cwd=work, env=env)
+    assert code == 0 and plan_env.strip().endswith("/morning-send/2026-11-12/plan.json")
+    assert not marker.exists(), marker.read_text()
+
+
+def test_the_stage_step_copies_only_senders_own_python_files(tmp_path):
+    """No symlink (it could point at an unchecked file), no __pycache__ (an unchecked-hash .pyc loads without its
+    source), no subfolder and no other file type reaches the staged folder; a sender that is not a folder stages
+    nothing and the step fails."""
+    work = tmp_path / "work"
+    (work / "sender" / "__pycache__").mkdir(parents=True)
+    (work / "sender" / "sub").mkdir()
+    for f in (ROOT / "sender").glob("*.py"):
+        shutil.copy(f, work / "sender" / f.name)
+    (work / "evil.py").write_text("x = 1\n")
+    (work / "sender" / "linked.py").symlink_to(work / "evil.py")
+    (work / "sender" / "__pycache__" / "deliver.cpython-312.pyc").write_bytes(b"\0" * 16)
+    (work / "sender" / "sub" / "x.py").write_text("x = 1\n")
+    (work / "sender" / "notes.txt").write_text("x\n")
+    runner = tmp_path / "runner"
+    runner.mkdir()
+    assert _stage(work, runner).returncode == 0
+    lib = runner / "note-lib" / "sender"
+    assert sorted(p.name for p in lib.iterdir()) == sorted(p.name for p in (ROOT / "sender").glob("*.py"))
+    assert not any(p.is_symlink() for p in lib.iterdir())
+    (tmp_path / "w2").mkdir()
+    (tmp_path / "w2" / "sender").symlink_to(work / "sender")
+    (tmp_path / "other").mkdir()
+    r = _stage(tmp_path / "w2", tmp_path / "other")
+    assert r.returncode == 2 and not list((tmp_path / "other" / "note-lib" / "sender").iterdir())
 
 
 # ------------------------------------------------------------------ the main ruleset scripts (runbook step 2.0.6)

@@ -460,15 +460,16 @@ jobs:
           persist-credentials: false
 
       # A re-run of an older run ("Re-run all jobs") checks out that day's github.sha and runs that day's workflow
-      # file, while the update job builds the plan from today's main. Refuse unless this commit's sender code, site
-      # config and this workflow file are main's (note-job/stale-rerun, note-job/stale-rerun-workflow-gap). The
+      # file, while the update job builds the plan from today's main. Refuse unless this commit's tree outside data/
+      # (sender code, site config, workflows, everything else) is main's (note-job/stale-rerun,
+      # note-job/stale-rerun-workflow-gap, main-protect/pr-check-path-scope: the same pathspec as the PR check). The
       # repository is public, so the fetch needs no token (none is kept on disk).
       - name: Check this commit's sender and config are main's
         run: |
           set -euo pipefail
           git fetch --no-tags --depth=1 origin main
-          if ! git diff --quiet HEAD FETCH_HEAD -- config/site.yml sender/ .github/workflows/daily-update.yml; then
-            echo "::error::config/site.yml, sender/ or the workflow differ from main: an older run was re-run. Nothing sent."
+          if ! git diff --quiet HEAD FETCH_HEAD -- . ':(exclude)data/'; then
+            echo "::error::files outside data/ differ from main: an older run was re-run. Nothing sent."
             exit 2
           fi
 
@@ -476,13 +477,16 @@ jobs:
       # Actions push main directly (for the push job's data/ commit), so a workflow on any branch could put changed
       # sender code, config or workflows on main without a pull request. Refuse unless EVERY commit on this commit's
       # first-parent line (main's own commits: no commit of a merged-in branch counts) after MAIN_PR_BASELINE that
-      # touches sender/, config/site.yml or .github/ is the merge or squash commit of a merged pull request into main.
+      # touches anything outside data/ is the merge or squash commit of a merged pull request into main.
       # Checking only the newest such commit would let any later PR launder an earlier direct push.
+      # main-protect/pr-check-path-scope: the pathspec is the whole tree but data/ (the push job's daily commits), not
+      # just sender/, config/site.yml and .github/: a root *.py, a sitegen/ module or any other file is code a later
+      # change could load. docs/architecture/main-protect-invariant.md lists every path code reaches this job by.
       # MAIN_PR_BASELINE is main's commit at go-live (runbook docs/ops/morning-note.md 4.7): history up to and
       # including it was checked by hand then. Until it is set to a 40-hex commit on main's first-parent line the
       # step refuses (fail closed). Changing it is a change to .github/, so it needs a PR itself, and that PR is
       # after any baseline it can name, so it is always checked. The daily data/ commits touch none of those paths,
-      # so they never trip it. From go-live on, every change to those paths reaches main by a pull request merged
+      # so they never trip it. From go-live on, every change outside data/ reaches main by a pull request merged
       # with "Create a merge commit" or "Squash and merge" (runbook 2.0). This does not stop a writer who merges
       # their own PR (0 approvals), nor a pushed workflow that drops this step: the runbook's required reviewer on
       # the morning-note environment does. The history is fetched without file contents.
@@ -506,25 +510,43 @@ jobs:
           if [ "$on_line" != 1 ]; then
             echo "::error::MAIN_PR_BASELINE $base is not a commit on main's first-parent line. Nothing sent."; exit 2
           fi
-          shas=$(git log --first-parent --format=%H "$base..HEAD" -- sender/ config/site.yml .github/)
+          shas=$(git log --first-parent --format=%H "$base..HEAD" -- . ':(exclude)data/')
           if [ -z "$shas" ]; then
-            echo "::error::no commit after MAIN_PR_BASELINE touches sender/, config/site.yml or .github/ (the commit that set it must). Nothing sent."; exit 2
+            echo "::error::no commit after MAIN_PR_BASELINE touches anything outside data/ (the commit that set it must). Nothing sent."; exit 2
           fi
           for sha in $shas; do
             if ! [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then echo "::error::unexpected git log output. Nothing sent."; exit 2; fi
             n=$(SHA="$sha" gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" --jq \
                   '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.SHA)] | length')
             if [ "$n" != 1 ]; then
-              echo "::error::$sha (a change to sender/, config/site.yml or .github/ on main after MAIN_PR_BASELINE) is not the merge of a pull request into main. Nothing sent."
+              echo "::error::$sha (a change outside data/ on main after MAIN_PR_BASELINE) is not the merge of a pull request into main. Nothing sent."
               exit 2
             fi
           done
-          echo "Every change to sender/, config/site.yml or .github/ on main after $base was merged by pull request: $(echo "$shas" | wc -l) commit(s)."
+          echo "Every change outside data/ on main after $base was merged by pull request: $(echo "$shas" | wc -l) commit(s)."
 
       - name: Set up Python (standard library only, no pip step)
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
+
+      # main-protect/pr-check-path-scope: no Python in this job imports from the checkout. `python -m sender` (or -c)
+      # puts the current folder first on sys.path, so a root json.py or argparse.py would shadow the standard library
+      # in the step that holds the key. Only sender/'s own regular *.py files (checked by the two steps above; no
+      # symlink, no __pycache__ .pyc, no subfolder) are copied to a folder outside the checkout, and every python run
+      # below is `python -I -S -c` with that folder alone put on sys.path: -I drops the current folder, the PYTHON*
+      # variables and the user site, -S site-packages and .pth files. The current folder is used only to read
+      # config/site.yml (data). See docs/architecture/main-protect-invariant.md.
+      - name: Stage the sender outside the checkout
+        run: |
+          set -euo pipefail
+          lib="$RUNNER_TEMP/note-lib"
+          rm -rf "$lib"
+          mkdir -p "$lib/sender"
+          find sender -maxdepth 1 -type f -name '*.py' -exec cp -- {} "$lib/sender/" \;
+          if ! [ -f "$lib/sender/__init__.py" ] || ! [ -f "$lib/sender/__main__.py" ]; then
+            echo "::error::sender/ has no __init__.py or __main__.py. Nothing sent."; exit 2
+          fi
 
       # Outside the checkout: the plan comes from the job that parses untrusted PDFs.
       - name: Download the morning note plan
@@ -540,7 +562,8 @@ jobs:
         run: |
           set -euo pipefail
           dir="$RUNNER_TEMP/morning-send"
-          max=$(python -E -s -c 'from sender.common import MAX_PLAN_BYTES; print(int(MAX_PLAN_BYTES))')
+          max=$(python -I -S -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.common import MAX_PLAN_BYTES; print(int(MAX_PLAN_BYTES))' \
+                  "$RUNNER_TEMP/note-lib")
           bad=0
           while IFS= read -r -d '' f; do echo "::error::not a regular file or folder: ${f#"$dir"/}"; bad=1
           done < <(find "$dir" -mindepth 1 ! -type f ! -type d -print0)
@@ -563,7 +586,9 @@ jobs:
 
       # The dry run first: checks the plan (check_plan) and prints what would be sent; no connection, no secret.
       - name: Check the plan (dry run, no secret)
-        run: python -E -s -m sender deliver --plan "$PLAN"
+        run: |
+          python -I -S -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.__main__ import main; sys.exit(main(sys.argv[2:]))' \
+            "$RUNNER_TEMP/note-lib" deliver --plan "$PLAN"
 
       # The only step with the API key. --live only when the variable is exactly 'true' (the job's own `if:` already
       # requires it; this is the second lock). Totals only in the log.
@@ -575,7 +600,8 @@ jobs:
         run: |
           live=()
           if [ "$MORNING_NOTE_SEND" = "true" ]; then live=(--live); fi
-          python -E -s -m sender deliver --plan "$PLAN" "${live[@]}"
+          python -I -S -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.__main__ import main; sys.exit(main(sys.argv[2:]))' \
+            "$RUNNER_TEMP/note-lib" deliver --plan "$PLAN" "${live[@]}"
 
   # The note job failed or was cancelled (by hand or by GitHub): one open "Daily update: morning note
   # failed" issue, a comment on it on later days (note-failed/silent-noncompletion). A separate job with fixed text
