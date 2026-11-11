@@ -16,6 +16,7 @@ import pytest
 from collector import agenda_center as ac
 from collector.city_build import Officials, RosterBook, build, printed_full_names, resolve_surnames
 from collector.city_minutes import called_to_order_on, parse_text
+from collector.verify import gates
 from collector.tests.test_city_minutes import SCHEMA, FakeStore, entry
 
 API = "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId={},plainText=false)"
@@ -480,3 +481,21 @@ def test_a_successor_seated_with_no_full_name_in_the_record_is_held_city_verify(
     failed = {c["check"] for c in rc[0]["verification"]["checks"] if not c["ok"]}
     assert failed == {"attendance_verified", "names_resolve"}
     assert not [o for o in facts["officials"] if "claunch" in o["id"]]      # never read as the applicant
+
+
+def test_the_city_build_reports_the_county_gates_city_verify(cfg):
+    """city-verify/no-skew-gate: the city build reports AC-P1 and G4 with the county's own code (verify.gates). A
+    meeting held on its attendance (CLAUNCH) lists nobody, so its holds are unattributed: G4 cannot place them on any
+    member, and they show in the uniform share and the meetings whose attendance is not shown."""
+    rows = cc_rows() + [
+        {"date": "2026-03-05", "title": "Regular Session", "kind": "regular", "agenda_id": "cc-7", "agenda_url": None,
+         "minutes_url": API.format(7), "source": "civicclerk", "video_url": None}]
+    facts, summary = built(cfg, [FULL_2025, CAPS_2025, SEATED_2026], rows,
+                           [entry(r["minutes_url"], "minutes", r["date"], n) for n, r in enumerate(rows, 1)])
+    g = summary["gates"]
+    assert g == gates({k: v for k, v in facts.items() if k != "_wards"}, set())
+    assert (g["roll_calls"], g["verified"], g["held_back"]) == (len(facts["roll_calls"]), 4, 1)
+    assert not g["verified_rate_gate"]["pass"] and summary["pass"] is False
+    assert g["g4"]["flagged"] == [] and g["g4"]["held_unattributed"] == 1 and g["g4"]["uniform_share"] == 1.0
+    assert g["g4"]["status"] == "review needed"
+    assert [m["meeting_id"] for m in g["g4"]["meetings_attendance_not_shown"]] == ["2026-03-05-regular"]

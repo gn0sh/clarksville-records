@@ -18,6 +18,7 @@ from .agenda_center import AgendaCenterConfig
 from .city_minutes import NAME_RE, ParsedCityMinutes, parse_minutes_pdf, pdf_layer, short_hash
 from .extract import extract_pages
 from .store import Store
+from .verify import gates
 
 SCHEMA_VERSION = "1.0"
 SUFFIXES = {"jr", "sr", "ii", "iii", "iv"}
@@ -256,7 +257,12 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
         "unresolved_vote_names": dict(unresolved.most_common()),
         "by_source": by_source(meetings, roll_calls),
         "problems": problems,
+        # AC-P1 verified rate and G4 skew, the county's gate code as is (collector/verify.gates, architecture
+        # "Invariant: held-back counts"; city-verify/no-skew-gate). No city check marks a hold as an error of the
+        # source document itself (the county's `source_consistent`), so none is left out of the rates.
+        "gates": gates(facts, set()),
     }
+    summary["pass"] = summary["gates"]["verified_rate_gate"]["pass"] and summary["gates"]["g4"]["pass"]
     return {**facts, "_wards": wards}, summary
 
 

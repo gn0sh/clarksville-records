@@ -172,6 +172,12 @@ def main(argv: list[str]) -> int:
         report["build"] = summary
     write_json(p["report"], {**report, "fetch_log": log.get("fetch_log", [])})
     print(json.dumps({k: v for k, v in report.items()}, indent=1, default=str)[:4000])
+    if "build" in report:              # the gates (AC-P1, G4) are reported, as the county's; they set no exit code
+        g = report["build"]["gates"]
+        print(f"collector city: {g['roll_calls']} roll calls, {g['verified']} verified "
+              f"({100 * g['verified_rate']:.1f}%, gate {'pass' if g['verified_rate_gate']['pass'] else 'FAIL'}); "
+              f"G4 {g['g4']['status']}, flagged {g['g4']['flagged'] or 'none'} "
+              f"(uniform share {g['g4']['uniform_share']})", flush=True)
     code = exit_code(log)
     if code == BLOCKED:
         print(f"collector city: REFUSED by a host or by policy (exit {BLOCKED}); not retried. See the failures above.",
