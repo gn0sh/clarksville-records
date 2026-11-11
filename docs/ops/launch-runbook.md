@@ -23,7 +23,21 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   - city: 2 a listing not read or fetch/parse failures, 5 a host or robots.txt refused the collector (403/429 and the
     like). On 5 do not re-run to "try again" and do not change the fetcher: read `build/city-report.json` in the run
     log and ask the manager.
-  - county: 2 fetch/parse failures (votes or finance), 3 gate failure, 4 offline run refused.
+  - county: 2 fetch/parse failures (votes or finance), 3 gate failure, 4 offline run refused. (7 is a warning, below.)
+- **County meetings kept** (county 7, a warning; precedence 2 > 3 > 7 > 5/6). The shrink guard
+  (`docs/architecture/pipeline-limits-invariant.md`, "Rule 3: the shrink guard") compares each county source document
+  with the committed `data/facts.json` by sha256. The same document that lost a verified roll call or a meeting (a
+  limit trip, a lost OCR reading, a parser change), or a document missing from the run, keeps that document's
+  meetings exactly as committed; everything else (city, other county meetings, finance, agendas, RPC) commits and
+  deploys. A document whose bytes changed is a correction: the new reading is published and listed; it is a 7 only
+  when its verified count fell. One open "Daily update: county meetings kept" issue (a comment each later day) lists
+  `build/run-log.json` `kept_meetings` and `corrections`; it repeats every day until the cause clears. Under 7 the RPC
+  outcome is read from `run-log.json` `.rpc.exit`, so an RPC failure still opens its own issue. What to do: read the
+  run log's `limit` lines and the kept reasons. A transient cause (a timeout, a store gap) clears on its own; a too
+  tight limit is a bug (fix the limit, rule 1). Only when the downgrade is meant (a reader fix that rightly unverifies
+  votes, a parser change that renames meeting ids) run the workflow by hand from `main` with `allow_shrink` ticked
+  (Actions, Daily update, Run workflow): the county and RPC results then replace the committed ones, still listed in
+  the run summary. A scheduled run never passes it, and only a run on `main` commits.
 - **RPC only** (not a failure of the run; one source must not freeze the daily refresh). The RPC step's codes are used
   only when everything else is ok, and the RPC files (`data/localities/cmc-rpc/`) are restored byte for byte unless
   the step succeeds, so the city, county and finance data still commit and deploy:

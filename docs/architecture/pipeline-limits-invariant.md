@@ -118,40 +118,40 @@ freezes every pipeline, which breaks I-2. Fixing it changes the runbook's hard-f
 stage, so it is its own decision. Recommended: the same G2 keep for a committed meeting whose source failed (exit 7),
 exit 2 only for a failure with no committed meeting to fall back on. The manager decides whether to bundle it.
 
-**Every consumer of the guard and its exit codes (checklist, file:line at 7ae5fb3; 33 items):**
-- [ ] 1 collector/__main__.py:1,20 module docstring (`--allow-shrink`, the guard)
-- [ ] 2 collector/__main__.py:131 exit constants: add `KEPT = 7`
-- [ ] 3 collector/__main__.py:185-191 `cmd_build` gates and `report.pass` (recomputed on merged facts, G2.3)
-- [ ] 4 collector/__main__.py:265-273 `issue_command`: title for 7; body `kept_meetings`, `corrections` (drop `kept_facts`)
-- [ ] 5 collector/__main__.py:278 `REFUSED = 4` (unchanged; stays distinct from 7)
-- [ ] 6 collector/__main__.py:286-305 `shrink_reason` (offline): sha256 correction rule
-- [ ] 7 collector/__main__.py:308-317 `_verified`, `lost_verified`: per source document, sha-aware (G1)
-- [ ] 8 collector/__main__.py:320-323 `lost_message`: per kept document
-- [ ] 9 collector/__main__.py:326-331 `refuse` (offline message)
-- [ ] 10 collector/__main__.py:355,369-372 `allow` and the offline guard call
-- [ ] 11 collector/__main__.py:373-381 online keep: replace `facts = old` with the per-meeting merge; write the merge
-- [ ] 12 collector/__main__.py:390-391 `run_rpc(..., allow_shrink=allow)`
-- [ ] 13 collector/__main__.py:401,403 `site_build(FACTS)`, `export_site(facts)`: both must see the merged facts
-- [ ] 14 collector/__main__.py:406-409 run-log fields (`facts_changed`, `kept_meetings`, `corrections`)
-- [ ] 15 collector/__main__.py:417-429 exit precedence, KEPT stderr lines, RPC mapping, issue print
-- [ ] 16 collector/__main__.py:452-453 `--allow-shrink` help (says offline only; now online too)
-- [ ] 17 collector/verify.py:136 `gates(facts, source_error_ids)` called on the merged facts
-- [ ] 18 collector/facts.py:198,268 id scheme (read only: why a correction renames ids; unit assertion here or in the guard)
-- [ ] 19 collector/rpc.py:61 step codes (unchanged; must not collide with 7)
-- [ ] 20 collector/rpc.py:105-108,140 `hold_motions` (unchanged; G4)
-- [ ] 21 collector/rpc.py:404-431 `shrink_reason`: motion correction rule (G4 i)
-- [ ] 22 collector/rpc.py:477-480,532-536 guard call and `--allow-shrink` arg (unchanged)
-- [ ] 23 .github/workflows/daily-update.yml:23-28 `workflow_dispatch.inputs`: add `allow_shrink`
-- [ ] 24 .github/workflows/daily-update.yml:117-155 Collect step: code comments 128-140, `env`, command 142, mapping 146-154 (7 and `.rpc.exit`), outputs, final check 155
-- [ ] 25 .github/workflows/daily-update.yml:190-205 failure issue: 7 must never reach it (the step succeeds)
-- [ ] 26 .github/workflows/daily-update.yml:209-242 RPC issue step: also fires on 7 with `rpc=failed`
-- [ ] 27 .github/workflows/daily-update.yml (new step after 242): county kept-meetings issue
-- [ ] 28 .github/workflows/daily-update.yml:271-272,312 upload `if: success()` and push `if` (7 still publishes; `allow_shrink` commits from main only)
-- [ ] 29 docs/ops/launch-runbook.md:21-36 exit codes: add 7, the kept-meetings issue, when to dispatch `allow_shrink`
-- [ ] 30 docs/architecture/pipeline-limits-invariant.md: this rule, fix item C, test plan C
-- [ ] 31 collector/tests/test_run.py:116-118,161,213,231-264,285 (231-264 asserts exit 3 and the whole file kept: rewrite)
-- [ ] 32 collector/tests/test_pipeline_limits.py:137,230-256 (249-256 asserts `cmd_run` source text: update), 262-300 RPC guard; collector/tests/test_fin_export.py:196-206,232-247 offline `shrink_reason`/REFUSED
-- [ ] 33 tests/test_rpc_daily.py:483-519 (518 asserts code disjointness: add 7), 530-541 Collect step lines, 544-568 RPC issue `if`; tests/test_workflow_lock.py:77-126 (expression evaluator: `inputs.allow_shrink`), 404-415 issue-step pattern
+**Every consumer of the guard and its exit codes (checklist, file:line at 7ae5fb3; 33 items; all done 2026-11-11 by backend-engineer, G1-G4):**
+- [x] 1 collector/__main__.py:1,20 module docstring (`--allow-shrink`, the guard)
+- [x] 2 collector/__main__.py:131 exit constants: add `KEPT = 7`
+- [x] 3 collector/__main__.py:185-191 `cmd_build` gates and `report.pass` (recomputed on merged facts, G2.3)
+- [x] 4 collector/__main__.py:265-273 `issue_command`: title for 7; body `kept_meetings`, `corrections` (drop `kept_facts`)
+- [x] 5 collector/__main__.py:278 `REFUSED = 4` (unchanged; stays distinct from 7)
+- [x] 6 collector/__main__.py:286-305 `shrink_reason` (offline): sha256 correction rule
+- [x] 7 collector/__main__.py:308-317 `_verified`, `lost_verified`: per source document, sha-aware (G1)
+- [x] 8 collector/__main__.py:320-323 `lost_message`: per kept document
+- [x] 9 collector/__main__.py:326-331 `refuse` (offline message)
+- [x] 10 collector/__main__.py:355,369-372 `allow` and the offline guard call
+- [x] 11 collector/__main__.py:373-381 online keep: replace `facts = old` with the per-meeting merge; write the merge
+- [x] 12 collector/__main__.py:390-391 `run_rpc(..., allow_shrink=allow)`
+- [x] 13 collector/__main__.py:401,403 `site_build(FACTS)`, `export_site(facts)`: both must see the merged facts
+- [x] 14 collector/__main__.py:406-409 run-log fields (`facts_changed`, `kept_meetings`, `corrections`)
+- [x] 15 collector/__main__.py:417-429 exit precedence, KEPT stderr lines, RPC mapping, issue print
+- [x] 16 collector/__main__.py:452-453 `--allow-shrink` help (says offline only; now online too)
+- [x] 17 collector/verify.py:136 `gates(facts, source_error_ids)` called on the merged facts
+- [x] 18 collector/facts.py:198,268 id scheme (read only: why a correction renames ids; unit assertion here or in the guard)
+- [x] 19 collector/rpc.py:61 step codes (unchanged; must not collide with 7)
+- [x] 20 collector/rpc.py:105-108,140 `hold_motions` (unchanged; G4)
+- [x] 21 collector/rpc.py:404-431 `shrink_reason`: motion correction rule (G4 i)
+- [x] 22 collector/rpc.py:477-480,532-536 guard call and `--allow-shrink` arg (unchanged)
+- [x] 23 .github/workflows/daily-update.yml:23-28 `workflow_dispatch.inputs`: add `allow_shrink`
+- [x] 24 .github/workflows/daily-update.yml:117-155 Collect step: code comments 128-140, `env`, command 142, mapping 146-154 (7 and `.rpc.exit`), outputs, final check 155
+- [x] 25 .github/workflows/daily-update.yml:190-205 failure issue: 7 must never reach it (the step succeeds)
+- [x] 26 .github/workflows/daily-update.yml:209-242 RPC issue step: also fires on 7 with `rpc=failed`
+- [x] 27 .github/workflows/daily-update.yml (new step after 242): county kept-meetings issue
+- [x] 28 .github/workflows/daily-update.yml:271-272,312 upload `if: success()` and push `if` (7 still publishes; `allow_shrink` commits from main only)
+- [x] 29 docs/ops/launch-runbook.md:21-36 exit codes: add 7, the kept-meetings issue, when to dispatch `allow_shrink`
+- [x] 30 docs/architecture/pipeline-limits-invariant.md: this rule, fix item C, test plan C
+- [x] 31 collector/tests/test_run.py:116-118,161,213,231-264,285 (231-264 asserts exit 3 and the whole file kept: rewrite)
+- [x] 32 collector/tests/test_pipeline_limits.py:137,230-256 (249-256 asserts `cmd_run` source text: update), 262-300 RPC guard; collector/tests/test_fin_export.py:196-206,232-247 offline `shrink_reason`/REFUSED
+- [x] 33 tests/test_rpc_daily.py:483-519 (518 asserts code disjointness: add 7), 530-541 Collect step lines, 544-568 RPC issue `if`; tests/test_workflow_lock.py:77-126 (expression evaluator: `inputs.allow_shrink`), 404-415 issue-step pattern
 
 Checked, no change: .github/ISSUE_TEMPLATE/correction.yml (the public correction form, not a run issue),
 collector/rpc_export.py:10 and qa/site_checks.py:47 (read `hold_motions`, not exit codes), collector/city_run.py:38-39
@@ -175,6 +175,21 @@ collector/rpc_export.py:10 and qa/site_checks.py:47 (read `hold_motions`, not ex
   bytes identical after run 2, other sources' new data published both days, issue commented, not recreated.
 - `test_rpc_motion_correction_not_a_loss`: an RPC motion whose minutes `source_id` changed is not refused.
 - `test_guard_unit_assertion`: a roll call whose `source_id` differs from its meeting's raises with a clear message.
+
+**Implementation notes (backend-engineer, 2026-11-11; G1-G4 done, G5 and item E not in this change).**
+`collector/__main__.py`: `shrink_guard` (G1, with `check_unit`, the unit assertion, raising `GuardUnitError`),
+`keep_documents` (G2.1), `gate_report` (G2.3, shared with `cmd_build`), `KEPT = 7`; `collector/rpc.py`:
+`minutes_corrections` (G4 i, also reported as `rpc.corrections` in run-log.json). Tests:
+`collector/tests/test_shrink_guard.py` (the 11 above). Choices the text left open:
+- A document whose sha256 is gone while only **some** of its meetings are present is treated as (c), kept: one of its
+  meetings would otherwise be dropped (I-1).
+- The kept set is closed over both files (a kept meeting's new source, that source's other meetings, ...), so a meeting
+  is never shown twice when a meeting moves between documents.
+- `coverage.from/to` are recomputed over the merged meetings (body from the new result), so a kept first or last
+  meeting stays inside the stated coverage. Identical to the new result's whenever no kept meeting lies outside it.
+- Under `--allow-shrink` a correction that lowers the verified count does not raise 7 either (a person accepted the
+  downgrade); the would-be kept documents go to run-log.json `allowed_shrink` and stderr `ALLOWED` lines.
+- The committed file is checked by `check_unit` too, so a hand edit that breaks the unit fails loudly.
 
 `check_page`'s `page > MAX_OCR_PAGES` breaks rules 1, 3 and 4: a page index is not a cost, the comment's
 "largest real document: 51 pages" was measured on RPC files only, and the trip only adds a reason to the roll call.
