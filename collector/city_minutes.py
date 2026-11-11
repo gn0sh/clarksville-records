@@ -579,8 +579,19 @@ def _motion(window: list[Line]) -> dict | None:
             "page": page}
 
 
+def read_pages(pdf: Path) -> list[str]:
+    """The city reader's text of each page of a stored PDF (its text layer, `pdftotext -layout`)."""
+    return extract_pages(pdf)
+
+
+def page_has(page: str, text: str) -> bool:
+    """True when `text` is printed on `page`, whitespace collapsed on both sides and invisible characters removed."""
+    flat = lambda s: re.sub(r"\s+", " ", INVISIBLE.sub("", s).replace("\u00a0", " ")).strip()   # noqa: E731
+    return bool(flat(text)) and flat(text) in flat(page)
+
+
 def parse_minutes_pdf(pdf: Path, cfg: AgendaCenterConfig) -> ParsedCityMinutes:
-    pages = extract_pages(pdf)
+    pages = read_pages(pdf)
     return parse_text(pages, cfg, pdf_layer(pdf, pages))
 
 

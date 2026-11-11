@@ -47,10 +47,19 @@ class CivicClerkConfig:
     agenda_types: tuple
     minutes_types: tuple
     video_hosts: tuple
+    # D1: other listings that may hold this body's meetings ({category_name, event_name, page1}, ...), each asked with
+    # also_events_url; an event from one is kept only when page 1 of its agenda or minutes prints `page1`
+    also_list: tuple = ()
+    also_events_url: str = ""
 
     def first_url(self) -> str:
         return self.events_url.format(host=self.api_host, from_date=self.from_date,
                                       category=urllib.parse.quote(self.category_name.replace("'", "''")))
+
+    def also_url(self, also: dict) -> str:
+        q = lambda s: urllib.parse.quote(s.replace("'", "''"))        # noqa: E731 (an OData string literal)
+        return self.also_events_url.format(host=self.api_host, from_date=self.from_date,
+                                           category=q(also["category_name"]), event=q(also["event_name"]))
 
     def file(self, file_id: int) -> str:
         return self.file_url.format(host=self.api_host, file_id=int(file_id))
@@ -84,14 +93,32 @@ def parse_config(cfg) -> CivicClerkConfig:
         locality=_need(cfg, "locality", str), api_host=host, category_name=_need(cfg, "category_name", str),
         from_date=str(_need(cfg, "from_date", str)), events_url=_need(cfg, "events_url", str),
         file_url=_need(cfg, "file_url", str), agenda_types=_strs(cfg, "agenda_types"),
-        minutes_types=_strs(cfg, "minutes_types"), video_hosts=_strs(cfg, "video_hosts"))
-    for key, url in (("events_url", out.first_url()), ("file_url", out.file(1))):
+        minutes_types=_strs(cfg, "minutes_types"), video_hosts=_strs(cfg, "video_hosts"),
+        also_list=_also(cfg.get("also_list") or []), also_events_url=str(cfg.get("also_events_url") or ""))
+    if out.also_list and not out.also_events_url:
+        raise CivicClerkConfigError("civicclerk.yml: also_list needs also_events_url")
+    urls = [("events_url", out.first_url()), ("file_url", out.file(1))]
+    urls += [("also_events_url", out.also_url(a)) for a in out.also_list]
+    for key, url in urls:
         parts = urllib.parse.urlsplit(url)
         if parts.scheme != "https" or parts.netloc != host:
             raise CivicClerkConfigError(f"civicclerk.yml: {key} must be https on api_host")
     if len(out.from_date) != 10 or out.from_date[4] != "-" or out.from_date[7] != "-":
         raise CivicClerkConfigError("civicclerk.yml: from_date must be YYYY-MM-DD")
     return out
+
+
+def _also(raw) -> tuple:
+    """also_list: [{category_name, event_name, page1}], each a non-empty string (D1)."""
+    if not isinstance(raw, list):
+        raise CivicClerkConfigError("civicclerk.yml: also_list must be a list")
+    out = []
+    for i, a in enumerate(raw):
+        if not (isinstance(a, dict) and set(a) == {"category_name", "event_name", "page1"}
+                and all(isinstance(v, str) and v.strip() for v in a.values())):
+            raise CivicClerkConfigError(f"civicclerk.yml: also_list[{i}] must be {{category_name, event_name, page1}}")
+        out.append({k: v.strip() for k, v in a.items()})
+    return tuple(out)
 
 
 def load_config(path: Path | None = None) -> CivicClerkConfig:
@@ -117,14 +144,23 @@ def _pick(files: list[dict], types: tuple) -> tuple[dict | None, int]:
     return max(c, key=lambda f: (f.get("publishOn") or "", f["fileId"])), len(c)
 
 
-def parse_events(page: dict, cfg: CivicClerkConfig, kind_of) -> tuple[list[dict], list[dict]]:
+def parse_events(page: dict, cfg: CivicClerkConfig, kind_of, also: dict | None = None) -> tuple[list[dict], list[dict]]:
     """One OData page -> (rows, problems). kind_of(title) is the Agenda Center config's kind rule, so both sources
-    name kinds alike. Events of another category are left out (the filter should already have done it)."""
+    name kinds alike. Events of another category are left out (the filter should already have done it).
+
+    `also` (D1, one also_list entry): read the page of that listing instead: only events of exactly that category and
+    event name, each row marked `listed_as` and `page1_required`, so the build keeps it only when page 1 of its stored
+    agenda or minutes prints that text (city_build.page1_check); every other is skipped there and named."""
     if not isinstance(page, dict) or not isinstance(page.get("value"), list):
         raise EventsError("events page has no 'value' list: the API changed. Not guessing.")
     rows, problems = [], []
     for e in page["value"]:
-        if not isinstance(e, dict) or e.get("categoryName") != cfg.category_name or e.get("isDeleted"):
+        if not isinstance(e, dict) or e.get("isDeleted"):
+            continue
+        if also is None and e.get("categoryName") != cfg.category_name:
+            continue
+        if also is not None and (e.get("categoryName") != also["category_name"]
+                                 or (e.get("eventName") or "").strip() != also["event_name"]):
             continue
         start, title, eid = e.get("startDateTime") or "", (e.get("eventName") or "").strip(), e.get("id")
         if len(start) < 10 or not title or not isinstance(eid, int):
@@ -156,6 +192,9 @@ def parse_events(page: dict, cfg: CivicClerkConfig, kind_of) -> tuple[list[dict]
             "minutes_name": minutes.get("name") if minutes else None,
             "video_url": video, "has_media": bool(e.get("hasMedia")), "has_previous_versions": False,
         })
+        if also is not None:
+            rows[-1]["listed_as"] = f"{also['category_name']} / {also['event_name']}"
+            rows[-1]["page1_required"] = also["page1"]
     return rows, problems
 
 
@@ -173,8 +212,18 @@ def _cache(body: bytes, cache_dir: Path) -> str:
 def discover(fetcher, cfg: CivicClerkConfig, kind_of, log: dict, cache_dir: Path) -> list[dict]:
     """GET every listing page (politely), following @odata.nextLink on the API host only. Returns each event once,
     oldest first. Each page is cached as fetched; its URL and hash go to the run log. A refusal (403/429, robots,
-    denied host) or a network error propagates: a partial listing is never written over a full one."""
-    url, seen, out = cfg.first_url(), set(), []
+    denied host) or a network error propagates: a partial listing is never written over a full one. Then each
+    also_list listing (D1) the same way; its rows carry page1_required."""
+    seen, out = set(), []
+    _listing(fetcher, cfg, kind_of, log, cache_dir, cfg.first_url(), None, seen, out)
+    for also in cfg.also_list:
+        _listing(fetcher, cfg, kind_of, log, cache_dir, cfg.also_url(also), also, seen, out)
+    out.sort(key=lambda r: (r["date"], r["event_id"]))
+    return out
+
+
+def _listing(fetcher, cfg: CivicClerkConfig, kind_of, log: dict, cache_dir: Path, url: str, also: dict | None,
+             seen: set, out: list) -> None:
     for n in range(MAX_PAGES):
         status, body, _ = fetcher.get(url)
         if status != 200:
@@ -184,7 +233,7 @@ def discover(fetcher, cfg: CivicClerkConfig, kind_of, log: dict, cache_dir: Path
         except (UnicodeDecodeError, json.JSONDecodeError) as ex:
             raise EventsError(f"{url}: not JSON ({ex})") from None
         digest = _cache(body, cache_dir)
-        rows, problems = parse_events(page, cfg, kind_of)
+        rows, problems = parse_events(page, cfg, kind_of, also)
         log.setdefault("listings", []).append({"page": n, "url": url, "sha256": digest, "rows": len(rows)})
         log.setdefault("listing_problems", []).extend(problems)
         for r in rows:
@@ -199,8 +248,6 @@ def discover(fetcher, cfg: CivicClerkConfig, kind_of, log: dict, cache_dir: Path
         url = nxt
     else:
         raise EventsError(f"more than {MAX_PAGES} listing pages: stopping")
-    out.sort(key=lambda r: (r["date"], r["event_id"]))
-    return out
 
 
 # ------------------------------------------------------------------ both sources

@@ -105,8 +105,9 @@ def cmd_fetch_civicclerk(cc: civicclerk.CivicClerkConfig, kind_of, store: Store,
 
 def fetch_files(f, store: Store, rows: list[dict], log: dict, agendas: bool, limit: int | None) -> list[dict]:
     jobs = [(r, "minutes", r["minutes_url"]) for r in rows if r["minutes_url"]]
-    if agendas:
-        jobs += [(r, "agenda", r["agenda_url"]) for r in rows if r["agenda_url"]]
+    # a D1 row (page1_required) is kept by the build only when page 1 of its agenda or minutes prints the body's
+    # name, so its agenda is fetched too
+    jobs += [(r, "agenda", r["agenda_url"]) for r in rows if r["agenda_url"] and (agendas or r.get("page1_required"))]
     if limit is not None:
         jobs = jobs[:limit]
     stopped = False

@@ -15,7 +15,7 @@ import unicodedata
 from collections import Counter, defaultdict
 
 from .agenda_center import AgendaCenterConfig
-from .city_minutes import NAME_RE, ParsedCityMinutes, parse_minutes_pdf, pdf_layer, short_hash
+from .city_minutes import NAME_RE, ParsedCityMinutes, page_has, parse_minutes_pdf, pdf_layer, read_pages, short_hash
 from .extract import extract_pages
 from .store import Store
 from .verify import gates
@@ -132,8 +132,33 @@ def inspect_pdf(path) -> tuple[int, str]:
     return pdf_pages(path), pdf_layer(path, extract_pages(path))
 
 
+def page1_check(row: dict, store: Store, pages=read_pages) -> str | None:
+    """D1: a row from an also-listing (civicclerk also_list, `page1_required`) is this body's meeting only when page 1
+    of its stored minutes or agenda prints that text. None when it does (or the row needs no check), else why the
+    event is skipped. Nothing else about the event is read before it passes."""
+    want = row.get("page1_required")
+    if not want:
+        return None
+    read = []
+    for kind in ("minutes", "agenda"):
+        e = store.latest(row[f"{kind}_url"]) if row.get(f"{kind}_url") else None
+        if not e or not store.has_bytes(e["sha256"]):
+            continue
+        read.append(kind)
+        try:
+            first = (pages(store.path_for(e["sha256"])) or [""])[0]
+        except Exception as ex:                        # one bad file must not stop the build: skipped and named
+            read[-1] = f"{kind} (unreadable: {type(ex).__name__})"
+            continue
+        if page_has(first, want):
+            return None
+    where = " or ".join(read) if read else "no stored agenda or minutes"
+    return (f"listed as {row.get('listed_as') or 'another category'}; page 1 of its {where} does not print "
+            f"'{want}': skipped, not this body's meeting")
+
+
 def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_minutes_pdf,
-          inspect=inspect_pdf) -> tuple[dict, dict]:
+          inspect=inspect_pdf, pages=read_pages) -> tuple[dict, dict]:
     officials = Officials(cfg)
     sources: dict[str, dict] = {}
     meetings, roll_calls, motions, items, events, wards = [], [], [], {}, [], []
@@ -141,6 +166,7 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
     book = RosterBook(cfg)          # full-name attendance lists so far, bounded per meeting (resolve_surnames)
     status_count = Counter()
     ids_used: Counter = Counter()
+    skipped_events = []
 
     def source_for(url: str | None):
         if not url:
@@ -162,6 +188,12 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
     read_shas: set = set()
     for r in sorted(rows, key=lambda r: (r["date"], r.get("source", "agenda-center") != "agenda-center",
                                          int(r["agenda_id"].split("-")[-1]))):
+        skip = page1_check(r, store, pages)
+        if skip:
+            skipped_events.append({"date": r["date"], "title": r["title"], "event_id": r.get("event_id"),
+                                   "listed_as": r.get("listed_as"), "reason": skip})
+            problems.append({"meeting": r["date"], "title": r["title"], "problem": skip})
+            continue
         agenda_src, _ = source_for(r["agenda_url"])
         minutes_src, minutes_path = source_for(r["minutes_url"])
         other_meeting = None
@@ -257,6 +289,7 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
         "unresolved_vote_names": dict(unresolved.most_common()),
         "by_source": by_source(meetings, roll_calls),
         "problems": problems,
+        "skipped_events": skipped_events,       # D1: also-listed events whose page 1 is not this body's
         # AC-P1 verified rate and G4 skew, the county's gate code as is (collector/verify.gates, architecture
         # "Invariant: held-back counts"; city-verify/no-skew-gate). No city check marks a hold as an error of the
         # source document itself (the county's `source_consistent`), so none is left out of the rates.
