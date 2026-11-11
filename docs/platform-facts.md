@@ -163,6 +163,17 @@
   2026-11-11, one listing query 2026-02-06..03-04): the 2026-02-11 Special Session (resumed 2026-02-19) has agenda
   fileId 2887 and minutes fileId 3068, whose page 1 prints "City Council - Special Session" and page 3 "Eric Claunch was
   selected as the Ward 2 replacement and was sworn in by Mayor Pitts." Our `City Council` category filter misses it.
+- More council meetings under "General", by other names (verified 2026-11-11: the full General listing 2024-01-18 to
+  2027-01-19, 374 events, 25 pages, plus page 1 of each candidate's agenda and minutes): "City Council Special Session"
+  (2025-02-18, 2026-02-19, 04-06, 05-07, 06-29, 07-06, 07-09), "... - First/Second Reading of the Budget"
+  (2025-06-17, 06-24), "Special Called City Council Meeting" (2025-11-12, 2026-04-29), "Special Budget Session"
+  (2026-06-16), "Special Session - 1st Reading of the Budget" (2026-06-22), all page 1 "City Council - Special
+  Session"; "Special Session and First Reading of the Budget" (2026-06-11) and "Special Work Session - Budget"
+  (2026-05-26), page 1 "City Council - Special Work Session"; "Regular Session" (2026-07-02, event 4252), page 1 "City
+  Council - Regular Session". "One Time Event" is used by other bodies (2024-07-09 ACT Authority, 2025-04-16 Public
+  Safety Committee). The 2026-02-19 event's minutes (fileId 3069) are the 2026-02-11 minutes again (same sha256), and
+  its agenda heads "City Council - Special Session (Continuation of Special Session Meeting Recessed on ...". The
+  events filter's `contains(eventName,'...')` is case-insensitive ('session' returns "Special Session").
 - Text-layer quirks (verified 2026-11-11 with `pdftotext -bbox`): 2020-10-01 p.1 has a U+200B zero-width word between
   touching glyphs "J" and "eff" (the page shows "Jeff Henley"); 2022-04-07 p.1 prints "StaceyStreetman" with no gap
   (a source typo); 2026-03-05 prints "H AYWOOD" with a 3.3 pt gap.
