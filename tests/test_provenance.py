@@ -138,7 +138,7 @@ def test_search_index_seat_strings_are_worded(built):
     ix = json.loads(raw[raw.index("{"):raw.rindex("}") + 1])
     labels = {o["id"]: o["label"] for o in ix["officials"]}
     assert labels["a-example"] == "Example, A. (District 1)"
-    assert labels["b-sample"] == "Sample, B. (District 2 (seen in roll calls 2024-11-04 to 2024-11-04))"
+    assert labels["b-sample"] == "Sample, B. (District 2 (seen in roll calls on 2024-11-04))"
     assert labels["e-fixture"] == "Fixture, E."
     for t in [o["label"] for o in ix["officials"]] + ix["seat_labels"]:
         assert site_checks.dates_worded(t) == [], t
@@ -207,7 +207,7 @@ def test_landing_caption_has_no_in_use_since(pages):
     p = pages["index.html"]
     assert "in use since" not in p
     # the fixture build has no address box, so the list is the way in and starts open (collapsed beside the box)
-    assert 'id="addr-form"' not in p and '<details class="district-list" open>' in p
+    assert 'id="addr-form"' not in p and '<details class="district-list" id="wards-districts" open>' in p
 
 
 def test_meeting_names_without_a_record_read_seat_not_recorded(ix):

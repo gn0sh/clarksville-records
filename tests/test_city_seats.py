@@ -95,7 +95,7 @@ def test_the_mayor_is_carried_on_by_name_until_the_next_mayor_starts():
                    ("m2", "2020-05-01", None, "attendance lists", "roll calls")]
     s = _seats(rows, latest)
     m2 = s.current_of_seat("city-mayor")
-    assert s.dates_text(m2).startswith("seen in roll calls from 2020-05-01 to 2020-05-01; listed by name in attendance")
+    assert s.dates_text(m2).startswith("seen in roll calls on 2020-05-01; listed by name in attendance")
 
 
 def test_an_unresolved_name_is_never_placed_and_its_seat_says_so():
@@ -458,7 +458,7 @@ def test_an_open_record_seen_after_l_is_dated_to_where_it_was_seen():
     rows, latest = council.holder_rows(wards, facts, CFG)
     s = _seats(rows, latest)
     m = s.current_of_seat("city-mayor")
-    assert s.dates_text(m) == "seen in roll calls from 2020-09-01 to 2020-09-01"
+    assert s.dates_text(m) == "seen in roll calls on 2020-09-01"            # one day reads "on D"
 
 
 def test_ward_2_starts_with_the_configured_member_on_the_seating_date_with_its_source(real_city):
@@ -474,8 +474,10 @@ def test_ward_2_starts_with_the_configured_member_on_the_seating_date_with_its_s
     assert mcl["end"] is not None and mcl["end"] < "2026-02-19"
     assert site_checks.expected_ward_holders(wards, facts)[2] == "city-eric-claunch"
     assert cix.seats.header_text("city-eric-claunch") == (
-        "Ward 2, seen in the minutes that record the seating from 2026-02-19 to 2026-02-19; listed by name in "
+        "Ward 2, seen in the minutes that record the seating on 2026-02-19; listed by name in "
         "attendance lists to 2026-06-04, the latest minutes read")
+    # QA reads that wording as worded provenance (site-checks/provenance-claunch-seat-text)
+    assert site_checks.dates_worded(cix.seats.header_text("city-eric-claunch")) == []
     head = views.official("city-eric-claunch", cix)["name_source"]
     assert head["quote"] == "Eric Claunch was selected as the Ward 2 replacement and was sworn in by Mayor Pitts."
     assert head["src"]["url"] == f"{src['url']}#page=3" and head["date"] == "2026-02-11" and head["kind"] == "minutes"

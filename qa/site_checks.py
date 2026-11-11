@@ -1171,7 +1171,10 @@ def check_layout(site: Path, facts: dict, folder: str = "officials") -> tuple[li
 # Restated from the architecture's invariant `provenance`, not imported from sitegen.
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 DATE_PHRASES = ("seen in roll calls", "shown as vacant in roll calls", "roll calls", "seen in attendance lists",
-                "shown as vacant in attendance lists", "attendance lists")
+                "shown as vacant in attendance lists", "attendance lists",
+                # a record that starts at a configured seating (council.yml evidence.configured, sitegen/council.py
+                # CONFIGURED_EVIDENCE): the cited minutes that record it (site-checks/provenance-claunch-seat-text)
+                "seen in the minutes that record the seating")
 SOURCE_TERM = "as the source prints it"
 BANNED = ("Held this seat", "vacant since", "to present", "in use since")
 
@@ -1705,7 +1708,9 @@ FETCH_DAY = re.compile(
     r'href="(?P<href>https?://[^"]+)"'
     r"|(?P<kind>[Ff]etched between|[Ff]etched on|latest fetched|Data as of|[Ff]etched|at fetch \(|"
     r"(?:[Cc]ollected|[Aa]dded|[Dd]ownloaded|[Rr]etrieved)(?: on)?,?)\s"
-    r"(?P<day>\d{4}-\d{2}-\d{2})(?P<utc> \(UTC day\))?(?: and (?P<day2>\d{4}-\d{2}-\d{2})(?P<utc2> \(UTC day\))?)?")
+    # the footer prints its day in words inside <time class="data-as-of" datetime="ISO"> (sitegen/build.py as_of_day)
+    r'(?:<time class="data-as-of" datetime=")?(?P<day>\d{4}-\d{2}-\d{2})(?:">[^<]*</time>)?'
+    r"(?P<utc> \(UTC day\))?(?: and (?P<day2>\d{4}-\d{2}-\d{2})(?P<utc2> \(UTC day\))?)?")
 FETCH_AGGREGATE = ("fetched between", "fetched on", "latest fetched", "data as of")
 # other words a fetch day may follow; after "meeting " ("the latest meeting collected, D") the day is a meeting date
 FETCH_OTHER_WORDS = ("collected", "added", "downloaded", "retrieved")

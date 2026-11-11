@@ -72,7 +72,8 @@ def test_coming_pages_have_no_numbers_and_are_marked_coming_in_the_nav(pages):
 def test_landing_is_purpose_search_and_district_list_with_no_map(pages):
     html = pages["index.html"]
     body = main_text(html)
-    assert body.startswith(views.purpose_line())   # the fixture build: county only
+    # front-page-v2: the welcome leads; the fixture build has no finance, so the lede does not name money
+    assert body.startswith(config.SITE["welcome_h1"] + " " + views.welcome_lede(finance=False))
     assert re.search(r'<form class="landing-search" action="search\.html" method="get"', html)
     assert 'name="q"' in html and 'class="district-list"' in html
     # no map on the landing (CEO, 2026-11-10): no drawing, layer switch or map script
@@ -99,7 +100,7 @@ def test_landing_without_address_box_or_roster_opens_the_list(tmp_path, facts):
     pages = build_pages(tmp_path, facts)
     html = pages["index.html"]
     assert "<svg" not in html and 'id="addr-form"' not in html
-    assert re.search(r'<details class="district-list" open', html)
+    assert re.search(r'<details class="district-list" id="wards-districts" open', html)
     nav = next(n for n in parse(html).walk() if n.attrs.get("aria-label") == "County commission districts")
     rows = [" ".join(li.all_text().split()) for li in nav.walk() if li.tag == "li"]
     assert rows == [f"District {n}" for n in range(1, config.SITE["district_count"] + 1)]
@@ -136,7 +137,7 @@ def test_seat_label_follows_the_name_on_meeting_pages_by_that_meetings_date(page
 def test_official_page_header_carries_the_seat(pages):
     assert ("District 1, seen in roll calls from 2024-11-04 to 2024-12-09, the latest meeting collected"
             in text(pages["officials/a-example.html"]))
-    assert "District 2, seen in roll calls 2024-11-04 to 2024-11-04" in text(pages["officials/b-sample.html"])
+    assert "District 2, seen in roll calls on 2024-11-04" in text(pages["officials/b-sample.html"])
     assert "Seat not yet recorded" in text(pages["officials/e-fixture.html"])
 
 
@@ -170,7 +171,7 @@ def test_district_page_current_previous_and_periods(pages):
     assert ("Current D. Testperson District 2, seen in roll calls from 2024-12-09 to 2024-12-09, the latest meeting "
             "collected.") in t
     prev = next(n for n in parse(pages["districts/02.html"]).walk() if n.tag == "table")
-    assert ("B. Sample seen in roll calls 2024-11-04 to 2024-11-04 Current district lines Source: first, p. 1 (opens in a new tab); "
+    assert ("B. Sample seen in roll calls on 2024-11-04 Current district lines Source: first, p. 1 (opens in a new tab); "
             "last, p. 2 (opens in a new tab)") in " ".join(prev.all_text().split())
     # each block names its own first and last roll-call meetings, never a clip date
     assert "B. Sample, District 2: roll calls 2024-11-04 to 2024-11-04" in t
@@ -254,7 +255,7 @@ def test_official_filter_is_alphabetical_by_surname_with_no_counts(index, facts)
     labels = {o["id"]: o["label"] for o in index["officials"]}
     assert labels["a-example"] == "Example, A. (District 1)"
     # served previously: the former seat with its roll-call dates (design 6A.2)
-    assert labels["b-sample"] == "Sample, B. (District 2 (seen in roll calls 2024-11-04 to 2024-11-04))"
+    assert labels["b-sample"] == "Sample, B. (District 2 (seen in roll calls on 2024-11-04))"
     assert labels["e-fixture"] == "Fixture, E."   # no record: no seat, never guessed
     for label in labels.values():   # no counts: any digit is inside the seat part
         assert not re.search(r"\d", re.sub(r" \(.*\)$", "", label)), label

@@ -17,11 +17,11 @@
   </ul>
   {% if note and lines | selectattr("lagged") | list %}<p class="muted fresh-note">{{ note }}</p>{% endif %}
 {%- endmacro %}
-{% macro freshness(lines, note, heading="How recent the records are", collapsed=false) -%}
+{% macro freshness(lines, note, heading="How recent the records are", collapsed=false, plain=false) -%}
 {% if lines %}
 {% if collapsed %}
 <details class="freshness" id="freshness">
-  <summary><h2 id="fresh-h" class="fresh-h">{{ heading }}</h2></summary>
+  {% if plain %}<summary id="fresh-h">{{ heading }}</summary>{% else %}<summary><h2 id="fresh-h" class="fresh-h">{{ heading }}</h2></summary>{% endif %}
   {{ fresh_body(lines, note) }}
 </details>
 {% else %}

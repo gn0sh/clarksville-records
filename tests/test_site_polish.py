@@ -31,9 +31,9 @@ def test_county_line_is_computed_from_the_facts(pages, facts):
     assert (f'<a href="meetings/{mid}.html"><time class="nowrap" datetime="{latest}">{freshness.date_text(latest)}'
             '</time></a>') in sec
     # site-polish/freshness-a11y: the fixture build has no agendas line, so no note about minutes behind agendas;
-    # the collapsed block's summary holds the heading
+    # the collapsed block's summary is plain text, like the landing's other details (front-page-v2)
     assert freshness.NOTE not in sec
-    assert '<summary><h2 id="fresh-h" class="fresh-h">How recent the records are</h2></summary>' in sec
+    assert '<summary id="fresh-h">How recent the records are</summary>' in sec
 
 
 def test_a_newer_meeting_moves_the_line(facts):
@@ -149,12 +149,10 @@ def test_home_heading_names_every_body_built(pages, rpc_site):  # noqa: F811
     assert views.purpose_line([C()], rpc=True, finance=True, rpc_votes=True) == (
         "Votes and records of the Montgomery County Commission, Clarksville City Council and Regional Planning "
         "Commission, plus records of county finance, each linked to its source.")
-    # the fixture build has no council, RPC or finance: the heading names only what it holds
-    assert '<h1 class="purpose">Votes and records of the Montgomery County Commission, each linked to its source.</h1>' \
-        in pages["index.html"]
-    # the fixture RPC shows no confirmed motion: it is named for its records, not its votes
-    assert ("Montgomery County Commission, plus records of the Regional Planning Commission, each"
-            in read(rpc_site, "index.html"))
+    # front-page-v2: the landing's h1 is the welcome (config/site.yml welcome_h1), so purpose_line no longer prints
+    # there; the lede names money only when finance is built, so it never names a page the build lacks
+    assert f'<h1 id="welcome-h" class="welcome-h">{config.SITE["welcome_h1"]}</h1>' in pages["index.html"]
+    assert "spends money" not in pages["index.html"] and "Votes and records of" not in pages["index.html"]
 
 
 # ---- site-polish/about-preview ------------------------------------------------------------------------------------

@@ -18,6 +18,11 @@ import yaml
 from . import config
 
 
+def _span(start: str, to: str, lead: str = "") -> str:
+    """"from X to Y" (or "X to Y"), or "on X" when the span is the one day X."""
+    return f"on {start}" if to == start else f"{lead}{start} to {to}"
+
+
 class SeatsError(Exception):
     pass
 
@@ -240,7 +245,8 @@ class Seats:
 
     # -- the one wording of a record's dates -----------------------------------------------------------------
     def dates_text(self, rec: dict) -> str:
-        """Fixed wording (architecture, invariant `provenance`); L = the latest meeting collected."""
+        """Fixed wording (architecture, invariant `provenance`); L = the latest meeting collected. A span of one day
+        reads "on D", not "from D to D" (site-checks/provenance-claunch-seat-text)."""
         if rec["dates"] == "sourced":
             return f"term {rec['printed']}, as the source prints it"
         ev = rec.get("evidence") or self.wording["evidence"]
@@ -257,10 +263,10 @@ class Seats:
         if rec.get("printed_to"):
             # carried on by name only (council.extend_by_listings): what printed the seat, then the name-only lists
             seen = rec.get("seen_evidence") or ev
-            return f"seen in {seen} from {rec['start']} to {rec['printed_to']}; {LISTED_WORDS} {ev} to {to}"
+            return f"seen in {seen} {_span(rec['start'], rec['printed_to'], 'from ')}; {LISTED_WORDS} {ev} to {to}"
         if rec["end"] is None:
-            return f"seen in {ev} from {rec['start']} to {to}"
-        return f"seen in {ev} {rec['start']} to {rec['end']}"
+            return f"seen in {ev} {_span(rec['start'], to, 'from ')}"
+        return f"seen in {ev} {_span(rec['start'], rec['end'])}"
 
     def basis(self, rec: dict) -> str:
         return basis_text(rec, self.latest, self.wording)

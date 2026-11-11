@@ -115,7 +115,7 @@ def test_every_page_has_operator_footer_fixture_banner_and_no_external_resources
                 f'rel="noopener noreferrer">{config.OPERATOR_NAME}</a>.') in html, name
         assert "Run by" not in html, name
         assert "About this site and its data rules." in html, name
-        assert "Data as of 2026-11-07" in html, name
+        assert 'Data as of <time class="data-as-of" datetime="2026-11-07">November 7, 2026</time>' in html, name
         assert "FIXTURE" in html, name
         assert not re.search(r'<(script|link|img)[^>]+(src|href)="https?://', html), name
         assert f"<title>{config.SITE_NAME} (independent, unofficial) | " in html and config.SITE_NAME == "Daylight", name

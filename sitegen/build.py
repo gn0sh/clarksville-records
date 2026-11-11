@@ -7,9 +7,11 @@ import posixpath
 import re
 import shutil
 import sys
+from datetime import date
 from pathlib import Path
 
 import jinja2
+from markupsafe import Markup
 from jsonschema import Draft202012Validator, FormatChecker
 
 from . import county_agendas as agendas_mod
@@ -142,7 +144,20 @@ def make_env() -> jinja2.Environment:
     # A template that prints an instant prints its site_timezone day (docs/architecture/local-dates.md). Fetch days
     # reach the templates already converted (localdates.fetched, where a view picks the source).
     env.filters["local_day"] = localdates.local_day
+    env.filters["as_of_day"] = as_of_day
     return env
+
+
+def as_of_day(value) -> Markup:
+    """The footer's "Data as of" day in words, like the page's other dates ("November 7, 2026"), in a <time> that keeps
+    the ISO day for machines and for qa/site_checks.py dates/no-raw-utc-day; a "(UTC day)" label stays after it.
+    Anything that is not a day (e.g. "unknown") is printed as is."""
+    m = re.fullmatch(r"(\d{4}-\d{2}-\d{2})(.*)", str(value), re.S)
+    if not m:
+        return Markup.escape(value)
+    d = date.fromisoformat(m.group(1))
+    return Markup('<time class="data-as-of" datetime="{}">{} {}, {}</time>{}').format(
+        m.group(1), d.strftime("%B"), d.day, d.year, m.group(2))
 
 
 def read_changes(path: Path | None) -> list[dict]:
@@ -589,10 +604,6 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
 
     feed_rows = feeds_mod.feed_list(cixs, rpc=rpx, fin=fin_data, target=target) if site["alerts"] else []
     body_feeds = [f for f in feed_rows if f["kind"] == "body"]   # autodiscovery on the home pages (plan F6)
-    render("index.html.j2", "index.html", "Home", **views.landing(ix, districts, georef, geocoder, site["councils"]),
-           home_feeds=body_feeds,
-           freshness=fresh_mod.lines(ix, ax, cixs, rpx, fin_data, budget_views.INDEX if bg is not None else None),
-           freshness_note=fresh_mod.NOTE)
     render("officials.html.j2", "officials.html", "Officials", **views.officials_page(ix))
     render("meetings_index.html.j2", "meetings.html", "Meetings", **views.meetings_page(ix),
            watch=watch_mod.body(config.SITE["county_key"]),
@@ -713,9 +724,18 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                    rpc_href=rpx.home_href(), rpc_label=rpx.nav_label, **rpx.meetings_year(y))
     # Day by day (Daylight M2): after the year pages, so every council meeting link knows its part
     try:
-        render("today.html.j2", days_mod.PAGE, "Today", **days_mod.page(ix, cixs, rpx, fx, built_day, ax=ax))
+        day_ctx = days_mod.page(ix, cixs, rpx, fx, built_day, ax=ax)
     except days_mod.DaysError as exc:
         raise BuildError(str(exc)) from exc
+    render("today.html.j2", days_mod.PAGE, "Today", **day_ctx)
+    # The landing (docs/design/front-page-v2.md): after the day page, whose cards its meetings list is a selection of
+    render("index.html.j2", "index.html", "Home", **views.landing(ix, districts, georef, geocoder, site["councils"]),
+           home_feeds=body_feeds,
+           freshness=fresh_mod.lines(ix, ax, cixs, rpx, fin_data, budget_views.INDEX if bg is not None else None),
+           freshness_note=fresh_mod.NOTE,
+           welcome_lede=views.welcome_lede(finance=fx is not None),
+           doors=views.landing_doors(site, (rpx.nav_label, rpx.home_href()) if rpx is not None else None),
+           meetings=days_mod.landing_meetings(day_ctx, built_day))
     render("about.html.j2", "about.html", "About", **views.about(ix), glance=views.record_glance(ix))
     trust = views.trust_pages(ix)
     render("who.html.j2", "who-runs-this.html", "Who runs this", **trust)
