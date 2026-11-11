@@ -28,8 +28,6 @@ for label, item in (("OUTCOME", "OUTCOME, "), ("FAVOUR", "FAVOUR, "), ("motion",
                     ("seconded", ',\n                re.compile(r"\\bseconded\\b", re.I)')):
     assert tail.count(item) == 1, (label, tail)
     new = tail.replace(item, "")
-    if label == "seconded":
-        new = new.replace("),", ")")
     muts.append((f"10b tail trigger: {label}", tail, new))
 # rpc-votes/outcome-words-swallow, tail-second-motion, outcome-other-motion (review of d76f361)
 muts += [
@@ -96,6 +94,9 @@ for name, old, new in muts:
     last = (r.stdout.strip().splitlines() or ["?"])[-1]
     failed = re.search(r"FAILED (\S+)", r.stdout)
     killer = failed.group(1).split("::")[-1] if failed else ("(error) " + last if r.returncode else "")
+    if r.returncode and not failed:      # an import or syntax error is not a kill: the mutant is broken
+        rows.append((name, "BROKEN", killer[:90]))
+        continue
     rows.append((name, "killed" if r.returncode else "SURVIVED", killer[:90]))
 path.write_text(src, encoding="utf-8")
 print("| mutant | result | first failing test |\n|---|---|---|")

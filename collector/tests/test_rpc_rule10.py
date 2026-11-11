@@ -387,3 +387,10 @@ def test_real_2025_03_25_motion_9_tabling_the_case_stays_confirmed():
             "motion passes to table the case indefinitely.", extra=("Joe Smith",))
     ok(m)
     assert (m.kind, m.outcome) == ("Motion", "motion passes to table the case indefinitely")
+
+
+def test_a_vote_word_after_the_in_favor_sentence_drops_it_as_the_outcome():
+    """rule 9 with the body running to the unread outcome sentence: the 'in favor' sentence is never stored."""
+    m = one(M + "All others voted in favor. Motion passed for approval but Long voted nay.")
+    held(m, R.WHY_FAVOUR_NOT_OUTCOME)
+    assert m.outcome is None
