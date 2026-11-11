@@ -333,13 +333,18 @@ def shrink_reason(facts: dict, log: dict, facts_path: Path) -> str | None:
         return (f"the result has {len(facts['meetings'])} meetings and would drop {len(dropped)} of the "
                 f"{len(old.get('meetings', []))} in {Path(facts_path).name}, e.g. {', '.join(dropped[:3])}. "
                 f"A parser change that renames meeting ids also causes this; pass --allow-shrink to override")
-    kept = shrink_guard(facts, old, Path(facts_path).name)["kept"]
+    kept = shrink_guard(facts, old, Path(facts_path).name, superseded_shas(log))["kept"]
     if kept:
         return lost_message(kept, facts_path)
     return None
 
 
 # ------------------------------------------------------------------ the shrink guard (limits invariant rule 3)
+def superseded_shas(log: dict) -> set:
+    """sha256 of every document version the store marks replaced at its url (cmd_build: log['superseded'])."""
+    return {e["sha256"] for e in log.get("superseded") or [] if e.get("sha256")}
+
+
 class GuardUnitError(RuntimeError):
     """The guard's unit (a source document and every meeting in it) does not hold: a bug, never a run result."""
 
@@ -373,22 +378,41 @@ def check_unit(facts: dict, which: str) -> None:
             f"(docs/architecture/pipeline-limits-invariant.md, 'Rule 3: the shrink guard', G1)")
 
 
-def shrink_guard(new: dict, old: dict, name: str = "facts.json") -> dict:
+def vote_content(facts: dict, meeting_ids) -> list:
+    """The votes of these meetings without ids, sources or pages (which a new sha256 renames): per roll call its item,
+    outcome, stated tally and each vote's official, name and value, sorted. Equal lists: the correction kept every vote."""
+    ms = set(meeting_ids)
+    return sorted(json.dumps([r.get("meeting_id"), r.get("item_id"), r.get("outcome"), r.get("stated_tally"),
+                              sorted([v.get("official_id") or "", v.get("raw_name") or "", v.get("value") or ""]
+                                     for v in r.get("votes") or [])], sort_keys=True)
+                  for r in facts.get("roll_calls", []) if r.get("meeting_id") in ms)
+
+
+def shrink_guard(new: dict, old: dict, name: str = "facts.json", superseded=()) -> dict:
     """G1 (docs/architecture/pipeline-limits-invariant.md, "Rule 3: the shrink guard"): compare the new result with the
     committed facts `old` per source document S (and every meeting Ms it carries), by sha256.
     (a) S's bytes are in the result: a roll call of S verified in `old` and not verified (or absent) in `new`, or a
         meeting of Ms gone, keeps S (a limit trip, a lost OCR reading, a parser change).
-    (b) S's bytes are not, but every meeting of Ms is, under another source: a correction; the new reading wins.
+    (b) S's bytes are not, but every meeting of Ms is, under another source, AND S was replaced: a new source carrying
+        Ms has S's url, or the store marks S's sha256 superseded (`superseded`, from store.superseded()). That is a
+        correction; the new reading wins (pipeline/correction-not-bytes-changed: a meeting that merely moved to
+        another document, meetings.choose, while S is unchanged is not one, and keeps S).
     (c) S's bytes are not and a meeting of Ms is absent too (not in the store, a fetch or parse failure, a timeout):
         transient, keeps S.
-    Gains are never guarded. Returns {'kept': [{source_id, meeting_ids, ids (lost verified roll calls), reason}],
-    'corrections': [{meeting_ids, source_id, new_source_ids, sha256, new_sha256, verified: [old, new]}]}."""
+    Gains are never guarded. Returns {'kept': [{source_id, meeting_ids, ids (lost verified roll calls), reason,
+    closure: {meeting_ids, source_ids}, withheld_new}], 'corrections': [{meeting_ids, source_id, new_source_ids,
+    sha256, new_sha256, verified: [old, new], votes_changed}]}. `closure` is every meeting and source keep_documents
+    takes back with S; `withheld_new` the meetings in it that only the new result has (not published while S is
+    kept: pipeline/keep-closure-hides-new-meetings)."""
     check_unit(new, "the new result")
     check_unit(old, name)
     new_sha = {s.get("sha256") for s in new.get("sources", []) if s.get("sha256")}
     new_ids = {s["id"] for s in new.get("sources", [])}
     sha_of_new = {s["id"]: s.get("sha256") or s["id"] for s in new.get("sources", [])}
     old_sha = {s["id"]: s.get("sha256") for s in old.get("sources", [])}
+    old_url = {s["id"]: s.get("url") for s in old.get("sources", [])}
+    url_of_new = {s["id"]: s.get("url") for s in new.get("sources", [])}
+    superseded = set(superseded or ())
     now_src = {m["id"]: m["source_id"] for m in new.get("meetings", [])}
     now_verified = {r["id"] for r in new.get("roll_calls", []) if _verified(r)}
     units: dict[str, list] = {}
@@ -414,24 +438,36 @@ def shrink_guard(new: dict, old: dict, name: str = "facts.json") -> dict:
             if why:
                 kept.append({"source_id": sid, "meeting_ids": ms, "ids": lost,
                              "reason": f"same document (sha256 {h8}): " + "; ".join(why)})
-        elif not gone:                                                                          # (b) correction
+        elif not gone:
             to = sorted({now_src[m] for m in ms})
-            n_new = sum(1 for r in new.get("roll_calls", []) if r.get("meeting_id") in ms and _verified(r))
-            corrections.append({"meeting_ids": ms, "source_id": sid, "new_source_ids": to, "sha256": h,
-                                "new_sha256": [sha_of_new.get(t, t) for t in to], "verified": [len(was), n_new]})
+            replaced = (bool(h) and h in superseded) or (
+                bool(old_url.get(sid)) and any(url_of_new.get(t) == old_url[sid] for t in to))
+            if replaced:                                                                        # (b) correction
+                n_new = sum(1 for r in new.get("roll_calls", []) if r.get("meeting_id") in ms and _verified(r))
+                corrections.append({"meeting_ids": ms, "source_id": sid, "new_source_ids": to, "sha256": h,
+                                    "new_sha256": [sha_of_new.get(t, t) for t in to], "verified": [len(was), n_new],
+                                    "votes_changed": vote_content(old, ms) != vote_content(new, ms)})
+            else:                                                       # moved to another document, S not replaced
+                lost = [i for i in was if i not in now_verified]
+                kept.append({"source_id": sid, "meeting_ids": ms, "ids": lost,
+                             "reason": f"document sha256 {h8} not in the result and not replaced at its url (the "
+                                       f"meetings are now read from {', '.join(to)}, a document posted at another "
+                                       f"url): not a correction"})
         else:                                                                                   # (c) missing
             kept.append({"source_id": sid, "meeting_ids": ms, "ids": was,
                          "reason": f"document sha256 {h8} not in the result (not in the store, or a fetch or parse "
                                    f"failure) and meetings absent: {', '.join(gone)}"})
+    had = {m["id"] for m in old.get("meetings", [])}
+    for k in kept:
+        cm, cs = keep_closure(new, old, [k])
+        k["closure"] = {"meeting_ids": sorted(cm), "source_ids": sorted(cs)}
+        k["withheld_new"] = sorted(cm - had)
     return {"kept": kept, "corrections": corrections}
 
 
-def keep_documents(new: dict, old: dict, kept: list[dict]) -> dict:
-    """G2.1: `new` with every kept document's records replaced by the committed ones, byte for byte. A record is the
-    document's when its meeting is one of the kept meetings or its source is the kept source or a new source carrying
-    one of them (closed over both files, so no meeting is ever shown twice). Committed items the kept records name are
-    added back when `new` lacks them; officials come from `new`. Lists are sorted as Builder.facts sorts them, so a
-    document kept two days running writes the same file."""
+def keep_closure(new: dict, old: dict, kept: list[dict]) -> tuple[set, set]:
+    """The meetings and sources keep_documents takes back as committed: the kept documents and meetings, closed over
+    both files (a kept meeting's source in either file, that source's other meetings, ...)."""
     ms = {m for k in kept for m in k["meeting_ids"]}
     sids = {k["source_id"] for k in kept}
     pairs = [(m["id"], m["source_id"]) for f in (new, old) for m in f.get("meetings", [])]
@@ -443,6 +479,16 @@ def keep_documents(new: dict, old: dict, kept: list[dict]) -> dict:
                 ms.add(mid)
                 sids.add(sid)
                 grew = True
+    return ms, sids
+
+
+def keep_documents(new: dict, old: dict, kept: list[dict]) -> dict:
+    """G2.1: `new` with every kept document's records replaced by the committed ones, byte for byte. A record is the
+    document's when its meeting is one of the kept meetings or its source is the kept source or a new source carrying
+    one of them (closed over both files, so no meeting is ever shown twice). Committed items the kept records name are
+    added back when `new` lacks them; officials come from `new`. Lists are sorted as Builder.facts sorts them, so a
+    document kept two days running writes the same file."""
+    ms, sids = keep_closure(new, old, kept)
 
     def mine(r: dict, key: str = "meeting_id") -> bool:
         return r.get(key) in ms or r.get("source_id") in sids
@@ -474,16 +520,19 @@ def lost_message(kept: list[dict], facts_path: Path) -> str:
 
 def kept_line(k: dict) -> str:
     ids = k.get("ids") or []
+    withheld = k.get("withheld_new") or []
     return (f"{k['source_id']} ({', '.join(k['meeting_ids'])}): {k['reason']}"
-            + (f": {', '.join(ids[:20])}{' ...' if len(ids) > 20 else ''}" if ids else ""))
+            + (f": {', '.join(ids[:20])}{' ...' if len(ids) > 20 else ''}" if ids else "")
+            + (f"; new meetings withheld with it: {', '.join(withheld)}" if withheld else ""))
 
 
 def correction_line(c: dict) -> str:
     """G1(b): `correction: <meeting ids> source <old8> -> <new8>, verified <n_old> -> <n_new>`."""
     old8 = (c.get("sha256") or c["source_id"].removeprefix("src-"))[:8]
+    votes = "; votes changed" if c.get("votes_changed") else ""
     new8 = "+".join((h or "")[:8] or t.removeprefix("src-")[:8] for h, t in zip(c["new_sha256"], c["new_source_ids"]))
     return (f"correction: {', '.join(c['meeting_ids'])} source {old8} -> {new8}, "
-            f"verified {c['verified'][0]} -> {c['verified'][1]}")
+            f"verified {c['verified'][0]} -> {c['verified'][1]}{votes}")
 
 
 def refuse(why: str, since: int = 0) -> int:
@@ -537,7 +586,8 @@ def cmd_run(args) -> int:
     # source document, by sha256. A kept document's records are the committed ones; everything else is published,
     # and the gates run on what is published. --allow-shrink lets the new result win for every meeting (still listed).
     old = json.loads(FACTS.read_text(encoding="utf-8")) if FACTS.is_file() else None
-    guard = shrink_guard(facts, old, FACTS.name) if old is not None else {"kept": [], "corrections": []}
+    guard = (shrink_guard(facts, old, FACTS.name, superseded_shas(log)) if old is not None
+             else {"kept": [], "corrections": []})
     kept = [] if allow else guard["kept"]
     log["kept_meetings"] = kept
     log["corrections"] = guard["corrections"]
@@ -590,7 +640,8 @@ def cmd_run(args) -> int:
         print(f"collector: KEPT {kept_line(k)}", file=sys.stderr, flush=True)
     for k in log.get("allowed_shrink", []):
         print(f"collector: ALLOWED (--allow-shrink) {kept_line(k)}", file=sys.stderr, flush=True)
-    lowered = [] if allow else [c for c in guard["corrections"] if c["verified"][1] < c["verified"][0]]
+    lowered = [] if allow else [c for c in guard["corrections"]
+                                if c["verified"][1] < c["verified"][0] or c.get("votes_changed")]
     if code == 0 and (kept or lowered):          # precedence 2 > 3 > 7 > 5/6; the RPC outcome is in run-log `rpc`
         code = KEPT
     if code == 0 and rpc_code:

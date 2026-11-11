@@ -227,9 +227,9 @@ def _rc(rid, status, sid="src-30a9df8f0000", mid="m1"):
     return {"id": rid, "meeting_id": mid, "source_id": sid, "verification": {"status": status, "checks": []}}
 
 
-def _doc(rcs, sha="30a9df8f" + "0" * 56, mid="m1"):
+def _doc(rcs, sha="30a9df8f" + "0" * 56, mid="m1", url="https://example.test/m1.pdf"):
     sid = f"src-{sha[:12]}"
-    return {"sources": [{"id": sid, "sha256": sha}], "meetings": [{"id": mid, "source_id": sid}],
+    return {"sources": [{"id": sid, "sha256": sha, "url": url}], "meetings": [{"id": mid, "source_id": sid}],
             "roll_calls": [dict(r, source_id=sid) for r in rcs]}
 
 
@@ -249,8 +249,12 @@ def test_county_guard_refuses_a_committed_verified_roll_call_that_is_no_longer_v
     better = _doc(old["roll_calls"][:2] + [_rc("rc-c", "verified")])
     assert M.shrink_reason(better, log, path) is None                                 # gaining one is fine
     # G2.7: new bytes for the same meeting are a correction, not refused offline either
-    corrected = _doc([_rc("rc-11111111-p519-0", "unverified")], sha="1" * 64)
+    corrected = _doc([_rc("rc-11111111-p519-0", "unverified")], sha="1" * 64)       # new bytes at the same url
     assert M.shrink_reason(corrected, log, path) is None
+    moved = _doc([_rc("rc-11111111-p519-0", "verified")], sha="1" * 64, url="https://example.test/other.pdf")
+    assert "not replaced at its url" in M.shrink_reason(moved, log, path)            # another document: refused
+    superseded = {"parsed": 1, "failures": [], "superseded": [{"sha256": "30a9df8f" + "0" * 56}]}
+    assert M.shrink_reason(moved, superseded, path) is None                          # the store says S was replaced
 
 
 def test_county_allow_shrink_skips_the_guard():

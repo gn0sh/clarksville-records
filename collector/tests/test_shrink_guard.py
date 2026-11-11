@@ -240,7 +240,7 @@ def test_guard_other_sources_still_publish(county, tmp_path, capsys):
     assert county["site_facts"] == merged and county["export_facts"] == merged and merged == committed()
     assert "--body" in capsys.readouterr().out                       # the issue it would open (D1)
     code, outputs, _ = collect(tmp_path, county=M.KEPT, run_log=json.dumps({"rpc": {"exit": 0}}))
-    assert code == 0 and outputs == {"city": "0", "county": "0", "kept": "yes", "rpc": "ok"}
+    assert code == 0 and outputs == {"city": "0", "county": "0", "kept": "yes", "allowed": "no", "rpc": "ok"}
     assert STEPS["Upload refreshed data"]["if"].startswith("success() && ")
 
 
@@ -294,7 +294,8 @@ def test_kept_exit_7_and_issue(county, tmp_path):
     assert run_log["kept_meetings"][0]["ids"] == [lost] and "kept_facts" not in run_log
     code, outputs, _ = collect(tmp_path, county=M.KEPT, run_log=json.dumps(run_log))
     assert code == 0 and outputs["kept"] == "yes" and outputs["county"] == "0" and outputs["rpc"] == "ok"
-    assert KEPT_ISSUE["if"] == "always() && steps.collect.outputs.kept == 'yes'"
+    assert KEPT_ISSUE["if"] == ("always() && (steps.collect.outputs.kept == 'yes' || "
+                                "steps.collect.outputs.allowed == 'yes')")
     assert KEPT_ISSUE["env"]["KEPT_TITLE"] == "Daily update: county meetings kept"
     assert "${{" not in KEPT_ISSUE["run"] and "--body-file" in KEPT_ISSUE["run"] and "head -c" in KEPT_ISSUE["run"]
     run_log["kept_meetings"][0]["reason"] += " ```\n# injected heading\n```"           # text from a document
@@ -384,3 +385,133 @@ def test_rpc_motion_correction_not_a_loss():
     assert rpc.minutes_corrections(old, lost) == []
     assert rpc.shrink_reason(old, lost, hold_motions=True) is None
     assert rpc.shrink_reason(old, lost, allow_shrink=True) is None
+
+
+# ------------------------------------------------------------------ security review of fad1f3e
+def moved(facts, sid, url="https://example.test/another-document.pdf"):
+    """`sid`'s meetings now read from another document (new bytes at another url): meetings.choose moved them."""
+    new, new_sid = rehash(facts, sid)
+    next(s for s in new["sources"] if s["id"] == new_sid)["url"] = url
+    return new, new_sid
+
+
+def test_a_meeting_moved_to_another_document_is_not_a_correction(county):
+    """pipeline/correction-not-bytes-changed: S's sha256 gone from the result and its meetings read from a document at
+    another url, while the store does not mark S replaced: S is kept (exit 7), its verified votes stay published."""
+    old = committed()
+    sid = one_meeting_source(old)
+    new, new_sid = moved(old, sid)
+    county["new"] = new
+    assert M.main(["run"]) == M.KEPT
+    assert json.loads(county["path"].read_text()) == old
+    (k,) = county["log"]()["kept_meetings"]
+    assert k["source_id"] == sid and "not replaced at its url" in k["reason"] and county["log"]()["corrections"] == []
+    assert k["closure"]["source_ids"] == sorted([sid, new_sid])
+
+
+def test_a_superseded_document_is_a_correction_even_at_another_url(county, monkeypatch):
+    """The store's manifest marks S's sha256 superseded (cmd_build: log['superseded']): a correction, new reading wins."""
+    old = committed()
+    sid = one_meeting_source(old)
+    new, new_sid = moved(old, sid)
+    county["new"] = new
+    sha = next(s["sha256"] for s in old["sources"] if s["id"] == sid)
+    build = M.cmd_build
+
+    def with_superseded(store, log, use_ocr=True):
+        out = build(store, log, use_ocr)
+        log["superseded"] = [{"url": "https://example.test/old.pdf", "sha256": sha, "superseded_by": "x"}]
+        return out
+    monkeypatch.setattr(M, "cmd_build", with_superseded)
+    assert M.main(["run"]) == 0
+    assert json.loads(county["path"].read_text()) == new
+    (c,) = county["log"]()["corrections"]
+    assert c["source_id"] == sid and c["votes_changed"] is False
+
+
+def test_a_correction_that_changes_a_vote_is_a_warning(county, capsys):
+    """pipeline/correction-not-bytes-changed: new bytes at the same url that change a vote (verified count unchanged)
+    are published, and exit 7 so a person looks."""
+    old = committed()
+    sid = one_meeting_source(old)
+    new, new_sid = rehash(old, sid)
+    rc = next(r for r in new["roll_calls"] if r["source_id"] == new_sid and r["verification"]["status"] == "verified"
+              and r["votes"])
+    rc["votes"][0]["value"] = "no" if rc["votes"][0]["value"] != "no" else "yes"
+    county["new"] = new
+    assert M.main(["run"]) == M.KEPT
+    assert json.loads(county["path"].read_text()) == new
+    (c,) = county["log"]()["corrections"]
+    assert c["votes_changed"] is True and c["verified"][0] == c["verified"][1]
+    assert "; votes changed" in capsys.readouterr().out
+
+
+def test_new_meetings_withheld_with_a_kept_document_are_listed(county, tmp_path, capsys):
+    """pipeline/keep-closure-hides-new-meetings: a kept document whose meeting moved to a new book takes the book back
+    with it; the book's new-only meeting is withheld and listed (run-log, stderr, kept issue), never silently."""
+    old = committed()
+    new = copy.deepcopy(old)
+    voted = {r["meeting_id"] for r in new["roll_calls"]
+             if r["source_id"] == BOOK and r["verification"]["status"] == "verified"}
+    m = next(m for m in new["meetings"] if m["source_id"] == BOOK and m["id"] in voted)
+    sha = "d" * 64
+    book2 = f"src-{sha[:12]}"
+    new["sources"].append({**next(s for s in new["sources"] if s["id"] == BOOK), "id": book2, "sha256": sha,
+                           "url": "https://example.test/book2.pdf"})
+    for k in ("roll_calls", "motions", "item_events"):              # read from the new book: ids carry its sha
+        for r in new[k]:
+            if r["meeting_id"] == m["id"]:
+                r["source_id"] = book2
+                r["id"] = r["id"].replace(BOOK[4:12], sha[:8])
+                if r.get("ref"):
+                    r["ref"] = r["ref"].replace(BOOK[4:12], sha[:8])
+                if r.get("motion_id"):
+                    r["motion_id"] = r["motion_id"].replace(BOOK[4:12], sha[:8])
+    m["source_id"] = book2
+    new["meetings"].append({**m, "id": "2026-12-14-formal", "date": "2026-12-14"})            # only in the new book
+    county["new"] = new
+    assert M.main(["run"]) == M.KEPT
+    written = json.loads(county["path"].read_text())
+    assert "2026-12-14-formal" not in {x["id"] for x in written["meetings"]} and written["meetings"] == old["meetings"]
+    (k,) = county["log"]()["kept_meetings"]
+    assert k["withheld_new"] == ["2026-12-14-formal"] and k["closure"]["source_ids"] == sorted([BOOK, book2])
+    assert "2026-12-14-formal" in k["closure"]["meeting_ids"]
+    assert "new meetings withheld with it: 2026-12-14-formal" in capsys.readouterr().err
+    _, body = issue_step(tmp_path, KEPT_ISSUE, run_log=json.dumps(county["log"]()))
+    assert '"withheld_new": [\n    "2026-12-14-formal"' in body
+
+
+@pytest.mark.parametrize("name", ["Open or update the RPC issue", "Open or update the county kept-meetings issue"])
+def test_issue_steps_never_block_publishing(name):
+    """ci/notify-step-blocks-publish: a gh failure in a notification step leaves upload, push and deploy running."""
+    assert STEPS[name]["continue-on-error"] is True
+    assert STEPS["Upload refreshed data"]["if"].startswith("success() && ")
+
+
+def test_allow_shrink_leaves_a_trace(county, tmp_path):
+    """ci/allow-shrink-audit: a dispatch with allow_shrink that replaced documents sets allowed=yes, which names the
+    override in the data commit message and opens or comments on the kept-meetings issue."""
+    new = copy.deepcopy(committed())
+    unverify(new, BOOK)
+    county["new"] = new
+    assert M.main(["run", "--allow-shrink"]) == 0
+    run_log = json.dumps(county["log"]())
+    code, outputs, args = collect(tmp_path, run_log=run_log, event="workflow_dispatch", allow="true")
+    assert code == 0 and args == ["--allow-shrink"] and outputs["allowed"] == "yes" and outputs["kept"] == "no"
+    for event, allow, log in (("workflow_dispatch", "true", json.dumps({"allowed_shrink": []})),
+                              ("workflow_dispatch", "true", None), ("schedule", "true", run_log)):
+        assert collect(tmp_path, run_log=log, event=event, allow=allow)[1]["allowed"] == "no", (event, log)
+    assert WF["jobs"]["update"]["outputs"]["allowed"] == "${{ steps.collect.outputs.allowed }}"
+    calls, body = issue_step(tmp_path, KEPT_ISSUE, open_issue="17", run_log=run_log)
+    assert calls[1].startswith("issue comment 17") and body.startswith("allow_shrink: a manual run") and BOOK in body
+    commit = next(s for s in WF["jobs"]["push"]["steps"] if s.get("name") == "Commit refreshed data to main")
+    assert commit["env"]["ALLOWED"] == "${{ needs.update.outputs.allowed }}" and "${{" not in commit["run"]
+    msg = commit["run"].split('msg="$msg; ', 1)[1].split('"', 1)[0]
+    assert msg.startswith("allow_shrink:") and 'if [ "$ALLOWED" = yes ]' in commit["run"]
+    work = tmp_path / "repo"
+    work.mkdir()
+    for ok, want in (("yes", "allow_shrink: committed"), ("no", None), ("", None)):
+        script = commit["run"].split('msg="Daily update', 1)[1].split("git commit", 1)[0]
+        r = subprocess.run(["bash", "-c", 'msg="Daily update' + script + 'echo "$msg"'], cwd=work, text=True,
+                           capture_output=True, env={**os.environ, "ALLOWED": ok}, check=True)
+        assert (want in r.stdout) if want else ("allow_shrink" not in r.stdout), (ok, r.stdout)
