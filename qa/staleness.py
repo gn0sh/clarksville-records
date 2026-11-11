@@ -90,10 +90,20 @@ def all_dates(data_dir: Path) -> dict:
     fin = _load(data_dir / FILES["finance"])
     if fin:
         out["finance-bids"] = _dates(s.get("archive_date") for s in fin.get("solicitations") or [])
-        fys = [b["fiscal_year"] for b in fin.get("books") or []
-               if isinstance(b.get("fiscal_year"), int) and b.get("edition") == "approved"]
-        out["finance-budget"] = sorted(set(fys))
+        fys = [_fy(b.get("fiscal_year")) for b in fin.get("books") or [] if b.get("edition") == "approved"]
+        out["finance-budget"] = sorted({y for y in fys if y is not None})
     return out
+
+
+def _fy(v) -> int | None:
+    """A fiscal year as a whole number; text such as "2027" is accepted (pipeline/stale-budget-fy-type)."""
+    if isinstance(v, bool):
+        return None
+    if isinstance(v, int):
+        return v
+    if isinstance(v, str) and v.strip().isdigit():
+        return int(v.strip())
+    return None
 
 
 def newest_dates(data_dir: Path) -> dict:
@@ -209,6 +219,9 @@ def _key(cfg: dict, t: str) -> str | None:
     return None
 
 
+ORPHAN_NOTE = "This source is no longer checked (not in config/staleness.yml). Closed by the daily run."
+
+
 def plan(rows: list[dict], open_issues: list[dict], cfg: dict, today: date, run_url: str = "",
          closed_issues: list[dict] = ()) -> list[tuple]:
     """Actions, in order: ("create", title, body), ("reopen", number, body), ("edit", number, body),
@@ -244,6 +257,10 @@ def plan(rows: list[dict], open_issues: list[dict], cfg: dict, today: date, run_
             if run_url:
                 note += f" {run_url}"
             actions += [("close", n, note) for n in nums]
+    # ci/stale-issue-orphan: a source removed from config/staleness.yml closes its open issue (fixed text)
+    checked = set(cfg["sources"])
+    for key in sorted(set(by_key) - checked):
+        actions += [("close", n, ORPHAN_NOTE) for n in sorted(by_key[key])]
     return actions
 
 

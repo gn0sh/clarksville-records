@@ -28,17 +28,20 @@ def write(data: Path, rel: str, obj) -> None:
 @pytest.fixture
 def data(tmp_path):
     d = tmp_path / "data"
-    write(d, "facts.json", {"meetings": [{"date": "2026-05-11"}, {"date": "2026-04-13"}, {"date": None}]})
+    write(d, "facts.json", {"meetings": [{"id": "c1", "kind": "formal", "date": "2026-05-11"},
+                                         {"id": "c2", "kind": "formal", "date": "2026-04-13"},
+                                         {"id": "c3", "kind": "formal", "date": None}]})
     write(d, "county-agendas/agendas.json", {
         "sources": [{"id": "a", "pages": 3}, {"id": "nopages", "pages": None}],
-        "meetings": [{"date": "2026-11-09", "source_id": "a"}, {"date": "2026-12-01", "source_id": "nopages"}]})
+        "meetings": [{"id": "g1", "kind": "formal", "date": "2026-11-09", "source_id": "a"},
+                     {"id": "g2", "kind": "formal", "date": "2026-12-01", "source_id": "nopages"}]})
     write(d, "localities/clarksville-tn/facts.json", {
         "sources": [{"id": "m1", "kind": "minutes"}, {"id": "a1", "kind": "agenda"}, {"id": "a2", "kind": "agenda"}],
-        "meetings": [{"date": "2026-06-04", "source_id": "m1", "agenda_source_id": "a1"},
-                     {"date": "2026-11-05", "source_id": "a2"}]})
+        "meetings": [{"id": "k1", "date": "2026-06-04", "source_id": "m1", "agenda_source_id": "a1"},
+                     {"id": "k2", "date": "2026-11-05", "source_id": "a2"}]})
     write(d, "localities/cmc-rpc/rpc.json", {"meetings": [
-        {"date": "2026-09-22", "minutes_source_id": "x", "agenda_source_id": "y"},
-        {"date": "2026-10-27", "minutes_source_id": None, "agenda_source_id": "z"}]})
+        {"id": "r1", "date": "2026-09-22", "minutes_source_id": "x", "agenda_source_id": "y"},
+        {"id": "r2", "date": "2026-10-27", "minutes_source_id": None, "agenda_source_id": "z"}]})
     write(d, "finance.json", {
         "books": [{"fiscal_year": 2027, "edition": "approved"}, {"fiscal_year": 2028, "edition": "proposed"}],
         "solicitations": [{"archive_date": "2026-10-19"}, {"archive_date": None}]})
@@ -327,3 +330,63 @@ def test_every_fixed_title_issue_lookup_lists_only_actions_issues():
     assert len(lookups) == 6, lookups
     for ln in lookups:
         assert "--app github-actions" in ln, ln
+
+
+# ---- pipeline/stale-freshness-drift: the check reads the same newest dates as the site's freshness line ------------
+
+def _freshness_newest(data_dir: Path) -> dict:
+    """The site's own rules (sitegen/freshness.py, the real county agendas class) on `data_dir`, as newest_dates()
+    keys. Stubs carry only the attributes freshness.py reads; they add no filtering of their own."""
+    from types import SimpleNamespace
+    from sitegen import county_agendas, freshness
+
+    def load(rel):
+        p = data_dir / st.FILES[rel]
+        return json.loads(p.read_text(encoding="utf-8")) if p.is_file() else None
+
+    def parts(line):
+        return {p["what"]: (p["iso"] or p["text"]) for p in (line or {}).get("parts", [])}
+
+    out = {}
+    county, ag = load("county"), load("county_agendas")
+    ix = SimpleNamespace(facts=county, meetings={m["id"]: m for m in county["meetings"]}, coverage={"body": "x"},
+                         meeting_href=lambda mid, anchor="": mid)
+    c = parts(freshness.county(ix, county_agendas.Agendas(ag, ix, TODAY)))
+    out["county-minutes"], out["county-agendas"] = c.get("minutes and votes"), c.get("agendas")
+    city = load("city")
+    cix = SimpleNamespace(facts=city, sources={s["id"]: s for s in city["sources"]}, body_name="x",
+                          meeting_href=lambda mid: mid)
+    c = parts(freshness.council(cix))
+    out["city-minutes"], out["city-agendas"] = c.get("minutes and votes"), c.get("agendas")
+    rpx = SimpleNamespace(facts=load("rpc"), body="x", meeting_href=lambda mid, d: mid)
+    c = parts(freshness.rpc(rpx))
+    out["rpc-minutes"], out["rpc-agendas"] = c.get("minutes"), c.get("agendas")
+    c = parts(freshness.finance(load("finance")))
+    out["finance-bids"] = c.get("bids and awards")
+    fy = c.get("approved budget books")
+    out["finance-budget"] = int(fy.removeprefix("fiscal year ")) if fy else None
+    return out
+
+
+@pytest.mark.parametrize("which", ["fixture", "committed data"])
+def test_newest_dates_match_the_site_freshness_line(which, data):
+    d = data if which == "fixture" else ROOT / "data"
+    assert st.newest_dates(d) == _freshness_newest(d)
+
+
+# ---- pipeline/stale-budget-fy-type, ci/stale-issue-orphan ------------------------------------------------------------
+
+def test_fiscal_year_stored_as_text_is_read(data):
+    write(data, "finance.json", {"books": [{"fiscal_year": "2027", "edition": "approved"},
+                                           {"fiscal_year": "FY26", "edition": "approved"},
+                                           {"fiscal_year": True, "edition": "approved"}], "solicitations": []})
+    assert st.newest_dates(data)["finance-budget"] == 2027
+
+
+def test_an_issue_for_a_source_no_longer_checked_is_closed(cfg):
+    one = {**cfg, "sources": {"county-minutes": cfg["sources"]["county-minutes"]}}
+    rows = rows_for(one, **{"county-minutes": True})
+    opened = [{"number": 2, "title": "Stale source: x [county-minutes]"},
+              {"number": 6, "title": "Stale source: gone [retired-source]"}]
+    assert st.plan(rows, opened, one, TODAY) == [("edit", 2, st.body(rows[0], TODAY, "")),
+                                                 ("close", 6, st.ORPHAN_NOTE)]

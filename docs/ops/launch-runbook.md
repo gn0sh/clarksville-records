@@ -64,7 +64,10 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   `stale-source`. It is opened once, its body is edited on later days (never a second issue), and the first run that
   finds the source fresh again closes it; if it goes stale again, its latest closed issue is reopened. Both steps
   are continue-on-error: a stale source never holds back publishing. If either step fails (a crash, a gh call or the
-  label refused), one "Daily update: data-age check broken" issue opens (a comment each later day).
+  label refused), one "Daily update: data-age check broken" issue opens (a comment each later day). Closing a
+  stale-source issue by hand does not silence it: while the source is still stale, the next run reopens it (whatever
+  the close reason). To stop it, tune or remove the source in `config/staleness.yml`; an open issue for a source
+  removed from that file is closed by the next run.
   A failed run does not touch these issues ("Daily update failed" covers it). See "Paused sources" below.
 - A failed fetch never deletes data: the RPC step is all or nothing on its committed files; a hard failure stops the
   push job, so no partial result reaches `main`; the document store and caches are only ever added to.
