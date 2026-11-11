@@ -52,7 +52,7 @@ def test_operator_line_reads_name_seat_and_link_from_the_data(about_site, city_f
     text = plain(lines[0])
     assert text.startswith(f"{config.OPERATOR_NAME} is run by {o['name']}, who ")
     assert not re.search(r"\b(19|20)\d\d\b", text)                    # no date the data lacks
-    assert text.endswith(f"Votes by {o['name']} are shown by the same rules as every other official's.")
+    assert text.endswith("This member's votes are shown by the same rules as every other official's.")
     # no typed pronoun (site-polish/operator-pronoun-typed): the line reads the same for anyone
     assert not re.search(r"\b(he|his|him|she|her|hers|they|their|them)\b", text, re.I), text
     # the same line on Who runs this (site-polish/operator-disclosure-split)
@@ -126,7 +126,7 @@ def test_site_checks_about_passes_and_catches_drift(about_site, tmp_path, cfg, c
     m = SC.ABOUT_RATE.search(raw)
     raw = raw.replace(m.group("text"), "1,999 of 2,235" + m.group("text").split(" ", 3)[3], 1)
     raw = raw.replace(f'href="city/members/{PERSON}.html"', 'href="city/index.html"', 1)
-    raw = raw.replace(" are shown by the same rules", " (since 2027) are shown by the same rules", 1)
+    raw = raw.replace(" votes are shown by the same rules", " votes (since 2027) are shown by the same rules", 1)
     raw = re.sub(r"is on the Clarksville City Council \(Ward \d+\)", "has served on the Clarksville City Council", raw, count=1)
     page.write_text(raw, encoding="utf-8")
     (bad / "who-runs-this.html").write_text(
