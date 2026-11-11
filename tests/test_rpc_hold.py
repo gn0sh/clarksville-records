@@ -8,6 +8,7 @@ import io
 import json
 import re
 import shutil
+from datetime import date
 from html import unescape
 from pathlib import Path
 
@@ -182,3 +183,58 @@ def test_day_card_and_morning_note_follow_the_hold(inputs):
     assert votes[True] == []
     # off: the confirmed motion on the CZ-12-2026 zoning case is a confirmed vote entry, as before
     assert [(e["id"], e["confirmed"]) for e in votes[False]] == [(f"rpc/vote/{MEETING}-motion-1", True)]
+
+
+# ------------------------------------------------------------------ site_checks rpc-morning (morning/*.json)
+def make_with_note(d: Path, hold: bool) -> Path:
+    """A build that writes the morning note for 2026-11-11: the RPC's documents first fetched on Nov 10, the county
+    fixture's long before (so the RPC rows are not a collector's initial run)."""
+    out = d / f"note-{'held' if hold else 'unheld'}" / "build" / "site"
+    if out.is_dir():
+        return out
+    county = json.loads((d / "facts.json").read_text(encoding="utf-8"))
+    rpcf = json.loads((d / "rpc.json").read_text(encoding="utf-8"))
+    rows = [{"url": s["url"], "first_fetched_at": "2026-01-05T09:00:00+00:00", "kind": s["kind"]}
+            for s in county["sources"]]
+    rows += [{"url": s["url"], "first_fetched_at": "2026-11-10T20:00:00+00:00"} for s in rpcf["sources"]]
+    (d / "manifest.json").write_text(json.dumps(rows), encoding="utf-8")
+    build(d / "facts.json", out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, rpc=cfg(d, hold),
+          morning_manifests=[d / "manifest.json"], today=date(2026, 11, 12), target="pages")
+    return out
+
+
+def test_site_checks_rpc_morning_fails_a_vote_entry_shown_under_hold(inputs):
+    from qa import site_checks as SC
+    unheld = make_with_note(inputs, False)
+    note = json.loads((unheld / "morning/2026-11-11.json").read_text(encoding="utf-8"))
+    assert not note["backfill"]
+    votes = [e for e in note["entries"] if e["id"].startswith("rpc/vote/")]
+    assert [(e["id"], e["confirmed"]) for e in votes] == [(f"rpc/vote/{MEETING}-motion-1", True)]
+    assert SC.check_rpc_morning(unheld, rec(inputs, False))[0] == []
+    # the same note checked with the hold on: the confirmed vote entry, with its outcome and tally, fails
+    problems, _ = SC.check_rpc_morning(unheld, rec(inputs, True))
+    assert any(p.startswith("morning/2026-11-11.json: rpc/vote/") and "confirmed, outcome, tally" in p
+               and "hold_motions is on" in p for p in problems), problems
+    # built with the hold on: no RPC vote entry at all, and the check passes
+    held = make_with_note(inputs, True)
+    problems, msg = SC.check_rpc_morning(held, rec(inputs, True))
+    assert problems == [] and msg.startswith("0 RPC vote entries") and "hold_motions on" in msg, problems
+
+
+def test_site_checks_rpc_morning_fails_a_name_or_a_stale_record(inputs, tmp_path):
+    from qa import site_checks as SC
+    site = tmp_path / "site"
+    shutil.copytree(make_with_note(inputs, False), site)
+    f = site / "morning/2026-11-11.json"
+    note = json.loads(f.read_text(encoding="utf-8"))
+    first = next(e for e in note["entries"] if e["id"] == f"rpc/vote/{MEETING}-motion-1")
+    note["entries"].append({**first, "id": f"rpc/vote/{MEETING}-motion-2", "confirmed": False, "outcome": None,
+                            "tally": None, "title": "Hidden Mover"})
+    f.write_text(json.dumps(note), encoding="utf-8")
+    problems, _ = SC.check_rpc_morning(site, rec(inputs, False))
+    assert problems == [f"morning/2026-11-11.json: rpc/vote/{MEETING}-motion-2 shows Hidden Mover "
+                        "(not confirmed in rpc.json)"], problems
+    stale = {**rec(inputs, False), "motion_rules": None}
+    problems, _ = SC.check_rpc_morning(site, stale)
+    assert any(f"rpc/vote/{MEETING}-motion-1 shows confirmed" in p and "motion_rules is not current" in p
+               for p in problems), problems

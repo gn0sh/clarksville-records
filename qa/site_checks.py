@@ -50,6 +50,9 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               one disposing motion per case_id, with no confirmed/reasons/tally key or column; each row's values are
               the record's, both files hold the same motions once, no value of a motion left out is in any file, and
               data/<slug>/ holds exactly the export's five files; while rpc.yml hold_motions is on, no motion row
+  rpc-morning (a build with the RPC) every morning/*.json RPC vote entry (<body_key>/vote/<motion id>) of a motion
+              that is not confirmed in rpc.json, or of any motion while hold_motions is on or motion_rules is not
+              current, carries confirmed false, no outcome or tally and none of the motion's names
   files       at most the target's file cap: --target preview (claude.ai artifact, 500) or pages (GitHub Pages, 3000)
   transcripts every line of a transcript page (<folder>/transcripts/*.html) has its time linked to its meeting's own
               video as <video_url>#t=<whole seconds>, the "Transcript" label and the notice; every call-on entry on a
@@ -463,6 +466,51 @@ def check_rpc_export(site: Path, rpc: dict | None) -> tuple[list[str], str]:
     return problems, (f"{'/'.join(str(x) for x in sorted(n))} motions in data/{slug}/motions.csv and facts.json "
                       f"(motion_rules {rules!r}; {'hold_motions on; ' if on_hold else ''}{len(held)} values of "
                       f"motions left out checked)")
+
+
+def check_rpc_morning(site: Path, rpc: dict | None) -> tuple[list[str], str]:
+    """The morning note (morning/*.json, sitegen/morning.py) against rpc.json, restated: an RPC vote entry (id
+    <body_key>/vote/<motion id>) may carry `confirmed: true`, an outcome or a tally only for a motion `confirmed: true`
+    in rpc.json under the current motion_rules while rpc.yml `hold_motions` is off; any other carries none of those
+    and none of its motion's mover, seconder, nays or abstainers (allowed: a value the record's agendas, listing or
+    sources print themselves, as rpc-export)."""
+    if not rpc:
+        return [], "no RPC facts"
+    notes = sorted((site / "morning").glob("*.json")) if (site / "morning").is_dir() else []
+    motions = {mv["id"]: mv for mv in rpc.get("motions", [])}
+    on_hold = rpc_held(rpc)
+    current = rpc.get("motion_rules") == RPC_MOTION_RULES and not on_hold
+    prefix = f"{rpc['_cfg']['body_key']}/vote/"
+    printed = json.dumps([rpc["cases"], rpc["meetings"], rpc["sources"]], ensure_ascii=False)
+    problems: list[str] = []
+    seen = 0
+    for f in notes:
+        try:
+            entries = json.loads(f.read_text(encoding="utf-8")).get("entries") or []
+        except (ValueError, AttributeError):
+            problems.append(f"morning/{f.name}: not a morning note")
+            continue
+        for e in entries:
+            eid = str(e.get("id") or "")
+            if not eid.startswith(prefix):
+                continue
+            seen += 1
+            mid = eid[len(prefix):]
+            mv = motions.get(mid)
+            if current and mv is not None and mv.get("confirmed") is True:
+                continue
+            why = ("rpc.yml hold_motions is on" if on_hold else "rpc.json's motion_rules is not current"
+                   if not current else "not in rpc.json" if mv is None else "not confirmed in rpc.json")
+            shown = [k for k in ("outcome", "tally") if e.get(k) is not None]
+            if e.get("confirmed") is True:
+                shown.insert(0, "confirmed")
+            names = [v for k in RPC_HELD_FIELDS if k not in ("outcome",)
+                     for v in ((mv or {}).get(k) if isinstance((mv or {}).get(k), list) else [(mv or {}).get(k)])
+                     if v and v not in printed and v in json.dumps(e, ensure_ascii=False)]
+            if shown or names:
+                problems.append(f"morning/{f.name}: {eid} shows {', '.join(shown + sorted(set(names)))} ({why})")
+    return problems, (f"{seen} RPC vote entries in {len(notes)} morning notes"
+                      + ("; hold_motions on" if on_hold else ""))
 
 
 def rpc_allowed(rpc: dict | None) -> set[str]:
@@ -2314,6 +2362,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
         rep.add("rpc-motions", problems, note)
         problems, note = check_rpc_export(site, rpc)
         rep.add("rpc-export", problems, note)
+        problems, note = check_rpc_morning(site, rpc)
+        rep.add("rpc-morning", problems, note)
     county_pages = {rel: pg for rel, pg in pages.items() if not any(rel.startswith(c["prefix"]) for c in cs)}
     problems = check_unverified(site, county_pages, facts, internal, fin=finance)
     for c in cs:
