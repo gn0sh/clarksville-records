@@ -182,7 +182,8 @@ Go-live checklist from the security review of afdb0f0 (each one checked in the P
 - the failure issue is opened by a separate `if: failure()` job with fixed text, not by the job holding the key;
 - the job checks out `github.sha`, not `needs.update.outputs.sha` (L6);
 - the `morning-send` artifact is downloaded to `$RUNNER_TEMP`, never into the checkout; no cache; no `pip install`;
-  the step runs `python -E -s -m sender deliver ...`;
+  the step runs `python -E -s -m sender deliver ...`; (superseded 2026-11-11 by main-protect N1/L1: an isolated
+  `python -I -S -c` launch of a staged copy, docs/architecture/main-protect-invariant.md)
 - each canary id is masked with `::add-mask::` before anything else runs;
 - the artifact check allows up to `MAX_PLAN_BYTES` (`sender/common.py`), not 2 MB;
 - `sender/buttondown.py` (T4.4's adapter) uses `http.client` (as built: `urllib.request` with an https-only

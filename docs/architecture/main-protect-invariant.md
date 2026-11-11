@@ -1,37 +1,51 @@
 # main-protect invariant (loop rule: `main-protect` hit 3)
-devops-engineer, 2026-11-11. Sources: security reviews `security-tip-fixes-f94b8a9` (S1, S3) and
-`security-tip-fixes2-a618a04` (N1, `main-protect/pr-check-path-scope`). Applies to the `note` job of
-`.github/workflows/daily-update.yml`, the only job that gets `BUTTONDOWN_API_KEY`.
+devops-engineer, 2026-11-11. Sources: security reviews `security-tip-fixes-f94b8a9` (S1, S3),
+`security-tip-fixes2-a618a04` (N1, `main-protect/pr-check-path-scope`) and `security-n1-387d368` (L1-L3, nits).
+Applies to the `note` job of `.github/workflows/daily-update.yml`, the only job that gets `BUTTONDOWN_API_KEY`.
 
 ## The invariant
-**No code that runs with the send key can reach `main` except through a reviewed pull request.** "Code" is anything the
-job executes or that can change what it executes: the workflow, the actions it uses, every Python module it imports,
-and any file or variable that can change which module is imported. Everything else the job reads is data and is
-validated as data. The rule that enforces it: every file the job can load as code is (a) outside `data/`, so the PR
-check covers it, and (b) not reachable by any other path. `data/` is the only part of the repository excluded from the
-PR check (the push job commits it daily without a PR), so nothing in the job may load anything from `data/` or from
-the repository root.
+**No code that runs with the send key can reach `main` except as the merge of a pull request into `main`.** What the
+note job checks is "merged by pull request"; that the PR was *reviewed* is team process (the playbook's review gates),
+not something the job can prove: a writer who merges their own PR with 0 approvals passes the check (L3). The one
+control a writer cannot get around is the required reviewer on the `morning-note` environment; making it mandatory
+(today the runbook makes it optional and removable after canary week) is Brian's call on the go-live list.
 
-## Every way code or config reaches the job, and its guard after this fix
-| # | Consumer | How it is guarded |
+"Code" is anything the job executes or that can change what it executes: the workflow, the actions it uses, every
+Python module it imports, and any file or variable that can change which module is imported or how the sender behaves.
+Everything else it reads is data and is validated as data. The rule that enforces it: everything the job loads is taken
+from this commit's git objects, outside `data/` (so the PR check covers it), and is re-checked before each use.
+`data/` is the only part of the repository the PR check leaves out (the push job commits it daily without a PR), so
+nothing in the job may load anything from `data/`, from the repository root or from the working folder.
+
+## Every way code or config reaches the job, and its guard
+| # | Consumer | Guard |
 |---|---|---|
-| 1 | The workflow file (job, `if:`, `run:` scripts, env, `MAIN_PR_BASELINE`) | `.github/` is outside `data/`: every first-parent commit on main after the baseline that touches it must be a merged PR (PR check). The stale-rerun check refuses a run whose tree (outside `data/`) differs from main's. A workflow pushed to main that drops these steps: the runbook's required reviewer on the `morning-note` environment (residual, below). |
-| 2 | Other workflows (`.github/workflows/*`) that could name the `morning-note` environment | Same PR check (`.github/`); the environment's deployment-branch rule (main only) and required reviewer. |
-| 3 | Actions (`checkout`, `setup-python`, `download-artifact`) | Pinned by full commit sha in the workflow (test `test_no_secrets_and_pinned_actions`); the pins are in `.github/`, so PR-checked. |
-| 4 | Bash for `run:` steps | GitHub's `bash --noprofile --norc -eo pipefail`; no repo file is sourced. `GITHUB_ENV`/`GITHUB_PATH` are written only by `setup-python` and by "Validate the plan files" (`PLAN`, a path whose day folder matched `^[0-9]{4}-[0-9]{2}-[0-9]{2}$`), so no earlier step can set `BASH_ENV`, `LD_PRELOAD` or `PATH`. No repo code runs before the key step except the isolated sender (row 6). |
-| 5 | Tools `git`, `gh`, `jq`, `find`, `cp` | From the GitHub runner image, not the repo. `git` reads `.git/config` written by `checkout`; repo files cannot define hooks or filter drivers. |
-| 6 | **`sys.path` and imports** (N1) | Before: `python -E -s -m sender` and `python -E -s -c` put the checkout root first on `sys.path`, so a root `json.py`/`argparse.py` (or package) shadowed the standard library. After: step "Stage the sender outside the checkout" copies only the regular `sender/*.py` files to `$RUNNER_TEMP/note-lib/sender/`, and every Python run in the job is `python -I -S -c '...'` with that one folder inserted: `-I` drops the cwd and script dir, every `PYTHON*` variable and the user site; `-S` drops site-packages, `.pth` files and `sitecustomize`. `sys.path` is that folder plus the standard library only, so an import of anything but `sender` or the standard library (including optional fallbacks such as `winreg` or `tzdata`) fails. |
-| 7 | `sender/*.py` | PR-checked and stale-checked (outside `data/`). Copied after both checks; no `__pycache__` (a committed unchecked-hash `.pyc` would load without its source), no symlink, no subfolder. |
-| 8 | Current directory (checkout root) | Used only to find `config/site.yml`; never on `sys.path`. Root files (`conftest.py`, `*.py`, `pyproject.toml`) are no longer importable, and are PR-checked anyway. |
-| 9 | `config/site.yml` (data: link hosts, mode, limits) | Read by `sender/settings.py`'s own parser (no PyYAML). PR-checked and stale-checked. |
-| 10 | The plan artifact (`morning-send`, from the job that parses untrusted PDFs) | Untrusted data: downloaded to `$RUNNER_TEMP`, outside the checkout and `sys.path`; layout, names, symlinks and size checked by "Validate the plan files"; schema, bodies and links by `sender.deliver.check_plan`. Never executed. |
+| 1 | This workflow file (job, `if:`, `run:` scripts, env, `MAIN_PR_BASELINE`) | `.github/` is outside `data/`: every first-parent commit on main after the baseline that touches it must be a merged PR (PR check). The stale-rerun check refuses a run whose `sender/`, `config/site.yml` or `.github/` differ from main's. A workflow on main that drops these steps: only the environment's required reviewer (row 17). |
+| 2 | Other workflows that could name the `morning-note` environment (L2) | The PR check does **not** run in them. Their guards: the `GITHUB_TOKEN` can never push a change under `.github/workflows/` (it has no `workflows` permission), so the Actions bypass of the main ruleset cannot add one; a person needs a PR to main (main ruleset: `pull_request`, `non_fast_forward`, `deletion`; `scripts/main-ruleset.json`); the environment's deployment-branch rule (main only) and its required reviewer. A workflow added to main by a ruleset bypass actor (row 16) is covered by the required reviewer only. |
+| 3 | Actions (`checkout`, `setup-python`, `download-artifact`) | Pinned by full commit sha (test `test_no_secrets_and_pinned_actions`); only these three are used (test). The pins are in `.github/`, so PR-checked. |
+| 4 | Bash for `run:` steps | GitHub's `bash --noprofile --norc`; every step that runs Python starts `set -euo pipefail`. No `run:` line executes a file from the checkout or the staged folder, sources a file, or runs `bash`/`sh`/`eval`/`exec` (test scans every command). `GITHUB_ENV` is written only by `setup-python`, the stage step (`NOTE_LIB`, a `mktemp` path; `NOTE_LIB_SUM`, 64 hex) and "Validate the plan files" (`PLAN`, a date-checked path). |
+| 5 | Tools `git`, `gh`, `jq`, `find`, `sort`, `xargs`, `sha256sum` | From the GitHub runner image, not the repo. `git` reads `.git/config` written by `checkout`; repo files cannot define hooks or filter drivers. Staging uses `git ls-tree`/`git cat-file blob`, which apply no `.gitattributes` rule (`git archive` would apply `export-ignore` and `export-subst`; tested). |
+| 6 | **`sys.path` and imports** (N1) | Every Python run in the job is `python -I -S -X pycache_prefix="$(mktemp -d)" -c` with only `$NOTE_LIB/py` added to `sys.path` (exact strings, tested). `-I`: no current folder or script folder, no user site, `PYTHON*` variables ignored by the interpreter; `-S`: no site-packages, `.pth`, `sitecustomize`; `pycache_prefix`: a new empty folder, so no `.pyc` is read from or written beside the sources. `sys.path` is that folder plus the standard library, so importing anything but `sender` or the standard library (including optional fallbacks such as `winreg` or `tzdata`) fails. |
+| 7 | `sender/*.py` and the staged folder (L1) | Stage step, after both main checks and **before** the plan download: `git ls-tree -z HEAD -- sender/ config/site.yml` and `git cat-file blob` (the commit's objects as committed, not the working folder): only top-level `sender/<name>.py` and `config/site.yml` entries of mode 100644/100755 are written into a new random `NOTE_LIB` (no symlink, subfolder, `__pycache__`); a symlinked `sender` or `config/site.yml` stages nothing and fails. Its sha256 digest (every entry's type, mode and path, and every file's sha256) goes to `NOTE_LIB_SUM`. Validate, dry run and deliver each re-check it first and stop on any difference (tested: a planted `json.py`, a `__pycache__`, a changed module or config, a removed module, a symlink, a mode change). |
+| 8 | Working folder (checkout root) | Not read by any Python run and never on `sys.path`. Root files (`conftest.py`, `*.py`, `pyproject.toml`) are not importable, and are PR-checked anyway. |
+| 9 | `config/site.yml` (enabled, mode, canary_only, link_hosts, limits) | Read only as `$NOTE_LIB/site.yml` (`--config`), staged from the commit's objects and digest-checked; parsed by `sender/settings.py`'s own parser (no PyYAML; `api_base` pinned in `settings.py`). PR-checked and stale-checked. |
+| 10 | The plan artifact (`morning-send`, from the job that parses untrusted PDFs) | Untrusted data: downloaded after staging to `$RUNNER_TEMP/morning-send`, outside the checkout and `sys.path`; layout, names, symlinks and size checked by "Validate the plan files"; schema, bodies and links by `sender.deliver.check_plan`. Never executed. A write by the download into `NOTE_LIB` (zip-slip) is caught by row 7. |
 | 11 | `data/` | Not read by the note job and not on `sys.path`; so it is safe to leave out of the PR check. |
-| 12 | Environment and secrets | Key and canary ids only in the deliver step's env; `GH_TOKEN` (read-only) only in the PR check; `-I` ignores `PYTHON*`. |
-| 13 | Installed packages | None: no pip step, no cache; `-S` leaves out site-packages entirely. Interpreter from `setup-python` (pinned). |
-| 14 | The PR-baseline check | Pathspec widened from `sender/ config/site.yml .github/` to `. ':(exclude)data/'`: any direct push outside `data/` after `MAIN_PR_BASELINE` refuses the send. Fails closed on an unset baseline, shallow history or an API error. The stale-rerun check uses the same pathspec. |
+| 12 | Environment secrets (`BUTTONDOWN_API_KEY`, `MORNING_NOTE_CANARY_IDS`) | Secrets of the `morning-note` environment, set by Brian in settings (not the repo); each only in the deliver step's env. `GH_TOKEN` (read-only) only in the PR check. |
+| 13 | Repository variables (`MORNING_NOTE_SEND`, `RECORDS_DEPLOY_ENABLED`) | Set in repo settings by admins, not in the repo; they only switch the job on (two locks: the job `if:` and the `--live` test). No variable is put into a `run:` script by `${{ }}` (test). |
+| 14 | Other environment variables | The interpreter ignores `PYTHON*` under `-I`, but the standard library still reads some directly: `zoneinfo` reads `PYTHONTZPATH` (time-zone data paths, data not code). The job sets none; only the workflow (row 1) or `GITHUB_ENV` (row 4) could. |
+| 15 | Installed packages and the interpreter | None installed: no pip step, no cache; `-S` leaves site-packages out. Interpreter from `setup-python` (pinned action), `python-version: "3.12"`: the patch release is GitHub's toolcache build, inside GitHub's trust boundary (not pinned further). |
+| 16 | The main ruleset and its bypass list | `scripts/main-ruleset.json`: bypass only `Integration 15368` (the GitHub Actions app, for the push job's `data/` commit). Its pushes are what the PR check is for (row 17); it cannot touch `.github/workflows/` (row 2). Repo admins changing the ruleset or environment settings is outside what any check in the repo can see. |
+| 17 | The PR-baseline check | Pathspec `. ':(exclude)data/'`: any direct push outside `data/` after `MAIN_PR_BASELINE` refuses the send. Fails closed on an unset baseline, shallow history or an API error. |
+| 18 | The stale-rerun check (stale-check-availability) | Decided: narrowed back to `sender/ config/site.yml .github/` (5f92778). It exists so an older run's sender and workflow don't meet today's plan; the job loads nothing else from the checkout (rows 6-8), so a wider stale check only added a failure mode (a docs PR merged during the run cancelled the day's note). The PR check (row 17) stays wide. |
+| 19 | The deployment-branch policy and required reviewer of `morning-note` | Environment settings, not the repo: deployment branch main only (runbook 2.0); required reviewer optional (runbook 5.0). Checked by the runbook's `gh api .../environments/morning-note` command. |
 
-## Residual (not code paths; covered by people, recorded in the runbook)
-- A writer who merges their own PR with 0 approvals, or a workflow pushed to main that drops the checks: the required
-  reviewer on the `morning-note` environment (runbook 5.0) stops the job before it gets the key.
+## Residual (covered by people, not by any check in the repo)
+- A writer who merges their own PR with 0 approvals (L3), a workflow on main that drops the checks, or a ruleset
+  bypass actor: only the required reviewer on `morning-note` (runbook 5.0) stops the job before it gets the key.
 - S3 (unverified): pushing a PR's head straight to main can mark the PR merged with that sha as `merge_commit_sha`;
-  covered only by the required reviewer.
+  covered only by the required reviewer. (A jq test `.head.sha != $ENV.SHA` was suggested; not added, unverified
+  against GitHub's behaviour for squash merges.)
+- A download step that could write anywhere on the runner (not just into `NOTE_LIB`) could also write the runner's
+  own `GITHUB_ENV` file; no step in a job can guard against that. download-artifact v4.3.0 has no known zip-slip
+  (CVE-2024-42471 fixed in v4.1.7).

@@ -17,13 +17,15 @@ and 5).
   3. the repository variable `MORNING_NOTE_SEND` is exactly `true`;
   4. the `update` and `deploy` jobs both succeeded (so it never runs while the deploy is locked, and an email never
      links a page that is not live).
-  Inside it: mask the canary ids, check out this run's commit (no token kept), stop if anything outside `data/`
-  differs from `main` (a re-run of an older run), stop unless every change outside `data/` on `main` after the
-  baseline commit `MAIN_PR_BASELINE` was merged by pull request (step 2.0; while the baseline is unset it always
-  stops: section 4 item 7), Python with no pip step, copy only `sender/*.py` to a folder outside the checkout, download
-  the plan to the runner's temp folder, check the files, a dry run that checks the plan, then the delivery. Every
-  Python run is `python -I -S -c` with that folder alone on `sys.path`, so no file in the checkout can shadow a module
-  (docs/architecture/main-protect-invariant.md). `--live` is passed only when
+  Inside it: mask the canary ids, check out this run's commit (no token kept), stop if its `sender/`,
+  `config/site.yml` or `.github/` differ from `main` (a re-run of an older run), stop unless every change outside
+  `data/` on `main` after the baseline commit `MAIN_PR_BASELINE` was merged by pull request (step 2.0; while the
+  baseline is unset it always stops: section 4 item 7), Python with no pip step, stage `sender/*.py` and
+  `config/site.yml` from the commit's git objects into a new folder outside the checkout (its sha256 digest is
+  re-checked before each later Python step), download the plan to the runner's temp folder, check the files, a dry
+  run that checks the plan, then the delivery. Every Python run is `python -I -S -c` with only that folder on
+  `sys.path` and its staged `site.yml` as `--config`, so no file in the checkout can shadow a module or change the
+  settings (docs/architecture/main-protect-invariant.md). `--live` is passed only when
   `MORNING_NOTE_SEND` is `true`. `permissions: contents: read` and `pull-requests: read` only (the job's
   `GITHUB_TOKEN` is given to the pull request check only). `BUTTONDOWN_API_KEY` is given to that last step only.
 - `note-failed` job: when the `note` job failed or was cancelled, opens one issue titled **"Daily update: morning note failed"**, or
