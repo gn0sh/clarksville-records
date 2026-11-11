@@ -50,6 +50,34 @@ def name_key(o: dict) -> tuple:
     return (o["surname"].casefold(), o["given"].casefold(), o["id"])
 
 
+# The check names that share one held sentence (a name in the vote, or in the attendance read from a surname)
+HELD_CHECK_GROUPS = {"surnames_resolve": "names_resolve"}
+# The meeting-level hold: every other check of a roll call reads that attendance, so its sentence wins
+HELD_FIRST = "attendance_verified"
+
+
+def held_key(rc: dict) -> str:
+    """Which held sentence a held roll call gets (city-verify V5, review city-verify/held-sentence-accuracy):
+    `attendance_verified` whenever it failed; else its one failed check (names_resolve and surnames_resolve count as
+    one); else `other`. A failed `outcome_consistent` with no outcome read (outcome `other`, "outcome not read") is
+    not that check's sentence, which speaks of a stated outcome: it counts as `outcome_not_read` (no sentence: `other`)."""
+    failed = {HELD_CHECK_GROUPS.get(c["check"], c["check"]) for c in rc["verification"]["checks"] if not c["ok"]}
+    if "outcome_consistent" in failed and rc.get("outcome") not in ("passed", "failed"):
+        failed = (failed - {"outcome_consistent"}) | {"outcome_not_read"}
+    if HELD_FIRST in failed:
+        return HELD_FIRST
+    return next(iter(failed)) if len(failed) == 1 else "other"
+
+
+def held_note(rc: dict, sentences: dict | None) -> str | None:
+    """The fixed sentence for a held roll call (city-verify V5, docs/architecture/city-council.md "Launch treatment"):
+    the sentence of held_key, `other` for a key without one. The same for every member; None when verified or the
+    body has no sentences."""
+    if not sentences or is_verified(rc):
+        return None
+    return sentences.get(held_key(rc)) or sentences["other"]
+
+
 def is_verified(fact: dict) -> bool:
     return fact["verification"]["status"] == "verified"
 
@@ -167,7 +195,7 @@ class Index:
         When the roll call's values are not shown (`values_shown`), only "Not confirmed": no label, tally or counts."""
         if not values_shown(rc):
             return {"label": config.NOT_CONFIRMED_LABEL, "tally": None, "counts": None, "hidden": True,
-                    "confirmed": False, "src": self.src(rc["source_id"], rc["page"])}
+                    "confirmed": False, "src": self.rc_src(rc)}
         counts = {"yes": 0, "no": 0, "abstain": 0, "other": 0}
         for v in rc["votes"]:
             counts[v["value"]] += 1
@@ -188,7 +216,7 @@ class Index:
         # Derived, so worded as counted (invariant `provenance`): never where a printed tally would read.
         return {"label": config.OUTCOME_LABELS[rc["outcome"]], "tally": "counted: " + ", ".join(parts),
                 "counts": {**counts, "absent": absent, "novote": 0}, "hidden": False,
-                "confirmed": is_verified(rc), "src": self.src(rc["source_id"], rc["page"])}
+                "confirmed": is_verified(rc), "src": self.rc_src(rc)}
 
     def attribution(self, mo: dict) -> dict:
         """Who moved and seconded a motion, as shown everywhere (invariant rule 6). Resolved officials only, never the
@@ -219,6 +247,19 @@ class Index:
     def src(self, source_id: str, page: int) -> dict:
         s = self.sources[source_id]
         return {"url": f"{s['url']}#page={page}", "page": page, "fetched": localdates.fetched(s), "kind": s["kind"]}
+
+    # A body whose held roll calls say which check held them ({check: sentence, "other": sentence}; a council's
+    # `held_sentences`). None: the vote pages' own sentence ("Not confirmed: this page was hard to read.").
+    held_sentences: dict | None = None
+
+    def rc_src(self, rc: dict) -> dict:
+        """A roll call's source page, as src(), plus `held_note` (held_note) when it is held and the body words its
+        holds per check: the not_confirmed macro shows that sentence instead of the vote pages' own."""
+        out = self.src(rc["source_id"], rc["page"])
+        note = held_note(rc, self.held_sentences)
+        if note:
+            out["held_note"] = note
+        return out
 
     def position(self, fact: dict) -> tuple:
         """Document order: page, then position on the page when an item event records it."""
@@ -657,6 +698,21 @@ def bar(counts: dict, spec) -> list[dict]:
     return [{"key": k, "label": label, "n": counts[k]} for k, label in spec]
 
 
+NAME_SOURCE_KINDS = {"minutes": "minutes", "agenda": "agenda"}
+
+
+def name_source(ix: "Index", o: dict) -> dict | None:
+    """The header line of a configured, cited member (city path N10, officials[].name_source): the record that names
+    the person and seat, its page linked, and its words as printed. The same line for every such member; None for
+    everyone else (their name is read from the attendance lists)."""
+    ns = o.get("name_source")
+    if not ns:
+        return None
+    s = ix.sources[ns["source_id"]]
+    return {"src": ix.src(ns["source_id"], ns["page"]), "quote": ns["quote"], "date": s["meeting_date"],
+            "kind": NAME_SOURCE_KINDS.get(s["kind"], "record")}
+
+
 def official(official_id: str, facts) -> dict:
     ix = _ix(facts)
     o = ix.officials[official_id]
@@ -677,6 +733,7 @@ def official(official_id: str, facts) -> dict:
             if v["official_id"] != official_id:  # resolved id only: an unmatched vote is on no official's page
                 continue
             r = base("vote", rc["meeting_id"], f"{rc['id']}/{official_id}", rc["source_id"], rc["page"], rc["id"])
+            r["src"] = ix.rc_src(rc)
             r["item"] = ix.item_ref(rc["item_id"])
             r.update(ix.motion_for(rc))
             shown = values_shown(rc)
@@ -722,6 +779,8 @@ def official(official_id: str, facts) -> dict:
     c = official_counts(ix, official_id)
     return {
         "official": o, "initials": initials(o), "stats": c,
+        "held_by_check": bool(ix.held_sentences),           # each held row says which check held it (V5)
+        "name_source": name_source(ix, o),                  # a configured, cited member's record (path N10)
         "seat_header": ix.seats.header_text(official_id),  # None without a roster; never guessed
         "attendance_bar": bar(c, ATTENDANCE_SEGMENTS),
         "vote_bar": bar(_vote_segment_counts(c, ""), OFFICIAL_BAR_SEGMENTS),
@@ -799,7 +858,7 @@ def _roll_call_block(ix: Index, rc: dict) -> dict:
         "votes": _vote_rows(ix, rc),
         "outcome": outcome,
         "bar": bar(outcome["counts"], BAR_SEGMENTS) if outcome["counts"] else None,
-        "src": ix.src(rc["source_id"], rc["page"]),
+        "src": ix.rc_src(rc),
     }
 
 
@@ -1460,7 +1519,7 @@ def votes_year(year: str, facts) -> dict:
                      "meeting_href": f"meetings/{m['id']}.html#{rc['id']}", "meeting_label": ix.meeting_label(m),
                      "outcome": ix.outcome(rc), "confirmed": is_verified(rc),
                      "vote_on": ix.motion_for(rc)["vote_on"],
-                     "src": ix.src(rc["source_id"], rc["page"]), "pos": ix.position(rc)})
+                     "src": ix.rc_src(rc), "pos": ix.position(rc)})
     rows.sort(key=lambda r: r["pos"])
     rows.sort(key=lambda r: r["date"], reverse=True)
     years = sorted({ix.meetings[rc["meeting_id"]]["date"][:4] for rc in ix.facts["roll_calls"]}, reverse=True)

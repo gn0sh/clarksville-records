@@ -26,6 +26,7 @@ title_seats:
 evidence:
   ward: attendance lists
   title: roll calls
+  configured: the minutes that record the seating   # a configured, cited member's seating (agenda-center.yml members)
 latest_words: the latest minutes read   # "seen in attendance lists from X to L, the latest minutes read"
 
 # How each meeting kind (schema meeting.kind, from agenda-center.yml kind_rules) is named on the pages.
@@ -40,3 +41,18 @@ kind_labels:
 
 # Shown for an item whose title the minutes reader could not take from the minutes (its number is still shown).
 untitled_item: Title not read from the minutes
+
+# Why a held roll call is not confirmed (city-verify V5, docs/architecture/city-council.md "Launch treatment"): one
+# fixed sentence per check, the same for every member, shown in place of "this page was hard to read" (most city
+# holds are pages that read fine where the minutes leave something out). attendance_verified wins whenever it failed
+# (every other check of the roll call reads that attendance); else the sentence of the roll call's one failed check
+# (names_resolve and surnames_resolve count as one); `other` for any other check or several. outcome_consistent has
+# its sentence only when an outcome was read (passed or failed): "outcome not read" is `other`. No sentence says
+# the minutes are wrong: a hold may be our reading's. sitegen/views.py held_note; qa/site_checks.py checks every
+# held roll call shows its own sentence.
+held_sentences:
+  one_vote_per_present_member: "Not confirmed: the minutes list a member as present but give no vote for them here."
+  names_resolve: "Not confirmed: a name in this vote does not match a member on the official record."
+  attendance_verified: "Not confirmed: this meeting's attendance list could not be matched to the official record."
+  outcome_consistent: "Not confirmed: the stated outcome could not be matched to the votes listed."
+  other: "Not confirmed: the automatic checks did not pass."

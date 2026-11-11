@@ -11,6 +11,16 @@ never set a link: an attendance list printed as surnames is read against full na
 an unresolved surname holds the meeting's attendance), and a minutes file listed for two meetings is read only for the
 meeting whose call-to-order date it prints (`minutes_status: other_meeting` for the other).
 
+**Gates (problem family `city-verify`, 2026-11-11).** The city build reports AC-P1 (verified rate >= 90%) and G4 (skew)
+with the county's own code, `collector/verify.gates`, unchanged ("Invariant: held-back counts" in
+`docs/architecture/clarksville-records.md`), in `build/city-report.json` under `build.gates`, with `build.pass` true
+only when both pass, and one line on stdout. No city check marks a hold as an error of the source document itself, so
+none is left out of the rates. A G4 flag is a release block (spec G4): `collector city build|run` exits 3, the county's
+gate code, after any fetch code (2, 5) is settled, and the workflow's Collect step fails on it like any non-zero city
+code. The AC-P1 rate is reported only and sets no city code (the county's 3 covers both): at 79% today it would stop
+every daily refresh, so whether it blocks the city is the manager's call. What can raise it without loosening a check,
+and the launch treatment for the rest: "Verified-rate plan" below.
+
 ## Vote-to-item link invariant (problem family `city-votes/item-link`)
 
 Stated after the family's second hit (delta re-review of 1ea1e44..f1dedd8, 2026-11-09). Hit 1: votes linked to the
@@ -98,7 +108,8 @@ guessed.
 is never used (`seating` in `config/localities/clarksville-tn/agenda-center.yml`; observed in the data, not taken from
 the charter). Mid-term changes (2019-07, 2021-11, 2022-05, 2023-06, CLAUNCH 2026) are covered by the replaced-seat rule
 when a later full-name list prints the successor, or by the successor's own surname (a surname on no list is held, as
-CLAUNCH is: "no roster entry").
+CLAUNCH was: "no roster entry"), or by a configured, cited member (`members`, path N10, "Verified-rate plan" below:
+Eric Claunch, Ward 2, from the 2026-02-11 Special Session minutes).
 
 **The mayor's seat: configured, cited.** The mayor is on the attendance list of only 8 of the 192 read minutes that a
 mayor called to order, so the lists alone cannot put the mayor on the roster, and the call-to-order sentence is prose.
@@ -122,9 +133,9 @@ Residual risk, accepted and named (`city-votes/empty-book-2027`, review of 2026-
   only, it holds no full-name list at all, and Joe Pitts's configured term ends 2026-12-31. From the first meeting of
   2027 every surname, and the presiding mayor, is held until a cited entry covers it, so most 2027 meetings and their
   roll calls will be unverified. That is safe (held, never guessed) but a large drop in the verified rate. Before the
-  first 2027 meeting is built, a source of full names for the new council is needed (a seating list from the election
-  results as a committed, cited config entry, like `mayors`); until one exists, the drop is expected and is not a
-  regression.
+  first 2027 meeting is built, a source of full names for the new council is needed: `members` entries (path N10),
+  each citing a qualifying record of the seating (the 2027-01 minutes recording the oath, or certified results, see
+  N10's list); until they exist, the drop is expected and is not a regression.
 
 Handled, no longer residual: **a former member, a guest or another body's officer named with a title.** "The Pledge
 was led by Councilman David Allen, who served Ward 2 until 2021", "the Pledge was led by Mayor Wes Golden of Montgomery
@@ -149,8 +160,13 @@ change.
 | N6 | `city_build.resolve_surnames` | attendance printed as surnames | exactly one full name on the book (N5), and a ward printed with the surname agrees; else no official and `surnames_resolve` holds the meeting (so all its roll calls), naming "no roster entry" and why any earlier printing was not used |
 | N7 | `city_build.resolve` from `_add_minutes` | votes (`rc.votes`), block absences (`rc.absent`), `_out_of_room` | the token through the aliases (N2), then against this meeting's roster only (N1, N3, N6): full name, then surname, then initial plus surname, each exactly one match; else `names_resolve` holds the roll call |
 | N8 | `resolve` from `_add_minutes` motion | mover and seconder | as N7; else `mover_resolves` / `seconder_resolves` holds the motion |
+| N9 | `city_build.break_free_match`, the last step of N1, N6, N7 and N8 (new, `city-verify`) | a printed name no other step resolved | its break-free key (whitespace removed, nothing else changed) equals the key of exactly one candidate of that step's own closed set; else held as before. Rule and guards: "Verified-rate plan", W2 |
+| N10 | `cfg.members_on(date)` into `RosterBook.for_meeting` (N5) (new, `city-verify`) | the configured, cited member | `members` in `agenda-center.yml`: a member seated between full-name lists, from `seated` on, replacing any earlier holder of that ward; the cite is checked against the stored file. Rule: "Verified-rate plan", M1 |
 
-Tests: `collector/tests/test_city_names.py` has one test per path N1-N8, each through `assert_name_invariant` (every
+Note: W1 (invisible format characters, "Verified-rate plan") is a reading step in `city_minutes`, before any path: it
+changes what is read to what the page shows, and resolves nothing by itself.
+
+Tests: `collector/tests/test_city_names.py` has one test per path N1-N10, each through `assert_name_invariant` (every
 resolved name of a meeting is on that meeting's attendance or is its presiding mayor when `presiding_resolves` is ok,
 and every surname resolved from the book names a list dated inside the meeting's window), plus the reviewers' cases: a
 departed member's surname reused by a new member; the delta re-review's six prose forms (ALLEN or GOLDEN stays held);
@@ -162,6 +178,7 @@ every form the titled-name scan once read (never a candidate); a joint session c
 None may re-resolve a printed name; each reads `official_id` (null when held).
 | Consumer | Where | Reads |
 |---|---|---|
+| Member name source (new, N10) | `officials[].name_source` (schema: optional `{source_id, page, quote}`); `sitegen/views.py` `official` header; `collector/export.py` `officials.csv` `name_source_*` (provenance "stated: configured member") | the cited record for a configured member |
 | Facts build | `city_build._add_minutes` | `meetings[].attendance[].official_id`, `roll_calls[].votes[].official_id`, `motions[].moved_by/seconded_by`, `officials[]` (title from N3), the checks `names_resolve`, `surnames_resolve`, `presiding_resolves`, `one_entry_per_official`, `voters_recorded_present`, `one_vote_per_present_member`, `mover_*`, `seconder_*` |
 | Wards | `city_build` `_wards` -> `data/localities/clarksville-tn/wards.json`; `sitegen/council.py` `ward_rows`, `CouncilIndex` seats | holder records per ward (an unresolved print is not used) |
 | Member pages | `sitegen/views.py` `official`, `official_counts`, `totals_sentences`; `sitegen/build.py` member and history pages | votes, attendance, motions per member |
@@ -171,6 +188,202 @@ None may re-resolve a printed name; each reads `official_id` (null when held).
 | CSV export | `collector/export.py` `officials.csv`, `attendance.csv`, `votes.csv`, `motions.csv` (provenance "derived: name resolution") | `official_id` |
 | One-vote check | `collector/invariants.py` `one_vote_violations` | votes per (item, roll call) |
 | QA spot check | `qa/spot_check.py` `candidates` | the names shown to the checker |
+
+## Verified-rate plan (problem family `city-verify`, 2026-11-11)
+
+Baseline (committed facts at 255039b): 1,756 of 2,235 city roll calls verified (78.6%); 2026 14 of 83. AC-P1 needs 90%.
+The meeting-level `attendance_verified` hold covers 163 roll calls: 62 at the four 2026 meetings that print CLAUNCH,
+24 at 2022-04-07 ("StaceyStreetman"), 18 at 2020-10-01 ("J eff Henley"), and the rest at 2016-07-07 (a member listed
+twice), 2020-12-03 (attendance not parsed), 2023-07-06 ("DaJaun Little (Ward 3)m, arrived at 6:04)", a source typo)
+and 2025-09-04 (ZAHARIAS). Three changes below (M1, W1, W2), one listing fix (D1), then the estimate and the launch
+treatment. ADR 0005 records the decision. **Nothing here loosens a check:** every P2 check runs unchanged after them,
+and every name still resolves only by an exact match against a closed set.
+
+### M1. Configured, cited members (`members`, path N10)
+For a member seated between full-name attendance lists, as `mayors` is for the Mayor seat. In
+`config/localities/clarksville-tn/agenda-center.yml`:
+```yaml
+members:
+  - name: Eric Claunch
+    ward: 2
+    seated: "2026-02-19"
+    kind: minutes          # minutes | resolution | oath | roster_page | certified_results
+    cite_url: "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3068,plainText=false)"
+    cite_page: 3
+    quote: "Eric Claunch was selected as the Ward 2 replacement and was sworn in by Mayor Pitts."
+```
+**Claunch: a qualifying record exists.** The City Council Special Session minutes of 2026-02-11 (resumed 2026-02-19),
+CivicClerk fileId 3068 (3 pages, Aspose.Words, text layer, sha256 df53b5ec7368...), page 3: "The following votes were
+then taken: Round 33. Eric Claunch was selected as the Ward 2 replacement and was sworn in by Mayor Pitts." Page 1
+prints "City Council - Special Session" and the 7 applicants; page 2 shows no one was seated on 2026-02-11 ("Because
+the vote was recessed to February 19, there was no Oath of Office"). Read 2026-11-11 by the architect's labelled spike
+(the collector's PoliteFetcher, robots.txt checked, 10 s apart, API host allowed by ADR 0003; bytes kept only in a
+scratch folder). We did not hold it because CivicClerk files this meeting under category "General", event name
+"Special Session", and our listing asks only for `categoryName eq 'City Council'` (D1). So the hold on the four 2026
+meetings ends, and Ward 2's seat record starts 2026-02-19.
+
+**What qualifies** (`kind`), each a record of the City or the Election Commission, stored by the collector:
+- `minutes`: City Council minutes (any session) recording the person's election, appointment or oath to that seat.
+- `resolution`: a council resolution or ordinance appointing or declaring the person to the seat.
+- `oath`: an oath-of-office record posted by the City.
+- `roster_page`: a stored snapshot of the City's official council roster page on clarksvilletn.gov naming the person
+  and ward. It gives no seating date, so `seated` may not be earlier than the snapshot's fetch date.
+- `certified_results`: the Election Commission's certified results, for a member elected at a regular election, with
+  `seated` the `seating` date. Its host is not on the allowlist; adding it is a decision before 2027 (residual risk
+  `city-votes/empty-book-2027`).
+A full name printed in a later attendance list needs no entry: N1/N5 already read it.
+
+**Not acceptable**: an applicant or candidate list (2026-02-05 and page 1 of 2026-02-11 list Claunch among seven), an
+agenda (it schedules an act and does not record it: the 2026-02-11 agenda lists an "Oath of Office" that did not
+happen), titled prose ("Councilman Claunch made a motion", N4), our transcripts or the video, news, social media,
+campaign sites, and any inference of ours (a vacant ward plus a new surname, the votes a surname casts).
+
+**Config check** (`agenda_center._members`, refused at load like a bad `mayors` entry): name is a full name
+(`NAME_RE`); ward in 1-12; `kind` in the list; `seated` a date; `cite_url` https, `cite_page` a page, `quote` not
+empty; two entries may not seat one ward on one date (a later entry for the same ward replaces an earlier one, as a
+second mid-term change would). **Build check** (`city_build.cited_members`, `member_cited` per entry; the checks that
+need the manifest are made here, since the config is loaded without it): the stored bytes for `cite_url` exist (so it
+is in the city manifest); the stored file's manifest `kind` equals the entry's `kind`, and an agenda never qualifies
+(review `city-verify/cited-member-kind-unchecked`); `seated` is on or after the cited record's meeting date (and the
+fetch date for `roster_page`), and a missing date that check needs fails it (`cited-member-fail-open`); the quote
+contains the name and prints "Ward {ward}" as whole words (`cited-member-ward-unchecked`); and the `quote`,
+whitespace collapsed, is on `cite_page` of the stored
+file's text (the city reader's, W1 applied); and the cited file is the `source_id` of a council meeting the build
+kept (review `city-verify/cited-member-body-unchecked`: never another body's minutes, e.g. a D1 event whose page 1
+fails). That last check needs the kept meetings, which never depend on the members, so when an entry fails it the
+build runs once more without it and the first run is discarded. In effect only `minutes` entries can pass today; the
+other kinds need a rule of their own before use. If any fails, the entry is left out of the book for that build (so the
+surname is held as before) and the run report lists it (`build.members`, and `problems`); it never resolves anyone on
+trust.
+
+**How it feeds resolution.** `RosterBook.for_meeting(date)` adds each entry with `seated <= date` as the holder of its
+ward, `"configured": True`, and drops any earlier holder of that ward from that date (the replaced-seat rule, as if a
+full-name list had printed the successor). It stays in the book through later seatings only while no full-name list
+or later entry gives the ward to someone else, and is never carried past the next `seating` date (a re-elected member
+needs a list or a new entry). N6 then resolves CLAUNCH by exactly one book entry, a printed ward agreeing; N7/N8 read
+the meeting's roster as before. Official id `city-eric-claunch`, name and ward as configured.
+
+**How it is shown.** The member page header gets one line, the same for every configured member: "Name and ward from
+the minutes of 2026-02-11, p. 3, fetched <date>: "<quote>"", the page linked as every source is (`views.name_source`;
+the quote itself says the seating was on the resumed date). The
+attendance check detail on meeting pages and in the run report reads "CLAUNCH: by the configured member Eric
+Claunch (seated 2026-02-19, minutes p. 3)". Ward 2's seat history starts the record on 2026-02-19 with the same source
+(seat holder invariant, rule 1); `officials.csv` and `seats.csv` carry the source.
+
+### D1. Listing: City Council Special Sessions filed under "General"
+CivicClerk lists the 2026-02-11 City Council Special Session as category "General", event "Special Session" (one
+listing query, 2026-11-11; other "General" events are other boards). Discovery also asks for
+`categoryName eq 'General' and eventName eq 'Special Session'` from 2024-01-01, and keeps such an event only when page
+1 of its agenda or minutes prints "City Council - Special Session" as a line of its own (whitespace and format
+characters aside; never the same words inside a longer line, review `d1-page1-substring`); any other is skipped and
+named in the run report. The check runs before the two listings are joined (`civicclerk.merge_sources(page1_ok=)`,
+review `city-verify/d1-merge-before-page1`): a D1 row is paired with an Agenda Center meeting of the same date and kind
+only after it passes, so a failing row never replaces a council meeting nor is cited under its `also_listed`; with no
+check (no store), a D1 row is never paired.
+This stores fileId 3068 (needed by M1's build check) and adds that meeting: 2 roll calls (one prints "HOLLEMNA", held).
+
+### W1. Invisible format characters in the text layer (a reading fix)
+2020-10-01 page 1 prints "Jeff Henley"; its text layer has "J", a zero-width word (U+200B ZERO WIDTH SPACE, x0 = x1 =
+427.74) and "eff" whose box starts exactly where "J" ends (x 432.410154 both). Our line assembly turns that into
+"J eff Henley". Rule, in the city reader's line assembly: delete Unicode format characters (category Cf: U+200B,
+U+200C, U+200D, U+2060, U+FEFF, U+00AD) from every word; a word left empty is dropped; and the two words it separated
+on one line are joined only when they abut (`next.x0 - prev.x1 <= 0.05` pt). A visible gap is never closed. The
+result is exactly what the page shows, so this is a better single reading, not a repair: it keeps the independent
+readings rule trivially. Scope: the city reader only (the county's and RPC's text layers are OCR and have none seen).
+
+### W2. Printed word breaks: the break-free key (path N9)
+"StaceyStreetman (Ward 10)" (2022-04-07, page 1) is printed with no gap: its one glyph box, 80.6 pt, is the width of
+"Stacey" plus "Streetman" with no space, so the source itself omits the space. CivicClerk vote lists print the
+opposite, a break inside a name: "H AYWOOD" (a 3.3 pt gap), "H olleman", "LOV ATO". Every letter is printed, in
+order; only a word break differs.
+
+**Decision: yes, with these guards.** It keeps the rule. A name is one reading resolved against a closed set by exact
+match with no fuzzy merge ("Invariant: independent readings", `docs/architecture/clarksville-records.md`); the county's
+rule 1 already collapses spaces; and the shown-form rule already treats word breaks as the unreliable part of a reading
+("the text layer drops spaces, tesseract adds them"). The key compares every printed letter exactly; no reading is
+combined, outvoted or corrected. Rule:
+1. **Last step only.** Tried only for a printed name (attendance entry N1/N6, vote or absence token N7, mover or
+   seconder N8) that every other step left unresolved.
+2. **Key.** `break_free(s)`: lowercase (`str.lower`, as every other step compares) and remove whitespace. Nothing
+   else changes: no letter, apostrophe, hyphen or period is added, dropped, replaced or reordered (so no NFKC or
+   casefold, which turn one letter into others: "ß" -> "ss"; review `break-free-casefold`).
+3. **Closed set of that step.** N1/N6: the full names and the surnames of the meeting's roster book (N5, N10). N7/N8:
+   that meeting's own roster (its resolved attendance plus the presiding mayor), full name or surname.
+4. **Unique.** The token's key equals the key of exactly one person in that set; two or more, or none, is held as
+   before. A printed ward must agree (N6).
+5. **Never** edit distance or near spellings (STRETMAN, AYWOOD, ZAHARIAS, HOLLEMNA, PITT, "R reynolds" stay held),
+   never a join across a comma, line end or other token boundary the parser drew (a lone "H" stays held), never a split
+   of one token into two votes ("Burkhart Erb", "Alexander. Allen" stay held), never a person outside the set. A
+   name list that wraps keeps its line ends (`_block` joins lines with "\n"): a token printed over a line end
+   ("Hay" / "Wood") is flagged (`Vote.line_cut`, `Person.line_cut`, `RollCall.absent_cut`) and N9 is not tried for
+   it, so it is held; the exact steps still read a full name wrapped at its space ("Jerry" / "Haywood").
+6. **Checks unchanged.** P2 runs after it as before, so a join that gives a member a second vote is held by
+   `one_vote_per_present_member`.
+7. **Auditable.** The `names_resolve` (or `surnames_resolve`) check detail names each use, the same words whichever
+   way the spaces differ ("H AYWOOD read as Jerry Haywood (same letters, spaces ignored)", "StaceyStreetman read as
+   Stacey Streetman (same letters, spaces ignored)"); `build/city-report.json` lists every use
+   (`word_break_matches`: meeting, page, printed form, member); QA's AC-P2 sample includes at least 3 of them.
+
+### Tests (all through `assert_name_invariant`, plus a data regression)
+- W1: the real 2020-10-01 page 1 boxes ("J", the U+200B word, "eff", "Henley") read as "Jeff Henley" and resolve (N1);
+  the same with a 3 pt gap after the zero-width word stays "J eff Henley" (held); a soft hyphen inside a word is removed.
+- W2: "StaceyStreetman (Ward 10)" with Stacey Streetman (Ward 10) on the book resolves; with "(Ward 9)" printed it is
+  held; "H AYWOOD", "H olleman", "LOV ATO" resolve against the meeting's roster; STRETMAN, AYWOOD, HOLLEMNA, PITT,
+  "R reynolds", "Burkhart Erb", "Alexander. Allen" and a lone "H" stay held; two roster people whose keys collide
+  ("Mary Ann Lee" and "Maryann Lee") hold the token; a key matching only someone outside the meeting's roster is held;
+  a join that duplicates a member's vote holds the roll call; for every N9 match, `break_free(printed) ==
+  break_free(name or surname)` (added to `assert_name_invariant`).
+- M1: the real 2026-02-11 page 3 text with the `members` entry resolves CLAUNCH at 2026-03-05 and no meeting before
+  2026-02-19; the applicants page alone (2026-02-05, 2026-02-11 p.1) resolves nothing; a quote not on the cited page,
+  a `cite_url` not stored, a `seated` before the cited meeting, a non-full name and two overlapping Ward 2 entries are
+  each refused or left out with the reason; the entry replaces Deanna McLaughlin in Ward 2 from 2026-02-19.
+- D1: a "General" "Special Session" whose page 1 prints "City Council - Special Session" is kept; one that prints
+  another board is skipped and reported.
+- Data: the build on the committed store changes only the expected roll calls from held to verified (ids listed in the
+  test), changes no vote of an already verified roll call, and adds the one D1 meeting.
+
+### Estimate (simulated on the committed facts, 2026-11-11)
+Each held roll call counted as cleared only when every failing check is one these changes clear (a token resolved by
+M1/W1/W2, the attendance hold at the four CLAUNCH meetings, 2020-10-01 or 2022-04-07, and a `one_vote_per_present_member`
+naming only members whose token now resolves) and, at the CLAUNCH meetings, CLAUNCH votes in it:
+| | Verified | Rate |
+|---|---|---|
+| Now | 1,756 / 2,235 | 78.6% |
+| + M1 CLAUNCH | +39 | |
+| + W1/W2 attendance (2020-10-01: 18; 2022-04-07: 6; the other 18 there also lack a vote for DaJuan Little, 13 of them for Vondell Richmond too, both printed "left early") | +24 | |
+| + W2 vote tokens elsewhere | +3 | |
+| After | 1,822 / 2,235 (D1: about 1,823 / 2,237) | 81.5% |
+2026 goes from 14 to 53 of 83. **Built (V6, 2026-11-11):** 1,823 of 2,237 (81.5%), 2026 54 of 85: the 66 estimated
+plus the D1 meeting's 2 roll calls (one verified, one held: "HOLLEMNA"); no verified vote changed
+(`tests/test_city_verify_data.py`). **90% is not reachable this way**: it needs 2,012, 190 more. Of the 413 still held,
+272 fail `one_vote_per_present_member` (a member on the attendance list with no vote and no NOTE, often printed
+"left early" or "arrived at"), 248 have a misspelt or unparsed vote name, 100 sit at meetings whose attendance is held,
+52 fail `outcome_consistent`. Each is a printed fact we cannot confirm without guessing who voted how or when a
+member left, so no rule we would accept closes the gap.
+
+### Launch treatment (a decision for Brian)
+Recommendation: **show city roll calls at the verified rate they reach (about 82%), the held ones as the spec's P3
+already does (listed, link only, no value read from them), with a plain reason per hold**; report the city's rate
+on the About page and in the run report; AC-P1 stays the county gate (it passes) and is reported, not blocking, for
+the city. Alternatives: (B) leave City Council votes off the public launch until 90% (the meetings, documents and
+attendance still ship); (C) hold the whole city section. Default if no answer: (B). Today every held vote reads "Not
+confirmed: this page was hard to read", which is wrong for most city holds (the page reads fine; the minutes leave
+something out). Per-check sentences, the same for every member (`config/finance_text.yml` `held`, or a city copy):
+| Check | Shown |
+|---|---|
+| `one_vote_per_present_member` | "Not confirmed: the minutes list a member as present but give no vote for them here." |
+| `names_resolve` / `surnames_resolve` | "Not confirmed: a name in this vote does not match a member on the official record." |
+| `attendance_verified` (wins whenever it failed) | "Not confirmed: this meeting's attendance list could not be matched to the official record." |
+| `outcome_consistent`, an outcome read (passed or failed) | "Not confirmed: the stated outcome could not be matched to the votes listed." |
+| other or several (incl. `outcome_consistent` "outcome not read") | "Not confirmed: the automatic checks did not pass." |
+
+Rules (review `city-verify/held-sentence-accuracy`, 2026-11-11): no sentence says the minutes are wrong, since a hold
+may be our reading's (a mispaired outcome, an outcome sentence not read). `attendance_verified` wins over any other
+failed check, because every other check of the roll call reads that attendance (before, it never showed: all its
+roll calls fail another check too). `outcome_consistent` gets its sentence only when an outcome was read; with
+"outcome not read" (outcome `other`) the sentence about a stated outcome would be untrue, so it counts as no sentence.
+`sitegen/views.held_key`, mirrored in `qa/site_checks.held_sentence`; pinned on the committed facts by
+`tests/test_council_pages.py`.
 
 ## Seat holder invariant (problem family `city-seats`, keys `current-holder-matches-latest-attendance`, M1 `pipeline/seats-stale-on-new-county-meeting`)
 

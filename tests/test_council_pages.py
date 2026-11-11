@@ -29,6 +29,7 @@ def subset(facts: dict, meeting_ids) -> dict:
     src = {m["source_id"] for m in meetings} | {m.get("agenda_source_id") for m in meetings}
     src |= {x["source_id"] for x in rcs + mos + evs}
     src |= {f["source_id"] for i in items for f in (i.get("zoning") or {}).values() if f}
+    src |= {o["name_source"]["source_id"] for o in facts["officials"] if o.get("name_source")}
     return {**facts, "fixture": True, "meetings": meetings, "roll_calls": rcs, "motions": mos, "item_events": evs,
             "items": items, "sources": [s for s in facts["sources"] if s["id"] in src], "corrections": []}
 
@@ -216,14 +217,91 @@ def test_held_roll_calls_show_not_confirmed_and_no_value(site, cpages, city_fact
     assert held
     city_pages = {rel: site_checks.parse(out / rel) for rel in cpages if rel.startswith("city/")}
     problems = site_checks.check_unverified(out, city_pages, city_facts, internal=False,
-                                            official_prefix="city/members/", export=False)
+                                            official_prefix="city/members/", export=False,
+                                            held_sentences=CFG["held_sentences"])
     assert problems == []
     year = {m["id"]: m["date"][:4] for m in city_facts["meetings"]}
     for r in held:
         html = cpages[f"city/meetings/{year[r['meeting_id']]}.html"]
         block = html.split(f'id="{r["id"]}"', 1)[1].split("</article>", 1)[0]
-        assert "Not confirmed: this page was hard to read." in block
+        assert site_checks.held_sentence(r, CFG["held_sentences"]) in block          # its check's sentence (V5)
+        assert "this page was hard to read" not in block
         assert not site_checks.PARSED_VALUE.search(block)
+    # without the council's sentences the check expects the generic note, and so fails on these pages
+    assert site_checks.check_unverified(out, city_pages, city_facts, internal=False, official_prefix="city/members/",
+                                        export=False)
+
+
+ONE = {"one_vote_per_present_member": "Not confirmed: the minutes list a member as present but give no vote for "
+                                      "them here.",
+       "names_resolve": "Not confirmed: a name in this vote does not match a member on the official record.",
+       "attendance_verified": "Not confirmed: this meeting's attendance list could not be matched to the official "
+                              "record.",
+       "outcome_consistent": "Not confirmed: the stated outcome could not be matched to the votes listed."}
+OTHER = "Not confirmed: the automatic checks did not pass."
+
+
+@pytest.mark.parametrize("failed,outcome,sentence", [
+    (["one_vote_per_present_member"], "passed", ONE["one_vote_per_present_member"]),
+    (["names_resolve"], "passed", ONE["names_resolve"]),
+    (["surnames_resolve"], "passed", ONE["names_resolve"]),
+    (["attendance_verified"], "passed", ONE["attendance_verified"]),
+    (["outcome_consistent"], "passed", ONE["outcome_consistent"]),
+    (["outcome_consistent"], "failed", ONE["outcome_consistent"]),
+    # "outcome not read" (outcome `other`): the outcome sentence speaks of a stated outcome, so `other`
+    (["outcome_consistent"], "other", OTHER),
+    (["outcome_consistent", "one_vote_per_present_member"], "other", OTHER),
+    # the meeting's attendance hold wins: every other check of the roll call reads that attendance
+    (["attendance_verified", "names_resolve"], "passed", ONE["attendance_verified"]),
+    (["attendance_verified", "names_resolve", "one_vote_per_present_member", "outcome_consistent"], "other",
+     ONE["attendance_verified"]),
+    (["vote_matches_item"], "passed", OTHER),
+    (["names_resolve", "one_vote_per_present_member"], "passed", OTHER),
+])
+def test_a_held_city_roll_call_gets_the_one_fixed_sentence_of_its_check(failed, outcome, sentence):
+    rc = {"outcome": outcome, "verification": {
+        "status": "unverified",
+        "checks": [{"check": c, "ok": False} for c in failed] + [{"check": "votes_listed", "ok": True}]}}
+    assert CFG["held_sentences"] == {**ONE, "other": OTHER}
+    assert views.held_note(rc, CFG["held_sentences"]) == sentence == site_checks.held_sentence(rc, CFG["held_sentences"])
+    assert views.held_note(rc, None) is None
+    assert views.held_note({"verification": {"status": "verified", "checks": []}}, CFG["held_sentences"]) is None
+
+
+def test_no_held_sentence_blames_the_minutes_and_each_is_used_only_where_true():
+    """review city-verify/held-sentence-accuracy, on the committed city facts: no sentence says the minutes are wrong
+    (a hold may be our reading's); the outcome sentence shows only where an outcome was read (passed or failed),
+    never for "outcome not read"; and the attendance sentence is live (the meeting's hold wins)."""
+    held = CFG["held_sentences"]
+    assert not any(re.search(r"minutes (state|say|print)|does not match the votes they list", s) for s in held.values())
+    facts = json.loads((ROOT / CFG["facts"]).read_text(encoding="utf-8"))
+    shown = {}
+    for rc in facts["roll_calls"]:
+        if rc["verification"]["status"] == "verified":
+            continue
+        note = views.held_note(rc, held)
+        assert note == site_checks.held_sentence(rc, held), rc["id"]
+        shown.setdefault(note, []).append(rc)
+        if note == held["outcome_consistent"]:
+            assert rc["outcome"] in ("passed", "failed"), rc["id"]
+        failed = {c["check"]: c.get("detail") for c in rc["verification"]["checks"] if not c["ok"]}
+        if failed.get("outcome_consistent") == "outcome not read":
+            assert note != held["outcome_consistent"], rc["id"]
+        if "attendance_verified" in failed:
+            assert note == held["attendance_verified"], rc["id"]
+    assert shown.get(held["attendance_verified"]) and shown.get(held["outcome_consistent"])
+
+
+def test_bad_held_sentences_are_refused(tmp_path, monkeypatch):
+    import yaml
+    raw = yaml.safe_load((ROOT / "config" / "localities" / "clarksville-tn" / "council.yml").read_text())
+    d = tmp_path / "localities" / "x"
+    d.mkdir(parents=True)
+    monkeypatch.setattr(config, "CONFIG_DIR", tmp_path)
+    for bad in ({"names_resolve": "Not confirmed: x."}, {"other": "this page was hard to read"}, ["x"]):
+        (d / "council.yml").write_text(yaml.safe_dump({**raw, "held_sentences": bad}))
+        with pytest.raises(ValueError, match="held_sentences"):
+            config.load_council("x")
 
 
 def test_every_name_links_to_its_member_page_and_every_fact_to_its_source(site, cpages, city_facts):

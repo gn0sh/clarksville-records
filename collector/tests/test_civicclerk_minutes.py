@@ -16,6 +16,7 @@ import pytest
 from collector import agenda_center as ac
 from collector.city_build import Officials, RosterBook, build, printed_full_names, resolve_surnames
 from collector.city_minutes import called_to_order_on, parse_text
+from collector.verify import gates
 from collector.tests.test_city_minutes import SCHEMA, FakeStore, entry
 
 API = "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId={},plainText=false)"
@@ -385,3 +386,116 @@ def test_the_other_listing_of_a_merged_meeting_stays_cited(cfg):
     jsonschema.validate({k: v for k, v in facts.items() if k != "_wards"}, SCHEMA)
     sid = facts["meetings"][0]["also_listed"][0]["agenda_source_id"]
     assert sid in {s["id"] for s in facts["sources"]}
+
+
+# city-verify/attendance-2026: the real 2026 minutes (pdftotext -layout). The Ward 2 seat fell vacant after 2026-01-08;
+# 2026-02-05 lists "Mr. Eric Claunch" only among seven Ward 2 applicants, and from 2026-03-05 a CLAUNCH sits. No stored
+# minutes print the person seated (the 2026-02-26 minutes are not posted) and every list since 2025-04-03 is surnames
+# only, so CLAUNCH has no roster entry and the meeting, with its roll calls, is held: never read as the applicant.
+APPLICANTS_2026 = """                                         City of Clarksville
+                                  City Council - Regular Session
+
+                                           February 5, 2026 at 6:00 PM
+
+1.   Call to Order
+      Regular Session of the Clarksville City Council was called to order by Mayor Joe Pitts
+      on Thursday, February 5 2026, at 6:00 PM in the City Council Chambers, 106 Public
+      Square, Clarksville, Tennessee. A prayer was offered by Pastor Jeremiah Walker; the
+      Pledge of Allegiance was led by Councilman Stacey Streetman.
+2.   Attendance
+      PRESENT: BROWN, HAYWOOD, HOLLEMAN, LOVATO, MARQUIS, PETERS,
+               PITTS, SHAKEENAB (ARRIVED AT 6:06 PM), SMITH (ARRIVED AT
+               6:03 PM), STREETMAN, ZACHARIAS
+
+      ABSENT:        CHANDLER
+
+
+4.   City Council Vacancies
+
+
+     B.   Ward 2 Applicant Presentations
+
+             The following candidates appeared and made presentations to the council.
+
+             Mr. Eric Claunch
+             Mr. David Watson-Upchurch
+             Mr. Ross St. Louis
+"""
+
+SEATED_2026 = """                                         City of Clarksville
+                                  City Council - Regular Session
+
+                                           March 5, 2026 at 6:00 PM
+
+1.   Call to Order
+      Regular Session of the Clarksville City Council was called to order by Mayor Joe Pitts
+      on Thursday, March 5, 2026, at 6:00 PM in the City Council Chambers, 106 Public
+      Square, Clarksville, Tennessee. A prayer was offered by Pastor Kenneth Leavell; the
+      Pledge of Allegiance was led by Councilman Keri Lovato.
+
+2.   Attendance
+      PRESENT: BROWN, CHANDLER, CLAUNCH, HAYWOOD, HOLLEMAN, LOVATO,
+               MARQUIS, PETERS, PITTS, SHAKEENAB, SMITH, STREETMAN,
+               ZACHARIAS
+
+      ABSENT:        NONE
+
+A.   ORDINANCE 39-2025-26 (FIRST READING) [ZONING CASE Z-48-2025]
+        Councilman Streetman made a motion to adopt ORDINANCE 39-2025-26
+        (FIRST READING); Councilman Shakeenab seconded the motion. The following
+        vote was recorded:
+
+                  AYE:     BROWN, CHANDLER, CLAUNCH, HAYWOOD, HOLLEMAN,
+                           LOVATO, MARQUIS, PETERS, PITTS, SHAKEENAB,
+                           SMITH, STREETMAN, ZACHARIAS
+
+                  NAY:     NONE
+
+        The motion to adopt ORDINANCE 39-2025-26 (FIRST READING) passed.
+"""
+
+
+def test_a_successor_seated_with_no_full_name_in_the_record_is_held_city_verify(cfg):
+    rows = cc_rows() + [
+        {"date": "2026-02-05", "title": "Regular Session", "kind": "regular", "agenda_id": "cc-6", "agenda_url": None,
+         "minutes_url": API.format(6), "source": "civicclerk", "video_url": None},
+        {"date": "2026-03-05", "title": "Regular Session", "kind": "regular", "agenda_id": "cc-7", "agenda_url": None,
+         "minutes_url": API.format(7), "source": "civicclerk", "video_url": None}]
+    facts, _ = built(cfg, [FULL_2025, CAPS_2025, APPLICANTS_2026, SEATED_2026], rows,
+                     [entry(r["minutes_url"], "minutes", r["date"], n) for n, r in enumerate(rows, 1)])
+    jsonschema.validate({k: v for k, v in facts.items() if k != "_wards"}, SCHEMA)
+    ms = {m["date"]: m for m in facts["meetings"]}
+    assert ms["2026-02-05"]["verification"]["status"] == "verified"         # the applicants list adds nobody
+    mar = ms["2026-03-05"]
+    checks = {c["check"]: c for c in mar["verification"]["checks"]}
+    assert mar["verification"]["status"] == "unverified"
+    assert not checks["surnames_resolve"]["ok"] and "not resolved: CLAUNCH (no roster entry)" \
+        in checks["surnames_resolve"]["detail"]
+    assert checks["surnames_resolve"]["detail"] == (                       # the other 12 still resolve
+        "13 printed as surnames: 11 by the attendance of 2025-02-06; 1 by the configured mayor seat from 2019-01-01; "
+        "not resolved: CLAUNCH (no roster entry)")
+    att = {a["raw_name"]: a["official_id"] for a in mar["attendance"]}
+    assert att["CLAUNCH"] is None and all(v for k, v in att.items() if k != "CLAUNCH")
+    rc = [r for r in facts["roll_calls"] if r["meeting_id"] == mar["id"]]
+    assert len(rc) == 1 and rc[0]["verification"]["status"] == "unverified"
+    failed = {c["check"] for c in rc[0]["verification"]["checks"] if not c["ok"]}
+    assert failed == {"attendance_verified", "names_resolve"}
+    assert not [o for o in facts["officials"] if "claunch" in o["id"]]      # never read as the applicant
+
+
+def test_the_city_build_reports_the_county_gates_city_verify(cfg):
+    """city-verify/no-skew-gate: the city build reports AC-P1 and G4 with the county's own code (verify.gates). A
+    meeting held on its attendance (CLAUNCH) lists nobody, so its holds are unattributed: G4 cannot place them on any
+    member, and they show in the uniform share and the meetings whose attendance is not shown."""
+    rows = cc_rows() + [
+        {"date": "2026-03-05", "title": "Regular Session", "kind": "regular", "agenda_id": "cc-7", "agenda_url": None,
+         "minutes_url": API.format(7), "source": "civicclerk", "video_url": None}]
+    facts, summary = built(cfg, [FULL_2025, CAPS_2025, SEATED_2026], rows,
+                           [entry(r["minutes_url"], "minutes", r["date"], n) for n, r in enumerate(rows, 1)])
+    g = summary["gates"]
+    assert g == gates({k: v for k, v in facts.items() if k != "_wards"}, set())
+    assert (g["roll_calls"], g["verified"], g["held_back"]) == (len(facts["roll_calls"]), 4, 1)
+    assert not g["verified_rate_gate"]["pass"] and summary["pass"] is False
+    assert g["g4"]["flagged"] == [] and g["g4"]["held_unattributed"] == 1 and g["g4"]["uniform_share"] == 1.0
+    assert g["g4"]["status"] == "review needed"
+    assert [m["meeting_id"] for m in g["g4"]["meetings_attendance_not_shown"]] == ["2026-03-05-regular"]

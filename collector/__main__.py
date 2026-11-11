@@ -1,6 +1,7 @@
 """python -m collector {fetch,build,run,export} [--offline] [--internal] [--allow-shrink] [--out build/site]
 python -m collector fin {fetch,build,census}   (finance and contracts: collector/fin_run.py)
-python -m collector city {fetch,build,run}     (City Council, Agenda Center: collector/city_run.py)
+python -m collector city {fetch,build,run}     (City Council, Agenda Center and CivicClerk: collector/city_run.py; exit 0 ok,
+                                               2 a listing not read, 3 the G4 skew gate, 5 a host or robots.txt refused)
 python -m collector rpc {fetch,build,run}      (Regional Planning Commission: collector/rpc.py)
 python -m collector transcripts import <dir>   (meeting video transcripts: collector/transcripts.py)
 run: discover -> fetch new (polite), and refetch any manifest minutes whose bytes the store lacks -> parse ->

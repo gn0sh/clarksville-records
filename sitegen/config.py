@@ -47,6 +47,10 @@ def load_council(locality: str) -> dict:
     missing = [k for k in COUNCIL_KEYS if k not in cfg]
     if missing:
         raise ValueError(f"{path}: missing {', '.join(missing)}")
+    held = cfg.get("held_sentences")       # optional: one fixed sentence per held check, plus `other` (views.held_note)
+    if held is not None and not (isinstance(held, dict) and "other" in held and all(
+            isinstance(v, str) and v.startswith("Not confirmed: ") and v.endswith(".") for v in held.values())):
+        raise ValueError(f"{path}: held_sentences must map checks (and `other`) to 'Not confirmed: ...' sentences")
     return {**cfg, "locality": locality, "facts_path": REPO_ROOT / cfg["facts"],
             "wards_path": REPO_ROOT / cfg["wards"]}
 

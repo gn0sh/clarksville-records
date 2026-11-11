@@ -140,9 +140,13 @@ def test_a_page_without_value_fails_loudly(cfg, acfg):
 
 
 # ------------------------------------------------------------------ paging
+CFG = cc.load_config()
+ALSO = CFG.also_url(CFG.also_list[0])        # D1: the "General" / "Special Session" listing, empty unless a test fills it
+
+
 class Pages:
     def __init__(self, pages, fail=()):
-        self.pages, self.fail, self.calls, self.log = pages, set(fail), [], []
+        self.pages, self.fail, self.calls, self.log = {ALSO: {"value": []}, **pages}, set(fail), [], []
 
     def get(self, url):
         self.calls.append(url)
@@ -160,10 +164,10 @@ def test_discover_follows_next_links_and_caches_each_page(cfg, acfg, tmp_path):
                nxt: {"value": [WORK, NOFILES]}})
     log = {}
     rows = cc.discover(f, cfg, acfg.kind_of, log, tmp_path / "cache")
-    assert f.calls == [cfg.first_url(), nxt]
+    assert f.calls == [cfg.first_url(), nxt, ALSO]
     assert [r["event_id"] for r in rows] == [91, 1765, 1821]        # an event on two pages is kept once
-    assert len(list((tmp_path / "cache").glob("*.json"))) == 2
-    assert [p["rows"] for p in log["listings"]] == [2, 2]
+    assert len(list((tmp_path / "cache").glob("*.json"))) == 3
+    assert [p["rows"] for p in log["listings"]] == [2, 2, 0]
 
 
 def test_next_link_off_the_api_host_stops(cfg, acfg, tmp_path):
@@ -309,3 +313,221 @@ def test_minutes_but_no_agenda_builds_with_a_null_agenda_url(cfg, acfg):
     jsonschema.validate({k: v for k, v in facts.items() if k != "_wards"}, SCHEMA)
     m = facts["meetings"][0]
     assert m["agenda_url"] is None and m["minutes_status"] == "read" and "agenda_source_id" not in m
+
+
+# ------------------------------------------------------------------ D1: City Council Special Sessions under "General"
+# The 2026-02-11 City Council Special Session as CivicClerk lists it (category "General", event "Special Session",
+# minutes fileId 3068, agenda 2887; one listing query, 2026-11-11), and another board's special session filed alike.
+SPECIAL = event(2900, "2026-02-11T16:30:00Z", "Special Session",
+                [(2887, "Agenda", "2-11-26 Special Session Agenda", ""), (3068, "Minutes", "Minutes", "")],
+                category="General")
+OTHER_SPECIAL = event(2901, "2025-06-10T09:00:00Z", "Special Session",
+                      [(2500, "Minutes", "Minutes", "")], category="General")
+GENERAL_OTHER = event(2902, "2025-06-11T09:00:00Z", "Budget Retreat", [(2501, "Minutes", "Minutes", "")],
+                      category="General")
+PAGE1_CITY = ("                                         City of Clarksville\n"
+              "                                  City Council - Special Session\n\n"
+              "                                         February 11, 2026 at 4:30 PM\n")
+PAGE1_OTHER = ("                                         City of Clarksville\n"
+               "                           Board of Zoning Appeals - Special Session\n\n"
+               "                                         June 10, 2025 at 9:00 AM\n")
+
+
+def test_config_also_lists_general_special_sessions_on_the_api_host(cfg):
+    assert cfg.also_list == ({"category_name": "General", "event_name": "Special Session",
+                              "page1": "City Council - Special Session"},)
+    assert ALSO.startswith(API + "/v1/Events?$filter=categoryName%20eq%20%27General%27%20and%20eventName%20eq%20"
+                                 "%27Special%20Session%27%20and%20startDateTime%20ge%202024-01-01T00:00:00Z")
+
+
+@pytest.mark.parametrize("also,match", [
+    ([{"category_name": "General", "event_name": "Special Session"}], "also_list"),
+    ([{"category_name": "General", "event_name": "", "page1": "x"}], "also_list"),
+    ("General", "also_list must be a list"),
+])
+def test_config_rejects_a_bad_also_list(also, match):
+    raw = yaml.safe_load(cc.config_path().read_text())
+    with pytest.raises(cc.CivicClerkConfigError, match=match):
+        cc.parse_config({**raw, "also_list": also})
+    with pytest.raises(cc.CivicClerkConfigError, match="also_events_url"):
+        cc.parse_config({**raw, "also_events_url": ""})
+    with pytest.raises(cc.CivicClerkConfigError, match="api_host"):
+        cc.parse_config({**raw, "also_events_url": "https://evil.example/{category}{event}"})
+
+
+def test_the_also_listing_keeps_only_its_category_and_event_name_and_marks_each_row(cfg, acfg):
+    page = {"value": [SPECIAL, OTHER_SPECIAL, GENERAL_OTHER, JAN4]}
+    rows, _ = cc.parse_events(page, cfg, acfg.kind_of, cfg.also_list[0])
+    assert [r["event_id"] for r in rows] == [2900, 2901]                      # not the retreat, not a council event
+    assert all(r["page1_required"] == "City Council - Special Session" for r in rows)
+    assert rows[0]["listed_as"] == "General / Special Session" and rows[0]["kind"] == "special"
+    assert rows[0]["minutes_url"] == cfg.file(3068) and rows[0]["agenda_url"] == cfg.file(2887)
+    main, _ = cc.parse_events(page, cfg, acfg.kind_of)
+    assert [r["event_id"] for r in main] == [91] and "page1_required" not in main[0]
+
+
+def test_discover_asks_the_also_listing_after_the_council_listing(cfg, acfg, tmp_path):
+    f = Pages({cfg.first_url(): {"value": [JAN4]}, ALSO: {"value": [SPECIAL, OTHER_SPECIAL]}})
+    log = {}
+    rows = cc.discover(f, cfg, acfg.kind_of, log, tmp_path / "c")
+    assert f.calls == [cfg.first_url(), ALSO]
+    assert [r["event_id"] for r in rows] == [91, 2901, 2900]                  # oldest first
+    assert [p["url"] for p in log["listings"]] == [cfg.first_url(), ALSO]
+
+
+def test_a_failed_also_listing_fails_the_listing_and_keeps_the_last_one(cfg, acfg, tmp_path):
+    listing = tmp_path / "l.json"
+    listing.write_text("[\"kept\"]")
+    f = Pages({cfg.first_url(): {"value": [JAN4]}}, fail=[ALSO])
+    log = new_log()
+    assert cmd_fetch_civicclerk(cfg, acfg.kind_of, Store(manifest_path=tmp_path / "m.json", root=tmp_path / "s"),
+                                listing, log, fetcher=f, cache_dir=tmp_path / "c") == []
+    assert listing.read_text() == "[\"kept\"]" and log["failures"][0]["stage"] == "listing"
+
+
+def test_an_also_listed_events_agenda_is_fetched_without_agendas(cfg, acfg, tmp_path):
+    f = Pages({cfg.first_url(): {"value": [JAN4]}, ALSO: {"value": [SPECIAL]},
+               cfg.file(1905): b"%PDF-1.7 m", cfg.file(3068): b"%PDF-1.7 m2", cfg.file(2887): b"%PDF-1.7 a"})
+    store = Store(manifest_path=tmp_path / "m.json", root=tmp_path / "s")
+    log = new_log()
+    cmd_fetch_civicclerk(cfg, acfg.kind_of, store, tmp_path / "l.json", log, fetcher=f, cache_dir=tmp_path / "c")
+    assert store.latest(cfg.file(2887))["kind"] == "agenda"                  # needed for the page-1 check
+    assert store.latest(cfg.file(1860)) is None                              # a council agenda still needs --agendas
+    assert log["fetched"] == {"new": 3}
+
+
+def _d1_build(cfg, acfg, events, page1_of):
+    from collector.city_build import build
+    from collector.city_minutes import parse_text
+    from collector.tests.test_city_minutes import PAGE1, PAGE2, FakeStore, entry
+
+    rows = [cc.parse_events({"value": [e]}, cfg, acfg.kind_of, cfg.also_list[0])[0][0] for e in events]
+    entries, n = [], 10
+    for r in rows:
+        for kind in ("agenda", "minutes"):
+            if r[f"{kind}_url"]:
+                n += 1
+                entries.append(entry(r[f"{kind}_url"], kind, r["date"], n))
+    sha_page1 = {e["sha256"]: page1_of(e["url"]) for e in entries}
+    return build(acfg, rows, FakeStore(entries), parse=lambda p, k: parse_text([PAGE1, PAGE2], k),
+                 inspect=lambda p: (3, "text"), pages=lambda p: [sha_page1[p.stem]])
+
+
+def test_build_keeps_an_also_listed_event_only_when_page_1_prints_the_council(cfg, acfg):
+    pages = {cfg.file(3068): PAGE1_CITY, cfg.file(2887): PAGE1_CITY, cfg.file(2500): PAGE1_OTHER}
+    facts, summary = _d1_build(cfg, acfg, [SPECIAL, OTHER_SPECIAL], pages.get)
+    assert [m["id"] for m in facts["meetings"]] == ["2026-02-11-special"]
+    assert facts["meetings"][0]["minutes_url"] == cfg.file(3068)
+    assert summary["skipped_events"] == [{
+        "date": "2025-06-10", "title": "Special Session", "event_id": 2901, "listed_as": "General / Special Session",
+        "reason": "listed as General / Special Session; page 1 of its minutes does not print "
+                  "'City Council - Special Session' on a line of its own: skipped, not this body's meeting"}]
+    assert any(p["problem"] == summary["skipped_events"][0]["reason"] for p in summary["problems"])
+    assert not any(s["url"] == cfg.file(2500) for s in facts["sources"])      # nothing of the skipped event is cited
+
+
+def test_build_reads_the_agenda_when_the_minutes_page_1_does_not_print_it(cfg, acfg):
+    pages = {cfg.file(3068): "MINUTES\n", cfg.file(2887): PAGE1_CITY}
+    facts, summary = _d1_build(cfg, acfg, [SPECIAL], pages.get)
+    assert [m["id"] for m in facts["meetings"]] == ["2026-02-11-special"] and not summary["skipped_events"]
+    pages = {cfg.file(3068): "MINUTES\n", cfg.file(2887): PAGE1_OTHER}
+    facts, summary = _d1_build(cfg, acfg, [SPECIAL], pages.get)
+    assert facts["meetings"] == [] and "page 1 of its minutes or agenda does not print" in \
+        summary["skipped_events"][0]["reason"]
+
+
+@pytest.mark.parametrize("page1", [
+    "                Joint City Council - Special Session with the County Commission\n",
+    "     Report to the City Council - Special Session\n",
+    "  City Council - Special Session Agenda Review Committee\n",
+])
+def test_build_skips_an_also_listed_event_whose_page_1_prints_the_words_only_inside_a_longer_line(cfg, acfg, page1):
+    """review nit d1-page1-substring: the heading must be a line of its own, never the same words inside one."""
+    pages = {cfg.file(3068): page1, cfg.file(2887): page1}
+    facts, summary = _d1_build(cfg, acfg, [SPECIAL], pages.get)
+    assert facts["meetings"] == []
+    assert "page 1 of its minutes or agenda does not print 'City Council - Special Session' on a line of its own" \
+        in summary["skipped_events"][0]["reason"]
+
+
+def test_page_has_line_matches_a_whole_line_only():
+    from collector.city_minutes import page_has_line
+    want = "City Council - Special Session"
+    assert page_has_line(PAGE1_CITY, want)
+    assert page_has_line("  City  Council -​ Special Session  \n", want)       # spaces and Cf only
+    assert not page_has_line("City Council -\n Special Session", want)                  # split over two lines
+    assert not page_has_line("Joint City Council - Special Session\n", want)
+    assert not page_has_line("", want) and not page_has_line(PAGE1_CITY, "  ")
+
+
+def test_build_skips_an_also_listed_event_with_no_stored_file(cfg, acfg):
+    from collector.city_build import build
+
+    class Empty:
+        def latest(self, url):
+            return None
+
+    row = cc.parse_events({"value": [SPECIAL]}, cfg, acfg.kind_of, cfg.also_list[0])[0][0]
+    facts, summary = build(acfg, [row], Empty(), inspect=lambda p: (3, "text"), pages=lambda p: [""])
+    assert facts["meetings"] == []
+    assert "no stored agenda or minutes does not print" in summary["skipped_events"][0]["reason"]
+
+
+# ------------------------------------------------------------------ city-verify/d1-merge-before-page1
+def _d1_pair(cfg, acfg, page1, ac_minutes):
+    """A council meeting listed by the Agenda Center on 2026-02-11 (with or without minutes) and the D1 "Special
+    Session" of that day, whose stored page 1 prints `page1`: merged with page1_check before pairing, then built."""
+    from collector.city_build import build, page1_check
+    from collector.city_minutes import parse_text
+    from collector.tests.test_city_minutes import PAGE1, PAGE2, FakeStore, entry
+
+    a = ac_row("2026-02-11", "City Council Special Session", "special", minutes=ac_minutes, aid="02112026-1")
+    d1 = cc.parse_events({"value": [SPECIAL]}, cfg, acfg.kind_of, cfg.also_list[0])[0][0]
+    assert d1["kind"] == a["kind"] and d1["page1_required"]
+    entries = [entry(a["agenda_url"], "agenda", a["date"], 1), entry(d1["agenda_url"], "agenda", d1["date"], 3),
+               entry(d1["minutes_url"], "minutes", d1["date"], 4)]
+    if ac_minutes:
+        entries.append(entry(a["minutes_url"], "minutes", a["date"], 2))
+    store = FakeStore(entries)
+    d1_shas = {e["sha256"] for e in entries[1:3]}
+
+    def pages(p):
+        return [page1 if p.stem in d1_shas else PAGE1_CITY]
+    merged, dups = cc.merge_sources([a], [d1], page1_ok=lambda r: page1_check(r, store, pages) is None)
+    facts, summary = build(acfg, merged, store, parse=lambda p, k: parse_text([PAGE1, PAGE2], k),
+                           inspect=lambda p: (3, "text"), pages=pages)
+    return a, d1, merged, dups, facts, summary
+
+
+@pytest.mark.parametrize("ac_minutes", [False, True])
+def test_a_d1_row_whose_page_1_is_another_body_is_never_paired_with_a_council_meeting(cfg, acfg, ac_minutes):
+    """Before: merge_sources paired the D1 row before its page 1 was checked. With minutes it outranked the Agenda
+    Center row (no minutes) and replaced it, then the build skipped it: the council meeting was lost. Otherwise the
+    council meeting kept it under also_listed and cited another body's files. Now it is never paired: the council
+    meeting stays as listed, the D1 row is skipped on its own, and none of its files is cited."""
+    a, d1, merged, dups, facts, summary = _d1_pair(cfg, acfg, PAGE1_OTHER, ac_minutes)
+    assert dups == [] and len(merged) == 2 and not any(r.get("also_listed") for r in merged)
+    assert [(m["id"], m["listing_source"], m["agenda_url"]) for m in facts["meetings"]] == \
+        [("2026-02-11-special", "agenda-center", a["agenda_url"])]
+    assert "also_listed" not in facts["meetings"][0]
+    assert [e["event_id"] for e in summary["skipped_events"]] == [d1["event_id"]]
+    cited = {s["url"] for s in facts["sources"]}
+    assert d1["agenda_url"] not in cited and d1["minutes_url"] not in cited
+
+
+def test_a_d1_row_whose_page_1_prints_the_council_is_paired_as_before(cfg, acfg):
+    a, d1, merged, dups, facts, summary = _d1_pair(cfg, acfg, PAGE1_CITY, False)
+    assert len(merged) == 1 and dups[0]["kept"] == "civicclerk" and dups[0]["dropped"] == "agenda-center"
+    assert [m["id"] for m in facts["meetings"]] == ["2026-02-11-special"] and not summary["skipped_events"]
+    assert facts["meetings"][0]["minutes_url"] == d1["minutes_url"]
+    assert facts["meetings"][0]["also_listed"][0]["agenda_url"] == a["agenda_url"]
+
+
+def test_a_d1_row_is_never_paired_without_a_page_1_check(cfg, acfg):
+    a = ac_row("2026-02-11", "City Council Special Session", "special", aid="02112026-1")
+    d1 = cc.parse_events({"value": [SPECIAL]}, cfg, acfg.kind_of, cfg.also_list[0])[0][0]
+    rows, dups = cc.merge_sources([a], [d1])
+    assert dups == [] and len(rows) == 2 and not any(r.get("also_listed") for r in rows)
+    calls = []
+    rows, dups = cc.merge_sources([a], [d1], page1_ok=lambda r: calls.append(r["event_id"]) or False)
+    assert dups == [] and len(rows) == 2 and calls == [d1["event_id"]]

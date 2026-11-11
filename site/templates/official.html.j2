@@ -8,6 +8,7 @@
     <h1>{{ official.name }}</h1>
     <p class="title-line">{{ official.title }}</p>
     {% if seat_header %}<p class="seat-line">{{ seat(seat_header) }}</p>{% endif %}
+    {% if name_source %}<p class="muted name-source">Name and ward from the {{ name_source.kind }} of {{ name_source.date }}, {{ source(name_source.src) }}: &ldquo;{{ name_source.quote }}&rdquo;</p>{% endif %}
     <p class="muted coverage">{{ coverage_sentence }}</p>
   </div>
 </header>
@@ -53,7 +54,7 @@ Of <span data-n="rc_total{{ sfx }}">{{ st['rc_total' ~ sfx] }}</span> {{ what }}
     <li>{{ t }}</li>
   {% endfor %}
   </ul>
-  <p class="muted">* Not confirmed: the page in the minutes was hard to read, so the automatic checks could not confirm it. Each such row below links to the page. Confirmed and not confirmed votes are never added together.</p>
+  {% if held_by_check %}<p class="muted">* Not confirmed: the automatic checks could not confirm it against the minutes. Each such row below says which check did not pass and links to the page. Confirmed and not confirmed votes are never added together.</p>{% else %}<p class="muted">* Not confirmed: the page in the minutes was hard to read, so the automatic checks could not confirm it. Each such row below links to the page. Confirmed and not confirmed votes are never added together.</p>{% endif %}
 </section>
 
 {% if called_on is defined %}

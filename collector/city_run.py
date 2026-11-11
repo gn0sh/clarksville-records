@@ -18,8 +18,10 @@ Files (per locality, so the county's data/manifest.json and data/facts.json are 
 
 Exit codes (the workflow's Collect step fails the run, and so opens the issue, on any non-zero code; spec AC4.4):
 0 ok (a single file that is skipped, e.g. a .docx behind a PDF link, is logged and stays 0); 2 a listing could not be
-read; 5 a host or policy refused us at any stage (HostBlocked 403/429, HostRefused, ProxyRefused, RobotsDisallowed:
-alerting/city-fetch-failures-exit-0). A refusal is never retried and never worked around: the code only reports it.
+read; 3 the G4 skew gate flagged an official (build/city-report.json build.gates; the AC-P1 verified rate is reported
+there but sets no code); 5 a host or policy refused us at any stage (HostBlocked 403/429, HostRefused, ProxyRefused,
+RobotsDisallowed: alerting/city-fetch-failures-exit-0). A refusal is never retried and never worked around: the code
+only reports it.
 """
 from __future__ import annotations
 
@@ -36,6 +38,7 @@ from .store import Store, fetch_into_store, store_dir
 ROOT = Path(__file__).resolve().parent.parent
 STOP = (HostBlocked, HostRefused, ProxyRefused, RobotsDisallowed)   # the host said no (or policy): stop, never retry
 LISTING_FAILED = 2
+GATE_FAILED = 3        # G4 flagged an official (spec G4: release blocked), as the county's gate failure code
 BLOCKED = 5            # its own code, so the alert says "refused", not "failed" (4 is the county run's offline refusal)
 
 
@@ -102,8 +105,9 @@ def cmd_fetch_civicclerk(cc: civicclerk.CivicClerkConfig, kind_of, store: Store,
 
 def fetch_files(f, store: Store, rows: list[dict], log: dict, agendas: bool, limit: int | None) -> list[dict]:
     jobs = [(r, "minutes", r["minutes_url"]) for r in rows if r["minutes_url"]]
-    if agendas:
-        jobs += [(r, "agenda", r["agenda_url"]) for r in rows if r["agenda_url"]]
+    # a D1 row (page1_required) is kept by the build only when page 1 of its agenda or minutes prints the body's
+    # name, so its agenda is fetched too
+    jobs += [(r, "agenda", r["agenda_url"]) for r in rows if r["agenda_url"] and (agendas or r.get("page1_required"))]
     if limit is not None:
         jobs = jobs[:limit]
     stopped = False
@@ -125,14 +129,18 @@ def fetch_files(f, store: Store, rows: list[dict], log: dict, agendas: bool, lim
     return rows
 
 
-def listing_rows(p: dict, cfg: AgendaCenterConfig) -> tuple[list[dict], list[dict]]:
+def listing_rows(p: dict, cfg: AgendaCenterConfig, store: Store | None = None) -> tuple[list[dict], list[dict]]:
     """Both committed listings joined (civicclerk.merge_sources). The meeting kind is re-read from each title with
-    the current config, as the build does, so the de-duplication and the meeting ids agree."""
+    the current config, as the build does, so the de-duplication and the meeting ids agree. A D1 row is paired only
+    after its page 1 check passes on the stored files (city-verify/d1-merge-before-page1); with no store, never."""
     ac = json.loads(p["listing"].read_text(encoding="utf-8")) if p["listing"].exists() else []
     cc = json.loads(p["cc_listing"].read_text(encoding="utf-8")) if p["cc_listing"].exists() else []
     ac = [{**r, "kind": cfg.kind_of(r["title"])} for r in ac]
     cc = [{**r, "kind": cfg.kind_of(r["title"])} for r in cc]
-    return civicclerk.merge_sources(ac, cc)
+    if store is None:
+        return civicclerk.merge_sources(ac, cc)
+    from .city_build import page1_check
+    return civicclerk.merge_sources(ac, cc, page1_ok=lambda r: page1_check(r, store) is None)
 
 
 def new_log() -> dict:
@@ -165,7 +173,7 @@ def main(argv: list[str]) -> int:
     report = {"fetch": {k: v for k, v in log.items() if k != "fetch_log"}}
     if a.command in ("build", "run"):
         from .city_build import build
-        rows, dups = listing_rows(p, cfg)
+        rows, dups = listing_rows(p, cfg, store)
         facts, summary = build(cfg, rows, store)
         summary["duplicates"] = dups
         write_json(p["wards"], facts.pop("_wards"))
@@ -176,6 +184,16 @@ def main(argv: list[str]) -> int:
     print(json.dumps({k: v for k, v in report.items()}, indent=1, default=str)[:4000])
     print(limits.summary("collector city", since), flush=True)
     code = exit_code(log)
+    if "build" in report:              # the gates (AC-P1, G4) with the county's code: see GATE_FAILED
+        g = report["build"]["gates"]
+        print(f"collector city: {g['roll_calls']} roll calls, {g['verified']} verified "
+              f"({100 * g['verified_rate']:.1f}%, AC-P1 {'pass' if g['verified_rate_gate']['pass'] else 'FAIL'}); "
+              f"G4 {g['g4']['status']}, flagged {g['g4']['flagged'] or 'none'} "
+              f"(uniform share {g['g4']['uniform_share']})", flush=True)
+        if code == 0 and not g["g4"]["pass"]:
+            print(f"collector city: G4 skew gate FAILED (exit {GATE_FAILED}): {', '.join(g['g4']['flagged'])}",
+                  file=sys.stderr, flush=True)
+            code = GATE_FAILED
     if code == BLOCKED:
         print(f"collector city: REFUSED by a host or by policy (exit {BLOCKED}); not retried. See the failures above.",
               file=sys.stderr, flush=True)

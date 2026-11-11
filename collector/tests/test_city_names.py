@@ -16,7 +16,8 @@ import pytest
 import yaml
 
 from collector import agenda_center as ac
-from collector.city_build import Officials, RosterBook, build, official_id, printed_full_names, resolve
+from collector.city_build import (Officials, RosterBook, break_free, build, name_parts, official_id, printed_full_names,
+                                  resolve, resolve_with)
 from collector.city_minutes import NAME_RE, parse_text
 from collector.tests.test_city_minutes import SCHEMA, FakeStore, entry
 
@@ -96,8 +97,10 @@ def assert_name_invariant(cfg, facts: dict, texts: dict) -> None:
                 roster.add(official_id(off.canonical(pm.presiding)))
         pairs = [(oid, names[oid]) for oid in sorted(roster)]
         for a in m["attendance"]:
-            if a["official_id"] and not NAME_RE.match(a["raw_name"]):          # read from a surname
-                assert names[a["official_id"]].split()[-1].lower() == a["raw_name"].lower()
+            if a["official_id"] and not NAME_RE.match(a["raw_name"]):          # read from a surname, or N9
+                name = names[a["official_id"]]
+                assert name.split()[-1].lower() == a["raw_name"].lower() or \
+                    break_free(a["raw_name"]) in (break_free(name), break_free(name_parts(name)[1])), (m["id"], a)
         for c in m["verification"]["checks"]:
             if c["check"] == "surnames_resolve":
                 for d in re.findall(r"by the attendance of (\d{4}-\d{2}-\d{2})", c.get("detail", "")):
@@ -108,9 +111,24 @@ def assert_name_invariant(cfg, facts: dict, texts: dict) -> None:
             refs += [mo["moved_by"]] + ([mo["seconded_by"]] if mo["seconded_by"] else [])
         for v in refs:
             assert v["official_id"] is None or v["official_id"] in roster, (m["id"], v)
-            assert v["official_id"] == resolve(v["raw_name"], pairs, cfg.aliases), (m["id"], v)
+            oid, via_break = resolve_with(v["raw_name"], pairs, cfg.aliases)
+            one_line = on_one_line(v["raw_name"], texts[m["date"]])
+            if via_break:                       # N9: every printed letter equals the member's name or surname
+                name = names[oid]
+                assert break_free(v["raw_name"]) in (break_free(name), break_free(name_parts(name)[1])), (m["id"], v)
+                # ... and never across a line end (W2 rule 5): a token cut there is held
+                assert v["official_id"] == (oid if one_line else None), (m["id"], v)
+            else:
+                assert v["official_id"] == resolve(v["raw_name"], pairs, cfg.aliases), (m["id"], v)
         if not m["verification"]["status"] == "verified":
             assert all(r["verification"]["status"] == "unverified" for r in rcs)
+
+
+def on_one_line(raw: str, text: str) -> bool:
+    """`raw` (spaces collapsed) is printed inside one line of `text`, as a whole token of a list."""
+    want = re.escape(" ".join(raw.split()))
+    return any(re.search(rf"(?:^|[:,;&]|\band\b)\s*{want}\s*(?:$|[,;.&]|\band\b)", " ".join(line.split()))
+               for line in text.splitlines())
 
 
 def meeting(facts, date):
@@ -495,3 +513,540 @@ def test_n2_n7_n8_a_vote_mover_or_seconder_printed_as_an_alias_resolves(cfg):
     for bad in ({"Marquis": "Ambar Marquis"}, {"Amber Marquis": "Marquis"}, {"Amber Marquis": None}):
         with pytest.raises(ac.AgendaCenterConfigError):          # a surname alias would re-point every such vote
             ac.parse_config({**raw, "aliases": bad})
+
+
+# ------------------------------------------------------------------ city-verify W1: format characters in the text layer
+def _w(x0, x1, text, y0=696.556641, y1=709.845703, page=1):
+    from collector.pdfwords import Word
+    return Word(page, x0, x1, y0, y1, text)
+
+
+# 2020-10-01 page 1 as its text layer has it (pdftotext -bbox and -layout, AgendaCenter Minutes/_10012020-608)
+HENLEY_LINE = "    Holleman (Ward 7), David Allen, Mayor Pro Tem (Ward 8)​, J​ eff Henley (Ward 9),"
+HENLEY_WORDS = [_w(413.990234, 425.990234, "8)​,"), _w(427.740233, 432.410154, "J"),
+                _w(427.740233, 427.740233, "​", 695.822877, 717.300070),
+                _w(432.410154, 445.728514, "eff"), _w(450.978518, 485.630861, "Henley"),
+                _w(490.880858, 521.525389, "(Ward"), _w(526.775392, 539.771486, "9),")]
+
+
+def _henley_minutes(page1: str) -> str:
+    present = "Travis " + page1.strip().rstrip(",")
+    return minutes("2020-10-01", present, aye="Allen, Henley, Holleman", mover="Holleman", seconder="Allen")
+
+
+def test_w1_the_real_2020_10_01_boxes_read_jeff_henley_and_resolve(cfg):
+    from collector.city_minutes import join_format_breaks
+    page = join_format_breaks([HENLEY_LINE], HENLEY_WORDS)[0]
+    assert "Jeff Henley (Ward 9)" in page and "J eff" not in page
+    facts, _ = run(cfg, [("2020-10-01", _henley_minutes(page))])
+    assert att(facts, "2020-10-01")["Jeff Henley"] == "city-jeff-henley"                       # N1
+    assert meeting(facts, "2020-10-01")["verification"]["status"] == "verified"
+    rc = facts["roll_calls"][0]
+    assert {v["raw_name"]: v["official_id"] for v in rc["votes"]}["Henley"] == "city-jeff-henley"
+
+
+def test_w1_a_visible_gap_after_the_zero_width_word_stays_a_gap_and_is_held(cfg):
+    from collector.city_minutes import join_format_breaks
+    gap = [w if w.text != "eff" else _w(435.410154, 448.728514, "eff") for w in HENLEY_WORDS]      # a 3 pt gap
+    page = join_format_breaks([HENLEY_LINE], gap)[0]
+    assert page == HENLEY_LINE                                         # unchanged; lines_of deletes the U+200B only
+    facts, _ = run(cfg, [("2020-10-01", _henley_minutes(page))])        # no Jeff Henley on the book: W2 cannot match
+    assert att(facts, "2020-10-01")["J eff Henley"] is None
+    assert meeting(facts, "2020-10-01")["verification"]["status"] == "unverified"
+    assert all(r["verification"]["status"] == "unverified" for r in facts["roll_calls"])
+
+
+def test_w1_a_pair_also_seen_with_a_gap_on_the_page_is_never_joined():
+    from collector.city_minutes import format_breaks
+    words = HENLEY_WORDS + [_w(100, 105, "J", 720, 733), _w(100, 100, "​", 720, 733), _w(108, 120, "eff", 720, 733)]
+    assert format_breaks(HENLEY_WORDS) == {1: {("J", "eff")}}
+    assert format_breaks(words) == {}
+    other_line = HENLEY_WORDS[:3] + [_w(432.410154, 445.728514, "eff", 720, 733)]
+    assert format_breaks(other_line) == {}                                    # not one line
+
+
+def test_w1_format_characters_inside_a_word_are_removed():
+    from collector.city_minutes import lines_of, page_has
+    assert lines_of(["PRESENT: Travis Holle­man (Ward 7), Da‍vid Allen﻿"])[0].text == \
+        "PRESENT: Travis Holleman (Ward 7), David Allen"
+    assert page_has("City Council -​ Special\n  Session", "City Council - Special Session")
+
+
+@pytest.mark.parametrize("run_", ["a" * 40000, "J​ " * 13000, "J" + " ​" * 20000, "J" + "​" * 40000,
+                                  "J " + " " * 40000 + "​"])
+def test_w1_a_long_adversarial_run_is_joined_in_linear_time(run_):
+    """pipeline/format-break-regex-quadratic: _FORMAT_BREAK backtracked once per character of a long run (6 s at 8k
+    characters). A 40k-character run on a page with a W1 pair (so the substitution runs) takes well under a second,
+    and the real pair on that page is still joined."""
+    import time
+    from collector.city_minutes import join_format_breaks
+    t = time.perf_counter()
+    page = join_format_breaks([HENLEY_LINE + "\n" + run_], HENLEY_WORDS)[0]
+    assert time.perf_counter() - t < 1.0
+    assert page.startswith(HENLEY_LINE.replace("J​ eff", "Jeff") + "\n")
+
+
+def test_w1_join_behaviour_is_unchanged_by_the_linear_pattern():
+    """The linear _FORMAT_BREAK matches exactly what the earlier backtracking pattern matched (same spans, same groups):
+    it starts only at a word's first character, and its runs are disjoint classes, so possessive runs give nothing up
+    that a match could use."""
+    import random
+    from collector.city_minutes import _FORMAT_BREAK, _NOT_SPACE, FORMAT_CHARS
+    fc = re.escape(FORMAT_CHARS)
+    before = re.compile(rf"({_NOT_SPACE}+)([ \t ]*[{fc}]+[{fc} \t ]*)(?=({_NOT_SPACE}+))")
+    rnd = random.Random(1)
+    alpha = ["a", "J", "eff", "​", "­", "﻿", " ", "\t", " ", "\n", "(", ","]
+    for _ in range(20000):
+        s = "".join(rnd.choice(alpha) for _ in range(rnd.randint(0, 12)))
+        assert [(m.span(), m.groups()) for m in _FORMAT_BREAK.finditer(s)] == \
+            [(m.span(), m.groups()) for m in before.finditer(s)], repr(s)
+
+
+# ------------------------------------------------------------------ city-verify W2: the break-free key (path N9)
+WIDE = FULL + ", Jerry Haywood (Ward 6), Richard Lovato (Ward 7)"
+WIDE_AYE = FULL_AYE + ", Haywood, Lovato"
+
+
+def votes_of(facts, date, k=0):
+    rcs = [r for r in facts["roll_calls"] if r["meeting_id"] == meeting(facts, date)["id"]]
+    return rcs[k], {v["raw_name"]: v["official_id"] for v in rcs[k]["votes"]}
+
+
+def check(r, name):
+    return next(c for c in r["verification"]["checks"] if c["check"] == name)
+
+
+def test_n9_an_attendance_name_printed_without_its_space_resolves_against_the_book(cfg):
+    """2022-04-07 page 1 prints "StaceyStreetman (Ward 10)" (one glyph box, no space); the book has Stacey Streetman,
+    Ward 10, from the list of 2022-03-03."""
+    before = "Stacey Streetman (Ward 10), Travis Holleman (Ward 7), Jimmy Brown (Ward 5)"
+    after = "StaceyStreetman (Ward 10), Travis Holleman (Ward 7), Jimmy Brown (Ward 5)"
+    aye = "Brown, Holleman, Pitts, Streetman"
+    facts, summary = run(cfg, [("2022-03-03", minutes("2022-03-03", before, aye=aye)),
+                               ("2022-04-07", minutes("2022-04-07", after, aye=aye))])
+    assert att(facts, "2022-04-07")["StaceyStreetman"] == "city-stacey-streetman"
+    c = surname_check(facts, "2022-04-07")
+    assert c["ok"] and "StaceyStreetman read as Stacey Streetman (same letters, spaces ignored)" in c["detail"]
+    rc, votes = votes_of(facts, "2022-04-07")
+    assert votes["Streetman"] == "city-stacey-streetman" and rc["verification"]["status"] == "verified"
+    assert summary["word_break_matches"] == [{"meeting": "2022-04-07-regular", "page": 1, "where": "attendance",
+                                              "printed": "StaceyStreetman", "official_id": "city-stacey-streetman",
+                                              "name": "Stacey Streetman"}]
+
+
+def test_n9_a_printed_ward_that_disagrees_holds_the_attendance_name(cfg):
+    before = "Stacey Streetman (Ward 10), Travis Holleman (Ward 7)"
+    facts, summary = run(cfg, [("2022-03-03", minutes("2022-03-03", before, aye="Holleman, Streetman")),
+                               ("2022-04-07", minutes("2022-04-07", before.replace("Stacey Streetman (Ward 10)",
+                                                                                   "StaceyStreetman (Ward 9)"),
+                                                      aye="Holleman, Streetman"))])
+    assert att(facts, "2022-04-07")["StaceyStreetman"] is None
+    assert not surname_check(facts, "2022-04-07")["ok"] and summary["word_break_matches"] == []
+    assert meeting(facts, "2022-04-07")["verification"]["status"] == "unverified"
+
+
+@pytest.mark.parametrize("token,member", [("H AYWOOD", "city-jerry-haywood"), ("H olleman", "city-travis-holleman"),
+                                          ("LOV ATO", "city-richard-lovato"), ("Jerry Hay wood", "city-jerry-haywood")])
+def test_n9_a_vote_name_with_a_printed_break_resolves_against_the_meetings_roster(cfg, token, member):
+    surname = {"city-jerry-haywood": "Haywood", "city-travis-holleman": "Holleman", "city-richard-lovato": "Lovato"}
+    aye = ", ".join(x if x != surname[member] else token for x in WIDE_AYE.split(", "))
+    facts, summary = run(cfg, [("2025-01-02", minutes("2025-01-02", WIDE, aye=aye))])
+    rc, votes = votes_of(facts, "2025-01-02")
+    assert votes[token] == member and rc["verification"]["status"] == "verified"
+    assert f"{token} read as " in check(rc, "names_resolve")["detail"]
+    assert [(u["where"], u["printed"], u["official_id"]) for u in summary["word_break_matches"]] == \
+        [("vote", token, member)]
+
+
+@pytest.mark.parametrize("token", ["STRETMAN", "AYWOOD", "HOLLEMNA", "PITT", "R reynolds", "Burkhart Erb",
+                                   "Alexander. Allen", "H"])
+def test_n9_never_a_near_spelling_a_split_or_a_lone_letter(cfg, token):
+    facts, summary = run(cfg, [("2025-01-02", minutes("2025-01-02", WIDE, aye=WIDE_AYE + ", " + token))])
+    rc, votes = votes_of(facts, "2025-01-02")
+    assert votes[token] is None and rc["verification"]["status"] == "unverified"
+    assert not check(rc, "names_resolve")["ok"] and summary["word_break_matches"] == []
+
+
+def test_n9_two_roster_people_whose_keys_collide_hold_the_token(cfg):
+    present = FULL + ", Mary Ann Lee (Ward 8), Maryann Lee (Ward 9)"
+    facts, _ = run(cfg, [("2025-01-02", minutes("2025-01-02", present, aye=FULL_AYE + ", MaryAnnLee, Mary Ann Lee"))])
+    rc, votes = votes_of(facts, "2025-01-02")
+    assert votes["MaryAnnLee"] is None and votes["Mary Ann Lee"] == "city-mary-ann-lee"
+    assert rc["verification"]["status"] == "unverified"
+
+
+def test_n9_a_key_matching_only_someone_off_the_meetings_roster_is_held(cfg):
+    """Jerry Haywood is on the earlier list (so on the book), not on this meeting's attendance: H AYWOOD is held."""
+    facts, summary = run(cfg, [("2025-01-02", minutes("2025-01-02", WIDE, aye=WIDE_AYE)),
+                               ("2025-02-06", minutes("2025-02-06", FULL, aye=FULL_AYE + ", H AYWOOD"))])
+    rc, votes = votes_of(facts, "2025-02-06")
+    assert votes["H AYWOOD"] is None and rc["verification"]["status"] == "unverified"
+    assert summary["word_break_matches"] == []
+
+
+def test_n9_a_join_that_gives_a_member_a_second_vote_holds_the_roll_call(cfg):
+    facts, summary = run(cfg, [("2025-01-02", minutes("2025-01-02", WIDE, aye=WIDE_AYE + ", H olleman"))])
+    rc, votes = votes_of(facts, "2025-01-02")
+    assert votes["H olleman"] == "city-travis-holleman"
+    assert not check(rc, "one_entry_per_official")["ok"] and rc["verification"]["status"] == "unverified"
+
+
+def test_n9_mover_and_seconder_tokens_use_the_same_last_step():
+    """N8 reads the mover and seconder through resolve_with, as N7 (the parser reads them as one titled word, so a
+    printed break cannot reach them today; the step is the same if it ever does)."""
+    roster = [("city-stacey-streetman", "Stacey Streetman"), ("city-travis-holleman", "Travis Holleman")]
+    assert resolve_with("Stree tman", roster) == ("city-stacey-streetman", True)
+    assert resolve_with("Streetman", roster) == ("city-stacey-streetman", False)
+    assert resolve_with("Stretman", roster) == (None, False)
+
+
+def test_n9_an_attendance_entry_with_a_break_inside_a_name_resolves_against_the_book(cfg):
+    """An entry neither a full name nor one surname ("J eff Henley", if W1 could not join it) is read against the
+    book by its break-free key, the ward agreeing."""
+    first = "Jeff Henley (Ward 9), Travis Holleman (Ward 7)"
+    facts, summary = run(cfg, [("2020-09-03", minutes("2020-09-03", first, aye="Henley, Holleman")),
+                               ("2020-10-01", minutes("2020-10-01", first.replace("Jeff", "J eff"),
+                                                      aye="Henley, Holleman"))])
+    assert att(facts, "2020-10-01")["J eff Henley"] == "city-jeff-henley"
+    assert meeting(facts, "2020-10-01")["verification"]["status"] == "verified"
+    assert [u["printed"] for u in summary["word_break_matches"]] == ["J eff Henley"]
+
+
+CUT = "\n             "            # a vote list's line end, as the minutes print a list that wraps
+
+
+@pytest.mark.parametrize("aye,token", [
+    (FULL_AYE + ", Lovato, Hay" + CUT + "Wood", "Hay Wood"),
+    (FULL_AYE + ", Lovato, H" + CUT + "Aywood, Pitts", "H Aywood"),
+    (FULL_AYE + ", H" + CUT + "Aywood, Lovato", "H Aywood"),
+])
+def test_n9_a_vote_token_cut_at_a_line_end_stays_held(cfg, aye, token):
+    """W2 rule 5 (review nit word_break_note): N9 never joins across a line end the list crosses. The same letters on
+    one line resolve (test above); cut at a line end they are held, and nothing is listed as a word-break use."""
+    facts, summary = run(cfg, [("2025-01-02", minutes("2025-01-02", WIDE, aye=aye))])
+    rc, votes = votes_of(facts, "2025-01-02")
+    assert votes[token] is None and rc["verification"]["status"] == "unverified"
+    assert not check(rc, "names_resolve")["ok"] and summary["word_break_matches"] == []
+
+
+def test_n9_an_attendance_name_cut_at_a_line_end_is_held_and_a_full_name_wrapped_at_its_space_still_resolves(cfg):
+    first = minutes("2025-01-02", WIDE, aye=WIDE_AYE)
+    cut = minutes("2025-02-06", WIDE.replace("Jerry Haywood (Ward 6)", "Jerry Hay" + CUT + "wood (Ward 6)"),
+                  aye=WIDE_AYE)
+    facts, summary = run(cfg, [("2025-01-02", first), ("2025-02-06", cut)])
+    assert att(facts, "2025-02-06")["Jerry Hay wood"] is None and summary["word_break_matches"] == []
+    assert meeting(facts, "2025-02-06")["verification"]["status"] == "unverified"
+    wrapped = minutes("2025-02-06", WIDE.replace("Jerry Haywood (Ward 6)", "Jerry" + CUT + "Haywood (Ward 6)"),
+                      aye=WIDE_AYE.replace("Haywood", "Jerry" + CUT + "Haywood"))
+    facts, summary = run(cfg, [("2025-01-02", first), ("2025-02-06", wrapped)])
+    assert att(facts, "2025-02-06")["Jerry Haywood"] == "city-jerry-haywood"          # N1, an exact full name
+    rc, votes = votes_of(facts, "2025-02-06")
+    assert votes["Jerry Haywood"] == "city-jerry-haywood" and rc["verification"]["status"] == "verified"
+    assert summary["word_break_matches"] == []
+
+
+def test_n9_an_absent_token_cut_at_a_line_end_is_not_joined():
+    from collector.city_minutes import parse_text
+    from collector import agenda_center as ac2
+    c = ac2.load_config(ac2.config_path("clarksville-tn"))
+    text = minutes("2025-01-02", WIDE, aye=FULL_AYE).replace(
+        "\n\n             The motion", "\n             ABSENT: Lovato, H" + CUT + "Aywood\n\n             The motion")
+    rc = parse_text([text], c).roll_calls[0]
+    assert rc.absent == ["Lovato", "H Aywood"] and rc.absent_cut == {"H Aywood"}
+    roster = [("city-jerry-haywood", "Jerry Haywood")]
+    assert resolve_with("H Aywood", roster) == ("city-jerry-haywood", True)          # on one line: N9
+    assert resolve_with("H Aywood", roster, cut=True) == (None, False)               # cut at a line end: held
+
+
+def _absent_in_block(line: str) -> str:
+    """The one-vote minutes with Jerry Haywood present and not voting, and `line` (an ABSENT line) in the vote block."""
+    return minutes("2025-01-02", WIDE, aye=FULL_AYE + ", Lovato").replace(
+        "\n\n             The motion", f"\n             ABSENT: {line}\n\n             The motion")
+
+
+@pytest.mark.parametrize("line,held", [("Brown, H Aywood", False), ("Brown, H" + CUT + "Aywood", True)])
+def test_n9_an_absent_token_cut_at_a_line_end_never_excuses_a_missing_vote(cfg, line, held):
+    """review city-verify/line-cut-absent-unpinned (city_build absent loop, RollCall.absent_cut): on one line, ABSENT
+    "H Aywood" is Jerry Haywood (N9), so his missing vote is excused and the roll call verifies; cut at a line end the
+    parser still reads the one token "H Aywood", but it is never joined, his vote stays missing and the roll call is
+    held."""
+    text = _absent_in_block(line)
+    parsed = parse_text([text], cfg).roll_calls[0]
+    assert "H Aywood" in parsed.absent and ("H Aywood" in parsed.absent_cut) is held
+    facts, summary = run(cfg, [("2025-01-02", text)])
+    rc, votes = votes_of(facts, "2025-01-02")
+    assert "Haywood" not in votes and "H Aywood" not in votes
+    assert check(rc, "one_vote_per_present_member")["ok"] is not held
+    assert rc["verification"]["status"] == ("unverified" if held else "verified")
+    assert [u["printed"] for u in summary["word_break_matches"]] == ([] if held else ["H Aywood"])
+
+
+def _three_votes(third: str) -> str:
+    """Jerry Haywood "left early": he votes on item 3, not on item 4, and item 5 prints `third` in its vote list."""
+    present = WIDE.replace("Jerry Haywood (Ward 6)", "Jerry Haywood (Ward 6; left early)")
+    text = minutes("2025-01-02", present, aye=WIDE_AYE)
+    for n, aye in ((4, FULL_AYE + ", Lovato"), (5, FULL_AYE + ", Lovato, " + third)):
+        text += (f"\n{n}.   Item {n}\n"
+                 f"          Councilman Streetman made a motion to adopt item {n}, seconded by Councilman\n"
+                 f"          Holleman. The following vote was recorded:\n\n"
+                 f"             AYE: {aye}\n\n"
+                 f"             The motion to adopt item {n} passed.\n")
+    return text
+
+
+def test_n9_a_vote_token_cut_at_a_line_end_never_counts_as_a_vote_for_the_left_early_exemption(cfg):
+    """review city-verify/line-cut-absent-unpinned (_out_of_room reads votes with v.line_cut): a member noted as
+    leaving early is excused from the votes after his last vote. A cut "H" / "Aywood" on item 5 is not his vote, so
+    his last vote is item 3 and item 4 (no vote from him) verifies; read as his vote it would hold item 4."""
+    facts, _ = run(cfg, [("2025-01-02", _three_votes("H" + CUT + "Aywood"))])
+    rcs = [r for r in facts["roll_calls"] if r["meeting_id"] == meeting(facts, "2025-01-02")["id"]]
+    assert len(rcs) == 3
+    assert rcs[0]["verification"]["status"] == "verified"
+    assert rcs[1]["verification"]["status"] == "verified"                  # excused: he left after item 3
+    assert {v["raw_name"]: v["official_id"] for v in rcs[2]["votes"]}["H Aywood"] is None
+    assert rcs[2]["verification"]["status"] == "unverified"
+    # the control: the same letters on one line are his vote on item 5, so item 4 has no excuse and is held
+    facts, _ = run(cfg, [("2025-01-02", _three_votes("H Aywood"))])
+    rcs = [r for r in facts["roll_calls"] if r["meeting_id"] == meeting(facts, "2025-01-02")["id"]]
+    assert rcs[1]["verification"]["status"] == "unverified"
+    assert check(rcs[1], "one_vote_per_present_member")["detail"] == "city-jerry-haywood"
+
+
+def test_break_free_lowercases_and_drops_whitespace_only():
+    """ADR 0005 rule 2 (review nit break-free-casefold): str.lower, no NFKC or casefold, so no letter is turned into
+    others ("ß" stays "ß", the "ﬁ" ligature stays one character)."""
+    assert break_free("H AYWOOD") == "haywood" and break_free("Stacey Streetman") == "staceystreetman"
+    assert break_free("Strauß") != break_free("Strauss") and break_free("ﬁsher") != break_free("fisher")
+    assert resolve_with("STRAUSS", [("x", "Hans Strauß")]) == (None, False)
+
+
+# ------------------------------------------------------------------ city-verify M1: configured, cited members (N10)
+CITE = API.format(3068)
+# page 3 of the 2026-02-11 City Council Special Session minutes (resumed 2026-02-19), CivicClerk fileId 3068, as the
+# city reader reads it (sha256 df53b5ec7368...)
+CLAUNCH_P3 = ("           i.      Oath of Office\n                Because the vote was recessed to February 19, there "
+              "was no Oath of Office.\n6.   Public Comment\n     (allows 3 persons; 5 minutes each)\n      There was no "
+              "public comment.\n7.   Recess: The meeting was recessed to February 19, 2026 at 4:30 pm.\n      The "
+              "meeting was recessed to February 19, 2026 at 4:30 pm.\n\n8.   Special Session Resumed on February 19, "
+              "2026 at 4:30 pm. All councilmembers\n     were present.\n\n\n9.   Unfinished Business\n\n\n     A.   "
+              "City Council Vacancy\n\n                 • Review of Procedure: City Attorney\n                 • Vote "
+              "and Appointment of Ward 2 City Councilman\n                 • Oath of Office\n\n                City "
+              "Attorney, Eric Bittner, reviewed the procedure with the Council. The\n                following votes "
+              "were then taken: Round 33. Eric Claunch was selected as the\n                Ward 2 replacement and was "
+              "sworn in by Mayor Pitts.\n\n\n10. Adjournment\n      The meeting was adjourned at 4:39 pm\n")
+# page 1: the applicants (never a record of a seating)
+APPLICANTS_P1 = ("     B.   Vote and Appointment of Ward 2 City Council Member\n          Applicants:\n\n             "
+                 "1. Eric Claunch\n             2. AC Lopez\n             3. Jeff Loyd\n")
+CLAUNCH = {"name": "Eric Claunch", "ward": 2, "seated": "2026-02-19", "kind": "minutes", "cite_url": CITE,
+           "cite_page": 3, "quote": "Eric Claunch was selected as the Ward 2 replacement and was sworn in by Mayor Pitts."}
+SEATED = ("Brian Zacharias (Ward 1), Deanna McLaughlin (Ward 2), Stacey Streetman (Ward 3), Travis Holleman (Ward 4), "
+          "Jimmy Brown (Ward 5)")
+SEATED_AYE = "Brown, Holleman, McLaughlin, Pitts, Streetman, Zacharias"
+AFTER = "BROWN, CLAUNCH, HOLLEMAN, PITTS, STREETMAN, ZACHARIAS"
+
+
+def with_members(cfg, *members):
+    return ac.AgendaCenterConfig(**{**cfg.__dict__, "members": ac._members(list(members))})
+
+
+def run_cited(cfg, meetings, cite_pages=(APPLICANTS_P1, "page 2", CLAUNCH_P3), cite_meeting="2026-02-11",
+              stored=True, cite_entry: dict | None = None, cite_row: dict | None = None):
+    """run() with the cited file (fileId 3068) in the store, read as `cite_pages`. By default the cited file is the
+    minutes of a listed council meeting on cite_meeting (the Special Session), as in the data; cite_row changes that
+    row (False: no row, so the file is no kept meeting's source)."""
+    rows, entries, by_url = [], [], {}
+    if cite_row is not False:
+        rows.append({"date": cite_meeting, "title": "Special Session", "kind": "special", "agenda_id": "cc-3068",
+                     "agenda_url": None, "minutes_url": CITE, "source": "civicclerk", "video_url": None,
+                     **(cite_row or {})})
+    for n, (date, text) in enumerate(meetings, 1):
+        url = API.format(n)
+        rows.append({"date": date, "title": "City Council Regular Session", "kind": "regular",
+                     "agenda_id": f"cc-{n}", "agenda_url": None, "minutes_url": url, "source": "civicclerk",
+                     "video_url": None})
+        entries.append(entry(url, "minutes", date, n))
+        by_url[url] = text
+    if stored:
+        entries.append({**entry(CITE, "minutes", cite_meeting, 99), **(cite_entry or {})})
+
+    def parse(path, c):
+        sha = str(path).rsplit("/", 1)[-1][:-4]
+        url = next(e["url"] for e in entries if e["sha256"] == sha)
+        return parse_text(list(cite_pages), c) if url == CITE else parse_text([by_url[url]], c)
+
+    def pages(path):
+        assert path.stem == entry(CITE, "minutes", cite_meeting, 99)["sha256"]
+        return list(cite_pages)
+    facts, summary = build(cfg, rows, FakeStore(entries), parse=parse, inspect=lambda p: (3, "text"), pages=pages)
+    jsonschema.validate({k: v for k, v in facts.items() if k != "_wards"}, SCHEMA)
+    assert_name_invariant(cfg, {**facts, "meetings": [m for m in facts["meetings"] if m["minutes_url"] != CITE]},
+                          dict(meetings))
+    return facts, summary
+
+
+CLAUNCH_MEETINGS = [("2025-01-02", minutes("2025-01-02", SEATED, aye=SEATED_AYE)),
+                    ("2026-02-05", minutes("2026-02-05", AFTER.replace("CLAUNCH", "MCLAUGHLIN"),
+                                           aye=AFTER.replace("CLAUNCH", "MCLAUGHLIN"))),
+                    ("2026-03-05", minutes("2026-03-05", AFTER, aye=AFTER))]
+
+
+def test_n10_the_cited_minutes_resolve_claunch_from_the_seating_on(cfg):
+    c = with_members(cfg, CLAUNCH)
+    facts, summary = run_cited(c, CLAUNCH_MEETINGS)
+    assert att(facts, "2026-03-05")["CLAUNCH"] == "city-eric-claunch"
+    sc = surname_check(facts, "2026-03-05")
+    assert sc["ok"] and ("CLAUNCH: by the configured member Eric Claunch (seated 2026-02-19, minutes p. 3)"
+                         in sc["detail"])
+    rc, votes = votes_of(facts, "2026-03-05")
+    assert votes["CLAUNCH"] == "city-eric-claunch" and rc["verification"]["status"] == "verified"
+    assert att(facts, "2026-02-05")["MCLAUGHLIN"] == "city-deanna-mclaughlin"         # before the seating: as before
+    off = next(o for o in facts["officials"] if o["id"] == "city-eric-claunch")
+    src = next(s for s in facts["sources"] if s["url"] == CITE)
+    assert off["name_source"] == {"source_id": src["id"], "page": 3, "quote": CLAUNCH["quote"]}
+    assert [w for w in facts["_wards"] if w.get("configured")] == [{
+        "official_id": "city-eric-claunch", "raw_name": "Eric Claunch", "ward": 2, "pro_tem": False,
+        "meeting_id": "2026-02-11-special", "date": "2026-02-19", "source_id": src["id"], "page": 3, "configured": True}]
+    assert summary["members"] == [{"check": "member_cited", "ok": True, "name": "Eric Claunch", "ward": 2,
+                                   "seated": "2026-02-19", "cite_url": CITE, "cite_page": 3,
+                                   "detail": "quote found on page 3"}]
+
+
+def test_n10_the_entry_replaces_the_wards_earlier_holder_from_the_seating(cfg):
+    later = minutes("2026-03-05", AFTER + ", MCLAUGHLIN", aye=AFTER)
+    facts, _ = run_cited(with_members(cfg, CLAUNCH), CLAUNCH_MEETINGS[:2] + [("2026-03-05", later)])
+    assert att(facts, "2026-03-05")["MCLAUGHLIN"] is None
+    assert ("Deanna McLaughlin: Ward 2 given to Eric Claunch by the configured member Eric Claunch (seated "
+            "2026-02-19, minutes p. 3)") in surname_check(facts, "2026-03-05")["detail"]
+
+
+def test_n10_no_meeting_before_the_seated_date_resolves_the_member(cfg):
+    early = minutes("2026-02-11", AFTER, aye=AFTER)                    # the day of the applicants, before the seating
+    facts, _ = run_cited(with_members(cfg, CLAUNCH), CLAUNCH_MEETINGS[:2] + [("2026-02-11", early)])
+    assert att(facts, "2026-02-11")["CLAUNCH"] is None
+    assert "CLAUNCH (no roster entry)" in surname_check(facts, "2026-02-11")["detail"]
+
+
+def test_n10_the_applicants_page_alone_resolves_nothing(cfg):
+    """Without the members entry, the applicant list (2026-02-05, 2026-02-11 p.1) is never evidence."""
+    facts, summary = run_cited(cfg.__class__(**{**cfg.__dict__, "members": ()}), CLAUNCH_MEETINGS,
+                               cite_pages=(APPLICANTS_P1,))
+    assert att(facts, "2026-03-05")["CLAUNCH"] is None and summary["members"] == []
+    rc, votes = votes_of(facts, "2026-03-05")
+    assert votes["CLAUNCH"] is None and rc["verification"]["status"] == "unverified"
+
+
+@pytest.mark.parametrize("change,kw,reason", [
+    ({"quote": "Eric Claunch was sworn in as the Ward 2 member."}, {}, "the quote is not on page 3 of the cited file"),
+    ({"cite_page": 1}, {}, "the quote is not on page 1 of the cited file"),
+    ({}, {"stored": False}, "the cited file is not stored"),
+    ({"seated": "2026-02-10"}, {}, "seated 2026-02-10 is before the cited record's meeting of 2026-02-11"),
+    ({"name": "Eric Clanch"}, {}, "the quote does not name the person"),
+    ({}, {"cite_pages": (APPLICANTS_P1,)}, "the quote is not on page 3 of the cited file"),
+    # review city-verify/cited-member-kind-unchecked: the stored file must be of the entry's kind; never an agenda
+    ({}, {"cite_entry": {"kind": "agenda"}}, "the cited file is an agenda (it schedules an act and does not record it)"),
+    ({"kind": "resolution"}, {}, "the cited file is stored as minutes, not resolution"),
+    ({"kind": "oath"}, {"cite_entry": {"kind": "agenda"}},
+     "the cited file is an agenda (it schedules an act and does not record it)"),
+    # review city-verify/cited-member-ward-unchecked: the quote prints "Ward {ward}" as whole words
+    ({"quote": "Eric Claunch was selected as the replacement"},
+     {"cite_pages": (APPLICANTS_P1, "page 2", "Eric Claunch was selected as the replacement")},
+     "the quote does not print Ward 2"),
+    ({"quote": "Eric Claunch was selected as the Ward 21 replacement"},
+     {"cite_pages": (APPLICANTS_P1, "page 2", "Eric Claunch was selected as the Ward 21 replacement")},
+     "the quote does not print Ward 2"),
+    ({"ward": 3}, {}, "the quote does not print Ward 3"),
+    # review city-verify/cited-member-fail-open: a date the check needs is missing -> left out, never passed
+    ({}, {"cite_entry": {"meeting_date": None}},
+     "the cited record has no meeting date, so the seated date cannot be checked"),
+    ({"kind": "roster_page"}, {"cite_entry": {"kind": "roster_page", "meeting_date": None, "first_fetched_at": None},
+                               "cite_row": False},
+     "the roster page has no fetch date, so the seated date cannot be checked"),
+    ({"kind": "roster_page"}, {"cite_entry": {"kind": "roster_page", "meeting_date": None}, "cite_row": False},
+     "seated 2026-02-19 is before the roster page was fetched (2026-11-09)"),
+    # review city-verify/cited-member-body-unchecked: the cited file must be the source of a kept council meeting:
+    # not a file no listed meeting has, and not another body's minutes (a D1 row whose page 1 is not the council)
+    ({}, {"cite_row": False}, "the cited file is not the source of a council meeting this build kept"),
+    ({}, {"cite_row": {"page1_required": "City Council - Special Session", "listed_as": "General / Special Session"}},
+     "the cited file is not the source of a council meeting this build kept"),
+])
+def test_n10_an_entry_whose_cite_does_not_check_out_is_left_out_with_the_reason(cfg, change, kw, reason):
+    facts, summary = run_cited(with_members(cfg, {**CLAUNCH, **change}), CLAUNCH_MEETINGS, **kw)
+    assert att(facts, "2026-03-05")["CLAUNCH"] is None
+    assert summary["members"][0]["ok"] is False and summary["members"][0]["detail"] == reason
+    assert {"member": summary["members"][0]["name"], "problem": f"configured member left out: {reason}"} in \
+        summary["problems"]
+    assert not any(o.get("name_source") for o in facts["officials"])
+    assert not any(w.get("configured") for w in facts["_wards"])
+    assert "city-eric-claunch" not in {o["id"] for o in facts["officials"]}        # resolved nowhere, fail closed
+
+
+def test_n10_a_cited_file_of_another_body_is_never_used_even_on_the_cited_page():
+    """city-verify/cited-member-body-unchecked, the build's two runs: the first run used the entry, found its file is
+    not a kept meeting's source, and was thrown away; nothing of it reaches the facts. When the D1 page 1 does print
+    the council, the same entry resolves Claunch in one run."""
+    from collector import city_build
+    cfg = ac.load_config()
+    calls = []
+    real = city_build.cited_members
+
+    def spy(*a, **k):
+        calls.append(a[3] if len(a) > 3 else k.get("kept"))
+        return real(*a, **k)
+    d1 = {"page1_required": "City Council - Special Session", "listed_as": "General / Special Session"}
+    city_build.cited_members = spy
+    try:
+        facts, summary = run_cited(with_members(cfg, CLAUNCH), CLAUNCH_MEETINGS, cite_row=d1)
+        assert len(calls) == 2 and calls[0] is None and "src-" + "63".ljust(12, "0") not in calls[1]
+        assert att(facts, "2026-03-05")["CLAUNCH"] is None and summary["skipped_events"]
+        calls.clear()
+        facts, summary = run_cited(with_members(cfg, CLAUNCH), CLAUNCH_MEETINGS, cite_row=d1,
+                                   cite_pages=("City Council - Special Session\n" + APPLICANTS_P1, "page 2", CLAUNCH_P3))
+        assert calls == [None] and not summary["skipped_events"]
+        assert att(facts, "2026-03-05")["CLAUNCH"] == "city-eric-claunch" and summary["members"][0]["ok"]
+    finally:
+        city_build.cited_members = real
+
+
+@pytest.mark.parametrize("bad,match", [
+    ({"name": "Claunch"}, "full name"),
+    ({"name": "eric claunch"}, "full name"),
+    ({"ward": 13}, "1-12"),
+    ({"kind": "agenda"}, "kind"),
+    ({"kind": "news"}, "kind"),
+    ({"seated": "Feb 19"}, "date"),
+    ({"cite_url": "http://example.com/x"}, "https"),
+    ({"cite_page": 0}, "page"),
+    ({"quote": " "}, "quote"),
+])
+def test_n10_a_bad_members_entry_is_refused(bad, match):
+    raw = yaml.safe_load(ac.config_path("clarksville-tn").read_text())
+    with pytest.raises(ac.AgendaCenterConfigError, match=match):
+        ac.parse_config({**raw, "members": [{**CLAUNCH, **bad}]})
+
+
+def test_n10_two_entries_seating_one_ward_on_one_date_are_refused():
+    raw = yaml.safe_load(ac.config_path("clarksville-tn").read_text())
+    with pytest.raises(ac.AgendaCenterConfigError, match="two entries seat Ward 2 on 2026-02-19"):
+        ac.parse_config({**raw, "members": [CLAUNCH, {**CLAUNCH, "name": "Jeff Loyd",
+                                                      "quote": "Jeff Loyd was selected"}]})
+
+
+def test_n10_a_full_name_list_after_the_seating_that_gives_the_ward_to_someone_else_drops_the_entry(cfg):
+    other = SEATED.replace("Deanna McLaughlin (Ward 2)", "Jeff Loyd (Ward 2)")
+    meetings = CLAUNCH_MEETINGS[:2] + [("2026-03-05", minutes("2026-03-05", other, aye=SEATED_AYE.replace(
+        "McLaughlin", "Loyd"))), ("2026-04-02", minutes("2026-04-02", AFTER, aye=AFTER))]
+    facts, _ = run_cited(with_members(cfg, CLAUNCH), meetings)
+    assert att(facts, "2026-04-02")["CLAUNCH"] is None
+    assert "Eric Claunch: Ward 2 printed for Jeff Loyd on 2026-03-05" in surname_check(facts, "2026-04-02")["detail"]
+
+
+def test_n10_the_entry_is_not_carried_past_the_next_seating(cfg):
+    meetings = CLAUNCH_MEETINGS + [("2027-01-07", minutes("2027-01-07", AFTER, aye=AFTER))]
+    facts, _ = run_cited(with_members(cfg, CLAUNCH), meetings)
+    assert att(facts, "2026-03-05")["CLAUNCH"] == "city-eric-claunch"
+    assert att(facts, "2027-01-07")["CLAUNCH"] is None
+
+
+def test_n10_the_real_config_entry_is_eric_claunch_ward_2_from_the_special_session_minutes(cfg):
+    assert cfg.members == (CLAUNCH,)
+    assert cfg.members_on("2026-02-18") == [] and cfg.members_on("2026-02-19") == [CLAUNCH]

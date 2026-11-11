@@ -11692,6 +11692,16 @@
   {
     "date": "2020-10-01",
     "meeting_id": "2020-10-01-regular",
+    "official_id": "city-jeff-henley",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "Jeff Henley",
+    "source_id": "src-da71ebde7953",
+    "ward": 9
+  },
+  {
+    "date": "2020-10-01",
+    "meeting_id": "2020-10-01-regular",
     "official_id": "city-stacey-streetman",
     "page": 1,
     "pro_tem": false,
@@ -16188,6 +16198,16 @@
     "raw_name": "Karen Reynolds",
     "source_id": "src-4fe6d48bd9c0",
     "ward": 9
+  },
+  {
+    "date": "2022-04-07",
+    "meeting_id": "2022-04-07-regular",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "StaceyStreetman",
+    "source_id": "src-4fe6d48bd9c0",
+    "ward": 10
   },
   {
     "date": "2022-04-07",
@@ -22510,6 +22530,126 @@
     "ward": null
   },
   {
+    "date": "2026-02-11",
+    "meeting_id": "2026-02-11-special",
+    "official_id": "city-jimmy-brown",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "BROWN",
+    "source_id": "src-df53b5ec7368",
+    "ward": null
+  },
+  {
+    "date": "2026-02-11",
+    "meeting_id": "2026-02-11-special",
+    "official_id": "city-tim-chandler",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CHANDLER",
+    "source_id": "src-df53b5ec7368",
+    "ward": null
+  },
+  {
+    "date": "2026-02-11",
+    "meeting_id": "2026-02-11-special",
+    "official_id": "city-jerry-haywood",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HAYWOOD",
+    "source_id": "src-df53b5ec7368",
+    "ward": null
+  },
+  {
+    "date": "2026-02-11",
+    "meeting_id": "2026-02-11-special",
+    "official_id": "city-travis-holleman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "HOLLEMAN",
+    "source_id": "src-df53b5ec7368",
+    "ward": null
+  },
+  {
+    "date": "2026-02-11",
+    "meeting_id": "2026-02-11-special",
+    "official_id": "city-keri-lovato",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "LOVATO",
+    "source_id": "src-df53b5ec7368",
+    "ward": null
+  },
+  {
+    "date": "2026-02-11",
+    "meeting_id": "2026-02-11-special",
+    "official_id": "city-ambar-marquis",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "MARQUIS",
+    "source_id": "src-df53b5ec7368",
+    "ward": null
+  },
+  {
+    "date": "2026-02-11",
+    "meeting_id": "2026-02-11-special",
+    "official_id": "city-carlos-peters",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PETERS",
+    "source_id": "src-df53b5ec7368",
+    "ward": null
+  },
+  {
+    "date": "2026-02-11",
+    "meeting_id": "2026-02-11-special",
+    "official_id": "city-joe-pitts",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "PITTS",
+    "source_id": "src-df53b5ec7368",
+    "ward": null
+  },
+  {
+    "date": "2026-02-11",
+    "meeting_id": "2026-02-11-special",
+    "official_id": "city-joe-shakeenab",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SHAKEENAB",
+    "source_id": "src-df53b5ec7368",
+    "ward": null
+  },
+  {
+    "date": "2026-02-11",
+    "meeting_id": "2026-02-11-special",
+    "official_id": "city-wanda-smith",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "SMITH",
+    "source_id": "src-df53b5ec7368",
+    "ward": null
+  },
+  {
+    "date": "2026-02-11",
+    "meeting_id": "2026-02-11-special",
+    "official_id": "city-stacey-streetman",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "STREETMAN",
+    "source_id": "src-df53b5ec7368",
+    "ward": null
+  },
+  {
+    "date": "2026-02-11",
+    "meeting_id": "2026-02-11-special",
+    "official_id": "city-brian-zacharias",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "ZACHARIAS",
+    "source_id": "src-df53b5ec7368",
+    "ward": null
+  },
+  {
     "date": "2026-03-05",
     "meeting_id": "2026-03-05-regular",
     "official_id": "city-jimmy-brown",
@@ -22526,6 +22666,16 @@
     "page": 1,
     "pro_tem": false,
     "raw_name": "CHANDLER",
+    "source_id": "src-209ffc71a926",
+    "ward": null
+  },
+  {
+    "date": "2026-03-05",
+    "meeting_id": "2026-03-05-regular",
+    "official_id": "city-eric-claunch",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CLAUNCH",
     "source_id": "src-209ffc71a926",
     "ward": null
   },
@@ -22652,6 +22802,16 @@
   {
     "date": "2026-04-02",
     "meeting_id": "2026-04-02-regular",
+    "official_id": "city-eric-claunch",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CLAUNCH",
+    "source_id": "src-06cb9d66ef52",
+    "ward": null
+  },
+  {
+    "date": "2026-04-02",
+    "meeting_id": "2026-04-02-regular",
     "official_id": "city-jerry-haywood",
     "page": 1,
     "pro_tem": false,
@@ -22772,6 +22932,16 @@
   {
     "date": "2026-05-07",
     "meeting_id": "2026-05-07-regular",
+    "official_id": "city-eric-claunch",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CLAUNCH",
+    "source_id": "src-9f1eedb38c88",
+    "ward": null
+  },
+  {
+    "date": "2026-05-07",
+    "meeting_id": "2026-05-07-regular",
     "official_id": "city-jerry-haywood",
     "page": 1,
     "pro_tem": false,
@@ -22892,6 +23062,16 @@
   {
     "date": "2026-06-04",
     "meeting_id": "2026-06-04-regular",
+    "official_id": "city-eric-claunch",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CLAUNCH",
+    "source_id": "src-8bc059bb68d9",
+    "ward": null
+  },
+  {
+    "date": "2026-06-04",
+    "meeting_id": "2026-06-04-regular",
     "official_id": "city-jerry-haywood",
     "page": 1,
     "pro_tem": false,
@@ -22988,5 +23168,16 @@
     "raw_name": "ZACHARIAS",
     "source_id": "src-8bc059bb68d9",
     "ward": null
+  },
+  {
+    "configured": true,
+    "date": "2026-02-19",
+    "meeting_id": "2026-02-11-special",
+    "official_id": "city-eric-claunch",
+    "page": 3,
+    "pro_tem": false,
+    "raw_name": "Eric Claunch",
+    "source_id": "src-df53b5ec7368",
+    "ward": 2
   }
 ]

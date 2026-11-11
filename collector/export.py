@@ -34,6 +34,11 @@ PROVENANCE: dict[str, str] = {
     "(data/names.yml) from the names the minutes print", "officials.surname": "derived: split from name",
     "officials.given": "derived: split from name", "officials.title": "derived: same default title for everyone",
     "officials.aliases": "derived: other printed spellings matched to this person",
+    # a configured, cited member (city path N10, M1): the official record that names the person and seat
+    "officials.name_source": "derived: configured member, its cited record checked at build time",
+    "officials.name_source_url": "derived: link to the configured member's cited record",
+    "officials.name_source_page": _CITE["page"],
+    "officials.name_source_quote": "stated",
     "meetings.id": "derived: date and body", "meetings.body": "derived: fixed per document series",
     "meetings.date": "stated", "meetings.kind": "derived: fixed patterns on the minutes heading",
     "meetings.attendance_status": "derived: the team's attendance reading",
@@ -88,7 +93,8 @@ for _k, _v in _CITE.items():
     PROVENANCE.setdefault(f"seats.{_k}", _v)
 # facts.json (public export) row keys
 _J = {
-    "officials": {k: PROVENANCE[f"officials.{k}"] for k in ("id", "name", "surname", "given", "title", "aliases")},
+    "officials": {k: PROVENANCE[f"officials.{k}"] for k in ("id", "name", "surname", "given", "title", "aliases",
+                                                             "name_source")},
     "meetings": {"attendance": "stated", "attendance_status": PROVENANCE["meetings.attendance_status"],
                  "body": PROVENANCE["meetings.body"], "date": "stated", "id": "derived: id",
                  "kind": PROVENANCE["meetings.kind"], "source_id": "derived: id",
@@ -136,6 +142,7 @@ _J.update({
                  "to": "derived: last meeting date collected"},
     "items.zoning": {f: "stated" for f in ("applicant", "location", "acreage", "from_zoning", "to_zoning")},
     "roll_calls.stated_tally": {k: "stated" for k in ("yes", "no", "abstain")},
+    "officials.name_source": {"source_id": "derived: id", "page": _CITE["page"], "quote": "stated"},
     "meetings.also_listed": {"source": "derived: the other listing", "title": "stated",
                              "agenda_url": "derived: link to the listed agenda file",
                              "minutes_url": "derived: link to the listed minutes file",
@@ -261,8 +268,16 @@ def tables(facts: dict, all_facts: dict, internal: bool = False, seats: list[dic
             unconfirmed[r["meeting_id"]] = unconfirmed.get(r["meeting_id"], 0) + 1
     names = {o["id"]: o["name"] for o in facts["officials"]}
     out = {}
-    out["officials"] = _csv([dict(o, aliases="; ".join(o["aliases"])) for o in facts["officials"]],
-                            ["id", "name", "surname", "given", "title", "aliases"])
+    def name_source(o):
+        ns = o.get("name_source")
+        if not ns:
+            return {}
+        return {"name_source_url": f"{src[ns['source_id']]['url']}#page={ns['page']}", "name_source_page": ns["page"],
+                "name_source_quote": ns["quote"]}
+
+    out["officials"] = _csv([dict(o, aliases="; ".join(o["aliases"]), **name_source(o)) for o in facts["officials"]],
+                            ["id", "name", "surname", "given", "title", "aliases", "name_source_url",
+                             "name_source_page", "name_source_quote"])
     out["meetings"] = _csv([dict(m, unconfirmed_roll_calls=unconfirmed.get(m["id"], 0),
                                  attendance_verified=is_verified(m), **cite(m["source_id"], 1))
                             for m in facts["meetings"]],

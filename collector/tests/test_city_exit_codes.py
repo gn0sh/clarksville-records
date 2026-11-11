@@ -90,3 +90,23 @@ def test_one_skipped_file_is_logged_and_stays_exit_0(city):
 
 def test_a_clean_fetch_exits_0(city):
     assert city_run.main(["fetch"]) == 0 and city["report"]()["fetch"]["failures"] == []
+
+
+def _gates(flagged):
+    return {"roll_calls": 10, "verified": 7, "verified_rate": 0.7, "verified_rate_gate": {"min": 0.9, "pass": False},
+            "g4": {"status": "fail" if flagged else "pass", "flagged": flagged, "pass": not flagged,
+                   "uniform_share": 0.0}}
+
+
+@pytest.mark.parametrize("flagged, code", [(["city-a-b"], 3), ([], 0)])
+def test_the_g4_skew_gate_fails_the_city_build_and_the_verified_rate_only_reports(city, monkeypatch, capsys,
+                                                                                  flagged, code):
+    """city-verify/no-skew-gate: spec G4 blocks a release when an official is skewed, so a flag is the county's gate
+    code 3 (any non-zero code fails the workflow's Collect step); a verified rate under 90% is reported, no code."""
+    from collector import city_build
+    monkeypatch.setattr(city_build, "build", lambda cfg, rows, store: (
+        {"_wards": []}, {"gates": _gates(flagged), "pass": False}))
+    assert city_run.main(["build"]) == code == (city_run.GATE_FAILED if flagged else 0)
+    out = capsys.readouterr()
+    assert "AC-P1 FAIL" in out.out and ("G4 skew gate FAILED" in out.err) == bool(flagged)
+    assert city["report"]()["build"]["gates"]["g4"]["flagged"] == flagged

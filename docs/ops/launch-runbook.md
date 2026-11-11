@@ -22,7 +22,9 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   is uploaded, committed or deployed; data/ on `main` and the live site stay as they were; one issue opens):
   - city: 2 a listing not read or fetch/parse failures, 5 a host or robots.txt refused the collector (403/429 and the
     like). On 5 do not re-run to "try again" and do not change the fetcher: read `build/city-report.json` in the run
-    log and ask the manager.
+    log and ask the manager. 3 the G4 skew gate flagged an official (`build.gates.g4.flagged` in
+    `build/city-report.json`): a release block, as the county's 3; the city's AC-P1 verified rate is reported there
+    but sets no code.
   - county: 2 fetch/parse failures (votes or finance), 3 gate failure, 4 offline run refused. (7 is a warning, below.)
 - **County meetings kept** (county 7, a warning; precedence 2 > 3 > 7 > 5/6). The shrink guard
   (`docs/architecture/pipeline-limits-invariant.md`, "Rule 3: the shrink guard") compares each county source document

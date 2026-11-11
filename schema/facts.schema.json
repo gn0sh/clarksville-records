@@ -87,7 +87,18 @@
         "surname": { "type": "string" },
         "given": { "type": "string" },
         "title": { "type": "string" },
-        "aliases": { "type": "array", "items": { "type": "string" } }
+        "aliases": { "type": "array", "items": { "type": "string" } },
+        "name_source": {
+          "description": "A configured, cited member (city path N10): the official record that names the person and seat, checked at build time.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source_id", "page", "quote"],
+          "properties": {
+            "source_id": { "type": "string" },
+            "page": { "$ref": "#/$defs/page" },
+            "quote": { "type": "string", "minLength": 1 }
+          }
+        }
       }
     },
     "attendance": {

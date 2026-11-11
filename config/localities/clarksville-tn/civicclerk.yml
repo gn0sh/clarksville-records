@@ -21,3 +21,13 @@ minutes_types: [Minutes]
 # Video: mediaSourcePathMp4 is kept as the meeting's video link only when it is a full https URL on one of these
 # hosts (a bare storage path such as "stream/CLARKSVILLETN/<uuid>.mp4" has no documented public URL: not guessed).
 video_hosts: [cpmedia.azureedge.net]
+# D1 (docs/architecture/city-council.md, "Verified-rate plan"): CivicClerk files some City Council Special Sessions
+# under category "General", event name "Special Session" (the 2026-02-11 session, resumed 2026-02-19; one listing
+# query, 2026-11-11). Those events are listed too, and one is kept only when page 1 of its stored agenda or minutes
+# prints `page1`; any other (another board's special session) is skipped and named in build/city-report.json.
+# Both its agenda and its minutes are fetched, so page 1 can be checked.
+also_events_url: "https://{host}/v1/Events?$filter=categoryName%20eq%20%27{category}%27%20and%20eventName%20eq%20%27{event}%27%20and%20startDateTime%20ge%20{from_date}T00:00:00Z&$orderby=startDateTime%20asc"
+also_list:
+  - category_name: General
+    event_name: Special Session
+    page1: "City Council - Special Session"

@@ -159,6 +159,13 @@
 - Video: `mediaSourcePathMp4` is a full https URL on cpmedia.azureedge.net for 65 of the 74 2024-on events with media; 9 carry a bare storage path ("stream/CLARKSVILLETN/<uuid>.mp4") with no documented public URL (not kept).
 - Minutes are born-digital text (Aspose.Words). Shapes: 2024 to Feb 2025 as the Agenda Center's ("PRESENT: Brian Zacharias (Ward 1), ..."); 2025-03-06 surnames with wards; from 2025-04-03 surnames in capitals with the mayor in the list ("PRESENT: BROWN, CHANDLER (left at 7:22 pm), ..., PITTS, ...") and vote lists in capitals over several lines. Items print as "A.   ORDINANCE 05-2025-26 ..." (outline letter first), as the Agenda Center's 2022-2023 minutes do.
 - Source errors seen: the 2024-09-05 event's Minutes file is the 2024-08-01 minutes (same bytes, fileIds 2223 and 2232); the 2025-02-06 attendance list stops after "Stacey Streetman"; "PRESENT: PRESENT:" (2025-01-02); misspelt names in vote lists (ZAHARIAS, CAHNDLER, H AYWOOD, ...); CLAUNCH (seated 2026) is never printed with a first name as a member (Feb 2026 lists "Mr. Eric Claunch" among Ward 2 applicants only).
+- City Council Special Sessions can be filed under category **"General"**, event name "Special Session" (verified
+  2026-11-11, one listing query 2026-02-06..03-04): the 2026-02-11 Special Session (resumed 2026-02-19) has agenda
+  fileId 2887 and minutes fileId 3068, whose page 1 prints "City Council - Special Session" and page 3 "Eric Claunch was
+  selected as the Ward 2 replacement and was sworn in by Mayor Pitts." Our `City Council` category filter misses it.
+- Text-layer quirks (verified 2026-11-11 with `pdftotext -bbox`): 2020-10-01 p.1 has a U+200B zero-width word between
+  touching glyphs "J" and "eff" (the page shows "Jeff Henley"); 2022-04-07 p.1 prints "StaceyStreetman" with no gap
+  (a source typo); 2026-03-05 prints "H AYWOOD" with a 3.3 pt gap.
 - Overlap with the Agenda Center: one meeting (2024-01-04 Regular Session; the Agenda Center has its agenda only, CivicClerk its minutes). CivicClerk also holds minutes for 2023 meetings the Agenda Center lacks (2023-11-02, 2023-12-07 at least; not collected, from_date is 2024-01-01).
 
 ## City ward map (verified 2026-11-10; traced for the landing's ward lookup)
