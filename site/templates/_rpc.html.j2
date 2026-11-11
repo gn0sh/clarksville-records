@@ -14,8 +14,13 @@
    its type in fixed words, then who moved, seconded, voted nay or abstained and the outcome, each in the minutes' own
    words (data-item-title: text in the document, never linked or reworded); nays only as named, an empty list shows
    nothing, and nothing here says a vote was unanimous. Not confirmed: its type and the county's "Not confirmed" note
-   only: no names, outcome or case number. #}
+   only: no names, outcome or case number. Held (rpc.yml hold_motions): its type and its minutes page, nothing else. #}
 {% macro rpc_motion(mv) -%}
+{% if mv.held %}{# rpc.yml hold_motions: no vote content of any kind, only the motion's type and its minutes page #}
+<div class="rpc-motion held" id="{{ mv.id }}">
+  <p class="motion-line"><strong>{{ mv.kind }}.</strong> <a href="{{ mv.src.url }}" target="_blank" rel="noopener noreferrer">minutes p. {{ mv.src.page }}<span class="sr-only"> (opens in a new tab)</span></a></p>
+</div>
+{%- else %}
 <div class="rpc-motion{% if not mv.confirmed %} nc{% endif %}" id="{{ mv.id }}">
   <p class="motion-line"><strong>{{ mv.kind }}{% if mv.confirmed and mv.case %} ({{ mv.case }}){% endif %}.</strong>{% if not mv.confirmed %} <span class="chip chip-status"><span aria-hidden="true">*</span> Not confirmed</span>{% endif %}</p>
   {% if mv.confirmed %}
@@ -27,4 +32,5 @@
   <p class="nc-note">{{ not_confirmed(mv.src) }}</p>
   {% endif %}
 </div>
+{%- endif %}
 {%- endmacro %}

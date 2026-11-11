@@ -1027,6 +1027,52 @@ def vote_on_rule() -> list[dict]:
     return rows
 
 
+def confirmed_rate(ix: Index) -> dict:
+    """A body's roll calls confirmed against its minutes, counted from the facts at build time (about.html#the-record,
+    Brian 2026-11-11): never typed, so it follows each new facts file. `text`: "1,756 of 2,235" and the share to one
+    decimal place. The share is the one percentage on the site, and it is about the body's record (how much of the
+    minutes the reader confirmed), never about an official: templates carry no "%" (test_site_neutrality), so it is
+    written here, and tests/test_about_owner.py checks no official's page shows one."""
+    g = record_glance(ix)
+    n, total = g["rc_confirmed"], g["rc_total"]
+    pct = f"{100 * n / total:.1f}" if total else "0.0"
+    return {"body": ix.body_name, "href": ix.home_href(), "confirmed": n, "total": total, "pct": pct,
+            "share": f"{pct}%",
+            "text": f"{n:,} of {total:,}", "record": {"url": ix.cfg["record_url"], "label": ix.cfg["record_label"]}}
+
+
+def county_rate(ix: Index) -> dict:
+    """The county's confirmed rate in the same shape and words as each council's (confirmed_rate), so the About page
+    labels every body's line the same way (site-polish/about-rate-unlabelled); it links the county's meetings."""
+    g = record_glance(ix)
+    n, total = g["rc_confirmed"], g["rc_total"]
+    pct = f"{100 * n / total:.1f}" if total else "0.0"
+    return {"body": ix.facts["coverage"]["body"], "href": "meetings.html", "confirmed": n, "total": total, "pct": pct,
+            "share": f"{pct}%", "text": f"{n:,} of {total:,}"}
+
+
+def operator_person(official_id: str | None, councils) -> dict | None:
+    """config/site.yml `operator_person` (Brian 2026-11-11): the official who runs the site, for one line on the About
+    page. Everything printed is read from the data: the name from the council's facts, the link to the official's
+    own vote history page (the rule for every official's name), the body's name, and the seat from the seat records
+    (sitegen/seats.py: current when the latest minutes read list them). A term end is printed only from a seat record
+    with a sourced end; none of the city's records has one, so the page prints no date. The line names no pronoun
+    (site-polish/operator-pronoun-typed): it reads the same for anyone.
+    None when unset; a set id that no built council knows is the caller's error (a fixture build has no councils)."""
+    if not official_id:
+        return None
+    for cix in councils:
+        o = cix.officials.get(official_id)
+        if o is None:
+            continue
+        current = [r for r in cix.seats.of(official_id) if r["current"]]
+        ends = sorted({r["end"] for r in current if r.get("dates") == "sourced" and r.get("end")})
+        return {"name": o["name"], "href": cix.official_href(official_id), "body": cix.body_name,
+                "current": bool(current), "seat": ", ".join(r["label"] for r in current) or None,
+                "term_end": ends[0] if ends else None}
+    return None
+
+
 def about(facts) -> dict:
     ix = _ix(facts)
     officials = sorted(ix.facts["officials"], key=name_key)

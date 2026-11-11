@@ -214,11 +214,16 @@ class Rpc:
         """A motion as the minutes print it. Confirmed (collector/rpc_minutes.py rule): its type, who moved and
         seconded it, who voted nay or abstained and the outcome, each as printed. Not confirmed: its type and the
         "Not confirmed" note only, while config.SHOW_UNCONFIRMED_VALUES is off (as for the county's roll calls): no
-        names, outcome or case number. Nays only as named; nothing here ever says a vote was unanimous."""
+        names, outcome or case number. Nays only as named; nothing here ever says a vote was unanimous. Held (rpc.yml
+        `hold_motions`, Brian 2026-11-11): no vote content at all, not even a "Not confirmed" vote row: its type and a
+        link to its page of the minutes only (rpc_motion's held branch; qa/site_checks.py rpc-motions)."""
         s = self.sources[mv["source_id"]]
         shown = mv["confirmed"] or (config.SHOW_UNCONFIRMED_VALUES and not self.held)   # the hold wins
         src = {"url": f"{s['url']}#page={mv['page']}", "page": mv["page"], "kind": "minutes"}
-        return {"id": mv["id"], "kind": mv["kind"], "confirmed": mv["confirmed"], "src": src,
+        if self.held:   # rpc.yml hold_motions: the motion's type and its minutes page only (no vote, no "not confirmed")
+            return {"id": mv["id"], "kind": mv["kind"], "confirmed": False, "held": True, "src": src, "case": None,
+                    "moved_by": None, "seconded_by": None, "nays": [], "abstained": [], "outcome": None}
+        return {"id": mv["id"], "kind": mv["kind"], "confirmed": mv["confirmed"], "held": False, "src": src,
                 "case": mv["case"] if shown and not mv["case_id"] else None,
                 "moved_by": mv["moved_by"] if shown else None, "seconded_by": mv["seconded_by"] if shown else None,
                 "nays": mv["nays"] if shown else [], "abstained": mv["abstained"] if shown else [],
@@ -313,7 +318,8 @@ class Rpc:
 
     def meetings_year(self, year: str) -> dict:
         ms = sorted((m for m in self.facts["meetings"] if m["date"][:4] == year), key=lambda m: (m["date"], m["id"]))
-        return {"year": year, "years": self.years(), "body": self.body, "meetings": [self.meeting(m) for m in ms]}
+        return {"year": year, "years": self.years(), "body": self.body, "meetings": [self.meeting(m) for m in ms],
+                "motions_held": self.held}
 
     def home(self) -> dict:
         by_year: dict[str, list[dict]] = defaultdict(list)

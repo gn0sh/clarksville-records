@@ -15,6 +15,10 @@ fetch_manifests:
 today_place: Clarksville            # landing sky: "Tuesday in Clarksville" (static/sky.js reads it from the page)
 operator: gnoshcodes LLC           # CEO decisions 2026-11-09 (a gnoshcodes product, no personal credit) and 2026-11-10 (the LLC)
 operator_url: https://gnoshcodes.com/
+# The person who runs the operator, named on the About page (Brian, 2026-11-11): an official id in a council's facts.
+# The page reads the name, body, seat and vote-history link from the data (views.operator_person); no date is typed
+# here, and the build fails if no built council has this official. Empty or absent: no line.
+operator_person: city-brian-zacharias
 # Launched or not (site-polish/about-preview, 2026-11-11). false: About says the site is a preview that has not
 # launched. Go-live sets it to true in its own one-line PR, merged on the CEO's go-ahead before the first deploy
 # (docs/ops/launch-runbook.md, Go-live step 3a). The build refuses anything but true or false.

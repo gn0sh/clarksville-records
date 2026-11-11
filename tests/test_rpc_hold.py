@@ -21,7 +21,7 @@ from sitegen.build import build
 from test_export_rpc import MEETING, facts_with_motions
 
 HELD_TEXT = ("Moved by", "seconded by", "Outcome, as printed", "Voted nay", "Abstained")
-BLOCK = re.compile(r'<div class="rpc-motion(?P<nc> nc)?" id="(?P<id>[^"]+)">(?P<body>.*?)</div>', re.S)
+BLOCK = re.compile(r'<div class="rpc-motion(?P<nc> nc| held)?" id="(?P<id>[^"]+)">(?P<body>.*?)</div>', re.S)
 
 
 def cfg(d: Path, hold: bool) -> dict:
@@ -98,12 +98,14 @@ def test_held_pages_show_no_motion_confirmed_and_none_under_a_case(inputs):
     site = make(inputs, True)
     bs = blocks(site)
     facts = json.loads((inputs / "rpc.json").read_text(encoding="utf-8"))
-    assert len(bs) == len(facts["motions"]) == 8 and all(b.group("nc") for b in bs)
+    # Brian 2026-11-11: while held, every block is a held block, not a "not confirmed" vote row
+    assert len(bs) == len(facts["motions"]) == 8 and all(b.group("nc") == " held" for b in bs)
     values = {v for mv in facts["motions"] for k in ("moved_by", "seconded_by", "outcome", "case")
               for v in [mv.get(k)] if v} | {v for mv in facts["motions"] for v in mv["nays"] + mv["abstained"]}
     for b in bs:
         body = unescape(b.group("body"))
-        assert "Not confirmed" in body and "#page=" in body          # its type, the note and its minutes page
+        assert "#page=" in body and "minutes p." in body               # its type and its minutes page only
+        assert "Not confirmed" not in body and "nc-note" not in body and "chip" not in body
         leak = [v for v in (*values, *HELD_TEXT) if v in body]
         assert not leak, (b.group("id"), leak)
     year = (site / "rpc/meetings/2026.html").read_text(encoding="utf-8")
@@ -111,10 +113,15 @@ def test_held_pages_show_no_motion_confirmed_and_none_under_a_case(inputs):
     assert f'id="{MEETING}-motions"' in year
     home = (site / "rpc/index.html").read_text(encoding="utf-8")
     assert "being re-checked against the minutes" in home and "who moved and seconded each" not in home
+    assert "no vote is shown" in home and "confirmed" not in unescape(re.sub(r"<[^>]+>", " ", home)).split(
+        "Case items are shown")[1].split("Scanned")[0]
+    plain = unescape(re.sub(r"<[^>]+>", " ", year))
+    assert "Not confirmed" not in plain and "Votes are not shown while they are re-checked" in plain
 
 
 def test_unheld_pages_are_unchanged(inputs):
     site = make(inputs, False)
+    assert not any(b.group("nc") == " held" for b in blocks(site))
     shown = [b.group("id") for b in blocks(site) if not b.group("nc")]
     assert sorted(set(shown)) == [f"{MEETING}-motion-1", f"{MEETING}-motion-8"]
     assert 'class="zoning rpc-motions"' in (site / "rpc/meetings/2026.html").read_text(encoding="utf-8")
@@ -137,10 +144,56 @@ def test_site_checks_passes_the_held_pages_and_flags_a_confirmed_block_under_hol
     bad = inputs / "tampered"
     shutil.copytree(held, bad)
     y = bad / "rpc/meetings/2026.html"
-    y.write_text(y.read_text(encoding="utf-8").replace('<p class="nc-note">', "<p>Moved by Fixture Mover</p>"
-                                                       '<p class="nc-note">', 1), encoding="utf-8")
+    y.write_text(y.read_text(encoding="utf-8").replace('<p class="motion-line">', "<p>Moved by Fixture Mover</p>"
+                                                       '<p class="motion-line">', 1), encoding="utf-8")
     problems, _ = SC.check_rpc_motions(bad, pages(bad), rec(inputs, True))
     assert any("a motion not confirmed shows" in p for p in problems), problems
+    assert any("a held motion shows vote wording: Moved by" in p for p in problems), problems
+
+
+def test_site_checks_flags_a_not_confirmed_row_or_a_bare_held_block_under_hold(inputs, tmp_path):
+    """Brian 2026-11-11: while held, a "Not confirmed" vote row is a problem, as is a held block that shows a
+    "Not confirmed" note or no minutes link; a held block on pages built with the hold off is a problem too."""
+    from qa import site_checks as SC
+    held = make(inputs, True)
+    bad = tmp_path / "nc-row"
+    shutil.copytree(held, bad)
+    y = bad / "rpc/meetings/2026.html"
+    raw = y.read_text(encoding="utf-8")
+    first = BLOCK.search(raw)
+    nc_row = (f'<div class="rpc-motion nc" id="{first.group("id")}"><p class="motion-line"><strong>Motion.</strong> '
+              '<span class="chip chip-status">* Not confirmed</span></p></div>')
+    raw = raw.replace(first.group(0), nc_row, 1)
+    second = [b for b in BLOCK.finditer(raw) if b.group("nc") == " held"][0]
+    raw = raw.replace(second.group(0), f'<div class="rpc-motion held" id="{second.group("id")}"><p>Motion. '
+                                        'Not confirmed.</p></div>', 1)
+    y.write_text(raw, encoding="utf-8")
+    problems, _ = SC.check_rpc_motions(bad, pages(bad), rec(inputs, True))
+    text = "\n".join(problems)
+    assert f"#{first.group('id')}: a not confirmed vote row while rpc.yml hold_motions is on" in text, problems
+    assert f"#{second.group('id')}: a held motion shows vote wording: Not confirmed" in text, problems
+    assert f"#{second.group('id')}: a held motion without a link to its page of the minutes" in text, problems
+    problems, _ = SC.check_rpc_motions(held, pages(held), rec(inputs, False))
+    assert any("shown held while rpc.yml hold_motions is off" in p for p in problems), problems
+
+
+def test_held_search_index_and_export_carry_no_vote(inputs):
+    """No search record, page JSON or data file of the held build carries a motion's vote values."""
+    site = make(inputs, True)
+    facts = json.loads((inputs / "rpc.json").read_text(encoding="utf-8"))
+    values = {v for mv in facts["motions"] for k in ("moved_by", "seconded_by", "outcome")
+              for v in [mv.get(k)] if v} | {v for mv in facts["motions"] for v in mv["nays"] + mv["abstained"]}
+    scanned = []
+    for f in site.rglob("*"):
+        if f.suffix not in (".json", ".csv", ".js", ".xml") or not f.is_file():
+            continue
+        text = f.read_text(encoding="utf-8")
+        scanned.append(f.relative_to(site).as_posix())
+        leak = [v for v in values if v in text]
+        assert not leak, (f, leak)
+    assert "static/search-index.js" in scanned
+    index = (site / "static/search-index.js").read_text(encoding="utf-8")
+    assert '"rpc"' in index and "/vote/" not in index
 
 
 # ------------------------------------------------------------------ export
@@ -213,8 +266,8 @@ def test_site_checks_rpc_morning_fails_a_vote_entry_shown_under_hold(inputs):
     assert SC.check_rpc_morning(unheld, rec(inputs, False))[0] == []
     # the same note checked with the hold on: the confirmed vote entry, with its outcome and tally, fails
     problems, _ = SC.check_rpc_morning(unheld, rec(inputs, True))
-    assert any(p.startswith("morning/2026-11-11.json: rpc/vote/") and "confirmed, outcome, tally" in p
-               and "hold_motions is on" in p for p in problems), problems
+    assert problems == [f"morning/2026-11-11.json: rpc/vote/{MEETING}-motion-1: an RPC vote entry while rpc.yml "
+                        "hold_motions is on"], problems
     # built with the hold on: no RPC vote entry at all, and the check passes
     held = make_with_note(inputs, True)
     problems, msg = SC.check_rpc_morning(held, rec(inputs, True))

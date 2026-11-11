@@ -736,9 +736,17 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
            welcome_lede=views.welcome_lede(finance=fx is not None),
            doors=views.landing_doors(site, (rpx.nav_label, rpx.home_href()) if rpx is not None else None),
            meetings=days_mod.landing_meetings(day_ctx, built_day))
-    render("about.html.j2", "about.html", "About", **views.about(ix), glance=views.record_glance(ix))
+    person = views.operator_person(config.SITE.get("operator_person"), cixs)
+    if config.SITE.get("operator_person") and person is None and cixs:
+        raise BuildError(f"config/site.yml operator_person {config.SITE['operator_person']!r}: no built council has "
+                         "this official, so the About page cannot name them or link their votes")
+    # every body's confirmed rate in the same words, in alphabetical order of body (site-polish/about-rate-unlabelled)
+    rates = sorted([views.county_rate(ix)] + [views.confirmed_rate(c) for c in cixs], key=lambda r: r["body"])
+    render("about.html.j2", "about.html", "About", **views.about(ix), glance=views.record_glance(ix),
+           operator_person=person, body_rates=rates)
     trust = views.trust_pages(ix)
-    render("who.html.j2", "who-runs-this.html", "Who runs this", **trust)
+    # the same operator line on Who runs this as on About (site-polish/operator-disclosure-split)
+    render("who.html.j2", "who-runs-this.html", "Who runs this", **trust, operator_person=person)
     render("rules.html.j2", "our-rules.html", "Our rules", **trust)
     render("corrections.html.j2", "corrections.html", "Corrections", **trust)
     render("method.html.j2", "method.html", "Method", **trust)

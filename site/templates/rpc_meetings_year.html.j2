@@ -77,8 +77,8 @@
   <p class="muted">No case items read from this agenda.</p>
   {% endif %}
   {% if m.other_motions %}
-  <h3 id="{{ m.id }}-motions">Other motions in the minutes ({{ m.other_motions | length }})</h3>
-  <p class="muted">The meeting's own business, and motions not placed under one of the agenda's cases here{% if m.minutes and m.minutes.ocr %}; read by OCR from a scan{% endif %}.</p>
+  <h3 id="{{ m.id }}-motions">{% if motions_held %}Motions{% else %}Other motions{% endif %} in the minutes ({{ m.other_motions | length }})</h3>
+  <p class="muted">{% if motions_held %}Each motion's type and its page of the minutes. Votes are not shown while they are re-checked against the minutes{% else %}The meeting's own business, and motions not placed under one of the agenda's cases here{% endif %}{% if m.minutes and m.minutes.ocr %}; read by OCR from a scan{% endif %}.</p>
   {% for mv in m.other_motions %}{{ rpc_motion(mv) }}{% endfor %}
   {% endif %}
 </section>
