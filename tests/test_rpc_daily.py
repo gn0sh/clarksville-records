@@ -243,6 +243,35 @@ def test_retries_use_the_cap_and_the_request_past_it_is_never_made(seeded):
     assert len(seeded.slept) == 5 and min(seeded.slept) >= 9.99     # the crawl-delay before every one
 
 
+def test_a_persistent_503_on_a_cold_record_never_loops_as_filling(site):
+    """rpc-daily/filling-livelock: cap = documents + 2 (robots, listing) with one document always 503. Its retry takes
+    the last document's request; before the fix every run was exit 6 forever, fetching the same new documents."""
+    urls = doc_urls()
+    net = routes(**{urls[3]: (503, b"busy")})
+    for _ in range(3):
+        code, out = site.run(net, cap=len(urls) + 2)
+        assert code == rpc.STEP_FETCH and "cap of" in out["status"]          # hard: an issue opens, a person looks
+        assert len(site.calls) == len(urls) + 2
+        assert site.committed() == {"listing": None, "manifest": None, "changes": None, "facts": None}
+
+
+def test_filling_requests_gaps_only_and_the_new_documents_after(seeded):
+    """With more to fetch than one run allows, a run asks only for the manifest's gaps (kept across runs); the newly
+    listed document is asked for by the first run that can finish, and every document is asked for once."""
+    seeded.empty_store()
+    runs, codes = [], []
+    for _ in range(10):
+        code, _ = seeded.run(routes(PAGE_NEW), cap=8)
+        codes.append(code)
+        runs.append(seeded.docs_requested())
+        if code != rpc.STEP_FILLING:
+            break
+    assert codes[-1] == rpc.STEP_OK and len(codes) > 1
+    assert all(NEW_URL not in r for r in runs[:-1]) and runs[-1].count(NEW_URL) == 1   # only in the run that finishes
+    assert sorted(u for r in runs for u in r) == sorted(doc_urls(PAGE_NEW))           # each document once
+    assert NEW_URL in {e["url"] for e in json.loads(seeded.p["manifest"].read_text())}
+
+
 def test_a_cap_too_small_for_the_listing_is_a_fetch_failure_with_no_request_past_it(site):
     code, out = site.run(cap=1)
     assert code == rpc.STEP_FETCH and "RequestCapReached" in out["status"]

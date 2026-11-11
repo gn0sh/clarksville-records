@@ -14,7 +14,8 @@ the run; the next run is the next day's), 3 an agenda prints more case numbers t
 shrink the record or the store has gaps, 6 the store is still being filled (at most DAILY_FETCH_CAP requests go to
 the RPC's hosts per run, robots.txt, the listing, redirects and retries included, so a cold store is filled over
 several days, never in one burst), 1 an unexpected error. More newly listed documents than the requests left after
-the listing is code 2 with none of them requested (a person looks first).
+the listing is code 2 with none of them requested (a person looks first). While filling, only the manifest's gaps are
+requested; new documents wait for a run that can finish, and new documents cut off by the cap are code 2.
 
 Rules (docs/research/rpc-cmcss-sources.md, docs/platform-facts.md "Regional Planning Commission"):
 - one GET of the listing page (https://www.cmcrpc.com/documents/agenda-minutes/) lists every document. Each document
@@ -292,9 +293,12 @@ def cmd_fetch(cfg: RpcConfig, store: Store, listing_path: Path, log: dict, fetch
     if limit is not None:
         jobs = jobs[:limit]
     over_cap: set[str] = set()
+    new_urls: set[str] = set()
     if max_requests is not None:
-        # Requests this run: first the documents the manifest lists whose bytes the store lacks (their bytes stay in
-        # the store, so a capped run still gets closer), then the newly listed ones.
+        # Requests this run: the documents the manifest lists whose bytes the store lacks (their bytes stay in the
+        # store, so a capped run still gets closer), and the newly listed ones only when everything fits in this run.
+        # A run that stops short restores manifest.json, which forgets every new document it fetched, so asking for
+        # new ones in a run that cannot finish would repeat the same requests every day (rpc-daily/filling-livelock).
         known = {d["url"]: store.latest(d["url"]) for _, d in jobs}
         gaps = [u for u, e in known.items() if e and not store.has_bytes(e["sha256"])]
         new = [u for u, e in known.items() if not e]
@@ -309,7 +313,9 @@ def cmd_fetch(cfg: RpcConfig, store: Store, listing_path: Path, log: dict, fetch
             store.save()
             log["fetch_log"] = f.log
             return rows
-        over_cap = set((gaps + new)[budget:])
+        if len(gaps) + len(new) > budget:
+            over_cap = set(gaps[budget:]) | set(new)       # gaps only; the new ones wait for a run that can finish
+        new_urls = set(new)
     stopped = False
     for r, d in jobs:
         if stopped:
@@ -324,8 +330,10 @@ def cmd_fetch(cfg: RpcConfig, store: Store, listing_path: Path, log: dict, fetch
                                                                "label": f"{r['printed']} {d['kind']}"}, expect=expect)
             log["fetched"][status] = log["fetched"].get(status, 0) + 1
             store.save()                      # saved as it goes, so a stopped run keeps what it fetched
-        except RequestCapReached:             # retries or redirects used the cap up: no request was made; the
-            log["fetched"]["over_cap"] = log["fetched"].get("over_cap", 0) + 1     # document waits for a later run
+        except RequestCapReached:             # retries or redirects used the cap up: no request was made
+            log["fetched"]["over_cap"] = log["fetched"].get("over_cap", 0) + 1
+            if d["url"] in new_urls:          # a new document cut off by the cap: this run cannot finish, and the
+                log["fetched"]["new_cut_off"] = log["fetched"].get("new_cut_off", 0) + 1   # next would do the same
         except STOP as e:
             log["failures"].append({"stage": "fetch", "url": d["url"], "error": f"{type(e).__name__}: {e}",
                                     "stop": True})
@@ -394,6 +402,14 @@ def _daily(cfg: RpcConfig, p: dict, out: dict, offline: bool, fetcher, store: St
         stops = [f for f in flog["failures"] if f.get("stop") or f["stage"] == "listing"]
         if stops:
             out["status"] = f"stopped, nothing changed: {stops[0]['error']}"[:400]
+            return STEP_FETCH
+        cut = flog["fetched"].get("new_cut_off", 0)
+        if cut:
+            # rpc-daily/filling-livelock: only newly listed documents are left and the cap ran out on them (retries
+            # or redirects took the requests). The next run would make the same requests and stop at the same place,
+            # so this is a hard failure for a person to look at, never "filling".
+            out["status"] = (f"stopped, nothing changed: {cut} newly listed documents not requested, the cap of "
+                             f"{max_requests} requests ran out (retries or redirects); a later run would repeat it")
             return STEP_FETCH
         left = flog["fetched"].get("over_cap", 0)
         if left:
