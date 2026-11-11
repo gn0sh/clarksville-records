@@ -288,6 +288,42 @@ def test_plain_hostname():
     assert plain_hostname("evil.com%23.h.example") is None and plain_hostname("[x") is None
 
 
+@pytest.mark.parametrize("loc", ["https://[x/", "https://[::1/x", "//[bad"])
+def test_a_malformed_redirect_location_fails_that_fetch_not_the_run(loc):
+    """collector-input/redirect-valueerror-escapes: callers skip one file on FetchFailed; a ValueError ends the run."""
+    from collector.fetch import FetchFailed
+    f, net, _ = make({"https://h.example/a": (302, b"", {"Location": loc})})
+    with pytest.raises(FetchFailed, match="malformed"):
+        f.get("https://h.example/a")
+    assert [u for u, _ in net.calls] == ["https://h.example/robots.txt", "https://h.example/a"]
+
+
+@pytest.mark.parametrize("err", ["InvalidURL", "ValueError", "IncompleteRead"])
+def test_an_invalid_url_or_response_raised_by_the_http_client_is_fetch_failed(err):
+    import http.client
+    from collector.fetch import FetchFailed
+    f, net, _ = make({})
+    exc = {"InvalidURL": http.client.InvalidURL("URL can't contain control characters"),
+           "ValueError": ValueError("bad"), "IncompleteRead": http.client.IncompleteRead(b"x", 10)}[err]
+
+    def opener(req, timeout):
+        if req.full_url.endswith("/bad"):
+            raise exc
+        return net(req, timeout)
+    f.opener = opener
+    with pytest.raises(FetchFailed, match="invalid URL or response"):
+        f.get("https://h.example/bad")
+    assert f.log[-1]["event"] == "error"
+
+
+def test_a_malformed_first_url_is_fetch_failed():
+    from collector.fetch import FetchFailed
+    f, net, _ = make({})
+    with pytest.raises(FetchFailed, match="malformed"):
+        f.get("https://[h.example/x")
+    assert net.calls == []
+
+
 def test_redirect_loop_fails():
     from collector.fetch import FetchFailed
     f, net, _ = make({"https://h.example/a": (302, b"", {"Location": "https://h.example/a"})})

@@ -35,6 +35,7 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
 """
 from __future__ import annotations
 
+import http.client
 import json
 import os
 import re
@@ -128,6 +129,15 @@ def plain_hostname(host: str) -> str | None:
     return name if name and PLAIN_HOST.fullmatch(name) else None
 
 
+def split_url(url: str) -> urllib.parse.SplitResult:
+    """urlsplit, with a malformed URL (e.g. "https://[x/") as FetchFailed for that one fetch instead of a ValueError
+    that would end the whole run (collector-input/redirect-valueerror-escapes)."""
+    try:
+        return urllib.parse.urlsplit(url)
+    except ValueError as e:
+        raise FetchFailed(f"{url!r}: malformed URL ({e})") from None
+
+
 def site_key(host: str) -> str:
     """One key per site for the per-host state: lowercase, no port, no leading 'www.'."""
     h = host.lower().strip().split(":")[0].rstrip(".")
@@ -207,7 +217,7 @@ class PoliteFetcher:
 
     def check_url(self, url: str) -> None:
         """fetch/scheme-port-unpinned: https://, port 443 or none, no user info. Raises SchemeRefused otherwise."""
-        parts = urllib.parse.urlsplit(url)
+        parts = split_url(url)
         try:
             port = parts.port
         except ValueError:                           # a port that is not a number in range
@@ -279,7 +289,7 @@ class PoliteFetcher:
 
     # ------------------------------------------------------------ requests
     def _raw_get(self, url: str, _retry: bool = True, _headers: dict | None = None) -> tuple[int, bytes, dict]:
-        host = urllib.parse.urlsplit(url).netloc
+        host = split_url(url).netloc
         key = site_key(host)
         self.check_host(host)
         self.check_url(url)
@@ -293,8 +303,8 @@ class PoliteFetcher:
         self._wait(host)
         self._sent[key] = self.sent(host) + 1
         started = self.wall()
-        req = urllib.request.Request(url, headers={**(_headers or {}), "User-Agent": self.user_agent})
         try:
+            req = urllib.request.Request(url, headers={**(_headers or {}), "User-Agent": self.user_agent})
             with self._open(req) as r:
                 body = r.read(self.max_bytes + 1)
                 if len(body) > self.max_bytes:
@@ -330,6 +340,13 @@ class PoliteFetcher:
                 detail += f" (not retried: {self.reset_retries} resets already retried on {host} this run)"
             self.log.append({"event": "error", "host": host, "url": url, "detail": detail})
             raise FetchFailed(f"{url}: {detail}") from None
+        except (ValueError, http.client.HTTPException) as e:
+            # http.client.InvalidURL (control characters, a bad host), IncompleteRead, a bad status line and the like:
+            # that one fetch fails, never the run (collector-input/redirect-valueerror-escapes). After the OSError
+            # clause, so RemoteDisconnected (also a ConnectionResetError) keeps its one retry.
+            detail = f"invalid URL or response: {type(e).__name__}: {e}"
+            self.log.append({"event": "error", "host": host, "url": url, "detail": detail})
+            raise FetchFailed(f"{url!r}: {detail}") from None
 
     def robots(self, host: str, scheme: str = "https") -> urllib.robotparser.RobotFileParser:
         exact = host.lower()                 # robots.txt is per exact host (RFC 9309); delay, block, cap per site
@@ -360,8 +377,13 @@ class PoliteFetcher:
         loc = next((v for k, v in (headers or {}).items() if k.lower() == "location"), None)
         if not loc:
             raise FetchFailed(f"{url}: redirect without a Location header")
-        nxt = urllib.parse.urljoin(url, loc)
-        host = urllib.parse.urlsplit(nxt).netloc
+        try:
+            nxt = urllib.parse.urljoin(url, loc)
+        except ValueError as e:     # e.g. Location: https://[x/
+            self.log.append({"event": "error", "host": split_url(url).netloc, "url": url,
+                             "detail": f"malformed Location {loc!r}"})
+            raise FetchFailed(f"{url}: malformed redirect Location {loc!r} ({e})") from None
+        host = split_url(nxt).netloc
         self.log.append({"event": "redirect", "host": urllib.parse.urlsplit(url).netloc, "url": url, "detail": nxt})
         self.check_url(nxt)                     # every hop, not only the first URL: no http:// or other port
         self.check_host(host)
@@ -369,7 +391,7 @@ class PoliteFetcher:
         return nxt
 
     def get(self, url: str, _hops: int = 0, _headers: dict | None = None) -> tuple[int, bytes, dict]:
-        parts = urllib.parse.urlsplit(url)
+        parts = split_url(url)
         self.check_host(parts.netloc)
         self.check_url(url)
         rp = self.robots(parts.netloc, parts.scheme)
