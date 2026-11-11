@@ -10,6 +10,7 @@ import hashlib
 import json
 import re
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -25,6 +26,7 @@ ROOT = Path(__file__).resolve().parent.parent
 FINANCE = ROOT / "data" / "finance.json"
 META_CACHE = ROOT / "data" / "text" / "fin"
 SCHEMA_VERSION = "1.0"
+PDFINFO_TIMEOUT = 120      # seconds (pipeline/parser-dos-untimed), as city_minutes.pdf_layer
 
 
 # ------------------------------------------------------------------ per-file facts (cached by hash)
@@ -35,9 +37,18 @@ def pdf_meta(pdf: Path, cfg: FinanceConfig, cache_dir: Path | None = META_CACHE)
     if cache and cache.exists():
         info = json.loads(cache.read_text(encoding="utf-8"))
     else:
-        out = subprocess.run(["pdfinfo", str(pdf)], capture_output=True).stdout.decode("utf-8", "replace")
+        try:
+            out = subprocess.run(["pdfinfo", str(pdf)], capture_output=True,
+                                 timeout=PDFINFO_TIMEOUT).stdout.decode("utf-8", "replace")
+            pages = extract_pages(pdf)
+        except (OSError, subprocess.SubprocessError) as ex:
+            # pipeline/parser-dos-untimed: fail closed. Layer 'none' means no value is read from the file (only text
+            # sources carry values) and a budget book in this state is a guard problem; nothing is cached, so the
+            # next build tries the file again
+            print(f"collector fin: {pdf.name}: pdf inspection failed ({type(ex).__name__}); read as no text layer",
+                  file=sys.stderr, flush=True)
+            return {"pages": None, "text_layer": "none", "creator": None}
         tags = dict(re.findall(r"^(Creator|Producer|Pages):\s*(.*?)\s*$", out, re.M))
-        pages = extract_pages(pdf)
         info = {"pages": int(tags["Pages"]) if tags.get("Pages", "").isdigit() else len(pages),
                 "image_only": len(image_only_pages(pages)) == len(pages),
                 "creator": tags.get("Creator") or None, "producer": tags.get("Producer") or None}

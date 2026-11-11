@@ -359,7 +359,9 @@ def ocr_document(pdf: Path, sha: str, pages: int) -> list[str]:
     tesseract settings, per-call timeouts and cache; pages in parallel). Raises when any page fails, so a document is
     read whole or not at all."""
     from .minutes import ocr_pages_parallel
-    from .ocr import cache_path
+    from .ocr import MAX_OCR_PAGES, PageRefused, cache_path
+    if pages > MAX_OCR_PAGES:       # pipeline/parser-dos-untimed: refused whole before any page is rendered
+        raise PageRefused(f"{pages} pages: OCR reads at most {MAX_OCR_PAGES} pages of a document")
     errors = ocr_pages_parallel([(str(pdf), p, sha) for p in range(1, pages + 1)])
     bad = sorted(p for (_, p), err in errors.items() if err)
     if bad:

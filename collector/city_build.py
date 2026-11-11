@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+import sys
 import unicodedata
 from collections import Counter, defaultdict
 
@@ -114,8 +115,12 @@ def _verification(checks: list[dict]) -> dict:
             "checks": sorted(checks, key=lambda c: c["check"])}
 
 
+PDFINFO_TIMEOUT = 120      # seconds (pipeline/parser-dos-untimed); a timeout fails that file, not the build
+
+
 def pdf_pages(path) -> int:
-    out = subprocess.run(["pdfinfo", str(path)], capture_output=True).stdout.decode("utf-8", "replace")
+    out = subprocess.run(["pdfinfo", str(path)], capture_output=True,
+                         timeout=PDFINFO_TIMEOUT).stdout.decode("utf-8", "replace")
     m = re.search(r"^Pages:\s*(\d+)", out, re.M)
     return max(int(m.group(1)), 1) if m else 1
 
@@ -141,6 +146,8 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
     status_count = Counter()
     ids_used: Counter = Counter()
 
+    uninspectable: set = set()
+
     def source_for(url: str | None):
         if not url:
             return None, None
@@ -150,7 +157,18 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
         sid = f"src-{e['sha256'][:12]}"
         path = store.path_for(e["sha256"])
         if sid not in sources:
-            sources[sid] = source_record(e, *inspect(path))
+            if sid in uninspectable:
+                return None, None
+            try:
+                sources[sid] = source_record(e, *inspect(path))
+            except (OSError, subprocess.SubprocessError) as ex:
+                # pipeline/parser-dos-untimed: pdfinfo/pdftotext timed out or failed on this file. Fail closed: the
+                # file is not cited or read (as if not fetched), reported once, and the build goes on
+                uninspectable.add(sid)
+                msg = f"pdf inspection failed ({type(ex).__name__}): file not read or cited"
+                problems.append({"url": url, "sha256": e["sha256"], "problem": msg})
+                print(f"city build: skipped {url}: {msg}", file=sys.stderr, flush=True)
+                return None, None
         return sources[sid], path
 
     # Agenda Center rows first on a day (their meeting ids were published first), then CivicClerk rows; within a

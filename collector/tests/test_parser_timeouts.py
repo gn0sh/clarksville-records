@@ -38,9 +38,12 @@ def test_ocr_timeout_is_600s_and_reverify_records_a_failure(monkeypatch, tmp_pat
     monkeypatch.setattr(ocr, "OCR_CACHE", tmp_path)
     monkeypatch.setattr(ocr.shutil, "which", lambda n: "/usr/bin/" + n)
     _record(monkeypatch, ocr, seen)
+    with pytest.raises(subprocess.TimeoutExpired):              # the page-size check's pdfinfo has its own timeout
+        ocr.ocr_page(Path("x.pdf"), 1, "a" * 64)
+    monkeypatch.setattr(ocr, "check_page", lambda pdf, page: None)
     with pytest.raises(subprocess.TimeoutExpired):
         ocr.ocr_page(Path("x.pdf"), 1, "a" * 64)
-    assert seen == [("pdftoppm", 600)]
+    assert seen == [("pdfinfo", 60), ("pdftoppm", 600)]
 
     class RC:
         page, end_page, reasons = 1, 1, []
