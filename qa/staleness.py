@@ -49,9 +49,12 @@ class ConfigError(ValueError):
 
 # ---- newest dates (mirrors sitegen/freshness.py) --------------------------------------------------------------------
 
-def _max_date(values) -> str | None:
-    ds = [v for v in values if isinstance(v, str) and len(v) >= 10]
-    return max(v[:10] for v in ds) if ds else None
+FUTURE_DAYS = 60     # a record dated later than today + this is an anomaly, not the newest (stale-future-date-masks)
+MAX_NOTES = 5
+
+
+def _dates(values) -> list[str]:
+    return sorted({v[:10] for v in values if isinstance(v, str) and len(v) >= 10})
 
 
 def _load(path: Path) -> dict | None:
@@ -61,36 +64,41 @@ def _load(path: Path) -> dict | None:
         return None
 
 
-def newest_dates(data_dir: Path) -> dict:
-    """{key: newest ISO date or None}; finance-budget is the newest approved fiscal year (int) or None. A missing or
-    unreadable file gives None for its sources (counted as stale: no dated record)."""
-    out: dict = {k: None for k in KEYS}
+def all_dates(data_dir: Path) -> dict:
+    """{key: sorted distinct ISO dates}; finance-budget: sorted approved fiscal years (ints). A missing or unreadable
+    file gives [] for its sources (counted as stale: no dated record)."""
+    out: dict = {k: [] for k in KEYS}
     county = _load(data_dir / FILES["county"])
     if county:
-        out["county-minutes"] = _max_date(m.get("date") for m in county.get("meetings") or [])
+        out["county-minutes"] = _dates(m.get("date") for m in county.get("meetings") or [])
     ag = _load(data_dir / FILES["county_agendas"])
     if ag:
         paged = {s.get("id") for s in ag.get("sources") or [] if s.get("pages")}   # as the agenda pages show them
-        out["county-agendas"] = _max_date(m.get("date") for m in ag.get("meetings") or [] if m.get("source_id") in paged)
+        out["county-agendas"] = _dates(m.get("date") for m in ag.get("meetings") or [] if m.get("source_id") in paged)
     city = _load(data_dir / FILES["city"])
     if city:
         kinds = {s.get("id"): s.get("kind") for s in city.get("sources") or []}
         ms = city.get("meetings") or []
-        out["city-minutes"] = _max_date(m.get("date") for m in ms if kinds.get(m.get("source_id")) == "minutes")
-        out["city-agendas"] = _max_date(m.get("date") for m in ms
+        out["city-minutes"] = _dates(m.get("date") for m in ms if kinds.get(m.get("source_id")) == "minutes")
+        out["city-agendas"] = _dates(m.get("date") for m in ms
                                         if m.get("agenda_source_id") or kinds.get(m.get("source_id")) == "agenda")
     rpc = _load(data_dir / FILES["rpc"])
     if rpc:
         ms = rpc.get("meetings") or []
-        out["rpc-minutes"] = _max_date(m.get("date") for m in ms if m.get("minutes_source_id"))
-        out["rpc-agendas"] = _max_date(m.get("date") for m in ms if m.get("agenda_source_id"))
+        out["rpc-minutes"] = _dates(m.get("date") for m in ms if m.get("minutes_source_id"))
+        out["rpc-agendas"] = _dates(m.get("date") for m in ms if m.get("agenda_source_id"))
     fin = _load(data_dir / FILES["finance"])
     if fin:
-        out["finance-bids"] = _max_date(s.get("archive_date") for s in fin.get("solicitations") or [])
+        out["finance-bids"] = _dates(s.get("archive_date") for s in fin.get("solicitations") or [])
         fys = [b["fiscal_year"] for b in fin.get("books") or []
                if isinstance(b.get("fiscal_year"), int) and b.get("edition") == "approved"]
-        out["finance-budget"] = max(fys) if fys else None
+        out["finance-budget"] = sorted(set(fys))
     return out
+
+
+def newest_dates(data_dir: Path) -> dict:
+    """{key: the newest date (finance-budget: fiscal year) or None}, before any future-date filtering."""
+    return {k: (max(v) if v else None) for k, v in all_dates(data_dir).items()}
 
 
 # ---- the check ----------------------------------------------------------------------------------------------------
@@ -117,11 +125,36 @@ def fiscal_year(day: date) -> int:
     return day.year + 1 if day.month >= 7 else day.year
 
 
-def check(newest: dict, cfg: dict, today: date) -> list[dict]:
+def _split(key: str, values, today: date) -> tuple:
+    """(newest plausible value or None, anomaly notes). A date later than today + FUTURE_DAYS, an unreadable date, or
+    a fiscal year past next year is a typo or a misread, never the newest: it would keep a source fresh forever."""
+    if values is None:
+        values = []
+    elif not isinstance(values, list):
+        values = [values]
+    ok, notes = [], []
+    if key == "finance-budget":
+        for fy in values:
+            (notes.append(f"future-dated record fiscal year {int(fy)}") if fy > fiscal_year(today) + 1
+             else ok.append(fy))
+    else:
+        limit = date.fromordinal(today.toordinal() + FUTURE_DAYS)
+        for v in values:
+            try:
+                d = date.fromisoformat(v)
+            except (TypeError, ValueError):
+                notes.append("unreadable record date")
+                continue
+            (notes.append(f"future-dated record {d.isoformat()}") if d > limit else ok.append(d.isoformat()))
+    return (max(ok) if ok else None), sorted(set(notes))[:MAX_NOTES]
+
+
+def check(dates: dict, cfg: dict, today: date) -> list[dict]:
+    """`dates`: all_dates() output (a single value or None per key is accepted too)."""
     rows = []
     for key, s in cfg["sources"].items():
-        n = newest.get(key)
-        row = {"key": key, "name": s["name"], "newest": n}
+        n, notes = _split(key, dates.get(key), today)
+        row = {"key": key, "name": s["name"], "newest": n, "anomalies": notes}
         if key == "finance-budget":
             fy = fiscal_year(today)
             began = date(fy - 1, 7, 1)
@@ -156,6 +189,8 @@ def body(row: dict, today: date, run_url: str) -> str:
                 f"(threshold {row['threshold_days']} days).")
     else:
         what = "No dated record was found for this source."
+    if row.get("anomalies"):
+        what += " Ignored as anomalies (check the data): " + "; ".join(row["anomalies"]) + "."
     return "\n".join([
         f"**{row['name']}** (`{row['key']}`) is stale. {what}",
         "",
@@ -291,12 +326,14 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if a.cmd == "check":
         today = a.today or today_local()
-        rows = check(newest_dates(a.data), cfg, today)
+        rows = check(all_dates(a.data), cfg, today)
         a.out.parent.mkdir(parents=True, exist_ok=True)
         a.out.write_text(json.dumps({"today": today.isoformat(), "sources": rows}, indent=1) + "\n", encoding="utf-8")
         for r in rows:
             mark = "STALE" if r["stale"] else "ok   "
             print(f"{mark} {r['key']:15} newest={r['newest']} age={r['age_days']} threshold={r['threshold_days']}")
+            for note in r["anomalies"]:
+                print(f"::warning::Data-age anomaly {r['key']}: {note} (ignored; check the data)")
             if r["stale"]:
                 print(f"::warning::Stale source {r['key']}: newest record {r['newest']} (config/staleness.yml)")
         return 0

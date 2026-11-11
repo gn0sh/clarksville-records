@@ -283,3 +283,47 @@ def test_workflow_opens_one_issue_when_the_check_breaks():
     assert "--body-file" in s["run"] and "--body " not in s["run"] and "${{" not in s["run"]
     assert "gh issue comment" in s["run"]                                 # a repeat comments, never a second issue
     assert WF["jobs"]["update"]["permissions"] == {"contents": "read", "issues": "write"}
+
+
+# ---- pipeline/stale-future-date-masks -------------------------------------------------------------------------------
+
+def test_a_future_dated_typo_never_keeps_a_source_fresh(data, cfg):
+    f = json.loads((data / "facts.json").read_text())
+    f["meetings"] += [{"date": "2062-05-11"}, {"date": "2026-13-45"}]
+    (data / "facts.json").write_text(json.dumps(f))
+    rows = {r["key"]: r for r in st.check(st.all_dates(data), cfg, TODAY)}
+    r = rows["county-minutes"]
+    assert r["newest"] == "2026-05-11" and r["stale"] is True
+    assert r["anomalies"] == ["future-dated record 2062-05-11", "unreadable record date"]
+    text = st.body(r, TODAY, "")
+    assert "Ignored as anomalies (check the data): future-dated record 2062-05-11; unreadable record date." in text
+    # its open issue stays open: an edit, never a close
+    acts = st.plan([r], [{"number": 3, "title": "Stale source: x [county-minutes]"}], cfg, TODAY)
+    assert [a[:2] for a in acts] == [("edit", 3)]
+
+
+def test_future_limit_is_today_plus_60_days(cfg):
+    one = {**cfg, "sources": {"county-agendas": cfg["sources"]["county-agendas"]}}
+    near, far = "2027-01-10", "2027-01-11"          # TODAY + 60, TODAY + 61
+    assert st.check({"county-agendas": [near]}, one, TODAY)[0]["newest"] == near
+    row = st.check({"county-agendas": ["2026-11-01", far]}, one, TODAY)[0]
+    assert row["newest"] == "2026-11-01" and row["anomalies"] == [f"future-dated record {far}"]
+    only = st.check({"county-agendas": [far]}, one, TODAY)[0]
+    assert only["newest"] is None and only["stale"] is True
+
+
+def test_a_far_future_fiscal_year_is_an_anomaly(cfg):
+    one = {**cfg, "sources": {"finance-budget": cfg["sources"]["finance-budget"]}}
+    row = st.check({"finance-budget": [2026, 2062]}, one, date(2026, 10, 1))[0]
+    assert row["newest"] == 2026 and row["stale"] is True and row["anomalies"] == ["future-dated record fiscal year 2062"]
+    assert st.check({"finance-budget": [2028]}, one, date(2026, 10, 1))[0]["anomalies"] == []   # next year's book
+
+
+# ---- ci/issue-title-squat ---------------------------------------------------------------------------------------------
+
+def test_every_fixed_title_issue_lookup_lists_only_actions_issues():
+    text = (ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding="utf-8")
+    lookups = [ln for ln in text.splitlines() if "gh issue list" in ln]
+    assert len(lookups) == 6, lookups
+    for ln in lookups:
+        assert "--app github-actions" in ln, ln

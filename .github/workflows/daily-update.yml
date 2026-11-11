@@ -12,6 +12,8 @@
 #              secrets (BUTTONDOWN_API_KEY, MORNING_NOTE_CANARY_IDS, in the morning-note environment), each in one
 #              step's env. See docs/ops/morning-note.md. Every other job uses GITHUB_TOKEN only.
 # note-failed: opens or comments on one "Daily update: morning note failed" issue when the note job failed.
+# Every fixed-title issue lookup lists only issues opened by GitHub Actions (--app github-actions), so an outsider's
+# issue with the same title in this public repo is never commented on in its place (ci/issue-title-squat).
 #
 # Collection keeps the collector's own rules (collector/fetch.py): one honest User-Agent, robots.txt obeyed, at least
 # 10 s between requests per host (more where robots.txt asks). Nothing here changes them.
@@ -268,7 +270,7 @@ jobs:
             echo "Read the 'Check data age' and 'Open, update or close stale-source issues' steps in the run log"
             echo "(gh errors are printed there as warnings). See docs/ops/launch-runbook.md, 'Paused sources'."
           } > "$body"
-          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$AGE_TITLE\" in:title" \
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$AGE_TITLE\" in:title" \
                    --json number,title --jq 'map(select(.title == $ENV.AGE_TITLE)) | .[0].number // empty')
           if [ -z "$open" ]; then
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$AGE_TITLE" --body-file "$body"
@@ -286,7 +288,7 @@ jobs:
           COUNTY_EXIT: ${{ steps.collect.outputs.county }}
         run: |
           title="Daily update failed"
-          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$title\" in:title" --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")
           body="Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID (collector exits: city=$CITY_EXIT, county=$COUNTY_EXIT). The last deployed site is unchanged."
           # a later failure comments on the open issue, so a repeat is never silent (ci/failure-issue-silent-repeat)
           if [ -z "$open" ]; then
@@ -325,7 +327,7 @@ jobs:
             echo "If it says TooManyNew or 'the cap of', it repeats every day until someone acts: see"
             echo "docs/ops/launch-runbook.md, 'RPC backlog'."
           } > "$body"
-          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$RPC_TITLE\" in:title" \
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$RPC_TITLE\" in:title" \
                    --json number,title --jq 'map(select(.title == $ENV.RPC_TITLE)) | .[0].number // empty')
           if [ -z "$open" ]; then
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$RPC_TITLE" --body-file "$body"
@@ -373,7 +375,7 @@ jobs:
             echo "It repeats every day until the cause clears or someone acts: see docs/ops/launch-runbook.md,"
             echo "'County meetings kept'."
           } > "$body"
-          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$KEPT_TITLE\" in:title" \
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$KEPT_TITLE\" in:title" \
                    --json number,title --jq 'map(select(.title == $ENV.KEPT_TITLE)) | .[0].number // empty')
           if [ -z "$open" ]; then
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$KEPT_TITLE" --body-file "$body"
@@ -523,7 +525,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           title="Daily update failed"
-          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$title\" in:title" --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")
           body="The push job failed (data not committed to main): $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. The last deployed site is unchanged."
           if [ -z "$open" ]; then
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
@@ -806,7 +808,7 @@ jobs:
         run: |
           set -eu
           body="The morning note job failed or was cancelled: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. The site, the data commit and the deploy are not affected. A note is never sent the next day; see docs/ops/morning-note.md, 'When the note job fails'."
-          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$NOTE_TITLE\" in:title" \
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$NOTE_TITLE\" in:title" \
                    --json number,title --jq 'map(select(.title == $ENV.NOTE_TITLE)) | .[0].number // empty')
           if [ -z "$open" ]; then
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$NOTE_TITLE" --body "$body"
