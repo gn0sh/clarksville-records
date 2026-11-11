@@ -340,3 +340,50 @@ def test_a_lead_abstention_on_another_case_is_not_attributed():
     m = one("Mr. Long abstained from Z-9-2026. " + M + "All others were in favor. Motion passed.",
             agenda=("Z-5-2026", "Z-9-2026"))
     held(m, R.WHY_LEAD_VOTE)
+
+
+# ------------------------------------------------------------------ review of d76f361
+# rpc-votes/outcome-words-swallow: an outcome's words are a fixed vocabulary, so no vote word hides inside one
+@pytest.mark.parametrize("votes", [
+    "All others voted in favor. Motion passed for approval but Long voted nay.",
+    "All others voted in favor. Motion passed for approval except one.",
+    "All others voted in favor. Motion passed for approval minus one nay vote.",
+    "Motion for approval with Long abstaining passed.",
+    "All members voted in favor. Motion passed for approval and one member abstaining.",
+    "All others were in favor. The motion passed for approval over the objection of Long.",
+    "All others were in favor. Motion passed for approval of the request Long dissenting.",
+    "All others were in favor. Motion passes for approval to the planning department staff except long.",
+])
+def test_an_outcome_holds_only_its_vocabulary(votes):
+    m = one(M + votes)
+    held(m, R.WHY_UNLISTED)
+    assert m.outcome is None or R.FAVOUR.fullmatch(m.outcome), m.outcome      # never the unread sentence
+
+
+@pytest.mark.parametrize("words", ["approval", "disapproval", "denial", "a one month deferral", "a 30 day deferral",
+                                   "a thirty-day deferral", "approval of consent agenda", "approval of variances"])
+def test_the_outcome_vocabulary_is_read(words):
+    m = one(M + f"All others were in favor. Motion passed for {words}.")
+    assert m.outcome == f"Motion passed for {words}", (m.outcome, m.reasons)
+
+
+# rpc-votes/tail-second-motion: a second motion after the outcome
+@pytest.mark.parametrize("tail", ["Mrs. Streetman then moved to deny, seconded by Mr. Long.",
+                                  "Mrs. Streetman then moved to deny.", "Mr. Long had seconded it as well."])
+def test_a_second_motion_after_the_outcome_is_not_confirmed(tail):
+    held(one(M + "All others were in favor. Motion passed. " + tail), R.WHY_TAIL_OUTCOME)
+
+
+# rpc-votes/outcome-other-motion: an outcome naming a motion to table, postpone or continue
+@pytest.mark.parametrize("votes", ["All members present voted in favor. Motion to table passed.",
+                                   "Motion to table the request carried.", "Motion to postpone passed.",
+                                   "Motion to continue passed."])
+def test_an_outcome_of_another_kind_of_motion_is_not_confirmed(votes):
+    held(one(M + votes), "the outcome names another kind of motion")
+
+
+def test_real_2025_03_25_motion_9_tabling_the_case_stays_confirmed():
+    m = one("Joe Smith made a motion to table the case, seconded by Stacey Streetman. All others voted in favor, "
+            "motion passes to table the case indefinitely.", extra=("Joe Smith",))
+    ok(m)
+    assert (m.kind, m.outcome) == ("Motion", "motion passes to table the case indefinitely")

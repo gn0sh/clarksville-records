@@ -276,3 +276,23 @@ before/after confirmed counts (1307 motions, 1088 confirmed at 0927bfe) by reaso
   `tests/test_rpc_minutes_pages.py` pins all three equal.
 - **Audit**: each row adds `lead`, the text scanned before the motion. The list-scope text is not written.
 - **Mutation table**: docs/reviews/rpc-votes-rule10-mutation.md (`tools/rpc_rule10_mutation.py`), 49 of 49 killed.
+
+## Fixes from the code review of d76f361 (backend-engineer, 2026-11-11)
+- `rpc-votes/outcome-words-swallow`: OUTCOME_WORDS is now a fixed vocabulary (OUTCOME_TERMS: an N day or month
+  deferral, deferral, approval, disapproval, denial, (the) consent agenda, (approve) (the) deferrals, variance(s),
+  table (the case, the request) (indefinitely), postpone, continue, the request, lack of a second). One term, or two
+  joined by a space, "of" or "via". Every word an OUTCOME span holds is now vocabulary, a verb or a tally, so "modelled"
+  covers nothing free. A sentence shaped like an outcome whose words are outside the vocabulary (OUTCOME_SHAPED, the old
+  free-text pattern) is never an outcome. The body runs to the end of that sentence, so 10a reads it (WHY_UNLISTED)
+  instead of leaving it to the tail. Rule 9 also drops an "in favor" outcome when a vote word follows it in the body.
+- `rpc-votes/tail-second-motion`: TAIL_OUTCOME adds `\bmoved\b` and `\bseconded\b`.
+- `rpc-votes/outcome-other-motion`: `_polarity` gives table/postpone/continue a polarity of its own ("table"), so an
+  outcome "Motion to table passed" under a "Motion for approval" is "the outcome names another kind of motion".
+  2025-03-25-regular-motion-9 (kind "Motion", "motion passes to table the case indefinitely") stays confirmed.
+- Rebuild: 568 -> 566. Two motions lost: 2023-11-28-regular-motion-6 (OCR "Motion passed for approval passed", now
+  WHY_UNLISTED) and 2025-06-24-regular-motion-1 (its tail says "City Council session being moved", now
+  WHY_TAIL_OUTCOME). Both are benign losses, toward under-confirming.
+- **Known gap, `rpc-votes/c1-heading-misread` (not fixed):** a case heading whose number OCR misreads as another case
+  number that is also on the same meeting's agenda reads as a clean heading for the wrong case. C1 cannot see the
+  misread in the text, so the motion would be placed under the wrong case. A later fix would check the heading against
+  the applicant or location the agenda prints for that case. Until then, QA samples placement against the page image.

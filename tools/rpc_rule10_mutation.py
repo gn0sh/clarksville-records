@@ -21,12 +21,26 @@ block = src[src.index("SHAPES = (\n"):src.index("\n)\n", src.index("SHAPES = (\n
 for entry in re.findall(r'\n    \("[^"]+", "[^"]+",.*?\),(?=\n    \(|$)', block, re.S):
     label = re.match(r'\n    \("([^"]+)", "([^"]+)"', entry).group(2)
     muts.append((f"10a shape: {label}", entry, ""))
-# 10b: each tail trigger
-tail = 'TAIL_OUTCOME = (OUTCOME, FAVOUR, re.compile(r"\\bmotion\\b", re.I))'
-assert tail in src
-muts += [("10b tail trigger: OUTCOME", tail, 'TAIL_OUTCOME = (FAVOUR, re.compile(r"\\bmotion\\b", re.I))'),
-         ("10b tail trigger: FAVOUR", tail, 'TAIL_OUTCOME = (OUTCOME, re.compile(r"\\bmotion\\b", re.I))'),
-         ("10b tail trigger: motion", tail, "TAIL_OUTCOME = (OUTCOME, FAVOUR)")]
+# 10b: each tail trigger (the entries of the TAIL_OUTCOME tuple, one at a time)
+tail = src[src.index("TAIL_OUTCOME = ("):src.index("))", src.index("TAIL_OUTCOME = (")) + 2]
+for label, item in (("OUTCOME", "OUTCOME, "), ("FAVOUR", "FAVOUR, "), ("motion", 're.compile(r"\\bmotion\\b", re.I), '),
+                    ("moved", 're.compile(r"\\bmoved\\b", re.I),'),
+                    ("seconded", ',\n                re.compile(r"\\bseconded\\b", re.I)')):
+    assert tail.count(item) == 1, (label, tail)
+    new = tail.replace(item, "")
+    if label == "seconded":
+        new = new.replace("),", ")")
+    muts.append((f"10b tail trigger: {label}", tail, new))
+# rpc-votes/outcome-words-swallow, tail-second-motion, outcome-other-motion (review of d76f361)
+muts += [
+    ("outcome words: free text instead of the vocabulary",
+     'OUTCOME_WORDS = rf"{_TERM}(?:\\s+(?:(?:of|via)\\s+)?{_TERM})?"', "OUTCOME_WORDS = _FREE_WORDS_LATE"),
+    ("body runs to an outcome-shaped sentence", "        if shaped and (body_end is None",
+     "        if False and (body_end is None"),
+    ("rule 9: a vote word after the 'in favor' sentence in the body",
+     "\n                                             or LEFTOVER_VOTE.search(window, fav.end(), len(para))):", "):"),
+    ("polarity: table / postpone / continue", 'if re.search(r"\\btabl|\\bpostpon|\\bcontinu", t):', "if False:"),
+]
 # 10c: each MEMBER_VOTE alternative
 mv_line = src[src.index("MEMBER_VOTE = ("):src.index(")\n", src.index("MEMBER_VOTE = (")) + 1]
 for alt in re.findall(r'r"([^"]+)"', mv_line):
@@ -70,9 +84,13 @@ muts += [
 ]
 
 rows = []
+FREE = '_FREE_WORDS_LATE = r"[a-z](?:[a-z -]|\\d{1,3}(?=[\\s-]*days?\\b)){0,60}?"\n'
 for name, old, new in muts:
     assert src.count(old) == 1, (name, src.count(old))
-    path.write_text(src.replace(old, new), encoding="utf-8")
+    mutant = src.replace(old, new)
+    if "_FREE_WORDS_LATE" in new:
+        mutant = mutant.replace("OUTCOME_WORDS = _FREE_WORDS_LATE", FREE + "OUTCOME_WORDS = _FREE_WORDS_LATE")
+    path.write_text(mutant, encoding="utf-8")
     r = subprocess.run([sys.executable, "-B", "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", *TESTS],
                        cwd=tree, capture_output=True, text=True)
     last = (r.stdout.strip().splitlines() or ["?"])[-1]

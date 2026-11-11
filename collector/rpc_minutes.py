@@ -115,9 +115,22 @@ MOTION_START = re.compile(rf"(?P<mover>{NAME})\s+(?:(?:made|makes)\s+(?:the|a)\s
 SECOND_BY = re.compile(rf"\b[Ss]econded\s+by\s+(?P<name>{NAME})")
 SECOND_AFTER = re.compile(rf"(?P<name>{NAME})\s+seconded\b|\bwith\s+(?P<name2>{NAME})\s+second\b|"
                           rf"\bsecond\s+from\s+(?P<name3>{NAME})")
-# the words of an outcome's "for ..." / "to ...": letters, and a number only as a count of days ("for a 30 day
-# deferral"), so a tally ("5-1") is never swallowed into the words and always meets the tally check
-OUTCOME_WORDS = r"[a-z](?:[a-z -]|\d{1,3}(?=[\s-]*days?\b)){0,60}?"
+# the words of an outcome's "for ..." / "to ...": a fixed vocabulary (rpc-votes/outcome-words-swallow), never free
+# text, so no vote word ("... for approval but Long voted nay", "... of the request Long dissenting") can sit inside
+# an outcome and pass as modelled, and a tally is never swallowed (it always meets the tally check). One term, or two
+# joined by a space, "of" or "via" ("approval of consent agenda", "approve the deferrals via consent agenda")
+_COUNT = r"(?:\d{1,3}|one|two|three|four|six|thirty|sixty|ninety)"
+OUTCOME_TERMS = (r"(?:an?\s+)?" + _COUNT + r"[\s-]+(?:day|month)s?[\s-]+deferral",    # "a 30 day deferral"
+                 r"(?:an?\s+)?deferral(?:\s+of\s+\d{1,3}\s+days)?",
+                 r"approval", r"disapproval", r"denial",
+                 r"(?:the\s+)?consent\s+agenda",
+                 r"(?:approve\s+)?(?:the\s+)?deferrals",
+                 r"variances?",
+                 r"table(?:\s+the\s+(?:case|request))?(?:\s+indefinitely)?", r"postpone", r"continue",
+                 r"the\s+request",
+                 r"(?:a\s+)?lack\s+of\s+(?:a\s+)?second")
+_TERM = "(?:" + "|".join(OUTCOME_TERMS) + ")"
+OUTCOME_WORDS = rf"{_TERM}(?:\s+(?:(?:of|via)\s+)?{_TERM})?"
 OUTCOME = re.compile(r"\b(?:(?:the\s+)?(?:motion|consent\s+agenda|nomination)(?:\s+(?:for|to)\s+" + OUTCOME_WORDS + r")?\s+"
                      r"(?:(?:was\s+)?(?:passed|approved|denied|defeated)|passes|failed|fails|falls|fell|carried|died)"
                      r"(?:\s+unanimously)?(?:\s+on\s+(?:the\s+)?consent\s+agenda)?"
@@ -125,6 +138,11 @@ OUTCOME = re.compile(r"\b(?:(?:the\s+)?(?:motion|consent\s+agenda|nomination)(?:
                      r"|(?:carried|approved)\s+unanimously"
                      r"|(?:the\s+)?(?:minutes|deferrals?|withdrawals?)\s+(?:were|was)\s+approved)"
                      r"(?=\s*(?:[.,;]|$|with\b|All\b))", re.I)
+# rule 10a: a sentence shaped like an outcome whose words are not the vocabulary ("Motion passed for approval except
+# one."): never an outcome, but the motion's body runs to its end, so the allowlist reads it (WHY_UNLISTED) and it is
+# not left to the tail
+_FREE_WORDS = r"[a-z](?:[a-z -]|\d{1,3}(?=[\s-]*days?\b)){0,60}?"
+OUTCOME_SHAPED = re.compile(OUTCOME.pattern.replace(OUTCOME_WORDS, _FREE_WORDS), re.I)
 # "All others were in favor." / "All members voted in favor." with no outcome sentence after it: that sentence is the
 # outcome as printed; "All others voted in favor and the motion passed ..." is the same sentence followed by its
 # outcome. FOLLOW_GAP: how far after it an outcome sentence may start and still be the outcome.
@@ -197,7 +215,8 @@ ELECT_CLAUSE = re.compile(rf"^\s*(?i:to\s+(?:nominate|elect))\s+{NAME}\s+(?i:(?:
 TITLED = re.compile(rf"{HON}\s*[A-Z]")
 EXCEPTION_WORD = re.compile(r"\b(?:except\w*|but|exception)\b", re.I)
 # rule 10b: after the outcome, any outcome, "in favor" or motion is a doubt (no distance limit)
-TAIL_OUTCOME = (OUTCOME, FAVOUR, re.compile(r"\bmotion\b", re.I))
+TAIL_OUTCOME = (OUTCOME, FAVOUR, re.compile(r"\bmotion\b", re.I), re.compile(r"\bmoved\b", re.I),
+                re.compile(r"\bseconded\b", re.I))      # "... Motion passed. Mrs. Streetman then moved to deny"
 # rule 10c: a member's vote stated in the free prose before a motion (or, for a list motion, in a case section with
 # no motion of its own): narrower than LEFTOVER_VOTE, since staff reports and the public hearing are prose. The
 # architect's "did not vote" and "not vot" are left out: any vote form already matches them (the mutation run showed
@@ -442,6 +461,8 @@ def _polarity(text: str) -> str | None:
         return "approve"
     if "defer" in t:
         return "defer"
+    if re.search(r"\btabl|\bpostpon|\bcontinu", t):     # rpc-votes/outcome-other-motion: "Motion to table passed"
+        return "table"
     if "approv" in t:
         return "approve"
     return None
@@ -559,7 +580,12 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
         # the vote sentence is the outcome as printed when no outcome sentence follows it straight away
         if fav and (oc is None or oc.start() - _sentence_end(window, fav.end()) > FOLLOW_GAP):
             oc = fav
-        para = window[:_sentence_end(window, oc.end())] if oc else window[:400]
+        body_end = oc.end() if oc else None
+        shaped = OUTCOME_SHAPED.search(window, at)
+        if shaped and (body_end is None or (shaped.end() > body_end
+                                            and shaped.start() - _sentence_end(window, body_end) <= FOLLOW_GAP)):
+            body_end = shaped.end()
+        para = window[:_sentence_end(window, body_end)] if body_end is not None else window[:400]
         after = para[at:]
         lead = text[prev:m.start()]
         prev = m.start() + len(para)
@@ -664,7 +690,8 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
         # or when a vote word follows it up to the next motion ("All members voted in favor. Mr. Long voted
         # against."): with no outcome sentence printed, the motion has no outcome as printed and is not confirmed
         tail = text[m.start() + len(para):nxt]
-        if oc is not None and oc is fav and (mv.nays or mv.abstained or LEFTOVER_VOTE.search(tail)):
+        if oc is not None and oc is fav and (mv.nays or mv.abstained or LEFTOVER_VOTE.search(tail)
+                                             or LEFTOVER_VOTE.search(window, fav.end(), len(para))):
             mv.outcome, mv.tally = None, None
             reasons.append(WHY_FAVOUR_NOT_OUTCOME)
         for n in mv.nays + mv.abstained:
