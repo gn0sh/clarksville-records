@@ -65,6 +65,16 @@ jobs:
           sudo apt-get install -y -qq poppler-utils tesseract-ocr
           python -m pip install -r requirements.txt
 
+      # The text and OCR caches below are only valid for the tesseract and poppler (pdftotext) that wrote them: their
+      # version lines, hashed, are part of that cache's key, so an image update starts a fresh cache.
+      - name: Record OCR tool versions
+        id: tools
+        run: |
+          set -euo pipefail
+          v=$( { tesseract --version 2>&1 | head -n 1; pdftotext -v 2>&1 | head -n 1; } | sha256sum | cut -c1-16)
+          [[ "$v" =~ ^[0-9a-f]{16}$ ]]
+          echo "versions=$v" >> "$GITHUB_OUTPUT"
+
       # data/store/ (the downloaded PDFs, about 3 GB, never committed) is kept between runs in the Actions cache.
       - name: Restore document store
         id: store
@@ -74,8 +84,26 @@ jobs:
           key: records-store-v1-${{ github.run_id }}
           restore-keys: records-store-v1-
 
+      # data/text and data/ocr (text layers and tesseract readings, keyed by the document's sha256 and page) are kept
+      # too, in their own cache so the store's cache key and version stay as they are. With them restored, a document
+      # whose hash is unchanged is never OCR'd again: only newly fetched documents are (pipeline/re-ocr-every-run).
+      # The key carries a hash of the code and tools that write these files (ci/derived-cache-integrity), so a change
+      # to the extractor, the OCR or a pinned package starts a fresh cache instead of reusing old readings. Only the
+      # scheduled run on main saves it, so a manual run on another ref cannot seed the cache main restores.
+      - name: Restore text and OCR caches
+        id: derived
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            data/text
+            data/ocr
+          key: records-derived-v1-${{ steps.tools.outputs.versions }}-${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.txt') }}-${{ github.run_id }}
+          restore-keys: records-derived-v1-${{ steps.tools.outputs.versions }}-${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.txt') }}-
+
       - name: Count stored files before collection
-        run: echo "STORE_BEFORE=$(find data/store -type f 2>/dev/null | wc -l)" >> "$GITHUB_ENV"
+        run: |
+          echo "STORE_BEFORE=$(find data/store -type f 2>/dev/null | wc -l)" >> "$GITHUB_ENV"
+          echo "DERIVED_BEFORE=$(find data/text data/ocr -type f 2>/dev/null | wc -l)" >> "$GITHUB_ENV"
 
       - name: Collect (polite fetch, parse, verify)
         id: collect
@@ -88,12 +116,33 @@ jobs:
           # City first: it rewrites data/localities/clarksville-tn/*. The county run then builds facts, finance and
           # the site (build/site) from everything; it also reads the County Commission agenda page and any new agenda
           # PDFs (collector/county_agenda.py: one page request, new PDFs only, the same polite fetcher).
-          # Exit 0 ok, 2 fetch/parse failures, 3 gate failure.
+          # Exit codes (docs/ops/launch-runbook.md "Exit codes"). Hard failures fail this step: nothing is uploaded,
+          # committed or deployed, the committed data/ on main is untouched and one issue opens.
+          #   city:   0 ok, 2 a listing not read (or fetch/parse failures), 5 a host or robots.txt refused us.
+          #   county: 0 ok, 2 fetch/parse failures, 3 gate failure, 4 offline run refused.
+          # The county run also runs the Regional Planning Commission step (collector/rpc.py run_step: the listing
+          # page and new documents from www.cmcrpc.com through the same polite fetcher; robots.txt crawl-delay 10; the
+          # first 403/429 ends that host's requests for the run). It is all or nothing: unless it succeeds, the RPC
+          # files stay exactly as committed, so one source never freezes the daily refresh: its codes, used only when
+          # everything else is ok, are warnings, and the city, county and finance data still commit and deploy:
+          #   5 the RPC step failed (blocked, listing not read, a gate, a result that would shrink the record, or a
+          #     backlog that needs a person: TooManyNew, a cut-off by the cap): a warning, and the step below opens
+          #     or comments on one RPC-only issue.
+          #   6 partial: the RPC document store is still being filled (at most 40 requests per run): a warning.
           python -m collector city run; city=$?
           python -m collector run; county=$?
           echo "city_exit=$city county_exit=$county"
           echo "city=$city" >> "$GITHUB_OUTPUT"
           echo "county=$county" >> "$GITHUB_OUTPUT"
+          rpc=ok
+          if [ "$county" = 6 ]; then
+            echo "::warning::The RPC document store is still being filled; the RPC pages use the committed data."
+            rpc=filling; county=0
+          elif [ "$county" = 5 ]; then
+            echo "::warning::The RPC step failed; the RPC files are unchanged and everything else is published. See the RPC issue."
+            rpc=failed; county=0
+          fi
+          echo "rpc=$rpc" >> "$GITHUB_OUTPUT"
           [ "$city" = 0 ] && [ "$county" = 0 ]
 
       # Only for a manual rebuild-only run (collect=false): build from the committed data, no network.
@@ -116,17 +165,59 @@ jobs:
         run: python -m pytest -q -x
 
       # Failed collection or checks: the steps below that publish do not run (no commit, no new artifact, no deploy).
-      # The last deployed site stays up. One open issue is enough: skip when one exists.
+      # The last deployed site stays up. One open issue: created once, then a comment on each later failure.
       - name: Open an issue on failure
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
+          CITY_EXIT: ${{ steps.collect.outputs.city }}
+          COUNTY_EXIT: ${{ steps.collect.outputs.county }}
         run: |
           title="Daily update failed"
-          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+          body="Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID (collector exits: city=$CITY_EXIT, county=$COUNTY_EXIT). The last deployed site is unchanged."
+          # a later failure comments on the open issue, so a repeat is never silent (ci/failure-issue-silent-repeat)
           if [ -z "$open" ]; then
-            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
-              --body "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID (collector exits: city=${{ steps.collect.outputs.city }}, county=${{ steps.collect.outputs.county }}). The last deployed site is unchanged."
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body "$body"
+          fi
+
+      # The RPC step failed while everything else was ok (county exit 5): one open issue for the RPC alone, with a
+      # comment each later day instead of a new issue. The reason is read from build/run-log.json into a file and
+      # passed with --body-file, never through the shell or an expression.
+      - name: Open or update the RPC issue
+        if: always() && steps.collect.outputs.rpc == 'failed'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RPC_TITLE: "Daily update: RPC step failed"
+        run: |
+          set -eu
+          body="$RUNNER_TEMP/rpc-issue.md"
+          {
+            echo "The Regional Planning Commission step failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "The RPC files are unchanged; the city, county and finance data were published as usual."
+            echo
+            echo "Reason (build/run-log.json rpc.status):"
+            echo
+            echo '```'
+            # backticks are dropped so site text cannot close the fence (ci/issue-markdown-fence); a missing or
+            # unreadable run-log.json gives "unknown" (ci/issue-reason-missing)
+            reason=$(set -o pipefail; jq -r '.rpc.status // "unknown"' build/run-log.json 2>/dev/null | tr -d '`' | head -c 1500) \
+              || reason=unknown
+            [ -n "$reason" ] || reason=unknown
+            echo "$reason"
+            echo
+            echo '```'
+            echo "If it says TooManyNew or 'the cap of', it repeats every day until someone acts: see"
+            echo "docs/ops/launch-runbook.md, 'RPC backlog'."
+          } > "$body"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$RPC_TITLE\" in:title" \
+                   --json number,title --jq 'map(select(.title == $ENV.RPC_TITLE)) | .[0].number // empty')
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$RPC_TITLE" --body-file "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$body"
           fi
 
       # Keep newly fetched PDFs even when a later step failed, so a retry does not refetch them (10 s each).
@@ -140,6 +231,19 @@ jobs:
         with:
           path: data/store
           key: records-store-v1-${{ github.run_id }}
+
+      - name: Check whether the text and OCR caches grew
+        if: always() && steps.derived.conclusion == 'success'
+        run: echo "DERIVED_GREW=$([ "$(find data/text data/ocr -type f 2>/dev/null | wc -l)" -gt "$DERIVED_BEFORE" ] && echo yes || echo no)" >> "$GITHUB_ENV"
+
+      - name: Save text and OCR caches
+        if: always() && env.DERIVED_GREW == 'yes' && github.event_name == 'schedule' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            data/text
+            data/ocr
+          key: records-derived-v1-${{ steps.tools.outputs.versions }}-${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.txt') }}-${{ github.run_id }}
 
       # The data commit happens in the separate push job, so this job never holds a write token.
       # Not uploaded: the git-ignored caches (the 3 GB document store and derived text/OCR).
@@ -196,7 +300,9 @@ jobs:
           path: ${{ runner.temp }}/records-data
 
       # The artifact came from the job that parses untrusted PDFs: treat it as input (pipeline/push-unvalidated-artifact).
-      # Allowed: regular files named *.json or *.yml (all that data/ tracks today), none over 50 MB, no symlinks.
+      # Allowed: regular files named *.json or *.yml, and the change logs the collector appends beside each manifest
+      # when a document changes (files named exactly changes.jsonl: pipeline/changes-jsonl-rejected). None over
+      # 50 MB, no symlinks. The files are only committed, never run or parsed here.
       - name: Validate refreshed data
         run: |
           set -eu
@@ -207,7 +313,7 @@ jobs:
           done < <(find "$dir" ! -type f ! -type d -print0)
           while IFS= read -r -d '' f; do
             case "$f" in
-              *.json|*.yml) ;;
+              *.json|*.yml|*/changes.jsonl) ;;
               *) echo "::error::file type not allowed in data/: $f"; bad=1 ;;
             esac
           done < <(find "$dir" -type f -print0)
@@ -240,7 +346,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           title="Daily update failed"
-          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")
           body="The push job failed (data not committed to main): $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. The last deployed site is unchanged."
           if [ -z "$open" ]; then
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
@@ -249,11 +355,20 @@ jobs:
           fi
 
   deploy:
-    needs: update
+    needs: [update, push]
     # LOCKED: does not run until the CEO sets the repository variable RECORDS_DEPLOY_ENABLED to 'true' (Settings >
     # Secrets and variables > Actions > Variables). Do not remove this condition. Hard stop 1.
     # Also main only (pipeline/dispatch-non-main-ref).
-    if: vars.RECORDS_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
+    # After the lock (pipeline/deploy-independent-of-push): update must have succeeded, and push must have succeeded
+    # too, so the site never goes live from data that is not on main. The one run where push is skipped by design is
+    # the manual rebuild-only run (collect = false: nothing to commit; the runbook's rollback path), which still
+    # deploys. !cancelled() is there because a job whose `needs` include a skipped job is itself skipped unless its
+    # `if` calls a status function; every job result is then tested by name, so this only ever narrows the lock.
+    if: >-
+      vars.RECORDS_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
+      && !cancelled() && needs.update.result == 'success'
+      && (needs.push.result == 'success'
+      || (needs.push.result == 'skipped' && github.event_name == 'workflow_dispatch' && !inputs.collect))
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:

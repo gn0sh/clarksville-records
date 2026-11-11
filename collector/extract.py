@@ -36,7 +36,15 @@ def cached_pages(pdf: Path, cache_dir: Path) -> list[str]:
     cache_dir.mkdir(parents=True, exist_ok=True)
     c = cache_dir / (pdf.stem + ".pages.json")
     if c.exists():
-        return json.loads(c.read_text())
+        try:
+            pages = json.loads(c.read_text())
+            if isinstance(pages, list) and all(isinstance(p, str) for p in pages):
+                return pages
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            pass
+        c.unlink(missing_ok=True)       # truncated or not ours (ci/derived-cache-truncated): read the PDF again
     pages = extract_pages(pdf)
-    c.write_text(json.dumps(pages))
+    tmp = c.with_name(c.name + ".part")  # a run stopped mid-write leaves a .part, never a short .pages.json
+    tmp.write_text(json.dumps(pages))
+    tmp.replace(c)
     return pages

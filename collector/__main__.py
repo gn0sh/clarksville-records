@@ -6,9 +6,14 @@ python -m collector transcripts import <dir>   (meeting video transcripts: colle
 run: discover -> fetch new (polite), and refetch any manifest minutes whose bytes the store lacks -> parse ->
 resolve names -> verify -> data/facts.json -> finance fetch and
 build (fin_run.run_step: data/finance.json, build/report.json `finance`) -> county agendas (county_agenda.run_step:
-the agenda page, new agenda PDFs, data/county-agendas/agendas.json) -> sitegen -> export -> build/report.json,
-build/run-log.json. Exit 0 ok, 2 on fetch/parse failures (votes or finance), 3 on a gate failure (votes gates, or
-finance parity 'review needed'). On 2 or 3 it prints the `gh issue create` command it would run (task D1).
+the agenda page, new agenda PDFs, data/county-agendas/agendas.json) -> Regional Planning Commission (rpc.run_step:
+the listing page, new documents, data/localities/cmc-rpc/rpc.json; all or nothing) -> sitegen -> export ->
+build/report.json, build/run-log.json. Exit 0 ok, 2 on fetch/parse failures (votes or finance), 3 on a gate failure
+(votes gates, or finance parity 'review needed'). The RPC step has its own codes, used only when everything else is
+ok: 5 the RPC step failed (blocked by a 403/429, listing not read, a gate, or a result that would shrink the record),
+6 the RPC store is still being filled, a few documents per run. On 5 and 6 the RPC files are exactly as committed and
+the site is built from them; the step's own code and reason are in build/run-log.json `rpc`.
+On 2, 3 or 5 it prints the `gh issue create` command it would run (task D1).
 --offline skips discovery and fetching (votes and finance) and uses the store (data/store/, or RECORDS_STORE).
 Offline guard (provenance/offline-run-overwrites-facts): an offline run (and `build`) refuses, exit 4, writing
 nothing, when minutes PDFs the manifest lists are missing from the store, when no minutes parse, or when the result
@@ -120,6 +125,17 @@ def run_agendas(log: dict, offline: bool, fetcher: PoliteFetcher | None = None) 
     """County Commission agendas (collector/county_agenda.py): its own manifest and data/county-agendas/agendas.json."""
     from .county_agenda import run_step
     run_step(log, offline, fetcher=fetcher)
+
+
+RPC_FAILED, RPC_FILLING = 5, 6       # `run` exit codes for the RPC step alone (everything else ok)
+
+
+def run_rpc(log: dict, offline: bool, fetcher: PoliteFetcher | None = None) -> int:
+    """Regional Planning Commission (collector/rpc.py run_step): its own manifest, listing and rpc.json, its own exit
+    code (0 ok). It never adds to log['failures'] and never raises: a refusal by cmcrpc.com does not fail the county
+    run, and leaves every RPC file as committed."""
+    from .rpc import run_step
+    return run_step(log, offline, fetcher=fetcher)
 
 
 # ------------------------------------------------------------------ build
@@ -246,8 +262,9 @@ def name_candidates(b: Builder, roster: list[dict]) -> dict:
 
 
 def issue_command(code: int, log: dict, report: dict | None) -> str:
-    title = "Collector run failed" if code == 2 else "Collector gates failed"
-    body = {"exit": code, "failures": log["failures"][:20],
+    title = {2: "Collector run failed", RPC_FAILED: "Collector RPC step failed"}.get(code, "Collector gates failed")
+    rpc = log.get("rpc") or {}
+    body = {"exit": code, "failures": log["failures"][:20], "rpc": {"exit": rpc.get("exit"), "status": rpc.get("status")},
             "gates": (report or {}).get("gates", {}).get("verified_rate_gate"),
             "g4_flagged": (report or {}).get("gates", {}).get("g4", {}).get("flagged"),
             "finance_build_exit": log.get("fin_build")}          # 3: parity 'review needed' (A5)
@@ -335,6 +352,7 @@ def cmd_run(args) -> int:
     fin_code = run_finance(store, log, args.offline, fetcher=fetcher, finance_path=FINANCE,
                            report_path=BUILD / "report.json")
     run_agendas(log, args.offline, fetcher=fetcher)
+    rpc_code = run_rpc(log, args.offline, fetcher=fetcher)      # before the site build, which reads rpc.json
     site = BUILD / "site"
     try:
         from sitegen.build import build as site_build, write_publish_manifest
@@ -359,7 +377,12 @@ def cmd_run(args) -> int:
           f"(uniform share {g['g4']['uniform_share']}); "
           f"failures {len(log['failures'])}", flush=True)
     code = 2 if log["failures"] else (0 if report["pass"] and fin_code == 0 else 3)
-    if code:
+    if code == 0 and rpc_code:
+        from .rpc import STEP_FILLING
+        code = RPC_FILLING if rpc_code == STEP_FILLING else RPC_FAILED
+    if code == RPC_FILLING:
+        print("collector: the RPC store is still being filled; the RPC files are unchanged", flush=True)
+    elif code:
         for fl in log["failures"][:10]:
             print("  failure:", json.dumps(fl)[:300])
         print("collector: would open an internal issue (D1 wires this):")

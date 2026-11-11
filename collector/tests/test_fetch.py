@@ -233,6 +233,138 @@ def test_real_opener_does_not_follow_redirects():
     assert not any(type(h) is urllib.request.HTTPRedirectHandler for h in F._OPENER.handlers)
 
 
+# ------------------------------------------------------------------ 304, 429 back-off, the per-run request cap
+def test_a_304_never_skips_the_delay():
+    """A 304 (or any non-200) answer is still a request: the next one waits the full host delay."""
+    f, net, clock = make({"https://h.example/robots.txt": (200, b"User-agent: *\nCrawl-delay: 12\n"),
+                          "https://h.example/a": (304, b""), "https://h.example/b": (200, b"x")})
+    assert f.get("https://h.example/a")[0] == 304
+    assert f.get("https://h.example/b")[0] == 200
+    assert clock.slept == [12.0, 12.0]                 # robots -> a -> b, the crawl-delay before each
+    assert [u for u, _ in net.calls].count("https://h.example/a") == 1   # a 304 is not retried
+
+
+def test_a_429_is_never_retried_and_ends_the_host_for_the_run():
+    """Back-off: after a 429 the host gets no request at all for the rest of the run (no retry, faster or slower,
+    whatever Retry-After says)."""
+    f, net, _ = make({"https://h.example/a": (429, b"slow down", {"Retry-After": "1"}),
+                      "https://h.example/b": (200, b"x")})
+    with pytest.raises(HostBlocked):
+        f.get("https://h.example/a")
+    calls = [u for u, _ in net.calls]
+    assert calls.count("https://h.example/a") == 1     # unlike a 5xx, never retried
+    for _ in range(3):
+        with pytest.raises(HostBlocked):
+            f.get("https://h.example/b")
+    assert [u for u, _ in net.calls] == calls
+
+
+def test_request_cap_counts_robots_retries_and_redirects_and_is_never_exceeded():
+    from collector.fetch import RequestCapReached
+    f, net, _ = make({"https://h.example/a": (503, b"busy"),
+                      "https://h.example/r": (302, b"", {"Location": "https://g.example/x"}),
+                      "https://g.example/x": (200, b"x"), "https://h.example/b": (200, b"x")})
+    f.limit_hosts(("h.example", "g.example"), 5)
+    f.get("https://h.example/a")                       # robots + a + its retry: 3
+    with pytest.raises(RequestCapReached):             # r: 4, g's robots.txt: 5, the redirect target: not made
+        f.get("https://h.example/r")
+    assert len(net.calls) == 5
+    with pytest.raises(RequestCapReached):
+        f.get("https://h.example/b")
+    assert len(net.calls) == 5 and f.remaining("h.example") == 0 and f.remaining("other.example") is None
+
+
+def _www():
+    net, clock = FakeNet({"https://www.h.example/robots.txt": (200, b"User-agent: *\nCrawl-delay: 15\n"),
+                          "https://www.h.example/a": (200, b"x"), "https://h.example/b": (200, b"x"),
+                          "https://H.EXAMPLE:443/c": (200, b"x")}), Clock()
+    f = PoliteFetcher(opener=net, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: [],
+                      allowed_hosts=("h.example", "g.example"))
+    return f, net, clock
+
+
+def test_www_and_bare_host_share_one_delay_and_cap_but_each_has_its_robots():
+    """fetch/host-key-normalization: www.h.example, h.example and H.EXAMPLE:443 are one site for the delay, a block
+    and the cap; robots.txt is read and obeyed per exact host (RFC 9309)."""
+    from collector.fetch import RequestCapReached, site_key
+    assert site_key("WWW.CmcRpc.com:443") == site_key("cmcrpc.com") == "cmcrpc.com"
+    f, net, clock = _www()
+    f.limit_hosts(("h.example",), 4)
+    f.get("https://www.h.example/a")
+    f.get("https://h.example/b")
+    calls = [u for u, _ in net.calls]
+    assert calls == ["https://www.h.example/robots.txt", "https://www.h.example/a", "https://h.example/robots.txt",
+                     "https://h.example/b"]
+    assert clock.slept == [15.0, 15.0, 15.0]           # www's crawl-delay holds for the bare host (no robots.txt)
+    assert f.remaining("www.h.example") == 0 and f.sent("h.example") == 4
+    with pytest.raises(RequestCapReached):
+        f.get("https://H.EXAMPLE:443/c")
+
+
+def test_robots_rules_of_one_host_never_apply_to_the_other():
+    f, net, _ = _www()
+    net.routes["https://www.h.example/robots.txt"] = (200, b"User-agent: *\nDisallow: /a\n")
+    net.routes["https://h.example/robots.txt"] = (200, b"User-agent: *\nDisallow: /b\nCrawl-delay: 20\n")
+    with pytest.raises(RobotsDisallowed):
+        f.get("https://www.h.example/a")
+    with pytest.raises(RobotsDisallowed):
+        f.get("https://h.example/b")
+    assert f.get("https://h.example/a")[0] == 404        # allowed on the bare host (not routed: 404), so asked
+    assert f.delay_for("www.h.example") == 20.0          # the larger crawl-delay holds for the whole site
+
+
+def test_a_block_on_www_blocks_the_bare_host():
+    f, net, _ = _www()
+    net.routes["https://www.h.example/a"] = (429, b"no")
+    with pytest.raises(HostBlocked):
+        f.get("https://www.h.example/a")
+    n = len(net.calls)
+    with pytest.raises(HostBlocked):
+        f.get("https://h.example/b")
+    assert len(net.calls) == n
+
+
+def test_a_redirect_from_a_capped_host_cannot_leave_its_cap_group():
+    """fetch/cap-redirect-escape: the target is refused with no request (not robots.txt either)."""
+    f, net, _ = make({"https://h.example/r": (302, b"", {"Location": "https://g.example/x"}),
+                      "https://g.example/x": (200, b"x")})
+    f.limit_hosts(("h.example",), 10)
+    with pytest.raises(HostRefused):
+        f.get("https://h.example/r")
+    assert not any("g.example" in u for u, _ in net.calls)
+    assert f.remaining("h.example") == 8                # robots.txt and r
+
+
+def test_a_redirect_inside_the_cap_group_counts_against_the_cap():
+    f, net, _ = make({"https://h.example/r": (302, b"", {"Location": "https://www.h.example/x"}),
+                      "https://www.h.example/x": (200, b"x")})
+    f.limit_hosts(("h.example",), 10)
+    assert f.get("https://h.example/r")[0] == 200
+    assert f.remaining("h.example") == 6                # robots.txt, r, www robots.txt and the target: one cap
+
+
+def test_an_uncapped_host_still_follows_redirects_to_other_allowed_hosts():
+    f, net, _ = make({"https://h.example/r": (302, b"", {"Location": "https://g.example/x"}),
+                      "https://g.example/x": (200, b"x")})
+    assert f.get("https://h.example/r")[0] == 200
+
+
+def test_a_later_cap_never_raises_an_earlier_one():
+    f, net, _ = make({"https://h.example/a": (200, b"x")})
+    f.limit_hosts(("h.example",), 1)
+    f.limit_hosts(("h.example",), 10)
+    assert f.remaining("h.example") == 1
+
+
+def test_the_docs_name_methods_that_exist():
+    """The docstrings point at real methods (a renamed method once left `limit_host` behind)."""
+    import re
+    from collector import fetch as F
+    text = F.__doc__ + F.RequestCapReached.__doc__
+    for name in set(re.findall(r"\b(limit_hosts?|site_key|check_redirect)\b", text)):
+        assert hasattr(F.PoliteFetcher, name) or hasattr(F, name), name
+
+
 def test_host_matches_is_the_public_host_rule():
     # the rule adapters share with the fetcher (collector.county_agenda, collector.fin_run): no private import
     from collector import county_agenda, fetch, fin_run

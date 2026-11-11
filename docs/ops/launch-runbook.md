@@ -9,15 +9,55 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   `pytest`, upload the refreshed `data/` and `build/site` (plus `CNAME`) as artifacts. Read-only repo access, no
   persisted token (it parses downloaded PDFs). It never publishes.
 - `push` job: the only job with `contents: write`; it commits the refreshed `data/` to `main` if it changed, and parses
-  nothing. It validates the artifact first (only `*.json`/`*.yml`, no symlinks, 50 MB cap), commits on the SHA the
+  nothing. It validates the artifact first (only `*.json`/`*.yml` and the `changes.jsonl` change logs, no symlinks,
+  50 MB cap), commits on the SHA the
   `update` job built on, then rebases onto `main`: a concurrent edit to `data/` fails the job instead of being
   reverted. A failure in `update` or `push` opens (or comments on) one "Daily update failed" issue and leaves the live
   site as it was. Both `push` and `deploy` run on `main` only.
 - `deploy` job: publishes the artifact. **Locked:** runs only when repo variable `RECORDS_DEPLOY_ENABLED` is `true`.
+  `deploy` needs both other jobs: `update` green, and `push` green too (so the site never goes live from data that is
+  not on `main`). Only a manual run with collect = false, where there is nothing to commit and `push` is skipped,
+  deploys without a push.
+- Exit codes (shown in the failure issue as `city=` and `county=`). **Hard failure** (the Collect step fails: nothing
+  is uploaded, committed or deployed; data/ on `main` and the live site stay as they were; one issue opens):
+  - city: 2 a listing not read or fetch/parse failures, 5 a host or robots.txt refused the collector (403/429 and the
+    like). On 5 do not re-run to "try again" and do not change the fetcher: read `build/city-report.json` in the run
+    log and ask the manager.
+  - county: 2 fetch/parse failures (votes or finance), 3 gate failure, 4 offline run refused.
+- **RPC only** (not a failure of the run; one source must not freeze the daily refresh). The RPC step's codes are used
+  only when everything else is ok, and the RPC files (`data/localities/cmc-rpc/`) are restored byte for byte unless
+  the step succeeds, so the city, county and finance data still commit and deploy:
+  - **Partial**: county 6, the RPC document store is still being filled (at most 40 requests to cmcrpc.com per run,
+    robots.txt and the listing included). A `::warning::`; the next runs fill it on their own.
+  - **RPC failed**: county 5 the RPC step failed (cmcrpc.com blocked us, listing not read, an RPC gate, a result that
+    would shrink the RPC record, or an RPC backlog, below; reason in `build/run-log.json` `rpc`). A `::warning::` and
+    one open "Daily update: RPC step failed" issue (a comment on it each later day, never a new issue). A 429 from
+    cmcrpc.com is never retried in that run; the next try is the next day's run, so do not dispatch a manual run to
+    "try again" the same day.
+- **RPC backlog** (rpc-daily/stall-needs-human): the RPC failure says `TooManyNew` (more newly listed documents than
+  one run may request) or "the cap of 40 requests ran out" with no stored gap filled. Neither clears by itself: it
+  **repeats every day until someone acts**, because a daily run that cannot finish keeps no manifest entry. Recovery,
+  capped like the daily step (40 requests per call, robots.txt crawl-delay obeyed, a 403/429 stops it): look at
+  https://www.cmcrpc.com/documents/agenda-minutes/ first (did the site move its files?), then on a checkout of `main`
+  with the store restored, run `python -m collector rpc fetch --limit 30` once a day until it no longer prints
+  "documents still to fetch", then commit `data/localities/cmc-rpc/` (listing.json, manifest.json). The next daily
+  run fetches any bytes its cache lacks as gaps and rebuilds rpc.json; the RPC issue can be closed when it is green.
+- A failed fetch never deletes data: the RPC step is all or nothing on its committed files; a hard failure stops the
+  push job, so no partial result reaches `main`; the document store and caches are only ever added to.
 - Collection keeps the collector's rules: honest User-Agent, robots.txt, 10 s between requests per host.
 - The downloaded PDFs (about 3 GB, not in git) live in the Actions cache (`records-store-v1-*`, 10 GB repo limit, evicted
   after 7 days unused; the daily run keeps it warm). A cold cache refetches about 930 documents at 10 s each: 3 to 5
   hours. The job limit is 355 minutes.
+- The text layers and OCR readings (`data/text`, `data/ocr`, keyed by document sha256 and page) live in their own
+  cache (`records-derived-v1-<hash of the tesseract and pdftotext versions>-<hash of collector/extract.py,
+  collector/ocr.py, requirements.txt>-*`), restored before
+  Collect and saved when it grew, even after a failed step, by the scheduled run on `main` only (a manual run, which
+  may be on another ref, never saves it; it still saves the document store). A change to those files starts a fresh
+  cache. A truncated text cache file is deleted and read again. A document
+  whose hash is unchanged is never OCR'd again. Worst case per warm run: only documents first fetched in that run are
+  OCR'd (RPC at most 38: 40 requests less robots.txt and the listing; county and city minutes as many as were newly
+  posted, usually 0 to 3), each page at most once. A cold OCR cache (first run, or evicted after 7 days unused)
+  re-OCRs every scanned page once, then keeps them.
 - Build overrides set by the workflow: `RECORDS_SITE_URL=https://daylight.gnoshcodes.com/` (feeds carry absolute links;
   `alerts.site_url` in `config/site.yml` stays empty, so no config edit is needed at launch) and `RECORDS_BUILD_TARGET=pages` (3000-file cap)
   (the 500-file cap is the claude.ai preview limit; Pages has none).
@@ -33,7 +73,10 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
    **Deployment branches: main only.** https://github.com/gn0sh/clarksville-records/settings/environments > github-pages >
    Deployment branches and tags > Selected branches and tags > add `main` (remove any other). Check:
    `gh api repos/gn0sh/clarksville-records/environments/github-pages --jq .deployment_branch_policy` shows
-   `custom_branch_policies: true`.
+   `custom_branch_policies: true`, and
+   `gh api repos/gn0sh/clarksville-records/environments/github-pages/deployment-branch-policies --jq '.branch_policies[].name'`
+   prints only `main` (ci/pages-env-branch: a settings check only, nothing in the workflow changes; the deploy job's
+   own `github.ref == 'refs/heads/main'` term is the first lock, this is the second).
 4. Pre-launch security checks the manager owns: fresh history secret scan, QA pass, CEO phone check.
 
 ## Go-live (CEO, about 5 minutes; do in this order)
