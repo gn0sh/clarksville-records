@@ -121,6 +121,45 @@ Done when tests against the fake show:
   text across success and each failure path, and assert no address, subscriber id or response body appears; the
   summary line has totals only.
 
+As built (adapter and `--live`, 2026-11-11, `claude/hu3mew-sender-live`; tests `tests/test_morning_sender_buttondown.py`
+against a fake HTTP layer, sockets refused):
+- `sender/buttondown.py` is the only sender module importing a network library (a test checks every module). It uses
+  `urllib.request` with an opener holding only an https handler and the unknown-scheme handler: no proxy, no redirect
+  (a 3xx is an error), no error processor; TLS verified; 30 s timeout; at most 5 requests a second. Every URL, and
+  every pagination `next` link, must be https on `api.buttondown.com` under `/v1/`. Ids must match `[A-Za-z0-9_-]{1,64}`
+  before they go in a path. Listings are rows reduced at the boundary to `id`, `type`, `metadata` (subscribers) or
+  `id`, `status`, `metadata` (emails). A listing whose rows do not add up to its first page's `count` fails. Writes
+  are exactly `PATCH {"metadata"}`, `POST /emails` (known fields only), `PATCH {"status": "draft"}`,
+  `POST send-draft {"subscribers"}`. Errors say method, path template and status only, never chained to urllib's.
+- `python -m sender deliver --live` is live only when `sender.enabled` is true and `BUTTONDOWN_API_KEY` is set;
+  otherwise it is a dry run with a fixed `::warning` and exit 0. The key is passed to `deliver.run` as
+  `stamp_secret`. The adapter is imported only on the live path (a subprocess test checks a dry run loads no
+  `socket`, `ssl`, `http` or `urllib`).
+
+Verify in T4.0 probe (built from the documented or assumed shape; every one fails closed if wrong, so a wrong guess
+stops the send rather than widening it):
+1. Listings are `{"results": [...], "next": <url or null>, "count": n}` and `next` is an absolute
+   `https://api.buttondown.com/v1/...` URL. Another form (relative, another host) fails every run.
+2. `count` equals the rows over all pages. If it counts something else, every run fails at the listing.
+3. `GET /v1/subscribers` with no parameters lists every type (regular, unactivated, unsubscribed, premium, gifted,
+   ...). The stray-stamp check needs all of them. If it lists only some, the adapter must ask for each type.
+4. `GET /v1/emails` with no parameters lists drafts and scheduled emails, with `metadata` on each row, back far
+   enough to hold today's. **Never-twice rests on this.** Also: whether a date filter can shorten the listing.
+5. `GET /v1/subscribers/{id}` takes the id (not only the address) and answers 404 for no such subscriber.
+6. `PATCH /v1/subscribers/{id}` with `{"metadata": {...}}`: does it replace or merge, and does the answer hold
+   exactly the stored metadata, values unchanged? The adapter refuses a write whose echo differs from what it sent.
+7. `POST /v1/emails` answers 200 or 201 with `id`, `status`, `metadata` and `filters` as sent, without added fields
+   inside `filters`. An `ids` draft must come back with no `filters` key (or null). An empty filter object fails
+   the echo check, so every `ids` run would fail closed.
+8. `PATCH /v1/emails/{id}` with `{"status": "draft"}` takes a scheduled email back to a draft.
+9. `POST /v1/emails/{id}/send-draft` with `{"subscribers": [...]}`: which status it answers (200, 201, 202 or 204
+   accepted). Whether it is a real send is already in the T4.0 list.
+10. The 429 `Retry-After` form (seconds or an HTTP date; both read; anything else waits 5 s).
+11. Every JSON answer has `Content-Type: application/json`, and no page is over 16 MB.
+12. Subscriber and email ids fit `[A-Za-z0-9_-]{1,64}` (UUIDs do).
+13. The scoped key is printable ASCII with no space, 32 bytes or more: `stamp` mode needs at least 32 for the HMAC.
+14. `X-Idempotency-Key` is honoured on PATCH as well as POST.
+
 ### T4.5 Workflow (`.github/workflows/daily-update.yml`)
 The plan step and artifact in `update`; the `note` job exactly as in the architecture ("Workflow changes"). Uses the
 `workflow-check` skill's rules: actions pinned by SHA, least permissions, no secret in a job that parses PDFs.
@@ -136,7 +175,8 @@ Go-live checklist from the security review of afdb0f0 (each one checked in the P
   the step runs `python -E -s -m sender deliver ...`;
 - each canary id is masked with `::add-mask::` before anything else runs;
 - the artifact check allows up to `MAX_PLAN_BYTES` (`sender/common.py`), not 2 MB;
-- `sender/buttondown.py` (T4.4's adapter) uses `http.client` to the pinned host only, with timeouts, follows no
+- `sender/buttondown.py` (T4.4's adapter) uses `http.client` (as built: `urllib.request` with an https-only
+  opener, which runs on `http.client`; see T4.4 "As built") to the pinned host only, with timeouts, follows no
   redirect, and refuses a pagination `next` link off that host; it passes the API key to `deliver.run` as
   `stamp_secret`.
 - (security delta at a168d24) no government source host in `link_hosts` has an open redirect an allowed-host link
