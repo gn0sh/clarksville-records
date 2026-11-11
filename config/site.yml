@@ -269,7 +269,7 @@ video:
   city: {url: "https://clarksvilletn.portal.civicclerk.com/", host: "the city's CivicClerk portal"}
   rpc: {url: "https://www.youtube.com/@CMCRPC", host: YouTube}
 video_link: Watch
-video_label: "Official video (opens {host})"
+video_label: "Official video channel (opens {host})"
 video_recording: "Official video (opens the meeting's MP4 recording)"
 
 # The city and county committees on the day page and in the menu: a "coming" placeholder with plain links to the

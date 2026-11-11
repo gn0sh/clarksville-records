@@ -53,10 +53,11 @@ def body(key: str | None, cfg: dict | None = None) -> dict | None:
 
 
 def meeting(key: str | None, video_url=None, cfg: dict | None = None) -> dict | None:
-    """A meeting's Watch link: its own recording when the facts carry one video_ok allows, else the body's page."""
+    """A meeting's Watch link: its own recording when the facts carry one video_ok allows (with or without a
+    `video:` entry for its body: the recording is the meeting's own record), else the body's page, else None."""
     from .transcripts import video_ok   # transcripts imports views, which may import this module
     cfg = config.SITE if cfg is None else cfg
-    b = body(key, cfg)
-    if b is not None and video_ok(video_url):
-        return {**b, "url": video_url, "label": cfg["video_recording"], "ext": "video"}
-    return b
+    link, label = cfg.get("video_link"), cfg.get("video_recording")
+    if video_ok(video_url) and isinstance(link, str) and link.strip() and isinstance(label, str) and label.strip():
+        return {"url": video_url, "link": link, "label": label, "ext": "video"}
+    return body(key, cfg)

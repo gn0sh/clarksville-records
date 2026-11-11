@@ -40,7 +40,7 @@ def test_config_entries_are_https_and_the_three_official_streams():
     assert v["rpc"]["url"] == "https://www.youtube.com/@CMCRPC"
     assert watch.problems(config.SITE) == [] and not [p for p in site_url_problems(config.SITE) if "video" in p]
     w = watch.body("rpc")
-    assert w == {"url": v["rpc"]["url"], "link": "Watch", "label": "Official video (opens YouTube)", "ext": "watch"}
+    assert w == {"url": v["rpc"]["url"], "link": "Watch", "label": "Official video channel (opens YouTube)", "ext": "watch"}
 
 
 @pytest.mark.parametrize("bad", [{"url": "http://www.youtube.com/@CMCRPC", "host": "YouTube"},
@@ -71,9 +71,9 @@ def test_body_pages_and_day_cards_show_watch_from_config(site):
     v = config.SITE["video"]
     for rel, key in (("meetings.html", "county"), ("rpc/index.html", "rpc")):
         got = links((site / rel).read_text(encoding="utf-8"))
-        assert got == [("watch", v[key]["url"], "Watch", f"Official video (opens {v[key]['host']}).")], rel
+        assert got == [("watch", v[key]["url"], "Watch", f"Official video channel (opens {v[key]['host']}).")], rel
     meeting = next((site / "meetings").glob("*.html")).read_text(encoding="utf-8")
-    assert links(meeting) == [("watch", v["county"]["url"], "Watch", "Official video (opens YouTube).")]
+    assert links(meeting) == [("watch", v["county"]["url"], "Watch", "Official video channel (opens YouTube).")]
     today = (site / "today.html").read_text(encoding="utf-8")
     cards = re.findall(r'<article class="day-card day-card-(\w+)".*?</article>', today, re.S)
     assert cards
@@ -150,7 +150,7 @@ def csite(tmp_path_factory, council_cfg):  # noqa: F811
 def test_council_home_and_a_card_with_its_own_recording(csite, council_cfg, city_facts):  # noqa: F811
     v = config.SITE["video"]["city"]
     home = links((csite / "city" / "index.html").read_text(encoding="utf-8"))
-    assert home == [("watch", v["url"], "Watch", f"Official video (opens {v['host']}).")]
+    assert home == [("watch", v["url"], "Watch", f"Official video channel (opens {v['host']}).")]
     # a day card: a meeting whose facts carry a video_url video_ok allows links that recording, else the portal
     from sitegen import council, days
     cix = council.load(council_cfg, city_facts, [])
@@ -159,3 +159,26 @@ def test_council_home_and_a_card_with_its_own_recording(csite, council_cfg, city
     assert days.council_card(cix, {**m, "video_url": rec})["watch"]["url"] == rec
     assert days.council_card(cix, {**m, "video_url": None})["watch"] == watch.body("city")
     assert days.council_card(cix, {**m, "video_url": "https://elsewhere.example/a.mp4"})["watch"] == watch.body("city")
+
+
+def test_a_recording_is_linked_even_without_a_body_entry(csite, council_cfg, city_facts):  # noqa: F811
+    """watch-links/recording-gated-on-body-entry: no video.city entry, so no portal link, but a meeting whose facts
+    carry its own recording (video_ok) still links it; one without a recording links nothing."""
+    from sitegen import council, days
+    rec = "https://cpmedia.azureedge.net/clarksvilletn/d5c3649fe7.mp4"
+    cfg = {**config.SITE, "video": {k: v for k, v in config.SITE["video"].items() if k != "city"}}
+    assert watch.body("city", cfg) is None
+    assert watch.meeting("city", rec, cfg) == {"url": rec, "link": "Watch", "label": cfg["video_recording"],
+                                               "ext": "video"}
+    assert watch.meeting("city", None, cfg) is None
+    assert watch.meeting("city", "https://elsewhere.example/a.mp4", cfg) is None
+    cix = council.load(council_cfg, city_facts, [])
+    m = city_facts["meetings"][0]
+    old = config.SITE["video"]
+    config.SITE["video"] = cfg["video"]
+    try:
+        assert days.council_card(cix, {**m, "video_url": rec})["watch"]["url"] == rec
+        assert days.council_card(cix, {**m, "video_url": None})["watch"] is None
+    finally:
+        config.SITE["video"] = old
+    assert "video" not in days.council_card(cix, m)            # the dead card field is gone: watch carries it

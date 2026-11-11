@@ -103,7 +103,7 @@ def county_card(ix: views.Index, m: dict) -> dict:
     votes = _votes(ix, m["id"])
     return {"kind": "county", "dot": DOTS["county"], "id": f"county-{m['id']}", "body": ix.facts["coverage"]["body"],
             "title": ix.kind_labels[m["kind"]], "href": ix.meeting_href(m["id"]),
-            "docs": [d for d in (_doc(src, "Minutes"),) if d], "minutes_note": None, "video": None,
+            "docs": [d for d in (_doc(src, "Minutes"),) if d], "minutes_note": None,
             "watch": watch.meeting(config.SITE["county_key"], m.get("video_url")),
             "votes": votes, "state": "votes" if votes else "none", "cases": [], "sols": [],
             "record": {"url": src["url"], "label": "the minutes PDF", "ext": False}}
@@ -117,7 +117,7 @@ def county_agenda_card(ix: views.Index, ax, m: dict) -> dict:
             "title": ctx["kind_label"], "href": ctx["href"],
             "docs": [{"word": "Agenda", "url": doc["url"], "fetched": doc["fetched"],
                       "what": f"PDF, {doc['pages']} {'page' if doc['pages'] == 1 else 'pages'}" if doc["pages"] else "PDF"}],
-            "minutes_note": ctx["minutes_note"], "video": None, "watch": watch.body(config.SITE["county_key"]),
+            "minutes_note": ctx["minutes_note"], "watch": watch.body(config.SITE["county_key"]),
             "votes": [], "state": "agenda", "cases": [],
             "sols": [], "agenda_items": ctx["entries"], "agenda_only": True,
             "record": {"url": doc["url"], "label": "the county's agenda PDF", "ext": False}}
@@ -137,7 +137,7 @@ def council_card(cix, m: dict) -> dict:
     return {"kind": "council", "dot": DOTS["council"], "id": f"{cix.slug}-{m['id']}", "body": cix.body_name,
             "title": cix.kind_labels.get(m["kind"], m["kind"]), "href": cix.meeting_href(m["id"]),
             "docs": docs, "minutes_note": None if status == "read" else MINUTES_WORDS.get(status),
-            "video": m.get("video_url") or None, "watch": watch.meeting(getattr(cix, "body_key", None), m.get("video_url")),
+            "watch": watch.meeting(getattr(cix, "body_key", None), m.get("video_url")),
             "votes": votes, "state": "votes" if votes else ("agenda" if agenda else "none"), "cases": [], "sols": [],
             "record": rec}
 
@@ -169,7 +169,7 @@ def scheduled_cards(cix, start: date, end: date, today: date | None = None) -> l
         out.append((row["date"], {
             "kind": "council", "dot": DOTS["council"], "id": f"{cix.slug}-{row['date']}-{row['kind']}-scheduled",
             "body": cix.body_name, "title": cix.kind_labels.get(row["kind"], row["kind"]), "href": None,
-            "docs": [], "video": None, "watch": watch.body(getattr(cix, "body_key", None)), "votes": [],
+            "docs": [], "watch": watch.body(getattr(cix, "body_key", None)), "votes": [],
             "state": "scheduled",
             "cases": [], "sols": [],
             "minutes_note": None, "cal_title": row.get("title") or "",
@@ -185,7 +185,7 @@ def rpc_card(rpx, m: dict) -> dict:
     rec = ({"url": agenda["url"], "label": "the RPC's agenda PDF", "ext": False} if agenda
            else {"url": rpx.cfg["record_url"], "label": rpx.cfg["record_label"], "ext": True})
     return {"kind": "rpc", "dot": DOTS["rpc"], "id": f"{rpx.slug}-{m['id']}", "body": ctx["kind_label"],
-            "title": None, "href": ctx["href"], "rpc": ctx, "docs": [], "minutes_note": None, "video": None,
+            "title": None, "href": ctx["href"], "rpc": ctx, "docs": [], "minutes_note": None,
             "watch": watch.body(rpx.body_key),
             "votes": [], "state": "agenda" if ctx["cases"] else "none", "cases": ctx["cases"], "sols": [],
             "cancelled": ctx["cancelled"], "record": rec}
@@ -199,7 +199,7 @@ def bids_card(fx, sols: list[dict]) -> dict:
     rec = (config.SITE.get("official_records") or {}).get("contracts")
     return {"kind": "bids", "dot": DOTS["bids"], "id": f"bids-{sols[0]['archive_date']}",
             "body": config.FIN_TEXT["contracts"]["title"], "title": None, "href": "contracts/index.html",
-            "docs": [], "minutes_note": None, "video": None, "watch": None, "votes": [], "state": "bids", "cases": [],
+            "docs": [], "minutes_note": None, "watch": None, "votes": [], "state": "bids", "cases": [],
             "sols": rows,
             "record": {**rec, "ext": True} if rec and views.https_url(rec.get("url")) else None}
 
