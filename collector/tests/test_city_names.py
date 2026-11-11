@@ -728,6 +728,60 @@ def test_n9_an_absent_token_cut_at_a_line_end_is_not_joined():
     assert resolve_with("H Aywood", roster, cut=True) == (None, False)               # cut at a line end: held
 
 
+def _absent_in_block(line: str) -> str:
+    """The one-vote minutes with Jerry Haywood present and not voting, and `line` (an ABSENT line) in the vote block."""
+    return minutes("2025-01-02", WIDE, aye=FULL_AYE + ", Lovato").replace(
+        "\n\n             The motion", f"\n             ABSENT: {line}\n\n             The motion")
+
+
+@pytest.mark.parametrize("line,held", [("Brown, H Aywood", False), ("Brown, H" + CUT + "Aywood", True)])
+def test_n9_an_absent_token_cut_at_a_line_end_never_excuses_a_missing_vote(cfg, line, held):
+    """review city-verify/line-cut-absent-unpinned (city_build absent loop, RollCall.absent_cut): on one line, ABSENT
+    "H Aywood" is Jerry Haywood (N9), so his missing vote is excused and the roll call verifies; cut at a line end the
+    parser still reads the one token "H Aywood", but it is never joined, his vote stays missing and the roll call is
+    held."""
+    text = _absent_in_block(line)
+    parsed = parse_text([text], cfg).roll_calls[0]
+    assert "H Aywood" in parsed.absent and ("H Aywood" in parsed.absent_cut) is held
+    facts, summary = run(cfg, [("2025-01-02", text)])
+    rc, votes = votes_of(facts, "2025-01-02")
+    assert "Haywood" not in votes and "H Aywood" not in votes
+    assert check(rc, "one_vote_per_present_member")["ok"] is not held
+    assert rc["verification"]["status"] == ("unverified" if held else "verified")
+    assert [u["printed"] for u in summary["word_break_matches"]] == ([] if held else ["H Aywood"])
+
+
+def _three_votes(third: str) -> str:
+    """Jerry Haywood "left early": he votes on item 3, not on item 4, and item 5 prints `third` in its vote list."""
+    present = WIDE.replace("Jerry Haywood (Ward 6)", "Jerry Haywood (Ward 6; left early)")
+    text = minutes("2025-01-02", present, aye=WIDE_AYE)
+    for n, aye in ((4, FULL_AYE + ", Lovato"), (5, FULL_AYE + ", Lovato, " + third)):
+        text += (f"\n{n}.   Item {n}\n"
+                 f"          Councilman Streetman made a motion to adopt item {n}, seconded by Councilman\n"
+                 f"          Holleman. The following vote was recorded:\n\n"
+                 f"             AYE: {aye}\n\n"
+                 f"             The motion to adopt item {n} passed.\n")
+    return text
+
+
+def test_n9_a_vote_token_cut_at_a_line_end_never_counts_as_a_vote_for_the_left_early_exemption(cfg):
+    """review city-verify/line-cut-absent-unpinned (_out_of_room reads votes with v.line_cut): a member noted as
+    leaving early is excused from the votes after his last vote. A cut "H" / "Aywood" on item 5 is not his vote, so
+    his last vote is item 3 and item 4 (no vote from him) verifies; read as his vote it would hold item 4."""
+    facts, _ = run(cfg, [("2025-01-02", _three_votes("H" + CUT + "Aywood"))])
+    rcs = [r for r in facts["roll_calls"] if r["meeting_id"] == meeting(facts, "2025-01-02")["id"]]
+    assert len(rcs) == 3
+    assert rcs[0]["verification"]["status"] == "verified"
+    assert rcs[1]["verification"]["status"] == "verified"                  # excused: he left after item 3
+    assert {v["raw_name"]: v["official_id"] for v in rcs[2]["votes"]}["H Aywood"] is None
+    assert rcs[2]["verification"]["status"] == "unverified"
+    # the control: the same letters on one line are his vote on item 5, so item 4 has no excuse and is held
+    facts, _ = run(cfg, [("2025-01-02", _three_votes("H Aywood"))])
+    rcs = [r for r in facts["roll_calls"] if r["meeting_id"] == meeting(facts, "2025-01-02")["id"]]
+    assert rcs[1]["verification"]["status"] == "unverified"
+    assert check(rcs[1], "one_vote_per_present_member")["detail"] == "city-jerry-haywood"
+
+
 def test_break_free_lowercases_and_drops_whitespace_only():
     """ADR 0005 rule 2 (review nit break-free-casefold): str.lower, no NFKC or casefold, so no letter is turned into
     others ("ß" stays "ß", the "ﬁ" ligature stays one character)."""
