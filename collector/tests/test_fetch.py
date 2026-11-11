@@ -295,3 +295,32 @@ def test_a_redirect_target_gets_the_plain_get_without_the_validators():
                       allowed_hosts=("h.example", "g.example"))
     assert f.get_if_changed(u, etag='"abc"')[:2] == (200, b"%PDF")
     assert [(x[0], x[1]) for x in net.seen if not x[0].endswith("robots.txt")] == [(u, '"abc"'), (v, None)]
+
+
+def test_a_304_never_skips_or_shortens_the_crawl_delay():
+    """politeness/conditional-get-keeps-delay: a conditional GET answered 304 (no body) is still a request to the
+    host, so the next request to that host waits the full per-host delay (robots Crawl-delay here), exactly as
+    after a 200."""
+    u, v = "https://h.example/a.pdf", "https://h.example/b.pdf"
+    clock = Clock()
+    sent = []
+
+    def net(req, timeout):
+        url = req.full_url
+        sent.append((url, clock.t))
+        if url.endswith("/robots.txt"):
+            return FakeResp(b"User-agent: *\nCrawl-delay: 30\n", 200)
+        if req.get_header("If-none-match"):
+            raise urllib.error.HTTPError(url, 304, "Not Modified", {"ETag": '"abc"'}, io.BytesIO(b""))
+        return FakeResp(b"%PDF", 200)
+
+    f = PoliteFetcher(opener=net, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: [],
+                      allowed_hosts=("h.example",))
+    assert f.get_if_changed(u, etag='"abc"')[0] == 304
+    assert f.get_if_changed(v, etag='"abc"')[0] == 304
+    assert f.get(u)[0] == 200
+    assert f.get_if_changed(v, etag='"abc"')[0] == 304
+    assert [x for x, _ in sent] == ["https://h.example/robots.txt", u, v, u, v]
+    times = [t for _, t in sent]
+    assert all(b - a >= 30.0 for a, b in zip(times, times[1:]))   # every gap, after a 304 too, is the full delay
+    assert clock.slept == [30.0] * 4
