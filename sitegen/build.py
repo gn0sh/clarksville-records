@@ -605,6 +605,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         render("district.html.j2", f"districts/{n:02d}.html", ctx["title"], **ctx)
     for year in site["vote_years_desc"]:
         render("votes_year.html.j2", f"votes/{year}.html", f"Votes {year}", **views.votes_year(year, ix))
+    for sb in [e["school"] for e in site["nav"] if e.get("school")]:   # the school board's "coming" page (views._nav)
+        pg = {**sb["page"], "link": {"url": sb["url"], "label": sb.get("link_label") or sb["label"], "kind": "school"}}
+        render("coming.html.j2", f"{pg['slug']}.html", pg["title"], page=pg)
     render("search.html.j2", "search.html", "Search", **views.search_page(ix, fx, cixs, rpx))
     for c in config.SITE["coming"]:
         if c["slug"] in {coming_slugs[p] for p in budget_pages}:

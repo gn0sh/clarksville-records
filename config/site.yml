@@ -245,6 +245,15 @@ school_board:
   label: Clarksville-Montgomery County School System board
   url: https://www.cmcss.net/
   link_label: CMCSS website
+  # The menu entry and its "coming" page (school-board.html, site/templates/coming.html.j2), built only while the label
+  # and url above are set. Every word of the page is here: no dates, no numbers, no names of officials.
+  page:
+    slug: school-board
+    nav_label: School board
+    title: School board
+    lede: "Coming. Records of the Clarksville-Montgomery County School System board are planned. Its meetings are not collected yet, so none are shown here."
+    planned: ["Board meeting agendas", "Board meeting minutes and recorded votes"]
+    link_lede: "Until then, the official source is the school system website:"
 
 # "Coming" pages (design 6). No numbers, no sample charts, no example values.
 coming:

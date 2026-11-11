@@ -72,7 +72,8 @@ def test_pages_are_written_and_nav_drops_the_coming_chips(bpages):
     nav = bpages["about.html"][bpages["about.html"].index('<nav id="site-nav"'):]
     assert re.search(r'href="finance/index\.html">Finance</a>', nav)
     assert re.search(r'href="capital/index\.html">Capital projects</a>', nav)
-    assert "chip-coming" not in nav
+    # the only Coming chip left in the menu is the school board's (config school_board.page, tests/test_school_board.py)
+    assert re.findall(r'href="([^"]+)">[^<]* <span class="chip chip-coming">', nav) == ["school-board.html"]
     assert 'finance/index.html" aria-current="page"' in bpages["finance/901.html"]
     assert 'capital/index.html" aria-current="page"' in bpages["capital/index.html"]
 
