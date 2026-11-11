@@ -213,6 +213,17 @@ def _drop(facts, wards, oid, date):
     return facts, [w for w in wards if not (w["official_id"] == oid and w["date"] == date)]
 
 
+def _until(facts, wards, date):
+    """The committed city data cut at one meeting date, so that meeting's list is the latest (the D1 widening added
+    later lists, and the 2026-07-06 list prints CLAULNCH, which no list before it can be compared against)."""
+    facts = json.loads(json.dumps(facts))
+    keep = {m["id"] for m in facts["meetings"] if m["date"] <= date}
+    facts["meetings"] = [m for m in facts["meetings"] if m["id"] in keep]
+    for key in ("roll_calls", "motions", "item_events"):
+        facts[key] = [r for r in facts[key] if r["meeting_id"] in keep]
+    return facts, [w for w in wards if w["date"] <= date]
+
+
 def _home(tmp_path, seats: dict, previous=(), notes=None):
     """A city/index.html with the seat rows (and held-over notes) and the Served previously list in the template's
     shape."""
@@ -279,7 +290,7 @@ def test_one_list_that_does_not_name_a_member_shows_no_wrong_holder_and_the_next
     holder (it reads "not yet recorded" for that list), he is not under Served previously, and when the next list
     names him he is current in Ward 1 again."""
     oid = "city-brian-zacharias"
-    facts, wards = _drop(*real_city[:2], oid, "2026-06-04")
+    facts, wards = _drop(*_until(*real_city[:2], "2026-06-04"), oid, "2026-06-04")
     cix = council.load({**CFG}, facts, wards)
     assert _shown(cix)["ward-1"] is None and not cix.seats.is_current(oid)
     text = cix.seats.header_text(oid)
@@ -361,7 +372,7 @@ def test_city_seats_csv_separates_printed_and_name_only_dates(real_city):
     assert mcl["listed_last"] == "2026-01-08" and mcl["listed_last_source"] == mcl["last_source_url"]
     assert "by name only, without the seat" in mcl["dates_basis"] and "not term dates" in mcl["dates_basis"]
     smith = next(r for r in out if r["official_id"] == "city-wanda-smith")
-    assert smith["seen_last"] == "" and smith["listed_last"] == "2026-06-04" and smith["printed_last"] == "2025-03-06"
+    assert smith["seen_last"] == "" and smith["listed_last"] == "2026-07-09" and smith["printed_last"] == "2025-03-06"
 
 
 def test_the_site_check_fails_a_holder_the_latest_list_does_not_name_and_a_wrong_mayor(real_city, tmp_path):
@@ -475,7 +486,7 @@ def test_ward_2_starts_with_the_configured_member_on_the_seating_date_with_its_s
     assert site_checks.expected_ward_holders(wards, facts)[2] == "city-eric-claunch"
     assert cix.seats.header_text("city-eric-claunch") == (
         "Ward 2, seen in the minutes that record the seating from 2026-02-19 to 2026-02-19; listed by name in "
-        "attendance lists to 2026-06-04, the latest minutes read")
+        "attendance lists to 2026-07-09, the latest minutes read")
     head = views.official("city-eric-claunch", cix)["name_source"]
     assert head["quote"] == "Eric Claunch was selected as the Ward 2 replacement and was sworn in by Mayor Pitts."
     assert head["src"]["url"] == f"{src['url']}#page=3" and head["date"] == "2026-02-11" and head["kind"] == "minutes"

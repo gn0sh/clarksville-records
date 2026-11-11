@@ -5904,6 +5904,30 @@
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2233,plainText=false)"
   },
   {
+    "bytes": 297944,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:00:40+00:00",
+    "kind": "agenda",
+    "label": "One Time Event",
+    "last_modified": null,
+    "meeting_date": "2024-07-09",
+    "sha256": "dfc30fb59aa68187d61cc94ea667e4716d8c7e64ad90bdc0d082aa710a090885",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2656,plainText=false)"
+  },
+  {
+    "bytes": 266848,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T20:58:20+00:00",
+    "kind": "minutes",
+    "label": "One Time Event",
+    "last_modified": null,
+    "meeting_date": "2024-07-09",
+    "sha256": "1f45bddbe500eaa69ed877775a9bff052802ca20dfc3c610c17121ccc2e96d69",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2657,plainText=false)"
+  },
+  {
     "bytes": 293453,
     "content_type": "application/pdf",
     "etag": null,
@@ -6168,6 +6192,30 @@
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2624,plainText=false)"
   },
   {
+    "bytes": 172055,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:01:00+00:00",
+    "kind": "agenda",
+    "label": "City Council Special Session",
+    "last_modified": null,
+    "meeting_date": "2025-02-18",
+    "sha256": "7b6056cee0b0d0642615d8caab8831ccf9387fc885b9d3c4ee5b0451bae44ae4",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2384,plainText=false)"
+  },
+  {
+    "bytes": 186614,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T20:58:30+00:00",
+    "kind": "minutes",
+    "label": "City Council Special Session",
+    "last_modified": null,
+    "meeting_date": "2025-02-18",
+    "sha256": "07a80fc346bfa572fd137ac95afc8be44bdc268fea898fdfb4829e8509d7d23f",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3074,plainText=false)"
+  },
+  {
     "bytes": 251688,
     "content_type": "application/pdf",
     "etag": null,
@@ -6238,6 +6286,30 @@
     "meeting_date": "2025-04-03",
     "sha256": "82989968efa344afb5bcdb36c9b6cc55cd02920001ad31f7f727cfaebd04ec6b",
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2626,plainText=false)"
+  },
+  {
+    "bytes": 155851,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:01:10+00:00",
+    "kind": "agenda",
+    "label": "One Time Event",
+    "last_modified": null,
+    "meeting_date": "2025-04-16",
+    "sha256": "2214f96315438651957ba92c3e99b3fe88c5dfe99dfc321495d1537cd690af82",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2443,plainText=false)"
+  },
+  {
+    "bytes": 160559,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T20:58:40+00:00",
+    "kind": "minutes",
+    "label": "One Time Event",
+    "last_modified": null,
+    "meeting_date": "2025-04-16",
+    "sha256": "ad13f2d5cbf55fa5bac846def5f817e2907ed72120a346bcd6147f9d43edfd06",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2499,plainText=false)"
   },
   {
     "bytes": 309086,
@@ -6334,6 +6406,54 @@
     "meeting_date": "2025-06-12",
     "sha256": "020d0a6e14e77b174220795473f0e4301cdbc211e3283f53c1f2844478b526e7",
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2627,plainText=false)"
+  },
+  {
+    "bytes": 215119,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:01:20+00:00",
+    "kind": "agenda",
+    "label": "City Council Special Session - First Reading of the Budget",
+    "last_modified": null,
+    "meeting_date": "2025-06-17",
+    "sha256": "90c6a17759cc81da4cdacccaf73a9752f49e0a09a5bd26794f7ee450acd49217",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2516,plainText=false)"
+  },
+  {
+    "bytes": 223714,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T20:58:50+00:00",
+    "kind": "minutes",
+    "label": "City Council Special Session - First Reading of the Budget",
+    "last_modified": null,
+    "meeting_date": "2025-06-17",
+    "sha256": "1037c149cb9aeb33f5baa3884ed6b37ab6150ce7f36fc5e42b433a963bd2c2ba",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3071,plainText=false)"
+  },
+  {
+    "bytes": 223578,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:01:30+00:00",
+    "kind": "agenda",
+    "label": "City Council Special Session - Second Reading of the Budget",
+    "last_modified": null,
+    "meeting_date": "2025-06-24",
+    "sha256": "13881bf850bb6014a15203486c8a625d65cac3d25d4bbda60d5524316c024044",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2526,plainText=false)"
+  },
+  {
+    "bytes": 213098,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T20:59:00+00:00",
+    "kind": "minutes",
+    "label": "City Council Special Session - Second Reading of the Budget",
+    "last_modified": null,
+    "meeting_date": "2025-06-24",
+    "sha256": "fa330c1ced46a012e9769c04ae7d40422d2dc2badd50d921bb7954d4f6f64ae4",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3072,plainText=false)"
   },
   {
     "bytes": 306084,
@@ -6528,6 +6648,30 @@
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2770,plainText=false)"
   },
   {
+    "bytes": 168084,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:01:40+00:00",
+    "kind": "agenda",
+    "label": "Special Called City Council Meeting",
+    "last_modified": null,
+    "meeting_date": "2025-11-12",
+    "sha256": "9bf4527d313198dc6e9070b3b73980f95fc4d64905f002f0d668f5a81ce64751",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2772,plainText=false)"
+  },
+  {
+    "bytes": 170606,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T20:59:10+00:00",
+    "kind": "minutes",
+    "label": "Special Called City Council Meeting",
+    "last_modified": null,
+    "meeting_date": "2025-11-12",
+    "sha256": "0ed477e9bcb860f1b0bb35baa5e1e561488fb1055c9cb45f2b3ed3e4f5fc4f98",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3070,plainText=false)"
+  },
+  {
     "bytes": 222607,
     "content_type": "application/pdf",
     "etag": null,
@@ -6660,6 +6804,30 @@
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3068,plainText=false)"
   },
   {
+    "bytes": 156159,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:01:50+00:00",
+    "kind": "agenda",
+    "label": "City Council Special Session",
+    "last_modified": null,
+    "meeting_date": "2026-02-19",
+    "sha256": "7c27920de4b6ebeba860bb7f23122fe1c59e4b9305bd7f073105a94782de12ca",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2903,plainText=false)"
+  },
+  {
+    "bytes": 185575,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T20:59:20+00:00",
+    "kind": "minutes",
+    "label": "City Council Special Session",
+    "last_modified": null,
+    "meeting_date": "2026-02-19",
+    "sha256": "df53b5ec7368c467a6a665b3532916a2adae93949319b6ef4d607f0719392c65",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3069,plainText=false)"
+  },
+  {
     "bytes": 214656,
     "content_type": "application/pdf",
     "etag": null,
@@ -6732,6 +6900,54 @@
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3067,plainText=false)"
   },
   {
+    "bytes": 160609,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:02:00+00:00",
+    "kind": "agenda",
+    "label": "City Council Special Session",
+    "last_modified": null,
+    "meeting_date": "2026-04-06",
+    "sha256": "f550e8601d16e71947d8c48b9a8449a138c6af4150c0c4cf3ac4e1067ff85d95",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3077,plainText=false)"
+  },
+  {
+    "bytes": 203378,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T20:59:30+00:00",
+    "kind": "minutes",
+    "label": "City Council Special Session",
+    "last_modified": null,
+    "meeting_date": "2026-04-06",
+    "sha256": "382d52d1deca7a53f36378e5c0e558941227084d408611f167bacf3a9a096ba6",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3198,plainText=false)"
+  },
+  {
+    "bytes": 185828,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:02:10+00:00",
+    "kind": "agenda",
+    "label": "Special Called City Council Meeting",
+    "last_modified": null,
+    "meeting_date": "2026-04-29",
+    "sha256": "46bf17c747eb93f1769c8599218bfbc100e2c1253d3be25935241a394bd90d4d",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3018,plainText=false)"
+  },
+  {
+    "bytes": 217045,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T20:59:40+00:00",
+    "kind": "minutes",
+    "label": "Special Called City Council Meeting",
+    "last_modified": null,
+    "meeting_date": "2026-04-29",
+    "sha256": "d3faddb3c7374415d94dab6d0b2cedbad57842e71dd2c3c63eaa8f12e9a3a4dc",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3199,plainText=false)"
+  },
+  {
     "bytes": 222776,
     "content_type": "application/pdf",
     "etag": null,
@@ -6742,6 +6958,18 @@
     "meeting_date": "2026-04-30",
     "sha256": "0cf1b6aa00fe019449201edc0e6e86ebf91ad772d1c6e4b901fb0a86f1ead9f4",
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3022,plainText=false)"
+  },
+  {
+    "bytes": 160089,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:02:20+00:00",
+    "kind": "agenda",
+    "label": "City Council Special Session",
+    "last_modified": null,
+    "meeting_date": "2026-05-07",
+    "sha256": "39e865e1f42666b6079d4767d98ea11d3fec32bdbdcd75805302920494f1044b",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3085,plainText=false)"
   },
   {
     "bytes": 227985,
@@ -6766,6 +6994,18 @@
     "meeting_date": "2026-05-07",
     "sha256": "9f1eedb38c8851f4cb15aa60d4daeb6921b9b8eb78e08046630e434ebd9b83a4",
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3200,plainText=false)"
+  },
+  {
+    "bytes": 155774,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:02:29+00:00",
+    "kind": "agenda",
+    "label": "Special Work Session - Budget",
+    "last_modified": null,
+    "meeting_date": "2026-05-26",
+    "sha256": "f3d554fb49a65f4b4ee559e84de9492c9a1e0f6959943311ae98b7e7473320a0",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3114,plainText=false)"
   },
   {
     "bytes": 291141,
@@ -6804,6 +7044,78 @@
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3201,plainText=false)"
   },
   {
+    "bytes": 191062,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:02:40+00:00",
+    "kind": "agenda",
+    "label": "Special Session and First Reading of the Budget",
+    "last_modified": null,
+    "meeting_date": "2026-06-11",
+    "sha256": "760c8177db8398670b20d77e649a828acbd886130aa28d8fbb7e83ebf25d6fe3",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3132,plainText=false)"
+  },
+  {
+    "bytes": 242754,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T20:59:50+00:00",
+    "kind": "minutes",
+    "label": "Special Session and First Reading of the Budget",
+    "last_modified": null,
+    "meeting_date": "2026-06-11",
+    "sha256": "01a382bc9111bb2f640891adbc4c6bd96299c78da4cb7e2572f8c067176c6fd7",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3249,plainText=false)"
+  },
+  {
+    "bytes": 191569,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:02:50+00:00",
+    "kind": "agenda",
+    "label": "Special Budget Session",
+    "last_modified": null,
+    "meeting_date": "2026-06-16",
+    "sha256": "1f7e35cf6122530cf7461c11bc0afd1f82c13c4294f979aacc101bb91468805b",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3139,plainText=false)"
+  },
+  {
+    "bytes": 251312,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:00:00+00:00",
+    "kind": "minutes",
+    "label": "Special Budget Session",
+    "last_modified": null,
+    "meeting_date": "2026-06-16",
+    "sha256": "6277431510bfec2aa1256169946a7b66c3a4c467f72375a6a8b4a89734d22245",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3250,plainText=false)"
+  },
+  {
+    "bytes": 167433,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:03:00+00:00",
+    "kind": "agenda",
+    "label": "Special Session - 1st Reading of the Budget",
+    "last_modified": null,
+    "meeting_date": "2026-06-22",
+    "sha256": "5145b1cc032fc9ddc1df6bfd2f2b2699be6ff9b0572dbf6347a60fef1cac6b88",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3151,plainText=false)"
+  },
+  {
+    "bytes": 218993,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:00:10+00:00",
+    "kind": "minutes",
+    "label": "Special Session - 1st Reading of the Budget",
+    "last_modified": null,
+    "meeting_date": "2026-06-22",
+    "sha256": "389e20bab2bd58a10d471975c66bd4a07800e5df8b85edcf81c985ac5cef798c",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3251,plainText=false)"
+  },
+  {
     "bytes": 251801,
     "content_type": "application/pdf",
     "etag": null,
@@ -6814,6 +7126,78 @@
     "meeting_date": "2026-06-25",
     "sha256": "f4e02d7dd316fe32a740092641b6e52009619cfbdf15b7ed868a7c48a9a27cd8",
     "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3153,plainText=false)"
+  },
+  {
+    "bytes": 168516,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:03:10+00:00",
+    "kind": "agenda",
+    "label": "City Council Special Session",
+    "last_modified": null,
+    "meeting_date": "2026-06-29",
+    "sha256": "7c224415a615b9066fbc7c4b565c19bbfc9777bac71db3b1e12fee60b1d9fecc",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3159,plainText=false)"
+  },
+  {
+    "bytes": 255993,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:03:20+00:00",
+    "kind": "agenda",
+    "label": "Regular Session",
+    "last_modified": null,
+    "meeting_date": "2026-07-02",
+    "sha256": "c283dfeda6df759a24ff65434f1b7162d32c1770a49c3f2aa808a9fd36666e19",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3162,plainText=false)"
+  },
+  {
+    "bytes": 168364,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:03:30+00:00",
+    "kind": "agenda",
+    "label": "City Council Special Session",
+    "last_modified": null,
+    "meeting_date": "2026-07-06",
+    "sha256": "d22a058906e0669467c2f45711aae2aa0cf32f5917dcf12b8191dc482acf2b38",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3163,plainText=false)"
+  },
+  {
+    "bytes": 238877,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:00:20+00:00",
+    "kind": "minutes",
+    "label": "City Council Special Session",
+    "last_modified": null,
+    "meeting_date": "2026-07-06",
+    "sha256": "ba3c3070361abfe4ad6134e778b98559d5ebfdfd4cb10711baa39d0dfc14e475",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3254,plainText=false)"
+  },
+  {
+    "bytes": 168125,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:03:40+00:00",
+    "kind": "agenda",
+    "label": "City Council Special Session",
+    "last_modified": null,
+    "meeting_date": "2026-07-09",
+    "sha256": "faf399c1eee1a8c5d66487a8af08d064e34dd07fff6c1557996c2400932f07ea",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3164,plainText=false)"
+  },
+  {
+    "bytes": 250015,
+    "content_type": "application/pdf",
+    "etag": null,
+    "first_fetched_at": "2026-11-11T21:00:30+00:00",
+    "kind": "minutes",
+    "label": "City Council Special Session",
+    "last_modified": null,
+    "meeting_date": "2026-07-09",
+    "sha256": "3f49e97a7e9c27b13634421cc6cead137f0eae9038b53b4da81a02404b5f13f6",
+    "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3255,plainText=false)"
   },
   {
     "bytes": 291341,
