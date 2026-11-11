@@ -49,6 +49,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       sha: ${{ steps.checkout.outputs.commit }}   # the main commit this run built on; the push job commits on it
+      allowed: ${{ steps.collect.outputs.allowed }}   # yes: a manual allow_shrink run replaced kept documents
     # A warm daily run takes minutes (10 s per request, only new documents). A cold cache (first run, or after the
     # cache was evicted) refetches about 930 documents at 10 s each plus parsing: budget the hosted-runner maximum.
     timeout-minutes: 355
@@ -175,9 +176,18 @@ jobs:
               rpc=failed
             fi
           fi
+          # ci/allow-shrink-audit: a manual allow_shrink run that let the new result replace documents the guard
+          # would have kept (run-log.json allowed_shrink) is marked in the data commit message and on the
+          # kept-meetings issue, so it leaves a visible trace.
+          allowed=no
+          if [ "${#shrink[@]}" -gt 0 ]; then
+            n=$(jq -r '.allowed_shrink // [] | length' build/run-log.json 2>/dev/null) || n=0
+            if [ "${n:-0}" != 0 ]; then allowed=yes; fi
+          fi
           echo "city=$city" >> "$GITHUB_OUTPUT"
           echo "county=$county" >> "$GITHUB_OUTPUT"
           echo "kept=$kept" >> "$GITHUB_OUTPUT"
+          echo "allowed=$allowed" >> "$GITHUB_OUTPUT"
           if [ "$county" = 6 ]; then
             echo "::warning::The RPC document store is still being filled; the RPC pages use the committed data."
             rpc=filling; county=0
@@ -243,6 +253,7 @@ jobs:
       # passed with --body-file, never through the shell or an expression.
       - name: Open or update the RPC issue
         if: always() && steps.collect.outputs.rpc == 'failed'
+        continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
         env:
           GH_TOKEN: ${{ github.token }}
           RPC_TITLE: "Daily update: RPC step failed"
@@ -279,7 +290,8 @@ jobs:
       # each later day instead of a new issue. The kept documents and corrections are read from build/run-log.json
       # into a file and passed with --body-file, never through the shell or an expression.
       - name: Open or update the county kept-meetings issue
-        if: always() && steps.collect.outputs.kept == 'yes'
+        if: always() && (steps.collect.outputs.kept == 'yes' || steps.collect.outputs.allowed == 'yes')
+        continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
         env:
           GH_TOKEN: ${{ github.token }}
           KEPT_TITLE: "Daily update: county meetings kept"
@@ -290,15 +302,22 @@ jobs:
           # backticks are dropped so site text cannot close the fence (ci/issue-markdown-fence); a missing or
           # unreadable run-log.json gives "unknown" (ci/issue-reason-missing)
           kept=unknown
-          if jq '{kept_meetings, corrections}' build/run-log.json > "$detail" 2>/dev/null; then
+          if jq '{withheld_new: [.kept_meetings[]?.withheld_new[]?], allowed_shrink, kept_meetings, corrections}' \
+               build/run-log.json > "$detail" 2>/dev/null; then
             kept=$(tr -d '`' < "$detail" | head -c 3000)
           fi
           [ -n "$kept" ] || kept=unknown
+          allowed_n=$(jq -r '.allowed_shrink // [] | length' build/run-log.json 2>/dev/null) || allowed_n=0
           {
-            echo "The county run kept some meetings exactly as committed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            if [ "${allowed_n:-0}" != 0 ]; then
+              echo "allow_shrink: a manual run let the new result replace the documents listed under allowed_shrink (verified roll calls or meetings the guard would have kept): $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            else
+              echo "The county run kept some meetings exactly as committed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            fi
             echo "Everything else (city, other county meetings, finance, agendas, RPC unless its own issue says otherwise) was published as usual."
+            echo "withheld_new lists new meetings held back with a kept document (they appear once it is no longer kept)."
             echo
-            echo "Kept documents and corrections (build/run-log.json kept_meetings, corrections):"
+            echo "Kept documents, corrections and allowed downgrades (build/run-log.json):"
             echo
             echo '```'
             echo "$kept"
@@ -428,6 +447,8 @@ jobs:
           [ "$bad" = 0 ]
 
       - name: Commit refreshed data to main
+        env:
+          ALLOWED: ${{ needs.update.outputs.allowed }}
         run: |
           # data/ in a fresh checkout holds only tracked files (the ignored caches are absent), so replacing it whole
           # keeps deletions too. Only data/ is ever staged.
@@ -439,7 +460,11 @@ jobs:
           if git diff --cached --quiet; then
             echo "No data changes."
           else
-            git commit -m "Daily update: refreshed records data ($(date -u +%F))"
+            msg="Daily update: refreshed records data ($(date -u +%F))"
+            if [ "$ALLOWED" = yes ]; then     # ci/allow-shrink-audit: the manual override is named in the history
+              msg="$msg; allow_shrink: committed verified roll calls or meetings replaced by a manual run"
+            fi
+            git commit -m "$msg"
             # A concurrent change to data/ on main conflicts here and fails the job (the failure step opens the issue).
             git pull --rebase origin main
             git push origin HEAD:main
