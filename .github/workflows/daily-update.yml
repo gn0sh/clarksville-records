@@ -562,7 +562,7 @@ jobs:
           for f in py/sender/__init__.py py/sender/__main__.py site.yml; do
             if ! [ -f "$lib/$f" ]; then echo "::error::$f is not in this commit. Nothing sent."; exit 2; fi
           done
-          sum=$(cd "$lib" && { find . -printf '%y %m %p\n' | LC_ALL=C sort
+          sum=$(cd "$lib" && { find . -printf '%y %m %p\n' | LC_ALL=C sort &&
                 find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum; } | sha256sum)
           echo "NOTE_LIB=$lib" >> "$GITHUB_ENV"
           echo "NOTE_LIB_SUM=${sum%% *}" >> "$GITHUB_ENV"
@@ -580,7 +580,7 @@ jobs:
       - name: Validate the plan files
         run: |
           set -euo pipefail
-          sum=$(cd "$NOTE_LIB" && { find . -printf '%y %m %p\n' | LC_ALL=C sort
+          sum=$(cd "$NOTE_LIB" && { find . -printf '%y %m %p\n' | LC_ALL=C sort &&
                 find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum; } | sha256sum)
           if [ "${sum%% *}" != "$NOTE_LIB_SUM" ]; then
             echo "::error::the staged sender changed after it was staged. Nothing sent."; exit 2
@@ -613,7 +613,7 @@ jobs:
       - name: Check the plan (dry run, no secret)
         run: |
           set -euo pipefail
-          sum=$(cd "$NOTE_LIB" && { find . -printf '%y %m %p\n' | LC_ALL=C sort
+          sum=$(cd "$NOTE_LIB" && { find . -printf '%y %m %p\n' | LC_ALL=C sort &&
                 find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum; } | sha256sum)
           if [ "${sum%% *}" != "$NOTE_LIB_SUM" ]; then
             echo "::error::the staged sender changed after it was staged. Nothing sent."; exit 2
@@ -631,7 +631,7 @@ jobs:
           MORNING_NOTE_SEND: ${{ vars.MORNING_NOTE_SEND }}
         run: |
           set -euo pipefail
-          sum=$(cd "$NOTE_LIB" && { find . -printf '%y %m %p\n' | LC_ALL=C sort
+          sum=$(cd "$NOTE_LIB" && { find . -printf '%y %m %p\n' | LC_ALL=C sort &&
                 find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum; } | sha256sum)
           if [ "${sum%% *}" != "$NOTE_LIB_SUM" ]; then
             echo "::error::the staged sender changed after it was staged. Nothing sent."; exit 2

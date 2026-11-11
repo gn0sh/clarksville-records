@@ -6,6 +6,8 @@ import os
 import re
 import shutil
 import subprocess
+import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -428,7 +430,7 @@ LAUNCH = (_PC + _PY + """'import sys; sys.path.insert(0, sys.argv[1]); from send
           """sys.exit(main(sys.argv[2:]))' \\\n  "$NOTE_LIB/py" deliver --plan "$PLAN" --config "$NOTE_LIB/site.yml\"""")
 LAUNCH_MAX = (_PC + "max=$(" + _PY + """'import sys; sys.path.insert(0, sys.argv[1]); from sender.common import """
               """MAX_PLAN_BYTES; print(int(MAX_PLAN_BYTES))' \\\n        "$NOTE_LIB/py")""")
-VERIFY = """sum=$(cd "$NOTE_LIB" && { find . -printf '%y %m %p\\n' | LC_ALL=C sort
+VERIFY = """sum=$(cd "$NOTE_LIB" && { find . -printf '%y %m %p\\n' | LC_ALL=C sort &&
       find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum; } | sha256sum)
 if [ "${sum%% *}" != "$NOTE_LIB_SUM" ]; then
   echo "::error::the staged sender changed after it was staged. Nothing sent."; exit 2
@@ -437,6 +439,27 @@ fi
 STAGE_STEP = "Stage the sender outside the checkout"
 PY_STEPS = {"Validate the plan files": LAUNCH_MAX, "Check the plan (dry run, no secret)": LAUNCH,
             "Deliver the morning note": LAUNCH}
+
+
+def _ws(text: str) -> re.Pattern:
+    """main-protect/test-exact-whitespace: `text` with any run of whitespace matching any other (the words exact)."""
+    return re.compile(r"\s+".join(re.escape(w) for w in text.split()))
+
+
+def _python_dir() -> Path:
+    """main-protect/test-interpreter: a folder whose `python` is the interpreter running the tests, so the note-job
+    steps' `python` is this one (as setup-python's is the job's), not whatever `python` comes first on PATH."""
+    here = Path(sys.executable).parent
+    if (here / "python").exists() and os.path.samefile(here / "python", sys.executable):
+        return here
+    alt = Path(tempfile.gettempdir()) / f"note-job-python-{os.getuid()}-{sys.version_info[0]}{sys.version_info[1]}"
+    alt.mkdir(exist_ok=True)
+    if not (alt / "python").exists():
+        (alt / "python").symlink_to(sys.executable)
+    return alt
+
+
+PY_ENV = {**os.environ, "PATH": f"{_python_dir()}{os.pathsep}{os.environ.get('PATH', '')}"}
 
 
 def _note_steps():
@@ -525,7 +548,7 @@ def test_note_job_least_privilege():
     assert not re.search(r"\bpip\b", runs) and "upload-artifact" not in str(steps) and "cache" not in str(uses)
     assert "GITHUB_STEP_SUMMARY" not in runs and "set -x" not in runs
     assert "${{" not in runs                                                     # nothing interpolated into bash
-    assert _note_steps()["Deliver the morning note"]["run"].count(LAUNCH) == 1
+    assert len(_ws(LAUNCH).findall(_note_steps()["Deliver the morning note"]["run"])) == 1
 
 
 def test_the_api_key_is_in_exactly_one_step_and_live_needs_the_variable():
@@ -535,7 +558,7 @@ def test_the_api_key_is_in_exactly_one_step_and_live_needs_the_variable():
     deliver = _note_steps()["Deliver the morning note"]
     assert deliver["env"]["MORNING_NOTE_SEND"] == "${{ vars.MORNING_NOTE_SEND }}"
     for var, live in (("true", True), ("", False), ("false", False), ("TRUE", False)):
-        script = deliver["run"].replace(VERIFY, "").replace(LAUNCH, "echo ARGS")
+        script = _ws(LAUNCH).sub("echo ARGS", _ws(VERIFY).sub("", deliver["run"]))
         assert script.count("echo ARGS") == 1 and "NOTE_LIB_SUM" not in script
         r = subprocess.run(["bash", "-c", script], env={**os.environ, "MORNING_NOTE_SEND": var, "PLAN": "p.json"},
                            capture_output=True, text=True, check=True)
@@ -564,7 +587,7 @@ def _stage(cwd, runner):
     env_file = Path(runner) / "stage-env"
     env_file.write_text("")
     r = subprocess.run(["bash", "-c", _note_steps()[STAGE_STEP]["run"]], cwd=cwd, capture_output=True, text=True,
-                       env={**os.environ, "RUNNER_TEMP": str(runner), "GITHUB_ENV": str(env_file)})
+                       env={**PY_ENV, "RUNNER_TEMP": str(runner), "GITHUB_ENV": str(env_file)})
     return r, dict(line.split("=", 1) for line in env_file.read_text().splitlines())
 
 
@@ -588,7 +611,7 @@ def _validate_plan(tmp_path, layout: dict, cwd=ROOT, env=None):
     env_file = tmp_path / "env"
     env_file.write_text("")
     r = subprocess.run(["bash", "-c", step["run"]], cwd=cwd, capture_output=True, text=True,
-                       env={**os.environ, **(env or {}), "RUNNER_TEMP": str(root), "GITHUB_ENV": str(env_file)})
+                       env={**PY_ENV, **(env or {}), "RUNNER_TEMP": str(root), "GITHUB_ENV": str(env_file)})
     return r.returncode, env_file.read_text()
 
 
@@ -999,8 +1022,8 @@ def test_every_python_in_the_note_job_is_isolated_from_the_checkout():
         assert run.count("awk") == run.count("""awk '{s+=$1} END {print s+0}'""")
         n = sum(w.startswith("python") for w in words)
         if s.get("name") in PY_STEPS:
-            assert n == 1 and run.count(PY_STEPS[s["name"]]) == 1, s["name"]
-            assert run.startswith("set -euo pipefail\n" + VERIFY), s["name"]          # the re-check comes first
+            assert n == 1 and len(_ws(PY_STEPS[s["name"]]).findall(run)) == 1, s["name"]
+            assert re.match(_ws("set -euo pipefail\n" + VERIFY).pattern, run), s["name"]  # the re-check comes first
         else:
             assert n == 0 and "python" not in run.replace("setup-python", ""), s.get("name")
         assert "-m sender" not in run and "PYTHONPATH" not in run
@@ -1044,7 +1067,7 @@ def _planted_checkout(tmp_path):
     _commit_all(work)
     pp.mkdir()
     (pp / "json.py").write_text(plant)
-    env = {**os.environ, "PYTHONPATH": f"{pp}:{work}", "PYTHONSTARTUP": str(work / "json.py")}
+    env = {**PY_ENV, "PYTHONPATH": f"{pp}:{work}", "PYTHONSTARTUP": str(work / "json.py")}
     return work, marker, env, plant
 
 
@@ -1077,6 +1100,28 @@ def test_a_planted_root_module_never_runs_in_the_note_job(tmp_path):
     assert not marker.exists(), marker.read_text()
     lib = Path(lib_env["NOTE_LIB"])
     assert lib.parent == runner and lib.name.startswith("note-lib.") and not list(lib.rglob("__pycache__"))
+
+
+def test_the_provider_adapter_imports_under_the_isolated_launch(tmp_path):
+    """main-protect/test-launcher-coverage: only a live run imports sender/buttondown.py (http.client, ssl, urllib),
+    so no dry run covers it. Under the job's exact interpreter flags and staged folder, the adapter imports and
+    builds its opener (ssl.create_default_context, the system trust store) without opening a connection."""
+    work, marker, env, _ = _planted_checkout(tmp_path)
+    runner = tmp_path / "runner"
+    runner.mkdir()
+    staged, lib_env = _stage(work, runner)
+    assert staged.returncode == 0, staged.stderr
+    code = ("import sys; sys.path.insert(0, sys.argv[1]); import ssl, socket; "
+            "socket.create_connection = socket.socket = None; "                      # any connection would fail
+            "from sender import buttondown; p = buttondown.Buttondown(\"k\" * 20); "
+            "assert ssl.create_default_context().verify_mode == ssl.CERT_REQUIRED; "
+            "assert \"site\" not in sys.modules and all(\"site-packages\" not in x for x in sys.path); "
+            "print(\"ok\", repr(p), sys.version_info[:2] == tuple(int(v) for v in sys.argv[2].split(\".\")))")
+    script = _PC + _PY + f"'{code}' \\\n  \"$NOTE_LIB/py\" {sys.version_info[0]}.{sys.version_info[1]}\n"
+    r = subprocess.run(["bash", "-c", "set -euo pipefail\n" + script], cwd=work, capture_output=True, text=True,
+                       env={**env, **lib_env, "RUNNER_TEMP": str(runner)})
+    assert r.returncode == 0 and r.stdout.strip() == "ok Buttondown(...) True", r.stdout + r.stderr
+    assert not marker.exists() and not list(Path(lib_env["NOTE_LIB"]).rglob("__pycache__"))
 
 
 def test_the_staged_config_is_this_commits_not_the_working_folders(tmp_path):
@@ -1124,8 +1169,7 @@ def test_a_file_planted_in_the_staged_folder_after_staging_stops_the_job(tmp_pat
     plan_dir.mkdir(parents=True)
     (plan_dir / "plan.json").write_text("{}")
     for name in PY_STEPS:
-        r = _run_py_step(name, work, runner, {**lib_env}, {**env, "RUNNER_TEMP": str(tmp_path / "plan")},
-                         plan_dir / "plan.json")
+        r = _run_py_step(name, work, runner, lib_env, env, plan_dir / "plan.json")
         assert r.returncode == 2 and "the staged sender changed after it was staged" in r.stdout, (name, r.stderr)
     assert not marker.exists()
 

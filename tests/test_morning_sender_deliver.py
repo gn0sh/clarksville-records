@@ -1144,11 +1144,10 @@ def test_the_note_jobs_staged_launch_runs_a_full_dry_run(msite, tmp_path):  # no
     the isolated `python -I -S -c` launch imports everything check_plan and describe need, reads the staged config
     and exits 0 with the dry-run line. A missing module or a wrong path in the launch fails here, not on the
     first morning."""
-    import os
     import re
     import shutil
 
-    from test_workflow_lock import _commit_all, _note_steps, _stage
+    from test_workflow_lock import PY_ENV, _commit_all, _note_steps, _stage
     work = tmp_path / "work"
     (work / "sender").mkdir(parents=True)
     for f in (ROOT / "sender").glob("*.py"):
@@ -1166,7 +1165,7 @@ def test_the_note_jobs_staged_launch_runs_a_full_dry_run(msite, tmp_path):  # no
     plan_mod.write(runner / "morning-send", plan_mod.build(msite, D, cfg_with()))
     github_env = tmp_path / "github-env"
     github_env.write_text("")
-    env = {**os.environ, **lib_env, "RUNNER_TEMP": str(runner), "GITHUB_ENV": str(github_env),
+    env = {**PY_ENV, **lib_env, "RUNNER_TEMP": str(runner), "GITHUB_ENV": str(github_env),
            "BUTTONDOWN_API_KEY": "", "MORNING_NOTE_CANARY_IDS": ""}
     v = subprocess.run(["bash", "-c", _note_steps()["Validate the plan files"]["run"]], cwd=work, env=env,
                        capture_output=True, text=True, timeout=120)
