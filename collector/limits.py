@@ -9,10 +9,10 @@ note() when it collects the worker's error.
 from __future__ import annotations
 
 import subprocess
-import time
 from pathlib import Path
 
-_TRIPS: dict[str, None] = {}        # ordered, de-duplicated (a page re-read in-process after a worker trip)
+_TRIPS: list[str] = []
+_floor = 0                           # where the current step's trips start (mark()); duplicates are dropped from there
 
 
 def line(name: str, file, value, cap, page: int | None = None) -> str:
@@ -25,28 +25,48 @@ def line(name: str, file, value, cap, page: int | None = None) -> str:
 def trip(name: str, file, value, cap, page: int | None = None) -> str:
     """Record one trip; returns its line (use it as the exception message)."""
     ln = line(name, file, value, cap, page)
-    _TRIPS.setdefault(ln)
+    _add(ln)
     return ln
+
+
+def _add(ln: str) -> None:
+    # one line per trip within a step: a page re-read in-process after its worker tripped is the same trip
+    if ln not in _TRIPS[_floor:]:
+        _TRIPS.append(ln)
+
+
+def mark() -> int:
+    """Start of a step (county, city, RPC, finance): returns the position to pass to tripped()/summary(), so each
+    step reports only its own trips (steps run one after another in one process)."""
+    global _floor
+    _floor = len(_TRIPS)
+    return _floor
 
 
 def note(message) -> None:
     """Record a trip line that came back as an error message (from an OCR worker); other messages are ignored."""
     text = str(message or "")
     if text.startswith("limit "):
-        _TRIPS.setdefault(text)
+        _add(text)
 
 
-def tripped() -> list[str]:
-    return list(_TRIPS)
+def tripped(start: int = 0, end: int | None = None) -> list[str]:
+    """The trips recorded from position `start` (a mark()) up to `end` (another mark(), or now)."""
+    return _TRIPS[start:end]
 
 
 def reset() -> None:
+    global _floor
     _TRIPS.clear()
+    _floor = 0
 
 
-def summary(prefix: str) -> str:
-    """`<prefix>: limits tripped: N` and one indented line per trip."""
-    lines = tripped()
+def summary(prefix: str, start: int = 0, end: int | None = None) -> str:
+    """`<prefix>: limits tripped: N` and one indented line per trip of that step."""
+    return render(prefix, tripped(start, end))
+
+
+def render(prefix: str, lines: list[str]) -> str:
     return "\n".join([f"{prefix}: limits tripped: {len(lines)}"] + [f"  {x}" for x in lines])
 
 
@@ -63,9 +83,8 @@ class TimeoutTrip(subprocess.TimeoutExpired):
 
 def run(name: str, cmd: list, *, file, timeout: float, page: int | None = None, **kw):
     """subprocess.run(cmd, timeout=timeout, **kw); a timeout is recorded as `limit <name>` and raised as TimeoutTrip."""
-    started = time.monotonic()
     try:
         return subprocess.run(cmd, timeout=timeout, **kw)
     except subprocess.TimeoutExpired as e:
-        took = max(time.monotonic() - started, float(timeout))
-        raise TimeoutTrip(e.cmd, timeout, trip(name, file, f"{took:g}s", f"{timeout:g}s", page)) from None
+        # the value is the cap reached ("120s+"), not the measured time, so a repeat of the same trip is one line
+        raise TimeoutTrip(e.cmd, timeout, trip(name, file, f"{timeout:g}s+", f"{timeout:g}s", page)) from None

@@ -493,6 +493,7 @@ def run_step(log: dict, offline: bool, fetcher=None, cfg: RpcConfig | None = Non
     run does not ask again for a document the manifest already lists. Never raises; the summary goes to log['rpc']
     (with `exit`) and build/rpc-report.json."""
     out: dict = {"offline": offline, "status": None}
+    since = limits.mark()                      # this step's own trips only (limits invariant rule 3)
     p = snap = None
     try:
         cfg = cfg or load_config()
@@ -506,7 +507,7 @@ def run_step(log: dict, offline: bool, fetcher=None, cfg: RpcConfig | None = Non
     if snap is not None and (code != STEP_OK or out.get("kept")):
         _restore(p, snap)
     out["exit"] = code
-    out["limits"] = limits.tripped()
+    out["limits"] = limits.tripped(since)
     fetch_log = out.pop("fetch_log", [])
     if p is not None:
         try:
@@ -518,7 +519,7 @@ def run_step(log: dict, offline: bool, fetcher=None, cfg: RpcConfig | None = Non
         out["build"]["problems"] = len(problems)          # the full list is in build/rpc-report.json
     log["rpc"] = out
     print(f"collector: rpc: exit {code}: {out['status']}", flush=True)
-    print(limits.summary("collector: rpc"), flush=True)
+    print(limits.summary("collector: rpc", since), flush=True)
     return code
 
 
@@ -537,6 +538,7 @@ def main(argv: list[str]) -> int:
     p = paths(cfg)
     store = Store(manifest_path=p["manifest"])
     log = new_log()
+    since = limits.mark()
     if a.command in ("fetch", "run"):
         # by hand too: the same cap and crawl-delay as the daily step; what it fetches stays in the manifest
         cmd_fetch(cfg, store, p["listing"], log, limit=a.limit, max_requests=DAILY_FETCH_CAP, keeps_manifest=True)
@@ -551,10 +553,10 @@ def main(argv: list[str]) -> int:
         facts, summary = build(cfg, rows, store, audit_path=p["audit"])
         write_json(p["facts"], facts)
         report["build"] = summary
-    report["limits"] = limits.tripped()
+    report["limits"] = limits.tripped(since)
     write_json(p["report"], {**report, "fetch_log": log.get("fetch_log", [])})
     print(json.dumps(report, indent=1, default=str)[:4000])
-    print(limits.summary("collector rpc"), flush=True)
+    print(limits.summary("collector rpc", since), flush=True)
     if any(f["stage"] == "listing" or f.get("stop") for f in log["failures"]):   # not read, or the host said no
         return 2
     short = report.get("build", {}).get("case_shortfalls") or []

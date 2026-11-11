@@ -13,6 +13,14 @@ listing**, but it must never change a fact we publish unless that change is **vi
 3. **Reported, not just logged.** A trip appears in the run summary as `limit <NAME>: <file> [page] <value> > <cap>`.
    A trip that turns a published fact from verified/confirmed to not, or drops a meeting, must fail the shrink guard
    like a dropped meeting does (`--allow-shrink` to accept it deliberately).
+   Each step's summary and report list only that step's own trips (`limits.mark()` at the step's start), and a
+   timeout's value is the cap reached (`120s+`), so the same trip twice in a step is one line.
+   **Decision (manager, 2026-11-11), online runs too:** when a county run (online or offline) would turn a roll call
+   verified in the committed `data/facts.json` into unverified or drop it, the committed facts file is kept
+   (not written; the export and site steps use it), the ids are named, and the run exits 3 so it fails loudly and
+   opens the usual issue (`kept_facts` in its body). Offline, the run is refused before anything is written, as
+   before. `--allow-shrink` accepts the change. RPC: the daily step refuses a result that unconfirms a committed
+   confirmed motion, except while rpc.yml `hold_motions` is on (nothing is published confirmed).
 4. **Bound the cost, not the position.** A cap limits what one unit can cost (memory, time). It never limits *where* in
    a real document we may read (a page index, a byte offset), because position is not cost.
 
@@ -32,7 +40,7 @@ installed here, so wall-clock times are **unmeasured**: the test plan measures t
 | L4 | `PAGE_INFO_TIMEOUT` 60 s, pdfinfo -box (ocr.py:44) | `check_page` | unmeasured (one page) | 60 s | page refused, as L2 | keep; measure |
 | L5 | `OCR_TIMEOUT` 600 s, pdftoppm and tesseract (ocr.py:78,81) | `ocr_page` | ~2 s/page tesseract (docs/research/m0-parse-spike.md:145); render unmeasured | 600 s | that roll call's OCR reading missing; reason added | keep; add report |
 | L6 | `rpc_agenda.ocr_document` whole-doc `pages > rpc_agenda.RPC_MAX_OCR_PAGES` (rpc_agenda.py:363) | RPC scanned agendas/minutes (107 OCR sources) | 90 pp (cmc-rpc/rpc.json) | 200 (2.2x) | whole document not read; `problems` gets "OCR failed"; its cases/motions missing | keep, but rename `RPC_MAX_OCR_PAGES` in rpc_agenda.py (not shared with ocr.py) |
-| L7 | `minutes.MAX_PAGES` 1000 (minutes.py:30,411) | `parse_minutes` (county) | 621 pp | 1000 (1.6x) | document is a parse failure; its meetings drop -> shrink guard refuses offline | **below 2x: raise to 1500**, comment cites 621 |
+| L7 | `minutes.MAX_PAGES` 1500 (minutes.py:31; was 1000) | `parse_minutes` (county) | 621 pp | 1500 (2.4x) | document is a parse failure; its meetings drop -> shrink guard refuses offline | raised to 1500 2026-11-11, comment cites 621 |
 | L8 | `extract.PARSE_TIMEOUT` 120 s, pdftotext -layout (extract.py:20) | county `cached_pages`, city build, finance, rpc text | 621 pp county; 493 pp city; time unmeasured | 120 s | document parse failure (county: shrink guard; city/fin/rpc: logged) | keep; measure |
 | L9 | `pdfwords.PARSE_TIMEOUT` 120 s, pdftotext -bbox (pdfwords.py:101) | `fin_facts.pdf_words` -> fin_budget, fin_bidtab | finance 176 pp; time unmeasured | 120 s | book/bid tab not read; budget-book guard problem | keep; measure |
 | L10 | `county_agenda.first_pages` 120 s, pdftotext -f1 -l6 (county_agenda.py:333) | county agenda items (agendas.json) | 6 pp of 270-pp agendas | 120 s | agenda not read | keep |
@@ -41,7 +49,7 @@ installed here, so wall-clock times are **unmeasured**: the test plan measures t
 | L13 | `city_build.PDFINFO_TIMEOUT` 120 s (city_build.py:118) | `pages` of city sources | as L12 | 120 s | as L12 | keep |
 | L14 | `fin_facts.PDFINFO_TIMEOUT` 120 s (fin_facts.py:29) | `pages`, `text_layer` of finance sources | 176 pp | 120 s | `text_layer: unreadable`, no values, guard problem, not cached | keep |
 | L15 | `rpc_agenda.pdf_page_count` `rpc_agenda.PAGE_COUNT_TIMEOUT` 60 s (rpc_agenda.py:341) | `pages` of RPC sources; L6 input | 90 pp | 60 s | `pages: None` -> document not OCRed, no cases | keep; add report |
-| L16 | `fetch.MAX_BYTES` 50 MiB = 52,428,800 (fetch.py:61,309) | every fetch: store, all pipelines | **52,041,095 B** (city agenda 2021-10-28; next 50,499,119 B), clarksville-tn manifest | 50 MiB (**1.007x**) | `FetchFailed`: file not stored; city run logs and exits 0 | **Must-fix (new): raise to 200 MiB** (4x; body held in memory, fine on runner) and report trips |
+| L16 | `fetch.MAX_BYTES` 200 MiB = 209,715,200 (fetch.py:65; was 50 MiB) | every fetch: store, all pipelines | **52,041,095 B** (city agenda 2021-10-28; next 50,499,119 B), clarksville-tn manifest | 200 MiB (4x; was 50 MiB, 1.007x) | `FetchFailed`: file not stored; city run logs and exits 0 | raised to 200 MiB 2026-11-11 (body held in memory, fine on runner); trips reported |
 | L17 | `MAX_REDIRECTS` 5 (fetch.py:63) | every fetch | not recorded in manifests | 5 | `FetchFailed` | keep (politeness/security, not a parse cap) |
 | L18 | `PoliteFetcher.timeout` 120 s per request (fetch.py:180) | every fetch | not recorded | 120 s | `FetchFailed` after one retry path | keep |
 | L19 | `civicclerk.MAX_PAGES` 200 listing pages (civicclerk.py:28) | city CivicClerk listing | ~11 pages (154 events, ~15 per page per docs/research/committee-sources-2026-11-11.md:199) | 200 (18x) | `EventsError`, listing failure, exit LISTING_FAILED, old listing kept | keep (already rule 3) |

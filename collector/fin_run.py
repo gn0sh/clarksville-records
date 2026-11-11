@@ -195,6 +195,7 @@ def cmd_build(store: Store, cfg: FinanceConfig, finance_path: Path | None = None
     (GUARD_KEYS; nothing written), 3 when parity says 'review needed' (written; release waits for the reason, A5)."""
     from . import fin_facts
     from .facts import dumps, write_if_changed
+    since = limits.mark()                      # this step's own trips only (limits invariant rule 3)
     finance_path = Path(finance_path) if finance_path else fin_facts.FINANCE
     report_path = Path(report_path) if report_path else ROOT / "build" / "report.json"
     fin, extras = fin_facts.build(store, cfg, status_path=status_path, **kw)
@@ -204,7 +205,7 @@ def cmd_build(store: Store, cfg: FinanceConfig, finance_path: Path | None = None
         for p in (errors + guard)[:20]:
             print("  problem:", p)
         print(f"collector fin: {len(errors)} schema errors, {len(guard)} scan-guard problems; nothing written")
-        print(limits.summary("collector fin"))
+        print(limits.summary("collector fin", since))
         return 2
     changed = write_if_changed(finance_path, dumps(fin))
     block = fin_facts.report_block(fin, extras)
@@ -220,7 +221,7 @@ def cmd_build(store: Store, cfg: FinanceConfig, finance_path: Path | None = None
               f"{json.dumps(b['reconcile'], sort_keys=True)}, held {b['held']}, edition differs {b['edition_differs']}")
     for p in extras["problems"]:
         print("  note:", p)
-    print(limits.summary("collector fin"))
+    print(limits.summary("collector fin", since))
     return 3 if block["parity"]["status"] != "ok" else 0
 
 

@@ -86,10 +86,10 @@ def test_a_timeout_is_a_timeout_expired_whose_message_is_the_trip_line(monkeypat
     monkeypatch.setattr(subprocess, "run", hung)
     with pytest.raises(subprocess.TimeoutExpired) as e:
         extract.extract_pages(Path("/x/big.pdf"))
-    assert str(e.value) == "limit extract.PARSE_TIMEOUT: big.pdf 120s > 120s"
-    assert limits.tripped() == ["limit extract.PARSE_TIMEOUT: big.pdf 120s > 120s"]
+    assert str(e.value) == "limit extract.PARSE_TIMEOUT: big.pdf 120s+ > 120s"
+    assert limits.tripped() == ["limit extract.PARSE_TIMEOUT: big.pdf 120s+ > 120s"]
     assert limits.summary("collector") == ("collector: limits tripped: 1\n"
-                                           "  limit extract.PARSE_TIMEOUT: big.pdf 120s > 120s")
+                                           "  limit extract.PARSE_TIMEOUT: big.pdf 120s+ > 120s")
 
 
 def test_no_trip_prints_zero():
@@ -138,31 +138,87 @@ def test_a_county_refusal_prints_the_limits_line(capsys):
     assert "collector: limits tripped: 1\n  limit minutes.MAX_PAGES: m.pdf 1501 pp > 1500 pp" in capsys.readouterr().out
 
 
+def test_fin_and_rpc_steps_in_one_process_report_only_their_own_trips(monkeypatch, capsys, tmp_path):
+    """pipeline/limits-reported-misattributed: county, then finance, then RPC in one process (collector run)."""
+    from collector import fin_run, rpc
+    from collector.tests.fin_fake import CFG, FakeFin
+    limits.mark()
+    limits.trip("minutes.MAX_PAGES", "county.pdf", "1501 pp", "1500 pp")            # the county step's
+    ff = FakeFin(tmp_path / "fin")
+
+    def meta(pdf, cfg, cache_dir=None):
+        limits.trip("fin_facts.PDFINFO_TIMEOUT", pdf, "120s+", "120s")
+        return ff.meta(pdf, cfg, cache_dir)
+    monkeypatch.setattr(fin_facts, "pdf_meta", meta)
+    fin_run.cmd_build(ff.store, CFG, finance_path=tmp_path / "f.json", report_path=tmp_path / "r.json",
+                      status_path=ff.status_path, meta_cache=None, words_for=ff.words_for, book_words=ff.book_words)
+    fin_out = capsys.readouterr().out
+    assert "collector fin: limits tripped: " in fin_out and "county.pdf" not in fin_out
+    assert "limit fin_facts.PDFINFO_TIMEOUT: " in fin_out
+
+    def daily(cfg, p, out, offline, fetcher, store, build, max_requests, allow_shrink=False):
+        limits.trip("rpc_agenda.RPC_MAX_OCR_PAGES", "rpc.pdf", "201 pp", "200 pp")
+        out["status"] = "ok"
+        return rpc.STEP_OK
+    monkeypatch.setattr(rpc, "_daily", daily)
+    root = tmp_path / "rpc"
+    rpc.run_step({}, offline=True, root=root, cfg=rpc.load_config())
+    rpc_out = capsys.readouterr().out
+    assert "collector: rpc: limits tripped: 1\n  limit rpc_agenda.RPC_MAX_OCR_PAGES: rpc.pdf 201 pp > 200 pp" in rpc_out
+    report = json.loads((root / "build" / "rpc-report.json").read_text())
+    assert report["limits"] == ["limit rpc_agenda.RPC_MAX_OCR_PAGES: rpc.pdf 201 pp > 200 pp"]
+
+
+def test_the_same_trip_twice_in_one_step_is_one_line_and_timeouts_show_the_cap(monkeypatch):
+    def hung(cmd, **kw):
+        raise subprocess.TimeoutExpired(cmd, kw["timeout"])
+    monkeypatch.setattr(subprocess, "run", hung)
+    limits.mark()
+    for _ in range(2):
+        with pytest.raises(subprocess.TimeoutExpired):
+            extract.extract_pages(Path("/x/big.pdf"))
+    assert limits.tripped() == ["limit extract.PARSE_TIMEOUT: big.pdf 120s+ > 120s"]
+    limits.mark()                                       # a later step: the same trip is its own again
+    with pytest.raises(subprocess.TimeoutExpired):
+        extract.extract_pages(Path("/x/big.pdf"))
+    assert len(limits.tripped()) == 2
+
+
 @pytest.mark.parametrize("which", ["city", "rpc", "fin"])
 def test_each_run_summary_prints_the_limits_line(which, monkeypatch, capsys, tmp_path):
-    limits.trip("ocr.MAX_PAGE_PTS", "big.pdf", "9000 pt", "2592 pt", page=3)
+    limits.trip("ocr.MAX_PAGE_PTS", "before.pdf", "9000 pt", "2592 pt", page=1)     # before the step: not its own
+
+    def trip():
+        limits.trip("ocr.MAX_PAGE_PTS", "big.pdf", "9000 pt", "2592 pt", page=3)
     if which == "fin":
         from collector import fin_run
         from collector.tests.fin_fake import CFG, FakeFin
         ff = FakeFin(tmp_path)
-        monkeypatch.setattr(fin_facts, "pdf_meta", ff.meta)
+        monkeypatch.setattr(fin_facts, "pdf_meta", lambda pdf, cfg, cache_dir=None: trip() or ff.meta(pdf, cfg))
         fin_run.cmd_build(ff.store, CFG, finance_path=tmp_path / "f.json", report_path=tmp_path / "r.json",
                           status_path=ff.status_path, meta_cache=None, words_for=ff.words_for,
                           book_words=ff.book_words)
         prefix = "collector fin"
     elif which == "rpc":
         from collector import rpc
+
+        def daily(cfg, p, out, *a, **k):
+            trip()
+            out["status"] = "ok"
+            return rpc.STEP_OK
+        monkeypatch.setattr(rpc, "_daily", daily)
         rpc.run_step({}, offline=True, root=tmp_path, cfg=rpc.load_config())
         prefix = "collector: rpc"
     else:
         from collector import city_run
         monkeypatch.setattr(city_run, "write_json", lambda path, obj: None)
         monkeypatch.setattr(city_run, "listing_rows", lambda p, cfg: ([], []))
-        monkeypatch.setattr("collector.city_build.build", lambda cfg, rows, store: ({"_wards": {}}, {}))
+        monkeypatch.setattr("collector.city_build.build", lambda cfg, rows, store: trip() or ({"_wards": {}}, {}))
         city_run.main(["build"])
         prefix = "collector city"
     out = capsys.readouterr().out
     assert f"{prefix}: limits tripped: 1\n  limit ocr.MAX_PAGE_PTS: big.pdf p3 9000 pt > 2592 pt" in out
+    assert "before.pdf" not in out
 
 
 # ------------------------------------------------------------------ rule 3: the shrink guard

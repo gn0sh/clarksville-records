@@ -268,7 +268,8 @@ def issue_command(code: int, log: dict, report: dict | None) -> str:
     body = {"exit": code, "failures": log["failures"][:20], "rpc": {"exit": rpc.get("exit"), "status": rpc.get("status")},
             "gates": (report or {}).get("gates", {}).get("verified_rate_gate"),
             "g4_flagged": (report or {}).get("gates", {}).get("g4", {}).get("flagged"),
-            "finance_build_exit": log.get("fin_build")}          # 3: parity 'review needed' (A5)
+            "finance_build_exit": log.get("fin_build"),          # 3: parity 'review needed' (A5)
+            "kept_facts": log.get("kept_facts"), "limits": log.get("limits")}
     return (f"gh issue create --repo {REPO} --title {shlex.quote(title)} "
             f"--body {shlex.quote(json.dumps(body, indent=1))}")
 
@@ -298,14 +299,9 @@ def shrink_reason(facts: dict, log: dict, facts_path: Path) -> str | None:
         return (f"the result has {len(facts['meetings'])} meetings and would drop {len(dropped)} of the "
                 f"{len(old.get('meetings', []))} in {Path(facts_path).name}, e.g. {', '.join(dropped[:3])}. "
                 f"A parser change that renames meeting ids also causes this; pass --allow-shrink to override")
-    # limits invariant rule 3: a roll call verified in the committed file must stay verified (a too-tight limit, an
-    # OCR reading lost, would otherwise turn a published verified vote into unverified with no one noticing)
-    verified = {r["id"] for r in facts.get("roll_calls", []) if _verified(r)}
-    lost = sorted(r["id"] for r in old.get("roll_calls", []) if _verified(r) and r["id"] not in verified)
+    lost = lost_verified(facts, old)
     if lost:
-        return (f"{len(lost)} roll calls verified in {Path(facts_path).name} would no longer be verified, e.g. "
-                f"{', '.join(lost[:3])} (a limit trip, a lost OCR reading or a parser change); pass --allow-shrink "
-                f"to accept it")
+        return lost_message(lost, facts_path)
     return None
 
 
@@ -314,8 +310,21 @@ def _verified(rc: dict) -> bool:
     return (v.get("status") if isinstance(v, dict) else v) == "verified"
 
 
-def refuse(why: str) -> int:
-    print(limits.summary("collector"), flush=True)     # a limit trip may be why the result shrank
+def lost_verified(facts: dict, old: dict | None) -> list[str]:
+    """Limits invariant rule 3: ids of roll calls verified in the committed facts `old` that `facts` no longer has
+    verified (a too-tight limit or a lost OCR reading would otherwise unverify a published vote silently)."""
+    verified = {r["id"] for r in facts.get("roll_calls", []) if _verified(r)}
+    return sorted(r["id"] for r in (old or {}).get("roll_calls", []) if _verified(r) and r["id"] not in verified)
+
+
+def lost_message(lost: list[str], facts_path: Path) -> str:
+    return (f"{len(lost)} roll calls verified in {Path(facts_path).name} would no longer be verified: "
+            f"{', '.join(lost[:20])}{' ...' if len(lost) > 20 else ''} (a limit trip, a lost OCR reading or a parser "
+            f"change); pass --allow-shrink to accept it")
+
+
+def refuse(why: str, since: int = 0) -> int:
+    print(limits.summary("collector", since), flush=True)     # a limit trip may be why the result shrank
     print(f"collector: REFUSED (offline run): {why}. {FACTS.name} and the build were left unchanged. Restore the "
           "store (data/store/ or RECORDS_STORE), run without --offline, or pass --allow-shrink if the smaller result "
           "is meant.", file=sys.stderr, flush=True)
@@ -344,11 +353,12 @@ def cmd_run(args) -> int:
            "parsed": 0, "held_back": None}
     store = Store(MANIFEST)
     allow = getattr(args, "allow_shrink", False)
+    since = limits.mark()                       # the county step's own trips (limits invariant rule 3)
     if args.offline and not allow:
         missing = missing_inputs(store)
         if missing:
             return refuse(f"{len(missing)} minutes PDFs listed in the manifest are not in the store "
-                          f"({store.root}), e.g. {missing[0]['url']}")
+                          f"({store.root}), e.g. {missing[0]['url']}", since)
     fetcher = None
     if not args.offline:
         fetcher = finance_fetcher()
@@ -359,14 +369,24 @@ def cmd_run(args) -> int:
     if args.offline and not allow:
         why = shrink_reason(facts, log, FACTS)
         if why:
-            return refuse(why)
-    changed = write_if_changed(FACTS, dumps(facts))
+            return refuse(why, since)
+    # online too (pipeline/shrink-guard-offline-only): a committed verified roll call that would lose its status
+    # keeps the committed facts file, and the run ends with exit 3 and the usual issue (--allow-shrink accepts it)
+    old = json.loads(FACTS.read_text(encoding="utf-8")) if FACTS.is_file() else None
+    lost = [] if allow else lost_verified(facts, old)
+    if lost:
+        log["kept_facts"] = lost_message(lost, FACTS)
+        facts = old                             # the committed file stands, for the export and site steps too
+    county_trips = limits.tripped(since)       # the county build; the agendas step is added below
+    changed = False if lost else write_if_changed(FACTS, dumps(facts))
     BUILD.mkdir(parents=True, exist_ok=True)
     write_if_changed(BUILD / "report.json", dumps(report))
     write_if_changed(BUILD / "name-candidates.json", dumps(name_candidates(b, load_roster(NAMES))))
     fin_code = run_finance(store, log, args.offline, fetcher=fetcher, finance_path=FINANCE,
                            report_path=BUILD / "report.json")
+    agendas_since = limits.mark()
     run_agendas(log, args.offline, fetcher=fetcher)
+    county_trips += limits.tripped(agendas_since)
     rpc_code = run_rpc(log, args.offline, fetcher=fetcher,      # before the site build, which reads rpc.json
                        allow_shrink=allow)
     site = BUILD / "site"
@@ -385,7 +405,7 @@ def cmd_run(args) -> int:
         write_publish_manifest(site)
     log["finished_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     log["facts_changed"] = changed
-    log["limits"] = limits.tripped()
+    log["limits"] = county_trips
     (BUILD / "run-log.json").write_text(dumps(log))
     g = report["gates"]
     print(f"collector: {log['parsed']} documents parsed, {g['roll_calls']} roll calls, {g['verified']} verified "
@@ -393,8 +413,10 @@ def cmd_run(args) -> int:
           f"({g['held_back_source_error']} by source errors); G4 {g['g4']['status']} "
           f"(uniform share {g['g4']['uniform_share']}); "
           f"failures {len(log['failures'])}", flush=True)
-    print(limits.summary("collector"), flush=True)
-    code = 2 if log["failures"] else (0 if report["pass"] and fin_code == 0 else 3)
+    print(limits.render("collector", county_trips), flush=True)
+    code = 2 if log["failures"] else (0 if report["pass"] and fin_code == 0 and not lost else 3)
+    if lost:
+        print(f"collector: KEPT {FACTS.name} unchanged: {log['kept_facts']}", file=sys.stderr, flush=True)
     if code == 0 and rpc_code:
         from .rpc import STEP_FILLING
         code = RPC_FILLING if rpc_code == STEP_FILLING else RPC_FAILED

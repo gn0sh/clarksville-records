@@ -228,6 +228,78 @@ def test_exit_codes(sandbox, capsys, fail, gate_pass, fin_code, code):
     assert ("gh issue create --repo gn0sh/clarksville-records" in out) == (code != 0)
 
 
+@pytest.mark.parametrize("allow", [False, True])
+def test_online_run_keeps_the_committed_facts_when_a_verified_roll_call_would_be_lost(sandbox, monkeypatch, capsys,
+                                                                                      allow):
+    """pipeline/shrink-guard-offline-only: online too, a roll call verified in the committed facts that the new
+    result has unverified keeps the committed file, names the id and exits 3 with the usual issue;
+    --allow-shrink accepts it."""
+    import copy
+    old = committed_facts()
+    M.FACTS.write_text(json.dumps(old), encoding="utf-8")
+    before = M.FACTS.read_bytes()
+    new = copy.deepcopy(old)
+    rc = next(r for r in new["roll_calls"] if r["verification"]["status"] == "verified")
+    rc["verification"]["status"] = "unverified"
+
+    class B:
+        unresolved = {}
+
+    def fake_build(store, log, use_ocr=True):
+        log["parsed"] = 1
+        return new, sandbox["report"], B()
+    monkeypatch.setattr(M, "cmd_build", fake_build)
+    monkeypatch.setattr(M, "cmd_fetch", lambda store, log, fetcher=None: None)
+    monkeypatch.setattr(M, "finance_fetcher", lambda: None)
+    code = M.main(["run"] + (["--allow-shrink"] if allow else []))
+    out, err = capsys.readouterr()
+    if allow:
+        assert code == 0 and json.loads(M.FACTS.read_text())["roll_calls"] == new["roll_calls"]
+    else:
+        assert code == 3 and M.FACTS.read_bytes() == before                  # the committed file stands
+        assert f"KEPT facts.json unchanged: 1 roll calls verified in facts.json would no longer be verified: {rc['id']}" \
+            in err
+        assert "gh issue create" in out and rc["id"] in out                  # the usual issue names it
+
+
+def test_county_summary_reports_only_the_county_steps_trips(sandbox, monkeypatch, capsys):
+    """pipeline/limits-reported-misattributed: finance and RPC trips in the same process are not the county's."""
+    from collector import limits
+    limits.reset()
+    limits.trip("old.CAP", "earlier.pdf", "2", "1")                     # an earlier run in this process
+    facts = committed_facts()
+
+    class B:
+        unresolved = {}
+
+    def build(store, log, use_ocr=True):
+        log["parsed"] = 1
+        limits.trip("minutes.MAX_PAGES", "county.pdf", "1501 pp", "1500 pp")
+        return facts, sandbox["report"], B()
+    monkeypatch.setattr(M, "cmd_build", build)
+    def finance(*a, **k):                     # as fin_run.cmd_build: its own step
+        limits.mark()
+        limits.trip("fin_facts.PDFINFO_TIMEOUT", "fin.pdf", "120s+", "120s")
+        return 0
+
+    def rpc_step(log, offline, fetcher=None, allow_shrink=False):     # as rpc.run_step: its own step
+        limits.mark()
+        limits.trip("rpc_agenda.RPC_MAX_OCR_PAGES", "rpc.pdf", "201 pp", "200 pp")
+        return 0
+    monkeypatch.setattr(M, "run_finance", finance)
+    monkeypatch.setattr(M, "run_agendas", lambda log, offline, fetcher=None:
+                        limits.trip("county_agenda.PARSE_TIMEOUT", "agenda.pdf", "120s+", "120s"))
+    monkeypatch.setattr(M, "run_rpc", rpc_step)
+    M.main(["run", "--offline"])
+    out = capsys.readouterr().out
+    assert ("collector: limits tripped: 2\n  limit minutes.MAX_PAGES: county.pdf 1501 pp > 1500 pp\n"
+            "  limit county_agenda.PARSE_TIMEOUT: agenda.pdf 120s+ > 120s\n") in out
+    run_log = json.loads((M.BUILD / "run-log.json").read_text())
+    assert run_log["limits"] == ["limit minutes.MAX_PAGES: county.pdf 1501 pp > 1500 pp",
+                                 "limit county_agenda.PARSE_TIMEOUT: agenda.pdf 120s+ > 120s"]
+    limits.reset()
+
+
 def test_run_calls_the_finance_steps_after_the_votes_steps(sandbox, tmp_path):
     """A1: `run` calls fin fetch/build (offline: build only) with the run's paths, after facts.json is written."""
     M.main(["run", "--offline"])
