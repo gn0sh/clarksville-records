@@ -2,7 +2,7 @@
 
 Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
 - only hosts on ALLOWED_HOSTS; `cityofclarksville.com` is refused in code, whatever the allowlist says;
-- robots.txt read once per host per run, `can_fetch` checked before every request;
+- robots.txt read once per exact host per run, `can_fetch` checked before every request;
 - at least HOST_FLOOR seconds between requests to one host (robots.txt fetch included), more if robots
   Crawl-delay says so;
 - one plain GET with a clear User-Agent, no header tricks;
@@ -17,9 +17,10 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
   having blocked us. A 403 that cannot be attributed to the proxy is treated as the site's;
 - every request waits the host delay first, whatever the previous answer was (a 304, a 404, a 5xx, a reset): no
   status code ever shortens the gap;
-- one site, one state (fetch/host-key-normalization): the delay, the robots.txt rules, a block and the request count
-  are kept per site_key(host) (lowercase, no port, no leading "www."), so www.cmcrpc.com and cmcrpc.com share one
-  crawl-delay, one block and one cap;
+- one site, one state (fetch/host-key-normalization): the delay, a block and the request count are kept per
+  site_key(host) (lowercase, no port, no leading "www."), so www.cmcrpc.com and cmcrpc.com share one crawl-delay
+  (the largest either robots.txt asks for), one block and one cap. robots.txt itself is read and obeyed per exact
+  host (RFC 9309: each host's file applies to that host only);
 - limit_hosts(hosts, n): a hard cap of n more requests, shared by those hosts, for the rest of the run, counting
   robots.txt, redirects and retries. The request past it is never made (RequestCapReached); the RPC daily step
   uses it. A redirect from a capped host may only go to a host in the same cap group, where it counts against that
@@ -276,8 +277,9 @@ class PoliteFetcher:
             raise FetchFailed(f"{url}: {detail}") from None
 
     def robots(self, host: str, scheme: str = "https") -> urllib.robotparser.RobotFileParser:
+        exact = host.lower()                 # robots.txt is per exact host (RFC 9309); delay, block, cap per site
         key = site_key(host)
-        if key not in self._robots:
+        if exact not in self._robots:
             rp = urllib.robotparser.RobotFileParser()
             url = f"{scheme}://{host}/robots.txt"
             status, body, headers = self._raw_get(url)
@@ -293,11 +295,11 @@ class PoliteFetcher:
                 rp.allow_all = True          # no robots.txt = no rules (RFC 9309)
             else:
                 rp.disallow_all = True       # server error: be conservative
-            self._robots[key] = rp
+            self._robots[exact] = rp
             delay = rp.crawl_delay(self.user_agent) or rp.crawl_delay("*")
-            if delay:
+            if delay:                        # the site's delay is the largest any of its hosts asks for
                 self._delay[key] = max(float(delay), self._delay.get(key, 0.0))
-        return self._robots[key]
+        return self._robots[exact]
 
     def _location(self, url: str, headers: dict) -> str:
         loc = next((v for k, v in (headers or {}).items() if k.lower() == "location"), None)

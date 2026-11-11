@@ -283,20 +283,34 @@ def _www():
     return f, net, clock
 
 
-def test_www_and_bare_host_share_one_delay_robots_and_cap():
-    """fetch/host-key-normalization: www.h.example, h.example and H.EXAMPLE:443 are one site."""
+def test_www_and_bare_host_share_one_delay_and_cap_but_each_has_its_robots():
+    """fetch/host-key-normalization: www.h.example, h.example and H.EXAMPLE:443 are one site for the delay, a block
+    and the cap; robots.txt is read and obeyed per exact host (RFC 9309)."""
     from collector.fetch import RequestCapReached, site_key
     assert site_key("WWW.CmcRpc.com:443") == site_key("cmcrpc.com") == "cmcrpc.com"
     f, net, clock = _www()
-    f.limit_hosts(("h.example",), 3)
+    f.limit_hosts(("h.example",), 4)
     f.get("https://www.h.example/a")
     f.get("https://h.example/b")
     calls = [u for u, _ in net.calls]
-    assert calls == ["https://www.h.example/robots.txt", "https://www.h.example/a", "https://h.example/b"]
-    assert clock.slept == [15.0, 15.0]                 # the www robots.txt crawl-delay holds for the bare host too
-    assert f.remaining("www.h.example") == 0 and f.sent("h.example") == 3
+    assert calls == ["https://www.h.example/robots.txt", "https://www.h.example/a", "https://h.example/robots.txt",
+                     "https://h.example/b"]
+    assert clock.slept == [15.0, 15.0, 15.0]           # www's crawl-delay holds for the bare host (no robots.txt)
+    assert f.remaining("www.h.example") == 0 and f.sent("h.example") == 4
     with pytest.raises(RequestCapReached):
         f.get("https://H.EXAMPLE:443/c")
+
+
+def test_robots_rules_of_one_host_never_apply_to_the_other():
+    f, net, _ = _www()
+    net.routes["https://www.h.example/robots.txt"] = (200, b"User-agent: *\nDisallow: /a\n")
+    net.routes["https://h.example/robots.txt"] = (200, b"User-agent: *\nDisallow: /b\nCrawl-delay: 20\n")
+    with pytest.raises(RobotsDisallowed):
+        f.get("https://www.h.example/a")
+    with pytest.raises(RobotsDisallowed):
+        f.get("https://h.example/b")
+    assert f.get("https://h.example/a")[0] == 404        # allowed on the bare host (not routed: 404), so asked
+    assert f.delay_for("www.h.example") == 20.0          # the larger crawl-delay holds for the whole site
 
 
 def test_a_block_on_www_blocks_the_bare_host():
@@ -326,7 +340,7 @@ def test_a_redirect_inside_the_cap_group_counts_against_the_cap():
                       "https://www.h.example/x": (200, b"x")})
     f.limit_hosts(("h.example",), 10)
     assert f.get("https://h.example/r")[0] == 200
-    assert f.remaining("h.example") == 7                # robots.txt, r and its target; one site, so no second robots
+    assert f.remaining("h.example") == 6                # robots.txt, r, www robots.txt and the target: one cap
 
 
 def test_an_uncapped_host_still_follows_redirects_to_other_allowed_hosts():
