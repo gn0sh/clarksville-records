@@ -228,7 +228,11 @@ RPC_BUSINESS = {"Motion to elect", "Motion to adjourn", "Motion to approve the m
                 "Motion to approve the consent agenda", "Motion to approve the deferrals"}
 # the reader's rules (collector/rpc_minutes.py MOTION_RULES): a record written without them shows no motion confirmed
 RPC_MOTION_RULES = "rpc-motion-invariant-1"
-MOTION_BLOCK = re.compile(r'<div class="rpc-motion(?P<nc> nc)?" id="(?P<id>[^"]+)">(?P<body>.*?)</div>', re.S)
+# `nc`: " nc" (a motion shown not confirmed) or " held" (rpc.yml hold_motions: its type and minutes page only)
+MOTION_BLOCK = re.compile(r'<div class="rpc-motion(?P<nc> nc| held)?" id="(?P<id>[^"]+)">(?P<body>.*?)</div>', re.S)
+# words a held block never carries (Brian 2026-11-11: no vote content at all while held, not even a "not confirmed" row)
+RPC_HELD_WORDS = ("Not confirmed", "Moved by", "seconded by", "Outcome", "Voted nay", "Abstained", "Passed", "Failed",
+                  "carried", "unanimous")
 RPC_PLACE = re.compile(r'id="(?:case-(?P<case>[^"]+)|(?P<meeting>[^"]+)-motions)"')
 ITEM_TITLE_SPAN = re.compile(r"<span data-item-title>.*?</span>", re.S)
 # RPC content outside the RPC's own pages: a motion block, or a day card (today.html); the front pages are always read
@@ -257,7 +261,9 @@ def check_rpc_motions(site: Path, pages: dict[str, "Page"], rpc: dict | None) ->
     on its meeting's agenda, or is the meeting's own business with no case; (d) no nay or abstainer is (by surname)
     its mover or seconder; (e) no page with RPC content (the RPC's own pages, index.html, today.html, any page with an
     RPC card or motion block) says "unanimous" outside the minutes' own words (data-item-title); (g) while rpc.yml
-    `hold_motions` is on, no block is shown confirmed or sits under a case, and every block is held to (a)."""
+    `hold_motions` is on, no block is shown confirmed or sits under a case, and every block is held to (a); (h) while
+    it is on every block is a held block (class "held": no "Not confirmed" row, no vote wording, a minutes link), and
+    a held block while it is off is a problem."""
     if not rpc:
         return [], "no RPC facts"
     motions = {mv["id"]: mv for mv in rpc.get("motions", [])}
@@ -297,6 +303,17 @@ def check_rpc_motions(site: Path, pages: dict[str, "Page"], rpc: dict | None) ->
             under = before[-1][1] if before else None
             if on_hold and under:
                 problems.append(f"{rel}#{mid}: under case {under} while rpc.yml hold_motions is on")
+            if on_hold and b.group("nc") == " nc":
+                problems.append(f"{rel}#{mid}: a not confirmed vote row while rpc.yml hold_motions is on "
+                                "(a held motion shows its type and minutes page only)")
+            if b.group("nc") == " held":
+                if not on_hold:
+                    problems.append(f"{rel}#{mid}: shown held while rpc.yml hold_motions is off")
+                words = [w for w in RPC_HELD_WORDS if re.search(re.escape(w), body, re.I)]
+                if words:
+                    problems.append(f"{rel}#{mid}: a held motion shows vote wording: {', '.join(words)}")
+                if "#page=" not in b.group("body"):
+                    problems.append(f"{rel}#{mid}: a held motion without a link to its page of the minutes")
             if not confirmed:
                 held = [mv.get("moved_by"), mv.get("seconded_by"), mv.get("outcome"), mv.get("case"),
                         *(mv.get("nays") or []), *(mv.get("abstained") or []), "Moved by", "Outcome, as printed"]
@@ -508,6 +525,9 @@ def check_rpc_morning(site: Path, rpc: dict | None, note_expected: bool = False)
                 continue
             seen += 1
             mid = eid[len(prefix):]
+            if on_hold:     # no RPC vote entry at all while held, confirmed or not (Brian, 2026-11-11)
+                problems.append(f"morning/{f.name}: {eid}: an RPC vote entry while rpc.yml hold_motions is on")
+                continue
             mv = motions.get(mid)
             if current and mv is not None and mv.get("confirmed") is True:
                 continue
@@ -2267,6 +2287,58 @@ def _council_cfg(slug: str) -> dict:
     return {}
 
 
+ABOUT_RATE = re.compile(r'<p class="glance-note" data-confirmed-rate="(?P<body>[^"]+)">(?P<text>.*?)</p>', re.S)
+OPERATOR_PERSON = re.compile(r'<p id="operator-person">(?P<text>.*?)</p>', re.S)
+
+
+def check_about(site: Path, cs: list[dict], cfg: dict) -> tuple[list[str], str]:
+    """about.html against the facts (Brian 2026-11-11): (a) each built council's confirmed rate reads "<n> of <total>
+    <body> roll calls (<pct>%) are confirmed", restated here from that council's facts (verification status
+    "verified"), so the page can never drift from the record; (b) with config operator_person set and that official
+    in a built council, one operator line that names them, links their own vote history page
+    (<slug>/members/<id>.html) and prints no date the data does not hold."""
+    page = site / "about.html"
+    if not page.is_file():
+        return ["about.html: missing"], "no About page"
+    raw = page.read_text(encoding="utf-8")
+    problems: list[str] = []
+    shown = {html.unescape(m.group("body")): m.group("text") for m in ABOUT_RATE.finditer(raw)}
+    notes = []
+    for c in cs:
+        body = _council_cfg(c["slug"]).get("body_name") or c["facts"]["coverage"]["body"]
+        rcs = c["facts"]["roll_calls"]
+        n = sum(1 for rc in rcs if rc["verification"]["status"] == "verified")
+        want = f"{n:,} of {len(rcs):,}"
+        pct = f"({100 * n / len(rcs):.1f}%)" if rcs else "(0.0%)"
+        text = shown.pop(body, None)
+        plain = html.unescape(re.sub(r"<[^>]+>", "", text or ""))
+        if text is None:
+            problems.append(f"about.html: no confirmed rate for {body}")
+        elif not plain.startswith(f"{want} {body} roll calls {pct} are confirmed"):
+            problems.append(f"about.html: {body} rate reads {plain[:80]!r}, the facts give {want} {pct}")
+        elif f'href="{c["slug"]}/index.html"' not in text:
+            problems.append(f"about.html: {body} rate does not link the body's pages")
+        notes.append(f"{body} {want} {pct}")
+    problems += [f"about.html: a confirmed rate for {b}, which this build has no facts for" for b in shown]
+    pid = cfg.get("operator_person")
+    owner = next((c for c in cs if any(o["id"] == pid for o in c["facts"]["officials"])), None) if pid else None
+    lines = OPERATOR_PERSON.findall(raw)
+    if owner is None:
+        if lines:
+            problems.append("about.html: an operator line with no operator_person in a built council")
+    elif len(lines) != 1:
+        problems.append(f"about.html: {len(lines)} operator lines, want 1")
+    else:
+        o = next(o for o in owner["facts"]["officials"] if o["id"] == pid)
+        want = f'<a href="{owner["slug"]}/members/{pid}.html">{html.escape(o["name"])}</a>'
+        if want not in lines[0]:
+            problems.append(f"about.html: the operator line does not link {o['name']} to their vote history page")
+        if re.search(r"\b(19|20)\d\d\b", html.unescape(re.sub(r"<[^>]+>", "", lines[0]))):
+            problems.append("about.html: the operator line prints a year")   # no term date is in the city's data
+        notes.append(f"operator line links {owner['slug']}/members/{pid}.html")
+    return problems, "; ".join(notes) or "no councils"
+
+
 def _council_wards(slug: str) -> list[dict]:
     c = _council_cfg(slug)
     if c and (ROOT / c["wards"]).is_file():
@@ -2543,6 +2615,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("transcripts", problems, note)
     problems, note = check_unofficial(site, pages, cfg)
     rep.add("unofficial/notice-on-every-page", problems, note)
+    problems, note = check_about(site, cs, cfg)
+    rep.add("about", problems, note)
     problems, note = check_current_holders(site, facts, read_roster(seats_path), cs)
     rep.add("current-holders", problems, note)
     note = seats_fresh_note(facts, read_roster(seats_path))

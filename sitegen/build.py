@@ -716,7 +716,12 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         render("today.html.j2", days_mod.PAGE, "Today", **days_mod.page(ix, cixs, rpx, fx, built_day, ax=ax))
     except days_mod.DaysError as exc:
         raise BuildError(str(exc)) from exc
-    render("about.html.j2", "about.html", "About", **views.about(ix), glance=views.record_glance(ix))
+    person = views.operator_person(config.SITE.get("operator_person"), cixs)
+    if config.SITE.get("operator_person") and person is None and cixs:
+        raise BuildError(f"config/site.yml operator_person {config.SITE['operator_person']!r}: no built council has "
+                         "this official, so the About page cannot name them or link their votes")
+    render("about.html.j2", "about.html", "About", **views.about(ix), glance=views.record_glance(ix),
+           operator_person=person, council_rates=[views.confirmed_rate(c) for c in cixs])
     trust = views.trust_pages(ix)
     render("who.html.j2", "who-runs-this.html", "Who runs this", **trust)
     render("rules.html.j2", "our-rules.html", "Our rules", **trust)
