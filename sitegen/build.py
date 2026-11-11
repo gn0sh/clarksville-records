@@ -479,7 +479,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs, rpc=rpx)
     site["internal"] = internal
     site["councils"] = [council_mod.landing_entry(c) for c in cixs]
-    site["purpose"] = views.purpose_line(cixs, rpc=rpx is not None, finance=fx is not None)
+    site["purpose"] = views.purpose_line(cixs, rpc=rpx is not None, finance=fx is not None,
+                                         rpc_votes=rpx is not None and rpx.votes_shown)
     site["transcripts_omitted"] = not transcripts
     site["ward_map"] = ward_map
     site["export_omitted"] = not export
@@ -589,7 +590,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     feed_rows = feeds_mod.feed_list(cixs, rpc=rpx, fin=fin_data, target=target) if site["alerts"] else []
     body_feeds = [f for f in feed_rows if f["kind"] == "body"]   # autodiscovery on the home pages (plan F6)
     render("index.html.j2", "index.html", "Home", **views.landing(ix, districts, georef, geocoder, site["councils"]),
-           home_feeds=body_feeds, freshness=fresh_mod.lines(ix, ax, cixs, rpx, fin_data), freshness_note=fresh_mod.NOTE)
+           home_feeds=body_feeds,
+           freshness=fresh_mod.lines(ix, ax, cixs, rpx, fin_data, budget_views.INDEX if bg is not None else None),
+           freshness_note=fresh_mod.NOTE)
     render("officials.html.j2", "officials.html", "Officials", **views.officials_page(ix))
     render("meetings_index.html.j2", "meetings.html", "Meetings", **views.meetings_page(ix),
            watch=watch_mod.body(config.SITE["county_key"]),

@@ -1,7 +1,7 @@
 {% extends "base.html.j2" %}
 {% from "_unofficial.html.j2" import home_line %}
 {% from "_feed_links.html.j2" import feed_links %}
-{% from "_freshness.html.j2" import freshness as fresh %}
+{% from "_freshness.html.j2" import freshness as fresh with context %}
 {% block head %}<script src="{{ root }}static/js-flag.js"></script>{{ feed_links(home_feeds | default([]), root) }}{% endblock %}
 {% block sky_sun %}<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>{% endblock %}
 {% block sky %}

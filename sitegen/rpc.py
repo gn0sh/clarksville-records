@@ -224,6 +224,12 @@ class Rpc:
                 "nays": mv["nays"] if shown else [], "abstained": mv["abstained"] if shown else [],
                 "outcome": mv["outcome"] if shown else None}
 
+    @property
+    def votes_shown(self) -> bool:
+        """Any motion shown with its votes (Rpc.motion's rule): never while rpc.yml hold_motions holds them all. The
+        landing's heading claims the commission's votes only then (site-polish/home-heading)."""
+        return any(mv["confirmed"] or (config.SHOW_UNCONFIRMED_VALUES and not self.held) for mv in self.motions)
+
     def home_href(self) -> str:
         return f"{self.slug}/index.html"
 

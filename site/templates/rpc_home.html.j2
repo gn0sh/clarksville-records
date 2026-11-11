@@ -1,7 +1,7 @@
 {% extends "base.html.j2" %}
 {% from "_rpc.html.j2" import rpc_docs %}
 {% from "_macros.html.j2" import watch_link %}
-{% from "_freshness.html.j2" import freshness as fresh %}
+{% from "_freshness.html.j2" import freshness as fresh with context %}
 {# The Regional Planning Commission's home (sitegen/rpc.py home): every listed meeting, newest first, by year, with its
    documents. Each meeting's agenda cases are on its year page. #}
 {% block main %}

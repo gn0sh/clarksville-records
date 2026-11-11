@@ -183,10 +183,14 @@ district_layer: {label: County commission districts, short: Districts}
 ward_layer: {label: City wards, short: Wards}
 # Landing purpose line (h1). Neutral: what the site holds, no claim about anyone.
 # Names every body the build covers (site-polish/home-heading, 2026-11-11; sitegen/views.py purpose_line): {bodies} is
-# county_body, each council's body_name, purpose_rpc when the RPC pages are built and purpose_finance when finance is,
-# joined "A, B, C and D". Kept short for the phone's first screen.
-purpose: "Votes and records of the {bodies}, each linked to its source."
+# the bodies whose votes the site shows (county_body, each council's body_name, and purpose_rpc only while the RPC's
+# motions are shown, not held); {plus} is purpose_plus naming the rest (purpose_rpc_records while its votes are
+# held, purpose_finance when finance is built), or nothing. Lists are joined "A, B and C". Kept short for the phone's first
+# screen, and it never says a body's votes are shown when they are not.
+purpose: "Votes and records of the {bodies}{plus}, each linked to its source."
+purpose_plus: ", plus records of {bodies}"
 purpose_rpc: Regional Planning Commission
+purpose_rpc_records: the Regional Planning Commission
 purpose_finance: county finance
 city_coming: City of Clarksville records are coming.   # shown only when no council is listed below
 # Councils with their own pages beside the county (M4): each is config/localities/<locality>/council.yml.

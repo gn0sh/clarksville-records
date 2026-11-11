@@ -1772,6 +1772,57 @@ def _fetch_day_ok(day: str, labelled: bool, urls, instants) -> str | None:
     return None
 
 
+FRESH_BLOCK = re.compile(r'<(section|details) class="freshness".*?</\1>', re.S)
+FRESH_DATE = re.compile(r'<a href="(?P<href>[^"]+)"[^>]*>(?:<time class="nowrap" datetime="(?P<iso>[^"]+)">|'
+                        r'<span class="nowrap">)(?P<text>[^<]+)<')
+FRESH_FY = re.compile(r"fiscal year (\d{4})")
+
+
+def check_freshness_dates(site: Path, pages: dict[str, Page]) -> tuple[list[str], str]:
+    """dates/freshness-linked (site-polish/freshness-no-source-link), restated here on purpose (no call into sitegen):
+    every "through <date>" in a freshness block (the landing, the RPC home) links to a page of this site that exists,
+    holds the linked fragment id and prints that date (ISO or worded, as the site words it; a fiscal year as "FY<n>"
+    or "fiscal year <n>"), or to an https source document. A date with no link fails."""
+    import datetime as _dt
+    problems: list[str] = []
+    n = 0
+    for rel in sorted(pages):
+        raw = (site / rel).read_text(encoding="utf-8")
+        for blk in FRESH_BLOCK.finditer(raw):
+            body = blk.group(0)
+            unlinked = len(re.findall(r'class="nowrap"', body)) - len(FRESH_DATE.findall(body))
+            if unlinked:
+                problems.append(f"{rel}: {unlinked} freshness date(s) with no link to the page that set them")
+            for m in FRESH_DATE.finditer(body):
+                n += 1
+                href, iso, label = html.unescape(m["href"]), m["iso"], html.unescape(m["text"])
+                if href.startswith("https://"):
+                    continue
+                path, _, frag = href.partition("#")
+                target = (site / rel).parent / unquote(path)
+                try:
+                    target = target.resolve()
+                    target.relative_to(site.resolve())
+                except (OSError, ValueError):
+                    problems.append(f"{rel}: freshness link {href!r} leaves the site")
+                    continue
+                if not target.is_file():
+                    problems.append(f"{rel}: freshness link {href!r} has no page")
+                    continue
+                page = target.read_text(encoding="utf-8")
+                if frag and f'id="{frag}"' not in page:
+                    problems.append(f"{rel}: freshness link {href!r}: no id {frag!r} on that page")
+                if iso:
+                    d = _dt.date.fromisoformat(iso)
+                    forms = {iso, f"{d.strftime('%B')} {d.day}, {d.year}", f"{d.strftime('%b')} {d.day}, {d.year}"}
+                else:
+                    fy = FRESH_FY.fullmatch(label)
+                    forms = {f"FY{fy[1]}", label} if fy else {label}
+                if not any(f in page for f in forms):
+                    problems.append(f"{rel}: freshness date {label!r} not printed on the page it links ({href})")
+    return problems, f"{n} freshness dates, each linked to a page printing it"
+
+
 def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bool, county: dict | None = None,
                       councils_: list[dict] | tuple = (), rpc: dict | None = None) -> tuple[list[str], str]:
     """dates/no-raw-utc-day: (1) each per-document fetch day on a page ("fetched D", "Fetched D.", "at fetch (D)")
@@ -2486,6 +2537,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("feeds", problems, note)
     problems, note = check_local_dates(site, pages, cfg, bool(facts.get("fixture")), county=facts, councils_=cs, rpc=rpc)
     rep.add("dates/no-raw-utc-day", problems, note)
+    problems, note = check_freshness_dates(site, pages)
+    rep.add("dates/freshness-linked", problems, note)
     problems, note = check_transcripts(site, cs)
     rep.add("transcripts", problems, note)
     problems, note = check_unofficial(site, pages, cfg)
