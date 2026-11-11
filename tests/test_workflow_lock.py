@@ -262,3 +262,55 @@ def test_push_and_deploy_run_on_main_only():
     assert "github.ref == 'refs/heads/main'" in WF["jobs"]["push"]["if"]
     assert "github.ref == 'refs/heads/main'" in WF["jobs"]["deploy"]["if"]
     assert "github.event_name == 'schedule' || inputs.collect" in WF["jobs"]["push"]["if"]
+
+
+# ------------------------------------------------------------------ least privilege, every workflow in the repo
+WORKFLOWS = sorted((ROOT / ".github" / "workflows").glob("*.y*ml"))
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: p.name)
+def test_every_job_states_its_own_permissions(path):
+    wf = yaml.safe_load(path.read_text(encoding="utf-8"))
+    assert wf.get("permissions") == {}, "top-level permissions must be {} so each job grants only its own"
+    for name, job in wf["jobs"].items():
+        assert isinstance(job.get("permissions"), dict), f"{path.name}: job {name} has no explicit permissions"
+        assert "write-all" not in str(job["permissions"])
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: p.name)
+def test_no_untrusted_triggers_and_no_echoed_credentials(path):
+    text = path.read_text(encoding="utf-8")
+    wf = yaml.safe_load(text)
+    on = wf.get("on") or wf[True]
+    assert not set(on) & {"pull_request_target", "workflow_run", "pull_request", "issue_comment"}
+    assert "secrets." not in text
+    for line in text.splitlines():
+        s = line.strip()
+        if s.startswith(("echo", "printf", "run: echo", "run: printf")):
+            assert not re.search(r"github\.token|GH_TOKEN|GITHUB_TOKEN|ACTIONS_\w*TOKEN", s), line
+
+
+def test_a_hard_failure_never_reaches_main_and_the_exit_codes_are_documented():
+    """A failed fetch never deletes data: on any hard exit code the Collect step fails, so the data artifact is not
+    uploaded and the push job (which needs a successful update) never runs. Only county 6 (partial) passes."""
+    steps = {s.get("name"): s for s in WF["jobs"]["update"]["steps"]}
+    assert steps["Upload refreshed data"]["if"].startswith("success() && ")
+    assert WF["jobs"]["push"]["needs"] == "update" and "always()" not in WF["jobs"]["push"]["if"]
+    script = steps["Collect (polite fetch, parse, verify)"]["run"]
+    for city, county, ok in [(0, 0, 0), (0, 6, 0), (2, 0, 1), (5, 0, 1), (0, 2, 1), (0, 3, 1), (0, 4, 1), (0, 5, 1)]:
+        fake = script.replace("python -m collector city run; city=$?", f"city={city}").replace(
+            "python -m collector run; county=$?", f"county={county}")
+        r = subprocess.run(["bash", "-c", fake], env={**os.environ, "GITHUB_OUTPUT": os.devnull},
+                           capture_output=True, text=True)
+        assert (r.returncode != 0) == bool(ok), (city, county, r.stdout, r.stderr)
+    runbook = (ROOT / "docs" / "ops" / "launch-runbook.md").read_text(encoding="utf-8")
+    for phrase in ("**Hard failure**", "**Partial**", "county 6", "5 the RPC step failed",
+                   "A failed fetch never deletes data", "at most 40 requests"):
+        assert phrase in runbook, phrase
+
+
+def test_deploy_stays_locked_and_is_the_only_publishing_step():
+    assert sum(TEXT.count(a) for a in ("actions/deploy-pages@", "peaceiris/", "gh-pages")) == 1
+    assert _deploy_if().startswith(LOCK)
+    assert "RECORDS_DEPLOY_ENABLED" not in "\n".join(s.get("run", "") for j in WF["jobs"].values()
+                                                       for s in j["steps"])     # never set by the workflow itself

@@ -18,13 +18,30 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   `deploy` needs both other jobs: `update` green, and `push` green too (so the site never goes live from data that is
   not on `main`). Only a manual run with collect = false, where there is nothing to commit and `push` is skipped,
   deploys without a push.
-- Collector exit codes shown in the failure issue: 0 ok, 2 fetch/parse or listing failure, 3 gate failure, 4 offline
-  run refused, 5 (city) a host or robots.txt refused the collector (403/429 and the like). On 5 do not re-run to "try
-  again" and do not change the fetcher: read `build/city-report.json` in the run log and ask the manager.
+- Exit codes (shown in the failure issue as `city=` and `county=`). **Hard failure** (the Collect step fails: nothing
+  is uploaded, committed or deployed; data/ on `main` and the live site stay as they were; one issue opens):
+  - city: 2 a listing not read or fetch/parse failures, 5 a host or robots.txt refused the collector (403/429 and the
+    like). On 5 do not re-run to "try again" and do not change the fetcher: read `build/city-report.json` in the run
+    log and ask the manager.
+  - county: 2 fetch/parse failures (votes or finance), 3 gate failure, 4 offline run refused, 5 the RPC step failed
+    (cmcrpc.com blocked us, listing not read, an RPC gate, or a result that would shrink the RPC record; reason in
+    `build/run-log.json` `rpc`). A 429 from cmcrpc.com is never retried in that run; the next try is the next day's run,
+    so do not dispatch a manual run to "try again" the same day.
+  - **Partial** (not a failure): county 6, the RPC document store is still being filled (at most 40 requests to
+    cmcrpc.com per run, robots.txt and the listing included). The run goes on with the committed RPC files and a
+    `::warning::`; the data and site are committed as for 0.
+  - A failed fetch never deletes data: the RPC step is all or nothing on its committed files; a hard failure stops the
+    push job, so no partial result reaches `main`; the document store and caches are only ever added to.
 - Collection keeps the collector's rules: honest User-Agent, robots.txt, 10 s between requests per host.
 - The downloaded PDFs (about 3 GB, not in git) live in the Actions cache (`records-store-v1-*`, 10 GB repo limit, evicted
   after 7 days unused; the daily run keeps it warm). A cold cache refetches about 930 documents at 10 s each: 3 to 5
   hours. The job limit is 355 minutes.
+- The text layers and OCR readings (`data/text`, `data/ocr`, keyed by document sha256 and page) live in their own
+  cache (`records-derived-v1-*`), restored before Collect and saved when it grew, even after a failed step. A document
+  whose hash is unchanged is never OCR'd again. Worst case per warm run: only documents first fetched in that run are
+  OCR'd (RPC at most 38: 40 requests less robots.txt and the listing; county and city minutes as many as were newly
+  posted, usually 0 to 3), each page at most once. A cold OCR cache (first run, or evicted after 7 days unused)
+  re-OCRs every scanned page once, then keeps them.
 - Build overrides set by the workflow: `RECORDS_SITE_URL=https://daylight.gnoshcodes.com/` (feeds carry absolute links;
   `alerts.site_url` in `config/site.yml` stays empty, so no config edit is needed at launch) and `RECORDS_BUILD_TARGET=pages` (3000-file cap)
   (the 500-file cap is the claude.ai preview limit; Pages has none).

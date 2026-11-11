@@ -74,8 +74,23 @@ jobs:
           key: records-store-v1-${{ github.run_id }}
           restore-keys: records-store-v1-
 
+      # data/text and data/ocr (text layers and tesseract readings, keyed by the document's sha256 and page) are kept
+      # too, in their own cache so the store's cache key and version stay as they are. With them restored, a document
+      # whose hash is unchanged is never OCR'd again: only newly fetched documents are (pipeline/re-ocr-every-run).
+      - name: Restore text and OCR caches
+        id: derived
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            data/text
+            data/ocr
+          key: records-derived-v1-${{ github.run_id }}
+          restore-keys: records-derived-v1-
+
       - name: Count stored files before collection
-        run: echo "STORE_BEFORE=$(find data/store -type f 2>/dev/null | wc -l)" >> "$GITHUB_ENV"
+        run: |
+          echo "STORE_BEFORE=$(find data/store -type f 2>/dev/null | wc -l)" >> "$GITHUB_ENV"
+          echo "DERIVED_BEFORE=$(find data/text data/ocr -type f 2>/dev/null | wc -l)" >> "$GITHUB_ENV"
 
       - name: Collect (polite fetch, parse, verify)
         id: collect
@@ -88,15 +103,18 @@ jobs:
           # City first: it rewrites data/localities/clarksville-tn/*. The county run then builds facts, finance and
           # the site (build/site) from everything; it also reads the County Commission agenda page and any new agenda
           # PDFs (collector/county_agenda.py: one page request, new PDFs only, the same polite fetcher).
-          # Exit 0 ok, 2 fetch/parse failures, 3 gate failure.
+          # Exit codes (docs/ops/launch-runbook.md "Exit codes"). Hard failures fail this step: nothing is uploaded,
+          # committed or deployed, the committed data/ on main is untouched and one issue opens.
+          #   city:   0 ok, 2 a listing not read (or fetch/parse failures), 5 a host or robots.txt refused us.
+          #   county: 0 ok, 2 fetch/parse failures, 3 gate failure, 4 offline run refused.
           # The county run also runs the Regional Planning Commission step (collector/rpc.py run_step: the listing
           # page and new documents from www.cmcrpc.com through the same polite fetcher; robots.txt crawl-delay 10; the
           # first 403/429 ends that host's requests for the run). It is all or nothing: unless it succeeds, the RPC
           # files stay exactly as committed. Its codes, used only when everything else is ok:
           #   5 the RPC step failed (blocked, listing not read, a gate, or a result that would shrink the record):
-          #     this step fails, like any collection failure.
-          #   6 the RPC document store is still being filled (at most 40 documents per run): not a failure. The run
-          #     goes on with the committed RPC files and a warning.
+          #     a hard failure, like any collection failure.
+          #   6 partial: the RPC document store is still being filled (at most 40 requests per run): not a failure.
+          #     The run goes on with the committed RPC files and a warning.
           python -m collector city run; city=$?
           python -m collector run; county=$?
           echo "city_exit=$city county_exit=$county"
@@ -152,6 +170,19 @@ jobs:
         with:
           path: data/store
           key: records-store-v1-${{ github.run_id }}
+
+      - name: Check whether the text and OCR caches grew
+        if: always() && steps.derived.conclusion == 'success'
+        run: echo "DERIVED_GREW=$([ "$(find data/text data/ocr -type f 2>/dev/null | wc -l)" -gt "$DERIVED_BEFORE" ] && echo yes || echo no)" >> "$GITHUB_ENV"
+
+      - name: Save text and OCR caches
+        if: always() && env.DERIVED_GREW == 'yes'
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            data/text
+            data/ocr
+          key: records-derived-v1-${{ github.run_id }}
 
       # The data commit happens in the separate push job, so this job never holds a write token.
       # Not uploaded: the git-ignored caches (the 3 GB document store and derived text/OCR).

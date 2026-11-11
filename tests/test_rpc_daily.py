@@ -424,4 +424,4 @@ def test_workflow_collect_step_treats_only_filling_as_a_warning():
     assert 'if [ "$county" = 6 ]; then' in lines and "county=0" in lines
     assert lines[-1] == '[ "$city" = 0 ] && [ "$county" = 0 ]'       # 5 (and 2, 3, 4) still fail the step
     assert not re.search(r"county\"? = 5", step) and "cmcrpc.com" not in " ".join(lines)   # no fetch outside the collector
-    assert f"at most {rpc.DAILY_FETCH_CAP} documents per run" in step
+    assert f"at most {rpc.DAILY_FETCH_CAP} requests per run" in step
