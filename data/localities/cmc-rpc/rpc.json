@@ -39912,7 +39912,7 @@
       "printed": "10/27/2026"
     }
   ],
-  "motion_rules": "rpc-motion-invariant-3",
+  "motion_rules": "rpc-motion-invariant-4",
   "motions": [
     {
       "abstained": [],
@@ -43201,7 +43201,7 @@
       "abstained": [],
       "case": "Z-79-2022",
       "case_id": "2022-11-22-regular-z-79-2022",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2022-11-22-regular-motion-3",
       "kind": "Motion",
       "meeting_id": "2022-11-22-regular",
@@ -43209,7 +43209,9 @@
       "nays": [],
       "outcome": "Motion for approval passed",
       "page": 3,
-      "reasons": [],
+      "reasons": [
+        "the outcome names another kind of motion"
+      ],
       "seconded_by": "Mr. Spigner",
       "source_id": "src-e0fb7ab46854",
       "tally": null
@@ -45246,7 +45248,8 @@
       "outcome": "motion for approval passed",
       "page": 9,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "the outcome names another kind of motion"
       ],
       "seconded_by": "Mrs. Streetman",
       "source_id": "src-691f96bf1eb2",
@@ -45604,7 +45607,8 @@
       "page": 12,
       "reasons": [
         "a sentence of the vote is not one the reader knows",
-        "subject not read"
+        "subject not read",
+        "the outcome names another kind of motion"
       ],
       "seconded_by": "Mr. Smith",
       "source_id": "src-df47b74c73c1",
@@ -48497,7 +48501,7 @@
       "case_id": null,
       "confirmed": false,
       "id": "2024-03-25-cdrb-motion-4",
-      "kind": "Motion",
+      "kind": "Motion to postpone",
       "meeting_id": "2024-03-25-cdrb",
       "moved_by": "Mrs. Smith",
       "nays": [],
@@ -48505,7 +48509,8 @@
       "page": 3,
       "reasons": [
         "subject not read",
-        "mover is not one member present"
+        "mover is not one member present",
+        "the outcome names another kind of motion"
       ],
       "seconded_by": "Mrs. Longton",
       "source_id": "src-3c71907df86e",
@@ -53407,7 +53412,7 @@
       "case_id": "2025-03-25-regular-zo-3-2024",
       "confirmed": true,
       "id": "2025-03-25-regular-motion-9",
-      "kind": "Motion",
+      "kind": "Motion to table",
       "meeting_id": "2025-03-25-regular",
       "moved_by": "Joe Smith",
       "nays": [],
@@ -53643,6 +53648,7 @@
       "page": 33,
       "reasons": [
         "a sentence of the vote is not one the reader knows",
+        "the outcome names another kind of motion",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Eric Huneycutt",
@@ -55472,7 +55478,8 @@
       "outcome": "motion passes for approval",
       "page": 2,
       "reasons": [
-        "a sentence of the vote is not one the reader knows"
+        "a sentence of the vote is not one the reader knows",
+        "the outcome names another kind of motion"
       ],
       "seconded_by": "James Bagby",
       "source_id": "src-a3a4b73999f3",
@@ -55724,7 +55731,7 @@
       "case_id": null,
       "confirmed": false,
       "id": "2025-07-29-regular-motion-10",
-      "kind": "Motion",
+      "kind": "Motion to postpone",
       "meeting_id": "2025-07-29-regular",
       "moved_by": "Stacey Streetman",
       "nays": [
@@ -55734,6 +55741,7 @@
       "page": 5,
       "reasons": [
         "a sentence of the vote is not one the reader knows",
+        "the outcome names another kind of motion",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section"
       ],
@@ -56075,6 +56083,7 @@
       "page": 4,
       "reasons": [
         "a sentence of the vote is not one the reader knows",
+        "the outcome names another kind of motion",
         "more than one motion on one case section"
       ],
       "seconded_by": "Wanda Smith",
@@ -56346,7 +56355,7 @@
       "case_id": null,
       "confirmed": false,
       "id": "2025-08-26-regular-motion-12",
-      "kind": "Motion",
+      "kind": "Motion to table",
       "meeting_id": "2025-08-26-regular",
       "moved_by": "Jeff Henley",
       "nays": [
@@ -57065,6 +57074,7 @@
       "page": 24,
       "reasons": [
         "subject not read",
+        "the outcome names another kind of motion",
         "unmodelled wording: an amendment, substitute or reconsideration"
       ],
       "seconded_by": "Stacey Streetman",
@@ -57104,7 +57114,8 @@
       "outcome": "motion passes for approval",
       "page": 25,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "the outcome names another kind of motion"
       ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-6052a71029bb",
@@ -57145,7 +57156,8 @@
       "outcome": "motion passes for approval",
       "page": 25,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "the outcome names another kind of motion"
       ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-6052a71029bb",
@@ -57797,7 +57809,8 @@
       "outcome": "Motion passes for approval",
       "page": 34,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "the outcome names another kind of motion"
       ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-f3001df3a8bb",
@@ -58879,6 +58892,7 @@
       "outcome": "motion passes for approval",
       "page": 23,
       "reasons": [
+        "the outcome names another kind of motion",
         "more than one motion on one case section"
       ],
       "seconded_by": "Valerie Guzman",
@@ -58898,6 +58912,7 @@
       "outcome": "motion passes for approval",
       "page": 23,
       "reasons": [
+        "the outcome names another kind of motion",
         "more than one motion on one case section"
       ],
       "seconded_by": "Valerie Guzman",
@@ -58918,7 +58933,8 @@
       "page": 23,
       "reasons": [
         "subject not read",
-        "no seconder read"
+        "no seconder read",
+        "the outcome names another kind of motion"
       ],
       "seconded_by": null,
       "source_id": "src-427e7fbe196f",
@@ -59726,7 +59742,8 @@
       "page": 40,
       "reasons": [
         "subject not read",
-        "mover is not one member present"
+        "mover is not one member present",
+        "the outcome names another kind of motion"
       ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-a76db75e773b",
@@ -59940,6 +59957,7 @@
       "page": 10,
       "reasons": [
         "a sentence of the vote is not one the reader knows",
+        "the outcome names another kind of motion",
         "a vote statement outside the motion is not read",
         "case section repeated"
       ],
@@ -61181,6 +61199,7 @@
       "reasons": [
         "a sentence of the vote is not one the reader knows",
         "subject not read",
+        "the outcome names another kind of motion",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Cindy Greene",
@@ -61245,6 +61264,7 @@
       "reasons": [
         "a sentence of the vote is not one the reader knows",
         "subject not read",
+        "the outcome names another kind of motion",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Eric Huneycutt",
@@ -62486,7 +62506,7 @@
       "case_id": null,
       "confirmed": false,
       "id": "2026-06-23-regular-motion-24",
-      "kind": "Motion",
+      "kind": "Motion to table",
       "meeting_id": "2026-06-23-regular",
       "moved_by": "Joe Smith",
       "nays": [],
@@ -62713,7 +62733,7 @@
       "abstained": [],
       "case": "AB-3-2026",
       "case_id": "2026-06-23-regular-ab-3-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-06-23-regular-motion-36",
       "kind": "Motion",
       "meeting_id": "2026-06-23-regular",
@@ -62721,7 +62741,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 39,
-      "reasons": [],
+      "reasons": [
+        "the outcome names another kind of motion"
+      ],
       "seconded_by": "Joe Smith",
       "source_id": "src-5dd08d2a3154",
       "tally": null
@@ -62777,7 +62799,8 @@
       "outcome": "Motion passes for approval",
       "page": 40,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "the outcome names another kind of motion"
       ],
       "seconded_by": "Michael Long",
       "source_id": "src-5dd08d2a3154",
@@ -62856,7 +62879,8 @@
       "outcome": "Motion passes for approval",
       "page": 41,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "the outcome names another kind of motion"
       ],
       "seconded_by": "Bill Kimbrough",
       "source_id": "src-5dd08d2a3154",
@@ -63795,6 +63819,7 @@
       "outcome": "Motion passes for approval",
       "page": 5,
       "reasons": [
+        "the outcome names another kind of motion",
         "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Gail Longton",
