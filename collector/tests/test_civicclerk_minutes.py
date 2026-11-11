@@ -386,6 +386,10 @@ def test_the_heading_date_is_read_only_from_a_page_1_date_line_before_the_minute
     assert heading_date(lines_of(["MINUTES\nFebruary 11, 2026 at 4:30 PM\n"])) is None          # after the title
     assert heading_date(lines_of(["Held February 11, 2026 at 4:30 PM\n"])) is None              # not a line of its own
     assert heading_date(lines_of(["City Council\n", "February 11, 2026 at 4:30 PM\n"])) is None  # not on page 1
+    # code review NIT (acc8832): only the heading block, the first 8 printed lines of page 1 (blank lines not counted)
+    block = "".join(f"line {i}\n\n" for i in range(7))
+    assert heading_date(lines_of([block + "February 11, 2026 at 4:30 PM\n"])) == "2026-02-11"      # the 8th
+    assert heading_date(lines_of([block + "line 7\nFebruary 11, 2026 at 4:30 PM\n"])) is None     # the 9th
 
 
 def test_minutes_of_a_session_and_its_resumption_are_read_for_the_heading_date_when_the_sentence_has_none(cfg):

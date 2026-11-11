@@ -203,6 +203,35 @@ def page1_check(row: dict, store: Store, pages=read_pages) -> str | None:
             f"'{want}' on a line of its own: skipped, not this body's meeting")
 
 
+def minutes_identity(row: dict, path, cfg: AgendaCenterConfig, parse=parse_minutes_pdf, pages=read_pages) -> str | None:
+    """D1 (d1-minutes-identity/agenda-heading-vouches-for-minutes): the stored minutes of a row from an also-listing
+    (`page1_required`) are read for this meeting only when page 1 of the minutes themselves prints that text as a line
+    of its own AND every meeting date they print is the row's date: the call-to-order sentence's and the page-1
+    heading's (city_minutes.heading_date), at least one of them printed, none another day. Two dates that disagree
+    (the 2026-07-09 minutes: heading "July 9, 2026", called to order "on Monday, July 6, 2026") do not say which
+    meeting the votes are from, so the minutes are held. The agenda's page 1 (page1_check) may keep the meeting, but
+    it never vouches for another file. None when the minutes pass (or the row needs no check), else why they are not
+    read: the meeting is then built from its agenda alone (minutes_status other_meeting), or skipped when its agenda
+    does not pass page1_check. A file that cannot be read for this check is not read at all (fail closed)."""
+    want = row.get("page1_required")
+    if not want:
+        return None
+    try:
+        first = (pages(path) or [""])[0]
+        if not page_has_line(first, want):
+            return (f"listed as {row.get('listed_as') or 'another category'}; page 1 of its minutes does not print "
+                    f"'{want}' on a line of its own: the minutes are not read for this meeting")
+        pm = parse(path, cfg)
+    except Exception as ex:                            # one bad file must not stop the build: not read, and named
+        return f"its minutes could not be read to check which meeting they record ({type(ex).__name__}): not read"
+    printed = [f"{d} in {where}" for d, where in ((pm.printed_date, "the call-to-order sentence"),
+                                                  (pm.heading_date, "the page-1 heading")) if d]
+    if not printed or {pm.printed_date, pm.heading_date} - {None} != {row["date"]}:
+        return (f"listed as {row.get('listed_as') or 'another category'} for {row['date']}; its minutes print "
+                f"{' and '.join(printed) or 'no meeting date'}: not read for this meeting")
+    return None
+
+
 def cited_members(cfg: AgendaCenterConfig, store: Store, pages=read_pages,
                   kept: set | None = None) -> tuple[list[dict], list[dict]]:
     """Build check `member_cited` for each configured member (path N10, M1): the stored bytes for its cite_url exist;
@@ -325,9 +354,22 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
                                    "listed_as": r.get("listed_as"), "reason": skip})
             problems.append({"meeting": r["date"], "title": r["title"], "problem": skip})
             continue
+        # D1: an also-listed row's minutes are read only when they themselves print its heading and date; checked
+        # before they are inspected or cited, so a file that fails is never this meeting's source
+        e = store.latest(r["minutes_url"]) if r.get("page1_required") and r["minutes_url"] else None
+        other_meeting = (minutes_identity(r, store.path_for(e["sha256"]), cfg, parse, pages)
+                         if e and store.has_bytes(e["sha256"]) else None)
+        if other_meeting:
+            skip = page1_check({**r, "minutes_url": None}, store, pages)    # the agenda alone must keep it
+            if skip:
+                skip += f" (and {other_meeting})"
+                skipped_events.append({"date": r["date"], "title": r["title"], "event_id": r.get("event_id"),
+                                       "listed_as": r.get("listed_as"), "reason": skip})
+                problems.append({"meeting": r["date"], "title": r["title"], "problem": skip})
+                continue
+            problems.append({"meeting": r["date"], "title": r["title"], "problem": other_meeting})
         agenda_src, _ = source_for(r["agenda_url"])
-        minutes_src, minutes_path = source_for(r["minutes_url"])
-        other_meeting = None
+        minutes_src, minutes_path = (None, None) if other_meeting else source_for(r["minutes_url"])
         if minutes_src and (posted[minutes_src["sha256"]] > 1 or minutes_src["sha256"] in read_shas):
             other_meeting = _other_meeting(minutes_src, minutes_path, r, cfg, parse, read_shas)
             if other_meeting:

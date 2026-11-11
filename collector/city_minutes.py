@@ -553,13 +553,22 @@ HEADING_DATE_RE = re.compile(r"(January|February|March|April|May|June|July|Augus
                              r"December)\s+(\d{1,2}),\s+(\d{4})(?:\s+at\s+\d{1,2}:\d{2}\s*[AP]\.?M\.?)?", re.I)
 
 
+HEADING_LINES = 8     # the heading block: the D1 minutes print the date as the 3rd printed line (2025-02 to 2026-07)
+
+
 def heading_date(lines: list[Line]) -> str | None:
-    """The date of the page-1 heading as YYYY-MM-DD: the first page-1 line before the "MINUTES" title that is a date
-    and nothing else ("February 11, 2026 at 4:30 PM"), else None. Read only when the call-to-order sentence prints
-    no full date (the 2026-02-11 minutes print "Wednesday, February 11," with no year; city_build._other_meeting)."""
+    """The date of the page-1 heading as YYYY-MM-DD: the first line of the heading block (the first HEADING_LINES
+    printed lines of page 1, and only those before the "MINUTES" title) that is a date and nothing else ("February
+    11, 2026 at 4:30 PM"), else None. A date line further down page 1 (a recess date, a meeting cited in the body)
+    is never the heading's. city_build._other_meeting reads it when the call-to-order sentence prints no full date
+    (the 2026-02-11 minutes print "Wednesday, February 11," with no year); city_build.minutes_identity reads both."""
+    printed = 0
     for ln in lines:
-        if ln.page != 1 or ln.text.upper() == "MINUTES":
+        if ln.page != 1 or ln.text.upper() == "MINUTES" or printed >= HEADING_LINES:
             break
+        if not ln.text:
+            continue
+        printed += 1
         m = HEADING_DATE_RE.fullmatch(ln.text)
         if m:
             return f"{int(m.group(3)):04d}-{MONTHS.index(m.group(1).lower()) + 1:02d}-{int(m.group(2)):02d}"

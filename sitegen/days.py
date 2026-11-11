@@ -37,7 +37,8 @@ MINUTES_WORDS = {
     "scan_not_read": "The minutes are a scanned image; nothing was read from them.",
     "not_fetched": "Minutes listed, not fetched.",
     "parse_failed": "The minutes could not be read; open them yourself.",
-    "other_meeting": "The file listed as this meeting's minutes records another meeting, so it is not used here.",
+    "other_meeting": ("The file listed as this meeting's minutes does not show that it records this meeting (it "
+                      "names another meeting or date), so it is not used here."),
     "unreadable": "The minutes file was fetched but could not be read, so nothing was taken from it.",
 }
 # The dot each kind of card draws in the strip (decorative; the button's label says the count in words).

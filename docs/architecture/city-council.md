@@ -292,12 +292,26 @@ entry per category, `{category_name, name_words, events}`; `events` is a list of
   `d1-page1-substring`); any other is skipped and named in the run report. So a pattern's name never decides alone:
   "One Time Event" is listed, and the two with files (2024-07-09 ACT Authority, 2025-04-16 Public Safety Committee)
   are skipped on their page 1.
+- The minutes of a kept event are read only when they vouch for themselves (`city_build.minutes_identity`, review
+  `d1-minutes-identity/agenda-heading-vouches-for-minutes`): page 1 of the minutes prints the pattern's `page1` as a
+  line of its own, AND every meeting date they print is the row's date: the call-to-order sentence's and the page-1
+  heading's (`city_minutes.heading_date`, the first 8 printed lines of page 1), at least one printed, none another
+  day. The agenda's page 1 can keep the meeting, never vouch for its minutes. Minutes that fail are not inspected,
+  read or cited: the meeting is built from its agenda alone (`minutes_status: other_meeting`), or skipped when its
+  agenda's page 1 does not print `page1` either.
+- Each `event_name` must print one of `name_words` as plain letters at its top level (outside any group or class,
+  no top-level alternation, no quantifier on the word's last letter, no inline flag), so the listing asks for every
+  name the pattern can match; `civicclerk.load_config` refuses any other. Each URL template names only its own
+  fields, bare (`events_url` {host} {from_date} {category}; `also_events_url` those and {names}, required;
+  `file_url` {host} and {file_id}, required).
 - Configured patterns and headings (each heading as page 1 prints it): the Special Session names, "Special Called City
   Council Meeting", "Special Budget Session" and "One Time Event" need "City Council - Special Session"; "Special
   Session and First Reading of the Budget" and "(City Council) Special Work Session (- Budget)" need "City Council -
   Special Work Session"; "(City Council) Regular Session" needs "City Council - Regular Session". "City Council
   Training Session" (2025-01-23, agenda only, page 1 "City Council Training Session") is not listed: not a meeting of
-  the council's business. A new name needs a config line, found by re-running the full General listing.
+  the council's business. A new name needs a config line, found by re-running the full General listing (as fetched
+  2026-11-11: `docs/research/civicclerk-general-listing-2026-11-11.json`, 374 events, 2024-01-18 to 2027-01-19;
+  `test_the_committed_general_listing_lists_exactly_the_d1_rows` replays it against the config).
 - The day page's "scheduled" cards (`sitegen/days.scheduled_cards`, from `civicclerk-listing.json`) never show a row
   with `page1_required`: a future General event has no stored file, so nothing has shown it is the council's.
 
@@ -319,6 +333,13 @@ read the file, and the 2026-02-11 roll calls and M1's cited record (so 39 CLAUNC
 City roll calls 1,823 of 2,237 verified -> 1,933 of 2,384 (81.1%); every roll call verified before is unchanged,
 votes included (`tests/test_city_verify_data.py`, V6 digest). Held in the new meetings: source typos such as
 "CLAULNCH" (2026-07-06 attendance, so all 11 of its roll calls) and "SSTREETMAN".
+
+**Minutes identity (2026-11-11, after review of acc8832):** of the 13 D1 rows with minutes, 11 pass. Two do not:
+2026-02-19 (its file is the 2026-02-11 minutes; its agenda's page 1 prints "City Council - Special Session
+(Continuation" on one line, not the heading alone, so the event is now skipped; it had no roll calls) and 2026-07-09
+(page-1 heading "July 9, 2026 at 4:30 PM", but called to order "on Monday, July 6, 2026": two dates, so held; its
+agenda keeps the meeting, `other_meeting`, and its 30 roll calls, 21 verified, are not read). Expected after a rebuild
+from the store: 1,912 of 2,354 verified; the 1,823 of the V6 digest are not touched (none is in a D1 meeting).
 
 ### W1. Invisible format characters in the text layer (a reading fix)
 2020-10-01 page 1 prints "Jeff Henley"; its text layer has "J", a zero-width word (U+200B ZERO WIDTH SPACE, x0 = x1 =

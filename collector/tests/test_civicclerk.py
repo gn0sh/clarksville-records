@@ -1,6 +1,8 @@
 """CivicClerk source (M4 slice 3, ADR 0003): config, events listing, paging, de-duplication with the Agenda Center."""
 import json
 
+from pathlib import Path
+
 import pytest
 import yaml
 
@@ -490,7 +492,9 @@ def test_an_also_listed_events_agenda_is_fetched_without_agendas(cfg, acfg, tmp_
     assert log["fetched"] == {"new": 3}
 
 
-def _d1_build(cfg, acfg, events, page1_of):
+def _d1_build(cfg, acfg, events, page1_of, recorded=None):
+    """build() over D1 rows whose stored files print page1_of(url) as page 1. Each minutes file records the meeting of
+    its row's date (its call-to-order date), unless `recorded` (url -> date or None) says otherwise."""
     from collector.city_build import build
     from collector.city_minutes import parse_text
     from collector.tests.test_city_minutes import PAGE1, PAGE2, FakeStore, entry
@@ -503,8 +507,14 @@ def _d1_build(cfg, acfg, events, page1_of):
                 n += 1
                 entries.append(entry(r[f"{kind}_url"], kind, r["date"], n))
     sha_page1 = {e["sha256"]: page1_of(e["url"]) for e in entries}
-    return build(acfg, rows, FakeStore(entries), parse=lambda p, k: parse_text([PAGE1, PAGE2], k),
-                 inspect=lambda p: (3, "text"), pages=lambda p: [sha_page1[p.stem]])
+    dates = {e["sha256"]: (recorded or {}).get(e["url"], e["meeting_date"]) for e in entries}
+
+    def parse(p, k):
+        pm = parse_text([PAGE1, PAGE2], k)
+        pm.printed_date, pm.heading_date = dates[p.stem], None
+        return pm
+    return build(acfg, rows, FakeStore(entries), parse=parse, inspect=lambda p: (3, "text"),
+                 pages=lambda p: [sha_page1[p.stem]])
 
 
 def test_build_keeps_an_also_listed_event_only_when_page_1_prints_the_council(cfg, acfg):
@@ -528,6 +538,81 @@ def test_build_reads_the_agenda_when_the_minutes_page_1_does_not_print_it(cfg, a
     facts, summary = _d1_build(cfg, acfg, [SPECIAL], pages.get)
     assert facts["meetings"] == [] and "page 1 of its minutes or agenda does not print" in \
         summary["skipped_events"][0]["reason"]
+
+
+# d1-minutes-identity/agenda-heading-vouches-for-minutes (security MEDIUM, acc8832): the agenda's page 1 keeps a D1
+# meeting, but only the minutes' own page 1 heading and recorded date let the minutes be read for it
+def _agenda_only(facts, summary, cfg, why):
+    [m] = facts["meetings"]
+    agenda = next(s for s in facts["sources"] if s["url"] == cfg.file(2887))
+    assert m["minutes_status"] == "other_meeting" and m["source_id"] == agenda["id"] == m["agenda_source_id"]
+    assert m["minutes_url"] == cfg.file(3068)                                  # the listing's link, as printed
+    assert not any(s["url"] == cfg.file(3068) for s in facts["sources"])        # never cited
+    assert facts["roll_calls"] == [] and facts["motions"] == [] and m["attendance"] == []
+    assert m["verification"]["status"] == "unverified" and summary["roll_calls_verified"] == 0
+    assert any(why in p["problem"] for p in summary["problems"] if p.get("meeting") == "2026-02-11")
+    assert summary["minutes_status"] == {"other_meeting": 1} and not summary["skipped_events"]
+
+
+def test_d1_minutes_are_read_when_their_own_page_1_prints_the_heading_and_the_date(cfg, acfg):
+    facts, summary = _d1_build(cfg, acfg, [SPECIAL], lambda url: PAGE1_CITY)
+    [m] = facts["meetings"]
+    assert m["minutes_status"] == "read" and facts["roll_calls"]
+    assert next(s for s in facts["sources"] if s["id"] == m["source_id"])["url"] == cfg.file(3068)
+
+
+def test_d1_agenda_heading_never_vouches_for_minutes_of_another_body(cfg, acfg):
+    """The agenda prints the council heading; the minutes filed with it are another board's: not read."""
+    pages = {cfg.file(3068): PAGE1_OTHER, cfg.file(2887): PAGE1_CITY}
+    facts, summary = _d1_build(cfg, acfg, [SPECIAL], pages.get)
+    _agenda_only(facts, summary, cfg, "page 1 of its minutes does not print 'City Council - Special Session' on a "
+                                      "line of its own: the minutes are not read for this meeting")
+
+
+@pytest.mark.parametrize("recorded,words", [
+    ("2026-02-19", "for 2026-02-11; its minutes print 2026-02-19 in the call-to-order sentence: not read"),
+    (None, "for 2026-02-11; its minutes print no meeting date: not read for this meeting")])
+def test_d1_minutes_with_the_heading_but_another_or_no_date_are_not_read(cfg, acfg, recorded, words):
+    facts, summary = _d1_build(cfg, acfg, [SPECIAL], lambda url: PAGE1_CITY, recorded={cfg.file(3068): recorded})
+    _agenda_only(facts, summary, cfg, words)
+
+
+@pytest.mark.parametrize("printed,heading,ok", [
+    ("2026-02-11", "2026-02-11", True), (None, "2026-02-11", True), ("2026-02-11", None, True),
+    ("2026-02-06", "2026-02-11", False),      # the 2026-07-09 minutes' shape: heading this day, call to order another
+    ("2026-02-11", "2026-02-06", False), (None, "2026-02-06", False), (None, None, False)])
+def test_d1_minutes_are_read_only_when_every_date_they_print_is_the_row_date(acfg, printed, heading, ok):
+    from collector.city_build import minutes_identity
+    from collector.city_minutes import ParsedCityMinutes
+    row = {"date": "2026-02-11", "page1_required": "City Council - Special Session", "listed_as": "General / x"}
+    pm = ParsedCityMinutes(text_layer="text", pages=3, printed_date=printed, heading_date=heading)
+    why = minutes_identity(row, Path("/x.pdf"), acfg, parse=lambda p, k: pm, pages=lambda p: [PAGE1_CITY])
+    assert (why is None) is ok
+    if not ok:
+        assert why.startswith("listed as General / x for 2026-02-11; its minutes print ")
+        assert all(f"{d} in the" in why for d in (printed, heading) if d)
+
+
+def test_d1_minutes_that_cannot_be_read_for_the_check_are_not_read(cfg, acfg):
+    from collector.city_build import minutes_identity
+    row = {"date": "2026-02-11", "page1_required": "City Council - Special Session"}
+
+    def boom(p, k):
+        raise ValueError("bad pdf")
+    why = minutes_identity(row, Path("/x.pdf"), acfg, parse=boom, pages=lambda p: [PAGE1_CITY])
+    assert why and "could not be read" in why and "ValueError" in why
+    assert minutes_identity({**row, "page1_required": None}, Path("/x.pdf"), acfg, parse=boom, pages=boom) is None
+
+
+def test_d1_minutes_that_fail_and_no_agenda_that_passes_skip_the_meeting(cfg, acfg):
+    """Page 1 of the minutes prints the heading (page1_check passes on it), but they record another date and the
+    agenda does not print the heading: nothing vouches for this meeting, so it is skipped and nothing is cited."""
+    pages = {cfg.file(3068): PAGE1_CITY, cfg.file(2887): PAGE1_OTHER}
+    facts, summary = _d1_build(cfg, acfg, [SPECIAL], pages.get, recorded={cfg.file(3068): "2025-06-10"})
+    assert facts["meetings"] == [] and facts["sources"] == []
+    [skip] = summary["skipped_events"]
+    assert skip["event_id"] == 2900 and "page 1 of its agenda does not print" in skip["reason"]
+    assert "its minutes print 2025-06-10 in the call-to-order sentence" in skip["reason"]
 
 
 @pytest.mark.parametrize("page1", [
