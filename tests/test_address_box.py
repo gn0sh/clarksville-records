@@ -338,9 +338,10 @@ def test_address_box_in_a_browser(real_site, tmp_path):
         assert m["svgs"] == 0, (vp, m)                                   # no map (CEO, 2026-11-10)
         if vp.endswith("answered"):     # privacy line + answer shown: the answer is on the first screen
             assert m["resultBottom"] <= m["innerHeight"], (vp, m)
-        else:   # before any lookup the landing's content fits one screen; the footer, with the full independent and
-            #     unofficial notice every page carries (config/site.yml `unofficial:`, 2026-11-10), may sit below it
-            assert m["mainBottom"] <= m["innerHeight"], (vp, m)
+        else:   # before any lookup the welcome h1, the unofficial line and the address input with its Find button are on
+            #     the first screen (front-page-v2: doors and meetings follow below, so the whole landing no longer fits)
+            for key in ("h1Bottom", "introBottom", "inputBottom", "findBottom"):
+                assert 0 < m[key] <= m["innerHeight"], (vp, key, m)
     assert set(out["fit"]) == {"375x667", "1280x800", "375x667 answered", "1280x800 answered"}
     c = out["cases"]
     census = "The Census places this address in "

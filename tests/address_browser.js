@@ -57,6 +57,10 @@ function consoleCsp(page) {
                scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth,
                formShown: !!f && !f.hidden, formBottom: r && Math.round(r.bottom),
                mainBottom: Math.round(document.querySelector('main').getBoundingClientRect().bottom),
+               h1Bottom: Math.round(document.querySelector('main h1').getBoundingClientRect().bottom),
+               introBottom: Math.round(document.querySelector('.unofficial-intro').getBoundingClientRect().bottom),
+               inputBottom: Math.round(document.getElementById('addr-q').getBoundingClientRect().bottom),
+               findBottom: Math.round(document.querySelector('#addr-form button').getBoundingClientRect().bottom),
                resultBottom: Math.round(document.getElementById('addr-result').getBoundingClientRect().bottom),
                svgs: document.querySelectorAll('main svg').length };
     });

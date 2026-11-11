@@ -1,6 +1,6 @@
 """The landing's first screen says the site is independent and unofficial (review unofficial/first-screen-untested):
-before any address lookup, the header tag and the short home line naming all four bodies are visible and end within
-the first 375x667 phone screen (and the 1280x800 desktop one), on the real data. Kept apart from
+before any address lookup, the header tag and the short home line (the `email_line` wording, front-page-v2) are
+visible and end within the first 375x667 phone screen (and the 1280x800 desktop one), on the real data. Kept apart from
 tests/test_address_box.py so the address box's own fit test can change without touching this one."""
 import json
 import os
@@ -41,4 +41,4 @@ def test_tag_and_short_line_are_on_the_first_screen(real_site):
             assert m[key] and m[key]["visible"], (vp, key, m)
             assert 0 <= m[key]["top"] and m[key]["bottom"] <= m["innerHeight"], (vp, key, m)
         assert m["tag"]["text"] == u["tag"], (vp, m)
-        assert u["short"] in " ".join(m["intro"]["text"].split()), (vp, m)
+        assert u["email_line"] in " ".join(m["intro"]["text"].split()), (vp, m)
