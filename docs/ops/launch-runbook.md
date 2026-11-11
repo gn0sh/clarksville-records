@@ -37,7 +37,10 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   tight limit is a bug (fix the limit, rule 1). Only when the downgrade is meant (a reader fix that rightly unverifies
   votes, a parser change that renames meeting ids) run the workflow by hand from `main` with `allow_shrink` ticked
   (Actions, Daily update, Run workflow): the county and RPC results then replace the committed ones, still listed in
-  the run summary. A scheduled run never passes it, and only a run on `main` commits.
+  the run summary. A scheduled run never passes it, and only a run on `main` commits. Such a run says
+  `allow_shrink:` in its data commit message and comments on the kept-meetings issue. A correction counts only when
+  the new file is at the old file's address (or the store marks the old one replaced); a meeting merely read from
+  another document keeps the old one. New meetings held back with a kept document are listed as `withheld_new`.
 - **RPC only** (not a failure of the run; one source must not freeze the daily refresh). The RPC step's codes are used
   only when everything else is ok, and the RPC files (`data/localities/cmc-rpc/`) are restored byte for byte unless
   the step succeeds, so the city, county and finance data still commit and deploy:

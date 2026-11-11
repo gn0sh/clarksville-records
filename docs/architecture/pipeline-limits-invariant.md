@@ -184,7 +184,19 @@ collector/rpc_export.py:10 and qa/site_checks.py:47 (read `hold_motions`, not ex
 - A document whose sha256 is gone while only **some** of its meetings are present is treated as (c), kept: one of its
   meetings would otherwise be dropped (I-1).
 - The kept set is closed over both files (a kept meeting's new source, that source's other meetings, ...), so a meeting
-  is never shown twice when a meeting moves between documents.
+  is never shown twice when a meeting moves between documents. Each `kept_meetings` entry carries that closure
+  (`closure: {meeting_ids, source_ids}`) and `withheld_new`, the meetings in it only the new result has; they are
+  printed on the KEPT line and listed in the kept-meetings issue (security review fad1f3e,
+  `pipeline/keep-closure-hides-new-meetings`).
+- G1 (b) is a correction only when S was **replaced**: a new source carrying its meetings has S's `url`, or the store
+  marks S's sha256 superseded (run-log `superseded`). Otherwise (a meeting moved to a document at another url while S
+  is unchanged, meetings.choose) S is kept. A correction raises 7 when its verified count fell **or its votes
+  changed** (`votes_changed`: per roll call item, outcome, stated tally, each vote's official, name and value)
+  (`pipeline/correction-not-bytes-changed`).
+- Both issue steps have `continue-on-error: true`, so a gh failure never holds back upload, push or deploy
+  (`ci/notify-step-blocks-publish`). An `allow_shrink` run that replaced documents (run-log `allowed_shrink`) sets
+  the update job output `allowed=yes`: the data commit message says `allow_shrink: ...` and the kept-meetings issue
+  is opened or commented on (`ci/allow-shrink-audit`).
 - `coverage.from/to` are recomputed over the merged meetings (body from the new result), so a kept first or last
   meeting stays inside the stated coverage. Identical to the new result's whenever no kept meeting lies outside it.
 - Under `--allow-shrink` a correction that lowers the verified count does not raise 7 either (a person accepted the
