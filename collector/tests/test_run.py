@@ -2,6 +2,8 @@
 import copy
 import hashlib
 import json
+import os
+import sys
 from pathlib import Path
 
 import jsonschema
@@ -84,14 +86,96 @@ def _digest(paths):
     return {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths if p.exists()}
 
 
-@pytest.mark.skipif(not all(Store().has_bytes(e["sha256"]) for e in Store().entries),
-                    reason="the document store is empty in this checkout (run `python -m collector run` once)")
-def test_second_offline_run_changes_no_committed_file():
+OFFLINE_RUN_ENV = "RECORDS_OFFLINE_RUN_TEST"
+
+
+def offline_run_skip_reason(env=None) -> str | None:
+    """Why the real offline run below must not run here, or None. It is opt-in (pipeline/tests-step-offline-run): it
+    runs the real collector on the real data/, which no ordinary test run may do. In CI the document store is
+    restored from the cache, so "the store is complete" alone used to switch it on in the workflow's Tests step."""
+    env = os.environ if env is None else env
+    if env.get(OFFLINE_RUN_ENV) != "1":
+        return (f"opt-in: set {OFFLINE_RUN_ENV}=1 to run the real `collector run --offline` twice (never set in CI: "
+                "the Tests step must not run the collector)")
+    store = Store()
+    if not all(store.has_bytes(e["sha256"]) for e in store.entries):
+        return "the document store is empty in this checkout (run `python -m collector run` once)"
+    return None
+
+
+def test_second_offline_run_changes_no_committed_file(tmp_path, monkeypatch):
+    """AC4.5 on the real documents. Opt-in, and even then the site is built in a temporary folder with the launch
+    target's file cap: the repo's build/site (what the workflow uploads and deploys) is never rebuilt by a test."""
+    why = offline_run_skip_reason()
+    if why:
+        pytest.skip(why)
+    from sitegen import config
+    monkeypatch.setattr(M, "BUILD", tmp_path / "build")
+    monkeypatch.setattr(config, "DEFAULT_TARGET", "pages")
     committed = [ROOT / "data" / "facts.json", ROOT / "data" / "manifest.json", ROOT / "data" / "changes.jsonl"]
-    M.main(["run", "--offline"])
+    assert M.main(["run", "--offline"]) != M.REFUSED
     before = _digest(committed)
-    M.main(["run", "--offline"])
+    assert M.main(["run", "--offline"]) != M.REFUSED
     assert _digest(committed) == before
+
+
+class _CompleteStore:
+    """A store that holds every document, as in CI, where data/store is restored from the Actions cache."""
+    entries = [{"sha256": "0" * 64}]
+
+    def has_bytes(self, sha256):
+        return True
+
+
+def test_offline_run_test_is_opt_in_even_with_a_complete_store(monkeypatch, tmp_path):
+    """pipeline/tests-step-offline-run: the workflow's Tests step sets no opt-in, so the real run is skipped there."""
+    monkeypatch.setattr(sys.modules[__name__], "Store", _CompleteStore)
+    assert "opt-in" in offline_run_skip_reason({})
+    assert "opt-in" in offline_run_skip_reason({OFFLINE_RUN_ENV: "true"})          # only the exact value "1"
+    assert offline_run_skip_reason({OFFLINE_RUN_ENV: "1"}) is None
+    monkeypatch.delenv(OFFLINE_RUN_ENV, raising=False)
+    ran = []
+    monkeypatch.setattr(M, "main", lambda argv=None: ran.append(argv))
+    with pytest.raises(pytest.skip.Exception, match="opt-in"):
+        test_second_offline_run_changes_no_committed_file(tmp_path, monkeypatch)
+    assert ran == []
+    import yaml
+    wf = (ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding="utf-8")
+    assert OFFLINE_RUN_ENV not in wf
+    tests_step = next(s for s in yaml.safe_load(wf)["jobs"]["update"]["steps"] if s.get("name", "").startswith("Tests"))
+    assert "env" not in tests_step and tests_step["run"] == "python -m pytest -q -x"
+
+
+def test_opted_in_offline_run_never_rebuilds_the_repo_site(sandbox, monkeypatch, tmp_path):
+    """The replay from the bug sweep: a complete store, the Tests step's environment (no RECORDS_BUILD_TARGET, so
+    the 500-file preview cap) and a site of 505 files. The run used to rebuild build/site in place and then raise
+    BuildError; now it builds in the test's own folder under the pages cap and the repo's build/ is not touched."""
+    import sitegen.build
+    from sitegen import config
+    monkeypatch.delenv("RECORDS_BUILD_TARGET", raising=False)
+    monkeypatch.delenv("RECORDS_SITE_URL", raising=False)
+    monkeypatch.setattr(config, "DEFAULT_TARGET", "preview")
+    monkeypatch.setenv(OFFLINE_RUN_ENV, "1")
+    monkeypatch.setattr(sys.modules[__name__], "Store", _CompleteStore)
+    monkeypatch.setattr(M, "missing_inputs", lambda store: [])
+    monkeypatch.setattr(M, "shrink_reason", lambda *a, **k: None)
+    monkeypatch.setattr(M, "FACTS", ROOT / "data" / "facts.json")     # committed, as in CI; the fake build returns it
+    repo_build = tmp_path / "repo" / "build"                          # stands for the repo's build/, which CI uploads
+    monkeypatch.setattr(M, "BUILD", repo_build)
+    built = []
+
+    def fake_site_build(facts_path, out_dir, **kw):
+        built.append(Path(out_dir))
+        for i in range(505):                                          # over the preview cap, under the pages cap
+            (Path(out_dir) / "p").mkdir(parents=True, exist_ok=True)
+            (Path(out_dir) / "p" / f"{i}.html").write_text("x")
+    monkeypatch.setattr(sitegen.build, "build", fake_site_build)
+    own = tmp_path / "own"
+    own.mkdir()
+    test_second_offline_run_changes_no_committed_file(own, monkeypatch)
+    assert built == [own / "build" / "site"] * 2
+    assert not repo_build.exists()
+    assert (own / "build" / "publish-files.json").is_file()
 
 
 @pytest.fixture
