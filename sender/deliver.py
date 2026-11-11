@@ -62,6 +62,12 @@ _NUMBER = re.compile(r"[1-9][0-9]{0,3}")
 # secret), never in the repository and never in subscriber metadata, which subscribers write themselves.
 CANARY_ENV = "MORNING_NOTE_CANARY_IDS"
 _CANARY_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
+# note-job/mask-unicode-ws: the ids are split on exactly the characters the workflow's mask step splits on (its IFS:
+# the comma and ASCII whitespace, \x1c to \x1f included), never on Unicode whitespace such as NBSP, which bash does
+# not split on. An id holding one then fails _CANARY_ID, so nothing is sent with an id the mask step did not mask.
+_CANARY_WS = " \t\n\r\v\f\x1c\x1d\x1e\x1f"
+_CANARY_SPLIT = re.compile(f"[,{re.escape(_CANARY_WS)}]+", re.ASCII)
+_CANARY_EMPTY = re.compile(f",[{re.escape(_CANARY_WS)}]*,", re.ASCII)
 
 
 class ProviderError(Exception):
@@ -93,8 +99,9 @@ def canary_ids(text: str | None) -> frozenset | None:
     A malformed entry is an error, so a typo never widens or silently empties the canary list."""
     if text is None:
         return None
-    parts = [p for p in re.split(r"[\s,]+", text.strip()) if p] if text.strip() else []
-    if text.strip() and (re.search(r",\s*,", text) or not all(_CANARY_ID.fullmatch(p) for p in parts)):
+    body = text.strip(_CANARY_WS)
+    parts = [p for p in _CANARY_SPLIT.split(body) if p] if body else []
+    if body and (_CANARY_EMPTY.search(text) or not all(_CANARY_ID.fullmatch(p) for p in parts)):
         raise PlanInvalid(f"{CANARY_ENV} must be subscriber ids separated by commas")
     return frozenset(parts)
 

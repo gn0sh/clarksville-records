@@ -1,5 +1,6 @@
 """The daily-update workflow ships locked: its deploy job runs only when RECORDS_DEPLOY_ENABLED is 'true' (CEO hard
 stop 1), nothing else may publish, and no secrets are used."""
+import json
 import itertools
 import os
 import re
@@ -386,7 +387,6 @@ def _rpc_issue_step():
 @pytest.mark.skipif(not shutil.which("jq"), reason="jq not installed")
 def test_rpc_issue_strips_backticks_so_site_text_stays_in_the_fence(tmp_path):
     """ci/issue-markdown-fence: a status holding ``` (text from the site) cannot close the code fence."""
-    import json
     status = "stopped: FetchFailed ```\n# injected heading\n``` https://www.cmcrpc.com/x.pdf"
     _, body = _run_issue_step(tmp_path, _rpc_issue_step(), run_log=json.dumps({"rpc": {"status": status}}))
     assert body.count("```") == 2                                      # only the step's own fence
@@ -460,28 +460,39 @@ def test_note_runs_only_in_the_one_locked_case(event, var, ref):
 @pytest.mark.parametrize("value", [
     "abc-1", "abc-1,def_2", "abc-1, def_2", "abc-1 def_2", "abc-1\ndef_2", " abc-1,\n def_2\tghi3 \n", "a*,b?\n[c]",
     "", "  \n",
+    # note-job/mask-ifs-cr: a secret pasted with Windows line ends, and the other ASCII characters Python's \s splits on
+    "abc-1\r\ndef_2\r\n", "abc-1,\r\ndef_2", "abc-1\rdef_2", "abc-1\vdef_2\fghi3", "abc-1\x1cdef_2\x1fghi3", "\r\n",
+    # note-job/mask-unicode-ws: Unicode whitespace splits neither in bash nor in canary_ids (which then refuses)
+    "abc-1\u00a0def_2", "\u00a0abc-1", "abc-1,\u2003def_2", "abc-1\u2028def_2", "abc-1\x85def_2",
 ])
 def test_mask_step_masks_every_canary_id_deliver_accepts(value, tmp_path):
     """security-note-workflow L2: every id sender/deliver.py's canary_ids reads (commas or any whitespace, every
     line) is masked one by one, and nothing else is printed (no glob expansion of an id). The step runs in a folder
     holding files the glob ids would match (a1, bx, c), so dropping `set -f` fails this test."""
-    from sender.deliver import canary_ids
+    from sender.deliver import PlanInvalid, canary_ids
     for name in ("a1", "bx", "c"):
         (tmp_path / name).write_text("")
     step = WF["jobs"]["note"]["steps"][0]
     r = subprocess.run(["bash", "-e", "-c", step["run"]], cwd=tmp_path, capture_output=True, text=True, check=True,
                        env={**os.environ, "CANARY_IDS": value})
-    masked = [line.removeprefix("::add-mask::") for line in r.stdout.splitlines()]
-    assert all(line.startswith("::add-mask::") for line in r.stdout.splitlines())
-    expected = set(re.split(r"[\s,]+", value.strip())) - {""}
+    # split on "\n" only, as the runner reads workflow commands: splitlines() would also cut at \r, \x1c-\x1e,
+    # \x85 or U+2028 inside an id (note-job/mask-ifs-cr)
+    *lines, last = r.stdout.split("\n")
+    assert last == ""                                       # every line ends with "\n" (or nothing is printed)
+    masked = [line.removeprefix("::add-mask::") for line in lines]
+    assert all(line.startswith("::add-mask::") for line in lines)
+    expected = set(re.split(r"[ \t\n\r\v\f\x1c-\x1f,]+", value)) - {""}     # IFS: the comma and ASCII whitespace only
     assert set(masked) == expected
     if all(re.fullmatch(r"[A-Za-z0-9_-]{1,64}", p) for p in expected):
         assert set(masked) == canary_ids(value)
+    else:                                                  # an id the step masked whole is refused, never sent
+        with pytest.raises(PlanInvalid):
+            canary_ids(value)
 
 
 def test_note_job_least_privilege():
     note = WF["jobs"]["note"]
-    assert note["permissions"] == {"contents": "read"}
+    assert note["permissions"] == {"contents": "read", "pull-requests": "read"}   # PR check: read only
     steps = note["steps"]
     assert steps[0]["name"] == "Mask the canary ids"                           # before anything else runs
     assert "::add-mask::" in steps[0]["run"]
@@ -597,6 +608,11 @@ def test_the_note_runbook_exists_with_the_switches():
     for phrase in ("MORNING_NOTE_SEND", "BUTTONDOWN_API_KEY", "MORNING_NOTE_CANARY_IDS", "morning-note",
                    "T4.0", "Canary", "Go-live", "Rollback", "link_hosts", "canary_only", "Deployment branches"):
         assert phrase in text, phrase
+    # main-protect/actions-bypass-reopens-M1: the runbook says who can reach the key and offers the one human lock
+    for phrase in ("anyone with write or admin access to this repository can reach the Buttondown key",
+                   "Keep collaborators to the minimum", "accident prevention plus an audit trail", "Required reviewers",
+                   "Prevent self-review", "Review deployments", "Never leave a run waiting", PR_STEP):
+        assert phrase in " ".join(text.split()), phrase
 
 
 @pytest.mark.parametrize("result,fires", [("failure", True), ("cancelled", True), ("success", False),
@@ -620,7 +636,7 @@ def _stale_check(tmp_path, change: str) -> int:
     origin, src, work = tmp_path / "origin.git", tmp_path / "src", tmp_path / "work"
     _git(tmp_path, "init", "-q", "--bare", str(origin))
     _git(tmp_path, "init", "-q", str(src))
-    for rel in ("config/site.yml", "sender/deliver.py", "data/x.json"):
+    for rel in ("config/site.yml", "sender/deliver.py", "data/x.json", ".github/workflows/daily-update.yml"):
         (src / rel).parent.mkdir(parents=True, exist_ok=True)
         (src / rel).write_text("a\n")
     _git(src, "add", "-A")
@@ -638,14 +654,229 @@ def _stale_check(tmp_path, change: str) -> int:
 
 
 @pytest.mark.parametrize("change,ok", [("", True), ("data/x.json", True), ("sender/deliver.py", False),
-                                       ("config/site.yml", False)])
+                                       ("config/site.yml", False), (".github/workflows/daily-update.yml", False)])
 def test_note_refuses_an_older_commit_than_main(tmp_path, change, ok):
-    """note-job/stale-rerun: re-running an older run checks out that day's github.sha while the plan is built from
-    today's main; the note job must stop unless sender/ and config/site.yml are main's. Data commits are fine."""
+    """note-job/stale-rerun: re-running an older run checks out that day's github.sha (and runs that day's workflow
+    file) while the plan is built from today's main; the note job must stop unless sender/, config/site.yml and the
+    workflow file are main's (note-job/stale-rerun-workflow-gap). Data commits are fine."""
     names = [s.get("name") for s in WF["jobs"]["note"]["steps"]]
     assert names.index("Check out this run's commit") + 1 == names.index(
         "Check this commit's sender and config are main's")
     assert (_stale_check(tmp_path, change) == 0) == ok
+
+
+# ------------------------------------------------------------------ main-protect/actions-bypass-reopens-M1
+PR_STEP = "Check sender, config and workflow changes reached main by pull request"
+STALE_STEP = "Check this commit's sender and config are main's"
+PR_JQ = '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.SHA)] | length'
+# note-job/pr-check-test-gap: the stub evaluates the step's own --jq filter with jq (gh uses gojq), so the cases
+# test the filter the workflow runs, not a Python copy of it.
+_PULLS_STUB = '''#!/usr/bin/env python3
+import json, os, subprocess, sys
+a = sys.argv[1:]
+with open(os.environ["GH_CALLS"], "a") as f:
+    f.write(" ".join(a) + "\\n")
+if os.environ.get("GH_FAIL"):
+    sys.exit(1)
+assert len(a) == 4 and a[0] == "api" and a[2] == "--jq" and a[3] == os.environ["EXPECTED_JQ"], a
+sha = a[1].removeprefix("repos/o/r/commits/").removesuffix("/pulls")
+assert os.environ["SHA"] == sha and os.environ["GH_TOKEN"] == "t"
+prs = json.load(open(os.environ["PULLS"])).get(sha, [])
+r = subprocess.run(["jq", "-r", a[3]], input=json.dumps(prs), capture_output=True, text=True)
+sys.stdout.write(r.stdout)
+sys.stderr.write(r.stderr)
+sys.exit(r.returncode)
+'''
+_ALL = ("config/site.yml", "sender/deliver.py", "data/x.json", ".github/workflows/daily-update.yml")
+
+
+def _need_jq():
+    """jq runs the PR check's filter in these tests: skip where it is missing locally, fail in CI (CI is set on
+    GitHub's runners, which ship jq), so the check is never skipped quietly where it matters."""
+    if not shutil.which("jq"):
+        if os.environ.get("CI"):
+            pytest.fail("jq is not installed on this CI runner: the PR check tests need it")
+        pytest.skip("jq not installed")
+
+
+def _pr(sha, merged=True, base="main"):
+    return {"merged_at": "2026-11-11T00:00:00Z" if merged else None, "base": {"ref": base}, "merge_commit_sha": sha}
+
+
+def _pr_check(tmp_path, ops, pulls, gh_fail=False, baseline="BASE"):
+    """Build main from `ops`, check out its tip from a depth-1 clone (as actions/checkout does), run the stale-rerun
+    step (its depth-1 fetch of main comes first in the job) and then the PR step. main starts with a commit BASE
+    touching every checked path, with no PR (the history before go-live).
+    ops: ("commit", label, paths) on main, or ("merge", label, branch_label, paths): a branch commit touching paths,
+    merged into main with --no-ff. pulls: {label: [pr(sha_label or a literal sha), ...]}. baseline: the label (or a
+    literal value) given as MAIN_PR_BASELINE. Returns (exit, gh calls, {label: sha})."""
+    _need_jq()
+    step = _note_steps()[PR_STEP]
+    origin, src, work, bindir = tmp_path / "origin.git", tmp_path / "src", tmp_path / "work", tmp_path / "bin"
+    _git(tmp_path, "init", "-q", "--bare", str(origin))
+    _git(origin, "config", "uploadpack.allowFilter", "true")   # as GitHub: --filter=blob:none is honoured, not ignored
+    _git(tmp_path, "init", "-q", str(src))
+    shas, n = {}, 0
+
+    def touch(paths):
+        nonlocal n
+        for rel in paths:
+            n += 1
+            (src / rel).parent.mkdir(parents=True, exist_ok=True)
+            (src / rel).write_text(f"{n}\n")
+        _git(src, "add", "-A")
+
+    for op in [("commit", "BASE", _ALL), *ops]:
+        if op[0] == "commit":
+            touch(op[2])
+            _git(src, "commit", "-q", "-m", op[1])
+            shas[op[1]] = _git(src, "rev-parse", "HEAD")
+        else:
+            _, label, branch_label, paths = op
+            _git(src, "checkout", "-q", "-b", branch_label)
+            touch(paths)
+            _git(src, "commit", "-q", "-m", branch_label)
+            shas[branch_label] = _git(src, "rev-parse", "HEAD")
+            _git(src, "checkout", "-q", "main")
+            _git(src, "merge", "-q", "--no-ff", "-m", label, branch_label)
+            shas[label] = _git(src, "rev-parse", "HEAD")
+    _git(src, "push", "-q", f"file://{origin}", "main:refs/heads/main")
+    _git(tmp_path, "clone", "-q", "--depth=1", f"file://{origin}", str(work))
+    _git(work, "checkout", "-q", "--detach", shas[ops[-1][1]])
+    assert _git(work, "rev-parse", "--is-shallow-repository") == "true"
+    resolved = {shas[k]: [{**p, "merge_commit_sha": shas.get(p["merge_commit_sha"], p["merge_commit_sha"])}
+                          for p in v] for k, v in pulls.items()}
+    (tmp_path / "pulls.json").write_text(json.dumps(resolved))
+    bindir.mkdir()
+    (bindir / "gh").write_text(_PULLS_STUB)
+    (bindir / "gh").chmod(0o755)
+    calls = tmp_path / "gh-calls"
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_TOKEN": "t", "GITHUB_REPOSITORY": "o/r",
+           "GH_CALLS": str(calls), "PULLS": str(tmp_path / "pulls.json"), "EXPECTED_JQ": PR_JQ,
+           "MAIN_PR_BASELINE": shas.get(baseline, baseline), **({"GH_FAIL": "1"} if gh_fail else {})}
+    stale = subprocess.run(["bash", "-c", _note_steps()[STALE_STEP]["run"]], cwd=work, capture_output=True, text=True)
+    assert stale.returncode == 0, stale.stdout + stale.stderr                  # the step before it, on the same checkout
+    r = subprocess.run(["bash", "-c", step["run"]], cwd=work, env=env, capture_output=True, text=True)
+    assert "Traceback" not in r.stderr, r.stderr
+    calls = calls.read_text().splitlines() if calls.exists() else []
+    if calls:   # it read a PR, so it fetched main's whole history after the depth-1 fetch, without file contents
+        assert _git(work, "rev-parse", "--is-shallow-repository") == "false"
+        assert _git(work, "config", "--get", "remote.origin.partialclonefilter") == "blob:none"
+        assert "filtering not recognized by server" not in r.stderr, r.stderr
+    return r.returncode, calls, shas
+
+
+DATA = ("data/x.json",)
+SENDER = ("sender/deliver.py",)
+# case: (ops on main after BASE, pulls, sends?, the commits whose PRs are read, newest first)
+PR_CASES = {
+    # the PR-merged commit, then daily data/ commits pushed by the push job without a PR: sends
+    "pr-then-data-days": ([("commit", "A", _ALL), ("commit", "D1", DATA), ("commit", "D2", DATA)],
+                          {"A": [_pr("A")]}, True, ["A"]),
+    # two PRs: every one is read, sends
+    "pr-then-pr": ([("commit", "A", _ALL), ("commit", "D", DATA), ("commit", "P", SENDER)],
+                   {"A": [_pr("A")], "P": [_pr("P")]}, True, ["P", "A"]),
+    # a merge-commit PR (the branch commit itself has no PR of its own), then a data day: sends
+    "merge-commit-pr": ([("commit", "A", _ALL), ("merge", "M", "B", SENDER), ("commit", "D", DATA)],
+                        {"A": [_pr("A")], "M": [_pr("M")]}, True, ["M", "A"]),
+    # pushed straight to main (the Actions bypass, or an unprotected push): refused
+    "direct-sender": ([("commit", "A", _ALL), ("commit", "X", SENDER), ("commit", "D", DATA)],
+                      {"A": [_pr("A")]}, False, ["X"]),
+    "direct-config": ([("commit", "A", _ALL), ("commit", "X", ("config/site.yml",))], {"A": [_pr("A")]}, False,
+                      ["X"]),
+    "direct-other-workflow": ([("commit", "A", _ALL), ("commit", "X", (".github/workflows/other.yml",))],
+                              {"A": [_pr("A")]}, False, ["X"]),
+    # main-protect/pr-check-last-commit-only: A (PR) -> X (direct) -> P (PR) is still refused: the later PR does not
+    # launder the direct push, whatever the later PR touches
+    "pr-direct-pr": ([("commit", "A", _ALL), ("commit", "X", SENDER), ("commit", "P", ("config/site.yml",))],
+                     {"A": [_pr("A")], "P": [_pr("P")]}, False, ["P", "X"]),
+    "pr-direct-merge-pr": ([("commit", "A", _ALL), ("commit", "X", (".github/workflows/other.yml",)),
+                            ("merge", "M", "B", SENDER), ("commit", "D", DATA)],
+                           {"A": [_pr("A")], "M": [_pr("M")]}, False, ["M", "X"]),
+    # the commit belongs to a PR that is still open, merged elsewhere, or merged as another commit: refused
+    "open-pr": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
+                {"A": [_pr("A")], "X": [_pr("X", merged=False)]}, False, ["X"]),
+    "pr-into-other-branch": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
+                             {"A": [_pr("A")], "X": [_pr("X", base="dev")]}, False, ["X"]),
+    "pr-merged-as-another-commit": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
+                                    {"A": [_pr("A")], "X": [_pr("f" * 40)]}, False, ["X"]),
+    # a merge pushed straight to main whose merged-in side is a PR's commit: main's own commit (first parent) counts
+    "pushed-merge-of-pr-commit": ([("commit", "A", _ALL), ("merge", "M", "E", SENDER)],
+                                  {"A": [_pr("A")], "E": [_pr("E")]}, False, ["M"]),
+    # no PR at all after the baseline (the team's earlier merges without PRs): refused from go-live
+    "no-pr-history": ([("commit", "A", _ALL), ("commit", "D", DATA)], {}, False, ["A"]),
+}
+
+
+@pytest.mark.parametrize("case", list(PR_CASES))
+def test_note_refuses_unless_sender_config_and_workflows_reached_main_by_pr(tmp_path, case):
+    ops, pulls, ok, read = PR_CASES[case]
+    code, calls, shas = _pr_check(tmp_path, ops, pulls)
+    assert (code == 0) == ok, (case, code)
+    assert calls == [f"api repos/o/r/commits/{shas[c]}/pulls --jq {PR_JQ}" for c in read]   # main's own commits only
+
+
+def test_the_pr_check_ignores_history_up_to_the_baseline(tmp_path):
+    """The baseline (main at go-live, checked by hand) and everything before it are not read: a direct push X before
+    it does not refuse; the same history with the baseline before X does."""
+    ops = [("commit", "X", SENDER), ("commit", "G", DATA), ("commit", "P", (".github/workflows/daily-update.yml",))]
+    (tmp_path / "g").mkdir()
+    code, calls, shas = _pr_check(tmp_path / "g", ops, {"P": [_pr("P")]}, baseline="G")
+    assert code == 0 and calls == [f"api repos/o/r/commits/{shas['P']}/pulls --jq {PR_JQ}"]
+    (tmp_path / "base").mkdir()
+    code, calls, shas = _pr_check(tmp_path / "base", ops, {"P": [_pr("P")]}, baseline="BASE")
+    assert code == 2 and calls == [f"api repos/o/r/commits/{shas[c]}/pulls --jq {PR_JQ}" for c in ("P", "X")]
+
+
+@pytest.mark.parametrize("baseline", ["", "not-a-sha", "A" * 40, "a" * 40, "B", "P"])
+def test_the_pr_check_fails_closed_without_a_valid_baseline(tmp_path, baseline):
+    """main-protect/pr-check-last-commit-only: unset (the committed value until go-live), not a sha, a sha that is not
+    in the history, a commit of a merged-in branch (not on main's first-parent line), or a baseline with no checked
+    change after it (the commit that set it always is one): refused without reading any PR."""
+    ops = [("commit", "A", _ALL), ("merge", "M", "B", SENDER), ("commit", "P", SENDER)]
+    code, calls, _ = _pr_check(tmp_path, ops, {"A": [_pr("A")], "M": [_pr("M")], "P": [_pr("P")]},
+                               baseline=baseline)
+    assert code == 2 and calls == []
+
+
+def test_the_committed_baseline_is_unset_or_a_sha():
+    """Until go-live MAIN_PR_BASELINE is empty, so the note job refuses every send; go-live sets it (runbook 4.7)."""
+    env = _note_steps()[PR_STEP]["env"]
+    assert env["MAIN_PR_BASELINE"] == "" or re.fullmatch(r"[0-9a-f]{40}", env["MAIN_PR_BASELINE"])
+    runbook = (ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8")
+    assert "MAIN_PR_BASELINE" in runbook
+
+
+def test_the_pr_check_fails_closed_when_github_cannot_be_read(tmp_path):
+    code, calls, _ = _pr_check(tmp_path, [("commit", "A", _ALL)], {"A": [_pr("A")]}, gh_fail=True)
+    assert code != 0 and len(calls) == 1
+
+
+def test_the_pr_check_jq_filter_with_real_jq():
+    """The --jq expression gh evaluates (gojq), run through jq where it is installed: counts only a merged PR into
+    main whose merge commit is this commit."""
+    _need_jq()
+    sha = "a" * 40
+    for prs, want in (([_pr(sha)], "1"), ([_pr(sha, merged=False)], "0"), ([_pr(sha, base="dev")], "0"),
+                      ([_pr("b" * 40)], "0"), ([], "0"), ([_pr("b" * 40), _pr(sha)], "1")):
+        r = subprocess.run(["jq", PR_JQ], input=json.dumps(prs), capture_output=True, text=True, check=True,
+                           env={**os.environ, "SHA": sha})
+        assert r.stdout.strip() == want, prs
+
+
+def test_the_pr_check_runs_before_any_secret_step_with_a_read_only_token():
+    steps = WF["jobs"]["note"]["steps"]
+    names = [s.get("name") for s in steps]
+    i = names.index(PR_STEP)
+    assert names.index("Check this commit's sender and config are main's") + 1 == i
+    assert i < names.index("Deliver the morning note")
+    step = steps[i]
+    assert set(step["env"]) == {"GH_TOKEN", "MAIN_PR_BASELINE"}   # the read-only token and the baseline only
+    assert step["env"]["GH_TOKEN"] == "${{ github.token }}"
+    assert [s["name"] for s in steps if "GH_TOKEN" in (s.get("env") or {})] == [PR_STEP]
+    assert "sender/ config/site.yml .github/" in step["run"] and "--first-parent" in step["run"]
+    assert PR_JQ in " ".join(step["run"].split())
+    assert WF["jobs"]["note"]["permissions"] == {"contents": "read", "pull-requests": "read"}
 
 
 # ------------------------------------------------------------------ the main ruleset scripts (runbook step 2.0.6)
@@ -693,7 +924,6 @@ def test_protect_main_creates_once_and_updates_after(tmp_path, existing):
 
 
 def test_protect_main_scripts_share_one_ruleset_body():
-    import json
     body = json.loads((ROOT / "scripts" / "main-ruleset.json").read_text(encoding="utf-8"))
     assert body["name"] == "main: pull request required" and body["enforcement"] == "active"
     assert body["bypass_actors"] == [{"actor_id": 15368, "actor_type": "Integration", "bypass_mode": "always"}]
@@ -705,3 +935,51 @@ def test_protect_main_scripts_share_one_ruleset_body():
     ps1 = (ROOT / "scripts" / "protect-main.ps1").read_text(encoding="utf-8")
     # no double quote inside a --jq argument: Windows PowerShell 5.1 strips them on the way to gh
     assert not re.search(r"--jq '[^']*\"", ps1) and "$ENV.RULESET_NAME" in ps1
+
+
+# ------------------------------------------------------------------ deps/transitive-unpinned: the hashed lock
+def _pep503(name: str) -> str:
+    """PEP 503 normalised project name (deps/lock-name-normalise): runs of -, _ and . are one -, lower case."""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def test_lock_names_are_pep503_normalised():
+    assert _pep503("Jinja2") == "jinja2" and _pep503("zope.interface") == "zope-interface"
+    assert _pep503("typing_extensions") == _pep503("Typing-Extensions") == _pep503("typing__extensions")
+
+
+def _lock_pins() -> dict:
+    """{name: (version, [hashes])} from requirements.lock (pip-compile --generate-hashes output)."""
+    pins, name = {}, None
+    for line in (ROOT / "requirements.lock").read_text(encoding="utf-8").splitlines():
+        m = re.match(r"^([A-Za-z0-9_.-]+)==([^\s\\;]+)", line)
+        if m:
+            name = _pep503(m.group(1))
+            pins[name] = (m.group(2), [])
+        h = re.search(r"--hash=sha256:([0-9a-f]{64})", line)
+        if h and name:
+            pins[name][1].append(h.group(1))
+    return pins
+
+
+def test_the_update_job_installs_only_hashed_pins_from_the_lock():
+    steps = {s.get("name"): s for s in WF["jobs"]["update"]["steps"]}
+    run = steps["Install system tools and Python packages"]["run"]
+    assert "python -m pip install --require-hashes -r requirements.lock" in run and "requirements.txt" not in run
+    assert re.findall(r"pip install -[^\n]*", TEXT) == ["pip install --require-hashes -r requirements.lock"]
+    pins = _lock_pins()
+    assert pins and all(hashes for _, hashes in pins.values()), "every locked package carries its sha256"
+
+
+def test_the_lock_matches_requirements_txt_and_the_runner_python():
+    pins = _lock_pins()
+    for line in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines():
+        line = line.split("#")[0].strip()
+        if line:
+            name, version = line.split("==")
+            assert pins[_pep503(name)][0] == version, f"{name}: rerun pip-compile (requirements.lock)"
+    py = {s["with"]["python-version"] for j in WF["jobs"].values() for s in j["steps"]
+          if s.get("uses", "").startswith("actions/setup-python")}
+    assert py == {"3.12"}                                                         # the Python the lock was compiled on
+    head = (ROOT / "requirements.lock").read_text(encoding="utf-8")[:400]
+    assert "pip-compile with Python 3.12" in head and "--generate-hashes" in head

@@ -78,11 +78,12 @@ def test_the_workflow_restores_the_text_and_ocr_caches_before_collecting():
     assert "actions/cache/restore@" in restore["uses"]
     assert restore["with"]["path"].split() == ["data/text", "data/ocr"]
     code = ("${{ steps.tools.outputs.versions }}-"
-            "${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.txt') }}")
+            "${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.lock') }}")
     names = [s.get("name") for s in WF["jobs"]["update"]["steps"]]
     assert names.index("Record OCR tool versions") < names.index("Restore text and OCR caches")
     assert restore["with"]["restore-keys"] == f"records-derived-v1-{code}-"         # ci/derived-cache-integrity
     assert restore["with"]["key"] == f"records-derived-v1-{code}-${{{{ github.run_id }}}}"
+    assert "requirements.txt" not in restore["with"]["key"]    # deps/derived-cache-key: the lock holds every pin
     assert names.index("Restore text and OCR caches") < names.index("Collect (polite fetch, parse, verify)")
     assert names.index("Restore document store") < names.index("Collect (polite fetch, parse, verify)")
     # the document store keeps its own key and path, so the cache that exists today still restores

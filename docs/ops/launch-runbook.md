@@ -50,7 +50,7 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   hours. The job limit is 355 minutes.
 - The text layers and OCR readings (`data/text`, `data/ocr`, keyed by document sha256 and page) live in their own
   cache (`records-derived-v1-<hash of the tesseract and pdftotext versions>-<hash of collector/extract.py,
-  collector/ocr.py, requirements.txt>-*`), restored before
+  collector/ocr.py, requirements.lock>-*`), restored before
   Collect and saved when it grew, even after a failed step, by the scheduled run on `main` only (a manual run, which
   may be on another ref, never saves it; it still saves the document store). A change to those files starts a fresh
   cache. A truncated text cache file is deleted and read again. A document
