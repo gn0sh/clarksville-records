@@ -98,8 +98,60 @@ def test_named_nay_and_abstention_after_except():
     m = r.motions[0]
     assert (m.mover, m.seconder, m.nays, m.abstained) == ("Charlie Patterson", "Stacey Streetman",
                                                           ["Bill Kimbrough"], ["Cindy Greene"])
-    assert m.outcome == "All members voted in favor" and m.confirmed, m.reasons   # rule 2a: the garbled header line
     assert m.case == "S-1-2025"
+    # rpc-votes/outcome-not-printed (2025-06-24 S-42-2025, QA 2026-11-11): "All members voted in favor, except Cindy
+    # Greene who abstained and Bill Kimbrough who voted against." prints no outcome; its first words are not one
+    assert m.outcome is None and m.tally is None and not m.confirmed
+    assert m.reasons == [R.WHY_FAVOUR_NOT_OUTCOME]     # rule 2a matched Bill Kimbrough on the garbled header line
+
+
+# rpc-votes/outcome-not-printed: the real sentence (2025-06-24 minutes p17, S-42-2025) and its shapes
+S42 = ("Charlie Patterson made a motion for approval, seconded by Stacey Streetman. All members voted in\n"
+       "favor, except Cindy Greene who abstained and Bill Kimbrough who voted against.")
+S42_MEMBERS = ("Charlie Patterson", "Stacey Streetman", "Bill Kimbrough", "Cindy Greene", "Michael Long")
+
+
+@pytest.mark.parametrize("text", [
+    S42,
+    S42 + "\nJeff Tyndall made a comment.",
+    "Charlie Patterson made a motion for approval, seconded by Stacey Streetman. All members voted in favor, but Bill "
+    "Kimbrough voted against.",
+    "Charlie Patterson made a motion for approval, seconded by Stacey Streetman. All members voted in favor. Bill "
+    "Kimbrough voted against.",
+    "Charlie Patterson made a motion for approval, seconded by Stacey Streetman. Bill Kimbrough voted against. All "
+    "others voted in favor.",
+    "Charlie Patterson made a motion for approval, seconded by Stacey Streetman. All members voted in favor, except "
+    "Cindy Greene who abstained.",
+])
+def test_an_in_favor_sentence_that_goes_on_or_has_nays_is_never_the_outcome(text):
+    m = _one("CASE NUMBER: S-42-2025\n" + text, S42_MEMBERS)[0]
+    assert m.outcome is None and not m.confirmed, (m.outcome, m.reasons)
+    assert R.WHY_FAVOUR_NOT_OUTCOME in m.reasons
+
+
+def test_an_outcome_sentence_after_the_except_sentence_is_the_outcome():
+    """2025-11-25-style: the printed outcome sentence follows, so it is the outcome and the motion confirms."""
+    m = _one("CASE NUMBER: S-42-2025\n" + S42 + " Motion passes for approval 4-1.", S42_MEMBERS)[0]
+    assert m.outcome == "Motion passes for approval 4-1" and m.tally == "4-1"
+    assert (m.nays, m.abstained, m.confirmed) == (["Bill Kimbrough"], ["Cindy Greene"], True), m.reasons
+
+
+def test_a_whole_in_favor_sentence_with_no_nays_is_still_the_outcome():
+    m = _one("CASE NUMBER: S-42-2025\nCharlie Patterson made a motion for approval, seconded by Stacey Streetman. "
+             "All members voted in favor.", S42_MEMBERS)[0]
+    assert m.outcome == "All members voted in favor" and m.confirmed, m.reasons
+
+
+# rpc-votes/outcome-phrase-choice: the real sentences (2024-10-29 SR-58-2024 p15, 2024-09-24 S-41-2024 p5)
+@pytest.mark.parametrize("votes,outcome", [
+    ("All others voted in favor. Motion was approved on consent agenda.", "Motion was approved on consent agenda"),
+    ("All others voted in favor. Motion was approved on the Consent Agenda.",
+     "Motion was approved on the Consent Agenda"),
+])
+def test_the_printed_outcome_sentence_is_preferred_to_the_in_favor_sentence(votes, outcome):
+    m = _one("CASE NUMBER: SR-58-2024\nJeff Henley made a motion for approval, seconded by Stacey Streetman. " + votes,
+             ("Jeff Henley", "Stacey Streetman", "Charlie Patterson"))[0]
+    assert m.outcome == outcome and m.confirmed, (m.outcome, m.reasons)
 
 
 def _one(text: str, members=("Wade Hadley", "Bryce Powers", "Stacey Streetman", "Bill Kimbrough", "Michael Long")):
@@ -290,7 +342,7 @@ def test_a_vote_word_anywhere_up_to_the_next_motion_is_not_confirmed(votes):
 def test_the_scan_after_the_outcome_stops_at_the_next_motion():
     ms = _one("Mr. Hadley made a motion to approve the minutes. Mr. Powers seconded. Motion passed. "
               "Mr. Long made a motion to adjourn, seconded by Mr. Powers. Mrs. Streetman voted nay. All others were "
-              "in favor.\nCASE NUMBER: Z-5-2026\n")
+              "in favor. Motion passed.\nCASE NUMBER: Z-5-2026\n")
     assert [(m.kind, m.confirmed) for m in ms] == [("Motion to approve the minutes", True), ("Motion to adjourn", True)]
     assert ms[1].nays == ["Mrs. Streetman"] and ms[0].nays == []
 
@@ -300,11 +352,18 @@ def test_words_after_the_outcome_with_no_vote_word_stay_confirmed():
     assert m.confirmed, m.reasons
 
 
-@pytest.mark.parametrize("votes", ["Mrs. Streetman voted nay. All others were in favor.",
-                                   "Mrs. Streetman voted nay. All others were in favor. Motion passed."])
+@pytest.mark.parametrize("votes", ["Mrs. Streetman voted nay. All others were in favor. Motion passed.",
+                                   "Mrs. Streetman voted nay. Motion passed."])
 def test_a_modelled_nay_stays_confirmed(votes):
     m = _case(MOVED + votes)[0]
-    assert m.confirmed and m.nays == ["Mrs. Streetman"], m.reasons
+    assert m.confirmed and m.nays == ["Mrs. Streetman"] and m.outcome == "Motion passed", m.reasons
+
+
+def test_a_nay_with_only_an_in_favor_sentence_has_no_outcome():
+    # rpc-votes/outcome-not-printed: with a member named as voting nay, "All others were in favor." is not an outcome
+    m = _case(MOVED + "Mrs. Streetman voted nay. All others were in favor.")[0]
+    assert m.nays == ["Mrs. Streetman"] and m.outcome is None and not m.confirmed
+    assert m.reasons == [R.WHY_FAVOUR_NOT_OUTCOME]
 
 
 @pytest.mark.parametrize("mangled", ["CASE NUMBFR: Z-6-2026", "C ASE NUMRER"])
@@ -501,7 +560,7 @@ def test_attach_places_a_motion_under_its_case_only_while_nothing_doubts_the_cas
 
 def test_the_build_writes_the_readers_motion_rules_into_the_record(attached):
     facts, summary, _ = attached
-    assert facts["motion_rules"] == R.MOTION_RULES == "rpc-motion-invariant-1"
+    assert facts["motion_rules"] == R.MOTION_RULES == "rpc-motion-invariant-2"
     assert facts["schema"] == "rpc-1"          # the record's layout is unchanged; only the rules it was read by
 
 

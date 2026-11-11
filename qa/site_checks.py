@@ -214,7 +214,7 @@ def check_rpc_cases(rpc: dict | None) -> tuple[list[str], str]:
 RPC_BUSINESS = {"Motion to elect", "Motion to adjourn", "Motion to approve the minutes",
                 "Motion to approve the consent agenda", "Motion to approve the deferrals"}
 # the reader's rules (collector/rpc_minutes.py MOTION_RULES): a record written without them shows no motion confirmed
-RPC_MOTION_RULES = "rpc-motion-invariant-1"
+RPC_MOTION_RULES = "rpc-motion-invariant-2"
 MOTION_BLOCK = re.compile(r'<div class="rpc-motion(?P<nc> nc)?" id="(?P<id>[^"]+)">(?P<body>.*?)</div>', re.S)
 RPC_PLACE = re.compile(r'id="(?:case-(?P<case>[^"]+)|(?P<meeting>[^"]+)-motions)"')
 ITEM_TITLE_SPAN = re.compile(r"<span data-item-title>.*?</span>", re.S)

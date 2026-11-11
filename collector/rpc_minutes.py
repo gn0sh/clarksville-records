@@ -58,7 +58,10 @@ motion's sentences is left unexplained; any doubt is a reason, in plain words, i
 4. (C4) one outcome from the fixed vocabulary is printed, ending its sentence, and it does not name another kind of
    motion ("made the motion for disapproval ... Motion for approval passed" is not confirmed). When no outcome
    sentence follows "All others were in favor." / "All members voted in favor.", that sentence is the outcome as
-   printed; a motion that "falls for a lack of a second" has no seconder to read;
+   printed, but only when it is the whole sentence and no member is named as voting nay or abstaining ("All members
+   voted in favor, except Cindy Greene who abstained and Bill Kimbrough who voted against." prints no outcome: the
+   motion has none and is not confirmed); an outcome sentence ("Motion was approved on the consent agenda.") is
+   preferred to the "in favor" sentence before it; a motion that "falls for a lack of a second" has no seconder to read;
 5. (C5) the minutes print the meeting's own date (minutes listed under another meeting are not attached to it).
 """
 from __future__ import annotations
@@ -101,7 +104,7 @@ SECOND_AFTER = re.compile(rf"(?P<name>{NAME})\s+seconded\b|\bwith\s+(?P<name2>{N
                           rf"\bsecond\s+from\s+(?P<name3>{NAME})")
 OUTCOME = re.compile(r"\b(?:(?:the\s+)?(?:motion|consent\s+agenda|nomination)(?:\s+(?:for|to)\s+[a-z][a-z -]{0,60}?)?\s+"
                      r"(?:(?:was\s+)?(?:passed|approved|denied|defeated)|passes|failed|fails|falls|fell|carried|died)"
-                     r"(?:\s+unanimously)?"
+                     r"(?:\s+unanimously)?(?:\s+on\s+(?:the\s+)?consent\s+agenda)?"
                      r"(?:\s+(?:for|to)\s+[a-z][a-z -]{0,60}?)?(?:\s+(?P<tally>\d{1,2}\s*-\s*\d{1,2}))?"
                      r"|(?:carried|approved)\s+unanimously"
                      r"|(?:the\s+)?(?:minutes|deferrals?|withdrawals?)\s+(?:were|was)\s+approved)"
@@ -183,6 +186,8 @@ WHY_SECTION_OTHER_CASE = "the case section prints another case on this meeting's
 WHY_OFF_AGENDA = "case number not on this meeting's agenda"       # collector/rpc_agenda.read_all_minutes
 WHY_SUBJECT = "subject not read"
 WHY_VOTE_WORD = "unmodelled wording: a vote word the reader does not read"
+WHY_FAVOUR_NOT_OUTCOME = ("no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or "
+                          "abstaining")
 WHY_NAY_IS_MOVER = "a member named as voting nay is the mover or seconder"
 CASE_REASONS = frozenset({WHY_HEAD, WHY_NUMBER, WHY_TWO, WHY_REPEATED, WHY_OTHER_CASE, WHY_SECTION_OTHER_CASE,
                           WHY_OFF_AGENDA, WHY_SUBJECT})
@@ -191,7 +196,7 @@ PARA_MAX = 900          # characters a motion's sentences may span before its ou
 # as `motion_rules`; sitegen/rpc.py and qa/site_checks.py restate it and show every motion of a record without it as
 # not confirmed. Change it whenever a rule changes what is confirmed, so an older record is never shown under rules
 # it was not read by.
-MOTION_RULES = "rpc-motion-invariant-1"
+MOTION_RULES = "rpc-motion-invariant-2"
 
 
 def _clean(line: str) -> str:
@@ -395,6 +400,10 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
         # the vote sentence is the outcome as printed when no outcome sentence follows it straight away
         if fav and (oc is None or oc.start() - _sentence_end(window, fav.end()) > FOLLOW_GAP):
             oc = fav
+        # rule 4: the "in favor" sentence stands as the outcome only when it is all of its sentence ("All members
+        # voted in favor, except Cindy Greene who abstained and ..." is not: its first words alone read as unanimous)
+        fav_goes_on = bool(oc is not None and oc is fav
+                           and re.sub(r"[\s.,;:]", "", window[fav.end():_sentence_end(window, fav.end())]))
         para = window[:_sentence_end(window, oc.end())] if oc else window[:400]
         after = para[at:]
         cut = re.search(r",?\s*seconded|\.\s|stating|based|because", after)
@@ -462,6 +471,14 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
         for x in ABSTAIN.finditer(votes):
             modelled.append((start + x.start(), start + x.end()))
             mv.abstained += [n for n in _names(x.group("names")) if n not in mv.abstained]
+        # rule 4: an "in favor" sentence is never the outcome when the sentence goes on ("..., except ...", "..., but
+        # ...") or when members are named as voting nay or abstaining, there or in a vote word after it up to the next
+        # motion ("All members voted in favor. Mr. Long voted against."): with no outcome sentence printed, the
+        # motion has no outcome as printed and is not confirmed
+        tail = text[m.start() + len(para):nxt]
+        if oc is not None and oc is fav and (fav_goes_on or mv.nays or mv.abstained or LEFTOVER_VOTE.search(tail)):
+            mv.outcome, mv.tally = None, None
+            reasons.append(WHY_FAVOUR_NOT_OUTCOME)
         # every member named after "except" in the vote sentence is read as voting nay or abstaining
         for x in re.finditer(r"\bexcept\b", after):
             named = _names(after[x.end():_sentence_end(after, x.end())])
@@ -481,7 +498,6 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
         # rule 3: every vote word in the motion's sentences sits inside a modelled phrase, and none is printed after
         # its outcome up to the next motion or the section's end ("Motion passed. Mrs. Streetman thanked staff.
         # Mr. Long voted nay."): no character cap, since a cap could only ever confirm more
-        tail = text[m.start() + len(para):nxt]
         scan = after + tail
         if any(not any(a <= x.start() and x.end() <= b for a, b in modelled) for x in LEFTOVER_VOTE.finditer(scan)):
             reasons.append(WHY_VOTE_WORD)
