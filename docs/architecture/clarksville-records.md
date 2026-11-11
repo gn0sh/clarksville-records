@@ -328,6 +328,9 @@ Invariant. Every value that reaches a page, `static/search-index.js` or the publ
    when the stated value is missing (missing stays null).
 A derived value that changes which period or person a fact is placed under must also be shown to be immaterial or
 disclosed (cutover rule below).
+Wording detail (2026-11-11, site-checks/provenance-claunch-seat-text): a seen span of one day reads "seen in
+<evidence> on D", not "from D to D"; a record that starts at a configured seating names its evidence "the minutes that
+record the seating", which `qa/site_checks.py` DATE_PHRASES accepts like "seen in roll calls".
 
 **Seat data shape** (`config/seats.yml`, loaded by `sitegen/seats.py` `load_rows`; a row that breaks it is a `SeatsError`):
 ```yaml

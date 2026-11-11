@@ -1171,7 +1171,10 @@ def check_layout(site: Path, facts: dict, folder: str = "officials") -> tuple[li
 # Restated from the architecture's invariant `provenance`, not imported from sitegen.
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 DATE_PHRASES = ("seen in roll calls", "shown as vacant in roll calls", "roll calls", "seen in attendance lists",
-                "shown as vacant in attendance lists", "attendance lists")
+                "shown as vacant in attendance lists", "attendance lists",
+                # a record that starts at a configured seating (council.yml evidence.configured, sitegen/council.py
+                # CONFIGURED_EVIDENCE): the cited minutes that record it (site-checks/provenance-claunch-seat-text)
+                "seen in the minutes that record the seating")
 SOURCE_TERM = "as the source prints it"
 BANNED = ("Held this seat", "vacant since", "to present", "in use since")
 

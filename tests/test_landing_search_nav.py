@@ -137,7 +137,7 @@ def test_seat_label_follows_the_name_on_meeting_pages_by_that_meetings_date(page
 def test_official_page_header_carries_the_seat(pages):
     assert ("District 1, seen in roll calls from 2024-11-04 to 2024-12-09, the latest meeting collected"
             in text(pages["officials/a-example.html"]))
-    assert "District 2, seen in roll calls 2024-11-04 to 2024-11-04" in text(pages["officials/b-sample.html"])
+    assert "District 2, seen in roll calls on 2024-11-04" in text(pages["officials/b-sample.html"])
     assert "Seat not yet recorded" in text(pages["officials/e-fixture.html"])
 
 
@@ -171,7 +171,7 @@ def test_district_page_current_previous_and_periods(pages):
     assert ("Current D. Testperson District 2, seen in roll calls from 2024-12-09 to 2024-12-09, the latest meeting "
             "collected.") in t
     prev = next(n for n in parse(pages["districts/02.html"]).walk() if n.tag == "table")
-    assert ("B. Sample seen in roll calls 2024-11-04 to 2024-11-04 Current district lines Source: first, p. 1 (opens in a new tab); "
+    assert ("B. Sample seen in roll calls on 2024-11-04 Current district lines Source: first, p. 1 (opens in a new tab); "
             "last, p. 2 (opens in a new tab)") in " ".join(prev.all_text().split())
     # each block names its own first and last roll-call meetings, never a clip date
     assert "B. Sample, District 2: roll calls 2024-11-04 to 2024-11-04" in t
@@ -255,7 +255,7 @@ def test_official_filter_is_alphabetical_by_surname_with_no_counts(index, facts)
     labels = {o["id"]: o["label"] for o in index["officials"]}
     assert labels["a-example"] == "Example, A. (District 1)"
     # served previously: the former seat with its roll-call dates (design 6A.2)
-    assert labels["b-sample"] == "Sample, B. (District 2 (seen in roll calls 2024-11-04 to 2024-11-04))"
+    assert labels["b-sample"] == "Sample, B. (District 2 (seen in roll calls on 2024-11-04))"
     assert labels["e-fixture"] == "Fixture, E."   # no record: no seat, never guessed
     for label in labels.values():   # no counts: any digit is inside the seat part
         assert not re.search(r"\d", re.sub(r" \(.*\)$", "", label)), label

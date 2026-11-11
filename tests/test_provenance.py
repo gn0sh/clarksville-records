@@ -138,7 +138,7 @@ def test_search_index_seat_strings_are_worded(built):
     ix = json.loads(raw[raw.index("{"):raw.rindex("}") + 1])
     labels = {o["id"]: o["label"] for o in ix["officials"]}
     assert labels["a-example"] == "Example, A. (District 1)"
-    assert labels["b-sample"] == "Sample, B. (District 2 (seen in roll calls 2024-11-04 to 2024-11-04))"
+    assert labels["b-sample"] == "Sample, B. (District 2 (seen in roll calls on 2024-11-04))"
     assert labels["e-fixture"] == "Fixture, E."
     for t in [o["label"] for o in ix["officials"]] + ix["seat_labels"]:
         assert site_checks.dates_worded(t) == [], t
