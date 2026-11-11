@@ -89,7 +89,7 @@ def test_fin_pdf_meta_has_a_120s_timeout_and_fails_closed_without_caching(monkey
     _record(monkeypatch, fin_facts, seen)
     meta = fin_facts.pdf_meta(Path("x.pdf"), None, tmp_path / "cache")
     assert seen == [("pdfinfo", 120)]
-    assert meta == {"pages": None, "text_layer": "none", "creator": None}   # a 'none' source carries no value
+    assert meta == {"pages": None, "text_layer": "unreadable", "creator": None}   # carries no value, not a scan
     assert not (tmp_path / "cache").exists()                                 # tried again next build
 
 
@@ -97,7 +97,7 @@ def test_fin_pdf_meta_a_hung_pdfinfo_times_out(monkeypatch, tmp_path, capsys):
     _hung_pdfinfo(tmp_path, monkeypatch)
     monkeypatch.setattr(fin_facts, "PDFINFO_TIMEOUT", 0.5)
     t = time.monotonic()
-    assert fin_facts.pdf_meta(Path("x.pdf"), None, None)["text_layer"] == "none"
+    assert fin_facts.pdf_meta(Path("x.pdf"), None, None)["text_layer"] == "unreadable"
     assert time.monotonic() - t < 10
     assert "pdf inspection failed (TimeoutExpired)" in capsys.readouterr().err
 

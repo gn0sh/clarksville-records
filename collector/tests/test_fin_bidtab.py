@@ -201,6 +201,6 @@ def test_a_dead_or_link_only_tab_is_not_fetched_not_layout(tmp_path, monkeypatch
     (s,), did = _sol_with_doc(fin, "Bid%20Tab%20-%20Hwy%20Dept%20Rock%20FY27.pdf")
     assert s["bid_tab"]["not_read_reason"] == "not_fetched" and s["bid_tab"]["document_id"] == did
     assert fin["coverage"]["n_tab_not_read"] == {"layout": 0, "scan": 2, "shared_url": 2, "not_pdf": 1,
-                                                 "not_fetched": 1}
+                                                 "not_fetched": 1, "unreadable": 0}
     assert next(d for d in fin["documents"] if d["id"] == did)["status"] == state
     assert fin_run.validate(fin) == []

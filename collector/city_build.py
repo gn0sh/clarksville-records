@@ -25,7 +25,7 @@ SUFFIXES = {"jr", "sr", "ii", "iii", "iv"}
 # "failed due to lack of 2/3 majority": a motion can fail with more yes than no when the minutes say a larger
 # majority was required. Only then is a yes > no failure consistent.
 THRESHOLD_RE = re.compile(r"2/3|two[- ]thirds|majority", re.I)
-MINUTES_STATUS = ("read", "scan_not_read", "not_posted", "not_fetched", "parse_failed", "other_meeting")
+MINUTES_STATUS = ("read", "scan_not_read", "not_posted", "not_fetched", "parse_failed", "other_meeting", "unreadable")
 
 
 def slug(s: str) -> str:
@@ -148,6 +148,12 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
 
     uninspectable: set = set()
 
+    def unreadable(url: str | None) -> bool:
+        """The file at url was fetched, but pdfinfo/pdftotext could not inspect it (collector-input/unread-file-
+        mislabel: it is not 'not fetched')."""
+        e = store.latest(url) if url else None
+        return bool(e) and f"src-{e['sha256'][:12]}" in uninspectable
+
     def source_for(url: str | None):
         if not url:
             return None, None
@@ -194,7 +200,10 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
         if not src:
             status_count["not_in_facts"] += 1
             problems.append({"meeting": r["date"], "title": r["title"],
-                             "problem": "no fetched agenda or minutes file to cite: left out of facts"})
+                             "problem": ("the fetched file could not be read and there is no other file to cite: "
+                                         "left out of facts" if unreadable(r["minutes_url"]) or
+                                         unreadable(r["agenda_url"]) else
+                                         "no fetched agenda or minutes file to cite: left out of facts")})
             continue
         kind = cfg.kind_of(r["title"])            # from the title and the current config, not the stored listing
         base = f"{r['date']}-{kind}"
@@ -206,7 +215,7 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
         elif other_meeting:
             mstatus = "other_meeting"
         elif not minutes_src:
-            mstatus = "not_fetched"
+            mstatus = "unreadable" if unreadable(r["minutes_url"]) else "not_fetched"
         elif minutes_src["text_layer"] != "text":
             mstatus = "scan_not_read"
         else:
