@@ -52,10 +52,10 @@ class RpcError(Exception):
 # the sentences, the roster fallback) need the minutes' text and apply when collector/rpc_agenda.py rebuilds it.
 MEETING_BUSINESS = frozenset({"Motion to elect", "Motion to adjourn", "Motion to approve the minutes",
                               "Motion to approve the consent agenda", "Motion to approve the deferrals"})
-# The reader's rules (collector/rpc_minutes.py MOTION_RULES), restated: a record whose `motion_rules` is not this was
-# written before them (vote words, loose headings, another case named, the seconder and roster rules never ran on
-# it), so none of its motions is shown confirmed and none is placed under a case (C1 is in doubt too)
-MOTION_RULES = "rpc-motion-invariant-2"
+# The reader's rules (collector/rpc_minutes.py MOTION_RULES, imported: one constant): a record whose `motion_rules`
+# is not this was written before them (vote words, loose headings, another case named, the seconder and roster
+# rules never ran on it), so none of its motions is shown confirmed and none is placed under a case (C1 is in doubt)
+from collector.rpc_minutes import MOTION_RULES  # noqa: E402
 WHY_STALE = "record written before the motion invariant"
 
 

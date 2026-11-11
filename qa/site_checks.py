@@ -213,7 +213,8 @@ def check_rpc_cases(rpc: dict | None) -> tuple[list[str], str]:
 # rpc-motions (docs/architecture/rpc-motion-invariant.md), restated here from rpc.json alone (no import from collector)
 RPC_BUSINESS = {"Motion to elect", "Motion to adjourn", "Motion to approve the minutes",
                 "Motion to approve the consent agenda", "Motion to approve the deferrals"}
-# the reader's rules (collector/rpc_minutes.py MOTION_RULES): a record written without them shows no motion confirmed
+# the reader's rules (collector/rpc_minutes.py MOTION_RULES): a record written without them shows no motion confirmed.
+# Restated on purpose (the guard imports nothing from the code it checks); tests/test_rpc_minutes_pages.py pins it equal
 RPC_MOTION_RULES = "rpc-motion-invariant-2"
 MOTION_BLOCK = re.compile(r'<div class="rpc-motion(?P<nc> nc)?" id="(?P<id>[^"]+)">(?P<body>.*?)</div>', re.S)
 RPC_PLACE = re.compile(r'id="(?:case-(?P<case>[^"]+)|(?P<meeting>[^"]+)-motions)"')
