@@ -231,3 +231,51 @@ def test_real_opener_does_not_follow_redirects():
     from collector import fetch as F
     assert any(isinstance(h, F._NoRedirect) for h in F._OPENER.handlers)
     assert not any(type(h) is urllib.request.HTTPRedirectHandler for h in F._OPENER.handlers)
+
+
+# ------------------------------------------------------------------ 304, 429 back-off, the per-run request cap
+def test_a_304_never_skips_the_delay():
+    """A 304 (or any non-200) answer is still a request: the next one waits the full host delay."""
+    f, net, clock = make({"https://h.example/robots.txt": (200, b"User-agent: *\nCrawl-delay: 12\n"),
+                          "https://h.example/a": (304, b""), "https://h.example/b": (200, b"x")})
+    assert f.get("https://h.example/a")[0] == 304
+    assert f.get("https://h.example/b")[0] == 200
+    assert clock.slept == [12.0, 12.0]                 # robots -> a -> b, the crawl-delay before each
+    assert [u for u, _ in net.calls].count("https://h.example/a") == 1   # a 304 is not retried
+
+
+def test_a_429_is_never_retried_and_ends_the_host_for_the_run():
+    """Back-off: after a 429 the host gets no request at all for the rest of the run (no retry, faster or slower,
+    whatever Retry-After says)."""
+    f, net, _ = make({"https://h.example/a": (429, b"slow down", {"Retry-After": "1"}),
+                      "https://h.example/b": (200, b"x")})
+    with pytest.raises(HostBlocked):
+        f.get("https://h.example/a")
+    calls = [u for u, _ in net.calls]
+    assert calls.count("https://h.example/a") == 1     # unlike a 5xx, never retried
+    for _ in range(3):
+        with pytest.raises(HostBlocked):
+            f.get("https://h.example/b")
+    assert [u for u, _ in net.calls] == calls
+
+
+def test_request_cap_counts_robots_retries_and_redirects_and_is_never_exceeded():
+    from collector.fetch import RequestCapReached
+    f, net, _ = make({"https://h.example/a": (503, b"busy"),
+                      "https://h.example/r": (302, b"", {"Location": "https://g.example/x"}),
+                      "https://g.example/x": (200, b"x"), "https://h.example/b": (200, b"x")})
+    f.limit_hosts(("h.example", "g.example"), 5)
+    f.get("https://h.example/a")                       # robots + a + its retry: 3
+    with pytest.raises(RequestCapReached):             # r: 4, g's robots.txt: 5, the redirect target: not made
+        f.get("https://h.example/r")
+    assert len(net.calls) == 5
+    with pytest.raises(RequestCapReached):
+        f.get("https://h.example/b")
+    assert len(net.calls) == 5 and f.remaining("h.example") == 0 and f.remaining("other.example") is None
+
+
+def test_a_later_cap_never_raises_an_earlier_one():
+    f, net, _ = make({"https://h.example/a": (200, b"x")})
+    f.limit_hosts(("h.example",), 1)
+    f.limit_hosts(("h.example",), 10)
+    assert f.remaining("h.example") == 1

@@ -223,6 +223,38 @@ def test_more_new_documents_than_the_cap_requests_none(site):
     assert site.committed() == {"listing": None, "manifest": None, "changes": None, "facts": None}
 
 
+def test_the_cap_counts_every_request_robots_and_listing_included(seeded):
+    """The hard cap is on requests to the RPC's hosts, not documents: robots.txt, the listing, every document."""
+    assert rpc.DAILY_FETCH_CAP == 40
+    seeded.empty_store()
+    code, out = seeded.run(cap=6)
+    assert code == rpc.STEP_FILLING
+    assert len(seeded.calls) == 6 and seeded.calls[:2] == [ROBOTS, LISTING] and len(seeded.docs_requested()) == 4
+    assert "at most 6 requests per run" in out["status"]
+
+
+def test_retries_use_the_cap_and_the_request_past_it_is_never_made(seeded):
+    seeded.empty_store()
+    urls = doc_urls()
+    code, out = seeded.run(routes(**{urls[0]: (503, b"busy"), urls[1]: (503, b"busy")}), cap=6)
+    assert code == rpc.STEP_FILLING
+    assert len(seeded.calls) == 6                                   # robots, listing, 2 x (document + its retry)
+    assert seeded.docs_requested() == [urls[0], urls[0], urls[1], urls[1]]
+    assert len(seeded.slept) == 5 and min(seeded.slept) >= 9.99     # the crawl-delay before every one
+
+
+def test_a_cap_too_small_for_the_listing_is_a_fetch_failure_with_no_request_past_it(site):
+    code, out = site.run(cap=1)
+    assert code == rpc.STEP_FETCH and "RequestCapReached" in out["status"]
+    assert site.calls == [ROBOTS]
+    assert site.committed() == {"listing": None, "manifest": None, "changes": None, "facts": None}
+
+
+def test_the_daily_step_defaults_to_the_cap():
+    import inspect
+    assert inspect.signature(rpc.run_step).parameters["max_requests"].default == rpc.DAILY_FETCH_CAP
+
+
 # ------------------------------------------------------------------ never a smaller or half-read record
 def test_one_failed_new_document_is_listed_with_no_source(seeded):
     code, _ = seeded.run(routes(PAGE_NEW, **{NEW_URL: (404, b"")}))

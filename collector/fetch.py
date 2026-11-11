@@ -12,9 +12,14 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
   server error; a second reset fails the fetch. At most RESET_RETRIES_PER_HOST resets are retried per host per
   run: after that a reset fails the fetch at once, so a relay that keeps dropping cannot double the requests;
 - a 403 or 429 sent by the site stops that host for the rest of the run, with no retry by another
-  host, header or proxy. A refusal by the sandbox's own egress proxy (a rejected CONNECT, which the
+  host, header or proxy, and never sooner than the host delay. A refusal by the sandbox's own egress proxy (a rejected CONNECT, which the
   site never sees) is a different case: it is logged as ProxyRefused and does not mark the site as
-  having blocked us. A 403 that cannot be attributed to the proxy is treated as the site's.
+  having blocked us. A 403 that cannot be attributed to the proxy is treated as the site's;
+- every request waits the host delay first, whatever the previous answer was (a 304, a 404, a 5xx, a reset): no
+  status code ever shortens the gap;
+- limit_hosts(hosts, n): a hard cap of n more requests, shared by those hosts, for the rest of the run, counting
+  robots.txt, redirects and retries. The request past it is never made (RequestCapReached); the RPC daily step
+  uses it.
 """
 from __future__ import annotations
 
@@ -70,6 +75,10 @@ class HostRefused(Exception):
 
 class ProxyRefused(Exception):
     """The sandbox egress proxy refused the connection; the site never saw the request."""
+
+
+class RequestCapReached(Exception):
+    """The run's request cap for this host (limit_host) is used up. No request was made."""
 
 
 class FetchFailed(Exception):
@@ -129,6 +138,8 @@ class PoliteFetcher:
     _proxy_refused: dict = field(default_factory=dict)  # host -> count
     _delay: dict = field(default_factory=dict)       # host -> delay (robots Crawl-delay may raise it)
     _resets: dict = field(default_factory=dict)      # host -> resets retried this run
+    _sent: dict = field(default_factory=dict)        # host -> requests sent this run (every one, retries included)
+    _caps: list = field(default_factory=list)        # [(frozenset of hosts, request limit)] (limit_hosts)
     log: list = field(default_factory=list)          # [{event, host, url, detail}]
 
     # ------------------------------------------------------------ policy
@@ -142,6 +153,22 @@ class PoliteFetcher:
         if not _host_matches(host, self.allowed_hosts):
             self.log.append({"event": "refused", "host": host, "detail": "not on allowlist"})
             raise HostRefused(f"{host}: not on the allowlist")
+
+    def sent(self, host: str) -> int:
+        """Requests made to host this run (robots.txt, redirects and retries included)."""
+        return self._sent.get(host.lower(), 0)
+
+    def limit_hosts(self, hosts, n: int) -> None:
+        """Allow at most n more requests, all of `hosts` together, for the rest of this run. A cap only ever adds a
+        limit: an earlier cap on any of the hosts still holds."""
+        group = frozenset(h.lower() for h in hosts)
+        self._caps.append((group, sum(self.sent(h) for h in group) + max(0, int(n))))
+
+    def remaining(self, host: str) -> int | None:
+        """Requests host may still get this run under its caps, or None when no cap covers it."""
+        h = host.lower()
+        left = [limit - sum(self.sent(x) for x in group) for group, limit in self._caps if h in group]
+        return max(0, min(left)) if left else None
 
     def delay_for(self, host: str) -> float:
         floor = max([self.min_delay] + [v for k, v in HOST_FLOORS.items() if _host_matches(host, (k,))])
@@ -185,7 +212,11 @@ class PoliteFetcher:
             raise HostBlocked(f"{host}: {self._blocked[host]}")
         if self._proxy_refused.get(host, 0) >= PROXY_REFUSALS_BEFORE_SKIP:
             raise ProxyRefused(f"{host}: skipped after {PROXY_REFUSALS_BEFORE_SKIP} proxy refusals this run")
+        if self.remaining(host) == 0:
+            self.log.append({"event": "cap", "host": host, "url": url, "detail": "request cap used up"})
+            raise RequestCapReached(f"{host}: the run's request cap is used up; {url} was not requested")
         self._wait(host)
+        self._sent[host.lower()] = self.sent(host) + 1
         started = self.wall()
         req = urllib.request.Request(url, headers={"User-Agent": self.user_agent})
         try:
