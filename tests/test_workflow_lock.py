@@ -663,6 +663,7 @@ def test_note_refuses_an_older_commit_than_main(tmp_path, change, ok):
 
 # ------------------------------------------------------------------ main-protect/actions-bypass-reopens-M1
 PR_STEP = "Check sender, config and workflow changes reached main by pull request"
+STALE_STEP = "Check this commit's sender and config are main's"
 PR_JQ = '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.SHA)] | length'
 # note-job/pr-check-test-gap: the stub evaluates the step's own --jq filter with jq (gh uses gojq), so the cases
 # test the filter the workflow runs, not a Python copy of it.
@@ -699,8 +700,9 @@ def _pr(sha, merged=True, base="main"):
 
 
 def _pr_check(tmp_path, ops, pulls, gh_fail=False, baseline="BASE"):
-    """Build main from `ops`, check out its tip from a depth-1 clone (as actions/checkout does) and run the PR step.
-    main starts with a commit BASE touching every checked path, with no PR (the history before go-live).
+    """Build main from `ops`, check out its tip from a depth-1 clone (as actions/checkout does), run the stale-rerun
+    step (its depth-1 fetch of main comes first in the job) and then the PR step. main starts with a commit BASE
+    touching every checked path, with no PR (the history before go-live).
     ops: ("commit", label, paths) on main, or ("merge", label, branch_label, paths): a branch commit touching paths,
     merged into main with --no-ff. pulls: {label: [pr(sha_label or a literal sha), ...]}. baseline: the label (or a
     literal value) given as MAIN_PR_BASELINE. Returns (exit, gh calls, {label: sha})."""
@@ -708,6 +710,7 @@ def _pr_check(tmp_path, ops, pulls, gh_fail=False, baseline="BASE"):
     step = _note_steps()[PR_STEP]
     origin, src, work, bindir = tmp_path / "origin.git", tmp_path / "src", tmp_path / "work", tmp_path / "bin"
     _git(tmp_path, "init", "-q", "--bare", str(origin))
+    _git(origin, "config", "uploadpack.allowFilter", "true")   # as GitHub: --filter=blob:none is honoured, not ignored
     _git(tmp_path, "init", "-q", str(src))
     shas, n = {}, 0
 
@@ -747,9 +750,16 @@ def _pr_check(tmp_path, ops, pulls, gh_fail=False, baseline="BASE"):
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_TOKEN": "t", "GITHUB_REPOSITORY": "o/r",
            "GH_CALLS": str(calls), "PULLS": str(tmp_path / "pulls.json"), "EXPECTED_JQ": PR_JQ,
            "MAIN_PR_BASELINE": shas.get(baseline, baseline), **({"GH_FAIL": "1"} if gh_fail else {})}
+    stale = subprocess.run(["bash", "-c", _note_steps()[STALE_STEP]["run"]], cwd=work, capture_output=True, text=True)
+    assert stale.returncode == 0, stale.stdout + stale.stderr                  # the step before it, on the same checkout
     r = subprocess.run(["bash", "-c", step["run"]], cwd=work, env=env, capture_output=True, text=True)
     assert "Traceback" not in r.stderr, r.stderr
-    return r.returncode, (calls.read_text().splitlines() if calls.exists() else []), shas
+    calls = calls.read_text().splitlines() if calls.exists() else []
+    if calls:   # it read a PR, so it fetched main's whole history after the depth-1 fetch, without file contents
+        assert _git(work, "rev-parse", "--is-shallow-repository") == "false"
+        assert _git(work, "config", "--get", "remote.origin.partialclonefilter") == "blob:none"
+        assert "filtering not recognized by server" not in r.stderr, r.stderr
+    return r.returncode, calls, shas
 
 
 DATA = ("data/x.json",)
