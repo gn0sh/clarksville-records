@@ -1287,6 +1287,15 @@ def csp(address: dict | None = None, form_origin: str | None = None) -> str:
     return "; ".join([CSP_BASE[0], "script-src " + " ".join(scripts), *rest])
 
 
+def purpose_line(councils=(), rpc: bool = False, finance: bool = False) -> str:
+    """The landing's h1 (site-polish/home-heading): config/site.yml `purpose` naming every body this build covers."""
+    cfg = config.SITE
+    names = [cfg["county_body"], *(c.body_name for c in councils)]
+    names += [cfg["purpose_rpc"]] * bool(rpc) + [cfg["purpose_finance"]] * bool(finance)
+    joined = names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+    return cfg["purpose"].format(bodies=joined)
+
+
 def landing(facts, districts: dict | None, georef: dict | None = None, geocoder: bool = True,
             councils=()) -> dict:
     """`councils`: the landing entries of the councils built (council.landing_entry); their ward seats' pages are

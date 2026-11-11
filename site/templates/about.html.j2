@@ -6,7 +6,7 @@
 
 <section aria-labelledby="operator">
   <h2 id="operator">Who runs this site</h2>
-  <p>This site is run by {{ site.operator }}. The site is a private preview and has no public address yet. More on <a href="{{ root }}who-runs-this.html">Who runs this</a>, <a href="{{ root }}our-rules.html">Our rules</a>, <a href="{{ root }}corrections.html">Corrections</a> and <a href="{{ root }}method.html">Method</a>.</p>
+  <p>This site is run by {{ site.operator }}. {% if not site.cfg.live %}The site is a preview: it has not launched yet, and its pages may still change. {% endif %}More on <a href="{{ root }}who-runs-this.html">Who runs this</a>, <a href="{{ root }}our-rules.html">Our rules</a>, <a href="{{ root }}corrections.html">Corrections</a> and <a href="{{ root }}method.html">Method</a>.</p>
 </section>
 
 {{ about_section(site, root) }}

@@ -110,6 +110,8 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
       Check: `dig +short daylight.gnoshcodes.com CNAME` prints `gn0sh.github.io.` (a few minutes).
 3. Wait for the green "DNS check successful" on the Pages settings page (up to 15 minutes), then tick **Enforce HTTPS**
    (certificate issues within about an hour).
+3a. (devops, on the CEO's go-ahead, no CEO step) Merge a one-line PR setting `live: true` in `config/site.yml`, so the
+   About page drops its "has not launched yet" sentence. Merge it before step 4: every deploy builds from `main`.
 4. Enable the deploy lock: https://github.com/gn0sh/clarksville-records/settings/variables/actions > New repository
    variable, Name `RECORDS_DEPLOY_ENABLED`, Value `true`. (Or: `gh variable set RECORDS_DEPLOY_ENABLED --body true
    --repo gn0sh/clarksville-records`.)

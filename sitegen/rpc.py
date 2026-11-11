@@ -230,6 +230,15 @@ class Rpc:
     def page_name(self, rest: str = "") -> str:
         return f"{self.nav_label}: {rest}" if rest else self.nav_label
 
+    def site_for(self, site: dict) -> dict:
+        """The site context for the RPC's pages: the header's coverage line and data date are the commission's own
+        (site-polish/rpc-subtitle; the county's said "Montgomery County Commission minutes" here). Its coverage runs
+        to the latest meeting listed, agenda or minutes, so the line says meetings."""
+        cov = self.facts["coverage"]
+        sp = localdates.span(self.facts["sources"])
+        return {**site, "coverage": {"body": self.body, "from": cov["from"], "to": cov["to"]},
+                "coverage_what": "meetings", "data_as_of": sp[1] if sp else site["data_as_of"]}
+
     def years(self) -> list[str]:
         return sorted({m["date"][:4] for m in self.facts["meetings"]}, reverse=True)
 

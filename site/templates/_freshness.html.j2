@@ -1,0 +1,26 @@
+{# How recent each body's records are (sitegen/freshness.py, site-polish/freshness-line): one line per body, every date
+   computed from the data at build time. The same words for every body. `collapsed`: a <details> whose summary is the
+   heading (the landing, whose content must fit one phone screen before any lookup: tests/test_address_box.py). #}
+{% macro fresh_body(lines, note) -%}
+  <ul class="fresh-list">
+    {% for l in lines %}
+    <li>{{ l.body }}: {% for p in l.parts %}{{ p.what }} through {% if p.iso %}<time class="nowrap" datetime="{{ p.iso }}">{{ p.text }}</time>{% else %}<span class="nowrap">{{ p.text }}</span>{% endif %}{{ "; " if not loop.last else "." }}{% endfor %}</li>
+    {% endfor %}
+  </ul>
+  <p class="muted fresh-note">{{ note }}</p>
+{%- endmacro %}
+{% macro freshness(lines, note, heading="How recent the records are", collapsed=false) -%}
+{% if lines %}
+{% if collapsed %}
+<details class="freshness" id="freshness">
+  <summary class="fresh-h">{{ heading }}</summary>
+  {{ fresh_body(lines, note) }}
+</details>
+{% else %}
+<section class="freshness" id="freshness" aria-labelledby="fresh-h">
+  <h2 id="fresh-h" class="fresh-h">{{ heading }}</h2>
+  {{ fresh_body(lines, note) }}
+</section>
+{% endif %}
+{% endif %}
+{%- endmacro %}

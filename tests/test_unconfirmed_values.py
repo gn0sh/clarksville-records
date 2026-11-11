@@ -8,7 +8,6 @@ True: values are shown, starred (the rest of this behaviour is tested in test_he
 import copy
 import csv
 import io
-import re
 import json
 import re
 from html import unescape
