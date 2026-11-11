@@ -165,17 +165,22 @@ jobs:
         run: python -m pytest -q -x
 
       # Failed collection or checks: the steps below that publish do not run (no commit, no new artifact, no deploy).
-      # The last deployed site stays up. One open issue is enough: skip when one exists.
+      # The last deployed site stays up. One open issue: created once, then a comment on each later failure.
       - name: Open an issue on failure
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
+          CITY_EXIT: ${{ steps.collect.outputs.city }}
+          COUNTY_EXIT: ${{ steps.collect.outputs.county }}
         run: |
           title="Daily update failed"
           open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+          body="Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID (collector exits: city=$CITY_EXIT, county=$COUNTY_EXIT). The last deployed site is unchanged."
+          # a later failure comments on the open issue, so a repeat is never silent (ci/failure-issue-silent-repeat)
           if [ -z "$open" ]; then
-            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
-              --body "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID (collector exits: city=${{ steps.collect.outputs.city }}, county=${{ steps.collect.outputs.county }}). The last deployed site is unchanged."
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body "$body"
           fi
 
       # The RPC step failed while everything else was ok (county exit 5): one open issue for the RPC alone, with a
@@ -196,7 +201,12 @@ jobs:
             echo "Reason (build/run-log.json rpc.status):"
             echo
             echo '```'
-            jq -r '.rpc.status // "unknown"' build/run-log.json 2>/dev/null | head -c 1500 || echo unknown
+            # backticks are dropped so site text cannot close the fence (ci/issue-markdown-fence); a missing or
+            # unreadable run-log.json gives "unknown" (ci/issue-reason-missing)
+            reason=$(set -o pipefail; jq -r '.rpc.status // "unknown"' build/run-log.json 2>/dev/null | tr -d '`' | head -c 1500) \
+              || reason=unknown
+            [ -n "$reason" ] || reason=unknown
+            echo "$reason"
             echo
             echo '```'
             echo "If it says TooManyNew or 'the cap of', it repeats every day until someone acts: see"

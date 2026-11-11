@@ -318,3 +318,64 @@ def test_deploy_stays_locked_and_is_the_only_publishing_step():
     assert _deploy_if().startswith(LOCK)
     assert "RECORDS_DEPLOY_ENABLED" not in "\n".join(s.get("run", "") for j in WF["jobs"].values()
                                                        for s in j["steps"])     # never set by the workflow itself
+
+
+# ------------------------------------------------------------------ the issue steps, run with a stub `gh`
+def _run_issue_step(tmp_path, step, open_issue="", run_log=None, extra_env=None):
+    """Run a workflow step's script in tmp_path with a stub gh; return (gh calls, text of every body)."""
+    work, bindir = tmp_path / "work", tmp_path / "bin"
+    (work / "build").mkdir(parents=True, exist_ok=True)
+    bindir.mkdir(exist_ok=True)
+    if run_log is not None:
+        (work / "build" / "run-log.json").write_text(run_log, encoding="utf-8")
+    calls, bodies = tmp_path / "gh-calls", tmp_path / "bodies"
+    gh = bindir / "gh"
+    gh.write_text("#!/bin/bash\n"
+                  f'echo "$@" >> "{calls}"\n'
+                  f'if [ "$2" = list ]; then echo "{open_issue}"; fi\n'
+                  'for ((i=1; i<=$#; i++)); do j=$((i+1)); '
+                  f'if [ "${{!i}}" = --body-file ]; then cat "${{!j}}" >> "{bodies}"; fi; '
+                  f'if [ "${{!i}}" = --body ]; then echo "${{!j}}" >> "{bodies}"; fi; done\n')
+    gh.chmod(0o755)
+    env = {**os.environ, **{k: v for k, v in (step.get("env") or {}).items() if "${{" not in str(v)},
+           "PATH": f"{bindir}:{os.environ['PATH']}", "RUNNER_TEMP": str(tmp_path), "GITHUB_SERVER_URL": "https://x",
+           "GITHUB_REPOSITORY": "o/r", "GITHUB_RUN_ID": "1", **(extra_env or {})}
+    subprocess.run(["bash", "-c", step["run"]], cwd=work, env=env, check=True)
+    return calls.read_text().splitlines(), (bodies.read_text() if bodies.exists() else "")
+
+
+def _rpc_issue_step():
+    return {s.get("name"): s for s in WF["jobs"]["update"]["steps"]}["Open or update the RPC issue"]
+
+
+@pytest.mark.skipif(not shutil.which("jq"), reason="jq not installed")
+def test_rpc_issue_strips_backticks_so_site_text_stays_in_the_fence(tmp_path):
+    """ci/issue-markdown-fence: a status holding ``` (text from the site) cannot close the code fence."""
+    import json
+    status = "stopped: FetchFailed ```\n# injected heading\n``` https://www.cmcrpc.com/x.pdf"
+    _, body = _run_issue_step(tmp_path, _rpc_issue_step(), run_log=json.dumps({"rpc": {"status": status}}))
+    assert body.count("```") == 2                                      # only the step's own fence
+    assert "injected heading" in body and "https://www.cmcrpc.com/x.pdf" in body
+
+
+@pytest.mark.parametrize("run_log", [None, "{not json", '{"rpc": {}}'])
+def test_rpc_issue_reason_is_unknown_without_a_readable_run_log(tmp_path, run_log):
+    """ci/issue-reason-missing: no run-log.json, a broken one, or no status: the reason reads 'unknown'."""
+    calls, body = _run_issue_step(tmp_path, _rpc_issue_step(), run_log=run_log)
+    fenced = body.split("```")[1].strip()
+    assert fenced == "unknown" and calls[-1].startswith("issue create")
+
+
+@pytest.mark.parametrize("job", ["update", "push"])
+@pytest.mark.parametrize("open_issue", ["", "42"])
+def test_a_repeat_failure_comments_on_the_open_issue(tmp_path, job, open_issue):
+    """ci/failure-issue-silent-repeat: the first failure opens "Daily update failed", a later one comments on it."""
+    step = [s for s in WF["jobs"][job]["steps"] if s.get("name") == "Open an issue on failure"][0]
+    assert "${{" not in step["run"]                                    # values come in through env only
+    calls, body = _run_issue_step(tmp_path, step, open_issue=open_issue, extra_env={"CITY_EXIT": "2",
+                                                                                     "COUNTY_EXIT": "0"})
+    assert calls[0].startswith("issue list") and len(calls) == 2
+    assert calls[1].startswith("issue comment 42" if open_issue else "issue create")
+    assert "actions/runs/1" in body and "unchanged" in body
+    if job == "update":
+        assert "city=2, county=0" in body
