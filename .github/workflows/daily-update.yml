@@ -540,6 +540,7 @@ jobs:
       # new random folder NOTE_LIB, and records a sha256 digest of that folder's whole listing and contents
       # (NOTE_LIB_SUM). Every later Python step first re-checks the digest (exact: a file added, changed or removed,
       # a __pycache__ or a symlink stops the job), then runs `python -I -S -X pycache_prefix=<new empty folder> -c`
+      # (the folder made by `pc=$(mktemp -d)` on its own line, so a failed mktemp stops the step under set -e)
       # with $NOTE_LIB/py alone added to sys.path and --config $NOTE_LIB/site.yml: -I drops the current folder, the
       # PYTHON* variables and the user site, -S site-packages and .pth files, pycache_prefix any .pyc beside the
       # sources. See docs/architecture/main-protect-invariant.md.
@@ -585,7 +586,8 @@ jobs:
             echo "::error::the staged sender changed after it was staged. Nothing sent."; exit 2
           fi
           dir="$RUNNER_TEMP/morning-send"
-          max=$(python -I -S -X pycache_prefix="$(mktemp -d)" -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.common import MAX_PLAN_BYTES; print(int(MAX_PLAN_BYTES))' \
+          pc=$(mktemp -d)
+          max=$(python -I -S -X pycache_prefix="$pc" -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.common import MAX_PLAN_BYTES; print(int(MAX_PLAN_BYTES))' \
                   "$NOTE_LIB/py")
           bad=0
           while IFS= read -r -d '' f; do echo "::error::not a regular file or folder: ${f#"$dir"/}"; bad=1
@@ -616,7 +618,8 @@ jobs:
           if [ "${sum%% *}" != "$NOTE_LIB_SUM" ]; then
             echo "::error::the staged sender changed after it was staged. Nothing sent."; exit 2
           fi
-          python -I -S -X pycache_prefix="$(mktemp -d)" -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.__main__ import main; sys.exit(main(sys.argv[2:]))' \
+          pc=$(mktemp -d)
+          python -I -S -X pycache_prefix="$pc" -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.__main__ import main; sys.exit(main(sys.argv[2:]))' \
             "$NOTE_LIB/py" deliver --plan "$PLAN" --config "$NOTE_LIB/site.yml"
 
       # The only step with the API key. --live only when the variable is exactly 'true' (the job's own `if:` already
@@ -635,7 +638,8 @@ jobs:
           fi
           live=()
           if [ "$MORNING_NOTE_SEND" = "true" ]; then live=(--live); fi
-          python -I -S -X pycache_prefix="$(mktemp -d)" -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.__main__ import main; sys.exit(main(sys.argv[2:]))' \
+          pc=$(mktemp -d)
+          python -I -S -X pycache_prefix="$pc" -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.__main__ import main; sys.exit(main(sys.argv[2:]))' \
             "$NOTE_LIB/py" deliver --plan "$PLAN" --config "$NOTE_LIB/site.yml" "${live[@]}"
 
   # The note job failed or was cancelled (by hand or by GitHub): one open "Daily update: morning note

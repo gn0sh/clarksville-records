@@ -421,11 +421,13 @@ NOTE_IF = "github.event_name == 'schedule' && vars.MORNING_NOTE_SEND == 'true' &
 # main-protect/pr-check-path-scope, main-protect/test-launcher-coverage: the note job's three python runs, exactly
 # (-I -S, a fresh pycache_prefix, the staged sender folder alone on sys.path, the staged config), each after VERIFY,
 # the re-check of the staged folder's digest (main-protect/staged-lib-integrity).
-_PY = """python -I -S -X pycache_prefix="$(mktemp -d)" -c """
-LAUNCH = (_PY + """'import sys; sys.path.insert(0, sys.argv[1]); from sender.__main__ import main; """
+# main-protect/pycache-prefix-empty: the prefix folder is made on its own line, so a failed mktemp stops the step.
+_PC = "pc=$(mktemp -d)\n"
+_PY = """python -I -S -X pycache_prefix="$pc" -c """
+LAUNCH = (_PC + _PY + """'import sys; sys.path.insert(0, sys.argv[1]); from sender.__main__ import main; """
           """sys.exit(main(sys.argv[2:]))' \\\n  "$NOTE_LIB/py" deliver --plan "$PLAN" --config "$NOTE_LIB/site.yml\"""")
-LAUNCH_MAX = (_PY + """'import sys; sys.path.insert(0, sys.argv[1]); from sender.common import MAX_PLAN_BYTES; """
-              """print(int(MAX_PLAN_BYTES))' \\\n        "$NOTE_LIB/py")""")
+LAUNCH_MAX = (_PC + "max=$(" + _PY + """'import sys; sys.path.insert(0, sys.argv[1]); from sender.common import """
+              """MAX_PLAN_BYTES; print(int(MAX_PLAN_BYTES))' \\\n        "$NOTE_LIB/py")""")
 VERIFY = """sum=$(cd "$NOTE_LIB" && { find . -printf '%y %m %p\\n' | LC_ALL=C sort
       find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum; } | sha256sum)
 if [ "${sum%% *}" != "$NOTE_LIB_SUM" ]; then
@@ -935,15 +937,19 @@ def test_the_pr_check_runs_before_any_secret_step_with_a_read_only_token():
 
 # ------------------------------------------------------------------ main-protect/pr-check-path-scope: no checkout import
 _QUOTED = re.compile(r""""(?:[^"\\]|\\.)*"|'[^']*'""")
-_SEP = re.compile(r"\$\(|[;&|()\n]|(?:^|\s)\{\s|\s\}(?=\s|$)")
+_SEP = re.compile(r"\$\(|[;&|()\n]|(?:^|\s)\{\s|(?:^|\s)\}(?=[\s;]|$)")
 _KEYWORDS = ("if", "then", "do", "else", "elif", "while", "until", "!", "time")
 
 
 def _commands(run: str) -> list:
-    """The first word of every command in a run: script (comments left out; assignments and keywords skipped)."""
+    """The first word of every command in a run: script (comments left out; assignments and keywords skipped). A
+    lint, not a boundary: it reads shell text, so it cannot see every way a command can run another program; the
+    per-step allowlist below keeps the set of programs each step runs from growing unreviewed."""
     code = "\n".join(line for line in run.splitlines() if not line.lstrip().startswith("#"))
     # quoted text keeps its word characters and slashes only, so a quoted command ("$lib/x") is still seen
     code = _QUOTED.sub(lambda m: re.sub(r"[^\w/$.-]", "", m.group(0)) or "Q", code.replace("\\\n", " "))
+    code = re.sub(r"\[\[.*?\]\]", "[[ ]]", code)                  # a test's operands are not commands
+    code = re.sub(r"\b([A-Za-z_]\w*)=\([^)]*\)", r"\1=", code)     # nor an array's items
     words = []
     for part in _SEP.split(code):
         toks = part.split()
@@ -954,22 +960,43 @@ def _commands(run: str) -> list:
     return words
 
 
+_SHELL = {"set", "echo", "exit", "[", "[[", "fi", "done", "for", "read", "cd", "true", "continue"}
+_VERIFY_WORDS = {"find", "sort", "xargs", "sha256sum"}
+# main-protect/test-launcher-coverage: the programs each note-job step may run (beyond _SHELL); a new one is a review
+NOTE_STEP_COMMANDS = {
+    "Mask the canary ids": set(),
+    STALE_STEP: {"git"},
+    PR_STEP: {"git", "grep", "gh"},
+    STAGE_STEP: {"mktemp", "mkdir", "git", "find", "sort", "xargs", "sha256sum"},
+    "Validate the plan files": _VERIFY_WORDS | {"mktemp", "python", "wc", "head", "awk"},
+    "Check the plan (dry run, no secret)": _VERIFY_WORDS | {"mktemp", "python"},
+    "Deliver the morning note": _VERIFY_WORDS | {"mktemp", "python"},
+}
+
+
 def test_every_python_in_the_note_job_is_isolated_from_the_checkout():
-    """main-protect/test-launcher-coverage: the job that holds the key runs exactly three pythons, each the exact
-    isolated launch after the digest re-check; no run: line executes a file (no ./x, sender/x, $lib/x, source, bash,
-    sh, eval or exec), and no step uses an action other than the three pinned ones."""
+    """main-protect/test-launcher-coverage (a lint, not a boundary): the job that holds the key runs exactly three
+    pythons, each the exact isolated launch after the digest re-check; each step runs only its allowlisted programs,
+    never a file by path, a variable ("$cmd"), source/bash/sh/eval/exec/env, or an interpreter's inline code (node -e,
+    perl -e, awk other than the plan-size sum, git -c); and no step uses an action other than the three pinned ones."""
     steps = WF["jobs"]["note"]["steps"]
     names = [s.get("name") for s in steps]
     assert names.index(PR_STEP) < names.index(STAGE_STEP) < names.index("Download the morning note plan") \
         < names.index("Validate the plan files")
+    assert {n for n in names if "run" in _note_steps()[n]} == set(NOTE_STEP_COMMANDS)
     total = 0
     for s in steps:
         run = s.get("run", "")
         words = _commands(run)
+        if run:
+            extra = set(words) - _SHELL - NOTE_STEP_COMMANDS[s["name"]]
+            assert not extra, (s["name"], extra)
         for w in words:
-            assert "/" not in w and w not in (".", "source", "bash", "sh", "eval", "exec", "env"), (s["name"], w)
+            assert "/" not in w and not w.startswith("$") and w not in (
+                ".", "source", "bash", "sh", "eval", "exec", "env", "node", "perl"), (s["name"], w)
         assert run.count("xargs") == run.count("xargs -0 -r sha256sum")             # what xargs and find run
-        assert run.count("-exec") == run.count("-exec cp -- ")
+        assert "-exec" not in run and "git -c" not in run and "--upload-pack" not in run
+        assert run.count("awk") == run.count("""awk '{s+=$1} END {print s+0}'""")
         n = sum(w.startswith("python") for w in words)
         if s.get("name") in PY_STEPS:
             assert n == 1 and run.count(PY_STEPS[s["name"]]) == 1, s["name"]
@@ -985,10 +1012,10 @@ def test_every_python_in_the_note_job_is_isolated_from_the_checkout():
 
 def test_the_command_scan_sees_a_checkout_launch():
     """The scan above would catch the launches it forbids (so it cannot pass vacuously)."""
-    for bad in ("./run.sh", "python -m sender deliver", "bash scripts/x.sh", "x=1; sender/run.py", ". ./env",
-                'if true; then "$lib/py/x"; fi', "source env.sh", "$(sh x)"):
+    for bad in ("./run.sh", "bash scripts/x.sh", "x=1; sender/run.py", ". ./env", 'if true; then "$lib/py/x"; fi',
+                "source env.sh", "$(sh x)", 'cmd=x; "$cmd" a', "node -e 1", "a && perl -e 1", "{ curl x; }"):
         words = _commands(bad)
-        assert any("/" in w or w in (".", "source", "bash", "sh") for w in words) or "-m sender" in bad, bad
+        assert set(words) - _SHELL - NOTE_STEP_COMMANDS["Deliver the morning note"], bad
 
 
 _PLANTED = ("json.py", "argparse.py", "re.py", "pathlib.py", "dataclasses.py", "winreg.py", "sitecustomize.py",
