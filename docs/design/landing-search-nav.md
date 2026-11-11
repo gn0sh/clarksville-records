@@ -1,6 +1,15 @@
 # Landing map, seat pages, search and navigation: design spec
 
 Feature slug: `landing-search-nav`. Designer: ux-designer, 2026-11-07. Status: draft for architect and frontend.
+
+**Superseded in part (CEO, 2026-11-10): the landing has no map.** "The juice is not worth the squeeze with the map,
+especially on mobile." The landing is now purpose line, the unofficial home line (in full on phones too), Your seats,
+the address search, the records search, the district and ward list and a "How the address lookup works" disclosure
+that names the traced lines' sources (formerly "About this map"). Gone: the inline county map, the layer switch,
+`map.js`, the address pin, map clicks saving a seat, and the one-screen map-height calc. The traced district and ward
+paths stay as data in the address box's settings block, because the lookup places the Census point against them
+(`docs/research/map-removal-2026-11-10.md`). The seat pages' small outline map is unchanged. Nav label "Map (home)"
+is now "Home". Sections below that describe the landing map, its layer switch or its one-screen fit are historical.
 Builds on `docs/design/visual-refresh.md` (palette, type, chrome, components: keep its look). Neutrality rules
 N1-N6 (`docs/specs/clarksville-records.md`) and "Invariant: held-back counts"
 (`docs/architecture/clarksville-records.md`) stay in force on every screen below.

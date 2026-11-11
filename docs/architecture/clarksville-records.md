@@ -564,7 +564,7 @@ relative links. Works from a file system, a zip, any static host, or a private c
 Pages (count estimate for 2020-2024 in brackets; the whole site must stay under 250 files):
 | File | Content |
 |---|---|
-| `index.html` | Landing (docs/design/landing-search-nav.md 3): purpose line, search box, inline SVG district map from `config/localities/<locality>/districts.json` (a list and a "map is not available yet" note when absent), district list with each seat's current holder. [1] |
+| `index.html` | Landing (docs/design/landing-search-nav.md 3): purpose line, address search (no map since 2026-11-10: the traced district and ward paths from `config/localities/<locality>/districts.json` travel as data in its settings block), records search box, district and ward list with each seat's current holder (open when there is no address box). [1] |
 | `officials.html` | Officials (design 6A.3). With `config/seats.yml`: Current by seat (districts by number, then the configured other seats), Served previously and Seat not yet recorded alphabetical by surname; one card template, a seat label after every name. Without the roster: one alphabetical list, no labels. No sorting by count. [1] |
 | `meetings.html` | Meetings timeline, newest first (moved from the old home page). [1] |
 | `districts/<nn>.html` | Seat page per county commission district (design 4): Current, Served previously, then holder records split into current and old district lines, each with its own totals sentence and vote rows. [21] |
@@ -601,7 +601,7 @@ Neutrality enforced by construction:
   the About page tells Brian to comment on the page quoting the fact id; the public intake form is M1.5.
 - **N6** (amended 2026-11-08, manager decision Q6; tightened 2026-11-08 after the pin's security review): no
   third-party scripts, fonts, analytics or campaign links. First-party scripts from `static/` only (`filter.js`,
-  `nav.js`, `clamp.js`, `map.js`, `search.js`, the generated `search-index.js`, and on the landing `georef.js` and
+  `nav.js`, `clamp.js`, `search.js`, the generated `search-index.js`, and on the landing `georef.js` and
   `address.js`), vanilla, storing nothing about the visitor. Every page works without them. Every page carries a CSP
   `<meta>` (`views.csp`): `script-src 'self'`, `connect-src 'none'`, `object-src 'none'`, `base-uri 'none'`,
   `form-action 'self'`, `frame-src 'self'`, style elements `'self'` (style attributes stay allowed for the bar's `--n`).

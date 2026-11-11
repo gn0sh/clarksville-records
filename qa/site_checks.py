@@ -24,7 +24,7 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   name-links  every occurrence of an official's display name in the visible text of a page is inside an <a> to that
               official's page (standing rule), except in <title>, <option>, item titles (data-item-title: text in
               the document, never linked), the operator lines (footer, About) and on the official's own page
-  footer      "Provided as a free service by gnoshcodes." on every page
+  footer      "Provided as a free service by gnoshcodes LLC." on every page
   external    no third-party scripts, styles, images or fonts (N6); the landing address box's geocoder (called
               only on submit) is exactly config/site.yml geocoder_url; a page that loads static/address.js carries
               its settings block (addr-config); every page has one CSP meta whose script-src is 'self' only, plus
@@ -33,6 +33,9 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               alternate link) with unique tag: ids, newest first, at most alerts.max_entries; each alternate link
               resolves to a built page and its #anchor, each related link is a fetched source document; alerts.html
               links every feed and no other (Alerts v1, sitegen/feeds.py)
+  dates/no-raw-utc-day  every fetch day a page, the search index or a feed entry shows is the site_timezone day of
+              its source's manifest instant (config/site.yml fetch_manifests), or is labelled "(UTC day)" when the
+              source has none (docs/architecture/local-dates.md)
   rpc-cases   (a build with the Regional Planning Commission) every "CASE NUMBER:" and numbered case line an agenda prints was read as a case
               (the completeness check of collector/rpc_agenda.py: a missed case is never silent)
   rpc-motions (a build with the Regional Planning Commission) docs/architecture/rpc-motion-invariant.md, from rpc.json
@@ -41,10 +44,18 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               meeting's own business with no case), with no nay or abstainer who is its mover or seconder, and none
               is shown confirmed from a record without the reader's current motion_rules; no page with RPC content
               (RPC pages, index, today, any RPC card) says "unanimous" outside the minutes' own words
+  rpc-export  (a build with the RPC export) data/<slug>/motions.csv and facts.json hold only motions confirmed in
+              rpc.json under the current motion_rules, each on its own meeting's case (or the meeting's own business),
+              one disposing motion per case_id, with no confirmed/reasons/tally key or column; each row's values are
+              the record's, both files hold the same motions once, no value of a motion left out is in any file, and
+              data/<slug>/ holds exactly the export's five files
   files       at most the target's file cap: --target preview (claude.ai artifact, 500) or pages (GitHub Pages, 3000)
   transcripts every line of a transcript page (<folder>/transcripts/*.html) has its time linked to its meeting's own
               video as <video_url>#t=<whole seconds>, the "Transcript" label and the notice; every call-on entry on a
               member page links a video time; video links (data-ext="video") go only to a meeting's video_url
+  current-holders  no seat says "Current member not yet recorded" (nor lists its member under Served previously)
+              while the latest list names the member last printed in it: a council's latest attendance list, the
+              county's confirmed roll calls of the latest meeting (city-seats/current-holder-matches-latest-attendance)
   row-height  no table row (or vote / result list item) taller than 60% of the viewport, with long text clamped and row
               details collapsed, at 375x667, 768x1024, 1000x800 and 1280x800 (contracts pages also at 360x640); needs Playwright (node)
   hscroll     no horizontal scroll at 390 px (contracts pages also at 360 px) for the page types (index, official, meeting, items, and when present
@@ -59,6 +70,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import csv
 import hashlib
 import html
 import json
@@ -78,6 +90,7 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from qa.common import OPERATOR, ROOT, find_pdf, load_facts, pdf_page_count  # noqa: E402
+from sitegen.feeds import PER_BODY_FEEDS  # noqa: E402  the one list of feeds capped per body, shared with the build
 
 # Per build target (sitegen.config.MAX_FILES_BY_TARGET says the same): preview 500, under the artifact limit of 511
 # files per version; pages 3000 (GitHub Pages has no such limit). MAX_FILES is the preview's.
@@ -92,7 +105,9 @@ NARROW = 360  # AC-F10: the Bids and awards pages are also checked at 360 px
 # External links that are not minutes PDFs but are allowed: a holder record's roster source, the map's boundary source,
 # the county redistricting page / old-lines map, and the footer support link. Each must be marked data-ext and https.
 EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder", "corrections", "video", "operator", "record",
-             "listed", "school"}   # listed: an RPC document on a host we do not collect from (Google Drive), linked as listed
+             "listed", "school", "provider", "body"}   # listed: an RPC document on a host we do not collect from (Google Drive), linked as listed
+# body: About's link to each body's own official site (config/site.yml unofficial.bodies)
+# provider: the morning note provider's privacy policy (config morning_note.privacy_url), only while it is enabled
 # school: the day page's one plain link to the school board's site (config/site.yml school_board.url; never fetched)
 # the data-transcript attribute itself, not data-transcript-foo
 TRANSCRIPT_TEXT = re.compile(r"(<(span|p)\b[^>]*\sdata-transcript(?=[\s=/>])[^>]*>)[^<]*(</\2>)")
@@ -120,6 +135,36 @@ def corrections_links(cfg: dict) -> tuple[str, str]:
     repo, email = str(c.get("github_repo") or "").strip(), str(c.get("email") or "").strip()
     return (f"https://github.com/{repo}/issues/new?template=correction.yml" if repo else "",
             f"mailto:{email}" if email else "")
+
+
+REPORT_CHANNEL_TARGETS = ("pages",)   # the hosts real readers use (GitHub Pages); the preview may stay closed
+
+
+def check_report_channel(pages: dict[str, "Page"], cfg: dict, target: str,
+                         form: Path | None = None) -> tuple[list[str], str]:
+    """corrections/channel-set-in-production-build: a pages build never ships report.html without a way to send a
+    report. It must link the GitHub issue form or the mailto that config/site.yml `corrections:` sets, on the ids
+    static/report.js fills (report-issue / report-mail), and must not say corrections are not open yet. With
+    github_repo set, the issue form (`form`, default .github/ISSUE_TEMPLATE/correction.yml) must be in this repo
+    (corrections/form-on-default-branch: GitHub shows it only from the default branch, which a file check cannot see)."""
+    if target not in REPORT_CHANNEL_TARGETS:
+        return [], f"{target} target: not checked"
+    pg = pages.get("report.html")
+    if pg is None:
+        return ["report.html is not built"], ""
+    issue, mail = corrections_links(cfg)
+    if not (issue or mail):
+        return ["config/site.yml corrections: sets no github_repo or email, so report.html offers no channel"], ""
+    hrefs = set(pg.hrefs)
+    problems = [f"report.html does not link {u}" for u in (issue, mail) if u and u not in hrefs]
+    problems += [f"report.html has no id={i!r} link (static/report.js fills it)"
+                 for u, i in ((issue, "report-issue"), (mail, "report-mail")) if u and i not in pg.ids]
+    form = ROOT / ".github" / "ISSUE_TEMPLATE" / "correction.yml" if form is None else Path(form)
+    if issue and not form.is_file():
+        problems.append(f"corrections.github_repo is set but the issue form {form.name} is not in the repo ({form})")
+    if "report-closed" in pg.ids:
+        problems.append("report.html still says corrections are not open")
+    return problems, "report.html links " + " and ".join(u for u in (issue, mail) if u)
 
 
 def _site_cfg() -> dict:
@@ -255,6 +300,145 @@ def check_rpc_motions(site: Path, pages: dict[str, "Page"], rpc: dict | None) ->
                       + (rules if current else f"not current: {rules!r}") + ")")
 
 
+RPC_EXPORT_HELD_KEYS = ("confirmed", "reasons", "tally")      # never in a site's data/<slug>/ (internal: build/)
+RPC_EXPORT_FILES = {"facts.json", "meetings.csv", "cases.csv", "motions.csv", "sources.csv"}
+RPC_HELD_FIELDS = ("moved_by", "seconded_by", "outcome", "nays", "abstained")    # what a motion not exported never shows
+_RPC_FORMULA = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _rpc_cell(v):
+    """A value as collector/export.py _csv writes it (lists joined by "; ", a formula-like text cell after a ')."""
+    if isinstance(v, list):
+        v = "; ".join(v) if v else None
+    if v is None:
+        return None
+    if isinstance(v, str):
+        return "'" + v if v.startswith(_RPC_FORMULA) else v
+    return str(v)
+
+
+def _rpc_held_keys(v, path: str = "") -> list[str]:
+    out = []
+    if isinstance(v, dict):
+        for k, x in v.items():
+            if k in RPC_EXPORT_HELD_KEYS:
+                out.append(f"key {k} at {path or 'top level'}")
+            out += _rpc_held_keys(x, f"{path}.{k}" if path else k)
+    elif isinstance(v, list):
+        for i, x in enumerate(v):
+            out += _rpc_held_keys(x, f"{path}[{i}]")
+    return out
+
+
+def check_rpc_export(site: Path, rpc: dict | None) -> tuple[list[str], str]:
+    """The RPC's export (data/<slug>/, collector/rpc_export.py) against rpc.json, as the county guard on
+    data/facts.json: every exported motion is `confirmed: true` in the record, which was written under the reader's
+    current motion_rules; it sits on its record's case_id, a case on its own meeting's agenda, or is the meeting's own
+    business with no case; no case_id holds more than one disposing motion; each row's values (kind, mover, seconder,
+    nays, abstainers, outcome, case number, source, page) are the record's; motions.csv and facts.json hold the same
+    motions, each once; no value of a motion left out is in any of the files; no file carries a confirmed, reasons or
+    tally key (anywhere in facts.json) or column; and data/<slug>/ holds the export's files and nothing else (the
+    internal export goes beside the site, in every build). An export written without data/<slug>/ fails."""
+    if not rpc:
+        return [], "no RPC facts"
+    slug = rpc["_cfg"]["slug"]
+    d = site / "data" / slug
+    if not d.is_dir():
+        if (site / "data").is_dir():
+            return [f"data/{slug}/: missing, beside the rest of data/ (the RPC export)"], ""
+        return [], f"no data/{slug}/ export"
+    motions = {mv["id"]: mv for mv in rpc.get("motions", [])}
+    cases = {c["id"]: c for c in rpc["cases"]}
+    sources = {s["id"]: s for s in rpc["sources"]}
+    dates = {m["id"]: m["date"] for m in rpc["meetings"]}
+    rules = rpc.get("motion_rules")
+    problems: list[str] = []
+    exported: dict[str, list[dict]] = {}
+    for p in sorted(d.rglob("*")):
+        if p.is_file() and p.relative_to(d).as_posix() not in RPC_EXPORT_FILES:
+            problems.append(f"data/{slug}/{p.relative_to(d).as_posix()}: not a file the RPC export writes (a "
+                            f"leftover; internal files never go in the site)")
+    problems += [f"data/{slug}/{n}: missing" for n in sorted(RPC_EXPORT_FILES) if not (d / n).is_file()]
+    csv_name, json_name = f"data/{slug}/motions.csv", f"data/{slug}/facts.json"
+    if (d / "motions.csv").is_file():
+        with (d / "motions.csv").open(encoding="utf-8", newline="") as f:
+            r = csv.DictReader(f)
+            problems += [f"{csv_name}: column {c}" for c in r.fieldnames or [] if c in RPC_EXPORT_HELD_KEYS]
+            exported[csv_name] = [{k: (v or None) for k, v in row.items()} for row in r]
+    if (d / "facts.json").is_file():
+        data = json.loads((d / "facts.json").read_text(encoding="utf-8"))
+        problems += [f"{json_name}: {k}" for k in _rpc_held_keys(data)]
+        exported[json_name] = data.get("motions", [])
+    for name, rows in exported.items():
+        per_case: dict[str, set[str]] = defaultdict(set)
+        counts: dict[str, int] = defaultdict(int)
+        for row in rows:
+            counts[row.get("id")] += 1
+        problems += [f"{name}: motion {mid} is in the file {n} times" for mid, n in sorted(counts.items()) if n > 1]
+        for row in rows:
+            mid = row.get("id")
+            mv = motions.get(mid)
+            if mv is None or mv.get("confirmed") is not True or mv.get("reasons"):
+                problems.append(f"{name}: motion {mid} is not confirmed in rpc.json")
+                continue
+            if rules != RPC_MOTION_RULES:
+                problems.append(f"{name}: motion {mid} exported, but rpc.json was not written under the reader's "
+                                f"current motion rules (motion_rules {rules!r}, want {RPC_MOTION_RULES!r})")
+            if mv.get("case_id"):
+                c = cases.get(mv["case_id"])
+                if c is None or c["meeting_id"] != mv["meeting_id"] or row.get("case_id") != mv["case_id"]:
+                    problems.append(f"{name}: motion {mid} is not under its own case on its meeting's agenda")
+            elif row.get("case_id") or mv["kind"] not in RPC_BUSINESS:
+                problems.append(f"{name}: motion {mid} has no case and is not the meeting's own business")
+            if row.get("case_id") and mv["kind"] not in RPC_BUSINESS:
+                per_case[row["case_id"]].add(mid)
+            # every value as the record holds it (the case number only where the motion is placed on its case)
+            want = {"meeting_id": mv["meeting_id"], "kind": mv["kind"], "moved_by": mv.get("moved_by"),
+                    "seconded_by": mv.get("seconded_by"), "nays": list(mv.get("nays") or []),
+                    "abstained": list(mv.get("abstained") or []), "outcome": mv.get("outcome"),
+                    "case_number": mv.get("case") if mv.get("case_id") else None, "page": mv["page"]}
+            if name == csv_name:
+                s = sources.get(mv["source_id"]) or {}
+                want.update(date=dates.get(mv["meeting_id"]), source_url=s.get("url"),
+                            source_sha256=s.get("sha256"), fetched_at=s.get("fetched_at"))
+                want = {k: _rpc_cell(v) for k, v in want.items()}
+            else:
+                want["source_id"] = mv["source_id"]
+            problems += [f"{name}: motion {mid} {k} is not rpc.json's" for k, v in want.items() if row.get(k) != v]
+        problems += [f"{name}: {len(ids)} disposing motions on case {case} ({', '.join(sorted(ids)[:3])})"
+                     for case, ids in sorted(per_case.items()) if len(ids) > 1]
+    if csv_name in exported and json_name in exported:
+        in_csv = {r.get("id") for r in exported[csv_name]}
+        in_json = {r.get("id") for r in exported[json_name]}
+        if in_csv != in_json:
+            parts = [f"only in {w}: {', '.join(sorted(str(x) for x in ids)[:3])}"
+                     for w, ids in (("facts.json", in_json - in_csv), ("motions.csv", in_csv - in_json)) if ids]
+            problems.append(f"{csv_name} and facts.json hold different motions ({'; '.join(parts)})")
+    # no value of a motion left out of the files is in any of them; allowed: a value a shown motion also has, or one
+    # the record's agendas, listing or sources print themselves (a member who is also a case's agent, say)
+    out_ids = {r.get("id") for rows in exported.values() for r in rows}
+    printed = json.dumps([rpc["cases"], rpc["meetings"], rpc["sources"]], ensure_ascii=False)
+    shown_vals = [v for mid in out_ids if mid in motions for k in RPC_HELD_FIELDS
+                  for v in (motions[mid].get(k) if isinstance(motions[mid].get(k), list) else [motions[mid].get(k)])
+                  if v]
+    held: dict[str, str] = {}
+    for mid, mv in motions.items():
+        if mid in out_ids:
+            continue
+        for k in RPC_HELD_FIELDS:
+            for v in (mv.get(k) if isinstance(mv.get(k), list) else [mv.get(k)]):
+                if v and v not in held and v not in printed and not any(v in s for s in shown_vals):
+                    held[v] = mid
+    for n in sorted(RPC_EXPORT_FILES):
+        if (d / n).is_file():
+            text = (d / n).read_text(encoding="utf-8")
+            problems += [f"data/{slug}/{n}: holds {v!r}, a value of motion {mid}, which is not exported"
+                         for v, mid in sorted(held.items()) if v in text]
+    n = {len(rows) for rows in exported.values()}
+    return problems, (f"{'/'.join(str(x) for x in sorted(n))} motions in data/{slug}/motions.csv and facts.json "
+                      f"(motion_rules {rules!r}; {len(held)} values of motions left out checked)")
+
+
 def rpc_allowed(rpc: dict | None) -> set[str]:
     """The RPC's record page and every listed link we did not collect (shown with data-ext="listed")."""
     if not rpc:
@@ -353,20 +537,24 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
         out.add(cfg["geocoder_privacy_url"])         # the address box's "<geocoder>'s privacy policy" link
     out |= {v["url"] for v in (cfg.get("official_records") or {}).values()}   # "Official record:" lines
     out |= council_record_urls(cfg)
+    out |= {b["url"] for b in (cfg.get("unofficial") or {}).get("bodies") or []}   # About's "official sites" list
     if (cfg.get("school_board") or {}).get("url"):
         out.add(cfg["school_board"]["url"])          # the day page's "coming" school board link
     out |= corrections_log_urls(corrections_path)    # the corrections page's "Source" links
     if cfg.get("operator_url"):
-        out.add(cfg["operator_url"])                 # the footer's "gnoshcodes" link
+        out.add(cfg["operator_url"])                 # the footer's "gnoshcodes LLC" link
     if cfg.get("support_enabled") is True and cfg.get("support_url"):
         out.add(cfg["support_url"])
+    mn = cfg.get("morning_note") or {}
+    if mn.get("enabled") is True and mn.get("privacy_url"):
+        out.add(mn["privacy_url"])                   # the sign-up form's and the Method page's privacy policy link
     out |= {u for u in corrections_links(cfg) if u.startswith("https://")}   # the report page's GitHub issue link
     if districts_path is not None and Path(districts_path).is_file():
         d = json.loads(Path(districts_path).read_text(encoding="utf-8"))
         out.add(d["source_url"])
         wards = d.get("wards") or {}
         if wards.get("status") == "available" and wards.get("source_url"):
-            out.add(wards["source_url"])             # the ward lines' source, under the map's ward layer
+            out.add(wards["source_url"])             # the ward lines' source, named under the address box
     for r in read_roster(seats_path):
         out |= {r[k] for k in ("source", "last_source") if r.get(k)}
     return out
@@ -496,6 +684,23 @@ def resolve(page_rel: str, href: str) -> str | None:
 
 # ---------------------------------------------------------------- the checks
 
+LINK_SCHEMES = ("http", "https")
+
+
+def bad_scheme(href: str) -> bool:
+    """A link or resource address with a scheme other than http(s): `javascript:`, `data:`, `vbscript:`, `file:`,
+    `mailto:`, `tel:` and the rest (morning-security/href-scheme-defense). A relative address has none. The site's
+    one legitimate exception, report.html's mailto from config `corrections:`, is allowed by check_links alone.
+    Browsers drop tabs, newlines and leading control characters before reading the scheme; so does this."""
+    cleaned = re.sub(r"[\t\n\r]", "", href).lstrip("".join(map(chr, range(0x21))))
+    return bool(re.match(r"[A-Za-z][A-Za-z0-9+.-]*:", cleaned)) and urlsplit(cleaned).scheme not in LINK_SCHEMES
+
+def _has_export(site: Path) -> bool:
+    """data/ holds the collector's export, not only the README.txt sitegen writes beside it (sitegen/unofficial.py)."""
+    d = site / "data"
+    return d.is_dir() and any(p.name != "README.txt" for p in d.iterdir())
+
+
 def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str]:
     problems = []
     mailto = corrections_links(_site_cfg())[1]   # the one mailto allowed: report.html's, from config `corrections:`
@@ -506,14 +711,14 @@ def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str
                 continue
             if mailto and rel == "report.html" and href == mailto:
                 continue
-            if u.scheme or href.startswith("//"):
+            if u.scheme or href.startswith("//") or bad_scheme(href):
                 problems.append(f"{rel}: href with scheme {href!r}")
                 continue
             target = resolve(rel, href)
             if target is None:
                 problems.append(f"{rel}: href {href!r} leaves the site")
                 continue
-            if no_export and target.startswith("data/") and not (site / "data").exists():
+            if no_export and target.startswith("data/") and target != "data/README.txt" and not _has_export(site):
                 continue
             f = site / target
             if not f.is_file():
@@ -525,6 +730,9 @@ def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str
                     problems.append(f"{rel}: {href!r} -> no #{u.fragment} on {target}")
         # static assets referenced by <link>/<script>
         for tag, src in pg.resources:
+            if bad_scheme(src):     # never skipped: a javascript: form action or a data: script is a failure
+                problems.append(f"{rel}: <{tag}> with scheme {src!r}")
+                continue
             if urlsplit(src).scheme or src.startswith("//"):
                 continue
             target = resolve(rel, src)
@@ -1093,14 +1301,24 @@ def parse_csp(text: str) -> dict[str, list[str]]:
     return out
 
 
+NOTE_PAGE = "alerts.html"   # the morning note's sign-up form (sitegen/morning_page.py)
+
+
 def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict | None = None) -> list[str]:
     """No third-party resource in the HTML. The one runtime call out, the landing address box's geocoder (only on
     submit, from a sandboxed iframe), may go only to config/site.yml geocoder_url, exactly: the box's settings block
     and the page's CSP script-src both hold it. A page that loads address.js without its settings block fails
     (qa-guard/addr-config-silent-miss), as does a page without the CSP meta (third-party-script/no-csp)."""
     problems = []
+    # The one form that may post off the site: the morning note's sign-up form on alerts.html, only while config
+    # morning_note.enabled is true, and only to its form_action exactly; that page's CSP form-action then holds
+    # 'self' and that one origin (restated here, not called from sitegen/morning_page.py).
+    mn = (cfg or {}).get("morning_note") or {}
+    note_action = mn.get("form_action") if mn.get("enabled") is True and isinstance(mn.get("form_action"), str) else None
     for rel, pg in pages.items():
         for tag, src in pg.resources:
+            if tag == "form" and note_action and rel == NOTE_PAGE and src == note_action and src.startswith("https://"):
+                continue
             if urlsplit(src).scheme or src.startswith("//"):
                 problems.append(f"{rel}: third-party <{tag}> {src!r}")
     if site is None:
@@ -1131,6 +1349,9 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
             continue
         pol = parse_csp(pg.csp[0])
         for k, v in CSP_FIXED.items():
+            if k == "form-action" and note_action and rel == NOTE_PAGE:
+                u = urlsplit(note_action)
+                v = [*v, f"{u.scheme}://{u.netloc}"]
             if pol.get(k) != v:
                 problems.append(f"{rel}: CSP {k} is {pol.get(k)!r}, want {v!r}")
         scripts = pol.get("script-src")
@@ -1154,17 +1375,336 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
     return problems
 
 
+class UnofficialText(HTMLParser):
+    """The text a visitor can see in a page's <footer> and in its `.unofficial-tag` element(s). Comments are not text;
+    script, style, template and noscript content is not shown; an element with `hidden`, aria-hidden="true" or an
+    inline display:none / visibility:hidden hides everything inside it."""
+    VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track",
+            "wbr"}
+    SKIP = {"script", "style", "template", "noscript"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.stack = []        # (tag, hidden, in_footer, in_tag)
+        self.footer, self.tags = [], []   # tags: the text parts of each visible .unofficial-tag element
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        _, hid, foot, intag = self.stack[-1] if self.stack else ("", False, False, False)
+        style = (a.get("style") or "").replace(" ", "").lower()
+        hid = (hid or tag in self.SKIP or "hidden" in a or (a.get("aria-hidden") or "").lower() == "true"
+               or "sr-only" in (a.get("class") or "").split() or bool(INLINE_HIDE.search(style)))
+        is_tag = "unofficial-tag" in (a.get("class") or "").split()
+        if is_tag and not hid and not intag:
+            self.tags.append([])
+        if tag not in self.VOID:
+            self.stack.append((tag, hid, foot or tag == "footer", intag or (is_tag and not hid)))
+
+    def handle_endtag(self, tag):
+        for i in range(len(self.stack) - 1, -1, -1):
+            if self.stack[i][0] == tag:
+                del self.stack[i:]
+                return
+
+    def handle_data(self, data):
+        if self.stack and not self.stack[-1][1]:
+            if self.stack[-1][2]:
+                self.footer.append(data)
+            if self.stack[-1][3]:
+                self.tags[-1].append(data)
+
+
+_ZERO = r"(?:0+(?:\.0*)?|\.0+)[a-z%]*(?=\s*(?:;|!|$))"   # 0, 0.0, .0, 0px, 0em, 0% (not 0.5)
+INLINE_HIDE = re.compile(rf"display:none|visibility:hidden|opacity:{_ZERO}|font-size:{_ZERO}")
+CSS_HIDE = re.compile(rf"display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*{_ZERO}|font-size\s*:\s*{_ZERO}",
+                      re.M)
+FOOTER_SUBJECT = re.compile(r"^(?:footer|\.site-footer)(?![\w-])")
+
+
+def _hides_notice(selector: str) -> bool:
+    """A selector that can hide the notice: one naming an unofficial-* class, one whose subject is the footer, or one
+    whose subject is a section inside the footer (`footer section`, `.site-footer > section`)."""
+    if "unofficial" in selector:
+        return True
+    parts = [p for p in re.split(r"\s*[>+~]\s*|\s+", selector.strip()) if p]
+    if not parts:
+        return False
+    return bool(FOOTER_SUBJECT.match(parts[-1])) or (
+        parts[-1].startswith("section") and any(FOOTER_SUBJECT.match(p) for p in parts[:-1]))
+
+
+def _hiding_rules(site: Path) -> list[str]:
+    """Selectors in the built style.css that can hide the notice (_hides_notice) with display:none, visibility:hidden,
+    opacity:0 or font-size:0."""
+    css = site / "static" / "style.css"
+    text = re.sub(r"/\*.*?\*/", "", css.read_text(encoding="utf-8"), flags=re.S) if css.is_file() else ""
+    return [" ".join(sel.split()) for group, body in re.findall(r"([^{}]+)\{([^{}]*)\}", text) if CSS_HIDE.search(body)
+            for sel in group.split(",") if _hides_notice(sel)]
+
+
+def unofficial_notice(cfg: dict) -> str:
+    """The notice text, restated from config/site.yml `unofficial:` (not called from sitegen's templates)."""
+    names = [b["name"] for b in cfg["unofficial"]["bodies"]]
+    joined = ", ".join(names[:-1]) + ", or " + names[-1] if len(names) > 2 else " or ".join(names)
+    return " ".join(cfg["unofficial"]["notice"].format(site_name=cfg["site_name"], operator=cfg["operator"],
+                                                       bodies=joined).split())
+
+
+def check_unofficial(site: Path, pages: dict[str, Page], cfg: dict | None = None) -> tuple[list[str], str]:
+    """unofficial/notice-on-every-page: the independent-and-unofficial notice (config/site.yml `unofficial:`) is in the
+    text of every built HTML page, in its <meta name=description> and og:description, with the tag in its <title> and
+    beside the site name; in every feed's subtitle; in every morning note's "notice" and "email_line"; and in
+    data/README.txt when the build has an export. Each missing one is a problem."""
+    import xml.etree.ElementTree as ET
+    cfg = _site_cfg() if cfg is None else cfg
+    u = cfg.get("unofficial")
+    if not u:
+        return ["config/site.yml has no unofficial: block"], ""
+    notice = unofficial_notice(cfg)
+    problems = [f"static/style.css: {sel!r} hides the unofficial notice" for sel in _hiding_rules(site)]
+    for rel in sorted(pages):
+        raw = (site / rel).read_text(encoding="utf-8")
+        seen = UnofficialText()
+        seen.feed(raw)
+        seen.close()
+        if notice not in " ".join("".join(seen.footer).split()):
+            problems.append(f"{rel}: the unofficial notice is not in the page text (visible, in the footer)")
+        if not seen.tags or any(" ".join("".join(t).split()) != u["tag"] for t in seen.tags):
+            problems.append(f"{rel}: no visible '{u['tag']}' tag by the site name")
+        meta = re.findall(r'<meta\s+(?:name="description"|property="og:description")\s+content="([^"]*)"', raw)
+        if len(meta) != 2 or any(" ".join(html.unescape(m).split()) != notice for m in meta):
+            problems.append(f"{rel}: description and og:description meta tags do not both carry the notice")
+        lead = f"{cfg['site_name']} ({u['tag'].lower()}) | "   # the tag leads the title and the share card
+        for what, m in (("<title>", re.search(r"<title>(.*?)</title>", raw, re.S)),
+                        ("og:title", re.search(r'<meta\s+property="og:title"\s+content="([^"]*)"', raw))):
+            if not m or not html.unescape(m.group(1)).strip().startswith(lead):
+                problems.append(f"{rel}: {what} does not start with {lead!r}")
+    feeds = []   # every Atom feed anywhere; any other .xml in feeds/ is a problem, other .xml files are not feeds
+    for f in sorted(site.rglob("*.xml")):
+        rel = f.relative_to(site).as_posix()
+        try:
+            root = ET.parse(f).getroot()
+        except ET.ParseError:
+            if rel.startswith("feeds/"):
+                problems.append(f"{rel}: feed is not valid XML")
+            continue
+        if root.tag != ATOM + "feed":
+            if rel.startswith("feeds/"):
+                problems.append(f"{rel}: not an Atom feed")
+            continue
+        feeds.append(f)
+        sub = root.find(ATOM + "subtitle")
+        if sub is None or notice not in " ".join((sub.text or "").split()):
+            problems.append(f"{rel}: the feed subtitle lacks the unofficial notice")
+    notes = sorted((site / "morning").glob("*.json")) if (site / "morning").is_dir() else []
+    for f in notes:
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+        except ValueError:
+            problems.append(f"morning/{f.name}: not valid JSON")
+            continue
+        if d.get("notice") != notice or d.get("email_line") != u["email_line"]:
+            problems.append(f"morning/{f.name}: the note lacks the unofficial notice or email line")
+    readme = site / "data" / "README.txt"
+    if (site / "data").is_dir() and not (readme.is_file() and notice in " ".join(readme.read_text(encoding="utf-8").split())):
+        problems.append("data/README.txt is missing or lacks the unofficial notice")
+    return problems, f"{len(pages)} pages, {len(feeds)} feeds, {len(notes)} morning notes"
+
+
 ATOM = "{http://www.w3.org/2005/Atom}"
 RFC3339 = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})")
 
 
-PER_BODY_FEEDS = ("feeds/topic-rezoning.xml",)   # sitegen/feeds.py: capped at max_entries per body, not per feed
+CONTRACTS_FEED = "feeds/topic-contracts.xml"   # sitegen/feeds.py: the one feed whose entries link finance.json documents
 
 
-def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: dict) -> tuple[list[str], str]:
+# dates/no-raw-utc-day (docs/architecture/local-dates.md), restated here on purpose (no call into sitegen): every fetch
+# day a reader sees is the site_timezone day of the manifest instant (first_fetched_at), never the stored UTC day.
+FETCH_DAY = re.compile(
+    r'href="(?P<href>https?://[^"]+)"'
+    r"|(?P<kind>[Ff]etched between|[Ff]etched on|latest fetched|Data as of|[Ff]etched|at fetch \(|"
+    r"(?:[Cc]ollected|[Aa]dded|[Dd]ownloaded|[Rr]etrieved)(?: on)?,?)\s"
+    r"(?P<day>\d{4}-\d{2}-\d{2})(?P<utc> \(UTC day\))?(?: and (?P<day2>\d{4}-\d{2}-\d{2})(?P<utc2> \(UTC day\))?)?")
+FETCH_AGGREGATE = ("fetched between", "fetched on", "latest fetched", "data as of")
+# other words a fetch day may follow; after "meeting " ("the latest meeting collected, D") the day is a meeting date
+FETCH_OTHER_WORDS = ("collected", "added", "downloaded", "retrieved")
+UTC_DAY_LABEL = " (UTC day)"
+
+
+def fetch_rows(cfg: dict, fixture: bool) -> dict[tuple[str, str], tuple[str, str]]:
+    """{(url, sha256): (UTC day, site_timezone day)} of every row of config/site.yml `fetch_manifests` (none for a
+    fixture build: its made-up sources have no rows)."""
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    out: dict[tuple[str, str], tuple[str, str]] = {}
+    if fixture:
+        return out
+    zone = ZoneInfo(cfg["site_timezone"])
+    for rel in cfg.get("fetch_manifests") or []:
+        for row in json.loads((ROOT / rel).read_text(encoding="utf-8")):
+            when = datetime.fromisoformat(row["first_fetched_at"])
+            if when.tzinfo is None:
+                raise ValueError(f"{rel}: {row['url']} first_fetched_at has no time zone")
+            out[(row["url"], row.get("sha256"))] = (when.astimezone(ZoneInfo("UTC")).date().isoformat(),
+                                                    when.astimezone(zone).date().isoformat())
+    return out
+
+
+def fetch_instants(cfg: dict, fixture: bool, rows: dict | None = None) -> dict[str, set[tuple[str, str]]]:
+    """{url: {(UTC day, site_timezone day)}} of fetch_rows (a URL may have several copies)."""
+    out: dict[str, set[tuple[str, str]]] = defaultdict(set)
+    for (url, _), days in (fetch_rows(cfg, fixture) if rows is None else rows).items():
+        out[url].add(days)
+    return out
+
+
+def _fetch_span(sources, rows) -> tuple[str, str, bool] | None:
+    """(earliest, latest, exact) fetch day of facts-file sources: site_timezone days when every source has its row
+    (same url and sha256, the row's UTC day its stored fetched_at), else stored UTC days (exact False)."""
+    srcs = [s for s in sources if s.get("fetched_at")]
+    if not srcs:
+        return None
+    hits = [rows.get((s.get("url"), s.get("sha256"))) for s in srcs]
+    if all(h is not None and h[0] == str(s["fetched_at"])[:10] for h, s in zip(hits, srcs)):
+        days = sorted(h[1] for h in hits)
+        return days[0], days[-1], True
+    days = sorted(str(s["fetched_at"])[:10] for s in srcs)
+    return days[0], days[-1], False
+
+
+def _shown(day, utc) -> str:
+    return f"{day}{UTC_DAY_LABEL if utc else ''}"
+
+
+def _aggregate_ok(m, span, rpc_span) -> str | None:
+    """Why an aggregate fetch day on a page breaks the rule: it must be its own sources' latest ("Data as of",
+    "latest fetched": the RPC's), or earliest and latest ("fetched between"), or the one day ("fetched on"), each
+    labelled (UTC day) exactly when a source has no recorded instant (dates/check-aggregate-loose)."""
+    kind = m["kind"].lower()
+    sp = rpc_span if kind == "latest fetched" else span
+    shown = f"'{m['kind']} {_shown(m['day'], m['utc'])}" + (f" and {_shown(m['day2'], m['utc2'])}'" if m["day2"] else "'")
+    if sp is None:
+        return f"{shown}: the page's body has no fetched sources to check it against"
+    lo, hi, exact = sp
+    want = {"data as of": [hi], "latest fetched": [hi], "fetched on": [lo, hi] if lo == hi else None,
+            "fetched between": [lo, hi]}[kind]
+    got = [d for d in (m["day"], m["day2"]) if d]
+    labels = [bool(u) for u, d in ((m["utc"], m["day"]), (m["utc2"], m["day2"])) if d]
+    if kind == "fetched on":
+        got, labels = got * 2, labels * 2
+    if want != got or any(lab == exact for lab in labels):
+        return (f"{shown}, but its sources' fetch days are {_shown(lo, not exact)} to {_shown(hi, not exact)}")
+    return None
+
+
+def _fetch_day_ok(day: str, labelled: bool, urls, instants) -> str | None:
+    """Why a fetch day shown next to the source links `urls` breaks the rule, or None."""
+    rows = {r for u in urls for r in instants.get(u, ())}
+    if labelled:
+        # an honest UTC day only when no linked source has a recorded instant on that UTC day (else the lookup
+        # failed and labelled a day it could have converted: dates/check-labelled-passes)
+        hit = sorted(u for u in urls if any(utc == day for utc, _ in instants.get(u, ())))
+        return (f"fetched {day} (UTC day), but {hit} has a recorded instant on that UTC day: show its site_timezone "
+                f"day") if hit else None
+    if not rows:
+        return f"fetched {day} next to {sorted(urls) or 'no source link'}, which has no recorded instant: label it (UTC day)"
+    if day not in {local for _, local in rows}:
+        utc = " (the stored UTC day)" if day in {u for u, _ in rows} else ""
+        return f"fetched {day}{utc}, but the site_timezone day of {sorted(urls)} is {sorted({lo for _, lo in rows})}"
+    return None
+
+
+def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bool, county: dict | None = None,
+                      councils_: list[dict] | tuple = (), rpc: dict | None = None) -> tuple[list[str], str]:
+    """dates/no-raw-utc-day: (1) each per-document fetch day on a page ("fetched D", "Fetched D.", "at fetch (D)")
+    is the site_timezone day of a manifest instant of a source linked just before it (the links since the previous
+    fetch day, else the previous fetch day's links: a Details list after its links), or is labelled "(UTC day)"
+    when no linked source has an instant; (2) an aggregate ("fetched between A and B", "fetched on", "latest
+    fetched", "Data as of") is its own page's sources' day (_aggregate_ok: a council's pages, `councils_` {prefix,
+    facts}, by the council's sources; every other page by `county`'s; "latest fetched" by `rpc`'s); a day after
+    "collected", "added", "downloaded" or "retrieved" is a fetch day as in (1), or after "meeting " a meeting date of
+    the page's facts; (3) the same for the search index's s.f beside s.u and (4) each feed entry's summary "fetched D"
+    beside its related link."""
+    import xml.etree.ElementTree as ET
+    county = county or {}
+    rows = fetch_rows(cfg, fixture)
+    instants = fetch_instants(cfg, fixture, rows)
+    rpc_span = _fetch_span((rpc or {}).get("sources") or [], rows)
+    scopes = [(c["prefix"], c["facts"]) for c in councils_]
+    spans = {id(f): _fetch_span(f.get("sources") or [], rows) for _, f in scopes + [("", county)]}
+    problems: list[str] = []
+    n = labelled_n = 0
+    for rel in sorted(pages):
+        text = (site / rel).read_text(encoding="utf-8")
+        own = next((f for pre, f in scopes if rel.startswith(pre)), county)
+        cands: list[str] = []
+        prev: list[str] = []
+        for m in FETCH_DAY.finditer(text):
+            if m["href"]:
+                cands.append(html.unescape(m["href"]).split("#", 1)[0])
+                continue
+            n += 1
+            labelled_n += bool(m["utc"])
+            if m["kind"].lower() in FETCH_AGGREGATE:
+                why = _aggregate_ok(m, spans[id(own)], rpc_span)
+                if why:
+                    problems.append(f"{rel}: {why}")
+                continue
+            if m["kind"].lower().rstrip(",").removesuffix(" on") in FETCH_OTHER_WORDS and \
+                    text[max(0, m.start() - 8):m.start()] == "meeting ":
+                n -= 1   # a meeting date ("the latest meeting collected, D"): civil, never shifted
+                if m["day"] not in {x.get("date") for x in own.get("meetings") or []}:
+                    problems.append(f"{rel}: 'meeting {m['kind']} {m['day']}' is no meeting date of its facts")
+                continue
+            urls = cands or prev
+            why = _fetch_day_ok(m["day"], bool(m["utc"]), set(urls), instants)
+            if why:
+                problems.append(f"{rel}: {why}")
+            prev, cands = urls, []
+    idx = site / "static" / "search-index.js"
+    n_search = 0
+    if idx.is_file():
+        body = idx.read_text(encoding="utf-8")
+        data = json.loads(body[body.index("=") + 1:].strip().rstrip(";"))
+
+        def walk(v):
+            if isinstance(v, dict):
+                if isinstance(v.get("u"), str) and isinstance(v.get("f"), str):
+                    yield v
+                for x in v.values():
+                    yield from walk(x)
+            elif isinstance(v, list):
+                for x in v:
+                    yield from walk(x)
+        for s in walk(data):
+            n_search += 1
+            day, lab = (s["f"][:-len(UTC_DAY_LABEL)], True) if s["f"].endswith(UTC_DAY_LABEL) else (s["f"], False)
+            why = _fetch_day_ok(day, lab, {s["u"].split("#", 1)[0]}, instants)
+            if why:
+                problems.append(f"static/search-index.js: {why}")
+    A = "{http://www.w3.org/2005/Atom}"
+    n_feed = 0
+    for f in sorted((site / "feeds").glob("*.xml")) if (site / "feeds").is_dir() else []:
+        for e in ET.parse(f).getroot().iter(A + "entry"):
+            m = re.search(r"fetched (\d{4}-\d{2}-\d{2})( \(UTC day\))?", e.findtext(A + "summary") or "")
+            rel_links = [x.get("href") for x in e.findall(A + "link") if x.get("rel") == "related"]
+            if not m or not rel_links:
+                continue
+            n_feed += 1
+            why = _fetch_day_ok(m[1], bool(m[2]), {u.split("#", 1)[0] for u in rel_links}, instants)
+            if why:
+                problems.append(f"feeds/{f.name} {e.findtext(A + 'id')}: {why}")
+    return problems, (f"{n} fetch days on {len(pages)} pages ({labelled_n} labelled UTC day), {n_search} search "
+                      f"records, {n_feed} feed entries against {sum(len(v) for v in instants.values())} manifest "
+                      f"instants in {cfg['site_timezone']}")
+
+
+def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: dict,
+                finance_sources: list[dict] | tuple = ()) -> tuple[list[str], str]:
     """Alerts v1 (sitegen/feeds.py): each feeds/*.xml is valid Atom (RFC 4287 required elements), its entry ids are
-    unique tag: URIs, newest first, capped (PER_BODY_FEEDS: per body, the entry id's first part); its links go to a
-    built page (and #anchor) or a fetched source document (`sources`: every facts file's, finance's included)."""
+    unique tag: URIs, newest first, capped (sitegen.feeds.PER_BODY_FEEDS: per body, the entry id's first part); its
+    links go to a built page (and #anchor) or a fetched source document (`sources`: every facts file's;
+    `finance_sources`: finance.json's, known to CONTRACTS_FEED only). No link carries a scheme other than http(s)."""
     import xml.etree.ElementTree as ET
     problems: list[str] = []
     feeds = sorted((site / "feeds").glob("*.xml")) if (site / "feeds").is_dir() else []
@@ -1172,10 +1712,12 @@ def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: di
     if not feeds:
         return (["config/site.yml has alerts: but the build has no feeds/*.xml"] if alerts.get("feed_id") else []), "no feeds"
     cap = alerts.get("max_entries") or 0
-    known = {s["url"] for s in sources}
+    records = {s["url"] for s in sources}
+    with_finance = records | {s["url"] for s in finance_sources}
     entries_n = 0
     for f in feeds:
         rel = f.relative_to(site).as_posix()
+        known = with_finance if rel == CONTRACTS_FEED else records
         try:
             root = ET.parse(f).getroot()
         except ET.ParseError as exc:
@@ -1196,6 +1738,8 @@ def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: di
             problems.append(f"{rel}: feed updated {text(root, 'updated')!r} is not an RFC 3339 date-time")
         entries = root.findall(ATOM + "entry")
         entries_n += len(entries)
+        problems += [f"{rel}: link with scheme {x.get('href')!r}" for x in root.iter(ATOM + "link")
+                     if bad_scheme(x.get("href") or "")]
         if root.find(f"{ATOM}author/{ATOM}name") is None and any(e.find(ATOM + "author") is None for e in entries):
             problems.append(f"{rel}: no feed author and an entry without one")
         if not any(link.get("rel") == "self" for link in root.findall(ATOM + "link")):
@@ -1223,7 +1767,9 @@ def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: di
             up = text(e, "updated")
             if up and not RFC3339.fullmatch(up):
                 problems.append(f"{rel}: entry {eid} updated {up!r} is not an RFC 3339 date-time")
-            dates.append(up)
+            elif up:   # as an instant: text order breaks in the fall-back hour (01:30-05:00 is before 01:15-06:00)
+                from datetime import datetime
+                dates.append(datetime.fromisoformat(up))
             links = e.findall(ATOM + "link")
             alt = [x.get("href") or "" for x in links if (x.get("rel") or "alternate") == "alternate"]
             if not alt:
@@ -1487,6 +2033,209 @@ def check_transcripts(site: Path, cs: list[dict]) -> tuple[list[str], str]:
     return problems, f"{n_pages} transcript pages, {n_lines} lines; {n_calls} call-on entries on member pages"
 
 
+# ---------------------------------------------------------------- current holders
+# Restated from the invariant `city-seats/current-holder-matches-latest-attendance`, not imported from sitegen: a
+# seat's current holder is the member recorded in that seat who is still listed at the latest meeting read, unless
+# the record shows a successor. So no seat says "Current member not yet recorded", and its member is not under
+# "Served previously", while the latest list (council: attendance; county: confirmed roll calls) lists that member
+# and nobody has been printed in the seat since the member's own latest print.
+NOT_RECORDED = "Current member not yet recorded"
+
+
+def _council_cfg(slug: str) -> dict:
+    for loc in _site_cfg().get("councils") or []:
+        c = yaml.safe_load((ROOT / "config" / "localities" / loc / "council.yml").read_text(encoding="utf-8"))
+        if c["slug"] == slug:
+            return c
+    return {}
+
+
+def _council_wards(slug: str) -> list[dict]:
+    c = _council_cfg(slug)
+    if c and (ROOT / c["wards"]).is_file():
+        return json.loads((ROOT / c["wards"]).read_text(encoding="utf-8"))
+    return []
+
+
+def latest_listed(facts: dict | None, wards: list[dict]) -> tuple[str | None, set[str], set[str]]:
+    """(L, named, may_hold): L the latest attendance list; `named` the officials it names; `may_hold` those plus,
+    when L's list is incomplete (it prints a name that resolves to no official, or names fewer officials than the
+    list before it), the officials the list before it names: L cannot show that they have gone. Read from the facts
+    file's own attendance lists (meetings[].attendance), not from wards.json, when the facts have any."""
+    lists = defaultdict(list)            # date -> [official_id or None]
+    for m in (facts or {}).get("meetings", []):
+        for x in m.get("attendance") or []:
+            lists[m["date"]].append(x.get("official_id"))
+    if not lists:
+        for w in wards:
+            lists[w["date"]].append(w.get("official_id"))
+    if not lists:
+        return None, set(), set()
+    dates = sorted(lists)
+    latest = dates[-1]
+    named = {o for o in lists[latest] if o}
+    may_hold = set(named)
+    if len(dates) > 1:
+        before = {o for o in lists[dates[-2]] if o}
+        if None in lists[latest] or len(named) < len(before):
+            may_hold |= before
+    return latest, named, may_hold
+
+
+def last_wards(wards: list[dict], members) -> dict[str, int]:
+    """{member: ward} for each of `members` whose own last two ward prints agree on a ward that nobody else has been
+    printed in since."""
+    prints = defaultdict(list)          # member -> [(date, ward)]
+    last_in = {}                         # ward -> (date, member) of its latest print
+    for w in sorted(wards, key=lambda w: (w["date"], w["meeting_id"])):
+        if w.get("ward") is None or not w.get("official_id"):
+            continue
+        prints[w["official_id"]].append((w["date"], int(w["ward"])))
+        last_in[int(w["ward"])] = (w["date"], w["official_id"])
+    out = {}
+    for oid in sorted(members):
+        p = prints.get(oid, [])
+        if len(p) >= 2 and p[-1][1] == p[-2][1] and last_in[p[-1][1]][1] == oid:
+            out[oid] = p[-1][1]
+    return out
+
+
+def expected_ward_holders(wards: list[dict], facts: dict | None = None) -> dict[int, str]:
+    """{ward: member} for each member the latest list names (latest_listed `named`; a may-hold member is allowed in
+    their seat but not required) whose own last two ward prints agree on a ward nobody has been printed in since."""
+    if not wards:
+        return {}
+    _, named, _ = latest_listed(facts, wards)
+    return {ward: oid for oid, ward in last_wards(wards, named).items()}
+
+
+def expected_district_holders(facts: dict, roster: list[dict]) -> dict[int, str]:
+    """{district: official} for each official with a vote in a confirmed roll call of the latest meeting collected
+    whose own latest district record is a seat no other record starts in after it."""
+    dates = {m["id"]: m["date"] for m in facts["meetings"]}
+    if not dates:
+        return {}
+    latest = max(dates.values())
+    voters = {v["official_id"] for rc in facts["roll_calls"] if dates.get(rc["meeting_id"]) == latest
+              and (rc.get("verification") or {}).get("status") == "verified" for v in rc["votes"] if v.get("official_id")}
+    out = {}
+    for oid in sorted(voters):
+        mine = sorted((r for r in roster if r.get("official_id") == oid and str(r.get("seat", "")).startswith("district-")),
+                      key=lambda r: str(r["start"]))
+        if not mine:
+            continue
+        last = mine[-1]
+        if any(r["seat"] == last["seat"] and str(r["start"]) > str(last["start"]) for r in roster):
+            continue
+        out[int(last["seat"].split("-")[1])] = oid
+    return out
+
+
+def check_current_holders(site: Path, facts: dict, roster: list[dict], cs: list[dict]) -> tuple[list[str], str]:
+    """Both ways, per council (city-seats/current-holder-matches-latest-attendance):
+    - every member the latest list names, and last printed in a ward, is shown in that ward; no member the latest
+      list may still hold (latest_listed `may_hold`) is under Served previously;
+    - every shown holder is that ward's expected member, or a may-hold member with no other seat; nobody is shown in
+      two seats; a title seat (the mayor) shows an official of that title who may hold a seat at the latest list,
+      and the one such official the latest list names, if there is one.
+    County: every official voting in a confirmed roll call of the latest meeting is current in their latest
+    district. A council entry may carry its own `wards` and `cfg` (tests); otherwise its council.yml is read."""
+    problems, n = [], 0
+    for c in cs:
+        home = site / c["slug"] / "index.html"
+        if not home.is_file():
+            continue
+        body = home.read_text(encoding="utf-8")
+        at = body.find('<details class="officials-section" id="previous"')
+        prev = body[at:body.find("</details>", at)] if at >= 0 else ""
+        wards = c["wards"] if "wards" in c else _council_wards(c["slug"])
+        cfg = c["cfg"] if "cfg" in c else _council_cfg(c["slug"])
+        latest, named, may_hold = latest_listed(c["facts"], wards)
+        expected = expected_ward_holders(wards, c["facts"])
+        placed = last_wards(wards, may_hold)              # where each may-hold member was last printed
+        shown, noted = {}, {}                              # seat -> the member its holder / held-over note links
+        for m in re.finditer(r'<li id="seat-([^"]+)"[^>]*>(.*?)</li>', body, re.S):
+            for cls, into in (("d-holder", shown), ("d-note", noted)):
+                h = re.search(r'<span class="' + cls + r'[^"]*">(.*?)</span>', m.group(2), re.S)
+                ids = re.findall(r'members/([^"/]+)\.html', h.group(1) if h else "")
+                into[m.group(1)] = ids[0] if ids else None
+        for ward, oid in sorted(expected.items()):
+            n += 1
+            if shown.get(f"ward-{ward}") != oid:
+                problems.append(f"{c['slug']}/index.html: ward {ward} does not show {oid}, listed in the latest "
+                                f"attendance list and last printed in that ward")
+        for oid in sorted(may_hold):
+            if f"members/{oid}.html" in prev:
+                problems.append(f"{c['slug']}/index.html: {oid} is under Served previously")
+        titles = {o["id"]: o.get("title") for o in c["facts"]["officials"]}
+        title_of_seat = {seat: title for title, seat in ((cfg or {}).get("title_seats") or {}).items()}
+        for title, seat in ((cfg or {}).get("title_seats") or {}).items():
+            n += 1
+            want = sorted(o for o in named if titles.get(o) == title)
+            if len(want) == 1 and shown.get(seat) != want[0]:
+                problems.append(f"{c['slug']}/index.html: {seat} does not show {want[0]}, the {title} named in the "
+                                f"latest attendance list ({latest})")
+        seats_of = defaultdict(list)
+        for seat, oid in sorted(shown.items()):
+            if oid is None:
+                continue
+            seats_of[oid].append(seat)
+            # a holder is always named in the latest list: a may-hold member it does not name is held over, shown
+            # only as "not yet recorded" with a note (second re-review of bfee967)
+            if seat in title_of_seat:
+                ok = oid in named and titles.get(oid) == title_of_seat[seat]
+            else:
+                ward = int(seat.rsplit("-", 1)[1])
+                ok = expected.get(ward) == oid or (ward not in expected and oid in named
+                                                   and oid not in expected.values() and placed.get(oid) == ward)
+            if not ok:
+                problems.append(f"{c['slug']}/index.html: {seat} shows {oid}, whom the latest attendance list "
+                                f"({latest}) does not place there")
+        for seat, oid in sorted(noted.items()):
+            if oid is None:
+                continue
+            here = (titles.get(oid) == title_of_seat[seat] if seat in title_of_seat
+                    else placed.get(oid) == int(seat.rsplit("-", 1)[1]))
+            if shown.get(seat) is not None or oid not in may_hold - named or not here:
+                problems.append(f"{c['slug']}/index.html: {seat} notes {oid}, who is not held over in that seat "
+                                f"(named at {latest}, or not last placed there)")
+        for oid, seats in sorted(seats_of.items()):
+            if len(seats) > 1:
+                problems.append(f"{c['slug']}/index.html: {oid} is shown in {len(seats)} seats ({', '.join(seats)})")
+    if roster:
+        for d, oid in sorted(expected_district_holders(facts, roster).items()):
+            page = site / "districts" / f"{d:02d}.html"
+            if not page.is_file():
+                continue
+            n += 1
+            text = page.read_text(encoding="utf-8")
+            cur = text[text.find('id="current-h"'):text.find('id="previous-h"')]
+            if NOT_RECORDED in cur or f"officials/{oid}.html" not in cur:
+                problems.append(f"districts/{d:02d}.html: does not show {oid} as current, who votes in a confirmed "
+                                f"roll call of the latest meeting")
+    return problems, f"{n} seats checked against the latest list, both ways"
+
+
+def seats_fresh_note(facts: dict, roster: list[dict]) -> str:
+    """M1 pipeline/seats-stale-on-new-county-meeting: a WARNING when the seat rows were read to an earlier meeting
+    than the facts hold (the site then words them to that meeting; re-run tools/derive_seats.py). Not a failure:
+    the pages stay true, they are only behind."""
+    urls = {x["id"]: x.get("url") for x in facts.get("sources", [])}
+    dates = {m["id"]: m["date"] for m in facts.get("meetings", [])}
+    at = defaultdict(set)
+    for rc in facts.get("roll_calls", []):
+        if rc.get("source_id") in urls and rc.get("page") and rc.get("meeting_id") in dates:
+            at[f"{urls[rc['source_id']]}#page={rc['page']}"].add(dates[rc["meeting_id"]])
+    seen = [str(r["end"]) if r.get("end") else max(at.get(r.get("last_source"), {""}))
+            for r in roster if r.get("dates") == "observed"]
+    seen = [x for x in seen if x]
+    newest = max(dates.values()) if dates else None
+    if seen and newest and max(seen) < newest:
+        return (f"WARNING: seats.yml is read to {max(seen)}, the facts to {newest}; the site words the seats to "
+                f"{max(seen)}. Re-run tools/derive_seats.py")
+    return f"seats read to {max(seen) if seen else 'n/a'}, the latest meeting collected"
+
+
 def run_checks(site: Path, facts: dict, internal=False, no_export=False, operator=OPERATOR, browser=True,
                all_pages=False, sample=3, store_extra=(), seats_path=None, districts_path=None, finance=None,
                target="preview") -> Report:
@@ -1503,7 +2252,7 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     # one rule everywhere (sitegen/config.py max_files): a build is within its cap at most at the cap (<= cap)
     rep.add("files", [f"{len(files)} files, over the limit of {cap} for the {target} target"] if len(files) > cap else [],
             f"{len(files)} files, {len(pages)} pages, {target} target (cap {cap})")
-    rep.add("links", check_links(site, pages, no_export), "internal links, #anchors and assets" + ("; data/ skipped" if no_export and not (site / "data").exists() else ""))
+    rep.add("links", check_links(site, pages, no_export), "internal links, #anchors and assets" + ("; data/ skipped" if no_export and not _has_export(site) else ""))
     cs = [c for c in councils(facts) if any(rel.startswith(c["prefix"]) for rel in pages)]
     missing = [c["slug"] for c in councils(facts) if c not in cs]
     rpc = rpc_facts(facts)
@@ -1525,6 +2274,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
         rep.add("rpc-cases", problems, note)
         problems, note = check_rpc_motions(site, pages, rpc)
         rep.add("rpc-motions", problems, note)
+        problems, note = check_rpc_export(site, rpc)
+        rep.add("rpc-export", problems, note)
     county_pages = {rel: pg for rel, pg in pages.items() if not any(rel.startswith(c["prefix"]) for c in cs)}
     problems = check_unverified(site, county_pages, facts, internal, fin=finance)
     for c in cs:
@@ -1551,11 +2302,26 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("name-links", problems, note)
     rep.add("footer", check_footer(pages, operator), f"'Provided as a free service by {operator}.' on {len(pages)} pages")
     rep.add("external", check_external(pages, site, cfg))
+    problems, note = check_report_channel(pages, cfg, target)
+    rep.add("report-channel", problems, note)
     # the contracts feed links each solicitation's first document, a finance.json source
-    problems, note = check_feeds(site, pages, all_sources["sources"] + list((finance or {}).get("sources") or []), cfg)
+    problems, note = check_feeds(site, pages, all_sources["sources"], cfg,
+                                 finance_sources=list((finance or {}).get("sources") or []))
     rep.add("feeds", problems, note)
+    problems, note = check_local_dates(site, pages, cfg, bool(facts.get("fixture")), county=facts, councils_=cs, rpc=rpc)
+    rep.add("dates/no-raw-utc-day", problems, note)
     problems, note = check_transcripts(site, cs)
     rep.add("transcripts", problems, note)
+    problems, note = check_unofficial(site, pages, cfg)
+    rep.add("unofficial/notice-on-every-page", problems, note)
+    problems, note = check_current_holders(site, facts, read_roster(seats_path), cs)
+    rep.add("current-holders", problems, note)
+    note = seats_fresh_note(facts, read_roster(seats_path))
+    if note.startswith("WARNING"):
+        print(note, file=sys.stderr)
+        if os.environ.get("GITHUB_ACTIONS"):
+            print(f"::warning title=seats.yml is stale::{note}")   # an annotation on the workflow run
+    rep.add("seats-fresh", [], note)
     if browser:
         try:
             problems, note = check_hscroll(site, pages, all_pages, sample)

@@ -205,7 +205,8 @@ def test_department_awardee_and_archive_date_lines_cite_their_page(fpages):
                      html)
     assert re.search(r"Awardee as printed on the bid tab: Gamma Minerals LLC\. Source: "
                      r"<a href=\"[^\"]+tab-salt\.pdf#page=2\""
-                     r"[^>]*>bid tab p\. 2<span[^>]*>[^<]*</span></a>, fetched 2026-11-07\.", html)
+                     r"[^>]*>bid tab p\. 2<span[^>]*>[^<]*</span></a>, fetched 2026-11-07 \(UTC day\)\.", html)
+    # a fixture source has no manifest row, so its stored UTC day is shown labelled (docs/architecture/local-dates.md)
 
 
 # ---- states (design 5) ----------------------------------------------------------------------------------------------
@@ -318,7 +319,11 @@ def test_not_a_listed_bidder_and_documents_differ_states(fpages):
 def test_no_bid_tab_and_not_read_tab_show_words_and_no_amounts(fpages):
     chairs = main_of(fpages["contracts/office-chairs-fixture.html"])
     assert C["no_tab_detail"] in chairs and "$" not in chairs
-    assert C["dead_link"].format(date="2026-11-07") in chairs and C["not_pdf"] in chairs and C["shared"] in chairs
+    # a dead link has only the fetch run's UTC day, labelled (docs/architecture/local-dates.md)
+    # provenance/docx-not-fetched: only the one document with a source (fetched) says "Document fetched"; the .docx
+    # (not requested) and the dead link were never fetched, so their rows print no fetch day
+    assert chairs.count("Document fetched ") == 1
+    assert C["dead_link"].format(date="2026-11-07 (UTC day)") in chairs and C["not_pdf"] in chairs and C["shared"] in chairs
     paving = main_of(fpages["contracts/paving-unit-prices-fixture.html"])
     assert C["not_read"]["layout"] in html_mod.unescape(paving) and "$" not in paving
     idx = parse(fpages["contracts/index.html"])

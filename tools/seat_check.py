@@ -5,8 +5,10 @@ Checks, the same for everyone:
   2. no seat has two holder records on one date, and no official holds two seats on one date;
   3. every seat in the current roster has an open record (no end) for the roster's person, and nobody else holds an
      open record for it;
-  4. every open observed record was seen at L, the latest meeting in the facts (the site's wording "from X to L, the
-     latest meeting collected"): its `last_source` is a roll-call page of that meeting (provenance/open-run-latest).
+  4. every open observed record was seen at L, the latest meeting the records were read to (read_to; the site's
+     wording "from X to L"): its `last_source` is a roll-call page of that meeting (provenance/open-run-latest). L is
+     the latest meeting in the facts until a newer one is collected; the rows are then stale, not wrong, and the site
+     says "the latest meeting read for seats" (M1 pipeline/seats-stale-on-new-county-meeting); main() prints a note.
 Prints the problems and exits 1 when there are any. `python -I tools/seat_check.py`
 """
 from __future__ import annotations
@@ -23,6 +25,33 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def _covers(row: dict, date: str) -> bool:
     return str(row["start"]) <= date and (row.get("end") is None or date <= str(row["end"]))
+
+
+def _pages_at(facts: dict) -> dict:
+    """"<url>#page=N" -> the meeting dates of the roll calls printed on that page."""
+    dates = {m["id"]: m["date"] for m in facts["meetings"]}
+    urls = {s["id"]: s.get("url") for s in facts.get("sources", [])}
+    at = defaultdict(set)
+    for rc in facts["roll_calls"]:
+        if rc.get("source_id") in urls and rc.get("page"):
+            at[f"{urls[rc['source_id']]}#page={rc['page']}"].add(dates[rc["meeting_id"]])
+    return at
+
+
+def read_to(facts: dict, rows: list[dict]) -> str | None:
+    """L, the latest meeting the records were read to: the latest end, or meeting of an open record's last page,
+    over the observed records (the site words open records to it: sitegen/seats.py stamp_seen). Without observed
+    records, the latest meeting in the facts. It is earlier than the latest meeting collected only when a meeting
+    has been collected since tools/derive_seats.py last ran (M1 pipeline/seats-stale-on-new-county-meeting)."""
+    at = _pages_at(facts)
+    seen = []
+    for r in rows:
+        if r.get("dates") == "observed":
+            seen += [str(r["end"])] if r.get("end") else list(at.get(r.get("last_source"), ()))
+    if seen:
+        return max(seen)
+    dates_all = [m["date"] for m in facts["meetings"]]
+    return max(dates_all) if dates_all else None
 
 
 def check(facts: dict, rows: list[dict], roster: dict | None = None) -> list[str]:
@@ -60,18 +89,13 @@ def check(facts: dict, rows: list[dict], roster: dict | None = None) -> list[str
             if a["seat"] != b["seat"] and (a.get("end") is None or str(b["start"]) <= str(a["end"])):
                 problems.append(f"{oid}: holds {a['seat']} and {b['seat']} at once")
 
-    dates_all = [m["date"] for m in facts["meetings"]]
-    latest = max(dates_all) if dates_all else None
-    urls = {s["id"]: s.get("url") for s in facts.get("sources", [])}
-    at = defaultdict(set)                   # "<url>#page=N" -> meeting dates of the roll calls printed there
-    for rc in facts["roll_calls"]:
-        if rc.get("source_id") in urls and rc.get("page"):
-            at[f"{urls[rc['source_id']]}#page={rc['page']}"].add(dates[rc["meeting_id"]])
+    latest = read_to(facts, rows)
+    at = _pages_at(facts)
     for r in rows:
         if r.get("dates") == "observed" and r.get("end") is None and latest not in at.get(r.get("last_source"), ()):
             problems.append(f"{r['seat']}: open record for {r.get('official_id')} was last seen at "
                             f"{sorted(at.get(r.get('last_source'), ())) or r.get('last_source')}, not at the latest "
-                            f"meeting collected ({latest})")
+                            f"meeting the records were read to ({latest})")
 
     if roster:
         for seat, who in roster["seats"].items():
@@ -96,6 +120,11 @@ def main(argv=None) -> int:
     problems = check(facts, rows, roster)
     for p in problems:
         print(p)
+    dates_all = [m["date"] for m in facts["meetings"]]
+    seen, newest = read_to(facts, rows), (max(dates_all) if dates_all else None)
+    if seen and newest and seen < newest:
+        print(f"WARNING: the records are read to {seen}; the facts hold meetings to {newest}. "
+              f"Re-run tools/derive_seats.py to read the newer roll calls.")
     print(f"{len(rows)} holder records, {len(problems)} problems")
     return 1 if problems else 0
 

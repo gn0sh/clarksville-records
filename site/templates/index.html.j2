@@ -1,6 +1,7 @@
 {% extends "base.html.j2" %}
-{% from "_map.html.j2" import county_map %}
-{% block head %}<script src="{{ root }}static/js-flag.js"></script>{% endblock %}
+{% from "_unofficial.html.j2" import home_line %}
+{% from "_feed_links.html.j2" import feed_links %}
+{% block head %}<script src="{{ root }}static/js-flag.js"></script>{{ feed_links(home_feeds | default([]), root) }}{% endblock %}
 {% block sky_sun %}<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>{% endblock %}
 {% block sky %}
 <div class="sky-hero" id="sky-hero" data-tz="{{ site.cfg.site_timezone }}" hidden>
@@ -8,22 +9,25 @@
 </div>
 {% endblock %}
 {% block main %}
-{# Landing (design 3): purpose, search, layer switch, map, the district list (collapsed: the map is the primary
-   picker) and a small "About this map" disclosure. The whole landing fits one screen on a phone and a desktop. #}
-{% set dl = site.cfg.district_layer %}{% set wl = site.cfg.ward_layer %}{% set wards_live = map and map.wards %}{% set wl_coming = wl.coming and not wards_live %}
+{# Landing (design 3): purpose, the address search, the records search and the district and ward list. The county
+   map was removed (CEO, 2026-11-10: not worth it, especially on mobile); the traced lines stay as data in the
+   address box's settings, because the lookup places the Census point against them (docs/research/map-removal-2026-11-10.md). #}
+{% set dl = site.cfg.district_layer %}{% set wl = site.cfg.ward_layer %}{% set wards_live = address and address.get('wards') %}{# shapes the lookup checks #}
 <div class="landing">
   <h1 class="purpose">{{ site.cfg.purpose }}</h1>
   <p class="muted purpose-sub"><span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>. {% for c in site.councils %}<a href="{{ root }}{{ c.href }}">{{ c.label }}</a>: <span class="nowrap">{{ c.from }} to {{ c.to }}</span>.{% if not loop.last %} {% endif %}{% else %}{{ site.cfg.city_coming }}{% endfor %}</p>
+  {# right under the purpose again (no map since 2026-11-10); the same line on every screen width #}
+  {{ home_line(site, root) }}
 
   {# Address search first (CEO decision, Nov 9): most first-time visitors do not know their ward or district. The
      form stays hidden until static/address.js shows it (it needs the script; without it a submit would only put the
      address in this site's own URL). The address is not stored; see the privacy line. The lookup runs in a sandboxed
-     iframe that address.js makes per submit (opaque origin, removed after). The map below is the second way in. #}
+     iframe that address.js makes per submit (opaque origin, removed after). The district and ward list below is the second way in. #}
   <section id="your-seats" class="your-seats" aria-labelledby="your-seats-h" hidden>
     <h2 id="your-seats-h">Your seats</h2>
     <ul class="your-seats-list"></ul>
     <button type="button" class="your-seats-forget" id="seats-forget" aria-label="Forget my saved seats">Forget</button>
-    <p class="your-seats-note">Saved only in this browser, on this device. Nothing is sent anywhere and no cookies are used.</p>
+    <p class="your-seats-note">Saved only in this browser, on this device. {% if site.morning_note %}{{ site.morning_note.seats_sent }} No cookies are used.{% else %}Nothing is sent anywhere and no cookies are used.{% endif %}</p>
   </section>
   <p class="sr-only" id="seats-status" role="status" aria-live="polite"></p>
 {% if address %}
@@ -33,8 +37,8 @@
       <input id="addr-q" type="text" autocomplete="street-address" maxlength="200" placeholder="Street address, city" aria-describedby="addr-privacy">
       <button type="submit">Find</button>
     </div>
-    <p class="addr-privacy" id="addr-privacy">Your address is sent to {{ site.cfg.geocoder_label }} to find it on the map. This site doesn't store it. <a data-ext="geocoder" href="{{ site.cfg.geocoder_privacy_url }}" rel="noopener">{{ site.cfg.geocoder_short }}'s privacy policy</a> applies.{% if site.cfg.district_lookup_url %} <span class="addr-alt">Or look it up on <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">{{ site.cfg.district_lookup_label }}</a>.</span>{% endif %}</p>
-    <p class="addr-privacy addr-seats-note">After a lookup or a click on the map, only the {% if wards_live %}district and ward numbers are{% else %}district number is{% endif %} kept, in this browser on this device, to show "Your seats" next time, with a Forget button. No cookies.{% if not wards_live %} City ward lookup is coming; the wards are listed below the map.{% endif %}</p>
+    <p class="addr-privacy" id="addr-privacy">Your address is sent to {{ site.cfg.geocoder_label }} to find where it is. This site doesn't store it. <a data-ext="geocoder" href="{{ site.cfg.geocoder_privacy_url }}" rel="noopener">{{ site.cfg.geocoder_short }}'s privacy policy</a> applies.{% if site.cfg.district_lookup_url %} <span class="addr-alt">Or look it up on <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">{{ site.cfg.district_lookup_label }}</a>.</span>{% endif %}</p>
+    <p class="addr-privacy addr-seats-note">After a lookup, only the {% if wards_live %}district and ward numbers are{% else %}district number is{% endif %} kept, in this browser on this device, to show "Your seats" next time, with a Forget button. No cookies.{% if site.morning_note %} {{ site.morning_note.seats_sent }}{% endif %}{% if not wards_live %} City ward lookup is coming; the wards are listed below.{% endif %}</p>
     <p class="addr-result" id="addr-result" role="status" aria-live="polite"></p>
   </form>
   <script type="application/json" id="addr-config">{{ address|tojson }}</script>
@@ -48,33 +52,12 @@
     </div>
   </form>
 
-  <div class="landing-grid">
-    <div class="landing-map">
-      <fieldset class="layer-switch">
-        <legend>Map shows</legend>
-        <label><input type="radio" name="layer" id="show-districts" value="districts" checked> <span class="wide-only">{{ dl.label }}</span><span class="narrow-only" aria-hidden="true">{{ dl.short }}</span></label>
-        <label><input type="radio" name="layer" id="show-wards" value="wards"> <span class="wide-only">{{ wl.label }}{% if wl_coming %} (coming){% endif %}</span><span class="narrow-only" aria-hidden="true">{{ wl.short }}{% if wl_coming %} (coming){% endif %}</span></label>
-      </fieldset>
-      {% if wards_live %}
-      <p class="wards-note note">Ward lines traced from <a data-ext="map" href="{{ map.wards_source.url }}" target="_blank" rel="noopener noreferrer">{{ map.wards_source.title }}<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ map.wards_source.fetched }}. {% for c in site.councils %}<a href="{{ root }}{{ c.href }}#seats-h">{{ c.label }} seats</a>.{% endfor %}</p>
-      {% elif site.councils %}
-      <p class="wards-note note">A map of the {{ site.cfg.city_name }} wards is not available yet. {% for c in site.councils %}<a href="{{ root }}{{ c.href }}#seats-h">{{ c.label }} seats</a>.{% endfor %}</p>
-      {% else %}
-      <p class="wards-note note">{{ site.cfg.city_name }} wards are coming. The city's records have not been collected yet.</p>
-      {% endif %}
-      {% if map %}
-      <p class="sr-only">Map of {{ site.cfg.county_name }}'s {{ district_count }} commission districts. The same districts are listed after the map.</p>
-      {{ county_map(map, root, site.cfg, links=true) }}
-      {% else %}
-      <div class="map-placeholder" role="note"><p>The map is not available yet. Districts are listed by number.</p></div>
-      {% endif %}
-      {% if site.cfg.district_lookup_url %}
-      <p class="district-lookup note">Not sure of your district? <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">Look it up on {{ site.cfg.district_lookup_label }}</a>.</p>
-      {% endif %}
-    </div>
+  {% if site.cfg.district_lookup_url %}
+  <p class="district-lookup note">Not sure of your district? <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">Look it up on {{ site.cfg.district_lookup_label }}</a>.</p>
+  {% endif %}
 
     <div class="landing-list">
-      <details class="district-list"{% if not map %} open{% endif %}>
+      <details class="district-list"{% if not address %} open{% endif %}>
         <summary><span class="wide-only">{% if site.councils %}All {{ site.cfg.ward_count }} wards and {{ district_count }} districts, as a list{% else %}All {{ district_count }} districts, by number{% endif %}</span><span class="narrow-only" aria-hidden="true">{% if site.councils %}Wards and districts, list{% else %}All {{ district_count }} districts{% endif %}</span></summary>
         {% if basis %}<p class="basis muted">{{ basis }}.</p>{% endif %}
         <nav aria-label="{{ dl.label }}">
@@ -98,18 +81,16 @@
         <p>{{ wl.label }} pages are coming.</p>
         {% endfor %}
       </details>
-      {% if map %}
-      <details class="map-about">
-        <summary>About this map</summary>
-        <p class="map-caption">Current district lines. Boundaries: <a data-ext="map" href="{{ map.source_url }}" target="_blank" rel="noopener noreferrer">{{ map.source_title }}<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ map.fetched }}.{% if map.swap %} {{ map.swap.before }}<a data-ext="county" href="{{ map.swap.url }}" target="_blank" rel="noopener noreferrer">{{ map.swap.link }}<span class="sr-only"> (opens in a new tab)</span></a>{{ map.swap.after }}{% endif %} Old district lines: {% if site.cfg.old_lines_map_url %}<a data-ext="county" href="{{ site.cfg.old_lines_map_url }}" target="_blank" rel="noopener noreferrer">map (PDF)<span class="sr-only"> (opens in a new tab)</span></a>{% else %}the map has not been found yet; <a data-ext="county" href="{{ site.cfg.redistricting_page }}" target="_blank" rel="noopener noreferrer">county {{ site.cfg.redistricting_label }} page<span class="sr-only"> (opens in a new tab)</span></a>{% endif %}.</p>
+      {% if address and lookup_sources %}{% set src = lookup_sources %}
+      <details class="lookup-about">
+        <summary>How the address lookup works</summary>
+        <p class="lookup-caption">The {{ site.cfg.geocoder_short }} point is checked against the current district lines{% if wards_live %} and the city ward lines{% endif %}, as traced for this site. District lines: <a data-ext="map" href="{{ src.districts.url }}" target="_blank" rel="noopener noreferrer">{{ src.districts.title }}<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ src.districts.fetched }}.{% if src.swap %} {{ src.swap.before }}<a data-ext="county" href="{{ src.swap.url }}" target="_blank" rel="noopener noreferrer">{{ src.swap.link }}<span class="sr-only"> (opens in a new tab)</span></a>{{ src.swap.after }}{% endif %}{% if src.wards %} Ward lines: <a data-ext="map" href="{{ src.wards.url }}" target="_blank" rel="noopener noreferrer">{{ src.wards.title }}<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ src.wards.fetched }}.{% endif %} Old district lines: {% if site.cfg.old_lines_map_url %}<a data-ext="county" href="{{ site.cfg.old_lines_map_url }}" target="_blank" rel="noopener noreferrer">map (PDF)<span class="sr-only"> (opens in a new tab)</span></a>{% else %}the map has not been found yet; <a data-ext="county" href="{{ site.cfg.redistricting_page }}" target="_blank" rel="noopener noreferrer">county {{ site.cfg.redistricting_label }} page<span class="sr-only"> (opens in a new tab)</span></a>{% endif %}.</p>
       </details>
       {% endif %}
     </div>
-  </div>
 </div>
 {% endblock %}
 {% block scripts %}<script src="{{ root }}static/sky.js" defer></script>
-{% if map %}<script src="{{ root }}static/map.js" defer></script>{% endif %}{% if map or address %}
-<script src="{{ root }}static/seats.js" defer></script>{% endif %}{% if address %}
+<script src="{{ root }}static/seats.js" defer></script>{% if address %}
 <script src="{{ root }}static/georef.js" defer></script>
 <script src="{{ root }}static/address.js" defer></script>{% endif %}{% endblock %}

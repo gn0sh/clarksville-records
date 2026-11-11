@@ -56,13 +56,37 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
 5. Deploy now instead of waiting for 09:07 UTC: Actions > Daily update > Run workflow > main. With a warm cache it takes
    minutes. Collect = false rebuilds and deploys from the committed data with no fetching.
 6. Look: https://daylight.gnoshcodes.com/ loads over HTTPS, footer shows the operator, alerts.html feeds link to
-   `https://daylight.gnoshcodes.com/...`. Then do the uptime step below.
+   `https://daylight.gnoshcodes.com/...`. The footer of every page, and the top of About, say the site is independent
+   and unofficial (wording: `unofficial:` in `config/site.yml`; check: `qa.site_checks` line
+   `unofficial/notice-on-every-page` must PASS). Then do the uptime step below.
+
+## Before the morning note's email is switched on (not part of go-live; email is OFF)
+`morning_note.enabled` stays `false` in `config/site.yml` at launch: the site sends nothing. Switching it on is a
+separate CEO decision (provider pick, account, cost: hard stops 3 to 5). Every box below must be ticked first; they
+come from `docs/reviews/security-review-morning-2b4796b.md`.
+- [ ] **Double opt-in is ON at the provider** (finding 2). The form is an open cross-origin POST, so without it anyone
+      can sign up someone else's address. Check: sign up a test address; no note arrives until its confirmation link
+      is used. Owner: devops.
+- [ ] **Open and click tracking are OFF at the provider** (finding 2). Check: a received note has no tracking pixel and
+      its links go straight to daylight.gnoshcodes.com. Owner: devops.
+- [ ] **`morning_note.page.sent_line` is extended** (finding 2) to say the provider also receives, like any website,
+      the visitor's IP address and browser details, and that the saved district and ward go only while "Include my
+      saved seats" is ticked. Keep `method_sent` on the Method page in step with it. Owner: technical-writer.
+- [ ] The two settings above are recorded as verified, with the date and how, in `docs/platform-facts.md`.
+- [ ] Every note carries the provider's unsubscribe link (the Method page says so: `page.method_unsubscribe`).
+- [ ] `page.preview_lede` ("Nothing is emailed yet.") and `page.state_off` are reworded for a site that does send.
+- [ ] One real submit from the built Alerts page reaches the provider's confirm page (finding 6): Chrome applies CSP
+      `form-action` to the redirect after the POST. If it is blocked, fix the provider's redirect, never widen the CSP.
+- [ ] `python -m qa.site_checks` passes on the enabled build, and `pytest tests/test_morning_page.py` passes: an
+      enabled build has no "never sent anywhere" sentence (finding 1) and posts no seat unless the box is ticked
+      (finding 3).
+- [ ] The sender job and its API key have had their own security review (they do not exist yet).
 
 ## Add to the uptime monitor (after the first deploy is live; devops, separate PR in gn0sh/gnosh-uptime)
 Described diff for `monitor.config.json`, add one entry to `targets` (not applied; that repo is not touched here):
 ```diff
      { "name": "gnoshcodes.com", "url": "https://gnoshcodes.com/" }
-+    ,{ "name": "Clarksville Records", "url": "https://daylight.gnoshcodes.com/" }
++    ,{ "name": "Daylight", "url": "https://daylight.gnoshcodes.com/" }
    ]
 ```
 (JSON needs the comma after the previous last entry; put it there rather than on a new line.)
@@ -92,3 +116,10 @@ Do not touch it before then.
 - Browser checks (`hscroll`, `row-height`, 390 px) need Playwright and are not run in CI (`--no-browser`): QA runs them
   by hand before launch (`qa/final.sh`); a daily data refresh does not change layout.
 - Pushes made with `GITHUB_TOKEN` do not start other workflows, so the data commit never re-triggers this one.
+- Feeds (claude/hu3mew-qa-majors): this release changes `updated` and `published` once on all 1,246 existing entries,
+  from the meeting date at 00:00Z to the date the document was added (America/Chicago). Entry ids are unchanged, so
+  readers do not re-alert; a reader that shows changed entries may mark them updated once. The county feed also gains
+  13 agenda-only meeting entries, which push its 13 oldest minutes entries past the 50-entry cap.
+- Corrections go to GitHub issues (`corrections.github_repo`). GitHub shows the issue form only once
+  `.github/ISSUE_TEMPLATE/correction.yml` is on `main`; until then the link opens a blank issue prefilled by report.js.
+  The form's `correction` label does not exist on the repo yet (manager: create it at go-live).

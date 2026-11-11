@@ -118,7 +118,7 @@ def test_every_page_has_operator_footer_fixture_banner_and_no_external_resources
         assert "Data as of 2026-11-07" in html, name
         assert "FIXTURE" in html, name
         assert not re.search(r'<(script|link|img)[^>]+(src|href)="https?://', html), name
-        assert f"<title>{config.SITE_NAME} | " in html and config.SITE_NAME == "Daylight", name
+        assert f"<title>{config.SITE_NAME} (independent, unofficial) | " in html and config.SITE_NAME == "Daylight", name
 
 
 def test_public_build_has_no_review_page(tmp_path):

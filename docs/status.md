@@ -19,6 +19,16 @@
 | 2026-11-10 | frontend-engineer | sonnet/medium | days/scheduled-agenda-link, days/coverage-count + review nits | done, c529f60: 1931 pass; review approve with nits (sonnet), nits fixed; merged |
 | 2026-11-10 | software-architect | opus/medium | morning note M3 design + tasks | done, b96fc8b |
 | 2026-11-10 | backend-engineer | sonnet/medium | morning note T2 feeds | done, 01640a5: 1934 pass |
+| 2026-11-10 | code-reviewer | opus/high | morning T1 6aeb85a (fresh) + delta 0deb62c | request changes (2 must-fix: morning-digest/vote-meeting-date, preview-export-links); delta approve with nits |
+| 2026-11-10 | backend-engineer | opus/high | T1 review fixes | done, 0deb62c: 1059 pass |
+| 2026-11-10 | code-reviewer | opus/high | morning T3+T2 0a7723d (fresh) + delta 2b4796b | request changes (feeds/rezoning-keeps-every-body + 3 merge must-fix); delta approve with nits |
+| 2026-11-10 | backend-engineer | opus/high | merge T1+T3, T3 review fixes | done, 2b4796b: 2039 pass; site_checks pages + preview PASS |
+| 2026-11-10 | code-reviewer | opus/high | RPC fix 5769870 (fresh, family 3rd hit) + delta cf7a0ef | request changes (rpc-motion/c3-stale-record, c3-vote-words); delta approve with nits |
+| 2026-11-10 | backend-engineer | opus/xhigh | RPC fix round 2 (escalated) | done, cf7a0ef: 2023 pass; 0 of 1307 shown confirmed until rebuild; merged ed4b997 |
+| 2026-11-10 | security-engineer | opus/high | morning note 2b4796b | pass with conditions (1 medium, enabled-state only); merged fa9e9b0 |
+| 2026-11-10 | devops-engineer | sonnet/medium | domain -> daylight.gnoshcodes.com (Brian 1:42 AM CT) | done, 335bce1; gnoshcodes-site 83e04d6; merged 3132311 |
+| 2026-11-10 | backend-engineer | fable | verify merged tip fa9e9b0 + security follow-ups | fa9e9b0: 2133 pass, both site_checks PASS; fixes 1d638db (2224 pass), security delta pending |
+| 2026-11-10 | backend-engineer | fable | RPC store refetch + rebuild | running |
 | 2026-11-07 | product-manager | sonnet/medium | spec v1 | done, 23ad7c5 |
 | 2026-11-07 | brain-trust x6 | opus/high (api) | spec review | 5 Fix First, 1 Rethink; ~$0.37 |
 | 2026-11-07 | backend-engineer | opus/high | M0 parse spike | done, a9e1262: 95.8% Verified (138/144), 0 wrong of 380 hand-labelled votes |
@@ -116,6 +126,8 @@
 | 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
 
 ## Decisions
+- 2026-11-10 (Brian, 1:42 AM CT): site address is daylight.gnoshcodes.com. 3:10 AM CT: Buttondown is the morning-note sender; account, DNS and payment are his steps at go-live. 2:26 AM CT: run workers on Fable.
+- 2026-11-10 (manager): topic-rezoning.xml keeps one URL with a per-body cap. RPC pages show 0 confirmed motions until rpc.json is rebuilt with the motion_rules marker.
 - 2026-11-09 (manager): **Preview file cap.** The claude.ai artifact preview is capped at 500 files, and the real build is now at 500 after dropping its transcript page. From now on the review surface is the gh-pages preview (pages target, cap 3000), not the artifact. The artifact preview, if still used, may leave out sections. Reason: Daylight, RPC and wards each add files; the artifact limit can't grow.
 - 2026-11-09 (manager): **Go-live gate.** Before public launch, ask the RPC for written OK to reuse geometry traced from its ward poster and from the county district map. This is outreach (hard stop 4), so it goes in the go-live batch. The internal preview is fine meanwhile.
 - 2026-11-09 (manager): **Daylight name.** The trademark and domain check goes in the go-live batch.
@@ -290,3 +302,7 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 | frontend-engineer | sonnet/medium | branding review fixes | merged 3933a90 (1608 passed); delta APPROVE
 - 2026-11-09 | frontend-engineer | sonnet/medium | address-first landing + Your seats (localStorage) | running
 - 2026-11-09 23:31Z Remote Control on the 3070 (DESKTOP-NEL11IQ) approved by Brian and running: CivicClerk City Council videos 2024+, faster-whisper large-v3 on GPU, output C:\Users\bezac\records-transcripts\out. Container CPU loop (small.en) keeps running as a fallback.
+
+- 2026-11-11 (manager): **gnoshcodes LLC exists.** Brian filed GNOSHCODES LLC with the TN Secretary of State on 2026-11-10 (Active), and asked on 2026-11-10 3:31 PM CT for the sites to show "gnoshcodes LLC" (thread "Show gnoshcodes LLC across sites"); operator is "gnoshcodes LLC" (788f08b). The interim content rules written "until the LLC exists" (votes only from the official record; no AI-written text about named officials) STAY IN FORCE until Brian re-decides them explicitly; they do not lapse with the filing.
+- 2026-11-11 | code-reviewer | opus/high | re-review of manager merges, support line, LICENSE/NOTICE, LLC operator | request changes -> fixed: operator/llc-unverified (verified + recorded above), license/third-party-carveout (NOTICE fonts OFL), tests/support-line-alerts-untested (test added); merges confirmed sound
+- 2026-11-11 (Brian, 11:49 PM CT Nov 10): committee records are REQUIRED before Daylight is done, but not for Friday's review: city Finance + Audit (CivicClerk cats 27, 44), county Budget Committee/Hearing agendas (2026, collect before January), then the other city committees. Plan: docs/research/committee-sources-2026-11-11.md. Friday Nov 13 stays on pace.

@@ -33,7 +33,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from . import config, views
+from . import config, unofficial, views
 
 SCHEMA = "morning-note/1"
 FOLDER = "morning"
@@ -46,6 +46,8 @@ TEXT_KEYS = ("agenda_item", "vote", "vote_unconfirmed", "agenda", "minutes", "bu
 PAGE_KEYS = {"heading": (), "about": (), "legend": (), "state_off": (), "feeds_heading": (), "no_feed": (),
              "seats_hint": (), "seats_link": (), "preview_link": (), "email_label": (), "submit": (),
              "sent_line": ("{provider}",), "privacy_label": (), "preview_title": (),
+             "seats_include": (), "seats_sent": ("{provider}",), "method_heading": (),
+             "method_sent": ("{provider}",), "method_unsubscribe": (), "method_signup_link": (),
              "preview_lede": ("{date}", "{from}", "{to}"), "preview_mine": (), "quiet": (), "backfill": (),
              "unplaced_link": (), "source_label": (), "page_label": (), "district_label": (), "ward_label": ()}
 FORM_FIELD_KEYS = ("email", "lists", "district", "ward")
@@ -59,6 +61,12 @@ class MorningError(Exception):
 def settings(cfg: dict | None = None) -> dict | None:
     cfg = config.SITE if cfg is None else cfg
     return cfg.get("morning_note")
+
+
+def manifest_paths(cfg: dict | None = None) -> list:
+    """The collectors' manifests the note reads: config/site.yml `fetch_manifests`, the one list the pages' fetch days
+    come from too (sitegen/localdates.py; dates/two-manifest-lists)."""
+    return list((config.SITE if cfg is None else cfg).get("fetch_manifests") or [])
 
 
 def problems(cfg: dict) -> list[str]:
@@ -92,9 +100,11 @@ def problems(cfg: dict) -> list[str]:
     if not isinstance(bf, dict) or not all(isinstance(bf.get(k), int) and not isinstance(bf.get(k), bool)
                                            and bf[k] >= 1 for k in ("initial_run_hours", "max_entries")):
         out.append("morning_note.backfill must set initial_run_hours and max_entries, each a whole number >= 1")
-    man = mn.get("manifests")
+    if "manifests" in mn:
+        out.append("morning_note.manifests is gone: the note reads fetch_manifests (dates/two-manifest-lists)")
+    man = cfg.get("fetch_manifests")
     if not isinstance(man, list) or not man or not all(isinstance(p, str) and p for p in man):
-        out.append("morning_note.manifests must list the collectors' manifest files")
+        out.append("fetch_manifests must list the collectors' manifest files (the morning note reads them)")
     text = mn.get("text")
     if not isinstance(text, dict):
         out.append("morning_note.text must be a mapping")
@@ -139,6 +149,95 @@ def problems(cfg: dict) -> list[str]:
     if not isinstance(ff, dict) or sorted(ff) != sorted(FORM_FIELD_KEYS) or \
             not all(isinstance(v, str) and re.fullmatch(r"[A-Za-z0-9_-]+", v) for v in ff.values()):
         out.append(f"morning_note.form_fields must map {', '.join(FORM_FIELD_KEYS)} to plain field names")
+    return out + sender_problems(cfg)
+
+
+# `morning_note.sender` (ADR 0004; package sender/): every key, and the placeholders each text must keep.
+SENDER_KEYS = ("enabled", "provider", "api_base", "mode", "send_at", "latest_send", "max_editions",
+               "max_recipients", "canary_only", "link_hosts", "text")
+SENDER_MODES = ("stamp", "ids")
+SENDER_TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": ()}
+_HHMM = re.compile(r"(?:[01]\d|2[0-3]):[0-5]\d")
+_API_BASE = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[A-Za-z0-9._~/-]*)?")
+
+
+def reader_problems(path=None) -> list[str]:
+    """settings-parity: the deliver job reads config/site.yml without PyYAML (sender/settings.py). Every value it
+    reads must be what PyYAML reads from the same file, or the build fails. The file itself, not config.SITE: the
+    environment may override alerts.site_url there, and the deliver job sees only the file."""
+    import yaml
+
+    from sender import settings as sender_settings
+    text = Path(path or config.SITE_CONFIG_PATH).read_text(encoding="utf-8")
+    return sender_settings.parity(text, yaml.safe_load(text))
+
+
+def sender_problems(cfg: dict) -> list[str]:
+    """The sender block's shape and its switch rules. Left out: no sender, nothing to check. `enabled: true` is
+    refused unless the sign-up form is enabled too and the site URL is set (an email links only live pages)."""
+    mn = cfg.get("morning_note")
+    s = mn.get("sender") if isinstance(mn, dict) else None
+    if s is None:
+        return []
+    if not isinstance(s, dict):
+        return ["morning_note.sender must be a mapping"]
+    at = "morning_note.sender"
+    out = [f"{at}.{k} is not a known key" for k in s if k not in SENDER_KEYS]
+    out += [f"{at}.{k} must be set" for k in SENDER_KEYS if k not in s]
+    for k in ("enabled", "canary_only"):
+        if k in s and not isinstance(s[k], bool):
+            out.append(f"{at}.{k} must be true or false, got {s[k]!r}")
+    if "provider" in s and not (isinstance(s["provider"], str) and s["provider"].strip()):
+        out.append(f"{at}.provider must name the mail provider")
+    if "api_base" in s and not (isinstance(s["api_base"], str) and _API_BASE.fullmatch(s["api_base"])):
+        out.append(f"{at}.api_base must be an https URL, got {s['api_base']!r}")
+    elif "provider" in s and "api_base" in s:
+        from sender.settings import api_base_problem     # settings/api-base-host: one rule, the deliver stage's
+        out += [p + f", got {s['api_base']!r}" for p in [api_base_problem(s["provider"], s["api_base"])] if p]
+    if "mode" in s and s["mode"] not in SENDER_MODES:
+        out.append(f"{at}.mode must be {' or '.join(SENDER_MODES)}, got {s['mode']!r}")
+    times = {k: s[k] for k in ("send_at", "latest_send") if k in s}
+    bad = [k for k, v in times.items() if not (isinstance(v, str) and _HHMM.fullmatch(v))]
+    out += [f"{at}.{k} must be HH:MM, got {times[k]!r}" for k in bad]
+    if len(times) == 2 and not bad and not times["send_at"] < times["latest_send"]:
+        out.append(f"{at}.send_at must be before latest_send")
+    for k in ("max_editions", "max_recipients"):
+        if k in s and (not isinstance(s[k], int) or isinstance(s[k], bool) or s[k] < 1):
+            out.append(f"{at}.{k} must be a whole number >= 1, got {s[k]!r}")
+    text = s.get("text")
+    if "text" in s and not isinstance(text, dict):
+        out.append(f"{at}.text must be a mapping")
+    elif isinstance(text, dict):
+        out += [f"{at}.text.{k} is not a known key" for k in text if k not in SENDER_TEXT_KEYS]
+        for k, marks in SENDER_TEXT_KEYS.items():
+            v = text.get(k)
+            if not (isinstance(v, str) and v.strip()):
+                out.append(f"{at}.text.{k} must be set")
+            else:
+                out += [f"{at}.text.{k} must contain {m}" for m in marks if m not in v]
+        from sender.render import AUTHORITY      # render/no-independence-line: never a government's name or "official"
+        subj = text.get("subject")
+        if isinstance(subj, str) and AUTHORITY.search(subj.replace("{site_name}", str(cfg.get("site_name") or ""))):
+            out.append(f"{at}.text.subject must not name a government body or say official, got {subj!r}")
+    from sender.common import exact_url_ok, parse_hosts     # plan-untrusted/body-unchecked: what an email links
+    if cfg.get("support_url") not in (None, "") and not exact_url_ok(cfg["support_url"]):
+        out.append(f"support_url must be one https URL on a lower-case host, with no user or port (the deliver "
+                   f"stage allows the note's support link as exactly this URL), got {cfg['support_url']!r}")
+    hosts: tuple = ()
+    if "link_hosts" in s:
+        try:
+            hosts = parse_hosts(s["link_hosts"])
+        except ValueError as exc:
+            out.append(f"{at}.{exc}, got {s['link_hosts']!r}")
+    if s.get("enabled") is True:
+        site = str((cfg.get("alerts") or {}).get("site_url") or "")
+        if site.startswith("https://") and site[len("https://"):].split("/")[0] not in hosts:
+            out.append(f"{at}.enabled is true, so link_hosts must hold the site's host "
+                       f"({site[len('https://'):].split('/')[0]}): an email links its pages")
+        if mn.get("enabled") is not True:
+            out.append(f"{at}.enabled is true, so morning_note.enabled must be true (the sign-up form)")
+        if not (cfg.get("alerts") or {}).get("site_url"):
+            out.append(f"{at}.enabled is true, so alerts.site_url must be set: an email links only live pages")
     return out
 
 
@@ -490,7 +589,7 @@ def resolve(docs: list[dict], first: dict[str, datetime]) -> None:
 
 # ---------------------------------------------------------------------------------------------- the day, select
 def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None = None,
-        data_as_of: str = "", bulk: frozenset[str] = frozenset()) -> dict:
+        data_as_of: str = "", bulk: frozenset[str] = frozenset(), data_as_of_utc: bool = False) -> dict:
     """The note for day `d` (the output contract): every entry of every document first fetched in d's window.
     Backfill guard: a day holding any document from a collector's initial run (`bulk`, bulk_urls) or more than
     morning_note.backfill.max_entries entries is a backfill day: `"backfill": true` and `entries: []` (nothing to
@@ -517,12 +616,20 @@ def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None 
               "unplaced_zoning": unplaced}
     if backfill:
         entries, unplaced = [], 0
+    u = unofficial.load(cfg if "unofficial" in cfg else None)
+    support_on = cfg.get("support_enabled") is True and bool(cfg.get("support_url"))
     return {"schema": SCHEMA, "date": d.isoformat(),
             "window": {"from": _stamp(start), "to": _stamp(end)}, "data_as_of": data_as_of,
+            "data_as_of_utc": data_as_of_utc,
             "lists": [{"key": x["key"], "label": x["label"]} for x in mn["lists"]],
             "backfill": backfill, "counts": counts,
             "entries": entries, "unplaced_zoning": unplaced,
-            "unplaced_text": unplaced_text(unplaced, cfg)}
+            "unplaced_text": unplaced_text(unplaced, cfg),
+            # the mail sender prints these in every note's text and footer (unofficial/notice-on-every-page)
+            "notice": u["notice"], "email_line": u["email_line"],
+            # the ask for support, printed in the footer when the support link is on (Brian, 2026-11-10)
+            "support_line": (cfg.get("support_line") or "") if support_on else "",
+            "support_url": (cfg.get("support_url") or "") if support_on else ""}
 
 
 def unplaced_text(n: int, cfg: dict | None = None) -> str:
@@ -563,7 +670,7 @@ def select(note: dict, lists, seats: dict | None = None) -> list[dict]:
 
 # ---------------------------------------------------------------------------------------------- files
 def write(out: Path, today: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None = None,
-          data_as_of: str = "", bulk: frozenset[str] = frozenset()) -> dict:
+          data_as_of: str = "", bulk: frozenset[str] = frozenset(), data_as_of_utc: bool = False) -> dict:
     """morning/YYYY-MM-DD.json for the last keep_days days and morning/latest.json; returns today's note. Written
     on the pages target only (build.py): the preview may leave sections out (docs/status.md, 2026-11-09)."""
     cfg = config.SITE if cfg is None else cfg
@@ -572,7 +679,7 @@ def write(out: Path, today: date, docs: list[dict], first: dict[str, datetime], 
     today_note = None
     for back in range(settings(cfg)["keep_days"]):
         d = today - timedelta(days=back)
-        note = day(d, docs, first, cfg, data_as_of, bulk)
+        note = day(d, docs, first, cfg, data_as_of, bulk, data_as_of_utc)
         text = json.dumps(note, ensure_ascii=False, indent=1, sort_keys=False) + "\n"
         (folder / f"{d.isoformat()}.json").write_text(text, encoding="utf-8")
         if back == 0:

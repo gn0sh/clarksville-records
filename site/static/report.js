@@ -36,7 +36,9 @@
     var issue = "", mail = "";
     if (issueBase && issueBase.indexOf("https://github.com/") === 0) {
       issue = issueBase + "&title=" + enc(title) + (pageUrl ? "&page_url=" + enc(pageUrl) : "") +
-        (params.id ? "&fact_id=" + enc(params.id) : "");
+        (params.id ? "&fact_id=" + enc(params.id) : "") +
+        // the same text as the mailto body, for GitHub's blank issue editor when the form is not on the default branch
+        "&body=" + enc(body);
     }
     if (mailBase && mailBase.indexOf("mailto:") === 0 && mailBase.indexOf("?") < 0) {
       mail = mailBase + "?subject=" + enc(title) + "&body=" + enc(body);

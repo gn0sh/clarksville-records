@@ -25,6 +25,7 @@
     {% endif %}
   </ol>
   <p class="mn-quiet" aria-live="polite"{% if entries %} hidden{% endif %}>{{ text.backfill if backfill else text.quiet }}</p>
+  <p class="small mn-unofficial">{{ site.unofficial.email_line }}</p>
 </div>
 <p class="mn-back"><a href="{{ root }}alerts.html#note">{{ text.heading }}</a></p>
 {% endblock %}

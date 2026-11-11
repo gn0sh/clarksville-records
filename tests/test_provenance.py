@@ -206,7 +206,8 @@ def test_officials_current_section_shows_its_basis(pages):
 def test_landing_caption_has_no_in_use_since(pages):
     p = pages["index.html"]
     assert "in use since" not in p
-    assert '<details class="district-list">' in p        # collapsed by default on every size
+    # the fixture build has no address box, so the list is the way in and starts open (collapsed beside the box)
+    assert 'id="addr-form"' not in p and '<details class="district-list" open>' in p
 
 
 def test_meeting_names_without_a_record_read_seat_not_recorded(ix):

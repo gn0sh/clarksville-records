@@ -9,7 +9,7 @@ import pytest
 from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, parse
 from qa import site_checks
 from qa.common import load_facts
-from sitegen import config, feeds, views
+from sitegen import config, feeds, unofficial, views
 from sitegen.build import build, site_url_problems
 from test_site_neutrality import BANNED
 
@@ -123,7 +123,7 @@ def test_text_is_escaped():
     assert b"<script>" not in raw and b"<b>" not in raw
     root = ET.fromstring(raw)
     assert text(root.find(A + "entry"), "title") == nasty
-    assert text(root, "subtitle") == nasty
+    assert text(root, "subtitle") == f"{nasty} {unofficial.load()['notice']}"
 
 
 def test_absolute_links_with_site_url():
@@ -258,13 +258,56 @@ def test_site_checks_cap_the_rezoning_feed_per_body(site, monkeypatch):
 def test_site_checks_know_the_finance_sources_the_contracts_feed_links(site, monkeypatch):
     seen = {}
 
-    def spy(site_dir, pages, sources, cfg):
+    def spy(site_dir, pages, sources, cfg, finance_sources=()):
         seen["urls"] = {s["url"] for s in sources}
+        seen["fin"] = {s["url"] for s in finance_sources}
         return [], "spy"
     monkeypatch.setattr(site_checks, "check_feeds", spy)
     fin = {"sources": [{"url": "https://example.invalid/fin/rfp-1.pdf"}], "documents": [], "solicitations": []}
     site_checks.run_checks(site, FACTS, browser=False, no_export=True, finance=fin)
-    assert "https://example.invalid/fin/rfp-1.pdf" in seen["urls"] and FACTS["sources"][0]["url"] in seen["urls"]
+    assert seen["fin"] == {"https://example.invalid/fin/rfp-1.pdf"} and FACTS["sources"][0]["url"] in seen["urls"]
+    assert "https://example.invalid/fin/rfp-1.pdf" not in seen["urls"]   # finance sources travel apart
+
+
+def _relink(f, url):
+    """Point the first entry's source link of one feed at `url`."""
+    root = parsed(f)
+    link = next(x for x in root.iter(A + "link") if x.get("rel") == "related")
+    link.set("href", url)
+    ET.ElementTree(root).write(f, encoding="utf-8", xml_declaration=True)
+
+
+def test_site_checks_know_a_finance_source_in_the_contracts_feed_only(site):
+    # a finance.json document is a known source in topic-contracts.xml and nowhere else
+    fin_url = "https://example.invalid/fin/rfp-1.pdf"
+    pages = {f.relative_to(site).as_posix(): site_checks.parse(f) for f in site.rglob("*.html")}
+    check = lambda: site_checks.check_feeds(site, pages, FACTS["sources"], config.SITE,  # noqa: E731
+                                            finance_sources=[{"url": fin_url}])[0]
+    assert site_checks.CONTRACTS_FEED == f"{feeds.FOLDER}/topic-contracts.xml"
+    shutil.copy(site / "feeds" / "county-meetings.xml", site / site_checks.CONTRACTS_FEED)
+    _relink(site / site_checks.CONTRACTS_FEED, fin_url)
+    assert [p for p in check() if "not a fetched source" in p] == []
+    _relink(site / "feeds" / "county-meetings.xml", fin_url)
+    assert [p for p in check() if "not a fetched source" in p] == \
+        [p for p in check() if p.startswith("feeds/county-meetings.xml") and fin_url in p] != []
+
+
+@pytest.mark.parametrize("url", ["javascript:alert(1)", "JaVaScRiPt:alert(1)", "data:text/html,x", "file:///etc/passwd",
+                                 "vbscript:x", " javascript:alert(1)", "java\tscript:alert(1)"])
+def test_site_checks_fail_a_feed_link_with_another_scheme(site, url):
+    # morning-security/href-scheme-defense: never skipped
+    _relink(site / "feeds" / "county-meetings.xml", url)
+    assert any("link with scheme" in p for p in feeds_check(site)), feeds_check(site)
+
+
+def test_one_per_body_feed_list_for_the_build_and_the_check(county, zoning_rpc, monkeypatch):
+    assert site_checks.PER_BODY_FEEDS is feeds.PER_BODY_FEEDS == ("feeds/topic-rezoning.xml",)
+    cfg = copy.deepcopy(config.SITE)
+    cfg["alerts"]["max_entries"] = 2
+    both = ids_of(feeds.build_feeds(county, cfg=cfg, rpc=zoning_rpc)["feeds/topic-rezoning.xml"])
+    assert len(both) > 2                                   # 2 of each body
+    monkeypatch.setattr(feeds, "PER_BODY_FEEDS", ())       # the build reads the list: off it, one cap for the feed
+    assert len(ids_of(feeds.build_feeds(county, cfg=cfg, rpc=zoning_rpc)["feeds/topic-rezoning.xml"])) == 2
 
 
 def test_illegal_xml_characters_are_stripped_and_whitespace_collapsed():
@@ -274,7 +317,7 @@ def test_illegal_xml_characters_are_stripped_and_whitespace_collapsed():
     raw = feeds.render(feed, [entry(1, nasty)])
     root = ET.fromstring(raw)
     assert text(root.find(A + "entry"), "title") == "Zoning of the lot at 5\ufffa"
-    assert text(root, "subtitle") == "Zoning of the lot at 5\ufffa"
+    assert text(root, "subtitle") == f"Zoning of the lot at 5\ufffa {unofficial.load()['notice']}"
     assert b"\x0c" not in raw and b"\x00" not in raw
 
 
@@ -426,3 +469,170 @@ def test_new_feeds_are_valid_atom_and_ids_are_stable(county, zoning_rpc, fin):
             assert text(e, "id").startswith(CFG["alerts"]["feed_id"])
             assert [x for x in e.findall(A + "link") if x.get("rel") == "alternate"]
         assert len(set(ids_of(one[rel]))) == len(ids_of(one[rel]))
+
+
+# -- morning-security/href-scheme-defense: an RPC source URL is a link only when it passes build._is_https_uri
+
+@pytest.mark.parametrize("url", ["javascript:alert(1)//.pdf", "http://example.invalid/agenda.pdf", "data:text/html,x",
+                                 "https://example.invalid/a b.pdf", 'https://example.invalid/a".pdf', "//example.invalid/a",
+                                 "https:///agenda.pdf", ""])
+def test_an_rpc_source_url_that_is_not_an_https_link_is_dropped(county, zoning_rpc, url):
+    class Bad(type(zoning_rpc)):
+        sources = {"src-rpc": {"url": url}}
+    entries = feeds._rpc_entries(Bad(), feeds._rpc_cases(Bad(), CFG))
+    assert entries and all(e["source"] == "" for e in entries)
+    out = feeds.build_feeds(county, cfg=CFG, rpc=Bad(), target="pages")
+    for rel in ("feeds/topic-rezoning.xml", "feeds/zoning-district-03.xml"):
+        root = ET.fromstring(out[rel])
+        rpc_entries = [e for e in root.findall(A + "entry") if "rpc/item/" in text(e, "id")]
+        assert rpc_entries
+        for e in rpc_entries:   # the entry stays, linked to its page here, with no source link
+            assert [x.get("rel") for x in e.findall(A + "link")] == ["alternate"]
+        if url:
+            assert url.encode() not in out[rel]
+
+
+def test_a_good_rpc_source_url_is_still_linked(zoning_rpc):
+    e = feeds._rpc_entries(zoning_rpc, feeds._rpc_cases(zoning_rpc, CFG))[0]
+    assert e["source"] == "https://example.invalid/agenda.pdf#page=1"
+
+
+# ------------------------------------------------------------------ feeds/entry-date-is-local-day, alerts/entry-date-is-meeting-date
+@pytest.mark.parametrize("day, want", [
+    ("2026-01-15", "2026-01-15T12:00:00-06:00"),   # winter: CST
+    ("2026-07-15", "2026-07-15T12:00:00-05:00"),   # summer: CDT
+    ("2026-03-08", "2026-03-08T12:00:00-05:00"),   # spring forward (02:00 CST -> 03:00 CDT that morning)
+    ("2026-11-01", "2026-11-01T12:00:00-06:00"),   # fall back (02:00 CDT -> 01:00 CST that morning)
+])
+def test_a_bare_day_is_noon_in_the_site_zone(day, want):
+    assert feeds._stamp(day) == want
+    assert site_checks.RFC3339.fullmatch(want)
+
+
+@pytest.mark.parametrize("fetched, want", [
+    ("2026-01-16T03:30:00+00:00", "2026-01-15T21:30:00-06:00"),   # winter evening: the UTC date is the next day
+    ("2026-07-16T03:30:00+00:00", "2026-07-15T22:30:00-05:00"),   # summer evening
+    ("2026-03-08T07:30:00+00:00", "2026-03-08T01:30:00-06:00"),   # spring-forward day, before the change
+    ("2026-03-08T08:30:00+00:00", "2026-03-08T03:30:00-05:00"),   # and after it
+    ("2026-11-01T06:30:00+00:00", "2026-11-01T01:30:00-05:00"),   # fall-back day, the first 01:30
+    ("2026-11-01T07:30:00+00:00", "2026-11-01T01:30:00-06:00"),   # the second 01:30
+])
+def test_a_first_fetched_at_keeps_its_instant_with_the_local_offset(fetched, want):
+    from datetime import datetime
+    assert feeds._stamp(datetime.fromisoformat(fetched)) == want
+
+
+def test_entries_are_dated_when_their_document_was_added_and_ids_do_not_change(county):
+    """With the manifests' first_fetched_at, updated and published are that instant in site_timezone (not the
+    meeting's date at midnight UTC), the feed lists entries by it, and every id is what it was without it."""
+    from datetime import datetime, timedelta, timezone
+    srcs = sorted(FACTS["sources"], key=lambda s: s["id"])
+    base = datetime(2026, 11, 10, 3, 0, tzinfo=timezone.utc)         # 21:00 CST on November 9: UTC is a day ahead
+    first = {s["url"]: base + timedelta(hours=k) for k, s in enumerate(srcs)}
+    plain = feeds.build_feeds(county, cfg=CFG)
+    dated = feeds.build_feeds(county, cfg=CFG, first=first)
+    assert sorted(plain) == sorted(dated)
+    for rel in dated:
+        assert sorted(ids_of(plain[rel])) == sorted(ids_of(dated[rel])), rel
+    root = ET.fromstring(dated["feeds/county-meetings.xml"])
+    by_source = {s["id"]: s for s in FACTS["sources"]}
+    for m in FACTS["meetings"]:
+        e = next(e for e in root.findall(A + "entry") if text(e, "id").endswith(f"/{m['id']}/minutes"))
+        want = first[by_source[m["source_id"]]["url"]].astimezone(feeds._zone()).isoformat(timespec="seconds")
+        assert text(e, "updated") == text(e, "published") == want
+        assert text(e, "updated")[19:] == "-06:00"
+        # feeds/entry-date-is-local-day/summary-fetched-utc: the summary's day is the entry's own Chicago day
+        assert text(e, "summary").endswith(f", fetched {want[:10]}."), text(e, "summary")
+    assert all(text(e, "summary").endswith("fetched 2026-11-09.") for e in root.findall(A + "entry"))   # not 11-07 or 11-10
+    dates = [text(e, "updated") for e in root.findall(A + "entry")]
+    assert dates == sorted(dates, reverse=True) and text(root, "updated") == dates[0]
+
+
+def test_county_agenda_only_meetings_join_the_county_feed(county):
+    """alerts/county-agendas-not-in-feed: each agenda-only county meeting (no minutes yet) is one entry of the
+    county's agendas-and-minutes feed, id county/meeting/<id>/agenda, linked to meetings/agendas.html; a meeting the
+    minutes cover is not; the other feeds and every earlier id are unchanged."""
+    from datetime import date, datetime
+    from sitegen import county_agendas
+    covered = FACTS["meetings"][0]
+    src = {"id": "src-agenda1", "url": "https://example.invalid/nov-formal.pdf", "kind": "agenda", "pages": 9,
+           "fetched_at": "2026-11-10", "label": "2026 November Formal", "sha256": "a" * 64}
+    data = {"body": "Montgomery County Commission", "index_url": "https://example.invalid/agendas", "skipped": [],
+            "problems": [], "sources": [src],
+            "meetings": [{"id": "2026-11-16-formal", "date": "2026-11-16", "kind": "formal", "source_id": src["id"],
+                          "date_page": 1, "items": []},
+                         {"id": covered["id"], "date": covered["date"], "kind": covered["kind"],
+                          "source_id": src["id"], "date_page": 1, "items": []}]}
+    ax = county_agendas.Agendas(data, county, date(2026, 11, 10))
+    plain = feeds.build_feeds(county, cfg=CFG)
+    first = {src["url"]: datetime.fromisoformat("2026-11-10T04:33:47+00:00")}   # the evening of November 9 here
+    out = feeds.build_feeds(county, cfg=CFG, agendas=ax, first=first)
+    prefix = CFG["alerts"]["feed_id"]
+    added = sorted(set(ids_of(out["feeds/county-meetings.xml"])) - set(ids_of(plain["feeds/county-meetings.xml"])))
+    assert added == [f"{prefix}county/meeting/2026-11-16-formal/agenda"]
+    assert set(ids_of(plain["feeds/county-meetings.xml"])) <= set(ids_of(out["feeds/county-meetings.xml"]))
+    assert {k: v for k, v in out.items() if k != "feeds/county-meetings.xml"} == \
+        {k: v for k, v in plain.items() if k != "feeds/county-meetings.xml"}
+    e = next(e for e in ET.fromstring(out["feeds/county-meetings.xml"]).findall(A + "entry")
+             if text(e, "id") == added[0])
+    assert text(e, "title") == "Agenda: 2026-11-16, formal meeting"   # as a minutes entry labels it
+    assert text(e, "updated") == text(e, "published") == "2026-11-09T22:33:47-06:00"
+    links = {x.get("rel"): x.get("href") for x in e.findall(A + "link")}
+    assert links == {"alternate": "../meetings/agendas.html#2026-11-16-formal", "related": src["url"]}
+    assert "Agenda (9 pages), fetched 2026-11-09." in text(e, "summary")   # the Chicago day, not the UTC 11-10
+
+
+def test_the_home_page_lets_a_reader_discover_the_feeds(built, pages):
+    """feeds/autodiscovery-on-index (plan F6): index.html carries a rel=alternate Atom link per body feed, each to
+    a built feed."""
+    import re
+    links = re.findall(r'<link rel="alternate" type="application/atom\+xml" title="([^"]+)" href="([^"]+)">',
+                       pages["index.html"].split("</head>")[0])
+    want = [f for f in feeds.feed_list() if f["kind"] == "body"]
+    assert [h for _, h in links] == [f["file"] for f in want] and want
+    assert [t for t, _ in links] == [f["title"] for f in want]
+    assert all((built / h).is_file() for _, h in links)
+
+
+def test_without_a_manifest_row_an_entry_is_its_fetched_day_at_local_noon(built):
+    """A fixture build has no manifests: each entry is its source's fetched day (never the meeting's) at noon."""
+    fetched = {s["fetched_at"] for s in FACTS["sources"]}
+    root = parsed(built / "feeds" / "county-meetings.xml")
+    for e in root.findall(A + "entry"):
+        up = text(e, "updated")
+        assert up == text(e, "published") and up[:10] in fetched and up[10:19] == "T12:00:00", up
+        # one day, both places; with no recorded instant the summary labels it a UTC day (docs/architecture/local-dates.md)
+        assert text(e, "summary").endswith(f", fetched {up[:10]} (UTC day)."), text(e, "summary")
+
+
+# ------------------------------------------------------------------ the fall-back hour: newest first by instant, not text
+FOLD_EARLY, FOLD_LATE = "2026-11-01T01:30:00-05:00", "2026-11-01T01:15:00-06:00"   # 06:30Z, then 07:15Z
+
+
+def test_feed_lists_the_fall_back_hour_by_instant():
+    from datetime import datetime
+    es = [dict(entry(1), updated=datetime.fromisoformat(FOLD_EARLY), sort=("2026-11-01", 2)),
+          dict(entry(2), updated=datetime.fromisoformat(FOLD_LATE), sort=("2026-11-01", 1))]
+    root = ET.fromstring(feeds.render({"file": "feeds/t.xml", "title": "T", "about": "A"}, es))
+    assert [text(e, "updated") for e in root.findall(A + "entry")] == [FOLD_LATE, FOLD_EARLY]
+    assert text(root, "updated") == FOLD_LATE
+
+
+@pytest.mark.parametrize("order, ok", [((FOLD_LATE, FOLD_EARLY), True), ((FOLD_EARLY, FOLD_LATE), False)])
+def test_site_checks_compare_entry_dates_as_instants(site, order, ok):
+    import re
+    f = site / "feeds" / "county-meetings.xml"
+    head, _, rest = f.read_text(encoding="utf-8").partition("<entry>")
+    dates = iter(order + ("2026-10-01T12:00:00-05:00",) * 10)
+    rest = re.sub(r"<updated>[^<]+</updated>", lambda m: f"<updated>{next(dates)}</updated>", rest)
+    f.write_text(head + "<entry>" + rest, encoding="utf-8")
+    newest = [p for p in feeds_check(site) if "newest first" in p]
+    assert (newest == []) if ok else newest, newest
+
+
+def test_render_writes_the_configured_zone():
+    """site_timezone comes from the cfg render is given, not only from config.SITE."""
+    cfg = {**CFG, "site_timezone": "America/New_York"}
+    root = ET.fromstring(feeds.render({"file": "feeds/t.xml", "title": "T", "about": "A"}, [entry(200)], cfg))
+    assert text(root.find(A + "entry"), "updated") == "2026-08-05T12:00:00-04:00"   # EDT
+    assert text(root, "updated") == "2026-08-05T12:00:00-04:00"

@@ -1,5 +1,7 @@
 {% extends "base.html.j2" %}
 {% from "_cards.html.j2" import cards %}
+{% from "_feed_links.html.j2" import feed_links %}
+{% block head %}{{ feed_links(home_feeds | default([]), root) }}{% endblock %}
 {# A council's home (council.py home): its seats with current holders, its members, and its meetings and items by
    year. The same layout for every council; every name links to its member page. #}
 {% block main %}
@@ -19,10 +21,10 @@
   {% if basis %}<p class="basis muted">{{ basis }}.</p>{% endif %}
   <ol class="districts council-seats">
     {% for s in seat_rows %}
-    <li id="seat-{{ s.seat }}" data-seat="{{ s.seat }}"><span class="d-label">{{ s.label }}</span> <span class="d-holder">{% if s.holder %}<a href="{{ root }}{{ s.holder.href }}">{{ s.holder.name }}</a>{% else %}Current member not yet recorded{% endif %}</span></li>
+    <li id="seat-{{ s.seat }}" data-seat="{{ s.seat }}"><span class="d-label">{{ s.label }}</span> <span class="d-holder">{% if s.holder %}<a href="{{ root }}{{ s.holder.href }}">{{ s.holder.name }}</a>{% else %}Current member not yet recorded{% endif %}</span>{% if s.note %} <span class="d-note muted"><a href="{{ root }}{{ s.note.href }}">{{ s.note.name }}</a>: {{ s.note.text }}</span>{% endif %}</li>
     {% endfor %}
   </ol>
-  <p class="muted">{% if site.ward_map %}Find your ward by address on the <a href="{{ root }}index.html">map</a>.{% else %}A ward map is not available yet.{% endif %} Each member's ward is read from the attendance lists the minutes print.</p>
+  <p class="muted">{% if site.ward_map %}Find your ward by address on the <a href="{{ root }}index.html">home page</a>.{% else %}A ward map is not available yet.{% endif %} Each member's ward is read from the attendance lists the minutes print.</p>
 </section>
 
 <section aria-labelledby="meetings-h">

@@ -4,8 +4,16 @@ locality: montgomery-tn
 site_name: Daylight                 # working product name (design/daylight, 2026-11-09); trademark check before go-live
 site_place: Clarksville-Montgomery County   # name plate line under the name, on every page
 site_timezone: America/Chicago   # the zone of the landing date line (static/sky.js); the sun follows the viewer's own clock
+# The collectors' manifests (first_fetched_at by url and sha256). Every fetch day a page prints is the site_timezone
+# day of that instant; a source with no row shows its stored UTC day labelled "(UTC day)" (docs/architecture/local-dates.md).
+fetch_manifests:
+  - data/manifest.json
+  - data/county-agendas/manifest.json
+  - data/localities/clarksville-tn/manifest.json
+  - data/localities/cmc-rpc/manifest.json
+  - data/maps/manifest.json
 today_place: Clarksville            # landing sky: "Tuesday in Clarksville" (static/sky.js reads it from the page)
-operator: gnoshcodes               # CEO decision 2026-11-09: a gnoshcodes product, no personal operator credit
+operator: gnoshcodes LLC           # CEO decisions 2026-11-09 (a gnoshcodes product, no personal credit) and 2026-11-10 (the LLC)
 operator_url: https://gnoshcodes.com/
 
 # "Not sure of your district?" lookup link on the landing (the state elections site). Empty renders nothing; another
@@ -18,7 +26,7 @@ district_lookup_label: GoVoteTN
 # required when geocoder_url is set, as district_lookup_label is when district_lookup_url is. A build with
 # `python -m sitegen --no-geocoder` draws no box (the claude.ai preview), only the plain lookup line.
 geocoder_url: https://geocoding.geo.census.gov/geocoder/locations/onelineaddress
-geocoder_label: the U.S. Census Bureau's geocoder   # "Your address is sent to <label> to find it on the map."
+geocoder_label: the U.S. Census Bureau's geocoder   # "Your address is sent to <label> to find where it is."
 geocoder_short: Census                               # "The Census places this address in ...", "Census's privacy policy"
 geocoder_privacy_url: https://www.census.gov/about/policies/privacy.html
 
@@ -34,14 +42,19 @@ official_records:
 # Enabled 2026-11-09: Brian says his council seat is not a factor (he leaves it before anything goes live).
 support_url: https://buymeacoffee.com/gnoshcodes
 support_label: Buy Me a Coffee
+# The ask shown beside the morning note sign-up and printed in the note's footer (Brian, 2026-11-10). Only with the support link on.
+support_line: "This service is free and always will be, but web hosting and sending email cost money. If it is useful to you, please consider supporting the project."
 support_enabled: true
 
 # Report an error (M1.5, docs/design/correction-intake.md). Every fact page links report.html, which offers these
 # channels to the reader. Both empty (the default): report.html says corrections open when the site launches. Brian
 # chooses the values; the build refuses anything else than the shapes below.
 corrections:
-  github_repo: ""   # "owner/name" of the PUBLIC repo: a prefilled issue from .github/ISSUE_TEMPLATE/correction.yml
-  email: ""         # an address for a mailto link (no address is set until Brian picks one)
+  # Manager decision 2026-11-10 (corrections/channel-set-in-production-build): GitHub issues on the public repo. The
+  # form must be on the repo's default branch for GitHub to show it. A pages build without a channel fails
+  # qa/site_checks.py (report-channel).
+  github_repo: "gn0sh/clarksville-records"   # "owner/name" of the PUBLIC repo: a prefilled issue from .github/ISSUE_TEMPLATE/correction.yml
+  email: ""         # an address for a mailto link (Brian may add one at go-live)
 
 # Alerts v1 (M5, sitegen/feeds.py): free Atom feeds on alerts.html. We keep no list of followers and run no
 # sign-up. One "new agendas and minutes" feed per body (the county and each council below), and one feed per topic
@@ -55,7 +68,7 @@ alerts:
 
 # The morning note (Daylight M3, sitegen/morning.py, docs/architecture/morning-note.md). Each build writes the last
 # `keep_days` days' "what's new" as morning/YYYY-MM-DD.json plus morning/latest.json: every document whose
-# first_fetched_at (in the collectors' own manifests below) falls in [day before at `cutoff`, day at `cutoff`) in
+# first_fetched_at (in the collectors' own manifests, fetch_manifests above) falls in [day before at `cutoff`, day at `cutoff`) in
 # site_timezone (pages target only; the preview build writes none). Nothing is sent: email is a later step behind the CEO's provider pick (hard stops 3-5). The build
 # refuses `enabled: true` without an https form_action and privacy_url, and any form_action while enabled is false.
 # Leave the whole block out to write no note.
@@ -72,12 +85,8 @@ morning_note:
   # the earliest row of its manifest) or more than max_entries entries is written with "backfill": true and no
   # entries (its counts kept), so a first collection never becomes a mail.
   backfill: {initial_run_hours: 48, max_entries: 100}
-  # The collectors' manifests (first_fetched_at by source URL). Every document the note reads must have a row in one.
-  manifests:
-    - data/manifest.json
-    - data/county-agendas/manifest.json
-    - data/localities/clarksville-tn/manifest.json
-    - data/localities/cmc-rpc/manifest.json
+  # The collectors' manifests: the one list `fetch_manifests` above (dates/two-manifest-lists). Every document the
+  # note reads must have a row in one.
   # Every connective word of the note (entries otherwise carry only the record's own words).
   text:
     agenda_item: On the agenda
@@ -93,24 +102,58 @@ morning_note:
   enabled: false        # true only after the CEO picks a provider (hard stops 3-5)
   provider: ""          # who receives the form, printed in its sent line; required when enabled; code never branches on it
   form_action: ""       # https URL the sign-up form POSTs to (the provider's hosted endpoint)
-  form_fields: {email: email, lists: tags, district: metadata__district, ward: metadata__ward}
+  # lists: a multi-select metadata key, not tags: the sender reads a subscriber's lists from metadata.lists
+  form_fields: {email: email, lists: metadata__lists, district: metadata__district, ward: metadata__ward}
   privacy_url: ""       # the provider's privacy policy, required when enabled
+  # The sender (ADR 0004; architecture "T4 sender"; package sender/). OFF: nothing is sent, and there is no provider
+  # client, key or workflow job yet. `python -m sender plan --rehearse` writes the would-send editions as a dry run.
+  # The build refuses `enabled: true` unless morning_note.enabled is true and alerts.site_url is set. Going live
+  # also needs Brian's repository variable and secret (hard stops 1 and 5). Keep each value below on its own line as
+  # one plain value: the deliver stage reads this block without PyYAML (sender/settings.py).
+  sender:
+    enabled: false
+    provider: buttondown
+    api_base: https://api.buttondown.com/v1
+    mode: stamp              # stamp | ids, set by the T4.0 probe
+    send_at: "07:00"         # site_timezone
+    latest_send: "10:00"     # a run that ends later than this skips the day; a note is never sent late
+    max_editions: 80
+    max_recipients: 2000
+    canary_only: true        # true: only the subscriber ids in the note job's MORNING_NOTE_CANARY_IDS secret; none listed: nobody
+    # The only hosts an email may link to (the plan stage drops any other link; the deliver stage refuses a body with
+    # one): the collectors' source hosts. Add the site's own host before enabling. The support link is allowed as
+    # exactly the top-level support_url, never its host: anyone can host a page there.
+    link_hosts: "www.clarksvilletn.gov,montgomerytn.gov,www.cmcrpc.com,clarksvilletn.api.civicclerk.com,montgomeryminutes.bisonline.com,mcgtn.org"
+    # Every word of the email that is ours. Neutral connective text only: no summary, no claim about anyone.
+    text:
+      subject: "{site_name} morning note, {date}"
+      why: You get this note because a record on a list you picked was added to the site since yesterday morning.
+      open_site: Open the page on the site
   # Every word the sign-up section (alerts.html#note) and the preview page (morning/index.html) print around the
   # records' own titles. Neutral connective text only: no summary, no claim about anyone.
   page:
     heading: Get the morning note
-    about: A short email at 7:00 AM on days when something on your list is on an agenda or was voted on. Quiet on every other day.
+    about: A short email by 7:00 AM on days when something on your list is on an agenda or was voted on. Quiet on every other day.
     legend: Put on my list
     state_off: Email starts at launch; follow by feed now.
     feeds_heading: Feeds for your list
     no_feed: No feed for this list yet.
-    seats_hint: No seats are saved on this device, so every feed for this list is shown. Find your district or ward on the map page and this device keeps it.
+    seats_hint: No seats are saved on this device, so every feed for this list is shown. Find your district or ward by address on the home page and this device keeps it.
     seats_link: Find your seats
     preview_link: See today's note as it would read
     email_label: Email
     submit: Send me the morning note
     sent_line: "Sending this form gives {provider} your email address, the lists you picked and your saved district and ward."
     privacy_label: Privacy policy
+    # Enabled state only (morning-security/seat-consent, privacy-text-matches-data-flow). seats_include labels the
+    # form's visible box; the saved numbers are printed after it ("District 5, Ward 3"). seats_sent replaces the
+    # "never sent anywhere" sentences on the landing and Method pages. method_* is the Method page's paragraph.
+    seats_include: "Include my saved seats:"
+    seats_sent: "Your saved district and ward leave this device only if you sign up for the morning note and keep \"Include my saved seats\" ticked; then they go to {provider}."
+    method_heading: Morning note
+    method_sent: "The morning note is an email you sign up for on the Alerts page. Sending the sign-up form gives {provider} your email address and the lists you picked. Your saved district and ward go with it only while \"Include my saved seats\" is ticked; the form shows the numbers before you send it. Nothing is sent until you send the form."
+    method_unsubscribe: "To stop the email, use the unsubscribe link in any morning note."
+    method_signup_link: Sign up on the Alerts page
     preview_title: Today's morning note
     preview_lede: "The note as it would read on {date}: what was added to this site from {from} to {to}. Nothing is emailed yet."
     preview_mine: The lists you pick stay in this page's address on this device; nothing is sent.
@@ -126,11 +169,10 @@ county_name: Montgomery County
 county_body: Montgomery County Commission
 city_name: City of Clarksville
 city_body: Clarksville City Council
-city_label: Clarksville             # the one place label drawn on the map
 county_key: county                  # search index body key ("b") for county records
-# Map layer names (landing layer switch and list headings). `short` is the phone-width form.
+# Seat list names (landing list headings). `short` is the phone-width form.
 district_layer: {label: County commission districts, short: Districts}
-ward_layer: {label: City wards, short: Wards, coming: true}
+ward_layer: {label: City wards, short: Wards}
 # Landing purpose line (h1). Neutral: what the site holds, no claim about anyone.
 purpose: Votes and records of the Montgomery County Commission, linked to the county's own minutes.
 city_coming: City of Clarksville records are coming.   # shown only when no council is listed below
@@ -140,14 +182,13 @@ councils: [clarksville-tn]
 # and its page folder (sitegen/rpc.py). Leave it out to build no RPC pages.
 rpc: cmc-rpc
 
-# County commission seats drawn on the map and given a page each (districts/<nn>.html).
+# County commission seats, each given a page (districts/<nn>.html).
 district_count: 21
 district_label: District          # "District 7"
 district_page_title: County Commission District   # "County Commission District 7"
 ward_count: 12
 ward_label: Ward
 ward_map_owner: Regional Planning Commission   # whose map the ward lines come from ("on the <owner>'s map of <date>")
-wards_status: coming              # ward pages are M4; until then the landing shows a notice
 # Seats other than numbered districts and wards, in the fixed order the Officials page lists them after the districts.
 other_seats:
   - {seat: county-mayor, label: County Mayor}
@@ -204,6 +245,15 @@ school_board:
   label: Clarksville-Montgomery County School System board
   url: https://www.cmcss.net/
   link_label: CMCSS website
+  # The menu entry and its "coming" page (school-board.html, site/templates/coming.html.j2), built only while the label
+  # and url above are set. Every word of the page is here: no dates, no numbers, no names of officials.
+  page:
+    slug: school-board
+    nav_label: School board
+    title: School board
+    lede: "Coming. Records of the Clarksville-Montgomery County School System board are planned. Its meetings are not collected yet, so none are shown here."
+    planned: ["Board meeting agendas", "Board meeting minutes and recorded votes"]
+    link_lede: "Until then, the official source is the school system website:"
 
 # "Coming" pages (design 6). No numbers, no sample charts, no example values.
 coming:
@@ -215,3 +265,23 @@ coming:
     title: Capital projects
     lede: "Coming. Capital projects named in county budget books and commission resolutions are planned. Nothing is shown here until it is collected from the source documents, and every project will link to its page."
     planned: ["Projects named in approved budgets", "Commission resolutions that fund or change a project"]
+
+# Independent and unofficial (launch blocker, owner 2026-11-10; sitegen/unofficial.py, qa/site_checks.py
+# unofficial/notice-on-every-page). The ONE place this wording lives: the footer of every page, the header tag, the home
+# page and About, every feed, the morning note's text and sign-up, the export README, <meta> and Open Graph tags and
+# the <title> suffix all read it. Change a word here and every surface follows. {operator} is `operator` above and
+# {bodies} is the `bodies` list below, joined "A, B, C, or D".
+unofficial:
+  tag: Independent, unofficial          # next to the site name on every page and in each <title>
+  notice: "{site_name} is an independent, unofficial site run by {operator}. It is not affiliated with, endorsed by, or operated by {bodies}. The official record held by each body controls."
+  correction_label: How to report a correction
+  differ: If this site and the official document differ, the official document is right.
+  not_advice: Nothing on this site is legal advice.
+  email_line: "Independent, unofficial: not from or endorsed by any government body."   # short form for a mail footer
+  # the home page's first-screen line (the full notice is in its footer, as on every page); {bodies} joins `short`
+  short: "Not affiliated with or endorsed by {bodies}."
+  bodies:     # name: as the notice prints it; short: in `short`; url: the body's own official site (About links each)
+    - {name: the City of Clarksville, short: the City of Clarksville, label: City of Clarksville, url: "https://www.cityofclarksville.com/"}
+    - {name: Montgomery County, short: Montgomery County, label: Montgomery County government, url: "https://www.montgomerytn.gov/"}
+    - {name: the Clarksville-Montgomery County School System (CMCSS), short: CMCSS, label: Clarksville-Montgomery County School System (CMCSS), url: "https://www.cmcss.net/"}
+    - {name: the Clarksville-Montgomery County Regional Planning Commission, short: the Regional Planning Commission, label: Clarksville-Montgomery County Regional Planning Commission, url: "https://www.cmcrpc.com/"}

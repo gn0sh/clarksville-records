@@ -342,8 +342,10 @@ def cmd_run(args) -> int:
         print("collector: sitegen is not installed in this checkout; skipping the site step", flush=True)
         site_build = None
     from .export import export_site
+    log["warnings"] = []
     if site_build:
-        site_build(FACTS, site, internal=args.internal, report_path=BUILD / "report.json")
+        res = site_build(FACTS, site, internal=args.internal, report_path=BUILD / "report.json")
+        log["warnings"] = list((res or {}).get("warnings") or [])   # e.g. seats.yml older than the facts (M1)
     export_site(facts, site, internal=args.internal, seats=load_seat_rows(), finance_path=FINANCE)
     if site_build:
         write_publish_manifest(site)

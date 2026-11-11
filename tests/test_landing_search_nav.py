@@ -1,4 +1,4 @@
-"""Landing map, nav drawer, seat labels, seat pages, search and footer (docs/design/landing-search-nav.md).
+"""Landing (no map since 2026-11-10), nav drawer, seat labels, seat pages, search and footer (docs/design/landing-search-nav.md).
 The session `pages` fixture is built with the fixture roster (site/fixtures/seats.sample.yml) and map
 (site/fixtures/districts.sample.json); `build_pages` builds without either."""
 import copy
@@ -49,7 +49,7 @@ def test_menu_is_a_link_to_the_footer_list_without_js_and_the_dialog_is_built_by
 
 
 def test_current_page_is_marked_in_the_nav(pages):
-    for name, label in (("officials.html", "Officials"), ("index.html", "Map (home)"), ("search.html", "Search"),
+    for name, label in (("officials.html", "Officials"), ("index.html", "Home"), ("search.html", "Search"),
                         ("finance.html", "Finance")):
         nav = next(n for n in parse(pages[name]).walk() if n.attrs.get("id") == "site-nav")
         current = [a for a in nav.walk() if a.tag == "a" and a.attrs.get("aria-current") == "page"]
@@ -69,33 +69,21 @@ def test_coming_pages_have_no_numbers_and_are_marked_coming_in_the_nav(pages):
 
 # ---- 2. Landing ---------------------------------------------------------------------------------------------------
 
-def test_landing_is_one_screen_of_purpose_search_map_and_district_list(pages):
+def test_landing_is_purpose_search_and_district_list_with_no_map(pages):
     html = pages["index.html"]
     body = main_text(html)
     assert body.startswith(config.SITE["purpose"])
     assert re.search(r'<form class="landing-search" action="search\.html" method="get"', html)
-    assert 'name="q"' in html and "Map shows" in body
+    assert 'name="q"' in html and 'class="district-list"' in html
+    # no map on the landing (CEO, 2026-11-10): no drawing, layer switch or map script
+    for gone in ("<svg", "Map shows", "map.js", "About this map", "layer-switch"):
+        assert gone not in html, gone
     # the old home content moved away
     for gone in ('class="card"', 'class="glance"', 'class="timeline meetings"'):
         assert gone not in html, gone
     assert 'class="card"' in pages["officials.html"]
     assert 'class="timeline meetings"' in pages["meetings.html"]
     assert 'id="the-record"' in pages["about.html"] and 'class="glance"' in pages["about.html"]
-
-
-def test_map_paths_are_identical_links_hidden_from_assistive_tech(pages):
-    tree = parse(pages["index.html"])
-    svg = next(n for n in tree.walk() if n.tag == "svg")
-    assert svg.attrs["aria-hidden"] == "true" and svg.attrs["focusable"] == "false"
-    links = [n for n in svg.walk() if n.tag == "a"]
-    assert [a.attrs["href"] for a in links] == ["districts/01.html", "districts/02.html", "districts/03.html"]
-    assert all(a.attrs["tabindex"] == "-1" for a in links)
-    paths = [n for n in svg.walk() if n.tag == "path" and "district" in n.attrs.get("class", "")]
-    assert len(paths) == 3
-    assert {p.attrs["class"] for p in paths} == {"district"}  # one value for all: the fill encodes nothing
-    assert not any("fill" in p.attrs or "style" in p.attrs for p in paths)
-    assert "The same districts are listed after the map." in text(pages["index.html"])
-    assert 'data-ext="map" href="https://example.org/fixture/districts.pdf"' in pages["index.html"]
 
 
 def test_district_list_rows_follow_the_roster_and_never_guess(pages):
@@ -107,10 +95,10 @@ def test_district_list_rows_follow_the_roster_and_never_guess(pages):
     assert all(r.endswith("Current member not yet recorded") for r in rows[3:])
 
 
-def test_landing_without_map_or_roster_shows_the_list_and_the_placeholder(tmp_path, facts):
+def test_landing_without_address_box_or_roster_opens_the_list(tmp_path, facts):
     pages = build_pages(tmp_path, facts)
     html = pages["index.html"]
-    assert "<svg" not in html and "The map is not available yet. Districts are listed by number." in html
+    assert "<svg" not in html and 'id="addr-form"' not in html
     assert re.search(r'<details class="district-list" open', html)
     nav = next(n for n in parse(html).walk() if n.attrs.get("aria-label") == "County commission districts")
     rows = [" ".join(li.all_text().split()) for li in nav.walk() if li.tag == "li"]
@@ -329,7 +317,7 @@ def test_footer_support_link_renders_when_switched_on(tmp_path, facts, monkeypat
     monkeypatch.setitem(config.SITE, "support_enabled", True)
     pages = build_pages(tmp_path, facts)
     for name, html in pages.items():
-        assert re.search(r'Provided as a free service by <a data-ext="operator" href="https://gnoshcodes\.com/" rel="noopener noreferrer">gnoshcodes</a>\. '
+        assert re.search(r'Provided as a free service by <a data-ext="operator" href="https://gnoshcodes\.com/" rel="noopener noreferrer">gnoshcodes LLC</a>\. '
                          r'<a data-ext="support" '
                          r'href="https://buymeacoffee\.com/gnoshcodes" rel="noopener noreferrer">Buy Me a Coffee</a>',
                          html), name

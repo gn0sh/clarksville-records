@@ -105,12 +105,71 @@ def render_report(monkeypatch, corrections):
         site=views.site_context(ix), root="", page_name="Report an error", **views.report_page())
 
 
-def test_report_page_off_by_default(monkeypatch):
-    assert config.SITE["corrections"] == {"github_repo": "", "email": ""}   # Brian sets the values
-    html = render_report(monkeypatch, config.SITE["corrections"])
+def _page(html: str) -> site_checks.Page:
+    p = site_checks.Page()
+    p.feed(html)
+    return p
+
+
+def test_report_page_closed_without_a_channel(monkeypatch):
+    html = render_report(monkeypatch, {"github_repo": "", "email": ""})
     assert CLOSED in html
     assert 'id="report-issue"' not in html and 'id="report-mail"' not in html and "mailto:" not in html
     assert "What to include" in html and "static/report.js" in html
+    assert "The link" not in html and "links above" not in html
+
+
+def test_the_real_config_opens_github_issues_on_the_public_repo(monkeypatch):
+    """corrections/channel-set-in-production-build (manager decision 2026-11-10): the channel is GitHub issues on
+    gn0sh/clarksville-records; an email may be added at go-live."""
+    assert config.SITE["corrections"]["github_repo"] == "gn0sh/clarksville-records"
+    html = render_report(monkeypatch, config.SITE["corrections"])
+    assert CLOSED not in html
+    a = next(a for a in parse(html).walk() if a.tag == "a" and a.attrs.get("id") == "report-issue")
+    assert a.attrs["href"] == "https://github.com/gn0sh/clarksville-records/issues/new?template=correction.yml"
+    assert "Open an issue on GitHub" in "".join(a.text)
+    assert "Open an issue on GitHub<span class=\"sr-only\"> (opens in a new tab)</span></a>: it asks for the page, " \
+        "the fact id and what the source says." in html and "short form" not in html
+    if not config.SITE["corrections"]["email"]:
+        assert "The link above opens GitHub only when you choose it." in html and "email program" not in html
+
+
+@pytest.mark.parametrize("corr, target, bad", [
+    ({"github_repo": "o/n", "email": ""}, "pages", None),
+    ({"github_repo": "", "email": "a@example.org"}, "pages", None),
+    ({"github_repo": "", "email": ""}, "pages", "offers no channel"),
+    ({"github_repo": "", "email": ""}, "preview", None),          # the claude.ai preview is not the public site
+])
+def test_site_checks_fail_a_pages_build_without_a_report_channel(monkeypatch, corr, target, bad):
+    html = render_report(monkeypatch, corr)
+    problems, _ = site_checks.check_report_channel({"report.html": _page(html)},
+                                                   {"corrections": corr}, target)
+    assert (problems == []) if bad is None else any(bad in p for p in problems), problems
+
+
+def test_site_checks_fail_a_report_page_that_does_not_link_the_configured_channel(monkeypatch):
+    closed = render_report(monkeypatch, {"github_repo": "", "email": ""})
+    problems, _ = site_checks.check_report_channel({"report.html": _page(closed)},
+                                                   {"corrections": {"github_repo": "o/n", "email": ""}}, "pages")
+    assert any("does not link https://github.com/o/n/issues/new" in p for p in problems)
+    assert any("not open" in p for p in problems)
+    assert site_checks.check_report_channel({}, {"corrections": {"github_repo": "o/n"}}, "pages")[0] == \
+        ["report.html is not built"]
+
+
+def test_site_checks_need_the_issue_form_in_the_repo_and_the_report_issue_id(monkeypatch, tmp_path):
+    """corrections/form-on-default-branch: with github_repo set, the repo must hold the issue form and report.html
+    must carry the id report.js fills (report-issue), not just the href."""
+    corr = {"github_repo": "o/n", "email": ""}
+    html = render_report(monkeypatch, corr)
+    assert site_checks.check_report_channel({"report.html": _page(html)}, {"corrections": corr}, "pages")[0] == []
+    problems, _ = site_checks.check_report_channel({"report.html": _page(html)}, {"corrections": corr}, "pages",
+                                                   form=tmp_path / "correction.yml")
+    assert any("correction.yml" in p and "not in the repo" in p for p in problems), problems
+    no_id = html.replace('id="report-issue" ', '')
+    assert 'report-issue' not in no_id
+    problems, _ = site_checks.check_report_channel({"report.html": _page(no_id)}, {"corrections": corr}, "pages")
+    assert any("report-issue" in p for p in problems), problems
 
 
 @pytest.mark.parametrize("on", [ON, {**ON, "email": ""}, {**ON, "github_repo": ""}])
@@ -234,7 +293,7 @@ const l = r.links({page: "meetings/x.html", id: "rc-1/o-a"}, pageUrl,
 const u = new URL(l.issue);
 out.links = {issue: l.issue, mail: l.mail, titles: u.searchParams.getAll("title"),
   page_url: u.searchParams.getAll("page_url"), fact_id: u.searchParams.getAll("fact_id"),
-  template: u.searchParams.getAll("template")};
+  template: u.searchParams.getAll("template"), body: u.searchParams.getAll("body")};
 out.refused = r.links({id: "x"}, "", "javascript:alert(1)//https://github.com/", "mailto:a@b.org?cc=z@y.org");
 console.log(JSON.stringify(out));
 """
@@ -261,6 +320,8 @@ def test_report_js_filters_and_encodes(tmp_path):
     q = parse_qs(mail.query)
     assert mail.scheme == "mailto" and mail.path == "c@example.org" and set(q) == {"subject", "body"}
     assert "Fact id: rc-1/o-a" in q["body"][0]
+    # corrections/form-on-default-branch: a blank issue editor (no form on the default branch) still gets the text
+    assert L["body"] == q["body"] and "Page: https://example.org/meetings/x.html" in L["body"][0]
     assert r["refused"] == {"issue": "", "mail": ""}
 
 

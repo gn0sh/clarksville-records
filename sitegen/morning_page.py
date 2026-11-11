@@ -5,7 +5,9 @@ While `morning_note.enabled` is false (M3) there is no email field, no submit, n
 section shows the list picker, the state line and, per picked list, the feeds that follow it now. Nothing about the
 visitor leaves the device: static/morning.js reads the seats static/seats.js keeps and the picks in the page's own
 #fragment, and makes no network call. The enabled path (a later CEO decision) posts straight to `form_action`, and
-only the Alerts page's CSP form-action gains that one origin. Every word around a record's own title is config text
+only the Alerts page's CSP form-action gains that one origin. Enabled, the stored seats are posted only while the
+form's visible "include my saved seats" box is ticked (it prints the numbers), and privacy() gives the landing and
+Method pages the text that replaces "never sent anywhere". Every word around a record's own title is config text
 (`morning_note.page`).
 """
 from __future__ import annotations
@@ -13,7 +15,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from urllib.parse import urlsplit
 
-from . import config
+from . import config, morning
 
 PAGE = "morning/index.html"
 DEFAULT_PICKS = ("zoning", "seats")   # the mock's two checked lists
@@ -42,11 +44,34 @@ def enabled(cfg: dict | None = None) -> bool:
 
 
 def form_origin(cfg: dict | None = None) -> str | None:
-    """The one origin the Alerts page's CSP form-action gains when the note is enabled, else None."""
+    """The one origin the Alerts page's CSP form-action gains when the note is enabled, else None. It checks the
+    value itself (morning-security/csp-origin-self-validating): the origin goes into a CSP, so anything but the
+    https URL shape morning.problems() accepts (no space, `;`, `*` or userinfo in the host) gives None, whether or
+    not the caller ran problems() first."""
     if not enabled(cfg):
         return None
-    u = urlsplit(settings(cfg)["form_action"])
+    action = settings(cfg)["form_action"]
+    if not (isinstance(action, str) and morning._HTTPS.fullmatch(action)):
+        return None
+    u = urlsplit(action)
     return f"{u.scheme}://{u.netloc}" if u.scheme == "https" and u.netloc else None
+
+
+def privacy(cfg: dict | None = None) -> dict | None:
+    """What the landing and Method pages say about the sign-up form, or None while the note is not enabled
+    (morning-security/privacy-text-matches-data-flow). Off, those pages say the stored seats are never sent anywhere,
+    which is true: there is no form. Enabled, the form can post them to the provider, so the pages print
+    `seats_sent` instead and the Method page gains a paragraph: what is sent, to whom, how to stop, and the
+    provider's privacy policy. Every word is config text (`morning_note.page`)."""
+    cfg = config.SITE if cfg is None else cfg
+    if not (on(cfg) and enabled(cfg)):
+        return None
+    m = settings(cfg)
+    t, provider = m["page"], m.get("provider") or ""
+    return {"provider": provider, "privacy_url": m["privacy_url"], "privacy_label": t["privacy_label"],
+            "seats_sent": t["seats_sent"].format(provider=provider), "heading": t["method_heading"],
+            "sent": t["method_sent"].format(provider=provider), "unsubscribe": t["method_unsubscribe"],
+            "signup_link": t["method_signup_link"], "signup_href": "alerts.html#note"}
 
 
 def _feeds_for(key: str, feeds: list[dict], cfg: dict) -> list[dict]:
@@ -125,6 +150,15 @@ def _when(stamp: str) -> str:
     return f"{t:%B} {t.day}, {hour}:{t:%M} {'AM' if t.hour < 12 else 'PM'}"
 
 
+def _source_url(url) -> str:
+    """A source link as the preview page may render it in an href, else "" (the entry then shows no source link).
+    morning-security/href-scheme-defense: the RPC facts and the county agendas are not schema-checked the way
+    facts.json and finance.json are, so the one rule for a link (build._is_https_uri: absolute https, a host, no
+    whitespace, quote or angle bracket) is applied here, where the URL becomes a link."""
+    from .build import _is_https_uri   # build imports this module
+    return url if isinstance(url, str) and url and _is_https_uri(url) else ""
+
+
 def preview(day: dict, feeds: list[dict], cfg: dict | None = None) -> dict:
     """Context for morning.html.j2 from one day of the digest (the contract's day dict, as in latest.json: the note
     sitegen/morning.py write() returns). The unplaced line is the note's own `unplaced_text`; a backfill day (no
@@ -140,10 +174,11 @@ def preview(day: dict, feeds: list[dict], cfg: dict | None = None) -> dict:
     entries = []
     for e in day.get("entries") or []:
         src = e.get("source") or {}
+        url = _source_url(src.get("url"))
         entries.append({**e, "href": e.get("href") or "",
                         "lists_attr": " ".join(e.get("lists") or []), "seat_body": e.get("seat_body"),
                         "district": e.get("district"), "ward": e.get("ward"),
-                        "source": {"url": src.get("url") or "", "page": src.get("page")}})
+                        "source": {"url": url, "page": src.get("page") if url else None}})
     return {"day": day, "entries": entries, "lede": lede, "backfill": day.get("backfill") is True,
             "unplaced": {"n": n, "text": day.get("unplaced_text") or "",
                          "feed": all_zoning["file"] if all_zoning else ""} if n else None,

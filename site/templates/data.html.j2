@@ -5,6 +5,7 @@
 {% if site.export_omitted %}
 <p>The data files are left out of this preview copy of the site, which is limited in size. The full site carries them.</p>
 {% else %}
+<p class="unofficial-intro"><strong>{{ site.unofficial.tag }}.</strong> {{ site.unofficial.notice }} The same notice is in <a href="{{ root }}data/README.txt">README.txt</a> beside these files.</p>
 {% for g in groups %}
 {% if groups | length > 1 %}<h2>{{ g.heading }}</h2>{% endif %}
 <ul class="data-files">
@@ -12,8 +13,10 @@
   <li><a href="{{ root }}data/{{ f.name }}">{{ f.name }}</a>: {{ f.about }}</li>
 {% endfor %}
 </ul>
+{% if g.note %}<p>{{ g.note }}</p>{% endif %}
 {% endfor %}
 {% endif %}
-<p>Every row names the document that prints it (source_url, page) and when it was fetched. A value held back as "Not confirmed" is empty in these files, with the check that held it.</p>
+<p>Every row names the document that prints it (source_url, page) and when it was fetched. In these files fetched_at is the day in Coordinated Universal Time (UTC), so a file fetched in the evening in {{ site.cfg.today_place }} carries the next day; the pages show the day in {{ site.cfg.today_place }}. A value held back as "Not confirmed" is empty in these files, with the check that held it.</p>
+{% if rpc_body and not site.export_omitted %}<p>In the {{ rpc_body }}'s files, a meeting row names the listing page it was taken from and its agenda and minutes files, and a sources row is the fetched file itself. A {{ rpc_body }} motion that is not confirmed is not in its files at all; its meeting row counts it (motions_not_confirmed).</p>{% endif %}
 <p>A text cell that would begin with =, +, - or @ (or a tab or carriage return) starts with an apostrophe, so a spreadsheet shows it as text; number columns are left as they are.</p>
 {% endblock %}

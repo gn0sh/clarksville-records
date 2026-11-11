@@ -7,6 +7,8 @@ data/ocr/
 data/out/
 data/store/
 build/
+# internal RPC export (collector/rpc_export.py internal_dir): beside the site folder, never committed
+internal-data/
 __pycache__/
 *.pyc
 .pytest_cache/
