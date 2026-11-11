@@ -17,9 +17,13 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
   having blocked us. A 403 that cannot be attributed to the proxy is treated as the site's;
 - every request waits the host delay first, whatever the previous answer was (a 304, a 404, a 5xx, a reset): no
   status code ever shortens the gap;
+- one site, one state (fetch/host-key-normalization): the delay, the robots.txt rules, a block and the request count
+  are kept per site_key(host) (lowercase, no port, no leading "www."), so www.cmcrpc.com and cmcrpc.com share one
+  crawl-delay, one block and one cap;
 - limit_hosts(hosts, n): a hard cap of n more requests, shared by those hosts, for the rest of the run, counting
   robots.txt, redirects and retries. The request past it is never made (RequestCapReached); the RPC daily step
-  uses it.
+  uses it. A redirect from a capped host may only go to a host in the same cap group, where it counts against that
+  cap; any other target is refused with no request (fetch/cap-redirect-escape).
 """
 from __future__ import annotations
 
@@ -94,6 +98,12 @@ def _host_matches(host: str, names) -> bool:
     return any(host == n or host.endswith("." + n) for n in names)
 
 
+def site_key(host: str) -> str:
+    """One key per site for the per-host state: lowercase, no port, no leading 'www.'."""
+    h = host.lower().strip().split(":")[0].rstrip(".")
+    return h[4:] if h.startswith("www.") else h
+
+
 def proxy_status_failures() -> list[dict]:
     """Recent relay failures from the local agent proxy's status page (empty if there is no proxy)."""
     proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
@@ -155,33 +165,43 @@ class PoliteFetcher:
             raise HostRefused(f"{host}: not on the allowlist")
 
     def sent(self, host: str) -> int:
-        """Requests made to host this run (robots.txt, redirects and retries included)."""
-        return self._sent.get(host.lower(), 0)
+        """Requests made to host's site this run (robots.txt, redirects and retries included)."""
+        return self._sent.get(site_key(host), 0)
 
     def limit_hosts(self, hosts, n: int) -> None:
         """Allow at most n more requests, all of `hosts` together, for the rest of this run. A cap only ever adds a
         limit: an earlier cap on any of the hosts still holds."""
-        group = frozenset(h.lower() for h in hosts)
+        group = frozenset(site_key(h) for h in hosts)
         self._caps.append((group, sum(self.sent(h) for h in group) + max(0, int(n))))
 
     def remaining(self, host: str) -> int | None:
         """Requests host may still get this run under its caps, or None when no cap covers it."""
-        h = host.lower()
+        h = site_key(host)
         left = [limit - sum(self.sent(x) for x in group) for group, limit in self._caps if h in group]
         return max(0, min(left)) if left else None
 
+    def check_redirect(self, origin: str, target: str) -> None:
+        """fetch/cap-redirect-escape: a redirect from a capped host must stay inside every cap group the origin is in,
+        so the request it leads to counts against the origin's cap. Raises HostRefused, with no request, otherwise."""
+        o, t = site_key(origin), site_key(target)
+        for group, _ in self._caps:
+            if o in group and t not in group:
+                self.log.append({"event": "refused", "host": target, "detail": f"redirect from capped {origin}"})
+                raise HostRefused(f"{target}: a redirect from {origin} leaves its capped hosts; not followed")
+
     def delay_for(self, host: str) -> float:
         floor = max([self.min_delay] + [v for k, v in HOST_FLOORS.items() if _host_matches(host, (k,))])
-        return max(floor, self._delay.get(host, 0.0))
+        return max(floor, self._delay.get(site_key(host), 0.0))
 
     def _wait(self, host: str) -> None:
-        last = self._last.get(host)
+        key = site_key(host)
+        last = self._last.get(key)
         delay = self.delay_for(host)
         if last is not None:
             gap = self.clock() - last
             if gap < delay:
                 self.sleep(delay - gap)
-        self._last[host] = self.clock()
+        self._last[key] = self.clock()
 
     def _open(self, req):
         if self.opener is not None:
@@ -200,23 +220,24 @@ class PoliteFetcher:
         return False
 
     def _note_proxy_refusal(self, host: str, url: str, detail: str):
-        self._proxy_refused[host] = self._proxy_refused.get(host, 0) + 1
+        self._proxy_refused[site_key(host)] = self._proxy_refused.get(site_key(host), 0) + 1
         self.log.append({"event": "proxy_refused", "host": host, "url": url, "detail": detail})
         return ProxyRefused(f"{host}: sandbox egress proxy refused ({detail}); the site did not see it")
 
     # ------------------------------------------------------------ requests
     def _raw_get(self, url: str, _retry: bool = True) -> tuple[int, bytes, dict]:
         host = urllib.parse.urlsplit(url).netloc
+        key = site_key(host)
         self.check_host(host)
-        if host in self._blocked:
-            raise HostBlocked(f"{host}: {self._blocked[host]}")
-        if self._proxy_refused.get(host, 0) >= PROXY_REFUSALS_BEFORE_SKIP:
+        if key in self._blocked:
+            raise HostBlocked(f"{host}: {self._blocked[key]}")
+        if self._proxy_refused.get(key, 0) >= PROXY_REFUSALS_BEFORE_SKIP:
             raise ProxyRefused(f"{host}: skipped after {PROXY_REFUSALS_BEFORE_SKIP} proxy refusals this run")
         if self.remaining(host) == 0:
             self.log.append({"event": "cap", "host": host, "url": url, "detail": "request cap used up"})
             raise RequestCapReached(f"{host}: the run's request cap is used up; {url} was not requested")
         self._wait(host)
-        self._sent[host.lower()] = self.sent(host) + 1
+        self._sent[key] = self.sent(host) + 1
         started = self.wall()
         req = urllib.request.Request(url, headers={"User-Agent": self.user_agent})
         try:
@@ -231,10 +252,10 @@ class PoliteFetcher:
                 if e.code == 403 and self._proxy_said_403(host, started):
                     raise self._note_proxy_refusal(host, url, "HTTP 403 recorded by the proxy") from None
                 snippet = (e.read() or b"")[:200].decode("utf-8", "replace")
-                self._blocked[host] = (f"HTTP {e.code} from the site on {url} server={e.headers.get('Server')!r} "
-                                       f"body={snippet!r}")
-                self.log.append({"event": "blocked", "host": host, "url": url, "detail": self._blocked[host]})
-                raise HostBlocked(self._blocked[host]) from None
+                self._blocked[key] = (f"HTTP {e.code} from the site on {url} server={e.headers.get('Server')!r} "
+                                      f"body={snippet!r}")
+                self.log.append({"event": "blocked", "host": host, "url": url, "detail": self._blocked[key]})
+                raise HostBlocked(self._blocked[key]) from None
             if e.code >= 500 and _retry:
                 self.log.append({"event": "retry", "host": host, "url": url, "detail": f"HTTP {e.code}"})
                 return self._raw_get(url, _retry=False)
@@ -242,10 +263,10 @@ class PoliteFetcher:
         except (urllib.error.URLError, OSError) as e:
             if _is_tunnel_refusal(e):
                 raise self._note_proxy_refusal(host, url, str(getattr(e, "reason", e))) from None
-            if _is_reset(e) and _retry and self._resets.get(host, 0) < self.reset_retries:
+            if _is_reset(e) and _retry and self._resets.get(key, 0) < self.reset_retries:
                 # the sandbox relay drops a tunnel when the site is slow to answer (proxy status: ws_closed_mid_
                 # exchange): the site sent no refusal, so one retry after the host delay (_wait), like a server error
-                self._resets[host] = self._resets.get(host, 0) + 1
+                self._resets[key] = self._resets.get(key, 0) + 1
                 self.log.append({"event": "retry", "host": host, "url": url, "detail": f"connection reset: {e}"})
                 return self._raw_get(url, _retry=False)
             detail = str(e)
@@ -255,7 +276,8 @@ class PoliteFetcher:
             raise FetchFailed(f"{url}: {detail}") from None
 
     def robots(self, host: str, scheme: str = "https") -> urllib.robotparser.RobotFileParser:
-        if host not in self._robots:
+        key = site_key(host)
+        if key not in self._robots:
             rp = urllib.robotparser.RobotFileParser()
             url = f"{scheme}://{host}/robots.txt"
             status, body, headers = self._raw_get(url)
@@ -271,11 +293,11 @@ class PoliteFetcher:
                 rp.allow_all = True          # no robots.txt = no rules (RFC 9309)
             else:
                 rp.disallow_all = True       # server error: be conservative
-            self._robots[host] = rp
+            self._robots[key] = rp
             delay = rp.crawl_delay(self.user_agent) or rp.crawl_delay("*")
             if delay:
-                self._delay[host] = float(delay)
-        return self._robots[host]
+                self._delay[key] = max(float(delay), self._delay.get(key, 0.0))
+        return self._robots[key]
 
     def _location(self, url: str, headers: dict) -> str:
         loc = next((v for k, v in (headers or {}).items() if k.lower() == "location"), None)
@@ -285,6 +307,7 @@ class PoliteFetcher:
         host = urllib.parse.urlsplit(nxt).netloc
         self.log.append({"event": "redirect", "host": urllib.parse.urlsplit(url).netloc, "url": url, "detail": nxt})
         self.check_host(host)
+        self.check_redirect(urllib.parse.urlsplit(url).netloc, host)
         return nxt
 
     def get(self, url: str, _hops: int = 0) -> tuple[int, bytes, dict]:
