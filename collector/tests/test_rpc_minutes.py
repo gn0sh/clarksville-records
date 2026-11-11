@@ -573,3 +573,27 @@ def test_the_motions_audit_is_internal_one_line_per_motion(attached, tmp_path):
     assert not any("para" in mv for mv in facts["motions"])       # the sentences never go into rpc.json
     with pytest.raises(ValueError, match="never written into a built site"):
         rpc_agenda.write_audit(tmp_path / "build" / "site" / "audit.jsonl", rows)
+
+
+# rpc-votes/recall-miss (QA 2026-11-11): "All others voted in favor and the motion passed ..." and a count of days in
+# the outcome's words, from the real sentences (2024-09-24 minutes p3; 2024-02-27 minutes p7)
+@pytest.mark.parametrize("text,kind,outcome", [
+    ("Bill Kimbrough made a motion for a 30 day deferral, seconded by Jeff Henley. All others voted\n\n"
+     "in favor and the motion passed for a 30 day deferral.", "Motion to defer",
+     "the motion passed for a 30 day deferral"),
+    ("Bill Kimbrough made the motion for approval based on the staff’s recommendation. Jeff Henley\n"
+     "seconded. All others were in favor and motion for approval passed.", "Motion for approval",
+     "motion for approval passed"),
+])
+def test_in_favor_and_the_motion_passed_is_read(text, kind, outcome):
+    m = _one("CASE NUMBER: Z-5-2026\n" + text, ("Bill Kimbrough", "Jeff Henley", "Stacey Streetman"))[0]
+    assert (m.kind, m.outcome, m.confirmed) == (kind, outcome, True), m.reasons
+
+
+@pytest.mark.parametrize("votes", ["All others voted in favor and the motion passed for a 30 day deferral 5-1.",
+                                   "All others voted in favor and the motion passed for approval 5-1-0.",
+                                   "All others voted in favor and the motion was discussed further."])
+def test_a_tally_is_never_swallowed_into_the_outcome_words(votes):
+    m = _case(MOVED + votes)[0]
+    assert not m.confirmed, (m.outcome, m.tally, m.reasons)
+    assert m.outcome is None or "5-1" not in m.outcome or m.tally == "5-1"

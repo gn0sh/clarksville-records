@@ -102,17 +102,21 @@ MOTION_START = re.compile(rf"(?P<mover>{NAME})\s+(?:(?:made|makes)\s+(?:the|a)\s
 SECOND_BY = re.compile(rf"\b[Ss]econded\s+by\s+(?P<name>{NAME})")
 SECOND_AFTER = re.compile(rf"(?P<name>{NAME})\s+seconded\b|\bwith\s+(?P<name2>{NAME})\s+second\b|"
                           rf"\bsecond\s+from\s+(?P<name3>{NAME})")
-OUTCOME = re.compile(r"\b(?:(?:the\s+)?(?:motion|consent\s+agenda|nomination)(?:\s+(?:for|to)\s+[a-z][a-z -]{0,60}?)?\s+"
+# the words of an outcome's "for ..." / "to ...": letters, and a number only as a count of days ("for a 30 day
+# deferral"), so a tally ("5-1") is never swallowed into the words and always meets the tally check
+OUTCOME_WORDS = r"[a-z](?:[a-z -]|\d{1,3}(?=[\s-]*days?\b)){0,60}?"
+OUTCOME = re.compile(r"\b(?:(?:the\s+)?(?:motion|consent\s+agenda|nomination)(?:\s+(?:for|to)\s+" + OUTCOME_WORDS + r")?\s+"
                      r"(?:(?:was\s+)?(?:passed|approved|denied|defeated)|passes|failed|fails|falls|fell|carried|died)"
                      r"(?:\s+unanimously)?(?:\s+on\s+(?:the\s+)?consent\s+agenda)?"
-                     r"(?:\s+(?:for|to)\s+[a-z][a-z -]{0,60}?)?(?:\s+(?P<tally>\d{1,2}\s*-\s*\d{1,2}))?"
+                     r"(?:\s+(?:for|to)\s+" + OUTCOME_WORDS + r")?(?:\s+(?P<tally>\d{1,2}\s*-\s*\d{1,2}))?"
                      r"|(?:carried|approved)\s+unanimously"
                      r"|(?:the\s+)?(?:minutes|deferrals?|withdrawals?)\s+(?:were|was)\s+approved)"
                      r"(?=\s*(?:[.,;]|$|with\b|All\b))", re.I)
 # "All others were in favor." / "All members voted in favor." with no outcome sentence after it: that sentence is the
-# outcome as printed. FOLLOW_GAP: how far after it an outcome sentence may start and still be the outcome.
+# outcome as printed; "All others voted in favor and the motion passed ..." is the same sentence followed by its
+# outcome. FOLLOW_GAP: how far after it an outcome sentence may start and still be the outcome.
 FAVOUR = re.compile(r"\ball\s+(?:(?:the\s+)?(?:others|other\s+members|members(?:\s+present)?)\s+)?(?:were|voted|was)\s+in\s+"
-                    r"favou?r(?=\s*[.,;]|\s*$)", re.I)
+                    r"favou?r(?=\s*[.,;]|\s*$|\s+and\s+(?:the\s+)?motion\b)", re.I)
 FOLLOW_GAP = 40
 LACK_OF_SECOND = re.compile(r"\black\s+of\s+(?:a\s+)?second\b", re.I)
 # A section of the minutes after the cases ("OTHER BUSINESS:", "A. MONTHLY PROFIT AND LOSS", "ADJOURN"): its motions
