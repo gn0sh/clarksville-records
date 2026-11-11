@@ -572,6 +572,36 @@ def test_w1_format_characters_inside_a_word_are_removed():
     assert page_has("City Council -​ Special\n  Session", "City Council - Special Session")
 
 
+@pytest.mark.parametrize("run_", ["a" * 40000, "J​ " * 13000, "J" + " ​" * 20000, "J" + "​" * 40000,
+                                  "J " + " " * 40000 + "​"])
+def test_w1_a_long_adversarial_run_is_joined_in_linear_time(run_):
+    """pipeline/format-break-regex-quadratic: _FORMAT_BREAK backtracked once per character of a long run (6 s at 8k
+    characters). A 40k-character run on a page with a W1 pair (so the substitution runs) takes well under a second,
+    and the real pair on that page is still joined."""
+    import time
+    from collector.city_minutes import join_format_breaks
+    t = time.perf_counter()
+    page = join_format_breaks([HENLEY_LINE + "\n" + run_], HENLEY_WORDS)[0]
+    assert time.perf_counter() - t < 1.0
+    assert page.startswith(HENLEY_LINE.replace("J​ eff", "Jeff") + "\n")
+
+
+def test_w1_join_behaviour_is_unchanged_by_the_linear_pattern():
+    """The linear _FORMAT_BREAK matches exactly what the earlier backtracking pattern matched (same spans, same groups):
+    it starts only at a word's first character, and its runs are disjoint classes, so possessive runs give nothing up
+    that a match could use."""
+    import random
+    from collector.city_minutes import _FORMAT_BREAK, _NOT_SPACE, FORMAT_CHARS
+    fc = re.escape(FORMAT_CHARS)
+    before = re.compile(rf"({_NOT_SPACE}+)([ \t ]*[{fc}]+[{fc} \t ]*)(?=({_NOT_SPACE}+))")
+    rnd = random.Random(1)
+    alpha = ["a", "J", "eff", "​", "­", "﻿", " ", "\t", " ", "\n", "(", ","]
+    for _ in range(20000):
+        s = "".join(rnd.choice(alpha) for _ in range(rnd.randint(0, 12)))
+        assert [(m.span(), m.groups()) for m in _FORMAT_BREAK.finditer(s)] == \
+            [(m.span(), m.groups()) for m in before.finditer(s)], repr(s)
+
+
 # ------------------------------------------------------------------ city-verify W2: the break-free key (path N9)
 WIDE = FULL + ", Jerry Haywood (Ward 6), Richard Lovato (Ward 7)"
 WIDE_AYE = FULL_AYE + ", Haywood, Lovato"

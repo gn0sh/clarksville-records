@@ -145,8 +145,12 @@ FORMAT_CHARS = "".join(chr(c) for c in range(sys.maxunicode + 1) if unicodedata.
 INVISIBLE = re.compile(f"[{re.escape(FORMAT_CHARS)}]")
 ABUT = 0.05                     # pt: two glyph boxes this close (or overlapping) touch, with no visible gap
 _NOT_SPACE = rf"[^\s{re.escape(FORMAT_CHARS)}]"
-# a word, then a run of format characters with blanks before or after it, then the next word (lookahead)
-_FORMAT_BREAK = re.compile(rf"({_NOT_SPACE}+)([ \t\u00a0]*[{re.escape(FORMAT_CHARS)}]+[{re.escape(FORMAT_CHARS)} \t\u00a0]*)"
+# a word, then a run of format characters with blanks before or after it, then the next word (lookahead). Linear
+# (pipeline/format-break-regex-quadratic): a match starts only at a word's first character (the lookbehind), and the
+# possessive runs never backtrack, so a long run with no format character costs one pass, not one per character. The
+# matches are the same: the word, the blanks and format characters, and the next word are disjoint classes.
+_FORMAT_BREAK = re.compile(rf"(?<!{_NOT_SPACE})({_NOT_SPACE}++)"
+                           rf"([ \t\u00a0]*+[{re.escape(FORMAT_CHARS)}]++[{re.escape(FORMAT_CHARS)} \t\u00a0]*+)"
                            rf"(?=({_NOT_SPACE}+))")
 
 
