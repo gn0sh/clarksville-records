@@ -203,7 +203,7 @@ Privacy), so its key needs subscriber access. Recorded as threat point 2.
 | Stage | Where | Network, secret | Does |
 |---|---|---|---|
 | `python -m sender plan` | `update` job, after "Site checks", every day, from launch day one | none, none | Reads `build/site/morning/<D>.json`; writes the would-send payloads to `build/morning-send/<D>/`. This is the dry run, and it runs daily as a rehearsal whether or not sending is on. |
-| `python -m sender deliver` | new `note` job, `needs: [update, deploy]` | `api.buttondown.com` only; `BUTTONDOWN_API_KEY` | Reads only the plan file; talks to the provider. Standard library only: no `pip install` and no `sitegen` import in the job that holds the key. Without `--live` it prints what it would do and opens no connection. |
+| `sender deliver` (run isolated: `python -I -S -c` on a staged copy of `sender/`, see main-protect-invariant.md) | new `note` job, `needs: [update, deploy]` | `api.buttondown.com` only; `BUTTONDOWN_API_KEY` | Reads only the plan file; talks to the provider. Standard library only: no `pip install` and no `sitegen` import in the job that holds the key. Without `--live` it prints what it would do and opens no connection. |
 
 New top-level package `sender/` (not under `sitegen/`, which must stay network-free): `plan.py` (pure), `render.py`
 (subject and body), `deliver.py` (guards and day claim), `buttondown.py` (the only module that opens a connection;
@@ -382,10 +382,13 @@ morning_note:
   then upload `build/morning-send` as artifact `morning-send` (2 days). No secret; this job still parses untrusted PDFs.
 - new `note` job: `needs: [update, deploy]`; `if: github.event_name == 'schedule' && vars.MORNING_NOTE_SEND == 'true'
   && github.ref == 'refs/heads/main'`; `environment: morning-note` (secret scoped to it, deployment branch `main`
-  only); `permissions: contents: read, issues: write`; timeout 15 minutes. Steps: check out the commit the update job
-  built on with `persist-credentials: false`, set up Python with no pip step, download `morning-send`, validate it
+  only); `permissions: contents: read, pull-requests: read` (as built: issues are opened by the separate
+  `note-failed` job); timeout 15 minutes. Steps (as built): mask the canary ids, check out this run's `github.sha`
+  (not the update job's commit, security L6) with `persist-credentials: false`, the stale-rerun and PR checks
+  (main-protect-invariant.md), set up Python with no pip step, download `morning-send`, validate it
   (one `plan.json` and `edition-*` files only, regular files, under `MAX_PLAN_BYTES` in total (as built; was 2 MB), schema and field types checked, every link
-  on the site origin or an https source), run `python -m sender deliver --plan ... --live`. The key is passed as
+  on the site origin or an https source), run the sender's `deliver --plan ... --live` (as built: `python -I -S -c` on a digest-checked copy of `sender/*.py`
+  and `config/site.yml` staged from git objects; docs/architecture/main-protect-invariant.md). The key is passed as
   `env:` on that one step only. On failure, the same one-issue step as the other jobs, with a fixed text.
 - A manual run (`workflow_dispatch`) never sends.
 
