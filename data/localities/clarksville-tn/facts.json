@@ -74758,7 +74758,7 @@
           },
           {
             "check": "surnames_resolve",
-            "detail": "1 printed as surnames: StaceyStreetman read as StaceyStreetman (Stacey Streetman), word break ignored",
+            "detail": "1 printed as surnames: StaceyStreetman read as Stacey Streetman (same letters, spaces ignored)",
             "ok": true
           }
         ],
@@ -359071,7 +359071,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "Pits; H olleman read as Holleman (Travis Holleman), word break ignored",
+            "detail": "Pits; H olleman read as Travis Holleman (same letters, spaces ignored)",
             "ok": false
           },
           {
@@ -364863,7 +364863,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "H olleman read as Holleman (Travis Holleman), word break ignored",
+            "detail": "H olleman read as Travis Holleman (same letters, spaces ignored)",
             "ok": true
           },
           {
@@ -418962,7 +418962,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "LOV ATO read as LOVATO (Keri Lovato), word break ignored",
+            "detail": "LOV ATO read as Keri Lovato (same letters, spaces ignored)",
             "ok": true
           },
           {
@@ -425835,7 +425835,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "H AYWOOD read as HAYWOOD (Jerry Haywood), word break ignored",
+            "detail": "H AYWOOD read as Jerry Haywood (same letters, spaces ignored)",
             "ok": true
           },
           {
@@ -426238,7 +426238,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "H OLLEMAN read as HOLLEMAN (Travis Holleman), word break ignored",
+            "detail": "H OLLEMAN read as Travis Holleman (same letters, spaces ignored)",
             "ok": true
           },
           {
@@ -439362,7 +439362,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "MARQIS; H AYWOOD read as HAYWOOD (Jerry Haywood), word break ignored",
+            "detail": "MARQIS; H AYWOOD read as Jerry Haywood (same letters, spaces ignored)",
             "ok": false
           },
           {
@@ -441231,7 +441231,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "H AYWOOD read as HAYWOOD (Jerry Haywood), word break ignored",
+            "detail": "H AYWOOD read as Jerry Haywood (same letters, spaces ignored)",
             "ok": true
           },
           {
@@ -441742,7 +441742,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "H AYWOOD read as HAYWOOD (Jerry Haywood), word break ignored",
+            "detail": "H AYWOOD read as Jerry Haywood (same letters, spaces ignored)",
             "ok": true
           },
           {
@@ -443887,7 +443887,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "H AYWOOD read as HAYWOOD (Jerry Haywood), word break ignored",
+            "detail": "H AYWOOD read as Jerry Haywood (same letters, spaces ignored)",
             "ok": true
           },
           {
@@ -446656,7 +446656,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "CAHNDLER, MARUIS; H AYWOOD read as HAYWOOD (Jerry Haywood), word break ignored",
+            "detail": "CAHNDLER, MARUIS; H AYWOOD read as Jerry Haywood (same letters, spaces ignored)",
             "ok": false
           },
           {

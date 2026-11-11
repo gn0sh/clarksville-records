@@ -123,7 +123,7 @@ def test_newly_verified_roll_calls_pass_every_check_and_name_each_word_break():
         assert all(c["ok"] for c in by_id[rid]["verification"]["checks"]), rid
     details = [c.get("detail", "") for r in f["roll_calls"] for c in r["verification"]["checks"]
                if c["check"] == "names_resolve"]
-    assert sum("word break ignored" in d for d in details) == 10
+    assert sum("(same letters, spaces ignored)" in d for d in details) == 10
 
 
 def test_claunch_is_the_configured_member_from_the_seating_and_jeff_henley_reads_whole():
