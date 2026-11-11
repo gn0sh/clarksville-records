@@ -27,6 +27,7 @@ import re
 from datetime import date
 from pathlib import Path
 
+from . import limits
 from .extract import MIN_CHARS_PER_PAGE, extract_pages
 
 # A case starts at its number: a numbered agenda paragraph "1. Z - 19 - 2026", "12. S - 44 - 2026",
@@ -338,12 +339,14 @@ def source_record(e: dict, pages: int | None, layer: str, fmt: str) -> dict:
 # Whole-document OCR cap for RPC scans only (not shared with the county path): largest real RPC document 90 pp
 # (cmc-rpc/rpc.json, 2026-11-11), cap 2.2x. A larger document is not read at all and is reported.
 RPC_MAX_OCR_PAGES = 200
+PAGE_COUNT_TIMEOUT = 60  # seconds, pdfinfo for an RPC document's page count (limits invariant L15; largest 90 pp)
 
 
 def pdf_page_count(p: Path) -> int | None:
     import subprocess
     try:
-        out = subprocess.run(["pdfinfo", str(p)], capture_output=True, text=True, timeout=60).stdout
+        out = limits.run("rpc_agenda.PAGE_COUNT_TIMEOUT", ["pdfinfo", str(p)], file=p, capture_output=True,
+                         text=True, timeout=PAGE_COUNT_TIMEOUT).stdout
     except (OSError, subprocess.SubprocessError):
         return None
     m = re.search(r"^Pages:\s+(\d+)", out, re.M)
@@ -366,8 +369,10 @@ def ocr_document(pdf: Path, sha: str, pages: int) -> list[str]:
     from .minutes import ocr_pages_parallel
     from .ocr import PageRefused, cache_path
     if pages > RPC_MAX_OCR_PAGES:   # pipeline/parser-dos-untimed: refused whole before any page is rendered
-        raise PageRefused(f"{pages} pages: RPC OCR reads at most {RPC_MAX_OCR_PAGES} pages of a document")
+        raise PageRefused(limits.trip("rpc_agenda.RPC_MAX_OCR_PAGES", pdf, f"{pages} pp", f"{RPC_MAX_OCR_PAGES} pp"))
     errors = ocr_pages_parallel([(str(pdf), p, sha) for p in range(1, pages + 1)])
+    for err in errors.values():
+        limits.note(err)                # a trip in an OCR worker comes back as its line
     bad = sorted(p for (_, p), err in errors.items() if err)
     if bad:
         raise RuntimeError(f"OCR failed on page {bad[0]} ({errors[(sha, bad[0])]})"

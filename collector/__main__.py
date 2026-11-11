@@ -30,6 +30,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import limits
 from .config import YEARS
 from .discover import DiscoveryError, classify, discover, fetch_index
 from .facts import Builder, dumps, load_procedural, write_if_changed
@@ -301,6 +302,7 @@ def shrink_reason(facts: dict, log: dict, facts_path: Path) -> str | None:
 
 
 def refuse(why: str) -> int:
+    print(limits.summary("collector"), flush=True)     # a limit trip may be why the result shrank
     print(f"collector: REFUSED (offline run): {why}. {FACTS.name} and the build were left unchanged. Restore the "
           "store (data/store/ or RECORDS_STORE), run without --offline, or pass --allow-shrink if the smaller result "
           "is meant.", file=sys.stderr, flush=True)
@@ -369,6 +371,7 @@ def cmd_run(args) -> int:
         write_publish_manifest(site)
     log["finished_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     log["facts_changed"] = changed
+    log["limits"] = limits.tripped()
     (BUILD / "run-log.json").write_text(dumps(log))
     g = report["gates"]
     print(f"collector: {log['parsed']} documents parsed, {g['roll_calls']} roll calls, {g['verified']} verified "
@@ -376,6 +379,7 @@ def cmd_run(args) -> int:
           f"({g['held_back_source_error']} by source errors); G4 {g['g4']['status']} "
           f"(uniform share {g['g4']['uniform_share']}); "
           f"failures {len(log['failures'])}", flush=True)
+    print(limits.summary("collector"), flush=True)
     code = 2 if log["failures"] else (0 if report["pass"] and fin_code == 0 else 3)
     if code == 0 and rpc_code:
         from .rpc import STEP_FILLING

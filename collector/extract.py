@@ -8,16 +8,18 @@ from __future__ import annotations
 
 import json
 import shutil
-import subprocess
+import subprocess  # noqa: F401  (tests patch <module>.subprocess.run; calls go through limits.run)
 from pathlib import Path
+
+from . import limits
 
 MIN_CHARS_PER_PAGE = 40
 PARSE_TIMEOUT = 120     # seconds; a hung poppler tool is a parse failure for that document (pipeline/parser-dos)
 
 
 def extract_pages(pdf: Path) -> list[str]:
-    out = subprocess.run(["pdftotext", "-layout", "-enc", "UTF-8", str(pdf), "-"],
-                         check=True, capture_output=True, timeout=PARSE_TIMEOUT).stdout.decode("utf-8", "replace")
+    out = limits.run("extract.PARSE_TIMEOUT", ["pdftotext", "-layout", "-enc", "UTF-8", str(pdf), "-"], file=pdf,
+                     check=True, capture_output=True, timeout=PARSE_TIMEOUT).stdout.decode("utf-8", "replace")
     pages = out.split("\f")
     if pages and not pages[-1].strip():
         pages = pages[:-1]

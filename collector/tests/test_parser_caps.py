@@ -101,7 +101,7 @@ def test_fin_pdf_meta_a_hung_pdfinfo_times_out(monkeypatch, tmp_path, capsys):
     t = time.monotonic()
     assert fin_facts.pdf_meta(Path("x.pdf"), None, None)["text_layer"] == "unreadable"
     assert time.monotonic() - t < 10
-    assert "pdf inspection failed (TimeoutExpired)" in capsys.readouterr().err
+    assert "pdf inspection failed (TimeoutTrip: limit fin_facts.PDFINFO_TIMEOUT: x.pdf " in capsys.readouterr().err
 
 
 # ------------------------------------------------------------------ OCR page caps
@@ -120,14 +120,14 @@ def test_an_oversized_page_is_skipped_and_never_rendered(monkeypatch, tmp_path, 
             rendered.append(cmd[0])
         return real(["true"]) if cmd[0] != "pdfinfo" else real(cmd, **kw)
     monkeypatch.setattr(ocr.subprocess, "run", run)
-    with pytest.raises(ocr.PageRefused, match="larger than 2592 pt"):
+    with pytest.raises(ocr.PageRefused, match=r"limit ocr.MAX_PAGE_PTS: big.pdf p1 \d+ pt > 2592 pt"):
         ocr.ocr_page(pdf, 1, "b" * 64)
     assert rendered == [] and not ocr.cache_path("b" * 64, 1).exists()
 
     class RC:
         page, end_page, reasons = 1, 1, []
     rc = ocr.reverify(RC(), pdf, "b" * 64, None)
-    assert any("OCR failed" in r and "not rendered" in r for r in rc.reasons)   # that reading fails, the run goes on
+    assert any("OCR failed" in r and "limit ocr.MAX_PAGE_PTS" in r for r in rc.reasons)  # that reading fails
     assert rendered == []
 
 
@@ -163,7 +163,7 @@ def test_page_519_of_a_621_page_document_is_read(monkeypatch, tmp_path):
         page, end_page, reasons = 519, 519, []
     rc = ocr.reverify(RC(), pdf, "e" * 64, None)
     assert rendered == [("pdftoppm", "519")]
-    assert not any("not rendered" in r for r in rc.reasons)
+    assert not any("limit " in r for r in rc.reasons)
 
 
 def test_the_render_itself_is_pixel_bounded(monkeypatch, tmp_path):
@@ -185,7 +185,7 @@ def test_the_render_itself_is_pixel_bounded(monkeypatch, tmp_path):
 
 def test_rpc_ocr_document_refuses_too_many_pages_before_rendering(monkeypatch):
     monkeypatch.setattr(minutes, "ocr_pages_parallel", lambda jobs: pytest.fail("no page may be rendered"))
-    with pytest.raises(ocr.PageRefused, match="at most 200 pages"):
+    with pytest.raises(ocr.PageRefused, match="limit rpc_agenda.RPC_MAX_OCR_PAGES: x.pdf 201 pp > 200 pp"):
         rpc_agenda.ocr_document(Path("x.pdf"), "d" * 64, rpc_agenda.RPC_MAX_OCR_PAGES + 1)
 
 

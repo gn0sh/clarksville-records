@@ -15,6 +15,7 @@ import sys
 import unicodedata
 from collections import Counter, defaultdict
 
+from . import limits
 from .agenda_center import AgendaCenterConfig
 from .city_minutes import NAME_RE, ParsedCityMinutes, parse_minutes_pdf, pdf_layer, short_hash
 from .extract import extract_pages
@@ -119,8 +120,8 @@ PDFINFO_TIMEOUT = 120      # seconds (pipeline/parser-dos-untimed); a timeout fa
 
 
 def pdf_pages(path) -> int:
-    out = subprocess.run(["pdfinfo", str(path)], capture_output=True,
-                         timeout=PDFINFO_TIMEOUT).stdout.decode("utf-8", "replace")
+    out = limits.run("city_build.PDFINFO_TIMEOUT", ["pdfinfo", str(path)], file=path, capture_output=True,
+                     timeout=PDFINFO_TIMEOUT).stdout.decode("utf-8", "replace")
     m = re.search(r"^Pages:\s*(\d+)", out, re.M)
     return max(int(m.group(1)), 1) if m else 1
 
@@ -171,7 +172,7 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
                 # pipeline/parser-dos-untimed: pdfinfo/pdftotext timed out or failed on this file. Fail closed: the
                 # file is not cited or read (as if not fetched), reported once, and the build goes on
                 uninspectable.add(sid)
-                msg = f"pdf inspection failed ({type(ex).__name__}): file not read or cited"
+                msg = f"pdf inspection failed ({type(ex).__name__}: {ex}): file not read or cited"
                 problems.append({"url": url, "sha256": e["sha256"], "problem": msg})
                 print(f"city build: skipped {url}: {msg}", file=sys.stderr, flush=True)
                 return None, None

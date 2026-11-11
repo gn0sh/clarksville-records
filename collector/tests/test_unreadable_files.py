@@ -71,7 +71,7 @@ def test_a_finance_file_that_timed_out_is_unreadable_not_scanned(tmp_path, monke
     sol = next(s for s in fin["solicitations"] if docs[0]["id"] in s["document_ids"])
     view = fin_views._doc_link(fx, docs[0], sol)
     assert view["note"] == fin_views.C["unreadable"] and not view["scanned"]
-    assert "pdf inspection failed (TimeoutExpired)" in capsys.readouterr().err
+    assert "limit fin_facts.PDFINFO_TIMEOUT: " in capsys.readouterr().err
     tab = next(s["bid_tab"] for s in fin["solicitations"] if s["bid_tab"]
                and s["bid_tab"]["document_id"] == docs[0]["id"])
     assert tab["not_read_reason"] == "unreadable"                       # its own reason, not "scan" or "layout"

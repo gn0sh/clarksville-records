@@ -47,6 +47,8 @@ import urllib.robotparser
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+from . import limits
+
 USER_AGENT = ("clarksville-records research collector "
               "(+https://github.com/gn0sh/clarksville-records; polite, 10s/host)")
 MIN_DELAY = 10.0                 # seconds between requests on every host (brief: 10 s everywhere)
@@ -310,6 +312,7 @@ class PoliteFetcher:
             with self._open(req) as r:
                 body = r.read(self.max_bytes + 1)
                 if len(body) > self.max_bytes:
+                    limits.trip("fetch.MAX_BYTES", url, f"{len(body)}+ B", f"{self.max_bytes} B")
                     raise FetchFailed(f"{url}: larger than {self.max_bytes} bytes")
                 self.log.append({"event": "get", "host": host, "url": url, "detail": str(r.status)})
                 return r.status, body, dict(r.headers)

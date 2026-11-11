@@ -49,6 +49,7 @@ from pathlib import Path
 
 import yaml
 
+from . import limits
 from .fetch import (FetchFailed, HostBlocked, HostRefused, PoliteFetcher, ProxyRefused, RequestCapReached,
                     RobotsDisallowed)
 from .store import Store, fetch_into_store
@@ -488,6 +489,7 @@ def run_step(log: dict, offline: bool, fetcher=None, cfg: RpcConfig | None = Non
     if snap is not None and (code != STEP_OK or out.get("kept")):
         _restore(p, snap)
     out["exit"] = code
+    out["limits"] = limits.tripped()
     fetch_log = out.pop("fetch_log", [])
     if p is not None:
         try:
@@ -499,6 +501,7 @@ def run_step(log: dict, offline: bool, fetcher=None, cfg: RpcConfig | None = Non
         out["build"]["problems"] = len(problems)          # the full list is in build/rpc-report.json
     log["rpc"] = out
     print(f"collector: rpc: exit {code}: {out['status']}", flush=True)
+    print(limits.summary("collector: rpc"), flush=True)
     return code
 
 
@@ -529,8 +532,10 @@ def main(argv: list[str]) -> int:
         facts, summary = build(cfg, rows, store, audit_path=p["audit"])
         write_json(p["facts"], facts)
         report["build"] = summary
+    report["limits"] = limits.tripped()
     write_json(p["report"], {**report, "fetch_log": log.get("fetch_log", [])})
     print(json.dumps(report, indent=1, default=str)[:4000])
+    print(limits.summary("collector rpc"), flush=True)
     if any(f["stage"] == "listing" or f.get("stop") for f in log["failures"]):   # not read, or the host said no
         return 2
     short = report.get("build", {}).get("case_shortfalls") or []

@@ -14,7 +14,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import fin_budget, fin_checks
+from . import fin_budget, fin_checks, limits
 from .extract import extract_pages, image_only_pages
 from .fin_archive import parse_archive
 from .fin_bidtab import read_bidtab
@@ -38,15 +38,15 @@ def pdf_meta(pdf: Path, cfg: FinanceConfig, cache_dir: Path | None = META_CACHE)
         info = json.loads(cache.read_text(encoding="utf-8"))
     else:
         try:
-            out = subprocess.run(["pdfinfo", str(pdf)], capture_output=True,
-                                 timeout=PDFINFO_TIMEOUT).stdout.decode("utf-8", "replace")
+            out = limits.run("fin_facts.PDFINFO_TIMEOUT", ["pdfinfo", str(pdf)], file=pdf, capture_output=True,
+                             timeout=PDFINFO_TIMEOUT).stdout.decode("utf-8", "replace")
             pages = extract_pages(pdf)
         except (OSError, subprocess.SubprocessError) as ex:
             # pipeline/parser-dos-untimed: fail closed. Layer 'unreadable' (collector-input/unread-file-mislabel: not
             # 'none', which says the file is a scan): no value is read from it (only text sources carry values), it is
             # never marked scanned, and a budget book in this state is a guard problem; nothing is cached, so the
             # next build tries the file again
-            print(f"collector fin: {pdf.name}: pdf inspection failed ({type(ex).__name__}); not read",
+            print(f"collector fin: {pdf.name}: pdf inspection failed ({type(ex).__name__}: {ex}); not read",
                   file=sys.stderr, flush=True)
             return {"pages": None, "text_layer": "unreadable", "creator": None}
         tags = dict(re.findall(r"^(Creator|Producer|Pages):\s*(.*?)\s*$", out, re.M))

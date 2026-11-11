@@ -10,10 +10,11 @@ from __future__ import annotations
 import os
 import re
 import shutil
-import subprocess
+import subprocess  # noqa: F401  (tests patch <module>.subprocess.run; calls go through limits.run)
 import tempfile
 from pathlib import Path
 
+from . import limits
 from .parse import RollCall, decide, read_table, table_heads, _lines_with_pages
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -41,8 +42,8 @@ def check_page(pdf: Path, page: int) -> None:
     timeout) all at most MAX_PAGE_PTS on each side."""
     if page < 1:
         raise PageRefused(f"page {page} not rendered: no such page")
-    out = subprocess.run(["pdfinfo", "-f", str(page), "-l", str(page), "-box", str(pdf)], capture_output=True,
-                         timeout=PAGE_INFO_TIMEOUT).stdout.decode("utf-8", "replace")
+    out = limits.run("ocr.PAGE_INFO_TIMEOUT", ["pdfinfo", "-f", str(page), "-l", str(page), "-box", str(pdf)],
+                     file=pdf, page=page, capture_output=True, timeout=PAGE_INFO_TIMEOUT).stdout.decode("utf-8", "replace")
     sides = []
     for m in _BOX.finditer(out):
         if m.group(1):
@@ -53,7 +54,7 @@ def check_page(pdf: Path, page: int) -> None:
     if not sides:
         raise PageRefused(f"page {page} not rendered: pdfinfo gave no page size")
     if max(sides) > MAX_PAGE_PTS:
-        raise PageRefused(f"page {page} not rendered: {max(sides):.0f} pt side, larger than {MAX_PAGE_PTS:.0f} pt")
+        raise PageRefused(limits.trip("ocr.MAX_PAGE_PTS", pdf, f"{max(sides):.0f} pt", f"{MAX_PAGE_PTS:.0f} pt", page))
 
 
 def cache_path(sha: str, page: int) -> Path:
@@ -73,12 +74,15 @@ def ocr_page(pdf: Path, page: int, sha: str) -> str:
         base = Path(td) / "pg"
         # -x/-y/-W/-H: a crop no larger than MAX_PAGE_PX, so the bitmap is bounded even if the boxes lied; a page
         # within the cap renders byte-identical to the uncropped call
-        subprocess.run(["pdftoppm", "-f", str(page), "-l", str(page), "-r", str(DPI), "-gray", "-png",
-                        "-x", "0", "-y", "0", "-W", str(MAX_PAGE_PX), "-H", str(MAX_PAGE_PX),
-                        str(pdf), str(base)], check=True, capture_output=True, timeout=OCR_TIMEOUT)
+        limits.run("ocr.OCR_TIMEOUT", ["pdftoppm", "-f", str(page), "-l", str(page), "-r", str(DPI), "-gray", "-png",
+                                       "-x", "0", "-y", "0", "-W", str(MAX_PAGE_PX), "-H", str(MAX_PAGE_PX),
+                                       str(pdf), str(base)],
+                   file=pdf, page=page, check=True, capture_output=True, timeout=OCR_TIMEOUT)
         png = next(Path(td).glob("pg*.png"))
-        text = subprocess.run(["tesseract", str(png), "-", "--psm", "6", "-c", "preserve_interword_spaces=1"],
-                              check=True, capture_output=True, env=env, timeout=OCR_TIMEOUT).stdout.decode("utf-8", "replace")
+        text = limits.run("ocr.OCR_TIMEOUT", ["tesseract", str(png), "-", "--psm", "6", "-c",
+                                              "preserve_interword_spaces=1"],
+                          file=pdf, page=page, check=True, capture_output=True, env=env,
+                          timeout=OCR_TIMEOUT).stdout.decode("utf-8", "replace")
     tmp = cache.with_suffix(".part")
     tmp.write_text(text)
     tmp.replace(cache)

@@ -19,6 +19,7 @@ import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 
+from . import limits
 from .fetch import (FetchFailed, HostBlocked, HostRefused, NotPdf, PoliteFetcher, ProxyRefused, RobotsDisallowed,
                     host_matches)
 from .fin_archive import parse_archive
@@ -203,6 +204,7 @@ def cmd_build(store: Store, cfg: FinanceConfig, finance_path: Path | None = None
         for p in (errors + guard)[:20]:
             print("  problem:", p)
         print(f"collector fin: {len(errors)} schema errors, {len(guard)} scan-guard problems; nothing written")
+        print(limits.summary("collector fin"))
         return 2
     changed = write_if_changed(finance_path, dumps(fin))
     block = fin_facts.report_block(fin, extras)
@@ -218,6 +220,7 @@ def cmd_build(store: Store, cfg: FinanceConfig, finance_path: Path | None = None
               f"{json.dumps(b['reconcile'], sort_keys=True)}, held {b['held']}, edition differs {b['edition_differs']}")
     for p in extras["problems"]:
         print("  note:", p)
+    print(limits.summary("collector fin"))
     return 3 if block["parity"]["status"] != "ok" else 0
 
 
