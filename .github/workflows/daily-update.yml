@@ -62,13 +62,16 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: requirements.txt
+          cache-dependency-path: requirements.lock
 
+      # requirements.lock is pip-compile's output from requirements.txt (Python 3.12, every package and every
+      # transitive one pinned with its sha256): --require-hashes refuses any file that does not match
+      # (deps/transitive-unpinned). Regenerate it after changing requirements.txt; see the lock file's header.
       - name: Install system tools and Python packages
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq poppler-utils tesseract-ocr
-          python -m pip install -r requirements.txt
+          python -m pip install --require-hashes -r requirements.lock
 
       # The text and OCR caches below are only valid for the tesseract and poppler (pdftotext) that wrote them: their
       # version lines, hashed, are part of that cache's key, so an image update starts a fresh cache.

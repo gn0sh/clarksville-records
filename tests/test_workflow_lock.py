@@ -705,3 +705,41 @@ def test_protect_main_scripts_share_one_ruleset_body():
     ps1 = (ROOT / "scripts" / "protect-main.ps1").read_text(encoding="utf-8")
     # no double quote inside a --jq argument: Windows PowerShell 5.1 strips them on the way to gh
     assert not re.search(r"--jq '[^']*\"", ps1) and "$ENV.RULESET_NAME" in ps1
+
+
+# ------------------------------------------------------------------ deps/transitive-unpinned: the hashed lock
+def _lock_pins() -> dict:
+    """{name: (version, [hashes])} from requirements.lock (pip-compile --generate-hashes output)."""
+    pins, name = {}, None
+    for line in (ROOT / "requirements.lock").read_text(encoding="utf-8").splitlines():
+        m = re.match(r"^([A-Za-z0-9_.-]+)==([^\s\\;]+)", line)
+        if m:
+            name = m.group(1).lower().replace("_", "-")
+            pins[name] = (m.group(2), [])
+        h = re.search(r"--hash=sha256:([0-9a-f]{64})", line)
+        if h and name:
+            pins[name][1].append(h.group(1))
+    return pins
+
+
+def test_the_update_job_installs_only_hashed_pins_from_the_lock():
+    steps = {s.get("name"): s for s in WF["jobs"]["update"]["steps"]}
+    run = steps["Install system tools and Python packages"]["run"]
+    assert "python -m pip install --require-hashes -r requirements.lock" in run and "requirements.txt" not in run
+    assert re.findall(r"pip install -[^\n]*", TEXT) == ["pip install --require-hashes -r requirements.lock"]
+    pins = _lock_pins()
+    assert pins and all(hashes for _, hashes in pins.values()), "every locked package carries its sha256"
+
+
+def test_the_lock_matches_requirements_txt_and_the_runner_python():
+    pins = _lock_pins()
+    for line in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines():
+        line = line.split("#")[0].strip()
+        if line:
+            name, version = line.split("==")
+            assert pins[name.lower().replace("_", "-")][0] == version, f"{name}: rerun pip-compile (requirements.lock)"
+    py = {s["with"]["python-version"] for j in WF["jobs"].values() for s in j["steps"]
+          if s.get("uses", "").startswith("actions/setup-python")}
+    assert py == {"3.12"}                                                         # the Python the lock was compiled on
+    head = (ROOT / "requirements.lock").read_text(encoding="utf-8")[:400]
+    assert "pip-compile with Python 3.12" in head and "--generate-hashes" in head
