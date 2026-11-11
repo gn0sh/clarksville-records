@@ -40,9 +40,12 @@ muts += [
     ("polarity: table / postpone / continue", 'if re.search(r"\\btabl|\\bpostpon|\\bcontinu", t):', "if False:"),
     # review of 33e13a2: the mover's polarity, the table kinds, a lack of a second in the mover clause
     ("polarity: a mover naming no kind passes", "            if b and a != b:", "            if a and b and a != b:"),
-    ("kind: table", '    (r"\\btabl", "Motion to table"),\n', ""),
-    ("kind: postpone", '    (r"\\bpostpon", "Motion to postpone"),\n', ""),
-    ("kind: continue", '    (r"\\bcontinu", "Motion to continue"),\n', ""),
+    ("kind: table", '"Motion to table"),', '"Motion"),'),
+    ("kind: postpone", '"Motion to postpone"),', '"Motion"),'),
+    ("kind: continue", '"Motion to continue"),', '"Motion"),'),
+    ("kind: table needs the verb", 'r"\\bto\\s+table\\b|\\btabling\\b"', 'r"\\btabl"'),
+    ("polarity: an election or adjournment passing for approval", "_polarity(kind) or ELECT_ADJOURN.get(kind),",
+     "_polarity(kind),"),
     ("10a mover clause: lack of a second", "                or LACK_OF_SECOND.search(own)", ""),
 ]
 # 10c: each MEMBER_VOTE alternative

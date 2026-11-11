@@ -431,3 +431,25 @@ def test_a_mover_and_outcome_of_one_kind_are_confirmed(text, kind):
 def test_a_lack_of_a_second_in_the_mover_clause_is_not_confirmed():
     held(one("Mr. Hadley made the motion for approval that died for lack of a second. Mr. Powers seconded. "
              "Motion passed."), R.WHY_UNLISTED)
+
+
+
+@pytest.mark.parametrize("text,kind", [
+    # real 2025-01-28 motion 1 and 2026-03-23 cdrb motion 9: an election or adjournment passing "for approval"
+    ("Valerie Guzman made a motion to nominate Jeff Henley as chairman, seconded by Michael Long. All others voted "
+     "in favor, motion passes for approval.", "Motion to elect"),
+    ("Wanda Smith made a motion to adjourn. Seconded by David Smith. All members voted in favor. Motion passes for "
+     "approval.", "Motion to adjourn"),
+])
+def test_an_election_or_adjournment_passing_for_approval_is_confirmed(text, kind):
+    m = one(text, extra=("Valerie Guzman", "Jeff Henley", "Wanda Smith", "David Smith"))
+    ok(m)
+    assert m.kind == kind
+
+
+@pytest.mark.parametrize("words", ["for the addition of truck stops to the Use Table",       # real 2023-07-25 m 12
+                                   "as they continue to do",                                 # real 2025-10-28 m 31
+                                   "for Richard Swift to continue as Chairman"])            # real 2023-01-24 m 16
+def test_table_and_continue_as_nouns_are_not_a_kind(words):
+    assert R.motion_kind(f"made the motion for approval {words}") == "Motion for approval"
+    assert R.motion_kind(f"made the motion {words}") == "Motion"

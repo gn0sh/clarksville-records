@@ -235,14 +235,16 @@ MOTION_KINDS = (
     (r"\bdisapprov|\bden(?:y|ial)\b", "Motion for disapproval"),
     (r"\bdefer", "Motion to defer"),
     (r"\bwithdraw", "Motion to withdraw"),
-    (r"\btabl", "Motion to table"),
-    (r"\bpostpon", "Motion to postpone"),
-    (r"\bcontinu", "Motion to continue"),
+    (r"\bto\s+table\b|\btabling\b", "Motion to table"),        # the verb: never "the Use Table"
+    (r"\bto\s+postpone\b|\bpostponement\b", "Motion to postpone"),
+    (r"\bto\s+continue\b(?!\s+as\b)|\bcontinuance\b", "Motion to continue"),   # not "to continue as Chairman"
     (r"\bapprov|\brecommend", "Motion for approval"),
     (r"\belect\b|\bnominat", "Motion to elect"),
     (r"\badjourn", "Motion to adjourn"),
 )
 MOTION_DEFAULT = "Motion"
+# an election or adjournment has no case to approve or deny: the motion passing "for approval" approves it
+ELECT_ADJOURN = {"Motion to elect": "approve", "Motion to adjourn": "approve"}
 MEETING_KINDS = {"Motion to elect", "Motion to adjourn", "Motion to approve the minutes"}
 # the meeting's own business (rule 1): the only motions confirmed with no case; every other kind disposes of a case
 MEETING_BUSINESS = MEETING_KINDS | {"Motion to approve the consent agenda", "Motion to approve the deferrals"}
@@ -669,7 +671,7 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
             # the same from the mover: "made the motion for disapproval ... Motion for approval passed", and
             # (rpc-votes/outcome-other-motion) "made the motion to table the case ... Motion passes for approval" or
             # "made the motion stating ... Motion for approval passed", where the mover's words name none
-            a, b = _polarity(kind), _polarity(mv.outcome)
+            a, b = _polarity(kind) or ELECT_ADJOURN.get(kind), _polarity(mv.outcome)
             if b and a != b:
                 reasons.append(WHY_OTHER_KIND)
         else:

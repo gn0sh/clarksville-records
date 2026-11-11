@@ -296,3 +296,26 @@ before/after confirmed counts (1307 motions, 1088 confirmed at 0927bfe) by reaso
   number that is also on the same meeting's agenda reads as a clean heading for the wrong case. C1 cannot see the
   misread in the text, so the motion would be placed under the wrong case. A later fix would check the heading against
   the applicant or location the agenda prints for that case. Until then, QA samples placement against the page image.
+
+## Fixes from the delta review of 33e13a2 (backend-engineer, 2026-11-11; MOTION_RULES "rpc-motion-invariant-4")
+- `rpc-votes/outcome-other-motion`, reverse direction: an outcome that names a polarity needs the same polarity from the
+  mover. The mover's polarity comes from the motion's kind (MOTION_KINDS, read from the mover's words). New kinds:
+  "Motion to table" (`to table` or `tabling`), "Motion to postpone" (`to postpone` or `postponement`) and "Motion to
+  continue" (`to continue` but not `to continue as`, or `continuance`). They need the verb form, so "the Use Table" and
+  "as they continue to do" are not kinds. A kind with no polarity ("Motion") under an outcome that names one is
+  WHY_OTHER_KIND. An election or adjournment counts as "approve" (ELECT_ADJOURN): it has no case, and passing
+  "for approval" approves the motion. With neither side naming a polarity ("made the motion ... motion passed"), the
+  motion is still confirmed as kind "Motion".
+  Deviation: the brief offered mover words or new kinds. The mover's own words added nothing over the kind, and their
+  mutant survived, so only the kind is used.
+- `rpc-votes/no-second`: a lack of a second inside the mover clause makes the body unlisted (WHY_UNLISTED).
+- OUTCOME_TERMS drops the standalone "the request": no confirmed outcome used it. "table the request" stays.
+- The four confirmed motions of kind "Motion" at 33e13a2:
+  - 2022-11-22-regular-motion-3 ("made the motion stating it is consistent ... Motion for approval passed") and
+    2026-06-23-regular-motion-36 ("made a motion on what Jeff Tyndall just stated ... Motion passes for approval") are
+    now WHY_OTHER_KIND.
+  - 2025-03-25-regular-motion-9 is "Motion to table" and stays confirmed.
+  - 2022-05-24-regular-motion-17 ("made the motion based on ... motion passed") names no polarity on either side and
+    stays confirmed as "Motion".
+- Rebuild (merged with project-thread-hu3mew c0c4813): 566 -> 564, only those two. Five unconfirmed motions have a new
+  kind label (table or postpone).
