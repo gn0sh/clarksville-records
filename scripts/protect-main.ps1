@@ -29,12 +29,12 @@ if ($LASTEXITCODE -ne 0) { Write-Host 'Could not list the rulesets (signed in as
 if ($ids.Count -eq 0) {
     Write-Host 'No ruleset yet: creating it.'
     gh api -X POST "repos/$repo/rulesets" --input $body --silent
-    if ($LASTEXITCODE -ne 0) { Write-Host 'Creating the ruleset failed (see the message above).'; exit 1 }
+    if ($LASTEXITCODE -ne 0) { Write-Host 'Creating the ruleset failed (see the message above). Nothing was changed. Send this output to the team.'; exit 1 }
 } else {
     foreach ($id in $ids) {
         Write-Host "Ruleset $id already exists: updating it."
         gh api -X PUT "repos/$repo/rulesets/$id" --input $body --silent
-        if ($LASTEXITCODE -ne 0) { Write-Host "Updating ruleset $id failed (see the message above)."; exit 1 }
+        if ($LASTEXITCODE -ne 0) { Write-Host "Updating ruleset $id failed (see the message above). The ruleset may be unchanged. Send this output to the team."; exit 1 }
     }
 }
 
