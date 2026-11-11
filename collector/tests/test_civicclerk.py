@@ -333,16 +333,30 @@ PAGE1_OTHER = ("                                         City of Clarksville\n"
                "                                         June 10, 2025 at 9:00 AM\n")
 
 
-def test_config_also_lists_general_special_sessions_on_the_api_host(cfg):
-    assert cfg.also_list == ({"category_name": "General", "event_name": "Special Session",
-                              "page1": "City Council - Special Session"},)
-    assert ALSO.startswith(API + "/v1/Events?$filter=categoryName%20eq%20%27General%27%20and%20eventName%20eq%20"
-                                 "%27Special%20Session%27%20and%20startDateTime%20ge%202024-01-01T00:00:00Z")
+def test_config_also_lists_general_council_meetings_on_the_api_host(cfg):
+    [also] = cfg.also_list
+    assert also["category_name"] == "General" and also["name_words"] == ("Session", "Council", "One Time Event")
+    assert also["events"][0] == {"event_name": also["events"][0]["event_name"], "page1": "City Council - Special Session"}
+    assert ALSO.startswith(API + "/v1/Events?$filter=categoryName%20eq%20%27General%27%20and%20startDateTime%20ge%20"
+                                 "2024-01-01T00:00:00Z%20and%20(contains(eventName,%27Session%27)%20or%20"
+                                 "contains(eventName,%27Council%27)%20or%20contains(eventName,%27One%20Time%20Event%27))")
+
+
+GOOD_ALSO = {"category_name": "General", "name_words": ["Session"],
+             "events": [{"event_name": "Special Session", "page1": "City Council - Special Session"}]}
 
 
 @pytest.mark.parametrize("also,match", [
-    ([{"category_name": "General", "event_name": "Special Session"}], "also_list"),
-    ([{"category_name": "General", "event_name": "", "page1": "x"}], "also_list"),
+    ([{"category_name": "General", "event_name": "Special Session", "page1": "x"}], "also_list"),   # the old flat form
+    ([{**GOOD_ALSO, "category_name": ""}], "also_list"),
+    ([{**GOOD_ALSO, "name_words": []}], "name_words"),
+    ([{**GOOD_ALSO, "name_words": ["Ses'sion"]}], "name_words"),          # a word goes into the OData filter
+    ([{**GOOD_ALSO, "name_words": ["Session)%20or%20true"]}], "name_words"),
+    ([{**GOOD_ALSO, "events": []}], "events"),
+    ([{**GOOD_ALSO, "events": [{"event_name": "Special Session"}]}], "events"),
+    ([{**GOOD_ALSO, "events": [{"event_name": "Special Session", "page1": " "}]}], "events"),
+    ([{**GOOD_ALSO, "events": [{"event_name": "(Special", "page1": "x"}]}], "not a regex"),
+    ([GOOD_ALSO, GOOD_ALSO], "listed twice"),
     ("General", "also_list must be a list"),
 ])
 def test_config_rejects_a_bad_also_list(also, match):
@@ -352,7 +366,9 @@ def test_config_rejects_a_bad_also_list(also, match):
     with pytest.raises(cc.CivicClerkConfigError, match="also_events_url"):
         cc.parse_config({**raw, "also_events_url": ""})
     with pytest.raises(cc.CivicClerkConfigError, match="api_host"):
-        cc.parse_config({**raw, "also_events_url": "https://evil.example/{category}{event}"})
+        cc.parse_config({**raw, "also_events_url": "https://evil.example/{category}{names}"})
+    with pytest.raises(cc.CivicClerkConfigError, match="unknown field"):    # the old {event} template
+        cc.parse_config({**raw, "also_events_url": "https://{host}/v1/Events?{category}{event}"})
 
 
 def test_the_also_listing_keeps_only_its_category_and_event_name_and_marks_each_row(cfg, acfg):
@@ -364,6 +380,84 @@ def test_the_also_listing_keeps_only_its_category_and_event_name_and_marks_each_
     assert rows[0]["minutes_url"] == cfg.file(3068) and rows[0]["agenda_url"] == cfg.file(2887)
     main, _ = cc.parse_events(page, cfg, acfg.kind_of)
     assert [r["event_id"] for r in main] == [91] and "page1_required" not in main[0]
+
+
+# Every council meeting CivicClerk filed under "General", 2024-01-01 to 2026-11-11 (full General listing, 374 events),
+# with the heading its own page 1 prints (read 2026-11-11): each configured pattern lists it and names that heading.
+COUNCIL_UNDER_GENERAL = [
+    ("2025-02-18", "City Council Special Session", "City Council - Special Session", "special"),
+    ("2025-06-17", "City Council Special Session - First Reading of the Budget", "City Council - Special Session",
+     "special"),
+    ("2025-06-24", "City Council Special Session - Second Reading of the Budget", "City Council - Special Session",
+     "special"),
+    ("2025-11-12", "Special Called City Council Meeting", "City Council - Special Session", "special"),
+    ("2026-02-11", "Special Session", "City Council - Special Session", "special"),
+    ("2026-06-11", "Special Session and First Reading of the Budget", "City Council - Special Work Session", "special"),
+    ("2026-06-16", "Special Budget Session", "City Council - Special Session", "special"),
+    ("2026-06-22", "Special Session - 1st Reading of the Budget", "City Council - Special Session", "special"),
+    ("2026-05-26", "Special Work Session - Budget", "City Council - Special Work Session", "work-session"),
+    ("2026-07-02", "Regular Session", "City Council - Regular Session", "regular"),
+    ("2026-07-02", "  city council   regular session ", "City Council - Regular Session", "regular"),  # case, spaces
+]
+# General events of other bodies (same listing), never listed as the council's
+OTHER_UNDER_GENERAL = ["Special Called Senior Board Meeting", "Roxy Regional Theater Board Special Called Meeting",
+                       "Clarksville Housing Authority Special Called Meeting", "Arts & Heritage Council",
+                       "Economic Development Council", "Special Called Regional Planning Commission Mtg",
+                       "Senior Board Special Called Training Meeting", "City Council Training Session",
+                       "FY27 Budget Committee Review Meeting (Finance Committee)", "Special Session of the Power Board",
+                       "Regular Session - Beer Board"]
+
+
+@pytest.mark.parametrize("date,name,page1,kind", COUNCIL_UNDER_GENERAL)
+def test_each_council_name_under_general_is_listed_with_its_own_page_1_heading(cfg, acfg, date, name, page1, kind):
+    e = event(5000, f"{date}T16:30:00Z", name, [(6000, "Minutes", "Minutes", "")], category="General")
+    [row], _ = cc.parse_events({"value": [e]}, cfg, acfg.kind_of, cfg.also_list[0])
+    assert row["page1_required"] == page1 and row["kind"] == kind
+    assert row["listed_as"] == f"General / {name.strip()}"
+    assert any(w.lower() in " ".join(name.split()).lower() for w in cfg.also_list[0]["name_words"])   # the API asks
+
+
+@pytest.mark.parametrize("name", OTHER_UNDER_GENERAL)
+def test_another_bodys_general_event_is_not_listed(cfg, acfg, name):
+    e = event(5001, "2026-06-15T16:00:00Z", name, [(6001, "Minutes", "Minutes", "")], category="General")
+    assert cc.parse_events({"value": [e]}, cfg, acfg.kind_of, cfg.also_list[0]) == ([], [])
+
+
+def test_a_council_name_in_another_category_is_not_listed_by_the_also_listing(cfg, acfg):
+    e = event(5002, "2026-06-15T16:00:00Z", "City Council Special Session", [(6002, "Minutes", "Minutes", "")],
+              category="Planning Commission")
+    assert cc.parse_events({"value": [e]}, cfg, acfg.kind_of, cfg.also_list[0]) == ([], [])
+
+
+PAGE1_HEADINGS = {"City Council - Special Session": PAGE1_CITY,
+                  "City Council - Special Work Session": PAGE1_CITY.replace("Special Session", "Special Work Session"),
+                  "City Council - Regular Session": PAGE1_CITY.replace("Special Session", "Regular Session")}
+
+
+@pytest.mark.parametrize("date,name,page1,kind", COUNCIL_UNDER_GENERAL[:-1])
+def test_build_keeps_each_pattern_only_on_its_own_heading(cfg, acfg, date, name, page1, kind):
+    e = event(5003, f"{date}T16:30:00Z", name, [(6003, "Minutes", "Minutes", "")], category="General")
+    facts, summary = _d1_build(cfg, acfg, [e], lambda url: PAGE1_HEADINGS[page1])
+    assert [m["id"] for m in facts["meetings"]] == [f"{date}-{kind}"] and not summary["skipped_events"]
+    for other in set(PAGE1_HEADINGS) - {page1}:                # another council heading is not this pattern's
+        facts, summary = _d1_build(cfg, acfg, [e], lambda url: PAGE1_HEADINGS[other])
+        assert facts["meetings"] == [] and summary["skipped_events"][0]["event_id"] == 5003
+
+
+@pytest.mark.parametrize("page1", [
+    "                                    City of Clarksville\n                                    ACT Authority\n",
+    "MINUTES\n1.   Call to Order\nThe City of Clarksville Public Safety Committee Meeting was called to\n",
+    "                    Clarksville Housing Authority - Special Session\n",
+])
+def test_a_one_time_event_of_another_body_is_skipped_and_named(cfg, acfg, page1):
+    """"One Time Event" is a name any body uses (2024-07-09 the ACT Authority, 2025-04-16 the Public Safety Committee,
+    as their own page 1 prints): listed so a council one would be found, never kept on its name."""
+    e = event(2895, "2024-07-09T12:00:00Z", "One Time Event",
+              [(2656, "Agenda", "Agenda", ""), (2657, "Minutes", "Minutes", "")], category="General")
+    facts, summary = _d1_build(cfg, acfg, [e], lambda url: page1)
+    assert facts["meetings"] == [] and facts["sources"] == []
+    assert summary["skipped_events"][0]["listed_as"] == "General / One Time Event"
+    assert "does not print 'City Council - Special Session' on a line of its own" in summary["skipped_events"][0]["reason"]
 
 
 def test_discover_asks_the_also_listing_after_the_council_listing(cfg, acfg, tmp_path):

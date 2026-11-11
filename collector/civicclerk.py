@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,6 +27,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCE = "civicclerk"
 AGENDA_CENTER = "agenda-center"
 MAX_PAGES = 200                     # a listing that pages on past this is not the API we know: stop, never loop
+WORD_RE = re.compile(r"[A-Za-z0-9]+(?: [A-Za-z0-9]+)*")    # an also_list name word: letters and digits only
 
 
 class CivicClerkConfigError(Exception):
@@ -47,8 +49,10 @@ class CivicClerkConfig:
     agenda_types: tuple
     minutes_types: tuple
     video_hosts: tuple
-    # D1: other listings that may hold this body's meetings ({category_name, event_name, page1}, ...), each asked with
-    # also_events_url; an event from one is kept only when page 1 of its agenda or minutes prints `page1`
+    # D1: other listings that may hold this body's meetings, one per category: {category_name, name_words, events},
+    # events a tuple of {event_name (a regex, matched in full), page1}. Each is asked with also_events_url (names
+    # containing any of name_words); an event is listed only when its name matches one of `events`, and kept by the
+    # build only when page 1 of its agenda or minutes prints that pattern's `page1` as a line of its own
     also_list: tuple = ()
     also_events_url: str = ""
 
@@ -58,8 +62,9 @@ class CivicClerkConfig:
 
     def also_url(self, also: dict) -> str:
         q = lambda s: urllib.parse.quote(s.replace("'", "''"))        # noqa: E731 (an OData string literal)
+        names = "%20or%20".join(f"contains(eventName,%27{q(w)}%27)" for w in also["name_words"])
         return self.also_events_url.format(host=self.api_host, from_date=self.from_date,
-                                           category=q(also["category_name"]), event=q(also["event_name"]))
+                                           category=q(also["category_name"]), names=names)
 
     def file(self, file_id: int) -> str:
         return self.file_url.format(host=self.api_host, file_id=int(file_id))
@@ -98,7 +103,10 @@ def parse_config(cfg) -> CivicClerkConfig:
     if out.also_list and not out.also_events_url:
         raise CivicClerkConfigError("civicclerk.yml: also_list needs also_events_url")
     urls = [("events_url", out.first_url()), ("file_url", out.file(1))]
-    urls += [("also_events_url", out.also_url(a)) for a in out.also_list]
+    try:
+        urls += [("also_events_url", out.also_url(a)) for a in out.also_list]
+    except (KeyError, IndexError) as ex:
+        raise CivicClerkConfigError(f"civicclerk.yml: also_events_url has an unknown field {ex}") from None
     for key, url in urls:
         parts = urllib.parse.urlsplit(url)
         if parts.scheme != "https" or parts.netloc != host:
@@ -109,16 +117,49 @@ def parse_config(cfg) -> CivicClerkConfig:
 
 
 def _also(raw) -> tuple:
-    """also_list: [{category_name, event_name, page1}], each a non-empty string (D1)."""
+    """also_list (D1): [{category_name, name_words: [word, ...], events: [{event_name, page1}, ...]}]. A category at
+    most once; a name word is letters and digits (it goes into the OData filter); event_name is a regex matched in
+    full, case-insensitive, against the event name with its whitespace collapsed; page1 is a non-empty heading line."""
     if not isinstance(raw, list):
         raise CivicClerkConfigError("civicclerk.yml: also_list must be a list")
-    out = []
+    out, cats = [], set()
     for i, a in enumerate(raw):
-        if not (isinstance(a, dict) and set(a) == {"category_name", "event_name", "page1"}
-                and all(isinstance(v, str) and v.strip() for v in a.values())):
-            raise CivicClerkConfigError(f"civicclerk.yml: also_list[{i}] must be {{category_name, event_name, page1}}")
-        out.append({k: v.strip() for k, v in a.items()})
+        where = f"civicclerk.yml: also_list[{i}]"
+        if not (isinstance(a, dict) and set(a) == {"category_name", "name_words", "events"}
+                and isinstance(a["category_name"], str) and a["category_name"].strip()):
+            raise CivicClerkConfigError(f"{where} must be {{category_name, name_words, events}}")
+        cat = a["category_name"].strip()
+        if cat in cats:
+            raise CivicClerkConfigError(f"{where}: category {cat!r} is listed twice")
+        cats.add(cat)
+        words = a["name_words"]
+        if not (isinstance(words, list) and words and all(isinstance(w, str) and WORD_RE.fullmatch(w) for w in words)):
+            raise CivicClerkConfigError(f"{where}: name_words must be a list of words (letters and digits)")
+        events = a["events"]
+        if not (isinstance(events, list) and events):
+            raise CivicClerkConfigError(f"{where}: events must be a non-empty list")
+        pats = []
+        for j, e in enumerate(events):
+            if not (isinstance(e, dict) and set(e) == {"event_name", "page1"}
+                    and all(isinstance(v, str) and v.strip() for v in e.values())):
+                raise CivicClerkConfigError(f"{where}.events[{j}] must be {{event_name, page1}}")
+            try:
+                re.compile(e["event_name"])
+            except re.error as ex:
+                raise CivicClerkConfigError(f"{where}.events[{j}]: event_name is not a regex ({ex})") from None
+            pats.append({"event_name": e["event_name"].strip(), "page1": e["page1"].strip()})
+        out.append({"category_name": cat, "name_words": tuple(words), "events": tuple(pats)})
     return tuple(out)
+
+
+def also_pattern(name: str, also: dict) -> dict | None:
+    """The first of also's event patterns whose regex matches the whole event name (case-insensitive, whitespace
+    collapsed), else None: an event of that category under any other name is not listed (D1)."""
+    name = " ".join((name or "").split())
+    for p in also["events"]:
+        if re.fullmatch(p["event_name"], name, re.I):
+            return p
+    return None
 
 
 def load_config(path: Path | None = None) -> CivicClerkConfig:
@@ -148,9 +189,10 @@ def parse_events(page: dict, cfg: CivicClerkConfig, kind_of, also: dict | None =
     """One OData page -> (rows, problems). kind_of(title) is the Agenda Center config's kind rule, so both sources
     name kinds alike. Events of another category are left out (the filter should already have done it).
 
-    `also` (D1, one also_list entry): read the page of that listing instead: only events of exactly that category and
-    event name, each row marked `listed_as` and `page1_required`, so the build keeps it only when page 1 of its stored
-    agenda or minutes prints that text (city_build.page1_check); every other is skipped there and named."""
+    `also` (D1, one also_list entry): read the page of that listing instead: only events of exactly that category
+    whose name matches one of its event patterns (also_pattern), each row marked `listed_as` and `page1_required`
+    (that pattern's page1), so the build keeps it only when page 1 of its stored agenda or minutes prints that line
+    (city_build.page1_check); every other is skipped there and named."""
     if not isinstance(page, dict) or not isinstance(page.get("value"), list):
         raise EventsError("events page has no 'value' list: the API changed. Not guessing.")
     rows, problems = [], []
@@ -159,9 +201,12 @@ def parse_events(page: dict, cfg: CivicClerkConfig, kind_of, also: dict | None =
             continue
         if also is None and e.get("categoryName") != cfg.category_name:
             continue
-        if also is not None and (e.get("categoryName") != also["category_name"]
-                                 or (e.get("eventName") or "").strip() != also["event_name"]):
-            continue
+        pattern = None
+        if also is not None:
+            if e.get("categoryName") == also["category_name"]:
+                pattern = also_pattern(e.get("eventName") or "", also)
+            if pattern is None:
+                continue
         start, title, eid = e.get("startDateTime") or "", (e.get("eventName") or "").strip(), e.get("id")
         if len(start) < 10 or not title or not isinstance(eid, int):
             problems.append({"event": eid, "problem": "event without a date, name or id",
@@ -192,9 +237,9 @@ def parse_events(page: dict, cfg: CivicClerkConfig, kind_of, also: dict | None =
             "minutes_name": minutes.get("name") if minutes else None,
             "video_url": video, "has_media": bool(e.get("hasMedia")), "has_previous_versions": False,
         })
-        if also is not None:
-            rows[-1]["listed_as"] = f"{also['category_name']} / {also['event_name']}"
-            rows[-1]["page1_required"] = also["page1"]
+        if pattern is not None:
+            rows[-1]["listed_as"] = f"{also['category_name']} / {title}"
+            rows[-1]["page1_required"] = pattern["page1"]
     return rows, problems
 
 

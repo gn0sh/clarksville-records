@@ -468,9 +468,12 @@ def also_listed(x: dict, source_for) -> dict:
 
 
 def _other_meeting(src: dict, path, row: dict, cfg, parse, read_shas: set) -> str | None:
-    """Why a minutes file listed for more than one meeting is not this meeting's, or None when it is."""
+    """Why a minutes file listed for more than one meeting is not this meeting's, or None when it is. The date is the
+    call-to-order sentence's, or, when that prints no full date, the page-1 heading's (the 2026-02-11 minutes, also
+    posted for the meeting resumed 2026-02-19, print "Wednesday, February 11," and "February 11, 2026 at 4:30 PM")."""
     try:
-        printed = parse(path, cfg).printed_date
+        pm = parse(path, cfg)
+        printed = pm.printed_date or pm.heading_date
     except Exception as ex:                                   # read again (and reported) in the main loop
         return f"the same minutes file is listed for another meeting and could not be read: {type(ex).__name__}"
     if printed != row["date"]:

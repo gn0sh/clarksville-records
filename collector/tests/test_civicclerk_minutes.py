@@ -370,6 +370,43 @@ def test_minutes_for_two_meetings_without_an_agenda_leave_the_other_out(cfg):
     assert summary["minutes_status"]["not_in_facts"] == 1
 
 
+# D1: the 2026-02-11 Special Session minutes (fileId 3068) are posted again, the same bytes, as the minutes of the
+# session resumed 2026-02-19 (fileId 3069). Their call-to-order sentence prints no year ("on Wednesday, February 11,
+# at 4:30 PM"); the page-1 heading prints "February 11, 2026 at 4:30 PM".
+FEB11_2026 = CAPS_2025.replace("August 7, 2025 at 6:00 PM", "February 11, 2026 at 4:30 PM").replace(
+    "City Council - Regular Session", "City Council - Special Session").replace(
+    "on Thursday, August 7, 2025, at 6:00 PM", "on Wednesday, February 11, at 4:30 PM")
+
+
+def test_the_heading_date_is_read_only_from_a_page_1_date_line_before_the_minutes_title():
+    from collector.city_minutes import heading_date, lines_of
+    assert called_to_order_on(FEB11_2026) is None                          # no year in the sentence
+    assert heading_date(lines_of([FEB11_2026])) == "2026-02-11"
+    assert heading_date(lines_of([CAPS_2025])) == "2025-08-07"
+    assert heading_date(lines_of(["MINUTES\nFebruary 11, 2026 at 4:30 PM\n"])) is None          # after the title
+    assert heading_date(lines_of(["Held February 11, 2026 at 4:30 PM\n"])) is None              # not a line of its own
+    assert heading_date(lines_of(["City Council\n", "February 11, 2026 at 4:30 PM\n"])) is None  # not on page 1
+
+
+def test_minutes_of_a_session_and_its_resumption_are_read_for_the_heading_date_when_the_sentence_has_none(cfg):
+    """Before: neither meeting read them (no printed date), so the session's roll calls, and the cited member whose
+    record they are, were lost once the resumed session was listed (D1 widening, 2026-11-11)."""
+    rows = cc_rows()
+    rows[0] = {**rows[0], "date": "2026-02-11", "title": "Special Session", "kind": "special", "agenda_id": "cc-3",
+               "minutes_url": API.format(3068)}
+    rows[1] = {**rows[1], "date": "2026-02-19", "title": "City Council Special Session", "kind": "special",
+               "agenda_id": "cc-4", "minutes_url": API.format(3069), "agenda_url": API.format(2903)}
+    entries = [entry(API.format(3068), "minutes", "2026-02-11", 7), entry(API.format(3069), "minutes", "2026-02-19", 7),
+               entry(API.format(2903), "agenda", "2026-02-19", 8)]
+    facts, summary = built(cfg, [FEB11_2026, FEB11_2026], rows, entries)
+    ms = {m["date"]: m for m in facts["meetings"]}
+    assert ms["2026-02-11"]["minutes_status"] == "read"
+    assert ms["2026-02-19"]["minutes_status"] == "other_meeting"
+    assert facts["roll_calls"] and {r["meeting_id"] for r in facts["roll_calls"]} == {ms["2026-02-11"]["id"]}
+    assert any(p["meeting"] == "2026-02-19" and "records the meeting of 2026-02-11" in p["problem"]
+               for p in summary["problems"])
+
+
 def test_the_other_listing_of_a_merged_meeting_stays_cited(cfg):
     """city-merge/dropped-citation: 2024-01-04 is kept from CivicClerk; the Agenda Center's agenda for it (not
     fetched) stays in the facts under also_listed, and a fetched file there gets its source id."""
