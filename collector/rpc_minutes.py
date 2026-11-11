@@ -58,7 +58,8 @@ motion's sentences is left unexplained; any doubt is a reason, in plain words, i
 4. (C4) one outcome from the fixed vocabulary is printed, ending its sentence, and it does not name another kind of
    motion ("made the motion for disapproval ... Motion for approval passed" is not confirmed). When no outcome
    sentence follows "All others were in favor." / "All members voted in favor.", that sentence is the outcome as
-   printed, but only when it is the whole sentence and no member is named as voting nay or abstaining ("All members
+   printed, but only when the rest of its sentence names no exception ("except", "but"), no member and no vote word,
+   no member is named as voting nay or abstaining, and no vote word follows it up to the next motion ("All members
    voted in favor, except Cindy Greene who abstained and Bill Kimbrough who voted against." prints no outcome: the
    motion has none and is not confirmed); an outcome sentence ("Motion was approved on the consent agenda.") is
    preferred to the "in favor" sentence before it; a motion that "falls for a lack of a second" has no seconder to read;
@@ -118,6 +119,9 @@ OUTCOME = re.compile(r"\b(?:(?:the\s+)?(?:motion|consent\s+agenda|nomination)(?:
 FAVOUR = re.compile(r"\ball\s+(?:(?:the\s+)?(?:others|other\s+members|members(?:\s+present)?)\s+)?(?:were|voted|was)\s+in\s+"
                     r"favou?r(?=\s*[.,;]|\s*$|\s+and\s+(?:the\s+)?motion\b)", re.I)
 FOLLOW_GAP = 40
+# rule 4: words that make an "in favor" sentence a part of the vote, not all of it ("..., except ...", "..., but ...")
+FAVOUR_EXCEPT = re.compile(r"\b(?:except|but|save|other\s+than|excluding|apart\s+from|exception|and\s+(?:the\s+)?motion)\b",
+                           re.I)
 LACK_OF_SECOND = re.compile(r"\black\s+of\s+(?:a\s+)?second\b", re.I)
 # A section of the minutes after the cases ("OTHER BUSINESS:", "A. MONTHLY PROFIT AND LOSS", "ADJOURN"): its motions
 # belong to no case
@@ -404,10 +408,12 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
         # the vote sentence is the outcome as printed when no outcome sentence follows it straight away
         if fav and (oc is None or oc.start() - _sentence_end(window, fav.end()) > FOLLOW_GAP):
             oc = fav
-        # rule 4: the "in favor" sentence stands as the outcome only when it is all of its sentence ("All members
-        # voted in favor, except Cindy Greene who abstained and ..." is not: its first words alone read as unanimous)
+        # rule 4: the "in favor" sentence stands as the outcome only when the rest of its sentence names no exception,
+        # no member and no vote word ("All members voted in favor, except Cindy Greene who abstained and ..." is not
+        # one: its first words alone read as unanimous; "All members voted in favor, meeting was adjourned." is)
+        rest = window[fav.end():_sentence_end(window, fav.end())] if fav else ""
         fav_goes_on = bool(oc is not None and oc is fav
-                           and re.sub(r"[\s.,;:]", "", window[fav.end():_sentence_end(window, fav.end())]))
+                           and (FAVOUR_EXCEPT.search(rest) or NAME_RX.search(rest) or LEFTOVER_VOTE.search(rest)))
         para = window[:_sentence_end(window, oc.end())] if oc else window[:400]
         after = para[at:]
         cut = re.search(r",?\s*seconded|\.\s|stating|based|because", after)
@@ -475,10 +481,10 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
         for x in ABSTAIN.finditer(votes):
             modelled.append((start + x.start(), start + x.end()))
             mv.abstained += [n for n in _names(x.group("names")) if n not in mv.abstained]
-        # rule 4: an "in favor" sentence is never the outcome when the sentence goes on ("..., except ...", "..., but
-        # ...") or when members are named as voting nay or abstaining, there or in a vote word after it up to the next
-        # motion ("All members voted in favor. Mr. Long voted against."): with no outcome sentence printed, the
-        # motion has no outcome as printed and is not confirmed
+        # rule 4: an "in favor" sentence is never the outcome when its sentence goes on to an exception, a member or a
+        # vote word ("..., except ...", "..., but ..."), when members are named as voting nay or abstaining, or when a
+        # vote word follows it up to the next motion ("All members voted in favor. Mr. Long voted against."): with no
+        # outcome sentence printed, the motion has no outcome as printed and is not confirmed
         tail = text[m.start() + len(para):nxt]
         if oc is not None and oc is fav and (fav_goes_on or mv.nays or mv.abstained or LEFTOVER_VOTE.search(tail)):
             mv.outcome, mv.tally = None, None

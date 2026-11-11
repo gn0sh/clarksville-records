@@ -597,3 +597,16 @@ def test_a_tally_is_never_swallowed_into_the_outcome_words(votes):
     m = _case(MOVED + votes)[0]
     assert not m.confirmed, (m.outcome, m.tally, m.reasons)
     assert m.outcome is None or "5-1" not in m.outcome or m.tally == "5-1"
+
+
+# rpc-votes/outcome-not-printed controls: the rest of an "in favor" sentence with no exception, member or vote word
+# keeps it the outcome as printed (real sentences, 2025-04-22 minutes p33 and 2025-06-24 minutes p1)
+@pytest.mark.parametrize("text", [
+    "Valerie Guzman made a motion to adjourn, seconded by Bill Kimbrough. All others voted in favor, meeting was "
+    "adjourned at 4:48 p.m.",
+    "Bill Kimbrough made a motion to approve the deferrals, seconded by Charlie Patterson. All members voted in favor, "
+    "cases were approved for deferrals.",
+])
+def test_an_in_favor_sentence_that_goes_on_with_no_exception_stays_the_outcome(text):
+    m = _one(text, ("Valerie Guzman", "Bill Kimbrough", "Charlie Patterson"))[0]
+    assert m.outcome is not None and m.outcome.lower().startswith("all ") and m.confirmed, (m.outcome, m.reasons)
