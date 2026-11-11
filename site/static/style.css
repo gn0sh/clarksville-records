@@ -524,6 +524,14 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--focus); out
 .purpose { font-size: var(--t-xl); max-width: 44rem; margin-top: 0.2em; }
 .purpose-sub { margin-top: 0; font-size: var(--t-sm); }
 .landing-search { margin: 12px 0; max-width: 40rem; }
+/* How recent the records are (sitegen/freshness.py): one plain line per body */
+.freshness { margin: 8px 0; max-width: 44rem; font-size: var(--t-sm); }
+.fresh-h { font-size: var(--t-md); margin: 0 0 4px; }
+details.freshness > summary { cursor: pointer; font-weight: 600; font-size: var(--t-md); padding: 10px 0; min-height: 44px; box-sizing: border-box; }
+details.freshness > summary > .fresh-h { display: inline; margin: 0; font-size: inherit; font-weight: inherit; }
+.fresh-list { list-style: none; padding: 0; margin: 0; }
+.fresh-list li { margin: 2px 0; overflow-wrap: anywhere; }
+.fresh-note { margin: 4px 0 0; font-size: var(--t-xs); }
 .landing-search > label { display: block; font-weight: 600; font-size: var(--t-sm); margin-bottom: 4px; }
 .note { padding: 8px 12px; border-left: 3px solid var(--mark-soft); background: var(--surface); font-size: var(--t-sm); }
 .map-caption { font-size: var(--t-xs); color: var(--muted); margin: 4px 0 0; }

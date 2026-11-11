@@ -21,6 +21,8 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   provenance  derived seat dates are worded as seen in roll calls; no term wording, no inferred cutover date;
               the cutover is immaterial (architecture, invariant `provenance`)
   totals      "Recorded absent at X of Y meetings" equals a recount from the meeting pages (AC2.2)
+  official-numbers  each official page's numbers agree with themselves: one value per data-n key, parts add up to
+              their whole, legends and Totals repeat the sentences (site-polish/official-totals-consistent)
   name-links  every occurrence of an official's display name in the visible text of a page is inside an <a> to that
               official's page (standing rule), except in <title>, <option>, item titles (data-item-title: text in
               the document, never linked), the operator lines (footer, About) and on the official's own page
@@ -1305,6 +1307,71 @@ def check_totals(site: Path, pages: dict[str, Page], facts: dict, meetings: str 
     return problems, f"{len(facts['officials'])} officials under {folder}/ recounted"
 
 
+DATA_N = re.compile(r'data-n="([a-z_-]+)"[^>]*>(\d+)<')
+VOTE_KEYS = ("yes", "no", "abstain", "other")
+
+
+def official_number_problems(text: str) -> list[str]:
+    """site-polish/official-totals-consistent, restated here (no call into sitegen): on one official page every number
+    marked data-n shows the same value wherever it appears, the parts add up to their whole (meetings present + absent
+    = meetings listed; votes + roll calls while absent + no vote recorded = roll calls; Yes + No + Abstain + Other =
+    votes; each bar's legend equals the sentence above it), and the Totals sentences repeat the same numbers."""
+    seen: dict[str, set[int]] = defaultdict(set)
+    for k, n in DATA_N.findall(text):
+        seen[k].add(int(n))
+    out = [f"{k} shows {sorted(v)}" for k, v in sorted(seen.items()) if len(v) > 1]
+    n = {k: next(iter(v)) for k, v in seen.items()}
+    need = ("meetings_listed", "present", "absent", "rc_total", "rc_voted", "rc_absent", "rc_novote", "rc_total_nc",
+            "rc_voted_nc", "rc_absent_nc", "rc_novote_nc", "att-present", "att-absent",
+            *(f"vote-{k}" for k in (*VOTE_KEYS, "absent", "novote")))
+    missing = [k for k in need if k not in n]
+    if missing:
+        return out + [f"no data-n for {', '.join(missing)}"]
+
+    def eq(label: str, a: int, b: int) -> None:
+        if a != b:
+            out.append(f"{label}: {a} != {b}")
+    eq("present + absent = meetings listed", n["present"] + n["absent"], n["meetings_listed"])
+    eq("attendance legend present", n["att-present"], n["present"])
+    eq("attendance legend absent", n["att-absent"], n["absent"])
+    for sfx, leg in (("", "vote-"), ("_nc", "vote-nc-")):
+        eq(f"rc_voted{sfx} + rc_absent{sfx} + rc_novote{sfx} = rc_total{sfx}",
+           n["rc_voted" + sfx] + n["rc_absent" + sfx] + n["rc_novote" + sfx], n["rc_total" + sfx])
+        if all(f"{leg}{k}" in n for k in VOTE_KEYS):   # the not confirmed legend exists only with values shown
+            eq(f"{leg}Yes+No+Abstain+Other = rc_voted{sfx}", sum(n[f"{leg}{k}"] for k in VOTE_KEYS), n["rc_voted" + sfx])
+            eq(f"{leg}absent legend", n[f"{leg}absent"], n["rc_absent" + sfx])
+            eq(f"{leg}novote legend", n[f"{leg}novote"], n["rc_novote" + sfx])
+    plain = re.sub(r"<[^>]+>", "", html.unescape(text))
+    m = re.search(r"Recorded absent at (\d+) of (\d+) meetings", plain)
+    if not m:
+        out.append("no 'Recorded absent at X of Y meetings' sentence")
+    else:
+        eq("Totals: absent", int(m.group(1)), n["absent"])
+        eq("Totals: meetings", int(m.group(2)), n["meetings_listed"])
+    m = re.search(r"Roll call votes, \S+ to \S+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other confirmed; "
+                  r"(?:(\d+) votes? in not confirmed\* roll calls|(\d+) Yes\*, (\d+) No\*, (\d+) Abstain\*, (\d+) Other\*)",
+                  plain)
+    if not m:
+        out.append("no 'Roll call votes' totals sentence")
+    else:
+        g = [int(x) if x is not None else None for x in m.groups()]
+        for k, v in zip(VOTE_KEYS, g[:4]):
+            eq(f"Totals: {k}", v, n[f"vote-{k}"])
+        eq("Totals: not confirmed votes", g[4] if g[4] is not None else sum(g[5:]), n["rc_voted_nc"])
+    return out
+
+
+def check_official_numbers(site: Path, facts: dict, folder: str = "officials") -> tuple[list[str], str]:
+    problems, n = [], 0
+    for o in facts["officials"]:
+        f = site / folder / f"{o['id']}.html"
+        if not f.is_file():
+            continue
+        n += 1
+        problems += [f"{folder}/{o['id']}.html: {p}" for p in official_number_problems(f.read_text(encoding="utf-8"))]
+    return problems, f"{n} official pages under {folder}/ agree with themselves"
+
+
 class NameLinks(HTMLParser):
     """Visible text nodes of one page with whether each sits inside an <a> and where that <a> points."""
     SKIP = {"script", "style", "title", "option", "head"}
@@ -1705,6 +1772,57 @@ def _fetch_day_ok(day: str, labelled: bool, urls, instants) -> str | None:
     return None
 
 
+FRESH_BLOCK = re.compile(r'<(section|details) class="freshness".*?</\1>', re.S)
+FRESH_DATE = re.compile(r'<a href="(?P<href>[^"]+)"[^>]*>(?:<time class="nowrap" datetime="(?P<iso>[^"]+)">|'
+                        r'<span class="nowrap">)(?P<text>[^<]+)<')
+FRESH_FY = re.compile(r"fiscal year (\d{4})")
+
+
+def check_freshness_dates(site: Path, pages: dict[str, Page]) -> tuple[list[str], str]:
+    """dates/freshness-linked (site-polish/freshness-no-source-link), restated here on purpose (no call into sitegen):
+    every "through <date>" in a freshness block (the landing, the RPC home) links to a page of this site that exists,
+    holds the linked fragment id and prints that date (ISO or worded, as the site words it; a fiscal year as "FY<n>"
+    or "fiscal year <n>"), or to an https source document. A date with no link fails."""
+    import datetime as _dt
+    problems: list[str] = []
+    n = 0
+    for rel in sorted(pages):
+        raw = (site / rel).read_text(encoding="utf-8")
+        for blk in FRESH_BLOCK.finditer(raw):
+            body = blk.group(0)
+            unlinked = len(re.findall(r'class="nowrap"', body)) - len(FRESH_DATE.findall(body))
+            if unlinked:
+                problems.append(f"{rel}: {unlinked} freshness date(s) with no link to the page that set them")
+            for m in FRESH_DATE.finditer(body):
+                n += 1
+                href, iso, label = html.unescape(m["href"]), m["iso"], html.unescape(m["text"])
+                if href.startswith("https://"):
+                    continue
+                path, _, frag = href.partition("#")
+                target = (site / rel).parent / unquote(path)
+                try:
+                    target = target.resolve()
+                    target.relative_to(site.resolve())
+                except (OSError, ValueError):
+                    problems.append(f"{rel}: freshness link {href!r} leaves the site")
+                    continue
+                if not target.is_file():
+                    problems.append(f"{rel}: freshness link {href!r} has no page")
+                    continue
+                page = target.read_text(encoding="utf-8")
+                if frag and f'id="{frag}"' not in page:
+                    problems.append(f"{rel}: freshness link {href!r}: no id {frag!r} on that page")
+                if iso:
+                    d = _dt.date.fromisoformat(iso)
+                    forms = {iso, f"{d.strftime('%B')} {d.day}, {d.year}", f"{d.strftime('%b')} {d.day}, {d.year}"}
+                else:
+                    fy = FRESH_FY.fullmatch(label)
+                    forms = {f"FY{fy[1]}", label} if fy else {label}
+                if not any(f in page for f in forms):
+                    problems.append(f"{rel}: freshness date {label!r} not printed on the page it links ({href})")
+    return problems, f"{n} freshness dates, each linked to a page printing it"
+
+
 def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bool, county: dict | None = None,
                       councils_: list[dict] | tuple = (), rpc: dict | None = None) -> tuple[list[str], str]:
     """dates/no-raw-utc-day: (1) each per-document fetch day on a page ("fetched D", "Fetched D.", "at fetch (D)")
@@ -1712,7 +1830,7 @@ def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bo
     fetch day, else the previous fetch day's links: a Details list after its links), or is labelled "(UTC day)"
     when no linked source has an instant; (2) an aggregate ("fetched between A and B", "fetched on", "latest
     fetched", "Data as of") is its own page's sources' day (_aggregate_ok: a council's pages, `councils_` {prefix,
-    facts}, by the council's sources; every other page by `county`'s; "latest fetched" by `rpc`'s); a day after
+    facts}, by the council's sources; the RPC's pages (its slug) by `rpc`'s; every other page by `county`'s; "latest fetched" by `rpc`'s); a day after
     "collected", "added", "downloaded" or "retrieved" is a fetch day as in (1), or after "meeting " a meeting date of
     the page's facts; (3) the same for the search index's s.f beside s.u and (4) each feed entry's summary "fetched D"
     beside its related link."""
@@ -1722,6 +1840,9 @@ def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bo
     instants = fetch_instants(cfg, fixture, rows)
     rpc_span = _fetch_span((rpc or {}).get("sources") or [], rows)
     scopes = [(c["prefix"], c["facts"]) for c in councils_]
+    rpc_slug = ((rpc or {}).get("_cfg") or {}).get("slug")
+    if rpc_slug:   # the RPC's own pages date their footer by its sources (site-polish/rpc-subtitle: Rpc.site_for)
+        scopes.append((rpc_slug + "/", rpc))
     spans = {id(f): _fetch_span(f.get("sources") or [], rows) for _, f in scopes + [("", county)]}
     problems: list[str] = []
     n = labelled_n = 0
@@ -2397,6 +2518,11 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
         p2, n2 = check_totals(site, pages, c["facts"], c["prefix"] + "meetings/", c["prefix"] + "members")
         problems, note = problems + p2, f"{note}; {n2}"
     rep.add("totals", problems, "AC2.2: " + note)
+    problems, note = check_official_numbers(site, facts)
+    for c in cs:
+        p2, n2 = check_official_numbers(site, c["facts"], c["prefix"] + "members")
+        problems, note = problems + p2, f"{note}; {n2}"
+    rep.add("official-numbers", problems, note)
     problems, note = check_provenance(site, pages, facts, read_roster(seats_path), cfg)
     rep.add("provenance", problems, note)
     problems, note = check_name_links(site, facts, read_roster(seats_path), cs)
@@ -2411,6 +2537,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("feeds", problems, note)
     problems, note = check_local_dates(site, pages, cfg, bool(facts.get("fixture")), county=facts, councils_=cs, rpc=rpc)
     rep.add("dates/no-raw-utc-day", problems, note)
+    problems, note = check_freshness_dates(site, pages)
+    rep.add("dates/freshness-linked", problems, note)
     problems, note = check_transcripts(site, cs)
     rep.add("transcripts", problems, note)
     problems, note = check_unofficial(site, pages, cfg)

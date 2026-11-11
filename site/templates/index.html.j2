@@ -1,6 +1,7 @@
 {% extends "base.html.j2" %}
 {% from "_unofficial.html.j2" import home_line %}
 {% from "_feed_links.html.j2" import feed_links %}
+{% from "_freshness.html.j2" import freshness as fresh with context %}
 {% block head %}<script src="{{ root }}static/js-flag.js"></script>{{ feed_links(home_feeds | default([]), root) }}{% endblock %}
 {% block sky_sun %}<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>{% endblock %}
 {% block sky %}
@@ -14,7 +15,7 @@
    address box's settings, because the lookup places the Census point against them (docs/research/map-removal-2026-11-10.md). #}
 {% set dl = site.cfg.district_layer %}{% set wl = site.cfg.ward_layer %}{% set wards_live = address and address.get('wards') %}{# shapes the lookup checks #}
 <div class="landing">
-  <h1 class="purpose">{{ site.cfg.purpose }}</h1>
+  <h1 class="purpose">{{ site.purpose }}</h1>
   <p class="muted purpose-sub"><span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>. {% for c in site.councils %}<a href="{{ root }}{{ c.href }}">{{ c.label }}</a>: <span class="nowrap">{{ c.from }} to {{ c.to }}</span>.{% if not loop.last %} {% endif %}{% else %}{{ site.cfg.city_coming }}{% endfor %}</p>
   {# right under the purpose again (no map since 2026-11-10); the same line on every screen width #}
   {{ home_line(site, root) }}
@@ -55,6 +56,7 @@
   {% if site.cfg.district_lookup_url %}
   <p class="district-lookup note">Not sure of your district? <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">Look it up on {{ site.cfg.district_lookup_label }}</a>.</p>
   {% endif %}
+  {{ fresh(freshness | default([]), freshness_note | default(""), collapsed=true) }}
 
     <div class="landing-list">
       <details class="district-list"{% if not address %} open{% endif %}>

@@ -34,7 +34,7 @@
     <div class="brand">
       <p class="site-name"><a href="{{ root }}index.html"><span class="plate-sun" aria-hidden="true"></span><span class="plate"><span class="plate-name">{{ site.site_name }}</span> <span class="plate-place">{{ site.cfg.site_place }}</span></span></a></p>
       <p class="unofficial-tag">{{ site.unofficial.tag }}</p>
-      {% if page_name != "Home" %}<p class="kicker">{{ site.coverage.body }} minutes, <span class="nowrap">{{ site.coverage.from }}</span> to <span class="nowrap">{{ site.coverage.to }}</span></p>{% endif %}
+      {% if page_name != "Home" %}<p class="kicker">{{ site.coverage.body }} {{ site.coverage_what | default("minutes") }}, <span class="nowrap">{{ site.coverage.from }}</span> to <span class="nowrap">{{ site.coverage.to }}</span></p>{% endif %}
     </div>
   </div>
   {% block sky %}{% endblock %}

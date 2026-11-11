@@ -100,7 +100,7 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
 0. **Verify gnoshcodes.com** (once, before any DNS change): open https://github.com/settings/pages > Add a domain >
    `gnoshcodes.com` > add the TXT record it shows (host `_github-pages-challenge-gn0sh`) at Porkbun
    (https://porkbun.com/account/domains > gnoshcodes.com > DNS) > Verify. This stops anyone else claiming a dangling
-   `records` CNAME. Expected: gnoshcodes.com shows as Verified.
+   `daylight` CNAME. Expected: gnoshcodes.com shows as Verified.
 1. Pages source. Open https://github.com/gn0sh/clarksville-records/settings/pages > Build and deployment > Source:
    **GitHub Actions** (replaces the gh-pages branch preview). Expected: the page shows "Your site is ready to be published".
 2. Custom domain, then DNS, back to back (never leave the CNAME pointing at Pages with no custom domain set):
@@ -110,6 +110,8 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
       Check: `dig +short daylight.gnoshcodes.com CNAME` prints `gn0sh.github.io.` (a few minutes).
 3. Wait for the green "DNS check successful" on the Pages settings page (up to 15 minutes), then tick **Enforce HTTPS**
    (certificate issues within about an hour).
+3a. (devops, on the CEO's go-ahead, no CEO step) Merge a one-line PR setting `live: true` in `config/site.yml`, so the
+   About page drops its "has not launched yet" sentence. Merge it before step 4: every deploy builds from `main`.
 4. Enable the deploy lock: https://github.com/gn0sh/clarksville-records/settings/variables/actions > New repository
    variable, Name `RECORDS_DEPLOY_ENABLED`, Value `true`. (Or: `gh variable set RECORDS_DEPLOY_ENABLED --body true
    --repo gn0sh/clarksville-records`.)
@@ -163,10 +165,10 @@ Described diff for `monitor.config.json`, add one entry to `targets` (not applie
   `git revert <sha>`), then Actions > Daily update > Run workflow with collect = **false**. That redeploys the
   reverted committed data without fetching.
 - **Bad code:** revert the merge commit on `main`, run the workflow with collect = false.
-- **Take the site down:** Pages settings > Unpublish site (or set Source to None), **then delete the Porkbun `records`
+- **Take the site down:** Pages settings > Unpublish site (or set Source to None), **then delete the Porkbun `daylight`
   CNAME** so it never dangles.
 - **Domain trouble:** the site also answers at https://gn0sh.github.io/clarksville-records/ only while no custom
-  domain is set; to fall back, remove the Custom domain in Pages settings **and delete the Porkbun `records` CNAME in the
+  domain is set; to fall back, remove the Custom domain in Pages settings **and delete the Porkbun `daylight` CNAME in the
   same sitting** (a CNAME with no custom domain set is a takeover risk, even with gnoshcodes.com verified).
 
 ## Retire the gh-pages preview (after the live site checks out; CEO says go, devops does it)
