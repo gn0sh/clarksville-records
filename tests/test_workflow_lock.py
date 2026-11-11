@@ -460,6 +460,8 @@ def test_note_runs_only_in_the_one_locked_case(event, var, ref):
 @pytest.mark.parametrize("value", [
     "abc-1", "abc-1,def_2", "abc-1, def_2", "abc-1 def_2", "abc-1\ndef_2", " abc-1,\n def_2\tghi3 \n", "a*,b?\n[c]",
     "", "  \n",
+    # note-job/mask-ifs-cr: a secret pasted with Windows line ends, and the other ASCII characters Python's \s splits on
+    "abc-1\r\ndef_2\r\n", "abc-1,\r\ndef_2", "abc-1\rdef_2", "abc-1\vdef_2\fghi3", "abc-1\x1cdef_2\x1fghi3", "\r\n",
 ])
 def test_mask_step_masks_every_canary_id_deliver_accepts(value, tmp_path):
     """security-note-workflow L2: every id sender/deliver.py's canary_ids reads (commas or any whitespace, every
