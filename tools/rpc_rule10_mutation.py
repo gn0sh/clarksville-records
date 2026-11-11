@@ -1,0 +1,86 @@
+"""Mutation run for RPC motion rule 10 (docs/architecture/rpc-motion-invariant.md, `tests-not-pinning`).
+
+Usage: python3 tools/rpc_rule10_mutation.py <tree>   (a copy of the repo at the commit under test, e.g. from
+`git archive HEAD | tar -x -C <tree>`; never the working tree: the file is rewritten per mutant, then restored)
+Deletes each SHAPES entry, each 10b tail trigger, each MEMBER_VOTE alternative, and each 10a order/mover-clause check
+and 10c/10d attribution branch, one at a time, and runs the RPC reader tests. Prints a markdown table: every mutant
+must be killed (at least one test fails)."""
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+tree = Path(sys.argv[1])
+path = tree / "collector" / "rpc_minutes.py"
+src = path.read_text(encoding="utf-8")
+TESTS = ["collector/tests/test_rpc_rule10.py", "collector/tests/test_rpc_minutes.py"]
+muts: list[tuple[str, str, str]] = []
+
+# 10a: each SHAPES entry
+block = src[src.index("SHAPES = (\n"):src.index("\n)\n", src.index("SHAPES = (\n"))]
+for entry in re.findall(r'\n    \("[^"]+", "[^"]+",.*?\),(?=\n    \(|$)', block, re.S):
+    label = re.match(r'\n    \("([^"]+)", "([^"]+)"', entry).group(2)
+    muts.append((f"10a shape: {label}", entry, ""))
+# 10b: each tail trigger
+tail = 'TAIL_OUTCOME = (OUTCOME, FAVOUR, re.compile(r"\\bmotion\\b", re.I))'
+assert tail in src
+muts += [("10b tail trigger: OUTCOME", tail, 'TAIL_OUTCOME = (FAVOUR, re.compile(r"\\bmotion\\b", re.I))'),
+         ("10b tail trigger: FAVOUR", tail, 'TAIL_OUTCOME = (OUTCOME, re.compile(r"\\bmotion\\b", re.I))'),
+         ("10b tail trigger: motion", tail, "TAIL_OUTCOME = (OUTCOME, FAVOUR)")]
+# 10c: each MEMBER_VOTE alternative
+mv_line = src[src.index("MEMBER_VOTE = ("):src.index(")\n", src.index("MEMBER_VOTE = (")) + 1]
+for alt in re.findall(r'r"([^"]+)"', mv_line):
+    new = (mv_line.replace(f'r"{alt}", ', "", 1) if f'r"{alt}", ' in mv_line
+           else re.sub(r",\s*r\"" + re.escape(alt) + r"\"", "", mv_line))
+    assert new != mv_line, alt
+    muts.append((f"10c MEMBER_VOTE: {alt}", mv_line, new))
+# 10a order and mover-clause checks; 10c/10d attribution branches
+muts += [
+    ("10a mover clause: titled name", "if (TITLED.search(own) or LEFTOVER_VOTE", "if (False or LEFTOVER_VOTE"),
+    ("10a mover clause: vote word", "or LEFTOVER_VOTE.search(own) or EXCEPTION_WORD", "or EXCEPTION_WORD"),
+    ("10a mover clause: exception word", "or EXCEPTION_WORD.search(own)\n", "\n"),
+    ("10a mover clause: member surname", 'or any(re.search(rf"\\b{re.escape(n)}\\b", own) for n in surnames)):',
+     "):"),
+    ("10a mover clause: election exception", "    if not ELECT_CLAUSE.match(own):", "    if True:"),
+    ("10a order: one second", '(ph == "second" and (seconds or phase > PHASE["second"]))', "False"),
+    ("10a order: no vote after the outcome", '(ph == "vote" and phase > PHASE["vote"])', "False"),
+    ("10a order: one outcome", '(ph == "outcome" and outcomes)', "False"),
+    ("10a order: 'with' only after the outcome", '(ph == "with" and phase != PHASE["outcome"])', "False"),
+    ("10a an outcome clause is required", 'if not listed or not (any(ph == "outcome" for ph, _, _ in clauses) or '
+     '(oc is not None and oc is fav)):', "if not listed:"),
+    ("10c attribution: lead abstention attributed", "            if own and attribute:", "            if False:"),
+    ("10c attribution: own case only",
+     "(x.group(\"case\") is None or (own_case is not None and named == own_case))", '(x.group("case") is None or True)'),
+    ("10c attribution: first motion only", "attribute = case is not None and k == 0 and",
+     "attribute = case is not None and"),
+    ("10c attribution: case section only", "attribute = case is not None and k == 0 and", "attribute = k == 0 and"),
+    ("10c attribution: disposing motion only", "attribute = case is not None and k == 0 and kind not in MEETING_BUSINESS",
+     "attribute = case is not None and k == 0"),
+    ("10c heading line is a sentence of its own", "cut = max(0, min(head_end, len(lead))) if k == 0 else 0", "cut = 0"),
+    ("10c list scope: motionless case sections", "        if mv.kind in LIST_KINDS:", "        if False:"),
+    ("10d list part in the lead", "            elif x and list_motion and named and named != own_case and named in agenda:",
+     "            elif False:"),
+    ("10d body: own case is read", "                if named is not None and named == case:\n                    continue",
+     "                pass"),
+    ("10d body: another listed case", "                if list_motion and named and named in agenda:",
+     "                if False:"),
+    ("10d body: list-part member written nowhere", " and n not in list_part]", "]"),
+    ("10d body: another case on a caseless motion", "        elif other_case and WHY_OTHER_CASE not in reasons:",
+     "        elif False:"),
+]
+
+rows = []
+for name, old, new in muts:
+    assert src.count(old) == 1, (name, src.count(old))
+    path.write_text(src.replace(old, new), encoding="utf-8")
+    r = subprocess.run([sys.executable, "-B", "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", *TESTS],
+                       cwd=tree, capture_output=True, text=True)
+    last = (r.stdout.strip().splitlines() or ["?"])[-1]
+    failed = re.search(r"FAILED (\S+)", r.stdout)
+    killer = failed.group(1).split("::")[-1] if failed else ("(error) " + last if r.returncode else "")
+    rows.append((name, "killed" if r.returncode else "SURVIVED", killer[:90]))
+path.write_text(src, encoding="utf-8")
+print("| mutant | result | first failing test |\n|---|---|---|")
+for row in rows:
+    print("| " + " | ".join(row) + " |")
+print(f"\n{sum(r[1] == 'killed' for r in rows)} of {len(rows)} killed")

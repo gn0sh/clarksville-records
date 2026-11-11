@@ -237,3 +237,42 @@ before/after confirmed counts (1307 motions, 1088 confirmed at 0927bfe) by reaso
   WHY_OTHER_CASE, so the reason counts in build/rpc-report.json tell the two apart. Measured on the four real OCR
   minutes fixtures: 9 of 16 motions confirmed before and after (no real-data cost visible there; the full effect
   shows only at the rebuild).
+
+## Rule 10 implementation notes (backend-engineer, 2026-11-11; deviations called out)
+- **Measured cost (full rebuild, 168/168 store): 638 -> 568 confirmed, not the ~595 estimated.** 70 lost, 0 gained:
+  27 by 10a only (WHY_UNLISTED), 4 by 10b only, 34 by 10c only and 5 by 10a and 10c together. The 39 lost to 10c
+  break down as follows:
+  - **24 by list scope alone.** The spike did not measure list scope. A consent or deferrals motion is held to every
+    case section with no motion of its own. That covers sections whose own vote the reader did not read ("All members
+    voted in favor." x28 hits) and prose ("vote to recommend disapproval" in a speaker's letter; a CZO resolution
+    text). 2026-07-28 alone loses 12 consent motions to one such section.
+  - **15 by their own lead.** "conflicting traffic movements" and "in conflict with the adopted Future Land Use Plan"
+    in staff reports hit `conflict`; "asked that the Commission vote no" and "would appreciate a vote in favor" hit
+    `vote`.
+  - All of these losses are toward under-confirming, as the rule says. A later option, not taken: limit list scope to
+    the case sections whose case the list motion names. That needs the consent list read first.
+  Changed-motion list: build-time file, not committed. The architect should judge the list-scope cost.
+- **2026-06-23-regular-motion-3 is WHY_LEAD_VOTE, not WHY_LIST_PART.** SR-42-2026 is not on that meeting's agenda in
+  rpc.json (the agenda lists SR-44 to SR-59), so 10d's "off the agenda" branch applies. The motion is not confirmed
+  either way, and the test pins both branches.
+- **2022-09-27-regular-motion-16 reads Mr. Powers as abstaining on its own case, but is not confirmed in the data**:
+  list scope (a speaker's letter in AB-6-2022's section, "vote to recommend disapproval").
+- **Joins**: JOIN also takes ", and " (2024-10-29 p1: "All others voted in favor, and deferrals were approved.") and a
+  plain space before "with" (the outcome's "... 4-2 with Mr. Kimbrough and Mr. Long voting nay", a listed shape). The
+  first join after the mover clause also takes "and" ("... the plan and Mr. Spigner seconded").
+- **"second from M" is "[with a ]second from M"**, and SECOND_AHEAD ends the mover clause there. Without it, the shape
+  could never be reached after a mover clause (real: "with a second from Mr. Kimbrough").
+- **The heading line is a sentence of its own in the lead.** Otherwise "CASE NUMBER: S-73-2024" with no period would
+  run into "Stacey Streetman abstained from voting." and the exact-abstention test would fail.
+- **MEMBER_VOTE drops "did not vote" and "not vot"**: any vote form already matches them. The mutation run showed
+  that deleting either fails no test.
+- **10c's "S is a case section" is `case is not None`**: `case_ok` adds nothing, because a section's case is set only
+  when its number was read.
+- **10d in the body**: for a list motion, a case it names in "abstained from <case>" (another case on the agenda) is
+  not counted again as WHY_OTHER_CASE. The member is left out of `abstained`, so they are written nowhere. Rule 2e
+  (another agenda case printed in the section) still applies.
+- **MOTION_RULES**: `sitegen/rpc.py` imports `collector.rpc_minutes.MOTION_RULES`, so there is one constant.
+  `qa/site_checks.py` keeps its own copy, because the guard imports nothing from the code it checks.
+  `tests/test_rpc_minutes_pages.py` pins all three equal.
+- **Audit**: each row adds `lead`, the text scanned before the motion. The list-scope text is not written.
+- **Mutation table**: docs/reviews/rpc-votes-rule10-mutation.md (`tools/rpc_rule10_mutation.py`), 49 of 49 killed.

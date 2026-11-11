@@ -324,7 +324,7 @@ def test_the_mover_clause_holds_no_title_or_vote_word(text):
 @pytest.mark.parametrize("votes,nays", [
     ("Mr. Long seconded. All others were in favor. Motion passed.", []),           # a second second
     ("Motion passed, Mrs. Streetman voted nay.", ["Mrs. Streetman"]),              # a vote after the outcome
-    ("Motion passed and the motion carried.", []),                                  # a second outcome
+    ("Motion passed, motion carried.", []),                                         # a second outcome
     ("All others were in favor with Mr. Long voting nay. Motion passed.", ["Mr. Long"]),   # "with" before the outcome
 ])
 def test_the_clauses_come_in_their_order_once(votes, nays):
