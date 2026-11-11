@@ -131,8 +131,9 @@ against a fake HTTP layer, sockets refused):
   `id`, `status`, `metadata` (emails). A listing whose rows do not add up to its first page's `count` fails. Writes
   are exactly `PATCH {"metadata"}`, `POST /emails` (known fields only), `PATCH {"status": "draft"}`,
   `POST send-draft {"subscribers"}`. Errors say method, path template and status only, never chained to urllib's.
-- `python -m sender deliver --live` is live only when `sender.enabled` is true and `BUTTONDOWN_API_KEY` is set;
-  otherwise it is a dry run with a fixed `::warning` and exit 0. The key is passed to `deliver.run` as
+- `python -m sender deliver --live` with `sender.enabled` false is a dry run with a fixed `::warning`, exit 0. With
+  `sender.enabled` true, a missing or malformed `BUTTONDOWN_API_KEY` exits 2 with a fixed message that names the
+  variable, never its value, so a forgotten secret at go-live fails the job. The key is passed to `deliver.run` as
   `stamp_secret`. The adapter is imported only on the live path (a subprocess test checks a dry run loads no
   `socket`, `ssl`, `http` or `urllib`).
 

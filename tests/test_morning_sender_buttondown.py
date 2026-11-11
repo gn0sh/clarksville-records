@@ -561,7 +561,7 @@ def test_the_cli_key_variable_is_the_adapters():
 
 
 @pytest.mark.parametrize("live_flag, enabled, key", [
-    (False, False, False), (False, True, True), (True, False, True), (True, True, False), (True, False, False)])
+    (False, False, False), (False, True, True), (False, True, False), (True, False, True), (True, False, False)])
 def test_not_all_three_switches_is_a_dry_run_with_no_request(cli, plan_file, tmp_path, monkeypatch, capsys,
                                                             live_flag, enabled, key):
     main_mod, http = cli
@@ -608,14 +608,20 @@ def test_live_past_latest_send_is_missed_with_no_request(cli, plan_file, tmp_pat
     assert main_mod.main(argv) == deliver.MISSED_EXIT and http.requests == []
 
 
-@pytest.mark.parametrize("bad", ["short", KEY + "\nX-Evil: 1", "a key with spaces in it okay"])
-def test_a_malformed_key_sends_nothing_and_is_not_printed(cli, plan_file, tmp_path, monkeypatch, capsys, bad):
+@pytest.mark.parametrize("bad", [None, "", "short", KEY + "\nX-Evil: 1", "a key with spaces in it okay"])
+def test_live_and_enabled_with_a_missing_or_malformed_key_fails_without_printing_it(cli, plan_file, tmp_path,
+                                                                                    monkeypatch, capsys, bad):
+    """A forgotten or broken secret at go-live fails the job (exit 2), never passes as a dry run. The fixed message
+    names the variable, never its value."""
     main_mod, http = cli
-    monkeypatch.setenv("BUTTONDOWN_API_KEY", bad)
+    if bad is not None:
+        monkeypatch.setenv("BUTTONDOWN_API_KEY", bad)
     argv = ["deliver", "--plan", str(plan_file), "--config", str(config_file(tmp_path, True)), "--live"]
     assert main_mod.main(argv) == 2 and http.requests == []
     out = capsys.readouterr()
-    assert bad not in out.out + out.err and "short" not in out.err
+    assert "BUTTONDOWN_API_KEY" in out.err and "nothing sent" in out.err and "dry run" not in out.out + out.err
+    if bad:
+        assert bad not in out.out + out.err and "short" not in out.err and "spaces" not in out.err
 
 
 def test_the_dry_run_cli_never_imports_the_adapter_or_any_network_module(plan_file, tmp_path):

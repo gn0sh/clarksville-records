@@ -4,9 +4,10 @@
     python -m sender deliver --plan build/morning-send/<D>/plan.json [--config config/site.yml] [--live]
 
 `plan` is the dry run: no connection, no secret. `deliver` describes what a live run would do and opens no
-connection, unless all three hold: `--live` is passed, `morning_note.sender.enabled` is true in the config, and the
-provider key is in the environment (`BUTTONDOWN_API_KEY`). Only then is the provider adapter (sender/buttondown.py,
-the one module that opens a connection) imported at all.
+connection, unless `--live` is passed and `morning_note.sender.enabled` is true in the config. Then the provider key
+must be in the environment (`BUTTONDOWN_API_KEY`): missing or malformed, the command exits 2 with a fixed message
+(never the value). Only a live run imports the provider adapter (sender/buttondown.py, the one module that opens a
+connection).
 """
 from __future__ import annotations
 
@@ -67,22 +68,27 @@ KEY_ENV = "BUTTONDOWN_API_KEY"     # buttondown.KEY_ENV (a test keeps them equal
                                     # imports the adapter
 
 
+class MissingKey(Exception):
+    """--live with the sender enabled but no key in the environment."""
+
+
 def _live_provider(args, cfg):
-    """(provider, stamp_secret) when this run is live, else (None, None) after saying on stderr why it is a dry
-    run. Live needs all three: --live, sender.enabled in the repository's config, the key in the environment."""
+    """(provider, stamp_secret) when this run is live; (None, None) for a dry run (no --live, or --live with the
+    sender disabled in the repository's config, which says so on stderr). With --live and the sender enabled, a
+    missing key raises MissingKey and a malformed one ValueError: the command then fails, it never dry-runs."""
     import os
     if not args.live:
         return None, None
-    if not cfg.enabled:
-        why = "morning_note.sender.enabled is false in the config"
-    elif not os.environ.get(KEY_ENV):
-        why = f"{KEY_ENV} is not set"
-    else:
+    if cfg.enabled:
+        key = os.environ.get(KEY_ENV)
+        if not key:
+            # a forgotten secret at go-live must fail the job, never pass as a dry run
+            raise MissingKey()
         from . import buttondown
-        key = os.environ[KEY_ENV]
         # the key is the stamps' HMAC secret too (architecture "As built": the stamp is unguessable)
         return buttondown.Buttondown(key, api_base=cfg.api_base), key.encode("utf-8")
-    print(f"sender deliver: --live was passed but {why}, so this is a dry run; nothing sent", file=sys.stderr)
+    print("sender deliver: --live was passed but morning_note.sender.enabled is false in the config, so this is a "
+          "dry run; nothing sent", file=sys.stderr)
     # fixed text: the key, an id or an address is never in it
     print("::warning title=Morning note::--live was given but the run was a dry run; see the step log",
           file=sys.stderr)
@@ -113,9 +119,13 @@ def _deliver(args) -> int:
         return 2
     try:
         provider, secret = _live_provider(args, cfg)
-    except Exception:       # noqa: BLE001  a bad key or base: the text could quote the key, so say only where
-        print("sender deliver: the provider client could not be set up (check the key and api_base); nothing sent",
+    except MissingKey:
+        print(f"sender deliver: --live with the sender enabled, but {KEY_ENV} is not set; nothing sent",
               file=sys.stderr)
+        return 2
+    except Exception:       # noqa: BLE001  a bad key or base: the text could quote the key, so it is never printed
+        print(f"sender deliver: --live with the sender enabled, but {KEY_ENV} is not a usable key (or api_base is "
+              "wrong); nothing sent", file=sys.stderr)
         return 2
     return deliver.run(plan, cfg, provider=provider, live=provider is not None, canary_ids=canary,
                        stamp_secret=secret).code
@@ -136,7 +146,7 @@ def main(argv=None) -> int:
     d.add_argument("--plan", required=True, help="plan.json from the plan stage")
     d.add_argument("--config", default="config/site.yml")
     d.add_argument("--live", action="store_true",
-                   help=f"send for real; still a dry run unless sender.enabled is true and {KEY_ENV} is set")
+                   help=f"send for real (needs {KEY_ENV}); a dry run while sender.enabled is false")
     d.set_defaults(fn=_deliver)
     args = ap.parse_args(argv)
     return args.fn(args)
