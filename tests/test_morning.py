@@ -34,8 +34,10 @@ LATE_DOC = "src-ec95c284feb1"              # Riding Mowers award letter: first f
 
 
 def mv(k, case, **kw):
+    # the case number as the minutes print it, with its placement (a record with a case_id and no case is one the
+    # pages' record re-check demotes: sitegen/rpc.py record_doubts)
     base = {"id": f"2026-10-27-regular-motion-{k}", "meeting_id": "2026-10-27-regular", "source_id": "src-fixturemin",
-            "page": 2, "case": None, "case_id": f"2026-10-27-regular-{case.lower()}", "kind": "Motion for approval",
+            "page": 2, "case": case, "case_id": f"2026-10-27-regular-{case.lower()}", "kind": "Motion for approval",
             "moved_by": "Fixture Mover", "seconded_by": "Fixture Seconder", "nays": ["Fixture Nay"], "abstained": [],
             "outcome": "Motion passes for approval 5-1", "tally": "5-1", "confirmed": True, "reasons": []}
     return {**base, **kw}
@@ -273,6 +275,42 @@ def test_unconfirmed_motions_carry_no_outcome_tally_or_names(site):
     county_unverified = n["county/vote/rc-314626e6-p16-1"]
     assert county_unverified["outcome"] is None and county_unverified["tally"] is None
     assert county_unverified["recorded"] == text["vote_unconfirmed"]
+
+
+def _rpc_votes(inputs, motions, rules) -> dict:
+    """The note's RPC vote entries for a record holding `motions` under `rules` (morning._rpc_documents)."""
+    facts = {**inputs["rpcf"], "motions": motions, "motion_rules": rules}
+    rpx = rpc.Rpc(inputs["rpc"], facts)
+    mn = morning.settings(config.SITE)
+    docs = morning._rpc_documents(rpx, mn["text"], morning._Zoning(rpx, mn["zoning_prefixes"]))
+    return {e["id"]: e for d in docs for e in d["entries"] if e["kind"] == "vote"}
+
+
+@pytest.mark.parametrize("why", ["stale record", "nay is the mover"])
+def test_a_motion_the_pages_demote_is_never_confirmed_in_the_note(inputs, why):
+    """rpc-motion-invariant consumer #15: the note reads rpx.motions (the pages' shown_motions), never the raw
+    facts["motions"], so a raw `confirmed: true` the pages demote carries no outcome or tally in the note."""
+    one = mv(1, "Z-19-2026")
+    if why == "stale record":
+        rules = "rpc-motion-invariant-0"
+    else:
+        rules = rpc.MOTION_RULES
+        one = {**one, "nays": ["Mr. Mover"]}       # record_doubts: a nay whose surname is the mover's
+    shown = {m["id"]: m for m in rpc.Rpc(inputs["rpc"], {**inputs["rpcf"], "motions": [one],
+                                                          "motion_rules": rules}).motions}
+    assert one["confirmed"] is True and shown[one["id"]]["confirmed"] is False
+    for e in _rpc_votes(inputs, [one], rules).values():
+        assert e["confirmed"] is False and e["outcome"] is None and e["tally"] is None
+        assert e["recorded"] == config.SITE["morning_note"]["text"]["vote_unconfirmed"]
+
+
+def test_a_case_the_pages_drop_joins_no_zoning_entry(inputs):
+    """Two disposing motions read for one case at one meeting: the pages place neither under the case (record_doubts
+    C1), so the note joins neither to the zoning list by the raw case_id."""
+    two = [mv(1, "Z-19-2026"), mv(5, "Z-19-2026")]
+    assert _rpc_votes(inputs, two, rpc.MOTION_RULES) == {}
+    control = _rpc_votes(inputs, two[:1], rpc.MOTION_RULES)
+    assert [e["confirmed"] for e in control.values()] == [True]
 
 
 def test_no_names_in_any_note(site, inputs):

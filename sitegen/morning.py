@@ -489,7 +489,9 @@ def _rpc_documents(rpx, txt: dict, zoning: _Zoning) -> list[dict]:
     by_source: dict[str, list] = {}
     for c in rpx.facts["cases"]:
         by_source.setdefault(c["source_id"], []).append(("case", c))
-    for mv in rpx.facts.get("motions", []):
+    # the motions as the pages show them (sitegen/rpc.py shown_motions): a stale record or a motion the record
+    # re-check demotes is not confirmed here either, and is joined to no case the pages dropped
+    for mv in rpx.motions:
         by_source.setdefault(mv["source_id"], []).append(("motion", mv))
     docs = []
     body, name = rpx.body_key, rpx.body
