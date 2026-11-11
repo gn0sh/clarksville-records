@@ -460,6 +460,10 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
             while True:
                 label, text, j = _block(lines, j, all_labels, note_labels)
                 if label in vote_labels:
+                    # line_cut looks at the whole token, a note in parentheses included ("SMITH (ARRIVED AT" /
+                    # "6:03 PM)"), unlike parse_people, which looks at the name part only. Deliberately wider and
+                    # fail-closed: it only stops N9, and a vote token that keeps a note resolves by no step anyway
+                    # (the raw name is matched whole), so no vote is lost by it.
                     votes += [Vote(n.replace("\n", " "), label, cfg.vote_labels[label], line_cut="\n" in n)
                               for n in split_names(text)]
                 elif label in note_labels:

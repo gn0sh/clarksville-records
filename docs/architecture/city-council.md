@@ -314,8 +314,8 @@ combined, outvoted or corrected. Rule:
    `one_vote_per_present_member`.
 7. **Auditable.** The `names_resolve` (or `surnames_resolve`) check detail names each use, the same words whichever
    way the spaces differ ("H AYWOOD read as Jerry Haywood (same letters, spaces ignored)", "StaceyStreetman read as
-   Stacey Streetman (same letters, spaces ignored)"); `build/city-report.json` lists every use (`word_break_matches`: meeting, page, printed form,
-   member); QA's AC-P2 sample includes at least 3 of them.
+   Stacey Streetman (same letters, spaces ignored)"); `build/city-report.json` lists every use
+   (`word_break_matches`: meeting, page, printed form, member); QA's AC-P2 sample includes at least 3 of them.
 
 ### Tests (all through `assert_name_invariant`, plus a data regression)
 - W1: the real 2020-10-01 page 1 boxes ("J", the U+200B word, "eff", "Henley") read as "Jeff Henley" and resolve (N1);
