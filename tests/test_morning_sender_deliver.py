@@ -1135,3 +1135,49 @@ def test_the_bodies_render_writes_pass_the_check(plan):
         deliver.check_plan(copy.deepcopy(plan), ("www.cmcrpc.com",), s.link_urls)     # the site host is not one
     with pytest.raises(deliver.PlanInvalid, match="body"):
         deliver.check_plan(copy.deepcopy(plan), s.link_hosts)               # nor is the support link's host
+
+
+# ------------------------------------------------------------------ the note job's own staged launch, end to end
+def test_the_note_jobs_staged_launch_runs_a_full_dry_run(msite, tmp_path):  # noqa: F811
+    """main-protect coverage gap (security-n1b-3450b52): the note job's exact steps (stage from git objects, plan
+    file check, dry run, deliver with MORNING_NOTE_SEND=true and the sender disabled) over a real plan for day D:
+    the isolated `python -I -S -c` launch imports everything check_plan and describe need, reads the staged config
+    and exits 0 with the dry-run line. A missing module or a wrong path in the launch fails here, not on the
+    first morning."""
+    import os
+    import re
+    import shutil
+
+    from test_workflow_lock import _commit_all, _note_steps, _stage
+    work = tmp_path / "work"
+    (work / "sender").mkdir(parents=True)
+    for f in (ROOT / "sender").glob("*.py"):
+        shutil.copy(f, work / "sender" / f.name)
+    (work / "config").mkdir()
+    text = (ROOT / "config" / "site.yml").read_text(encoding="utf-8")
+    text, n = re.subn(r'(?m)^(    link_hosts: ")', rf"\g<1>{TEST_HOSTS},", text, count=1)   # the fixture's hosts
+    assert n == 1
+    (work / "config" / "site.yml").write_text(text, encoding="utf-8")
+    _commit_all(work)
+    runner = tmp_path / "runner"
+    runner.mkdir()
+    staged, lib_env = _stage(work, runner)
+    assert staged.returncode == 0, staged.stdout + staged.stderr
+    plan_mod.write(runner / "morning-send", plan_mod.build(msite, D, cfg_with()))
+    github_env = tmp_path / "github-env"
+    github_env.write_text("")
+    env = {**os.environ, **lib_env, "RUNNER_TEMP": str(runner), "GITHUB_ENV": str(github_env),
+           "BUTTONDOWN_API_KEY": "", "MORNING_NOTE_CANARY_IDS": ""}
+    v = subprocess.run(["bash", "-c", _note_steps()["Validate the plan files"]["run"]], cwd=work, env=env,
+                       capture_output=True, text=True, timeout=120)
+    assert v.returncode == 0, v.stdout + v.stderr
+    name, plan_path = github_env.read_text().strip().split("=", 1)
+    assert name == "PLAN" and plan_path == str(runner / "morning-send" / D.isoformat() / "plan.json")
+    for step, send in (("Check the plan (dry run, no secret)", ""), ("Deliver the morning note", "true")):
+        r = subprocess.run(["bash", "-c", _note_steps()[step]["run"]], cwd=work, capture_output=True, text=True,
+                           env={**env, "PLAN": plan_path, "MORNING_NOTE_SEND": send}, timeout=120)
+        assert r.returncode == 0, (step, r.stdout, r.stderr)
+        assert f"morning note {D.isoformat()}: dry run, no connection opened, nothing sent" in r.stdout, step
+        assert "Traceback" not in r.stderr
+        assert ("--live was passed but morning_note.sender.enabled is false" in r.stderr) == bool(send), step
+    assert not list(Path(lib_env["NOTE_LIB"]).rglob("__pycache__"))            # nothing written beside the sources
