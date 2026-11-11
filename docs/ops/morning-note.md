@@ -17,11 +17,12 @@ and 5).
   3. the repository variable `MORNING_NOTE_SEND` is exactly `true`;
   4. the `update` and `deploy` jobs both succeeded (so it never runs while the deploy is locked, and an email never
      links a page that is not live).
-  Inside it: mask the canary ids, check out this run's commit (no token kept), Python with no pip step, download
+  Inside it: mask the canary ids, check out this run's commit (no token kept), stop if its `sender/` or
+  `config/site.yml` differ from `main` (a re-run of an older run), Python with no pip step, download
   the plan to the runner's temp folder, check the files, a dry run that checks the plan, then
   `python -E -s -m sender deliver --plan ... --live`. `--live` is passed only when `MORNING_NOTE_SEND` is `true`.
   `permissions: contents: read` only. `BUTTONDOWN_API_KEY` is given to that last step only.
-- `note-failed` job: when the `note` job failed, opens one issue titled **"Daily update: morning note failed"**, or
+- `note-failed` job: when the `note` job failed or was cancelled, opens one issue titled **"Daily update: morning note failed"**, or
   comments on it if it is open. A note failure never opens "Daily update failed" and never touches the site.
 - Three switches must all be on before anything is sent: `morning_note.sender.enabled: true` in `config/site.yml`
   (a reviewed PR, after T4.8), the variable `MORNING_NOTE_SEND`, and the `BUTTONDOWN_API_KEY` secret. With
@@ -50,32 +51,31 @@ and may be labelled differently. Record what each screen really says in `docs/pl
    except the daily job's own `data/` commit (the `push` job, `GITHUB_TOKEN`, `github-actions[bot]`).
    1. Open https://github.com/gn0sh/clarksville-records/settings/rules > **New ruleset** > **New branch ruleset**.
    2. **Ruleset name** `main: pull request required`; **Enforcement status** **Active**.
-   3. **Bypass list** > **Add bypass**: pick **GitHub Actions** if it is offered (allow: **Always**). Do not add
-      yourself or **Repository admin**.
+   3. **Bypass list** > **Add bypass**. If **GitHub Actions** is in the list, pick it (allow: **Always**); do not
+      add yourself or **Repository admin**. **If GitHub Actions is not in the list: click Cancel, do not create the
+      ruleset, and go straight to 2.0.6.** (A ruleset without that bypass would block the daily `data/` commit from
+      the next run.)
    4. **Target branches** > **Add target** > **Include default branch**.
    5. Tick **Restrict deletions**, **Block force pushes**, and **Require a pull request before merging** (required
       approvals: 0, since Brian is the only reviewer with write access; the team's review is the PR review). Leave
       every other rule off (no required status checks: a `GITHUB_TOKEN` commit triggers no workflow). **Create**.
-   6. If **GitHub Actions** was not offered in 2.0.3, create the same ruleset from a terminal instead (the API takes the
-      Actions app as actor; `15368` is the id of the `github-actions` app):
+   6. **Brian, from a terminal** (if GitHub Actions was not offered in 2.0.3, or to check the ruleset made in 2.0.5).
+      Prerequisite, once: install GitHub CLI (`winget install GitHub.cli`) and run `gh auth login`, signed in as the
+      repository owner. Then, in PowerShell in the repository folder, one line:
       ```
-      gh api -X POST repos/gn0sh/clarksville-records/rulesets --input - <<'EOF'
-      {"name": "main: pull request required", "target": "branch", "enforcement": "active",
-       "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
-       "bypass_actors": [{"actor_id": 15368, "actor_type": "Integration", "bypass_mode": "always"}],
-       "rules": [{"type": "deletion"}, {"type": "non_fast_forward"},
-                 {"type": "pull_request", "parameters": {"required_approving_review_count": 0,
-                  "dismiss_stale_reviews_on_push": false, "require_code_owner_review": false,
-                  "require_last_push_approval": false, "required_review_thread_resolution": false}}]}
-      EOF
+      powershell -ExecutionPolicy Bypass -File scripts\protect-main.ps1
       ```
-   Check: `gh api repos/gn0sh/clarksville-records/rules/branches/main --jq '[.[].type] | sort'` prints
-   `["deletion","non_fast_forward","pull_request"]`, and
-   `gh api repos/gn0sh/clarksville-records/rulesets --jq '.[] | select(.name=="main: pull request required") | .id' | xargs -I{} gh api repos/gn0sh/clarksville-records/rulesets/{} --jq '.enforcement, .bypass_actors'`
-   prints `active` and only the `Integration` actor `15368`. Then **Actions** > **Daily update** > **Run workflow**
-   (collect on): the `push` job must go green with a `data/` commit on `main`. If it fails with "Changes must be
-   made through a pull request", the bypass did not take: set the ruleset's Enforcement to **Disabled** (data
-   collection resumes), and use the fallback below.
+      (macOS or Linux: `bash scripts/protect-main.sh`.) It creates the ruleset from `scripts/main-ruleset.json` (the
+      API takes the Actions app as bypass actor; `15368` is the id of the `github-actions` app), or, if a ruleset
+      named `main: pull request required` already exists, updates that one: running it twice never makes a second
+      ruleset. It then runs the checks and prints **OK: main is protected** (rules on main
+      `deletion,non_fast_forward,pull_request`; the ruleset `active`, bypass only `Integration:15368`), or **NOT OK**
+      with what it found: send that output to the team.
+   Check run: **Actions** > **Daily update** > **Run workflow** (collect on): the `push` job must go green with a
+   `data/` commit on `main`. If the run logs **"No data changes."** it committed nothing, so the bypass is not
+   checked yet: wait for a later run (scheduled or manual) that does commit `data/`. If the `push` job fails with
+   "Changes must be made through a pull request", the bypass did not take: set the ruleset's Enforcement to
+   **Disabled** (data collection resumes), and use the fallback below.
    - **Unverified (Nov 11 2026):** whether a ruleset on a personal-account public repository can list GitHub Actions
      (`GITHUB_TOKEN`) as a bypass actor. The team could not reach GitHub's docs or this repo's settings from its
      session. Community reports differ: the UI's bypass picker may not list the Actions app, while the API call in
@@ -140,8 +140,8 @@ architect.
 3. T4.8 security review of the T4.5 commit passed.
 4. `morning_note.enabled: true` and `morning_note.sender.enabled: true`, with `canary_only: true` (the default).
 5. The site deploy is live (`RECORDS_DEPLOY_ENABLED` is `true`): the note job needs a successful deploy.
-6. `main` is protected (step 2.0): both `gh api` checks of 2.0 print what they should, and the last scheduled run's
-   `push` job committed `data/` to `main` under the ruleset (or the 2.0 fallback is merged and green). Link the
+6. `main` is protected (step 2.0): `scripts/protect-main.ps1` (2.0.6) prints "OK: main is protected", and the last
+   scheduled run's `push` job committed `data/` to `main` under the ruleset (or the 2.0 fallback is merged and green). Link the
    check output in the go-live PR.
 
 ## 5. Go-live: Canary week (Brian; hard stop 1)
@@ -156,13 +156,22 @@ architect.
 4. Widening: after one clean canary week, a reviewed PR sets `canary_only: false`. Revisit `max_editions` (80) and
    `max_recipients` (2000) in the same PR.
 
+## Rules for manual runs and re-runs
+- **Never re-run a Daily update run from an earlier day** ("Re-run all jobs" or "Re-run failed jobs" on yesterday's
+  run). It checks out that day's commit while the plan is built from today's `main`; the note job now stops with
+  "an older run was re-run" when the sender code or config differ, but the deploy and data jobs would still run on
+  the old commit. Start a new run with **Run workflow** instead.
+- **No manual runs between 08:00 and 10:00 UTC** (2 to 4 AM CST, 3 to 5 AM CDT). All runs share one concurrency
+  group with one pending slot: a manual run queued then replaces the pending 09:07 scheduled run, and only a
+  scheduled run sends the note, so that day gets no email.
+
 ## Rollback and stopping
 - **Stop all sending (one step, Brian or anyone with admin):**
   https://github.com/gn0sh/clarksville-records/settings/variables/actions > `MORNING_NOTE_SEND` > **Delete** (or
   set it to `false`). The next run skips the `note` job. Nothing else changes; the site and data keep updating.
-- **Stop today's email before 7:00 (stamp mode):** in Buttondown, Emails > Scheduled > open today's emails (their
-  metadata `note_date` is today) > **Delete**. A re-run of the same plan does not recreate them only if the day is
-  still claimed; to be sure, also delete the variable first.
+- **Stop today's email before 7:00 (stamp mode):** delete the variable `MORNING_NOTE_SEND` first (above), then
+  delete the scheduled emails: in Buttondown, Emails > Scheduled > open today's emails (their metadata `note_date`
+  is today) > **Delete**. Deleting the variable first means no later run can recreate them.
 - **In code:** a PR setting `morning_note.sender.enabled: false` makes every `--live` a dry run.
 - **Key leak or rotation:** Brian deletes the key in Buttondown (Settings > API), then replaces the
   `BUTTONDOWN_API_KEY` environment secret. Never rotate between a day's first run and 7:00 (the scheduled stamp
@@ -172,6 +181,8 @@ architect.
 The issue "Daily update: morning note failed" opens (or gets a comment). The site, the data commit and the deploy
 are not affected. Open the run's `note` job log: the deliver stage prints a fixed reason and its exit code
 (2: a check failed, nothing sent; 3: "missed", past `latest_send`, nothing sent). A note is never sent the next day:
-the records are on the site and in the feeds. Do not re-run the job after 10:00 site time. A failure in "Validate the
-plan files" or "Check the plan" means the plan from the update job was missing or did not pass the checks: look at
-that run's "Plan the morning note" step.
+the records are on the site and in the feeds. Do not re-run the job after 10:00 site time, and never re-run a run from an earlier day. A
+cancelled `note` job opens the same issue. A failure in "Download the morning note plan", "Validate the plan files"
+or "Check the plan" means the plan from the update job was missing or did not pass the checks: look at that run's
+"Plan the morning note" step. A failure in "Check this commit's sender and config are main's" means an older run was
+re-run (see "Rules for manual runs and re-runs"): nothing was sent.

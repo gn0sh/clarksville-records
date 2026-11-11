@@ -646,3 +646,62 @@ def test_note_refuses_an_older_commit_than_main(tmp_path, change, ok):
     assert names.index("Check out this run's commit") + 1 == names.index(
         "Check this commit's sender and config are main's")
     assert (_stale_check(tmp_path, change) == 0) == ok
+
+
+# ------------------------------------------------------------------ the main ruleset scripts (runbook step 2.0.6)
+_GH_STUB = '''#!/usr/bin/env python3
+import json, os, sys
+a = sys.argv[1:]
+with open(os.environ["GH_CALLS"], "a") as f:
+    f.write(" ".join(a) + "\\n")
+if a[:2] == ["auth", "status"] or "-X" in a:
+    sys.exit(0)
+path = [x for x in a if x.startswith("repos/")][0]
+jq = a[a.index("--jq") + 1]
+if path.endswith("/rulesets"):
+    assert jq == ".[] | select(.name == $ENV.RULESET_NAME) | .id", jq
+    assert os.environ["RULESET_NAME"] == "main: pull request required"
+    for i in os.environ["EXISTING"].split():
+        print(i)
+elif path.endswith("/rules/branches/main"):
+    print("pull_request\\ndeletion\\nnon_fast_forward")
+elif jq == ".enforcement":
+    print("active")
+else:
+    print("Integration\\t15368")
+'''
+
+
+@pytest.mark.parametrize("existing", ["", "42", "42 43"])
+def test_protect_main_creates_once_and_updates_after(tmp_path, existing):
+    """note-runbook/ruleset-flow: a ruleset of that name already there is updated (PUT), never duplicated (POST)."""
+    bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_GH_STUB)
+    (bindir / "gh").chmod(0o755)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": existing}
+    r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
+    assert r.returncode == 0 and "OK: main is protected" in r.stdout, r.stdout + r.stderr
+    lines = calls.read_text().splitlines()
+    posts = [c for c in lines if "-X POST" in c]
+    puts = [c.split()[3] for c in lines if "-X PUT" in c]
+    if existing:
+        assert not posts and puts == [f"repos/gn0sh/clarksville-records/rulesets/{i}" for i in existing.split()]
+    else:
+        assert len(posts) == 1 and not puts
+    assert all("main-ruleset.json" in c for c in lines if " -X " in f" {c}")
+
+
+def test_protect_main_scripts_share_one_ruleset_body():
+    import json
+    body = json.loads((ROOT / "scripts" / "main-ruleset.json").read_text(encoding="utf-8"))
+    assert body["name"] == "main: pull request required" and body["enforcement"] == "active"
+    assert body["bypass_actors"] == [{"actor_id": 15368, "actor_type": "Integration", "bypass_mode": "always"}]
+    assert sorted(r["type"] for r in body["rules"]) == ["deletion", "non_fast_forward", "pull_request"]
+    assert body["conditions"]["ref_name"]["include"] == ["~DEFAULT_BRANCH"]
+    for name in ("protect-main.ps1", "protect-main.sh"):
+        text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
+        assert "main-ruleset.json" in text and "main: pull request required" in text and "-X PUT" in text, name
+    ps1 = (ROOT / "scripts" / "protect-main.ps1").read_text(encoding="utf-8")
+    # no double quote inside a --jq argument: Windows PowerShell 5.1 strips them on the way to gh
+    assert not re.search(r"--jq '[^']*\"", ps1) and "$ENV.RULESET_NAME" in ps1
