@@ -34868,6 +34868,7 @@
       "ward_printed": null
     }
   ],
+  "checked_through": "2026-09-22",
   "coverage": {
     "from": "2022-01-25",
     "to": "2026-10-27"
@@ -39912,7 +39913,7 @@
       "printed": "10/27/2026"
     }
   ],
-  "motion_rules": "rpc-motion-invariant-5",
+  "motion_rules": "rpc-motion-invariant-6",
   "motions": [
     {
       "abstained": [],
@@ -40230,7 +40231,7 @@
       "abstained": [],
       "case": "Z-5-2022",
       "case_id": "2022-02-22-regular-z-5-2022",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2022-02-22-regular-motion-3",
       "kind": "Motion for approval",
       "meeting_id": "2022-02-22-regular",
@@ -40238,7 +40239,9 @@
       "nays": [],
       "outcome": "Motion passed",
       "page": 3,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Mr. Rocconi",
       "source_id": "src-e3d69f0eb8c8",
       "tally": null
@@ -49581,7 +49584,7 @@
       "abstained": [],
       "case": null,
       "case_id": null,
-      "confirmed": true,
+      "confirmed": false,
       "id": "2024-08-13-special-motion-1",
       "kind": "Motion to approve the minutes",
       "meeting_id": "2024-08-13-special",
@@ -49589,7 +49592,9 @@
       "nays": [],
       "outcome": "the motion passed",
       "page": 1,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Bill Kimbrough",
       "source_id": "src-0ec4123b2fe0",
       "tally": null
@@ -50518,6 +50523,7 @@
       "outcome": null,
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section"
@@ -51601,7 +51607,7 @@
       "abstained": [],
       "case": "Z-48-2024",
       "case_id": "2024-12-20-regular-z-48-2024",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2024-12-20-regular-motion-5",
       "kind": "Motion for disapproval",
       "meeting_id": "2024-12-20-regular",
@@ -51609,7 +51615,9 @@
       "nays": [],
       "outcome": "motion passes for disapproval",
       "page": 4,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-f25f4f2258b6",
       "tally": null
@@ -52118,6 +52126,7 @@
       "outcome": "Motion passes",
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read"
       ],
       "seconded_by": "Wanda Smith",
@@ -57754,14 +57763,16 @@
       "case_id": "2025-10-28-regular-sr-79-2025",
       "confirmed": false,
       "id": "2025-10-28-regular-motion-31",
-      "kind": "Motion for approval",
+      "kind": "Motion",
       "meeting_id": "2025-10-28-regular",
       "moved_by": "Michael Long",
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 32,
       "reasons": [
+        "the mover's words name two kinds of motion",
         "a sentence of the vote is not one the reader knows",
+        "the outcome names another kind of motion",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Eric Huneycutt",
@@ -63157,14 +63168,15 @@
       "case_id": "2026-07-28-regular-z-18-2026",
       "confirmed": false,
       "id": "2026-07-28-regular-motion-3",
-      "kind": "Motion to approve the deferrals",
+      "kind": "Motion",
       "meeting_id": "2026-07-28-regular",
       "moved_by": "Bill Kimbrough",
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 2,
       "reasons": [
-        "a vote statement outside the motion is not read"
+        "the mover's words name two kinds of motion",
+        "the outcome names another kind of motion"
       ],
       "seconded_by": "Valerie Guzman",
       "source_id": "src-c6ac0734e07b",
