@@ -148,10 +148,12 @@ morning_note:
     # Enabled state only (morning-security/seat-consent, privacy-text-matches-data-flow). seats_include labels the
     # form's visible box; the saved numbers are printed after it ("District 5, Ward 3"). seats_sent replaces the
     # "never sent anywhere" sentences on the landing and Method pages. method_* is the Method page's paragraph.
+    # {box} in seats_sent and method_sent is filled with seats_include without its colon, so the sentences always
+    # name the box by the label it carries (privacy-text/label-wording-drift).
     seats_include: "Include my saved seats:"
-    seats_sent: "Your saved district and ward leave this device only if you sign up for the morning note and keep \"Include my saved seats\" ticked; then they go to {provider}."
+    seats_sent: "Your saved district and ward leave this device only if you sign up for the morning note and keep \"{box}\" ticked; then they go to {provider}."
     method_heading: Morning note
-    method_sent: "The morning note is an email you sign up for on the Alerts page. Sending the sign-up form gives {provider} your email address and the lists you picked. Your saved district and ward go with it only while \"Include my saved seats\" is ticked; the form shows the numbers before you send it. Nothing is sent until you send the form."
+    method_sent: "The morning note is an email you sign up for on the Alerts page. Sending the sign-up form gives {provider} your email address and the lists you picked. Your saved district and ward go with it only while \"{box}\" is ticked; the form shows the numbers before you send it. Nothing is sent until you send the form."
     method_unsubscribe: "To stop the email, use the unsubscribe link in any morning note."
     method_signup_link: Sign up on the Alerts page
     preview_title: Today's morning note
@@ -164,6 +166,7 @@ morning_note:
     page_label: page
     district_label: District
     ward_label: Ward
+    vote_on_label: Vote on      # before what a confirmed roll call voted on ("Vote on: Amendment"; about.html#vote-on)
 
 county_name: Montgomery County
 county_body: Montgomery County Commission

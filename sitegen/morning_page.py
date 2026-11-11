@@ -62,15 +62,18 @@ def privacy(cfg: dict | None = None) -> dict | None:
     (morning-security/privacy-text-matches-data-flow). Off, those pages say the stored seats are never sent anywhere,
     which is true: there is no form. Enabled, the form can post them to the provider, so the pages print
     `seats_sent` instead and the Method page gains a paragraph: what is sent, to whom, how to stop, and the
-    provider's privacy policy. Every word is config text (`morning_note.page`)."""
+    provider's privacy policy. Every word is config text (`morning_note.page`); `{box}` in the two sentences is the
+    form's box label itself (`seats_include` without its closing colon), so they cannot name a label the form does
+    not show (privacy-text/label-wording-drift)."""
     cfg = config.SITE if cfg is None else cfg
     if not (on(cfg) and enabled(cfg)):
         return None
     m = settings(cfg)
     t, provider = m["page"], m.get("provider") or ""
+    fill = {"provider": provider, "box": t["seats_include"].strip().rstrip(":").strip()}
     return {"provider": provider, "privacy_url": m["privacy_url"], "privacy_label": t["privacy_label"],
-            "seats_sent": t["seats_sent"].format(provider=provider), "heading": t["method_heading"],
-            "sent": t["method_sent"].format(provider=provider), "unsubscribe": t["method_unsubscribe"],
+            "seats_sent": t["seats_sent"].format(**fill), "heading": t["method_heading"],
+            "sent": t["method_sent"].format(**fill), "unsubscribe": t["method_unsubscribe"],
             "signup_link": t["method_signup_link"], "signup_href": "alerts.html#note"}
 
 
@@ -150,15 +153,6 @@ def _when(stamp: str) -> str:
     return f"{t:%B} {t.day}, {hour}:{t:%M} {'AM' if t.hour < 12 else 'PM'}"
 
 
-def _source_url(url) -> str:
-    """A source link as the preview page may render it in an href, else "" (the entry then shows no source link).
-    morning-security/href-scheme-defense: the RPC facts and the county agendas are not schema-checked the way
-    facts.json and finance.json are, so the one rule for a link (build._is_https_uri: absolute https, a host, no
-    whitespace, quote or angle bracket) is applied here, where the URL becomes a link."""
-    from .build import _is_https_uri   # build imports this module
-    return url if isinstance(url, str) and url and _is_https_uri(url) else ""
-
-
 def preview(day: dict, feeds: list[dict], cfg: dict | None = None) -> dict:
     """Context for morning.html.j2 from one day of the digest (the contract's day dict, as in latest.json: the note
     sitegen/morning.py write() returns). The unplaced line is the note's own `unplaced_text`; a backfill day (no
@@ -174,9 +168,13 @@ def preview(day: dict, feeds: list[dict], cfg: dict | None = None) -> dict:
     entries = []
     for e in day.get("entries") or []:
         src = e.get("source") or {}
-        url = _source_url(src.get("url"))
+        # morning-security/href-scheme-defense: the RPC facts and the county agendas are not schema-checked the way
+        # facts.json and finance.json are, so the one link rule (config.https_link) is applied where the URL becomes
+        # a link; a URL that fails it gives an entry with no source link (qa.site_checks then fails the feed entry)
+        url = config.https_link(src.get("url"))
         entries.append({**e, "href": e.get("href") or "",
                         "lists_attr": " ".join(e.get("lists") or []), "seat_body": e.get("seat_body"),
+                        "vote_on": e.get("vote_on"),
                         "district": e.get("district"), "ward": e.get("ward"),
                         "source": {"url": url, "page": src.get("page") if url else None}})
     return {"day": day, "entries": entries, "lede": lede, "backfill": day.get("backfill") is True,

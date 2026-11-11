@@ -8,7 +8,6 @@ import re
 import shutil
 import sys
 from pathlib import Path
-from urllib.parse import urlsplit
 
 import jinja2
 from jsonschema import Draft202012Validator, FormatChecker
@@ -29,16 +28,9 @@ class BuildError(Exception):
 FORMAT_CHECKER = FormatChecker()
 
 
-@FORMAT_CHECKER.checks("uri")
-def _is_https_uri(value) -> bool:
-    """`format: uri` in our schemas means an absolute https URL with a host and no whitespace, quotes or angle
-    brackets. jsonschema's own uri check needs an optional package, so the rule is defined here, in one place."""
-    if not isinstance(value, str):
-        return True
-    if any(c.isspace() or c in "\"'<>`\\" or ord(c) < 32 for c in value):
-        return False
-    u = urlsplit(value)
-    return u.scheme.lower() in config.ALLOWED_URL_SCHEMES and bool(u.netloc) and value.lower().startswith("https://")
+# `format: uri` in our schemas is the site's one link rule (config.is_https_uri); jsonschema's own uri check needs an
+# optional package.
+_is_https_uri = FORMAT_CHECKER.checks("uri")(config.is_https_uri)
 
 
 def _validator(schema_path: Path) -> Draft202012Validator:
@@ -739,11 +731,15 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         try:
             bulk = morning_mod.bulk_urls(morning_manifests, morning_mod.settings()["backfill"]["initial_run_hours"])
             docs = morning_mod.documents(ix, cixs, rpx, ax, fx, bg, first)
-            # the latest fetch day of every body, as the pages print it (localdates.span)
-            # a plain day; data_as_of_utc says when it is a stored UTC day (morning-digest/as-of-contract)
-            as_of, exact = localdates.latest([*ix.facts["sources"], *(s for c in cixs for s in c.facts["sources"]),
-                                              *(rpx.facts["sources"] if rpx else [])]) or ("", True)
-            morning_note = morning_mod.write(out, built_day, docs, first, data_as_of=as_of, bulk=bulk,
+            # every source's fetch day in every file the note reads (minutes, councils, RPC, county agendas,
+            # finance), as the pages print them (localdates.days: site_timezone days when every source has its
+            # recorded instant, else stored UTC days and data_as_of_utc says so: morning-digest/as-of-contract);
+            # each day's note takes the newest one on or before its day (morning-digest/data-as-of)
+            srcs = [*ix.facts["sources"], *(s for c in cixs for s in c.facts["sources"]),
+                    *(rpx.facts["sources"] if rpx else []), *(ax.sources.values() if ax else []),
+                    *(fx.fin["sources"] if fx else [])]
+            fetch_days, exact = localdates.days(srcs) or ([], True)
+            morning_note = morning_mod.write(out, built_day, docs, first, data_as_of=fetch_days, bulk=bulk,
                                              data_as_of_utc=not exact)
         except morning_mod.MorningError as exc:
             raise BuildError(str(exc)) from exc

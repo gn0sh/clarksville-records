@@ -73,6 +73,13 @@ T1 additions (additive; T3 and the sender may rely on them):
 - a `vote` entry also carries `confirmed` (bool), `outcome` and `tally` (both `null` unless confirmed; RPC: the minutes'
   own outcome text and tally; county/council: the Passed/Failed label and the printed tally "yes-no[-abstain]");
   no entry carries any person's name (no mover, seconder, nays or per-official votes);
+- a county/council `vote` entry also carries `vote_on` (additive, 2026-11-10): what the roll call voted on
+  ("Amendment", "Resolution, as amended"), the site's fixed "Vote on" label for the roll call's own outcome clause
+  (`views.outcome_kind_label`, about.html#vote-on); `null` unless confirmed and a pattern matches, and absent on RPC
+  votes. Two votes on one item share title, date and `recorded`; `vote_on` and `source.page` tell them apart. The
+  preview prints it after `morning_note.page.vote_on_label`;
+- `data_as_of` is per note: the newest source fetch date on or before the note's `date`, over every file the note
+  reads (county minutes, councils, RPC, county agendas, finance); `""` when there is none;
 - the note carries `unplaced_text` (config text with N filled in, `""` when 0); all connective text is
   `morning_note.text` in config;
 - an agenda or minutes with no item or motion read gives one `document` entry ("Agenda posted"/"Minutes posted"),
@@ -122,11 +129,15 @@ the form shows a visible, ticked "Include my saved seats: District 5, Ward 3" bo
 shown only when seats are stored); unticked, or without the script, both seat fields stay disabled and nothing about
 a seat is posted. On, the landing and Method pages also stop saying the seats are "never sent anywhere"
 (`morning_page.privacy()`, text `page.seats_sent`) and the Method page gains a "Morning note" paragraph: what is
-sent, to whom, how to unsubscribe, and the `privacy_url` link (`page.method_*`; finding 1). `qa.site_checks` allows
-that one off-site form action and CSP origin on alerts.html only while `enabled` is true. `build.problems()` refuses `enabled: true` without an https `form_action` and a
-`privacy_url`, and refuses a non-empty `form_action` while `enabled` is false. The sender is designed in "T4 sender"
-below: it reads `morning/<date>.json`, groups subscribers by (lists, district, ward) with `select()` and mails
-non-empty results through the provider API. It and its secret stay off behind the CEO's go-ahead.
+sent, to whom, how to unsubscribe, and the `privacy_url` link (`page.method_*`; finding 1). `page.seats_sent` and
+`page.method_sent` must contain `{box}`, filled with `page.seats_include` without its colon, so they name the box by
+the label it shows. `morning.js` recomputes the seat fields on `change`, `pageshow` and `submit`. `qa.site_checks`
+allows that one off-site form action (a `formaction` attribute meets the same rule) and CSP origin on alerts.html
+only while `enabled` is true, and fails any feed entry without its `rel="related"` source link (the build drops a
+source URL that fails the one link rule, `config.https_link`). `build.problems()` refuses `enabled: true` without an
+https `form_action` and a `privacy_url`, and refuses a non-empty `form_action` while `enabled` is false. The sender is
+designed in "T4 sender" below: it reads `morning/<date>.json`, groups subscribers by (lists, district, ward) with
+`select()` and mails non-empty results through the provider API. It and its secret stay off behind the CEO's go-ahead.
 
 ## Privacy and neutrality
 - M3: nothing about the visitor leaves the device. Seats come from `localStorage["cr-your-seats"]`; picks live in the
