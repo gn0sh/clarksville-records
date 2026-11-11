@@ -462,12 +462,14 @@ def test_note_runs_only_in_the_one_locked_case(event, var, ref):
     "", "  \n",
     # note-job/mask-ifs-cr: a secret pasted with Windows line ends, and the other ASCII characters Python's \s splits on
     "abc-1\r\ndef_2\r\n", "abc-1,\r\ndef_2", "abc-1\rdef_2", "abc-1\vdef_2\fghi3", "abc-1\x1cdef_2\x1fghi3", "\r\n",
+    # note-job/mask-unicode-ws: Unicode whitespace splits neither in bash nor in canary_ids (which then refuses)
+    "abc-1\u00a0def_2", "\u00a0abc-1", "abc-1,\u2003def_2",
 ])
 def test_mask_step_masks_every_canary_id_deliver_accepts(value, tmp_path):
     """security-note-workflow L2: every id sender/deliver.py's canary_ids reads (commas or any whitespace, every
     line) is masked one by one, and nothing else is printed (no glob expansion of an id). The step runs in a folder
     holding files the glob ids would match (a1, bx, c), so dropping `set -f` fails this test."""
-    from sender.deliver import canary_ids
+    from sender.deliver import PlanInvalid, canary_ids
     for name in ("a1", "bx", "c"):
         (tmp_path / name).write_text("")
     step = WF["jobs"]["note"]["steps"][0]
@@ -475,10 +477,13 @@ def test_mask_step_masks_every_canary_id_deliver_accepts(value, tmp_path):
                        env={**os.environ, "CANARY_IDS": value})
     masked = [line.removeprefix("::add-mask::") for line in r.stdout.splitlines()]
     assert all(line.startswith("::add-mask::") for line in r.stdout.splitlines())
-    expected = set(re.split(r"[\s,]+", value.strip())) - {""}
+    expected = set(re.split(r"[ \t\n\r\v\f\x1c-\x1f,]+", value)) - {""}     # IFS: the comma and ASCII whitespace only
     assert set(masked) == expected
     if all(re.fullmatch(r"[A-Za-z0-9_-]{1,64}", p) for p in expected):
         assert set(masked) == canary_ids(value)
+    else:                                                  # an id the step masked whole is refused, never sent
+        with pytest.raises(PlanInvalid):
+            canary_ids(value)
 
 
 def test_note_job_least_privilege():

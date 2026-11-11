@@ -529,12 +529,21 @@ def test_metadata_canary_is_not_read_at_all():
 
 @pytest.mark.parametrize("text, want", [
     (None, None), ("", frozenset()), ("  ", frozenset()), ("a1b2-c3", frozenset({"a1b2-c3"})),
-    ("a, b\nc", frozenset({"a", "b", "c"}))])
+    ("a, b\nc", frozenset({"a", "b", "c"})), ("a\x1cb\r\n", frozenset({"a", "b"})),
+    ("a,\x1f\v,b", None)])
 def test_the_canary_list_is_read_from_the_environment_text(text, want):
-    assert deliver.canary_ids(text) == want
+    if want is None and text is not None:                  # an empty entry between ASCII separators: an error
+        with pytest.raises(deliver.PlanInvalid):
+            deliver.canary_ids(text)
+    else:
+        assert deliver.canary_ids(text) == want
 
 
-@pytest.mark.parametrize("text", ["a;b", "a b@example.com", "x" * 65, "a,,b", "\u0661"])
+@pytest.mark.parametrize("text", ["a;b", "a b@example.com", "x" * 65, "a,,b", "\u0661",
+                                  # note-job/mask-unicode-ws: Unicode whitespace never separates ids (bash's mask
+                                  # step does not split on it), so an id holding one is an error
+                                  "a\u00a0b", "\u00a0a", "a\u00a0", "a,\u2003,b", "a\u2028b", "a\x85b",
+                                  "a,\u3000b"])
 def test_a_malformed_canary_list_is_an_error(text):
     with pytest.raises(deliver.PlanInvalid):
         deliver.canary_ids(text)

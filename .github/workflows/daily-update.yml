@@ -442,7 +442,9 @@ jobs:
         run: |
           # Split the whole value (every line) on commas and whitespace, as sender/deliver.py canary_ids does: every
           # ASCII character Python's \s matches, \r included, so a secret pasted with CRLF line ends still masks each
-          # id (note-job/mask-ifs-cr). Any other character fails canary_ids' id check, and nothing is sent.
+          # id (note-job/mask-ifs-cr). These are exactly canary_ids' separators (_CANARY_WS); Unicode whitespace such
+          # as NBSP splits in neither (note-job/mask-unicode-ws). Any other character fails canary_ids' id check, and
+          # nothing is sent.
           set -f
           IFS=$', \t\r\n\v\f\x1c\x1d\x1e\x1f'
           for id in ${CANARY_IDS:-}; do
