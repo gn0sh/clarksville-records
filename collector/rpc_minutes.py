@@ -54,7 +54,19 @@ motion's sentences is left unexplained; any doubt is a reason, in plain words, i
    not read, they are doubts. No other wording the reader does not model is there either: a tie or a vote of the
    chair, members named as voting in favour, "except" a member without a vote word, an amendment, a substitute, a
    reconsideration, a second motion before the outcome. A printed tally ("5-1") agrees with the members named as
-   voting nay. Unanimity is never inferred from a missing nay;
+   voting nay. Unanimity is never inferred from a missing nay. Rule 10 (the motion's whole scope):
+   (a) its sentences are the mover clause (its own words name no member, title, vote word or exception, but for the
+   officer an election names) and then only the known shapes (SHAPES: one second, any nays, abstentions and "in
+   favor", one outcome), joined by ". ", ", ", "; " or " and "; any other sentence is a doubt, whatever its words
+   ("All were in favor with the exception of Mr. Powers.", "All members voted in favor, minus one.");
+   (b) after the outcome, up to the next motion, no outcome, "in favor" or motion is printed;
+   (c) before it (the section's text, or the text after the motion before it), no sentence states a member's vote
+   (MEMBER_VOTE), but one: "Stacey Streetman abstained from voting." printed before the first motion of a case
+   section that disposes of the case is that motion's abstention. A list motion (the consent agenda, the deferrals)
+   is also held to every case section that has no motion of its own;
+   (d) an abstention naming a case belongs to that case: the motion's own case, its abstention; another case on the
+   agenda of a list motion, "a member abstained on one case of a list the motion approved" (not confirmed, the
+   member written nowhere); any other case, a doubt;
 4. (C4) one outcome from the fixed vocabulary is printed, ending its sentence, and it does not name another kind of
    motion ("made the motion for disapproval ... Motion for approval passed" is not confirmed). When no outcome
    sentence follows "All others were in favor." / "All members voted in favor.", that sentence is the outcome as
@@ -119,9 +131,6 @@ OUTCOME = re.compile(r"\b(?:(?:the\s+)?(?:motion|consent\s+agenda|nomination)(?:
 FAVOUR = re.compile(r"\ball\s+(?:(?:the\s+)?(?:others|other\s+members|members(?:\s+present)?)\s+)?(?:were|voted|was)\s+in\s+"
                     r"favou?r(?=\s*[.,;]|\s*$|\s+and\s+(?:the\s+)?motion\b)", re.I)
 FOLLOW_GAP = 40
-# rule 4: words that make an "in favor" sentence a part of the vote, not all of it ("..., except ...", "..., but ...")
-FAVOUR_EXCEPT = re.compile(r"\b(?:except|but|save|other\s+than|excluding|apart\s+from|exception|and\s+(?:the\s+)?motion)\b",
-                           re.I)
 LACK_OF_SECOND = re.compile(r"\black\s+of\s+(?:a\s+)?second\b", re.I)
 # A section of the minutes after the cases ("OTHER BUSINESS:", "A. MONTHLY PROFIT AND LOSS", "ADJOURN"): its motions
 # belong to no case
@@ -140,6 +149,64 @@ UNMODELLED = (("a tie or a vote of the chair", re.compile(r"\btie\b|\bbroke\b", 
                           rf"(?:vote|abstain|was\s+against|were\s+against))")),
               ("an amendment, substitute or reconsideration",
                re.compile(r"\bamend|\bsubstitut|\breconsider|\brescind|\bearlier\s+made\s+motion", re.I)))
+# rule 10a (C3): the motion's body is the mover clause, then only these clauses, each a fixed shape, in this order of
+# phase: one second, any votes, exactly one outcome (with the nays it names, "... passed 4-2 with Mr. Kimbrough and
+# Mr. Long voting nay"); joined only by ". ", ", ", "; " or " and ". An allowlist: a sentence of the vote that is
+# not one of them is a doubt, whatever its words. Names are case-sensitive (NAME), the words around them are not.
+CASE_WORD = r"[A-Z]{1,4}\s*-\s*[0-9OIl|]{1,3}[A-Z]?\s*-\s*(?:19|20)\d\d\b"
+_WHO_VOTED = r"(?i:abstained|voted\s+(?:against|nay|no)|was\s+against)"
+_WHO = rf"{NAME}\s*,?\s+(?i:who)\s+{_WHO_VOTED}(?:\s+(?i:and)\s+{NAME}\s*,?\s+(?i:who)\s+{_WHO_VOTED})?"
+SHAPES = (
+    ("second", "seconded by M", rf"(?i:seconded\s+by)\s+{NAME}"),
+    ("second", "the motion was seconded by M", rf"(?i:(?:the\s+)?motion\s+was\s+seconded\s+by)\s+{NAME}"),
+    ("second", "M seconded", rf"{NAME}\s+(?i:seconded)\b"),
+    ("second", "M seconded it / the motion", rf"{NAME}\s+(?i:seconded\s+(?:it|the\s+motion))\b"),
+    ("second", "with M second", rf"(?i:with)\s+{NAME}\s+(?i:second(?:ing)?)\b"),
+    ("second", "[with a ]second from M", rf"(?i:(?:with\s+a\s+)?second\s+from)\s+{NAME}"),
+    ("vote", "M voted nay", rf"{NAMES}\s+(?i:(?:who\s+)?(?:voted|votes)\s+(?:nay|no|against|in\s+opposition))\b"),
+    ("vote", "M abstained", rf"{NAMES}\s+(?i:(?:who\s+)?abstain(?:ed|s)?(?:\s+from\s+(?:voting|the\s+vote))?)\b"),
+    ("vote", "M abstained from <case>",
+     rf"{NAMES}\s+(?i:(?:who\s+)?abstain(?:ed|s)?\s+(?:from|on))\s+(?P<case>{CASE_WORD})"),
+    ("vote", "all ... in favor", FAVOUR.pattern),
+    ("vote", "others in favor", r"(?i:(?:all\s+)?others\s+(?:were\s+)?in\s+favou?r)\b"),
+    ("vote", "except M who ...", rf"(?i:except\s+(?:for\s+)?){_WHO}"),
+    ("vote", "but M who ...", rf"(?i:but)\s+{_WHO}"),
+    ("outcome", "outcome", OUTCOME.pattern),
+    ("outcome", "consent agenda passes with approval",
+     r"(?i:(?:the\s+)?consent\s+agenda\s+passes\s+with\s+approval)\b"),
+    ("outcome", "cases were approved for deferral", r"(?i:(?:the\s+)?cases\s+were\s+approved\s+for\s+deferrals?)\b"),
+    ("outcome", "meeting was adjourned at H:MM p.m.",
+     r"(?i:(?:the\s+)?meeting\s+(?:was\s+)?adjourned\s+at\s+\d{1,2}:\d\d\s*[ap]\.?(?:m\b\.?)?)"),
+    ("with", "with M voting nay", rf"(?i:with)\s+{NAMES}\s+(?i:voting\s+(?:nay|against))\b"),
+)
+# FAVOUR and OUTCOME are case-insensitive patterns of their own; every other shape keeps names case-sensitive
+SHAPE_RX = tuple((phase, label, re.compile(rx, re.I if rx in (FAVOUR.pattern, OUTCOME.pattern) else 0))
+                 for phase, label, rx in SHAPES)
+PHASE = {"second": 0, "vote": 1, "outcome": 2, "with": 3}
+JOIN = re.compile(r"\s*[.,;]\s*(?:(?i:and)\s+)?|\s+(?i:and)\s+|\s+(?=(?i:with)\s)")
+# after the mover clause: its sentence's end or a comma, or nothing, and an "and" ("... the plan and Mr. Spigner
+# seconded", "... to the north and west. and Mr. Powers seconded")
+FIRST_JOIN = re.compile(r"\s*[.,;]?\s*(?:(?i:and)\s+)?")
+# the end of the mover clause: the second's own words, or the end of its sentence (titles and initials aside)
+SECOND_AHEAD = re.compile(rf",?\s*(?=(?i:seconded)\b|(?i:(?:the\s+)?motion\s+was\s+seconded)|{NAME}\s+(?i:seconded)\b|"
+                          rf"(?i:with)\s+{NAME}\s+(?i:second)|(?i:(?:with\s+a\s+)?second\s+from)\s+{NAME})")
+# the mover clause's own words hold no member's name, title, vote word or exception; the one name it may hold is
+# the officer elected ("to nominate Mr. Swift as Chairman for 2024")
+ELECT_CLAUSE = re.compile(rf"^\s*(?i:to\s+(?:nominate|elect))\s+{NAME}\s+(?i:(?:as|for)\s+(?:vice[\s-]+)?"
+                          rf"chair(?:man|woman|person)?(?:\s+for\s+20\d\d)?)\s*$")
+TITLED = re.compile(rf"{HON}\s*[A-Z]")
+EXCEPTION_WORD = re.compile(r"\b(?:except\w*|but|exception)\b", re.I)
+# rule 10b: after the outcome, any outcome, "in favor" or motion is a doubt (no distance limit)
+TAIL_OUTCOME = (OUTCOME, FAVOUR, re.compile(r"\bmotion\b", re.I))
+# rule 10c: a member's vote stated in the free prose before a motion (or, for a list motion, in a case section with
+# no motion of its own): narrower than LEFTOVER_VOTE, since staff reports and the public hearing are prose
+MEMBER_VOTE = (r"abstain", r"recus", r"conflict", r"did\s+not\s+vote", r"not\s+vot", r"refrain", r"\bna[yv]s?\b",
+               r"\bvot(?:e|es|ed|ing)\b")
+MEMBER_VOTE_RX = re.compile("|".join(MEMBER_VOTE), re.I)
+# rule 10c: the one lead sentence attributed to a motion: exactly an abstention, naming no case or the section's case
+LEAD_ABSTAIN = re.compile(rf"^(?P<names>{NAMES})\s+(?i:abstain(?:ed|s)?(?:\s+from\s+(?:voting|the\s+vote)|"
+                          rf"\s+(?:from|on)\s+(?P<case>{CASE_WORD}))?)\s*\.?$")
+LIST_KINDS = frozenset({"Motion to approve the consent agenda", "Motion to approve the deferrals"})
 # The motion's type in plain words: the first pattern that matches the words right after "motion" / "moved" (up to the
 # seconder or the sentence end) gives a fixed label. Never any part of the sentence.
 MOTION_KINDS = (
@@ -197,6 +264,10 @@ WHY_VOTE_WORD = "unmodelled wording: a vote word the reader does not read"
 WHY_FAVOUR_NOT_OUTCOME = ("no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or "
                           "abstaining")
 WHY_NAY_IS_MOVER = "a member named as voting nay is the mover or seconder"
+WHY_UNLISTED = "a sentence of the vote is not one the reader knows"                  # rule 10a
+WHY_TAIL_OUTCOME = "an outcome, 'in favor' or a motion is printed after the outcome"   # rule 10b
+WHY_LEAD_VOTE = "a vote statement outside the motion is not read"                     # rule 10c
+WHY_LIST_PART = "a member abstained on one case of a list the motion approved"        # rule 10d
 CASE_REASONS = frozenset({WHY_HEAD, WHY_NUMBER, WHY_TWO, WHY_REPEATED, WHY_OTHER_CASE, WHY_SECTION_OTHER_CASE,
                           WHY_OFF_AGENDA, WHY_SUBJECT})
 PARA_MAX = 900          # characters a motion's sentences may span before its outcome
@@ -204,7 +275,7 @@ PARA_MAX = 900          # characters a motion's sentences may span before its ou
 # as `motion_rules`; sitegen/rpc.py and qa/site_checks.py restate it and show every motion of a record without it as
 # not confirmed. Change it whenever a rule changes what is confirmed, so an older record is never shown under rules
 # it was not read by.
-MOTION_RULES = "rpc-motion-invariant-2"
+MOTION_RULES = "rpc-motion-invariant-3"
 
 
 def _clean(line: str) -> str:
@@ -345,6 +416,7 @@ class Motion:
     tally: str | None = None
     reasons: list = field(default_factory=list)
     para: str = ""              # the sentences read (OCR text: internal, never shown or exported)
+    lead: str = ""              # rule 10c: the text before them that was scanned (internal, for the audit)
 
     @property
     def confirmed(self) -> bool:
@@ -393,12 +465,90 @@ def _surname(name: str) -> str:
     return _key(_squash(name).split()[-1]) if name and name.split() else ""
 
 
+def _member_surnames(members: list[str], roster=()) -> set[str]:
+    return {n.split()[-1] for n in list(members) + list(roster) if n and n.split()}
+
+
+END = re.compile(r"\s*\.?\s*$")
+
+
+def body_clauses(after: str, surnames: set[str]) -> tuple[bool, list[tuple[str, str, re.Match]]]:
+    """Rule 10a: whether a motion's words after the mover's name are the mover clause, then only SHAPES clauses in
+    phase order (one second, any votes, at most one outcome, then its "with ... voting nay"), joined by JOIN, then
+    the end; and the clauses read, [(phase, label, match)] (match positions in `after`)."""
+    clauses: list[tuple[str, str, re.Match]] = []
+    ahead = SECOND_AHEAD.search(after)
+    se = _sentence_end(after, 0)
+    stop = min(ahead.start() if ahead else len(after), se - 1 if after[se - 1:se] == "." else se)
+    own = after[:max(stop, 0)]
+    if not ELECT_CLAUSE.match(own):
+        if (TITLED.search(own) or LEFTOVER_VOTE.search(own) or EXCEPTION_WORD.search(own)
+                or any(re.search(rf"\b{re.escape(n)}\b", own) for n in surnames)):
+            return False, clauses
+    i = max(stop, 0)
+    i = FIRST_JOIN.match(after, i).end()
+    phase, seconds, outcomes = -1, 0, 0
+    while not END.match(after, i):
+        best = None
+        for ph, label, rx in SHAPE_RX:
+            x = rx.match(after, i)
+            if x and x.end() > i and (best is None or x.end() > best[2].end()):
+                best = (ph, label, x)
+        if best is None:
+            return False, clauses
+        ph = best[0]
+        if ((ph == "second" and (seconds or phase > PHASE["second"])) or (ph == "vote" and phase > PHASE["vote"])
+                or (ph == "outcome" and outcomes) or (ph == "with" and phase != PHASE["outcome"])):
+            return False, clauses
+        seconds += ph == "second"
+        outcomes += ph == "outcome"
+        phase = max(phase, PHASE[ph])
+        clauses.append(best)
+        i = best[2].end()
+        j = JOIN.match(after, i)
+        if j:
+            i = j.end()
+        elif not END.match(after, i):
+            return False, clauses
+    return True, clauses
+
+
+def scope_votes(text: str, own_case: str | None, attribute: bool, list_motion: bool, agenda=frozenset(),
+                prefixes=frozenset()) -> tuple[list[str], list[str]]:
+    """Rules 10c-10d over free prose (a motion's lead, or for a list motion a case section with no motion of its
+    own): (reasons, abstainers attributed). A sentence holding a MEMBER_VOTE word is a doubt unless it is exactly
+    an abstention (LEAD_ABSTAIN) that is attributed (`attribute`, naming no case or `own_case`) or names another
+    case on the agenda of a list motion (WHY_LIST_PART)."""
+    hits = [h.start() for h in MEMBER_VOTE_RX.finditer(text)]
+    reasons: list[str] = []
+    names: list[str] = []
+    i = 0
+    while i < len(text) and hits:
+        j = _sentence_end(text, i)
+        if any(i <= h < j for h in hits):
+            x = LEAD_ABSTAIN.match(text[i:j].strip())
+            named = read_number(x.group("case"), set(agenda), set(prefixes))[0] if x and x.group("case") else None
+            own = x is not None and (x.group("case") is None or (own_case is not None and named == own_case))
+            if own and attribute:
+                names += [n for n in _names(x.group("names")) if n not in names]
+            elif x and list_motion and named and named != own_case and named in agenda:
+                reasons.append(WHY_LIST_PART)
+            else:
+                reasons.append(WHY_LEAD_VOTE)
+        i = j
+    return list(dict.fromkeys(reasons)), names
+
+
 def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
-                 case_ok: bool, members: list[str], roster=(), case_why: str = WHY_NUMBER) -> list[Motion]:
+                 case_ok: bool, members: list[str], roster=(), case_why: str = WHY_NUMBER,
+                 agenda=frozenset(), prefixes=frozenset(), head_end: int = 0) -> list[Motion]:
     """Every motion in one section's text. `page_at(i)` is the page of character i. `case_ok` False: the section's
-    case heading was not read (`case_why` says how)."""
+    case heading was not read (`case_why` says how). `agenda`, `prefixes`: rule 10d reads a case an abstention
+    names. `head_end`: where the section's heading line ends (it is read as a sentence of its own, rule 10c)."""
     out = []
+    surnames = _member_surnames(members, roster)
     found = list(MOTION_START.finditer(text))
+    prev = 0                 # rule 10c: where the lead of the next motion starts (the end of the previous body)
     for k, m in enumerate(found):
         nxt = found[k + 1].start() if k + 1 < len(found) else len(text)
         window = text[m.start():min(nxt, m.start() + PARA_MAX)]
@@ -408,14 +558,10 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
         # the vote sentence is the outcome as printed when no outcome sentence follows it straight away
         if fav and (oc is None or oc.start() - _sentence_end(window, fav.end()) > FOLLOW_GAP):
             oc = fav
-        # rule 4: the "in favor" sentence stands as the outcome only when the rest of its sentence names no exception,
-        # no member and no vote word ("All members voted in favor, except Cindy Greene who abstained and ..." is not
-        # one: its first words alone read as unanimous; "All members voted in favor, meeting was adjourned." is)
-        rest = window[fav.end():_sentence_end(window, fav.end())] if fav else ""
-        fav_goes_on = bool(oc is not None and oc is fav
-                           and (FAVOUR_EXCEPT.search(rest) or NAME_RX.search(rest) or LEFTOVER_VOTE.search(rest)))
         para = window[:_sentence_end(window, oc.end())] if oc else window[:400]
         after = para[at:]
+        lead = text[prev:m.start()]
+        prev = m.start() + len(para)
         cut = re.search(r",?\s*seconded|\.\s|stating|based|because", after)
         kind = motion_kind(after[:cut.start()] if cut else after[:120])
         if case is None and case_ok and kind in (MOTION_DEFAULT, "Motion for approval") and oc:
@@ -424,8 +570,30 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
             kind = next((label for rx, label in BUSINESS_OUTCOME if rx.search(oc.group(0))), kind)
         own = kind in MEETING_KINDS        # adjourning or electing officers belongs to no case
         mv = Motion(page=page_at(m.start()), case=None if own else case, case_printed=None if own else case_printed,
-                    kind=kind, mover=_squash(m.group("mover")), seconder=None, para=_squash(para))
+                    kind=kind, mover=_squash(m.group("mover")), seconder=None, para=_squash(para), lead=_squash(lead))
         reasons = mv.reasons
+        list_motion = kind in LIST_KINDS
+        # rule 10a: the body is the mover clause and the known shapes only
+        listed, clauses = body_clauses(after, surnames)
+        if not listed or not (any(ph == "outcome" for ph, _, _ in clauses) or (oc is not None and oc is fav)):
+            reasons.append(WHY_UNLISTED)
+        # rule 10d: an abstention in the body naming a case: the motion's own case is its abstention; another case
+        # on the agenda of a list motion is an abstention on one case of the list (not this motion's, as printed)
+        list_part: list[str] = []
+        part_cases: set = set()
+        other_case = False
+        for _, label, x in clauses:
+            if x.groupdict().get("case"):
+                named = read_number(x.group("case"), set(agenda), set(prefixes))[0]
+                if named is not None and named == case:
+                    continue
+                if list_motion and named and named in agenda:
+                    list_part += _names(x.group(0)[:x.start("case") - x.start()])
+                    part_cases |= {named, link_key(x.group("case"))}
+                    if WHY_LIST_PART not in reasons:
+                        reasons.append(WHY_LIST_PART)
+                else:
+                    other_case = True
         no_second = bool(oc and LACK_OF_SECOND.search(oc.group(0)))
         sec_matches = list(SECOND_BY.finditer(after)) + list(SECOND_AFTER.finditer(after))
         sb = [_squash(x.group("name")) for x in SECOND_BY.finditer(after)]
@@ -440,8 +608,10 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
         if case is None and case_ok and kind not in MEETING_BUSINESS:
             reasons.append(WHY_SUBJECT)     # rule 1: a motion with no case is the meeting's own business only
         if case is not None and not own:    # rule 1: the motion's sentences name no other case number
-            if any(link_key(x.group(0)) != case for x in CASE_IN_TEXT.finditer(para)):
+            if any(link_key(x.group(0)) not in {case} | part_cases for x in CASE_IN_TEXT.finditer(para)):
                 reasons.append(WHY_OTHER_CASE)
+        elif other_case and WHY_OTHER_CASE not in reasons:
+            reasons.append(WHY_OTHER_CASE)
         mv.mover_member = resolve(mv.mover, members, roster)
         if mv.mover_member is None:
             reasons.append("mover is not one member present")
@@ -480,21 +650,22 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
                 mv.nays += [n for n in _names(x.group("names")) if n not in mv.nays]
         for x in ABSTAIN.finditer(votes):
             modelled.append((start + x.start(), start + x.end()))
-            mv.abstained += [n for n in _names(x.group("names")) if n not in mv.abstained]
-        # rule 4: an "in favor" sentence is never the outcome when its sentence goes on to an exception, a member or a
-        # vote word ("..., except ...", "..., but ..."), when members are named as voting nay or abstaining, or when a
-        # vote word follows it up to the next motion ("All members voted in favor. Mr. Long voted against."): with no
-        # outcome sentence printed, the motion has no outcome as printed and is not confirmed
+            mv.abstained += [n for n in _names(x.group("names")) if n not in mv.abstained and n not in list_part]
+        # rule 10c: the lead holds no member's vote, but for one abstention attributed to the first disposing
+        # motion of a case section; rule 10e: an attributed abstainer meets every check a body one does
+        attribute = case is not None and k == 0 and kind not in MEETING_BUSINESS
+        cut = max(0, min(head_end, len(lead))) if k == 0 else 0
+        for part in (lead[:cut], lead[cut:]):       # the heading line ends a sentence of its own
+            lead_why, lead_names = scope_votes(part, case, attribute, list_motion, agenda, prefixes)
+            reasons += [r for r in lead_why if r not in reasons]
+            mv.abstained += [n for n in lead_names if n not in mv.abstained]
+        # rule 9: an "in favor" sentence is never the outcome when members are named as voting nay or abstaining,
+        # or when a vote word follows it up to the next motion ("All members voted in favor. Mr. Long voted
+        # against."): with no outcome sentence printed, the motion has no outcome as printed and is not confirmed
         tail = text[m.start() + len(para):nxt]
-        if oc is not None and oc is fav and (fav_goes_on or mv.nays or mv.abstained or LEFTOVER_VOTE.search(tail)):
+        if oc is not None and oc is fav and (mv.nays or mv.abstained or LEFTOVER_VOTE.search(tail)):
             mv.outcome, mv.tally = None, None
             reasons.append(WHY_FAVOUR_NOT_OUTCOME)
-        # every member named after "except" in the vote sentence is read as voting nay or abstaining
-        for x in re.finditer(r"\bexcept\b", after):
-            named = _names(after[x.end():_sentence_end(after, x.end())])
-            if any(n not in mv.nays + mv.abstained for n in named):
-                reasons.append("a member named after 'except' is not read as voting nay or abstaining")
-                break
         for n in mv.nays + mv.abstained:
             if resolve(n, members, roster) is None:
                 reasons.append("a member named as voting nay or abstaining is not one member present")
@@ -511,6 +682,9 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
         scan = after + tail
         if any(not any(a <= x.start() and x.end() <= b for a, b in modelled) for x in LEFTOVER_VOTE.finditer(scan)):
             reasons.append(WHY_VOTE_WORD)
+        # rule 10b: no outcome, "in favor" or motion after the outcome, however far
+        if any(rx.search(tail) for rx in TAIL_OUTCOME):
+            reasons.append(WHY_TAIL_OUTCOME)
         for why, rx in UNMODELLED:
             if rx.search(scan):
                 reasons.append(f"unmodelled wording: {why}")
@@ -578,6 +752,7 @@ def read_minutes(pages: list[str], agenda: set[str], prefixes: set[str], roster=
         if h[1]:
             times[h[1]] = times.get(h[1], 0) + 1
     motions: list[Motion] = []
+    quiet: list[str] = []
     bounds = [(0, None, None, True, None, False)] + heads
     for k, (i, num, printed, ok, why, is_case) in enumerate(bounds):
         j = bounds[k + 1][0] if k + 1 < len(bounds) else len(lines)
@@ -595,7 +770,11 @@ def read_minutes(pages: list[str], agenda: set[str], prefixes: set[str], roster=
                 pg = n
             return pg
 
-        got = read_motions(text, page_at, num, printed, ok, members, roster, why or WHY_NUMBER)
+        head_end = len(_clean(sec[0][1])) + 1 if k and sec else 0
+        got = read_motions(text, page_at, num, printed, ok, members, roster, why or WHY_NUMBER, agenda, prefixes,
+                           head_end)
+        if is_case and not got:
+            quiet.append(text)          # rule 10c: a case section with no motion of its own, a list motion's scope
         if is_case:
             doubts = []
             if num and times[num] > 1:
@@ -609,5 +788,12 @@ def read_minutes(pages: list[str], agenda: set[str], prefixes: set[str], roster=
             for mv in got:
                 mv.reasons += [d for d in doubts if d not in mv.reasons]
         motions += got
+    # rule 10c: a list motion (the consent agenda, the deferrals) disposes the cases it lists, whose sections hold no
+    # motion of their own: a member's vote printed in any of them is read by the same lead rule, never attributed
+    for mv in motions:
+        if mv.kind in LIST_KINDS:
+            for q in quiet:
+                why, _ = scope_votes(q, mv.case, False, True, agenda, prefixes)
+                mv.reasons += [r for r in why if r not in mv.reasons]
     return MinutesReading(printed_date, members, motions, len(case_heads), sum(1 for h in case_heads if h[1]),
                           [(h[1], h[2], lines[h[0]][0]) for h in case_heads], garbled)

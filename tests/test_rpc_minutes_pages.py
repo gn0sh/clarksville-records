@@ -190,7 +190,7 @@ def test_site_checks_rpc_motions_passes_on_the_built_pages(site):
     pages = {f.relative_to(site).as_posix(): SC.parse(f) for f in site.rglob("*.html")}
     problems, note = SC.check_rpc_motions(site, pages, _site_rpc(site))
     assert problems == [] and ("8 motion blocks, 2 shown confirmed (6 confirmed in rpc.json; motion_rules "
-                               "rpc-motion-invariant-2)") in note, problems
+                               "rpc-motion-invariant-3)") in note, problems
 
 
 def test_site_checks_rpc_motions_catches_a_leak_a_misplaced_motion_and_unanimous(site, tmp_path):
@@ -238,7 +238,7 @@ def test_site_checks_rpc_motions_on_a_record_the_reader_never_wrote(tmp_path):
 def test_the_motion_rules_marker_is_one_value_in_the_reader_the_pages_and_the_site_check():
     from collector import rpc_minutes
     from qa import site_checks as SC
-    assert rpc_minutes.MOTION_RULES == rpc.MOTION_RULES == SC.RPC_MOTION_RULES == "rpc-motion-invariant-2"
+    assert rpc_minutes.MOTION_RULES == rpc.MOTION_RULES == SC.RPC_MOTION_RULES == "rpc-motion-invariant-3"
 
 
 @pytest.mark.parametrize("rules", [None, "rpc-motion-invariant-0"])

@@ -570,7 +570,7 @@ def read_all_minutes(cfg, rows, meetings, cases, sources, by_url, scanned_texts,
                    "outcome": mv.outcome, "tally": mv.tally, "confirmed": not reasons, "reasons": reasons}
             out.append(rec)
             audit.append({"id": rec["id"], "source_id": sid, "page": mv.page, "confirmed": rec["confirmed"],
-                          "reasons": reasons, "para": mv.para})
+                          "reasons": reasons, "para": mv.para, "lead": mv.lead})
     why: dict[str, int] = {}
     for x in out:
         for r in x["reasons"]:

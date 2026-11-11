@@ -560,7 +560,7 @@ def test_attach_places_a_motion_under_its_case_only_while_nothing_doubts_the_cas
 
 def test_the_build_writes_the_readers_motion_rules_into_the_record(attached):
     facts, summary, _ = attached
-    assert facts["motion_rules"] == R.MOTION_RULES == "rpc-motion-invariant-2"
+    assert facts["motion_rules"] == R.MOTION_RULES == "rpc-motion-invariant-3"
     assert facts["schema"] == "rpc-1"          # the record's layout is unchanged; only the rules it was read by
 
 
@@ -569,7 +569,8 @@ def test_the_motions_audit_is_internal_one_line_per_motion(attached, tmp_path):
     facts, _, audit = attached
     rows = [json.loads(x) for x in audit.read_text(encoding="utf-8").splitlines()]
     assert [r["id"] for r in rows] == [mv["id"] for mv in facts["motions"]]
-    assert all(set(r) == {"id", "source_id", "page", "confirmed", "reasons", "para"} and r["para"] for r in rows)
+    assert all(set(r) == {"id", "source_id", "page", "confirmed", "reasons", "para", "lead"} and r["para"] for r in rows)
+    assert not any("lead" in mv for mv in facts["motions"])       # nor the text before them (rule 10c)
     assert not any("para" in mv for mv in facts["motions"])       # the sentences never go into rpc.json
     with pytest.raises(ValueError, match="never written into a built site"):
         rpc_agenda.write_audit(tmp_path / "build" / "site" / "audit.jsonl", rows)
