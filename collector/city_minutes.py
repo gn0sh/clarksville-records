@@ -18,6 +18,8 @@ from __future__ import annotations
 import hashlib
 import re
 import subprocess
+import sys
+import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -128,11 +130,61 @@ def pdf_layer(pdf: Path, pages: list[str]) -> str:
     return "text"
 
 
-INVISIBLE = re.compile("[​‌‍⁠﻿­]")   # zero-width characters some exports carry
+# Unicode format characters (category Cf: U+200B zero width space, U+200C, U+200D, U+2060, U+FEFF, U+00AD soft
+# hyphen, ...): some exports carry them in the text layer; they print as nothing (W1, "Verified-rate plan")
+FORMAT_CHARS = "".join(chr(c) for c in range(sys.maxunicode + 1) if unicodedata.category(chr(c)) == "Cf")
+INVISIBLE = re.compile(f"[{re.escape(FORMAT_CHARS)}]")
+ABUT = 0.05                     # pt: two glyph boxes this close (or overlapping) touch, with no visible gap
+_NOT_SPACE = rf"[^\s{re.escape(FORMAT_CHARS)}]"
+# a word, then a run of format characters with blanks before or after it, then the next word (lookahead)
+_FORMAT_BREAK = re.compile(rf"({_NOT_SPACE}+)([ \t\u00a0]*[{re.escape(FORMAT_CHARS)}]+[{re.escape(FORMAT_CHARS)} \t\u00a0]*)"
+                           rf"(?=({_NOT_SPACE}+))")
+
+
+def format_breaks(words) -> dict[int, set]:
+    """W1, from the text layer's word boxes (pdfwords.Word, in pdftotext's order): per page, the (word before, word
+    after) pairs that a word made only of format characters separates on one line when the two boxes abut
+    (`next.x0 - prev.x1 <= ABUT`). 2020-10-01 page 1 prints "Jeff Henley" as "J", a U+200B word and "eff" whose box
+    starts where "J" ends. A pair also seen with a visible gap on the same page is left out, so no gap is ever closed."""
+    from .pdfwords import LINE_TOL
+    join, gap = {}, {}
+    pages: dict[int, list] = {}
+    for w in words:
+        pages.setdefault(w.page, []).append(w)
+    for page, ws in pages.items():
+        for i, w in enumerate(ws):
+            if INVISIBLE.sub("", w.text) or (i and not INVISIBLE.sub("", ws[i - 1].text)):
+                continue                                       # not a format-only word, or not the first of a run
+            j, k = i - 1, i + 1
+            while k < len(ws) and not INVISIBLE.sub("", ws[k].text):
+                k += 1
+            if j < 0 or k >= len(ws):
+                continue
+            a, b = ws[j], ws[k]
+            if abs(a.yc - b.yc) > LINE_TOL * min(a.h, b.h) or b.x0 < a.x0:
+                continue                                       # not one line, left to right
+            key = (INVISIBLE.sub("", a.text), INVISIBLE.sub("", b.text))
+            (join if b.x0 - a.x1 <= ABUT else gap).setdefault(page, set()).add(key)
+    return {p: keys - gap.get(p, set()) for p, keys in join.items() if keys - gap.get(p, set())}
+
+
+def join_format_breaks(pages: list[str], words) -> list[str]:
+    """The layout text with each W1 pair (format_breaks) joined: "J\u200b eff" -> "Jeff" when the boxes of "J" and
+    "eff" abut. Any other format character is left for lines_of to delete, and a visible gap stays a gap. The result
+    is what the page shows: a better single reading, not a repair."""
+    joins = format_breaks(words)
+    out = []
+    for n, text in enumerate(pages, 1):
+        pairs = joins.get(n)
+        if pairs:
+            text = _FORMAT_BREAK.sub(lambda m: m.group(1) if (m.group(1), m.group(3)) in pairs
+                                     and INVISIBLE.sub("", m.group(2)) else m.group(0), text)
+        out.append(text)
+    return out
 
 
 def lines_of(pages: list[str]) -> list[Line]:
-    """Page-numbered lines, stripped. Zero-width characters are removed (they print as nothing); no other change."""
+    """Page-numbered lines, stripped. Format characters (Cf) are removed (they print as nothing); no other change."""
     return [Line(i + 1, INVISIBLE.sub("", raw).replace(" ", " ").strip())
             for i, p in enumerate(pages) for raw in p.splitlines()]
 
@@ -580,8 +632,14 @@ def _motion(window: list[Line]) -> dict | None:
 
 
 def read_pages(pdf: Path) -> list[str]:
-    """The city reader's text of each page of a stored PDF (its text layer, `pdftotext -layout`)."""
-    return extract_pages(pdf)
+    """The city reader's text of each page of a stored PDF: its text layer (`pdftotext -layout`), with the words a
+    format-character-only word separated joined where their glyphs touch (W1, join_format_breaks; the word boxes are
+    read only when the text carries a format character)."""
+    pages = extract_pages(pdf)
+    if any(INVISIBLE.search(p) for p in pages):
+        from .pdfwords import pdf_words
+        pages = join_format_breaks(pages, pdf_words(pdf))
+    return pages
 
 
 def page_has(page: str, text: str) -> bool:

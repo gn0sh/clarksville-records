@@ -495,3 +495,60 @@ def test_n2_n7_n8_a_vote_mover_or_seconder_printed_as_an_alias_resolves(cfg):
     for bad in ({"Marquis": "Ambar Marquis"}, {"Amber Marquis": "Marquis"}, {"Amber Marquis": None}):
         with pytest.raises(ac.AgendaCenterConfigError):          # a surname alias would re-point every such vote
             ac.parse_config({**raw, "aliases": bad})
+
+
+# ------------------------------------------------------------------ city-verify W1: format characters in the text layer
+def _w(x0, x1, text, y0=696.556641, y1=709.845703, page=1):
+    from collector.pdfwords import Word
+    return Word(page, x0, x1, y0, y1, text)
+
+
+# 2020-10-01 page 1 as its text layer has it (pdftotext -bbox and -layout, AgendaCenter Minutes/_10012020-608)
+HENLEY_LINE = "    Holleman (Ward 7), David Allen, Mayor Pro Tem (Ward 8)​, J​ eff Henley (Ward 9),"
+HENLEY_WORDS = [_w(413.990234, 425.990234, "8)​,"), _w(427.740233, 432.410154, "J"),
+                _w(427.740233, 427.740233, "​", 695.822877, 717.300070),
+                _w(432.410154, 445.728514, "eff"), _w(450.978518, 485.630861, "Henley"),
+                _w(490.880858, 521.525389, "(Ward"), _w(526.775392, 539.771486, "9),")]
+
+
+def _henley_minutes(page1: str) -> str:
+    present = "Travis " + page1.strip().rstrip(",")
+    return minutes("2020-10-01", present, aye="Allen, Henley, Holleman", mover="Holleman", seconder="Allen")
+
+
+def test_w1_the_real_2020_10_01_boxes_read_jeff_henley_and_resolve(cfg):
+    from collector.city_minutes import join_format_breaks
+    page = join_format_breaks([HENLEY_LINE], HENLEY_WORDS)[0]
+    assert "Jeff Henley (Ward 9)" in page and "J eff" not in page
+    facts, _ = run(cfg, [("2020-10-01", _henley_minutes(page))])
+    assert att(facts, "2020-10-01")["Jeff Henley"] == "city-jeff-henley"                       # N1
+    assert meeting(facts, "2020-10-01")["verification"]["status"] == "verified"
+    rc = facts["roll_calls"][0]
+    assert {v["raw_name"]: v["official_id"] for v in rc["votes"]}["Henley"] == "city-jeff-henley"
+
+
+def test_w1_a_visible_gap_after_the_zero_width_word_stays_a_gap_and_is_held(cfg):
+    from collector.city_minutes import join_format_breaks
+    gap = [w if w.text != "eff" else _w(435.410154, 448.728514, "eff") for w in HENLEY_WORDS]      # a 3 pt gap
+    page = join_format_breaks([HENLEY_LINE], gap)[0]
+    assert page == HENLEY_LINE                                         # unchanged; lines_of deletes the U+200B only
+    facts, _ = run(cfg, [("2020-10-01", _henley_minutes(page))])        # no Jeff Henley on the book: W2 cannot match
+    assert att(facts, "2020-10-01")["J eff Henley"] is None
+    assert meeting(facts, "2020-10-01")["verification"]["status"] == "unverified"
+    assert all(r["verification"]["status"] == "unverified" for r in facts["roll_calls"])
+
+
+def test_w1_a_pair_also_seen_with_a_gap_on_the_page_is_never_joined():
+    from collector.city_minutes import format_breaks
+    words = HENLEY_WORDS + [_w(100, 105, "J", 720, 733), _w(100, 100, "​", 720, 733), _w(108, 120, "eff", 720, 733)]
+    assert format_breaks(HENLEY_WORDS) == {1: {("J", "eff")}}
+    assert format_breaks(words) == {}
+    other_line = HENLEY_WORDS[:3] + [_w(432.410154, 445.728514, "eff", 720, 733)]
+    assert format_breaks(other_line) == {}                                    # not one line
+
+
+def test_w1_format_characters_inside_a_word_are_removed():
+    from collector.city_minutes import lines_of, page_has
+    assert lines_of(["PRESENT: Travis Holle­man (Ward 7), Da‍vid Allen﻿"])[0].text == \
+        "PRESENT: Travis Holleman (Ward 7), David Allen"
+    assert page_has("City Council -​ Special\n  Session", "City Council - Special Session")
