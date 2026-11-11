@@ -216,7 +216,7 @@ class Rpc:
         "Not confirmed" note only, while config.SHOW_UNCONFIRMED_VALUES is off (as for the county's roll calls): no
         names, outcome or case number. Nays only as named; nothing here ever says a vote was unanimous."""
         s = self.sources[mv["source_id"]]
-        shown = mv["confirmed"] or config.SHOW_UNCONFIRMED_VALUES
+        shown = mv["confirmed"] or (config.SHOW_UNCONFIRMED_VALUES and not self.held)   # the hold wins
         src = {"url": f"{s['url']}#page={mv['page']}", "page": mv["page"], "kind": "minutes"}
         return {"id": mv["id"], "kind": mv["kind"], "confirmed": mv["confirmed"], "src": src,
                 "case": mv["case"] if shown and not mv["case_id"] else None,

@@ -238,3 +238,17 @@ def test_site_checks_rpc_morning_fails_a_name_or_a_stale_record(inputs, tmp_path
     problems, _ = SC.check_rpc_morning(site, stale)
     assert any(f"rpc/vote/{MEETING}-motion-1 shows confirmed" in p and "motion_rules is not current" in p
                for p in problems), problems
+
+
+def test_show_unconfirmed_values_never_overrides_the_hold(inputs, monkeypatch):
+    """config.SHOW_UNCONFIRMED_VALUES on shows a not-confirmed motion's values, but never while the hold is on."""
+    facts = json.loads((inputs / "rpc.json").read_text(encoding="utf-8"))
+    monkeypatch.setattr(config, "SHOW_UNCONFIRMED_VALUES", True)
+    hx = rpc.Rpc(cfg(inputs, True), facts)
+    held = [hx.motion(mv) for mv in hx.motions]
+    assert len(held) == 8
+    assert all(m["moved_by"] is None and m["seconded_by"] is None and m["outcome"] is None and m["case"] is None
+               and m["nays"] == [] and m["abstained"] == [] for m in held)
+    rx = rpc.Rpc(cfg(inputs, False), facts)
+    shown = rx.motion(next(mv for mv in rx.motions if mv["id"] == f"{MEETING}-motion-2"))      # not confirmed
+    assert shown["confirmed"] is False and shown["moved_by"] == "Hidden Mover"
