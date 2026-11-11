@@ -38,6 +38,14 @@ muts += [
     ("rule 9: a vote word after the 'in favor' sentence in the body",
      "\n                                             or LEFTOVER_VOTE.search(window, fav.end(), len(para))):", "):"),
     ("polarity: table / postpone / continue", 'if re.search(r"\\btabl|\\bpostpon|\\bcontinu", t):', "if False:"),
+    # review of 33e13a2: the mover's polarity, the table kinds, a lack of a second in the mover clause
+    ("polarity: a mover naming no kind passes", "            if b and a != b:", "            if a and b and a != b:"),
+    ("polarity: from the mover's words", "a, b = _polarity(kind_words) or _polarity(kind),",
+     "a, b = _polarity(kind),"),
+    ("kind: table", '    (r"\\btabl", "Motion to table"),\n', ""),
+    ("kind: postpone", '    (r"\\bpostpon", "Motion to postpone"),\n', ""),
+    ("kind: continue", '    (r"\\bcontinu", "Motion to continue"),\n', ""),
+    ("10a mover clause: lack of a second", "                or LACK_OF_SECOND.search(own)", ""),
 ]
 # 10c: each MEMBER_VOTE alternative
 mv_line = src[src.index("MEMBER_VOTE = ("):src.index(")\n", src.index("MEMBER_VOTE = (")) + 1]

@@ -127,7 +127,6 @@ OUTCOME_TERMS = (r"(?:an?\s+)?" + _COUNT + r"[\s-]+(?:day|month)s?[\s-]+deferral
                  r"(?:approve\s+)?(?:the\s+)?deferrals",
                  r"variances?",
                  r"table(?:\s+the\s+(?:case|request))?(?:\s+indefinitely)?", r"postpone", r"continue",
-                 r"the\s+request",
                  r"(?:a\s+)?lack\s+of\s+(?:a\s+)?second")
 _TERM = "(?:" + "|".join(OUTCOME_TERMS) + ")"
 OUTCOME_WORDS = rf"{_TERM}(?:\s+(?:(?:of|via)\s+)?{_TERM})?"
@@ -236,6 +235,9 @@ MOTION_KINDS = (
     (r"\bdisapprov|\bden(?:y|ial)\b", "Motion for disapproval"),
     (r"\bdefer", "Motion to defer"),
     (r"\bwithdraw", "Motion to withdraw"),
+    (r"\btabl", "Motion to table"),
+    (r"\bpostpon", "Motion to postpone"),
+    (r"\bcontinu", "Motion to continue"),
     (r"\bapprov|\brecommend", "Motion for approval"),
     (r"\belect\b|\bnominat", "Motion to elect"),
     (r"\badjourn", "Motion to adjourn"),
@@ -277,6 +279,7 @@ WHY_NUMBER = "case number not read"
 WHY_TWO = "more than one motion on one case section"
 WHY_REPEATED = "case section repeated"
 WHY_OTHER_CASE = "the motion's sentences name another case number"
+WHY_OTHER_KIND = "the outcome names another kind of motion"     # or the mover's words name no kind it names
 WHY_SECTION_OTHER_CASE = "the case section prints another case on this meeting's agenda"
 WHY_OFF_AGENDA = "case number not on this meeting's agenda"       # collector/rpc_agenda.read_all_minutes
 WHY_SUBJECT = "subject not read"
@@ -295,7 +298,7 @@ PARA_MAX = 900          # characters a motion's sentences may span before its ou
 # as `motion_rules`; sitegen/rpc.py and qa/site_checks.py restate it and show every motion of a record without it as
 # not confirmed. Change it whenever a rule changes what is confirmed, so an older record is never shown under rules
 # it was not read by.
-MOTION_RULES = "rpc-motion-invariant-3"
+MOTION_RULES = "rpc-motion-invariant-4"
 
 
 def _clean(line: str) -> str:
@@ -505,6 +508,7 @@ def body_clauses(after: str, surnames: set[str]) -> tuple[bool, list[tuple[str, 
     own = after[:max(stop, 0)]
     if not ELECT_CLAUSE.match(own):
         if (TITLED.search(own) or LEFTOVER_VOTE.search(own) or EXCEPTION_WORD.search(own)
+                or LACK_OF_SECOND.search(own)          # rpc-votes/no-second: "made a motion that died for lack of a second"
                 or any(re.search(rf"\b{re.escape(n)}\b", own) for n in surnames)):
             return False, clauses
     i = max(stop, 0)
@@ -590,7 +594,8 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
         lead = text[prev:m.start()]
         prev = m.start() + len(para)
         cut = re.search(r",?\s*seconded|\.\s|stating|based|because", after)
-        kind = motion_kind(after[:cut.start()] if cut else after[:120])
+        kind_words = after[:cut.start()] if cut else after[:120]
+        kind = motion_kind(kind_words)
         if case is None and case_ok and kind in (MOTION_DEFAULT, "Motion for approval") and oc:
             # with no case, "made a motion of approval ... deferrals were approved": the outcome as printed names the
             # meeting's business the motion approved (a fixed label, never the sentence)
@@ -661,9 +666,13 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
             mv.tally = re.sub(r"\s", "", tally) if tally else None
             if len(list(OUTCOME.finditer(after))) > 1:
                 reasons.append("more than one outcome")
-            a, b = _polarity(kind), _polarity(mv.outcome)
-            if a and b and a != b:      # "made the motion for disapproval ... Motion for approval passed"
-                reasons.append("the outcome names another kind of motion")
+            # the mover's polarity from the mover's own words (or the type they gave); an outcome that names one
+            # needs the same from the mover: "made the motion for disapproval ... Motion for approval passed", and
+            # (rpc-votes/outcome-other-motion) "made the motion to table the case ... Motion passes for approval" or
+            # "made the motion stating ... Motion for approval passed", where the mover's words name none
+            a, b = _polarity(kind_words) or _polarity(kind), _polarity(mv.outcome)
+            if b and a != b:
+                reasons.append(WHY_OTHER_KIND)
         else:
             reasons.append("no outcome read")
         modelled += [(x.start(), x.end()) for x in FAVOUR.finditer(after)]

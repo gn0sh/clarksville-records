@@ -386,7 +386,7 @@ def test_real_2025_03_25_motion_9_tabling_the_case_stays_confirmed():
     m = one("Joe Smith made a motion to table the case, seconded by Stacey Streetman. All others voted in favor, "
             "motion passes to table the case indefinitely.", extra=("Joe Smith",))
     ok(m)
-    assert (m.kind, m.outcome) == ("Motion", "motion passes to table the case indefinitely")
+    assert (m.kind, m.outcome) == ("Motion to table", "motion passes to table the case indefinitely")
 
 
 def test_a_vote_word_after_the_in_favor_sentence_drops_it_as_the_outcome():
@@ -394,3 +394,40 @@ def test_a_vote_word_after_the_in_favor_sentence_drops_it_as_the_outcome():
     m = one(M + "All others voted in favor. Motion passed for approval but Long voted nay.")
     held(m, R.WHY_FAVOUR_NOT_OUTCOME)
     assert m.outcome is None
+
+
+# rpc-votes/outcome-other-motion, the other way: the mover's words name a kind, or none, that the outcome does not
+@pytest.mark.parametrize("text", [
+    "Joe Smith made the motion to table the case, seconded by Stacey Streetman. Motion passes for approval.",
+    "Joe Smith made a motion to postpone, seconded by Stacey Streetman. Motion passed for deferral.",
+    "Joe Smith made a motion to continue the case, seconded by Stacey Streetman. Motion passed for approval.",
+    "Joe Smith made a motion to defer, seconded by Stacey Streetman. Motion passed for approval.",
+    # real 2022-11-22 motion 3 and 2026-06-23 motion 36: the mover's words name no kind, the outcome approves
+    "Mr. Hadley made the motion stating it is consistent with the adopted Land Use Plan. Mr. Spigner seconded. "
+    "All others were in favor. Motion for approval passed.",
+    "Bill Kimbrough made a motion on what Jeff Tyndall just stated. Seconded by Joe Smith. All members voted in "
+    "favor. Motion passes for approval.",
+])
+def test_an_outcome_naming_a_kind_the_mover_did_not_is_not_confirmed(text):
+    held(one(text, extra=("Joe Smith", "Bill Kimbrough", "Jeff Tyndall")), R.WHY_OTHER_KIND)
+
+
+@pytest.mark.parametrize("text,kind", [
+    ("Joe Smith made a motion to postpone the case, seconded by Stacey Streetman. Motion passed to postpone.",
+     "Motion to postpone"),
+    ("Joe Smith made a motion to continue the case, seconded by Stacey Streetman. Motion passed to continue.",
+     "Motion to continue"),
+    # real 2022-05-24 motion 17: neither the mover nor the outcome names a kind
+    ("Mr. Hadley made the motion based on it is a good transitional zoning from C-5 to R-4. Mr. Powers seconded. "
+     "All others were in favor and motion passed.", "Motion"),
+])
+def test_a_mover_and_outcome_of_one_kind_are_confirmed(text, kind):
+    m = one(text, extra=("Joe Smith",))
+    ok(m)
+    assert m.kind == kind
+
+
+# rpc-votes/no-second: a lack of a second inside the mover clause is not a shape
+def test_a_lack_of_a_second_in_the_mover_clause_is_not_confirmed():
+    held(one("Mr. Hadley made the motion for approval that died for lack of a second. Mr. Powers seconded. "
+             "Motion passed."), R.WHY_UNLISTED)
