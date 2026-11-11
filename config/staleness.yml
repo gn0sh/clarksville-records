@@ -1,0 +1,31 @@
+# Data-age check (launch Brain Trust, "No freshness line or data-age check"; qa/staleness.py). After each green daily
+# run on main, a source whose newest record is older than its `max_age_days` gets one open GitHub issue labelled
+# `label` (its body updated each day, never a second issue); the issue closes when the source is fresh again. It never
+# blocks publishing. What the site shows and what the operator does: docs/ops/launch-runbook.md, "Paused sources".
+#
+# Age = days from the source's newest date (the same dates as the site's "How recent the records are" line,
+# sitegen/freshness.py) to today in config/site.yml site_timezone. An agenda dated in the future has age below zero.
+# A source with no dated record at all counts as stale.
+#
+# Thresholds (devops assumption, 2026-11-11; tune here, one line each): about two missed meeting cycles plus the
+# body's usual posting lag, so one cancelled meeting (a holiday month) never opens an issue.
+#   county agendas: the commission meets twice a month (informal and formal sessions), agendas posted before.
+#   county minutes: monthly formal session; minutes are approved at the next one, then posted (late, as of 2026-11).
+#   city agendas  : the council meets at least twice a month (regular and executive sessions).
+#   city minutes  : approved at the next regular session, then posted.
+#   RPC agendas   : the Regional Planning Commission meets monthly.
+#   RPC minutes   : approved at the next monthly meeting, then posted.
+#   bids/awards   : the purchasing archive lists several solicitations a month.
+#   budget books  : yearly. The fiscal year starts July 1; the check is stale when the newest approved book is older
+#                   than the current fiscal year `grace_days` after it began.
+label: stale-source
+title_prefix: "Stale source:"   # issue title: "<title_prefix> <name> [<key>]"; the [key] finds it again
+sources:
+  county-agendas:  {name: "Montgomery County Commission agendas", max_age_days: 35}
+  county-minutes:  {name: "Montgomery County Commission minutes and votes", max_age_days: 75}
+  city-agendas:    {name: "Clarksville City Council agendas", max_age_days: 35}
+  city-minutes:    {name: "Clarksville City Council minutes and votes", max_age_days: 75}
+  rpc-agendas:     {name: "Regional Planning Commission agendas", max_age_days: 45}
+  rpc-minutes:     {name: "Regional Planning Commission minutes", max_age_days: 75}
+  finance-bids:    {name: "Montgomery County bids and awards", max_age_days: 60}
+  finance-budget:  {name: "Montgomery County approved budget books", grace_days: 92}

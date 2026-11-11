@@ -59,6 +59,16 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   with the store restored, run `python -m collector rpc fetch --limit 30` once a day until it no longer prints
   "documents still to fetch", then commit `data/localities/cmc-rpc/` (listing.json, manifest.json). The next daily
   run fetches any bytes its cache lacks as gaps and rebuilds rpc.json; the RPC issue can be closed when it is green.
+- **Data age** (`qa/staleness.py`, thresholds in `config/staleness.yml`): after every green run on `main`, each
+  source whose newest record is older than its threshold has one open "Stale source: <name> [<key>]" issue, labelled
+  `stale-source`. It is opened once, its body is edited on later days (never a second issue), and the first run that
+  finds the source fresh again closes it; if it goes stale again, its latest closed issue is reopened. Both steps
+  are continue-on-error: a stale source never holds back publishing. If either step fails (a crash, a gh call or the
+  label refused), one "Daily update: data-age check broken" issue opens (a comment each later day). Closing a
+  stale-source issue by hand does not silence it: while the source is still stale, the next run reopens it (whatever
+  the close reason). To stop it, tune or remove the source in `config/staleness.yml`; an open issue for a source
+  removed from that file is closed by the next run.
+  A failed run does not touch these issues ("Daily update failed" covers it). See "Paused sources" below.
 - A failed fetch never deletes data: the RPC step is all or nothing on its committed files; a hard failure stops the
   push job, so no partial result reaches `main`; the document store and caches are only ever added to.
 - Collection keeps the collector's rules: honest User-Agent, robots.txt, 10 s between requests per host.
@@ -147,6 +157,31 @@ come from `docs/reviews/security-review-morning-2b4796b.md`.
 The sender itself (account setup, GitHub environment and secrets, the T4.0 probe, canary week, go-live and
 rollback) has its own runbook: `docs/ops/morning-note.md`. Its `note` job is locked by the repository variable
 `MORNING_NOTE_SEND` (unset today) and runs only after a successful deploy.
+
+## Paused sources (a source stops updating)
+The rule: **a stale source stays on the site, dated, and is never hidden or guessed at. Its fix is planned work
+within the weekly upkeep cap, never an unplanned emergency.**
+- **What the site shows.** Nothing extra is written by hand. The "How recent the records are" line on the landing
+  (and the RPC home) already gives each body's newest minutes and agenda date, computed at build time, the same words
+  for every body and no reason for a gap. That date is the "paused since" date: readers see exactly how far the
+  records go. Records already published stay up. If a source is to be shown as paused in words ("paused since
+  <date>"), that is a site change through a normal PR, the same wording for every body, never a per-official note.
+- **What the operator does** when a `stale-source` issue opens (one per source; the daily run edits it, so check it
+  once a week, not daily):
+  1. Decide which of two cases it is. Open the body's own page (the issue names the source; the official listing URLs
+     are in `config/site.yml` `official_records` and `docs/platform-facts.md`). **The body has not posted newer
+     records** (common for minutes, which are approved a month later and some bodies post late): nothing to fix. Add
+     a comment "posting lag, checked <date>" and leave the issue open; it closes itself when the body posts.
+     **The body has posted newer records that we lack:** our collector is broken for that source (check for an open
+     "Daily update failed", "RPC step failed" or "county meetings kept" issue first; that one is the cause).
+  2. A broken collector is fixed as a normal task (manager assigns, review as usual), inside the weekly upkeep cap.
+     Never re-run collection to "try again" against a host that refused us (city 5, RPC 429), never work around a
+     block, and never type records in by hand.
+  3. A threshold that fires on a body's normal rhythm (for example a body that moves to quarterly meetings) is tuned
+     in `config/staleness.yml` in its own PR, with the reason in the comment there.
+  4. A source we stop collecting on purpose is removed from `config/staleness.yml` in the same PR that stops it.
+- The first runs after this check lands are expected to open two issues: county minutes (newest 2026-05-11) and city
+  minutes (newest 2026-06-04), both past their 75-day thresholds as of 2026-11-11. Triage them as above.
 
 ## Add to the uptime monitor (after the first deploy is live; devops, separate PR in gn0sh/gnosh-uptime)
 Described diff for `monitor.config.json`, add one entry to `targets` (not applied; that repo is not touched here):
