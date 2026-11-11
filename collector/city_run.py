@@ -15,6 +15,11 @@ Files (per locality, so the county's data/manifest.json and data/facts.json are 
 - data/localities/<loc>/facts.json     the facts (schema/facts.schema.json shape, city meeting kinds)
 - data/localities/<loc>/wards.json     each member's ward as printed in each meeting's attendance, with its source
 - build/city-report.json               counts, problems, the fetch log
+
+Exit codes (the workflow's Collect step fails the run, and so opens the issue, on any non-zero code; spec AC4.4):
+0 ok (a single file that is skipped, e.g. a .docx behind a PDF link, is logged and stays 0); 2 a listing could not be
+read; 5 a host or policy refused us at any stage (HostBlocked 403/429, HostRefused, ProxyRefused, RobotsDisallowed:
+alerting/city-fetch-failures-exit-0). A refusal is never retried and never worked around: the code only reports it.
 """
 from __future__ import annotations
 
@@ -30,6 +35,24 @@ from .store import Store, fetch_into_store, store_dir
 
 ROOT = Path(__file__).resolve().parent.parent
 STOP = (HostBlocked, HostRefused, ProxyRefused, RobotsDisallowed)   # the host said no (or policy): stop, never retry
+LISTING_FAILED = 2
+BLOCKED = 5            # its own code, so the alert says "refused", not "failed" (4 is the county run's offline refusal)
+
+
+def failure(stage: str, e: Exception, **extra) -> dict:
+    """One log['failures'] row. `refused` marks a STOP error: exit_code turns any of them into BLOCKED."""
+    row = {"stage": stage, **extra, "error": f"{type(e).__name__}: {e}"}
+    if isinstance(e, STOP):
+        row["refused"] = True
+    return row
+
+
+def exit_code(log: dict) -> int:
+    """BLOCKED when any host or policy refused us (at the listing or at a file), else LISTING_FAILED when a listing
+    could not be read, else 0. A lone FetchFailed on one file stays 0: it is logged and that file is skipped."""
+    if any(f.get("refused") for f in log["failures"]):
+        return BLOCKED
+    return LISTING_FAILED if any(f["stage"] == "listing" for f in log["failures"]) else 0
 
 
 def paths(cfg: AgendaCenterConfig, root: Path = ROOT) -> dict:
@@ -54,7 +77,7 @@ def cmd_fetch(cfg: AgendaCenterConfig, store: Store, listing_path: Path, log: di
     try:
         rows = discover(f, cfg, log, previous)
     except (ListingError, FetchFailed) + STOP as e:
-        log["failures"].append({"stage": "listing", "error": f"{type(e).__name__}: {e}"})
+        log["failures"].append(failure("listing", e))
         log["fetch_log"] = f.log
         return []
     write_json(listing_path, rows)
@@ -70,7 +93,7 @@ def cmd_fetch_civicclerk(cc: civicclerk.CivicClerkConfig, kind_of, store: Store,
     try:
         rows = civicclerk.discover(f, cc, kind_of, log, cache_dir or store_dir() / "civicclerk")
     except (civicclerk.EventsError, FetchFailed) + STOP as e:
-        log["failures"].append({"stage": "listing", "source": civicclerk.SOURCE, "error": f"{type(e).__name__}: {e}"})
+        log["failures"].append(failure("listing", e, source=civicclerk.SOURCE))
         log["fetch_log"] = f.log
         return []
     write_json(listing_path, rows)
@@ -93,10 +116,10 @@ def fetch_files(f, store: Store, rows: list[dict], log: dict, agendas: bool, lim
             log["fetched"][status] = log["fetched"].get(status, 0) + 1
             store.save()                      # saved as it goes, so a stopped run keeps what it fetched
         except STOP as e:
-            log["failures"].append({"stage": "fetch", "url": url, "error": f"{type(e).__name__}: {e}"})
+            log["failures"].append(failure("fetch", e, url=url))
             stopped = isinstance(e, (HostBlocked, HostRefused))
         except FetchFailed as e:              # one file (e.g. a .docx behind a PDF link) is logged and skipped
-            log["failures"].append({"stage": "fetch", "url": url, "error": f"{type(e).__name__}: {e}"})
+            log["failures"].append(failure("fetch", e, url=url))
     store.save()
     log["fetch_log"] = f.log
     return rows
@@ -149,7 +172,11 @@ def main(argv: list[str]) -> int:
         report["build"] = summary
     write_json(p["report"], {**report, "fetch_log": log.get("fetch_log", [])})
     print(json.dumps({k: v for k, v in report.items()}, indent=1, default=str)[:4000])
-    return 2 if log["failures"] and any(f["stage"] == "listing" for f in log["failures"]) else 0
+    code = exit_code(log)
+    if code == BLOCKED:
+        print(f"collector city: REFUSED by a host or by policy (exit {BLOCKED}); not retried. See the failures above.",
+              file=sys.stderr, flush=True)
+    return code
 
 
 if __name__ == "__main__":

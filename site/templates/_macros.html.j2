@@ -1,5 +1,9 @@
 {# Shared pieces. N4: every fact shows a source link with the page. N5: every fact shows its id and a report link. #}
 
+{# The official video of a meeting or body (sitegen/watch.py): every word is config text, the link is config's or the
+   meeting's own recording (data-ext "watch" or "video"). #}
+{% macro watch_link(w) %}<a class="watch" data-ext="{{ w.ext }}" href="{{ w.url }}" target="_blank" rel="noopener noreferrer">{{ w.link }}<span class="sr-only"> (opens in a new tab)</span></a> <span class="watch-note">{{ w.label }}.</span>{% endmacro %}
+
 {% macro source(src) -%}
 <a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">p. {{ src.page }}, fetched {{ src.fetched }}<span class="sr-only"> (opens the {{ src.kind }} PDF in a new tab)</span></a>
 {%- endmacro %}

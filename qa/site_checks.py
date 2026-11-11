@@ -90,7 +90,11 @@ if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from qa.common import OPERATOR, ROOT, find_pdf, load_facts, pdf_page_count  # noqa: E402
-from sitegen.feeds import PER_BODY_FEEDS  # noqa: E402  the one list of feeds capped per body, shared with the build
+# One rule for what QA takes from the build (qa-constants/mixed-sourcing): the NAMES of build outputs (which file is
+# which feed) are imported, so a renamed file cannot leave a check looking at nothing; every RULE a page must meet
+# (allowed URLs, the CSP, form actions, caps, schemes) is restated in this file and never computed by the code under
+# test.
+from sitegen.feeds import CONTRACTS_FEED, PER_BODY_FEEDS  # noqa: E402
 
 # Per build target (sitegen.config.MAX_FILES_BY_TARGET says the same): preview 500, under the artifact limit of 511
 # files per version; pages 3000 (GitHub Pages has no such limit). MAX_FILES is the preview's.
@@ -105,10 +109,12 @@ NARROW = 360  # AC-F10: the Bids and awards pages are also checked at 360 px
 # External links that are not minutes PDFs but are allowed: a holder record's roster source, the map's boundary source,
 # the county redistricting page / old-lines map, and the footer support link. Each must be marked data-ext and https.
 EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder", "corrections", "video", "operator", "record",
-             "listed", "school", "provider", "body"}   # listed: an RPC document on a host we do not collect from (Google Drive), linked as listed
+             "listed", "school", "committee", "watch", "provider", "body"}   # listed: an RPC document on a host we do not collect from (Google Drive), linked as listed
 # body: About's link to each body's own official site (config/site.yml unofficial.bodies)
 # provider: the morning note provider's privacy policy (config morning_note.privacy_url), only while it is enabled
 # school: the day page's one plain link to the school board's site (config/site.yml school_board.url; never fetched)
+# committee: the committees' "coming" links to their official source pages (config/site.yml committees.links)
+# watch: a body's official meeting video page (config/site.yml video.<body>.url; never fetched)
 # the data-transcript attribute itself, not data-transcript-foo
 TRANSCRIPT_TEXT = re.compile(r"(<(span|p)\b[^>]*\sdata-transcript(?=[\s=/>])[^>]*>)[^<]*(</\2>)")
 VIDEO_HREF = re.compile(r"(https://[^#\s]+)(?:#t=(\d+))?")
@@ -541,6 +547,10 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
     out |= {b["url"] for b in (cfg.get("unofficial") or {}).get("bodies") or []}   # About's "official sites" list
     if (cfg.get("school_board") or {}).get("url"):
         out.add(cfg["school_board"]["url"])          # the day page's "coming" school board link
+    out |= {x["url"] for x in (cfg.get("committees") or {}).get("links") or []   # the committees' "coming" links
+            if isinstance(x, dict) and x.get("url")}
+    out |= {v["url"] for v in (cfg.get("video") or {}).values()   # the "Watch" links (sitegen/watch.py)
+            if isinstance(v, dict) and isinstance(v.get("url"), str) and v["url"].startswith("https://")}
     out |= corrections_log_urls(corrections_path)    # the corrections page's "Source" links
     if cfg.get("operator_url"):
         out.add(cfg["operator_url"])                 # the footer's "gnoshcodes LLC" link
@@ -622,6 +632,10 @@ class Page(HTMLParser):
             self.resources.append((tag, a["src"]))
         if tag == "form" and a.get("action"):
             self.resources.append((tag, a["action"]))
+        if a.get("formaction"):
+            # a button's or input's formaction overrides its form's action, so it meets the same rule
+            # (morning-security/qa-formaction-gap); on any tag, since only this check would notice a stray one
+            self.resources.append(("formaction", a["formaction"]))
 
     def handle_data(self, d):
         if self._json_id is not None:
@@ -732,7 +746,7 @@ def check_links(site: Path, pages: dict[str, Page], no_export: bool) -> list[str
         # static assets referenced by <link>/<script>
         for tag, src in pg.resources:
             if bad_scheme(src):     # never skipped: a javascript: form action or a data: script is a failure
-                problems.append(f"{rel}: <{tag}> with scheme {src!r}")
+                problems.append(f"{rel}: {'formaction' if tag == 'formaction' else f'<{tag}>'} with scheme {src!r}")
                 continue
             if urlsplit(src).scheme or src.startswith("//"):
                 continue
@@ -1318,10 +1332,12 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
     note_action = mn.get("form_action") if mn.get("enabled") is True and isinstance(mn.get("form_action"), str) else None
     for rel, pg in pages.items():
         for tag, src in pg.resources:
-            if tag == "form" and note_action and rel == NOTE_PAGE and src == note_action and src.startswith("https://"):
+            if tag in ("form", "formaction") and note_action and rel == NOTE_PAGE and src == note_action \
+                    and src.startswith("https://"):
                 continue
             if urlsplit(src).scheme or src.startswith("//"):
-                problems.append(f"{rel}: third-party <{tag}> {src!r}")
+                what = "formaction on a button or input" if tag == "formaction" else f"<{tag}>"
+                problems.append(f"{rel}: third-party {what} {src!r}")
     if site is None:
         return problems
     want = (cfg or {}).get("geocoder_url") or None
@@ -1516,9 +1532,6 @@ ATOM = "{http://www.w3.org/2005/Atom}"
 RFC3339 = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})")
 
 
-CONTRACTS_FEED = "feeds/topic-contracts.xml"   # sitegen/feeds.py: the one feed whose entries link finance.json documents
-
-
 # dates/no-raw-utc-day (docs/architecture/local-dates.md), restated here on purpose (no call into sitegen): every fetch
 # day a reader sees is the site_timezone day of the manifest instant (first_fetched_at), never the stored UTC day.
 FETCH_DAY = re.compile(
@@ -1705,7 +1718,8 @@ def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: di
     """Alerts v1 (sitegen/feeds.py): each feeds/*.xml is valid Atom (RFC 4287 required elements), its entry ids are
     unique tag: URIs, newest first, capped (sitegen.feeds.PER_BODY_FEEDS: per body, the entry id's first part); its
     links go to a built page (and #anchor) or a fetched source document (`sources`: every facts file's;
-    `finance_sources`: finance.json's, known to CONTRACTS_FEED only). No link carries a scheme other than http(s)."""
+    `finance_sources`: finance.json's, known to CONTRACTS_FEED only), and every entry has a source link. No link
+    carries a scheme other than http(s)."""
     import xml.etree.ElementTree as ET
     problems: list[str] = []
     feeds = sorted((site / "feeds").glob("*.xml")) if (site / "feeds").is_dir() else []
@@ -1790,11 +1804,15 @@ def check_feeds(site: Path, pages: dict[str, Page], sources: list[dict], cfg: di
                     problems.append(f"{rel}: entry {eid} links {href!r}, no such page")
                 elif u.fragment and target in pages and u.fragment not in pages[target].ids:
                     problems.append(f"{rel}: entry {eid} links {href!r}, no #{u.fragment} on {target}")
-            for x in links:
-                if x.get("rel") == "related":
-                    src = (x.get("href") or "").split("#")[0]
-                    if src not in known:
-                        problems.append(f"{rel}: entry {eid} source {src!r} is not a fetched source document")
+            # every entry links its source document (source-link-always/feed-drop-silent): the build drops a
+            # source URL that is not an https link, so an entry without the link is a data error, never a pass
+            related = [x for x in links if x.get("rel") == "related"]
+            if not related:
+                problems.append(f"{rel}: entry {eid} has no source link (rel=\"related\")")
+            for x in related:
+                src = (x.get("href") or "").split("#")[0]
+                if src not in known:
+                    problems.append(f"{rel}: entry {eid} source {src!r} is not a fetched source document")
         if dates != sorted(dates, reverse=True):
             problems.append(f"{rel}: entries are not newest first")
     linked = set()

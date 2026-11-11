@@ -98,12 +98,12 @@ def test_span_compares_local_days_only_when_every_source_has_its_instant():
     assert localdates.span([]) is None
 
 
-def test_latest_is_a_plain_day_and_says_whether_it_is_a_utc_day():
+def test_days_are_plain_days_and_say_whether_they_are_utc_days():
     a = {"url": URL, "sha256": SHA, "fetched_at": "2026-11-10"}
-    assert localdates.latest([a]) == ("2026-11-10", False)
+    assert localdates.days([a]) == (["2026-11-10"], False)
     localdates.use({(URL, SHA): LATE})
-    assert localdates.latest([a]) == ("2026-11-09", True)
-    assert localdates.latest([]) is None
+    assert localdates.days([a]) == (["2026-11-09"], True)
+    assert localdates.days([]) is None
 
 
 def test_load_reads_url_and_sha_from_the_manifests(tmp_path):

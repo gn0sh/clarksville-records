@@ -46,10 +46,11 @@ TEXT_KEYS = ("agenda_item", "vote", "vote_unconfirmed", "agenda", "minutes", "bu
 PAGE_KEYS = {"heading": (), "about": (), "legend": (), "state_off": (), "feeds_heading": (), "no_feed": (),
              "seats_hint": (), "seats_link": (), "preview_link": (), "email_label": (), "submit": (),
              "sent_line": ("{provider}",), "privacy_label": (), "preview_title": (),
-             "seats_include": (), "seats_sent": ("{provider}",), "method_heading": (),
-             "method_sent": ("{provider}",), "method_unsubscribe": (), "method_signup_link": (),
+             "seats_include": (), "seats_sent": ("{provider}", "{box}"), "method_heading": (),
+             "method_sent": ("{provider}", "{box}"), "method_unsubscribe": (), "method_signup_link": (),
              "preview_lede": ("{date}", "{from}", "{to}"), "preview_mine": (), "quiet": (), "backfill": (),
-             "unplaced_link": (), "source_label": (), "page_label": (), "district_label": (), "ward_label": ()}
+             "unplaced_link": (), "source_label": (), "page_label": (), "district_label": (), "ward_label": (),
+             "vote_on_label": ()}
 FORM_FIELD_KEYS = ("email", "lists", "district", "ward")
 _HTTPS = re.compile(r"https://[A-Za-z0-9.-]+(?::[0-9]{1,5})?(?:/[^\s\"'<>`\\]*)?")
 
@@ -403,13 +404,17 @@ def _index_documents(ix, body: str, body_name: str, seat_body: str, txt: dict, z
                 case = zoning.county_case(it.get("number")) if (zoning and it) else None
                 title = _number_title(it.get("number"), ix.item_title(it)) if it else ix.meeting_label(m)
                 tally = fact.get("stated_tally") if confirmed else None
+                # what the roll call voted on, as its own outcome clause states it ("Amendment", "Resolution, as
+                # amended": views.outcome_kind_label, the site's "Vote on" rule), so two votes on one item read apart
+                # (morning-digest/vote-entries-indistinct). Confirmed roll calls only, like the outcome; no name.
+                vote_on = views.outcome_kind_label(fact.get("outcome_text")) if confirmed else None
                 entries.append(_entry(
                     id=f"{body}/vote/{fact['id']}", kind="vote", body=body, body_name=body_name,
                     meeting_date=m["date"], title=title,
                     lists=["seats"] + (["budget"] if it and "budget" in views.item_types(it) else [])
                     + (["zoning"] if case else []),
                     recorded=txt["vote"] if confirmed else txt["vote_unconfirmed"], seat_body=seat_body,
-                    confirmed=confirmed,
+                    confirmed=confirmed, vote_on=vote_on,
                     outcome=config.OUTCOME_LABELS[fact["outcome"]] if confirmed else None,
                     tally=(f"{tally['yes']}-{tally['no']}" + (f"-{tally['abstain']}" if tally.get("abstain") else "")
                            if tally else None),
@@ -578,7 +583,26 @@ def documents(ix, councils=(), rpx=None, ax=None, fx=None, bg=None, first=None, 
         docs += _rpc_documents(rpx, txt, zoning)
     if fx is not None:
         docs += _finance_documents(fx, bg, cfg, txt, first or {}, mn["cutoff"], cfg["site_timezone"])
+    _add_watch(docs, ix, councils, cfg)
     return docs
+
+
+def _add_watch(docs: list[dict], ix, councils, cfg: dict) -> None:
+    """Each entry about a meeting carries `watch` (sitegen/watch.py): {url, link, label, ext} or null. A council
+    meeting's own recording when exactly one meeting of that body on that date carries one, else the body's page;
+    null for a body with no `video:` entry and for an entry with no meeting (a solicitation)."""
+    from . import watch
+    recordings: dict[tuple, set] = {}
+    for b, facts in [(cfg["county_key"], ix.facts), *((c.body_key, c.facts) for c in councils)]:
+        for m in facts["meetings"]:
+            recordings.setdefault((b, m["date"]), set()).add(m.get("video_url") or "")
+    for d in docs:
+        for e in d["entries"]:
+            if not e.get("meeting_date"):
+                e["watch"] = None
+                continue
+            vids = recordings.get((e["body"], e["meeting_date"]), set())
+            e["watch"] = watch.meeting(e["body"], next(iter(vids)) if len(vids) == 1 else None, cfg)
 
 
 def resolve(docs: list[dict], first: dict[str, datetime]) -> None:
@@ -590,9 +614,25 @@ def resolve(docs: list[dict], first: dict[str, datetime]) -> None:
 
 
 # ---------------------------------------------------------------------------------------------- the day, select
+def as_of(d: date, fetch_dates) -> str:
+    """A note's `data_as_of`: the newest fetch date on or before the note's day `d`, "" when there is none
+    (morning-digest/data-as-of). `fetch_dates` is every source's fetch day (YYYY-MM-DD, as localdates.days gives
+    it) from every data file the note reads, so each day's note states its own date, not the build's. A plain
+    string is one date for every day, as given.
+    Fallback (data_as_of_utc true: some source has no recorded instant, so these are stored UTC days): the `<= d`
+    comparison is kept on purpose. A UTC day is the local day or the day after it, so a fetch on the evening of `d`
+    (UTC day d+1) is left out of d's note: the note may state an older day, never one after its own."""
+    if isinstance(fetch_dates, str):
+        return fetch_dates
+    dates = [x[:10] for x in fetch_dates or () if isinstance(x, str) and x[:10] <= d.isoformat()
+             and re.fullmatch(r"\d{4}-\d\d-\d\d", x[:10])]
+    return max(dates, default="")
+
+
 def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None = None,
-        data_as_of: str = "", bulk: frozenset[str] = frozenset(), data_as_of_utc: bool = False) -> dict:
+        data_as_of="", bulk: frozenset[str] = frozenset(), data_as_of_utc: bool = False) -> dict:
     """The note for day `d` (the output contract): every entry of every document first fetched in d's window.
+    `data_as_of`: every source's fetch date (as_of picks the day's), or one string for every day.
     Backfill guard: a day holding any document from a collector's initial run (`bulk`, bulk_urls) or more than
     morning_note.backfill.max_entries entries is a backfill day: `"backfill": true` and `entries: []` (nothing to
     send), its counts kept in `counts`."""
@@ -621,7 +661,7 @@ def day(d: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None 
     u = unofficial.load(cfg if "unofficial" in cfg else None)
     support_on = cfg.get("support_enabled") is True and bool(cfg.get("support_url"))
     return {"schema": SCHEMA, "date": d.isoformat(),
-            "window": {"from": _stamp(start), "to": _stamp(end)}, "data_as_of": data_as_of,
+            "window": {"from": _stamp(start), "to": _stamp(end)}, "data_as_of": as_of(d, data_as_of),
             "data_as_of_utc": data_as_of_utc,
             "lists": [{"key": x["key"], "label": x["label"]} for x in mn["lists"]],
             "backfill": backfill, "counts": counts,
@@ -649,6 +689,8 @@ def own_text(note: dict) -> list[str]:
     out = [x["label"] for x in note["lists"]] + ([note["unplaced_text"]] if note["unplaced_text"] else [])
     for e in note["entries"]:
         out += [e["recorded"], e["body_name"]] + ([e["title"]] if e.get("title_ours") else [])
+        out += [e["vote_on"]] if e.get("vote_on") else []       # a fixed config label, never the record's text
+        out += [e["watch"]["link"], e["watch"]["label"]] if e.get("watch") else []   # config text
     return out
 
 
@@ -672,7 +714,7 @@ def select(note: dict, lists, seats: dict | None = None) -> list[dict]:
 
 # ---------------------------------------------------------------------------------------------- files
 def write(out: Path, today: date, docs: list[dict], first: dict[str, datetime], cfg: dict | None = None,
-          data_as_of: str = "", bulk: frozenset[str] = frozenset(), data_as_of_utc: bool = False) -> dict:
+          data_as_of="", bulk: frozenset[str] = frozenset(), data_as_of_utc: bool = False) -> dict:
     """morning/YYYY-MM-DD.json for the last keep_days days and morning/latest.json; returns today's note. Written
     on the pages target only (build.py): the preview may leave sections out (docs/status.md, 2026-11-09)."""
     cfg = config.SITE if cfg is None else cfg

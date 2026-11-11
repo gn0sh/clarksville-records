@@ -625,3 +625,152 @@ def test_enabled_needs_a_provider_name():
     assert any("provider" in p for p in seam(**on))
     assert any("provider" in p for p in seam(**on, provider="  "))
     assert seam(**on, provider="Example Mail") == []
+
+
+# ------------------------------------------------------------------ two votes on one item; data as of, per day
+AMENDMENT = "The foregoing Amendment was Adopted by the following roll call vote:"
+AS_AMENDED = "The foregoing Resolution, as Amended, was Adopted by the following roll call vote:"
+
+
+def two_votes_facts() -> dict:
+    """The county fixture with a second roll call on item 24-11-91 at the same meeting: the amendment, then the
+    resolution as amended, each with the minutes' own outcome clause (real data: 2026-02-09, p138)."""
+    f = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    rc = next(r for r in f["roll_calls"] if r["id"] == "rc-99d3ff29-p8-1")
+    rc["outcome_text"] = AS_AMENDED
+    f["roll_calls"].append({**copy.deepcopy(rc), "id": "rc-99d3ff29-p8-0", "motion_id": None, "outcome_text": AMENDMENT})
+    return f
+
+
+def test_two_votes_on_one_item_carry_what_each_voted_on():
+    """morning-digest/vote-entries-indistinct: the same title, date and "Recorded in the minutes", told apart by
+    `vote_on`, the site's fixed label for the roll call's own outcome clause; never for an unconfirmed roll call."""
+    f = two_votes_facts()
+    entries = {e["id"]: e for d in morning.documents(views.Index(f)) for e in d["entries"]}
+    a, b = entries["county/vote/rc-99d3ff29-p8-0"], entries["county/vote/rc-99d3ff29-p8-1"]
+    same = ("title", "meeting_date", "recorded", "body_name", "href")
+    assert [a[k] for k in same] == [b[k] for k in same] and a["confirmed"] and b["confirmed"]
+    assert (a["vote_on"], b["vote_on"]) == ("Amendment", "Resolution, as amended")
+    labels = {label for _, label in config.OUTCOME_KINDS}
+    votes = [e for e in entries.values() if e["kind"] == "vote"]
+    assert all("vote_on" in e and (e["vote_on"] is None or e["vote_on"] in labels) for e in votes)
+    # a clause no pattern matches gives no label; an unconfirmed roll call gives none whatever its clause says
+    assert entries["county/vote/rc-314626e6-p10-1"]["vote_on"] is None
+    held = next(r for r in f["roll_calls"] if not views.is_verified(r))
+    held["outcome_text"] = AMENDMENT
+    again = {e["id"]: e for d in morning.documents(views.Index(f)) for e in d["entries"]}
+    assert again[f"county/vote/{held['id']}"]["vote_on"] is None and again[f"county/vote/{held['id']}"]["outcome"] is None
+    # the label is our text (config), so the neutrality scan reads it
+    n = {"lists": [], "unplaced_text": "", "entries": [a]}
+    assert "Amendment" in morning.own_text(n)
+
+
+def test_the_preview_prints_what_a_vote_was_on(inputs, tmp_path):
+    facts = tmp_path / "facts.json"
+    facts.write_text(json.dumps(two_votes_facts()), encoding="utf-8")
+    out = tmp_path / "build" / "site"
+    args = dict(seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, finance_path=FIN, rpc=inputs["rpc"],
+                county_agendas=inputs["agendas"], morning_manifests=inputs["manifests"], today=D + timedelta(days=1),
+                target="pages")
+    build(facts, out, **args)
+    html = (out / "morning" / "index.html").read_text(encoding="utf-8")
+    label = config.SITE["morning_note"]["page"]["vote_on_label"]
+    assert f"{label}: Amendment</span>" in html and f"{label}: Resolution, as amended</span>" in html
+    assert html.count(f"{label}: ") == 2
+
+
+def test_data_as_of_is_each_days_own_newest_fetch_date():
+    """morning-digest/data-as-of: the newest fetch date on or before the note's day, from every file's sources."""
+    dates = ["2026-11-05", "2026-11-09", "2026-11-10T08:00:00+00:00", "2026-11-12", "", None, "unknown"]
+    assert morning.as_of(date(2026, 11, 11), dates) == "2026-11-10"
+    assert morning.as_of(date(2026, 11, 9), dates) == "2026-11-09"
+    assert morning.as_of(date(2026, 11, 8), dates) == "2026-11-05"
+    assert morning.as_of(date(2026, 11, 4), dates) == "" and morning.as_of(D, []) == ""
+    assert morning.as_of(D, "2026-11-30") == "2026-11-30"          # one string: the same for every day, as given
+
+
+def test_data_as_of_counts_agendas_and_finance_and_differs_by_day(inputs, tmp_path):
+    # the county agendas file and the finance file each hold the only source fetched on their day
+    agendas = json.loads(inputs["agendas"].read_text(encoding="utf-8"))
+    agendas["sources"][0]["fetched_at"] = "2026-11-09"
+    (tmp_path / "agendas.json").write_text(json.dumps(agendas), encoding="utf-8")
+    fin = json.loads(FIN.read_text(encoding="utf-8"))
+    for s in fin["sources"]:
+        s["fetched_at"] = "2026-11-08"
+    (tmp_path / "fin.json").write_text(json.dumps(fin), encoding="utf-8")
+    out = tmp_path / "build" / "site"
+    make(inputs, out, county_agendas=tmp_path / "agendas.json", finance_path=tmp_path / "fin.json")
+    got = {p.stem: json.loads(p.read_text(encoding="utf-8"))["data_as_of"]
+           for p in (out / "morning").glob("2026-*.json")}
+    others = {s["fetched_at"] for s in inputs["county"]["sources"] + inputs["rpcf"]["sources"]}
+    assert not others & {"2026-11-08", "2026-11-09"}
+    assert got["2026-11-08"] == "2026-11-08"                               # the finance file
+    assert got["2026-11-09"] == "2026-11-09"                               # the county agenda
+    assert got["2026-11-12"] == max(x for x in others | {"2026-11-09"} if x <= "2026-11-12")
+    assert all(v <= k for k, v in got.items()) and len(set(got.values())) > 1
+
+
+def test_data_as_of_is_the_local_day_when_every_source_has_its_instant(inputs, tmp_path):
+    """local-dates/as-of-exact-untested: with a fetch manifest row for every source, data_as_of is the site_timezone
+    day (data_as_of_utc false). The county agenda's evening fetch, 2026-11-10T04:38Z, is 22:38 Central on Nov 9: the
+    Nov 9 note says 2026-11-09, never the stored UTC day 2026-11-10, and the Nov 8 note does not pick it up."""
+    evening = "2026-11-10T04:38:00+00:00"
+    rpcf = copy.deepcopy(inputs["rpcf"])
+    for s in rpcf["sources"]:
+        s["fetched_at"] = "2026-11-07"
+    (tmp_path / "rpc.json").write_text(json.dumps(rpcf), encoding="utf-8")
+    agendas = json.loads(inputs["agendas"].read_text(encoding="utf-8"))
+    agendas["sources"][0]["fetched_at"] = "2026-11-10"                    # the UTC day of `evening`
+    (tmp_path / "agendas.json").write_text(json.dumps(agendas), encoding="utf-8")
+    fin = json.loads(FIN.read_text(encoding="utf-8"))
+    srcs = inputs["county"]["sources"] + rpcf["sources"] + agendas["sources"] + fin["sources"]
+    assert {s["fetched_at"][:10] for s in srcs} == {"2026-11-07", "2026-11-10"} and all(s.get("sha256") for s in srcs)
+    rows = [{"url": s["url"], "sha256": s["sha256"],
+             "first_fetched_at": evening if s["fetched_at"] == "2026-11-10" else "2026-11-07T15:00:00+00:00"}
+            for s in srcs]
+    (tmp_path / "fetch.json").write_text(json.dumps(rows), encoding="utf-8")
+    out = tmp_path / "build" / "site"
+    make(inputs, out, rpc={**inputs["rpc"], "facts_path": tmp_path / "rpc.json"},
+         county_agendas=tmp_path / "agendas.json", fetch_manifests=[tmp_path / "fetch.json"])
+    notes = {p.stem: json.loads(p.read_text(encoding="utf-8")) for p in (out / "morning").glob("2026-*.json")}
+    assert notes["2026-11-09"]["data_as_of"] == "2026-11-09" and notes["2026-11-09"]["data_as_of_utc"] is False
+    assert notes["2026-11-08"]["data_as_of"] == "2026-11-07" and notes["2026-11-08"]["data_as_of_utc"] is False
+    assert notes["2026-11-10"]["data_as_of"] == "2026-11-09"                # the UTC day 2026-11-10 is never used
+    assert all(n["data_as_of"] != "2026-11-10" for n in notes.values())
+
+
+# ------------------------------------------------------------------ a dropped source link fails QA
+def test_a_build_with_a_bad_rpc_source_url_fails_site_checks(inputs, tmp_path):
+    """source-link-always/feed-drop-silent: the build drops an RPC source URL that is not an https link (the entry
+    stays, with no source link); qa.site_checks then fails that feed entry instead of passing it."""
+    from conftest import parse as _  # noqa: F401  (tests dir on the path)
+    from qa import site_checks
+    rpcf = copy.deepcopy(inputs["rpcf"])
+    agenda = next(s for s in rpcf["sources"] if s["kind"] == "agenda")
+    good, bad = agenda["url"], agenda["url"].replace("https://", "http://", 1)
+    assert good.startswith("https://") and bad != good
+
+    def checked(name, url):
+        agenda["url"] = url
+        (tmp_path / f"{name}.json").write_text(json.dumps(rpcf), encoding="utf-8")
+        rows = json.loads(inputs["manifests"][0].read_text(encoding="utf-8")) + [{"url": url, "first_fetched_at": OLD}]
+        (tmp_path / f"{name}-manifest.json").write_text(json.dumps(rows), encoding="utf-8")
+        out = tmp_path / name / "site"
+        make(inputs, out, rpc={**inputs["rpc"], "facts_path": tmp_path / f"{name}.json"},
+             morning_manifests=[tmp_path / f"{name}-manifest.json"])
+        pages = {f.relative_to(out).as_posix(): site_checks.parse(f) for f in out.rglob("*.html")}
+        # every source the feeds link, as qa.site_checks main passes them (the county agendas included)
+        sources = (inputs["county"]["sources"] + rpcf["sources"]
+                   + json.loads(inputs["agendas"].read_text(encoding="utf-8"))["sources"])
+        fin = json.loads(FIN.read_text(encoding="utf-8"))["sources"]
+        problems, _note = site_checks.check_feeds(out, pages, sources, config.SITE, finance_sources=fin)
+        return out, [p for p in problems if "source" in p and "contracts" not in p]   # the finance fixture aside
+
+    out, problems = checked("good", good)
+    assert problems == []
+    out, problems = checked("bad", bad)
+    feed = (out / "feeds" / "topic-rezoning.xml").read_text(encoding="utf-8")
+    assert bad not in feed                                           # the build dropped the link ...
+    missing = [p for p in problems if "has no source link" in p]
+    assert missing and all("rpc/item/" in p or "/item/" in p for p in missing)    # ... and QA fails each such entry
+    assert any(p.startswith("feeds/topic-rezoning.xml: entry ") for p in missing)

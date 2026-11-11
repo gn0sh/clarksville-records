@@ -1,7 +1,13 @@
 """The daily-update workflow ships locked: its deploy job runs only when RECORDS_DEPLOY_ENABLED is 'true' (CEO hard
 stop 1), nothing else may publish, and no secrets are used."""
+import itertools
+import os
+import re
+import shutil
+import subprocess
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -9,11 +15,81 @@ TEXT = (ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding=
 WF = yaml.safe_load(TEXT)
 
 
+LOCK = "vars.RECORDS_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'"
+# pipeline/deploy-independent-of-push: the lock, then the results of the two jobs deploy needs. A status function
+# (!cancelled()) replaces GitHub's implicit success(), which would also skip deploy on the rebuild-only run, where
+# push is skipped by design (the runbook's rollback path).
+DEPLOY_IF = (LOCK + " && !cancelled() && needs.update.result == 'success' && (needs.push.result == 'success' || "
+             "(needs.push.result == 'skipped' && github.event_name == 'workflow_dispatch' && !inputs.collect))")
+
+
+def _deploy_if() -> str:
+    return " ".join(WF["jobs"]["deploy"]["if"].split())
+
+
 def test_deploy_job_is_locked():
-    cond = WF["jobs"]["deploy"]["if"].strip()
-    assert cond == "vars.RECORDS_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'"
-    assert cond.startswith("vars.RECORDS_DEPLOY_ENABLED == 'true'")          # the lock stays the first condition
-    assert WF["jobs"]["deploy"]["needs"] == "update"
+    cond = _deploy_if()
+    assert cond == DEPLOY_IF
+    assert cond.startswith(LOCK + " && ")                                    # the lock stays the first condition
+    assert WF["jobs"]["deploy"]["needs"] == ["update", "push"]
+
+
+def _holds(expr: str, ctx: dict) -> bool:
+    """A GitHub Actions `if` of the small shape used here (==, &&, ||, !, parentheses, 'strings', contexts, cancelled())
+    evaluated over a made-up context. Unknown names raise KeyError, so the table below must cover every name."""
+    py = re.sub(r"cancelled\(\)", "ctx['cancelled']", expr)
+    py = re.sub(r"\b(?:vars|github|needs|inputs)(?:\.\w+)+", lambda m: f"ctx[{m.group(0)!r}]", py)
+    py = py.replace("&&", " and ").replace("||", " or ")
+    py = re.sub(r"!(?!=)", " not ", py)
+    return bool(eval(py, {"__builtins__": {}}, {"ctx": ctx}))               # the workflow file is ours, not input
+
+
+def _ctx(**over) -> dict:
+    """A scheduled run on main, deploy enabled, both needed jobs green."""
+    ctx = {"vars.RECORDS_DEPLOY_ENABLED": "true", "github.ref": "refs/heads/main", "github.event_name": "schedule",
+           "inputs.collect": None, "needs.update.result": "success", "needs.push.result": "success",
+           "cancelled": False}
+    return {**ctx, **{k.replace("__", "."): v for k, v in over.items()}}
+
+
+def test_deploy_needs_a_successful_push():
+    """pipeline/deploy-independent-of-push: no deploy when the push job failed (or was cancelled, or was skipped on a
+    collecting run): the site must never go live from data that is not on main."""
+    cond = _deploy_if()
+    assert _holds(cond, _ctx())                                                           # the daily run
+    for result in ("failure", "cancelled", "skipped"):
+        assert not _holds(cond, _ctx(needs__push__result=result)), result
+        assert not _holds(cond, _ctx(needs__push__result=result, github__event_name="workflow_dispatch",
+                                     inputs__collect=True)), result
+    for result in ("failure", "cancelled", "skipped"):
+        assert not _holds(cond, _ctx(needs__update__result=result, needs__push__result="skipped")), result
+    assert not _holds(cond, _ctx(cancelled=True))
+
+
+def test_rebuild_only_run_still_deploys_without_a_push():
+    """collect = false (the runbook's rollback and redeploy path) has no data to commit: push is skipped by its own
+    `if`, and deploy runs from the committed data. A failed push never counts, whatever the inputs say."""
+    cond = _deploy_if()
+    rebuild = dict(github__event_name="workflow_dispatch", inputs__collect=False, needs__push__result="skipped")
+    assert _holds(cond, _ctx(**rebuild))
+    assert not _holds(cond, _ctx(**{**rebuild, "needs__push__result": "failure"}))
+    assert not _holds(cond, _ctx(**{**rebuild, "needs__update__result": "failure"}))
+    push_if = WF["jobs"]["push"]["if"]                    # the push job is skipped exactly when deploy allows 'skipped'
+    assert not _holds(push_if, _ctx(**rebuild)) and _holds(push_if, _ctx())
+
+
+def test_the_lock_and_main_only_hold_in_every_case():
+    """Hard stop 1: whatever the job results and inputs, no deploy unless the variable is exactly 'true', on main."""
+    cond = _deploy_if()
+    results = ("success", "failure", "cancelled", "skipped")
+    for var, ref in (("", "refs/heads/main"), ("false", "refs/heads/main"), ("True", "refs/heads/main"),
+                     ("true", "refs/heads/other"), ("", "refs/heads/other")):
+        for upd, push, event, collect, cancelled in itertools.product(
+                results, results, ("schedule", "workflow_dispatch"), (None, True, False), (False, True)):
+            ctx = _ctx(vars__RECORDS_DEPLOY_ENABLED=var, github__ref=ref, needs__update__result=upd,
+                       needs__push__result=push, github__event_name=event, inputs__collect=collect,
+                       cancelled=cancelled)
+            assert not _holds(cond, ctx), ctx
 
 
 def test_only_the_deploy_job_can_publish():
@@ -70,7 +146,7 @@ def test_untrusted_parse_job_has_no_write_token():
     assert jobs["push"]["needs"] == "update"
     assert "git push" not in "\n".join(s.get("run", "") for s in jobs["update"]["steps"])
     assert not any("python" in s.get("run", "") for s in jobs["push"]["steps"])      # parses nothing
-    assert jobs["deploy"]["needs"] == "update"
+    assert jobs["deploy"]["needs"] == ["update", "push"]
 
 
 def _push_run_text():
@@ -95,7 +171,8 @@ def test_push_validates_the_artifact_before_staging():
     names = [s.get("name", "") for s in steps]
     validate = steps[names.index("Validate refreshed data")]["run"]
     assert "! -type f ! -type d" in validate                      # symlinks and special files
-    assert "*.json|*.yml" in validate                              # extension allowlist (what git ls-files data holds)
+    assert "*.json|*.yml|*/changes.jsonl) ;;" in validate          # allowlist: what data/ tracks, and the change logs
+    assert validate.count(";;") == 2                               # that list and the refusing default, nothing else
     assert "-size +50M" in validate
     assert names.index("Validate refreshed data") < names.index("Commit refreshed data to main")
     assert names.index("Download refreshed data") < names.index("Validate refreshed data")
@@ -105,7 +182,68 @@ def test_push_validates_the_artifact_before_staging():
 def test_tracked_data_files_fit_the_allowlist():
     import subprocess
     files = subprocess.run(["git", "ls-files", "data"], cwd=ROOT, capture_output=True, text=True, check=True).stdout.split()
-    assert files and all(f.endswith((".json", ".yml")) for f in files)
+    assert files and all(f.endswith((".json", ".yml")) or f.endswith("/changes.jsonl") for f in files)
+
+
+def _validate(folder: Path, tmp_path: Path) -> subprocess.CompletedProcess:
+    """The push job's own "Validate refreshed data" script, run over `folder` standing for the downloaded artifact."""
+    step = next(s for s in WF["jobs"]["push"]["steps"] if s.get("name") == "Validate refreshed data")
+    runner = tmp_path / "runner"
+    art = runner / "records-data"
+    shutil.copytree(folder, art, symlinks=True)
+    return subprocess.run(["bash", "-c", step["run"]], env={**os.environ, "RUNNER_TEMP": str(runner)},
+                          capture_output=True, text=True)
+
+
+def test_a_changed_document_passes_the_push_validation(tmp_path):
+    """pipeline/changes-jsonl-rejected: when a document changes, collector/store.py appends to changes.jsonl beside the
+    manifest. The push job must accept that data folder, or the change is never committed and repeats every day."""
+    from collector.tests.test_fin_fetch import ARCHIVE, FIXTURE_HTML, _fin_fetch
+    data = tmp_path / "data"            # stands for data/: manifest.json and changes.jsonl side by side
+    data.mkdir()
+    routes = {ARCHIVE: (200, FIXTURE_HTML, {"Content-Type": "text/html"})}
+    _fin_fetch(data, routes)                                                   # day 1: first collection
+    routes[ARCHIVE] = (200, FIXTURE_HTML.replace(b"MAY 4, 2026", b"MAY 5, 2026"), {"Content-Type": "text/html"})
+    log, _, _, _ = _fin_fetch(data, routes)                                    # day 2: the county edits one row
+    assert log["archive"]["status"] == "changed"
+    shutil.rmtree(data / "store", ignore_errors=True)                          # the artifact excludes data/store
+    for p in list(data.rglob("*.pdf")) + list(data.rglob("*.part")):
+        p.unlink()
+    assert (data / "changes.jsonl").is_file() and (data / "manifest.json").is_file()
+    r = _validate(data, tmp_path)
+    assert r.returncode == 0, "the push job refuses the refreshed data: " + r.stdout.replace(str(tmp_path), "<tmp>")
+
+
+def test_every_change_log_the_collector_writes_passes(tmp_path):
+    """Each Store writes changes.jsonl beside its own manifest (county, city, county agendas, RPC): all are allowed."""
+    data = tmp_path / "data"
+    for sub in ("", "localities/clarksville-tn", "county-agendas", "localities/clarksville-tn/rpc"):
+        (data / sub).mkdir(parents=True, exist_ok=True)
+        (data / sub / "manifest.json").write_text("[]\n")
+        (data / sub / "changes.jsonl").write_text("{}\n")
+    (data / "names.yml").write_text("[]\n")
+    assert _validate(data, tmp_path).returncode == 0
+
+
+@pytest.mark.parametrize("name", ["run.sh", "notes.jsonl", "changes.jsonl.sh", "x.pdf", "changes.jsonl/evil.py",
+                                  "localities/a/audit.jsonl", "xchanges.jsonl", ".gitattributes"])
+def test_other_file_types_are_still_refused(tmp_path, name):
+    """The allowlist stays an allowlist: only *.json, *.yml and files named exactly changes.jsonl."""
+    data = tmp_path / "data"
+    (data / name).parent.mkdir(parents=True, exist_ok=True)
+    (data / name).write_text("x\n")
+    (data / "manifest.json").write_text("[]\n")
+    r = _validate(data, tmp_path)
+    assert r.returncode == 1 and "file type not allowed in data/" in r.stdout
+
+
+def test_a_symlinked_change_log_is_still_refused(tmp_path):
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "manifest.json").write_text("[]\n")
+    (data / "changes.jsonl").symlink_to("/etc/passwd")
+    r = _validate(data, tmp_path)
+    assert r.returncode == 1 and "not a regular file or directory" in r.stdout
 
 
 def test_push_failure_opens_an_issue():
@@ -116,6 +254,7 @@ def test_push_failure_opens_an_issue():
     assert last["if"] == "failure()" and "Daily update failed" in last["run"] and "gh issue" in last["run"]
     runbook = (ROOT / "docs" / "ops" / "launch-runbook.md").read_text(encoding="utf-8")
     assert "A failure in `update` or `push` opens" in runbook
+    assert "`deploy` needs both" in runbook               # pipeline/deploy-independent-of-push: the text is now true
 
 
 def test_push_and_deploy_run_on_main_only():
@@ -123,3 +262,120 @@ def test_push_and_deploy_run_on_main_only():
     assert "github.ref == 'refs/heads/main'" in WF["jobs"]["push"]["if"]
     assert "github.ref == 'refs/heads/main'" in WF["jobs"]["deploy"]["if"]
     assert "github.event_name == 'schedule' || inputs.collect" in WF["jobs"]["push"]["if"]
+
+
+# ------------------------------------------------------------------ least privilege, every workflow in the repo
+WORKFLOWS = sorted((ROOT / ".github" / "workflows").glob("*.y*ml"))
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: p.name)
+def test_every_job_states_its_own_permissions(path):
+    wf = yaml.safe_load(path.read_text(encoding="utf-8"))
+    assert wf.get("permissions") == {}, "top-level permissions must be {} so each job grants only its own"
+    for name, job in wf["jobs"].items():
+        assert isinstance(job.get("permissions"), dict), f"{path.name}: job {name} has no explicit permissions"
+        assert "write-all" not in str(job["permissions"])
+
+
+@pytest.mark.parametrize("path", WORKFLOWS, ids=lambda p: p.name)
+def test_no_untrusted_triggers_and_no_echoed_credentials(path):
+    text = path.read_text(encoding="utf-8")
+    wf = yaml.safe_load(text)
+    on = wf.get("on") or wf[True]
+    assert not set(on) & {"pull_request_target", "workflow_run", "pull_request", "issue_comment"}
+    assert "secrets." not in text
+    for line in text.splitlines():
+        s = line.strip()
+        if s.startswith(("echo", "printf", "run: echo", "run: printf")):
+            assert not re.search(r"github\.token|GH_TOKEN|GITHUB_TOKEN|ACTIONS_\w*TOKEN", s), line
+
+
+def test_a_hard_failure_never_reaches_main_and_the_exit_codes_are_documented():
+    """A failed fetch never deletes data: on any hard exit code the Collect step fails, so the data artifact is not
+    uploaded and the push job (which needs a successful update) never runs. Only the RPC step's own codes pass:
+    county 6 (partial) and county 5 (RPC failed; its files are restored by the step, everything else publishes)."""
+    steps = {s.get("name"): s for s in WF["jobs"]["update"]["steps"]}
+    assert steps["Upload refreshed data"]["if"].startswith("success() && ")
+    assert WF["jobs"]["push"]["needs"] == "update" and "always()" not in WF["jobs"]["push"]["if"]
+    script = steps["Collect (polite fetch, parse, verify)"]["run"]
+    cases = [(0, 0, 0), (0, 6, 0), (0, 5, 0), (2, 0, 1), (5, 0, 1), (0, 2, 1), (0, 3, 1), (0, 4, 1), (2, 5, 1),
+             (5, 6, 1)]
+    for city, county, ok in cases:
+        fake = script.replace("python -m collector city run; city=$?", f"city={city}").replace(
+            "python -m collector run; county=$?", f"county={county}")
+        r = subprocess.run(["bash", "-c", fake], env={**os.environ, "GITHUB_OUTPUT": os.devnull},
+                           capture_output=True, text=True)
+        assert (r.returncode != 0) == bool(ok), (city, county, r.stdout, r.stderr)
+    runbook = (ROOT / "docs" / "ops" / "launch-runbook.md").read_text(encoding="utf-8")
+    for phrase in ("**Hard failure**", "**Partial**", "county 6", "5 the RPC step failed",
+                   "A failed fetch never deletes data", "at most 40 requests", "**RPC only**", "**RPC backlog**",
+                   "repeats every day until someone acts", "python -m collector rpc fetch --limit 30"):
+        assert phrase in runbook, phrase
+
+
+def test_deploy_stays_locked_and_is_the_only_publishing_step():
+    assert sum(TEXT.count(a) for a in ("actions/deploy-pages@", "peaceiris/", "gh-pages")) == 1
+    assert _deploy_if().startswith(LOCK)
+    assert "RECORDS_DEPLOY_ENABLED" not in "\n".join(s.get("run", "") for j in WF["jobs"].values()
+                                                       for s in j["steps"])     # never set by the workflow itself
+
+
+# ------------------------------------------------------------------ the issue steps, run with a stub `gh`
+def _run_issue_step(tmp_path, step, open_issue="", run_log=None, extra_env=None):
+    """Run a workflow step's script in tmp_path with a stub gh; return (gh calls, text of every body)."""
+    work, bindir = tmp_path / "work", tmp_path / "bin"
+    (work / "build").mkdir(parents=True, exist_ok=True)
+    bindir.mkdir(exist_ok=True)
+    if run_log is not None:
+        (work / "build" / "run-log.json").write_text(run_log, encoding="utf-8")
+    calls, bodies = tmp_path / "gh-calls", tmp_path / "bodies"
+    gh = bindir / "gh"
+    gh.write_text("#!/bin/bash\n"
+                  f'echo "$@" >> "{calls}"\n'
+                  f'if [ "$2" = list ]; then echo "{open_issue}"; fi\n'
+                  'for ((i=1; i<=$#; i++)); do j=$((i+1)); '
+                  f'if [ "${{!i}}" = --body-file ]; then cat "${{!j}}" >> "{bodies}"; fi; '
+                  f'if [ "${{!i}}" = --body ]; then echo "${{!j}}" >> "{bodies}"; fi; done\n')
+    gh.chmod(0o755)
+    env = {**os.environ, **{k: v for k, v in (step.get("env") or {}).items() if "${{" not in str(v)},
+           "PATH": f"{bindir}:{os.environ['PATH']}", "RUNNER_TEMP": str(tmp_path), "GITHUB_SERVER_URL": "https://x",
+           "GITHUB_REPOSITORY": "o/r", "GITHUB_RUN_ID": "1", **(extra_env or {})}
+    subprocess.run(["bash", "-c", step["run"]], cwd=work, env=env, check=True)
+    return calls.read_text().splitlines(), (bodies.read_text() if bodies.exists() else "")
+
+
+def _rpc_issue_step():
+    return {s.get("name"): s for s in WF["jobs"]["update"]["steps"]}["Open or update the RPC issue"]
+
+
+@pytest.mark.skipif(not shutil.which("jq"), reason="jq not installed")
+def test_rpc_issue_strips_backticks_so_site_text_stays_in_the_fence(tmp_path):
+    """ci/issue-markdown-fence: a status holding ``` (text from the site) cannot close the code fence."""
+    import json
+    status = "stopped: FetchFailed ```\n# injected heading\n``` https://www.cmcrpc.com/x.pdf"
+    _, body = _run_issue_step(tmp_path, _rpc_issue_step(), run_log=json.dumps({"rpc": {"status": status}}))
+    assert body.count("```") == 2                                      # only the step's own fence
+    assert "injected heading" in body and "https://www.cmcrpc.com/x.pdf" in body
+
+
+@pytest.mark.parametrize("run_log", [None, "{not json", '{"rpc": {}}'])
+def test_rpc_issue_reason_is_unknown_without_a_readable_run_log(tmp_path, run_log):
+    """ci/issue-reason-missing: no run-log.json, a broken one, or no status: the reason reads 'unknown'."""
+    calls, body = _run_issue_step(tmp_path, _rpc_issue_step(), run_log=run_log)
+    fenced = body.split("```")[1].strip()
+    assert fenced == "unknown" and calls[-1].startswith("issue create")
+
+
+@pytest.mark.parametrize("job", ["update", "push"])
+@pytest.mark.parametrize("open_issue", ["", "42"])
+def test_a_repeat_failure_comments_on_the_open_issue(tmp_path, job, open_issue):
+    """ci/failure-issue-silent-repeat: the first failure opens "Daily update failed", a later one comments on it."""
+    step = [s for s in WF["jobs"][job]["steps"] if s.get("name") == "Open an issue on failure"][0]
+    assert "${{" not in step["run"]                                    # values come in through env only
+    calls, body = _run_issue_step(tmp_path, step, open_issue=open_issue, extra_env={"CITY_EXIT": "2",
+                                                                                     "COUNTY_EXIT": "0"})
+    assert calls[0].startswith("issue list") and len(calls) == 2
+    assert calls[1].startswith("issue comment 42" if open_issue else "issue create")
+    assert "actions/runs/1" in body and "unchanged" in body
+    if job == "update":
+        assert "city=2, county=0" in body

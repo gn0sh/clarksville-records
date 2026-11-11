@@ -148,10 +148,12 @@ morning_note:
     # Enabled state only (morning-security/seat-consent, privacy-text-matches-data-flow). seats_include labels the
     # form's visible box; the saved numbers are printed after it ("District 5, Ward 3"). seats_sent replaces the
     # "never sent anywhere" sentences on the landing and Method pages. method_* is the Method page's paragraph.
+    # {box} in seats_sent and method_sent is filled with seats_include without its colon, so the sentences always
+    # name the box by the label it carries (privacy-text/label-wording-drift).
     seats_include: "Include my saved seats:"
-    seats_sent: "Your saved district and ward leave this device only if you sign up for the morning note and keep \"Include my saved seats\" ticked; then they go to {provider}."
+    seats_sent: "Your saved district and ward leave this device only if you sign up for the morning note and keep \"{box}\" ticked; then they go to {provider}."
     method_heading: Morning note
-    method_sent: "The morning note is an email you sign up for on the Alerts page. Sending the sign-up form gives {provider} your email address and the lists you picked. Your saved district and ward go with it only while \"Include my saved seats\" is ticked; the form shows the numbers before you send it. Nothing is sent until you send the form."
+    method_sent: "The morning note is an email you sign up for on the Alerts page. Sending the sign-up form gives {provider} your email address and the lists you picked. Your saved district and ward go with it only while \"{box}\" is ticked; the form shows the numbers before you send it. Nothing is sent until you send the form."
     method_unsubscribe: "To stop the email, use the unsubscribe link in any morning note."
     method_signup_link: Sign up on the Alerts page
     preview_title: Today's morning note
@@ -164,6 +166,7 @@ morning_note:
     page_label: page
     district_label: District
     ward_label: Ward
+    vote_on_label: Vote on      # before what a confirmed roll call voted on ("Vote on: Amendment"; about.html#vote-on)
 
 county_name: Montgomery County
 county_body: Montgomery County Commission
@@ -214,12 +217,13 @@ swap_source: "https://montgomerytn.gov/storage/departments/election/Elected%20Of
 
 # Item type rule (design 5.4), mechanical and the same for every item; rendered on the About page. An item matches a
 # type when its number starts with one of the prefixes, or its verbatim title contains one of the words (any case).
-# AB- is not mapped: its meaning is still to be confirmed from the agendas (design Q4).
+# AB- is not mapped: its meaning is still to be confirmed from the agendas (design Q4). "ORDINANCE " and "RESOLUTION "
+# (with the space) are the kind words the City Council's minutes print in front of an item's number.
 item_types:
   - {key: rezoning, label: Rezoning, prefixes: ["CZ-", "CZO-"], words: ["rezone", "rezoning", "zoning"]}
   - {key: budget, label: Budget and finance, prefixes: [], words: ["budget", "appropriat"]}
-  - {key: resolution, label: Resolution, prefixes: [], words: ["resolution"]}
-  - {key: ordinance, label: Ordinance, prefixes: [], words: ["ordinance"]}
+  - {key: resolution, label: Resolution, prefixes: ["RESOLUTION "], words: ["resolution"]}
+  - {key: ordinance, label: Ordinance, prefixes: ["ORDINANCE "], words: ["ordinance"]}
   - {key: appointment, label: Appointment, prefixes: [], words: ["appoint", "nominat"]}
 
 # Day by day (Daylight M2, sitegen/days.py, today.html): the week strip and day cards. The build writes every day from
@@ -254,6 +258,35 @@ school_board:
     lede: "Coming. Records of the Clarksville-Montgomery County School System board are planned. Its meetings are not collected yet, so none are shown here."
     planned: ["Board meeting agendas", "Board meeting minutes and recorded votes"]
     link_lede: "Until then, the official source is the school system website:"
+
+# Official meeting video, per body key (county_key above; a council's and the RPC's body_key), Brian 2026-11-11
+# (sitegen/watch.py): one plain "Watch" link to the page where the body itself posts its meeting video. A link only:
+# nothing is ever fetched from it. A body with no official stream has no entry, and no link is ever guessed. `host`
+# fills {host} in video_label. A council meeting whose own recording the facts carry links that instead
+# (video_recording).
+video:
+  county: {url: "https://www.youtube.com/channel/UColCy-INQM4uZSqrJCeHTGg", host: YouTube}
+  city: {url: "https://clarksvilletn.portal.civicclerk.com/", host: "the city's CivicClerk portal"}
+  rpc: {url: "https://www.youtube.com/@CMCRPC", host: YouTube}
+video_link: Watch
+video_label: "Official video channel (opens {host})"
+video_recording: "Official video (opens the meeting's MP4 recording)"
+
+# The city and county committees on the day page and in the menu: a "coming" placeholder with plain links to the
+# official source pages (docs/research/committee-sources-2026-11-11.md), no collection yet. Every word of the page is
+# here: no dates, no numbers, no names of officials. Leave the block out to show no placeholder.
+committees:
+  label: City Finance and Audit committees and county Budget Committee
+  links:
+    - {url: "https://clarksvilletn.portal.civicclerk.com/", label: "City of Clarksville meetings portal (CivicClerk)"}
+    - {url: "https://montgomerytn.gov/code/webshare/commission-committees-agendas.php", label: "Montgomery County committee agendas"}
+  page:
+    slug: committees
+    nav_label: Committees
+    title: Committees
+    lede: "Coming. Records of the City of Clarksville Finance Committee and Audit Committee and of the Montgomery County Budget Committee are being added. Their meetings are not collected yet, so none are shown here."
+    planned: ["City Finance Committee agendas and minutes", "City Audit Committee agendas and minutes", "County Budget Committee agendas"]
+    link_lede: "Until then, the official sources are:"
 
 # "Coming" pages (design 6). No numbers, no sample charts, no example values.
 coming:
