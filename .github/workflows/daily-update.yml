@@ -127,7 +127,8 @@ jobs:
           # PDFs (collector/county_agenda.py: one page request, new PDFs only, the same polite fetcher).
           # Exit codes (docs/ops/launch-runbook.md "Exit codes"). Hard failures fail this step: nothing is uploaded,
           # committed or deployed, the committed data/ on main is untouched and one issue opens.
-          #   city:   0 ok, 2 a listing not read (or fetch/parse failures), 5 a host or robots.txt refused us.
+          #   city:   0 ok, 2 a listing not read (or fetch/parse failures), 3 the G4 skew gate flagged an official,
+          #           5 a host or robots.txt refused us.
           #   county: 0 ok, 2 fetch/parse failures, 3 gate failure, 4 offline run refused.
           # The county run also runs the Regional Planning Commission step (collector/rpc.py run_step: the listing
           # page and new documents from www.cmcrpc.com through the same polite fetcher; robots.txt crawl-delay 10; the

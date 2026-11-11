@@ -243,8 +243,11 @@ campaign sites, and any inference of ours (a vacant ward plus a new surname, the
 empty; two entries may not seat one ward on one date (a later entry for the same ward replaces an earlier one, as a
 second mid-term change would). **Build check** (`city_build.cited_members`, `member_cited` per entry; the checks that
 need the manifest are made here, since the config is loaded without it): the stored bytes for `cite_url` exist (so it
-is in the city manifest); `seated` is on or after the cited record's meeting date (and the fetch date for
-`roster_page`); the quote contains the name; and the `quote`, whitespace collapsed, is on `cite_page` of the stored
+is in the city manifest); the stored file's manifest `kind` equals the entry's `kind`, and an agenda never qualifies
+(review `city-verify/cited-member-kind-unchecked`); `seated` is on or after the cited record's meeting date (and the
+fetch date for `roster_page`), and a missing date that check needs fails it (`cited-member-fail-open`); the quote
+contains the name and prints "Ward {ward}" as whole words (`cited-member-ward-unchecked`); and the `quote`,
+whitespace collapsed, is on `cite_page` of the stored
 file's text (the city reader's, W1 applied). If any fails, the entry is left out of the book for that build (so the
 surname is held as before) and the run report lists it (`build.members`, and `problems`); it never resolves anyone on
 trust.
@@ -267,7 +270,9 @@ Claunch (seated 2026-02-19, minutes p. 3)". Ward 2's seat history starts the rec
 CivicClerk lists the 2026-02-11 City Council Special Session as category "General", event "Special Session" (one
 listing query, 2026-11-11; other "General" events are other boards). Discovery also asks for
 `categoryName eq 'General' and eventName eq 'Special Session'` from 2024-01-01, and keeps such an event only when page
-1 of its agenda or minutes prints "City Council - Special Session"; any other is skipped and named in the run report.
+1 of its agenda or minutes prints "City Council - Special Session" as a line of its own (whitespace and format
+characters aside; never the same words inside a longer line, review `d1-page1-substring`); any other is skipped and
+named in the run report.
 This stores fileId 3068 (needed by M1's build check) and adds that meeting: 2 roll calls (one prints "HOLLEMNA", held).
 
 ### W1. Invisible format characters in the text layer (a reading fix)
@@ -292,19 +297,24 @@ rule 1 already collapses spaces; and the shown-form rule already treats word bre
 combined, outvoted or corrected. Rule:
 1. **Last step only.** Tried only for a printed name (attendance entry N1/N6, vote or absence token N7, mover or
    seconder N8) that every other step left unresolved.
-2. **Key.** `break_free(s)`: NFKC, casefold, and remove whitespace. Nothing else changes: no letter, apostrophe,
-   hyphen or period is added, dropped, replaced or reordered.
+2. **Key.** `break_free(s)`: lowercase (`str.lower`, as every other step compares) and remove whitespace. Nothing
+   else changes: no letter, apostrophe, hyphen or period is added, dropped, replaced or reordered (so no NFKC or
+   casefold, which turn one letter into others: "ß" -> "ss"; review `break-free-casefold`).
 3. **Closed set of that step.** N1/N6: the full names and the surnames of the meeting's roster book (N5, N10). N7/N8:
    that meeting's own roster (its resolved attendance plus the presiding mayor), full name or surname.
 4. **Unique.** The token's key equals the key of exactly one person in that set; two or more, or none, is held as
    before. A printed ward must agree (N6).
 5. **Never** edit distance or near spellings (STRETMAN, AYWOOD, ZAHARIAS, HOLLEMNA, PITT, "R reynolds" stay held),
    never a join across a comma, line end or other token boundary the parser drew (a lone "H" stays held), never a split
-   of one token into two votes ("Burkhart Erb", "Alexander. Allen" stay held), never a person outside the set.
+   of one token into two votes ("Burkhart Erb", "Alexander. Allen" stay held), never a person outside the set. A
+   name list that wraps keeps its line ends (`_block` joins lines with "\n"): a token printed over a line end
+   ("Hay" / "Wood") is flagged (`Vote.line_cut`, `Person.line_cut`, `RollCall.absent_cut`) and N9 is not tried for
+   it, so it is held; the exact steps still read a full name wrapped at its space ("Jerry" / "Haywood").
 6. **Checks unchanged.** P2 runs after it as before, so a join that gives a member a second vote is held by
    `one_vote_per_present_member`.
-7. **Auditable.** The `names_resolve` (or `surnames_resolve`) check detail names each use ("H AYWOOD read as HAYWOOD,
-   word break ignored"); `build/city-report.json` lists every use (`word_break_matches`: meeting, page, printed form,
+7. **Auditable.** The `names_resolve` (or `surnames_resolve`) check detail names each use, the same words whichever
+   way the spaces differ ("H AYWOOD read as Jerry Haywood (same letters, spaces ignored)", "StaceyStreetman read as
+   Stacey Streetman (same letters, spaces ignored)"); `build/city-report.json` lists every use (`word_break_matches`: meeting, page, printed form,
    member); QA's AC-P2 sample includes at least 3 of them.
 
 ### Tests (all through `assert_name_invariant`, plus a data regression)
@@ -356,9 +366,17 @@ something out). Per-check sentences, the same for every member (`config/finance_
 |---|---|
 | `one_vote_per_present_member` | "Not confirmed: the minutes list a member as present but give no vote for them here." |
 | `names_resolve` / `surnames_resolve` | "Not confirmed: a name in this vote does not match a member on the official record." |
-| `attendance_verified` | "Not confirmed: this meeting's attendance list could not be matched to the official record." |
-| `outcome_consistent` | "Not confirmed: the outcome the minutes state does not match the votes they list." |
-| other or several | "Not confirmed: the automatic checks did not pass." |
+| `attendance_verified` (wins whenever it failed) | "Not confirmed: this meeting's attendance list could not be matched to the official record." |
+| `outcome_consistent`, an outcome read (passed or failed) | "Not confirmed: the stated outcome could not be matched to the votes listed." |
+| other or several (incl. `outcome_consistent` "outcome not read") | "Not confirmed: the automatic checks did not pass." |
+
+Rules (review `city-verify/held-sentence-accuracy`, 2026-11-11): no sentence says the minutes are wrong, since a hold
+may be our reading's (a mispaired outcome, an outcome sentence not read). `attendance_verified` wins over any other
+failed check, because every other check of the roll call reads that attendance (before, it never showed: all its
+roll calls fail another check too). `outcome_consistent` gets its sentence only when an outcome was read; with
+"outcome not read" (outcome `other`) the sentence about a stated outcome would be untrue, so it counts as no sentence.
+`sitegen/views.held_key`, mirrored in `qa/site_checks.held_sentence`; pinned on the committed facts by
+`tests/test_council_pages.py`.
 
 ## Seat holder invariant (problem family `city-seats`, keys `current-holder-matches-latest-attendance`, M1 `pipeline/seats-stale-on-new-county-meeting`)
 

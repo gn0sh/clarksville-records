@@ -421,7 +421,7 @@ def test_build_keeps_an_also_listed_event_only_when_page_1_prints_the_council(cf
     assert summary["skipped_events"] == [{
         "date": "2025-06-10", "title": "Special Session", "event_id": 2901, "listed_as": "General / Special Session",
         "reason": "listed as General / Special Session; page 1 of its minutes does not print "
-                  "'City Council - Special Session': skipped, not this body's meeting"}]
+                  "'City Council - Special Session' on a line of its own: skipped, not this body's meeting"}]
     assert any(p["problem"] == summary["skipped_events"][0]["reason"] for p in summary["problems"])
     assert not any(s["url"] == cfg.file(2500) for s in facts["sources"])      # nothing of the skipped event is cited
 
@@ -434,6 +434,30 @@ def test_build_reads_the_agenda_when_the_minutes_page_1_does_not_print_it(cfg, a
     facts, summary = _d1_build(cfg, acfg, [SPECIAL], pages.get)
     assert facts["meetings"] == [] and "page 1 of its minutes or agenda does not print" in \
         summary["skipped_events"][0]["reason"]
+
+
+@pytest.mark.parametrize("page1", [
+    "                Joint City Council - Special Session with the County Commission\n",
+    "     Report to the City Council - Special Session\n",
+    "  City Council - Special Session Agenda Review Committee\n",
+])
+def test_build_skips_an_also_listed_event_whose_page_1_prints_the_words_only_inside_a_longer_line(cfg, acfg, page1):
+    """review nit d1-page1-substring: the heading must be a line of its own, never the same words inside one."""
+    pages = {cfg.file(3068): page1, cfg.file(2887): page1}
+    facts, summary = _d1_build(cfg, acfg, [SPECIAL], pages.get)
+    assert facts["meetings"] == []
+    assert "page 1 of its minutes or agenda does not print 'City Council - Special Session' on a line of its own" \
+        in summary["skipped_events"][0]["reason"]
+
+
+def test_page_has_line_matches_a_whole_line_only():
+    from collector.city_minutes import page_has_line
+    want = "City Council - Special Session"
+    assert page_has_line(PAGE1_CITY, want)
+    assert page_has_line("  City  Council -​ Special Session  \n", want)       # spaces and Cf only
+    assert not page_has_line("City Council -\n Special Session", want)                  # split over two lines
+    assert not page_has_line("Joint City Council - Special Session\n", want)
+    assert not page_has_line("", want) and not page_has_line(PAGE1_CITY, "  ")
 
 
 def test_build_skips_an_also_listed_event_with_no_stored_file(cfg, acfg):

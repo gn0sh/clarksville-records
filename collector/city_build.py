@@ -15,7 +15,8 @@ import unicodedata
 from collections import Counter, defaultdict
 
 from .agenda_center import AgendaCenterConfig
-from .city_minutes import NAME_RE, ParsedCityMinutes, page_has, parse_minutes_pdf, pdf_layer, read_pages, short_hash
+from .city_minutes import (NAME_RE, ParsedCityMinutes, page_has, page_has_line, parse_minutes_pdf, pdf_layer, read_pages,
+                           short_hash)
 from .extract import extract_pages
 from .store import Store
 from .verify import gates
@@ -82,9 +83,11 @@ class Officials:
 
 
 def break_free(s: str) -> str:
-    """The break-free key of a printed name (W2, path N9): NFKC, casefold, every whitespace character removed. Nothing
-    else changes: no letter, apostrophe, hyphen or period is added, dropped, replaced or reordered."""
-    return re.sub(r"\s+", "", unicodedata.normalize("NFKC", s).casefold())
+    """The break-free key of a printed name (W2, path N9): lowercased (str.lower, as every other resolution step
+    compares), every whitespace character removed. Nothing else changes: no letter, apostrophe, hyphen or period is
+    added, dropped, replaced or reordered (so no NFKC or casefold, which turn one letter into others: "ß" -> "ss",
+    "ﬁ" -> "fi")."""
+    return re.sub(r"\s+", "", s.lower())
 
 
 def break_free_match(token: str, people: list[tuple[str, str]]) -> str | None:
@@ -99,8 +102,11 @@ def break_free_match(token: str, people: list[tuple[str, str]]) -> str | None:
     return next(iter(hits)) if len(hits) == 1 else None
 
 
-def resolve_with(token: str, roster: list[tuple[str, str]], aliases: dict | None = None) -> tuple[str | None, bool]:
-    """resolve(), and whether the match was the break-free key (N9), so each such use is listed."""
+def resolve_with(token: str, roster: list[tuple[str, str]], aliases: dict | None = None,
+                 cut: bool = False) -> tuple[str | None, bool]:
+    """resolve(), and whether the match was the break-free key (N9), so each such use is listed. `cut`: the printed
+    token runs over a line end of its list (Vote.line_cut, RollCall.absent_cut): N9 never joins across a line end
+    (W2 rule 5), so only the exact steps are tried."""
     t = clean_name(token)
     t = (aliases or {}).get(t, t).lower()
     full = [oid for oid, n in roster if n.lower() == t]
@@ -115,22 +121,25 @@ def resolve_with(token: str, roster: list[tuple[str, str]], aliases: dict | None
                if name_parts(n)[1].lower() == m.group(2) and name_parts(n)[0][:1].lower() == m.group(1)]
         if len(ini) == 1:
             return ini[0], False
+    if cut:
+        return None, False
     oid = break_free_match(t, roster)                       # N9: last step, this meeting's roster only
     return oid, oid is not None
 
 
-def resolve(token: str, roster: list[tuple[str, str]], aliases: dict | None = None) -> str | None:
+def resolve(token: str, roster: list[tuple[str, str]], aliases: dict | None = None, cut: bool = False) -> str | None:
     """A vote name as printed -> the one roster official it names, else None. roster: [(official_id, full name)].
     The printed name is read through the alias list first (whole printed names only, path N2: 'Amber Marquis' ->
     'Ambar Marquis'). Matches, in order: the full name; the surname; an initial plus surname ('W. Smith'); then, last,
-    the break-free key ('H AYWOOD', path N9). Never a near spelling."""
-    return resolve_with(token, roster, aliases)[0]
+    the break-free key ('H AYWOOD', path N9; not for a token cut at a line end). Never a near spelling."""
+    return resolve_with(token, roster, aliases, cut)[0]
 
 
 def word_break_note(printed: str, name: str) -> str:
-    """How a break-free (N9) use is named in its check's detail and the run report."""
-    joined = re.sub(r"\s+", "", clean_name(printed))
-    return f"{clean_name(printed)} read as {joined} ({name}), word break ignored"
+    """How a break-free (N9) use is named in its check's detail and the run report. The same words whichever way the
+    spaces differ: a break printed inside a name ("H AYWOOD read as Jerry Haywood ...") or a space left out
+    ("StaceyStreetman read as Stacey Streetman ...")."""
+    return f"{clean_name(printed)} read as {name} (same letters, spaces ignored)"
 
 
 def _check(name: str, ok: bool, detail: str | None = None) -> dict:
@@ -164,8 +173,9 @@ def inspect_pdf(path) -> tuple[int, str]:
 
 def page1_check(row: dict, store: Store, pages=read_pages) -> str | None:
     """D1: a row from an also-listing (civicclerk also_list, `page1_required`) is this body's meeting only when page 1
-    of its stored minutes or agenda prints that text. None when it does (or the row needs no check), else why the
-    event is skipped. Nothing else about the event is read before it passes."""
+    of its stored minutes or agenda prints that text as a line of its own (city_minutes.page_has_line: never the same
+    words inside a longer line). None when it does (or the row needs no check), else why the event is skipped.
+    Nothing else about the event is read before it passes."""
     want = row.get("page1_required")
     if not want:
         return None
@@ -180,31 +190,44 @@ def page1_check(row: dict, store: Store, pages=read_pages) -> str | None:
         except Exception as ex:                        # one bad file must not stop the build: skipped and named
             read[-1] = f"{kind} (unreadable: {type(ex).__name__})"
             continue
-        if page_has(first, want):
+        if page_has_line(first, want):
             return None
     where = " or ".join(read) if read else "no stored agenda or minutes"
     return (f"listed as {row.get('listed_as') or 'another category'}; page 1 of its {where} does not print "
-            f"'{want}': skipped, not this body's meeting")
+            f"'{want}' on a line of its own: skipped, not this body's meeting")
 
 
 def cited_members(cfg: AgendaCenterConfig, store: Store, pages=read_pages) -> tuple[list[dict], list[dict]]:
-    """Build check `member_cited` for each configured member (path N10, M1): the stored bytes for its cite_url exist,
-    `seated` is not before the cited record's meeting (nor, for a roster page snapshot, before it was fetched), the
-    quote names the person, and the quote, whitespace collapsed, is printed on cite_page of the stored file's text.
+    """Build check `member_cited` for each configured member (path N10, M1): the stored bytes for its cite_url exist;
+    the stored file is of the entry's kind (the manifest's kind equals `kind`; an agenda never qualifies); `seated` is
+    not before the cited record's meeting (nor, for a roster page snapshot, before it was fetched), and a date that
+    check needs is present; the quote names the person and prints "Ward {ward}" as whole words; and the quote,
+    whitespace collapsed, is printed on cite_page of the stored file's text.
     -> (entries that pass, each with the cited file's manifest entry; one report row per entry). An entry that fails
     is left out of the roster book for this build, so its surname is held as before: never resolved on trust."""
     ok, report = [], []
     for m in cfg.members:
         e = store.latest(m["cite_url"])
         why = None
+        fetched = ((e or {}).get("first_fetched_at") or "")[:10]
         if not e or not store.has_bytes(e["sha256"]):
             why = "the cited file is not stored"
+        elif e.get("kind") == "agenda":
+            why = "the cited file is an agenda (it schedules an act and does not record it)"
+        elif e.get("kind") != m["kind"]:
+            why = f"the cited file is stored as {e.get('kind') or 'no kind'}, not {m['kind']}"
+        elif m["kind"] != "roster_page" and not e.get("meeting_date"):
+            why = "the cited record has no meeting date, so the seated date cannot be checked"
         elif e.get("meeting_date") and m["seated"] < e["meeting_date"]:
             why = f"seated {m['seated']} is before the cited record's meeting of {e['meeting_date']}"
-        elif m["kind"] == "roster_page" and m["seated"] < (e.get("first_fetched_at") or "")[:10]:
-            why = f"seated {m['seated']} is before the roster page was fetched ({e['first_fetched_at'][:10]})"
+        elif m["kind"] == "roster_page" and not fetched:
+            why = "the roster page has no fetch date, so the seated date cannot be checked"
+        elif m["kind"] == "roster_page" and m["seated"] < fetched:
+            why = f"seated {m['seated']} is before the roster page was fetched ({fetched})"
         elif m["name"] not in m["quote"]:
             why = "the quote does not name the person"
+        elif not re.search(rf"\bWard\s+{int(m['ward'])}\b", m["quote"]):
+            why = f"the quote does not print Ward {m['ward']}"
         else:
             try:
                 text = pages(store.path_for(e["sha256"]))
@@ -436,7 +459,7 @@ def _out_of_room(pm: ParsedCityMinutes, roster, part_time: dict, aliases: dict |
     """For each roll call of the meeting, the members its missing-vote check exempts: a member noted as arriving
     late, for the votes before their first recorded vote; one noted as leaving early, for the votes after their
     last. A noted member with no recorded vote at all cannot be placed, so is exempt from every vote."""
-    voted = [{resolve(v.raw_name, roster, aliases) for v in rc.votes} for rc in pm.roll_calls]
+    voted = [{resolve(v.raw_name, roster, aliases, v.line_cut) for v in rc.votes} for rc in pm.roll_calls]
     out = [set() for _ in pm.roll_calls]
     for oid, p in part_time.items():
         ks = [k for k, s in enumerate(voted) if oid in s]
@@ -610,6 +633,8 @@ def resolve_surnames(cfg, officials: Officials, pm: ParsedCityMinutes, book: dic
     persons = {r["name"]: r for e in book.values() for r in e["people"]}
 
     def by_break(p):
+        if p.line_cut:                                   # never a join across a line end (W2 rule 5): held
+            return None
         hit = break_free_match(p.raw_name, [(n, n) for n in sorted(persons)])
         if hit and (p.ward is None or persons[hit]["ward"] is None or persons[hit]["ward"] == p.ward):
             return persons[hit]
@@ -770,7 +795,7 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
                                    "year": int(meeting["date"][:4])})
         votes, seen, breaks = [], Counter(), []
         for v in rc.votes:
-            oid, via_break = resolve_with(v.raw_name, roster, cfg.aliases)
+            oid, via_break = resolve_with(v.raw_name, roster, cfg.aliases, v.line_cut)
             if oid is None:
                 unresolved[v.raw_name] += 1
             else:
@@ -780,7 +805,7 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
             votes.append({"official_id": oid, "raw_name": v.raw_name, "value": v.value, "raw_value": v.raw_value})
         block_absent = set()
         for a in rc.absent:
-            oid, via_break = resolve_with(a, roster, cfg.aliases)
+            oid, via_break = resolve_with(a, roster, cfg.aliases, a in rc.absent_cut)
             block_absent.add(oid)
             if via_break:
                 breaks.append(used("absent", rc.page, a, oid))

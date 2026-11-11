@@ -75,6 +75,7 @@ class Person:
     mayor: bool = False      # listed with the title Mayor ("Mayor Kim McMillan")
     arrived_late: bool = False  # the attendance notes a late arrival ("arrived 5:05 p.m.")
     left_early: bool = False    # ... or an early departure ("left early")
+    line_cut: bool = False      # the name runs over a line end the list crosses: never joined by N9 (W2 rule 5)
 
     @property
     def part_time(self) -> bool:
@@ -86,6 +87,7 @@ class Vote:
     raw_name: str
     raw_value: str        # label as printed (AYE, NAY, ...)
     value: str
+    line_cut: bool = False  # the name runs over a line end the list crosses: never joined by N9 (W2 rule 5)
 
 
 @dataclass
@@ -101,6 +103,7 @@ class RollCall:
     notes: list = field(default_factory=list)   # NOTE lines in the vote block, as printed
     # set by _item_for_vote; a roll call made without it is held, never linked on trust
     link: dict = field(default_factory=lambda: {"basis": "unset", "ok": False, "detail": "item link not checked"})
+    absent_cut: set = field(default_factory=set)   # names in `absent` that run over a line end (never joined by N9)
 
 
 @dataclass
@@ -210,9 +213,17 @@ def _label_of(text: str, labels) -> tuple[str, str] | None:
     return None
 
 
+def _collapse_keep_line_ends(text: str) -> str:
+    """Each whitespace run -> one space, or one "\\n" when the run holds a line end (_block joins a list's lines with
+    "\\n"), so a name that runs over a line end can be told from one printed on one line (W2 rule 5). Replacing each
+    "\\n" by a space gives exactly the old one-space collapse."""
+    return re.sub(r"\s+", lambda m: "\n" if "\n" in m.group() else " ", text)
+
+
 def split_names(text: str) -> list[str]:
-    """'Allen, Burkhart and Chandler' -> ['Allen', 'Burkhart', 'Chandler']; 'None' -> []."""
-    text = re.sub(r"\s+", " ", text).strip().rstrip(".;")
+    """'Allen, Burkhart and Chandler' -> ['Allen', 'Burkhart', 'Chandler']; 'None' -> []. A name that runs over a
+    line end of the list keeps a "\\n" where the line ended (the caller reads it as a space, and flags the cut)."""
+    text = _collapse_keep_line_ends(text).strip().rstrip(".;")
     parts = []
     for chunk in re.split(r",|;|\band\b|&", text):
         c = chunk.strip()
@@ -221,9 +232,13 @@ def split_names(text: str) -> list[str]:
     return parts
 
 
+_AND = re.compile(r"\sand\s")       # " and " (either space may be a line end: _collapse_keep_line_ends)
+
+
 def split_outside_parens(text: str) -> list[str]:
-    """Split on commas, semicolons and ' and ' outside parentheses: 'A (Ward 10; arrived 5 p.m.), B' -> 2 parts."""
-    text = re.sub(r"\s+", " ", text).strip().rstrip(".;")
+    """Split on commas, semicolons and ' and ' outside parentheses: 'A (Ward 10; arrived 5 p.m.), B' -> 2 parts. As
+    split_names, a part that runs over a line end keeps a "\\n" there."""
+    text = _collapse_keep_line_ends(text).strip().rstrip(".;")
     parts, depth, cur, i = [], 0, "", 0
     while i < len(text):
         ch = text[i]
@@ -234,7 +249,7 @@ def split_outside_parens(text: str) -> list[str]:
         if depth == 0 and ch in ",;":
             parts.append(cur)
             cur = ""
-        elif depth == 0 and text.startswith(" and ", i):
+        elif depth == 0 and _AND.match(text, i):
             parts.append(cur)
             cur = ""
             i += 5
@@ -256,7 +271,8 @@ def parse_people(text: str, page: int) -> list[Person]:
     """Attendance names with their printed ward. 'David Allen, Mayor Pro Tem (Ward 8)' is one person; a note in the
     parentheses ('Ward 10; arrived 5:05 p.m.') is dropped from the name (the ward is kept)."""
     out: list[Person] = []
-    for tok in split_outside_parens(text):
+    for tok_nl in split_outside_parens(text):
+        tok = tok_nl.replace("\n", " ")                  # read as before; tok_nl only says where a line ended
         ward = WARD_RE.search(tok)
         if WARD_ONLY_RE.match(tok) and out:          # "Wallace Redd, Ward 4)": the ward split off by a comma
             if out[-1].ward is None:
@@ -278,14 +294,17 @@ def parse_people(text: str, page: int) -> list[Person]:
             if ward and out[-1].ward is None:
                 out[-1].ward = int(ward.group(1))
             continue
+        at = tok.find(name)                              # tok and tok_nl differ only in "\n" for " ", index for index
+        cut = "\n" in (tok_nl[at:at + len(name)] if at >= 0 else tok_nl)      # not found: count any line end (held)
         out.append(Person(name, int(ward.group(1)) if ward else None, page, mayor=bool(mayor), arrived_late=arrived,
-                          left_early=left))
+                          left_early=left, line_cut=cut))
     return out
 
 
 def _block(lines: list[Line], i: int, labels, prose_labels=()) -> tuple[str, str, int]:
     """Lines from i (a label line) until a blank line or another label line -> (label, text, next index). A name
-    list also ends where a sentence starts; a prose label (NOTE) runs to the blank line."""
+    list also ends where a sentence starts; a prose label (NOTE) runs to the blank line. The lines are joined with
+    "\\n", so a name list can tell a name cut at a line end (W2 rule 5); read as prose, each "\\n" is a space."""
     label, rest = _label_of(lines[i].text, labels)
     parts = [rest]
     j = i + 1
@@ -296,7 +315,7 @@ def _block(lines: list[Line], i: int, labels, prose_labels=()) -> tuple[str, str
                      and (label in prose_labels or not _ends_list(lines[j].text)))):
         parts.append(lines[j].text)
         j += 1
-    return label, " ".join(parts), j
+    return label, "\n".join(parts), j
 
 
 # A line of names in capitals ("SHAKEENAB, SMITH, STREETMAN, ZACHARIAS", CivicClerk minutes from 2025 on)
@@ -430,17 +449,22 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
             continue
         if lab and lab[0] in vote_labels:
             votes, absent, notes, page = [], [], [], ln.page
+            absent_cut: set = set()
             j = i
             while True:
                 label, text, j = _block(lines, j, all_labels, note_labels)
                 if label in vote_labels:
-                    votes += [Vote(n, label, cfg.vote_labels[label]) for n in split_names(text)]
+                    votes += [Vote(n.replace("\n", " "), label, cfg.vote_labels[label], line_cut="\n" in n)
+                              for n in split_names(text)]
                 elif label in note_labels:
+                    text = text.replace("\n", " ")       # prose: a line end is a space
                     notes.append(text)
                     if NOT_PRESENT_RE.search(text):      # "NOTE: Councilman Alexander was not present for this vote."
                         absent += [m.group(1) for m in NAMED_RE.finditer(text)]
                 else:
-                    absent += split_names(text)
+                    names = split_names(text)
+                    absent += [n.replace("\n", " ") for n in names]
+                    absent_cut |= {n.replace("\n", " ") for n in names if "\n" in n}
                 k = j
                 while k < len(lines) and not lines[k].text:
                     k += 1
@@ -456,7 +480,7 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
             motion = _motion(window)
             vote_item, link = _item_for_vote(item, window, titles, cfg, motion, sentence)
             out.roll_calls.append(RollCall(page, votes, absent, sentence, outcome, vote_item, motion, order,
-                                           notes, link))
+                                           notes, link, absent_cut))
             order += 1
             window = []
             i = j
@@ -642,10 +666,21 @@ def read_pages(pdf: Path) -> list[str]:
     return pages
 
 
+def _flat(s: str) -> str:
+    return re.sub(r"\s+", " ", INVISIBLE.sub("", s).replace("\u00a0", " ")).strip()
+
+
 def page_has(page: str, text: str) -> bool:
     """True when `text` is printed on `page`, whitespace collapsed on both sides and invisible characters removed."""
-    flat = lambda s: re.sub(r"\s+", " ", INVISIBLE.sub("", s).replace("\u00a0", " ")).strip()   # noqa: E731
-    return bool(flat(text)) and flat(text) in flat(page)
+    return bool(_flat(text)) and _flat(text) in _flat(page)
+
+
+def page_has_line(page: str, text: str) -> bool:
+    """True when one line of `page` is exactly `text` (each whitespace collapsed, invisible characters removed): a
+    heading printed as its own line, never the same words inside a longer line ("Joint City Council - Special Session
+    with ...")."""
+    want = _flat(text)
+    return bool(want) and any(_flat(line) == want for line in page.splitlines())
 
 
 def parse_minutes_pdf(pdf: Path, cfg: AgendaCenterConfig) -> ParsedCityMinutes:
