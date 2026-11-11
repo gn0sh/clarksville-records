@@ -17,17 +17,21 @@ from .config import FIN_PARITY_HIGH, FIN_PARITY_LOW, FIN_PARITY_MIN_ROWS
 
 NOT_STATED = "not stated"
 # bid_tab.not_read_reason (schema enum): not_fetched = a dead link or a link-only host (Bonfire, off the allowlist)
-NOT_READ_REASONS = ("layout", "scan", "shared_url", "not_pdf", "not_fetched")
+# unreadable = fetched, but the PDF could not be inspected (pdfinfo/pdftotext failed or timed out); not a scan
+NOT_READ_REASONS = ("layout", "scan", "shared_url", "not_pdf", "not_fetched", "unreadable")
 AWARD_LETTER_STAGES = ("award_letter", "partial_award")
 
 
 # ------------------------------------------------------------------ scan guard
 def unreadable(document: dict, source: dict | None) -> str | None:
-    """Why no value may be read from this document ('shared_url' | 'scan' | 'not_fetched'), or None if it may."""
+    """Why no value may be read from this document ('shared_url' | 'scan' | 'not_fetched' | 'unreadable'), or None
+    if it may."""
     if document.get("shared_by"):
         return "shared_url"
     if source is None or document.get("status") != "fetched":
         return "not_fetched"
+    if source.get("text_layer") == "unreadable":
+        return "unreadable"
     if source.get("text_layer") != "text":
         return "scan"
     return None

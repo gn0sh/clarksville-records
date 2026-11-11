@@ -480,7 +480,7 @@ def county_run(tmp_path, monkeypatch):
             log["failures"].append({"stage": "parse", "error": "boom"})
         return {"meetings": [{"id": "m"}]}, report, B()
 
-    def run_rpc(log, offline, fetcher=None):
+    def run_rpc(log, offline, fetcher=None, allow_shrink=False):
         state["order"].append("rpc")
         state["rpc_args"] = (offline, fetcher)
         log["rpc"] = {"exit": state["rpc"], "status": "stopped, nothing changed: HostBlocked: HTTP 429"}
@@ -515,12 +515,15 @@ def test_run_reports_the_rpc_step_with_its_own_code(county_run, capsys, tmp_path
     assert county_run["order"] == ["agendas", "rpc", "site"]         # before the site build, which reads rpc.json
     assert county_run["rpc_args"] == (True, None)                    # offline: no fetcher, no request
     assert json.loads((tmp_path / "build" / "run-log.json").read_text())["rpc"]["exit"] == rpc_code
-    assert (M.RPC_FAILED, M.RPC_FILLING) == (5, 6) and not {5, 6} & {0, 2, 3, M.REFUSED}
+    assert (M.RPC_FAILED, M.RPC_FILLING, M.KEPT) == (5, 6, 7) and not {5, 6, 7} & {0, 2, 3, M.REFUSED}
+    assert M.KEPT not in {rpc.STEP_OK, rpc.STEP_ERROR, rpc.STEP_FETCH, rpc.STEP_GATE, rpc.STEP_REFUSED,
+                          rpc.STEP_FILLING}                  # rpc.py's step codes never collide with 7
 
 
 def test_run_rpc_shares_the_runs_fetcher(monkeypatch):
     seen = {}
-    monkeypatch.setattr(rpc, "run_step", lambda log, offline, fetcher=None: seen.update(a=(offline, fetcher)) or 0)
+    monkeypatch.setattr(rpc, "run_step",
+                        lambda log, offline, fetcher=None, allow_shrink=False: seen.update(a=(offline, fetcher)) or 0)
     f = object()
     assert M.run_rpc({}, False, fetcher=f) == 0 and seen["a"] == (False, f)
 
@@ -532,7 +535,7 @@ def test_workflow_collect_step_treats_only_the_rpc_codes_as_warnings():
     text = (ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding="utf-8")
     step = text.split("- name: Collect (polite fetch, parse, verify)")[1].split("\n      - name:")[0]
     lines = [ln.strip() for ln in step.splitlines() if ln.strip() and not ln.strip().startswith("#")]
-    assert "python -m collector run; county=$?" in lines
+    assert 'python -m collector run "${shrink[@]}"; county=$?' in lines
     assert 'if [ "$county" = 6 ]; then' in lines and 'elif [ "$county" = 5 ]; then' in lines
     assert lines.count("rpc=failed; county=0") == 1 and lines.count("rpc=filling; county=0") == 1
     assert lines[-1] == '[ "$city" = 0 ] && [ "$county" = 0 ]'       # city 2/5 and county 2/3/4 still fail
@@ -555,7 +558,7 @@ def test_an_rpc_failure_with_a_good_county_run_still_commits_the_county_data(cou
     steps = {s.get("name"): s for s in wf["jobs"]["update"]["steps"]}
     script = steps["Collect (polite fetch, parse, verify)"]["run"].replace(
         "python -m collector city run; city=$?", "city=0").replace(
-        "python -m collector run; county=$?", f"county={M.RPC_FAILED}")
+        'python -m collector run "${shrink[@]}"; county=$?', f"county={M.RPC_FAILED}")
     out = tmp_path / "gh-output"
     r = subprocess.run(["bash", "-c", script], env={**os.environ, "GITHUB_OUTPUT": str(out)}, capture_output=True,
                        text=True)

@@ -164,6 +164,8 @@ def _doc_link(fx: Finance, d: dict, sol: dict) -> dict:
         note = C["link_only"]
     elif d["shared_by"]:
         note = C["shared"]
+    elif (fx.sources.get(d.get("source_id") or "") or {}).get("text_layer") == "unreadable":
+        note = C["unreadable"]          # fetched, but the file could not be read (never called scanned)
     return {"id": d["id"], "stage": d["stage"], "stage_label": stage_label(d["stage"]), "label": label,
             "href": None if d["status"] == "dead_at_fetch" else d["url"], "scanned": d["scanned"], "note": note,
             # a link never fetched (not a PDF, dead) prints no fetch day (provenance/docx-not-fetched); the dead

@@ -10,10 +10,11 @@ import hashlib
 import json
 import re
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from . import fin_budget, fin_checks
+from . import fin_budget, fin_checks, limits
 from .extract import extract_pages, image_only_pages
 from .fin_archive import parse_archive
 from .fin_bidtab import read_bidtab
@@ -25,6 +26,7 @@ ROOT = Path(__file__).resolve().parent.parent
 FINANCE = ROOT / "data" / "finance.json"
 META_CACHE = ROOT / "data" / "text" / "fin"
 SCHEMA_VERSION = "1.0"
+PDFINFO_TIMEOUT = 120      # seconds (pipeline/parser-dos-untimed), as city_minutes.pdf_layer
 
 
 # ------------------------------------------------------------------ per-file facts (cached by hash)
@@ -35,9 +37,19 @@ def pdf_meta(pdf: Path, cfg: FinanceConfig, cache_dir: Path | None = META_CACHE)
     if cache and cache.exists():
         info = json.loads(cache.read_text(encoding="utf-8"))
     else:
-        out = subprocess.run(["pdfinfo", str(pdf)], capture_output=True).stdout.decode("utf-8", "replace")
+        try:
+            out = limits.run("fin_facts.PDFINFO_TIMEOUT", ["pdfinfo", str(pdf)], file=pdf, capture_output=True,
+                             timeout=PDFINFO_TIMEOUT).stdout.decode("utf-8", "replace")
+            pages = extract_pages(pdf)
+        except (OSError, subprocess.SubprocessError) as ex:
+            # pipeline/parser-dos-untimed: fail closed. Layer 'unreadable' (collector-input/unread-file-mislabel: not
+            # 'none', which says the file is a scan): no value is read from it (only text sources carry values), it is
+            # never marked scanned, and a budget book in this state is a guard problem; nothing is cached, so the
+            # next build tries the file again
+            print(f"collector fin: {pdf.name}: pdf inspection failed ({type(ex).__name__}: {ex}); not read",
+                  file=sys.stderr, flush=True)
+            return {"pages": None, "text_layer": "unreadable", "creator": None}
         tags = dict(re.findall(r"^(Creator|Producer|Pages):\s*(.*?)\s*$", out, re.M))
-        pages = extract_pages(pdf)
         info = {"pages": int(tags["Pages"]) if tags.get("Pages", "").isdigit() else len(pages),
                 "image_only": len(image_only_pages(pages)) == len(pages),
                 "creator": tags.get("Creator") or None, "producer": tags.get("Producer") or None}
@@ -169,7 +181,8 @@ def build(store, cfg: FinanceConfig, status_path: Path | None = None, meta_cache
             documents[did] = {"id": did, "url": lk.url, "link_label": lk.label, "stage": lk.stage,
                               "source_id": src["id"] if src else None, "status": state,
                               # a scanner's OCR text is scanned too: no value is read from it (scan-values/*)
-                              "scanned": bool(src and src["text_layer"] != "text"),
+                              # (a file that could not be read at all is not a scan: unread-file-mislabel)
+                              "scanned": bool(src and src["text_layer"] in ("none", "ocr")),
                               "doc_date_text": None, "doc_date_page": None, "shared_by": shared, "fetched_at": when}
     census: list[Census] = []
     solicitations = []
@@ -192,6 +205,7 @@ def build(store, cfg: FinanceConfig, status_path: Path | None = None, meta_cache
             else:
                 detail = {"shared_url": f"URL linked from {len(d['shared_by'])} rows",
                           "scan": f"text layer {sources[d['source_id']]['text_layer']}" if d["source_id"] else "",
+                          "unreadable": "pdf inspection failed or timed out",
                           "not_fetched": f"document {d['status']}"}[why]
             if why == "not_fetched" and d["status"] == "not_pdf":
                 why, detail = "not_pdf", "a .docx link or non-PDF bytes: not read"

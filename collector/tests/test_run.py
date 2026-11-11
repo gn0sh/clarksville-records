@@ -209,7 +209,8 @@ def sandbox(tmp_path, monkeypatch):
     state["agenda_calls"] = []
     monkeypatch.setattr(M, "run_agendas",
                         lambda log, offline, fetcher=None: state["agenda_calls"].append((offline, fetcher)))
-    monkeypatch.setattr(M, "run_rpc", lambda log, offline, fetcher=None: 0)   # the RPC step: tests/test_rpc_daily.py
+    # the RPC step: tests/test_rpc_daily.py
+    monkeypatch.setattr(M, "run_rpc", lambda log, offline, fetcher=None, allow_shrink=False: 0)
     return state
 
 
@@ -225,6 +226,81 @@ def test_exit_codes(sandbox, capsys, fail, gate_pass, fin_code, code):
     assert M.main(["run", "--offline"]) == code
     out = capsys.readouterr().out
     assert ("gh issue create --repo gn0sh/clarksville-records" in out) == (code != 0)
+
+
+@pytest.mark.parametrize("allow", [False, True])
+def test_online_run_keeps_the_document_when_a_verified_roll_call_would_be_lost(sandbox, monkeypatch, capsys, allow):
+    """pipeline/shrink-guard-freezes-all (rule 3 G1-G3): online, a roll call verified in the committed facts that the
+    same document's new reading has unverified keeps that document's records as committed, names the id, and exits
+    7 (a warning) with the issue; --allow-shrink lets the new reading win (exit 0)."""
+    import copy
+    old = committed_facts()
+    M.FACTS.write_text(json.dumps(old), encoding="utf-8")
+    new = copy.deepcopy(old)
+    rc = next(r for r in new["roll_calls"] if r["verification"]["status"] == "verified")
+    rc["verification"]["status"] = "unverified"
+
+    class B:
+        unresolved = {}
+        source_errors = set()
+
+    def fake_build(store, log, use_ocr=True):
+        log["parsed"] = 1
+        return new, sandbox["report"], B()
+    monkeypatch.setattr(M, "cmd_build", fake_build)
+    monkeypatch.setattr(M, "cmd_fetch", lambda store, log, fetcher=None: None)
+    monkeypatch.setattr(M, "finance_fetcher", lambda: None)
+    code = M.main(["run"] + (["--allow-shrink"] if allow else []))
+    out, err = capsys.readouterr()
+    run_log = json.loads((M.BUILD / "run-log.json").read_text())
+    if allow:
+        assert code == 0 and json.loads(M.FACTS.read_text())["roll_calls"] == new["roll_calls"]
+        assert run_log["kept_meetings"] == [] and run_log["allowed_shrink"][0]["ids"] == [rc["id"]]
+        assert f"ALLOWED (--allow-shrink) {rc['source_id']}" in err
+    else:
+        assert code == M.KEPT and json.loads(M.FACTS.read_text()) == old       # that document is the committed one
+        (k,) = run_log["kept_meetings"]
+        assert k["source_id"] == rc["source_id"] and k["ids"] == [rc["id"]]
+        assert f"collector: KEPT {rc['source_id']} (" in err and rc["id"] in err
+        assert "gh issue create" in out and "Collector kept county meetings" in out and rc["id"] in out
+
+
+def test_county_summary_reports_only_the_county_steps_trips(sandbox, monkeypatch, capsys):
+    """pipeline/limits-reported-misattributed: finance and RPC trips in the same process are not the county's."""
+    from collector import limits
+    limits.reset()
+    limits.trip("old.CAP", "earlier.pdf", "2", "1")                     # an earlier run in this process
+    facts = committed_facts()
+
+    class B:
+        unresolved = {}
+
+    def build(store, log, use_ocr=True):
+        log["parsed"] = 1
+        limits.trip("minutes.MAX_PAGES", "county.pdf", "1501 pp", "1500 pp")
+        return facts, sandbox["report"], B()
+    monkeypatch.setattr(M, "cmd_build", build)
+    def finance(*a, **k):                     # as fin_run.cmd_build: its own step
+        limits.mark()
+        limits.trip("fin_facts.PDFINFO_TIMEOUT", "fin.pdf", "120s+", "120s")
+        return 0
+
+    def rpc_step(log, offline, fetcher=None, allow_shrink=False):     # as rpc.run_step: its own step
+        limits.mark()
+        limits.trip("rpc_agenda.RPC_MAX_OCR_PAGES", "rpc.pdf", "201 pp", "200 pp")
+        return 0
+    monkeypatch.setattr(M, "run_finance", finance)
+    monkeypatch.setattr(M, "run_agendas", lambda log, offline, fetcher=None:
+                        limits.trip("county_agenda.PARSE_TIMEOUT", "agenda.pdf", "120s+", "120s"))
+    monkeypatch.setattr(M, "run_rpc", rpc_step)
+    M.main(["run", "--offline"])
+    out = capsys.readouterr().out
+    assert ("collector: limits tripped: 2\n  limit minutes.MAX_PAGES: county.pdf 1501 pp > 1500 pp\n"
+            "  limit county_agenda.PARSE_TIMEOUT: agenda.pdf 120s+ > 120s\n") in out
+    run_log = json.loads((M.BUILD / "run-log.json").read_text())
+    assert run_log["limits"] == ["limit minutes.MAX_PAGES: county.pdf 1501 pp > 1500 pp",
+                                 "limit county_agenda.PARSE_TIMEOUT: agenda.pdf 120s+ > 120s"]
+    limits.reset()
 
 
 def test_run_calls_the_finance_steps_after_the_votes_steps(sandbox, tmp_path):

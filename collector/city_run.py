@@ -28,7 +28,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import civicclerk
+from . import civicclerk, limits
 from .agenda_center import AgendaCenterConfig, ListingError, discover, load_config
 from .fetch import FetchFailed, HostBlocked, HostRefused, PoliteFetcher, ProxyRefused, RobotsDisallowed
 from .store import Store, fetch_into_store, store_dir
@@ -154,6 +154,7 @@ def main(argv: list[str]) -> int:
     p = paths(cfg)
     store = Store(manifest_path=p["manifest"])
     log = new_log()
+    since = limits.mark()                      # this step's own trips only (limits invariant rule 3)
     if a.command in ("fetch", "run"):
         fetcher = PoliteFetcher()
         if a.source in ("all", "agenda-center"):
@@ -170,8 +171,10 @@ def main(argv: list[str]) -> int:
         write_json(p["wards"], facts.pop("_wards"))
         write_json(p["facts"], facts)
         report["build"] = summary
+    report["limits"] = limits.tripped(since)
     write_json(p["report"], {**report, "fetch_log": log.get("fetch_log", [])})
     print(json.dumps({k: v for k, v in report.items()}, indent=1, default=str)[:4000])
+    print(limits.summary("collector city", since), flush=True)
     code = exit_code(log)
     if code == BLOCKED:
         print(f"collector city: REFUSED by a host or by policy (exit {BLOCKED}); not retried. See the failures above.",

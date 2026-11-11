@@ -328,10 +328,11 @@ CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 
 
 def first_pages(pdf: Path, n: int = LIST_PAGES) -> list[str]:
-    import subprocess
+    from . import limits
     from .extract import PARSE_TIMEOUT
-    out = subprocess.run(["pdftotext", "-f", "1", "-l", str(n), "-layout", "-enc", "UTF-8", str(pdf), "-"],
-                         check=True, capture_output=True, timeout=PARSE_TIMEOUT).stdout.decode("utf-8", "replace")
+    out = limits.run("county_agenda.PARSE_TIMEOUT",
+                     ["pdftotext", "-f", "1", "-l", str(n), "-layout", "-enc", "UTF-8", str(pdf), "-"], file=pdf,
+                     check=True, capture_output=True, timeout=PARSE_TIMEOUT).stdout.decode("utf-8", "replace")
     pages = out.split("\f")
     return pages[:-1] if pages and not pages[-1].strip() else pages
 
