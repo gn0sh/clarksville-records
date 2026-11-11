@@ -19,11 +19,10 @@ from __future__ import annotations
 
 import re
 
-from .common import CUT, DOTS, MARKUP, MAX_TITLE, ZWSP, clean, day_words, exact_url_ok, link_ok, parse_hosts, \
-    subject_line
+from .common import CUT, MAX_TITLE  # noqa: F401  common's since subject-unchecked, still importable from here
+from .common import DOTS, MARKUP, ZWSP, clean, day_words, exact_url_ok, link_ok, parse_hosts, subject_line
 
 TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": ()}
-__all__ = ["CUT", "MAX_TITLE", "clean", "day_words"]     # common's, kept importable from here
 _INERT = {ord(c): f"&#{ord(c)};" for c in MARKUP}       # common.MARKUP: every markup character
 _LINE_START = re.compile(r"^[-+\s]+")       # a leading "---" (a rule or front matter), a "+" or "-" list mark
 # Words that would let a reader take the note for a government's own mail. Never in the subject (nor in the From

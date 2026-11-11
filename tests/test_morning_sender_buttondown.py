@@ -308,6 +308,19 @@ def test_a_listing_of_an_unexpected_shape_fails_closed(page):
         client(http).emails()
 
 
+def test_a_later_page_whose_count_differs_from_the_first_fails_closed():
+    """A count that changes between pages (a row added or removed mid-listing) could leave the rows adding up to
+    the last count while one row was skipped: refused, whichever way it moves."""
+    for later in (2, 4, 0):
+        http = FakeHTTP(faults={("GET", "/subscribers"): [
+            Resp(200, {"results": [{"id": "s1", "type": "regular", "metadata": {}}],
+                       "next": f"{BASE}/subscribers?page=2", "count": 3}),
+            Resp(200, {"results": [{"id": "s2", "type": "regular", "metadata": {}}], "next": None, "count": later})]})
+        with pytest.raises(deliver.ProviderError) as e:
+            client(http).subscribers()
+        assert str(e.value) == "GET /subscribers: a page whose count differs from the first page's"
+
+
 def test_a_page_that_links_back_fails_closed():
     loop = Resp(200, {"results": [], "next": f"{BASE}/emails?page=1", "count": 0})
     http = FakeHTTP(faults={("GET", "/emails"): [Resp(200, {"results": [], "next": f"{BASE}/emails?page=1",
@@ -367,6 +380,22 @@ def test_an_error_names_method_path_template_and_status_only(status):
     assert str(e.value) == f"PATCH /subscribers/{{id}}: HTTP {status}"
 
 
+@pytest.mark.parametrize("status", [301, 302, 203, 206])
+@pytest.mark.parametrize("call", ["send_draft", "unschedule"])
+def test_a_write_answered_with_a_status_it_does_not_accept_fails(call, status):
+    """sender/adapter-errors/write-status-untested: only the listed 2xx codes are a success; a redirect or another
+    2xx (203, 206) is an error, so a `status >= 400` rule would not do."""
+    route = "/emails/{id}/send-draft" if call == "send_draft" else "/emails/{id}"
+    method = "POST" if call == "send_draft" else "PATCH"
+    http = FakeHTTP(emails=[{"id": "em1", "status": "scheduled", "metadata": {}}],
+                    faults={(method, route): [Resp(status, {"id": "em1", "status": "draft", "metadata": {}},
+                                                   headers={"Location": "https://evil.example/"})]})
+    c = client(http)
+    with pytest.raises(deliver.ProviderError) as e:
+        c.send_draft("em1", ["s1"], "k") if call == "send_draft" else c.unschedule("em1", "k")
+    assert str(e.value) == f"{method} {route}: HTTP {status}" and len(http.requests) == 1
+
+
 @pytest.mark.parametrize("exc", [urllib.error.URLError(f"cannot reach {BASE}/subscribers/sub-0001-secret"),
                                  TimeoutError("timed out sub-0001-secret"), ConnectionResetError(SECRET_BODY)])
 def test_a_connection_failure_carries_no_url_and_is_not_chained(exc):
@@ -402,11 +431,14 @@ def test_an_http_client_error_while_reading_is_wrapped_too():
 def test_an_id_that_could_leave_its_path_segment_is_refused_before_any_request(bad_id):
     http = FakeHTTP()
     c = client(http)
-    for call in (lambda: c.subscriber(bad_id), lambda: c.set_metadata(bad_id, {}, "k"),
-                 lambda: c.unschedule(bad_id, "k"), lambda: c.send_draft(bad_id, ["s1"], "k"),
-                 lambda: c.send_draft("em1", [bad_id], "k")):
-        with pytest.raises(deliver.ProviderError):
+    for call, said in ((lambda: c.subscriber(bad_id), "GET /subscribers/{id}"),
+                       (lambda: c.set_metadata(bad_id, {}, "k"), "PATCH /subscribers/{id}"),
+                       (lambda: c.unschedule(bad_id, "k"), "PATCH /emails/{id}"),
+                       (lambda: c.send_draft(bad_id, ["s1"], "k"), "POST /emails/{id}/send-draft"),
+                       (lambda: c.send_draft("em1", [bad_id], "k"), "POST /emails/{id}/send-draft")):
+        with pytest.raises(deliver.ProviderError) as e:
             call()
+        assert str(e.value).startswith(said + ": ")         # the real method, never "-"
     assert http.requests == []
 
 
