@@ -229,6 +229,25 @@ jobs:
       - name: Tests (full suite, about 12 min, default settings)
         run: python -m pytest -q -x
 
+      # Data age (config/staleness.yml, docs/ops/launch-runbook.md "Paused sources"): only after a green run, so it
+      # judges the data this run publishes. Reads data/ only, no network, no token. continue-on-error: a stale source
+      # or a broken check never holds back upload, push or deploy.
+      - name: Check data age
+        id: staleness
+        if: success()
+        continue-on-error: true
+        run: python -m qa.staleness check --data data --out build/staleness.json
+
+      # One open "Stale source: ... [key]" issue per stale source, labelled stale-source: created once, its body
+      # edited on later days (never a second issue), closed when the source is fresh again. main only, so a run on
+      # another ref never opens or closes one. Fixed text from our own data, passed to gh as arguments (no shell).
+      - name: Open, update or close stale-source issues
+        if: success() && steps.staleness.outcome == 'success' && github.ref == 'refs/heads/main'
+        continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m qa.staleness issues --report build/staleness.json
+
       # Failed collection or checks: the steps below that publish do not run (no commit, no new artifact, no deploy).
       # The last deployed site stays up. One open issue: created once, then a comment on each later failure.
       - name: Open an issue on failure
