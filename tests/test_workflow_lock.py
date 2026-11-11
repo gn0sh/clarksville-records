@@ -622,7 +622,7 @@ def _stale_check(tmp_path, change: str) -> int:
     origin, src, work = tmp_path / "origin.git", tmp_path / "src", tmp_path / "work"
     _git(tmp_path, "init", "-q", "--bare", str(origin))
     _git(tmp_path, "init", "-q", str(src))
-    for rel in ("config/site.yml", "sender/deliver.py", "data/x.json"):
+    for rel in ("config/site.yml", "sender/deliver.py", "data/x.json", ".github/workflows/daily-update.yml"):
         (src / rel).parent.mkdir(parents=True, exist_ok=True)
         (src / rel).write_text("a\n")
     _git(src, "add", "-A")
@@ -640,10 +640,11 @@ def _stale_check(tmp_path, change: str) -> int:
 
 
 @pytest.mark.parametrize("change,ok", [("", True), ("data/x.json", True), ("sender/deliver.py", False),
-                                       ("config/site.yml", False)])
+                                       ("config/site.yml", False), (".github/workflows/daily-update.yml", False)])
 def test_note_refuses_an_older_commit_than_main(tmp_path, change, ok):
-    """note-job/stale-rerun: re-running an older run checks out that day's github.sha while the plan is built from
-    today's main; the note job must stop unless sender/ and config/site.yml are main's. Data commits are fine."""
+    """note-job/stale-rerun: re-running an older run checks out that day's github.sha (and runs that day's workflow
+    file) while the plan is built from today's main; the note job must stop unless sender/, config/site.yml and the
+    workflow file are main's (note-job/stale-rerun-workflow-gap). Data commits are fine."""
     names = [s.get("name") for s in WF["jobs"]["note"]["steps"]]
     assert names.index("Check out this run's commit") + 1 == names.index(
         "Check this commit's sender and config are main's")

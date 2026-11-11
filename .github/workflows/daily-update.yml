@@ -454,15 +454,16 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
-      # A re-run of an older run ("Re-run all jobs") checks out that day's github.sha, while the update job builds
-      # the plan from today's main. Refuse unless this commit's sender code and site config are main's (note-job/
-      # stale-rerun). The repository is public, so the fetch needs no token (none is kept on disk).
+      # A re-run of an older run ("Re-run all jobs") checks out that day's github.sha and runs that day's workflow
+      # file, while the update job builds the plan from today's main. Refuse unless this commit's sender code, site
+      # config and this workflow file are main's (note-job/stale-rerun, note-job/stale-rerun-workflow-gap). The
+      # repository is public, so the fetch needs no token (none is kept on disk).
       - name: Check this commit's sender and config are main's
         run: |
           set -euo pipefail
           git fetch --no-tags --depth=1 origin main
-          if ! git diff --quiet HEAD FETCH_HEAD -- config/site.yml sender/; then
-            echo "::error::config/site.yml or sender/ differ from main: an older run was re-run. Nothing sent."
+          if ! git diff --quiet HEAD FETCH_HEAD -- config/site.yml sender/ .github/workflows/daily-update.yml; then
+            echo "::error::config/site.yml, sender/ or the workflow differ from main: an older run was re-run. Nothing sent."
             exit 2
           fi
 

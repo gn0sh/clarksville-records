@@ -17,8 +17,8 @@ and 5).
   3. the repository variable `MORNING_NOTE_SEND` is exactly `true`;
   4. the `update` and `deploy` jobs both succeeded (so it never runs while the deploy is locked, and an email never
      links a page that is not live).
-  Inside it: mask the canary ids, check out this run's commit (no token kept), stop if its `sender/` or
-  `config/site.yml` differ from `main` (a re-run of an older run), Python with no pip step, download
+  Inside it: mask the canary ids, check out this run's commit (no token kept), stop if its `sender/`,
+  `config/site.yml` or `.github/workflows/daily-update.yml` differ from `main` (a re-run of an older run), Python with no pip step, download
   the plan to the runner's temp folder, check the files, a dry run that checks the plan, then
   `python -E -s -m sender deliver --plan ... --live`. `--live` is passed only when `MORNING_NOTE_SEND` is `true`.
   `permissions: contents: read` only. `BUTTONDOWN_API_KEY` is given to that last step only.
@@ -161,9 +161,9 @@ architect.
 ## Rules for manual runs and re-runs
 - **Never re-run a Daily update run from an earlier day** ("Re-run all jobs" or "Re-run failed jobs" on yesterday's
   run). The run uses that day's workflow file, but the plan is built from today's `main`; the note job now stops with
-  "an older run was re-run" when the sender code or config differ. Only the workflow file is the old version: the
+  "an older run was re-run" when the sender code, config or workflow file differ. Only the workflow file is the old version: the
   `update` job checks out current `main`. Start a new run with **Run workflow** instead.
-- **Don't merge changes to `sender/` or `config/site.yml` while a Daily update run is in progress.** The note job's
+- **Don't merge changes to `sender/`, `config/site.yml` or `.github/` while a Daily update run is in progress.** The note job's
   stale check would stop and no note would be sent that day.
 - **Before you click Run workflow, open Actions. If a Daily update run is Queued, don't start one.** All runs share
   one concurrency group with one pending slot: a manual run queued then replaces the pending scheduled run (09:07
