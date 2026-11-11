@@ -449,6 +449,26 @@ def test_an_edition_that_could_not_leave_by_latest_send_stops_the_run(plan):
     assert go(plan, fake, now=at(9, 58))[0].status == "late" and fake.created == []
 
 
+def test_ids_mode_rechecks_latest_send_before_each_draft_and_each_send(plan):
+    """sender/never-late/ids-no-recheck: `ids` mails at once, so a run that crosses latest_send part way stops
+    there: no further draft is created and no draft is sent after it (exit 2, "late")."""
+    at = lambda h, m: datetime(2026, 11, 11, h, m, tzinfo=TZ)              # noqa: E731
+    s = settings(mode="ids")
+    # the run's start, then edition 1's draft and send, then edition 2's draft: past latest_send
+    fake = Fake(people(plan))
+    res, text = go(plan, fake, s=s, now=None, clock=clock_of(at(5, 0), at(9, 59), at(10, 0), at(10, 1)))
+    assert (res.code, res.status, res.editions) == (2, "late", 1)
+    assert len(fake.created) == 1 and len(fake.sent_drafts) == 1 and "latest_send" in text
+    # past latest_send between edition 1's draft and its send: the draft is made (it claims the edition), never sent
+    fake = Fake(people(plan))
+    res, _ = go(plan, fake, s=s, now=None, clock=clock_of(at(5, 0), at(9, 59), at(10, 0) + timedelta(seconds=1)))
+    assert (res.code, res.status, res.editions) == (2, "late", 0)
+    assert len(fake.created) == 1 and fake.sent_drafts == []
+    # in time throughout: all three are sent
+    fake = Fake(people(plan))
+    assert go(plan, fake, s=s, now=None, clock=clock_of(at(5, 0), at(9, 0)))[0].editions == 3
+
+
 def test_ids_mode_drafts_then_sends_to_ids_and_never_writes_a_subscriber(plan):
     before = people(plan)
     fake = Fake(before)
