@@ -41,9 +41,9 @@ muts += [
      "        if False:\n            return polarity"),
     # review of 33e13a2: the mover's polarity, the table kinds, a lack of a second in the mover clause
     ("polarity: a mover naming no kind passes", "            if b and a != b:", "            if a and b and a != b:"),
-    ("kind: table", '"Motion to table"),', '"Motion"),'),
-    ("kind: postpone", '"Motion to postpone"),', '"Motion"),'),
-    ("kind: continue", '"Motion to continue"),', '"Motion"),'),
+    ("kind: table", '\\btabling\\b", "Motion to table"),', '\\btabling\\b", "Motion"),'),
+    ("kind: postpone", '\\bpostponement\\b", "Motion to postpone"),', '\\bpostponement\\b", "Motion"),'),
+    ("kind: continue", '\\bcontinuance\\b", "Motion to continue"),', '\\bcontinuance\\b", "Motion"),'),
     ("kind: table needs the verb", 'r"\\bto\\s+table\\b|\\btabling\\b"', 'r"\\btabl"'),
     ("polarity: an election or adjournment passing for approval", "_polarity(kind) or ELECT_ADJOURN.get(kind),",
      "_polarity(kind),"),
@@ -110,8 +110,8 @@ muts += [
     ("10a order: no vote after the outcome", '(ph == "vote" and phase > PHASE["vote"])', "False"),
     ("10a order: one outcome", '(ph == "outcome" and outcomes)', "False"),
     ("10a order: 'with' only after the outcome", '(ph == "with" and phase != PHASE["outcome"])', "False"),
-    ("10a an outcome clause is required", 'if not listed or not (any(ph == "outcome" for ph, _, _ in clauses) or '
-     '(oc is not None and oc is fav)):', "if not listed:"),
+    ("10a an outcome clause is required", 'if (not listed or not (any(ph == "outcome" for ph, _, _ in clauses) or '
+     '(oc is not None and oc is fav))', "if (not listed"),
     ("10c attribution: lead abstention attributed", "            if own and attribute:", "            if False:"),
     ("10c attribution: own case only",
      "(x.group(\"case\") is None or (own_case is not None and named == own_case))", '(x.group("case") is None or True)'),

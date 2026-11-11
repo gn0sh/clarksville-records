@@ -533,6 +533,7 @@ def test_approving_a_withdrawal_is_not_the_deferrals_list(words, head):
     "made the motion not to approve the request",
     "made the motion that the request not be approved",
     "made the motion for no approval of the request",
+    "made the motion for approval with no conditions",      # "no" in the kind's words, under-confirmed on purpose
     # no kind in the words before "stating": the whole mover clause is read
     "made the motion stating that the request not be approved",
     "made the motion based on the staff report that it does not meet the plan",

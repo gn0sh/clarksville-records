@@ -49,17 +49,31 @@ Final run:
 | kind: table needs the verb | killed | test_table_and_continue_as_nouns_are_not_a_kind[for |
 | polarity: an election or adjournment passing for approval | killed | test_an_election_or_adjournment_passing_for_approval_is_confirmed[text0-Motion |
 | 10a mover clause: lack of a second | killed | test_a_lack_of_a_second_in_the_mover_clause_is_not_confirmed |
-| kind: two kinds in the mover's words | killed | test_mover_words_naming_two_kinds_are_not_confirmed[made |
-| kind: two kinds shown under the first | killed | test_mover_words_naming_two_kinds_are_not_confirmed[made |
+| kind: two kinds in the mover's words | killed | test_recommend_with_a_past_participle_of_another_kind_is_not_confirmed[made |
+| kind: two kinds shown under the first | killed | test_recommend_with_a_past_participle_of_another_kind_is_not_confirmed[made |
 | kind: recommend before another kind | killed | test_one_kind_named_through_another_kinds_words_is_confirmed[made |
-| kind: recommend alone | killed | test_one_kind_named_through_another_kinds_words_is_confirmed[made |
+| kind: recommend alone | killed | test_table_and_continue_as_nouns_are_not_a_kind[for |
 | kind holds: consent agenda | killed | test_an_abstention_before_a_list_motion_under_a_case_is_not_attributed |
 | kind holds: minutes | killed | test_a_case_section_with_no_motion_is_no_other_motions_scope |
 | kind holds: deferrals hold defer | killed | test_each_shape_is_confirmed[text15-extra15-nays15-abstained15-] |
-| kind holds: deferrals hold withdraw | killed | test_one_kind_named_through_another_kinds_words_is_confirmed[made |
+| kind holds: deferrals hold withdraw | killed | test_a_list_kind_holding_only_its_own_words_stays_confirmed[made |
 | kind holds: deferrals hold approval | killed | test_each_shape_is_confirmed[text15-extra15-nays15-abstained15-] |
 | polarity: postpone is its own | killed | test_table_postpone_and_continue_are_each_their_own_polarity[to |
 | polarity: continue is its own | killed | test_table_postpone_and_continue_are_each_their_own_polarity[to |
+| kind stems: table | killed | test_recommend_with_a_past_participle_of_another_kind_is_not_confirmed[made |
+| kind stems: postpone | killed | test_recommend_with_a_past_participle_of_another_kind_is_not_confirmed[made |
+| kind stems: continue | killed | test_continue_as_a_bare_verb_is_a_second_kind_of_the_two_kinds_check |
+| kind stems: deny | killed | test_recommend_with_a_past_participle_of_another_kind_is_not_confirmed[made |
+| kind stems: read for the two kinds | killed | test_continue_as_a_bare_verb_is_a_second_kind_of_the_two_kinds_check |
+| kind nouns: Use Table | killed | test_table_and_continue_as_nouns_are_not_a_kind[for |
+| kind nouns: continue as | killed | test_table_and_continue_as_nouns_are_not_a_kind[for |
+| kind: a stem alone names no kind | killed | test_table_and_continue_as_nouns_are_not_a_kind[for |
+| kind: the deferrals list names a deferral | killed | test_approving_a_withdrawal_is_not_the_deferrals_list[CASE |
+| mover negation: in the kind's words | killed | test_a_negation_in_the_mover_clause_is_not_confirmed[made |
+| mover negation: the whole clause when no kind | killed | test_a_negation_in_the_mover_clause_is_not_confirmed[made |
+| mover negation: a negated kind anywhere | killed | test_a_negation_in_the_mover_clause_is_not_confirmed[made |
+| mover negation: 'no' | killed | test_a_negation_in_the_mover_clause_is_not_confirmed[made |
+| gate: minutes after CHECKED_THROUGH | killed | test_motions_of_minutes_after_the_gate_date_are_never_confirmed |
 | 10c MEMBER_VOTE: abstain | killed | test_a_member_vote_in_the_lead_is_not_confirmed[Mr. |
 | 10c MEMBER_VOTE: recus | killed | test_a_member_vote_in_the_lead_is_not_confirmed[Mr. |
 | 10c MEMBER_VOTE: conflict | killed | test_a_member_vote_in_the_lead_is_not_confirmed[Mrs. |
@@ -89,8 +103,10 @@ Final run:
 | 10d body: list-part member written nowhere | killed | test_a_list_motion_abstention_on_another_listed_case_is_not_confirmed |
 | 10d body: another case on a caseless motion | killed | test_a_caseless_motion_abstention_naming_a_case_names_another_case |
 
-**73 of 73 killed** (re-run at 89ca713, after the delta review of 92a0c69..24422eb, which added eleven rows above: the
-two-kinds check, the "Motion" label, both "recommend" rules, each KIND_HOLDS entry and the postpone and continue
+**87 of 87 killed** (re-run at the delta review of 44a6ade's fix, which added fourteen rows: each KIND_STEMS stem, the
+stems read for the two-kinds check, both KIND_NOUNS, a stem alone naming no kind, the deferrals list needing
+"deferral", the four mover-negation checks and the CHECKED_THROUGH gate in collector/rpc_agenda.py. The 73 of 73
+run at 89ca713, after the delta review of 92a0c69..24422eb, added eleven rows: the two-kinds check, the "Motion" label, both "recommend" rules, each KIND_HOLDS entry and the postpone and continue
 polarities. The 62 of 62 run at 071cd2c, after the delta review of 33e13a2, added seven. The 55 of 55 run
 after the review of d76f361 added six. A mutant that fails to import is reported BROKEN and never counted as killed.
 One mutant from the 33e13a2 round, "polarity from the mover's words", survived: the words added nothing over the kind, so the code

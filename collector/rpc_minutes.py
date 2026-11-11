@@ -75,7 +75,9 @@ motion's sentences is left unexplained; any doubt is a reason, in plain words, i
    voted in favor, except Cindy Greene who abstained and Bill Kimbrough who voted against." prints no outcome: the
    motion has none and is not confirmed); an outcome sentence ("Motion was approved on the consent agenda.") is
    preferred to the "in favor" sentence before it; a motion that "falls for a lack of a second" has no seconder to read;
-5. (C5) the minutes print the meeting's own date (minutes listed under another meeting are not attached to it).
+5. (C5) the minutes print the meeting's own date (minutes listed under another meeting are not attached to it);
+6. (C6, rule 11) the meeting is on or before CHECKED_THROUGH, the newest meeting whose motions a QA sample has checked
+   against the minutes (collector/rpc_agenda.read_all_minutes applies it).
 """
 from __future__ import annotations
 
@@ -242,6 +244,7 @@ LIST_KINDS = frozenset({"Motion to approve the consent agenda", "Motion to appro
 # request"), the motion is not confirmed (WHY_TWO_KINDS, rpc-votes/kind-order-new-kinds): the order cannot tell which
 # kind the mover meant. Two exceptions: a kind whose own words hold another kind's (KIND_HOLDS), and "recommend",
 # which names a kind only when no other kind's words are there ("to recommend denial" is "Motion for disapproval").
+# The two-kinds check also reads the loose stems of KIND_STEMS ("to recommend that the case be tabled").
 MOTION_KINDS = (
     (r"consent\s+agenda", "Motion to approve the consent agenda"),
     (r"\bminutes\b", "Motion to approve the minutes"),
