@@ -18,10 +18,12 @@ and 5).
   4. the `update` and `deploy` jobs both succeeded (so it never runs while the deploy is locked, and an email never
      links a page that is not live).
   Inside it: mask the canary ids, check out this run's commit (no token kept), stop if its `sender/`,
-  `config/site.yml` or `.github/workflows/daily-update.yml` differ from `main` (a re-run of an older run), Python with no pip step, download
-  the plan to the runner's temp folder, check the files, a dry run that checks the plan, then
-  `python -E -s -m sender deliver --plan ... --live`. `--live` is passed only when `MORNING_NOTE_SEND` is `true`.
-  `permissions: contents: read` only. `BUTTONDOWN_API_KEY` is given to that last step only.
+  `config/site.yml` or `.github/workflows/daily-update.yml` differ from `main` (a re-run of an older run), stop
+  unless the last change to `sender/`, `config/site.yml` or `.github/` on `main` was merged by pull request (step
+  2.0), Python with no pip step, download the plan to the runner's temp folder, check the files, a dry run that
+  checks the plan, then `python -E -s -m sender deliver --plan ... --live`. `--live` is passed only when
+  `MORNING_NOTE_SEND` is `true`. `permissions: contents: read` and `pull-requests: read` only (the job's
+  `GITHUB_TOKEN` is given to the pull request check only). `BUTTONDOWN_API_KEY` is given to that last step only.
 - `note-failed` job: when the `note` job failed or was cancelled, opens one issue titled **"Daily update: morning note failed"**, or
   comments on it if it is open. A note failure never opens "Daily update failed" and never touches the site.
 - Three switches must all be on before anything is sent: `morning_note.sender.enabled: true` in `config/site.yml`
@@ -45,10 +47,26 @@ and may be labelled differently. Record what each screen really says in `docs/pl
    Copy it once; it goes straight into the GitHub secret in step 2.3 and nowhere else (not a file, chat or issue).
 
 ## 2. GitHub settings (Brian, once; nothing runs yet)
-0. **Brian: protect `main` first** (security-note-workflow M1). The `morning-note` environment's "main only" rule
-   (step 2.2) only says *which branch* may use the secret; without protection anyone who can push could put a
-   changed workflow straight onto `main` and it would get the key. So `main` must take changes by pull request only,
-   except the daily job's own `data/` commit (the `push` job, `GITHUB_TOKEN`, `github-actions[bot]`).
+0. **Brian: protect `main` first** (security-note-workflow M1, main-protect/actions-bypass-reopens-M1).
+   **Plainly: anyone with write or admin access to this repository can reach the Buttondown key.** The ruleset
+   below does not change that. With 0 required approvals a writer can open a pull request that changes the workflow
+   and merge it themselves; and because the ruleset lets GitHub Actions push `main` (the daily `data/` commit needs
+   it), a workflow run from any branch can push `main` directly. The `morning-note` environment's "main only" rule
+   (step 2.2) only says *which branch* may use the secret, not who changed it. So:
+   - **Keep collaborators to the minimum** (https://github.com/gn0sh/clarksville-records/settings/access): every
+     person or app with write access is someone who can reach the key. Add nobody for the morning note.
+   - **The ruleset is accident prevention plus an audit trail**, not a lock: it stops a stray direct push or force
+     push, and it makes every change to `main` show up as a pull request. The note job adds a check on top: it
+     refuses to send unless the last change to `sender/`, `config/site.yml` or `.github/` on `main` is the merge of
+     a pull request into `main` (step "Check sender, config and workflow changes reached main by pull request").
+     The team merged earlier work without pull requests; **from go-live on, every change to those paths reaches
+     `main` by a pull request merged with "Create a merge commit" or "Squash and merge"** (not "Rebase and merge":
+     a rebased commit other than the last one is refused). The daily `data/` commits need no PR.
+   - What stops a writer who goes around all of this is a person: the optional required reviewer on the
+     `morning-note` environment (section 5, step 0), which holds every job that would get the key until Brian
+     approves it.
+   `main` takes changes by pull request only, except the daily job's own `data/` commit (the `push` job,
+   `GITHUB_TOKEN`, `github-actions[bot]`).
    1. Open https://github.com/gn0sh/clarksville-records/settings/rules > **New ruleset** > **New branch ruleset**.
    2. **Ruleset name** `main: pull request required`; **Enforcement status** **Active**.
    3. **Bypass list** > **Add bypass**. If **GitHub Actions** is in the list, pick it (allow: **Always**); do not
@@ -145,8 +163,31 @@ architect.
 6. `main` is protected (step 2.0): `scripts/protect-main.ps1` (2.0.6) prints "OK: main is protected", and the last
    scheduled run's `push` job committed `data/` to `main` under the ruleset (or the 2.0 fallback is merged and green). Link the
    check output in the go-live PR.
+7. The go-live PR itself is merged with "Create a merge commit" or "Squash and merge", so the last change to
+   `sender/`, `config/site.yml` and `.github/` on `main` is a pull request merge (the note job's PR check, step 2.0).
+   Check before setting `MORNING_NOTE_SEND`: `git log --first-parent -1 --format=%H origin/main -- sender/ config/site.yml .github/`
+   then `gh api repos/gn0sh/clarksville-records/commits/<that sha>/pulls --jq '.[].merge_commit_sha'` prints the
+   same sha.
 
 ## 5. Go-live: Canary week (Brian; hard stop 1)
+0. **Optional, recommended for the canary week: Brian approves each send himself.** A required reviewer on the
+   environment holds every job that uses `morning-note` (and so every job that could get the key, from any
+   workflow) until Brian clicks approve. It is the one control in this runbook a writer cannot get around.
+   1. Open https://github.com/gn0sh/clarksville-records/settings/environments > **morning-note**.
+   2. Under **Deployment protection rules**, tick **Required reviewers**, type your own GitHub username in the box
+      and pick it. Leave **Prevent self-review** unticked (the scheduled run may count as yours, and you could not
+      approve it). **Save protection rules**.
+   3. Each morning after 09:07 UTC (03:07 CST): the email "Deployment review requested" (or Actions > **Daily
+      update** > today's run) > **Review deployments** > tick **morning-note** > **Approve and deploy**. Approve
+      before 10:00 site time (`latest_send`); later, the note job stops with "missed" and sends nothing. In stamp
+      mode the emails still go out at 7:00, so approve before 7:00 to get that day's note.
+   4. **Never leave a run waiting.** A run waiting for approval keeps the one-run-at-a-time group, so the next day's
+      run (data, deploy and note) queues behind it. If you will not approve, click **Reject**: the note job fails,
+      the "morning note failed" issue opens, nothing is sent, and the next run is free.
+   5. After the canary week, to stop approving: same page, untick **Required reviewers** > **Save protection
+      rules**. Keeping it on is also fine.
+   Check: `gh api repos/gn0sh/clarksville-records/environments/morning-note --jq '.protection_rules[].type'`
+   prints `required_reviewers` (and `branch_policy`).
 1. **Brian:** https://github.com/gn0sh/clarksville-records/settings/variables/actions > **New repository variable** >
    name `MORNING_NOTE_SEND`, value `true` > **Add variable**.
 2. The next scheduled run (09:07 UTC) sends to the canary ids only (`canary_only: true`): stamp mode schedules the
@@ -190,3 +231,8 @@ cancelled `note` job opens the same issue. A failure in "Download the morning no
 or "Check the plan" means the plan from the update job was missing or did not pass the checks: look at that run's
 "Plan the morning note" step. A failure in "Check this commit's sender and config are main's" means an older run was
 re-run, or a sender/config change merged during the run (see "Rules for manual runs and re-runs"): nothing was sent.
+A failure in "Check sender, config and workflow changes reached main by pull request" means the last commit on
+`main` that touches `sender/`, `config/site.yml` or `.github/` (its sha is in the log) is not the merge of a pull
+request into `main`: someone or some workflow pushed `main` directly, or a PR was rebase-merged. Nothing was sent.
+Find out who made that commit and why before anything else; if it was an honest mistake, the fix is a reviewed PR
+(merge commit or squash) touching those paths, which becomes the new last change.

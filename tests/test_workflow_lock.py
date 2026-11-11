@@ -483,7 +483,7 @@ def test_mask_step_masks_every_canary_id_deliver_accepts(value, tmp_path):
 
 def test_note_job_least_privilege():
     note = WF["jobs"]["note"]
-    assert note["permissions"] == {"contents": "read"}
+    assert note["permissions"] == {"contents": "read", "pull-requests": "read"}   # PR check: read only
     steps = note["steps"]
     assert steps[0]["name"] == "Mask the canary ids"                           # before anything else runs
     assert "::add-mask::" in steps[0]["run"]
@@ -599,6 +599,11 @@ def test_the_note_runbook_exists_with_the_switches():
     for phrase in ("MORNING_NOTE_SEND", "BUTTONDOWN_API_KEY", "MORNING_NOTE_CANARY_IDS", "morning-note",
                    "T4.0", "Canary", "Go-live", "Rollback", "link_hosts", "canary_only", "Deployment branches"):
         assert phrase in text, phrase
+    # main-protect/actions-bypass-reopens-M1: the runbook says who can reach the key and offers the one human lock
+    for phrase in ("anyone with write or admin access to this repository can reach the Buttondown key",
+                   "Keep collaborators to the minimum", "accident prevention plus an audit trail", "Required reviewers",
+                   "Prevent self-review", "Review deployments", "Never leave a run waiting", PR_STEP):
+        assert phrase in " ".join(text.split()), phrase
 
 
 @pytest.mark.parametrize("result,fires", [("failure", True), ("cancelled", True), ("success", False),
@@ -649,6 +654,152 @@ def test_note_refuses_an_older_commit_than_main(tmp_path, change, ok):
     assert names.index("Check out this run's commit") + 1 == names.index(
         "Check this commit's sender and config are main's")
     assert (_stale_check(tmp_path, change) == 0) == ok
+
+
+# ------------------------------------------------------------------ main-protect/actions-bypass-reopens-M1
+PR_STEP = "Check sender, config and workflow changes reached main by pull request"
+PR_JQ = '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.SHA)] | length'
+_PULLS_STUB = '''#!/usr/bin/env python3
+import json, os, sys
+a = sys.argv[1:]
+with open(os.environ["GH_CALLS"], "a") as f:
+    f.write(" ".join(a) + "\\n")
+if os.environ.get("GH_FAIL"):
+    sys.exit(1)
+assert len(a) == 4 and a[0] == "api" and a[2] == "--jq" and a[3] == os.environ["EXPECTED_JQ"], a
+sha = a[1].removeprefix("repos/o/r/commits/").removesuffix("/pulls")
+assert os.environ["SHA"] == sha and os.environ["GH_TOKEN"] == "t"
+prs = json.load(open(os.environ["PULLS"])).get(sha, [])
+print(sum(1 for p in prs if p["merged_at"] and p["base"]["ref"] == "main" and p["merge_commit_sha"] == sha))
+'''
+_ALL = ("config/site.yml", "sender/deliver.py", "data/x.json", ".github/workflows/daily-update.yml")
+
+
+def _pr(sha, merged=True, base="main"):
+    return {"merged_at": "2026-11-11T00:00:00Z" if merged else None, "base": {"ref": base}, "merge_commit_sha": sha}
+
+
+def _pr_check(tmp_path, ops, pulls, gh_fail=False):
+    """Build main from `ops`, check out its tip from a depth-1 clone (as actions/checkout does) and run the PR step.
+    ops: ("commit", label, paths) on main, or ("merge", label, branch_label, paths): a branch commit touching paths,
+    merged into main with --no-ff. pulls: {label: [pr(sha_label or a literal sha), ...]}. Returns (exit, gh calls)."""
+    step = _note_steps()[PR_STEP]
+    origin, src, work, bindir = tmp_path / "origin.git", tmp_path / "src", tmp_path / "work", tmp_path / "bin"
+    _git(tmp_path, "init", "-q", "--bare", str(origin))
+    _git(tmp_path, "init", "-q", str(src))
+    shas, n = {}, 0
+
+    def touch(paths):
+        nonlocal n
+        for rel in paths:
+            n += 1
+            (src / rel).parent.mkdir(parents=True, exist_ok=True)
+            (src / rel).write_text(f"{n}\n")
+        _git(src, "add", "-A")
+
+    for op in ops:
+        if op[0] == "commit":
+            touch(op[2])
+            _git(src, "commit", "-q", "-m", op[1])
+            shas[op[1]] = _git(src, "rev-parse", "HEAD")
+        else:
+            _, label, branch_label, paths = op
+            _git(src, "checkout", "-q", "-b", branch_label)
+            touch(paths)
+            _git(src, "commit", "-q", "-m", branch_label)
+            shas[branch_label] = _git(src, "rev-parse", "HEAD")
+            _git(src, "checkout", "-q", "main")
+            _git(src, "merge", "-q", "--no-ff", "-m", label, branch_label)
+            shas[label] = _git(src, "rev-parse", "HEAD")
+    _git(src, "push", "-q", f"file://{origin}", "main:refs/heads/main")
+    _git(tmp_path, "clone", "-q", "--depth=1", f"file://{origin}", str(work))
+    _git(work, "checkout", "-q", "--detach", shas[ops[-1][1]])
+    assert _git(work, "rev-parse", "--is-shallow-repository") == "true"
+    resolved = {shas[k]: [{**p, "merge_commit_sha": shas.get(p["merge_commit_sha"], p["merge_commit_sha"])}
+                          for p in v] for k, v in pulls.items()}
+    (tmp_path / "pulls.json").write_text(__import__("json").dumps(resolved))
+    bindir.mkdir()
+    (bindir / "gh").write_text(_PULLS_STUB)
+    (bindir / "gh").chmod(0o755)
+    calls = tmp_path / "gh-calls"
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_TOKEN": "t", "GITHUB_REPOSITORY": "o/r",
+           "GH_CALLS": str(calls), "PULLS": str(tmp_path / "pulls.json"), "EXPECTED_JQ": PR_JQ,
+           **({"GH_FAIL": "1"} if gh_fail else {})}
+    r = subprocess.run(["bash", "-c", step["run"]], cwd=work, env=env, capture_output=True, text=True)
+    assert "Traceback" not in r.stderr, r.stderr
+    return r.returncode, (calls.read_text().splitlines() if calls.exists() else []), shas
+
+
+DATA = ("data/x.json",)
+PR_CASES = {
+    # the PR-merged commit, then daily data/ commits pushed by the push job without a PR: sends
+    "pr-then-data-days": ([("commit", "A", _ALL), ("commit", "D1", DATA), ("commit", "D2", DATA)],
+                          {"A": [_pr("A")]}, True),
+    # a merge-commit PR (the branch commit itself has no PR of its own), then a data day: sends
+    "merge-commit-pr": ([("commit", "A", _ALL), ("merge", "M", "B", ("sender/deliver.py",)), ("commit", "D", DATA)],
+                        {"M": [_pr("M")]}, True),
+    # pushed straight to main (the Actions bypass, or an unprotected push): refused
+    "direct-sender": ([("commit", "A", _ALL), ("commit", "X", ("sender/deliver.py",)), ("commit", "D", DATA)],
+                      {"A": [_pr("A")]}, False),
+    "direct-config": ([("commit", "A", _ALL), ("commit", "X", ("config/site.yml",))], {"A": [_pr("A")]}, False),
+    "direct-other-workflow": ([("commit", "A", _ALL), ("commit", "X", (".github/workflows/other.yml",))],
+                              {"A": [_pr("A")]}, False),
+    # the commit belongs to a PR that is still open, merged elsewhere, or merged as another commit: refused
+    "open-pr": ([("commit", "A", _ALL), ("commit", "X", ("sender/deliver.py",))],
+                {"A": [_pr("A")], "X": [_pr("X", merged=False)]}, False),
+    "pr-into-other-branch": ([("commit", "A", _ALL), ("commit", "X", ("sender/deliver.py",))],
+                             {"A": [_pr("A")], "X": [_pr("X", base="dev")]}, False),
+    "pr-merged-as-another-commit": ([("commit", "A", _ALL), ("commit", "X", ("sender/deliver.py",))],
+                                    {"A": [_pr("A")], "X": [_pr("f" * 40)]}, False),
+    # a merge pushed straight to main whose merged-in side is a PR's commit: main's own commit (first parent) counts
+    "pushed-merge-of-pr-commit": ([("commit", "A", _ALL), ("merge", "M", "E", ("sender/deliver.py",))],
+                                  {"A": [_pr("A")], "E": [_pr("E")]}, False),
+    # no PR at all, ever (the team's earlier merges without PRs): refused from go-live
+    "no-pr-history": ([("commit", "A", _ALL), ("commit", "D", DATA)], {}, False),
+}
+
+
+@pytest.mark.parametrize("case", list(PR_CASES))
+def test_note_refuses_unless_sender_config_and_workflows_reached_main_by_pr(tmp_path, case):
+    ops, pulls, ok = PR_CASES[case]
+    code, calls, shas = _pr_check(tmp_path, ops, pulls)
+    assert (code == 0) == ok, (case, code)
+    touched = {"pushed-merge-of-pr-commit": "M", "merge-commit-pr": "M", "no-pr-history": "A",
+               "pr-then-data-days": "A"}.get(case, "X")
+    assert calls == [f"api repos/o/r/commits/{shas[touched]}/pulls --jq {PR_JQ}"]   # one read, of main's own commit
+
+
+def test_the_pr_check_fails_closed_when_github_cannot_be_read(tmp_path):
+    code, calls, _ = _pr_check(tmp_path, [("commit", "A", _ALL)], {"A": [_pr("A")]}, gh_fail=True)
+    assert code != 0 and len(calls) == 1
+
+
+def test_the_pr_check_jq_filter_with_real_jq():
+    """The --jq expression gh evaluates (gojq), run through jq where it is installed: counts only a merged PR into
+    main whose merge commit is this commit."""
+    import json
+    if not shutil.which("jq"):
+        pytest.skip("jq not installed")
+    sha = "a" * 40
+    for prs, want in (([_pr(sha)], "1"), ([_pr(sha, merged=False)], "0"), ([_pr(sha, base="dev")], "0"),
+                      ([_pr("b" * 40)], "0"), ([], "0"), ([_pr("b" * 40), _pr(sha)], "1")):
+        r = subprocess.run(["jq", PR_JQ], input=json.dumps(prs), capture_output=True, text=True, check=True,
+                           env={**os.environ, "SHA": sha})
+        assert r.stdout.strip() == want, prs
+
+
+def test_the_pr_check_runs_before_any_secret_step_with_a_read_only_token():
+    steps = WF["jobs"]["note"]["steps"]
+    names = [s.get("name") for s in steps]
+    i = names.index(PR_STEP)
+    assert names.index("Check this commit's sender and config are main's") + 1 == i
+    assert i < names.index("Deliver the morning note")
+    step = steps[i]
+    assert step["env"] == {"GH_TOKEN": "${{ github.token }}"}                    # the job's read-only token, nothing else
+    assert [s["name"] for s in steps if "GH_TOKEN" in (s.get("env") or {})] == [PR_STEP]
+    assert "sender/ config/site.yml .github/" in step["run"] and "--first-parent" in step["run"]
+    assert PR_JQ in " ".join(step["run"].split())
+    assert WF["jobs"]["note"]["permissions"] == {"contents": "read", "pull-requests": "read"}
 
 
 # ------------------------------------------------------------------ the main ruleset scripts (runbook step 2.0.6)

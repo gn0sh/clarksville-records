@@ -418,7 +418,8 @@ jobs:
   # while the deploy is locked, and an email never links a page that is not live). A manual run never sends. It
   # runs after deploy, so a note failure can never hold back the data commit or the deploy; it opens its own issue
   # (the note-failed job), never the "Daily update failed" one.
-  # Least privilege: contents: read only; the API key and the canary ids are secrets of the `morning-note`
+  # Least privilege: contents: read and pull-requests: read only (the PR check below reads, never writes); the
+  # job's GITHUB_TOKEN is given to that one step only. The API key and the canary ids are secrets of the `morning-note`
   # environment (deployment branch main only), each given as env to the one step that needs it, never in a `run:`
   # expression. No pip install, no cache, no artifact upload, no step summary; the deliver stage prints totals only.
   # Never twice across runs: the workflow-level `concurrency: daily-update` group (one run at a time, never
@@ -430,6 +431,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: read
+      pull-requests: read    # the "reached main by pull request" check only
     environment: morning-note
     steps:
       # First, before anything else: the canary ids are masked one by one (the secret as a whole is masked by
@@ -466,6 +468,38 @@ jobs:
             echo "::error::config/site.yml, sender/ or the workflow differ from main: an older run was re-run. Nothing sent."
             exit 2
           fi
+
+      # main-protect/actions-bypass-reopens-M1: the main ruleset lets GitHub Actions push main directly (for the push
+      # job's data/ commit), so a workflow on any branch could put changed sender code, config or workflows on main
+      # without a pull request. Refuse unless the newest commit on this commit's first-parent line (main's own
+      # commits: no commit of a merged-in branch counts) that touches sender/, config/site.yml or .github/ is the
+      # merge or squash commit of a merged pull request into main. The daily data/ commits touch none of those paths,
+      # so they never trip it. From go-live on, every change to those paths reaches main by a pull request merged
+      # with "Create a merge commit" or "Squash and merge" (runbook docs/ops/morning-note.md, 2.0). This does not stop
+      # a writer who merges their own PR (0 approvals), nor a pushed workflow that drops this step: the runbook's
+      # required reviewer on the morning-note environment does. The history is fetched without file contents.
+      - name: Check sender, config and workflow changes reached main by pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          deepen=()
+          if [ "$(git rev-parse --is-shallow-repository)" = true ]; then deepen=(--unshallow); fi
+          git fetch --no-tags --filter=blob:none "${deepen[@]}" origin main
+          if [ "$(git rev-parse --is-shallow-repository)" != false ]; then
+            echo "::error::could not read main's full history. Nothing sent."; exit 2
+          fi
+          sha=$(git log --first-parent -1 --format=%H HEAD -- sender/ config/site.yml .github/)
+          if ! [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::no commit touching sender/, config/site.yml or .github/ found. Nothing sent."; exit 2
+          fi
+          n=$(SHA="$sha" gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" --jq \
+                '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.SHA)] | length')
+          if [ "$n" != 1 ]; then
+            echo "::error::$sha (the last change to sender/, config/site.yml or .github/ on main) is not the merge of a pull request into main. Nothing sent."
+            exit 2
+          fi
+          echo "$sha, the last change to sender/, config/site.yml or .github/, was merged by pull request."
 
       - name: Set up Python (standard library only, no pip step)
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
