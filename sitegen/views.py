@@ -1381,6 +1381,58 @@ def landing(facts, districts: dict | None, georef: dict | None = None, geocoder:
             "address": address}
 
 
+def welcome_lede(finance: bool = False) -> str:
+    """The landing's lede (config/site.yml `welcome_lede`): what a visitor can find, naming the county's money only when
+    the finance pages are built, so it never promises a page this build does not have."""
+    cfg = config.SITE
+    parts = list(cfg["welcome_lede_parts"]) + ([cfg["welcome_lede_money"]] if finance else [])
+    joined = parts[0] if len(parts) == 1 else ", ".join(parts[:-1]) + " and " + parts[-1]
+    return cfg["welcome_lede"].format(parts=joined)
+
+
+def landing_doors(site: dict, rpc: tuple[str, str] | None = None) -> list[dict]:
+    """The landing's "Start here" doors (docs/design/front-page-v2.md section 3): a title, one sentence and the links
+    whose pages this build makes (the same conditions as the menu, `site["nav"]`). Where a door covers both bodies the
+    City link comes first in every door (alphabetical), so neither body leads by choice. A door with no links is left
+    out. `rpc`: (label, href) of the Planning Commission home when it is built; it is linked as meetings only, never
+    under votes. The only numbers are the ward and district counts."""
+    cfg = config.SITE
+    nav = {e["label"]: e for e in site["nav"]}
+    councils = site.get("councils") or []
+
+    def built(label):
+        e = nav.get(label)
+        return e["href"] if e and not e["coming"] else None
+
+    who = (f"The council member for each of {cfg['ward_count']} city wards and the commissioner for each of "
+           f"{cfg['district_count']} county districts." if councils else
+           f"The commissioner for each of {cfg['district_count']} county districts.")
+    doors = [
+        {"key": "office", "title": "Who's in office", "text": who,
+         "links": [*({"label": c["label"], "href": c["href"] + "#seats-h"} for c in councils),
+                   {"label": "County Commission", "href": built("Officials")}]},
+        {"key": "votes", "title": "How they voted",
+         "text": "Each recorded vote, by meeting and by member, linked to the page of the minutes it came from.",
+         "links": [*({"label": f"{c['label']} votes", "href": c["href"] + "#meetings-h"} for c in councils),
+                   {"label": "County Commission votes",
+                    "href": built("Votes") if site.get("vote_years_desc") else None}]},
+        {"key": "meetings", "title": "Meetings and agendas",
+         "text": "The agenda before a meeting; the minutes and votes after it, once they are posted.",
+         "links": [{"label": "Day by day", "href": built("Today")},
+                   {"label": rpc[0], "href": rpc[1]} if rpc else {"href": None}]},
+        {"key": "money", "title": "County money",
+         "text": f"{cfg['county_name']}'s budget books, and the bids and awards its purchasing office lists.",
+         "links": [{"label": "County budget", "href": built("Finance")},
+                   {"label": "Bids and awards", "href": built("Bids and awards")}]},
+    ]
+    out = []
+    for d in doors:
+        d["links"] = [lk for lk in d["links"] if lk.get("href")]
+        if d["links"]:
+            out.append(d)
+    return out
+
+
 def _day_before(date: str) -> str:
     return (dt.date.fromisoformat(date) - dt.timedelta(days=1)).isoformat()
 

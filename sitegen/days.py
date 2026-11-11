@@ -298,3 +298,37 @@ def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None,
 
 
 PAGE = "today.html"
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# the landing's short list (docs/design/front-page-v2.md section 4)
+
+CHIPS = (("cancelled", "Cancelled"), ("scheduled", "Scheduled"), ("votes", "Votes"), ("agenda", "Agenda"))
+
+
+def chip(card: dict) -> str | None:
+    """The status word today.html's cards carry, from fields the card already has: Cancelled, Scheduled, Votes,
+    Agenda, or none. An RPC card never has state "votes" (rpc_card), so no RPC row says Votes."""
+    if card.get("cancelled"):
+        return "Cancelled"
+    return dict(CHIPS[1:]).get(card.get("state"))
+
+
+def landing_meetings(page_ctx: dict, today: date | None = None, n: int = 3) -> dict:
+    """A selection of the day page's own cards (page()), nothing new: the next `n` meetings on or after the build day,
+    soonest first, and the last `n` before it, newest first. Bid listings are not meetings and are left out; a
+    cancelled meeting stays, marked. Each row links its day on today.html, where the card links its source."""
+    today = today or date.fromisoformat(page_ctx["built"])
+    rows = []
+    for w in page_ctx["weeks"]:
+        for d in w["days"]:
+            for c in d["cards"]:
+                if c["kind"] == "bids":
+                    continue
+                rows.append({"iso": d["iso"], "dow": d["dow"], "n": d["n"], "month": d["month"], "text": d["text"],
+                             "body": c["body"], "title": c.get("title"), "dot": c["dot"], "chip": chip(c),
+                             "href": f"{PAGE}#{d['anchor']}"})
+    t = today.isoformat()
+    upcoming = [r for r in rows if r["iso"] >= t][:n]
+    recent = [r for r in rows if r["iso"] < t][-n:][::-1]
+    return {"upcoming": upcoming, "recent": recent, "built": t, "built_text": date_text(today), "n": n}
