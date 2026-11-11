@@ -12,6 +12,9 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
   validator the request is the plain GET. Same policy, robots check and per-host delay, one request either way;
 - no automatic redirects: each Location goes through get() again (allowlist, denied hosts, robots, per-host
   delay), at most MAX_REDIRECTS hops, or the fetch fails;
+- https on the default port only (fetch/scheme-port-unpinned): every request, the first URL, robots.txt and every
+  redirect hop, must be https:// with no port other than 443 and no user:password@; anything else is refused with no
+  request (SchemeRefused, a HostRefused), so a redirect cannot downgrade to http:// or move to another port;
 - a connection reset (the sandbox relay dropping a slow exchange) is retried once after the host delay, like a
   server error; a second reset fails the fetch. At most RESET_RETRIES_PER_HOST resets are retried per host per
   run: after that a reset fails the fetch at once, so a relay that keeps dropping cannot double the requests;
@@ -80,6 +83,10 @@ class RobotsDisallowed(Exception):
 
 class HostRefused(Exception):
     """The host is denied in code or not on the allowlist. No request was made."""
+
+
+class SchemeRefused(HostRefused):
+    """The URL is not https on the default port (or carries user info). No request was made."""
 
 
 class ProxyRefused(Exception):
@@ -177,6 +184,18 @@ class PoliteFetcher:
             self.log.append({"event": "refused", "host": host, "detail": "not on allowlist"})
             raise HostRefused(f"{host}: not on the allowlist")
 
+    def check_url(self, url: str) -> None:
+        """fetch/scheme-port-unpinned: https://, port 443 or none, no user info. Raises SchemeRefused otherwise."""
+        parts = urllib.parse.urlsplit(url)
+        try:
+            port = parts.port
+        except ValueError:                           # a port that is not a number in range
+            port = -1
+        if parts.scheme.lower() != "https" or port not in (None, 443) or "@" in parts.netloc:
+            self.log.append({"event": "refused", "host": parts.netloc, "url": url,
+                             "detail": "not https on the default port"})
+            raise SchemeRefused(f"{url}: only https:// on the default port is fetched")
+
     def sent(self, host: str) -> int:
         """Requests made to host's site this run (robots.txt, redirects and retries included)."""
         return self._sent.get(site_key(host), 0)
@@ -242,6 +261,7 @@ class PoliteFetcher:
         host = urllib.parse.urlsplit(url).netloc
         key = site_key(host)
         self.check_host(host)
+        self.check_url(url)
         if key in self._blocked:
             raise HostBlocked(f"{host}: {self._blocked[key]}")
         if self._proxy_refused.get(key, 0) >= PROXY_REFUSALS_BEFORE_SKIP:
@@ -322,6 +342,7 @@ class PoliteFetcher:
         nxt = urllib.parse.urljoin(url, loc)
         host = urllib.parse.urlsplit(nxt).netloc
         self.log.append({"event": "redirect", "host": urllib.parse.urlsplit(url).netloc, "url": url, "detail": nxt})
+        self.check_url(nxt)                     # every hop, not only the first URL: no http:// or other port
         self.check_host(host)
         self.check_redirect(urllib.parse.urlsplit(url).netloc, host)
         return nxt
@@ -329,6 +350,7 @@ class PoliteFetcher:
     def get(self, url: str, _hops: int = 0, _headers: dict | None = None) -> tuple[int, bytes, dict]:
         parts = urllib.parse.urlsplit(url)
         self.check_host(parts.netloc)
+        self.check_url(url)
         rp = self.robots(parts.netloc, parts.scheme)
         if not rp.can_fetch(self.user_agent, url):
             self.log.append({"event": "robots_disallowed", "host": parts.netloc, "url": url, "detail": ""})

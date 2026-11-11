@@ -219,6 +219,53 @@ def test_redirect_to_a_robots_disallowed_path_is_refused():
     assert "https://g.example/private/x.pdf" not in [u for u, _ in net.calls]
 
 
+@pytest.mark.parametrize("target", ["http://h.example/b.pdf", "http://g.example/b.pdf", "https://h.example:8443/b.pdf",
+                                    "https://g.example:80/b.pdf", "https://g.example:99999/b.pdf",
+                                    "https://u:p@g.example/b.pdf", "ftp://g.example/b.pdf"])
+def test_redirect_off_https_or_to_another_port_is_refused_without_a_request(target):
+    """fetch/scheme-port-unpinned: every hop is re-checked, not only the first URL (an allowed host is not enough)."""
+    from collector.fetch import SchemeRefused
+    f, net, _ = make({"https://h.example/a": (302, b"", {"Location": target}), target: (200, b"%PDF-1")})
+    with pytest.raises(SchemeRefused):
+        f.get("https://h.example/a")
+    assert [u for u, _ in net.calls] == ["https://h.example/robots.txt", "https://h.example/a"]
+    assert f.log[-1]["event"] == "refused" and f.log[-1]["url"] == target
+
+
+def test_a_later_hop_off_https_is_refused_too():
+    from collector.fetch import SchemeRefused
+    f, net, _ = make({"https://h.example/a": (301, b"", {"Location": "https://g.example/b"}),
+                      "https://g.example/b": (302, b"", {"Location": "http://g.example/c.pdf"}),
+                      "http://g.example/c.pdf": (200, b"%PDF-1")})
+    with pytest.raises(SchemeRefused):
+        f.get("https://h.example/a")
+    assert "http://g.example/c.pdf" not in [u for u, _ in net.calls]
+
+
+def test_robots_txt_redirect_off_https_is_refused():
+    from collector.fetch import SchemeRefused
+    f, net, _ = make({"https://h.example/robots.txt": (301, b"", {"Location": "http://h.example/robots.txt"}),
+                      "http://h.example/robots.txt": (200, b"User-agent: *\nAllow: /\n")})
+    with pytest.raises(SchemeRefused):
+        f.get("https://h.example/a")
+    assert [u for u, _ in net.calls] == ["https://h.example/robots.txt"]
+
+
+@pytest.mark.parametrize("url", ["http://h.example/a.pdf", "https://h.example:8080/a.pdf"])
+def test_a_first_url_off_https_or_the_default_port_is_refused_without_a_request(url):
+    from collector.fetch import SchemeRefused
+    f, net, _ = make({url: (200, b"%PDF-1")})
+    with pytest.raises(SchemeRefused):
+        f.get(url)
+    assert net.calls == []
+
+
+def test_redirect_to_https_on_port_443_is_followed():
+    f, net, _ = make({"https://h.example/a": (302, b"", {"Location": "https://g.example:443/b.pdf"}),
+                      "https://g.example:443/b.pdf": (200, b"%PDF-1")})
+    assert f.get("https://h.example/a")[1] == b"%PDF-1"
+
+
 def test_redirect_loop_fails():
     from collector.fetch import FetchFailed
     f, net, _ = make({"https://h.example/a": (302, b"", {"Location": "https://h.example/a"})})
