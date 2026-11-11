@@ -1,5 +1,6 @@
 """The daily-update workflow ships locked: its deploy job runs only when RECORDS_DEPLOY_ENABLED is 'true' (CEO hard
 stop 1), nothing else may publish, and no secrets are used."""
+import atexit
 import json
 import itertools
 import os
@@ -452,14 +453,30 @@ def _python_dir() -> Path:
     here = Path(sys.executable).parent
     if (here / "python").exists() and os.path.samefile(here / "python", sys.executable):
         return here
-    alt = Path(tempfile.gettempdir()) / f"note-job-python-{os.getuid()}-{sys.version_info[0]}{sys.version_info[1]}"
-    alt.mkdir(exist_ok=True)
-    if not (alt / "python").exists():
-        (alt / "python").symlink_to(sys.executable)
+    # main-protect/test-tmp-symlink: a new private folder per run (mkdtemp: unpredictable name, mode 0700), never a
+    # predictable /tmp path another user could plant first; removed when the tests end
+    alt = Path(tempfile.mkdtemp(prefix="note-job-python-"))
+    atexit.register(shutil.rmtree, alt, True)
+    (alt / "python").symlink_to(sys.executable)
+    assert os.path.samefile(alt / "python", sys.executable)
     return alt
 
 
 PY_ENV = {**os.environ, "PATH": f"{_python_dir()}{os.pathsep}{os.environ.get('PATH', '')}"}
+
+
+def test_the_python_folder_is_a_new_private_one_each_time(tmp_path, monkeypatch):
+    """main-protect/test-tmp-symlink: with no `python` beside the interpreter, each call makes its own folder (owner
+    only), so a planted /tmp/note-job-python-* folder or symlink is never reused."""
+    exe = tmp_path / "bin" / "py3"
+    exe.parent.mkdir()
+    exe.symlink_to(sys.executable)
+    monkeypatch.setattr(sys, "executable", str(exe))
+    a, b = _python_dir(), _python_dir()
+    assert a != b and a.parent == b.parent == Path(tempfile.gettempdir())
+    for d in (a, b):
+        assert d.stat().st_uid == os.getuid() and d.stat().st_mode & 0o777 == 0o700
+        assert os.path.samefile(d / "python", exe)
 
 
 def _note_steps():
