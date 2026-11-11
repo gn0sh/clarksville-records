@@ -1,11 +1,12 @@
 {
  "schema": "morning-note/1",
- "date": "2026-11-10",
+ "date": "2026-11-11",
  "window": {
-  "from": "2026-11-09T07:00-06:00",
-  "to": "2026-11-10T07:00-06:00"
+  "from": "2026-11-10T07:00-06:00",
+  "to": "2026-11-11T07:00-06:00"
  },
- "data_as_of": "2026-11-10",
+ "data_as_of": "2026-11-11",
+ "data_as_of_utc": false,
  "lists": [
   {
    "key": "zoning",
@@ -24,21 +25,21 @@
    "label": "Contracts"
   }
  ],
- "backfill": true,
+ "backfill": false,
  "counts": {
-  "entries": 1548,
+  "entries": 0,
   "lists": {
-   "zoning": 964,
-   "seats": 610,
-   "budget": 40,
+   "zoning": 0,
+   "seats": 0,
+   "budget": 0,
    "contracts": 0
   },
-  "unplaced_zoning": 33
+  "unplaced_zoning": 0
  },
  "entries": [],
  "unplaced_zoning": 0,
  "unplaced_text": "",
- "notice": "Daylight is an independent, unofficial site run by gnoshcodes. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.",
+ "notice": "Daylight is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.",
  "email_line": "Independent, unofficial: not from or endorsed by any government body.",
  "support_line": "This service is free and always will be, but web hosting and sending email cost money. If it is useful to you, please consider supporting the project.",
  "support_url": "https://buymeacoffee.com/gnoshcodes"

@@ -6,11 +6,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Daylight (independent, unofficial) | Carmelle Chandler</title>
-<meta name="description" content="Daylight is an independent, unofficial site run by gnoshcodes. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.">
+<meta name="description" content="Daylight is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Daylight (independent, unofficial)">
 <meta property="og:title" content="Daylight (independent, unofficial) | Carmelle Chandler">
-<meta property="og:description" content="Daylight is an independent, unofficial site run by gnoshcodes. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.">
+<meta property="og:description" content="Daylight is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.">
 <link rel="icon" href="../static/brand/favicon.ico" sizes="any">
 <link rel="stylesheet" href="../static/style.css">
 </head>
@@ -35,52 +35,51 @@
   </div>
 </header>
 <ul class="stats stats-official">
-  <li class="stat"><span class="stat-num">64</span><span class="stat-label">meetings with attendance shown</span></li>
-  <li class="stat"><span class="stat-num">64</span><span class="stat-label">recorded present</span></li>
-  <li class="stat"><span class="stat-num">354</span><span class="stat-label">confirmed roll calls with a recorded vote</span></li>
-  <li class="stat"><span class="stat-num">34</span><span class="stat-label">not confirmed* roll calls with a recorded vote</span></li>
-  <li class="stat"><span class="stat-num">9</span><span class="stat-label">motions moved</span></li>
-  <li class="stat"><span class="stat-num">22</span><span class="stat-label">motions seconded</span></li>
+  <li class="stat"><span class="stat-num" data-n="meetings_listed">64</span><span class="stat-label">meetings with attendance shown</span></li>
+  <li class="stat"><span class="stat-num" data-n="present">64</span><span class="stat-label">meetings recorded present</span></li>
+  <li class="stat"><span class="stat-num" data-n="rc_voted">354</span><span class="stat-label">votes in confirmed roll calls</span></li>
+  <li class="stat"><span class="stat-num" data-n="rc_voted_nc">34</span><span class="stat-label">votes in not confirmed* roll calls</span></li>
+  <li class="stat"><span class="stat-num" data-n="moved">9</span><span class="stat-label">motions moved</span></li>
+  <li class="stat"><span class="stat-num" data-n="seconded">22</span><span class="stat-label">motions seconded</span></li>
 </ul>
 
 <section aria-labelledby="attendance-h">
   <h2 id="attendance-h">Attendance</h2>
-  <p>Recorded present at 64 and absent at 0 of 64 meetings with attendance shown, 2020-02-10 to 2026-05-11.</p>
+  <p>Recorded present at <span data-n="present">64</span> and absent at <span data-n="absent">0</span> of <span data-n="meetings_listed">64</span> meetings with attendance shown, 2020-02-10 to 2026-05-11.</p>
   <div class="bar" aria-hidden="true"><span class="seg seg-present" style="--n: 64"></span><span class="seg seg-absent" style="--n: 0"></span></div>
   <ul class="legend">
-  <li><span class="key seg-present" aria-hidden="true"></span>Present: 64</li>
-  <li><span class="key seg-absent" aria-hidden="true"></span>Absent: 0</li>
+  <li><span class="key seg-present" aria-hidden="true"></span>Meetings present: <span data-n="att-present">64</span></li>
+  <li><span class="key seg-absent" aria-hidden="true"></span>Meetings absent: <span data-n="att-absent">0</span></li>
 </ul>
 </section>
 
 <section aria-labelledby="votes-h">
   <h2 id="votes-h">Roll-call votes</h2>
   <h3>Confirmed roll calls</h3>
-  <p>354 confirmed roll calls at meetings where this person is listed in the attendance, or where a vote is recorded for them. The bar shows confirmed roll calls only.</p>
+  <p>Of <span data-n="rc_total">354</span> confirmed roll calls at meetings where this person is listed in the attendance, or where a vote is recorded for them: a vote is recorded for this person in <span data-n="rc_voted">354</span>; <span data-n="rc_absent">0</span> were held at meetings where this person is recorded absent; <span data-n="rc_novote">0</span> have no vote recorded for this person while recorded present. The bar shows confirmed roll calls only.</p>
   <div class="bar" aria-hidden="true"><span class="seg seg-yes" style="--n: 312"></span><span class="seg seg-no" style="--n: 42"></span><span class="seg seg-abstain" style="--n: 0"></span><span class="seg seg-other" style="--n: 0"></span><span class="seg seg-absent" style="--n: 0"></span><span class="seg seg-novote" style="--n: 0"></span></div>
   <ul class="legend">
-  <li><span class="key seg-yes" aria-hidden="true"></span>Yes: 312</li>
-  <li><span class="key seg-no" aria-hidden="true"></span>No: 42</li>
-  <li><span class="key seg-abstain" aria-hidden="true"></span>Abstain: 0</li>
-  <li><span class="key seg-other" aria-hidden="true"></span>Other: 0</li>
-  <li><span class="key seg-absent" aria-hidden="true"></span>Absent: 0</li>
-  <li><span class="key seg-novote" aria-hidden="true"></span>No vote recorded: 0</li>
+  <li><span class="key seg-yes" aria-hidden="true"></span>Yes: <span data-n="vote-yes">312</span></li>
+  <li><span class="key seg-no" aria-hidden="true"></span>No: <span data-n="vote-no">42</span></li>
+  <li><span class="key seg-abstain" aria-hidden="true"></span>Abstain: <span data-n="vote-abstain">0</span></li>
+  <li><span class="key seg-other" aria-hidden="true"></span>Other: <span data-n="vote-other">0</span></li>
+  <li><span class="key seg-absent" aria-hidden="true"></span>Roll calls while recorded absent: <span data-n="vote-absent">0</span></li>
+  <li><span class="key seg-novote" aria-hidden="true"></span>No vote recorded: <span data-n="vote-novote">0</span></li>
 </ul>
   <h3>Not confirmed roll calls*</h3>
-  <p>36 not confirmed roll calls at meetings where this person is listed in the attendance, or where a vote is recorded for them.</p>
+  <p>Of <span data-n="rc_total_nc">36</span> not confirmed roll calls at meetings where this person is listed in the attendance, or where a vote is recorded for them: a vote is recorded for this person in <span data-n="rc_voted_nc">34</span>; <span data-n="rc_absent_nc">0</span> were held at meetings where this person is recorded absent; <span data-n="rc_novote_nc">2</span> have no vote recorded for this person while recorded present.</p>
 <p class="muted">* They did not pass the automatic checks, so no vote from them is shown here. Each row in the history links to its page of the minutes. Confirmed and not confirmed roll calls are never added together.</p></section>
 
 <section aria-labelledby="totals-h">
   <h2 id="totals-h">Totals</h2>
   <ul class="totals">
     <li>Recorded absent at 0 of 64 meetings with an extracted attendance section, 2020-02-10 to 2026-05-11.</li>
-    <li>Roll call votes, 2020-02-10 to 2026-05-11: 312 Yes, 42 No, 0 Abstain, 0 Other confirmed; 34 roll calls not confirmed*, see each page.</li>
+    <li>Roll call votes, 2020-02-10 to 2026-05-11: 312 Yes, 42 No, 0 Abstain, 0 Other confirmed; 34 votes in not confirmed* roll calls, see each page.</li>
     <li>0 votes in this period have a name that could not be matched to an official and are not counted for any member.</li>
     <li>0 meetings in this period have no extracted attendance section and are not counted.</li>
     <li>0 meetings in this period have an attendance section that is under review and are not counted.</li>
   </ul>
-  <p class="muted">* Not confirmed: the page in the minutes was hard to read, so the automatic checks could not confirm it. Each such row below links to the page. Confirmed and not confirmed votes are never added together.</p>
-</section>
+<p class="muted">* Not confirmed: the page in the minutes was hard to read, so the automatic checks could not confirm it. Each such row below links to the page. Confirmed and not confirmed votes are never added together.</p></section>
 
 <section aria-labelledby="history-h">
   <h2 id="history-h">History</h2>
@@ -5091,10 +5090,10 @@
 <footer class="site-footer">
   <section class="unofficial-notice" aria-labelledby="unofficial-h">
   <p id="unofficial-h" class="unofficial-h"><strong>Independent, unofficial</strong></p>
-  <p>Daylight is an independent, unofficial site run by gnoshcodes. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls. <a href="../report.html">How to report a correction</a>.</p>
+  <p>Daylight is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls. <a href="../report.html">How to report a correction</a>.</p>
 </section>
 
-  <p>Provided as a free service by <a data-ext="operator" href="https://gnoshcodes.com/" rel="noopener noreferrer">gnoshcodes</a>. <a data-ext="support" href="https://buymeacoffee.com/gnoshcodes" rel="noopener noreferrer">Buy Me a Coffee</a></p>
+  <p>Provided as a free service by <a data-ext="operator" href="https://gnoshcodes.com/" rel="noopener noreferrer">gnoshcodes LLC</a>. <a data-ext="support" href="https://buymeacoffee.com/gnoshcodes" rel="noopener noreferrer">Buy Me a Coffee</a></p>
   <p class="gc-credit"><img class="gc-logo gc-logo-light" src="../static/brand/gnoshcodes-wordmark-color-light.svg" alt="gnoshcodes" width="160" height="29"><img class="gc-logo gc-logo-dark" src="../static/brand/gnoshcodes-wordmark-color-dark.svg" alt="gnoshcodes" width="160" height="29"><span>A gnoshcodes project.</span></p>
   <p><a href="../about.html">About this site and its data rules.</a> Data as of 2026-11-07</p>
   <nav id="site-nav" class="site-nav" aria-label="All pages" data-root="../" data-search="../search.html">
@@ -5108,6 +5107,8 @@
       <li><a href="../officials.html">Officials</a></li>
       <li><a href="../city/index.html">City Council</a></li>
       <li><a href="../rpc/index.html">Planning Commission</a></li>
+      <li><a href="../school-board.html">School board <span class="chip chip-coming">Coming</span></a></li>
+      <li><a href="../committees.html">Committees <span class="chip chip-coming">Coming</span></a></li>
       <li><span class="nav-group">Items</span>
         <ul class="nav-years" aria-label="Items by year">
           <li><a href="../items/2026.html">2026</a></li>

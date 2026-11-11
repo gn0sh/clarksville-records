@@ -2,461 +2,461 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>tag:daylight.gnoshcodes.com,2026-11-09:feeds/topic-ordinance</id>
   <title>Daylight: Ordinance items: Montgomery County Commission and Clarksville City Council</title>
-  <subtitle>Each item the Ordinance type rule matches, at each meeting it appears at. Daylight is an independent, unofficial site run by gnoshcodes. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.</subtitle>
-  <updated>2026-11-09T12:00:00-06:00</updated>
+  <subtitle>Each item the Ordinance type rule matches, at each meeting it appears at. Daylight is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.</subtitle>
+  <updated>2026-11-11T12:00:00-06:00</updated>
   <author>
     <name>Daylight</name>
   </author>
-  <link rel="self" type="application/atom+xml" href="https://daylight.gnoshcodes.com/feeds/topic-ordinance.xml" />
-  <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/alerts.html" />
+  <link rel="self" type="application/atom+xml" href="https://gn0sh.github.io/clarksville-records/feeds/topic-ordinance.xml" />
+  <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/alerts.html" />
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-21-2021-22/2021-10-07-regular</id>
-    <title>ORDINANCE 21-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of TDK Properties for Zone Change on property located at the southern terminus of Rufus Johnson Rd. from M-3 Planned Industrial District to C-5 Highway &amp; Aterial Commercial District.</title>
-    <updated>2026-11-09T04:41:57-06:00</updated>
-    <published>2026-11-09T04:41:57-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-21-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=5" title="Source document" />
-    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-79-2025-26/2026-06-04-regular</id>
+    <title>ORDINANCE 79-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:46-06:00</updated>
+    <published>2026-11-09T13:00:46-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-79-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3201,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-20-2021-22/2021-10-07-regular</id>
-    <title>ORDINANCE 20-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Olympus Investings, LLC, William Harris-Agent for Zone Change on property located at the intersection of Darnell Place &amp; Cedar Crest Dr. from R-3 Three Family Residential District to R-4 Multiple Family Residential District.</title>
-    <updated>2026-11-09T04:41:57-06:00</updated>
-    <published>2026-11-09T04:41:57-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-20-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=5" title="Source document" />
-    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-71-2025-26/2026-06-04-regular</id>
+    <title>ORDINANCE 71-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:46-06:00</updated>
+    <published>2026-11-09T13:00:46-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-71-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3201,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-04, regular session. Recorded: Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-19-2021-22/2021-10-07-regular</id>
-    <title>ORDINANCE 19-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Reda Home Builders, Inc. for Zone Change on property located at the intersection of Madison St. and Tanglewood Dr. from R-1 Single Family Residential District to C-2 General Commercial District.</title>
-    <updated>2026-11-09T04:41:57-06:00</updated>
-    <published>2026-11-09T04:41:57-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-19-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=5" title="Source document" />
-    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-83-2025-26/2026-06-04-regular</id>
+    <title>ORDINANCE 83-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:46-06:00</updated>
+    <published>2026-11-09T13:00:46-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-83-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3201,plainText=false)#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-24-2021-22/2021-10-07-regular</id>
-    <title>ORDINANCE 24-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Johnny Piper for Zone Change on property located at the southern frontage of Cave Springs Rd. east of Danko Ln. from R-3 Three Family Residential District to R-6 Single Family Residential District.</title>
-    <updated>2026-11-09T04:41:57-06:00</updated>
-    <published>2026-11-09T04:41:57-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-24-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=6" title="Source document" />
-    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Roll call. Source: minutes, page 6.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-82-2025-26/2026-06-04-regular</id>
+    <title>ORDINANCE 82-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:46-06:00</updated>
+    <published>2026-11-09T13:00:46-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-82-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3201,plainText=false)#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-23-2021-22/2021-10-07-regular</id>
-    <title>ORDINANCE 23-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of William Belew for Zone Change on property located at the intersection of Needmore Rd. &amp; E. Boy Scout Rd. from AG Agricultural District to R-1 Single Family Residential District.</title>
-    <updated>2026-11-09T04:41:57-06:00</updated>
-    <published>2026-11-09T04:41:57-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-23-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=6" title="Source document" />
-    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 6.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-58-2025-26/2026-06-04-regular</id>
+    <title>ORDINANCE 58-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:46-06:00</updated>
+    <published>2026-11-09T13:00:46-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-58-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3201,plainText=false)#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-26-2021-22/2021-10-07-regular</id>
-    <title>ORDINANCE 26-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Trent Gallivan for Zone Change on property located at the intersection of Fairview Ln &amp; W. Rossview Rd. from R-1 Single Family Residential District to R-6 Single Family Residential District.</title>
-    <updated>2026-11-09T04:41:57-06:00</updated>
-    <published>2026-11-09T04:41:57-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-26-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=7" title="Source document" />
-    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 7.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-68-2025-26/2026-06-04-regular</id>
+    <title>ORDINANCE 68-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:46-06:00</updated>
+    <published>2026-11-09T13:00:46-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-68-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3201,plainText=false)#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-25-2021-22/2021-10-07-regular</id>
-    <title>ORDINANCE 25-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of William Revell, Suresh Burle-Agent for Zone Change on property located at the intersection of Tiny Town Rd. &amp; Allen Rd. from AG Agricultural District and C-5 Highway &amp; Arterial Commercial District to AG Agricultural District and R-4 Multiple Family Residential District.</title>
-    <updated>2026-11-09T04:41:57-06:00</updated>
-    <published>2026-11-09T04:41:57-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-25-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=7" title="Source document" />
-    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Roll call. Source: minutes, page 7.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-74-2025-25/2026-06-04-regular</id>
+    <title>ORDINANCE 74-2025-25: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:46-06:00</updated>
+    <published>2026-11-09T13:00:46-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-74-2025-25" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3201,plainText=false)#page=6" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-04, regular session. Recorded: Roll call. Source: minutes, page 6.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-6-2021-22/2021-10-07-regular</id>
-    <title>ORDINANCE 6-2021-22: (Second Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Reda Home Builders, Inc. for Zone Change on property located at the intersection of Twin Rivers Rd. and Nolen Rd. from R-1 Single Family Residential District to R-4 Multiple Family Residential District</title>
-    <updated>2026-11-09T04:41:57-06:00</updated>
-    <published>2026-11-09T04:41:57-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-6-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=14" title="Source document" />
-    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 14.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-77-2025-26/2026-06-04-regular</id>
+    <title>ORDINANCE 77-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:46-06:00</updated>
+    <published>2026-11-09T13:00:46-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-77-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3201,plainText=false)#page=8" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 8.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-7-2021-22/2021-10-07-regular</id>
-    <title>ORDINANCE 7-2021-22: (Second Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Lynda Ann Holt Conner, Stanley Ross, Harvill Ross, PLLC - Agent, for Zone Change on property located at the intersection of Wilson Rd. and Old Farmers Rd. from C-5 Highway &amp; Arterial Commercial District and R-1 Single Family Residential District to R-5 Residential District</title>
-    <updated>2026-11-09T04:41:57-06:00</updated>
-    <published>2026-11-09T04:41:57-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-7-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10072021-980#page=15" title="Source document" />
-    <summary>Clarksville City Council, 2021-10-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 15.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-76-2025-26/2026-06-04-regular</id>
+    <title>ORDINANCE 76-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:46-06:00</updated>
+    <published>2026-11-09T13:00:46-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-76-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3201,plainText=false)#page=8" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 8.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-19-2021-22/2021-09-02-regular</id>
-    <title>ORDINANCE 19-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Reda Home Builders, Inc. for Zone Change on property located at the intersection of Madison St. and Tanglewood Dr. from R-1 Single Family Residential District to C-2 General Commercial District.</title>
-    <updated>2026-11-09T04:41:37-06:00</updated>
-    <published>2026-11-09T04:41:37-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-19-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=4" title="Source document" />
-    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-58-2025-26/2026-05-07-regular</id>
+    <title>ORDINANCE 58-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:36-06:00</updated>
+    <published>2026-11-09T13:00:36-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-58-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3200,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2026-05-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-23-2021-22/2021-09-02-regular</id>
-    <title>ORDINANCE 23-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of William Belew for Zone Change on property located at the intersection of Needmore Rd. &amp; E. Boy Scout Rd. from AG Agricultural District to R-1 Single Family Residential District.</title>
-    <updated>2026-11-09T04:41:37-06:00</updated>
-    <published>2026-11-09T04:41:37-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-23-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=5" title="Source document" />
-    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-51-2025-26/2026-05-07-regular</id>
+    <title>ORDINANCE 51-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:36-06:00</updated>
+    <published>2026-11-09T13:00:36-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-51-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3200,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2026-05-07, regular session. Recorded: Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-21-2021-22/2021-09-02-regular</id>
-    <title>ORDINANCE 21-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of TDK Properties for Zone Change on property located at the southern terminus of Rufus Johnson Rd. from M-3 Planned Industrial District to C-5 Highway &amp; Aterial Commercial District.</title>
-    <updated>2026-11-09T04:41:37-06:00</updated>
-    <published>2026-11-09T04:41:37-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-21-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=5" title="Source document" />
-    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-72-2025-26/2026-05-07-regular</id>
+    <title>ORDINANCE 72-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:36-06:00</updated>
+    <published>2026-11-09T13:00:36-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-72-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3200,plainText=false)#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2026-05-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-20-2021-22/2021-09-02-regular</id>
-    <title>ORDINANCE 20-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Olympus Investings, LLC, William Harris-Agent for Zone Change on property located at the intersection of Darnell Place &amp; Cedar Crest Dr. from R-3 Three Family Residential District to R-4 Multiple Family Residential District.</title>
-    <updated>2026-11-09T04:41:37-06:00</updated>
-    <published>2026-11-09T04:41:37-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-20-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=5" title="Source document" />
-    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-75-2025-26/2026-05-07-regular</id>
+    <title>ORDINANCE 75-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:36-06:00</updated>
+    <published>2026-11-09T13:00:36-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-75-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3200,plainText=false)#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2026-05-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-26-2021-22/2021-09-02-regular</id>
-    <title>ORDINANCE 26-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Trent Gallivan for Zone Change on property located at the intersection of Fairview Ln &amp; W. Rossview Rd. from R-1 Single Family Residential District to R-6 Single Family Residential District.</title>
-    <updated>2026-11-09T04:41:37-06:00</updated>
-    <published>2026-11-09T04:41:37-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-26-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=6" title="Source document" />
-    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 6.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-74-2025-26/2026-05-07-regular</id>
+    <title>ORDINANCE 74-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:36-06:00</updated>
+    <published>2026-11-09T13:00:36-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-74-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3200,plainText=false)#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2026-05-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-25-2021-22/2021-09-02-regular</id>
-    <title>ORDINANCE 25-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of William Revell, Suresh Burle-Agent for Zone Change on property located at the intersection of Tiny Town Rd. &amp; Allen Rd. from AG Agricultural District and C-5 Highway &amp; Arterial Commercial District to AG Agricultural District and R-4 Multiple Family Residential District.</title>
-    <updated>2026-11-09T04:41:37-06:00</updated>
-    <published>2026-11-09T04:41:37-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-25-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=6" title="Source document" />
-    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Roll call. Source: minutes, page 6.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-73-2025-26/2026-05-07-regular</id>
+    <title>ORDINANCE 73-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:36-06:00</updated>
+    <published>2026-11-09T13:00:36-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-73-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3200,plainText=false)#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2026-05-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-24-2021-22/2021-09-02-regular</id>
-    <title>ORDINANCE 24-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Johnny Piper for Zone Change on property located at the southern frontage of Cave Springs Rd. east of Danko Ln. from R-3 Three Family Residential District to R-6 Single Family Residential District.</title>
-    <updated>2026-11-09T04:41:37-06:00</updated>
-    <published>2026-11-09T04:41:37-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-24-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=6" title="Source document" />
-    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Roll call. Source: minutes, page 6.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-68-2025-26/2026-05-07-regular</id>
+    <title>ORDINANCE 68-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:36-06:00</updated>
+    <published>2026-11-09T13:00:36-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-68-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3200,plainText=false)#page=6" title="Source document" />
+    <summary>Clarksville City Council, 2026-05-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 6.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-7-2021-22/2021-09-02-regular</id>
-    <title>ORDINANCE 7-2021-22: (Second Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Lynda Ann Holt Conner, Stanley Ross, Harvill Ross, PLLC - Agent, for Zone Change on property located at the intersection of Wilson Rd. and Old Farmers Rd. from C-5 Highway &amp; Arterial Commercial District and R-1 Single Family Residential District to R-5 Residential District</title>
-    <updated>2026-11-09T04:41:37-06:00</updated>
-    <published>2026-11-09T04:41:37-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-7-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=14" title="Source document" />
-    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 14.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-67-2025-26/2026-05-07-regular</id>
+    <title>ORDINANCE 67-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:36-06:00</updated>
+    <published>2026-11-09T13:00:36-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-67-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3200,plainText=false)#page=6" title="Source document" />
+    <summary>Clarksville City Council, 2026-05-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 6.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-6-2021-22/2021-09-02-regular</id>
-    <title>ORDINANCE 6-2021-22: (Second Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Reda Home Builders, Inc. for Zone Change on property located at the intersection of Twin Rivers Rd. and Nolen Rd. from R-1 Single Family Residential District to R-4 Multiple Family Residential District</title>
-    <updated>2026-11-09T04:41:37-06:00</updated>
-    <published>2026-11-09T04:41:37-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-6-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09022021-943#page=14" title="Source document" />
-    <summary>Clarksville City Council, 2021-09-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 14.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-65-2025-26/2026-04-02-regular</id>
+    <title>ORDINANCE 65-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:26-06:00</updated>
+    <published>2026-11-09T13:00:26-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-65-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3067,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2026-04-02, regular session. Recorded: Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-1-2021-22/2021-07-01-regular</id>
-    <title>ORDINANCE 1-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Rick Reda for zone change on property located at the intersection of Evans Rd. and Shaw Dr. from RM-1 Single-Family Mobile Home Residential District to R-4 Multiple-Family Residential District</title>
-    <updated>2026-11-09T04:41:17-06:00</updated>
-    <published>2026-11-09T04:41:17-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-1-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_07012021-870#page=2" title="Source document" />
-    <summary>Clarksville City Council, 2021-07-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-47-2025-26/2026-04-02-regular</id>
+    <title>ORDINANCE 47-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:26-06:00</updated>
+    <published>2026-11-09T13:00:26-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-47-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3067,plainText=false)#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2026-04-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-2-2021-22/2021-07-01-regular</id>
-    <title>ORDINANCE 2-2021-22: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of City of Clarksville, Joe Pitts, Mayor - Agent for zone change on property located at the intersection of Union St. and South 3rd St. from CBD Central Business District to R-4 Multiple-Family Residential District</title>
-    <updated>2026-11-09T04:41:17-06:00</updated>
-    <published>2026-11-09T04:41:17-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-3.html#ordinance-2-2021-22" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_07012021-870#page=3" title="Source document" />
-    <summary>Clarksville City Council, 2021-07-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-39-2025-26/2026-03-05-regular</id>
+    <title>ORDINANCE 39-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:16-06:00</updated>
+    <published>2026-11-09T13:00:16-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-39-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3066,plainText=false)#page=1" title="Source document" />
+    <summary>Clarksville City Council, 2026-03-05, regular session. Recorded: Motion, Roll call. Source: minutes, page 1.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-112-2020-21/2021-06-03-regular</id>
-    <title>ORDINANCE 112-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Satish Prabhu, Matt Ellis-Agent, for zone change on property located at the intersection of Dr. Martin Luther King Jr. Parkway/Hwy. 76 and New South Drive from C-4 Highway Interchange District to R-4 Multiple Family Residential District</title>
-    <updated>2026-11-09T04:40:26-06:00</updated>
-    <published>2026-11-09T04:40:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-112-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=4" title="Source document" />
-    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-47-2025-26/2026-03-05-regular</id>
+    <title>ORDINANCE 47-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:16-06:00</updated>
+    <published>2026-11-09T13:00:16-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-47-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3066,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2026-03-05, regular session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-111-2020-21/2021-06-03-regular</id>
-    <title>ORDINANCE 111-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Reda Home Builders, Inc. for zone change on property located at the intersection of Oak Street and Mann Circle from R-3 Three Family Residential District to R-4 Multiple Family Residential District</title>
-    <updated>2026-11-09T04:40:26-06:00</updated>
-    <published>2026-11-09T04:40:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-111-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=4" title="Source document" />
-    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-57-2025-26/2026-03-05-regular</id>
+    <title>ORDINANCE 57-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:16-06:00</updated>
+    <published>2026-11-09T13:00:16-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-57-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3066,plainText=false)#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2026-03-05, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-117-2020-21/2021-06-03-regular</id>
-    <title>ORDINANCE 117-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Brian Wolff, Houston Smith-Agent, for zone change on property located north of Providence Boulevard and east of Cave Springs Road from R-3 Three Family Residential District and C-2 General Commercial District to C-2 General Commercial District and R-3 Three Family Residential District</title>
-    <updated>2026-11-09T04:40:26-06:00</updated>
-    <published>2026-11-09T04:40:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-117-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=5" title="Source document" />
-    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-54-2025-26/2026-03-05-regular</id>
+    <title>ORDINANCE 54-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:16-06:00</updated>
+    <published>2026-11-09T13:00:16-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-54-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3066,plainText=false)#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2026-03-05, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-116-2020-21/2021-06-03-regular</id>
-    <title>ORDINANCE 116-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Bristol Ridge Apartments for zone change on property located south of Highway 76 and north of Karmaflux Way from C-5 Highway &amp; Arterial Commercial District and R-1A Single Family Residential District to R-4 Multiple Family Residential District, C-5 Highway &amp; Arterial Commercial District, and R-1A Single Family Residential District</title>
-    <updated>2026-11-09T04:40:26-06:00</updated>
-    <published>2026-11-09T04:40:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-116-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=5" title="Source document" />
-    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-62-2025-26/2026-03-05-regular</id>
+    <title>ORDINANCE 62-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:16-06:00</updated>
+    <published>2026-11-09T13:00:16-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-62-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3066,plainText=false)#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2026-03-05, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-115-2020-21/2021-06-03-regular</id>
-    <title>ORDINANCE 115-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Syd Hedrick, Syd Hedrick-Agent, for zone change on property located south of Crossland Avenue, north of West High Street, and east of Charlotte Street from R-3 Three Family Residential District and R-6 Single Family Residential District to C-2 General Commercial District Syd Hedrick said his plans included a mixed use development with a commercial component to provide local services to the residential area. In response to Councilperson Reynolds’s question, Mr. Hedrick said he would allow access to the completed Upland Trail. No one spoke against this request.</title>
-    <updated>2026-11-09T04:40:26-06:00</updated>
-    <published>2026-11-09T04:40:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-115-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=5" title="Source document" />
-    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-60-2025-26/2026-03-05-regular</id>
+    <title>ORDINANCE 60-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:16-06:00</updated>
+    <published>2026-11-09T13:00:16-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-60-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3066,plainText=false)#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2026-03-05, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-114-2020-21/2021-06-03-regular</id>
-    <title>ORDINANCE 114-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Salvador Castro, Rex Hawkins-Agent, for zone change on property located at the intersection of Ft. Campbell Boulevard and Jack Miller Boulevard from C-5 Highway &amp; Arterial Commercial District to C-2 General Commercial District</title>
-    <updated>2026-11-09T04:40:26-06:00</updated>
-    <published>2026-11-09T04:40:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-114-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=5" title="Source document" />
-    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-59-2025-26/2026-03-05-regular</id>
+    <title>ORDINANCE 59-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:16-06:00</updated>
+    <published>2026-11-09T13:00:16-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-59-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3066,plainText=false)#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2026-03-05, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-113-2020-21/2021-06-03-regular</id>
-    <title>ORDINANCE 113-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Singletary Construction, LLC, Bert Singletary-Agent, for zone change on property located at the intersection of Center Pointe Drive and Center Court from C-5 Highway &amp; Arterial Commercial District to C-2 General Commercial District</title>
-    <updated>2026-11-09T04:40:26-06:00</updated>
-    <published>2026-11-09T04:40:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-113-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=5" title="Source document" />
-    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-63-2025-26/2026-03-05-regular</id>
+    <title>ORDINANCE 63-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:16-06:00</updated>
+    <published>2026-11-09T13:00:16-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-63-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3066,plainText=false)#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2026-03-05, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-119-2020-21/2021-06-03-regular</id>
-    <title>ORDINANCE 119-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of William Belew, Jr. for zone change on property located at the southeast corner of Needmore Road and Hazelwood Road from R-1A Single Family Residential District to C-5 Highway &amp; Arterial commercial District</title>
-    <updated>2026-11-09T04:40:26-06:00</updated>
-    <published>2026-11-09T04:40:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-119-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=6" title="Source document" />
-    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 6.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-56-2025-26/2026-03-05-regular</id>
+    <title>ORDINANCE 56-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:16-06:00</updated>
+    <published>2026-11-09T13:00:16-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-56-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3066,plainText=false)#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2026-03-05, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-118-2020-21/2021-06-03-regular</id>
-    <title>ORDINANCE 118-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Dan Johnson, Todd Morris-Agent, for zone change on property located at the intersection of Powell Road and Ellie Piper Circle from AG Agricultural District to R-1 Single Family Residential District</title>
-    <updated>2026-11-09T04:40:26-06:00</updated>
-    <published>2026-11-09T04:40:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-118-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=6" title="Source document" />
-    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 6.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-45-2025-26/2026-03-05-regular</id>
+    <title>ORDINANCE 45-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:16-06:00</updated>
+    <published>2026-11-09T13:00:16-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-45-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3066,plainText=false)#page=7" title="Source document" />
+    <summary>Clarksville City Council, 2026-03-05, regular session. Recorded: Motion, Roll call. Source: minutes, page 7.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/t-f589150800/2021-06-03-regular</id>
-    <title>RECONSIDERATION OF ORDINANCE 105-2020-21 (First Reading) Authorizing</title>
-    <updated>2026-11-09T04:40:26-06:00</updated>
-    <published>2026-11-09T04:40:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#t-f589150800" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06032021-844#page=13" title="Source document" />
-    <summary>Clarksville City Council, 2021-06-03, regular session. Recorded: Motion, Roll call. Source: minutes, page 13.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-55-2025-26/2026-03-05-regular</id>
+    <title>ORDINANCE 55-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:16-06:00</updated>
+    <published>2026-11-09T13:00:16-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-55-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3066,plainText=false)#page=8" title="Source document" />
+    <summary>Clarksville City Council, 2026-03-05, regular session. Recorded: Motion, Roll call. Source: minutes, page 8.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-99-2020-21/2021-05-06-regular</id>
-    <title>ORDINANCE 99-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Charles Hand, Brad Martin/Lyle, Cook, Martin) - Agent, for zone change on property located at the intersection of Cedarcroft Drive and Ussery Road from E-1 Single Family Estate District to PUD-1 Planned Unit Development Residential District</title>
-    <updated>2026-11-09T04:39:56-06:00</updated>
-    <published>2026-11-09T04:39:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-99-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05062021-814#page=3" title="Source document" />
-    <summary>Clarksville City Council, 2021-05-06, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-52-2025-26/2026-02-05-regular</id>
+    <title>ORDINANCE 52-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:06-06:00</updated>
+    <published>2026-11-09T13:00:06-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-52-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3065,plainText=false)#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2026-02-05, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-101-2020-21/2021-05-06-regular</id>
-    <title>ORDINANCE 101-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Henry Galvez and Saul Ramos Chavez for zone change on property located at the intersection of Evans Road and Shaw Drive from RM-1 Single Family Mobile Home Residential District to R-1 Single Family Residential District</title>
-    <updated>2026-11-09T04:39:56-06:00</updated>
-    <published>2026-11-09T04:39:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-101-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05062021-814#page=3" title="Source document" />
-    <summary>Clarksville City Council, 2021-05-06, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-41-2025-26/2026-01-08-regular</id>
+    <title>ORDINANCE 41-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:56-06:00</updated>
+    <published>2026-11-09T12:59:56-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-41-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-100-2020-21/2021-05-06-regular</id>
-    <title>ORDINANCE 100-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Hilldale United Methodist Church, Inc., Mark Holleman-Agent, for zone change on property located at the intersection of Madison Street and Tanglewood Drive from R-1 Single Family Residential District to C-2 General Commercial District</title>
-    <updated>2026-11-09T04:39:56-06:00</updated>
-    <published>2026-11-09T04:39:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-100-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05062021-814#page=3" title="Source document" />
-    <summary>Clarksville City Council, 2021-05-06, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-40-2025-26/2026-01-08-regular</id>
+    <title>ORDINANCE 40-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:56-06:00</updated>
+    <published>2026-11-09T12:59:56-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-40-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-102-2020-21/2021-05-06-regular</id>
-    <title>ORDINANCE 102-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Jerry Trotter for zone change on property located at the southern terminus of Viewmont Drive and north of Gibbs Lane from AG Agricultural District to R-2 Single Family Residential District</title>
-    <updated>2026-11-09T04:39:56-06:00</updated>
-    <published>2026-11-09T04:39:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-102-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_05062021-814#page=4" title="Source document" />
-    <summary>Clarksville City Council, 2021-05-06, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-46-2025-26/2026-01-08-regular</id>
+    <title>ORDINANCE 46-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:56-06:00</updated>
+    <published>2026-11-09T12:59:56-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-46-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-85-2020-21/2021-04-01-regular</id>
-    <title>ORDINANCE 85-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Reda Home Builders, Inc., Reda Home Builders, Inc.-Agent, for zone change on property located at the eastern terminus of the southern Circle Hill Drive right-of-way and at the north frontage of Cave Springs Road from R-1 Single Family Residential District to R-6 Single Family Residential District</title>
-    <updated>2026-11-09T04:39:27-06:00</updated>
-    <published>2026-11-09T04:39:27-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-85-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04012021-781#page=4" title="Source document" />
-    <summary>Clarksville City Council, 2021-04-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-42-2025-26/2026-01-08-regular</id>
+    <title>ORDINANCE 42-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:56-06:00</updated>
+    <published>2026-11-09T12:59:56-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-42-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-84-2020-21/2021-04-01-regular</id>
-    <title>ORDINANCE 84-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Reda Home Builders, Inc., Reda Home Builders, Inc.-Agent, for zone change on property located at the intersection of Twin Rivers Road and Nolen Road from R-1 Single Family Residential District to R-4 Multiple Family Residential District No requests were submitted to speak for or against this request.</title>
-    <updated>2026-11-09T04:39:27-06:00</updated>
-    <published>2026-11-09T04:39:27-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-84-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04012021-781#page=4" title="Source document" />
-    <summary>Clarksville City Council, 2021-04-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-51-2025-26/2026-01-08-regular</id>
+    <title>ORDINANCE 51-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:56-06:00</updated>
+    <published>2026-11-09T12:59:56-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-51-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-88-2020-21/2021-04-01-regular</id>
-    <title>ORDINANCE 88-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Black Hawk Land-Bert Singletary Development for zone change on property located at the intersection of Peachers Mill Road and Henry Place from R-2 Single Family Residential District to C-5 Highway &amp; Arterial Commercial District</title>
-    <updated>2026-11-09T04:39:27-06:00</updated>
-    <published>2026-11-09T04:39:27-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-88-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04012021-781#page=5" title="Source document" />
-    <summary>Clarksville City Council, 2021-04-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-50-2025-26/2026-01-08-regular</id>
+    <title>ORDINANCE 50-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:56-06:00</updated>
+    <published>2026-11-09T12:59:56-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-50-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-87-2020-21/2021-04-01-regular</id>
-    <title>ORDINANCE 87-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Kolbe Homes, LLC, Robert Kolbe for zone change on property located at the intersection of Peachers Mill Road and Randell Drive and at the western-southern terminus of Leigh Ann Drive from R-2D Two Family Residential District to R-4 Multiple Family Residential District</title>
-    <updated>2026-11-09T04:39:27-06:00</updated>
-    <published>2026-11-09T04:39:27-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-87-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04012021-781#page=5" title="Source document" />
-    <summary>Clarksville City Council, 2021-04-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-49-2025-26/2026-01-08-regular</id>
+    <title>ORDINANCE 49-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:56-06:00</updated>
+    <published>2026-11-09T12:59:56-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-49-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-86-2020-21/2021-04-01-regular</id>
-    <title>ORDINANCE 86-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Estate of Frank Wooten, Linda Roberts, Executor, Cody Dahl-Agent, for zone change on property located at the intersection of Reynolds Street and Cedar Street from R-3 Three Family Residential District to R-6 Single Family Residential District</title>
-    <updated>2026-11-09T04:39:27-06:00</updated>
-    <published>2026-11-09T04:39:27-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-86-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04012021-781#page=5" title="Source document" />
-    <summary>Clarksville City Council, 2021-04-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-43-2025-26/2026-01-08-regular</id>
+    <title>ORDINANCE 43-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:56-06:00</updated>
+    <published>2026-11-09T12:59:56-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-43-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=6" title="Source document" />
+    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Roll call. Source: minutes, page 6.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-90-2020-21/2021-04-01-regular</id>
-    <title>ORDINANCE 90-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Cumberland Radio Partnership, Inc., Chris Blackwell-Agent, for zone change on property on the east frontage of Martin Street south of Crossland Avenue from R-3 Three Family Residential District to R-4 Multiple Family Residential District</title>
-    <updated>2026-11-09T04:39:27-06:00</updated>
-    <published>2026-11-09T04:39:27-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-90-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04012021-781#page=6" title="Source document" />
-    <summary>Clarksville City Council, 2021-04-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 6.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-43-2025-25/2026-01-08-regular</id>
+    <title>ORDINANCE 43-2025-25: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:56-06:00</updated>
+    <published>2026-11-09T12:59:56-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-43-2025-25" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=6" title="Source document" />
+    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Roll call. Source: minutes, page 6.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-89-2020-21/2021-04-01-regular</id>
-    <title>ORDINANCE 89-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Johnathan Blick for zone change on property located on the east frontage of N. Ford Street at the southern terminus of N. Ford Street from M-2 General Industrial District to R-4 Multiple Family Residential District</title>
-    <updated>2026-11-09T04:39:27-06:00</updated>
-    <published>2026-11-09T04:39:27-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021-2.html#ordinance-89-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_04012021-781#page=6" title="Source document" />
-    <summary>Clarksville City Council, 2021-04-01, regular session. Recorded: Motion, Roll call. Source: minutes, page 6.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-45-2025-26/2026-01-08-regular</id>
+    <title>ORDINANCE 45-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:56-06:00</updated>
+    <published>2026-11-09T12:59:56-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-45-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=7" title="Source document" />
+    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 7.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-77-2020-21/2021-03-04-regular</id>
-    <title>ORDINANCE 77-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Luke Baggett, Syd Hedrick- Agent, for zone change on property located at the intersection of Beechwood Drive and Beech Drive from R-1 Single Family Residential District to R-2 Single Family Residential District</title>
-    <updated>2026-11-09T04:39:07-06:00</updated>
-    <published>2026-11-09T04:39:07-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021.html#ordinance-77-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03042021-749#page=3" title="Source document" />
-    <summary>Clarksville City Council, 2021-03-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-38-2025-26/2025-12-04-regular</id>
+    <title>ORDINANCE 38-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:46-06:00</updated>
+    <published>2026-11-09T12:59:46-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-38-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3063,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2025-12-04, regular session. Recorded: Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-76-2020-21/2021-03-04-regular</id>
-    <title>ORDINANCE 76-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Oscar Lee Hearn, Eric Huneycutt-Agent, for zone change on property located south of Crossland Avenue, east of Bradley Street, and north and south of West High Street from M-1 Light Industrial District and R-3 Three Family Residential District to C-2 General Commercial District</title>
-    <updated>2026-11-09T04:39:07-06:00</updated>
-    <published>2026-11-09T04:39:07-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021.html#ordinance-76-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03042021-749#page=3" title="Source document" />
-    <summary>Clarksville City Council, 2021-03-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-43-2025-26/2025-12-04-regular</id>
+    <title>ORDINANCE 43-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:46-06:00</updated>
+    <published>2026-11-09T12:59:46-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-43-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3063,plainText=false)#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2025-12-04, regular session. Recorded: Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-61-2020-21/2021-03-04-regular</id>
-    <title>ORDINANCE 61-2020-21: (First Reading). Amending the Zoning Ordinance pertaining to bulk regulations, building setbacks, minimum frontage requirements, and other minor updates</title>
-    <updated>2026-11-09T04:39:07-06:00</updated>
-    <published>2026-11-09T04:39:07-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021.html#ordinance-61-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03042021-749#page=4" title="Source document" />
-    <summary>Clarksville City Council, 2021-03-04, regular session. Recorded: Roll call. Source: minutes, page 4.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-44-2025-26/2025-12-04-regular</id>
+    <title>ORDINANCE 44-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:46-06:00</updated>
+    <published>2026-11-09T12:59:46-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-44-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3063,plainText=false)#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2025-12-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-68-2020-21/2021-02-04-regular</id>
-    <title>ORDINANCE 68-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Guerrier Development for zone change on property located at the corner of Blackman Street, Charlotte Street, and Lawn Street from R-3 Three Family Residential District to R-6 Single Family Residential District</title>
-    <updated>2026-11-09T04:38:46-06:00</updated>
-    <published>2026-11-09T04:38:46-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021.html#ordinance-68-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02042021-720#page=4" title="Source document" />
-    <summary>Clarksville City Council, 2021-02-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-35-2025-26/2025-12-04-regular</id>
+    <title>ORDINANCE 35-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:46-06:00</updated>
+    <published>2026-11-09T12:59:46-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-35-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3063,plainText=false)#page=6" title="Source document" />
+    <summary>Clarksville City Council, 2025-12-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 6.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-67-2020-21/2021-02-04-regular</id>
-    <title>ORDINANCE 67-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Charles Nichols Credit Shelter Trust, James Maynard-Agent, for zone change on property located in the southeast corner of Tobacco Road and Nussbaumer Road from C-1 Neighborhood Commercial District, R-1 Single Family Residential District, and AG Agricultural District to R-1A Single Family Residential District</title>
-    <updated>2026-11-09T04:38:46-06:00</updated>
-    <published>2026-11-09T04:38:46-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021.html#ordinance-67-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02042021-720#page=4" title="Source document" />
-    <summary>Clarksville City Council, 2021-02-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-11-2025-26/2025-09-04-regular</id>
+    <title>ORDINANCE 11-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:26-06:00</updated>
+    <published>2026-11-09T12:59:26-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-11-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2755,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2025-09-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-66-2020-21/2021-02-04-regular</id>
-    <title>ORDINANCE 66-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Richard Collins, Richard Garrett-Agent, for zone change on property located at the intersection of Columbia Street and Batts Lane from RM-1 Single Family Mobile Home Residential District to R-4 Multiple Family Residential District</title>
-    <updated>2026-11-09T04:38:46-06:00</updated>
-    <published>2026-11-09T04:38:46-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021.html#ordinance-66-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02042021-720#page=4" title="Source document" />
-    <summary>Clarksville City Council, 2021-02-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-10-2025-26/2025-09-04-regular</id>
+    <title>ORDINANCE 10-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:26-06:00</updated>
+    <published>2026-11-09T12:59:26-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-10-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2755,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2025-09-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-65-2020-21/2021-02-04-regular</id>
-    <title>ORDINANCE 65-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Mark A. Davis, Shannon or William Wilford-Agent, for zone change on property located at the intersection of Old Trenton Road and Wilma Rudolph Boulevard from M-2 General Industrial District to C-2 General Commercial District</title>
-    <updated>2026-11-09T04:38:46-06:00</updated>
-    <published>2026-11-09T04:38:46-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021.html#ordinance-65-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02042021-720#page=4" title="Source document" />
-    <summary>Clarksville City Council, 2021-02-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-09-2025-26/2025-09-04-regular</id>
+    <title>ORDINANCE 09-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:26-06:00</updated>
+    <published>2026-11-09T12:59:26-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-09-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2755,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2025-09-04, regular session. Recorded: Roll call. Source: minutes, page 2.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-71-2020-21/2021-02-04-regular</id>
-    <title>ORDINANCE 71-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Luke Baggett and Bobby Wall, Syd Hedrick-Agent, for zone change on property located at the intersection of Daniel Street and Central Avenue from R-3 Three Family Residential District to R-6 Single Family Residential District</title>
-    <updated>2026-11-09T04:38:46-06:00</updated>
-    <published>2026-11-09T04:38:46-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021.html#ordinance-71-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02042021-720#page=5" title="Source document" />
-    <summary>Clarksville City Council, 2021-02-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-13-2025-26/2025-09-04-regular</id>
+    <title>ORDINANCE 13-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:26-06:00</updated>
+    <published>2026-11-09T12:59:26-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-13-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2755,plainText=false)#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2025-09-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
   <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-70-2020-21/2021-02-04-regular</id>
-    <title>ORDINANCE 70-2020-21: (First Reading) Amending the Zoning Ordinance and Map of the City of Clarksville, application of Frank Bryant, Albatross Partners-Agent, for zone change on property located the intersection of Colonial Court and Golf Club Lane from R-3 Three Family Residential District and C-5 Highway and Arterial Commercial District to R-4 Multiple Family Residential District</title>
-    <updated>2026-11-09T04:38:46-06:00</updated>
-    <published>2026-11-09T04:38:46-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/city/items/2021.html#ordinance-70-2020-21" />
-    <link rel="related" type="application/pdf" href="https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_02042021-720#page=5" title="Source document" />
-    <summary>Clarksville City Council, 2021-02-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-12-2025-26/2025-09-04-regular</id>
+    <title>ORDINANCE 12-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:26-06:00</updated>
+    <published>2026-11-09T12:59:26-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-12-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2755,plainText=false)#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2025-09-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
 </feed>

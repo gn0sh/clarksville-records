@@ -2,19 +2,19 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>tag:daylight.gnoshcodes.com,2026-11-09:feeds/county-meetings</id>
   <title>Daylight: Montgomery County Commission: new agendas and minutes</title>
-  <subtitle>Each agenda and each set of minutes when it is added to this site. Daylight is an independent, unofficial site run by gnoshcodes. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.</subtitle>
+  <subtitle>Each agenda and each set of minutes when it is added to this site. Daylight is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.</subtitle>
   <updated>2026-11-09T22:38:07-06:00</updated>
   <author>
     <name>Daylight</name>
   </author>
-  <link rel="self" type="application/atom+xml" href="https://daylight.gnoshcodes.com/feeds/county-meetings.xml" />
-  <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/alerts.html" />
+  <link rel="self" type="application/atom+xml" href="https://gn0sh.github.io/clarksville-records/feeds/county-meetings.xml" />
+  <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/alerts.html" />
   <entry>
     <id>tag:daylight.gnoshcodes.com,2026-11-09:county/meeting/2026-11-09-formal/agenda</id>
     <title>Agenda: 2026-11-09, formal meeting</title>
     <updated>2026-11-09T22:38:07-06:00</updated>
     <published>2026-11-09T22:38:07-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/agendas.html#2026-11-09-formal" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/agendas.html#2026-11-09-formal" />
     <link rel="related" type="application/pdf" href="https://mcgtn.org/storage/departments/commission/agendas-and-resolutions/2026/nov-formal.pdf" title="Source document" />
     <summary>Montgomery County Commission, 2026-11-09, formal meeting. Agenda (143 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -23,7 +23,7 @@
     <title>Agenda: 2026-11-02, informal meeting</title>
     <updated>2026-11-09T22:37:47-06:00</updated>
     <published>2026-11-09T22:37:47-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/agendas.html#2026-11-02-informal" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/agendas.html#2026-11-02-informal" />
     <link rel="related" type="application/pdf" href="https://mcgtn.org/storage/departments/commission/agendas-and-resolutions/2026/nov-informal.pdf" title="Source document" />
     <summary>Montgomery County Commission, 2026-11-02, informal meeting. Agenda (129 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -32,7 +32,7 @@
     <title>Agenda: 2026-10-19, formal meeting</title>
     <updated>2026-11-09T22:37:26-06:00</updated>
     <published>2026-11-09T22:37:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/agendas.html#2026-10-19-formal" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/agendas.html#2026-10-19-formal" />
     <link rel="related" type="application/pdf" href="https://mcgtn.org/storage/departments/commission/agendas-and-resolutions/2026/oct-formal.pdf" title="Source document" />
     <summary>Montgomery County Commission, 2026-10-19, formal meeting. Agenda (122 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -41,7 +41,7 @@
     <title>Agenda: 2026-10-05, informal meeting</title>
     <updated>2026-11-09T22:37:07-06:00</updated>
     <published>2026-11-09T22:37:07-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/agendas.html#2026-10-05-informal" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/agendas.html#2026-10-05-informal" />
     <link rel="related" type="application/pdf" href="https://mcgtn.org/storage/departments/commission/agendas-and-resolutions/2026/oct-informal.pdf" title="Source document" />
     <summary>Montgomery County Commission, 2026-10-05, informal meeting. Agenda (145 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -50,7 +50,7 @@
     <title>Agenda: 2026-09-14, formal meeting</title>
     <updated>2026-11-09T22:36:47-06:00</updated>
     <published>2026-11-09T22:36:47-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/agendas.html#2026-09-14-formal" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/agendas.html#2026-09-14-formal" />
     <link rel="related" type="application/pdf" href="https://mcgtn.org/storage/departments/commission/agendas-and-resolutions/2026/sep-formal.pdf" title="Source document" />
     <summary>Montgomery County Commission, 2026-09-14, formal meeting. Agenda (224 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -59,7 +59,7 @@
     <title>Agenda: 2026-09-08, informal meeting</title>
     <updated>2026-11-09T22:36:27-06:00</updated>
     <published>2026-11-09T22:36:27-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/agendas.html#2026-09-08-informal" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/agendas.html#2026-09-08-informal" />
     <link rel="related" type="application/pdf" href="https://mcgtn.org/storage/departments/commission/agendas-and-resolutions/2026/sep-informal.pdf" title="Source document" />
     <summary>Montgomery County Commission, 2026-09-08, informal meeting. Agenda (220 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -68,7 +68,7 @@
     <title>Agenda: 2026-08-10, formal meeting</title>
     <updated>2026-11-09T22:36:06-06:00</updated>
     <published>2026-11-09T22:36:06-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/agendas.html#2026-08-10-formal" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/agendas.html#2026-08-10-formal" />
     <link rel="related" type="application/pdf" href="https://mcgtn.org/storage/departments/commission/agendas-and-resolutions/2026/aug-formal.pdf" title="Source document" />
     <summary>Montgomery County Commission, 2026-08-10, formal meeting. Agenda (188 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -77,7 +77,7 @@
     <title>Agenda: 2026-08-03, informal meeting</title>
     <updated>2026-11-09T22:35:46-06:00</updated>
     <published>2026-11-09T22:35:46-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/agendas.html#2026-08-03-informal" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/agendas.html#2026-08-03-informal" />
     <link rel="related" type="application/pdf" href="https://mcgtn.org/storage/departments/commission/agendas-and-resolutions/2026/aug-informal.pdf" title="Source document" />
     <summary>Montgomery County Commission, 2026-08-03, informal meeting. Agenda (160 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -86,7 +86,7 @@
     <title>Agenda: 2026-07-13, formal meeting</title>
     <updated>2026-11-09T22:35:27-06:00</updated>
     <published>2026-11-09T22:35:27-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/agendas.html#2026-07-13-formal" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/agendas.html#2026-07-13-formal" />
     <link rel="related" type="application/pdf" href="https://mcgtn.org/storage/departments/commission/agendas-and-resolutions/2026/jul-formal.pdf" title="Source document" />
     <summary>Montgomery County Commission, 2026-07-13, formal meeting. Agenda (80 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -95,7 +95,7 @@
     <title>Agenda: 2026-07-06, informal meeting</title>
     <updated>2026-11-09T22:35:07-06:00</updated>
     <published>2026-11-09T22:35:07-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/agendas.html#2026-07-06-informal" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/agendas.html#2026-07-06-informal" />
     <link rel="related" type="application/pdf" href="https://mcgtn.org/storage/departments/commission/agendas-and-resolutions/2026/jul-informal.pdf" title="Source document" />
     <summary>Montgomery County Commission, 2026-07-06, informal meeting. Agenda (59 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -104,7 +104,7 @@
     <title>Agenda: 2026-06-08, formal meeting</title>
     <updated>2026-11-09T22:34:47-06:00</updated>
     <published>2026-11-09T22:34:47-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/agendas.html#2026-06-08-formal" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/agendas.html#2026-06-08-formal" />
     <link rel="related" type="application/pdf" href="https://mcgtn.org/storage/departments/commission/agendas-and-resolutions/2026/jun-formal.pdf" title="Source document" />
     <summary>Montgomery County Commission, 2026-06-08, formal meeting. Agenda (270 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -113,7 +113,7 @@
     <title>Agenda: 2026-06-01, informal meeting</title>
     <updated>2026-11-09T22:34:27-06:00</updated>
     <published>2026-11-09T22:34:27-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/agendas.html#2026-06-01-informal" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/agendas.html#2026-06-01-informal" />
     <link rel="related" type="application/pdf" href="https://mcgtn.org/storage/departments/commission/agendas-and-resolutions/2026/jun-informal.pdf" title="Source document" />
     <summary>Montgomery County Commission, 2026-06-01, informal meeting. Agenda (167 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -122,7 +122,7 @@
     <title>Agenda: 2026-05-04, informal meeting</title>
     <updated>2026-11-09T22:33:37-06:00</updated>
     <published>2026-11-09T22:33:37-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/agendas.html#2026-05-04-informal" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/agendas.html#2026-05-04-informal" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/commission/agendas-and-resolutions/2026/may-informal.pdf" title="Source document" />
     <summary>Montgomery County Commission, 2026-05-04, informal meeting. Agenda (220 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -131,7 +131,7 @@
     <title>Minutes: 2026-05-11, formal meeting</title>
     <updated>2026-11-07T13:45:24-06:00</updated>
     <published>2026-11-07T13:45:24-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2026-05-11-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2026-05-11-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=OUNneHLsT98Uwt0uWG6DqR9Ebrd4UJkLm%2BdXB%2BqlD4Y%3D" title="Source document" />
     <summary>Montgomery County Commission, 2026-05-11, formal meeting. Minutes (239 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -140,7 +140,7 @@
     <title>Minutes: 2026-04-13, formal meeting</title>
     <updated>2026-11-07T13:45:12-06:00</updated>
     <published>2026-11-07T13:45:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2026-04-13-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2026-04-13-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=c0Fb6iGoivjT1E%2F0p9re0dOqbNqKRAi4V%2FSE1V3YARE%3D" title="Source document" />
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Minutes (117 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -149,7 +149,7 @@
     <title>Minutes: 2026-03-09, formal meeting</title>
     <updated>2026-11-07T13:45:02-06:00</updated>
     <published>2026-11-07T13:45:02-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2026-03-09-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2026-03-09-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=oaZbdxLgsMiaMr3S%2FnSO2j2d5cncfQIQXEc1dTirFmM%3D" title="Source document" />
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Minutes (173 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -158,7 +158,7 @@
     <title>Minutes: 2026-02-09, formal meeting</title>
     <updated>2026-11-07T13:44:52-06:00</updated>
     <published>2026-11-07T13:44:52-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2026-02-09-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2026-02-09-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=poQwzCz%2B9cdwv4k7s0dEGpWXXiTIriF36yhJnIGVUPc%3D" title="Source document" />
     <summary>Montgomery County Commission, 2026-02-09, formal meeting. Minutes (171 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -167,7 +167,7 @@
     <title>Minutes: 2026-01-12, formal meeting</title>
     <updated>2026-11-07T13:44:42-06:00</updated>
     <published>2026-11-07T13:44:42-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2026-01-12-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2026-01-12-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=i%2FOpGUvYbB%2BBjPp1ltRIaAqZoUxHqcHZYJARWzE73Pk%3D" title="Source document" />
     <summary>Montgomery County Commission, 2026-01-12, formal meeting. Minutes (132 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -176,7 +176,7 @@
     <title>Minutes: 2025-12-08, formal meeting</title>
     <updated>2026-11-07T13:44:32-06:00</updated>
     <published>2026-11-07T13:44:32-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2025-12-08-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2025-12-08-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=BEeUD4qdJKUbw0ADwLG%2FKpgWLC%2FDnlxCVkkK4ua1oOs%3D" title="Source document" />
     <summary>Montgomery County Commission, 2025-12-08, formal meeting. Minutes (181 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -185,7 +185,7 @@
     <title>Minutes: 2025-11-10, formal meeting</title>
     <updated>2026-11-07T13:44:22-06:00</updated>
     <published>2026-11-07T13:44:22-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2025-11-10-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2025-11-10-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=V%2FZsdE1CWJTBiuCEfapo7m2Yxiy%2B%2B%2FpomsaWBcRvcP8%3D" title="Source document" />
     <summary>Montgomery County Commission, 2025-11-10, formal meeting. Minutes (195 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -194,7 +194,7 @@
     <title>Minutes: 2025-10-20, formal meeting</title>
     <updated>2026-11-07T13:44:12-06:00</updated>
     <published>2026-11-07T13:44:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2025-10-20-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2025-10-20-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=0dWXMf%2Bmmv2rn5DBrMGLHwMCTVT7dblUjnvLfVPflUM%3D" title="Source document" />
     <summary>Montgomery County Commission, 2025-10-20, formal meeting. Minutes (121 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -203,7 +203,7 @@
     <title>Minutes: 2025-09-08, formal meeting</title>
     <updated>2026-11-07T13:44:02-06:00</updated>
     <published>2026-11-07T13:44:02-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2025-09-08-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2025-09-08-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=jXjsA%2Fl9fsQH7lZ778w%2FyORc1Nx6MGHjY1Yn1olDS48%3D" title="Source document" />
     <summary>Montgomery County Commission, 2025-09-08, formal meeting. Minutes (210 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -212,7 +212,7 @@
     <title>Minutes: 2025-08-11, formal meeting</title>
     <updated>2026-11-07T13:43:53-06:00</updated>
     <published>2026-11-07T13:43:53-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2025-08-11-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2025-08-11-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=v3XZxSUJ%2BLrd8PRkZYS1IKP5t1Ir7VLSF1Ip7C01qDI%3D" title="Source document" />
     <summary>Montgomery County Commission, 2025-08-11, formal meeting. Minutes (422 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -221,7 +221,7 @@
     <title>Minutes: 2025-07-14, formal meeting</title>
     <updated>2026-11-07T13:43:42-06:00</updated>
     <published>2026-11-07T13:43:42-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2025-07-14-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2025-07-14-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=2dmQmb4BN324hrNHaQz6yOYood%2BgMAmUmnLt3ilKUdI%3D" title="Source document" />
     <summary>Montgomery County Commission, 2025-07-14, formal meeting. Minutes (94 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -230,7 +230,7 @@
     <title>Minutes: 2025-06-09, formal meeting</title>
     <updated>2026-11-07T13:43:32-06:00</updated>
     <published>2026-11-07T13:43:32-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2025-06-09-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2025-06-09-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=%2FN2nukEgiOHkmVQpiBw%2Fw1UMFapVu9nzCh%2F7u4Q1qus%3D" title="Source document" />
     <summary>Montgomery County Commission, 2025-06-09, formal meeting. Minutes (244 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -239,7 +239,7 @@
     <title>Minutes: 2025-05-12, formal meeting</title>
     <updated>2026-11-07T13:43:22-06:00</updated>
     <published>2026-11-07T13:43:22-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2025-05-12-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2025-05-12-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=N5EPzO5%2Bf2mIeSaxsf%2Bj72v6R08a9b%2FfkVLJPA4SjmY%3D" title="Source document" />
     <summary>Montgomery County Commission, 2025-05-12, formal meeting. Minutes (162 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -248,7 +248,7 @@
     <title>Minutes: 2025-04-14, formal meeting</title>
     <updated>2026-11-07T13:43:12-06:00</updated>
     <published>2026-11-07T13:43:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2025-04-14-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2025-04-14-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=0Ag%2B4wiOFIHJQZQelTP83pEuycEByrNPNNjWYfKBpCA%3D" title="Source document" />
     <summary>Montgomery County Commission, 2025-04-14, formal meeting. Minutes (168 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -257,7 +257,7 @@
     <title>Minutes: 2025-03-17, formal meeting</title>
     <updated>2026-11-07T13:43:02-06:00</updated>
     <published>2026-11-07T13:43:02-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2025-03-17-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2025-03-17-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=M1SxkdVRUwI1ofpBh1iYRIniQ6%2Bk9KLC7SBS9ORnZE8%3D" title="Source document" />
     <summary>Montgomery County Commission, 2025-03-17, formal meeting. Minutes (178 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -266,7 +266,7 @@
     <title>Minutes: 2025-02-10, formal meeting</title>
     <updated>2026-11-07T13:42:52-06:00</updated>
     <published>2026-11-07T13:42:52-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2025-02-10-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2025-02-10-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=zvgAfYQWTBvJkk3rS%2BLVidhlhQyqQTG8G5iY0V%2FfKN0%3D" title="Source document" />
     <summary>Montgomery County Commission, 2025-02-10, formal meeting. Minutes (151 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -275,7 +275,7 @@
     <title>Minutes: 2025-01-13, formal meeting</title>
     <updated>2026-11-07T13:42:42-06:00</updated>
     <published>2026-11-07T13:42:42-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2025-01-13-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2025-01-13-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=uO8Qs9QLFMEfl7E%2FeKQcfa8pi5fYU9OsFEuwzuxC%2BnU%3D" title="Source document" />
     <summary>Montgomery County Commission, 2025-01-13, formal meeting. Minutes (173 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -284,7 +284,7 @@
     <title>Minutes: 2024-11-12, formal meeting</title>
     <updated>2026-11-07T13:42:32-06:00</updated>
     <published>2026-11-07T13:42:32-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2024-11-12-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2024-11-12-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=xDkM3K7AUd1Wd5IgzSs6Q9VRsmejCdBe9nBIKIZ59BU%3D" title="Source document" />
     <summary>Montgomery County Commission, 2024-11-12, formal meeting. Minutes (86 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -293,7 +293,7 @@
     <title>Minutes: 2024-10-14, formal meeting</title>
     <updated>2026-11-07T13:42:22-06:00</updated>
     <published>2026-11-07T13:42:22-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2024-10-14-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2024-10-14-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=wzgbBNTAX3KIve5tyLBGIYrAY5Ec3z%2BvHLzr6kwisq8%3D" title="Source document" />
     <summary>Montgomery County Commission, 2024-10-14, formal meeting. Minutes (131 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -302,7 +302,7 @@
     <title>Minutes: 2024-09-09, formal meeting</title>
     <updated>2026-11-07T13:42:12-06:00</updated>
     <published>2026-11-07T13:42:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2024-09-09-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2024-09-09-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=jI80mU4jPdB2seCwF30p%2B6NPdjE6kzFYVNUfvENxu5g%3D" title="Source document" />
     <summary>Montgomery County Commission, 2024-09-09, formal meeting. Minutes (185 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -311,7 +311,7 @@
     <title>Minutes: 2024-08-12, formal meeting</title>
     <updated>2026-11-07T13:42:04-06:00</updated>
     <published>2026-11-07T13:42:04-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2024-08-12-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2024-08-12-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=SWNVdOqIlkYbvv8W86mbdRTdt19tZi3DmzyCnZqY8lg%3D" title="Source document" />
     <summary>Montgomery County Commission, 2024-08-12, formal meeting. Minutes (621 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -320,7 +320,7 @@
     <title>Minutes: 2024-07-15, special meeting</title>
     <updated>2026-11-07T13:41:52-06:00</updated>
     <published>2026-11-07T13:41:52-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2024-07-15-special.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2024-07-15-special.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=3b9sTWl6jDQVZ7kb0uP78HTzfzW1Ja4pbid7jU%2B48Xs%3D" title="Source document" />
     <summary>Montgomery County Commission, 2024-07-15, special meeting. Minutes (25 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -329,7 +329,7 @@
     <title>Minutes: 2024-07-08, formal meeting</title>
     <updated>2026-11-07T13:41:42-06:00</updated>
     <published>2026-11-07T13:41:42-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2024-07-08-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2024-07-08-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=NIzCS8xH1nz2V33vMDap2r4dwa3ZiwEKVEo7tjuRRcc%3D" title="Source document" />
     <summary>Montgomery County Commission, 2024-07-08, formal meeting. Minutes (66 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -338,7 +338,7 @@
     <title>Minutes: 2024-06-10, formal meeting</title>
     <updated>2026-11-07T13:41:32-06:00</updated>
     <published>2026-11-07T13:41:32-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2024-06-10-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2024-06-10-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=wnRh2IO5FAKxTI2WK7xmY2NEeyubMPGCtHuAImXbRDE%3D" title="Source document" />
     <summary>Montgomery County Commission, 2024-06-10, formal meeting. Minutes (210 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -347,7 +347,7 @@
     <title>Minutes: 2024-05-13, formal meeting</title>
     <updated>2026-11-07T13:41:22-06:00</updated>
     <published>2026-11-07T13:41:22-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2024-05-13-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2024-05-13-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=yVXyaqTNCit6uyi3T69Zg4vbMinQUXRg0AsfLcDmw%2F0%3D" title="Source document" />
     <summary>Montgomery County Commission, 2024-05-13, formal meeting. Minutes (125 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -356,7 +356,7 @@
     <title>Minutes: 2024-03-11, formal meeting</title>
     <updated>2026-11-07T13:41:12-06:00</updated>
     <published>2026-11-07T13:41:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2024-03-11-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2024-03-11-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=RD%2FNEBsb7NpjS8jvRkJYKMBhEtOltNhtKTelhr2TswQ%3D" title="Source document" />
     <summary>Montgomery County Commission, 2024-03-11, formal meeting. Minutes (200 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -365,7 +365,7 @@
     <title>Minutes: 2024-02-12, formal meeting</title>
     <updated>2026-11-07T13:41:02-06:00</updated>
     <published>2026-11-07T13:41:02-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2024-02-12-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2024-02-12-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=Fub%2FPlqimijVUqSTvg0ZzmxYhrJ9LNWX10P9njFwDDo%3D" title="Source document" />
     <summary>Montgomery County Commission, 2024-02-12, formal meeting. Minutes (214 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -374,7 +374,7 @@
     <title>Minutes: 2024-01-08, formal meeting</title>
     <updated>2026-11-07T13:40:52-06:00</updated>
     <published>2026-11-07T13:40:52-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2024-01-08-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2024-01-08-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=xCW1SZ%2B5h5rfpVd31HFZGMyZIg8XagORzxZduMQfIts%3D" title="Source document" />
     <summary>Montgomery County Commission, 2024-01-08, formal meeting. Minutes (124 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -383,7 +383,7 @@
     <title>Minutes: 2023-12-11, formal meeting</title>
     <updated>2026-11-07T13:40:42-06:00</updated>
     <published>2026-11-07T13:40:42-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2023-12-11-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2023-12-11-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=XQoFQk9nESpCEQrSo88Vd13apbgssW5HaRL3MTYVs0Q%3D" title="Source document" />
     <summary>Montgomery County Commission, 2023-12-11, formal meeting. Minutes (207 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -392,7 +392,7 @@
     <title>Minutes: 2023-11-13, formal meeting</title>
     <updated>2026-11-07T13:40:32-06:00</updated>
     <published>2026-11-07T13:40:32-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2023-11-13-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2023-11-13-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=fOTPsuh0XBFo0lW%2Bhdel3xTPgCh6VTEF2igITw%2Bcjo0%3D" title="Source document" />
     <summary>Montgomery County Commission, 2023-11-13, formal meeting. Minutes (142 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -401,7 +401,7 @@
     <title>Minutes: 2023-09-11, formal meeting</title>
     <updated>2026-11-07T13:40:22-06:00</updated>
     <published>2026-11-07T13:40:22-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2023-09-11-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2023-09-11-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=lzekvGejdwTofMZN5W2hXu8Nf%2FtFIm0zmOJIa0z83Ec%3D" title="Source document" />
     <summary>Montgomery County Commission, 2023-09-11, formal meeting. Minutes (230 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -410,7 +410,7 @@
     <title>Minutes: 2023-08-14, formal meeting</title>
     <updated>2026-11-07T13:40:12-06:00</updated>
     <published>2026-11-07T13:40:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2023-08-14-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2023-08-14-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=7QbyMSxlwBZzGNkhdBSY%2BHnbG9tD3nkyGNM7WH5JVQU%3D" title="Source document" />
     <summary>Montgomery County Commission, 2023-08-14, formal meeting. Minutes (178 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -419,7 +419,7 @@
     <title>Minutes: 2023-07-10, formal meeting</title>
     <updated>2026-11-07T13:40:02-06:00</updated>
     <published>2026-11-07T13:40:02-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2023-07-10-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2023-07-10-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=JhDkgwpmqt8sBreYBBhEc8IvgnlpUxneDuX%2BBxKSUo8%3D" title="Source document" />
     <summary>Montgomery County Commission, 2023-07-10, formal meeting. Minutes (103 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -428,7 +428,7 @@
     <title>Minutes: 2024-12-09, formal meeting</title>
     <updated>2026-11-07T12:36:48-06:00</updated>
     <published>2026-11-07T12:36:48-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2024-12-09-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2024-12-09-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=F04M1Ejd%2FMmyE4rKozMKRlW3hsNLUDdypcnMKcKGviw%3D" title="Source document" />
     <summary>Montgomery County Commission, 2024-12-09, formal meeting. Minutes (207 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -437,7 +437,7 @@
     <title>Minutes: 2024-04-08, formal meeting</title>
     <updated>2026-11-07T12:36:38-06:00</updated>
     <published>2026-11-07T12:36:38-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2024-04-08-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2024-04-08-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=zy7QH17BevNe7YQR2Lxe9NdNAk6lkbxqpUpyjIj73PA%3D" title="Source document" />
     <summary>Montgomery County Commission, 2024-04-08, formal meeting. Minutes (273 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -446,7 +446,7 @@
     <title>Minutes: 2024-04-01, special meeting</title>
     <updated>2026-11-07T12:36:27-06:00</updated>
     <published>2026-11-07T12:36:27-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2024-04-01-special.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2024-04-01-special.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=Yi1XtgY5zJlfWMr%2BeESIHQDQ42JOzeOweqN2WyJO9PQ%3D" title="Source document" />
     <summary>Montgomery County Commission, 2024-04-01, special meeting. Minutes (25 pages), fetched 2026-11-07.</summary>
   </entry>
@@ -455,7 +455,7 @@
     <title>Minutes: 2023-10-09, formal meeting</title>
     <updated>2026-11-07T12:36:17-06:00</updated>
     <published>2026-11-07T12:36:17-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/meetings/2023-10-09-formal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/meetings/2023-10-09-formal.html" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=VSPtlLN%2F08djXVAwMS4bIkoTkIMizfkb6ORdAlakC20%3D" title="Source document" />
     <summary>Montgomery County Commission, 2023-10-09, formal meeting. Minutes (112 pages), fetched 2026-11-07.</summary>
   </entry>

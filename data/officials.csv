@@ -1,34 +1,34 @@
-id,name,surname,given,title,aliases
-arnold-hodges,Arnold Hodges,Hodges,Arnold,County Commissioner,
-autumn-simmons,Autumn Simmons,Simmons,Autumn,County Commissioner,Autunm Simmons
-billy-frye,Billy Frye,Frye,Billy,County Commissioner,Billy Frye~; Billy Fry~
-brandon-butts,Brandon Butts,Butts,Brandon,County Commissioner,Brandon Buffs; Brandon Bulls; Brandon Buns
-carmelle-chandler,Carmelle Chandler,Chandler,Carmelle,County Commissioner,
-charles-keene,Charles Keene,Keene,Charles,County Commissioner,Charles Ke~ne
-chris-rasnic,Chris Rasnic,Rasnic,Chris,County Commissioner,
-clayton-rudder,Clayton Rudder,Rudder,Clayton,County Commissioner,
-david-harper,David Harper,Harper,David,County Commissioner,
-david-shelton,David Shelton,Shelton,David,County Commissioner,
-garland-johnson,Garland Johnson,Johnson,Garland,County Commissioner,
-james-lewis,James R. Lewis,Lewis,James,County Commissioner,James Lewis
-jason-knight,Jason Knight,Knight,Jason,County Commissioner,Jason 0. Knight; Jason D. Knight
-jeremiah-walker,Jeremiah Walker,Walker,Jeremiah,County Commissioner,
-jerry-allbert,Jerry Allbert,Allbert,Jerry,County Commissioner,Jerry Ailbert; Jerry Alibert
-joe-creek,Joe Creek,Creek,Joe,County Commissioner,Joe L. Creek
-joe-smith,Joe Smith,Smith,Joe,County Commissioner,
-john-gannon,John Gannon,Gannon,John,County Commissioner,JoIm Gaimon; JoIm Gannon; John Gaimon; John M. Gaimon; John M. Gannon
-jorge-padro,Jorge Padro,Padro,Jorge,County Commissioner,
-joshua-beal,Joshua Beal,Beal,Joshua,County Commissioner,
-larry-rocconi,Larry Rocconi,Rocconi,Larry,County Commissioner,
-latonia-brown,LaTonia Brown,Brown,LaTonia,County Commissioner,
-lisa-prichard,Lisa Prichard,Prichard,Lisa,County Commissioner,Lisa L. Prichard; Lisa Pifichard; Lisa Prichai~d
-loretta-bryant,Loretta J. Bryant,Bryant,Loretta,County Commissioner,Loretta Bryant; Loretta I. Bryant
-michael-lankford,Michael Lankford,Lankford,Michael,County Commissioner,Michael Lanlcford; Micha~lLankford
-nathan-burkholder,Nathan Burkholder,Burkholder,Nathan,County Commissioner,Nathan Buricholder
-randy-allbert,Randy Allbert,Allbert,Randy,County Commissioner,Randy Ailbert; Randy Alibert
-rashidah-leverett,Rashidah Leverett,Leverett,Rashidah,County Commissioner,Rashidah A. Leverett; RashidahLeverett; Rashid~hLeverett
-rickey-ray,Rickey Ray,Ray,Rickey,County Commissioner,Ricke~~ Ray
-robert-sigler,Robert Sigler,Sigler,Robert,County Commissioner,
-ryan-gallant,Ryan Gallant,Gallant,Ryan,County Commissioner,
-tangi-smith,Tangi Smith,Smith,Tangi,County Commissioner,Tangi C. Smith; Tãngi Smith
-walker-woodruff,Walker Woodruff,Woodruff,Walker,County Commissioner,Walker R. Woodruff; Walker R. Woo~lrnff
+id,name,surname,given,title,aliases,name_source_url,name_source_page,name_source_quote
+arnold-hodges,Arnold Hodges,Hodges,Arnold,County Commissioner,,,,
+autumn-simmons,Autumn Simmons,Simmons,Autumn,County Commissioner,Autunm Simmons,,,
+billy-frye,Billy Frye,Frye,Billy,County Commissioner,Billy Frye~; Billy Fry~,,,
+brandon-butts,Brandon Butts,Butts,Brandon,County Commissioner,Brandon Buffs; Brandon Bulls; Brandon Buns,,,
+carmelle-chandler,Carmelle Chandler,Chandler,Carmelle,County Commissioner,,,,
+charles-keene,Charles Keene,Keene,Charles,County Commissioner,Charles Ke~ne,,,
+chris-rasnic,Chris Rasnic,Rasnic,Chris,County Commissioner,,,,
+clayton-rudder,Clayton Rudder,Rudder,Clayton,County Commissioner,,,,
+david-harper,David Harper,Harper,David,County Commissioner,,,,
+david-shelton,David Shelton,Shelton,David,County Commissioner,,,,
+garland-johnson,Garland Johnson,Johnson,Garland,County Commissioner,,,,
+james-lewis,James R. Lewis,Lewis,James,County Commissioner,James Lewis,,,
+jason-knight,Jason Knight,Knight,Jason,County Commissioner,Jason 0. Knight; Jason D. Knight,,,
+jeremiah-walker,Jeremiah Walker,Walker,Jeremiah,County Commissioner,,,,
+jerry-allbert,Jerry Allbert,Allbert,Jerry,County Commissioner,Jerry Ailbert; Jerry Alibert,,,
+joe-creek,Joe Creek,Creek,Joe,County Commissioner,Joe L. Creek,,,
+joe-smith,Joe Smith,Smith,Joe,County Commissioner,,,,
+john-gannon,John Gannon,Gannon,John,County Commissioner,JoIm Gaimon; JoIm Gannon; John Gaimon; John M. Gaimon; John M. Gannon,,,
+jorge-padro,Jorge Padro,Padro,Jorge,County Commissioner,,,,
+joshua-beal,Joshua Beal,Beal,Joshua,County Commissioner,,,,
+larry-rocconi,Larry Rocconi,Rocconi,Larry,County Commissioner,,,,
+latonia-brown,LaTonia Brown,Brown,LaTonia,County Commissioner,,,,
+lisa-prichard,Lisa Prichard,Prichard,Lisa,County Commissioner,Lisa L. Prichard; Lisa Pifichard; Lisa Prichai~d,,,
+loretta-bryant,Loretta J. Bryant,Bryant,Loretta,County Commissioner,Loretta Bryant; Loretta I. Bryant,,,
+michael-lankford,Michael Lankford,Lankford,Michael,County Commissioner,Michael Lanlcford; Micha~lLankford,,,
+nathan-burkholder,Nathan Burkholder,Burkholder,Nathan,County Commissioner,Nathan Buricholder,,,
+randy-allbert,Randy Allbert,Allbert,Randy,County Commissioner,Randy Ailbert; Randy Alibert,,,
+rashidah-leverett,Rashidah Leverett,Leverett,Rashidah,County Commissioner,Rashidah A. Leverett; RashidahLeverett; Rashid~hLeverett,,,
+rickey-ray,Rickey Ray,Ray,Rickey,County Commissioner,Ricke~~ Ray,,,
+robert-sigler,Robert Sigler,Sigler,Robert,County Commissioner,,,,
+ryan-gallant,Ryan Gallant,Gallant,Ryan,County Commissioner,,,,
+tangi-smith,Tangi Smith,Smith,Tangi,County Commissioner,Tangi C. Smith; Tãngi Smith,,,
+walker-woodruff,Walker Woodruff,Woodruff,Walker,County Commissioner,Walker R. Woodruff; Walker R. Woo~lrnff,,,

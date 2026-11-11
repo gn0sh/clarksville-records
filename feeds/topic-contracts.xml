@@ -2,19 +2,19 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>tag:daylight.gnoshcodes.com,2026-11-09:feeds/topic-contracts</id>
   <title>Daylight: Contracts: purchasing solicitations</title>
-  <subtitle>Each purchasing solicitation (bid or request for proposals) when it is added to this site. Daylight is an independent, unofficial site run by gnoshcodes. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.</subtitle>
+  <subtitle>Each purchasing solicitation (bid or request for proposals) when it is added to this site. Daylight is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.</subtitle>
   <updated>2026-11-08T13:50:04-06:00</updated>
   <author>
     <name>Daylight</name>
   </author>
-  <link rel="self" type="application/atom+xml" href="https://daylight.gnoshcodes.com/feeds/topic-contracts.xml" />
-  <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/alerts.html" />
+  <link rel="self" type="application/atom+xml" href="https://gn0sh.github.io/clarksville-records/feeds/topic-contracts.xml" />
+  <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/alerts.html" />
   <entry>
     <id>tag:daylight.gnoshcodes.com,2026-11-09:contracts/solicitation/sol-bid-montgomery-county-400-pageant-lane-building-emergency-roof-restoration</id>
     <title>BID - MONTGOMERY COUNTY 400 PAGEANT LANE BUILDING EMERGENCY ROOF RESTORATION</title>
     <updated>2026-11-08T13:50:04-06:00</updated>
     <published>2026-11-08T13:50:04-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-montgomery-county-400-pageant-lane-building-emergency-roof-restoration.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-montgomery-county-400-pageant-lane-building-emergency-roof-restoration.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/400%20Pageant%20Ln%20Roof%20Restoration%20Bid%20Advertisement.pdf" title="Source document" />
     <summary>Purchasing solicitation, 1 document.</summary>
   </entry>
@@ -23,7 +23,7 @@
     <title>BID - INMATE UNIFORMS</title>
     <updated>2026-11-08T13:47:24-06:00</updated>
     <published>2026-11-08T13:47:24-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-inmate-uniforms.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-inmate-uniforms.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/Bid%20-%20Inmate%20Uniforms.pdf" title="Source document" />
     <summary>Purchasing solicitation, 2 documents.</summary>
   </entry>
@@ -32,7 +32,7 @@
     <title>RFP - FAIRGROUNDS CONSTRUCTION MANAGEMENT SERVICES</title>
     <updated>2026-11-08T13:38:16-06:00</updated>
     <published>2026-11-08T13:38:16-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/rfp-fairgrounds-construction-management-services.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/rfp-fairgrounds-construction-management-services.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/Fairgrounds%20-%20RFP%20_%20Construction%20Management%20Final%200926.pdf" title="Source document" />
     <summary>Purchasing solicitation, 3 documents.</summary>
   </entry>
@@ -41,7 +41,7 @@
     <title>RFP - GEOTECHNICAL ENGINEERING SERVICES</title>
     <updated>2026-11-08T13:37:44-06:00</updated>
     <published>2026-11-08T13:37:44-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/rfp-geotechnical-engineering-services.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/rfp-geotechnical-engineering-services.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/Fairgrounds%20-%20RFP_Geotechnical%20Engineering%20Final%200926.pdf" title="Source document" />
     <summary>Purchasing solicitation, 3 documents.</summary>
   </entry>
@@ -50,7 +50,7 @@
     <title>RFP - PUBLIC SAFETY COMPLEX LAND</title>
     <updated>2026-11-08T13:37:04-06:00</updated>
     <published>2026-11-08T13:37:04-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/rfp-public-safety-complex-land.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/rfp-public-safety-complex-land.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/RFP%20-%20Public%20Safety%20Complex%20Land.pdf" title="Source document" />
     <summary>Purchasing solicitation, 1 document.</summary>
   </entry>
@@ -59,7 +59,7 @@
     <title>BID - JAIL PLUMBING IMPROVEMENTS</title>
     <updated>2026-11-08T13:36:14-06:00</updated>
     <published>2026-11-08T13:36:14-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-jail-plumbing-improvements.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-jail-plumbing-improvements.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/2025-09-25%20Jail%20Sewer%20Rehab%20Project%20-%20Bid%20Advertisement.pdf" title="Source document" />
     <summary>Purchasing solicitation, 5 documents.</summary>
   </entry>
@@ -68,7 +68,7 @@
     <title>RFP - CARNIVAL RIDE RENTAL</title>
     <updated>2026-11-08T13:35:54-06:00</updated>
     <published>2026-11-08T13:35:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/rfp-carnival-ride-rental.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/rfp-carnival-ride-rental.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/RFP%20-%20Carnival%20Ride%20Rentals.pdf" title="Source document" />
     <summary>Purchasing solicitation, 2 documents.</summary>
   </entry>
@@ -77,7 +77,7 @@
     <title>BID - MCSO FIRE SYSTEM UPGRADE</title>
     <updated>2026-11-08T13:35:14-06:00</updated>
     <published>2026-11-08T13:35:14-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-mcso-fire-system-upgrade.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-mcso-fire-system-upgrade.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/BID%20-%20MCSO%20Fire%20System%20Upgrade.pdf" title="Source document" />
     <summary>Purchasing solicitation, 4 documents.</summary>
   </entry>
@@ -86,7 +86,7 @@
     <title>BID - EMS STATION 28 NEW FACILITY</title>
     <updated>2026-11-08T13:34:14-06:00</updated>
     <published>2026-11-08T13:34:14-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-ems-station-28-new-facility.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-ems-station-28-new-facility.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/2025-11-03%20Advertisement%20for%20Bids%20Montgomery%20County%20EMS%20Station%2028.pdf" title="Source document" />
     <summary>Purchasing solicitation, 6 documents.</summary>
   </entry>
@@ -95,7 +95,7 @@
     <title>FAIRGROUNDS DESIGN AND ENGINEERING SERVICES</title>
     <updated>2026-11-08T13:33:44-06:00</updated>
     <published>2026-11-08T13:33:44-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/fairgrounds-design-and-engineering-services.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/fairgrounds-design-and-engineering-services.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/RFQ%20-%20Fairgrounds%20Design-Engineering%20Svcs%20.pdf" title="Source document" />
     <summary>Purchasing solicitation, 3 documents.</summary>
   </entry>
@@ -104,7 +104,7 @@
     <title>TIMBER BRIDGE REPAIR PROJECT</title>
     <updated>2026-11-08T13:33:14-06:00</updated>
     <published>2026-11-08T13:33:14-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/timber-bridge-repair-project.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/timber-bridge-repair-project.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/2025-12-17%20MCRSA%202025%20Timber%20Bridge%20Repair%20Project%20-%20Advertisement%20for%20Bids.pdf" title="Source document" />
     <summary>Purchasing solicitation, 3 documents.</summary>
   </entry>
@@ -113,7 +113,7 @@
     <title>BID - INTERIOR RENOVATIONS FOR ASSESSOR OF PROPERTY</title>
     <updated>2026-11-08T13:31:44-06:00</updated>
     <published>2026-11-08T13:31:44-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-interior-renovations-for-assessor-of-property.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-interior-renovations-for-assessor-of-property.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/2026-01-14%20Bid%20Advertisement%20for%20Montgomery%20County%20Assessor%20of%20Property%20Renovation.pdf" title="Source document" />
     <summary>Purchasing solicitation, 6 documents.</summary>
   </entry>
@@ -122,7 +122,7 @@
     <title>BID - LONE OAK COMMUNITY CENTER RENOVATIONS</title>
     <updated>2026-11-08T13:30:44-06:00</updated>
     <published>2026-11-08T13:30:44-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-lone-oak-community-center-renovations.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-lone-oak-community-center-renovations.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/2026-01-29%20Advertisement%20for%20Bids%20for%20the%20Montomgery%20County%20Lone%20Oak%20Community%20Center.pdf" title="Source document" />
     <summary>Purchasing solicitation, 6 documents.</summary>
   </entry>
@@ -131,7 +131,7 @@
     <title>BID - WOODLAWN PARK FENCING</title>
     <updated>2026-11-08T13:30:04-06:00</updated>
     <published>2026-11-08T13:30:04-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-woodlawn-park-fencing.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-woodlawn-park-fencing.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/Bid%20-%20Woodlawn%20Park%20Fencing.pdf" title="Source document" />
     <summary>Purchasing solicitation, 4 documents.</summary>
   </entry>
@@ -140,7 +140,7 @@
     <title>RFP - ROSSVIEW RD/ROLLOW LN SIGHTLINE IMPROVEMENTS</title>
     <updated>2026-11-08T13:29:24-06:00</updated>
     <published>2026-11-08T13:29:24-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/rfp-rossview-rd-rollow-ln-sightline-improvements.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/rfp-rossview-rd-rollow-ln-sightline-improvements.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/RFP%20-%20Rossview-Rollow%20Sightline%20Improvements.pdf" title="Source document" />
     <summary>Purchasing solicitation, 4 documents.</summary>
   </entry>
@@ -149,7 +149,7 @@
     <title>RFP - DOWNTOWN COMMONS EVENT BEER SALES VENDOR</title>
     <updated>2026-11-08T13:28:54-06:00</updated>
     <published>2026-11-08T13:28:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/rfp-downtown-commons-event-beer-sales-vendor.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/rfp-downtown-commons-event-beer-sales-vendor.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/RFP%20-%20DTC%20Event%20Beer%20Sales%20Vendor.pdf" title="Source document" />
     <summary>Purchasing solicitation, 3 documents.</summary>
   </entry>
@@ -158,7 +158,7 @@
     <title>RFQ - CONSULTANT ENGINEERS - ROADWAY PROJECT</title>
     <updated>2026-11-08T13:28:34-06:00</updated>
     <published>2026-11-08T13:28:34-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/rfq-consultant-engineers-roadway-project.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/rfq-consultant-engineers-roadway-project.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/2026-3~1.PDF" title="Source document" />
     <summary>Purchasing solicitation, 2 documents.</summary>
   </entry>
@@ -167,7 +167,7 @@
     <title>BID - SINKHOLE REPAIRS - GRACE COMMUNITY CHURCH</title>
     <updated>2026-11-08T13:27:34-06:00</updated>
     <published>2026-11-08T13:27:34-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-sinkhole-repairs-grace-community-church.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-sinkhole-repairs-grace-community-church.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/Bid%20-%20Sinkhole%20Repairs.pdf" title="Source document" />
     <summary>Purchasing solicitation, 6 documents.</summary>
   </entry>
@@ -176,7 +176,7 @@
     <title>RFQ - Car Wash Services</title>
     <updated>2026-11-08T13:19:44-06:00</updated>
     <published>2026-11-08T13:19:44-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/rfq-car-wash-services.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/rfq-car-wash-services.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/RFQ%20-%20Car%20Washes%20FY27.pdf" title="Source document" />
     <summary>Purchasing solicitation, 1 document.</summary>
   </entry>
@@ -185,7 +185,7 @@
     <title>RFP - Mental Health Secondary Transport</title>
     <updated>2026-11-08T13:19:24-06:00</updated>
     <published>2026-11-08T13:19:24-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/rfp-mental-health-secondary-transport.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/rfp-mental-health-secondary-transport.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/RFP%20-%20Mental%20Health%20Secondary%20Transportation%20Agent.pdf" title="Source document" />
     <summary>Purchasing solicitation, 2 documents.</summary>
   </entry>
@@ -194,7 +194,7 @@
     <title>Request for Bid - Generator Electrical Alteration</title>
     <updated>2026-11-08T13:18:54-06:00</updated>
     <published>2026-11-08T13:18:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/request-for-bid-generator-electrical-alteration.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/request-for-bid-generator-electrical-alteration.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/Montgomery%20County%20Generator%20Electrical%20Alteration%20Bid%20Advertisement.pdf" title="Source document" />
     <summary>Purchasing solicitation, 3 documents.</summary>
   </entry>
@@ -203,7 +203,7 @@
     <title>Request for Proposal - Armed Security</title>
     <updated>2026-11-08T13:17:54-06:00</updated>
     <published>2026-11-08T13:17:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/request-for-proposal-armed-security.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/request-for-proposal-armed-security.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/RFP%20-%20Armed%20Security%20with%20forms.pdf" title="Source document" />
     <summary>Purchasing solicitation, 4 documents.</summary>
   </entry>
@@ -212,7 +212,7 @@
     <title>MOODY ROAD BRIDGE REPLACEMENT BID</title>
     <updated>2026-11-08T13:17:54-06:00</updated>
     <published>2026-11-08T13:17:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/moody-road-bridge-replacement-bid.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/moody-road-bridge-replacement-bid.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/Montgomery%20Co%20Bridge%20Replacement_Bid%20Advertisement.pdf" title="Source document" />
     <summary>Purchasing solicitation, 4 documents.</summary>
   </entry>
@@ -221,7 +221,7 @@
     <title>ReBid - Highway Dept Salt</title>
     <updated>2026-11-08T13:17:34-06:00</updated>
     <published>2026-11-08T13:17:34-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/rebid-highway-dept-salt.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/rebid-highway-dept-salt.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/REBID%20-%20Hwy%20Dept%20Salt%20FY27.pdf" title="Source document" />
     <summary>Purchasing solicitation, 4 documents.</summary>
   </entry>
@@ -230,7 +230,7 @@
     <title>Bid - HVAC Replacement - Lone Oak Community Center</title>
     <updated>2026-11-08T13:16:54-06:00</updated>
     <published>2026-11-08T13:16:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-hvac-replacement-lone-oak-community-center.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-hvac-replacement-lone-oak-community-center.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/2026-06-04%20Lone%20Oak%20HVAC%20Replacement%20Bid%20Advertisement.pdf" title="Source document" />
     <summary>Purchasing solicitation, 4 documents.</summary>
   </entry>
@@ -239,7 +239,7 @@
     <title>Request for Bid - Highway Department Salt</title>
     <updated>2026-11-08T13:15:54-06:00</updated>
     <published>2026-11-08T13:15:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/request-for-bid-highway-department-salt.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/request-for-bid-highway-department-salt.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/BID%20-%20Hwy%20Dept%20Salt%20FY27.pdf" title="Source document" />
     <summary>Purchasing solicitation, 4 documents.</summary>
   </entry>
@@ -248,7 +248,7 @@
     <title>RFP - Third Party Claims Administrator</title>
     <updated>2026-11-08T13:15:54-06:00</updated>
     <published>2026-11-08T13:15:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/rfp-third-party-claims-administrator.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/rfp-third-party-claims-administrator.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/RFP%20-%20Third%20Party%20Claims%20Administrator.pdf" title="Source document" />
     <summary>Purchasing solicitation, 5 documents.</summary>
   </entry>
@@ -257,7 +257,7 @@
     <title>Request for Bid - Metal Pipe &amp; Bands</title>
     <updated>2026-11-08T13:15:54-06:00</updated>
     <published>2026-11-08T13:15:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/request-for-bid-metal-pipe-bands.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/request-for-bid-metal-pipe-bands.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/BID%20-%20Hwy%20Dept%20Metal%20Pipe%20%26%20Bands%20FY27.pdf" title="Source document" />
     <summary>Purchasing solicitation, 4 documents.</summary>
   </entry>
@@ -266,7 +266,7 @@
     <title>Request for Bid - EMS Safety Gear</title>
     <updated>2026-11-08T13:15:54-06:00</updated>
     <published>2026-11-08T13:15:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/request-for-bid-ems-safety-gear.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/request-for-bid-ems-safety-gear.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/BID%20-%20EMS%20Safety%20Gear%20FY27.pdf" title="Source document" />
     <summary>Purchasing solicitation, 4 documents.</summary>
   </entry>
@@ -275,7 +275,7 @@
     <title>Request for Bid - Rock</title>
     <updated>2026-11-08T13:15:54-06:00</updated>
     <published>2026-11-08T13:15:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/request-for-bid-rock.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/request-for-bid-rock.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/BID%20-%20Hwy%20Dept%20Rock%20FY27.pdf" title="Source document" />
     <summary>Purchasing solicitation, 5 documents.</summary>
   </entry>
@@ -284,7 +284,7 @@
     <title>Request for Bid - Hot Mix</title>
     <updated>2026-11-08T13:15:54-06:00</updated>
     <published>2026-11-08T13:15:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/request-for-bid-hot-mix.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/request-for-bid-hot-mix.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/BID%20-%20Hwy%20Dept%20Hot%20Mix%20FY27.pdf" title="Source document" />
     <summary>Purchasing solicitation, 5 documents.</summary>
   </entry>
@@ -293,7 +293,7 @@
     <title>Request for Bid - Creek Rock</title>
     <updated>2026-11-08T13:15:54-06:00</updated>
     <published>2026-11-08T13:15:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/request-for-bid-creek-rock.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/request-for-bid-creek-rock.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/BID%20-%20Creek%20Rock%20FY27.pdf" title="Source document" />
     <summary>Purchasing solicitation, 5 documents.</summary>
   </entry>
@@ -302,7 +302,7 @@
     <title>Request for Bid - Coarse Aggregate</title>
     <updated>2026-11-08T13:15:54-06:00</updated>
     <published>2026-11-08T13:15:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/request-for-bid-coarse-aggregate.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/request-for-bid-coarse-aggregate.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/BID%20-%20Coarse%20Aggregate%20FY27.pdf" title="Source document" />
     <summary>Purchasing solicitation, 5 documents.</summary>
   </entry>
@@ -311,7 +311,7 @@
     <title>Request for Bid - Bi-County Various Grades of Stone</title>
     <updated>2026-11-08T13:15:54-06:00</updated>
     <published>2026-11-08T13:15:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/request-for-bid-bi-county-various-grades-of-stone.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/request-for-bid-bi-county-various-grades-of-stone.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/BID%20-%20Various%20Grades%20of%20Stone%20FY27.pdf" title="Source document" />
     <summary>Purchasing solicitation, 4 documents.</summary>
   </entry>
@@ -320,7 +320,7 @@
     <title>Request for Bid - Concrete</title>
     <updated>2026-11-08T13:15:54-06:00</updated>
     <published>2026-11-08T13:15:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/request-for-bid-concrete.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/request-for-bid-concrete.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/BID%20-%20Hwy%20Dept%20Concrete%20FY27.pdf" title="Source document" />
     <summary>Purchasing solicitation, 4 documents.</summary>
   </entry>
@@ -329,7 +329,7 @@
     <title>Request for Bid - Body Removal Services</title>
     <updated>2026-11-08T13:15:54-06:00</updated>
     <published>2026-11-08T13:15:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/request-for-bid-body-removal-services.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/request-for-bid-body-removal-services.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/BID%20-%20EMS%20Body%20Removal.pdf" title="Source document" />
     <summary>Purchasing solicitation, 5 documents.</summary>
   </entry>
@@ -338,7 +338,7 @@
     <title>Request for Bid - Asphalt Oil</title>
     <updated>2026-11-08T13:15:54-06:00</updated>
     <published>2026-11-08T13:15:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/request-for-bid-asphalt-oil.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/request-for-bid-asphalt-oil.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/BID%20-%20Hwy%20Dept%20Asphalt%20Oil%20FY27.pdf" title="Source document" />
     <summary>Purchasing solicitation, 4 documents.</summary>
   </entry>
@@ -347,7 +347,7 @@
     <title>Request for Bid - Highway Department Traffic Paint</title>
     <updated>2026-11-08T13:15:54-06:00</updated>
     <published>2026-11-08T13:15:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/request-for-bid-highway-department-traffic-paint.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/request-for-bid-highway-department-traffic-paint.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/BID%20-%20Hwy%20Dept%20Traffic%20Paint%20FY27.pdf" title="Source document" />
     <summary>Purchasing solicitation, 7 documents.</summary>
   </entry>
@@ -356,7 +356,7 @@
     <title>Bid - EMS Uniforms</title>
     <updated>2026-11-08T13:15:44-06:00</updated>
     <published>2026-11-08T13:15:44-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-ems-uniforms.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-ems-uniforms.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/BID%20-%20EMS%20Uniforms%20FY27.pdf" title="Source document" />
     <summary>Purchasing solicitation, 5 documents.</summary>
   </entry>
@@ -365,7 +365,7 @@
     <title>Bid Listing - Jobs Related to the Public Safety Facility</title>
     <updated>2026-11-08T13:15:34-06:00</updated>
     <published>2026-11-08T13:15:34-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-listing-jobs-related-to-the-public-safety-facility.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-listing-jobs-related-to-the-public-safety-facility.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/County%20Purchasing%20Dept%20Bid%20Packages%20MoCo%20Public%20Safety%20Facility.pdf" title="Source document" />
     <summary>Purchasing solicitation, 1 document.</summary>
   </entry>
@@ -374,7 +374,7 @@
     <title>Bid - Veterans Plaza HVAC Replacement</title>
     <updated>2026-11-08T13:14:44-06:00</updated>
     <published>2026-11-08T13:14:44-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-veterans-plaza-hvac-replacement.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-veterans-plaza-hvac-replacement.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/2026-07-22%20Veterans%20Plaza%20HVAC%20Replacement%20Bid%20Advertisement.pdf" title="Source document" />
     <summary>Purchasing solicitation, 5 documents.</summary>
   </entry>
@@ -383,7 +383,7 @@
     <title>Bid - Boolean Mast Arm Traffic Signal</title>
     <updated>2026-11-08T13:14:14-06:00</updated>
     <published>2026-11-08T13:14:14-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-boolean-mast-arm-traffic-signal.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-boolean-mast-arm-traffic-signal.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/Bid%20Invitation.pdf" title="Source document" />
     <summary>Purchasing solicitation, 3 documents.</summary>
   </entry>
@@ -392,7 +392,7 @@
     <title>Bid - Veterans Plaza Gutter Replacement</title>
     <updated>2026-11-08T13:13:34-06:00</updated>
     <published>2026-11-08T13:13:34-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-veterans-plaza-gutter-replacement.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-veterans-plaza-gutter-replacement.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/Vets%20Plaza%20Gutter%20Replacement%20Bid%20Advertisement.pdf" title="Source document" />
     <summary>Purchasing solicitation, 4 documents.</summary>
   </entry>
@@ -401,7 +401,7 @@
     <title>Bid - Courts Center Generator Replacement</title>
     <updated>2026-11-08T13:12:44-06:00</updated>
     <published>2026-11-08T13:12:44-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-courts-center-generator-replacement.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-courts-center-generator-replacement.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/2026-08-04%20Courts%20Center%20Generator%20Replacement%20Bid%20Advertisement.pdf" title="Source document" />
     <summary>Purchasing solicitation, 5 documents.</summary>
   </entry>
@@ -410,7 +410,7 @@
     <title>Bid - EMS Medical Supplies and Pharmaceuticals</title>
     <updated>2026-11-08T13:12:14-06:00</updated>
     <published>2026-11-08T13:12:14-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-ems-medical-supplies-and-pharmaceuticals.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-ems-medical-supplies-and-pharmaceuticals.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/Bid%20FINAL%20-%20EMS%20Medical%20and%20Pharmaceutical.pdf" title="Source document" />
     <summary>Purchasing solicitation, 3 documents.</summary>
   </entry>
@@ -419,7 +419,7 @@
     <title>Bid - Palmyra Salt Shed Foundation</title>
     <updated>2026-11-08T13:11:54-06:00</updated>
     <published>2026-11-08T13:11:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-palmyra-salt-shed-foundation.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-palmyra-salt-shed-foundation.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/Bid%20Advertisement%20Salt%20Shed%20Foundation.pdf" title="Source document" />
     <summary>Purchasing solicitation, 4 documents.</summary>
   </entry>
@@ -428,7 +428,7 @@
     <title>Bid Advertisement - Full Depth Reclamation</title>
     <updated>2026-11-08T13:11:24-06:00</updated>
     <published>2026-11-08T13:11:24-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-advertisement-full-depth-reclamation.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-advertisement-full-depth-reclamation.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/FDR%20Bid%20Advertisement.pdf" title="Source document" />
     <summary>Purchasing solicitation, 5 documents.</summary>
   </entry>
@@ -437,7 +437,7 @@
     <title>Bid Advertisement - SR12/Excell Rd Intersection Improvements</title>
     <updated>2026-11-08T13:11:14-06:00</updated>
     <published>2026-11-08T13:11:14-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-advertisement-sr12-excell-rd-intersection-improvements.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-advertisement-sr12-excell-rd-intersection-improvements.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/Excell%20Rd-Hwy%2012%20Bid%20Advertisement.pdf" title="Source document" />
     <summary>Purchasing solicitation, 1 document.</summary>
   </entry>
@@ -446,7 +446,7 @@
     <title>RFP - RFID Tracking Solution</title>
     <updated>2026-11-08T13:10:54-06:00</updated>
     <published>2026-11-08T13:10:54-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/rfp-rfid-tracking-solution.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/rfp-rfid-tracking-solution.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/RFP%20-%20RFID%20Tracking%20Solution.pdf" title="Source document" />
     <summary>Purchasing solicitation, 2 documents.</summary>
   </entry>
@@ -455,7 +455,7 @@
     <title>Bid - Highway Dept Traffic Supplies</title>
     <updated>2026-11-08T13:10:24-06:00</updated>
     <published>2026-11-08T13:10:24-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/contracts/bid-highway-dept-traffic-supplies.html" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/contracts/bid-highway-dept-traffic-supplies.html" />
     <link rel="related" type="application/pdf" href="https://montgomerytn.gov/storage/departments/purchasing/BID/Bid%20-%20Hwy%20Dept%20Traffic%20Supplies.pdf" title="Source document" />
     <summary>Purchasing solicitation, 3 documents.</summary>
   </entry>

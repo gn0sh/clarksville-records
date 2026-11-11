@@ -2,19 +2,172 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>tag:daylight.gnoshcodes.com,2026-11-09:feeds/topic-resolution</id>
   <title>Daylight: Resolution items: Montgomery County Commission and Clarksville City Council</title>
-  <subtitle>Each item the Resolution type rule matches, at each meeting it appears at. Daylight is an independent, unofficial site run by gnoshcodes. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.</subtitle>
-  <updated>2026-11-09T12:00:00-06:00</updated>
+  <subtitle>Each item the Resolution type rule matches, at each meeting it appears at. Daylight is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.</subtitle>
+  <updated>2026-11-11T12:00:00-06:00</updated>
   <author>
     <name>Daylight</name>
   </author>
-  <link rel="self" type="application/atom+xml" href="https://daylight.gnoshcodes.com/feeds/topic-resolution.xml" />
-  <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/alerts.html" />
+  <link rel="self" type="application/atom+xml" href="https://gn0sh.github.io/clarksville-records/feeds/topic-resolution.xml" />
+  <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/alerts.html" />
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-65-2025-26/2026-06-04-regular</id>
+    <title>RESOLUTION 65-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:46-06:00</updated>
+    <published>2026-11-09T13:00:46-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-65-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3201,plainText=false)#page=8" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-04, regular session. Recorded: Roll call. Source: minutes, page 8.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-66-2025-26/2026-06-04-regular</id>
+    <title>RESOLUTION 66-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:46-06:00</updated>
+    <published>2026-11-09T13:00:46-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-66-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3201,plainText=false)#page=9" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 9.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-60-2025-26/2026-05-07-regular</id>
+    <title>RESOLUTION 60-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:36-06:00</updated>
+    <published>2026-11-09T13:00:36-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-60-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3200,plainText=false)#page=7" title="Source document" />
+    <summary>Clarksville City Council, 2026-05-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 7.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-56-2025-26/2026-05-07-regular</id>
+    <title>RESOLUTION 56-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:36-06:00</updated>
+    <published>2026-11-09T13:00:36-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-56-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3200,plainText=false)#page=7" title="Source document" />
+    <summary>Clarksville City Council, 2026-05-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 7.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-55-2025-26/2026-05-07-regular</id>
+    <title>RESOLUTION 55-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:36-06:00</updated>
+    <published>2026-11-09T13:00:36-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-55-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3200,plainText=false)#page=7" title="Source document" />
+    <summary>Clarksville City Council, 2026-05-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 7.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-61-2025-26/2026-05-07-regular</id>
+    <title>RESOLUTION 61-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:36-06:00</updated>
+    <published>2026-11-09T13:00:36-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-61-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3200,plainText=false)#page=8" title="Source document" />
+    <summary>Clarksville City Council, 2026-05-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 8.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-57-2025-26/2026-05-07-regular</id>
+    <title>RESOLUTION 57-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:36-06:00</updated>
+    <published>2026-11-09T13:00:36-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-57-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3200,plainText=false)#page=8" title="Source document" />
+    <summary>Clarksville City Council, 2026-05-07, regular session. Recorded: Motion, Roll call. Source: minutes, page 8.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-50-2025-26/2026-04-02-regular</id>
+    <title>RESOLUTION 50-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:26-06:00</updated>
+    <published>2026-11-09T13:00:26-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-50-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3067,plainText=false)#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2026-04-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-49-2025-26/2026-04-02-regular</id>
+    <title>RESOLUTION 49-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:26-06:00</updated>
+    <published>2026-11-09T13:00:26-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-49-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3067,plainText=false)#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2026-04-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-48-2025-26/2026-04-02-regular</id>
+    <title>RESOLUTION 48-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:26-06:00</updated>
+    <published>2026-11-09T13:00:26-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-48-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3067,plainText=false)#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2026-04-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-53-2025-26/2026-04-02-regular</id>
+    <title>RESOLUTION 53-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:26-06:00</updated>
+    <published>2026-11-09T13:00:26-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-53-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3067,plainText=false)#page=7" title="Source document" />
+    <summary>Clarksville City Council, 2026-04-02, regular session. Recorded: Motion, Roll call. Source: minutes, page 7.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-43-2025-26/2026-03-05-regular</id>
+    <title>RESOLUTION 43-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:16-06:00</updated>
+    <published>2026-11-09T13:00:16-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-43-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3066,plainText=false)#page=6" title="Source document" />
+    <summary>Clarksville City Council, 2026-03-05, regular session. Recorded: Roll call, Motion. Source: minutes, page 6.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-47-2025-26/2026-03-05-regular</id>
+    <title>RESOLUTION 47-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:16-06:00</updated>
+    <published>2026-11-09T13:00:16-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-47-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3066,plainText=false)#page=8" title="Source document" />
+    <summary>Clarksville City Council, 2026-03-05, regular session. Recorded: Motion, Roll call. Source: minutes, page 8.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-41-2025-26/2026-02-05-regular</id>
+    <title>RESOLUTION 41-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:06-06:00</updated>
+    <published>2026-11-09T13:00:06-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-41-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3065,plainText=false)#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2026-02-05, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-40-2025-26/2026-02-05-regular</id>
+    <title>RESOLUTION 40-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T13:00:06-06:00</updated>
+    <published>2026-11-09T13:00:06-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-40-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3065,plainText=false)#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2026-02-05, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-34-2025-26/2026-01-08-regular</id>
+    <title>RESOLUTION 34-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:56-06:00</updated>
+    <published>2026-11-09T12:59:56-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#resolution-34-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=5" title="Source document" />
+    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-36-2025-26/2026-01-08-regular</id>
+    <title>RESOLUTION 36-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-09T12:59:56-06:00</updated>
+    <published>2026-11-09T12:59:56-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-36-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=7" title="Source document" />
+    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 7.</summary>
+  </entry>
   <entry>
     <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-5-4/2026-05-11-formal</id>
     <title>26-5-4: Resolution to Approve Donation and Development Agreement for Public Safety Complex in the Kirkwood Area ofMontgomery County, Tennessee</title>
     <updated>2026-11-07T13:45:24-06:00</updated>
     <published>2026-11-07T13:45:24-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-5-4" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-5-4" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=OUNneHLsT98Uwt0uWG6DqR9Ebrd4UJkLm%2BdXB%2BqlD4Y%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-05-11, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -23,7 +176,7 @@
     <title>26-5-2: Resolution to Request Unclaimed Balance of Accounts Remitted to State Trea~urer</title>
     <updated>2026-11-07T13:45:24-06:00</updated>
     <published>2026-11-07T13:45:24-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-5-2" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-5-2" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=OUNneHLsT98Uwt0uWG6DqR9Ebrd4UJkLm%2BdXB%2BqlD4Y%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-05-11, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -32,7 +185,7 @@
     <title>26-5-1: Resolution Amending the Fiscal Year 2026 Budget of Montgomery County, Tennessee</title>
     <updated>2026-11-07T13:45:24-06:00</updated>
     <published>2026-11-07T13:45:24-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-5-1" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-5-1" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=OUNneHLsT98Uwt0uWG6DqR9Ebrd4UJkLm%2BdXB%2BqlD4Y%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-05-11, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -41,7 +194,7 @@
     <title>26-5-3: Resolution Accepting Funds from Tennessee Valley Authority (TVA) for Rotary Park Native Restoration and to Appropriate Funds</title>
     <updated>2026-11-07T13:45:24-06:00</updated>
     <published>2026-11-07T13:45:24-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-5-3" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-5-3" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=OUNneHLsT98Uwt0uWG6DqR9Ebrd4UJkLm%2BdXB%2BqlD4Y%3D#page=7" title="Source document" />
     <summary>Montgomery County Commission, 2026-05-11, formal meeting. Recorded: Roll call. Source: minutes, page 7.</summary>
   </entry>
@@ -50,7 +203,7 @@
     <title>26-4-9: Resolution to Establish a Consultant Selection Policy for Projects Funded in Whole or in Part with Funds Provided by the Federal Highway Administration or the Tennessee Department of Transportation</title>
     <updated>2026-11-07T13:45:12-06:00</updated>
     <published>2026-11-07T13:45:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-4-9" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-4-9" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=c0Fb6iGoivjT1E%2F0p9re0dOqbNqKRAi4V%2FSE1V3YARE%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -59,7 +212,7 @@
     <title>26-4-7: Resolution to Acquire Property at 113 South Third Street, Clarksville, Tennessee 37040</title>
     <updated>2026-11-07T13:45:12-06:00</updated>
     <published>2026-11-07T13:45:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-4-7" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-4-7" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=c0Fb6iGoivjT1E%2F0p9re0dOqbNqKRAi4V%2FSE1V3YARE%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -68,7 +221,7 @@
     <title>26-4-6: Resolution to Donate Land Acquired at a Tax Sale Pursuant to Tennessee Code Annotated §67-5-2507(B)</title>
     <updated>2026-11-07T13:45:12-06:00</updated>
     <published>2026-11-07T13:45:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-4-6" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-4-6" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=c0Fb6iGoivjT1E%2F0p9re0dOqbNqKRAi4V%2FSE1V3YARE%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -77,7 +230,7 @@
     <title>26-4-1: Resolution of the Montgomery County Board of Commissioners Approving Amendments to the 2025-2026 School Budget</title>
     <updated>2026-11-07T13:45:12-06:00</updated>
     <published>2026-11-07T13:45:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-4-1" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-4-1" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=c0Fb6iGoivjT1E%2F0p9re0dOqbNqKRAi4V%2FSE1V3YARE%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -86,7 +239,7 @@
     <title>26-4-5: A Resolution to Establish A Mandatory Retirement Age Requirement Pursuant to Tennessee Code Annotated, Section §8-36-205, to Authorize the Payment of the Supplemental Bridge Benefit Pursuant to Tennessee Code Annotated, §Section 8-36- 211, and to Authorize Group 1 Members Who Have Creditable Service in a Group 1 Position Covered by Such Mandatory Age Retirement to Retire on Service Retirement Benefits upon Attainment of Age Fifty-Five (55) with Twenty-Five (25) Years of Creditable Service Pursuant to Tennessee Code Annotated, Section §8-36-201(A)(2) Legacy Plan</title>
     <updated>2026-11-07T13:45:12-06:00</updated>
     <published>2026-11-07T13:45:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-4-5" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-4-5" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=c0Fb6iGoivjT1E%2F0p9re0dOqbNqKRAi4V%2FSE1V3YARE%3D#page=3" title="Source document" />
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 3.</summary>
   </entry>
@@ -95,7 +248,7 @@
     <title>26-4-4: A Resolution to Establish a Mandatory Retirement Age Requirement Pursuant to Tennessee Code Annotated, Section §8-36-205, to Authorize the Payment of the Supplemental Bridge Benefit Pursuant to Tennessee Code Annotated, Section §8-36- 211, and to Authorize Group I Members Who Have Creditable Service in a Group 1 Position Covered by Such Mandatory Age Retirement to Retire on Service Retirement Benefits upon Attainment of Age Fifty-Five (55) with Twenty-Five (25) Years of Creditable Service Pursuant to Tennessee Code Annotated, Section §8-36-201(A)(2) Hybrid Plan</title>
     <updated>2026-11-07T13:45:12-06:00</updated>
     <published>2026-11-07T13:45:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-4-4" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-4-4" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=c0Fb6iGoivjT1E%2F0p9re0dOqbNqKRAi4V%2FSE1V3YARE%3D#page=3" title="Source document" />
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
@@ -104,7 +257,7 @@
     <title>26-4-3: Resolution to Amend Revenues and Expenditures in the Sheriff’s Office and Jail Budgets for Fiscal Year 2026</title>
     <updated>2026-11-07T13:45:12-06:00</updated>
     <published>2026-11-07T13:45:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-4-3" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-4-3" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=c0Fb6iGoivjT1E%2F0p9re0dOqbNqKRAi4V%2FSE1V3YARE%3D#page=3" title="Source document" />
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
@@ -113,7 +266,7 @@
     <title>26-4-8: Resolution for Authorization and Approval to Enter into Attorney Fee Agreements and Authorizations to Participate in the Defendant Settlement Agreement with Six Remnant Defendants Proposed Settlement</title>
     <updated>2026-11-07T13:45:12-06:00</updated>
     <published>2026-11-07T13:45:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-4-8" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-4-8" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=c0Fb6iGoivjT1E%2F0p9re0dOqbNqKRAi4V%2FSE1V3YARE%3D#page=30" title="Source document" />
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Roll call. Source: minutes, page 30.</summary>
   </entry>
@@ -122,7 +275,7 @@
     <title>26-4-2: Resolution Authorizing the Amendment of Grant Funds from the Tennessee Department of Safety &amp; Homeland Security, Tennessee Highway Safety Office</title>
     <updated>2026-11-07T13:45:12-06:00</updated>
     <published>2026-11-07T13:45:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-4-2" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-4-2" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=c0Fb6iGoivjT1E%2F0p9re0dOqbNqKRAi4V%2FSE1V3YARE%3D#page=30" title="Source document" />
     <summary>Montgomery County Commission, 2026-04-13, formal meeting. Recorded: Roll call. Source: minutes, page 30.</summary>
   </entry>
@@ -131,7 +284,7 @@
     <title>26-3-7: Resolution for a Budget Amendment to Replenish Salt and Rock Following Extreme Weather Events</title>
     <updated>2026-11-07T13:45:02-06:00</updated>
     <published>2026-11-07T13:45:02-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-3-7" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-3-7" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=oaZbdxLgsMiaMr3S%2FnSO2j2d5cncfQIQXEc1dTirFmM%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -140,7 +293,7 @@
     <title>26-3-6: Resolution to Accept and Appropriate Donated Funds from the Millan Foundation</title>
     <updated>2026-11-07T13:45:02-06:00</updated>
     <published>2026-11-07T13:45:02-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-3-6" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-3-6" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=oaZbdxLgsMiaMr3S%2FnSO2j2d5cncfQIQXEc1dTirFmM%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -149,7 +302,7 @@
     <title>26-3-5: Resolution to Accept State of Tennessee Endowment Grant Funds for Essential Equipment Purchases for Licensed Ambulance Services in Tennessee and Appropriate Funds</title>
     <updated>2026-11-07T13:45:02-06:00</updated>
     <published>2026-11-07T13:45:02-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-3-5" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-3-5" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=oaZbdxLgsMiaMr3S%2FnSO2j2d5cncfQIQXEc1dTirFmM%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -158,7 +311,7 @@
     <title>26-3-4: Resolution to Authorize Execution of an Agreement Between the Clarksville Rotary Foundation and the County of Montgomery Regarding a Grant Award from the Clarksville- Montgomery County Community Health Foundation, Inc. for Montgomery County’s Greenway and to Appropriate Funds</title>
     <updated>2026-11-07T13:45:02-06:00</updated>
     <published>2026-11-07T13:45:02-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-3-4" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-3-4" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=oaZbdxLgsMiaMr3S%2FnSO2j2d5cncfQIQXEc1dTirFmM%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -167,7 +320,7 @@
     <title>26-3-3: Resolution to Accept State of Tennessee Volunteer Firefighter Equipment and Training Grant Program 33501-262521 and Appropriate Funds</title>
     <updated>2026-11-07T13:45:02-06:00</updated>
     <published>2026-11-07T13:45:02-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-3-3" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-3-3" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=oaZbdxLgsMiaMr3S%2FnSO2j2d5cncfQIQXEc1dTirFmM%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -176,7 +329,7 @@
     <title>26-3-2: Resolution to Amend Budget to Accept Grant Funds from the Tennessee Depailment of Transportation Litter and Trash Collection Program</title>
     <updated>2026-11-07T13:45:02-06:00</updated>
     <published>2026-11-07T13:45:02-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-3-2" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-3-2" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=oaZbdxLgsMiaMr3S%2FnSO2j2d5cncfQIQXEc1dTirFmM%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -185,7 +338,7 @@
     <title>26-3-1: Resolution Amending the Fiscal Year 2026 Budget ofMontgomery County, Tennessee</title>
     <updated>2026-11-07T13:45:02-06:00</updated>
     <published>2026-11-07T13:45:02-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-3-1" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-3-1" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=oaZbdxLgsMiaMr3S%2FnSO2j2d5cncfQIQXEc1dTirFmM%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -194,7 +347,7 @@
     <title>26-3-9: Resolution Authorizing the Regional Planning Commission to Exercise Platting per Tennessee Code Annotated 13-3-402</title>
     <updated>2026-11-07T13:45:02-06:00</updated>
     <published>2026-11-07T13:45:02-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-3-9" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-3-9" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=oaZbdxLgsMiaMr3S%2FnSO2j2d5cncfQIQXEc1dTirFmM%3D#page=3" title="Source document" />
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 3.</summary>
   </entry>
@@ -203,7 +356,7 @@
     <title>26-3-8: Resolution of the County Commission of Montgomery County, Tennessee Approving the Issuance of Bonds by the Health and Educational Facilities Board of the Metropolitan Government of Nashville and Davidson County, Tennessee, Proceeds of Which in the Amount of $1,500,000,000 Will be Loaned to Vanderbilt University Medical Center and Its Affiliates in Part to Finance Improvements to Their Facilities Located in Montgomery County, Tennessee</title>
     <updated>2026-11-07T13:45:02-06:00</updated>
     <published>2026-11-07T13:45:02-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-3-8" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-3-8" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=oaZbdxLgsMiaMr3S%2FnSO2j2d5cncfQIQXEc1dTirFmM%3D#page=3" title="Source document" />
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 3.</summary>
   </entry>
@@ -212,7 +365,7 @@
     <title>26-3-10: Resolution Appropriating Funds from the Opioid Abatement Settlement Funds and National Opioid Settlement Funds</title>
     <updated>2026-11-07T13:45:02-06:00</updated>
     <published>2026-11-07T13:45:02-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-3-10" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-3-10" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=oaZbdxLgsMiaMr3S%2FnSO2j2d5cncfQIQXEc1dTirFmM%3D#page=3" title="Source document" />
     <summary>Montgomery County Commission, 2026-03-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 3.</summary>
   </entry>
@@ -221,7 +374,7 @@
     <title>26-2-4: Resolution to Appropriate Funds for the FEMA Hazard Mitigation Grant Program (HMGP) in Support of Montgomery County Fire Department</title>
     <updated>2026-11-07T13:44:52-06:00</updated>
     <published>2026-11-07T13:44:52-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-2-4" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-2-4" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=poQwzCz%2B9cdwv4k7s0dEGpWXXiTIriF36yhJnIGVUPc%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-02-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -230,7 +383,7 @@
     <title>26-2-3: Resolution to Appoint a County Medical Examiner</title>
     <updated>2026-11-07T13:44:52-06:00</updated>
     <published>2026-11-07T13:44:52-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-2-3" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-2-3" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=poQwzCz%2B9cdwv4k7s0dEGpWXXiTIriF36yhJnIGVUPc%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-02-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -239,7 +392,7 @@
     <title>26-2-2: Resolution to Retain a Delinquent Tax Attomey for Tax Year 2024</title>
     <updated>2026-11-07T13:44:52-06:00</updated>
     <published>2026-11-07T13:44:52-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-2-2" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-2-2" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=poQwzCz%2B9cdwv4k7s0dEGpWXXiTIriF36yhJnIGVUPc%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-02-09, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -248,7 +401,7 @@
     <title>26-2-6: Resolution Authorizing the Revision ofthe Utility Easement on Property at or Near Stowe Court</title>
     <updated>2026-11-07T13:44:52-06:00</updated>
     <published>2026-11-07T13:44:52-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-2-6" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-2-6" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=poQwzCz%2B9cdwv4k7s0dEGpWXXiTIriF36yhJnIGVUPc%3D#page=3" title="Source document" />
     <summary>Montgomery County Commission, 2026-02-09, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
@@ -257,7 +410,7 @@
     <title>26-2-5: Resolution to Establish Uniform Social Media Consumer Terms ofUse</title>
     <updated>2026-11-07T13:44:52-06:00</updated>
     <published>2026-11-07T13:44:52-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-2-5" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-2-5" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=poQwzCz%2B9cdwv4k7s0dEGpWXXiTIriF36yhJnIGVUPc%3D#page=3" title="Source document" />
     <summary>Montgomery County Commission, 2026-02-09, formal meeting. Recorded: Listed. Source: minutes, page 3.</summary>
   </entry>
@@ -266,7 +419,7 @@
     <title>26-2-1: Resolution of the Montgomery County Board of Commissioners Approving Amendments to the 2025-2026 School Budget</title>
     <updated>2026-11-07T13:44:52-06:00</updated>
     <published>2026-11-07T13:44:52-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-2-1" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-2-1" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=poQwzCz%2B9cdwv4k7s0dEGpWXXiTIriF36yhJnIGVUPc%3D#page=26" title="Source document" />
     <summary>Montgomery County Commission, 2026-02-09, formal meeting. Recorded: Roll call. Source: minutes, page 26.</summary>
   </entry>
@@ -275,7 +428,7 @@
     <title>26-1-4: ResolutionAmending the Budget of Montgomery County to Appropriate Funds to Add a Security Officer to the County Clerk’s Office at Veteran’s Plaza</title>
     <updated>2026-11-07T13:44:42-06:00</updated>
     <published>2026-11-07T13:44:42-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-1-4" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-1-4" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=i%2FOpGUvYbB%2BBjPp1ltRIaAqZoUxHqcHZYJARWzE73Pk%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-01-12, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -284,7 +437,7 @@
     <title>26-1-3: Resolution to Authorize Cooperative Purchasing Agreements for the Use and Benefit of All Montgomery County Departments</title>
     <updated>2026-11-07T13:44:42-06:00</updated>
     <published>2026-11-07T13:44:42-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-1-3" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-1-3" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=i%2FOpGUvYbB%2BBjPp1ltRIaAqZoUxHqcHZYJARWzE73Pk%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-01-12, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -293,7 +446,7 @@
     <title>26-1-2: Resolution to Accept Donation Funds for the Montgomery County Fire Service from the Tractor Supply Company Foundation</title>
     <updated>2026-11-07T13:44:42-06:00</updated>
     <published>2026-11-07T13:44:42-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-1-2" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-1-2" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=i%2FOpGUvYbB%2BBjPp1ltRIaAqZoUxHqcHZYJARWzE73Pk%3D#page=2" title="Source document" />
     <summary>Montgomery County Commission, 2026-01-12, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
@@ -302,161 +455,8 @@
     <title>26-1-1: Resolution Amending the Fiscal Year 2026 Budget of Montgomery County, Tennessee</title>
     <updated>2026-11-07T13:44:42-06:00</updated>
     <published>2026-11-07T13:44:42-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2026.html#26-1-1" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/items/2026.html#26-1-1" />
     <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=i%2FOpGUvYbB%2BBjPp1ltRIaAqZoUxHqcHZYJARWzE73Pk%3D#page=29" title="Source document" />
     <summary>Montgomery County Commission, 2026-01-12, formal meeting. Recorded: Roll call. Source: minutes, page 29.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-12-3/2025-12-08-formal</id>
-    <title>25-12-3: Resolution of the County Commission of Montgomery County, Tennessee Approving the Issuance of Bonds by the Health and Educational Facilities Board of the Metropolitan Government of Nashville and Davidson County, Tennessee, Proceeds of Which in the Amount of $650,000,000 Will be Loaned to Vanderbilt University Medical Center and Its Affiliates in Part to Finance Improvements to VUMC’s Facilities Located in Montgomery County, Tennessee</title>
-    <updated>2026-11-07T13:44:32-06:00</updated>
-    <published>2026-11-07T13:44:32-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2025-2.html#25-12-3" />
-    <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=BEeUD4qdJKUbw0ADwLG%2FKpgWLC%2FDnlxCVkkK4ua1oOs%3D#page=2" title="Source document" />
-    <summary>Montgomery County Commission, 2025-12-08, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 2.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-12-4/2025-12-08-formal</id>
-    <title>25-12-4: Resolution Adopting the Britton Springs Neighborhood Plan</title>
-    <updated>2026-11-07T13:44:32-06:00</updated>
-    <published>2026-11-07T13:44:32-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2025-2.html#25-12-4" />
-    <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=BEeUD4qdJKUbw0ADwLG%2FKpgWLC%2FDnlxCVkkK4ua1oOs%3D#page=3" title="Source document" />
-    <summary>Montgomery County Commission, 2025-12-08, formal meeting. Recorded: Listed. Source: minutes, page 3.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-12-2/2025-12-08-formal</id>
-    <title>25-12-2: Resolution to Accept and Appropriate Grant Funds from the Department of Finance and Administration and the Tennessee Office of Criminal Justice Programs</title>
-    <updated>2026-11-07T13:44:32-06:00</updated>
-    <published>2026-11-07T13:44:32-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2025-2.html#25-12-2" />
-    <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=BEeUD4qdJKUbw0ADwLG%2FKpgWLC%2FDnlxCVkkK4ua1oOs%3D#page=33" title="Source document" />
-    <summary>Montgomery County Commission, 2025-12-08, formal meeting. Recorded: Roll call. Source: minutes, page 33.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-12-1/2025-12-08-formal</id>
-    <title>25-12-1: Resolution of the Montgomery County Board of Commissioners Approving Amendments to the 2025-2026 School Budget</title>
-    <updated>2026-11-07T13:44:32-06:00</updated>
-    <published>2026-11-07T13:44:32-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2025-2.html#25-12-1" />
-    <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=BEeUD4qdJKUbw0ADwLG%2FKpgWLC%2FDnlxCVkkK4ua1oOs%3D#page=33" title="Source document" />
-    <summary>Montgomery County Commission, 2025-12-08, formal meeting. Recorded: Roll call. Source: minutes, page 33.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-11-5/2025-11-10-formal</id>
-    <title>25-11-5: Resolution of the County Commission of the County of Montgomery, Tennessee Approving a Tax-Exempt Bond Financing to be Undertaken by the Health and Educational Facilities Board of Rutherford County with Respect to Certain Projects of Ascension Health Alliance Located in the County of Montgomery, Tennessee</title>
-    <updated>2026-11-07T13:44:22-06:00</updated>
-    <published>2026-11-07T13:44:22-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2025-2.html#25-11-5" />
-    <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=V%2FZsdE1CWJTBiuCEfapo7m2Yxiy%2B%2B%2FpomsaWBcRvcP8%3D#page=2" title="Source document" />
-    <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-11-4/2025-11-10-formal</id>
-    <title>25-11-4: Resolution to Enter into Lease Agreement for Storage Facilities</title>
-    <updated>2026-11-07T13:44:22-06:00</updated>
-    <published>2026-11-07T13:44:22-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2025-2.html#25-11-4" />
-    <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=V%2FZsdE1CWJTBiuCEfapo7m2Yxiy%2B%2B%2FpomsaWBcRvcP8%3D#page=2" title="Source document" />
-    <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-11-3/2025-11-10-formal</id>
-    <title>25-11-3: Resolution to Approve Interlocal Agreement Between Multiple City, County and School System Entities Establishing the Handle With Care Program</title>
-    <updated>2026-11-07T13:44:22-06:00</updated>
-    <published>2026-11-07T13:44:22-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2025-2.html#25-11-3" />
-    <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=V%2FZsdE1CWJTBiuCEfapo7m2Yxiy%2B%2B%2FpomsaWBcRvcP8%3D#page=2" title="Source document" />
-    <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-11-2/2025-11-10-formal</id>
-    <title>25-11-2: Resolution to Accept and Appropriate Donated Funds from Hankook Tire USA</title>
-    <updated>2026-11-07T13:44:22-06:00</updated>
-    <published>2026-11-07T13:44:22-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2025-2.html#25-11-2" />
-    <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=V%2FZsdE1CWJTBiuCEfapo7m2Yxiy%2B%2B%2FpomsaWBcRvcP8%3D#page=2" title="Source document" />
-    <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-11-1/2025-11-10-formal</id>
-    <title>25-11-1: Resolution Amending the Fiscal Year 2026 Budget ofMontgomery County, Tennessee</title>
-    <updated>2026-11-07T13:44:22-06:00</updated>
-    <published>2026-11-07T13:44:22-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2025-2.html#25-11-1" />
-    <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=V%2FZsdE1CWJTBiuCEfapo7m2Yxiy%2B%2B%2FpomsaWBcRvcP8%3D#page=2" title="Source document" />
-    <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Listed. Source: minutes, page 2.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-11-7/2025-11-10-formal</id>
-    <title>25-11-7: A Resolution Authorizing the Issuance of General Obligation Bonds of Montgomery County, Tennessee in the Aggregate Principal Amount of Not to Exceed $51,000,000, in One or More Series; Making Provision for the Issuance, Sale and Payment of Said Bonds, Establishing the Terms Thereof and the Disposition of Proceeds Therefrom; and Providing for the Levy of Taxes for the Payment of Principal of, Premium, if Any, and Interest on the Bonds</title>
-    <updated>2026-11-07T13:44:22-06:00</updated>
-    <published>2026-11-07T13:44:22-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2025-2.html#25-11-7" />
-    <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=V%2FZsdE1CWJTBiuCEfapo7m2Yxiy%2B%2B%2FpomsaWBcRvcP8%3D#page=3" title="Source document" />
-    <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 3.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-11-6/2025-11-10-formal</id>
-    <title>25-11-6: Initial Resolution Authorizing the Issuance of Not to Exceed $51,000,000 General Obligation Bonds of Montgomery County, Tennessee</title>
-    <updated>2026-11-07T13:44:22-06:00</updated>
-    <published>2026-11-07T13:44:22-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2025-2.html#25-11-6" />
-    <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=V%2FZsdE1CWJTBiuCEfapo7m2Yxiy%2B%2B%2FpomsaWBcRvcP8%3D#page=48" title="Source document" />
-    <summary>Montgomery County Commission, 2025-11-10, formal meeting. Recorded: Roll call. Source: minutes, page 48.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-10-6/2025-10-20-formal</id>
-    <title>25-10-6: ResOlution to Adopt the 2026 Legislative Agenda as Presented by the Legislative Liaison Committee</title>
-    <updated>2026-11-07T13:44:12-06:00</updated>
-    <published>2026-11-07T13:44:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2025-2.html#25-10-6" />
-    <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=0dWXMf%2Bmmv2rn5DBrMGLHwMCTVT7dblUjnvLfVPflUM%3D#page=2" title="Source document" />
-    <summary>Montgomery County Commission, 2025-10-20, formal meeting. Recorded: Listed, Motion, Roll call. Source: minutes, page 2.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-10-5/2025-10-20-formal</id>
-    <title>25-10-5: Resolution to Appoint Two Members of the Montgomery County Board of Conimissioners to Serve as a Non-Voting Ex-Officio Representative with the Montgomery County Youth Engagement Coalition</title>
-    <updated>2026-11-07T13:44:12-06:00</updated>
-    <published>2026-11-07T13:44:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2025-2.html#25-10-5" />
-    <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=0dWXMf%2Bmmv2rn5DBrMGLHwMCTVT7dblUjnvLfVPflUM%3D#page=2" title="Source document" />
-    <summary>Montgomery County Commission, 2025-10-20, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-10-4/2025-10-20-formal</id>
-    <title>25-10-4: Resolution Appropriating Funds for the Purpose ofEmploying Additional Positions in Juvenile Court, Division V, in Montgomery County</title>
-    <updated>2026-11-07T13:44:12-06:00</updated>
-    <published>2026-11-07T13:44:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2025-2.html#25-10-4" />
-    <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=0dWXMf%2Bmmv2rn5DBrMGLHwMCTVT7dblUjnvLfVPflUM%3D#page=2" title="Source document" />
-    <summary>Montgomery County Commission, 2025-10-20, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-10-3/2025-10-20-formal</id>
-    <title>25-10-3: Resolution Amending the Budget of Mongomery County to Appropriate Funds to Add an Emergency Management Mitigation Specialist to the EMA Department</title>
-    <updated>2026-11-07T13:44:12-06:00</updated>
-    <published>2026-11-07T13:44:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2025-2.html#25-10-3" />
-    <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=0dWXMf%2Bmmv2rn5DBrMGLHwMCTVT7dblUjnvLfVPflUM%3D#page=2" title="Source document" />
-    <summary>Montgomery County Commission, 2025-10-20, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-10-2/2025-10-20-formal</id>
-    <title>25-10-2: Resolution Authorizing the Acceptance and Appropriation of Grant Funds from the Tennessee Department of Safety &amp; Homeland Security, Tennessee Highway Safety Office</title>
-    <updated>2026-11-07T13:44:12-06:00</updated>
-    <published>2026-11-07T13:44:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2025-2.html#25-10-2" />
-    <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=0dWXMf%2Bmmv2rn5DBrMGLHwMCTVT7dblUjnvLfVPflUM%3D#page=2" title="Source document" />
-    <summary>Montgomery County Commission, 2025-10-20, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/25-10-1/2025-10-20-formal</id>
-    <title>25-10-1: Resolution of the Montgomery County Board of Commissioners Approving Amendments to the 2025-2026 School Budget</title>
-    <updated>2026-11-07T13:44:12-06:00</updated>
-    <published>2026-11-07T13:44:12-06:00</published>
-    <link rel="alternate" type="text/html" href="https://daylight.gnoshcodes.com/items/2025-2.html#25-10-1" />
-    <link rel="related" type="application/pdf" href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=0dWXMf%2Bmmv2rn5DBrMGLHwMCTVT7dblUjnvLfVPflUM%3D#page=2" title="Source document" />
-    <summary>Montgomery County Commission, 2025-10-20, formal meeting. Recorded: Listed, Roll call. Source: minutes, page 2.</summary>
   </entry>
 </feed>

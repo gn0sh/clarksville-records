@@ -6,11 +6,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>Daylight (independent, unofficial) | Data downloads</title>
-<meta name="description" content="Daylight is an independent, unofficial site run by gnoshcodes. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.">
+<meta name="description" content="Daylight is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Daylight (independent, unofficial)">
 <meta property="og:title" content="Daylight (independent, unofficial) | Data downloads">
-<meta property="og:description" content="Daylight is an independent, unofficial site run by gnoshcodes. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.">
+<meta property="og:description" content="Daylight is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.">
 <link rel="icon" href="static/brand/favicon.ico" sizes="any">
 <link rel="stylesheet" href="static/style.css">
 </head>
@@ -28,7 +28,7 @@
 <main id="main">
 <h1>Data downloads</h1>
 <p class="lede">Every shown fact, with its source, as files: so this site is not the only copy. The files carry what the pages show, and none of the program's raw reading of names, vote wording or motion sentences.</p>
-<p class="unofficial-intro"><strong>Independent, unofficial.</strong> Daylight is an independent, unofficial site run by gnoshcodes. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls. The same notice is in <a href="data/README.txt">README.txt</a> beside these files.</p>
+<p class="unofficial-intro"><strong>Independent, unofficial.</strong> Daylight is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls. The same notice is in <a href="data/README.txt">README.txt</a> beside these files.</p>
 <h2>Montgomery County Commission</h2><ul class="data-files">
   <li><a href="data/facts.json">facts.json</a>: All shown facts and their sources, in one file.</li>
   <li><a href="data/officials.csv">officials.csv</a>: One row per official.</li>
@@ -70,16 +70,16 @@
   <li><a href="data/budget_lines.csv">budget_lines.csv</a>: One row per budget line per column, as printed.</li>
   <li><a href="data/budget_checks.csv">budget_checks.csv</a>: Each subtotal and total line per column: the printed total, the sum of its lines and the difference.</li>
 </ul>
-<p>Every row names the document that prints it (source_url, page) and when it was fetched. A value held back as "Not confirmed" is empty in these files, with the check that held it.</p>
+<p>Every row names the document that prints it (source_url, page) and when it was fetched. In these files fetched_at is the day in Coordinated Universal Time (UTC), so a file fetched in the evening in Clarksville carries the next day; the pages show the day in Clarksville. A value held back as "Not confirmed" is empty in these files, with the check that held it.</p>
 <p>In the Clarksville-Montgomery County Regional Planning Commission's files, a meeting row names the listing page it was taken from and its agenda and minutes files, and a sources row is the fetched file itself. A Clarksville-Montgomery County Regional Planning Commission motion that is not confirmed is not in its files at all; its meeting row counts it (motions_not_confirmed).</p><p>A text cell that would begin with =, +, - or @ (or a tab or carriage return) starts with an apostrophe, so a spreadsheet shows it as text; number columns are left as they are.</p>
 </main>
 <footer class="site-footer">
   <section class="unofficial-notice" aria-labelledby="unofficial-h">
   <p id="unofficial-h" class="unofficial-h"><strong>Independent, unofficial</strong></p>
-  <p>Daylight is an independent, unofficial site run by gnoshcodes. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls. <a href="report.html">How to report a correction</a>.</p>
+  <p>Daylight is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls. <a href="report.html">How to report a correction</a>.</p>
 </section>
 
-  <p>Provided as a free service by <a data-ext="operator" href="https://gnoshcodes.com/" rel="noopener noreferrer">gnoshcodes</a>. <a data-ext="support" href="https://buymeacoffee.com/gnoshcodes" rel="noopener noreferrer">Buy Me a Coffee</a></p>
+  <p>Provided as a free service by <a data-ext="operator" href="https://gnoshcodes.com/" rel="noopener noreferrer">gnoshcodes LLC</a>. <a data-ext="support" href="https://buymeacoffee.com/gnoshcodes" rel="noopener noreferrer">Buy Me a Coffee</a></p>
   <p class="gc-credit"><img class="gc-logo gc-logo-light" src="static/brand/gnoshcodes-wordmark-color-light.svg" alt="gnoshcodes" width="160" height="29"><img class="gc-logo gc-logo-dark" src="static/brand/gnoshcodes-wordmark-color-dark.svg" alt="gnoshcodes" width="160" height="29"><span>A gnoshcodes project.</span></p>
   <p><a href="about.html">About this site and its data rules.</a> Data as of 2026-11-07</p>
   <nav id="site-nav" class="site-nav" aria-label="All pages" data-root="" data-search="search.html">
@@ -93,6 +93,8 @@
       <li><a href="officials.html">Officials</a></li>
       <li><a href="city/index.html">City Council</a></li>
       <li><a href="rpc/index.html">Planning Commission</a></li>
+      <li><a href="school-board.html">School board <span class="chip chip-coming">Coming</span></a></li>
+      <li><a href="committees.html">Committees <span class="chip chip-coming">Coming</span></a></li>
       <li><span class="nav-group">Items</span>
         <ul class="nav-years" aria-label="Items by year">
           <li><a href="items/2026.html">2026</a></li>

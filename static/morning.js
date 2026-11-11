@@ -114,6 +114,11 @@
     };
     boxes(note).forEach(function (b) { b.addEventListener("change", updateNote); });
     if (seatsBox) { seatsBox.addEventListener("change", updateNote); }
+    /* A browser can restore the form's state (reload, back or forward) after this script ran, without a "change"
+       event: recompute when the page is shown and again at submit, so the seat fields follow the box as it stands
+       (seat-consent/state-recompute-on-submit). */
+    note.addEventListener("submit", updateNote);
+    root.addEventListener("pageshow", updateNote);
     updateNote();
   }
 
