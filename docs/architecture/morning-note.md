@@ -371,8 +371,11 @@ morning_note:
   subscribers, who are never recipients here (there is no paid tier; such a subscriber gets nothing, never a
   wrong email). The T4.0 probe should confirm which types a filtered email reaches. The T4.0 probe also checks that the public form
   does not accept `metadata__note_edition` or `metadata__canary`.
-- `--live` is refused by the command line until the provider adapter (`sender/buttondown.py`) exists and has had its
-  security review.
+- `--live` (2026-11-11, T4.4 adapter): the adapter `sender/buttondown.py` exists. `deliver --live` with `sender.enabled` false
+  in the repository's config is a dry run that says why, with a fixed `::warning`, and exits 0. With it true, a
+  missing or malformed `BUTTONDOWN_API_KEY` exits 2 with a fixed message naming the variable, never its value. The key is also the stamps' HMAC secret. `sender.enabled` stays
+  false until T4.8 (the security review of the adapter and the workflow job) passes. The adapter's assumptions about
+  response shapes are listed as "Verify in T4.0 probe" in `docs/tasks/morning-note.md` T4.4. Each fails closed.
 
 ### Workflow changes (`.github/workflows/daily-update.yml`)
 - `update` job: after "Site checks", `python -m sender plan --date <D> --site build/site --out build/morning-send`,

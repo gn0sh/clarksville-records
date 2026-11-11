@@ -18,7 +18,10 @@ from .common import MODES, TIME_RE, exact_url_ok, parse_hosts
 
 SCALARS = ("enabled", "provider", "api_base", "mode", "send_at", "latest_send", "max_editions", "max_recipients",
            "canary_only", "link_hosts")
-_TOP = ("site_timezone", "district_count", "ward_count", "support_url")    # support_url may be left out
+_TOP = ("site_timezone", "district_count", "ward_count", "support_url", "site_name")    # support_url may be left out
+# the one line read inside a sub-block of sender: text.subject (sender/plan-untrusted/subject-unchecked: the deliver
+# stage rebuilds each edition's subject from it and site_name, and refuses a plan whose subject differs)
+_SUB_READ = {"text": ("subject",)}
 _LINE = re.compile(r"( *)([A-Za-z_][A-Za-z0-9_]*):(?: +(.*))?")
 _INT = re.compile(r"0|[1-9][0-9]*")                    # no leading zero: PyYAML reads 0100 as octal 64
 _PLAIN = re.compile(r"[A-Za-z][A-Za-z0-9_./:~-]*")     # a word or URL; no space, no ": ", nothing PyYAML resolves
@@ -51,6 +54,8 @@ class Settings:
     district_count: int
     ward_count: int
     link_urls: tuple = ()       # URLs an email may link to exactly: the support link (Low (a))
+    site_name: str = ""         # with subject_template: the subject every edition must carry (subject-unchecked)
+    subject_template: str = ""
 
 
 def _closed(v: str) -> bool:
@@ -118,9 +123,12 @@ def _indent(line: str) -> int:
 def parse(text: str) -> dict:
     """{"top": {key: value}, "sender": {key: value}} from the file's text.
 
-    Strict only where it reads (settings-parity/too-strict-daily-outage): the three top-level keys it needs, and the
-    `morning_note:` -> `sender:` block, whose direct lines must each be one plain `key: value` (or a `key:` with a
-    sub-block, such as `text:`, which is not read), at one indent, each key once, with no line continuing a value.
+    Strict only where it reads (settings-parity/too-strict-daily-outage): the top-level keys in _TOP
+    (`site_timezone`, `district_count`, `ward_count`, `support_url`, `site_name`), and the `morning_note:` ->
+    `sender:` block, whose direct lines must each be one plain `key: value` (or a `key:` with a sub-block, such as
+    `text:`), at one indent, each key once, with no line continuing a value. Inside a sub-block only the lines
+    _SUB_READ names are read (`text.subject`, at the sub-block's own indent, once); a `subject:` nested deeper or
+    under another key is not. The `subject` key comes back as `"text.subject"` in `sender`.
     Everywhere else any valid YAML is accepted unread, apart from two checks: no top-level key twice and no second
     `sender:` under `morning_note:`. parity() then compares the values with PyYAML's, and the site build and
     `python -m sender plan` fail on any difference, so the commit the deliver job reads has passed it."""
@@ -131,7 +139,10 @@ def parse(text: str) -> dict:
     seen_sender = False
     sender_at = None        # the indent of `sender:` while inside its block
     child = None            # the indent of sender's direct keys
-    sub = None              # inside sender: the indent of a direct key with a sub-block (text:), whose lines are not read
+    sub = None              # inside sender: the indent of a direct key with a sub-block (text:)
+    sub_key = None          # that key; only the lines _SUB_READ names are read from it, the rest are not
+    sub_child = None        # the indent of the sub-block's direct keys
+    seen_sub: set[str] = set()
     seen_child: set[str] = set()
     for n, line in enumerate(_lines(text), 1):
         stripped = line.strip()
@@ -162,7 +173,26 @@ def parse(text: str) -> dict:
                 if child is None:
                     child = indent
                 if sub is not None and indent > sub:
-                    continue                    # inside a sub-block of sender (text:): not read
+                    wanted = _SUB_READ.get(sub_key, ())
+                    if not wanted:
+                        continue                # inside a sub-block of sender this reader does not read
+                    if sub_child is None:
+                        sub_child = indent
+                    if indent != sub_child:
+                        continue                # deeper than the sub-block's keys (a value it does not read)
+                    m = _LINE.fullmatch(line.rstrip())
+                    if m is None or m.group(2) not in wanted:
+                        continue
+                    _strict(n, line)
+                    name = f"{sub_key}.{m.group(2)}"
+                    if name in seen_sub:
+                        raise SettingsError(f"line {n}: morning_note.sender.{name} is set twice")
+                    seen_sub.add(name)
+                    raw = (m.group(3) or "").strip()
+                    if not raw or raw.startswith("#"):
+                        raise SettingsError(f"line {n}: morning_note.sender.{name} must be one plain value")
+                    sender[name] = _scalar(raw)
+                    continue
                 sub = None
                 if indent != child:
                     raise SettingsError(f"line {n}: inside morning_note.sender, a line at an indent no key has, "
@@ -182,7 +212,7 @@ def parse(text: str) -> dict:
                         raise SettingsError(f"line {n}: morning_note.sender.{key} must be one plain value")
                     sender[key] = _scalar(raw)
                 elif not has_value:
-                    sub = indent                # a sub-block (text:)
+                    sub, sub_key, sub_child, seen_sub = indent, key, None, set()     # a sub-block (text:)
                 elif not _closed(raw):
                     raise SettingsError(f"line {n}: morning_note.sender.{key} runs past its line")
                 continue
@@ -225,6 +255,10 @@ def parity(text: str, loaded) -> list[str]:
     pairs = [(f"morning_note.sender.{k}", got["sender"].get(k, missing), s.get(k, missing)) for k in SCALARS]
     pairs += [(k, got["top"].get(k, missing), loaded.get(k, missing) if isinstance(loaded, dict) else missing)
               for k in _TOP]
+    for block, keys in _SUB_READ.items():
+        b = s.get(block)
+        pairs += [(f"morning_note.sender.{block}.{k}", got["sender"].get(f"{block}.{k}", missing),
+                   b.get(k, missing) if isinstance(b, dict) else missing) for k in keys]
     for name, ours, theirs in pairs:
         if not _same(ours, theirs):
             a, b = ("nothing" if v is missing else repr(v) for v in (ours, theirs))
@@ -254,8 +288,8 @@ def _whole(v, name: str, low: int = 1) -> int:
 
 def from_values(top: dict, sender: dict) -> Settings:
     """Checked settings. A missing or malformed value is an error: the deliver stage then sends nothing."""
-    missing = [k for k in SCALARS if k not in sender] + \
-              [k for k in ("site_timezone", "district_count", "ward_count") if k not in top]
+    missing = [k for k in SCALARS + ("text.subject",) if k not in sender] + \
+              [k for k in ("site_timezone", "district_count", "ward_count", "site_name") if k not in top]
     if missing:
         raise SettingsError(f"config is missing {', '.join(missing)}")
     for k in ("enabled", "canary_only"):
@@ -273,6 +307,9 @@ def from_values(top: dict, sender: dict) -> Settings:
         raise SettingsError("morning_note.sender.send_at must be before latest_send")
     if not isinstance(top["site_timezone"], str) or not isinstance(sender["provider"], str):
         raise SettingsError("site_timezone and morning_note.sender.provider must be text")
+    if not (isinstance(top["site_name"], str) and top["site_name"].strip()
+            and isinstance(sender["text.subject"], str) and sender["text.subject"].strip()):
+        raise SettingsError("site_name and morning_note.sender.text.subject must be text")
     try:
         hosts = parse_hosts(sender["link_hosts"])
     except ValueError as exc:
@@ -289,7 +326,8 @@ def from_values(top: dict, sender: dict) -> Settings:
         max_recipients=_whole(sender["max_recipients"], "morning_note.sender.max_recipients"),
         canary_only=sender["canary_only"], link_hosts=hosts, timezone=top["site_timezone"],
         district_count=_whole(top["district_count"], "district_count", 0),
-        ward_count=_whole(top["ward_count"], "ward_count", 0), link_urls=urls)
+        ward_count=_whole(top["ward_count"], "ward_count", 0), link_urls=urls, site_name=top["site_name"],
+        subject_template=sender["text.subject"])
 
 
 def load(path) -> Settings:

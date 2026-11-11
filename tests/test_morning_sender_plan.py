@@ -121,11 +121,14 @@ def test_rehearsal_of_a_disabled_sender_writes_editions_but_never_send_true(msit
     assert main(["deliver", "--plan", str(out / NEXT.isoformat() / "plan.json"), "--config", str(ROOT / "config" / "site.yml")]) == 0
 
 
-def test_the_cli_refuses_live(msite, tmp_path, capsys):
+def test_live_with_the_shipped_config_is_a_dry_run(msite, tmp_path, capsys, monkeypatch):
+    """The shipped config has sender.enabled false, so --live (even with a key set) opens nothing: a dry run."""
+    monkeypatch.setenv("BUTTONDOWN_API_KEY", "made-up-test-key-not-a-real-one-32b")
     out = tmp_path / "send"
     main(["plan", "--date", NEXT.isoformat(), "--site", str(msite), "--out", str(out), "--rehearse"])
-    assert main(["deliver", "--plan", str(out / NEXT.isoformat() / "plan.json"), "--live"]) == 2
-    assert "nothing sent" in capsys.readouterr().err
+    assert main(["deliver", "--plan", str(out / NEXT.isoformat() / "plan.json"), "--live"]) == 0
+    got = capsys.readouterr()
+    assert "dry run" in got.out and "enabled is false" in got.err and "made-up-test-key" not in got.out + got.err
 
 
 def test_the_deliver_command_refuses_a_plan_file_over_the_ceiling(msite, tmp_path, capsys, monkeypatch):
@@ -334,13 +337,18 @@ NETWORK_IMPORT = re.compile(r"^\s*(?:import|from)\s+(?:urllib|socket|http|reques
 
 @pytest.mark.parametrize("path", sorted((ROOT / "sender").glob("*.py")), ids=lambda p: p.name)
 def test_no_sender_module_imports_anything_that_can_open_a_connection(path):
-    """The architecture allows exactly one module to open a connection, buttondown.py, and this task ships none."""
-    assert path.name != "buttondown.py", "the provider client is a later task (needs its own security review)"
+    """The architecture allows exactly one module to open a connection, buttondown.py (its own tests:
+    test_morning_sender_buttondown.py). Every other module: no network import, no urlopen, no Authorization."""
+    if path.name == "buttondown.py":
+        return
     src = path.read_text(encoding="utf-8")
     assert not NETWORK_IMPORT.search(src), path.name
-    assert not re.search(r"\burlopen\b|\bos\.system\b|\bPopen\b|BUTTONDOWN_API_KEY|Authorization", src), path.name
+    assert not re.search(r"\burlopen\b|\bos\.system\b|\bPopen\b|Authorization", src), path.name
+    # the key's variable is named only by the adapter and by the command line that reads it
+    assert path.name == "__main__.py" or "BUTTONDOWN_API_KEY" not in src, path.name
 
 
 def test_the_sender_package_is_only_the_modules_this_task_defines():
     assert sorted(p.name for p in (ROOT / "sender").glob("*.py")) == [
-        "__init__.py", "__main__.py", "common.py", "deliver.py", "plan.py", "render.py", "settings.py"]
+        "__init__.py", "__main__.py", "buttondown.py", "common.py", "deliver.py", "plan.py", "render.py",
+        "settings.py"]

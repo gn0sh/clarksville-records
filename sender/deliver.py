@@ -2,9 +2,10 @@
 ADR 0004, decisions 2 to 4). Standard library only, and no `sitegen` import: this is what runs in the job that
 holds the mail key.
 
-This module never opens a connection. It talks to a `Provider`, and this package ships none: the real adapter
-(buttondown.py) is a later task, and the tests use an in-memory fake. Without `live=True` and a provider, run()
-prints what it would do and calls nothing.
+This module never opens a connection. It talks to a `Provider`: the real adapter is `buttondown.py` (the one module
+that opens a connection; `python -m sender deliver --live` builds it only when the config enables the sender and the
+key is set), and the tests also use an in-memory fake. Without `live=True` and a provider, run() prints what it
+would do and calls nothing.
 
 Order of work, each check stopping before the first write:
  0. not live: say what would happen; no provider call.
@@ -40,7 +41,7 @@ import unicodedata
 from html import unescape
 
 from .common import (ADDRESS, DATE_RE, KEY_RE, LIST_KEYS, MARKUP, PLAN_SCHEMA, REASONS, REFS, SIGNATURE_RE,
-                     exact_url_ok, link_ok, signature)
+                     exact_url_ok, link_ok, signature, subject_line)
 from .settings import Settings
 
 NAMESPACE = uuid.UUID("6f1d2c1e-8b0a-5d3e-9c47-2a1b7e5d4c30")     # fixed: the idempotency keys must not change
@@ -99,8 +100,8 @@ def canary_ids(text: str | None) -> frozenset | None:
 
 
 class Provider:
-    """What the deliver stage needs from a mail provider. Implementations: the real adapter (a later task, the only
-    module allowed to open a connection) and the tests' in-memory fake. Every method raises ProviderError when the
+    """What the deliver stage needs from a mail provider. Implementations: the real adapter (buttondown.Buttondown,
+    the only module allowed to open a connection) and the tests' in-memory fake. Every method raises ProviderError when the
     call failed or its answer could not be read in full; a listing that is cut short must raise, never return less."""
 
     def emails(self) -> list[dict]:
@@ -206,10 +207,22 @@ def body_ok(body: str, hosts, urls=()) -> bool:
     return not in_list and body.count("<h1>") == 1
 
 
-def check_plan(plan, link_hosts=(), link_urls=()) -> dict:
+def expected_subject(settings: Settings, day: str) -> str | None:
+    """The subject every edition of `day` must carry, rebuilt from the repository's config (site_name and
+    text.subject) the way render writes it; None when the settings or the day cannot give one."""
+    if not (settings.site_name and settings.subject_template):
+        return None
+    try:
+        return subject_line(settings.subject_template, settings.site_name, day)
+    except (TypeError, ValueError):
+        return None
+
+
+def check_plan(plan, link_hosts=(), link_urls=(), subject=None) -> dict:
     """The plan as the plan stage writes it, or PlanInvalid. The file crosses from the job that parses untrusted
     documents to the job that holds the key, so every field deliver reads is checked here first, each body
-    against the tags render writes and `link_hosts` (from the repository's config, not the plan)."""
+    against the tags render writes and `link_hosts` (from the repository's config, not the plan), and, when
+    `subject` is given, each subject against exactly that text (sender/plan-untrusted/subject-unchecked)."""
     if not isinstance(plan, dict) or plan.get("schema") != PLAN_SCHEMA:
         raise PlanInvalid("schema")
     if not (isinstance(plan.get("date"), str) and DATE_RE.fullmatch(plan["date"])):
@@ -233,6 +246,8 @@ def check_plan(plan, link_hosts=(), link_urls=()) -> dict:
         if not (isinstance(ed["subject"], str) and 0 < len(ed["subject"]) <= MAX_SUBJECT and ed["subject"].isprintable()
                 and ed["subject"] == ed["subject"].strip()):
             raise PlanInvalid("an edition's subject")
+        if subject is not None and ed["subject"] != subject:
+            raise PlanInvalid("an edition's subject is not the one the config gives")
         if not (isinstance(ed["body"], str) and 0 < len(ed["body"]) <= MAX_BODY
                 and body_ok(ed["body"], link_hosts, link_urls)):
             raise PlanInvalid("an edition's body")
@@ -433,7 +448,11 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
     `stamp_secret`: the HMAC key of the stamps (the provider's API key, passed by the adapter), needed in `stamp`
     mode. `clock`: a callable giving the current time (default: `now` when given, else the system clock)."""
     try:
-        plan = check_plan(plan, settings.link_hosts, settings.link_urls)
+        day = plan.get("date") if isinstance(plan, dict) else None
+        subject = expected_subject(settings, day) if isinstance(day, str) and DATE_RE.fullmatch(day) else None
+        if subject is None:
+            raise PlanInvalid("date, or the config's site_name and text.subject")
+        plan = check_plan(plan, settings.link_hosts, settings.link_urls, subject=subject)
     except PlanInvalid as exc:
         out(f"morning note: the plan file is not valid ({exc}); nothing sent")
         return Outcome(2, "bad-plan")
@@ -453,7 +472,7 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
     if not plan["send"]:
         return end(0, "no-send", why="the plan says send false")
     if provider is None:
-        return end(2, "no-provider", why="this build has no provider adapter")
+        return end(2, "no-provider", why="no provider adapter was given")
     if plan["timezone"] != settings.timezone:
         return end(2, "bad-plan", why="the plan's time zone is not the site's")
     try:
@@ -581,12 +600,20 @@ def run(plan, settings: Settings, provider: Provider | None = None, live: bool =
                 # Never twice before never missed: a run that dies between the draft and its send leaves the
                 # edition claimed (the draft carries the metadata), so a re-run does not send it again. That
                 # edition is then not mailed today; its records are on the site and the feeds.
+                # sender/never-late/ids-no-recheck: `ids` sends at once, so the clock is read again before each
+                # write; past latest_send the rest of the day is not sent (a draft already made stays a draft).
+                if clock() > latest:
+                    return end(2, "late", sent, people, why="past latest_send before this edition's draft; it and "
+                                                            "the rest are not sent")
                 payload.update(status="draft")
                 step = "email create"
                 _check_audience("ids", payload, day, key, None)
                 stored = _call(sleep, provider.create_email, payload, idempotency_key(day, key, "email"))
                 step = "email check"
                 email_id = checked(payload, stored, key)
+                if clock() > latest:
+                    return end(2, "late", sent, people, why="past latest_send before this edition's send; its draft "
+                                                            "is not sent, nor the rest")
                 step = "draft send"
                 _call(sleep, provider.send_draft, email_id, [r.id for r in to], idempotency_key(day, key, "send"))
             sent += 1

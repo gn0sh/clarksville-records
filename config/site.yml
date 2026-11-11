@@ -1,7 +1,7 @@
 # Locality and branding text for the site. Templates read every place name, body name and branding line from here,
 # so another locality is a new copy of this file plus its own config/localities/<locality>/ (docs/status.md, ZIP note).
 locality: montgomery-tn
-site_name: Daylight                 # working product name (design/daylight, 2026-11-09); trademark check before go-live
+site_name: "Daylight"               # quote: the deliver stage's reader takes one word or quoted text. Working product name (design/daylight, 2026-11-09); trademark check before go-live
 site_place: Clarksville-Montgomery County   # name plate line under the name, on every page
 site_timezone: America/Chicago   # the zone of the landing date line (static/sky.js); the sun follows the viewer's own clock
 # The collectors' manifests (first_fetched_at by url and sha256). Every fetch day a page prints is the site_timezone

@@ -18,14 +18,11 @@ else gives no link. The unsubscribe link and footer are the provider's; nothing 
 from __future__ import annotations
 
 import re
-import unicodedata
-from datetime import date
 
-from .common import DOTS, MARKUP, ZWSP, exact_url_ok, link_ok, parse_hosts
+from .common import CUT, MAX_TITLE  # noqa: F401  common's since subject-unchecked, still importable from here
+from .common import DOTS, MARKUP, ZWSP, clean, day_words, exact_url_ok, link_ok, parse_hosts, subject_line
 
 TEXT_KEYS = {"subject": ("{site_name}", "{date}"), "why": (), "open_site": ()}
-MAX_TITLE = 600         # a longer title is cut here and marked with CUT; the site's page carries all of it
-CUT = "..."
 _INERT = {ord(c): f"&#{ord(c)};" for c in MARKUP}       # common.MARKUP: every markup character
 _LINE_START = re.compile(r"^[-+\s]+")       # a leading "---" (a rule or front matter), a "+" or "-" list mark
 # Words that would let a reader take the note for a government's own mail. Never in the subject (nor in the From
@@ -41,16 +38,6 @@ _HREF = re.compile(r"[A-Za-z0-9][A-Za-z0-9._~/%-]*(?:#[A-Za-z0-9._~%:-]*)?")
 def _https(url) -> bool:
     from sitegen.build import _is_https_uri     # the one rule for a link (sitegen/build.py)
     return isinstance(url, str) and bool(url) and _is_https_uri(url)
-
-
-def clean(text) -> str:
-    """One line of plain text: control and format characters are dropped (whitespace ones stay, as word breaks),
-    then runs of whitespace become one space, and anything past MAX_TITLE characters is cut. In that order
-    (render/clean-order): collapsing first left "a \\xad b" as "a  b", a double space the deliver check refuses."""
-    s = "".join(c for c in str(text if text is not None else "")
-                if c.isspace() or unicodedata.category(c) not in ("Cc", "Cf"))
-    s = " ".join(s.split())
-    return s if len(s) <= MAX_TITLE else s[:MAX_TITLE].rstrip() + CUT
 
 
 def inert(text) -> str:
@@ -96,12 +83,6 @@ def source_link(entry: dict, hosts=()) -> tuple[str, int | None]:
     return url, page if isinstance(page, int) and not isinstance(page, bool) and page > 0 else None
 
 
-def day_words(iso: str) -> str:
-    """"2026-11-11" -> "November 11, 2026" (as the preview page writes a day)."""
-    d = date.fromisoformat(iso)
-    return f"{d:%B} {d.day}, {d.year}"
-
-
 def context(cfg: dict) -> dict:
     """What the renderer needs from config/site.yml, and nothing else."""
     from sitegen import unofficial          # the one source of the independence wording (config `unofficial:`)
@@ -128,7 +109,7 @@ def own_text(ctx: dict, note: dict) -> list[str]:
 
 def subject(ctx: dict, iso: str) -> str:
     """The subject line. ValueError when it would name a government body or say "official"."""
-    s = clean(ctx["text"]["subject"].replace("{site_name}", ctx["site_name"]).replace("{date}", day_words(iso)))
+    s = subject_line(ctx["text"]["subject"], ctx["site_name"], iso)
     if AUTHORITY.search(s):
         raise ValueError("the subject would name a government body or say official")
     return s
