@@ -727,12 +727,17 @@ def test_live_and_enabled_with_a_missing_or_malformed_key_fails_without_printing
 
 def test_the_dry_run_cli_never_imports_the_adapter_or_any_network_module(plan_file, tmp_path):
     cfg = config_file(tmp_path, False)
+    # ci/tests-assume-py313: on Python 3.12 `import pathlib` itself loads urllib.parse (3.13 does not), so only the
+    # modules loaded after it count; urllib.request and urllib.error (the network half) are checked by exact name.
     code = (
-        "import sys\n"
+        "import sys, pathlib\n"
+        "before = set(sys.modules)\n"
         "from sender.__main__ import main\n"
         f"rc = main(['deliver', '--plan', {str(plan_file)!r}, '--config', {str(cfg)!r}, '--live'])\n"
-        "bad = [m for m in sys.modules if m.split('.')[0] in ('socket', 'ssl', 'http', 'urllib') "
-        "or m == 'sender.buttondown']\n"
+        "new = set(sys.modules) - before\n"
+        "bad = sorted(m for m in new if m.split('.')[0] in ('socket', 'ssl', 'http', 'urllib') "
+        "or m == 'sender.buttondown')\n"
+        "bad += [m for m in ('urllib.request', 'urllib.error') if m in sys.modules]\n"
         "assert rc == 0 and not bad, bad\n"
         "print('ok')\n")
     done = subprocess.run([sys.executable, "-S", "-c", code], cwd=ROOT, capture_output=True, text=True, timeout=60,

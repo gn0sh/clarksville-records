@@ -966,6 +966,8 @@ def test_no_address_id_or_response_body_reaches_the_output(plan, capsys, mode, f
 
 # ------------------------------------------------------------------ the job that holds the key installs nothing
 def test_deliver_imports_with_sitegen_yaml_and_jinja2_blocked():
+    # ci/tests-assume-py313: on Python 3.12 `import pathlib` itself loads urllib.parse (3.13 does not), so the network
+    # modules count only when loaded after it; urllib.request and urllib.error are checked by exact name.
     code = (
         "import sys\n"
         "class Block:\n"
@@ -973,11 +975,16 @@ def test_deliver_imports_with_sitegen_yaml_and_jinja2_blocked():
         "        if name.split('.')[0] in ('sitegen', 'yaml', 'jinja2', 'jsonschema', 'collector', 'requests'):\n"
         "            raise ImportError('blocked: ' + name)\n"
         "sys.meta_path.insert(0, Block())\n"
+        "import pathlib\n"
+        "before = set(sys.modules)\n"
         "import sender.deliver, sender.settings, sender.common\n"
         "from sender.__main__ import main\n"
         "s = sender.settings.load('config/site.yml')\n"
         "assert s.enabled is False and s.mode == 'stamp'\n"
-        "bad = [m for m in sys.modules if m.split('.')[0] in ('sitegen', 'yaml', 'jinja2', 'socket', 'ssl', 'http', 'urllib')]\n"
+        "new = set(sys.modules) - before\n"
+        "bad = sorted(m for m in sys.modules if m.split('.')[0] in ('sitegen', 'yaml', 'jinja2'))\n"
+        "bad += sorted(m for m in new if m.split('.')[0] in ('socket', 'ssl', 'http', 'urllib'))\n"
+        "bad += [m for m in ('urllib.request', 'urllib.error') if m in sys.modules]\n"
         "assert not bad, bad\n"
         "print('ok')\n")
     done = subprocess.run([sys.executable, "-S", "-c", code], cwd=ROOT, capture_output=True, text=True, timeout=60)
