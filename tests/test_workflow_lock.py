@@ -457,6 +457,25 @@ def test_note_runs_only_in_the_one_locked_case(event, var, ref):
     assert eval(py) == _note_if(event, var, ref)                                # noqa: S307  our own expression
 
 
+@pytest.mark.parametrize("value", [
+    "abc-1", "abc-1,def_2", "abc-1, def_2", "abc-1 def_2", "abc-1\ndef_2", " abc-1,\n def_2\tghi3 \n", "a*,b?\n[c]",
+    "", "  \n",
+])
+def test_mask_step_masks_every_canary_id_deliver_accepts(value):
+    """security-note-workflow L2: every id sender/deliver.py's canary_ids reads (commas or any whitespace, every
+    line) is masked one by one, and nothing else is printed (no glob expansion of an id)."""
+    from sender.deliver import canary_ids
+    step = WF["jobs"]["note"]["steps"][0]
+    r = subprocess.run(["bash", "-e", "-c", step["run"]], cwd=ROOT, capture_output=True, text=True, check=True,
+                       env={**os.environ, "CANARY_IDS": value})
+    masked = [line.removeprefix("::add-mask::") for line in r.stdout.splitlines()]
+    assert all(line.startswith("::add-mask::") for line in r.stdout.splitlines())
+    expected = set(re.split(r"[\s,]+", value.strip())) - {""}
+    assert set(masked) == expected
+    if all(re.fullmatch(r"[A-Za-z0-9_-]{1,64}", p) for p in expected):
+        assert set(masked) == canary_ids(value)
+
+
 def test_note_job_least_privilege():
     note = WF["jobs"]["note"]
     assert note["permissions"] == {"contents": "read"}

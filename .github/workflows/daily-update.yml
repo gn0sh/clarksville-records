@@ -435,9 +435,10 @@ jobs:
         env:
           CANARY_IDS: ${{ secrets.MORNING_NOTE_CANARY_IDS }}
         run: |
-          IFS=',' read -ra ids <<< "${CANARY_IDS:-}"
-          for id in "${ids[@]}"; do
-            id="${id//[[:space:]]/}"
+          # Split the whole value (every line) on commas and whitespace, as sender/deliver.py canary_ids does.
+          set -f
+          IFS=$', \t\n'
+          for id in ${CANARY_IDS:-}; do
             if [ -n "$id" ]; then echo "::add-mask::$id"; fi
           done
 
