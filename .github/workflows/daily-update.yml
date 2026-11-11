@@ -77,6 +77,9 @@ jobs:
       # data/text and data/ocr (text layers and tesseract readings, keyed by the document's sha256 and page) are kept
       # too, in their own cache so the store's cache key and version stay as they are. With them restored, a document
       # whose hash is unchanged is never OCR'd again: only newly fetched documents are (pipeline/re-ocr-every-run).
+      # The key carries a hash of the code and tools that write these files (ci/derived-cache-integrity), so a change
+      # to the extractor, the OCR or a pinned package starts a fresh cache instead of reusing old readings. Only the
+      # scheduled run on main saves it, so a manual run on another ref cannot seed the cache main restores.
       - name: Restore text and OCR caches
         id: derived
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
@@ -84,8 +87,8 @@ jobs:
           path: |
             data/text
             data/ocr
-          key: records-derived-v1-${{ github.run_id }}
-          restore-keys: records-derived-v1-
+          key: records-derived-v1-${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.txt') }}-${{ github.run_id }}
+          restore-keys: records-derived-v1-${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.txt') }}-
 
       - name: Count stored files before collection
         run: |
@@ -176,13 +179,13 @@ jobs:
         run: echo "DERIVED_GREW=$([ "$(find data/text data/ocr -type f 2>/dev/null | wc -l)" -gt "$DERIVED_BEFORE" ] && echo yes || echo no)" >> "$GITHUB_ENV"
 
       - name: Save text and OCR caches
-        if: always() && env.DERIVED_GREW == 'yes'
+        if: always() && env.DERIVED_GREW == 'yes' && github.event_name == 'schedule' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: |
             data/text
             data/ocr
-          key: records-derived-v1-${{ github.run_id }}
+          key: records-derived-v1-${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.txt') }}-${{ github.run_id }}
 
       # The data commit happens in the separate push job, so this job never holds a write token.
       # Not uploaded: the git-ignored caches (the 3 GB document store and derived text/OCR).

@@ -77,7 +77,9 @@ def test_the_workflow_restores_the_text_and_ocr_caches_before_collecting():
     restore = _steps()["Restore text and OCR caches"]
     assert "actions/cache/restore@" in restore["uses"]
     assert restore["with"]["path"].split() == ["data/text", "data/ocr"]
-    assert restore["with"]["restore-keys"] == "records-derived-v1-"
+    code = "${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.txt') }}"
+    assert restore["with"]["restore-keys"] == f"records-derived-v1-{code}-"         # ci/derived-cache-integrity
+    assert restore["with"]["key"] == f"records-derived-v1-{code}-${{{{ github.run_id }}}}"
     assert names.index("Restore text and OCR caches") < names.index("Collect (polite fetch, parse, verify)")
     assert names.index("Restore document store") < names.index("Collect (polite fetch, parse, verify)")
     # the document store keeps its own key and path, so the cache that exists today still restores
@@ -86,6 +88,16 @@ def test_the_workflow_restores_the_text_and_ocr_caches_before_collecting():
 
 def test_the_workflow_saves_the_caches_even_after_a_failed_step():
     save = _steps()["Save text and OCR caches"]
-    assert "actions/cache/save@" in save["uses"] and save["if"] == "always() && env.DERIVED_GREW == 'yes'"
-    assert save["with"]["key"] == "records-derived-v1-${{ github.run_id }}"
+    assert "actions/cache/save@" in save["uses"]
+    # only the scheduled run on main writes the cache main restores (ci/derived-cache-integrity)
+    assert save["if"] == ("always() && env.DERIVED_GREW == 'yes' && github.event_name == 'schedule' "
+                          "&& github.ref == 'refs/heads/main'")
+    assert save["with"]["key"] == _steps()["Restore text and OCR caches"]["with"]["key"]
+    assert save["with"]["path"].split() == ["data/text", "data/ocr"]
     assert _steps()["Save document store"]["if"] == "always() && env.STORE_GREW == 'yes'"
+
+
+def test_the_runbook_names_the_cache_rules_and_the_pages_branch_check():
+    text = (ROOT / "docs" / "ops" / "launch-runbook.md").read_text(encoding="utf-8")
+    assert "by the scheduled run on `main` only" in text
+    assert "environments/github-pages/deployment-branch-policies" in text and "ci/pages-env-branch" in text

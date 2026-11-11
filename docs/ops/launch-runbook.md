@@ -37,7 +37,10 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   after 7 days unused; the daily run keeps it warm). A cold cache refetches about 930 documents at 10 s each: 3 to 5
   hours. The job limit is 355 minutes.
 - The text layers and OCR readings (`data/text`, `data/ocr`, keyed by document sha256 and page) live in their own
-  cache (`records-derived-v1-*`), restored before Collect and saved when it grew, even after a failed step. A document
+  cache (`records-derived-v1-<hash of collector/extract.py, collector/ocr.py, requirements.txt>-*`), restored before
+  Collect and saved when it grew, even after a failed step, by the scheduled run on `main` only (a manual run, which
+  may be on another ref, never saves it; it still saves the document store). A change to those files starts a fresh
+  cache. A truncated text cache file is deleted and read again. A document
   whose hash is unchanged is never OCR'd again. Worst case per warm run: only documents first fetched in that run are
   OCR'd (RPC at most 38: 40 requests less robots.txt and the listing; county and city minutes as many as were newly
   posted, usually 0 to 3), each page at most once. A cold OCR cache (first run, or evicted after 7 days unused)
@@ -57,7 +60,10 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
    **Deployment branches: main only.** https://github.com/gn0sh/clarksville-records/settings/environments > github-pages >
    Deployment branches and tags > Selected branches and tags > add `main` (remove any other). Check:
    `gh api repos/gn0sh/clarksville-records/environments/github-pages --jq .deployment_branch_policy` shows
-   `custom_branch_policies: true`.
+   `custom_branch_policies: true`, and
+   `gh api repos/gn0sh/clarksville-records/environments/github-pages/deployment-branch-policies --jq '.branch_policies[].name'`
+   prints only `main` (ci/pages-env-branch: a settings check only, nothing in the workflow changes; the deploy job's
+   own `github.ref == 'refs/heads/main'` term is the first lock, this is the second).
 4. Pre-launch security checks the manager owns: fresh history secret scan, QA pass, CEO phone check.
 
 ## Go-live (CEO, about 5 minutes; do in this order)
