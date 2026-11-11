@@ -206,15 +206,16 @@ class Buttondown(Provider):
         except (UnicodeDecodeError, ValueError):
             raise _fail(method, template, "an answer that is not JSON") from None
 
-    def _path(self, template: str, **ids) -> str:
+    def _path(self, method: str, template: str, **ids) -> str:
         for v in ids.values():
             if not (isinstance(v, str) and _ID.fullmatch(v)):
-                raise _fail("-", template, "an id that cannot go in a path")
+                raise _fail(method, template, "an id that cannot go in a path")
         return API_BASE + template.format(**{k: quote(v, safe="") for k, v in ids.items()})
 
     def _listing(self, template: str) -> list:
         """Every row of a paged listing ({"results": [...], "next": url|null, "count": n}). Raises unless every
-        page was read and the rows add up to the first page's `count`: a listing is never cut short silently."""
+        page was read, every page gives the same `count`, and the rows add up to it: a listing is never cut short
+        (or grown under us) silently."""
         url, seen, rows, count = API_BASE + template, set(), [], None
         for _ in range(MAX_PAGES):
             if url in seen:
@@ -230,7 +231,9 @@ class Buttondown(Provider):
             c = page.get("count")
             if not isinstance(c, int) or isinstance(c, bool) or c < 0:
                 raise _fail("GET", template, "a page without a count")
-            count = c if count is None else count
+            if count is not None and c != count:
+                raise _fail("GET", template, "a page whose count differs from the first page's")
+            count = c
             rows.extend(page["results"])
             if not nxt:
                 if len(rows) != count:
@@ -253,7 +256,7 @@ class Buttondown(Provider):
 
     def subscriber(self, subscriber_id: str) -> dict | None:
         t = "/subscribers/{id}"
-        got = self._send("GET", self._path(t, id=subscriber_id), t, allow_404=True)
+        got = self._send("GET", self._path("GET", t, id=subscriber_id), t, allow_404=True)
         if got is None:
             return None
         row = _reduce_subscriber(got.data, "GET", t)
@@ -265,7 +268,7 @@ class Buttondown(Provider):
         t = "/subscribers/{id}"
         if not isinstance(metadata, dict):
             raise _fail("PATCH", t, "metadata that is not an object")
-        got = self._send("PATCH", self._path(t, id=subscriber_id), t, body={"metadata": metadata},
+        got = self._send("PATCH", self._path("PATCH", t, id=subscriber_id), t, body={"metadata": metadata},
                          idempotency_key=idempotency_key)
         row = _reduce_subscriber(got.data if got else None, "PATCH", t)
         # the write must have stored exactly the object sent: no merge, no change of other keys
@@ -288,7 +291,7 @@ class Buttondown(Provider):
 
     def unschedule(self, email_id: str, idempotency_key: str) -> dict:
         t = "/emails/{id}"
-        got = self._send("PATCH", self._path(t, id=email_id), t, body={"status": "draft"},
+        got = self._send("PATCH", self._path("PATCH", t, id=email_id), t, body={"status": "draft"},
                          idempotency_key=idempotency_key)
         return _reduce_email(got.data if got else None, "PATCH", t)
 
@@ -297,5 +300,5 @@ class Buttondown(Provider):
         ids = list(subscriber_ids)
         if not ids or not all(isinstance(i, str) and _ID.fullmatch(i) for i in ids):
             raise _fail("POST", t, "subscriber ids that are empty or malformed")
-        self._send("POST", self._path(t, id=email_id), t, body={"subscribers": ids},
+        self._send("POST", self._path("POST", t, id=email_id), t, body={"subscribers": ids},
                    idempotency_key=idempotency_key, ok=(200, 201, 202, 204))

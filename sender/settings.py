@@ -123,9 +123,12 @@ def _indent(line: str) -> int:
 def parse(text: str) -> dict:
     """{"top": {key: value}, "sender": {key: value}} from the file's text.
 
-    Strict only where it reads (settings-parity/too-strict-daily-outage): the three top-level keys it needs, and the
-    `morning_note:` -> `sender:` block, whose direct lines must each be one plain `key: value` (or a `key:` with a
-    sub-block, such as `text:`, which is not read), at one indent, each key once, with no line continuing a value.
+    Strict only where it reads (settings-parity/too-strict-daily-outage): the top-level keys in _TOP
+    (`site_timezone`, `district_count`, `ward_count`, `support_url`, `site_name`), and the `morning_note:` ->
+    `sender:` block, whose direct lines must each be one plain `key: value` (or a `key:` with a sub-block, such as
+    `text:`), at one indent, each key once, with no line continuing a value. Inside a sub-block only the lines
+    _SUB_READ names are read (`text.subject`, at the sub-block's own indent, once); a `subject:` nested deeper or
+    under another key is not. The `subject` key comes back as `"text.subject"` in `sender`.
     Everywhere else any valid YAML is accepted unread, apart from two checks: no top-level key twice and no second
     `sender:` under `morning_note:`. parity() then compares the values with PyYAML's, and the site build and
     `python -m sender plan` fail on any difference, so the commit the deliver job reads has passed it."""

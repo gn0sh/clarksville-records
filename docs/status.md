@@ -29,6 +29,20 @@
 | 2026-11-10 | devops-engineer | sonnet/medium | domain -> daylight.gnoshcodes.com (Brian 1:42 AM CT) | done, 335bce1; gnoshcodes-site 83e04d6; merged 3132311 |
 | 2026-11-10 | backend-engineer | fable | verify merged tip fa9e9b0 + security follow-ups | fa9e9b0: 2133 pass, both site_checks PASS; fixes 1d638db (2224 pass), security delta pending |
 | 2026-11-10 | backend-engineer | fable | RPC store refetch + rebuild | running |
+| 2026-11-11 | qa-engineer | opus/high | RPC votes sample vs minutes | FAIL 77/78 (rpc-votes) |
+| 2026-11-11 | devops-engineer | opus/high | RPC daily collector + pipeline (ccdc5db..727a0ed) | 3117 pass; merged c0c4813 |
+| 2026-11-11 | security-engineer | opus/high | RPC pipeline | APPROVE, 4 low (fixed) |
+| 2026-11-11 | backend-engineer | opus/high | small batch + Watch links (fa693e0..40d5fd7) | 3050 pass; merged 370f048 |
+| 2026-11-11 | code-reviewer | opus/high | small batch | APPROVE WITH NITS (4, fixed) |
+| 2026-11-11 | code-reviewer | opus/high | RPC pipeline + delta | APPROVE WITH NITS (2 should-fix, then 3 CI nits; fixed) |
+| 2026-11-11 | backend-engineer | opus/high | RPC votes rounds 1-4 (bb7c6d1..24422eb) | 564 confirmed, 62/62 mutants; delta review pending |
+| 2026-11-11 | software-architect | opus/high | rpc-votes re-plan, rule 10 (255f0ae) | done; 21 consumers listed |
+| 2026-11-11 | code-reviewer | opus/high | rpc-votes / rule 10 | REQUEST CHANGES x2 (re-plan failure count 1) |
+| 2026-11-11 | qa-engineer | opus/high | RPC votes rounds 2-3 | FAIL (2 abstentions), then PASS at d76f361 |
+| 2026-11-11 | backend-engineer | opus/high | sender-live T4.4 (7ec1774..522eaed) | 3174 pass; merged 8db84cc |
+| 2026-11-11 | security-engineer | opus/high | sender T4.8 + delta a13b1b0 | APPROVE (1 medium 3 low fixed) |
+| 2026-11-11 | code-reviewer | opus/high | sender-live | APPROVE WITH NITS (fixed 522eaed) |
+| 2026-11-11 | devops-engineer | opus/high | T4.5 note workflow + T4.7 runbook (4421741) | 3369 pass; review pending |
 | 2026-11-07 | product-manager | sonnet/medium | spec v1 | done, 23ad7c5 |
 | 2026-11-07 | brain-trust x6 | opus/high (api) | spec review | 5 Fix First, 1 Rethink; ~$0.37 |
 | 2026-11-07 | backend-engineer | opus/high | M0 parse spike | done, a9e1262: 95.8% Verified (138/144), 0 wrong of 380 hand-labelled votes |

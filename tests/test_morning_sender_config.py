@@ -150,6 +150,29 @@ def test_the_reader_takes_only_the_sender_block():
     assert yaml.safe_load(BASE)["morning_note"]["sender"]["latest_send"] == "10:00"
 
 
+REAL_SUBJECT = "      subject: \"{site_name} morning note, {date}\"\n"
+
+
+@pytest.mark.parametrize("old, new", [
+    # a subject nested under another key inside text:, before and after the real one
+    (REAL_SUBJECT, "      other:\n        subject: \"nested\"\n" + REAL_SUBJECT),
+    (REAL_SUBJECT, REAL_SUBJECT + "      other:\n        subject: \"nested\"\n"),
+    # a subject in another sub-block of sender, in morning_note.page, at the top level, and in another top key
+    ("    text:\n", "    labels:\n      subject: \"elsewhere\"\n    text:\n"),
+    ("  page:\n", "  page:\n    subject: \"page\"\n"),
+    ("other:\n", "subject: \"top\"\nother:\n"),
+    ("other:\n  sender:\n", "other:\n  sender:\n    text:\n      subject: \"other sender\"\n")])
+def test_only_text_subject_directly_under_sender_is_read(old, new):
+    """settings.py reads `subject` only at text:'s own indent under morning_note.sender; one anywhere else is not
+    read, is not "set twice", and PyYAML agrees on the value."""
+    assert old in BASE
+    text = BASE.replace(old, new, 1)
+    got = settings_mod.parse(text)
+    assert got["sender"]["text.subject"] == "{site_name} morning note, {date}"
+    assert yaml.safe_load(text)["morning_note"]["sender"]["text"]["subject"] == "{site_name} morning note, {date}"
+    assert settings_mod.from_values(**got).subject_template == "{site_name} morning note, {date}"
+
+
 @pytest.mark.parametrize("old, new", [
     ("    enabled: false\n    provider", "    provider"),                            # a key is missing
     ("    enabled: false\n    provider", "    enabled: yes\n    provider"),          # not true/false
