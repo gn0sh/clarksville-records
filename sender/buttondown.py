@@ -30,6 +30,7 @@ docs/tasks/morning-note.md T4.4. Until the probe, every doubt is resolved by fai
 """
 from __future__ import annotations
 
+import http.client
 import json
 import re
 import ssl
@@ -167,7 +168,7 @@ class Buttondown(Provider):
             resp = self._open(req, timeout=TIMEOUT)
         except urllib.error.HTTPError as exc:        # only if an error processor were added; handled the same way
             resp = exc
-        except (urllib.error.URLError, OSError, ValueError):
+        except (urllib.error.URLError, http.client.HTTPException, OSError, ValueError):   # adapter-errors: never unwrapped
             raise _fail(method, template, "the connection failed") from None
         if resp is None:
             raise _fail(method, template, "the connection failed")

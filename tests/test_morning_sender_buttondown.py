@@ -10,6 +10,7 @@ from __future__ import annotations
 import copy
 import dataclasses
 import functools
+import http.client
 import json
 import re
 import socket
@@ -327,6 +328,27 @@ def test_a_connection_failure_carries_no_url_and_is_not_chained(exc):
         client(http).subscriber("sub-0001-secret")
     assert str(e.value) == "GET /subscribers/{id}: the connection failed"
     assert e.value.__cause__ is None and e.value.__suppress_context__
+
+
+@pytest.mark.parametrize("exc", [http.client.BadStatusLine(SECRET_BODY), http.client.LineTooLong(SECRET_BODY),
+                                 http.client.RemoteDisconnected(SECRET_BODY), http.client.IncompleteRead(b"sub-0001-secret"),
+                                 http.client.HTTPException(f"{BASE}/subscribers/sub-0001-secret")])
+def test_an_http_client_error_is_wrapped_never_let_out(exc):
+    """sender/adapter-errors/httpexception-unwrapped: http.client's own errors (not all are OSError) carry what the
+    server sent; each becomes the fixed connection-failed error, not chained."""
+    with pytest.raises(deliver.ProviderError) as e:
+        client(FakeHTTP(faults={("GET", "/subscribers/{id}"): [exc]})).subscriber("sub-0001-secret")
+    assert str(e.value) == "GET /subscribers/{id}: the connection failed"
+    assert e.value.__cause__ is None and e.value.__suppress_context__
+
+
+def test_an_http_client_error_while_reading_is_wrapped_too():
+    class Broken(Resp):
+        def read(self, n=-1):
+            raise http.client.IncompleteRead(SECRET_BODY.encode())
+    with pytest.raises(deliver.ProviderError) as e:
+        client(FakeHTTP(faults={("GET", "/emails"): [Broken(200, {"results": []})]})).emails()
+    assert str(e.value) == "GET /emails: the answer could not be read" and SECRET_BODY not in repr(e.value)
 
 
 @pytest.mark.parametrize("bad_id", ["../emails", "a/b", "a?b", "a%2fb", "", "x" * 65, None, "é"])
@@ -653,7 +675,7 @@ def test_buttondown_is_the_only_sender_module_that_imports_a_network_library():
 def test_the_adapter_imports_the_standard_library_only():
     src = (ROOT / "sender" / "buttondown.py").read_text(encoding="utf-8")
     mods = {m.split(".")[0] for m in re.findall(r"^\s*(?:from|import)\s+([\w.]+)", src, re.M)}
-    assert mods <= {"", "__future__", "json", "re", "ssl", "time", "urllib", "datetime", "email"}, mods
+    assert mods <= {"", "__future__", "http", "json", "re", "ssl", "time", "urllib", "datetime", "email"}, mods
     assert not re.search(r"\bprint\(|\blogging\b|set_debuglevel|debuglevel=[1-9]", src)
 
 
