@@ -29,9 +29,9 @@ def test_address_search_precedes_the_lists_in_the_dom(addr_site):
     assert html.index('id="addr-form"') < html.index('class="district-list"')
     form = next(n for n in parse(html).walk() if n.attrs.get("id") == "addr-form")
     label = next(n for n in form.walk() if n.tag == "label")
-    assert " ".join(label.all_text().split()).startswith("Find your ")
-    assert " by address" in label.all_text() and label.attrs["for"] == "addr-q"
-    assert "<h1" in html[:html.index('id="addr-form"')]                      # the purpose line still leads
+    assert " ".join(label.all_text().split()).startswith("Enter your street address to see your ")
+    assert label.attrs["for"] == "addr-q"
+    assert "<h1" in html[:html.index('id="addr-form"')]                      # the welcome h1 still leads
     assert re.search(r'static/seats\.js" defer></script>\s*<script src="static/georef\.js" defer></script>\s*'
                      r'<script src="static/address\.js" defer>', html)       # seats.js loads before address.js
 

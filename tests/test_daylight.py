@@ -49,8 +49,8 @@ def test_only_the_landing_has_the_sky_and_its_date_waits_for_the_script(site):
     assert f'<span class="sky-in"> in {config.SITE["today_place"]}</span>' in html
     assert re.search(r'<time class="sky-date" id="sky-date"></time>', html)
     assert '<script src="static/sky.js" defer></script>' in html
-    # the purpose line still leads the main content; the sky lives in the header
-    assert html.index('id="sky-hero"') < html.index('<main id="main">') < html.index('<h1 class="purpose"')
+    # the welcome h1 still leads the main content (front-page-v2); the sky lives in the header
+    assert html.index('id="sky-hero"') < html.index('<main id="main">') < html.index('<h1 id="welcome-h"')
     for name, other in pages.items():
         if name != "index.html":
             assert "sky-hero" not in other and "sky.js" not in other, name

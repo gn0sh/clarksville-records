@@ -196,7 +196,8 @@ def test_nav_and_landing_carry_the_council(cpages):
         hrefs = [n.attrs.get("href", "") for n in nav.walk() if n.tag == "a"]
         assert any(h.endswith("city/index.html") for h in hrefs), rel
     landing = cpages["index.html"]
-    assert 'href="city/index.html">' + CFG["nav_label"] + '</a>: ' in landing   # short label: one line at 375 px
+    # front-page-v2: the council's doors link its seats and its meetings (the coverage line moved to freshness)
+    assert '<a href="city/index.html#seats-h"><span>' + CFG["nav_label"] + '</span>' in landing
     assert CFG["nav_label"] + " seats" in landing
     assert "pages are coming" not in landing and "records are coming" not in landing
 

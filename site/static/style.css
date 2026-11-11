@@ -618,9 +618,11 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
   .doors:not(.doors-1) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 599px) {
-  .welcome-h { font-size: 1.6rem; }
-  .welcome .lede { font-size: 1rem; }
-  .find { padding: 14px 12px; }
+  /* phone: tight enough that an address answer is on the first screen (tests/test_address_box.py resultBottom) */
+  .page-landing main { padding-top: 12px; }
+  .welcome-h { font-size: 1.6rem; margin: 0 0 6px; }
+  .welcome .lede { font-size: 1rem; line-height: 1.45; }
+  .find { margin-top: 14px; padding: 12px; }
   .doors, .doors:not(.doors-1) { grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .door p { flex: none; }
   .meet-cols { grid-template-columns: 1fr; }

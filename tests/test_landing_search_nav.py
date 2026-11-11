@@ -72,7 +72,8 @@ def test_coming_pages_have_no_numbers_and_are_marked_coming_in_the_nav(pages):
 def test_landing_is_purpose_search_and_district_list_with_no_map(pages):
     html = pages["index.html"]
     body = main_text(html)
-    assert body.startswith(views.purpose_line())   # the fixture build: county only
+    # front-page-v2: the welcome leads; the fixture build has no finance, so the lede does not name money
+    assert body.startswith(config.SITE["welcome_h1"] + " " + views.welcome_lede(finance=False))
     assert re.search(r'<form class="landing-search" action="search\.html" method="get"', html)
     assert 'name="q"' in html and 'class="district-list"' in html
     # no map on the landing (CEO, 2026-11-10): no drawing, layer switch or map script
@@ -99,7 +100,7 @@ def test_landing_without_address_box_or_roster_opens_the_list(tmp_path, facts):
     pages = build_pages(tmp_path, facts)
     html = pages["index.html"]
     assert "<svg" not in html and 'id="addr-form"' not in html
-    assert re.search(r'<details class="district-list" open', html)
+    assert re.search(r'<details class="district-list" id="wards-districts" open', html)
     nav = next(n for n in parse(html).walk() if n.attrs.get("aria-label") == "County commission districts")
     rows = [" ".join(li.all_text().split()) for li in nav.walk() if li.tag == "li"]
     assert rows == [f"District {n}" for n in range(1, config.SITE["district_count"] + 1)]

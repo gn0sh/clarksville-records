@@ -47,11 +47,14 @@ def test_box_is_hidden_until_the_script_shows_it_and_names_the_privacy_rule(real
     form = next(n for n in parse(html).walk() if n.attrs.get("id") == "addr-form")
     assert "hidden" in form.attrs and "action" not in form.attrs and "method" not in form.attrs
     text = " ".join(form.all_text().split())
-    assert text.startswith("Find your ward and county district by address")     # the real map holds the wards
+    assert text.startswith("Enter your street address to see your city ward and county district.")   # the wards
     assert ("Your address is sent to the U.S. Census Bureau's geocoder to find where it is. "
             "This site doesn't store it. Census's privacy policy applies. Or look it up on GoVoteTN.") in text
-    assert "only the district and ward numbers are kept, in this browser on this device" in text
-    assert "City ward lookup is coming" not in text
+    # the note on what is saved moved into "How the address lookup works, and what is saved" (front-page-v2)
+    about = html[html.index('<details class="lookup-about">'):]
+    about = about[:about.index("</details>")]
+    assert "only the district and ward numbers are kept, in this browser on this device" in about
+    assert "City ward lookup is coming" not in html
     assert f'<a data-ext="lookup" href="{config.SITE["district_lookup_url"]}" rel="noopener">GoVoteTN</a>' in html
     assert (f'<a data-ext="geocoder" href="{config.SITE["geocoder_privacy_url"]}" rel="noopener">'
             "Census's privacy policy</a> applies.") in html
@@ -94,7 +97,7 @@ def test_map_without_ward_shapes_keeps_the_district_lookup(tmp_path):
     out = tmp_path / "site"
     build(FIXTURE, out, seats_path=None, districts_path=tmp_path / "districts.json")
     html = (out / "index.html").read_text(encoding="utf-8")
-    assert "Find your county district by address" in html and "Find your ward" not in html
+    assert "Enter your street address to see your county district." in html and "your city ward" not in html
     assert "only the district number is kept" in html and "City ward lookup is coming" in html
     cfg = addr_config(html)
     assert "ward_margin_m" not in cfg and "wards" not in cfg and len(cfg["districts"]) == 21
@@ -109,7 +112,7 @@ def test_landing_draws_no_map_and_names_the_lines_sources(real_map_site):
     for gone in ("<svg", "county-map", "layer-switch", "Map shows", "map.js", "addr-pin", "About this map",
                  'data-ward="'):
         assert gone not in html, gone
-    assert '<details class="district-list">' in html                     # collapsed beside the address box
+    assert '<details class="district-list" id="wards-districts">' in html   # collapsed under the address box
     about = html[html.index('<details class="lookup-about">'):]
     about = about[:about.index("</details>")]
     assert "How the address lookup works" in about
