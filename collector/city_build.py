@@ -187,13 +187,53 @@ def page1_check(row: dict, store: Store, pages=read_pages) -> str | None:
             f"'{want}': skipped, not this body's meeting")
 
 
+def cited_members(cfg: AgendaCenterConfig, store: Store, pages=read_pages) -> tuple[list[dict], list[dict]]:
+    """Build check `member_cited` for each configured member (path N10, M1): the stored bytes for its cite_url exist,
+    `seated` is not before the cited record's meeting (nor, for a roster page snapshot, before it was fetched), the
+    quote names the person, and the quote, whitespace collapsed, is printed on cite_page of the stored file's text.
+    -> (entries that pass, each with the cited file's manifest entry; one report row per entry). An entry that fails
+    is left out of the roster book for this build, so its surname is held as before: never resolved on trust."""
+    ok, report = [], []
+    for m in cfg.members:
+        e = store.latest(m["cite_url"])
+        why = None
+        if not e or not store.has_bytes(e["sha256"]):
+            why = "the cited file is not stored"
+        elif e.get("meeting_date") and m["seated"] < e["meeting_date"]:
+            why = f"seated {m['seated']} is before the cited record's meeting of {e['meeting_date']}"
+        elif m["kind"] == "roster_page" and m["seated"] < (e.get("first_fetched_at") or "")[:10]:
+            why = f"seated {m['seated']} is before the roster page was fetched ({e['first_fetched_at'][:10]})"
+        elif m["name"] not in m["quote"]:
+            why = "the quote does not name the person"
+        else:
+            try:
+                text = pages(store.path_for(e["sha256"]))
+            except Exception as ex:                             # one bad file must not stop the build
+                text, why = [], f"the cited file could not be read: {type(ex).__name__}"
+            if why is None and not (m["cite_page"] <= len(text) and page_has(text[m["cite_page"] - 1], m["quote"])):
+                why = f"the quote is not on page {m['cite_page']} of the cited file"
+        report.append({"check": "member_cited", "ok": why is None, "name": m["name"], "ward": m["ward"],
+                       "seated": m["seated"], "cite_url": m["cite_url"], "cite_page": m["cite_page"],
+                       "detail": why or f"quote found on page {m['cite_page']}"})
+        if why is None:
+            ok.append({**m, "entry": e})
+    return ok, report
+
+
+def member_basis(m: dict) -> str:
+    """How a surname read from a configured member is named: 'the configured member Eric Claunch (seated 2026-02-19,
+    minutes p. 3)'."""
+    return f"the configured member {m['name']} (seated {m['seated']}, {m['kind'].replace('_', ' ')} p. {m['cite_page']})"
+
+
 def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_minutes_pdf,
           inspect=inspect_pdf, pages=read_pages) -> tuple[dict, dict]:
     officials = Officials(cfg)
     sources: dict[str, dict] = {}
     meetings, roll_calls, motions, items, events, wards = [], [], [], {}, [], []
     problems, unresolved = [], Counter()
-    book = RosterBook(cfg)          # full-name attendance lists so far, bounded per meeting (resolve_surnames)
+    members, members_report = cited_members(cfg, store, pages)      # path N10: only entries whose cite checks out
+    book = RosterBook(cfg, members)  # full-name attendance lists so far, bounded per meeting (resolve_surnames)
     word_breaks: list[dict] = []    # every break-free (N9) use, for the run report
     status_count = Counter()
     ids_used: Counter = Counter()
@@ -284,6 +324,17 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
                      problems, unresolved, book.for_meeting(meeting["date"]), word_breaks)
         book.add(printed_full_names(cfg, officials, pm, meeting["date"]))
 
+    for m in members:                 # a configured member who resolved: the record that names them, and their seat
+        oid = official_id(officials.canonical(m["name"]))
+        if oid not in officials.by_id:
+            continue
+        src, _ = source_for(m["cite_url"])
+        officials.by_id[oid]["name_source"] = {"source_id": src["id"], "page": m["cite_page"], "quote": m["quote"]}
+        cited = next((x for x in meetings if src["id"] in (x["source_id"], x.get("agenda_source_id"))), None)
+        # Ward holder record from the seating date, with its source (seat holder invariant, rule 1)
+        wards.append({"official_id": oid, "raw_name": m["name"], "ward": m["ward"], "pro_tem": False,
+                      "meeting_id": cited["id"] if cited else None, "date": m["seated"], "source_id": src["id"],
+                      "page": m["cite_page"], "configured": True})
     for s in sources.values():
         if not s["meeting_date"]:
             s["meeting_date"] = next((m["date"] for m in meetings if m["source_id"] == s["id"]), "1900-01-01")
@@ -302,6 +353,8 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
         "corrections": [],
     }
     rc_verified = sum(r["verification"]["status"] == "verified" for r in roll_calls)
+    problems += [{"member": r["name"], "problem": f"configured member left out: {r['detail']}"}
+                 for r in members_report if not r["ok"]]
     summary = {
         "listed_rows": len(rows),
         "listed_with_minutes": sum(1 for r in rows if r["minutes_url"]),
@@ -321,6 +374,7 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
         "by_source": by_source(meetings, roll_calls),
         "problems": problems,
         "skipped_events": skipped_events,       # D1: also-listed events whose page 1 is not this body's
+        "members": members_report,              # M1: the build check member_cited, one row per configured member
         # W2 (path N9): every name read by its break-free key, for QA's AC-P2 sample
         "word_break_matches": word_breaks,
         # AC-P1 verified rate and G4 skew, the county's gate code as is (collector/verify.gates, architecture
@@ -431,8 +485,9 @@ class RosterBook:
     The configured, cited mayor whose term covers the meeting (cfg.mayors_on) is in the book too, as the Mayor seat
     ({..., "mayor": True, "date": the term's start, "configured": True}): the only entry not read from a list."""
 
-    def __init__(self, cfg):
+    def __init__(self, cfg, members: list[dict] | tuple = ()):
         self.cfg = cfg
+        self.members = sorted(members, key=lambda m: m["seated"])    # cited_members: entries whose cite checked out
         self.lists: list[tuple[str, list[dict]]] = []
 
     def add(self, printed: dict) -> None:
@@ -476,12 +531,60 @@ class RosterBook:
         for name, d in sorted(before.items()):
             entry(name)["held"].append(f"{name}: last printed {d}, before the seating of {start}" if start
                                        else f"{name}: last printed {d}; no seating rule, so no earlier list is used")
+        self._add_members(date, start, inside, seat, out, entry)
         for m in self.cfg.mayors_on(date):
             e = entry(m["name"])
             if m["name"] not in [p["name"] for p in e["people"]]:
                 e["people"].append({"name": m["name"], "ward": None, "mayor": True, "date": m["from"],
                                     "configured": True})
         return out
+
+    def _add_members(self, date: str, start: str | None, inside: list, seat: dict, out: dict, entry) -> None:
+        """Path N10: each configured, cited member seated from the window's start up to `date` joins the book as the
+        holder of its ward (`"configured": True, "member": entry`), replacing the ward's earlier holders, unless a
+        full-name list dated on or after `seated` gives that ward to someone else, or a later entry seats someone
+        else there. Never carried past the next seating (a re-elected member needs a list or a new entry)."""
+        active: dict[int, dict] = {}
+        for m in self.members:
+            if start is None or not start <= m["seated"] <= date:
+                continue
+            printed = seat.get(f"Ward {m['ward']}")
+            if printed and printed[0] >= m["seated"] and m["name"] not in printed[1]:
+                entry(m["name"])["held"].append(f"{m['name']}: Ward {m['ward']} printed for "
+                                                f"{', '.join(sorted(printed[1]))} on {printed[0]}")
+                active.pop(m["ward"], None)
+                continue
+            if m["ward"] in active:
+                prev = active[m["ward"]]
+                entry(prev["name"])["held"].append(f"{prev['name']}: Ward {m['ward']} given to {m['name']} by "
+                                                   f"{member_basis(m)}")
+            active[m["ward"]] = m
+        for m in active.values():
+            _replace_holders(out, inside, m, entry)
+            e = entry(m["name"])
+            if m["name"] not in [p["name"] for p in e["people"]]:
+                e["people"].append({"name": m["name"], "ward": m["ward"], "mayor": False, "date": m["seated"],
+                                    "configured": True, "member": m})
+
+
+def _ward_of(inside: list, name: str) -> int | None:
+    """The ward last printed for `name` by a list in the window (the latest printing may leave the ward out)."""
+    return next((p["ward"] for _, people in reversed(inside) for p in people
+                 if p["name"] == name and p["ward"] is not None), None)
+
+
+def _replace_holders(out: dict, inside: list, m: dict, entry) -> None:
+    """A configured member takes their ward from `seated`: each person of the book last printed for that ward
+    before then is held with the reason (the replaced-seat rule, as if a full-name list had printed the successor)."""
+    for e in list(out.values()):
+        keep = []
+        for p in e["people"]:
+            if p["name"] != m["name"] and not p.get("configured") and p["date"] < m["seated"] \
+                    and _ward_of(inside, p["name"]) == m["ward"]:
+                e["held"].append(f"{p['name']}: Ward {m['ward']} given to {m['name']} by {member_basis(m)}")
+            else:
+                keep.append(p)
+        e["people"] = keep
 
 
 def resolve_surnames(cfg, officials: Officials, pm: ParsedCityMinutes, book: dict | None,
@@ -533,7 +636,8 @@ def resolve_surnames(cfg, officials: Officials, pm: ParsedCityMinutes, book: dic
         other_ward = []
         for r in earlier["people"]:
             if p.ward is None or r["ward"] is None or r["ward"] == p.ward:
-                cands.setdefault(r["name"], f"the configured mayor seat from {r['date']}" if r.get("configured")
+                cands.setdefault(r["name"], member_basis(r["member"]) if r.get("member")
+                                 else f"the configured mayor seat from {r['date']}" if r.get("configured")
                                  else f"the attendance of {r['date']}")
             else:
                 other_ward.append(f"{r['name']}: Ward {r['ward']}, not Ward {p.ward} as printed")
@@ -541,7 +645,10 @@ def resolve_surnames(cfg, officials: Officials, pm: ParsedCityMinutes, book: dic
             name, why = next(iter(cands.items()))
             mayor = any(r["mayor"] for r in earlier["people"] if r["name"] == name)
             out[id(p)] = (name, mayor)
-            basis[why] += 1
+            if why.startswith("the configured member "):        # named per printing: "CLAUNCH: by the configured ..."
+                uses.append(f"{clean_name(p.raw_name)}: by {why}")
+            else:
+                basis[why] += 1
         elif not cands and by_break(p):                 # N9, the last step: "StaceyStreetman (Ward 10)"
             r = by_break(p)
             out[id(p)] = (r["name"], r["mayor"])

@@ -63,6 +63,15 @@ class AgendaCenterConfig:
     seating: dict | None = None   # {month, every_years, from_year}: when the council is seated (name resolution window)
     # the city's mayor as configured, cited seating entries: ({name, from, to, cite}, ...), dates inclusive (path N3)
     mayors: tuple = ()
+    # members seated between full-name attendance lists, each citing an official record of the seating (path N10):
+    # ({name, ward, seated, kind, cite_url, cite_page, quote}, ...). The build checks each cite (city_build
+    # cited_members) and leaves out any entry whose quote is not on that page of the stored file.
+    members: tuple = ()
+
+    def members_on(self, date: str) -> list[dict]:
+        """The configured member entries seated on or before date (YYYY-MM-DD), oldest first. Whether one is still
+        in its seat is RosterBook's to judge (a later list or entry may give the ward to someone else)."""
+        return [m for m in self.members if m["seated"] <= date]
 
     def mayors_on(self, date: str) -> list[dict]:
         """The configured mayor entries whose term covers date (YYYY-MM-DD): at most one (parse_config refuses an
@@ -161,6 +170,7 @@ def parse_config(cfg) -> AgendaCenterConfig:
                                     and 1 <= seating["month"] <= 12 and seating["every_years"] >= 1):
         raise AgendaCenterConfigError("agenda-center.yml: seating must be {month: 1-12, every_years: 1+, from_year}")
     mayors = _mayors(cfg.get("mayors") or [])
+    members = _members(cfg.get("members") or [])
     return AgendaCenterConfig(
         locality=_need(cfg, "locality", str), body=_need(cfg, "body", str),
         official_title=_need(cfg, "official_title", str), host=host,
@@ -179,7 +189,7 @@ def parse_config(cfg) -> AgendaCenterConfig:
         vote_asides=_rx(_need(cfg, "vote_asides", str), "vote_asides"),
         presiding=_presiding(_rx(_need(cfg, "presiding", str), "presiding", 0)),
         presiding_title=_need(cfg, "presiding_title", str), aliases=dict(aliases),
-        seating=dict(seating) if seating else None, mayors=mayors)
+        seating=dict(seating) if seating else None, mayors=mayors, members=members)
 
 
 def _iso(v, key: str) -> str:
@@ -212,6 +222,51 @@ def _mayors(raw) -> tuple:
     for a, b in zip(out, out[1:]):
         if b["from"] <= a["to"]:
             raise AgendaCenterConfigError(f"agenda-center.yml: mayors: {a['name']} and {b['name']} overlap")
+    return tuple(out)
+
+
+MEMBER_KINDS = ("minutes", "resolution", "oath", "roster_page", "certified_results")
+MEMBER_KEYS = {"name", "ward", "seated", "kind", "cite_url", "cite_page", "quote"}
+
+
+def _members(raw) -> tuple:
+    """members: [{name, ward, seated, kind, cite_url, cite_page, quote}] (docs/architecture/city-council.md, M1).
+    Refused at load: a name that is not a full name as the attendance prints one, a ward outside 1-12, an unknown
+    kind, a seated date that is not a date, a cite that is not an https URL with a page and a quote, and two entries
+    seating someone in one ward on one date. What needs the stored file (the URL stored, the quote on that page, the
+    seated date not before the cited meeting) is the build's check (city_build.cited_members)."""
+    from .city_minutes import NAME_RE
+    if not isinstance(raw, list):
+        raise AgendaCenterConfigError("agenda-center.yml: members must be a list")
+    out = []
+    for i, m in enumerate(raw):
+        where = f"agenda-center.yml: members[{i}]"
+        if not (isinstance(m, dict) and set(m) == MEMBER_KEYS):
+            raise AgendaCenterConfigError(f"{where} must be {{{', '.join(sorted(MEMBER_KEYS))}}}")
+        name = " ".join(str(m["name"]).split()) if isinstance(m["name"], str) else ""
+        if not NAME_RE.match(name):
+            raise AgendaCenterConfigError(f"{where}.name must be a full name as the attendance prints one")
+        if type(m["ward"]) is not int or not 1 <= m["ward"] <= 12:
+            raise AgendaCenterConfigError(f"{where}.ward must be 1-12")
+        if m["kind"] not in MEMBER_KINDS:
+            raise AgendaCenterConfigError(f"{where}.kind must be one of {MEMBER_KINDS}")
+        url = m["cite_url"] if isinstance(m["cite_url"], str) else ""
+        if urllib.parse.urlsplit(url).scheme != "https" or not urllib.parse.urlsplit(url).netloc:
+            raise AgendaCenterConfigError(f"{where}.cite_url must be an https URL")
+        if type(m["cite_page"]) is not int or m["cite_page"] < 1:
+            raise AgendaCenterConfigError(f"{where}.cite_page must be a page number")
+        if not (isinstance(m["quote"], str) and m["quote"].strip()):
+            raise AgendaCenterConfigError(f"{where}.quote must be the record's words")
+        out.append({"name": name, "ward": m["ward"], "seated": _iso(m["seated"], f"members[{i}].seated"),
+                    "kind": m["kind"], "cite_url": url, "cite_page": m["cite_page"],
+                    "quote": " ".join(m["quote"].split())})
+    out.sort(key=lambda e: (e["seated"], e["ward"]))
+    seen = set()
+    for e in out:
+        if (e["ward"], e["seated"]) in seen:
+            raise AgendaCenterConfigError(f"agenda-center.yml: members: two entries seat Ward {e['ward']} on "
+                                          f"{e['seated']}")
+        seen.add((e["ward"], e["seated"]))
     return tuple(out)
 
 

@@ -238,12 +238,16 @@ agenda (it schedules an act and does not record it: the 2026-02-11 agenda lists 
 happen), titled prose ("Councilman Claunch made a motion", N4), our transcripts or the video, news, social media,
 campaign sites, and any inference of ours (a vacant ward plus a new surname, the votes a surname casts).
 
-**Config check** (`cfg.members_on`, refused at load like a bad `mayors` entry): name is a full name (`NAME_RE`); ward in
-1-12; `kind` in the list; `seated` on or after the cited meeting's date (and the fetch date for `roster_page`); two
-entries for one ward may not overlap; `cite_url` is in the city manifest. **Build check** (`member_cited`, per entry):
-the stored bytes for `cite_url` exist and the `quote`, whitespace collapsed, is on `cite_page` of their text layer, and
-the quote contains the name. If it fails, the entry is left out of the book for that build (so the surname is held as
-before) and the run report lists it; it never resolves anyone on trust.
+**Config check** (`agenda_center._members`, refused at load like a bad `mayors` entry): name is a full name
+(`NAME_RE`); ward in 1-12; `kind` in the list; `seated` a date; `cite_url` https, `cite_page` a page, `quote` not
+empty; two entries may not seat one ward on one date (a later entry for the same ward replaces an earlier one, as a
+second mid-term change would). **Build check** (`city_build.cited_members`, `member_cited` per entry; the checks that
+need the manifest are made here, since the config is loaded without it): the stored bytes for `cite_url` exist (so it
+is in the city manifest); `seated` is on or after the cited record's meeting date (and the fetch date for
+`roster_page`); the quote contains the name; and the `quote`, whitespace collapsed, is on `cite_page` of the stored
+file's text (the city reader's, W1 applied). If any fails, the entry is left out of the book for that build (so the
+surname is held as before) and the run report lists it (`build.members`, and `problems`); it never resolves anyone on
+trust.
 
 **How it feeds resolution.** `RosterBook.for_meeting(date)` adds each entry with `seated <= date` as the holder of its
 ward, `"configured": True`, and drops any earlier holder of that ward from that date (the replaced-seat rule, as if a
@@ -253,7 +257,8 @@ needs a list or a new entry). N6 then resolves CLAUNCH by exactly one book entry
 the meeting's roster as before. Official id `city-eric-claunch`, name and ward as configured.
 
 **How it is shown.** The member page header gets one line, the same for every configured member: "Name and ward from
-the City Council minutes of 2026-02-11 (resumed 2026-02-19), page 3", linking to that page, with the quote. The
+the minutes of 2026-02-11, p. 3, fetched <date>: "<quote>"", the page linked as every source is (`views.name_source`;
+the quote itself says the seating was on the resumed date). The
 attendance check detail on meeting pages and in the run report reads "CLAUNCH: by the configured member Eric
 Claunch (seated 2026-02-19, minutes p. 3)". Ward 2's seat history starts the record on 2026-02-19 with the same source
 (seat holder invariant, rule 1); `officials.csv` and `seats.csv` carry the source.

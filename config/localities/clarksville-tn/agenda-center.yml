@@ -106,6 +106,26 @@ mayors:
     to: "2026-12-31"
     cite: "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2623,plainText=false) p.1 (2025-01-02) 'PRESENT: ... Joe Pitts (Mayor)' and 'Mayor Pitts administered the Oath of Office of City Council'"
 
+# Members seated between full-name attendance lists, each citing an official record of the seating (name resolution
+# invariant, path N10; docs/architecture/city-council.md "Verified-rate plan", M1; ADR 0005). The attendance has
+# printed surnames only since 2025-03-06, so a member seated after that is on no full-name list. An entry puts the
+# person in the roster book from `seated` as the holder of `ward` (replacing any earlier holder), until a later list
+# or entry gives the ward to someone else or the next seating. kind: minutes | resolution | oath | roster_page |
+# certified_results. The build checks that the stored file of cite_url prints `quote` (whitespace collapsed) on
+# cite_page and that the quote names the person; otherwise the entry is left out (the surname stays held) and the
+# run report says why. Applicant lists, agendas, titled prose, transcripts, video and news never qualify.
+members:
+  # City Council Special Session of 2026-02-11, resumed 2026-02-19 (CivicClerk lists it under "General"; D1).
+  # Page 1 lists seven applicants; page 2: "Because the vote was recessed to February 19, there was no Oath of
+  # Office"; page 3 records the seating.
+  - name: Eric Claunch
+    ward: 2
+    seated: "2026-02-19"
+    kind: minutes
+    cite_url: "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3068,plainText=false)"
+    cite_page: 3
+    quote: "Eric Claunch was selected as the Ward 2 replacement and was sworn in by Mayor Pitts."
+
 # Name fixes for the same person printed two ways: printed form -> the form most minutes print. Each entry is the
 # same ward in the same term (checked in data/localities/clarksville-tn/wards.json, 2026-11-09); applied to every
 # printing alike. Vote names are never fixed here: a misspelt vote name stays unresolved and its roll call is held.

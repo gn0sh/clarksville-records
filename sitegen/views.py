@@ -681,6 +681,21 @@ def bar(counts: dict, spec) -> list[dict]:
     return [{"key": k, "label": label, "n": counts[k]} for k, label in spec]
 
 
+NAME_SOURCE_KINDS = {"minutes": "minutes", "agenda": "agenda"}
+
+
+def name_source(ix: "Index", o: dict) -> dict | None:
+    """The header line of a configured, cited member (city path N10, officials[].name_source): the record that names
+    the person and seat, its page linked, and its words as printed. The same line for every such member; None for
+    everyone else (their name is read from the attendance lists)."""
+    ns = o.get("name_source")
+    if not ns:
+        return None
+    s = ix.sources[ns["source_id"]]
+    return {"src": ix.src(ns["source_id"], ns["page"]), "quote": ns["quote"], "date": s["meeting_date"],
+            "kind": NAME_SOURCE_KINDS.get(s["kind"], "record")}
+
+
 def official(official_id: str, facts) -> dict:
     ix = _ix(facts)
     o = ix.officials[official_id]
@@ -748,6 +763,7 @@ def official(official_id: str, facts) -> dict:
     return {
         "official": o, "initials": initials(o), "stats": c,
         "held_by_check": bool(ix.held_sentences),           # each held row says which check held it (V5)
+        "name_source": name_source(ix, o),                  # a configured, cited member's record (path N10)
         "seat_header": ix.seats.header_text(official_id),  # None without a roster; never guessed
         "attendance_bar": bar(c, ATTENDANCE_SEGMENTS),
         "vote_bar": bar(_vote_segment_counts(c, ""), BAR_SEGMENTS),

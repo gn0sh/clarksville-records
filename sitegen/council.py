@@ -29,12 +29,14 @@ def _src(sources: dict, source_id: str, page: int) -> str:
 def ward_rows(wards: list[dict], facts: dict, cfg: dict) -> list[dict]:
     """Ward holder records from the attendance lists' printed wards (wards.json).
 
-    1. A print with no ward, or for a name that did not resolve, is not used.
+    1. A print with no ward, or for a name that did not resolve, is not used. A configured, cited member's seating
+       (collector city_build, path N10: `"configured": True`, the cited record's page) counts as a print of its ward.
     2. Per member, consecutive prints of the same ward form a run; a run shorter than `min_ward_prints` is dropped,
        the shortest first and one at a time, so the member's runs either side of it join again (a lone print that
        disagrees with the member's own run either side; the meeting page still shows the source). A run that ends
        at the latest minutes read is kept however short: no later print can confirm it yet, and dropping it would
-       hide a newly seated member (city-pages/ward-misprint).
+       hide a newly seated member (city-pages/ward-misprint). A run holding a configured seating is never dropped:
+       the cited record of the seating is the evidence, not a misprint.
     3. Per ward, the kept prints in date order are split wherever the member printed changes: each piece is one
        record, from its first to its last meeting. So someone who held a ward twice, with another member between,
        has two records.
@@ -42,7 +44,7 @@ def ward_rows(wards: list[dict], facts: dict, cfg: dict) -> list[dict]:
     sources = {s["id"]: s for s in facts["sources"]}
     officials = {o["id"] for o in facts["officials"]}
     obs = sorted((w for w in wards if w.get("ward") is not None and w.get("official_id") in officials),
-                 key=lambda w: (w["date"], w["meeting_id"]))
+                 key=lambda w: (w["date"], w["meeting_id"] or ""))
     by_member: dict[str, list[dict]] = defaultdict(list)
     for w in obs:
         by_member[w["official_id"]].append(w)
@@ -62,14 +64,14 @@ def ward_rows(wards: list[dict], facts: dict, cfg: dict) -> list[dict]:
         # again (Ward 4, Ward 3, Ward 4: one run of Ward 4) before their own length is judged
         while True:
             short = [r for r in runs_of(prints) if len({x["meeting_id"] for x in r}) < cfg["min_ward_prints"]
-                     and r[-1]["date"] != latest]
+                     and r[-1]["date"] != latest and not any(x.get("configured") for x in r)]
             if not short:
                 break
             drop = min(short, key=lambda r: (len(r), r[0]["date"]))
             prints = [w for w in prints if not any(w is x for x in drop)]
         kept += prints
     by_ward: dict[int, list[dict]] = defaultdict(list)
-    for w in sorted(kept, key=lambda w: (w["date"], w["meeting_id"])):
+    for w in sorted(kept, key=lambda w: (w["date"], w["meeting_id"] or "")):
         by_ward[int(w["ward"])].append(w)
     rows = []
     for ward, prints in sorted(by_ward.items()):
@@ -130,7 +132,7 @@ def extend_by_listings(rows: list[dict], wards: list[dict], facts: dict, cfg: di
     sources = {s["id"]: s for s in facts["sources"]}
     officials = {o["id"] for o in facts["officials"]}
     listed: dict[str, list[dict]] = defaultdict(list)     # every attendance listing of a member, ward or not
-    for w in sorted(wards, key=lambda w: (w["date"], w["meeting_id"])):
+    for w in sorted(wards, key=lambda w: (w["date"], w["meeting_id"] or "")):
         if w.get("official_id") in officials:
             listed[w["official_id"]].append(w)
     for r in rows:
@@ -179,7 +181,7 @@ def holder_rows(wards: list[dict], facts: dict, cfg: dict) -> tuple[list[dict], 
     (latest_list_incomplete) and the record shows no successor. Seats words it as not named at L."""
     rows = ward_rows(wards, facts, cfg) + title_rows(facts, cfg)
     extend_by_listings(rows, wards, facts, cfg)
-    lists = sorted({w["date"] for w in wards})
+    lists = sorted({w["date"] for w in wards if not w.get("configured")})    # a configured seating is not a list
     latest = lists[-1] if lists else max((r["end"] for r in rows), default=None)
     prev = lists[-2] if len(lists) > 1 else None
     short = latest_list_incomplete(wards, facts, latest, prev)
@@ -207,6 +209,7 @@ class CouncilIndex(views.Index):
         self._rows, self._seen = holder_rows(wards, facts, cfg)
         self.year_pages = {}
         self.tx = None   # transcripts.Transcripts, set by build.py
+        self.held_sentences = cfg.get("held_sentences")    # city-verify V5: one sentence per held check
         super().__init__(facts, self._rows)
 
     def make_seats(self, seat_rows):

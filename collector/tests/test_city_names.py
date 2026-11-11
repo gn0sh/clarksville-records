@@ -669,3 +669,173 @@ def test_n9_an_attendance_entry_with_a_break_inside_a_name_resolves_against_the_
     assert att(facts, "2020-10-01")["J eff Henley"] == "city-jeff-henley"
     assert meeting(facts, "2020-10-01")["verification"]["status"] == "verified"
     assert [u["printed"] for u in summary["word_break_matches"]] == ["J eff Henley"]
+
+
+# ------------------------------------------------------------------ city-verify M1: configured, cited members (N10)
+CITE = API.format(3068)
+# page 3 of the 2026-02-11 City Council Special Session minutes (resumed 2026-02-19), CivicClerk fileId 3068, as the
+# city reader reads it (sha256 df53b5ec7368...)
+CLAUNCH_P3 = ("           i.      Oath of Office\n                Because the vote was recessed to February 19, there "
+              "was no Oath of Office.\n6.   Public Comment\n     (allows 3 persons; 5 minutes each)\n      There was no "
+              "public comment.\n7.   Recess: The meeting was recessed to February 19, 2026 at 4:30 pm.\n      The "
+              "meeting was recessed to February 19, 2026 at 4:30 pm.\n\n8.   Special Session Resumed on February 19, "
+              "2026 at 4:30 pm. All councilmembers\n     were present.\n\n\n9.   Unfinished Business\n\n\n     A.   "
+              "City Council Vacancy\n\n                 • Review of Procedure: City Attorney\n                 • Vote "
+              "and Appointment of Ward 2 City Councilman\n                 • Oath of Office\n\n                City "
+              "Attorney, Eric Bittner, reviewed the procedure with the Council. The\n                following votes "
+              "were then taken: Round 33. Eric Claunch was selected as the\n                Ward 2 replacement and was "
+              "sworn in by Mayor Pitts.\n\n\n10. Adjournment\n      The meeting was adjourned at 4:39 pm\n")
+# page 1: the applicants (never a record of a seating)
+APPLICANTS_P1 = ("     B.   Vote and Appointment of Ward 2 City Council Member\n          Applicants:\n\n             "
+                 "1. Eric Claunch\n             2. AC Lopez\n             3. Jeff Loyd\n")
+CLAUNCH = {"name": "Eric Claunch", "ward": 2, "seated": "2026-02-19", "kind": "minutes", "cite_url": CITE,
+           "cite_page": 3, "quote": "Eric Claunch was selected as the Ward 2 replacement and was sworn in by Mayor Pitts."}
+SEATED = ("Brian Zacharias (Ward 1), Deanna McLaughlin (Ward 2), Stacey Streetman (Ward 3), Travis Holleman (Ward 4), "
+          "Jimmy Brown (Ward 5)")
+SEATED_AYE = "Brown, Holleman, McLaughlin, Pitts, Streetman, Zacharias"
+AFTER = "BROWN, CLAUNCH, HOLLEMAN, PITTS, STREETMAN, ZACHARIAS"
+
+
+def with_members(cfg, *members):
+    return ac.AgendaCenterConfig(**{**cfg.__dict__, "members": ac._members(list(members))})
+
+
+def run_cited(cfg, meetings, cite_pages=(APPLICANTS_P1, "page 2", CLAUNCH_P3), cite_meeting="2026-02-11",
+              stored=True):
+    """run() with the cited file (fileId 3068) in the store, read as `cite_pages`."""
+    rows, entries, by_url = [], [], {}
+    for n, (date, text) in enumerate(meetings, 1):
+        url = API.format(n)
+        rows.append({"date": date, "title": "City Council Regular Session", "kind": "regular",
+                     "agenda_id": f"cc-{n}", "agenda_url": None, "minutes_url": url, "source": "civicclerk",
+                     "video_url": None})
+        entries.append(entry(url, "minutes", date, n))
+        by_url[url] = text
+    if stored:
+        entries.append(entry(CITE, "minutes", cite_meeting, 99))
+
+    def parse(path, c):
+        sha = str(path).rsplit("/", 1)[-1][:-4]
+        return parse_text([by_url[next(e["url"] for e in entries if e["sha256"] == sha)]], c)
+
+    def pages(path):
+        assert path.stem == entry(CITE, "minutes", cite_meeting, 99)["sha256"]
+        return list(cite_pages)
+    facts, summary = build(cfg, rows, FakeStore(entries), parse=parse, inspect=lambda p: (3, "text"), pages=pages)
+    jsonschema.validate({k: v for k, v in facts.items() if k != "_wards"}, SCHEMA)
+    assert_name_invariant(cfg, facts, dict(meetings))
+    return facts, summary
+
+
+CLAUNCH_MEETINGS = [("2025-01-02", minutes("2025-01-02", SEATED, aye=SEATED_AYE)),
+                    ("2026-02-05", minutes("2026-02-05", AFTER.replace("CLAUNCH", "MCLAUGHLIN"),
+                                           aye=AFTER.replace("CLAUNCH", "MCLAUGHLIN"))),
+                    ("2026-03-05", minutes("2026-03-05", AFTER, aye=AFTER))]
+
+
+def test_n10_the_cited_minutes_resolve_claunch_from_the_seating_on(cfg):
+    c = with_members(cfg, CLAUNCH)
+    facts, summary = run_cited(c, CLAUNCH_MEETINGS)
+    assert att(facts, "2026-03-05")["CLAUNCH"] == "city-eric-claunch"
+    sc = surname_check(facts, "2026-03-05")
+    assert sc["ok"] and ("CLAUNCH: by the configured member Eric Claunch (seated 2026-02-19, minutes p. 3)"
+                         in sc["detail"])
+    rc, votes = votes_of(facts, "2026-03-05")
+    assert votes["CLAUNCH"] == "city-eric-claunch" and rc["verification"]["status"] == "verified"
+    assert att(facts, "2026-02-05")["MCLAUGHLIN"] == "city-deanna-mclaughlin"         # before the seating: as before
+    off = next(o for o in facts["officials"] if o["id"] == "city-eric-claunch")
+    src = next(s for s in facts["sources"] if s["url"] == CITE)
+    assert off["name_source"] == {"source_id": src["id"], "page": 3, "quote": CLAUNCH["quote"]}
+    assert [w for w in facts["_wards"] if w.get("configured")] == [{
+        "official_id": "city-eric-claunch", "raw_name": "Eric Claunch", "ward": 2, "pro_tem": False,
+        "meeting_id": None, "date": "2026-02-19", "source_id": src["id"], "page": 3, "configured": True}]
+    assert summary["members"] == [{"check": "member_cited", "ok": True, "name": "Eric Claunch", "ward": 2,
+                                   "seated": "2026-02-19", "cite_url": CITE, "cite_page": 3,
+                                   "detail": "quote found on page 3"}]
+
+
+def test_n10_the_entry_replaces_the_wards_earlier_holder_from_the_seating(cfg):
+    later = minutes("2026-03-05", AFTER + ", MCLAUGHLIN", aye=AFTER)
+    facts, _ = run_cited(with_members(cfg, CLAUNCH), CLAUNCH_MEETINGS[:2] + [("2026-03-05", later)])
+    assert att(facts, "2026-03-05")["MCLAUGHLIN"] is None
+    assert ("Deanna McLaughlin: Ward 2 given to Eric Claunch by the configured member Eric Claunch (seated "
+            "2026-02-19, minutes p. 3)") in surname_check(facts, "2026-03-05")["detail"]
+
+
+def test_n10_no_meeting_before_the_seated_date_resolves_the_member(cfg):
+    early = minutes("2026-02-11", AFTER, aye=AFTER)                    # the day of the applicants, before the seating
+    facts, _ = run_cited(with_members(cfg, CLAUNCH), CLAUNCH_MEETINGS[:2] + [("2026-02-11", early)])
+    assert att(facts, "2026-02-11")["CLAUNCH"] is None
+    assert "CLAUNCH (no roster entry)" in surname_check(facts, "2026-02-11")["detail"]
+
+
+def test_n10_the_applicants_page_alone_resolves_nothing(cfg):
+    """Without the members entry, the applicant list (2026-02-05, 2026-02-11 p.1) is never evidence."""
+    facts, summary = run_cited(cfg.__class__(**{**cfg.__dict__, "members": ()}), CLAUNCH_MEETINGS,
+                               cite_pages=(APPLICANTS_P1,))
+    assert att(facts, "2026-03-05")["CLAUNCH"] is None and summary["members"] == []
+    rc, votes = votes_of(facts, "2026-03-05")
+    assert votes["CLAUNCH"] is None and rc["verification"]["status"] == "unverified"
+
+
+@pytest.mark.parametrize("change,kw,reason", [
+    ({"quote": "Eric Claunch was sworn in as the Ward 2 member."}, {}, "the quote is not on page 3 of the cited file"),
+    ({"cite_page": 1}, {}, "the quote is not on page 1 of the cited file"),
+    ({}, {"stored": False}, "the cited file is not stored"),
+    ({"seated": "2026-02-10"}, {}, "seated 2026-02-10 is before the cited record's meeting of 2026-02-11"),
+    ({"name": "Eric Clanch"}, {}, "the quote does not name the person"),
+    ({}, {"cite_pages": (APPLICANTS_P1,)}, "the quote is not on page 3 of the cited file"),
+])
+def test_n10_an_entry_whose_cite_does_not_check_out_is_left_out_with_the_reason(cfg, change, kw, reason):
+    facts, summary = run_cited(with_members(cfg, {**CLAUNCH, **change}), CLAUNCH_MEETINGS, **kw)
+    assert att(facts, "2026-03-05")["CLAUNCH"] is None
+    assert summary["members"][0]["ok"] is False and summary["members"][0]["detail"] == reason
+    assert {"member": summary["members"][0]["name"], "problem": f"configured member left out: {reason}"} in \
+        summary["problems"]
+    assert not any(o.get("name_source") for o in facts["officials"])
+    assert not any(w.get("configured") for w in facts["_wards"])
+
+
+@pytest.mark.parametrize("bad,match", [
+    ({"name": "Claunch"}, "full name"),
+    ({"name": "eric claunch"}, "full name"),
+    ({"ward": 13}, "1-12"),
+    ({"kind": "agenda"}, "kind"),
+    ({"kind": "news"}, "kind"),
+    ({"seated": "Feb 19"}, "date"),
+    ({"cite_url": "http://example.com/x"}, "https"),
+    ({"cite_page": 0}, "page"),
+    ({"quote": " "}, "quote"),
+])
+def test_n10_a_bad_members_entry_is_refused(bad, match):
+    raw = yaml.safe_load(ac.config_path("clarksville-tn").read_text())
+    with pytest.raises(ac.AgendaCenterConfigError, match=match):
+        ac.parse_config({**raw, "members": [{**CLAUNCH, **bad}]})
+
+
+def test_n10_two_entries_seating_one_ward_on_one_date_are_refused():
+    raw = yaml.safe_load(ac.config_path("clarksville-tn").read_text())
+    with pytest.raises(ac.AgendaCenterConfigError, match="two entries seat Ward 2 on 2026-02-19"):
+        ac.parse_config({**raw, "members": [CLAUNCH, {**CLAUNCH, "name": "Jeff Loyd",
+                                                      "quote": "Jeff Loyd was selected"}]})
+
+
+def test_n10_a_full_name_list_after_the_seating_that_gives_the_ward_to_someone_else_drops_the_entry(cfg):
+    other = SEATED.replace("Deanna McLaughlin (Ward 2)", "Jeff Loyd (Ward 2)")
+    meetings = CLAUNCH_MEETINGS[:2] + [("2026-03-05", minutes("2026-03-05", other, aye=SEATED_AYE.replace(
+        "McLaughlin", "Loyd"))), ("2026-04-02", minutes("2026-04-02", AFTER, aye=AFTER))]
+    facts, _ = run_cited(with_members(cfg, CLAUNCH), meetings)
+    assert att(facts, "2026-04-02")["CLAUNCH"] is None
+    assert "Eric Claunch: Ward 2 printed for Jeff Loyd on 2026-03-05" in surname_check(facts, "2026-04-02")["detail"]
+
+
+def test_n10_the_entry_is_not_carried_past_the_next_seating(cfg):
+    meetings = CLAUNCH_MEETINGS + [("2027-01-07", minutes("2027-01-07", AFTER, aye=AFTER))]
+    facts, _ = run_cited(with_members(cfg, CLAUNCH), meetings)
+    assert att(facts, "2026-03-05")["CLAUNCH"] == "city-eric-claunch"
+    assert att(facts, "2027-01-07")["CLAUNCH"] is None
+
+
+def test_n10_the_real_config_entry_is_eric_claunch_ward_2_from_the_special_session_minutes(cfg):
+    assert cfg.members == (CLAUNCH,)
+    assert cfg.members_on("2026-02-18") == [] and cfg.members_on("2026-02-19") == [CLAUNCH]

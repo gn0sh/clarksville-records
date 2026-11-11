@@ -2200,18 +2200,18 @@ def latest_listed(facts: dict | None, wards: list[dict]) -> tuple[str | None, se
 
 def last_wards(wards: list[dict], members) -> dict[str, int]:
     """{member: ward} for each of `members` whose own last two ward prints agree on a ward that nobody else has been
-    printed in since."""
-    prints = defaultdict(list)          # member -> [(date, ward)]
+    printed in since, or whose last print is a configured, cited seating (city path N10, `configured`)."""
+    prints = defaultdict(list)          # member -> [(date, ward, configured)]
     last_in = {}                         # ward -> (date, member) of its latest print
-    for w in sorted(wards, key=lambda w: (w["date"], w["meeting_id"])):
+    for w in sorted(wards, key=lambda w: (w["date"], w["meeting_id"] or "")):
         if w.get("ward") is None or not w.get("official_id"):
             continue
-        prints[w["official_id"]].append((w["date"], int(w["ward"])))
+        prints[w["official_id"]].append((w["date"], int(w["ward"]), bool(w.get("configured"))))
         last_in[int(w["ward"])] = (w["date"], w["official_id"])
     out = {}
     for oid in sorted(members):
         p = prints.get(oid, [])
-        if len(p) >= 2 and p[-1][1] == p[-2][1] and last_in[p[-1][1]][1] == oid:
+        if p and (p[-1][2] or len(p) >= 2 and p[-1][1] == p[-2][1]) and last_in[p[-1][1]][1] == oid:
             out[oid] = p[-1][1]
     return out
 
