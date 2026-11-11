@@ -988,11 +988,14 @@ def finance_fact_ids(fin: dict | None) -> set[str]:
 
 
 def held_sentence(rc: dict, sentences: dict) -> str:
-    """A held roll call's sentence (council.yml held_sentences): its one failed check's, names_resolve and
-    surnames_resolve counted as one, else `other`."""
+    """A held roll call's sentence (council.yml held_sentences): attendance_verified's whenever it failed; else its
+    one failed check's, names_resolve and surnames_resolve counted as one; else `other`. outcome_consistent with no
+    outcome read (outcome `other`) has no sentence of its own (its sentence speaks of a stated outcome)."""
     failed = {"names_resolve" if c["check"] == "surnames_resolve" else c["check"]
               for c in rc["verification"]["checks"] if not c["ok"]}
-    one = next(iter(failed)) if len(failed) == 1 else None
+    if rc.get("outcome") not in ("passed", "failed"):
+        failed = {"outcome_not_read" if f == "outcome_consistent" else f for f in failed}
+    one = "attendance_verified" if "attendance_verified" in failed else next(iter(failed)) if len(failed) == 1 else None
     return (sentences.get(one) or sentences["other"]) if one else sentences["other"]
 
 

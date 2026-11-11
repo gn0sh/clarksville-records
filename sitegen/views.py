@@ -52,17 +52,30 @@ def name_key(o: dict) -> tuple:
 
 # The check names that share one held sentence (a name in the vote, or in the attendance read from a surname)
 HELD_CHECK_GROUPS = {"surnames_resolve": "names_resolve"}
+# The meeting-level hold: every other check of a roll call reads that attendance, so its sentence wins
+HELD_FIRST = "attendance_verified"
+
+
+def held_key(rc: dict) -> str:
+    """Which held sentence a held roll call gets (city-verify V5, review city-verify/held-sentence-accuracy):
+    `attendance_verified` whenever it failed; else its one failed check (names_resolve and surnames_resolve count as
+    one); else `other`. A failed `outcome_consistent` with no outcome read (outcome `other`, "outcome not read") is
+    not that check's sentence, which speaks of a stated outcome: it counts as `outcome_not_read` (no sentence: `other`)."""
+    failed = {HELD_CHECK_GROUPS.get(c["check"], c["check"]) for c in rc["verification"]["checks"] if not c["ok"]}
+    if "outcome_consistent" in failed and rc.get("outcome") not in ("passed", "failed"):
+        failed = (failed - {"outcome_consistent"}) | {"outcome_not_read"}
+    if HELD_FIRST in failed:
+        return HELD_FIRST
+    return next(iter(failed)) if len(failed) == 1 else "other"
 
 
 def held_note(rc: dict, sentences: dict | None) -> str | None:
     """The fixed sentence for a held roll call (city-verify V5, docs/architecture/city-council.md "Launch treatment"):
-    the sentence of its one failed check (names_resolve and surnames_resolve count as one), else `other` for several
-    or any check without a sentence. The same for every member; None when verified or the body has no sentences."""
+    the sentence of held_key, `other` for a key without one. The same for every member; None when verified or the
+    body has no sentences."""
     if not sentences or is_verified(rc):
         return None
-    failed = {HELD_CHECK_GROUPS.get(c["check"], c["check"]) for c in rc["verification"]["checks"] if not c["ok"]}
-    return sentences[next(iter(failed))] if len(failed) == 1 and next(iter(failed)) in sentences \
-        else sentences["other"]
+    return sentences.get(held_key(rc)) or sentences["other"]
 
 
 def is_verified(fact: dict) -> bool:

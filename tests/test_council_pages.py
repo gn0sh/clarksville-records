@@ -237,25 +237,59 @@ ONE = {"one_vote_per_present_member": "Not confirmed: the minutes list a member 
        "names_resolve": "Not confirmed: a name in this vote does not match a member on the official record.",
        "attendance_verified": "Not confirmed: this meeting's attendance list could not be matched to the official "
                               "record.",
-       "outcome_consistent": "Not confirmed: the outcome the minutes state does not match the votes they list."}
+       "outcome_consistent": "Not confirmed: the stated outcome could not be matched to the votes listed."}
+OTHER = "Not confirmed: the automatic checks did not pass."
 
 
-@pytest.mark.parametrize("failed,sentence", [
-    (["one_vote_per_present_member"], ONE["one_vote_per_present_member"]),
-    (["names_resolve"], ONE["names_resolve"]),
-    (["surnames_resolve"], ONE["names_resolve"]),
-    (["attendance_verified"], ONE["attendance_verified"]),
-    (["outcome_consistent"], ONE["outcome_consistent"]),
-    (["vote_matches_item"], "Not confirmed: the automatic checks did not pass."),
-    (["names_resolve", "one_vote_per_present_member"], "Not confirmed: the automatic checks did not pass."),
+@pytest.mark.parametrize("failed,outcome,sentence", [
+    (["one_vote_per_present_member"], "passed", ONE["one_vote_per_present_member"]),
+    (["names_resolve"], "passed", ONE["names_resolve"]),
+    (["surnames_resolve"], "passed", ONE["names_resolve"]),
+    (["attendance_verified"], "passed", ONE["attendance_verified"]),
+    (["outcome_consistent"], "passed", ONE["outcome_consistent"]),
+    (["outcome_consistent"], "failed", ONE["outcome_consistent"]),
+    # "outcome not read" (outcome `other`): the outcome sentence speaks of a stated outcome, so `other`
+    (["outcome_consistent"], "other", OTHER),
+    (["outcome_consistent", "one_vote_per_present_member"], "other", OTHER),
+    # the meeting's attendance hold wins: every other check of the roll call reads that attendance
+    (["attendance_verified", "names_resolve"], "passed", ONE["attendance_verified"]),
+    (["attendance_verified", "names_resolve", "one_vote_per_present_member", "outcome_consistent"], "other",
+     ONE["attendance_verified"]),
+    (["vote_matches_item"], "passed", OTHER),
+    (["names_resolve", "one_vote_per_present_member"], "passed", OTHER),
 ])
-def test_a_held_city_roll_call_gets_the_one_fixed_sentence_of_its_check(failed, sentence):
-    rc = {"verification": {"status": "unverified",
-                           "checks": [{"check": c, "ok": False} for c in failed] + [{"check": "votes_listed", "ok": True}]}}
-    assert CFG["held_sentences"] == {**ONE, "other": "Not confirmed: the automatic checks did not pass."}
+def test_a_held_city_roll_call_gets_the_one_fixed_sentence_of_its_check(failed, outcome, sentence):
+    rc = {"outcome": outcome, "verification": {
+        "status": "unverified",
+        "checks": [{"check": c, "ok": False} for c in failed] + [{"check": "votes_listed", "ok": True}]}}
+    assert CFG["held_sentences"] == {**ONE, "other": OTHER}
     assert views.held_note(rc, CFG["held_sentences"]) == sentence == site_checks.held_sentence(rc, CFG["held_sentences"])
     assert views.held_note(rc, None) is None
     assert views.held_note({"verification": {"status": "verified", "checks": []}}, CFG["held_sentences"]) is None
+
+
+def test_no_held_sentence_blames_the_minutes_and_each_is_used_only_where_true():
+    """review city-verify/held-sentence-accuracy, on the committed city facts: no sentence says the minutes are wrong
+    (a hold may be our reading's); the outcome sentence shows only where an outcome was read (passed or failed),
+    never for "outcome not read"; and the attendance sentence is live (the meeting's hold wins)."""
+    held = CFG["held_sentences"]
+    assert not any(re.search(r"minutes (state|say|print)|does not match the votes they list", s) for s in held.values())
+    facts = json.loads((ROOT / CFG["facts"]).read_text(encoding="utf-8"))
+    shown = {}
+    for rc in facts["roll_calls"]:
+        if rc["verification"]["status"] == "verified":
+            continue
+        note = views.held_note(rc, held)
+        assert note == site_checks.held_sentence(rc, held), rc["id"]
+        shown.setdefault(note, []).append(rc)
+        if note == held["outcome_consistent"]:
+            assert rc["outcome"] in ("passed", "failed"), rc["id"]
+        failed = {c["check"]: c.get("detail") for c in rc["verification"]["checks"] if not c["ok"]}
+        if failed.get("outcome_consistent") == "outcome not read":
+            assert note != held["outcome_consistent"], rc["id"]
+        if "attendance_verified" in failed:
+            assert note == held["attendance_verified"], rc["id"]
+    assert shown.get(held["attendance_verified"]) and shown.get(held["outcome_consistent"])
 
 
 def test_bad_held_sentences_are_refused(tmp_path, monkeypatch):
