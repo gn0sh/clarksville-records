@@ -2,6 +2,7 @@
 {% from "_macros.html.j2" import clamp, not_confirmed, person %}
 {% from "_fin_macros.html.j2" import fin_cites, doc_link, notes_ab, words_toggle %}
 {% block main %}
+<div class="fin">
 {# Design finance-contracts 4. One row layout for every solicitation; order by date or name only (AC-F8). Without
    scripts the form stays hidden and every row shows; static/contracts.js filters, sorts and pages the rows and keeps
    the choices in the address (URL state, like search). #}
@@ -71,6 +72,7 @@
 {% if exports %}<p class="exports">Download: <a href="{{ root }}data/solicitations.csv">CSV</a> <span class="sep" aria-hidden="true">&middot;</span> <a href="{{ root }}data/finance.json">JSON</a></p>{% endif %}
 {{ words_toggle(words, c, root) }}
 {% if disclosure %}{% include "_disclosure.html.j2" %}{% endif %}
+</div>
 {% endblock %}
 {% block scripts %}
 <script src="{{ root }}static/contracts.js" defer></script>

@@ -78,7 +78,7 @@
   function round(v, d) { var k = Math.pow(10, d); return Math.round(v * k) / k; }
 
   /* districts: [{number, path}] (the traced paths); georef: {projection, affine, boundary_margin_m}.
-     Returns {district (null outside every shape or in two), distance_m, near_boundary, page_xy, overlap?, closest?}. */
+     Returns {district (null outside every shape or in two), distance_m, near_boundary, overlap?, closest?}. */
   function districtFor(lon, lat, districts, georef) {
     var xy = toPage(lon, lat, georef), x = xy[0], y = xy[1];
     var scale = metresPerUnit(georef.affine), margin = Number(georef.boundary_margin_m);
@@ -89,7 +89,7 @@
       if (inside(rs, x, y)) { hits.push(d.number); }
     });
     var out = { district: hits.length === 1 ? hits[0] : null, distance_m: round(bestD, 1),
-                near_boundary: bestD < margin || hits.length > 1, page_xy: [round(x, 2), round(y, 2)] };
+                near_boundary: bestD < margin || hits.length > 1 };
     if (hits.length > 1) { out.overlap = hits.slice().sort(function (a, b) { return a - b; }); }
     else if (!hits.length) { out.closest = bestN; }
     return out;

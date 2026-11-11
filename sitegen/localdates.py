@@ -136,8 +136,9 @@ def span(srcs) -> tuple[str, str] | None:
     return d[0][0] + label, d[0][-1] + label
 
 
-def latest(srcs) -> tuple[str, bool] | None:
-    """(latest fetch day as a plain YYYY-MM-DD, exact): exact False means it is a stored UTC day (a machine field
-    such as the morning note's data_as_of carries the flag beside the day, never a label in it)."""
-    d = _days(srcs)
-    return (d[0][-1], d[1]) if d else None
+def days(srcs) -> tuple[list[str], bool] | None:
+    """(sorted plain fetch days, exact) of source records, as pages print them: site_timezone days when every source
+    has its recorded instant, else stored UTC days (exact False). None: no fetch day."""
+    return _days(srcs)
+
+

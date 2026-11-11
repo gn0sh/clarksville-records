@@ -363,3 +363,98 @@ def test_the_docs_name_methods_that_exist():
     text = F.__doc__ + F.RequestCapReached.__doc__
     for name in set(re.findall(r"\b(limit_hosts?|site_key|check_redirect)\b", text)):
         assert hasattr(F.PoliteFetcher, name) or hasattr(F, name), name
+
+
+def test_host_matches_is_the_public_host_rule():
+    # the rule adapters share with the fetcher (collector.county_agenda, collector.fin_run): no private import
+    from collector import county_agenda, fetch, fin_run
+    assert fetch.host_matches("WWW.h.example:443", ("h.example",)) and fetch.host_matches("h.example", ("h.example",))
+    assert not fetch.host_matches("evilh.example", ("h.example",))
+    assert not fetch.host_matches("h.example.net", ("h.example",))
+    assert not hasattr(fetch, "_host_matches")
+    assert county_agenda.host_matches is fetch.host_matches and fin_run.host_matches is fetch.host_matches
+
+
+class HeaderNet:
+    """Records each request's conditional headers; `answers` is url -> list of (status, body, headers) in order."""
+
+    def __init__(self, answers):
+        self.answers, self.seen = answers, []
+
+    def __call__(self, req, timeout):
+        url = req.full_url
+        self.seen.append((url, req.get_header("If-none-match"), req.get_header("If-modified-since"),
+                          req.get_header("User-agent")))
+        if url.endswith("/robots.txt"):
+            raise urllib.error.HTTPError(url, 404, "x", {}, io.BytesIO(b""))
+        status, body, headers = self.answers[url].pop(0)
+        if status >= 300:
+            raise urllib.error.HTTPError(url, status, "x", headers, io.BytesIO(body))
+        return FakeResp(body, status, headers)
+
+
+def test_get_if_changed_sends_the_stored_validators_and_returns_304_without_a_body():
+    # politeness/daily-full-pdf-recheck
+    from collector.fetch import USER_AGENT
+    u, lm = "https://h.example/a.pdf", "Mon, 09 Nov 2026 21:03:12 GMT"
+    net, clock = HeaderNet({u: [(304, b"", {"ETag": '"abc"'}), (200, b"%PDF new", {"ETag": '"def"'}),
+                                (200, b"%PDF new", {}), (200, b"%PDF new", {}), (500, b"", {}), (304, b"", {})]}), Clock()
+    f = PoliteFetcher(opener=net, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: [],
+                      allowed_hosts=("h.example", "g.example"))
+    assert f.get_if_changed(u, etag='"abc"', last_modified=lm)[:2] == (304, b"")
+    assert net.seen[-1] == (u, '"abc"', lm, USER_AGENT)
+    assert "h.example" not in f._blocked                             # a 304 is not a refusal
+    assert f.get_if_changed(u, etag='"abc"')[:2] == (200, b"%PDF new")          # changed: the document
+    assert net.seen[-1][1:3] == ('"abc"', None)
+    # no validator, or one that is not a clean header value: the plain GET
+    assert f.get_if_changed(u)[0] == 200 and net.seen[-1][1:3] == (None, None)
+    assert f.get_if_changed(u, etag='"a"\r\nX-Evil: 1', last_modified=" ")[0] == 200
+    assert net.seen[-1][1:3] == (None, None)
+    # a server error is retried once with the same validators; one request each otherwise, 10 s apart
+    assert f.get_if_changed(u, etag='"def"')[0] == 304
+    assert [x[1] for x in net.seen[-2:]] == ['"def"', '"def"']
+    assert all(s >= 10.0 for s in clock.slept)
+    assert len([x for x in net.seen if x[0] == u]) == 6
+    # robots.txt and the allowlist apply as for get()
+    with pytest.raises(HostRefused):
+        f.get_if_changed("https://elsewhere.example/a.pdf", etag='"abc"')
+
+
+def test_a_redirect_target_gets_the_plain_get_without_the_validators():
+    u, v = "https://h.example/a.pdf", "https://g.example/b.pdf"
+    net, clock = HeaderNet({u: [(302, b"", {"Location": v})], v: [(200, b"%PDF", {})]}), Clock()
+    f = PoliteFetcher(opener=net, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: [],
+                      allowed_hosts=("h.example", "g.example"))
+    assert f.get_if_changed(u, etag='"abc"')[:2] == (200, b"%PDF")
+    assert [(x[0], x[1]) for x in net.seen if not x[0].endswith("robots.txt")] == [(u, '"abc"'), (v, None)]
+
+
+def test_a_304_never_skips_or_shortens_the_crawl_delay():
+    """politeness/conditional-get-keeps-delay: a conditional GET answered 304 (no body) is still a request to the
+    host, so the next request to that host waits the full per-host delay (robots Crawl-delay here), exactly as
+    after a 200."""
+    u, v = "https://h.example/a.pdf", "https://h.example/b.pdf"
+    clock = Clock()
+    sent = []
+
+    def net(req, timeout):
+        url = req.full_url
+        sent.append((url, clock.t))
+        if url.endswith("/robots.txt"):
+            return FakeResp(b"User-agent: *\nCrawl-delay: 30\n", 200)
+        if req.get_header("If-none-match"):
+            raise urllib.error.HTTPError(url, 304, "Not Modified", {"ETag": '"abc"'}, io.BytesIO(b""))
+        return FakeResp(b"%PDF", 200)
+
+    f = PoliteFetcher(opener=net, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: [],
+                      allowed_hosts=("h.example",))
+    assert f.get_if_changed(u, etag='"abc"')[0] == 304
+    assert f.get_if_changed(v, etag='"abc"')[0] == 304
+    assert f.get(u)[0] == 200
+    assert f.get_if_changed(v, etag='"abc"')[0] == 304
+    assert [x for x, _ in sent] == ["https://h.example/robots.txt", u, v, u, v]
+    times = [t for _, t in sent]
+    assert all(b - a >= 30.0 for a, b in zip(times, times[1:]))   # every gap, after a 304 too, is the full delay
+    assert clock.slept == [30.0] * 4
+    gets = [(x["url"], x["detail"]) for x in f.log if x["event"] == "get" and x["url"] != sent[0][0]]
+    assert gets == [(u, "304"), (v, "304"), (u, "200"), (v, "304")]   # a 304 is logged as the request it was

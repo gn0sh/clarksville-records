@@ -10,5 +10,10 @@
 {# A page about a body we do not collect yet carries one plain link to that body's own site (config, never fetched). #}
 {% if page.link is defined %}<p>{{ page.link_lede }} <a data-ext="{{ page.link.kind }}" href="{{ page.link.url }}" target="_blank" rel="noopener noreferrer">{{ page.link.label }}<span class="sr-only"> (opens in a new tab)</span></a>.</p>
 {% endif %}
+{% if page.links is defined %}<p>{{ page.link_lede }}</p>
+<ul>
+{% for l in page.links %}<li><a data-ext="{{ l.kind }}" href="{{ l.url }}" target="_blank" rel="noopener noreferrer">{{ l.label }}<span class="sr-only"> (opens in a new tab)</span></a></li>
+{% endfor %}</ul>
+{% endif %}
 <p>See the <a href="{{ root }}about.html">data rules on the About page</a>.</p>
 {% endblock %}

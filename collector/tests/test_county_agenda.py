@@ -250,6 +250,9 @@ class FakeFetcher:
         self.asked.append(url)
         return self.routes.get(url, (404, b"", {}))
 
+    def get_if_changed(self, url, etag=None, last_modified=None):
+        return self.get(url)                             # a server that ignores validators: the full answer
+
 
 def test_a_stored_agenda_is_asked_again_once_per_run_until_its_meeting_date(tmp_path):
     # provenance/agenda-revised-in-place
@@ -298,3 +301,69 @@ def test_an_agenda_without_a_page_count_is_a_problem_and_shows_no_meeting(tmp_pa
     assert out["meetings"] == [] and out["sources"] == []
     assert summary["problems"][0]["problem"].startswith("no page count")
     assert out["skipped"] == [{"url": None, "reason": "x"}]
+
+
+class CondNet(Net):
+    """Net, with a server that honours validators for the URLs in `etags` (url -> current ETag): a request whose
+    If-None-Match is the current ETag gets 304 and no body. Each request's conditional headers are recorded."""
+
+    def __init__(self, routes, clock, etags):
+        super().__init__(routes, clock)
+        self.etags, self.cond = etags, []
+
+    def __call__(self, req, timeout):
+        import io
+        import urllib.error
+        inm, ims = req.get_header("If-none-match"), req.get_header("If-modified-since")
+        self.cond.append((req.full_url, inm, ims))
+        if inm is not None and self.etags.get(req.full_url) == inm:
+            self.calls.append((req.full_url, req.get_header("User-agent"), self.clock.t))
+            raise urllib.error.HTTPError(req.full_url, 304, "Not Modified", {"ETag": inm}, io.BytesIO(b""))
+        return super().__call__(req, timeout)
+
+
+def test_an_unchanged_stored_agenda_is_not_downloaded_again(tmp_path):
+    # politeness/daily-full-pdf-recheck: the daily re-request is a conditional GET
+    lm = "Mon, 09 Nov 2026 21:03:12 GMT"
+    nov, oct_ = BASE + "nov-formal.pdf", BASE + "oct-formal.pdf"
+    facts = _facts(tmp_path, "2026-10-01")
+    days = iter(range(1, 28))
+    store = Store(tmp_path / "m.json", root=tmp_path / "s", now=lambda: f"2026-11-{next(days):02d}T00:00:00+00:00")
+    meta = {"kind": "agenda_formal", "meeting_date": "2026-11", "label": "2026 November Formal"}
+    store.put(nov, REAL + b"v1", {"ETag": '"v1"', "Last-Modified": lm}, meta)
+    store.put(oct_, REAL + b"o1", {}, {**meta, "meeting_date": "2026-10"})      # the county sent no validator
+    before = json.dumps(store.entries, sort_keys=True)
+    agendas = tmp_path / "agendas.json"                  # oct's meeting is in the future too, so both are due
+    agendas.write_text(json.dumps({"sources": [{"id": "a", "url": nov}, {"id": "b", "url": oct_}], "meetings": [
+        {"id": "2026-11-09-formal", "date": "2026-11-09", "source_id": "a"},
+        {"id": "2026-11-08-special", "date": "2026-11-08", "source_id": "b"}]}), encoding="utf-8")
+
+    def run(routes, etags, today=date(2026, 11, 5)):
+        clock = Clock()
+        net = CondNet(page_routes(routes), clock, etags)
+        f = PoliteFetcher(opener=net, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: [])
+        log = {}
+        C.cmd_fetch(store, log, fetcher=f, today=today, facts_path=facts, agendas_path=agendas)
+        return net, log
+
+    # unchanged: 304, nothing stored or logged as a failure; the agenda without a validator is the plain GET
+    net, log = run({nov: (200, REAL + b"v1", {"ETag": '"v1"'}), oct_: (200, REAL + b"o1", {})}, {nov: '"v1"'})
+    assert [c for c in net.cond if c[0] == nov] == [(nov, '"v1"', lm)]         # one request, with both validators
+    assert [c for c in net.cond if c[0] == oct_] == [(oct_, None, None)]
+    assert log["fetched"] == {"not_modified": 1, "unchanged": 1} and log["failures"] == []
+    assert json.dumps(store.entries, sort_keys=True) == before
+    assert all(ua == USER_AGENT for _, ua, _ in net.calls)
+    times = [t for u, _, t in net.calls if u.startswith("https://mcgtn.org/")]
+    assert all(b - a >= 10.0 for a, b in zip(times, times[1:]))                 # the 304 counts for the host delay
+    # a server that ignores the validators sends the same document: the full GET, as before
+    net, log = run({nov: (200, REAL + b"v1", {}), oct_: (200, REAL + b"o1", {})}, {})
+    assert log["fetched"] == {"unchanged": 2} and json.dumps(store.entries, sort_keys=True) == before
+    # revised in place: the ETag no longer matches, the new bytes are a new version carrying the new validator
+    net, log = run({nov: (200, REAL + b"v2", {"ETag": '"v2"'}), oct_: (200, REAL + b"o1", {})}, {nov: '"v2"'})
+    assert log["fetched"] == {"changed": 1, "unchanged": 1}
+    assert store.latest(nov)["etag"] == '"v2"' and store.latest(nov)["bytes"] == len(REAL + b"v2")
+    net, log = run({nov: (200, REAL + b"v2", {"ETag": '"v2"'}), oct_: (200, REAL + b"o1", {})}, {nov: '"v2"'})
+    assert [c for c in net.cond if c[0] == nov] == [(nov, '"v2"', None)] and log["fetched"]["not_modified"] == 1
+    # after the meeting date nothing is asked at all
+    net, log = run({}, {nov: '"v2"'}, today=date(2026, 11, 10))
+    assert not [c for c in net.cond if c[0] in (nov, oct_)]
