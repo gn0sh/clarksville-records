@@ -469,37 +469,54 @@ jobs:
             exit 2
           fi
 
-      # main-protect/actions-bypass-reopens-M1: the main ruleset lets GitHub Actions push main directly (for the push
-      # job's data/ commit), so a workflow on any branch could put changed sender code, config or workflows on main
-      # without a pull request. Refuse unless the newest commit on this commit's first-parent line (main's own
-      # commits: no commit of a merged-in branch counts) that touches sender/, config/site.yml or .github/ is the
-      # merge or squash commit of a merged pull request into main. The daily data/ commits touch none of those paths,
+      # main-protect/actions-bypass-reopens-M1, main-protect/pr-check-last-commit-only: the main ruleset lets GitHub
+      # Actions push main directly (for the push job's data/ commit), so a workflow on any branch could put changed
+      # sender code, config or workflows on main without a pull request. Refuse unless EVERY commit on this commit's
+      # first-parent line (main's own commits: no commit of a merged-in branch counts) after MAIN_PR_BASELINE that
+      # touches sender/, config/site.yml or .github/ is the merge or squash commit of a merged pull request into main.
+      # Checking only the newest such commit would let any later PR launder an earlier direct push.
+      # MAIN_PR_BASELINE is main's commit at go-live (runbook docs/ops/morning-note.md 4.7): history up to and
+      # including it was checked by hand then. Until it is set to a 40-hex commit on main's first-parent line the
+      # step refuses (fail closed). Changing it is a change to .github/, so it needs a PR itself, and that PR is
+      # after any baseline it can name, so it is always checked. The daily data/ commits touch none of those paths,
       # so they never trip it. From go-live on, every change to those paths reaches main by a pull request merged
-      # with "Create a merge commit" or "Squash and merge" (runbook docs/ops/morning-note.md, 2.0). This does not stop
-      # a writer who merges their own PR (0 approvals), nor a pushed workflow that drops this step: the runbook's
-      # required reviewer on the morning-note environment does. The history is fetched without file contents.
+      # with "Create a merge commit" or "Squash and merge" (runbook 2.0). This does not stop a writer who merges
+      # their own PR (0 approvals), nor a pushed workflow that drops this step: the runbook's required reviewer on
+      # the morning-note environment does. The history is fetched without file contents.
       - name: Check sender, config and workflow changes reached main by pull request
         env:
           GH_TOKEN: ${{ github.token }}
+          MAIN_PR_BASELINE: ""   # go-live: set to main's commit sha by PR (runbook 4.7); empty refuses every send
         run: |
           set -euo pipefail
+          base="${MAIN_PR_BASELINE:-}"
+          if ! [[ "$base" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::MAIN_PR_BASELINE is not set to a commit sha (runbook docs/ops/morning-note.md 4.7). Nothing sent."; exit 2
+          fi
           deepen=()
           if [ "$(git rev-parse --is-shallow-repository)" = true ]; then deepen=(--unshallow); fi
           git fetch --no-tags --filter=blob:none "${deepen[@]}" origin main
           if [ "$(git rev-parse --is-shallow-repository)" != false ]; then
             echo "::error::could not read main's full history. Nothing sent."; exit 2
           fi
-          sha=$(git log --first-parent -1 --format=%H HEAD -- sender/ config/site.yml .github/)
-          if ! [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::no commit touching sender/, config/site.yml or .github/ found. Nothing sent."; exit 2
+          on_line=$(git rev-list --first-parent HEAD | grep -Fxc -- "$base" || true)
+          if [ "$on_line" != 1 ]; then
+            echo "::error::MAIN_PR_BASELINE $base is not a commit on main's first-parent line. Nothing sent."; exit 2
           fi
-          n=$(SHA="$sha" gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" --jq \
-                '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.SHA)] | length')
-          if [ "$n" != 1 ]; then
-            echo "::error::$sha (the last change to sender/, config/site.yml or .github/ on main) is not the merge of a pull request into main. Nothing sent."
-            exit 2
+          shas=$(git log --first-parent --format=%H "$base..HEAD" -- sender/ config/site.yml .github/)
+          if [ -z "$shas" ]; then
+            echo "::error::no commit after MAIN_PR_BASELINE touches sender/, config/site.yml or .github/ (the commit that set it must). Nothing sent."; exit 2
           fi
-          echo "$sha, the last change to sender/, config/site.yml or .github/, was merged by pull request."
+          for sha in $shas; do
+            if ! [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then echo "::error::unexpected git log output. Nothing sent."; exit 2; fi
+            n=$(SHA="$sha" gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" --jq \
+                  '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.SHA)] | length')
+            if [ "$n" != 1 ]; then
+              echo "::error::$sha (a change to sender/, config/site.yml or .github/ on main after MAIN_PR_BASELINE) is not the merge of a pull request into main. Nothing sent."
+              exit 2
+            fi
+          done
+          echo "Every change to sender/, config/site.yml or .github/ on main after $base was merged by pull request: $(echo "$shas" | wc -l) commit(s)."
 
       - name: Set up Python (standard library only, no pip step)
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0

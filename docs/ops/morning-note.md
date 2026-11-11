@@ -19,8 +19,9 @@ and 5).
      links a page that is not live).
   Inside it: mask the canary ids, check out this run's commit (no token kept), stop if its `sender/`,
   `config/site.yml` or `.github/workflows/daily-update.yml` differ from `main` (a re-run of an older run), stop
-  unless the last change to `sender/`, `config/site.yml` or `.github/` on `main` was merged by pull request (step
-  2.0), Python with no pip step, download the plan to the runner's temp folder, check the files, a dry run that
+  unless every change to `sender/`, `config/site.yml` or `.github/` on `main` after the baseline commit
+  `MAIN_PR_BASELINE` was merged by pull request (step 2.0; while the baseline is unset it always stops: section 4
+  item 7), Python with no pip step, download the plan to the runner's temp folder, check the files, a dry run that
   checks the plan, then `python -E -s -m sender deliver --plan ... --live`. `--live` is passed only when
   `MORNING_NOTE_SEND` is `true`. `permissions: contents: read` and `pull-requests: read` only (the job's
   `GITHUB_TOKEN` is given to the pull request check only). `BUTTONDOWN_API_KEY` is given to that last step only.
@@ -57,10 +58,12 @@ and may be labelled differently. Record what each screen really says in `docs/pl
      person or app with write access is someone who can reach the key. Add nobody for the morning note.
    - **The ruleset is accident prevention plus an audit trail**, not a lock: it stops a stray direct push or force
      push, and it makes every change to `main` show up as a pull request. The note job adds a check on top: it
-     refuses to send unless the last change to `sender/`, `config/site.yml` or `.github/` on `main` is the merge of
-     a pull request into `main` (step "Check sender, config and workflow changes reached main by pull request").
-     The team merged earlier work without pull requests; **from go-live on, every change to those paths reaches
-     `main` by a pull request merged with "Create a merge commit" or "Squash and merge"** (not "Rebase and merge":
+     refuses to send unless **every** commit on `main`'s first-parent line after the baseline `MAIN_PR_BASELINE`
+     that touches `sender/`, `config/site.yml` or `.github/` is the merge of a pull request into `main` (step
+     "Check sender, config and workflow changes reached main by pull request"), so a later pull request never
+     hides an earlier direct push. The baseline is set once, at go-live (section 4 item 7); until then it is empty
+     and the check refuses every send. The team merged earlier work without pull requests; **from go-live on,
+     every change to those paths reaches `main` by a pull request merged with "Create a merge commit" or "Squash and merge"** (not "Rebase and merge":
      a rebased commit other than the last one is refused). The daily `data/` commits need no PR.
    - What stops a writer who goes around all of this is a person: the optional required reviewer on the
      `morning-note` environment (section 5, step 0), which holds every job that would get the key until Brian
@@ -163,11 +166,23 @@ architect.
 6. `main` is protected (step 2.0): `scripts/protect-main.ps1` (2.0.6) prints "OK: main is protected", and the last
    scheduled run's `push` job committed `data/` to `main` under the ruleset (or the 2.0 fallback is merged and green). Link the
    check output in the go-live PR.
-7. The go-live PR itself is merged with "Create a merge commit" or "Squash and merge", so the last change to
-   `sender/`, `config/site.yml` and `.github/` on `main` is a pull request merge (the note job's PR check, step 2.0).
-   Check before setting `MORNING_NOTE_SEND`: `git log --first-parent -1 --format=%H origin/main -- sender/ config/site.yml .github/`
-   then `gh api repos/gn0sh/clarksville-records/commits/<that sha>/pulls --jq '.[].merge_commit_sha'` prints the
-   same sha.
+7. **Set the baseline `MAIN_PR_BASELINE` (last item of the go-live list; main-protect/pr-check-last-commit-only).**
+   It is in `.github/workflows/daily-update.yml`, the `env:` of step "Check sender, config and workflow changes
+   reached main by pull request", and is empty until now: while it is empty, not a sha, or not a commit on `main`'s
+   first-parent line, the note job refuses every send. The note job checks every change to `sender/`,
+   `config/site.yml` and `.github/` after the baseline; the baseline stands for "a person checked everything up to
+   here".
+   1. After every other PR of this list has merged: `git fetch origin main`, then
+      `git log --first-parent --format='%h %an %s' origin/main -- sender/ config/site.yml .github/` and read it: each
+      change to those paths was meant (the earlier ones were merged without pull requests). Then
+      `git rev-parse origin/main` prints the baseline sha.
+   2. A PR that changes only `MAIN_PR_BASELINE: ""` to `MAIN_PR_BASELINE: "<that sha>"`, reviewed, merged with
+      "Create a merge commit" or "Squash and merge". That PR comes after the baseline, so the note job checks it too.
+   3. Check before setting `MORNING_NOTE_SEND`:
+      `git fetch origin main; git log --first-parent --format=%H <baseline>..origin/main -- sender/ config/site.yml .github/`
+      lists that PR's commit (and any later ones); for each sha,
+      `gh api repos/gn0sh/clarksville-records/commits/<sha>/pulls --jq '.[].merge_commit_sha'` prints the same sha.
+   Never move the baseline later except by a reviewed PR, after a person has checked every commit it skips.
 
 ## 5. Go-live: Canary week (Brian; hard stop 1)
 0. **Optional, recommended for the canary week: Brian approves each send himself.** A required reviewer on the
@@ -188,7 +203,8 @@ architect.
       rules**. Keeping it on is also fine.
    Check: `gh api repos/gn0sh/clarksville-records/environments/morning-note --jq '.protection_rules[].type'`
    prints `required_reviewers` (and `branch_policy`).
-1. **Brian:** https://github.com/gn0sh/clarksville-records/settings/variables/actions > **New repository variable** >
+1. **Brian**, only after section 4 is done, its item 7 (`MAIN_PR_BASELINE`) last:
+   https://github.com/gn0sh/clarksville-records/settings/variables/actions > **New repository variable** >
    name `MORNING_NOTE_SEND`, value `true` > **Add variable**.
 2. The next scheduled run (09:07 UTC) sends to the canary ids only (`canary_only: true`): stamp mode schedules the
    emails for 7:00 (site time zone); ids mode sends when the run ends.
@@ -231,8 +247,11 @@ cancelled `note` job opens the same issue. A failure in "Download the morning no
 or "Check the plan" means the plan from the update job was missing or did not pass the checks: look at that run's
 "Plan the morning note" step. A failure in "Check this commit's sender and config are main's" means an older run was
 re-run, or a sender/config change merged during the run (see "Rules for manual runs and re-runs"): nothing was sent.
-A failure in "Check sender, config and workflow changes reached main by pull request" means the last commit on
-`main` that touches `sender/`, `config/site.yml` or `.github/` (its sha is in the log) is not the merge of a pull
+A failure in "Check sender, config and workflow changes reached main by pull request" means either
+`MAIN_PR_BASELINE` is unset or invalid (the log says so: section 4 item 7), or a commit on `main` after the
+baseline that touches `sender/`, `config/site.yml` or `.github/` (its sha is in the log) is not the merge of a pull
 request into `main`: someone or some workflow pushed `main` directly, or a PR was rebase-merged. Nothing was sent.
-Find out who made that commit and why before anything else; if it was an honest mistake, the fix is a reviewed PR
-(merge commit or squash) touching those paths, which becomes the new last change.
+Find out who made that commit and why before anything else. A later pull request does **not** clear it: the job
+refuses on every run until the baseline moves past it. If it was an honest mistake, a person checks that commit's
+diff, then a reviewed PR (merge commit or squash) sets `MAIN_PR_BASELINE` to `main`'s commit at that time, as in
+section 4 item 7.

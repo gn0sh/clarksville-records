@@ -679,10 +679,12 @@ def _pr(sha, merged=True, base="main"):
     return {"merged_at": "2026-11-11T00:00:00Z" if merged else None, "base": {"ref": base}, "merge_commit_sha": sha}
 
 
-def _pr_check(tmp_path, ops, pulls, gh_fail=False):
+def _pr_check(tmp_path, ops, pulls, gh_fail=False, baseline="BASE"):
     """Build main from `ops`, check out its tip from a depth-1 clone (as actions/checkout does) and run the PR step.
+    main starts with a commit BASE touching every checked path, with no PR (the history before go-live).
     ops: ("commit", label, paths) on main, or ("merge", label, branch_label, paths): a branch commit touching paths,
-    merged into main with --no-ff. pulls: {label: [pr(sha_label or a literal sha), ...]}. Returns (exit, gh calls)."""
+    merged into main with --no-ff. pulls: {label: [pr(sha_label or a literal sha), ...]}. baseline: the label (or a
+    literal value) given as MAIN_PR_BASELINE. Returns (exit, gh calls, {label: sha})."""
     step = _note_steps()[PR_STEP]
     origin, src, work, bindir = tmp_path / "origin.git", tmp_path / "src", tmp_path / "work", tmp_path / "bin"
     _git(tmp_path, "init", "-q", "--bare", str(origin))
@@ -697,7 +699,7 @@ def _pr_check(tmp_path, ops, pulls, gh_fail=False):
             (src / rel).write_text(f"{n}\n")
         _git(src, "add", "-A")
 
-    for op in ops:
+    for op in [("commit", "BASE", _ALL), *ops]:
         if op[0] == "commit":
             touch(op[2])
             _git(src, "commit", "-q", "-m", op[1])
@@ -724,49 +726,91 @@ def _pr_check(tmp_path, ops, pulls, gh_fail=False):
     calls = tmp_path / "gh-calls"
     env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_TOKEN": "t", "GITHUB_REPOSITORY": "o/r",
            "GH_CALLS": str(calls), "PULLS": str(tmp_path / "pulls.json"), "EXPECTED_JQ": PR_JQ,
-           **({"GH_FAIL": "1"} if gh_fail else {})}
+           "MAIN_PR_BASELINE": shas.get(baseline, baseline), **({"GH_FAIL": "1"} if gh_fail else {})}
     r = subprocess.run(["bash", "-c", step["run"]], cwd=work, env=env, capture_output=True, text=True)
     assert "Traceback" not in r.stderr, r.stderr
     return r.returncode, (calls.read_text().splitlines() if calls.exists() else []), shas
 
 
 DATA = ("data/x.json",)
+SENDER = ("sender/deliver.py",)
+# case: (ops on main after BASE, pulls, sends?, the commits whose PRs are read, newest first)
 PR_CASES = {
     # the PR-merged commit, then daily data/ commits pushed by the push job without a PR: sends
     "pr-then-data-days": ([("commit", "A", _ALL), ("commit", "D1", DATA), ("commit", "D2", DATA)],
-                          {"A": [_pr("A")]}, True),
+                          {"A": [_pr("A")]}, True, ["A"]),
+    # two PRs: every one is read, sends
+    "pr-then-pr": ([("commit", "A", _ALL), ("commit", "D", DATA), ("commit", "P", SENDER)],
+                   {"A": [_pr("A")], "P": [_pr("P")]}, True, ["P", "A"]),
     # a merge-commit PR (the branch commit itself has no PR of its own), then a data day: sends
-    "merge-commit-pr": ([("commit", "A", _ALL), ("merge", "M", "B", ("sender/deliver.py",)), ("commit", "D", DATA)],
-                        {"M": [_pr("M")]}, True),
+    "merge-commit-pr": ([("commit", "A", _ALL), ("merge", "M", "B", SENDER), ("commit", "D", DATA)],
+                        {"A": [_pr("A")], "M": [_pr("M")]}, True, ["M", "A"]),
     # pushed straight to main (the Actions bypass, or an unprotected push): refused
-    "direct-sender": ([("commit", "A", _ALL), ("commit", "X", ("sender/deliver.py",)), ("commit", "D", DATA)],
-                      {"A": [_pr("A")]}, False),
-    "direct-config": ([("commit", "A", _ALL), ("commit", "X", ("config/site.yml",))], {"A": [_pr("A")]}, False),
+    "direct-sender": ([("commit", "A", _ALL), ("commit", "X", SENDER), ("commit", "D", DATA)],
+                      {"A": [_pr("A")]}, False, ["X"]),
+    "direct-config": ([("commit", "A", _ALL), ("commit", "X", ("config/site.yml",))], {"A": [_pr("A")]}, False,
+                      ["X"]),
     "direct-other-workflow": ([("commit", "A", _ALL), ("commit", "X", (".github/workflows/other.yml",))],
-                              {"A": [_pr("A")]}, False),
+                              {"A": [_pr("A")]}, False, ["X"]),
+    # main-protect/pr-check-last-commit-only: A (PR) -> X (direct) -> P (PR) is still refused: the later PR does not
+    # launder the direct push, whatever the later PR touches
+    "pr-direct-pr": ([("commit", "A", _ALL), ("commit", "X", SENDER), ("commit", "P", ("config/site.yml",))],
+                     {"A": [_pr("A")], "P": [_pr("P")]}, False, ["P", "X"]),
+    "pr-direct-merge-pr": ([("commit", "A", _ALL), ("commit", "X", (".github/workflows/other.yml",)),
+                            ("merge", "M", "B", SENDER), ("commit", "D", DATA)],
+                           {"A": [_pr("A")], "M": [_pr("M")]}, False, ["M", "X"]),
     # the commit belongs to a PR that is still open, merged elsewhere, or merged as another commit: refused
-    "open-pr": ([("commit", "A", _ALL), ("commit", "X", ("sender/deliver.py",))],
-                {"A": [_pr("A")], "X": [_pr("X", merged=False)]}, False),
-    "pr-into-other-branch": ([("commit", "A", _ALL), ("commit", "X", ("sender/deliver.py",))],
-                             {"A": [_pr("A")], "X": [_pr("X", base="dev")]}, False),
-    "pr-merged-as-another-commit": ([("commit", "A", _ALL), ("commit", "X", ("sender/deliver.py",))],
-                                    {"A": [_pr("A")], "X": [_pr("f" * 40)]}, False),
+    "open-pr": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
+                {"A": [_pr("A")], "X": [_pr("X", merged=False)]}, False, ["X"]),
+    "pr-into-other-branch": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
+                             {"A": [_pr("A")], "X": [_pr("X", base="dev")]}, False, ["X"]),
+    "pr-merged-as-another-commit": ([("commit", "A", _ALL), ("commit", "X", SENDER)],
+                                    {"A": [_pr("A")], "X": [_pr("f" * 40)]}, False, ["X"]),
     # a merge pushed straight to main whose merged-in side is a PR's commit: main's own commit (first parent) counts
-    "pushed-merge-of-pr-commit": ([("commit", "A", _ALL), ("merge", "M", "E", ("sender/deliver.py",))],
-                                  {"A": [_pr("A")], "E": [_pr("E")]}, False),
-    # no PR at all, ever (the team's earlier merges without PRs): refused from go-live
-    "no-pr-history": ([("commit", "A", _ALL), ("commit", "D", DATA)], {}, False),
+    "pushed-merge-of-pr-commit": ([("commit", "A", _ALL), ("merge", "M", "E", SENDER)],
+                                  {"A": [_pr("A")], "E": [_pr("E")]}, False, ["M"]),
+    # no PR at all after the baseline (the team's earlier merges without PRs): refused from go-live
+    "no-pr-history": ([("commit", "A", _ALL), ("commit", "D", DATA)], {}, False, ["A"]),
 }
 
 
 @pytest.mark.parametrize("case", list(PR_CASES))
 def test_note_refuses_unless_sender_config_and_workflows_reached_main_by_pr(tmp_path, case):
-    ops, pulls, ok = PR_CASES[case]
+    ops, pulls, ok, read = PR_CASES[case]
     code, calls, shas = _pr_check(tmp_path, ops, pulls)
     assert (code == 0) == ok, (case, code)
-    touched = {"pushed-merge-of-pr-commit": "M", "merge-commit-pr": "M", "no-pr-history": "A",
-               "pr-then-data-days": "A"}.get(case, "X")
-    assert calls == [f"api repos/o/r/commits/{shas[touched]}/pulls --jq {PR_JQ}"]   # one read, of main's own commit
+    assert calls == [f"api repos/o/r/commits/{shas[c]}/pulls --jq {PR_JQ}" for c in read]   # main's own commits only
+
+
+def test_the_pr_check_ignores_history_up_to_the_baseline(tmp_path):
+    """The baseline (main at go-live, checked by hand) and everything before it are not read: a direct push X before
+    it does not refuse; the same history with the baseline before X does."""
+    ops = [("commit", "X", SENDER), ("commit", "G", DATA), ("commit", "P", (".github/workflows/daily-update.yml",))]
+    (tmp_path / "g").mkdir()
+    code, calls, shas = _pr_check(tmp_path / "g", ops, {"P": [_pr("P")]}, baseline="G")
+    assert code == 0 and calls == [f"api repos/o/r/commits/{shas['P']}/pulls --jq {PR_JQ}"]
+    (tmp_path / "base").mkdir()
+    code, calls, shas = _pr_check(tmp_path / "base", ops, {"P": [_pr("P")]}, baseline="BASE")
+    assert code == 2 and calls == [f"api repos/o/r/commits/{shas[c]}/pulls --jq {PR_JQ}" for c in ("P", "X")]
+
+
+@pytest.mark.parametrize("baseline", ["", "not-a-sha", "A" * 40, "a" * 40, "B", "P"])
+def test_the_pr_check_fails_closed_without_a_valid_baseline(tmp_path, baseline):
+    """main-protect/pr-check-last-commit-only: unset (the committed value until go-live), not a sha, a sha that is not
+    in the history, a commit of a merged-in branch (not on main's first-parent line), or a baseline with no checked
+    change after it (the commit that set it always is one): refused without reading any PR."""
+    ops = [("commit", "A", _ALL), ("merge", "M", "B", SENDER), ("commit", "P", SENDER)]
+    code, calls, _ = _pr_check(tmp_path, ops, {"A": [_pr("A")], "M": [_pr("M")], "P": [_pr("P")]},
+                               baseline=baseline)
+    assert code == 2 and calls == []
+
+
+def test_the_committed_baseline_is_unset_or_a_sha():
+    """Until go-live MAIN_PR_BASELINE is empty, so the note job refuses every send; go-live sets it (runbook 4.7)."""
+    env = _note_steps()[PR_STEP]["env"]
+    assert env["MAIN_PR_BASELINE"] == "" or re.fullmatch(r"[0-9a-f]{40}", env["MAIN_PR_BASELINE"])
+    runbook = (ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8")
+    assert "MAIN_PR_BASELINE" in runbook
 
 
 def test_the_pr_check_fails_closed_when_github_cannot_be_read(tmp_path):
@@ -795,7 +839,8 @@ def test_the_pr_check_runs_before_any_secret_step_with_a_read_only_token():
     assert names.index("Check this commit's sender and config are main's") + 1 == i
     assert i < names.index("Deliver the morning note")
     step = steps[i]
-    assert step["env"] == {"GH_TOKEN": "${{ github.token }}"}                    # the job's read-only token, nothing else
+    assert set(step["env"]) == {"GH_TOKEN", "MAIN_PR_BASELINE"}   # the read-only token and the baseline only
+    assert step["env"]["GH_TOKEN"] == "${{ github.token }}"
     assert [s["name"] for s in steps if "GH_TOKEN" in (s.get("env") or {})] == [PR_STEP]
     assert "sender/ config/site.yml .github/" in step["run"] and "--first-parent" in step["run"]
     assert PR_JQ in " ".join(step["run"].split())
