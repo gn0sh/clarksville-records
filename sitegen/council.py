@@ -271,7 +271,8 @@ def load(cfg: dict, facts: dict, wards: list[dict]) -> CouncilIndex:
 def site_for(site: dict, cix: CouncilIndex) -> dict:
     """The site context for a council page: the header's coverage line and data date are the council's own."""
     rec = {"url": cix.cfg["record_url"], "label": cix.cfg["record_label"]} if cix.cfg.get("record_url") else None
-    return {**site, "coverage": cix.coverage, "data_as_of": cix.data_as_of(), "record": rec}
+    # its coverage runs to the latest meeting listed, agenda-only ones included, so the header line says meetings
+    return {**site, "coverage": cix.coverage, "coverage_what": "meetings", "data_as_of": cix.data_as_of(), "record": rec}
 
 
 def seat_list(cix: CouncilIndex) -> list[dict]:

@@ -650,7 +650,8 @@ def vote_sentence(c: dict, start: str, end: str) -> str:
         unconfirmed = ", ".join(f"{c[k + '_nc']} {VOTE_WORDS[k]}*" for k in VOTE_VALUES) + " not confirmed"
     else:  # a count of roll calls only, never a Yes/No breakdown of unconfirmed votes
         n = c["rc_voted_nc"]
-        unconfirmed = f"{n} {plural(n, 'roll call', 'roll calls')} not confirmed*, see each page"
+        # votes, the same unit as the confirmed side and the official page's "votes in not confirmed* roll calls"
+        unconfirmed = f"{n} {plural(n, 'vote', 'votes')} in not confirmed* roll calls, see each page"
     return f"Roll call votes, {start} to {end}: {confirmed} confirmed; {unconfirmed}."
 
 
@@ -680,7 +681,10 @@ def totals_sentences(ix: Index, official_id: str) -> list[str]:
 
 BAR_SEGMENTS = (("yes", "Yes"), ("no", "No"), ("abstain", "Abstain"), ("other", "Other"), ("absent", "Absent"),
                 ("novote", "No vote recorded"))
-ATTENDANCE_SEGMENTS = (("present", "Present"), ("absent", "Absent"))
+# The official page's bars name their unit (site-polish/official-totals-consistent): its attendance counts meetings and
+# its vote bar roll calls, so "Absent" never reads as one number in one place and another in the next.
+OFFICIAL_BAR_SEGMENTS = BAR_SEGMENTS[:4] + (("absent", "Roll calls while recorded absent"), ("novote", "No vote recorded"))
+ATTENDANCE_SEGMENTS = (("present", "Meetings present"), ("absent", "Meetings absent"))
 
 
 def _vote_segment_counts(c: dict, suffix: str) -> dict:
@@ -779,9 +783,9 @@ def official(official_id: str, facts) -> dict:
         "name_source": name_source(ix, o),                  # a configured, cited member's record (path N10)
         "seat_header": ix.seats.header_text(official_id),  # None without a roster; never guessed
         "attendance_bar": bar(c, ATTENDANCE_SEGMENTS),
-        "vote_bar": bar(_vote_segment_counts(c, ""), BAR_SEGMENTS),
+        "vote_bar": bar(_vote_segment_counts(c, ""), OFFICIAL_BAR_SEGMENTS),
         # text only, no bar; and no breakdown at all unless unconfirmed values are shown
-        "vote_legend_nc": (bar(_vote_segment_counts(c, "_nc"), BAR_SEGMENTS) if config.SHOW_UNCONFIRMED_VALUES
+        "vote_legend_nc": (bar(_vote_segment_counts(c, "_nc"), OFFICIAL_BAR_SEGMENTS) if config.SHOW_UNCONFIRMED_VALUES
                            else None),
         "coverage": cov,
         "coverage_sentence": f"Shows {cov['body']} records from {cov['from']} to {cov['to']}. {ix.fetched_sentence()}",
@@ -1340,6 +1344,21 @@ def csp(address: dict | None = None, form_origin: str | None = None) -> str:
     rest = [f"form-action 'self' {form_origin}" if form_origin and d == "form-action 'self'" else d
             for d in CSP_BASE[1:]]
     return "; ".join([CSP_BASE[0], "script-src " + " ".join(scripts), *rest])
+
+
+def purpose_line(councils=(), rpc: bool = False, finance: bool = False, rpc_votes: bool = False) -> str:
+    """The landing's h1 (site-polish/home-heading): config/site.yml `purpose` naming every body this build covers.
+    Votes are claimed only for bodies whose votes the site shows: the county, each council, and the Regional Planning
+    Commission only when `rpc_votes` (its motions are not held: Rpc.votes_shown). The rest are named after
+    `purpose_plus` ("plus records of ...")."""
+    cfg = config.SITE
+
+    def joined(names):
+        return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+    voted = [cfg["county_body"], *(c.body_name for c in councils)] + [cfg["purpose_rpc"]] * bool(rpc and rpc_votes)
+    records = [cfg["purpose_rpc_records"]] * bool(rpc and not rpc_votes) + [cfg["purpose_finance"]] * bool(finance)
+    plus = cfg["purpose_plus"].format(bodies=joined(records)) if records else ""
+    return cfg["purpose"].format(bodies=joined(voted), plus=plus)
 
 
 def landing(facts, districts: dict | None, georef: dict | None = None, geocoder: bool = True,

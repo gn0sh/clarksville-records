@@ -12,6 +12,9 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
   validator the request is the plain GET. Same policy, robots check and per-host delay, one request either way;
 - no automatic redirects: each Location goes through get() again (allowlist, denied hosts, robots, per-host
   delay), at most MAX_REDIRECTS hops, or the fetch fails;
+- https on the default port only (fetch/scheme-port-unpinned): every request, the first URL, robots.txt and every
+  redirect hop, must be https:// with no port other than 443 and no user:password@; anything else is refused with no
+  request (SchemeRefused, a HostRefused), so a redirect cannot downgrade to http:// or move to another port;
 - a connection reset (the sandbox relay dropping a slow exchange) is retried once after the host delay, like a
   server error; a second reset fails the fetch. At most RESET_RETRIES_PER_HOST resets are retried per host per
   run: after that a reset fails the fetch at once, so a relay that keeps dropping cannot double the requests;
@@ -32,8 +35,10 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
 """
 from __future__ import annotations
 
+import http.client
 import json
 import os
+import re
 import time
 import urllib.error
 import urllib.parse
@@ -41,6 +46,8 @@ import urllib.request
 import urllib.robotparser
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+
+from . import limits
 
 USER_AGENT = ("clarksville-records research collector "
               "(+https://github.com/gn0sh/clarksville-records; polite, 10s/host)")
@@ -53,7 +60,9 @@ ALLOWED_HOSTS = ("montgomerytn.gov", "mcgtn.org", "d6.mcgtn.org",
 # cityofclarksville.com blocks automated tools: never collect from it. dev2.montgomerytn.gov (the M0 index host)
 # answered 403 from the site on 2026-11-07: stopped for good, never retried by another route.
 DENIED_HOSTS = ("cityofclarksville.com", "dev2.montgomerytn.gov")
-MAX_BYTES = 50 * 1024 * 1024
+# pipeline/fetch-cap-no-margin (limits invariant L16): largest real file 52,041,095 B (city agenda 2021-10-28,
+# clarksville-tn manifest, 2026-11-11); 200 MiB is ~4x. The body is held in memory: fine on the runner.
+MAX_BYTES = 200 * 1024 * 1024
 PROXY_REFUSALS_BEFORE_SKIP = 3
 MAX_REDIRECTS = 5
 RESET_RETRIES_PER_HOST = 3
@@ -82,6 +91,10 @@ class HostRefused(Exception):
     """The host is denied in code or not on the allowlist. No request was made."""
 
 
+class SchemeRefused(HostRefused):
+    """The URL is not https on the default port (or carries user info). No request was made."""
+
+
 class ProxyRefused(Exception):
     """The sandbox egress proxy refused the connection; the site never saw the request."""
 
@@ -103,6 +116,31 @@ def host_matches(host: str, names) -> bool:
     allowlist and denied list use it, and so does any adapter that filters links before asking the fetcher."""
     host = host.lower().split(":")[0]
     return any(host == n or host.endswith("." + n) for n in names)
+
+
+PLAIN_HOST = re.compile(r"[a-z0-9.-]+")
+CONTROL_OR_SPACE = re.compile(r"[\x00-\x20\x7f]")
+
+
+def plain_hostname(host: str) -> str | None:
+    """The lowercase host name of a netloc (no port, no user info) when it is a plain DNS name: letters, digits, dots
+    and hyphens only. None otherwise (collector-input/host-percent-encoded): urllib decodes %23, %40, %2f in a host
+    before it connects, so a raw netloc like evil.com%23.clarksvilletn.gov must never be matched against the
+    allowlist."""
+    try:
+        name = urllib.parse.urlsplit("//" + host).hostname
+    except ValueError:
+        return None
+    return name if name and PLAIN_HOST.fullmatch(name) else None
+
+
+def split_url(url: str) -> urllib.parse.SplitResult:
+    """urlsplit, with a malformed URL (e.g. "https://[x/") as FetchFailed for that one fetch instead of a ValueError
+    that would end the whole run (collector-input/redirect-valueerror-escapes)."""
+    try:
+        return urllib.parse.urlsplit(url)
+    except ValueError as e:
+        raise FetchFailed(f"{url!r}: malformed URL ({e})") from None
 
 
 def site_key(host: str) -> str:
@@ -167,6 +205,11 @@ class PoliteFetcher:
 
     # ------------------------------------------------------------ policy
     def check_host(self, host: str) -> None:
+        name = plain_hostname(host)
+        if name is None:
+            self.log.append({"event": "refused", "host": host, "detail": "not a plain host name"})
+            raise HostRefused(f"{host!r}: not a plain host name (letters, digits, dots, hyphens)")
+        host = name
         if host_matches(host, DENIED_HOSTS):
             self.log.append({"event": "refused", "host": host, "detail": "denied host"})
             raise HostRefused(f"{host}: denied in code (never collected)")
@@ -176,6 +219,23 @@ class PoliteFetcher:
         if not host_matches(host, self.allowed_hosts):
             self.log.append({"event": "refused", "host": host, "detail": "not on allowlist"})
             raise HostRefused(f"{host}: not on the allowlist")
+
+    def check_url(self, url: str) -> None:
+        """fetch/scheme-port-unpinned: https://, port 443 or none, no user info, no space or control character.
+        Raises SchemeRefused otherwise."""
+        if CONTROL_OR_SPACE.search(url):
+            # urlsplit drops tab/CR/LF but urllib.request.Request sends them: refuse rather than guess the URL
+            self.log.append({"event": "refused", "host": "", "url": repr(url), "detail": "control character or space"})
+            raise SchemeRefused(f"{url!r}: a space or control character in the URL")
+        parts = split_url(url)
+        try:
+            port = parts.port
+        except ValueError:                           # a port that is not a number in range
+            port = -1
+        if parts.scheme.lower() != "https" or port not in (None, 443) or "@" in parts.netloc:
+            self.log.append({"event": "refused", "host": parts.netloc, "url": url,
+                             "detail": "not https on the default port"})
+            raise SchemeRefused(f"{url}: only https:// on the default port is fetched")
 
     def sent(self, host: str) -> int:
         """Requests made to host's site this run (robots.txt, redirects and retries included)."""
@@ -239,9 +299,10 @@ class PoliteFetcher:
 
     # ------------------------------------------------------------ requests
     def _raw_get(self, url: str, _retry: bool = True, _headers: dict | None = None) -> tuple[int, bytes, dict]:
-        host = urllib.parse.urlsplit(url).netloc
+        host = split_url(url).netloc
         key = site_key(host)
         self.check_host(host)
+        self.check_url(url)
         if key in self._blocked:
             raise HostBlocked(f"{host}: {self._blocked[key]}")
         if self._proxy_refused.get(key, 0) >= PROXY_REFUSALS_BEFORE_SKIP:
@@ -252,11 +313,12 @@ class PoliteFetcher:
         self._wait(host)
         self._sent[key] = self.sent(host) + 1
         started = self.wall()
-        req = urllib.request.Request(url, headers={**(_headers or {}), "User-Agent": self.user_agent})
         try:
+            req = urllib.request.Request(url, headers={**(_headers or {}), "User-Agent": self.user_agent})
             with self._open(req) as r:
                 body = r.read(self.max_bytes + 1)
                 if len(body) > self.max_bytes:
+                    limits.trip("fetch.MAX_BYTES", url, f"{len(body)}+ B", f"{self.max_bytes} B")
                     raise FetchFailed(f"{url}: larger than {self.max_bytes} bytes")
                 self.log.append({"event": "get", "host": host, "url": url, "detail": str(r.status)})
                 return r.status, body, dict(r.headers)
@@ -289,21 +351,40 @@ class PoliteFetcher:
                 detail += f" (not retried: {self.reset_retries} resets already retried on {host} this run)"
             self.log.append({"event": "error", "host": host, "url": url, "detail": detail})
             raise FetchFailed(f"{url}: {detail}") from None
+        except (ValueError, http.client.HTTPException) as e:
+            # http.client.InvalidURL (control characters, a bad host), IncompleteRead, a bad status line and the like:
+            # that one fetch fails, never the run (collector-input/redirect-valueerror-escapes). After the OSError
+            # clause, so RemoteDisconnected (also a ConnectionResetError) keeps its one retry.
+            detail = f"invalid URL or response: {type(e).__name__}: {e}"
+            self.log.append({"event": "error", "host": host, "url": url, "detail": detail})
+            raise FetchFailed(f"{url!r}: {detail}") from None
 
     def robots(self, host: str, scheme: str = "https") -> urllib.robotparser.RobotFileParser:
-        exact = host.lower()                 # robots.txt is per exact host (RFC 9309); delay, block, cap per site
+        # robots.txt is per exact host (RFC 9309); delay, block, cap per site. The cache key is the plain host name:
+        # check_url allows only port 443 or none, so h.example, h.example:443 and h.example:0443 are one host
+        exact = plain_hostname(host) or host.lower()
         key = site_key(host)
         if exact not in self._robots:
             rp = urllib.robotparser.RobotFileParser()
             url = f"{scheme}://{host}/robots.txt"
             status, body, headers = self._raw_get(url)
             hops = 0
+            refused = False
             while status in REDIRECT_CODES and hops < MAX_REDIRECTS:
-                nxt = self._location(url, headers)       # raises HostRefused for a denied or unlisted host
+                try:
+                    nxt = self._location(url, headers)   # HostRefused: a denied/unlisted host, http://, another port
+                except HostRefused as e:
+                    # robots.txt cannot be read: disallow everything on this host for the run, cached, so later
+                    # fetches neither re-request robots.txt nor fetch the host (scheme-refusal-stops-host)
+                    self.log.append({"event": "robots_refused", "host": host, "url": url, "detail": str(e)})
+                    refused = True
+                    break
                 hops += 1
                 url = nxt
                 status, body, headers = self._raw_get(url)
-            if status == 200:
+            if refused:
+                rp.disallow_all = True
+            elif status == 200:
                 rp.parse(body.decode("utf-8", "replace").splitlines())
             elif 400 <= status < 500:
                 rp.allow_all = True          # no robots.txt = no rules (RFC 9309)
@@ -319,16 +400,27 @@ class PoliteFetcher:
         loc = next((v for k, v in (headers or {}).items() if k.lower() == "location"), None)
         if not loc:
             raise FetchFailed(f"{url}: redirect without a Location header")
-        nxt = urllib.parse.urljoin(url, loc)
-        host = urllib.parse.urlsplit(nxt).netloc
+        if CONTROL_OR_SPACE.search(loc):    # urljoin would silently drop a tab/CR/LF and fetch another URL
+            self.log.append({"event": "refused", "host": split_url(url).netloc, "url": url,
+                             "detail": f"control character or space in Location {loc!r}"})
+            raise SchemeRefused(f"{url}: redirect Location {loc!r} has a space or control character")
+        try:
+            nxt = urllib.parse.urljoin(url, loc)
+        except ValueError as e:     # e.g. Location: https://[x/
+            self.log.append({"event": "error", "host": split_url(url).netloc, "url": url,
+                             "detail": f"malformed Location {loc!r}"})
+            raise FetchFailed(f"{url}: malformed redirect Location {loc!r} ({e})") from None
+        host = split_url(nxt).netloc
         self.log.append({"event": "redirect", "host": urllib.parse.urlsplit(url).netloc, "url": url, "detail": nxt})
+        self.check_url(nxt)                     # every hop, not only the first URL: no http:// or other port
         self.check_host(host)
         self.check_redirect(urllib.parse.urlsplit(url).netloc, host)
         return nxt
 
     def get(self, url: str, _hops: int = 0, _headers: dict | None = None) -> tuple[int, bytes, dict]:
-        parts = urllib.parse.urlsplit(url)
+        parts = split_url(url)
         self.check_host(parts.netloc)
+        self.check_url(url)
         rp = self.robots(parts.netloc, parts.scheme)
         if not rp.can_fetch(self.user_agent, url):
             self.log.append({"event": "robots_disallowed", "host": parts.netloc, "url": url, "detail": ""})

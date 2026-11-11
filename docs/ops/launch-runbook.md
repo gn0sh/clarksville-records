@@ -25,7 +25,24 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
     log and ask the manager. 3 the G4 skew gate flagged an official (`build.gates.g4.flagged` in
     `build/city-report.json`): a release block, as the county's 3; the city's AC-P1 verified rate is reported there
     but sets no code.
-  - county: 2 fetch/parse failures (votes or finance), 3 gate failure, 4 offline run refused.
+  - county: 2 fetch/parse failures (votes or finance), 3 gate failure, 4 offline run refused. (7 is a warning, below.)
+- **County meetings kept** (county 7, a warning; precedence 2 > 3 > 7 > 5/6). The shrink guard
+  (`docs/architecture/pipeline-limits-invariant.md`, "Rule 3: the shrink guard") compares each county source document
+  with the committed `data/facts.json` by sha256. The same document that lost a verified roll call or a meeting (a
+  limit trip, a lost OCR reading, a parser change), or a document missing from the run, keeps that document's
+  meetings exactly as committed; everything else (city, other county meetings, finance, agendas, RPC) commits and
+  deploys. A document whose bytes changed is a correction: the new reading is published and listed; it is a 7 only
+  when its verified count fell. One open "Daily update: county meetings kept" issue (a comment each later day) lists
+  `build/run-log.json` `kept_meetings` and `corrections`; it repeats every day until the cause clears. Under 7 the RPC
+  outcome is read from `run-log.json` `.rpc.exit`, so an RPC failure still opens its own issue. What to do: read the
+  run log's `limit` lines and the kept reasons. A transient cause (a timeout, a store gap) clears on its own; a too
+  tight limit is a bug (fix the limit, rule 1). Only when the downgrade is meant (a reader fix that rightly unverifies
+  votes, a parser change that renames meeting ids) run the workflow by hand from `main` with `allow_shrink` ticked
+  (Actions, Daily update, Run workflow): the county and RPC results then replace the committed ones, still listed in
+  the run summary. A scheduled run never passes it, and only a run on `main` commits. Such a run says
+  `allow_shrink:` in its data commit message and comments on the kept-meetings issue. A correction counts only when
+  the new file is at the old file's address (or the store marks the old one replaced); a meeting merely read from
+  another document keeps the old one. New meetings held back with a kept document are listed as `withheld_new`.
 - **RPC only** (not a failure of the run; one source must not freeze the daily refresh). The RPC step's codes are used
   only when everything else is ok, and the RPC files (`data/localities/cmc-rpc/`) are restored byte for byte unless
   the step succeeds, so the city, county and finance data still commit and deploy:
@@ -85,7 +102,7 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
 0. **Verify gnoshcodes.com** (once, before any DNS change): open https://github.com/settings/pages > Add a domain >
    `gnoshcodes.com` > add the TXT record it shows (host `_github-pages-challenge-gn0sh`) at Porkbun
    (https://porkbun.com/account/domains > gnoshcodes.com > DNS) > Verify. This stops anyone else claiming a dangling
-   `records` CNAME. Expected: gnoshcodes.com shows as Verified.
+   `daylight` CNAME. Expected: gnoshcodes.com shows as Verified.
 1. Pages source. Open https://github.com/gn0sh/clarksville-records/settings/pages > Build and deployment > Source:
    **GitHub Actions** (replaces the gh-pages branch preview). Expected: the page shows "Your site is ready to be published".
 2. Custom domain, then DNS, back to back (never leave the CNAME pointing at Pages with no custom domain set):
@@ -95,6 +112,8 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
       Check: `dig +short daylight.gnoshcodes.com CNAME` prints `gn0sh.github.io.` (a few minutes).
 3. Wait for the green "DNS check successful" on the Pages settings page (up to 15 minutes), then tick **Enforce HTTPS**
    (certificate issues within about an hour).
+3a. (devops, on the CEO's go-ahead, no CEO step) Merge a one-line PR setting `live: true` in `config/site.yml`, so the
+   About page drops its "has not launched yet" sentence. Merge it before step 4: every deploy builds from `main`.
 4. Enable the deploy lock: https://github.com/gn0sh/clarksville-records/settings/variables/actions > New repository
    variable, Name `RECORDS_DEPLOY_ENABLED`, Value `true`. (Or: `gh variable set RECORDS_DEPLOY_ENABLED --body true
    --repo gn0sh/clarksville-records`.)
@@ -148,10 +167,10 @@ Described diff for `monitor.config.json`, add one entry to `targets` (not applie
   `git revert <sha>`), then Actions > Daily update > Run workflow with collect = **false**. That redeploys the
   reverted committed data without fetching.
 - **Bad code:** revert the merge commit on `main`, run the workflow with collect = false.
-- **Take the site down:** Pages settings > Unpublish site (or set Source to None), **then delete the Porkbun `records`
+- **Take the site down:** Pages settings > Unpublish site (or set Source to None), **then delete the Porkbun `daylight`
   CNAME** so it never dangles.
 - **Domain trouble:** the site also answers at https://gn0sh.github.io/clarksville-records/ only while no custom
-  domain is set; to fall back, remove the Custom domain in Pages settings **and delete the Porkbun `records` CNAME in the
+  domain is set; to fall back, remove the Custom domain in Pages settings **and delete the Porkbun `daylight` CNAME in the
   same sitting** (a CNAME with no custom domain set is a takeover risk, even with gnoshcodes.com verified).
 
 ## Retire the gh-pages preview (after the live site checks out; CEO says go, devops does it)

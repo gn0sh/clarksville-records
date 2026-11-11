@@ -38,6 +38,7 @@ MINUTES_WORDS = {
     "not_fetched": "Minutes listed, not fetched.",
     "parse_failed": "The minutes could not be read; open them yourself.",
     "other_meeting": "The file listed as this meeting's minutes records another meeting, so it is not used here.",
+    "unreadable": "The minutes file was fetched but could not be read, so nothing was taken from it.",
 }
 # The dot each kind of card draws in the strip (decorative; the button's label says the count in words).
 DOTS = {"county": "county", "council": "city", "rpc": "rpc", "bids": "bids"}

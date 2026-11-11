@@ -12,31 +12,37 @@
     <p class="muted coverage">{{ coverage_sentence }}</p>
   </div>
 </header>
+{# One set of numbers (site-polish/official-totals-consistent): each count has one label and one unit (meetings,
+   roll calls or votes) wherever it appears, and the parts are shown with the whole they add up to. data-n marks each
+   number for qa/site_checks.py official-numbers. #}
+{% macro rc_split(st, sfx, what) -%}
+Of <span data-n="rc_total{{ sfx }}">{{ st['rc_total' ~ sfx] }}</span> {{ what }} roll {{ 'call' if st['rc_total' ~ sfx] == 1 else 'calls' }} at meetings where this person is listed in the attendance, or where a vote is recorded for them: a vote is recorded for this person in <span data-n="rc_voted{{ sfx }}">{{ st['rc_voted' ~ sfx] }}</span>; <span data-n="rc_absent{{ sfx }}">{{ st['rc_absent' ~ sfx] }}</span> {{ 'was' if st['rc_absent' ~ sfx] == 1 else 'were' }} held at meetings where this person is recorded absent; <span data-n="rc_novote{{ sfx }}">{{ st['rc_novote' ~ sfx] }}</span> {{ 'has' if st['rc_novote' ~ sfx] == 1 else 'have' }} no vote recorded for this person while recorded present.
+{%- endmacro %}
 <ul class="stats stats-official">
-  {{ stat(stats.meetings_listed, "meetings with attendance shown") }}
-  {{ stat(stats.present, "recorded present") }}
-  {{ stat(stats.rc_voted, "confirmed roll calls with a recorded vote") }}
-  {{ stat(stats.rc_voted_nc, "not confirmed* roll calls with a recorded vote") }}
-  {{ stat(stats.moved, "motions moved") }}
-  {{ stat(stats.seconded, "motions seconded") }}
+  {{ stat(stats.meetings_listed, "meetings with attendance shown", "meetings_listed") }}
+  {{ stat(stats.present, "meetings recorded present", "present") }}
+  {{ stat(stats.rc_voted, "votes in confirmed roll calls", "rc_voted") }}
+  {{ stat(stats.rc_voted_nc, "votes in not confirmed* roll calls", "rc_voted_nc") }}
+  {{ stat(stats.moved, "motions moved", "moved") }}
+  {{ stat(stats.seconded, "motions seconded", "seconded") }}
 </ul>
 
 <section aria-labelledby="attendance-h">
   <h2 id="attendance-h">Attendance</h2>
-  <p>Recorded present at {{ stats.present }} and absent at {{ stats.absent }} of {{ stats.meetings_listed }} meetings with attendance shown, {{ coverage.from }} to {{ coverage.to }}.</p>
+  <p>Recorded present at <span data-n="present">{{ stats.present }}</span> and absent at <span data-n="absent">{{ stats.absent }}</span> of <span data-n="meetings_listed">{{ stats.meetings_listed }}</span> meetings with attendance shown, {{ coverage.from }} to {{ coverage.to }}.</p>
   {{ bar(attendance_bar) }}
-  {{ legend(attendance_bar) }}
+  {{ legend(attendance_bar, n_prefix="att-") }}
 </section>
 
 <section aria-labelledby="votes-h">
   <h2 id="votes-h">Roll-call votes</h2>
   <h3>Confirmed roll calls</h3>
-  <p>{{ stats.rc_total }} confirmed roll {{ 'call' if stats.rc_total == 1 else 'calls' }} at meetings where this person is listed in the attendance, or where a vote is recorded for them. The bar shows confirmed roll calls only.</p>
+  <p>{{ rc_split(stats, "", "confirmed") }} The bar shows confirmed roll calls only.</p>
   {{ bar(vote_bar) }}
-  {{ legend(vote_bar) }}
+  {{ legend(vote_bar, n_prefix="vote-") }}
   <h3>Not confirmed roll calls*</h3>
-  <p>{{ stats.rc_total_nc }} not confirmed roll {{ 'call' if stats.rc_total_nc == 1 else 'calls' }} at meetings where this person is listed in the attendance, or where a vote is recorded for them.</p>
-  {% if vote_legend_nc %}{{ legend(vote_legend_nc, true) }}
+  <p>{{ rc_split(stats, "_nc", "not confirmed") }}</p>
+  {% if vote_legend_nc %}{{ legend(vote_legend_nc, true, n_prefix="vote-nc-") }}
   <p class="muted">* Shown as printed in the minutes; they did not pass the automatic checks. Each row in the history links to its page. Confirmed and not confirmed roll calls are never added together.</p>
   {% else %}<p class="muted">* They did not pass the automatic checks, so no vote from them is shown here. Each row in the history links to its page of the minutes. Confirmed and not confirmed roll calls are never added together.</p>{% endif %}
 </section>

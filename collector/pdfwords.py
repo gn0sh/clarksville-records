@@ -7,10 +7,12 @@ line are left to right. Deterministic: the same PDF gives the same words and lin
 """
 from __future__ import annotations
 
-import subprocess
+import subprocess  # noqa: F401  (tests patch <module>.subprocess.run; calls go through limits.run)
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
 from pathlib import Path
+
+from . import limits
 
 PARSE_TIMEOUT = 120       # seconds; TimeoutExpired is a parse failure for that document (pipeline/parser-dos)
 LINE_TOL = 0.35          # fraction of the smaller word height
@@ -98,8 +100,8 @@ def bbox_text(pdf: Path, first: int | None = None, last: int | None = None) -> s
         cmd += ["-f", str(first)]
     if last:
         cmd += ["-l", str(last)]
-    return subprocess.run(cmd + [str(pdf), "-"], check=True, capture_output=True,
-                          timeout=PARSE_TIMEOUT).stdout.decode("utf-8", "replace")
+    return limits.run("pdfwords.PARSE_TIMEOUT", cmd + [str(pdf), "-"], file=pdf, check=True, capture_output=True,
+                      timeout=PARSE_TIMEOUT).stdout.decode("utf-8", "replace")
 
 
 def pdf_words(pdf: Path, first: int | None = None, last: int | None = None) -> list[Word]:

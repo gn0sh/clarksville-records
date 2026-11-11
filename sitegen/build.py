@@ -14,6 +14,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 from . import county_agendas as agendas_mod
 from . import rpc as rpc_mod
+from . import freshness as fresh_mod
 from . import morning_page
 from . import budget_views, config, council as council_mod, days as days_mod, feeds as feeds_mod, fin_views, \
     georef as georef_mod, localdates, morning as morning_mod, unofficial as unofficial_mod, \
@@ -425,6 +426,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     except (seats_mod.SeatsError, ValueError) as exc:
         raise BuildError(str(exc)) from exc
     bad = site_url_problems(config.SITE) + morning_mod.reader_problems()
+    if config.SITE.get("live", False) not in (True, False):   # site-polish/about-preview: a typo never claims a launch
+        bad.append(f"live must be true or false, got {config.SITE.get('live')!r}")
     if bad:
         raise BuildError("config/site.yml: " + "; ".join(bad))
     ix = views.Index(facts, seat_rows)
@@ -476,6 +479,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs, rpc=rpx)
     site["internal"] = internal
     site["councils"] = [council_mod.landing_entry(c) for c in cixs]
+    site["purpose"] = views.purpose_line(cixs, rpc=rpx is not None, finance=fx is not None,
+                                         rpc_votes=rpx is not None and rpx.votes_shown)
     site["transcripts_omitted"] = not transcripts
     site["ward_map"] = ward_map
     site["export_omitted"] = not export
@@ -585,7 +590,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     feed_rows = feeds_mod.feed_list(cixs, rpc=rpx, fin=fin_data, target=target) if site["alerts"] else []
     body_feeds = [f for f in feed_rows if f["kind"] == "body"]   # autodiscovery on the home pages (plan F6)
     render("index.html.j2", "index.html", "Home", **views.landing(ix, districts, georef, geocoder, site["councils"]),
-           home_feeds=body_feeds)
+           home_feeds=body_feeds,
+           freshness=fresh_mod.lines(ix, ax, cixs, rpx, fin_data, budget_views.INDEX if bg is not None else None),
+           freshness_note=fresh_mod.NOTE)
     render("officials.html.j2", "officials.html", "Officials", **views.officials_page(ix))
     render("meetings_index.html.j2", "meetings.html", "Meetings", **views.meetings_page(ix),
            watch=watch_mod.body(config.SITE["county_key"]),
@@ -697,9 +704,12 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                 rel, (name, s), kw = year_page(run, ctx)
                 render("official_year.html.j2", rel, name, s, **kw)
     if rpx is not None:   # Regional Planning Commission (sitegen/rpc.py): home and one page per year of meetings
-        render("rpc_home.html.j2", rpx.home_href(), rpx.page_name(), **rpx.home(), watch=watch_mod.body(rpx.body_key))
+        rsite = rpx.site_for(site)
+        render("rpc_home.html.j2", rpx.home_href(), rpx.page_name(), rsite, **rpx.home(),
+               watch=watch_mod.body(rpx.body_key), freshness=[x for x in [fresh_mod.rpc(rpx)] if x],
+               freshness_note=fresh_mod.NOTE)
         for y in rpx.years():
-            render("rpc_meetings_year.html.j2", rpx.year_href(y), rpx.page_name(f"Meetings {y}"),
+            render("rpc_meetings_year.html.j2", rpx.year_href(y), rpx.page_name(f"Meetings {y}"), rsite,
                    rpc_href=rpx.home_href(), rpc_label=rpx.nav_label, **rpx.meetings_year(y))
     # Day by day (Daylight M2): after the year pages, so every council meeting link knows its part
     try:

@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import re
 import subprocess
+import sys
 import unicodedata
 from collections import Counter, defaultdict
 
+from . import limits
 from .agenda_center import AgendaCenterConfig
 from .city_minutes import (NAME_RE, ParsedCityMinutes, page_has, page_has_line, parse_minutes_pdf, pdf_layer, read_pages,
                            short_hash)
@@ -26,7 +28,7 @@ SUFFIXES = {"jr", "sr", "ii", "iii", "iv"}
 # "failed due to lack of 2/3 majority": a motion can fail with more yes than no when the minutes say a larger
 # majority was required. Only then is a yes > no failure consistent.
 THRESHOLD_RE = re.compile(r"2/3|two[- ]thirds|majority", re.I)
-MINUTES_STATUS = ("read", "scan_not_read", "not_posted", "not_fetched", "parse_failed", "other_meeting")
+MINUTES_STATUS = ("read", "scan_not_read", "not_posted", "not_fetched", "parse_failed", "other_meeting", "unreadable")
 
 
 def slug(s: str) -> str:
@@ -154,8 +156,12 @@ def _verification(checks: list[dict]) -> dict:
             "checks": sorted(checks, key=lambda c: c["check"])}
 
 
+PDFINFO_TIMEOUT = 120      # seconds (pipeline/parser-dos-untimed); a timeout fails that file, not the build
+
+
 def pdf_pages(path) -> int:
-    out = subprocess.run(["pdfinfo", str(path)], capture_output=True).stdout.decode("utf-8", "replace")
+    out = limits.run("city_build.PDFINFO_TIMEOUT", ["pdfinfo", str(path)], file=path, capture_output=True,
+                     timeout=PDFINFO_TIMEOUT).stdout.decode("utf-8", "replace")
     m = re.search(r"^Pages:\s*(\d+)", out, re.M)
     return max(int(m.group(1)), 1) if m else 1
 
@@ -262,6 +268,14 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
     ids_used: Counter = Counter()
     skipped_events = []
 
+    uninspectable: set = set()
+
+    def unreadable(url: str | None) -> bool:
+        """The file at url was fetched, but pdfinfo/pdftotext could not inspect it (collector-input/unread-file-
+        mislabel: it is not 'not fetched')."""
+        e = store.latest(url) if url else None
+        return bool(e) and f"src-{e['sha256'][:12]}" in uninspectable
+
     def source_for(url: str | None):
         if not url:
             return None, None
@@ -271,7 +285,18 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
         sid = f"src-{e['sha256'][:12]}"
         path = store.path_for(e["sha256"])
         if sid not in sources:
-            sources[sid] = source_record(e, *inspect(path))
+            if sid in uninspectable:
+                return None, None
+            try:
+                sources[sid] = source_record(e, *inspect(path))
+            except (OSError, subprocess.SubprocessError) as ex:
+                # pipeline/parser-dos-untimed: pdfinfo/pdftotext timed out or failed on this file. Fail closed: the
+                # file is not cited or read (as if not fetched), reported once, and the build goes on
+                uninspectable.add(sid)
+                msg = f"pdf inspection failed ({type(ex).__name__}: {ex}): file not read or cited"
+                problems.append({"url": url, "sha256": e["sha256"], "problem": msg})
+                print(f"city build: skipped {url}: {msg}", file=sys.stderr, flush=True)
+                return None, None
         return sources[sid], path
 
     # Agenda Center rows first on a day (their meeting ids were published first), then CivicClerk rows; within a
@@ -303,7 +328,10 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
         if not src:
             status_count["not_in_facts"] += 1
             problems.append({"meeting": r["date"], "title": r["title"],
-                             "problem": "no fetched agenda or minutes file to cite: left out of facts"})
+                             "problem": ("the fetched file could not be read and there is no other file to cite: "
+                                         "left out of facts" if unreadable(r["minutes_url"]) or
+                                         unreadable(r["agenda_url"]) else
+                                         "no fetched agenda or minutes file to cite: left out of facts")})
             continue
         kind = cfg.kind_of(r["title"])            # from the title and the current config, not the stored listing
         base = f"{r['date']}-{kind}"
@@ -315,7 +343,7 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
         elif other_meeting:
             mstatus = "other_meeting"
         elif not minutes_src:
-            mstatus = "not_fetched"
+            mstatus = "unreadable" if unreadable(r["minutes_url"]) else "not_fetched"
         elif minutes_src["text_layer"] != "text":
             mstatus = "scan_not_read"
         else:

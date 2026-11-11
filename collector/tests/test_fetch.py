@@ -219,6 +219,139 @@ def test_redirect_to_a_robots_disallowed_path_is_refused():
     assert "https://g.example/private/x.pdf" not in [u for u, _ in net.calls]
 
 
+@pytest.mark.parametrize("target", ["http://h.example/b.pdf", "http://g.example/b.pdf", "https://h.example:8443/b.pdf",
+                                    "https://g.example:80/b.pdf", "https://g.example:99999/b.pdf",
+                                    "https://u:p@g.example/b.pdf", "ftp://g.example/b.pdf"])
+def test_redirect_off_https_or_to_another_port_is_refused_without_a_request(target):
+    """fetch/scheme-port-unpinned: every hop is re-checked, not only the first URL (an allowed host is not enough)."""
+    from collector.fetch import SchemeRefused
+    f, net, _ = make({"https://h.example/a": (302, b"", {"Location": target}), target: (200, b"%PDF-1")})
+    with pytest.raises(SchemeRefused):
+        f.get("https://h.example/a")
+    assert [u for u, _ in net.calls] == ["https://h.example/robots.txt", "https://h.example/a"]
+    assert f.log[-1]["event"] == "refused" and f.log[-1]["url"] == target
+
+
+def test_a_later_hop_off_https_is_refused_too():
+    from collector.fetch import SchemeRefused
+    f, net, _ = make({"https://h.example/a": (301, b"", {"Location": "https://g.example/b"}),
+                      "https://g.example/b": (302, b"", {"Location": "http://g.example/c.pdf"}),
+                      "http://g.example/c.pdf": (200, b"%PDF-1")})
+    with pytest.raises(SchemeRefused):
+        f.get("https://h.example/a")
+    assert "http://g.example/c.pdf" not in [u for u, _ in net.calls]
+
+
+@pytest.mark.parametrize("loc", ["http://h.example/robots.txt", "https://h.example:8443/robots.txt",
+                                 "https://unlisted.example/robots.txt"])
+def test_robots_txt_redirect_refused_disallows_the_host_for_the_run(loc):
+    """The robots.txt redirect is never followed; the host is then disallowed (cached), so a second fetch makes no
+    request at all, robots.txt included."""
+    f, net, _ = make({"https://h.example/robots.txt": (301, b"", {"Location": loc}),
+                      loc: (200, b"User-agent: *\nAllow: /\n"), "https://h.example/a": (200, b"x")})
+    with pytest.raises(RobotsDisallowed):
+        f.get("https://h.example/a")
+    with pytest.raises(RobotsDisallowed):
+        f.get("https://h.example/b")
+    assert [u for u, _ in net.calls] == ["https://h.example/robots.txt"]
+    assert any(e["event"] == "robots_refused" for e in f.log)
+
+
+def test_robots_cache_key_ignores_the_default_port():
+    f, net, _ = make({"https://h.example/a": (200, b"x"), "https://h.example:443/b": (200, b"x"),
+                      "https://h.example:0443/c": (200, b"x"), "https://h.example:/d": (200, b"x")})
+    for u in ("https://h.example/a", "https://h.example:443/b", "https://h.example:0443/c", "https://h.example:/d"):
+        f.get(u)
+    assert [u for u, _ in net.calls if u.endswith("/robots.txt")] == ["https://h.example/robots.txt"]
+
+
+@pytest.mark.parametrize("url", ["http://h.example/a.pdf", "https://h.example:8080/a.pdf"])
+def test_a_first_url_off_https_or_the_default_port_is_refused_without_a_request(url):
+    from collector.fetch import SchemeRefused
+    f, net, _ = make({url: (200, b"%PDF-1")})
+    with pytest.raises(SchemeRefused):
+        f.get(url)
+    assert net.calls == []
+
+
+def test_redirect_to_https_on_port_443_is_followed():
+    f, net, _ = make({"https://h.example/a": (302, b"", {"Location": "https://g.example:443/b.pdf"}),
+                      "https://g.example:443/b.pdf": (200, b"%PDF-1")})
+    assert f.get("https://h.example/a")[1] == b"%PDF-1"
+
+
+@pytest.mark.parametrize("bad", ["evil.com%23.h.example", "evil.com%40.h.example", "evil.com%2f.h.example",
+                                 "evil.com%2F@h.example", "[::1]", "h_x.h.example", "evil.com\\.h.example"])
+def test_a_host_that_is_not_a_plain_name_is_refused_first_or_on_a_redirect(bad):
+    """collector-input/host-percent-encoded: urllib decodes %23/%40/%2f in a host before connecting, so a raw netloc
+    ending in an allowed name must not pass the allowlist."""
+    f, net, _ = make({f"https://{bad}/x": (200, b"%PDF-1")})
+    with pytest.raises(HostRefused):
+        f.get(f"https://{bad}/x")
+    assert net.calls == []
+    f, net, _ = make({"https://h.example/a": (302, b"", {"Location": f"https://{bad}/x"}),
+                      f"https://{bad}/x": (200, b"%PDF-1")})
+    with pytest.raises(HostRefused):
+        f.get("https://h.example/a")
+    assert [u for u, _ in net.calls] == ["https://h.example/robots.txt", "https://h.example/a"]
+
+
+def test_plain_hostname():
+    from collector.fetch import plain_hostname
+    assert plain_hostname("WWW.H.Example:443") == "www.h.example"
+    assert plain_hostname("evil.com%23.h.example") is None and plain_hostname("[x") is None
+
+
+@pytest.mark.parametrize("loc", ["https://[x/", "https://[::1/x", "//[bad"])
+def test_a_malformed_redirect_location_fails_that_fetch_not_the_run(loc):
+    """collector-input/redirect-valueerror-escapes: callers skip one file on FetchFailed; a ValueError ends the run."""
+    from collector.fetch import FetchFailed
+    f, net, _ = make({"https://h.example/a": (302, b"", {"Location": loc})})
+    with pytest.raises(FetchFailed, match="malformed"):
+        f.get("https://h.example/a")
+    assert [u for u, _ in net.calls] == ["https://h.example/robots.txt", "https://h.example/a"]
+
+
+@pytest.mark.parametrize("err", ["InvalidURL", "ValueError", "IncompleteRead"])
+def test_an_invalid_url_or_response_raised_by_the_http_client_is_fetch_failed(err):
+    import http.client
+    from collector.fetch import FetchFailed
+    f, net, _ = make({})
+    exc = {"InvalidURL": http.client.InvalidURL("URL can't contain control characters"),
+           "ValueError": ValueError("bad"), "IncompleteRead": http.client.IncompleteRead(b"x", 10)}[err]
+
+    def opener(req, timeout):
+        if req.full_url.endswith("/bad"):
+            raise exc
+        return net(req, timeout)
+    f.opener = opener
+    with pytest.raises(FetchFailed, match="invalid URL or response"):
+        f.get("https://h.example/bad")
+    assert f.log[-1]["event"] == "error"
+
+
+def test_a_malformed_first_url_is_fetch_failed():
+    from collector.fetch import FetchFailed
+    f, net, _ = make({})
+    with pytest.raises(FetchFailed, match="malformed"):
+        f.get("https://[h.example/x")
+    assert net.calls == []
+
+
+@pytest.mark.parametrize("path", ["/a\tb.pdf", "/a\r\nX-Evil: 1", "/a b.pdf", "/a\x00.pdf", "/a\x7f.pdf", "/a\x1f"])
+def test_a_space_or_control_character_is_refused_first_or_on_a_redirect(path):
+    """urlsplit strips tab/CR/LF but urllib.request.Request sends them: refused before any request."""
+    from collector.fetch import SchemeRefused
+    f, net, _ = make({})
+    with pytest.raises(SchemeRefused, match="control character"):
+        f.get("https://h.example" + path)
+    assert net.calls == []
+    f, net, _ = make({"https://h.example/r": (302, b"", {"Location": "https://g.example" + path})})
+    with pytest.raises(SchemeRefused):
+        f.get("https://h.example/r")
+    assert [u for u, _ in net.calls] == ["https://h.example/robots.txt", "https://h.example/r"]
+
+
 def test_redirect_loop_fails():
     from collector.fetch import FetchFailed
     f, net, _ = make({"https://h.example/a": (302, b"", {"Location": "https://h.example/a"})})

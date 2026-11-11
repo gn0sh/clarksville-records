@@ -72,7 +72,7 @@ def test_coming_pages_have_no_numbers_and_are_marked_coming_in_the_nav(pages):
 def test_landing_is_purpose_search_and_district_list_with_no_map(pages):
     html = pages["index.html"]
     body = main_text(html)
-    assert body.startswith(config.SITE["purpose"])
+    assert body.startswith(views.purpose_line())   # the fixture build: county only
     assert re.search(r'<form class="landing-search" action="search\.html" method="get"', html)
     assert 'name="q"' in html and 'class="district-list"' in html
     # no map on the landing (CEO, 2026-11-10): no drawing, layer switch or map script

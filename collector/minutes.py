@@ -22,12 +22,14 @@ from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import limits
 from . import parse as P
 from .extract import cached_pages, image_only_pages
 
 ROOT = Path(__file__).resolve().parent.parent
 TEXT_CACHE = ROOT / "data" / "text"
-MAX_PAGES = 1000          # the Aug 2024 minutes run to 621 pages
+MAX_PAGES = 1500          # limits invariant L7: largest real county minutes 621 pp (Aug 2024; data/facts.json,
+                          # 2026-11-11), cap ~2.4x. Over it the document is a parse failure (shrink guard)
 OCR_WORKERS = 4
 
 
@@ -357,6 +359,7 @@ def ocr_pages_parallel(jobs: list[tuple[str, int, str]], workers: int = OCR_WORK
         with ProcessPoolExecutor(max_workers=workers) as ex:
             for (pdf, page, sha), (_, err) in zip(todo, ex.map(_ocr_job, todo, chunksize=2)):
                 errors[(sha, page)] = err
+                limits.note(err)        # a trip in the worker comes back as its line (limits invariant rule 3)
     return errors
 
 
@@ -409,6 +412,7 @@ def parse_minutes(pdf_path: Path, source: dict, use_ocr: bool = True, text_cache
     pdf_path = Path(pdf_path)
     pages = cached_pages(pdf_path, text_cache)
     if len(pages) > MAX_PAGES:
+        limits.trip("minutes.MAX_PAGES", pdf_path, f"{len(pages)} pp", f"{MAX_PAGES} pp")
         raise ValueError(f"{pdf_path.name}: {len(pages)} pages, over the {MAX_PAGES}-page cap")
     img = image_only_pages(pages)
     lines, page_of = P._lines_with_pages(pages)

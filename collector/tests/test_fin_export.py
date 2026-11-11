@@ -190,7 +190,9 @@ def test_export_site_writes_county_councils_and_finance(tmp_path):
 
 
 def _facts(ids):
-    return {"meetings": [{"id": i} for i in ids]}
+    """One source document per meeting (the shrink guard's unit: collector/__main__.py check_unit)."""
+    return {"sources": [{"id": f"src-{i}", "sha256": i * 64} for i in ids],
+            "meetings": [{"id": i, "source_id": f"src-{i}"} for i in ids]}
 
 
 def test_shrink_reason(tmp_path):

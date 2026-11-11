@@ -17,12 +17,13 @@ from __future__ import annotations
 
 import hashlib
 import re
-import subprocess
+import subprocess  # noqa: F401  (tests patch <module>.subprocess.run; calls go through limits.run)
 import sys
 import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import limits
 from .agenda_center import AgendaCenterConfig
 from .extract import extract_pages, image_only_pages
 
@@ -120,14 +121,19 @@ class ParsedCityMinutes:
     printed_date: str | None = None     # the date of the call-to-order sentence, ISO ("... on Thursday, August 1, 2024")
 
 
+LAYER_TIMEOUT = 120      # seconds, pdfinfo and pdffonts (limits invariant L12; city files up to 493 pp)
+
+
 def pdf_layer(pdf: Path, pages: list[str]) -> str:
     """'none' when every page is image-only; 'ocr' when the producer, creator or fonts say a scanner or OCR engine
     made the text (e.g. tesseract's GlyphLessFont); else 'text'."""
     if not pages or len(image_only_pages(pages)) == len(pages):
         return "none"
-    info = subprocess.run(["pdfinfo", str(pdf)], capture_output=True, timeout=120).stdout.decode("utf-8", "replace")
+    info = limits.run("city_minutes.LAYER_TIMEOUT", ["pdfinfo", str(pdf)], file=pdf, capture_output=True,
+                      timeout=LAYER_TIMEOUT).stdout.decode("utf-8", "replace")
     made_by = " ".join(re.findall(r"^(?:Creator|Producer):\s*(.*?)\s*$", info, re.M))
-    fonts = subprocess.run(["pdffonts", str(pdf)], capture_output=True, timeout=120).stdout.decode("utf-8", "replace")
+    fonts = limits.run("city_minutes.LAYER_TIMEOUT", ["pdffonts", str(pdf)], file=pdf, capture_output=True,
+                       timeout=LAYER_TIMEOUT).stdout.decode("utf-8", "replace")
     if SCAN_MARKS.search(made_by) or "GlyphLessFont" in fonts:
         return "ocr"
     return "text"
