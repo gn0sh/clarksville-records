@@ -100,7 +100,7 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
 0. **Verify gnoshcodes.com** (once, before any DNS change): open https://github.com/settings/pages > Add a domain >
    `gnoshcodes.com` > add the TXT record it shows (host `_github-pages-challenge-gn0sh`) at Porkbun
    (https://porkbun.com/account/domains > gnoshcodes.com > DNS) > Verify. This stops anyone else claiming a dangling
-   `records` CNAME. Expected: gnoshcodes.com shows as Verified.
+   `daylight` CNAME. Expected: gnoshcodes.com shows as Verified.
 1. Pages source. Open https://github.com/gn0sh/clarksville-records/settings/pages > Build and deployment > Source:
    **GitHub Actions** (replaces the gh-pages branch preview). Expected: the page shows "Your site is ready to be published".
 2. Custom domain, then DNS, back to back (never leave the CNAME pointing at Pages with no custom domain set):
@@ -163,10 +163,10 @@ Described diff for `monitor.config.json`, add one entry to `targets` (not applie
   `git revert <sha>`), then Actions > Daily update > Run workflow with collect = **false**. That redeploys the
   reverted committed data without fetching.
 - **Bad code:** revert the merge commit on `main`, run the workflow with collect = false.
-- **Take the site down:** Pages settings > Unpublish site (or set Source to None), **then delete the Porkbun `records`
+- **Take the site down:** Pages settings > Unpublish site (or set Source to None), **then delete the Porkbun `daylight`
   CNAME** so it never dangles.
 - **Domain trouble:** the site also answers at https://gn0sh.github.io/clarksville-records/ only while no custom
-  domain is set; to fall back, remove the Custom domain in Pages settings **and delete the Porkbun `records` CNAME in the
+  domain is set; to fall back, remove the Custom domain in Pages settings **and delete the Porkbun `daylight` CNAME in the
   same sitting** (a CNAME with no custom domain set is a takeover risk, even with gnoshcodes.com verified).
 
 ## Retire the gh-pages preview (after the live site checks out; CEO says go, devops does it)
