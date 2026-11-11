@@ -39912,7 +39912,7 @@
       "printed": "10/27/2026"
     }
   ],
-  "motion_rules": "rpc-motion-invariant-2",
+  "motion_rules": "rpc-motion-invariant-3",
   "motions": [
     {
       "abstained": [],
@@ -39927,7 +39927,8 @@
       "outcome": "carried unanimously",
       "page": 2,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Mr. Rocconi",
       "source_id": "src-a0af45b8abc6",
@@ -39963,6 +39964,7 @@
       "outcome": "Motion passed",
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Mr. Spigner",
@@ -40114,8 +40116,10 @@
       "outcome": null,
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: 'except' a member with no vote word"
       ],
       "seconded_by": "Mrs. Jiminez",
@@ -40123,9 +40127,7 @@
       "tally": null
     },
     {
-      "abstained": [
-        "Mr. Powers"
-      ],
+      "abstained": [],
       "case": "SR-2-2022",
       "case_id": null,
       "confirmed": false,
@@ -40137,7 +40139,8 @@
       "outcome": "motion passed",
       "page": 10,
       "reasons": [
-        "the motion's sentences name another case number",
+        "a sentence of the vote is not one the reader knows",
+        "a member abstained on one case of a list the motion approved",
         "the case section prints another case on this meeting's agenda"
       ],
       "seconded_by": "Mr. Kimbrough",
@@ -40179,7 +40182,8 @@
       "page": 11,
       "reasons": [
         "subject not read",
-        "unmodelled wording: a vote word the reader does not read"
+        "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Mr. Kimbrough",
       "source_id": "src-a0af45b8abc6",
@@ -40198,7 +40202,8 @@
       "outcome": "carried unanimously",
       "page": 2,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Mrs. Streetman",
       "source_id": "src-e3d69f0eb8c8",
@@ -40259,7 +40264,7 @@
       "abstained": [],
       "case": "Z-7-2022",
       "case_id": "2022-02-22-regular-z-7-2022",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2022-02-22-regular-motion-5",
       "kind": "Motion for disapproval",
       "meeting_id": "2022-02-22-regular",
@@ -40267,7 +40272,9 @@
       "nays": [],
       "outcome": "All others were in favor",
       "page": 5,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Mrs. Streetman",
       "source_id": "src-e3d69f0eb8c8",
       "tally": null
@@ -40278,7 +40285,7 @@
       ],
       "case": "CZ-1-2022",
       "case_id": "2022-02-22-regular-cz-1-2022",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2022-02-22-regular-motion-6",
       "kind": "Motion for approval",
       "meeting_id": "2022-02-22-regular",
@@ -40286,7 +40293,9 @@
       "nays": [],
       "outcome": "Motion passed",
       "page": 6,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Mr. Rocconi",
       "source_id": "src-e3d69f0eb8c8",
       "tally": null
@@ -40394,6 +40403,7 @@
       "outcome": "Motion passed",
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "case section repeated",
         "more than one motion on one case section"
@@ -40415,6 +40425,7 @@
       "outcome": null,
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: an amendment, substitute or reconsideration",
         "case section repeated",
@@ -40439,8 +40450,10 @@
       "outcome": null,
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: an amendment, substitute or reconsideration",
         "case section repeated",
         "more than one motion on one case section"
@@ -40554,7 +40567,8 @@
       "outcome": "carried unanimously",
       "page": 2,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Mr. Kimbrough",
       "source_id": "src-5fcfca9f9f50",
@@ -40641,6 +40655,7 @@
       "outcome": "motion passed",
       "page": 6,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Mrs. Jiminez",
@@ -40660,6 +40675,7 @@
       "outcome": "motion passed",
       "page": 6,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Mr. Spigner",
@@ -40696,6 +40712,7 @@
       "outcome": null,
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: a tie or a vote of the chair"
@@ -40708,7 +40725,7 @@
       "abstained": [],
       "case": "Z-18-2022",
       "case_id": "2022-03-29-regular-z-18-2022",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2022-03-29-regular-motion-10",
       "kind": "Motion for disapproval",
       "meeting_id": "2022-03-29-regular",
@@ -40716,7 +40733,9 @@
       "nays": [],
       "outcome": "Motion for disapproval passed",
       "page": 11,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Mrs. Streetman",
       "source_id": "src-5fcfca9f9f50",
       "tally": null
@@ -40734,8 +40753,10 @@
       "outcome": null,
       "page": 12,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: an amendment, substitute or reconsideration",
         "more than one motion on one case section"
       ],
@@ -40756,6 +40777,7 @@
       "outcome": "the motion for disapproval failed",
       "page": 16,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section"
       ],
@@ -40776,6 +40798,7 @@
       "outcome": "The motion carried",
       "page": 16,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section"
@@ -40814,6 +40837,7 @@
       "outcome": "the motion passed",
       "page": 17,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "the case section prints another case on this meeting's agenda"
       ],
@@ -40851,7 +40875,9 @@
       "outcome": "the motion passed",
       "page": 22,
       "reasons": [
-        "no seconder read"
+        "a sentence of the vote is not one the reader knows",
+        "no seconder read",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": null,
       "source_id": "src-5fcfca9f9f50",
@@ -40870,9 +40896,11 @@
       "outcome": "the motion passed",
       "page": 23,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "no seconder read",
-        "unmodelled wording: a vote word the reader does not read"
+        "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": null,
       "source_id": "src-5fcfca9f9f50",
@@ -40891,8 +40919,10 @@
       "outcome": null,
       "page": 24,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
-        "no outcome read"
+        "no outcome read",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Mr. Kimbrough",
       "source_id": "src-5fcfca9f9f50",
@@ -40911,6 +40941,7 @@
       "outcome": null,
       "page": 1,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "no outcome read"
       ],
@@ -40931,7 +40962,9 @@
       "outcome": "carried unanimously",
       "page": 2,
       "reasons": [
-        "subject not read"
+        "a sentence of the vote is not one the reader knows",
+        "subject not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Mrs. Streetman",
       "source_id": "src-7a442b106eca",
@@ -40984,6 +41017,7 @@
       "outcome": "Motion for disapproval passed",
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read"
       ],
       "seconded_by": null,
@@ -41141,6 +41175,7 @@
       "outcome": null,
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read"
       ],
       "seconded_by": "Mr. Spigner",
@@ -41151,7 +41186,7 @@
       "abstained": [],
       "case": "CZ-9-2022",
       "case_id": "2022-04-26-regular-cz-9-2022",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2022-04-26-regular-motion-14",
       "kind": "Motion for approval",
       "meeting_id": "2022-04-26-regular",
@@ -41161,7 +41196,9 @@
       ],
       "outcome": "motion passed",
       "page": 12,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Mr. Spigner",
       "source_id": "src-7a442b106eca",
       "tally": null
@@ -41196,6 +41233,7 @@
       "outcome": "Motion passed",
       "page": 15,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Mr. Spigner",
@@ -41512,6 +41550,7 @@
       "outcome": "Motion for approval passed",
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: a tie or a vote of the chair",
         "unmodelled wording: members named as voting in favour"
@@ -41562,7 +41601,7 @@
       ],
       "case": "Z-42-2022",
       "case_id": "2022-05-24-regular-z-42-2022",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2022-05-24-regular-motion-16",
       "kind": "Motion for disapproval",
       "meeting_id": "2022-05-24-regular",
@@ -41570,7 +41609,9 @@
       "nays": [],
       "outcome": "Motion for disapproval passed",
       "page": 13,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Mrs. Jimenez",
       "source_id": "src-009dbb9f627b",
       "tally": null
@@ -41664,7 +41705,7 @@
       "abstained": [],
       "case": "S-32-2022",
       "case_id": "2022-05-24-regular-s-32-2022",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2022-05-24-regular-motion-22",
       "kind": "Motion for approval",
       "meeting_id": "2022-05-24-regular",
@@ -41672,7 +41713,10 @@
       "nays": [],
       "outcome": "motion passed",
       "page": 17,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows",
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Mr. Spigner",
       "source_id": "src-009dbb9f627b",
       "tally": null
@@ -41766,6 +41810,7 @@
       "reasons": [
         "subject not read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: an amendment, substitute or reconsideration"
       ],
       "seconded_by": "Mr. Kimbrough",
@@ -41785,7 +41830,8 @@
       "outcome": "carried unanimously",
       "page": 2,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Mr. Kimbrough",
       "source_id": "src-dad156242415",
@@ -41859,6 +41905,7 @@
       "outcome": "motion for disapproval passed",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read"
       ],
       "seconded_by": null,
@@ -41969,7 +42016,10 @@
       "outcome": null,
       "page": 14,
       "reasons": [
-        "no outcome read"
+        "a sentence of the vote is not one the reader knows",
+        "no outcome read",
+        "a vote statement outside the motion is not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Mrs. Jiminez",
       "source_id": "src-dad156242415",
@@ -41988,6 +42038,7 @@
       "outcome": "motion passed",
       "page": 15,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "the motion's sentences name another case number",
         "unmodelled wording: a vote word the reader does not read",
         "the case section prints another case on this meeting's agenda"
@@ -42066,6 +42117,7 @@
       "outcome": "Motion passed",
       "page": 16,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: an amendment, substitute or reconsideration"
@@ -42337,8 +42389,11 @@
       "outcome": null,
       "page": 13,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
-        "unmodelled wording: a vote word the reader does not read"
+        "a vote statement outside the motion is not read",
+        "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Mr. Rocconi",
       "source_id": "src-4495ae1a1fce",
@@ -42393,6 +42448,7 @@
       "outcome": null,
       "page": 1,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "no outcome read"
       ],
@@ -42413,7 +42469,8 @@
       "outcome": "carried unanimously",
       "page": 2,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Mr. Kimbrough",
       "source_id": "src-2bccda90f381",
@@ -42432,7 +42489,8 @@
       "outcome": "motion carried unanimously",
       "page": 2,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Mrs. Streetman",
       "source_id": "src-2bccda90f381",
@@ -42454,7 +42512,8 @@
       "outcome": "Motion for approval passed",
       "page": 3,
       "reasons": [
-        "mover is not one member present"
+        "mover is not one member present",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Mr. Spigner",
       "source_id": "src-2bccda90f381",
@@ -42592,6 +42651,7 @@
       "outcome": null,
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read"
       ],
       "seconded_by": "Mr. Long",
@@ -42664,6 +42724,7 @@
       "outcome": "motion passed",
       "page": 13,
       "reasons": [
+        "a vote statement outside the motion is not read",
         "case section repeated"
       ],
       "seconded_by": "Mr. Smith",
@@ -42676,7 +42737,7 @@
       ],
       "case": "S-81-2022",
       "case_id": "2022-09-27-regular-s-81-2022",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2022-09-27-regular-motion-16",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2022-09-27-regular",
@@ -42684,7 +42745,9 @@
       "nays": [],
       "outcome": "motion passed",
       "page": 14,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Mrs. Streetman",
       "source_id": "src-2bccda90f381",
       "tally": null
@@ -42721,8 +42784,10 @@
       "outcome": "motion passed",
       "page": 16,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "the motion's sentences name another case number",
-        "the case section prints another case on this meeting's agenda"
+        "the case section prints another case on this meeting's agenda",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Mrs. Streetman",
       "source_id": "src-2bccda90f381",
@@ -42838,7 +42903,8 @@
       "outcome": "motion carried unanimously",
       "page": 2,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Mr. Smith",
       "source_id": "src-1b72c7e9d320",
@@ -42929,6 +42995,7 @@
       "outcome": "motion for disapproval passed",
       "page": 6,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Mrs. Streetman",
@@ -43204,7 +43271,7 @@
       "abstained": [],
       "case": "CZ-24-2022",
       "case_id": "2022-11-22-regular-cz-24-2022",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2022-11-22-regular-motion-7",
       "kind": "Motion for approval",
       "meeting_id": "2022-11-22-regular",
@@ -43212,7 +43279,9 @@
       "nays": [],
       "outcome": "Motion passed",
       "page": 5,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Mr. Smith",
       "source_id": "src-e0fb7ab46854",
       "tally": null
@@ -43247,6 +43316,7 @@
       "outcome": "motion for disapproval passed",
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "the case section prints another case on this meeting's agenda"
       ],
       "seconded_by": "Mrs. Streetman",
@@ -43268,6 +43338,7 @@
       "outcome": "motion passed",
       "page": 9,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "the motion's sentences name another case number",
         "the case section prints another case on this meeting's agenda"
       ],
@@ -43290,6 +43361,7 @@
       "outcome": "motion passed",
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "the motion's sentences name another case number",
         "the case section prints another case on this meeting's agenda"
       ],
@@ -43520,6 +43592,7 @@
       "outcome": "Motion for approval passed",
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "case number not read",
         "no seconder read",
         "unmodelled wording: a vote word the reader does not read"
@@ -43579,6 +43652,7 @@
       "outcome": null,
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "the case section prints another case on this meeting's agenda"
       ],
@@ -43744,6 +43818,7 @@
       "outcome": "motion passed",
       "page": 17,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "unmodelled wording: an amendment, substitute or reconsideration"
       ],
@@ -43764,6 +43839,7 @@
       "outcome": "motion passed",
       "page": 17,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read"
       ],
       "seconded_by": "Mrs. Streetman",
@@ -43822,7 +43898,8 @@
       "outcome": "carried unanimously",
       "page": 2,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Mrs. Jimenez",
       "source_id": "src-c69ac5d2c2c2",
@@ -43996,9 +44073,12 @@
       "outcome": null,
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read",
-        "unmodelled wording: a vote word the reader does not read"
+        "a vote statement outside the motion is not read",
+        "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": null,
       "source_id": "src-c69ac5d2c2c2",
@@ -44089,6 +44169,7 @@
       "outcome": "motion passed",
       "page": 12,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read"
       ],
       "seconded_by": "Mrs. Streetman",
@@ -44108,6 +44189,7 @@
       "outcome": "motion passed",
       "page": 12,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read"
       ],
       "seconded_by": "Mrs. Streetman",
@@ -44262,7 +44344,7 @@
       "abstained": [],
       "case": "Z-14-2023",
       "case_id": "2023-02-21-regular-z-14-2023",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2023-02-21-regular-motion-9",
       "kind": "Motion to defer",
       "meeting_id": "2023-02-21-regular",
@@ -44270,7 +44352,9 @@
       "nays": [],
       "outcome": "All others were in favor",
       "page": 8,
-      "reasons": [],
+      "reasons": [
+        "an outcome, 'in favor' or a motion is printed after the outcome"
+      ],
       "seconded_by": "Mr. Long",
       "source_id": "src-85b534a045b9",
       "tally": null
@@ -44307,6 +44391,7 @@
       "outcome": "Motion for approval passed",
       "page": 9,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section"
       ],
@@ -44528,7 +44613,7 @@
       "abstained": [],
       "case": "Z-20-2023",
       "case_id": "2023-03-28-regular-z-20-2023",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2023-03-28-regular-motion-7",
       "kind": "Motion to defer",
       "meeting_id": "2023-03-28-regular",
@@ -44536,7 +44621,9 @@
       "nays": [],
       "outcome": "motion for deferral passed",
       "page": 5,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Mr. Spigner",
       "source_id": "src-1ff58f118e22",
       "tally": null
@@ -44588,6 +44675,7 @@
       "outcome": "Motion for disapproval passed",
       "page": 7,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "unmodelled wording: a vote word the reader does not read"
       ],
@@ -44661,6 +44749,7 @@
       "outcome": null,
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "more than one motion on one case section"
       ],
@@ -44681,6 +44770,7 @@
       "outcome": "motion for approval of case passed",
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: an amendment, substitute or reconsideration",
         "more than one motion on one case section"
@@ -44719,6 +44809,7 @@
       "outcome": null,
       "page": 13,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "more than one seconder read",
         "no seconder read",
         "no outcome read",
@@ -44741,6 +44832,8 @@
       "outcome": "Motion for amendment passed",
       "page": 13,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: an amendment, substitute or reconsideration",
         "more than one motion on one case section"
       ],
@@ -44856,6 +44949,7 @@
       "outcome": null,
       "page": 2,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "mover is not one member present",
         "seconder is not one member present",
@@ -45018,10 +45112,10 @@
       "meeting_id": "2023-04-25-regular",
       "moved_by": "Mr. Long",
       "nays": [],
-      "outcome": null,
+      "outcome": "All others were in favor",
       "page": 6,
       "reasons": [
-        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining"
+        "a sentence of the vote is not one the reader knows"
       ],
       "seconded_by": "Mr. Smith",
       "source_id": "src-691f96bf1eb2",
@@ -45264,6 +45358,7 @@
       "outcome": "motion for approval passed",
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Mr. Long",
@@ -45308,7 +45403,7 @@
       "abstained": [],
       "case": "Z-33-2023",
       "case_id": "2023-05-23-regular-z-33-2023",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2023-05-23-regular-motion-8",
       "kind": "Motion for approval",
       "meeting_id": "2023-05-23-regular",
@@ -45316,7 +45411,9 @@
       "nays": [],
       "outcome": "motion for approval passed",
       "page": 6,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Mr. Long",
       "source_id": "src-df47b74c73c1",
       "tally": null
@@ -45325,7 +45422,7 @@
       "abstained": [],
       "case": "ZO-1-2023",
       "case_id": "2023-05-23-regular-zo-1-2023",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2023-05-23-regular-motion-9",
       "kind": "Motion to defer",
       "meeting_id": "2023-05-23-regular",
@@ -45333,7 +45430,9 @@
       "nays": [],
       "outcome": "motion for deferral passed",
       "page": 6,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Mrs. Jiminez",
       "source_id": "src-df47b74c73c1",
       "tally": null
@@ -45387,7 +45486,9 @@
       "outcome": null,
       "page": 8,
       "reasons": [
-        "no outcome read"
+        "a sentence of the vote is not one the reader knows",
+        "no outcome read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Mr. Smith",
       "source_id": "src-df47b74c73c1",
@@ -45459,6 +45560,7 @@
       "outcome": "Motion passed",
       "page": 12,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "unmodelled wording: an amendment, substitute or reconsideration"
       ],
@@ -45500,6 +45602,7 @@
       "outcome": "motion for withdrawal was approved",
       "page": 12,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read"
       ],
       "seconded_by": "Mr. Smith",
@@ -45546,7 +45649,7 @@
       "abstained": [],
       "case": "Z-20-2023",
       "case_id": "2023-06-27-regular-z-20-2023",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2023-06-27-regular-motion-3",
       "kind": "Motion for approval",
       "meeting_id": "2023-06-27-regular",
@@ -45556,7 +45659,9 @@
       ],
       "outcome": "motion for approval passed",
       "page": 2,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Mr. Kimbrough",
       "source_id": "src-0e760257c111",
       "tally": null
@@ -45648,6 +45753,7 @@
       "outcome": "motion for deferral passed",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "more than one motion on one case section"
       ],
       "seconded_by": "Mrs. Jiminez",
@@ -45701,6 +45807,7 @@
       "outcome": null,
       "page": 7,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read"
       ],
       "seconded_by": "Mr. Spigner",
@@ -45720,6 +45827,7 @@
       "outcome": null,
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "case heading not read",
         "no outcome read",
         "more than one motion on one case section",
@@ -45744,6 +45852,7 @@
       "outcome": null,
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "case heading not read",
         "no outcome read",
         "more than one motion on one case section",
@@ -45754,9 +45863,7 @@
       "tally": null
     },
     {
-      "abstained": [
-        "Mr. Kimbrough"
-      ],
+      "abstained": [],
       "case": "S-32-2023",
       "case_id": null,
       "confirmed": false,
@@ -45768,7 +45875,7 @@
       "outcome": "motion for approval of consent agenda passed",
       "page": 9,
       "reasons": [
-        "the motion's sentences name another case number",
+        "a member abstained on one case of a list the motion approved",
         "the case section prints another case on this meeting's agenda"
       ],
       "seconded_by": "Mrs. Guzman",
@@ -45862,6 +45969,7 @@
       "outcome": null,
       "page": 12,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "no outcome read"
       ],
@@ -45892,7 +46000,7 @@
       "abstained": [],
       "case": null,
       "case_id": null,
-      "confirmed": true,
+      "confirmed": false,
       "id": "2023-07-25-regular-motion-2",
       "kind": "Motion to approve the deferrals",
       "meeting_id": "2023-07-25-regular",
@@ -45900,7 +46008,9 @@
       "nays": [],
       "outcome": "motion passed",
       "page": 2,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Mr. Spigner",
       "source_id": "src-b75f060343d2",
       "tally": null
@@ -46073,6 +46183,7 @@
       "outcome": null,
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "more than one motion on one case section"
       ],
@@ -46093,6 +46204,7 @@
       "outcome": "motion passed",
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: an amendment, substitute or reconsideration",
         "more than one motion on one case section"
       ],
@@ -46283,7 +46395,7 @@
       "abstained": [],
       "case": "CZ-7-2023",
       "case_id": "2023-08-29-regular-cz-7-2023",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2023-08-29-regular-motion-9",
       "kind": "Motion for approval",
       "meeting_id": "2023-08-29-regular",
@@ -46291,7 +46403,9 @@
       "nays": [],
       "outcome": "motion for approval passed",
       "page": 6,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Mr. Spigner",
       "source_id": "src-0fcdca6dd240",
       "tally": null
@@ -46525,7 +46639,7 @@
       "abstained": [],
       "case": "S-52-2023",
       "case_id": "2023-09-26-regular-s-52-2023",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2023-09-26-regular-motion-9",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2023-09-26-regular",
@@ -46533,7 +46647,9 @@
       "nays": [],
       "outcome": "motion for approval of consent agenda passed",
       "page": 7,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Mr. Smith",
       "source_id": "src-fe0ca26a84f8",
       "tally": null
@@ -46955,7 +47071,7 @@
       "abstained": [],
       "case": "Z-62-2023",
       "case_id": "2023-11-28-regular-z-62-2023",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2023-11-28-regular-motion-8",
       "kind": "Motion for approval",
       "meeting_id": "2023-11-28-regular",
@@ -46963,7 +47079,9 @@
       "nays": [],
       "outcome": "Motion for approval passed",
       "page": 6,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Mr. Long",
       "source_id": "src-8ec1fc852202",
       "tally": null
@@ -47015,6 +47133,7 @@
       "outcome": "Motion for approval passed",
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read"
       ],
       "seconded_by": null,
@@ -47059,7 +47178,7 @@
       "abstained": [],
       "case": "CZ-19-2023",
       "case_id": "2023-11-28-regular-cz-19-2023",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2023-11-28-regular-motion-14",
       "kind": "Motion for approval",
       "meeting_id": "2023-11-28-regular",
@@ -47067,7 +47186,9 @@
       "nays": [],
       "outcome": "Motion for approval passed",
       "page": 11,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Mr. Kimbrough",
       "source_id": "src-8ec1fc852202",
       "tally": null
@@ -47137,7 +47258,8 @@
       "page": 14,
       "reasons": [
         "subject not read",
-        "unmodelled wording: a vote word the reader does not read"
+        "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Mrs. Jimenez",
       "source_id": "src-8ec1fc852202",
@@ -47156,7 +47278,8 @@
       "outcome": "motion passed",
       "page": 14,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Mr. Kimbrough",
       "source_id": "src-8ec1fc852202",
@@ -47253,7 +47376,7 @@
       "abstained": [],
       "case": "Z-71-2023",
       "case_id": "2023-12-21-regular-z-71-2023",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2023-12-21-regular-motion-6",
       "kind": "Motion for approval",
       "meeting_id": "2023-12-21-regular",
@@ -47261,7 +47384,9 @@
       "nays": [],
       "outcome": "Motion passed for approval passed",
       "page": 4,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Mrs. Jimenez",
       "source_id": "src-889eb11c7129",
       "tally": null
@@ -47372,6 +47497,7 @@
       "outcome": "motion for approval passed",
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "the motion's sentences name another case number",
         "the case section prints another case on this meeting's agenda"
       ],
@@ -47394,6 +47520,7 @@
       "outcome": "motion for approval passed",
       "page": 9,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: an amendment, substitute or reconsideration"
       ],
       "seconded_by": "Ms. Streetman",
@@ -47404,7 +47531,7 @@
       "abstained": [],
       "case": "SR-57-2023",
       "case_id": "2023-12-21-regular-sr-57-2023",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2023-12-21-regular-motion-14",
       "kind": "Motion for approval",
       "meeting_id": "2023-12-21-regular",
@@ -47414,7 +47541,9 @@
       ],
       "outcome": "Motion for approval passed",
       "page": 9,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Ms. Streetman",
       "source_id": "src-889eb11c7129",
       "tally": null
@@ -47470,6 +47599,7 @@
       "outcome": "Motion for deferral passed",
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read"
       ],
       "seconded_by": "Mrs. Jimenez",
@@ -47509,7 +47639,8 @@
       "outcome": "motion passed",
       "page": 10,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Mrs. Guzman",
       "source_id": "src-889eb11c7129",
@@ -47642,6 +47773,7 @@
       "outcome": "Motion for approval passed",
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "case number not on this meeting's agenda"
       ],
@@ -47683,6 +47815,7 @@
       "outcome": "motion for disapproval failed",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section",
         "case number not on this meeting's agenda"
@@ -47704,6 +47837,7 @@
       "outcome": "motion for approval passed",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section",
         "case number not on this meeting's agenda"
@@ -47877,6 +48011,7 @@
       "outcome": null,
       "page": 9,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "no outcome read"
       ],
@@ -47948,6 +48083,7 @@
       "outcome": "Motion for approval passed",
       "page": 2,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "case number not on this meeting's agenda"
       ],
@@ -47968,7 +48104,8 @@
       "outcome": "motion for approval passed",
       "page": 3,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Mr. Gannon",
       "source_id": "src-440a2033f7f3",
@@ -48023,6 +48160,7 @@
       "outcome": "the motion for approval passed",
       "page": 2,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "case number not on this meeting's agenda"
       ],
       "seconded_by": "Mr. Huneycutt",
@@ -48125,6 +48263,7 @@
       "outcome": "motion for disapproval passed",
       "page": 6,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "case number not read",
         "a member named as voting nay or abstaining is not one member present"
       ],
@@ -48188,7 +48327,8 @@
       "reasons": [
         "case number not read",
         "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
-        "a member named as voting nay or abstaining is not one member present"
+        "a member named as voting nay or abstaining is not one member present",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Mr. Huneycutt",
       "source_id": "src-ec4197e32464",
@@ -48283,7 +48423,8 @@
       "outcome": "motion passed",
       "page": 11,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Ms. Streetman",
       "source_id": "src-ec4197e32464",
@@ -48390,7 +48531,7 @@
       "abstained": [],
       "case": null,
       "case_id": null,
-      "confirmed": true,
+      "confirmed": false,
       "id": "2024-03-26-regular-motion-2",
       "kind": "Motion to approve the deferrals",
       "meeting_id": "2024-03-26-regular",
@@ -48398,7 +48539,9 @@
       "nays": [],
       "outcome": "motion passed",
       "page": 1,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Mr. Henley",
       "source_id": "src-bacd6f796e46",
       "tally": null
@@ -48470,10 +48613,10 @@
       "meeting_id": "2024-03-26-regular",
       "moved_by": "Mr. Smith",
       "nays": [],
-      "outcome": null,
+      "outcome": "All others were in favor",
       "page": 5,
       "reasons": [
-        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
+        "a sentence of the vote is not one the reader knows",
         "case number not on this meeting's agenda"
       ],
       "seconded_by": "Mr. Long",
@@ -48512,6 +48655,7 @@
       "outcome": "Motion for approval passed",
       "page": 7,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "case number not on this meeting's agenda"
       ],
@@ -48529,10 +48673,10 @@
       "meeting_id": "2024-03-26-regular",
       "moved_by": "Mr. Smith",
       "nays": [],
-      "outcome": null,
+      "outcome": "All were in favor",
       "page": 8,
       "reasons": [
-        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: an amendment, substitute or reconsideration",
         "case number not on this meeting's agenda"
       ],
@@ -48572,6 +48716,7 @@
       "outcome": "consent agenda passed",
       "page": 10,
       "reasons": [
+        "a vote statement outside the motion is not read",
         "case number not on this meeting's agenda"
       ],
       "seconded_by": "Mr. Smith",
@@ -48591,6 +48736,7 @@
       "outcome": "Motion for approval passed",
       "page": 15,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "case number not on this meeting's agenda"
       ],
       "seconded_by": "Mrs. Streetman",
@@ -48852,8 +48998,8 @@
       "outcome": "The motion for approval passed",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
-        "a member named after 'except' is not read as voting nay or abstaining",
         "unmodelled wording: 'except' a member with no vote word"
       ],
       "seconded_by": "David Smith",
@@ -48907,6 +49053,7 @@
       "outcome": "the motion passed 4-2",
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "the printed tally does not match the members named as voting nay",
         "case number not on this meeting's agenda"
@@ -48928,6 +49075,7 @@
       "outcome": "Motion passed 5-0",
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "case number not on this meeting's agenda"
       ],
@@ -48967,6 +49115,7 @@
       "outcome": "the motion for disapproval passed unanimously",
       "page": 6,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "case number not on this meeting's agenda"
       ],
       "seconded_by": "Commissioner Kimbrough",
@@ -48986,6 +49135,7 @@
       "outcome": "the motion passed unanimously",
       "page": 7,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "case number not on this meeting's agenda"
       ],
@@ -49044,6 +49194,7 @@
       "outcome": null,
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "mover is not one member present",
         "no outcome read",
         "case number not on this meeting's agenda"
@@ -49065,6 +49216,7 @@
       "outcome": null,
       "page": 13,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "case number not on this meeting's agenda"
       ],
@@ -49085,6 +49237,7 @@
       "outcome": null,
       "page": 28,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read"
@@ -49106,6 +49259,7 @@
       "outcome": null,
       "page": 28,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "no outcome read"
       ],
@@ -49126,6 +49280,7 @@
       "outcome": null,
       "page": 28,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "no outcome read"
       ],
@@ -49146,7 +49301,9 @@
       "outcome": "motion passed",
       "page": 1,
       "reasons": [
-        "mover is not one member present"
+        "a sentence of the vote is not one the reader knows",
+        "mover is not one member present",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Mr. Henley",
       "source_id": "src-4cb725f379dd",
@@ -49184,6 +49341,7 @@
       "outcome": null,
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
         "case number not on this meeting's agenda"
@@ -49205,6 +49363,7 @@
       "outcome": null,
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
         "case number not on this meeting's agenda"
@@ -49245,6 +49404,7 @@
       "outcome": null,
       "page": 6,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "case number not on this meeting's agenda"
       ],
@@ -49265,6 +49425,7 @@
       "outcome": null,
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "case number not on this meeting's agenda"
       ],
@@ -49285,6 +49446,7 @@
       "outcome": null,
       "page": 13,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read"
       ],
       "seconded_by": "Commissioner Streetman",
@@ -49304,6 +49466,7 @@
       "outcome": null,
       "page": 25,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "case heading not read",
         "no outcome read"
       ],
@@ -49324,6 +49487,7 @@
       "outcome": null,
       "page": 29,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "more than one motion on one case section",
         "case number not on this meeting's agenda"
@@ -49345,6 +49509,7 @@
       "outcome": null,
       "page": 29,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "more than one motion on one case section",
         "case number not on this meeting's agenda"
@@ -49366,6 +49531,7 @@
       "outcome": null,
       "page": 29,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "more than one motion on one case section",
         "case number not on this meeting's agenda"
@@ -49387,6 +49553,7 @@
       "outcome": null,
       "page": 29,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "mover is not one member present",
         "no outcome read"
       ],
@@ -49424,6 +49591,7 @@
       "outcome": null,
       "page": 2,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
         "case number not on this meeting's agenda"
@@ -49445,6 +49613,8 @@
       "outcome": "the motion passed",
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
+        "a vote statement outside the motion is not read",
         "unmodelled wording: a vote word the reader does not read",
         "case number not on this meeting's agenda"
       ],
@@ -49465,9 +49635,11 @@
       "outcome": null,
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "case number not on this meeting's agenda"
       ],
       "seconded_by": null,
@@ -49487,6 +49659,7 @@
       "outcome": "the motion passed",
       "page": 7,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "seconder is not one member present",
         "case number not on this meeting's agenda"
       ],
@@ -49507,6 +49680,7 @@
       "outcome": "the motion passed",
       "page": 8,
       "reasons": [
+        "a vote statement outside the motion is not read",
         "case number not on this meeting's agenda"
       ],
       "seconded_by": "Commissioner Kimbrough",
@@ -49564,8 +49738,10 @@
       "outcome": null,
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "no outcome read",
+        "a vote statement outside the motion is not read",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Mr. Long",
@@ -49585,6 +49761,7 @@
       "outcome": null,
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read"
@@ -49606,6 +49783,7 @@
       "outcome": null,
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read"
       ],
       "seconded_by": "Commissioner Streetman",
@@ -49661,8 +49839,10 @@
       "outcome": null,
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "no outcome read",
+        "a vote statement outside the motion is not read",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Doug Jones",
@@ -49703,6 +49883,7 @@
       "outcome": null,
       "page": 1,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read"
       ],
@@ -49723,6 +49904,7 @@
       "outcome": "the motion passed",
       "page": 2,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Jeff Henley",
@@ -49744,6 +49926,7 @@
       "outcome": null,
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "a member named as voting nay or abstaining is not one member present",
         "unmodelled wording: a vote word the reader does not read"
@@ -49784,7 +49967,8 @@
       "outcome": "All others voted in favor",
       "page": 7,
       "reasons": [
-        "seconder is not one member present"
+        "seconder is not one member present",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-7a2942cd456e",
@@ -49841,7 +50025,8 @@
       "outcome": "the motion passed",
       "page": 10,
       "reasons": [
-        "mover is not one member present"
+        "mover is not one member present",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Jeff Henley",
       "source_id": "src-7a2942cd456e",
@@ -49860,7 +50045,8 @@
       "outcome": "the motion passed",
       "page": 11,
       "reasons": [
-        "mover is not one member present"
+        "mover is not one member present",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Jeff Henley",
       "source_id": "src-7a2942cd456e",
@@ -49879,7 +50065,9 @@
       "outcome": "all others voted in favor",
       "page": 12,
       "reasons": [
-        "unmodelled wording: a vote word the reader does not read"
+        "a sentence of the vote is not one the reader knows",
+        "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Joe Smith",
       "source_id": "src-7a2942cd456e",
@@ -49898,6 +50086,7 @@
       "outcome": null,
       "page": 13,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "seconder is not one member present",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read"
@@ -49919,6 +50108,7 @@
       "outcome": null,
       "page": 14,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read",
         "more than one motion on one case section"
@@ -49940,10 +50130,10 @@
       "outcome": null,
       "page": 14,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "mover is not one member present",
         "seconder is not one member present",
         "no outcome read",
-        "a member named after 'except' is not read as voting nay or abstaining",
         "unmodelled wording: 'except' a member with no vote word",
         "more than one motion on one case section"
       ],
@@ -49964,7 +50154,8 @@
       "outcome": "Consent Agenda passed",
       "page": 15,
       "reasons": [
-        "seconder is not one member present"
+        "seconder is not one member present",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-7a2942cd456e",
@@ -49983,7 +50174,8 @@
       "outcome": "Consent Agenda passed",
       "page": 16,
       "reasons": [
-        "seconder is not one member present"
+        "seconder is not one member present",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-7a2942cd456e",
@@ -50002,7 +50194,8 @@
       "outcome": "Consent Agenda passed",
       "page": 17,
       "reasons": [
-        "seconder is not one member present"
+        "seconder is not one member present",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-7a2942cd456e",
@@ -50021,7 +50214,8 @@
       "outcome": "Consent Agenda passed",
       "page": 18,
       "reasons": [
-        "seconder is not one member present"
+        "seconder is not one member present",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-7a2942cd456e",
@@ -50040,7 +50234,8 @@
       "outcome": "Consent Agenda passed",
       "page": 19,
       "reasons": [
-        "seconder is not one member present"
+        "seconder is not one member present",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-7a2942cd456e",
@@ -50059,7 +50254,8 @@
       "outcome": "Consent Agenda passed",
       "page": 20,
       "reasons": [
-        "seconder is not one member present"
+        "seconder is not one member present",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-7a2942cd456e",
@@ -50078,8 +50274,8 @@
       "outcome": null,
       "page": 21,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
-        "a member named after 'except' is not read as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: 'except' a member with no vote word"
       ],
@@ -50097,11 +50293,12 @@
       "meeting_id": "2024-08-27-regular",
       "moved_by": "Stacey Streetman",
       "nays": [],
-      "outcome": null,
+      "outcome": "All others voted in favor",
       "page": 22,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "mover is not one member present",
-        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining"
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Jeff Henley",
       "source_id": "src-7a2942cd456e",
@@ -50120,7 +50317,8 @@
       "outcome": "the motion passed",
       "page": 23,
       "reasons": [
-        "mover is not one member present"
+        "mover is not one member present",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Jeff Henley",
       "source_id": "src-7a2942cd456e",
@@ -50139,7 +50337,8 @@
       "outcome": "the motion passed",
       "page": 24,
       "reasons": [
-        "mover is not one member present"
+        "mover is not one member present",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Jeff Henley",
       "source_id": "src-7a2942cd456e",
@@ -50236,8 +50435,10 @@
       "outcome": null,
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read",
+        "a vote statement outside the motion is not read",
         "more than one motion on one case section"
       ],
       "seconded_by": null,
@@ -50257,6 +50458,7 @@
       "outcome": null,
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "more than one motion on one case section"
       ],
@@ -50277,6 +50479,7 @@
       "outcome": null,
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section"
@@ -50319,8 +50522,8 @@
       "outcome": null,
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
-        "a member named after 'except' is not read as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section"
       ],
@@ -50375,6 +50578,7 @@
       "outcome": "the motion passed",
       "page": 2,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Jeff Henley",
@@ -50411,6 +50615,7 @@
       "outcome": "Motion passed for Disapproval",
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: members named as voting in favour",
         "case number not on this meeting's agenda"
@@ -50483,7 +50688,7 @@
       "outcome": "the motion passed",
       "page": 8,
       "reasons": [
-        "a member named after 'except' is not read as voting nay or abstaining",
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: members named as voting in favour",
         "unmodelled wording: 'except' a member with no vote word"
@@ -50573,6 +50778,7 @@
       "outcome": "the motion passed",
       "page": 2,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Eric Huneycutt",
@@ -50595,6 +50801,7 @@
       "outcome": "Motion passed for disapproval",
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Valerie Guzman",
@@ -50616,6 +50823,7 @@
       "outcome": "Motion passed",
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Jeff Henley",
@@ -50688,6 +50896,7 @@
       "outcome": "Motion passed",
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Michael Long",
@@ -50724,6 +50933,7 @@
       "outcome": "Motion passes 4-3",
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "the printed tally does not match the members named as voting nay"
       ],
@@ -50744,6 +50954,7 @@
       "outcome": null,
       "page": 12,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read"
       ],
@@ -50752,7 +50963,9 @@
       "tally": null
     },
     {
-      "abstained": [],
+      "abstained": [
+        "Stacey Streetman"
+      ],
       "case": "S-73-2024",
       "case_id": "2024-10-29-regular-s-73-2024",
       "confirmed": true,
@@ -50781,7 +50994,7 @@
       "outcome": "Motion was approved",
       "page": 14,
       "reasons": [
-        "a member named after 'except' is not read as voting nay or abstaining",
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: 'except' a member with no vote word"
       ],
@@ -50966,6 +51179,7 @@
       "outcome": "All others voted in favor",
       "page": 20,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read"
       ],
       "seconded_by": null,
@@ -51019,6 +51233,7 @@
       "outcome": "Motion passed",
       "page": 2,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Joe Smith",
@@ -51038,6 +51253,7 @@
       "outcome": "Motion failed for a lack of a second",
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section"
       ],
@@ -51085,6 +51301,7 @@
       "outcome": "Motion passed for disapproval",
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section"
       ],
@@ -51105,6 +51322,7 @@
       "outcome": "Motion passed for a one month deferral",
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Joe Smith",
@@ -51126,6 +51344,7 @@
       "outcome": "Motion passes for approval",
       "page": 9,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Michael Long",
@@ -51145,6 +51364,7 @@
       "outcome": null,
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read",
         "unmodelled wording: an amendment, substitute or reconsideration",
@@ -51167,9 +51387,11 @@
       "outcome": null,
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "more than one motion on one case section"
       ],
       "seconded_by": null,
@@ -51276,6 +51498,7 @@
       "outcome": "All others voted in favor",
       "page": 20,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read"
       ],
       "seconded_by": null,
@@ -51329,6 +51552,7 @@
       "outcome": null,
       "page": 2,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read"
       ],
@@ -51349,6 +51573,7 @@
       "outcome": "Motion passes for approval",
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Eric Huneycutt",
@@ -51376,7 +51601,7 @@
       "abstained": [],
       "case": "Z-49-2024",
       "case_id": "2024-12-20-regular-z-49-2024",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2024-12-20-regular-motion-6",
       "kind": "Motion for approval",
       "meeting_id": "2024-12-20-regular",
@@ -51384,7 +51609,9 @@
       "nays": [],
       "outcome": "motion passes for approval",
       "page": 5,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Michael Long",
       "source_id": "src-f25f4f2258b6",
       "tally": null
@@ -51419,6 +51646,7 @@
       "outcome": "Motion passes for approval",
       "page": 7,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Jeff Henley",
@@ -51438,6 +51666,7 @@
       "outcome": "motion passes for approval",
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Bill Kimbrough",
@@ -51710,6 +51939,7 @@
       "outcome": null,
       "page": 27,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read",
         "more than one motion on one case section"
@@ -51826,6 +52056,7 @@
       "outcome": null,
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "no seconder read",
         "no outcome read"
@@ -51847,6 +52078,7 @@
       "outcome": null,
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "seconder is not one member present",
         "no outcome read"
@@ -51955,6 +52187,7 @@
       "outcome": "motion passed for approval",
       "page": 2,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Joe Smith",
@@ -52025,6 +52258,7 @@
       "outcome": "Motion passes for approval",
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section"
       ],
@@ -52170,8 +52404,10 @@
       "outcome": null,
       "page": 21,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
-        "unmodelled wording: a vote word the reader does not read"
+        "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Joe Smith",
       "source_id": "src-dbfa28d4e4f9",
@@ -52230,7 +52466,8 @@
       "outcome": "minutes were approved",
       "page": 1,
       "reasons": [
-        "unmodelled wording: a vote word the reader does not read"
+        "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Wanda Smith",
       "source_id": "src-3d7a2c6ff0a3",
@@ -52288,8 +52525,10 @@
       "outcome": null,
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: members named as voting in favour",
         "unmodelled wording: an amendment, substitute or reconsideration"
       ],
@@ -52310,10 +52549,12 @@
       "outcome": null,
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "more than one seconder read",
         "no seconder read",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: an amendment, substitute or reconsideration"
       ],
       "seconded_by": null,
@@ -52333,7 +52574,8 @@
       "outcome": "all others were in favor",
       "page": 12,
       "reasons": [
-        "no seconder read"
+        "no seconder read",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": null,
       "source_id": "src-3d7a2c6ff0a3",
@@ -52405,6 +52647,7 @@
       "outcome": "motion passes for approval",
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Michael Long",
@@ -52415,7 +52658,7 @@
       "abstained": [],
       "case": "Z-8-2025",
       "case_id": "2025-02-25-regular-z-8-2025",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2025-02-25-regular-motion-5",
       "kind": "Motion for disapproval",
       "meeting_id": "2025-02-25-regular",
@@ -52423,7 +52666,9 @@
       "nays": [],
       "outcome": "motion passes for disapproval",
       "page": 6,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Charlie Patterson",
       "source_id": "src-fe8c7d5e102e",
       "tally": null
@@ -52458,6 +52703,7 @@
       "outcome": "Motion passes for disapproval 4-2",
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: members named as voting in favour",
         "the printed tally does not match the members named as voting nay"
@@ -52479,6 +52725,7 @@
       "outcome": "motion passes for approval",
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Valerie Guzman",
@@ -52500,6 +52747,7 @@
       "outcome": "Motion passes for disapproval",
       "page": 15,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Valerie Guzman",
@@ -52519,6 +52767,7 @@
       "outcome": "motion passes for approval",
       "page": 16,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Michael Long",
@@ -52538,6 +52787,7 @@
       "outcome": "motion passes for approval",
       "page": 17,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -52557,7 +52807,7 @@
       "outcome": "Motion passes for disapproval",
       "page": 18,
       "reasons": [
-        "a member named after 'except' is not read as voting nay or abstaining",
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "the case section prints another case on this meeting's agenda"
       ],
@@ -52631,6 +52881,7 @@
       "outcome": null,
       "page": 22,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read",
         "more than one motion on one case section",
@@ -52655,6 +52906,7 @@
       "outcome": "Motion passes for one month deferral",
       "page": 22,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section",
         "the case section prints another case on this meeting's agenda"
@@ -52697,6 +52949,7 @@
       "outcome": "consent agenda passes for approval",
       "page": 24,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -52718,6 +52971,7 @@
       "outcome": "consent agenda passes for approval",
       "page": 25,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -52739,6 +52993,7 @@
       "outcome": "consent agenda passes for approval",
       "page": 27,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -52760,6 +53015,7 @@
       "outcome": "consent agenda passes for approval",
       "page": 28,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -52781,6 +53037,7 @@
       "outcome": "consent agenda passes for approval",
       "page": 29,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -52802,6 +53059,7 @@
       "outcome": "consent agenda passes for approval",
       "page": 31,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -52823,6 +53081,7 @@
       "outcome": "consent agenda passes for approval",
       "page": 34,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -52844,6 +53103,7 @@
       "outcome": "consent agenda passes for approval",
       "page": 35,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -52863,6 +53123,7 @@
       "outcome": null,
       "page": 38,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "no outcome read"
       ],
@@ -52900,6 +53161,7 @@
       "outcome": "minutes were approved",
       "page": 1,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "David Smith",
@@ -52936,8 +53198,10 @@
       "outcome": null,
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: members named as voting in favour",
         "unmodelled wording: an amendment, substitute or reconsideration"
       ],
@@ -52966,6 +53230,7 @@
       "outcome": "Motion passes for disapproval of demolition",
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "a member named as voting nay or abstaining is not one member present",
         "a member named as voting nay is the mover or seconder",
         "unmodelled wording: a vote word the reader does not read",
@@ -53023,6 +53288,7 @@
       "outcome": "Motion passes for disapproval",
       "page": 2,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Charlie Patterson",
@@ -53045,6 +53311,7 @@
       "outcome": "Motion passes for approval 4-2",
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Joe Smith",
@@ -53064,6 +53331,7 @@
       "outcome": "Motion passes for disapproval",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Eric Huneycutt",
@@ -53083,6 +53351,7 @@
       "outcome": "motion passes for approval",
       "page": 7,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -53102,6 +53371,7 @@
       "outcome": "motion passes for approval",
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -53155,6 +53425,7 @@
       "outcome": "Motion passes for approval",
       "page": 18,
       "reasons": [
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: an amendment, substitute or reconsideration"
       ],
       "seconded_by": "Michael Long",
@@ -53365,6 +53636,7 @@
       "outcome": "Motion passes for approval",
       "page": 33,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Eric Huneycutt",
@@ -53493,10 +53765,12 @@
       "outcome": null,
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "more than one seconder read",
         "no seconder read",
         "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: an amendment, substitute or reconsideration"
       ],
       "seconded_by": null,
@@ -53550,7 +53824,7 @@
       "outcome": "Motion passes for disapproval 6-1",
       "page": 2,
       "reasons": [
-        "a member named after 'except' is not read as voting nay or abstaining",
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: 'except' a member with no vote word",
         "the printed tally does not match the members named as voting nay"
@@ -53589,6 +53863,7 @@
       "outcome": "motion passes for approval",
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Michael Long",
@@ -53642,6 +53917,7 @@
       "outcome": "motion passes for approval",
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -53678,6 +53954,7 @@
       "outcome": "motion passes for approval",
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Bill Kimbrough",
@@ -53717,7 +53994,8 @@
       "page": 16,
       "reasons": [
         "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
-        "unmodelled wording: a vote word the reader does not read"
+        "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Valerie Guzman",
       "source_id": "src-c7ed027bdb6b",
@@ -53949,7 +54227,8 @@
       "outcome": "All others voted in favor",
       "page": 31,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Cindy Greene",
       "source_id": "src-c7ed027bdb6b",
@@ -54063,7 +54342,7 @@
       "abstained": [],
       "case": "Z-9-2025",
       "case_id": "2025-05-27-regular-z-9-2025",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2025-05-27-regular-motion-3",
       "kind": "Motion for disapproval",
       "meeting_id": "2025-05-27-regular",
@@ -54071,7 +54350,9 @@
       "nays": [],
       "outcome": "motion passes for disapproval",
       "page": 2,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Eric Huneycutt",
       "source_id": "src-136cea2df0ec",
       "tally": null
@@ -54089,6 +54370,7 @@
       "outcome": "motion passes for disapproval",
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -54108,6 +54390,7 @@
       "outcome": "Motion passes for approval",
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -54127,6 +54410,7 @@
       "outcome": "motion passes for approval",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Cindy Greene",
@@ -54185,7 +54469,8 @@
       "page": 8,
       "reasons": [
         "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
-        "unmodelled wording: a vote word the reader does not read"
+        "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Joe Smith",
       "source_id": "src-136cea2df0ec",
@@ -54204,8 +54489,8 @@
       "outcome": "Motion passes for a one month deferral",
       "page": 9,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "seconder is not one member present",
-        "a member named after 'except' is not read as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: 'except' a member with no vote word",
         "unmodelled wording: an amendment, substitute or reconsideration"
@@ -54227,6 +54512,7 @@
       "outcome": "motion passes for approval",
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Michael Long",
@@ -54246,6 +54532,7 @@
       "outcome": "motion passes for approval",
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -54256,7 +54543,7 @@
       "abstained": [],
       "case": "CZ-8-2025",
       "case_id": "2025-05-27-regular-cz-8-2025",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2025-05-27-regular-motion-13",
       "kind": "Motion for approval",
       "meeting_id": "2025-05-27-regular",
@@ -54264,7 +54551,9 @@
       "nays": [],
       "outcome": "motion passes for approval",
       "page": 12,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-136cea2df0ec",
       "tally": null
@@ -54285,6 +54574,7 @@
       "outcome": "Motion passes for approval 4-2",
       "page": 13,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Joe Smith",
@@ -54304,6 +54594,7 @@
       "outcome": null,
       "page": 15,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read"
       ],
       "seconded_by": "Michael Long",
@@ -54323,6 +54614,7 @@
       "outcome": null,
       "page": 17,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read"
       ],
       "seconded_by": "Michael Long",
@@ -54480,6 +54772,7 @@
       "outcome": "consent agenda passes for approval",
       "page": 29,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -54589,6 +54882,7 @@
       "outcome": "All members voted in favor",
       "page": 33,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read"
       ],
       "seconded_by": "Michael Long",
@@ -54608,6 +54902,7 @@
       "outcome": null,
       "page": 33,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read"
       ],
@@ -54645,6 +54940,7 @@
       "outcome": "motion passed for approval",
       "page": 2,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "case number not on this meeting's agenda"
       ],
@@ -54667,6 +54963,7 @@
       "outcome": null,
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: members named as voting in favour"
@@ -54688,6 +54985,7 @@
       "outcome": null,
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read"
       ],
       "seconded_by": "Wanda Smith",
@@ -54758,6 +55056,7 @@
       "outcome": "motion passes for approval",
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Valerie Guzman",
@@ -54777,6 +55076,7 @@
       "outcome": "motion passes for disapproval",
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Michael Long",
@@ -54813,7 +55113,7 @@
       "outcome": "Motion passes for approval 4-2",
       "page": 7,
       "reasons": [
-        "a member named after 'except' is not read as voting nay or abstaining",
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: 'except' a member with no vote word",
         "the printed tally does not match the members named as voting nay"
       ],
@@ -54834,6 +55134,7 @@
       "outcome": "motion passes for approval",
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Cindy Greene",
@@ -54872,6 +55173,7 @@
       "outcome": "Motion passes for approval",
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "a member named as voting nay or abstaining is not one member present",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: 'except' a member with no vote word"
@@ -54986,6 +55288,7 @@
       "outcome": "Motion passes for disapproval",
       "page": 19,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Bill Kimbrough",
@@ -55005,6 +55308,7 @@
       "outcome": "motion passes for approval",
       "page": 21,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Bill Kimbrough",
@@ -55026,6 +55330,7 @@
       "outcome": "Motion passes for approval",
       "page": 24,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Charlie Patterson",
@@ -55045,6 +55350,7 @@
       "outcome": "motion passes for approval",
       "page": 25,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Bill Kimbrough",
@@ -55064,6 +55370,7 @@
       "outcome": "Motion passes for authorization to demolish",
       "page": 27,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "unmodelled wording: a vote word the reader does not read"
       ],
@@ -55147,7 +55454,7 @@
       "abstained": [],
       "case": "DDR-12-2025",
       "case_id": "2025-07-28-cdrb-ddr-12-2025",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2025-07-28-cdrb-motion-2",
       "kind": "Motion",
       "meeting_id": "2025-07-28-cdrb",
@@ -55155,7 +55462,9 @@
       "nays": [],
       "outcome": "motion passes for approval",
       "page": 2,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "James Bagby",
       "source_id": "src-a3a4b73999f3",
       "tally": null
@@ -55164,7 +55473,7 @@
       "abstained": [],
       "case": "MSCD-25-2025",
       "case_id": "2025-07-28-cdrb-mscd-25-2025",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2025-07-28-cdrb-motion-3",
       "kind": "Motion for approval",
       "meeting_id": "2025-07-28-cdrb",
@@ -55172,7 +55481,10 @@
       "nays": [],
       "outcome": "motion was passed for approval",
       "page": 4,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows",
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "James Bagby",
       "source_id": "src-a3a4b73999f3",
       "tally": null
@@ -55190,6 +55502,7 @@
       "outcome": "motion passes for approval",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "case number not on this meeting's agenda"
       ],
@@ -55231,6 +55544,7 @@
       "outcome": null,
       "page": 1,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read"
       ],
@@ -55291,7 +55605,9 @@
       "outcome": "Motion passes 4-3",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: 'except' a member with no vote word",
         "unmodelled wording: an amendment, substitute or reconsideration",
         "more than one motion on one case section"
@@ -55313,6 +55629,7 @@
       "outcome": "All members voted in favor",
       "page": 5,
       "reasons": [
+        "a vote statement outside the motion is not read",
         "unmodelled wording: an amendment, substitute or reconsideration",
         "more than one motion on one case section"
       ],
@@ -55333,6 +55650,7 @@
       "outcome": null,
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read",
         "more than one motion on one case section"
@@ -55356,7 +55674,9 @@
       "outcome": "Motion to divide the question passes 5-1",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "more than one motion on one case section"
       ],
       "seconded_by": "Bill Kimbrough",
@@ -55378,7 +55698,10 @@
       "outcome": "Motion passes for approval 5-1",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
+        "a vote statement outside the motion is not read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "more than one motion on one case section"
       ],
       "seconded_by": "Michael Long",
@@ -55400,6 +55723,7 @@
       "outcome": "Motion passes for approval 5-1",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section"
       ],
@@ -55458,6 +55782,7 @@
       "outcome": "Motion passes for approval 5-1",
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "the case section prints another case on this meeting's agenda"
       ],
@@ -55478,8 +55803,10 @@
       "outcome": "Consent agenda passes for approval",
       "page": 12,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "more than one seconder read",
         "no seconder read",
+        "a member abstained on one case of a list the motion approved",
         "the case section prints another case on this meeting's agenda"
       ],
       "seconded_by": null,
@@ -55499,8 +55826,10 @@
       "outcome": "Consent agenda passes for approval",
       "page": 13,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "more than one seconder read",
-        "no seconder read"
+        "no seconder read",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": null,
       "source_id": "src-9f6c89b476c2",
@@ -55710,9 +56039,11 @@
       "outcome": null,
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "more than one motion on one case section"
       ],
       "seconded_by": null,
@@ -55732,6 +56063,7 @@
       "outcome": "motion passes for approval",
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "more than one motion on one case section"
       ],
       "seconded_by": "Wanda Smith",
@@ -55751,6 +56083,7 @@
       "outcome": null,
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
         "case number not on this meeting's agenda"
@@ -55808,6 +56141,7 @@
       "outcome": null,
       "page": 1,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read"
       ],
       "seconded_by": "Valerie Guzman",
@@ -55827,6 +56161,7 @@
       "outcome": "Motion passes for approval",
       "page": 2,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -55854,7 +56189,7 @@
       "abstained": [],
       "case": "Z-33-2025",
       "case_id": "2025-08-26-regular-z-33-2025",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2025-08-26-regular-motion-5",
       "kind": "Motion for approval",
       "meeting_id": "2025-08-26-regular",
@@ -55862,7 +56197,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 4,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-ffed10bc46d7",
       "tally": null
@@ -55880,6 +56217,7 @@
       "outcome": "Motion passes for approval",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -55916,6 +56254,7 @@
       "outcome": "Motion passes for approval",
       "page": 7,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Charlie Patterson",
@@ -55935,6 +56274,7 @@
       "outcome": "Motion passes for approval",
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Eric Huneycutt",
@@ -55954,8 +56294,10 @@
       "outcome": null,
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: an amendment, substitute or reconsideration"
       ],
       "seconded_by": "Bill Kimbrough",
@@ -55975,9 +56317,11 @@
       "outcome": null,
       "page": 12,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: an amendment, substitute or reconsideration",
         "more than one motion on one case section"
       ],
@@ -56004,8 +56348,10 @@
       "outcome": "Motion fails 5-2",
       "page": 13,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "more than one seconder read",
         "no seconder read",
+        "a vote statement outside the motion is not read",
         "a member named as voting nay or abstaining is not one member present",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: members named as voting in favour",
@@ -56047,6 +56393,7 @@
       "outcome": "consent agenda passes for approval",
       "page": 19,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read"
       ],
       "seconded_by": null,
@@ -56066,6 +56413,7 @@
       "outcome": "consent agenda passes for approval",
       "page": 20,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read"
       ],
       "seconded_by": null,
@@ -56085,6 +56433,7 @@
       "outcome": "consent agenda passes for approval",
       "page": 21,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read"
       ],
       "seconded_by": null,
@@ -56104,6 +56453,7 @@
       "outcome": "consent agenda passes for approval",
       "page": 22,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read"
       ],
       "seconded_by": null,
@@ -56123,6 +56473,7 @@
       "outcome": "consent agenda passes for approval",
       "page": 24,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read"
       ],
       "seconded_by": null,
@@ -56161,6 +56512,7 @@
       "outcome": null,
       "page": 26,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "no seconder read",
         "no outcome read"
@@ -56259,6 +56611,7 @@
       "outcome": null,
       "page": 2,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: 'except' a member with no vote word"
@@ -56280,7 +56633,8 @@
       "outcome": "motion passes for approval",
       "page": 1,
       "reasons": [
-        "unmodelled wording: a vote word the reader does not read"
+        "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Eric Huneycutt",
       "source_id": "src-6052a71029bb",
@@ -56290,7 +56644,7 @@
       "abstained": [],
       "case": null,
       "case_id": null,
-      "confirmed": true,
+      "confirmed": false,
       "id": "2025-09-23-regular-motion-2",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2025-09-23-regular",
@@ -56298,7 +56652,9 @@
       "nays": [],
       "outcome": "Consent agenda passes for approval",
       "page": 1,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Joe Smith",
       "source_id": "src-6052a71029bb",
       "tally": null
@@ -56316,6 +56672,7 @@
       "outcome": "Motion passes for approval",
       "page": 2,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "the outcome names another kind of motion"
       ],
       "seconded_by": "Michael Long",
@@ -56335,9 +56692,11 @@
       "outcome": null,
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: an amendment, substitute or reconsideration"
       ],
       "seconded_by": null,
@@ -56357,6 +56716,8 @@
       "outcome": "Motion passes for approval",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
+        "a vote statement outside the motion is not read",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Eric Huneycutt",
@@ -56395,6 +56756,7 @@
       "outcome": null,
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section",
@@ -56439,9 +56801,11 @@
       "outcome": null,
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: an amendment, substitute or reconsideration",
         "more than one motion on one case section"
       ],
@@ -56462,8 +56826,11 @@
       "outcome": null,
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
+        "a vote statement outside the motion is not read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: an amendment, substitute or reconsideration",
         "more than one motion on one case section"
       ],
@@ -56662,8 +57029,8 @@
       "outcome": "Motion passes for approval 4-1",
       "page": 24,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
-        "a member named after 'except' is not read as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: 'except' a member with no vote word",
         "unmodelled wording: an amendment, substitute or reconsideration",
@@ -56745,6 +57112,7 @@
       "outcome": null,
       "page": 25,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "no seconder read",
         "no outcome read"
@@ -56793,7 +57161,7 @@
       "abstained": [],
       "case": null,
       "case_id": null,
-      "confirmed": true,
+      "confirmed": false,
       "id": "2025-10-28-regular-motion-1",
       "kind": "Motion to approve the minutes",
       "meeting_id": "2025-10-28-regular",
@@ -56801,7 +57169,9 @@
       "nays": [],
       "outcome": "motion passes for approval",
       "page": 1,
-      "reasons": [],
+      "reasons": [
+        "an outcome, 'in favor' or a motion is printed after the outcome"
+      ],
       "seconded_by": "Michael Long",
       "source_id": "src-f3001df3a8bb",
       "tally": null
@@ -56838,6 +57208,7 @@
       "outcome": "Motion passes for deferral 6-1",
       "page": 2,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Michael Long",
@@ -56857,6 +57228,7 @@
       "outcome": null,
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: members named as voting in favour",
@@ -56879,7 +57251,8 @@
       "outcome": "Motion passes for approval 5-2",
       "page": 4,
       "reasons": [
-        "a member named after 'except' is not read as voting nay or abstaining",
+        "a sentence of the vote is not one the reader knows",
+        "a vote statement outside the motion is not read",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: 'except' a member with no vote word",
         "the printed tally does not match the members named as voting nay",
@@ -56919,6 +57292,8 @@
       "outcome": "Motion passes for approval",
       "page": 6,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
+        "a vote statement outside the motion is not read",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Cindy Greene",
@@ -56938,6 +57313,7 @@
       "outcome": "Motion passes for approval",
       "page": 7,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Cindy Greene",
@@ -56959,6 +57335,7 @@
       "outcome": "Motion passes for disapproval 6-1",
       "page": 9,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -56995,6 +57372,7 @@
       "outcome": "Motion passes for approval",
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -57014,6 +57392,7 @@
       "outcome": "Motion passes for approval",
       "page": 13,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Michael Long",
@@ -57041,7 +57420,7 @@
       "abstained": [],
       "case": "CZ-16-2025",
       "case_id": "2025-10-28-regular-cz-16-2025",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2025-10-28-regular-motion-14",
       "kind": "Motion for approval",
       "meeting_id": "2025-10-28-regular",
@@ -57049,7 +57428,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 15,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Michael Long",
       "source_id": "src-f3001df3a8bb",
       "tally": null
@@ -57067,6 +57448,7 @@
       "outcome": "Motion passes for approval",
       "page": 16,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -57120,6 +57502,7 @@
       "outcome": "Motion passes for approval",
       "page": 19,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Michael Long",
@@ -57198,7 +57581,7 @@
       "abstained": [],
       "case": "SR-66-2025",
       "case_id": "2025-10-28-regular-sr-66-2025",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2025-10-28-regular-motion-23",
       "kind": "Motion for approval",
       "meeting_id": "2025-10-28-regular",
@@ -57206,7 +57589,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 24,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Charlie Patterson",
       "source_id": "src-f3001df3a8bb",
       "tally": null
@@ -57345,6 +57730,7 @@
       "outcome": "Motion passes for approval",
       "page": 32,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Eric Huneycutt",
@@ -57491,6 +57877,7 @@
       "outcome": null,
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read"
       ],
       "seconded_by": "David Smith",
@@ -57501,7 +57888,7 @@
       "abstained": [],
       "case": null,
       "case_id": null,
-      "confirmed": true,
+      "confirmed": false,
       "id": "2025-11-25-regular-motion-1",
       "kind": "Motion to approve the minutes",
       "meeting_id": "2025-11-25-regular",
@@ -57509,7 +57896,9 @@
       "nays": [],
       "outcome": "motion passes for approval",
       "page": 1,
-      "reasons": [],
+      "reasons": [
+        "an outcome, 'in favor' or a motion is printed after the outcome"
+      ],
       "seconded_by": "Michael Long",
       "source_id": "src-45111d419fb9",
       "tally": null
@@ -57535,7 +57924,7 @@
       "abstained": [],
       "case": "Z-38-2025",
       "case_id": "2025-11-25-regular-z-38-2025",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2025-11-25-regular-motion-3",
       "kind": "Motion for disapproval",
       "meeting_id": "2025-11-25-regular",
@@ -57543,7 +57932,9 @@
       "nays": [],
       "outcome": "Motion passes for disapproval",
       "page": 4,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Joe Smith",
       "source_id": "src-45111d419fb9",
       "tally": null
@@ -57629,8 +58020,10 @@
       "outcome": null,
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: an amendment, substitute or reconsideration"
       ],
       "seconded_by": "Valerie Guzman",
@@ -57650,6 +58043,7 @@
       "outcome": "Motion passes for approval",
       "page": 12,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -57722,9 +58116,11 @@
       "outcome": null,
       "page": 18,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: 'except' a member with no vote word"
       ],
       "seconded_by": null,
@@ -58039,7 +58435,7 @@
       "abstained": [],
       "case": null,
       "case_id": null,
-      "confirmed": true,
+      "confirmed": false,
       "id": "2025-12-19-regular-motion-1",
       "kind": "Motion to approve the minutes",
       "meeting_id": "2025-12-19-regular",
@@ -58047,7 +58443,9 @@
       "nays": [],
       "outcome": "motion passes for approval",
       "page": 1,
-      "reasons": [],
+      "reasons": [
+        "an outcome, 'in favor' or a motion is printed after the outcome"
+      ],
       "seconded_by": "Bill Kimbrough",
       "source_id": "src-427e7fbe196f",
       "tally": null
@@ -58099,6 +58497,7 @@
       "outcome": "Motion passes for approval",
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Valerie Guzman",
@@ -58118,6 +58517,7 @@
       "outcome": "Motion passes for approval",
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Charlie Patterson",
@@ -58154,7 +58554,9 @@
       "outcome": "Motion fails for a lack of second",
       "page": 6,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "more than one motion on one case section"
       ],
       "seconded_by": null,
@@ -58231,6 +58633,7 @@
       "outcome": "Motion passes for approval",
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Michael Long",
@@ -58252,6 +58655,7 @@
       "outcome": "Motion passes for approval 3-1",
       "page": 12,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "a member named as voting nay or abstaining is not one member present",
         "unmodelled wording: a vote word the reader does not read"
       ],
@@ -58640,7 +59044,8 @@
       "outcome": "minutes were approved",
       "page": 1,
       "reasons": [
-        "mover is not one member present"
+        "mover is not one member present",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-a76db75e773b",
@@ -58671,7 +59076,7 @@
       "abstained": [],
       "case": null,
       "case_id": null,
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-02-24-regular-motion-3",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-02-24-regular",
@@ -58679,7 +59084,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 1,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Cindy Greene",
       "source_id": "src-a76db75e773b",
       "tally": null
@@ -58733,6 +59140,7 @@
       "outcome": "Motion passes for approval",
       "page": 6,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "mover is not one member present",
         "unmodelled wording: a vote word the reader does not read"
       ],
@@ -58770,6 +59178,7 @@
       "outcome": "motion passes for approval",
       "page": 9,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Valerie Guzman",
@@ -58789,7 +59198,8 @@
       "outcome": "Motion passes for approval",
       "page": 10,
       "reasons": [
-        "mover is not one member present"
+        "mover is not one member present",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-a76db75e773b",
@@ -58827,6 +59237,7 @@
       "outcome": "Motion passes for approval",
       "page": 12,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Eric Huneycutt",
@@ -58846,6 +59257,7 @@
       "outcome": "Motion passes for approval",
       "page": 13,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "seconder is not one member present",
         "unmodelled wording: a vote word the reader does not read"
       ],
@@ -58866,6 +59278,7 @@
       "outcome": "Motion passes for approval",
       "page": 14,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Valerie Guzman",
@@ -58887,6 +59300,7 @@
       "outcome": "Motion passes for disapproval 4-1",
       "page": 15,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "a member named as voting nay or abstaining is not one member present",
         "unmodelled wording: a vote word the reader does not read"
       ],
@@ -59220,7 +59634,7 @@
       "outcome": "Motion passes for approval",
       "page": 36,
       "reasons": [
-        "a member named after 'except' is not read as voting nay or abstaining",
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: 'except' a member with no vote word"
       ],
@@ -59277,6 +59691,7 @@
       "outcome": null,
       "page": 40,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "seconder is not one member present",
         "no outcome read"
@@ -59360,6 +59775,7 @@
       "outcome": null,
       "page": 40,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read"
       ],
@@ -59397,6 +59813,7 @@
       "outcome": "All members voted in favor",
       "page": 4,
       "reasons": [
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: an amendment, substitute or reconsideration",
         "more than one motion on one case section"
       ],
@@ -59417,6 +59834,7 @@
       "outcome": null,
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: an amendment, substitute or reconsideration",
@@ -59509,6 +59927,8 @@
       "outcome": "Motion passes for approval",
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
+        "a vote statement outside the motion is not read",
         "case section repeated"
       ],
       "seconded_by": "Gail Longton",
@@ -59565,7 +59985,8 @@
       "outcome": "Motion passes for one month deferral",
       "page": 1,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Valerie Guzman",
       "source_id": "src-2abf9009d5c2",
@@ -59637,6 +60058,7 @@
       "outcome": "Motion passes for approval",
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -59675,6 +60097,7 @@
       "outcome": "Motion passes for approval",
       "page": 6,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "seconder is not one member present"
       ],
       "seconded_by": "Cindy Greene",
@@ -59770,7 +60193,8 @@
       "outcome": "Motion passes for approval",
       "page": 12,
       "reasons": [
-        "mover is not one member present"
+        "mover is not one member present",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Joe Smith",
       "source_id": "src-2abf9009d5c2",
@@ -59998,6 +60422,7 @@
       "outcome": null,
       "page": 23,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "mover is not one member present",
         "no outcome read"
       ],
@@ -60056,6 +60481,7 @@
       "outcome": "Motion passes for approval 7-2",
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "a member named as voting nay is the mover or seconder",
         "unmodelled wording: a vote word the reader does not read",
         "the printed tally does not match the members named as voting nay"
@@ -60130,6 +60556,7 @@
       "outcome": "Motion passes for deferral",
       "page": 1,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "no seconder read"
       ],
@@ -60167,6 +60594,7 @@
       "outcome": "Motion passes for approval",
       "page": 2,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Cindy Greene",
@@ -60188,6 +60616,7 @@
       "outcome": "Motion passes for disapproval",
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "unmodelled wording: a vote word the reader does not read"
       ],
@@ -60208,6 +60637,7 @@
       "outcome": "Motion passes for deferral",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read"
       ],
       "seconded_by": null,
@@ -60263,6 +60693,8 @@
       "outcome": "Motion passes for approval 6-1",
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
+        "a vote statement outside the motion is not read",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Eric Huneycutt",
@@ -60284,6 +60716,7 @@
       "outcome": "Motion passes for approval 6-1",
       "page": 9,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "the printed tally does not match the members named as voting nay"
       ],
@@ -60304,6 +60737,7 @@
       "outcome": "motion passes for approval",
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Bill Kimbrough",
@@ -60314,7 +60748,7 @@
       "abstained": [],
       "case": "Z-16-2026",
       "case_id": "2026-04-28-regular-z-16-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-04-28-regular-motion-12",
       "kind": "Motion for approval",
       "meeting_id": "2026-04-28-regular",
@@ -60322,7 +60756,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 11,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Michael Long",
       "source_id": "src-f160926fc5bf",
       "tally": null
@@ -60340,6 +60776,7 @@
       "outcome": "Motion passes for deferral",
       "page": 12,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read"
       ],
       "seconded_by": null,
@@ -60681,7 +61118,7 @@
       "abstained": [],
       "case": "SR-32-2026",
       "case_id": "2026-04-28-regular-sr-32-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-04-28-regular-motion-33",
       "kind": "Motion for approval",
       "meeting_id": "2026-04-28-regular",
@@ -60689,7 +61126,9 @@
       "nays": [],
       "outcome": "motion passes for approval",
       "page": 34,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Bill Kimbrough",
       "source_id": "src-f160926fc5bf",
       "tally": null
@@ -60728,6 +61167,7 @@
       "outcome": "Motion passes for approval",
       "page": 37,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "unmodelled wording: a vote word the reader does not read"
       ],
@@ -60749,7 +61189,8 @@
       "page": 37,
       "reasons": [
         "subject not read",
-        "unmodelled wording: a vote word the reader does not read"
+        "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Cindy Greene",
       "source_id": "src-f160926fc5bf",
@@ -60768,7 +61209,8 @@
       "outcome": "Motion passes for approval",
       "page": 37,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Michael Long",
       "source_id": "src-f160926fc5bf",
@@ -60787,6 +61229,7 @@
       "outcome": "Motion passes for approval",
       "page": 37,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "unmodelled wording: a vote word the reader does not read"
       ],
@@ -60826,6 +61269,7 @@
       "outcome": null,
       "page": 1,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "seconder is not one member present",
         "no outcome read"
@@ -60881,6 +61325,7 @@
       "outcome": null,
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read",
         "more than one motion on one case section"
@@ -60912,7 +61357,7 @@
       "abstained": [],
       "case": null,
       "case_id": null,
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-05-18-cdrb-motion-5",
       "kind": "Motion to adjourn",
       "meeting_id": "2026-05-18-cdrb",
@@ -60920,7 +61365,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 4,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "James Bagby",
       "source_id": "src-51aee84d245d",
       "tally": null
@@ -61246,6 +61693,7 @@
       "outcome": "motion passes for approval",
       "page": 16,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "the case section prints another case on this meeting's agenda"
       ],
@@ -61317,6 +61765,7 @@
       "outcome": "motion passes for approval",
       "page": 20,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Joe Smith",
@@ -61370,6 +61819,8 @@
       "outcome": "Motion falls for a lack of a second",
       "page": 24,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
+        "a vote statement outside the motion is not read",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section"
       ],
@@ -61392,6 +61843,8 @@
       "outcome": "Motion passes for approval 3-1",
       "page": 24,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
+        "a vote statement outside the motion is not read",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section"
       ],
@@ -61448,6 +61901,7 @@
       "outcome": "Motion passes for approval",
       "page": 29,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -61467,6 +61921,7 @@
       "outcome": null,
       "page": 31,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
@@ -61489,6 +61944,7 @@
       "outcome": "Motion passes for one month deferral",
       "page": 31,
       "reasons": [
+        "a vote statement outside the motion is not read",
         "more than one motion on one case section"
       ],
       "seconded_by": "Joe Smith",
@@ -61583,8 +62039,10 @@
       "outcome": null,
       "page": 4,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "unmodelled wording: an amendment, substitute or reconsideration"
       ],
       "seconded_by": "Doug Jones",
@@ -61649,7 +62107,7 @@
       "abstained": [],
       "case": null,
       "case_id": null,
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-06-23-regular-motion-3",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-06-23-regular",
@@ -61657,7 +62115,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 1,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-5dd08d2a3154",
       "tally": null
@@ -62019,6 +62479,8 @@
       "outcome": "Motion passes",
       "page": 21,
       "reasons": [
+        "a vote statement outside the motion is not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "more than one motion on one case section"
       ],
       "seconded_by": "Stacey Streetman",
@@ -62038,6 +62500,7 @@
       "outcome": "Motion passes for approval",
       "page": 22,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "more than one motion on one case section"
       ],
       "seconded_by": "Stacey Streetman",
@@ -62048,7 +62511,7 @@
       "abstained": [],
       "case": "S-33-2026",
       "case_id": "2026-06-23-regular-s-33-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-06-23-regular-motion-26",
       "kind": "Motion for approval",
       "meeting_id": "2026-06-23-regular",
@@ -62056,7 +62519,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 23,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-5dd08d2a3154",
       "tally": null
@@ -62093,6 +62558,7 @@
       "outcome": "Motion passes for approval",
       "page": 25,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Joe Smith",
@@ -62137,7 +62603,7 @@
       "abstained": [],
       "case": "CZ-6-2026",
       "case_id": "2026-06-23-regular-cz-6-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-06-23-regular-motion-31",
       "kind": "Motion for approval",
       "meeting_id": "2026-06-23-regular",
@@ -62145,7 +62611,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 28,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Cindy Greene",
       "source_id": "src-5dd08d2a3154",
       "tally": null
@@ -62154,7 +62622,7 @@
       "abstained": [],
       "case": "CZ-7-2026",
       "case_id": "2026-06-23-regular-cz-7-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-06-23-regular-motion-32",
       "kind": "Motion for approval",
       "meeting_id": "2026-06-23-regular",
@@ -62162,7 +62630,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 29,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-5dd08d2a3154",
       "tally": null
@@ -62171,7 +62641,7 @@
       "abstained": [],
       "case": "SR-46-2026",
       "case_id": "2026-06-23-regular-sr-46-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-06-23-regular-motion-33",
       "kind": "Motion to defer",
       "meeting_id": "2026-06-23-regular",
@@ -62179,7 +62649,9 @@
       "nays": [],
       "outcome": "Motion passes for one month deferral",
       "page": 33,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-5dd08d2a3154",
       "tally": null
@@ -62197,7 +62669,9 @@
       "outcome": "Motion passes for one month deferral",
       "page": 36,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "the outcome names another kind of motion",
+        "a vote statement outside the motion is not read",
         "unmodelled wording: an amendment, substitute or reconsideration"
       ],
       "seconded_by": "Stacey Streetman",
@@ -62459,7 +62933,8 @@
       "outcome": "Motion passes for approval",
       "page": 4,
       "reasons": [
-        "unmodelled wording: a vote word the reader does not read"
+        "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Kirk Zeaman",
       "source_id": "src-f37ff159fb55",
@@ -62533,6 +63008,7 @@
       "outcome": "Motion passes 9-1",
       "page": 7,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "unmodelled wording: a vote word the reader does not read"
       ],
@@ -62555,6 +63031,7 @@
       "outcome": "Motion passes for approval 9-1",
       "page": 9,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "a member named as voting nay is the mover or seconder",
         "unmodelled wording: a vote word the reader does not read"
@@ -62584,7 +63061,7 @@
       "abstained": [],
       "case": null,
       "case_id": null,
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-07-28-regular-motion-1",
       "kind": "Motion to approve the minutes",
       "meeting_id": "2026-07-28-regular",
@@ -62592,7 +63069,9 @@
       "nays": [],
       "outcome": "Minutes were approved",
       "page": 1,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "David Smith",
       "source_id": "src-c6ac0734e07b",
       "tally": null
@@ -62601,7 +63080,7 @@
       "abstained": [],
       "case": null,
       "case_id": null,
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-07-28-regular-motion-2",
       "kind": "Motion to approve the deferrals",
       "meeting_id": "2026-07-28-regular",
@@ -62609,7 +63088,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 1,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Valerie Guzman",
       "source_id": "src-c6ac0734e07b",
       "tally": null
@@ -62618,7 +63099,7 @@
       "abstained": [],
       "case": "Z-18-2026",
       "case_id": "2026-07-28-regular-z-18-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-07-28-regular-motion-3",
       "kind": "Motion to approve the deferrals",
       "meeting_id": "2026-07-28-regular",
@@ -62626,7 +63107,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 2,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Valerie Guzman",
       "source_id": "src-c6ac0734e07b",
       "tally": null
@@ -62635,7 +63118,7 @@
       "abstained": [],
       "case": "Z-19-2026",
       "case_id": "2026-07-28-regular-z-19-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-07-28-regular-motion-4",
       "kind": "Motion to approve the deferrals",
       "meeting_id": "2026-07-28-regular",
@@ -62643,7 +63126,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 3,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Valerie Guzman",
       "source_id": "src-c6ac0734e07b",
       "tally": null
@@ -62707,7 +63192,7 @@
       "abstained": [],
       "case": "Z-27-2026",
       "case_id": "2026-07-28-regular-z-27-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-07-28-regular-motion-8",
       "kind": "Motion for approval",
       "meeting_id": "2026-07-28-regular",
@@ -62715,7 +63200,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 7,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows"
+      ],
       "seconded_by": "Valerie Guzman",
       "source_id": "src-c6ac0734e07b",
       "tally": null
@@ -62733,6 +63220,7 @@
       "outcome": "Motion passes for approval",
       "page": 8,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Stacey Streetman",
@@ -62771,6 +63259,7 @@
       "outcome": "Motion passes for approval 6-1",
       "page": 10,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Eric Huneycutt",
@@ -62790,9 +63279,11 @@
       "outcome": null,
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no seconder read",
         "no outcome read",
-        "unmodelled wording: a vote word the reader does not read"
+        "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": null,
       "source_id": "src-c6ac0734e07b",
@@ -62811,7 +63302,8 @@
       "outcome": "motion passes for approval",
       "page": 12,
       "reasons": [
-        "the case section prints another case on this meeting's agenda"
+        "the case section prints another case on this meeting's agenda",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Valerie Guzman",
       "source_id": "src-c6ac0734e07b",
@@ -62838,7 +63330,7 @@
       "abstained": [],
       "case": "S-41-2026",
       "case_id": "2026-07-28-regular-s-41-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-07-28-regular-motion-15",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-07-28-regular",
@@ -62846,7 +63338,9 @@
       "nays": [],
       "outcome": "motion passes for approval",
       "page": 14,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Valerie Guzman",
       "source_id": "src-c6ac0734e07b",
       "tally": null
@@ -62855,7 +63349,7 @@
       "abstained": [],
       "case": "S-42-2026",
       "case_id": "2026-07-28-regular-s-42-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-07-28-regular-motion-16",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-07-28-regular",
@@ -62863,7 +63357,9 @@
       "nays": [],
       "outcome": "motion passes for approval",
       "page": 15,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Valerie Guzman",
       "source_id": "src-c6ac0734e07b",
       "tally": null
@@ -62872,7 +63368,7 @@
       "abstained": [],
       "case": "S-44-2026",
       "case_id": "2026-07-28-regular-s-44-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-07-28-regular-motion-17",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-07-28-regular",
@@ -62880,7 +63376,9 @@
       "nays": [],
       "outcome": "motion passes for approval",
       "page": 17,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Valerie Guzman",
       "source_id": "src-c6ac0734e07b",
       "tally": null
@@ -62889,7 +63387,7 @@
       "abstained": [],
       "case": "SR-45-2026",
       "case_id": "2026-07-28-regular-sr-45-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-07-28-regular-motion-18",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-07-28-regular",
@@ -62897,7 +63395,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 19,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-c6ac0734e07b",
       "tally": null
@@ -62906,7 +63406,7 @@
       "abstained": [],
       "case": "SR-46-2026",
       "case_id": "2026-07-28-regular-sr-46-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-07-28-regular-motion-19",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-07-28-regular",
@@ -62914,7 +63414,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 20,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-c6ac0734e07b",
       "tally": null
@@ -62923,7 +63425,7 @@
       "abstained": [],
       "case": "SR-57-2026",
       "case_id": "2026-07-28-regular-sr-57-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-07-28-regular-motion-20",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-07-28-regular",
@@ -62931,7 +63433,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 21,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-c6ac0734e07b",
       "tally": null
@@ -62940,7 +63444,7 @@
       "abstained": [],
       "case": "SR-60-2026",
       "case_id": "2026-07-28-regular-sr-60-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-07-28-regular-motion-21",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-07-28-regular",
@@ -62948,7 +63452,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 22,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-c6ac0734e07b",
       "tally": null
@@ -62957,7 +63463,7 @@
       "abstained": [],
       "case": "SR-61-2026",
       "case_id": "2026-07-28-regular-sr-61-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-07-28-regular-motion-22",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-07-28-regular",
@@ -62965,7 +63471,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 23,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-c6ac0734e07b",
       "tally": null
@@ -62974,7 +63482,7 @@
       "abstained": [],
       "case": "SR-62-2026",
       "case_id": "2026-07-28-regular-sr-62-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-07-28-regular-motion-23",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-07-28-regular",
@@ -62982,7 +63490,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 24,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-c6ac0734e07b",
       "tally": null
@@ -62991,7 +63501,7 @@
       "abstained": [],
       "case": "SR-64-2026",
       "case_id": "2026-07-28-regular-sr-64-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-07-28-regular-motion-24",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-07-28-regular",
@@ -62999,7 +63509,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 25,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-c6ac0734e07b",
       "tally": null
@@ -63008,7 +63520,7 @@
       "abstained": [],
       "case": "SR-65-2026",
       "case_id": "2026-07-28-regular-sr-65-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-07-28-regular-motion-25",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-07-28-regular",
@@ -63016,7 +63528,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 26,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-c6ac0734e07b",
       "tally": null
@@ -63025,7 +63539,7 @@
       "abstained": [],
       "case": "SR-66-2026",
       "case_id": "2026-07-28-regular-sr-66-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-07-28-regular-motion-26",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-07-28-regular",
@@ -63033,7 +63547,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 27,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-c6ac0734e07b",
       "tally": null
@@ -63051,6 +63567,7 @@
       "outcome": "Motion fails 5-2",
       "page": 29,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: members named as voting in favour",
         "the printed tally does not match the members named as voting nay",
@@ -63073,7 +63590,7 @@
       "outcome": "Motion passes for one month deferral 5-2",
       "page": 29,
       "reasons": [
-        "a member named after 'except' is not read as voting nay or abstaining",
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: 'except' a member with no vote word",
         "the printed tally does not match the members named as voting nay",
@@ -63171,7 +63688,8 @@
       "page": 31,
       "reasons": [
         "subject not read",
-        "unmodelled wording: a vote word the reader does not read"
+        "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Michael Long",
       "source_id": "src-c6ac0734e07b",
@@ -63190,7 +63708,8 @@
       "outcome": "Motion passes for approval",
       "page": 31,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-c6ac0734e07b",
@@ -63253,7 +63772,7 @@
       "abstained": [],
       "case": "DDR-14-2026",
       "case_id": "2026-08-24-cdrb-ddr-14-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-08-24-cdrb-motion-2",
       "kind": "Motion",
       "meeting_id": "2026-08-24-cdrb",
@@ -63261,7 +63780,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 5,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Gail Longton",
       "source_id": "src-2f371b0e41bd",
       "tally": null
@@ -63296,7 +63817,8 @@
       "outcome": "Minutes were approved",
       "page": 1,
       "reasons": [
-        "unmodelled wording: a vote word the reader does not read"
+        "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Joe Smith",
       "source_id": "src-5a2b509c2e3a",
@@ -63349,6 +63871,7 @@
       "outcome": "Motion passes for approval to divide the question",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "more than one motion on one case section"
       ],
       "seconded_by": "Joe Smith",
@@ -63368,6 +63891,7 @@
       "outcome": "Motion passes for approval",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "more than one motion on one case section"
       ],
       "seconded_by": "Valerie Guzman",
@@ -63387,6 +63911,7 @@
       "outcome": "Motion passes for a one month deferral",
       "page": 5,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "more than one motion on one case section"
       ],
       "seconded_by": "Michael Long",
@@ -63414,7 +63939,7 @@
       "abstained": [],
       "case": "CZ-11-2026",
       "case_id": "2026-08-25-regular-cz-11-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-08-25-regular-motion-8",
       "kind": "Motion for approval",
       "meeting_id": "2026-08-25-regular",
@@ -63422,7 +63947,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 8,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Eric Huneycutt",
       "source_id": "src-5a2b509c2e3a",
       "tally": null
@@ -63440,8 +63967,11 @@
       "outcome": null,
       "page": 11,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "no outcome read",
+        "a vote statement outside the motion is not read",
         "unmodelled wording: a vote word the reader does not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome",
         "the case section prints another case on this meeting's agenda"
       ],
       "seconded_by": "Joe Smith",
@@ -63501,6 +64031,7 @@
       "outcome": "Motion passes for one month deferral",
       "page": 21,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "the case section prints another case on this meeting's agenda"
       ],
@@ -63531,7 +64062,7 @@
       "abstained": [],
       "case": "SR-70-2026",
       "case_id": "2026-08-25-regular-sr-70-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-08-25-regular-motion-14",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-08-25-regular",
@@ -63539,7 +64070,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 23,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Joe Smith",
       "source_id": "src-5a2b509c2e3a",
       "tally": null
@@ -63548,7 +64081,7 @@
       "abstained": [],
       "case": "SR-72-2026",
       "case_id": "2026-08-25-regular-sr-72-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-08-25-regular-motion-15",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-08-25-regular",
@@ -63556,7 +64089,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 24,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Joe Smith",
       "source_id": "src-5a2b509c2e3a",
       "tally": null
@@ -63565,7 +64100,7 @@
       "abstained": [],
       "case": "SR-73-2026",
       "case_id": "2026-08-25-regular-sr-73-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-08-25-regular-motion-16",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-08-25-regular",
@@ -63573,7 +64108,9 @@
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 25,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Joe Smith",
       "source_id": "src-5a2b509c2e3a",
       "tally": null
@@ -63591,7 +64128,8 @@
       "outcome": "Motion passes for approval",
       "page": 26,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "an outcome, 'in favor' or a motion is printed after the outcome"
       ],
       "seconded_by": "Michael Long",
       "source_id": "src-5a2b509c2e3a",
@@ -63641,7 +64179,7 @@
       "abstained": [],
       "case": null,
       "case_id": null,
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-09-21-cdrb-motion-1",
       "kind": "Motion to approve the minutes",
       "meeting_id": "2026-09-21-cdrb",
@@ -63649,7 +64187,9 @@
       "nays": [],
       "outcome": "minutes were approved",
       "page": 1,
-      "reasons": [],
+      "reasons": [
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "Wanda Smith",
       "source_id": "src-66cec592bdfd",
       "tally": null
@@ -63667,7 +64207,7 @@
       "outcome": "Motion passes for approval 5-2",
       "page": 3,
       "reasons": [
-        "a member named after 'except' is not read as voting nay or abstaining",
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: 'except' a member with no vote word",
         "the printed tally does not match the members named as voting nay"
@@ -63723,7 +64263,9 @@
       "outcome": "motion passes for approval",
       "page": 1,
       "reasons": [
-        "unmodelled wording: a vote word the reader does not read"
+        "a sentence of the vote is not one the reader knows",
+        "unmodelled wording: a vote word the reader does not read",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "David Smith",
       "source_id": "src-7a8f0a209c7d",
@@ -63759,8 +64301,10 @@
       "outcome": "motion passes for approval",
       "page": 3,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: a vote word the reader does not read",
-        "the case section prints another case on this meeting's agenda"
+        "the case section prints another case on this meeting's agenda",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "David Smith",
       "source_id": "src-7a8f0a209c7d",
@@ -63779,7 +64323,9 @@
       "outcome": "motion passes for approval",
       "page": 4,
       "reasons": [
-        "the case section prints another case on this meeting's agenda"
+        "a sentence of the vote is not one the reader knows",
+        "the case section prints another case on this meeting's agenda",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "David Smith",
       "source_id": "src-7a8f0a209c7d",
@@ -63817,6 +64363,7 @@
       "outcome": "Motion passes for approval",
       "page": 6,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "unmodelled wording: an amendment, substitute or reconsideration",
         "case section repeated"
       ],
@@ -63862,7 +64409,7 @@
       "abstained": [],
       "case": "V-7-2026",
       "case_id": "2026-09-22-regular-v-7-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-09-22-regular-motion-10",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-09-22-regular",
@@ -63870,7 +64417,10 @@
       "nays": [],
       "outcome": "motion passes for approval",
       "page": 9,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows",
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "David Smith",
       "source_id": "src-7a8f0a209c7d",
       "tally": null
@@ -63888,7 +64438,9 @@
       "outcome": "Motion passed for approval",
       "page": 10,
       "reasons": [
-        "the case section prints another case on this meeting's agenda"
+        "a sentence of the vote is not one the reader knows",
+        "the case section prints another case on this meeting's agenda",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "David Smith",
       "source_id": "src-7a8f0a209c7d",
@@ -63907,7 +64459,9 @@
       "outcome": "Motion passed for approval",
       "page": 11,
       "reasons": [
-        "the case section prints another case on this meeting's agenda"
+        "a sentence of the vote is not one the reader knows",
+        "the case section prints another case on this meeting's agenda",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "David Smith",
       "source_id": "src-7a8f0a209c7d",
@@ -63917,7 +64471,7 @@
       "abstained": [],
       "case": "S-56-2026",
       "case_id": "2026-09-22-regular-s-56-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-09-22-regular-motion-13",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-09-22-regular",
@@ -63925,7 +64479,10 @@
       "nays": [],
       "outcome": "motion passes for approval",
       "page": 12,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows",
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "David Smith",
       "source_id": "src-7a8f0a209c7d",
       "tally": null
@@ -63943,7 +64500,9 @@
       "outcome": "Motion passed for approval",
       "page": 13,
       "reasons": [
-        "the case section prints another case on this meeting's agenda"
+        "a sentence of the vote is not one the reader knows",
+        "the case section prints another case on this meeting's agenda",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "David Smith",
       "source_id": "src-7a8f0a209c7d",
@@ -63981,7 +64540,8 @@
       "outcome": "motion passes for approval",
       "page": 14,
       "reasons": [
-        "the case section prints another case on this meeting's agenda"
+        "the case section prints another case on this meeting's agenda",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Cindy Greene",
       "source_id": "src-7a8f0a209c7d",
@@ -64019,7 +64579,8 @@
       "outcome": "motion passes for approval",
       "page": 16,
       "reasons": [
-        "the case section prints another case on this meeting's agenda"
+        "the case section prints another case on this meeting's agenda",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Cindy Greene",
       "source_id": "src-7a8f0a209c7d",
@@ -64038,7 +64599,8 @@
       "outcome": "motion passes for approval",
       "page": 17,
       "reasons": [
-        "the case section prints another case on this meeting's agenda"
+        "the case section prints another case on this meeting's agenda",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Cindy Greene",
       "source_id": "src-7a8f0a209c7d",
@@ -64057,7 +64619,8 @@
       "outcome": "motion passes for approval",
       "page": 18,
       "reasons": [
-        "the case section prints another case on this meeting's agenda"
+        "the case section prints another case on this meeting's agenda",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Cindy Greene",
       "source_id": "src-7a8f0a209c7d",
@@ -64067,7 +64630,7 @@
       "abstained": [],
       "case": "SR-76-2026",
       "case_id": "2026-09-22-regular-sr-76-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-09-22-regular-motion-21",
       "kind": "Motion to approve the consent agenda",
       "meeting_id": "2026-09-22-regular",
@@ -64075,7 +64638,10 @@
       "nays": [],
       "outcome": "motion passes for approval",
       "page": 19,
-      "reasons": [],
+      "reasons": [
+        "a sentence of the vote is not one the reader knows",
+        "a vote statement outside the motion is not read"
+      ],
       "seconded_by": "David Smith",
       "source_id": "src-7a8f0a209c7d",
       "tally": null
@@ -64093,7 +64659,8 @@
       "outcome": "motion passes for approval",
       "page": 20,
       "reasons": [
-        "the case section prints another case on this meeting's agenda"
+        "the case section prints another case on this meeting's agenda",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Cindy Greene",
       "source_id": "src-7a8f0a209c7d",
@@ -64112,7 +64679,8 @@
       "outcome": "motion passes for approval",
       "page": 21,
       "reasons": [
-        "the case section prints another case on this meeting's agenda"
+        "the case section prints another case on this meeting's agenda",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Cindy Greene",
       "source_id": "src-7a8f0a209c7d",
@@ -64131,6 +64699,7 @@
       "outcome": "Motion passes for approval",
       "page": 22,
       "reasons": [
+        "a sentence of the vote is not one the reader knows",
         "subject not read",
         "unmodelled wording: a vote word the reader does not read"
       ],
@@ -64151,7 +64720,9 @@
       "outcome": "Motion passes for approval",
       "page": 22,
       "reasons": [
-        "subject not read"
+        "a sentence of the vote is not one the reader knows",
+        "subject not read",
+        "a vote statement outside the motion is not read"
       ],
       "seconded_by": "Cindy Greene",
       "source_id": "src-7a8f0a209c7d",
