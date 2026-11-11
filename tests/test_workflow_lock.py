@@ -435,6 +435,15 @@ def test_note_job_is_locked_scheduled_on_main_and_after_deploy():
     assert set(on) == {"schedule", "workflow_dispatch"}
 
 
+def test_note_job_has_a_timeout_and_shares_the_one_run_at_a_time_group():
+    """Security (T4.8): never-twice across concurrent runs rests on one daily-update run at a time. The group is
+    workflow-level, so it holds every job, the note job included; no job may set its own (it would leave the group)."""
+    assert WF["concurrency"] == {"group": "daily-update", "cancel-in-progress": False}
+    assert all("concurrency" not in job for job in WF["jobs"].values())
+    assert isinstance(WF["jobs"]["note"]["timeout-minutes"], int) and 0 < WF["jobs"]["note"]["timeout-minutes"] <= 15
+    assert all(isinstance(job.get("timeout-minutes"), int) for job in WF["jobs"].values())
+
+
 def _note_if(event, var, ref):
     return event == "schedule" and var == "true" and ref == "refs/heads/main"
 

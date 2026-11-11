@@ -418,6 +418,8 @@ jobs:
   # Least privilege: contents: read only; the API key and the canary ids are secrets of the `morning-note`
   # environment (deployment branch main only), each given as env to the one step that needs it, never in a `run:`
   # expression. No pip install, no cache, no artifact upload, no step summary; the deliver stage prints totals only.
+  # Never twice across runs: the workflow-level `concurrency: daily-update` group (one run at a time, never
+  # cancelled) holds this job too; do not give it a group of its own.
   note:
     needs: [update, deploy]
     if: github.event_name == 'schedule' && vars.MORNING_NOTE_SEND == 'true' && github.ref == 'refs/heads/main'
