@@ -102,6 +102,10 @@ class RpcConfig:
     kind_rules: tuple          # ((kind, compiled), ...)
     kind_labels: dict
     case_types: dict           # case-number prefix -> case type label
+    # rpc.yml hold_motions: on, no motion is published confirmed (sitegen/rpc.py), so the shrink guard does not
+    # protect confirmed motions (a reader fix is expected to unconfirm some). Anything but false counts as on, as in
+    # qa/site_checks.py
+    hold_motions: bool = False
 
     def kind_of(self, label: str) -> str:
         for kind, rx in self.kind_rules:
@@ -132,7 +136,8 @@ def load_config(path: Path = CONFIG) -> RpcConfig:
     return RpcConfig(**{**{k: raw[k] for k in KEYS}, "kind_rules": rules,
                         "fetch_hosts": tuple(h.lower() for h in raw["fetch_hosts"]),
                         "fetch_extensions": tuple(e.lower() for e in raw["fetch_extensions"]),
-                        "case_types": {str(k).upper(): str(v) for k, v in (raw["case_types"] or {}).items()}})
+                        "case_types": {str(k).upper(): str(v) for k, v in (raw["case_types"] or {}).items()},
+                        "hold_motions": raw.get("hold_motions", False) is not False})
 
 
 # ------------------------------------------------------------------ listing page
@@ -396,10 +401,13 @@ def store_gaps(rows: list[dict], store: Store) -> list[str]:
                    if d["fetch"] and d["url"] in by_url and not store.has_bytes(by_url[d["url"]]["sha256"])})
 
 
-def shrink_reason(old: dict, new: dict) -> str | None:
+def shrink_reason(old: dict, new: dict, hold_motions: bool = False, allow_shrink: bool = False) -> str | None:
     """Why `new` must not replace the committed record `old`, or None: a meeting gone, a meeting's agenda or minutes
     that had a source and now has none, or an agenda or minutes that was read and now is not (OCR not available).
-    Compared per meeting and document kind, so a document the RPC posts again under a new link is not a loss."""
+    Compared per meeting and document kind, so a document the RPC posts again under a new link is not a loss.
+    Also (limits invariant rule 3): a motion confirmed in the committed record that is not confirmed in `new`, unless
+    hold_motions is on (nothing is published confirmed, and a reader fix is expected to unconfirm motions) or
+    allow_shrink accepts it deliberately."""
     now = {m["id"]: m for m in new.get("meetings", [])}
     gone = sorted(m["id"] for m in old.get("meetings", []) if m["id"] not in now)
     if gone:
@@ -414,10 +422,17 @@ def shrink_reason(old: dict, new: dict) -> str | None:
         for k, what in (("agenda_read_by", "agenda"), ("minutes_read_by", "minutes")):
             if m.get(k) and not n.get(k):
                 return f"{m['id']}: the {what} was read in the committed record and would not be"
+    if not hold_motions and not allow_shrink:
+        confirmed = {x["id"] for x in new.get("motions", []) if x.get("confirmed")}
+        lost = sorted(x["id"] for x in old.get("motions", []) if x.get("confirmed") and x["id"] not in confirmed)
+        if lost:
+            return (f"{len(lost)} motions confirmed in the committed record would not be confirmed, e.g. "
+                    f"{', '.join(lost[:3])} (a limit trip or a reader change); pass --allow-shrink to accept it")
     return None
 
 
-def _daily(cfg: RpcConfig, p: dict, out: dict, offline: bool, fetcher, store: Store, build, max_requests) -> int:
+def _daily(cfg: RpcConfig, p: dict, out: dict, offline: bool, fetcher, store: Store, build, max_requests,
+           allow_shrink: bool = False) -> int:
     if offline:
         rows = json.loads(p["listing"].read_text(encoding="utf-8")) if p["listing"].is_file() else []
     else:
@@ -459,7 +474,7 @@ def _daily(cfg: RpcConfig, p: dict, out: dict, offline: bool, fetcher, store: St
         out["status"] = f"nothing changed: {len(short)} agendas with cases not read: {', '.join(short)}"
         return STEP_GATE
     old = json.loads(p["facts"].read_text(encoding="utf-8")) if p["facts"].is_file() else None
-    why = shrink_reason(old, facts) if old else None
+    why = shrink_reason(old, facts, hold_motions=cfg.hold_motions, allow_shrink=allow_shrink) if old else None
     if why:
         out["status"] = f"nothing changed: {why}"
         return STEP_REFUSED
@@ -470,7 +485,8 @@ def _daily(cfg: RpcConfig, p: dict, out: dict, offline: bool, fetcher, store: St
 
 
 def run_step(log: dict, offline: bool, fetcher=None, cfg: RpcConfig | None = None, root: Path = ROOT,
-             store: Store | None = None, build=None, max_requests: int | None = DAILY_FETCH_CAP) -> int:
+             store: Store | None = None, build=None, max_requests: int | None = DAILY_FETCH_CAP,
+             allow_shrink: bool = False) -> int:
     """The daily step (collector run): read the listing, fetch what is new (unless offline), rebuild rpc.json.
     All or nothing: on any code but 0 (and on an offline run whose store has gaps) listing.json, manifest.json,
     changes.jsonl and rpc.json are left exactly as they were. Fetched bytes stay in the gitignored store, so a later
@@ -482,7 +498,8 @@ def run_step(log: dict, offline: bool, fetcher=None, cfg: RpcConfig | None = Non
         cfg = cfg or load_config()
         p = paths(cfg, root)
         snap = _snapshot(p)
-        code = _daily(cfg, p, out, offline, fetcher, store or Store(manifest_path=p["manifest"]), build, max_requests)
+        code = _daily(cfg, p, out, offline, fetcher, store or Store(manifest_path=p["manifest"]), build, max_requests,
+                      allow_shrink)
     except Exception as e:      # this step never takes the county run down; nothing of its own is left half written
         out["status"] = f"error, nothing changed: {type(e).__name__}: {e}"[:400]
         code = STEP_ERROR
@@ -511,9 +528,11 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--limit", type=int, default=None,
                     help="request at most N documents the store lacks (never more than the 40-request cap allows)")
     ap.add_argument("--offline", action="store_true", help="daily: no fetching, build from the store")
+    ap.add_argument("--allow-shrink", action="store_true",
+                    help="daily: accept a result in which a committed confirmed motion is no longer confirmed")
     a = ap.parse_args(argv)
     if a.command == "daily":
-        return run_step({}, a.offline)
+        return run_step({}, a.offline, allow_shrink=a.allow_shrink)
     cfg = load_config()
     p = paths(cfg)
     store = Store(manifest_path=p["manifest"])

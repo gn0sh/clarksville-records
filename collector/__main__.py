@@ -131,12 +131,12 @@ def run_agendas(log: dict, offline: bool, fetcher: PoliteFetcher | None = None) 
 RPC_FAILED, RPC_FILLING = 5, 6       # `run` exit codes for the RPC step alone (everything else ok)
 
 
-def run_rpc(log: dict, offline: bool, fetcher: PoliteFetcher | None = None) -> int:
+def run_rpc(log: dict, offline: bool, fetcher: PoliteFetcher | None = None, allow_shrink: bool = False) -> int:
     """Regional Planning Commission (collector/rpc.py run_step): its own manifest, listing and rpc.json, its own exit
     code (0 ok). It never adds to log['failures'] and never raises: a refusal by cmcrpc.com does not fail the county
     run, and leaves every RPC file as committed."""
     from .rpc import run_step
-    return run_step(log, offline, fetcher=fetcher)
+    return run_step(log, offline, fetcher=fetcher, allow_shrink=allow_shrink)
 
 
 # ------------------------------------------------------------------ build
@@ -298,7 +298,20 @@ def shrink_reason(facts: dict, log: dict, facts_path: Path) -> str | None:
         return (f"the result has {len(facts['meetings'])} meetings and would drop {len(dropped)} of the "
                 f"{len(old.get('meetings', []))} in {Path(facts_path).name}, e.g. {', '.join(dropped[:3])}. "
                 f"A parser change that renames meeting ids also causes this; pass --allow-shrink to override")
+    # limits invariant rule 3: a roll call verified in the committed file must stay verified (a too-tight limit, an
+    # OCR reading lost, would otherwise turn a published verified vote into unverified with no one noticing)
+    verified = {r["id"] for r in facts.get("roll_calls", []) if _verified(r)}
+    lost = sorted(r["id"] for r in old.get("roll_calls", []) if _verified(r) and r["id"] not in verified)
+    if lost:
+        return (f"{len(lost)} roll calls verified in {Path(facts_path).name} would no longer be verified, e.g. "
+                f"{', '.join(lost[:3])} (a limit trip, a lost OCR reading or a parser change); pass --allow-shrink "
+                f"to accept it")
     return None
+
+
+def _verified(rc: dict) -> bool:
+    v = rc.get("verification")
+    return (v.get("status") if isinstance(v, dict) else v) == "verified"
 
 
 def refuse(why: str) -> int:
@@ -354,7 +367,8 @@ def cmd_run(args) -> int:
     fin_code = run_finance(store, log, args.offline, fetcher=fetcher, finance_path=FINANCE,
                            report_path=BUILD / "report.json")
     run_agendas(log, args.offline, fetcher=fetcher)
-    rpc_code = run_rpc(log, args.offline, fetcher=fetcher)      # before the site build, which reads rpc.json
+    rpc_code = run_rpc(log, args.offline, fetcher=fetcher,      # before the site build, which reads rpc.json
+                       allow_shrink=allow)
     site = BUILD / "site"
     try:
         from sitegen.build import build as site_build, write_publish_manifest

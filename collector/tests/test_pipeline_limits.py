@@ -1,5 +1,6 @@
 """docs/architecture/pipeline-limits-invariant.md: every limit sits above the largest real input with margin, and a
 limit trip is reported."""
+import json
 import subprocess
 from pathlib import Path
 
@@ -129,3 +130,81 @@ def test_each_run_summary_prints_the_limits_line(which, monkeypatch, capsys, tmp
         prefix = "collector city"
     out = capsys.readouterr().out
     assert f"{prefix}: limits tripped: 1\n  limit ocr.MAX_PAGE_PTS: big.pdf p3 9000 pt > 2592 pt" in out
+
+
+# ------------------------------------------------------------------ rule 3: the shrink guard
+
+def _rc(rid, status):
+    return {"id": rid, "verification": {"status": status, "checks": []}}
+
+
+def test_county_guard_refuses_a_committed_verified_roll_call_that_is_no_longer_verified(tmp_path):
+    from collector import __main__ as M
+    old = {"meetings": [{"id": "m1"}], "roll_calls": [_rc("rc-30a9df8f-p519-0", "verified"), _rc("rc-b", "verified"),
+                                                       _rc("rc-c", "unverified")]}
+    path = tmp_path / "facts.json"
+    path.write_text(json.dumps(old), encoding="utf-8")
+    log = {"parsed": 1, "failures": []}
+    same = {"meetings": [{"id": "m1"}], "roll_calls": old["roll_calls"]}
+    assert M.shrink_reason(same, log, path) is None
+    lost = {"meetings": [{"id": "m1"}], "roll_calls": [_rc("rc-30a9df8f-p519-0", "unverified"), _rc("rc-b", "verified")]}
+    why = M.shrink_reason(lost, log, path)
+    assert "1 roll calls verified in facts.json would no longer be verified" in why
+    assert "rc-30a9df8f-p519-0" in why and "--allow-shrink" in why
+    gone = {"meetings": [{"id": "m1"}], "roll_calls": [_rc("rc-b", "verified")]}       # dropped: also no longer verified
+    assert "rc-30a9df8f-p519-0" in M.shrink_reason(gone, log, path)
+    better = {"meetings": [{"id": "m1"}], "roll_calls": old["roll_calls"][:2] + [_rc("rc-c", "verified")]}
+    assert M.shrink_reason(better, log, path) is None                                 # gaining one is fine
+
+
+def test_county_allow_shrink_skips_the_guard():
+    """cmd_run calls shrink_reason only when the run is offline and --allow-shrink is not given."""
+    import inspect
+
+    from collector import __main__ as M
+    src = inspect.getsource(M.cmd_run)
+    assert "if args.offline and not allow:\n        why = shrink_reason(facts, log, FACTS)" in src
+
+
+def _motion(mid, confirmed):
+    return {"id": mid, "confirmed": confirmed}
+
+
+def test_rpc_guard_refuses_a_committed_confirmed_motion_that_is_no_longer_confirmed():
+    from collector import rpc
+    old = {"meetings": [], "motions": [_motion("2026-05-26-regular-motion-1", True), _motion("m2", False)]}
+    new = {"meetings": [], "motions": [_motion("2026-05-26-regular-motion-1", False), _motion("m2", False)]}
+    why = rpc.shrink_reason(old, new)
+    assert "1 motions confirmed in the committed record would not be confirmed" in why
+    assert "2026-05-26-regular-motion-1" in why
+    assert rpc.shrink_reason(old, {"meetings": [], "motions": []}) is not None      # dropped
+    assert rpc.shrink_reason(old, new, allow_shrink=True) is None
+    assert rpc.shrink_reason(old, old) is None
+    # rpc.yml hold_motions on: nothing is published confirmed and a reader fix is expected to unconfirm motions
+    assert rpc.shrink_reason(old, new, hold_motions=True) is None
+
+
+def test_rpc_hold_is_read_from_rpc_yml_and_reaches_the_guard(monkeypatch, tmp_path):
+    import dataclasses
+
+    from collector import rpc
+    cfg = rpc.load_config()
+    assert cfg.hold_motions is True                      # rpc.yml today: 0 confirmed shown is expected
+    seen = {}
+
+    def guard(old, new, hold_motions=False, allow_shrink=False):
+        seen.update(hold=hold_motions, allow=allow_shrink)
+        return None
+    monkeypatch.setattr(rpc, "shrink_reason", guard)
+    p = rpc.paths(cfg, tmp_path)
+    p["facts"].parent.mkdir(parents=True, exist_ok=True)
+    p["facts"].write_text(json.dumps({"meetings": [], "motions": []}), encoding="utf-8")
+    p["listing"].parent.mkdir(parents=True, exist_ok=True)
+    p["listing"].write_text(json.dumps([{"docs": []}]), encoding="utf-8")
+    store = Store(tmp_path / "manifest.json", root=tmp_path / "store")
+    build = lambda cfg, rows, store, audit_path=None: ({"meetings": [], "motions": []}, {})   # noqa: E731
+    for hold, allow in ((True, False), (False, True)):
+        out: dict = {}
+        code = rpc._daily(dataclasses.replace(cfg, hold_motions=hold), p, out, True, None, store, build, None,
+                          allow_shrink=allow)
+        assert code == rpc.STEP_OK and seen == {"hold": hold, "allow": allow}

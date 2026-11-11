@@ -480,7 +480,7 @@ def county_run(tmp_path, monkeypatch):
             log["failures"].append({"stage": "parse", "error": "boom"})
         return {"meetings": [{"id": "m"}]}, report, B()
 
-    def run_rpc(log, offline, fetcher=None):
+    def run_rpc(log, offline, fetcher=None, allow_shrink=False):
         state["order"].append("rpc")
         state["rpc_args"] = (offline, fetcher)
         log["rpc"] = {"exit": state["rpc"], "status": "stopped, nothing changed: HostBlocked: HTTP 429"}
@@ -520,7 +520,8 @@ def test_run_reports_the_rpc_step_with_its_own_code(county_run, capsys, tmp_path
 
 def test_run_rpc_shares_the_runs_fetcher(monkeypatch):
     seen = {}
-    monkeypatch.setattr(rpc, "run_step", lambda log, offline, fetcher=None: seen.update(a=(offline, fetcher)) or 0)
+    monkeypatch.setattr(rpc, "run_step",
+                        lambda log, offline, fetcher=None, allow_shrink=False: seen.update(a=(offline, fetcher)) or 0)
     f = object()
     assert M.run_rpc({}, False, fetcher=f) == 0 and seen["a"] == (False, f)
 
