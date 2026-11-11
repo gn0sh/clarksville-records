@@ -349,19 +349,31 @@ class PoliteFetcher:
             raise FetchFailed(f"{url!r}: {detail}") from None
 
     def robots(self, host: str, scheme: str = "https") -> urllib.robotparser.RobotFileParser:
-        exact = host.lower()                 # robots.txt is per exact host (RFC 9309); delay, block, cap per site
+        # robots.txt is per exact host (RFC 9309); delay, block, cap per site. The cache key is the plain host name:
+        # check_url allows only port 443 or none, so h.example, h.example:443 and h.example:0443 are one host
+        exact = plain_hostname(host) or host.lower()
         key = site_key(host)
         if exact not in self._robots:
             rp = urllib.robotparser.RobotFileParser()
             url = f"{scheme}://{host}/robots.txt"
             status, body, headers = self._raw_get(url)
             hops = 0
+            refused = False
             while status in REDIRECT_CODES and hops < MAX_REDIRECTS:
-                nxt = self._location(url, headers)       # raises HostRefused for a denied or unlisted host
+                try:
+                    nxt = self._location(url, headers)   # HostRefused: a denied/unlisted host, http://, another port
+                except HostRefused as e:
+                    # robots.txt cannot be read: disallow everything on this host for the run, cached, so later
+                    # fetches neither re-request robots.txt nor fetch the host (scheme-refusal-stops-host)
+                    self.log.append({"event": "robots_refused", "host": host, "url": url, "detail": str(e)})
+                    refused = True
+                    break
                 hops += 1
                 url = nxt
                 status, body, headers = self._raw_get(url)
-            if status == 200:
+            if refused:
+                rp.disallow_all = True
+            elif status == 200:
                 rp.parse(body.decode("utf-8", "replace").splitlines())
             elif 400 <= status < 500:
                 rp.allow_all = True          # no robots.txt = no rules (RFC 9309)

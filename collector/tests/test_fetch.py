@@ -242,13 +242,27 @@ def test_a_later_hop_off_https_is_refused_too():
     assert "http://g.example/c.pdf" not in [u for u, _ in net.calls]
 
 
-def test_robots_txt_redirect_off_https_is_refused():
-    from collector.fetch import SchemeRefused
-    f, net, _ = make({"https://h.example/robots.txt": (301, b"", {"Location": "http://h.example/robots.txt"}),
-                      "http://h.example/robots.txt": (200, b"User-agent: *\nAllow: /\n")})
-    with pytest.raises(SchemeRefused):
+@pytest.mark.parametrize("loc", ["http://h.example/robots.txt", "https://h.example:8443/robots.txt",
+                                 "https://unlisted.example/robots.txt"])
+def test_robots_txt_redirect_refused_disallows_the_host_for_the_run(loc):
+    """The robots.txt redirect is never followed; the host is then disallowed (cached), so a second fetch makes no
+    request at all, robots.txt included."""
+    f, net, _ = make({"https://h.example/robots.txt": (301, b"", {"Location": loc}),
+                      loc: (200, b"User-agent: *\nAllow: /\n"), "https://h.example/a": (200, b"x")})
+    with pytest.raises(RobotsDisallowed):
         f.get("https://h.example/a")
+    with pytest.raises(RobotsDisallowed):
+        f.get("https://h.example/b")
     assert [u for u, _ in net.calls] == ["https://h.example/robots.txt"]
+    assert any(e["event"] == "robots_refused" for e in f.log)
+
+
+def test_robots_cache_key_ignores_the_default_port():
+    f, net, _ = make({"https://h.example/a": (200, b"x"), "https://h.example:443/b": (200, b"x"),
+                      "https://h.example:0443/c": (200, b"x"), "https://h.example:/d": (200, b"x")})
+    for u in ("https://h.example/a", "https://h.example:443/b", "https://h.example:0443/c", "https://h.example:/d"):
+        f.get(u)
+    assert [u for u, _ in net.calls if u.endswith("/robots.txt")] == ["https://h.example/robots.txt"]
 
 
 @pytest.mark.parametrize("url", ["http://h.example/a.pdf", "https://h.example:8080/a.pdf"])
