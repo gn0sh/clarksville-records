@@ -199,9 +199,10 @@ EXCEPTION_WORD = re.compile(r"\b(?:except\w*|but|exception)\b", re.I)
 # rule 10b: after the outcome, any outcome, "in favor" or motion is a doubt (no distance limit)
 TAIL_OUTCOME = (OUTCOME, FAVOUR, re.compile(r"\bmotion\b", re.I))
 # rule 10c: a member's vote stated in the free prose before a motion (or, for a list motion, in a case section with
-# no motion of its own): narrower than LEFTOVER_VOTE, since staff reports and the public hearing are prose
-MEMBER_VOTE = (r"abstain", r"recus", r"conflict", r"did\s+not\s+vote", r"not\s+vot", r"refrain", r"\bna[yv]s?\b",
-               r"\bvot(?:e|es|ed|ing)\b")
+# no motion of its own): narrower than LEFTOVER_VOTE, since staff reports and the public hearing are prose. The
+# architect's "did not vote" and "not vot" are left out: any vote form already matches them (the mutation run showed
+# both could be deleted with no test failing), so they added nothing
+MEMBER_VOTE = (r"abstain", r"recus", r"conflict", r"refrain", r"\bna[yv]s?\b", r"\bvot(?:e|es|ed|ing)\b")
 MEMBER_VOTE_RX = re.compile("|".join(MEMBER_VOTE), re.I)
 # rule 10c: the one lead sentence attributed to a motion: exactly an abstention, naming no case or the section's case
 LEAD_ABSTAIN = re.compile(rf"^(?P<names>{NAMES})\s+(?i:abstain(?:ed|s)?(?:\s+from\s+(?:voting|the\s+vote)|"

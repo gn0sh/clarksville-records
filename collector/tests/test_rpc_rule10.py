@@ -306,3 +306,37 @@ def test_an_attributed_abstainer_meets_the_body_checks():
 ])
 def test_each_shape_is_confirmed(text, extra, nays, abstained, head):
     ok(one(text, extra=extra, head=head), nays=nays, abstained=abstained)
+
+
+# ------------------------------------------------------------------ pins found by the mutation run
+@pytest.mark.parametrize("text", [
+    # a titled name that is no member (real 2024: "made a motion to endorse Mr. Tyndall's plan")
+    "Mr. Hadley made a motion to endorse Mr. Tyndall's plan. Mr. Powers seconded. All others were in favor. Motion "
+    "passed.",
+    # a vote word with no name in the mover clause
+    "Mr. Hadley made the motion for approval with one vote against. Mr. Powers seconded. All others were in favor. "
+    "Motion passed.",
+])
+def test_the_mover_clause_holds_no_title_or_vote_word(text):
+    held(one(text), R.WHY_UNLISTED)
+
+
+@pytest.mark.parametrize("votes,nays", [
+    ("Mr. Long seconded. All others were in favor. Motion passed.", []),           # a second second
+    ("Motion passed, Mrs. Streetman voted nay.", ["Mrs. Streetman"]),              # a vote after the outcome
+    ("Motion passed and the motion carried.", []),                                  # a second outcome
+    ("All others were in favor with Mr. Long voting nay. Motion passed.", ["Mr. Long"]),   # "with" before the outcome
+])
+def test_the_clauses_come_in_their_order_once(votes, nays):
+    held(one(M + votes), R.WHY_UNLISTED, nays=nays)
+
+
+def test_an_outcome_inside_the_mover_clause_is_not_an_outcome_clause():
+    m = one("Mr. Hadley moved approval and the motion carried.")
+    held(m, R.WHY_UNLISTED)
+
+
+def test_a_lead_abstention_on_another_case_is_not_attributed():
+    m = one("Mr. Long abstained from Z-9-2026. " + M + "All others were in favor. Motion passed.",
+            agenda=("Z-5-2026", "Z-9-2026"))
+    held(m, R.WHY_LEAD_VOTE)
