@@ -664,8 +664,10 @@ def test_note_refuses_an_older_commit_than_main(tmp_path, change, ok):
 # ------------------------------------------------------------------ main-protect/actions-bypass-reopens-M1
 PR_STEP = "Check sender, config and workflow changes reached main by pull request"
 PR_JQ = '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.SHA)] | length'
+# note-job/pr-check-test-gap: the stub evaluates the step's own --jq filter with jq (gh uses gojq), so the cases
+# test the filter the workflow runs, not a Python copy of it.
 _PULLS_STUB = '''#!/usr/bin/env python3
-import json, os, sys
+import json, os, subprocess, sys
 a = sys.argv[1:]
 with open(os.environ["GH_CALLS"], "a") as f:
     f.write(" ".join(a) + "\\n")
@@ -675,9 +677,21 @@ assert len(a) == 4 and a[0] == "api" and a[2] == "--jq" and a[3] == os.environ["
 sha = a[1].removeprefix("repos/o/r/commits/").removesuffix("/pulls")
 assert os.environ["SHA"] == sha and os.environ["GH_TOKEN"] == "t"
 prs = json.load(open(os.environ["PULLS"])).get(sha, [])
-print(sum(1 for p in prs if p["merged_at"] and p["base"]["ref"] == "main" and p["merge_commit_sha"] == sha))
+r = subprocess.run(["jq", "-r", a[3]], input=json.dumps(prs), capture_output=True, text=True)
+sys.stdout.write(r.stdout)
+sys.stderr.write(r.stderr)
+sys.exit(r.returncode)
 '''
 _ALL = ("config/site.yml", "sender/deliver.py", "data/x.json", ".github/workflows/daily-update.yml")
+
+
+def _need_jq():
+    """jq runs the PR check's filter in these tests: skip where it is missing locally, fail in CI (CI is set on
+    GitHub's runners, which ship jq), so the check is never skipped quietly where it matters."""
+    if not shutil.which("jq"):
+        if os.environ.get("CI"):
+            pytest.fail("jq is not installed on this CI runner: the PR check tests need it")
+        pytest.skip("jq not installed")
 
 
 def _pr(sha, merged=True, base="main"):
@@ -690,6 +704,7 @@ def _pr_check(tmp_path, ops, pulls, gh_fail=False, baseline="BASE"):
     ops: ("commit", label, paths) on main, or ("merge", label, branch_label, paths): a branch commit touching paths,
     merged into main with --no-ff. pulls: {label: [pr(sha_label or a literal sha), ...]}. baseline: the label (or a
     literal value) given as MAIN_PR_BASELINE. Returns (exit, gh calls, {label: sha})."""
+    _need_jq()
     step = _note_steps()[PR_STEP]
     origin, src, work, bindir = tmp_path / "origin.git", tmp_path / "src", tmp_path / "work", tmp_path / "bin"
     _git(tmp_path, "init", "-q", "--bare", str(origin))
@@ -827,8 +842,7 @@ def test_the_pr_check_jq_filter_with_real_jq():
     """The --jq expression gh evaluates (gojq), run through jq where it is installed: counts only a merged PR into
     main whose merge commit is this commit."""
     import json
-    if not shutil.which("jq"):
-        pytest.skip("jq not installed")
+    _need_jq()
     sha = "a" * 40
     for prs, want in (([_pr(sha)], "1"), ([_pr(sha, merged=False)], "0"), ([_pr(sha, base="dev")], "0"),
                       ([_pr("b" * 40)], "0"), ([], "0"), ([_pr("b" * 40), _pr(sha)], "1")):
