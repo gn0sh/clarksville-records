@@ -123,20 +123,26 @@ jobs:
           # The county run also runs the Regional Planning Commission step (collector/rpc.py run_step: the listing
           # page and new documents from www.cmcrpc.com through the same polite fetcher; robots.txt crawl-delay 10; the
           # first 403/429 ends that host's requests for the run). It is all or nothing: unless it succeeds, the RPC
-          # files stay exactly as committed. Its codes, used only when everything else is ok:
-          #   5 the RPC step failed (blocked, listing not read, a gate, or a result that would shrink the record):
-          #     a hard failure, like any collection failure.
-          #   6 partial: the RPC document store is still being filled (at most 40 requests per run): not a failure.
-          #     The run goes on with the committed RPC files and a warning.
+          # files stay exactly as committed, so one source never freezes the daily refresh: its codes, used only when
+          # everything else is ok, are warnings, and the city, county and finance data still commit and deploy:
+          #   5 the RPC step failed (blocked, listing not read, a gate, a result that would shrink the record, or a
+          #     backlog that needs a person: TooManyNew, a cut-off by the cap): a warning, and the step below opens
+          #     or comments on one RPC-only issue.
+          #   6 partial: the RPC document store is still being filled (at most 40 requests per run): a warning.
           python -m collector city run; city=$?
           python -m collector run; county=$?
           echo "city_exit=$city county_exit=$county"
           echo "city=$city" >> "$GITHUB_OUTPUT"
           echo "county=$county" >> "$GITHUB_OUTPUT"
+          rpc=ok
           if [ "$county" = 6 ]; then
             echo "::warning::The RPC document store is still being filled; the RPC pages use the committed data."
-            county=0
+            rpc=filling; county=0
+          elif [ "$county" = 5 ]; then
+            echo "::warning::The RPC step failed; the RPC files are unchanged and everything else is published. See the RPC issue."
+            rpc=failed; county=0
           fi
+          echo "rpc=$rpc" >> "$GITHUB_OUTPUT"
           [ "$city" = 0 ] && [ "$county" = 0 ]
 
       # Only for a manual rebuild-only run (collect=false): build from the committed data, no network.
@@ -166,10 +172,42 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           title="Daily update failed"
-          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")
           if [ -z "$open" ]; then
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" \
               --body "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID (collector exits: city=${{ steps.collect.outputs.city }}, county=${{ steps.collect.outputs.county }}). The last deployed site is unchanged."
+          fi
+
+      # The RPC step failed while everything else was ok (county exit 5): one open issue for the RPC alone, with a
+      # comment each later day instead of a new issue. The reason is read from build/run-log.json into a file and
+      # passed with --body-file, never through the shell or an expression.
+      - name: Open or update the RPC issue
+        if: always() && steps.collect.outputs.rpc == 'failed'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RPC_TITLE: "Daily update: RPC step failed"
+        run: |
+          set -eu
+          body="$RUNNER_TEMP/rpc-issue.md"
+          {
+            echo "The Regional Planning Commission step failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "The RPC files are unchanged; the city, county and finance data were published as usual."
+            echo
+            echo "Reason (build/run-log.json rpc.status):"
+            echo
+            echo '```'
+            jq -r '.rpc.status // "unknown"' build/run-log.json 2>/dev/null | head -c 1500 || echo unknown
+            echo
+            echo '```'
+            echo "If it says TooManyNew or 'the cap of', it repeats every day until someone acts: see"
+            echo "docs/ops/launch-runbook.md, 'RPC backlog'."
+          } > "$body"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$RPC_TITLE\" in:title" \
+                   --json number,title --jq 'map(select(.title == $ENV.RPC_TITLE)) | .[0].number // empty')
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$RPC_TITLE" --body-file "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$body"
           fi
 
       # Keep newly fetched PDFs even when a later step failed, so a retry does not refetch them (10 s each).
@@ -298,7 +336,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           title="Daily update failed"
-          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$title\" in:title" --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")
           body="The push job failed (data not committed to main): $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. The last deployed site is unchanged."
           if [ -z "$open" ]; then
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"

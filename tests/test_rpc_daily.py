@@ -526,12 +526,79 @@ def test_run_rpc_shares_the_runs_fetcher(monkeypatch):
 
 
 # ------------------------------------------------------------------ the workflow's Collect step
-def test_workflow_collect_step_treats_only_filling_as_a_warning():
+def test_workflow_collect_step_treats_only_the_rpc_codes_as_warnings():
+    """One source must not freeze the daily refresh: the RPC step's own codes (5 failed, 6 filling) are warnings;
+    every other county code and every city code still fails the step."""
     text = (ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding="utf-8")
     step = text.split("- name: Collect (polite fetch, parse, verify)")[1].split("\n      - name:")[0]
     lines = [ln.strip() for ln in step.splitlines() if ln.strip() and not ln.strip().startswith("#")]
     assert "python -m collector run; county=$?" in lines
-    assert 'if [ "$county" = 6 ]; then' in lines and "county=0" in lines
-    assert lines[-1] == '[ "$city" = 0 ] && [ "$county" = 0 ]'       # 5 (and 2, 3, 4) still fail the step
-    assert not re.search(r"county\"? = 5", step) and "cmcrpc.com" not in " ".join(lines)   # no fetch outside the collector
+    assert 'if [ "$county" = 6 ]; then' in lines and 'elif [ "$county" = 5 ]; then' in lines
+    assert lines.count("rpc=failed; county=0") == 1 and lines.count("rpc=filling; county=0") == 1
+    assert lines[-1] == '[ "$city" = 0 ] && [ "$county" = 0 ]'       # city 2/5 and county 2/3/4 still fail
+    assert not re.search(r"city\"? = [56]", step) and "cmcrpc.com" not in " ".join(lines)  # no fetch outside the collector
     assert f"at most {rpc.DAILY_FETCH_CAP} requests per run" in step
+
+
+def test_an_rpc_failure_with_a_good_county_run_still_commits_the_county_data(county_run, tmp_path):
+    """The collector writes the county facts and builds the site when only the RPC step failed (exit 5); the
+    workflow's Collect step then passes, so the data artifact is uploaded and the push job commits it."""
+    import os
+    import subprocess
+
+    import yaml
+    county_run["rpc"] = rpc.STEP_FETCH
+    assert M.main(["run", "--offline"]) == M.RPC_FAILED
+    assert json.loads((tmp_path / "facts.json").read_text())["meetings"] == [{"id": "m"}]     # county data written
+    assert county_run["order"] == ["agendas", "rpc", "site"]
+    wf = yaml.safe_load((ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding="utf-8"))
+    steps = {s.get("name"): s for s in wf["jobs"]["update"]["steps"]}
+    script = steps["Collect (polite fetch, parse, verify)"]["run"].replace(
+        "python -m collector city run; city=$?", "city=0").replace(
+        "python -m collector run; county=$?", f"county={M.RPC_FAILED}")
+    out = tmp_path / "gh-output"
+    r = subprocess.run(["bash", "-c", script], env={**os.environ, "GITHUB_OUTPUT": str(out)}, capture_output=True,
+                       text=True)
+    assert r.returncode == 0 and "::warning::The RPC step failed" in r.stdout
+    assert "rpc=failed" in out.read_text().split()
+    assert steps["Upload refreshed data"]["if"].startswith("success() && ")      # so the artifact is uploaded
+    assert wf["jobs"]["push"]["needs"] == "update"                                # and the push job commits it
+    issue = steps["Open or update the RPC issue"]
+    assert issue["if"] == "always() && steps.collect.outputs.rpc == 'failed'"
+    assert "--body-file" in issue["run"] and "${{" not in issue["run"]            # nothing interpolated into bash
+    assert "gh issue comment" in issue["run"] and "select(.title == $ENV.RPC_TITLE)" in issue["run"]   # one issue
+
+
+@pytest.mark.parametrize("open_issue", ["", "17"])
+def test_the_rpc_issue_step_opens_one_issue_then_comments(tmp_path, open_issue):
+    """The step's own script with a stub `gh`: no open RPC issue -> create, one open -> comment on it; the reason
+    from build/run-log.json goes in the body file."""
+    import os
+    import shutil
+    import subprocess
+
+    import yaml
+    if not shutil.which("jq"):
+        pytest.skip("jq not installed")
+    wf = yaml.safe_load((ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding="utf-8"))
+    step = {s.get("name"): s for s in wf["jobs"]["update"]["steps"]}["Open or update the RPC issue"]
+    work, bindir = tmp_path / "work", tmp_path / "bin"
+    (work / "build").mkdir(parents=True)
+    bindir.mkdir()
+    (work / "build" / "run-log.json").write_text(json.dumps({"rpc": {"status": "stopped, nothing changed: TooManyNew"}}))
+    calls = tmp_path / "gh-calls"
+    gh = bindir / "gh"
+    gh.write_text("#!/bin/bash\n"
+                  f'echo "$@" >> "{calls}"\n'
+                  f'if [ "$2" = list ]; then echo "{open_issue}"; fi\n'
+                  'for ((i=1; i<=$#; i++)); do if [ "${!i}" = --body-file ]; then j=$((i+1)); '
+                  f'cat "${{!j}}" >> "{tmp_path / "bodies"}"; fi; done\n')
+    gh.chmod(0o755)
+    env = {**os.environ, **step["env"], "PATH": f"{bindir}:{os.environ['PATH']}", "RUNNER_TEMP": str(tmp_path),
+           "GITHUB_SERVER_URL": "https://github.com", "GITHUB_REPOSITORY": "o/r", "GITHUB_RUN_ID": "1"}
+    env.pop("GH_TOKEN")
+    subprocess.run(["bash", "-c", step["run"]], cwd=work, env=env, check=True)
+    lines = calls.read_text().splitlines()
+    assert lines[0].startswith("issue list")
+    assert lines[1].startswith("issue comment 17" if open_issue else "issue create")
+    assert len(lines) == 2 and "TooManyNew" in (tmp_path / "bodies").read_text()
