@@ -23,8 +23,8 @@ minutes_types: [Minutes]
 video_hosts: [cpmedia.azureedge.net]
 # D1 (docs/architecture/city-council.md, "Verified-rate plan" D1): CivicClerk files some City Council meetings under
 # category "General", under names that vary ("Special Session", "City Council Special Session", "Special Called City
-# Council Meeting", "Special Budget Session", "Regular Session", ...; full General listing 2024-01-18..2027-01-19,
-# 374 events, 2026-11-11). Discovery asks for General events whose name contains any of `name_words` (OData contains,
+# Council Meeting", "Special Budget Session", "Regular Session", ...; the full General listing, 2024-01-18 to
+# 2027-01-19, 374 events, fetched 2026-11-11, is docs/research/civicclerk-general-listing-2026-11-11.json). Discovery asks for General events whose name contains any of `name_words` (OData contains,
 # case-insensitive: checked 2026-11-11), lists an event only when its whole name matches one of `events` (regex,
 # case-insensitive, whitespace collapsed; the first match wins), and the build keeps it only when page 1 of its stored
 # agenda or minutes prints that pattern's `page1` as a line of its own; any other (another board's meeting) is

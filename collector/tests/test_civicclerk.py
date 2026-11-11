@@ -369,8 +369,101 @@ def test_config_rejects_a_bad_also_list(also, match):
         cc.parse_config({**raw, "also_events_url": ""})
     with pytest.raises(cc.CivicClerkConfigError, match="api_host"):
         cc.parse_config({**raw, "also_events_url": "https://evil.example/{category}{names}"})
-    with pytest.raises(cc.CivicClerkConfigError, match="unknown field"):    # the old {event} template
+    with pytest.raises(cc.CivicClerkConfigError, match="may name only"):    # the old {event} template
         cc.parse_config({**raw, "also_events_url": "https://{host}/v1/Events?{category}{event}"})
+
+
+# config-validation/also-url-format-errors (security LOW, acc8832): every URL template names only its own fields, bare
+@pytest.mark.parametrize("key,value", [
+    ("also_events_url", "https://{host}/v1/Events?{category.__class__}{names}"),      # attribute: AttributeError
+    ("also_events_url", "https://{host}/v1/Events?{category[0]}{names}"),             # index
+    ("also_events_url", "https://{host}/v1/Events?{category!r}{names}"),              # conversion
+    ("also_events_url", "https://{host}/v1/Events?{category:>999999999}{names}"),     # format spec (huge padding)
+    ("also_events_url", "https://{host}/v1/Events?{}{names}"),                        # positional
+    ("also_events_url", "https://{host}/v1/Events?{0}{names}"),
+    ("also_events_url", "https://{host}/v1/Events?{file_id}{names}"),                 # another template's field
+    ("events_url", "https://{host}/v1/Events?{names}"),
+    ("events_url", "https://{host}/v1/Events?{from_date.year}"),
+    ("events_url", "https://{host}/v1/Events?{category:.3}"),
+    ("file_url", "https://{host}/v1/Files({file_id:x})"),
+    ("file_url", "https://{host}/v1/Files({file_id!s})"),
+    ("file_url", "https://{host}/v1/Files({category})"),
+])
+def test_config_refuses_a_template_field_that_is_not_its_own_and_bare(key, value):
+    raw = yaml.safe_load(cc.config_path().read_text())
+    with pytest.raises(cc.CivicClerkConfigError, match=f"{key} may name only"):
+        cc.parse_config({**raw, key: value})
+
+
+@pytest.mark.parametrize("key,value,match", [
+    ("also_events_url", "https://{host}/v1/Events?{category", "not a template"),     # unmatched brace: ValueError
+    ("events_url", "https://{host}/v1/Events}", "not a template"),
+    ("file_url", "https://{host}/v1/Files(1)", "must name {file_id}"),               # one file for every meeting
+    ("also_events_url", "https://{host}/v1/Events?{category}", "must name {names}"),
+])
+def test_config_refuses_a_broken_template(key, value, match):
+    raw = yaml.safe_load(cc.config_path().read_text())
+    with pytest.raises(cc.CivicClerkConfigError, match=match):
+        cc.parse_config({**raw, key: value})
+
+
+def test_config_keeps_literal_braces_as_text():
+    raw = yaml.safe_load(cc.config_path().read_text())
+    cfg = cc.parse_config({**raw, "events_url": raw["events_url"] + "&x={{y}}"})
+    assert cfg.first_url().endswith("&x={y}")
+
+
+# civicclerk load-time check (code review NIT, acc8832): every event pattern is one the listing asks for
+@pytest.mark.parametrize("event_name", ["Special Called City Council Meeting", "(City Council )?Special Session",
+                                        "Special Sessions?", "Council+", "One Time Event"])
+def test_config_accepts_a_pattern_that_prints_a_name_word(event_name):
+    raw = yaml.safe_load(cc.config_path().read_text())
+    also = {"category_name": "General", "name_words": ["Session", "Council", "One Time Event"],
+            "events": [{"event_name": event_name, "page1": "City Council - Special Session"}]}
+    assert cc.parse_config({**raw, "also_list": [also]}).also_list[0]["events"][0]["event_name"] == event_name
+
+
+@pytest.mark.parametrize("event_name", [
+    "Budget Hearing",                        # no name word: the listing never asks for it
+    "Special Sessio(n)?",                    # the word only partly outside a group
+    "Special Session?",                      # its last letter may be left out
+    "Special Sessio{0,1}n",
+    "(Special Session)",                     # inside a group
+    "Special Session|Budget Hearing",        # an alternative without the word
+    "Special Sess[i]on",                     # a class is not a letter
+    "Special Sess\\w+",
+    "(?x)One Time Event",                    # verbose: the spaces of the word match nothing
+    ".*",
+])
+def test_config_refuses_a_pattern_the_listing_would_never_ask_for(event_name):
+    raw = yaml.safe_load(cc.config_path().read_text())
+    also = {"category_name": "General", "name_words": ["Session", "One Time Event"],
+            "events": [{"event_name": event_name, "page1": "City Council - Special Session"}]}
+    with pytest.raises(cc.CivicClerkConfigError, match="never ask for it"):
+        cc.parse_config({**raw, "also_list": [also]})
+
+
+def test_the_committed_general_listing_lists_exactly_the_d1_rows(cfg, acfg):
+    """pipeline/d1-evidence-not-reproducible: the full General listing as fetched 2026-11-11 (docs/research), read
+    by the configured patterns, lists exactly the D1 rows of the committed listing; no event the patterns match is
+    one the listing would not ask for."""
+    from conftest import ROOT
+    doc = json.loads((ROOT / "docs" / "research" / "civicclerk-general-listing-2026-11-11.json").read_text())
+    assert doc["count"] == len(doc["events"]) == 374
+    assert (doc["events"][0]["date"], doc["events"][-1]["date"]) == ("2024-01-18", "2027-01-19")
+    [also] = cfg.also_list
+    words = [w.lower() for w in also["name_words"]]
+    listed = {}
+    for e in doc["events"]:
+        p = cc.also_pattern(e["name"], also)
+        assert e["pattern_page1"] == (p["page1"] if p else None)
+        assert e["asked"] == any(w in e["name"].lower() for w in words)
+        if p:
+            assert e["asked"]
+            listed[e["id"]] = (e["date"], e["name"], p["page1"])
+    rows = json.loads((ROOT / "data" / "localities" / "clarksville-tn" / "civicclerk-listing.json").read_text())
+    d1 = {r["event_id"]: (r["date"], r["title"], r["page1_required"]) for r in rows if r.get("page1_required")}
+    assert listed == d1 and len(d1) == 20
 
 
 def test_the_also_listing_keeps_only_its_category_and_event_name_and_marks_each_row(cfg, acfg):
@@ -384,8 +477,10 @@ def test_the_also_listing_keeps_only_its_category_and_event_name_and_marks_each_
     assert [r["event_id"] for r in main] == [91] and "page1_required" not in main[0]
 
 
-# Every council meeting CivicClerk filed under "General", 2024-01-01 to 2026-11-11 (full General listing, 374 events),
-# with the heading its own page 1 prints (read 2026-11-11): each configured pattern lists it and names that heading.
+# Every council meeting CivicClerk filed under "General", 2024-01-01 to 2026-11-11 (the full General listing, 374 events,
+# is docs/research/civicclerk-general-listing-2026-11-11.json; test_the_committed_general_listing_lists_exactly_the_d1_rows
+# replays it), with the heading its own page 1 prints (read 2026-11-11): each configured pattern lists it and names that
+# heading.
 COUNCIL_UNDER_GENERAL = [
     ("2025-02-18", "City Council Special Session", "City Council - Special Session", "special"),
     ("2025-06-17", "City Council Special Session - First Reading of the Budget", "City Council - Special Session",

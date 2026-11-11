@@ -17,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import string
 import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,6 +29,13 @@ SOURCE = "civicclerk"
 AGENDA_CENTER = "agenda-center"
 MAX_PAGES = 200                     # a listing that pages on past this is not the API we know: stop, never loop
 WORD_RE = re.compile(r"[A-Za-z0-9]+(?: [A-Za-z0-9]+)*")    # an also_list name word: letters and digits only
+
+
+# config-validation/also-url-format-errors: the only fields each URL template may name, each bare ({host}: no
+# attribute, index, conversion or format spec, which str.format would follow or pad). Every field is filled by the code
+TEMPLATE_FIELDS = {"events_url": ({"host", "from_date", "category"}, set()),
+                   "also_events_url": ({"host", "from_date", "category", "names"}, {"names"}),
+                   "file_url": ({"host", "file_id"}, {"file_id"})}      # key -> (allowed fields, required fields)
 
 
 class CivicClerkConfigError(Exception):
@@ -102,11 +110,14 @@ def parse_config(cfg) -> CivicClerkConfig:
         also_list=_also(cfg.get("also_list") or []), also_events_url=str(cfg.get("also_events_url") or ""))
     if out.also_list and not out.also_events_url:
         raise CivicClerkConfigError("civicclerk.yml: also_list needs also_events_url")
-    urls = [("events_url", out.first_url()), ("file_url", out.file(1))]
+    for key, (allowed, required) in TEMPLATE_FIELDS.items():
+        if key != "also_events_url" or out.also_list:
+            _template(key, getattr(out, key), allowed, required)
     try:
+        urls = [("events_url", out.first_url()), ("file_url", out.file(1))]
         urls += [("also_events_url", out.also_url(a)) for a in out.also_list]
-    except (KeyError, IndexError) as ex:
-        raise CivicClerkConfigError(f"civicclerk.yml: also_events_url has an unknown field {ex}") from None
+    except (KeyError, IndexError, AttributeError, ValueError) as ex:      # _template should already have refused it
+        raise CivicClerkConfigError(f"civicclerk.yml: a URL template cannot be filled ({type(ex).__name__})") from None
     for key, url in urls:
         parts = urllib.parse.urlsplit(url)
         if parts.scheme != "https" or parts.netloc != host:
@@ -114,6 +125,69 @@ def parse_config(cfg) -> CivicClerkConfig:
     if len(out.from_date) != 10 or out.from_date[4] != "-" or out.from_date[7] != "-":
         raise CivicClerkConfigError("civicclerk.yml: from_date must be YYYY-MM-DD")
     return out
+
+
+def _template(key: str, template: str, allowed: set, required: set) -> None:
+    """A URL template names only `allowed` fields, each bare, and every `required` one (file_url without {file_id}
+    would give every meeting the same file). Literal braces ({{ }}) are text. Raises CivicClerkConfigError."""
+    try:
+        parsed = list(string.Formatter().parse(template))
+    except ValueError as ex:                                    # an unmatched brace
+        raise CivicClerkConfigError(f"civicclerk.yml: {key} is not a template ({ex})") from None
+    seen = set()
+    for _, field, spec, conversion in parsed:
+        if field is None:
+            continue
+        if field not in allowed or spec or conversion is not None:
+            raise CivicClerkConfigError(f"civicclerk.yml: {key} may name only "
+                                        f"{', '.join('{' + f + '}' for f in sorted(allowed))}, each bare")
+        seen.add(field)
+    if required - seen:
+        raise CivicClerkConfigError(f"civicclerk.yml: {key} must name {', '.join('{' + f + '}' for f in sorted(required))}")
+
+
+def _fetchable(pattern: str, words) -> bool:
+    """True when every name `pattern` matches in full contains one of `words` (case-insensitive), so the also_list
+    listing, which asks only for names containing a word, can find each event the pattern would list. Proved from the
+    pattern's text: some word is printed as literal letters at the top level (outside every group and character class,
+    with no alternation at the top level and no quantifier after it that could drop its last letter), and no inline
+    flag (verbose mode would let a space in the word match nothing). Anything else is not proved and is refused."""
+    if re.search(r"\(\?[aiLmsux-]", pattern):
+        return False
+    top, depth, cls, i = [], 0, False, 0
+    while i < len(pattern):
+        c = pattern[i]
+        if c == "\\":                                          # an escape is never read as a literal letter
+            if depth == 0 and not cls:
+                top.append("\0")
+            i += 2
+            continue
+        if cls:
+            cls = c != "]"
+        elif c == "[":
+            cls = True
+            if depth == 0:
+                top.append("\0")
+        elif c == "(":
+            depth += 1
+            if depth == 1:
+                top.append("\0")
+        elif c == ")":
+            depth -= 1
+        elif depth == 0:
+            top.append(c)
+        i += 1
+    text = "".join(top)
+    if "|" in text:
+        return False
+    low = text.lower()
+    for w in words:
+        k = low.find(w.lower())
+        while k >= 0:
+            if text[k + len(w):k + len(w) + 1] not in ("?", "*", "{"):
+                return True
+            k = low.find(w.lower(), k + 1)
+    return False
 
 
 def _also(raw) -> tuple:
@@ -147,6 +221,9 @@ def _also(raw) -> tuple:
                 re.compile(e["event_name"])
             except re.error as ex:
                 raise CivicClerkConfigError(f"{where}.events[{j}]: event_name is not a regex ({ex})") from None
+            if not _fetchable(e["event_name"].strip(), words):
+                raise CivicClerkConfigError(f"{where}.events[{j}]: event_name must print one of name_words as plain "
+                                            "letters outside any group, or the listing would never ask for it")
             pats.append({"event_name": e["event_name"].strip(), "page1": e["page1"].strip()})
         out.append({"category_name": cat, "name_words": tuple(words), "events": tuple(pats)})
     return tuple(out)
