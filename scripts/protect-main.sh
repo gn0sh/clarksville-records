@@ -18,7 +18,7 @@ else
   for id in $ids; do
     echo "Ruleset $id already exists: updating it."
     gh api -X PUT "repos/$repo/rulesets/$id" --input "$body" --silent \
-      || { echo "Updating ruleset $id failed (see the message above). Nothing was changed. Send this output to the team."; exit 1; }
+      || { echo "Updating ruleset $id failed (see the message above). The ruleset may be unchanged. Send this output to the team."; exit 1; }
   done
 fi
 
