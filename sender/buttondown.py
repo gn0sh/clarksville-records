@@ -57,6 +57,9 @@ USER_AGENT = "daylight-morning-note"
 _KEY = re.compile(r"[!-~]{16,256}")
 # ids go into a path: refuse anything that could leave its segment ("/", "..", "?", "%")
 _ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
+# sender/transport/parse-differential: urlsplit drops tab and newline and other parsers read a backslash as "/", so
+# a URL holding any character outside printable ASCII, or a backslash, is refused before it is parsed at all
+_UNSAFE_URL = re.compile(r"[^\x21-\x7e]|\\")
 _EMAIL_FIELDS = frozenset({"subject", "body", "status", "publish_date", "filters", "metadata", "archival_mode"})
 
 
@@ -151,6 +154,8 @@ class Buttondown(Provider):
     def _send(self, method: str, url: str, template: str, body=None, idempotency_key: str | None = None,
               ok=(200,), allow_404: bool = False) -> _Response | None:
         """One request. `template` is what an error may say about the path. None for an allowed 404."""
+        if not isinstance(url, str) or _UNSAFE_URL.search(url):
+            raise _fail(method, template, "a URL off the pinned host")
         parts = urlsplit(url)
         if parts.scheme != "https" or parts.netloc != HOST or not parts.path.startswith(API_PATH + "/") \
                 or parts.username or parts.password or ".." in parts.path or parts.fragment:
@@ -163,6 +168,9 @@ class Buttondown(Provider):
         if idempotency_key is not None:
             headers["X-Idempotency-Key"] = idempotency_key
         req = urllib.request.Request(url, data=data, headers=headers, method=method)
+        # the second parse, by the library that sends it: it must agree on the scheme, the host and the path
+        if req.type != "https" or req.host != HOST or not req.selector.startswith(API_PATH + "/"):
+            raise _fail(method, template, "a URL off the pinned host")
         self._pace()
         try:
             resp = self._open(req, timeout=TIMEOUT)
@@ -228,6 +236,8 @@ class Buttondown(Provider):
                 if len(rows) != count:
                     raise _fail("GET", template, "a listing whose rows do not add up to its count")
                 return rows
+            if _UNSAFE_URL.search(nxt):
+                raise _fail("GET", template, "a next link off the pinned host")
             n = urlsplit(nxt)
             if n.scheme != "https" or n.netloc != HOST or not n.path.startswith(API_PATH + "/"):
                 raise _fail("GET", template, "a next link off the pinned host")

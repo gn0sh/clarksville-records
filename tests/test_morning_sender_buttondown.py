@@ -238,6 +238,53 @@ def test_each_request_is_checked_against_the_pinned_host_on_its_own(url):
     assert http.requests == [] and str(e.value) == "GET /emails: a URL off the pinned host"
 
 
+UNSAFE = ["\t", "\n", "\r", " ", "\x00", "\x1f", "\x7f", "é", "​", "\\"]
+
+
+@pytest.mark.parametrize("ch", UNSAFE, ids=repr)
+def test_a_url_with_a_control_space_non_ascii_or_backslash_is_refused(ch):
+    """sender/transport/parse-differential: urlsplit drops a tab or newline that another parser keeps, so any such
+    character anywhere in a URL is refused before it is parsed; also in a next link."""
+    http = FakeHTTP()
+    for url in (f"https://api.buttondown.com/v1/emails{ch}", f"https://api.buttondown.com{ch}/v1/emails",
+                f"https://api.buttondown.com/v1/em{ch}ails?page=2", f"https://api.buttondown.com{ch}@evil.example/v1/x"):
+        with pytest.raises(deliver.ProviderError) as e:
+            client(http)._send("GET", url, "/emails")
+        assert str(e.value) == "GET /emails: a URL off the pinned host"
+    nxt = f"https://api.buttondown.com/v1/emails?page=2{ch}"
+    http = FakeHTTP(faults={("GET", "/emails"): [Resp(200, {"results": [], "next": nxt, "count": 0})]})
+    with pytest.raises(deliver.ProviderError) as e:
+        client(http).emails()
+    assert str(e.value) == "GET /emails: a next link off the pinned host" and len(http.requests) == 1
+
+
+@pytest.mark.parametrize("field, value", [("type", "http"), ("host", "evil.example"), ("selector", "/v2/emails"),
+                                          ("host", "api.buttondown.com:443")])
+def test_the_request_urllib_builds_must_agree_on_scheme_host_and_path(monkeypatch, field, value):
+    """The second parse: whatever urllib's Request makes of the URL is checked again before it is opened."""
+    class Skewed(urllib.request.Request):
+        @property
+        def selector(self):
+            return value if field == "selector" else super().selector
+
+        @selector.setter
+        def selector(self, v):
+            self.__dict__["_sel"] = v
+
+    real = urllib.request.Request
+
+    def make(*a, **k):
+        r = Skewed(*a, **k) if field == "selector" else real(*a, **k)
+        if field != "selector":
+            setattr(r, field, value)
+        return r
+    monkeypatch.setattr(bd.urllib.request, "Request", make)
+    http = FakeHTTP()
+    with pytest.raises(deliver.ProviderError) as e:
+        client(http).emails()
+    assert str(e.value) == "GET /emails: a URL off the pinned host" and http.requests == []
+
+
 def test_a_listing_is_read_page_by_page_and_reduced_at_the_boundary(plan):
     rows = people(plan)
     http = FakeHTTP(rows, page_size=2)
