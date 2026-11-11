@@ -1,0 +1,188 @@
+# Morning note: runbook (T4.7)
+
+The morning note is the daily email built from `build/site/morning/<D>.json` (architecture:
+`docs/architecture/morning-note.md` "T4 sender"; tasks: `docs/tasks/morning-note.md` T4.0 to T4.8). This page is
+the order of work from no account to a live send, and how to stop it. **Nothing on this page has been done yet.** The
+team creates no account, key, secret, variable or environment; every step marked **Brian** is his (hard stops 1, 3
+and 5).
+
+## How it runs (`.github/workflows/daily-update.yml`)
+- `update` job, step "Plan the morning note (dry run, no network)": `python -m sender plan --rehearse` every day,
+  no secret, no network. It writes `build/morning-send/<D>/` (plan.json and the editions, no subscriber data) and
+  uploads it as the `morning-send` artifact (2 days). `continue-on-error`: a plan failure never fails the daily
+  job, the data commit or the deploy.
+- `note` job: runs only when **all** of these hold, otherwise it is skipped:
+  1. the run was started by the daily schedule (a manual "Run workflow" never sends);
+  2. the run is on `main`;
+  3. the repository variable `MORNING_NOTE_SEND` is exactly `true`;
+  4. the `update` and `deploy` jobs both succeeded (so it never runs while the deploy is locked, and an email never
+     links a page that is not live).
+  Inside it: mask the canary ids, check out this run's commit (no token kept), stop if its `sender/` or
+  `config/site.yml` differ from `main` (a re-run of an older run), Python with no pip step, download
+  the plan to the runner's temp folder, check the files, a dry run that checks the plan, then
+  `python -E -s -m sender deliver --plan ... --live`. `--live` is passed only when `MORNING_NOTE_SEND` is `true`.
+  `permissions: contents: read` only. `BUTTONDOWN_API_KEY` is given to that last step only.
+- `note-failed` job: when the `note` job failed or was cancelled, opens one issue titled **"Daily update: morning note failed"**, or
+  comments on it if it is open. A note failure never opens "Daily update failed" and never touches the site.
+- Three switches must all be on before anything is sent: `morning_note.sender.enabled: true` in `config/site.yml`
+  (a reviewed PR, after T4.8), the variable `MORNING_NOTE_SEND`, and the `BUTTONDOWN_API_KEY` secret. With
+  `sender.enabled` false, `--live` is a dry run that says so.
+
+## 1. Account setup (Brian, once; nothing is sent)
+Buttondown's screens were not seen by the team (no account yet): the menu names below are from its documentation
+and may be labelled differently. Record what each screen really says in `docs/platform-facts.md` as you go.
+1. **Brian:** open https://buttondown.com/register and create the newsletter. Name: the site name only (the From
+   name; nothing that reads as an authority: no "City of", "County", "CMCSS", "RPC" or "official").
+2. **Brian:** Settings > Domains (sending domain): add the sending domain and add the SPF and DKIM records it shows
+   at the DNS host. This may need the paid plan (hard stop 3: approve the spend first).
+3. **Brian:** Settings > Subscribing: double opt-in **on** for form sign-ups.
+4. **Brian:** Settings > Tracking: open tracking **off**, click tracking **off**.
+5. **Brian:** Settings > Email: reply-to = a team address (not a personal one).
+6. **Brian:** Settings > Metadata (subscriber fields): add `lists` (multi-select), `district` and `ward`. Do **not**
+   add `canary` or `note_edition` (canaries are ids in a secret; the stamp is written by the sender only).
+7. **Brian:** Settings > API > New key: a **scoped** key, never the primary key. Emails: write. Sending: write.
+   Subscribers: write for `stamp` mode, read for `ids` mode (set after the T4.0 probe). Every other area: none.
+   Copy it once; it goes straight into the GitHub secret in step 2.3 and nowhere else (not a file, chat or issue).
+
+## 2. GitHub settings (Brian, once; nothing runs yet)
+0. **Brian: protect `main` first** (security-note-workflow M1). The `morning-note` environment's "main only" rule
+   (step 2.2) only says *which branch* may use the secret; without protection anyone who can push could put a
+   changed workflow straight onto `main` and it would get the key. So `main` must take changes by pull request only,
+   except the daily job's own `data/` commit (the `push` job, `GITHUB_TOKEN`, `github-actions[bot]`).
+   1. Open https://github.com/gn0sh/clarksville-records/settings/rules > **New ruleset** > **New branch ruleset**.
+   2. **Ruleset name** `main: pull request required`; **Enforcement status** **Active**.
+   3. **Bypass list** > **Add bypass**. If **GitHub Actions** is in the list, pick it (allow: **Always**); do not
+      add yourself or **Repository admin**. **If GitHub Actions is not in the list: click Cancel, do not create the
+      ruleset, and go straight to 2.0.6.** (A ruleset without that bypass would block the daily `data/` commit from
+      the next run.)
+   4. **Target branches** > **Add target** > **Include default branch**.
+   5. Tick **Restrict deletions**, **Block force pushes**, and **Require a pull request before merging** (required
+      approvals: 0, since Brian is the only reviewer with write access; the team's review is the PR review). Leave
+      every other rule off (no required status checks: a `GITHUB_TOKEN` commit triggers no workflow). **Create**.
+   6. **Brian, from a terminal** (if GitHub Actions was not offered in 2.0.3, or to check the ruleset made in 2.0.5).
+      Prerequisite, once: install GitHub CLI (`winget install GitHub.cli`) and run `gh auth login`, signed in as the
+      repository owner. Then, in PowerShell in the repository folder, one line:
+      ```
+      powershell -ExecutionPolicy Bypass -File scripts\protect-main.ps1
+      ```
+      (macOS or Linux: `bash scripts/protect-main.sh`.) It creates the ruleset from `scripts/main-ruleset.json` (the
+      API takes the Actions app as bypass actor; `15368` is the id of the `github-actions` app), or, if a ruleset
+      named `main: pull request required` already exists, updates that one: running it twice never makes a second
+      ruleset. It then runs the checks and prints **OK: main is protected** (rules on main
+      `deletion,non_fast_forward,pull_request`; the ruleset `active`, bypass only `Integration:15368`), or **NOT OK**
+      with what it found: send that output to the team.
+   Check run: **Actions** > **Daily update** > **Run workflow** (collect on): the `push` job must go green with a
+   `data/` commit on `main`. If the run logs **"No data changes."** it committed nothing, so the bypass is not
+   checked yet: wait for a later run (scheduled or manual) that does commit `data/`. If the `push` job fails with
+   "Changes must be made through a pull request", the bypass did not take: set the ruleset's Enforcement to
+   **Disabled** (data collection resumes), and use the fallback below.
+   - **Unverified (Nov 11 2026):** whether a ruleset on a personal-account public repository can list GitHub Actions
+     (`GITHUB_TOKEN`) as a bypass actor. The team could not reach GitHub's docs or this repo's settings from its
+     session. Community reports differ: the UI's bypass picker may not list the Actions app, while the API call in
+     2.0.6 has been reported to work. Record what was seen in `docs/platform-facts.md`.
+   - **Fallback if the bypass is refused:** the team changes the `push` job (reviewed PR) to push `data/` to a
+     `data/<date>` branch and open and merge its own PR with `GITHUB_TOKEN` (0 required approvals, so the ruleset
+     allows it; needs **Settings > Actions > General > Allow GitHub Actions to create and approve pull requests**).
+     CODEOWNERS plus "require review from Code Owners" on its own is **not** a fix: it only applies to pull requests,
+     so it stops nothing unless the same ruleset also blocks direct pushes. A write-access deploy key as the bypass
+     actor would also work but is a new secret (hard stop 5); not recommended.
+   - Until this check passes, the note job must stay off (`MORNING_NOTE_SEND` unset): section 4 item 6.
+1. **Brian:** https://github.com/gn0sh/clarksville-records/settings/environments > **New environment** > name
+   `morning-note` > **Configure environment**.
+2. **Brian:** in `morning-note`, **Deployment branches and tags** > **Selected branches and tags** > **Add deployment
+   branch or tag rule** > `main` > **Add rule**. Check: `gh api repos/gn0sh/clarksville-records/environments/morning-note --jq .deployment_branch_policy`
+   shows `custom_branch_policies: true`, and
+   `gh api repos/gn0sh/clarksville-records/environments/morning-note/deployment-branch-policies --jq '.branch_policies[].name'`
+   prints only `main`.
+3. **Brian:** in `morning-note`, **Environment secrets** > **Add environment secret** > name `BUTTONDOWN_API_KEY`,
+   value the scoped key from 1.7 > **Add secret**.
+4. **Brian:** in `morning-note`, **Add environment secret** > name `MORNING_NOTE_CANARY_IDS`, value the Buttondown
+   subscriber ids of the team's own addresses, comma separated (ids, not addresses) > **Add secret**.
+5. Do **not** create the variable `MORNING_NOTE_SEND` yet (that is go-live, section 5).
+
+## 3. T4.0 probe (team addresses only; devops with Brian's account)
+On a separate **test** newsletter, with only team addresses subscribed, answer each item and write the answer into
+`docs/platform-facts.md` ("Morning note provider", with the date and who saw it). The probe uses its own scoped key
+made on the **test** newsletter only (never the live newsletter's key from 1.7), entered without echo or shell
+history, never in a file, a commit or a log:
+```
+read -rs BUTTONDOWN_API_KEY && export BUTTONDOWN_API_KEY    # paste the key, then Enter; nothing is shown
+# the probe calls; the header goes in on stdin, so the key is not in the process list either:
+printf 'Authorization: Token %s\n' "$BUTTONDOWN_API_KEY" | curl -sS -H @- https://api.buttondown.com/v1/emails
+unset BUTTONDOWN_API_KEY
+```
+When the probe is finished, delete that key in the test newsletter's Settings > API. Answer each item:
+1. An email's `filters` takes `subscriber.metadata.note_edition equals <value>` and reaches only the matching
+   subscribers (stamp one of two team subscribers: the other gets nothing).
+2. `status: "scheduled"` with `publish_date` holds until then; which `status` sends at once. Creating a draft sends
+   nothing.
+3. `POST /v1/emails/{id}/send-draft` with `subscribers` is a real send with the unsubscribe link (or a test send).
+4. `PATCH /v1/subscribers/{id}` with `metadata`: merges or replaces; the answer echoes the stored metadata.
+5. `GET /v1/emails` lists drafts and scheduled emails with `metadata`, newest first, far enough back for today.
+6. `GET /v1/subscribers` lists every type; which types a filtered email reaches.
+7. `{{ subscriber.email }}` in a body renders literally (no template evaluation), or is evaluated (titles are
+   neutralised either way).
+8. The public form does **not** accept `metadata__note_edition` or `metadata__canary`: post each to the embed form
+   from a team address; the subscriber's metadata must not get it. If it does, `stamp` mode is unsafe: stop.
+9. Re-submitting an existing address does not change a confirmed subscriber's metadata; no preferences page lets a
+   subscriber edit metadata; double opt-in applies to form sign-ups.
+10. The 14 "Verify in T4.0 probe" items of `docs/tasks/morning-note.md` T4.4 (listing shape, `count`, `next`,
+    status codes, `Retry-After`, `Content-Type`, id shape, key length of 32 bytes or more, idempotency on PATCH).
+11. Which features need the paid add-on (tagging and segmentation; metadata filters).
+Then set `morning_note.sender.mode` (`stamp` or `ids`) by PR. If neither mode passes, stop and return to the
+architect.
+
+## 4. Before the first send (team, by reviewed PRs)
+1. T4.6 done (privacy text, seat consent) and the launch preconditions of the architecture ("Launch
+   preconditions" 1 to 9) checked, each with a link in the PR.
+2. Add the site's host (`daylight.gnoshcodes.com`) to `morning_note.sender.link_hosts`; check each government source
+   host in `link_hosts` for an open redirect and record the result in `docs/platform-facts.md`.
+3. T4.8 security review of the T4.5 commit passed.
+4. `morning_note.enabled: true` and `morning_note.sender.enabled: true`, with `canary_only: true` (the default).
+5. The site deploy is live (`RECORDS_DEPLOY_ENABLED` is `true`): the note job needs a successful deploy.
+6. `main` is protected (step 2.0): `scripts/protect-main.ps1` (2.0.6) prints "OK: main is protected", and the last
+   scheduled run's `push` job committed `data/` to `main` under the ruleset (or the 2.0 fallback is merged and green). Link the
+   check output in the go-live PR.
+
+## 5. Go-live: Canary week (Brian; hard stop 1)
+1. **Brian:** https://github.com/gn0sh/clarksville-records/settings/variables/actions > **New repository variable** >
+   name `MORNING_NOTE_SEND`, value `true` > **Add variable**.
+2. The next scheduled run (09:07 UTC) sends to the canary ids only (`canary_only: true`): stamp mode schedules the
+   emails for 7:00 (site time zone); ids mode sends when the run ends.
+3. Each morning of the canary week, a team member checks: the run's `note` job is green, its log shows totals only
+   (no address, no id), the team addresses got exactly the editions their lists and seats call for (nothing on a
+   quiet day), the links open live pages, the unsubscribe link works, and nobody outside the canary list got mail
+   (the Buttondown dashboard's recipient count).
+4. Widening: after one clean canary week, a reviewed PR sets `canary_only: false`. Revisit `max_editions` (80) and
+   `max_recipients` (2000) in the same PR.
+
+## Rules for manual runs and re-runs
+- **Never re-run a Daily update run from an earlier day** ("Re-run all jobs" or "Re-run failed jobs" on yesterday's
+  run). It checks out that day's commit while the plan is built from today's `main`; the note job now stops with
+  "an older run was re-run" when the sender code or config differ, but the deploy and data jobs would still run on
+  the old commit. Start a new run with **Run workflow** instead.
+- **No manual runs between 08:00 and 10:00 UTC** (2 to 4 AM CST, 3 to 5 AM CDT). All runs share one concurrency
+  group with one pending slot: a manual run queued then replaces the pending 09:07 scheduled run, and only a
+  scheduled run sends the note, so that day gets no email.
+
+## Rollback and stopping
+- **Stop all sending (one step, Brian or anyone with admin):**
+  https://github.com/gn0sh/clarksville-records/settings/variables/actions > `MORNING_NOTE_SEND` > **Delete** (or
+  set it to `false`). The next run skips the `note` job. Nothing else changes; the site and data keep updating.
+- **Stop today's email before 7:00 (stamp mode):** delete the variable `MORNING_NOTE_SEND` first (above), then
+  delete the scheduled emails: in Buttondown, Emails > Scheduled > open today's emails (their metadata `note_date`
+  is today) > **Delete**. Deleting the variable first means no later run can recreate them.
+- **In code:** a PR setting `morning_note.sender.enabled: false` makes every `--live` a dry run.
+- **Key leak or rotation:** Brian deletes the key in Buttondown (Settings > API), then replaces the
+  `BUTTONDOWN_API_KEY` environment secret. Never rotate between a day's first run and 7:00 (the scheduled stamp
+  emails would match nobody).
+
+## When the note job fails
+The issue "Daily update: morning note failed" opens (or gets a comment). The site, the data commit and the deploy
+are not affected. Open the run's `note` job log: the deliver stage prints a fixed reason and its exit code
+(2: a check failed, nothing sent; 3: "missed", past `latest_send`, nothing sent). A note is never sent the next day:
+the records are on the site and in the feeds. Do not re-run the job after 10:00 site time, and never re-run a run from an earlier day. A
+cancelled `note` job opens the same issue. A failure in "Download the morning note plan", "Validate the plan files"
+or "Check the plan" means the plan from the update job was missing or did not pass the checks: look at that run's
+"Plan the morning note" step. A failure in "Check this commit's sender and config are main's" means an older run was
+re-run (see "Rules for manual runs and re-runs"): nothing was sent.

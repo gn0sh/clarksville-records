@@ -23,6 +23,41 @@ DEPLOY_IF = (LOCK + " && !cancelled() && needs.update.result == 'success' && (ne
              "(needs.push.result == 'skipped' && github.event_name == 'workflow_dispatch' && !inputs.collect))")
 
 
+# Every `secrets.` use in the workflow: (job, step, where, env name, expression). Only the note job's two steps, only
+# as env values, each the exact expression (never inside a `run:`, `with:` or `if:`).
+ALLOWED_SECRETS = [
+    ("note", "Mask the canary ids", "env", "CANARY_IDS", "${{ secrets.MORNING_NOTE_CANARY_IDS }}"),
+    ("note", "Deliver the morning note", "env", "BUTTONDOWN_API_KEY", "${{ secrets.BUTTONDOWN_API_KEY }}"),
+    ("note", "Deliver the morning note", "env", "MORNING_NOTE_CANARY_IDS",
+     "${{ secrets.MORNING_NOTE_CANARY_IDS }}"),
+]
+
+
+def _secret_uses(wf) -> list:
+    out = []
+
+    def walk(job, step, where, value, key=None):
+        if isinstance(value, dict):
+            for k, v in value.items():
+                walk(job, step, where if where else k, v, k)
+        elif isinstance(value, list):
+            for v in value:
+                walk(job, step, where, v, key)
+        elif "secrets." in str(value):
+            out.append((job, step, where, key, str(value).strip()))
+    for top, v in wf.items():
+        if top != "jobs":
+            walk("-", "-", str(top), v)
+    for jname, job in wf["jobs"].items():
+        for k, v in job.items():
+            if k != "steps":
+                walk(jname, "-", k, v)
+        for s in job.get("steps", []):
+            for k, v in s.items():
+                walk(jname, s.get("name"), k, v, k)
+    return out
+
+
 def _deploy_if() -> str:
     return " ".join(WF["jobs"]["deploy"]["if"].split())
 
@@ -101,7 +136,7 @@ def test_only_the_deploy_job_can_publish():
 
 
 def test_no_secrets_and_pinned_actions():
-    assert "secrets." not in TEXT
+    assert _secret_uses(WF) == ALLOWED_SECRETS          # only the note job, only as one step's env
     for line in TEXT.splitlines():
         if line.strip().startswith(("- uses:", "uses:")):
             ref = line.split("uses:")[1].split("#")[0].strip().split("@")[1]
@@ -283,7 +318,7 @@ def test_no_untrusted_triggers_and_no_echoed_credentials(path):
     wf = yaml.safe_load(text)
     on = wf.get("on") or wf[True]
     assert not set(on) & {"pull_request_target", "workflow_run", "pull_request", "issue_comment"}
-    assert "secrets." not in text
+    assert _secret_uses(wf) == (ALLOWED_SECRETS if path.name == "daily-update.yml" else [])
     for line in text.splitlines():
         s = line.strip()
         if s.startswith(("echo", "printf", "run: echo", "run: printf")):
@@ -379,3 +414,294 @@ def test_a_repeat_failure_comments_on_the_open_issue(tmp_path, job, open_issue):
     assert "actions/runs/1" in body and "unchanged" in body
     if job == "update":
         assert "city=2, county=0" in body
+
+
+# ------------------------------------------------------------------ the morning note (T4.5)
+NOTE_IF = "github.event_name == 'schedule' && vars.MORNING_NOTE_SEND == 'true' && github.ref == 'refs/heads/main'"
+
+
+def _note_steps():
+    return {s.get("name"): s for s in WF["jobs"]["note"]["steps"]}
+
+
+def test_note_job_is_locked_scheduled_on_main_and_after_deploy():
+    note = WF["jobs"]["note"]
+    assert " ".join(note["if"].split()) == NOTE_IF
+    assert "always()" not in note["if"] and "cancelled()" not in note["if"]   # implicit success(): update and deploy
+    assert note["needs"] == ["update", "deploy"]                                # deploy locked -> note skipped
+    assert note["environment"] == "morning-note" and note["timeout-minutes"] <= 15
+    # a manual run never sends: the if needs the schedule trigger, and only schedule and dispatch exist
+    on = WF.get("on") or WF[True]
+    assert set(on) == {"schedule", "workflow_dispatch"}
+
+
+def test_note_job_has_a_timeout_and_shares_the_one_run_at_a_time_group():
+    """Security (T4.8): never-twice across concurrent runs rests on one daily-update run at a time. The group is
+    workflow-level, so it holds every job, the note job included; no job may set its own (it would leave the group)."""
+    assert WF["concurrency"] == {"group": "daily-update", "cancel-in-progress": False}
+    assert all("concurrency" not in job for job in WF["jobs"].values())
+    assert isinstance(WF["jobs"]["note"]["timeout-minutes"], int) and 0 < WF["jobs"]["note"]["timeout-minutes"] <= 15
+    assert all(isinstance(job.get("timeout-minutes"), int) for job in WF["jobs"].values())
+
+
+def _note_if(event, var, ref):
+    return event == "schedule" and var == "true" and ref == "refs/heads/main"
+
+
+@pytest.mark.parametrize("event,var,ref", list(itertools.product(
+    ["schedule", "workflow_dispatch"], [None, "", "false", "True", "true"], ["refs/heads/main", "refs/heads/x"])))
+def test_note_runs_only_in_the_one_locked_case(event, var, ref):
+    expr = " ".join(WF["jobs"]["note"]["if"].split())
+    py = (expr.replace("github.event_name", repr(event)).replace("vars.MORNING_NOTE_SEND", repr(var))
+          .replace("github.ref", repr(ref)).replace("&&", "and"))
+    assert eval(py) == _note_if(event, var, ref)                                # noqa: S307  our own expression
+
+
+@pytest.mark.parametrize("value", [
+    "abc-1", "abc-1,def_2", "abc-1, def_2", "abc-1 def_2", "abc-1\ndef_2", " abc-1,\n def_2\tghi3 \n", "a*,b?\n[c]",
+    "", "  \n",
+])
+def test_mask_step_masks_every_canary_id_deliver_accepts(value, tmp_path):
+    """security-note-workflow L2: every id sender/deliver.py's canary_ids reads (commas or any whitespace, every
+    line) is masked one by one, and nothing else is printed (no glob expansion of an id). The step runs in a folder
+    holding files the glob ids would match (a1, bx, c), so dropping `set -f` fails this test."""
+    from sender.deliver import canary_ids
+    for name in ("a1", "bx", "c"):
+        (tmp_path / name).write_text("")
+    step = WF["jobs"]["note"]["steps"][0]
+    r = subprocess.run(["bash", "-e", "-c", step["run"]], cwd=tmp_path, capture_output=True, text=True, check=True,
+                       env={**os.environ, "CANARY_IDS": value})
+    masked = [line.removeprefix("::add-mask::") for line in r.stdout.splitlines()]
+    assert all(line.startswith("::add-mask::") for line in r.stdout.splitlines())
+    expected = set(re.split(r"[\s,]+", value.strip())) - {""}
+    assert set(masked) == expected
+    if all(re.fullmatch(r"[A-Za-z0-9_-]{1,64}", p) for p in expected):
+        assert set(masked) == canary_ids(value)
+
+
+def test_note_job_least_privilege():
+    note = WF["jobs"]["note"]
+    assert note["permissions"] == {"contents": "read"}
+    steps = note["steps"]
+    assert steps[0]["name"] == "Mask the canary ids"                           # before anything else runs
+    assert "::add-mask::" in steps[0]["run"]
+    uses = [s["uses"] for s in steps if "uses" in s]
+    assert [u.split("@")[0] for u in uses] == ["actions/checkout", "actions/setup-python", "actions/download-artifact"]
+    co = _note_steps()["Check out this run's commit"]["with"]
+    assert co == {"ref": "${{ github.sha }}", "persist-credentials": False}     # not needs.update.outputs.sha (L6)
+    assert "cache" not in _note_steps()["Set up Python (standard library only, no pip step)"].get("with", {})
+    assert _note_steps()["Download the morning note plan"]["with"]["path"] == "${{ runner.temp }}/morning-send"
+    runs = "\n".join(s.get("run", "") for s in steps)
+    assert not re.search(r"\bpip\b", runs) and "upload-artifact" not in str(steps) and "cache" not in str(uses)
+    assert "GITHUB_STEP_SUMMARY" not in runs and "set -x" not in runs
+    assert "${{" not in runs                                                     # nothing interpolated into bash
+    assert "python -E -s -m sender deliver" in _note_steps()["Deliver the morning note"]["run"]
+
+
+def test_the_api_key_is_in_exactly_one_step_and_live_needs_the_variable():
+    key_steps = [s["name"] for j in WF["jobs"].values() for s in j["steps"]
+                 if "BUTTONDOWN_API_KEY" in (s.get("env") or {})]
+    assert key_steps == ["Deliver the morning note"]
+    deliver = _note_steps()["Deliver the morning note"]
+    assert deliver["env"]["MORNING_NOTE_SEND"] == "${{ vars.MORNING_NOTE_SEND }}"
+    for var, live in (("true", True), ("", False), ("false", False), ("TRUE", False)):
+        script = deliver["run"].replace("python -E -s -m sender deliver", "echo ARGS")
+        r = subprocess.run(["bash", "-c", script], env={**os.environ, "MORNING_NOTE_SEND": var, "PLAN": "p.json"},
+                           capture_output=True, text=True, check=True)
+        assert ("--live" in r.stdout) == live, var
+    # the job that parses untrusted PDFs holds no secret and no write token
+    assert "secrets." not in str(WF["jobs"]["update"])
+
+
+def test_the_plan_step_never_fails_the_daily_job():
+    steps = {s.get("name"): s for s in WF["jobs"]["update"]["steps"]}
+    plan = steps["Plan the morning note (dry run, no network)"]
+    assert plan["continue-on-error"] is True and "--rehearse" in plan["run"]
+    assert plan["env"] == {"RECORDS_SITE_URL": "https://daylight.gnoshcodes.com/"}         # no secret, the site URL only
+    names = list(steps)
+    assert names.index("Site checks") < names.index("Plan the morning note (dry run, no network)")
+    up = steps["Upload the morning note plan"]
+    assert up["if"] == "success() && steps.plan.outcome == 'success'" and up["with"]["if-no-files-found"] == "ignore"
+    assert up["with"]["name"] == "morning-send" and up["with"]["retention-days"] == 2
+    # the note job comes after deploy, so nothing it does can hold back push or deploy
+    assert "note" not in str(WF["jobs"]["push"].get("needs")) and "note" not in str(WF["jobs"]["deploy"]["needs"])
+
+
+def _validate_plan(tmp_path, layout: dict):
+    """Run the note job's 'Validate the plan files' script over a plan folder built from {relative path: bytes}."""
+    step = _note_steps()["Validate the plan files"]
+    root = tmp_path / "runner"
+    for rel, data in layout.items():
+        p = root / "morning-send" / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        if data is None:
+            p.symlink_to("/etc/hostname")
+        else:
+            p.write_bytes(data)
+    (root / "morning-send").mkdir(parents=True, exist_ok=True)
+    env_file = tmp_path / "env"
+    env_file.write_text("")
+    r = subprocess.run(["bash", "-c", step["run"]], cwd=ROOT, capture_output=True, text=True,
+                       env={**os.environ, "RUNNER_TEMP": str(root), "GITHUB_ENV": str(env_file)})
+    return r.returncode, env_file.read_text()
+
+
+GOOD = {"2026-11-12/plan.json": b"{}", "2026-11-12/edition-0123456789ab.html": b"x",
+        "2026-11-12/edition-0123456789ab.txt": b"x"}
+
+
+def test_the_plan_file_check_accepts_the_plan_stage_layout(tmp_path):
+    code, env = _validate_plan(tmp_path, GOOD)
+    assert code == 0 and env.strip().endswith("/morning-send/2026-11-12/plan.json")
+
+
+@pytest.mark.parametrize("extra", [
+    {"2026-11-12/run.sh": b"x"}, {"2026-11-12/edition-XYZ.html": b"x"}, {"2026-11-13/plan.json": b"{}"},
+    {"notes.txt": b"x"}, {"2026-11-12/sub/plan.json": b"{}"}, {"2026-11-12/edition-0123456789ab.js": b"x"},
+    {"2026-11-12/edition-aaaaaaaaaaaa.html": None},
+])
+def test_the_plan_file_check_refuses_anything_else(tmp_path, extra):
+    code, env = _validate_plan(tmp_path, {**GOOD, **extra})
+    assert code != 0 and env == ""
+
+
+def test_the_plan_file_check_refuses_a_missing_plan_or_a_bad_day(tmp_path):
+    assert _validate_plan(tmp_path / "a", {"2026-11-12/edition-0123456789ab.html": b"x"})[0] != 0
+    assert _validate_plan(tmp_path / "b", {"latest/plan.json": b"{}"})[0] != 0
+    assert _validate_plan(tmp_path / "c", {})[0] != 0
+
+
+def test_the_plan_file_check_uses_max_plan_bytes():
+    from sender.common import MAX_PLAN_BYTES
+    assert MAX_PLAN_BYTES > 2_000_000                                             # not the old 2 MB
+    run = _note_steps()["Validate the plan files"]["run"]
+    assert "from sender.common import MAX_PLAN_BYTES" in run
+
+
+@pytest.mark.parametrize("open_issue", ["", "9"])
+def test_note_failure_opens_its_own_issue_from_a_separate_job(tmp_path, open_issue):
+    nf = WF["jobs"]["note-failed"]
+    assert nf["needs"] == "note"
+    assert nf["if"] == "always() && (needs.note.result == 'failure' || needs.note.result == 'cancelled')"
+    assert nf["permissions"] == {"issues": "write"} and "issues" not in WF["jobs"]["note"]["permissions"]
+    step = nf["steps"][0]
+    assert step["env"]["NOTE_TITLE"] == "Daily update: morning note failed"
+    assert "${{" not in step["run"]                                              # fixed text only
+    calls, body = _run_issue_step(tmp_path, step, open_issue=open_issue)
+    assert calls[1].startswith("issue comment 9" if open_issue else "issue create") and len(calls) == 2
+    assert "not affected" in body and "morning-note.md" in body
+
+
+def test_the_note_runbook_exists_with_the_switches():
+    text = (ROOT / "docs" / "ops" / "morning-note.md").read_text(encoding="utf-8")
+    for phrase in ("MORNING_NOTE_SEND", "BUTTONDOWN_API_KEY", "MORNING_NOTE_CANARY_IDS", "morning-note",
+                   "T4.0", "Canary", "Go-live", "Rollback", "link_hosts", "canary_only", "Deployment branches"):
+        assert phrase in text, phrase
+
+
+@pytest.mark.parametrize("result,fires", [("failure", True), ("cancelled", True), ("success", False),
+                                          ("skipped", False)])
+def test_note_failed_fires_on_failure_or_cancel_never_on_skip(result, fires):
+    """note-failed/silent-noncompletion: a cancelled note job (by hand, or by GitHub) is not a silent day."""
+    expr = WF["jobs"]["note-failed"]["if"]
+    py = (expr.replace("always() && ", "").replace("needs.note.result", repr(result))
+          .replace("||", "or").replace("&&", "and"))
+    assert eval(py) == fires                                                     # noqa: S307  our own expression
+
+
+def _git(cwd, *args):
+    return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "init.defaultBranch=main",
+                           *args], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def _stale_check(tmp_path, change: str) -> int:
+    """Run the note job's main-match step in a checkout of commit A while origin/main is A plus `change`."""
+    step = _note_steps()["Check this commit's sender and config are main's"]
+    origin, src, work = tmp_path / "origin.git", tmp_path / "src", tmp_path / "work"
+    _git(tmp_path, "init", "-q", "--bare", str(origin))
+    _git(tmp_path, "init", "-q", str(src))
+    for rel in ("config/site.yml", "sender/deliver.py", "data/x.json"):
+        (src / rel).parent.mkdir(parents=True, exist_ok=True)
+        (src / rel).write_text("a\n")
+    _git(src, "add", "-A")
+    _git(src, "commit", "-q", "-m", "A")
+    sha_a = _git(src, "rev-parse", "HEAD")
+    if change:
+        (src / change).write_text("b\n")
+        _git(src, "commit", "-q", "-am", "B")
+    _git(src, "push", "-q", f"file://{origin}", "HEAD:refs/heads/main")
+    _git(tmp_path, "clone", "-q", "--depth=1", "--no-single-branch", f"file://{origin}", str(work))
+    _git(work, "fetch", "-q", "--depth=1", "origin", sha_a)
+    _git(work, "checkout", "-q", "--detach", sha_a)
+    r = subprocess.run(["bash", "-c", step["run"]], cwd=work, capture_output=True, text=True)
+    return r.returncode
+
+
+@pytest.mark.parametrize("change,ok", [("", True), ("data/x.json", True), ("sender/deliver.py", False),
+                                       ("config/site.yml", False)])
+def test_note_refuses_an_older_commit_than_main(tmp_path, change, ok):
+    """note-job/stale-rerun: re-running an older run checks out that day's github.sha while the plan is built from
+    today's main; the note job must stop unless sender/ and config/site.yml are main's. Data commits are fine."""
+    names = [s.get("name") for s in WF["jobs"]["note"]["steps"]]
+    assert names.index("Check out this run's commit") + 1 == names.index(
+        "Check this commit's sender and config are main's")
+    assert (_stale_check(tmp_path, change) == 0) == ok
+
+
+# ------------------------------------------------------------------ the main ruleset scripts (runbook step 2.0.6)
+_GH_STUB = '''#!/usr/bin/env python3
+import json, os, sys
+a = sys.argv[1:]
+with open(os.environ["GH_CALLS"], "a") as f:
+    f.write(" ".join(a) + "\\n")
+if a[:2] == ["auth", "status"] or "-X" in a:
+    sys.exit(0)
+path = [x for x in a if x.startswith("repos/")][0]
+jq = a[a.index("--jq") + 1]
+if path.endswith("/rulesets"):
+    assert jq == ".[] | select(.name == $ENV.RULESET_NAME) | .id", jq
+    assert os.environ["RULESET_NAME"] == "main: pull request required"
+    for i in os.environ["EXISTING"].split():
+        print(i)
+elif path.endswith("/rules/branches/main"):
+    print("pull_request\\ndeletion\\nnon_fast_forward")
+elif jq == ".enforcement":
+    print("active")
+else:
+    print("Integration\\t15368")
+'''
+
+
+@pytest.mark.parametrize("existing", ["", "42", "42 43"])
+def test_protect_main_creates_once_and_updates_after(tmp_path, existing):
+    """note-runbook/ruleset-flow: a ruleset of that name already there is updated (PUT), never duplicated (POST)."""
+    bindir, calls = tmp_path / "bin", tmp_path / "gh-calls"
+    bindir.mkdir()
+    (bindir / "gh").write_text(_GH_STUB)
+    (bindir / "gh").chmod(0o755)
+    env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GH_CALLS": str(calls), "EXISTING": existing}
+    r = subprocess.run(["bash", str(ROOT / "scripts" / "protect-main.sh")], env=env, capture_output=True, text=True)
+    assert r.returncode == 0 and "OK: main is protected" in r.stdout, r.stdout + r.stderr
+    lines = calls.read_text().splitlines()
+    posts = [c for c in lines if "-X POST" in c]
+    puts = [c.split()[3] for c in lines if "-X PUT" in c]
+    if existing:
+        assert not posts and puts == [f"repos/gn0sh/clarksville-records/rulesets/{i}" for i in existing.split()]
+    else:
+        assert len(posts) == 1 and not puts
+    assert all("main-ruleset.json" in c for c in lines if " -X " in f" {c}")
+
+
+def test_protect_main_scripts_share_one_ruleset_body():
+    import json
+    body = json.loads((ROOT / "scripts" / "main-ruleset.json").read_text(encoding="utf-8"))
+    assert body["name"] == "main: pull request required" and body["enforcement"] == "active"
+    assert body["bypass_actors"] == [{"actor_id": 15368, "actor_type": "Integration", "bypass_mode": "always"}]
+    assert sorted(r["type"] for r in body["rules"]) == ["deletion", "non_fast_forward", "pull_request"]
+    assert body["conditions"]["ref_name"]["include"] == ["~DEFAULT_BRANCH"]
+    for name in ("protect-main.ps1", "protect-main.sh"):
+        text = (ROOT / "scripts" / name).read_text(encoding="utf-8")
+        assert "main-ruleset.json" in text and "main: pull request required" in text and "-X PUT" in text, name
+    ps1 = (ROOT / "scripts" / "protect-main.ps1").read_text(encoding="utf-8")
+    # no double quote inside a --jq argument: Windows PowerShell 5.1 strips them on the way to gh
+    assert not re.search(r"--jq '[^']*\"", ps1) and "$ENV.RULESET_NAME" in ps1

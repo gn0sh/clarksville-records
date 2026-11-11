@@ -105,8 +105,9 @@ morning_note:
   # lists: a multi-select metadata key, not tags: the sender reads a subscriber's lists from metadata.lists
   form_fields: {email: email, lists: metadata__lists, district: metadata__district, ward: metadata__ward}
   privacy_url: ""       # the provider's privacy policy, required when enabled
-  # The sender (ADR 0004; architecture "T4 sender"; package sender/). OFF: nothing is sent, and there is no provider
-  # client, key or workflow job yet. `python -m sender plan --rehearse` writes the would-send editions as a dry run.
+  # The sender (ADR 0004; architecture "T4 sender"; package sender/). OFF: nothing is sent. The Buttondown client
+  # (sender/) and the locked `note` workflow job exist; no key or MORNING_NOTE_SEND variable is set (runbook:
+  # docs/ops/morning-note.md). `python -m sender plan --rehearse` writes the would-send editions as a dry run.
   # The build refuses `enabled: true` unless morning_note.enabled is true and alerts.site_url is set. Going live
   # also needs Brian's repository variable and secret (hard stops 1 and 5). Keep each value below on its own line as
   # one plain value: the deliver stage reads this block without PyYAML (sender/settings.py).

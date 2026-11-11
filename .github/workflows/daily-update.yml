@@ -6,7 +6,12 @@
 #              it parses nothing.
 # deploy job : publishes that artifact to GitHub Pages. LOCKED until launch: it runs only when the repository variable
 #              RECORDS_DEPLOY_ENABLED is exactly 'true'. Setting that variable is the CEO's go-live step (hard stop 1).
-#              See docs/ops/launch-runbook.md. No secrets are used anywhere; GITHUB_TOKEN is the only credential.
+#              See docs/ops/launch-runbook.md.
+# note job   : sends the morning note from the update job's plan. LOCKED: only on schedule, on main, when the
+#              repository variable MORNING_NOTE_SEND is exactly 'true', after deploy succeeded. The only job with
+#              secrets (BUTTONDOWN_API_KEY, MORNING_NOTE_CANARY_IDS, in the morning-note environment), each in one
+#              step's env. See docs/ops/morning-note.md. Every other job uses GITHUB_TOKEN only.
+# note-failed: opens or comments on one "Daily update: morning note failed" issue when the note job failed.
 #
 # Collection keeps the collector's own rules (collector/fetch.py): one honest User-Agent, robots.txt obeyed, at least
 # 10 s between requests per host (more where robots.txt asks). Nothing here changes them.
@@ -161,6 +166,18 @@ jobs:
           RECORDS_BUILD_TARGET: pages
         run: python -m qa.site_checks --site build/site --facts data/facts.json --store data/store --no-browser
 
+      # Morning note, plan stage (docs/architecture/morning-note.md "Workflow changes"): the dry run, every day, no
+      # network and no secret. It reads build/site/morning/<today>.json and writes build/morning-send/<today>/ (no
+      # subscriber data: safe as a public artifact). While the sender is disabled it is a rehearsal and exits 0 on a
+      # plan error. continue-on-error: a failed plan never fails this job or holds back the data commit and deploy;
+      # the note job then finds no artifact, fails, and opens its own issue.
+      - name: Plan the morning note (dry run, no network)
+        id: plan
+        continue-on-error: true
+        env:
+          RECORDS_SITE_URL: https://daylight.gnoshcodes.com/   # the editions link site pages from alerts.site_url
+        run: python -m sender plan --rehearse --site build/site --out build/morning-send
+
       - name: Tests (full suite, about 12 min, default settings)
         run: python -m pytest -q -x
 
@@ -275,6 +292,16 @@ jobs:
           path: build/site
           retention-days: 2
 
+      # The plan for the note job (no subscriber data, no secret). Only a plan that was written is uploaded.
+      - name: Upload the morning note plan
+        if: success() && steps.plan.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: morning-send
+          path: build/morning-send
+          retention-days: 2
+          if-no-files-found: ignore   # a rehearsal that wrote nothing must not fail this job
+
   push:
     needs: update
     # main only (pipeline/dispatch-non-main-ref): a manual run on another branch must never commit to main.
@@ -381,3 +408,137 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+
+  # Morning note, deliver stage (docs/architecture/morning-note.md "Workflow changes"; runbook docs/ops/morning-note.md).
+  # LOCKED: runs only on the daily schedule, on main, when the repository variable MORNING_NOTE_SEND is exactly
+  # 'true' (Brian's go-live switch, hard stop 1), and only after update and deploy both succeeded (so it cannot run
+  # while the deploy is locked, and an email never links a page that is not live). A manual run never sends. It
+  # runs after deploy, so a note failure can never hold back the data commit or the deploy; it opens its own issue
+  # (the note-failed job), never the "Daily update failed" one.
+  # Least privilege: contents: read only; the API key and the canary ids are secrets of the `morning-note`
+  # environment (deployment branch main only), each given as env to the one step that needs it, never in a `run:`
+  # expression. No pip install, no cache, no artifact upload, no step summary; the deliver stage prints totals only.
+  # Never twice across runs: the workflow-level `concurrency: daily-update` group (one run at a time, never
+  # cancelled) holds this job too; do not give it a group of its own.
+  note:
+    needs: [update, deploy]
+    if: github.event_name == 'schedule' && vars.MORNING_NOTE_SEND == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    environment: morning-note
+    steps:
+      # First, before anything else: the canary ids are masked one by one (the secret as a whole is masked by
+      # GitHub, a single id taken from it is not).
+      - name: Mask the canary ids
+        env:
+          CANARY_IDS: ${{ secrets.MORNING_NOTE_CANARY_IDS }}
+        run: |
+          # Split the whole value (every line) on commas and whitespace, as sender/deliver.py canary_ids does.
+          set -f
+          IFS=$', \t\n'
+          for id in ${CANARY_IDS:-}; do
+            if [ -n "$id" ]; then echo "::add-mask::$id"; fi
+          done
+
+      # This run's own commit (security L6), not the update job's output; no token on disk.
+      - name: Check out this run's commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      # A re-run of an older run ("Re-run all jobs") checks out that day's github.sha, while the update job builds
+      # the plan from today's main. Refuse unless this commit's sender code and site config are main's (note-job/
+      # stale-rerun). The repository is public, so the fetch needs no token (none is kept on disk).
+      - name: Check this commit's sender and config are main's
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin main
+          if ! git diff --quiet HEAD FETCH_HEAD -- config/site.yml sender/; then
+            echo "::error::config/site.yml or sender/ differ from main: an older run was re-run. Nothing sent."
+            exit 2
+          fi
+
+      - name: Set up Python (standard library only, no pip step)
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      # Outside the checkout: the plan comes from the job that parses untrusted PDFs.
+      - name: Download the morning note plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: morning-send
+          path: ${{ runner.temp }}/morning-send
+
+      # The files: one <YYYY-MM-DD>/ folder holding plan.json and edition-<key>.html|.txt only, regular files (no
+      # symlink), at most MAX_PLAN_BYTES (sender/common.py) in total. The plan's schema, field types, bodies and links
+      # are checked by the next step (sender.deliver.check_plan, with link_hosts from the repository's config).
+      - name: Validate the plan files
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/morning-send"
+          max=$(python -E -s -c 'from sender.common import MAX_PLAN_BYTES; print(int(MAX_PLAN_BYTES))')
+          bad=0
+          while IFS= read -r -d '' f; do echo "::error::not a regular file or folder: ${f#"$dir"/}"; bad=1
+          done < <(find "$dir" -mindepth 1 ! -type f ! -type d -print0)
+          days=$(find "$dir" -mindepth 1 -maxdepth 1 -type d | wc -l)
+          others=$(find "$dir" -mindepth 1 -maxdepth 1 ! -type d | wc -l)
+          if [ "$days" != 1 ] || [ "$others" != 0 ]; then echo "::error::expected one day folder"; bad=1; fi
+          day=$(find "$dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | head -n 1)
+          [[ "$day" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "::error::the day folder is not a date"; bad=1; }
+          while IFS= read -r -d '' f; do
+            name="${f##*/}"
+            [[ "$name" == plan.json || "$name" =~ ^edition-[0-9a-f]{12}\.(html|txt)$ ]] \
+              || { echo "::error::file not allowed in the plan"; bad=1; }
+          done < <(find "$dir" -mindepth 2 -print0)
+          [ -f "$dir/$day/plan.json" ] || { echo "::error::no plan.json"; bad=1; }
+          [ -z "$(find "$dir" -mindepth 3 -print -quit)" ] || { echo "::error::nested folders"; bad=1; }
+          total=$(find "$dir" -type f -printf '%s\n' | awk '{s+=$1} END {print s+0}')
+          [ "$total" -le "$max" ] || { echo "::error::the plan is over MAX_PLAN_BYTES"; bad=1; }
+          [ "$bad" = 0 ]
+          echo "PLAN=$dir/$day/plan.json" >> "$GITHUB_ENV"
+
+      # The dry run first: checks the plan (check_plan) and prints what would be sent; no connection, no secret.
+      - name: Check the plan (dry run, no secret)
+        run: python -E -s -m sender deliver --plan "$PLAN"
+
+      # The only step with the API key. --live only when the variable is exactly 'true' (the job's own `if:` already
+      # requires it; this is the second lock). Totals only in the log.
+      - name: Deliver the morning note
+        env:
+          BUTTONDOWN_API_KEY: ${{ secrets.BUTTONDOWN_API_KEY }}
+          MORNING_NOTE_CANARY_IDS: ${{ secrets.MORNING_NOTE_CANARY_IDS }}
+          MORNING_NOTE_SEND: ${{ vars.MORNING_NOTE_SEND }}
+        run: |
+          live=()
+          if [ "$MORNING_NOTE_SEND" = "true" ]; then live=(--live); fi
+          python -E -s -m sender deliver --plan "$PLAN" "${live[@]}"
+
+  # The note job failed or was cancelled (by hand or by GitHub): one open "Daily update: morning note
+  # failed" issue, a comment on it on later days (note-failed/silent-noncompletion). A separate job with fixed text
+  # (the job holding the key opens nothing and has no issues permission). Skipped (locked) never opens one.
+  note-failed:
+    needs: note
+    if: always() && (needs.note.result == 'failure' || needs.note.result == 'cancelled')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update the morning note issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NOTE_TITLE: "Daily update: morning note failed"
+        run: |
+          set -eu
+          body="The morning note job failed or was cancelled: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. The site, the data commit and the deploy are not affected. A note is never sent the next day; see docs/ops/morning-note.md, 'When the note job fails'."
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$NOTE_TITLE\" in:title" \
+                   --json number,title --jq 'map(select(.title == $ENV.NOTE_TITLE)) | .[0].number // empty')
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$NOTE_TITLE" --body "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body "$body"
+          fi
