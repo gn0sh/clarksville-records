@@ -242,11 +242,39 @@ jobs:
       # edited on later days (never a second issue), closed when the source is fresh again. main only, so a run on
       # another ref never opens or closes one. Fixed text from our own data, passed to gh as arguments (no shell).
       - name: Open, update or close stale-source issues
+        id: stale_issues
         if: success() && steps.staleness.outcome == 'success' && github.ref == 'refs/heads/main'
         continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
         env:
           GH_TOKEN: ${{ github.token }}
         run: python -m qa.staleness issues --report build/staleness.json
+
+      # continue-on-error hides a broken data-age check (pipeline/stale-check-silent-failure): one open issue with a
+      # fixed title, a comment each later day instead of a new issue. Fixed text, passed with --body-file.
+      - name: Open or update the data-age check issue
+        if: >-
+          always() && github.ref == 'refs/heads/main' &&
+          (steps.staleness.outcome == 'failure' || steps.stale_issues.outcome == 'failure')
+        continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AGE_TITLE: "Daily update: data-age check broken"
+        run: |
+          set -eu
+          body="$RUNNER_TEMP/age-issue.md"
+          {
+            echo "The data-age check (qa/staleness.py) failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "Stale sources may go unreported until it is fixed. Everything else was published as usual."
+            echo "Read the 'Check data age' and 'Open, update or close stale-source issues' steps in the run log"
+            echo "(gh errors are printed there as warnings). See docs/ops/launch-runbook.md, 'Paused sources'."
+          } > "$body"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$AGE_TITLE\" in:title" \
+                   --json number,title --jq 'map(select(.title == $ENV.AGE_TITLE)) | .[0].number // empty')
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$AGE_TITLE" --body-file "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+          fi
 
       # Failed collection or checks: the steps below that publish do not run (no commit, no new artifact, no deploy).
       # The last deployed site stays up. One open issue: created once, then a comment on each later failure.

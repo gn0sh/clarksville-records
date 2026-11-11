@@ -204,3 +204,82 @@ def test_workflow_steps_never_block_publishing():
     names = [s.get("name") for s in WF["jobs"]["update"]["steps"]]
     assert names.index("Tests (full suite, about 12 min, default settings)") < names.index("Check data age") \
         < names.index("Upload refreshed data")
+
+
+# ---- ci/stale-issue-flap-noise ---------------------------------------------------------------------------------------
+
+def test_stale_again_reopens_the_latest_closed_issue(cfg):
+    rows = rows_for(cfg, **{"county-minutes": True})
+    closed = [{"number": 5, "title": "Stale source: x [county-minutes]", "closedAt": "2026-10-01T00:00:00Z"},
+              {"number": 12, "title": "Stale source: x [county-minutes]", "closedAt": "2026-11-01T00:00:00Z"},
+              {"number": 30, "title": "Stale source: x [city-minutes]", "closedAt": "2026-11-09T00:00:00Z"}]
+    acts = st.plan(rows, [], cfg, TODAY, "", closed)
+    assert [(a[0], a[1]) for a in acts] == [("reopen", 12)]
+    # an open issue still wins over a closed one
+    assert st.plan(rows, [{"number": 40, "title": "Stale source: x [county-minutes]"}], cfg, TODAY, "", closed)[0][:2] \
+        == ("edit", 40)
+    # no closed issue for the key: a new one
+    assert st.plan(rows, [], cfg, TODAY, "", closed[2:])[0][0] == "create"
+
+
+def test_reopen_reopens_then_rewrites_the_body(cfg):
+    calls = []
+    assert st.apply([("reopen", 12, "new body")], cfg, "o/r", calls.append) == []
+    assert [c[:3] for c in calls] == [["issue", "reopen", "12"], ["issue", "edit", "12"]]
+    assert calls[1][-2:] == ["--body", "new body"]
+
+
+# ---- pipeline/stale-check-silent-failure -----------------------------------------------------------------------------
+
+def _issues_run(tmp_path, monkeypatch, cfg, fake):
+    rep = tmp_path / "r.json"
+    rep.write_text(json.dumps({"today": "2026-11-11", "sources": rows_for(cfg, **{"county-minutes": True})}))
+    monkeypatch.setenv("GITHUB_REPOSITORY", "o/r")
+    monkeypatch.setattr(st, "gh", fake)
+    return st.main(["issues", "--report", str(rep)])
+
+
+def _fake(fail_on=None, label_stderr="label already exists"):
+    seen = []
+
+    def run(args):
+        seen.append(args)
+        if args[:2] == ["label", "create"]:
+            raise subprocess.CalledProcessError(1, args, stderr=label_stderr)
+        if fail_on and args[:2] == fail_on:
+            raise subprocess.CalledProcessError(1, args, stderr="HTTP 403: Resource not accessible")
+        return "[]" if args[:2] == ["issue", "list"] else ""
+    return run, seen
+
+
+def test_issues_exit_0_when_every_call_works_and_the_label_exists(tmp_path, monkeypatch, cfg):
+    run, seen = _fake()
+    assert _issues_run(tmp_path, monkeypatch, cfg, run) == 0
+    assert [a[:2] for a in seen].count(["issue", "list"]) == 2          # open and closed
+    assert ["issue", "create"] in [a[:2] for a in seen]
+
+
+def test_issues_exit_1_with_stderr_when_a_call_fails(tmp_path, monkeypatch, cfg, capsys):
+    run, _ = _fake(fail_on=["issue", "create"])
+    assert _issues_run(tmp_path, monkeypatch, cfg, run) == 1
+    assert "HTTP 403: Resource not accessible" in capsys.readouterr().out
+
+
+def test_issues_exit_1_when_the_label_cannot_be_made(tmp_path, monkeypatch, cfg, capsys):
+    run, _ = _fake(label_stderr="HTTP 403: Resource not accessible by integration")
+    assert _issues_run(tmp_path, monkeypatch, cfg, run) == 1
+    assert "label stale-source" in capsys.readouterr().out
+
+
+def test_workflow_opens_one_issue_when_the_check_breaks():
+    steps = {s.get("name"): s for s in WF["jobs"]["update"]["steps"]}
+    s = steps["Open or update the data-age check issue"]
+    assert steps["Open, update or close stale-source issues"]["id"] == "stale_issues"
+    cond = " ".join(s["if"].split())
+    assert cond.startswith("always() && github.ref == 'refs/heads/main' &&")
+    assert "steps.staleness.outcome == 'failure'" in cond and "steps.stale_issues.outcome == 'failure'" in cond
+    assert s["continue-on-error"] is True
+    assert s["env"] == {"GH_TOKEN": "${{ github.token }}", "AGE_TITLE": "Daily update: data-age check broken"}
+    assert "--body-file" in s["run"] and "--body " not in s["run"] and "${{" not in s["run"]
+    assert "gh issue comment" in s["run"]                                 # a repeat comments, never a second issue
+    assert WF["jobs"]["update"]["permissions"] == {"contents": "read", "issues": "write"}

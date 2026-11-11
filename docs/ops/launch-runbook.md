@@ -62,7 +62,9 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
 - **Data age** (`qa/staleness.py`, thresholds in `config/staleness.yml`): after every green run on `main`, each
   source whose newest record is older than its threshold has one open "Stale source: <name> [<key>]" issue, labelled
   `stale-source`. It is opened once, its body is edited on later days (never a second issue), and the first run that
-  finds the source fresh again closes it. Both steps are continue-on-error: a stale source never holds back publishing.
+  finds the source fresh again closes it; if it goes stale again, its latest closed issue is reopened. Both steps
+  are continue-on-error: a stale source never holds back publishing. If either step fails (a crash, a gh call or the
+  label refused), one "Daily update: data-age check broken" issue opens (a comment each later day).
   A failed run does not touch these issues ("Daily update failed" covers it). See "Paused sources" below.
 - A failed fetch never deletes data: the RPC step is all or nothing on its committed files; a hard failure stops the
   push job, so no partial result reaches `main`; the document store and caches are only ever added to.

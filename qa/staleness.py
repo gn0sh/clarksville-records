@@ -9,10 +9,12 @@ Two commands, both run by the daily workflow after a green run (never blocking p
 "How recent the records are" line (sitegen/freshness.py), and writes one row per source: newest date, age in days,
 threshold, stale or not. `issues` keeps one open GitHub issue per stale source (label from the config, title
 "<prefix> <name> [<key>]"): it creates the issue once, then only edits its body; it closes the issue with a comment
-when the source is fresh again. It calls `gh` with argument lists (no shell) and fixed text built from our own data.
+when the source is fresh again, and reopens the latest closed one if it goes stale again. It calls `gh` with
+argument lists (no shell) and fixed text built from our own data.
 
-Exit codes: 0 always for a finished check or issue pass (staleness is a signal, not a gate); 2 for a bad config or an
-unreadable report, so a broken check is visible as a failed (continue-on-error) step.
+Exit codes: 0 for a finished check or issue pass (staleness is a signal, not a gate); 1 when any gh call failed (the
+label included); 2 for a bad config, an unreadable report or issues that could not be listed. A non-zero exit fails
+the (continue-on-error) step, and the workflow then opens one 'Daily update: data-age check broken' issue.
 """
 from __future__ import annotations
 
@@ -165,21 +167,40 @@ def body(row: dict, today: date, run_url: str) -> str:
     ])
 
 
-def plan(rows: list[dict], open_issues: list[dict], cfg: dict, today: date, run_url: str = "") -> list[tuple]:
-    """Actions, in order: ("create", title, body), ("edit", number, body), ("close", number, comment).
-    An open issue belongs to a source when its title starts with the prefix and ends with "[<key>]"; extra open
-    issues for the same key (made by hand) are edited too, never closed for that reason alone."""
+def _key(cfg: dict, t: str) -> str | None:
+    """The source key of an issue title "<prefix> ... [<key>]", else None."""
+    if t.startswith(cfg["title_prefix"]) and t.endswith("]") and "[" in t:
+        return t[t.rindex("[") + 1:-1]
+    return None
+
+
+def plan(rows: list[dict], open_issues: list[dict], cfg: dict, today: date, run_url: str = "",
+         closed_issues: list[dict] = ()) -> list[tuple]:
+    """Actions, in order: ("create", title, body), ("reopen", number, body), ("edit", number, body),
+    ("close", number, comment).
+    An issue belongs to a source when its title starts with the prefix and ends with "[<key>]"; extra open issues for
+    the same key (made by hand) are edited too, never closed for that reason alone. A source stale again reopens its
+    most recently closed issue instead of opening a new one (ci/stale-issue-flap-noise)."""
     by_key: dict[str, list[int]] = {}
     for i in open_issues:
-        t = i.get("title") or ""
-        if t.startswith(cfg["title_prefix"]) and t.endswith("]") and "[" in t:
-            by_key.setdefault(t[t.rindex("[") + 1:-1], []).append(int(i["number"]))
+        k = _key(cfg, i.get("title") or "")
+        if k:
+            by_key.setdefault(k, []).append(int(i["number"]))
+    last_closed: dict[str, tuple] = {}
+    for i in closed_issues:
+        k = _key(cfg, i.get("title") or "")
+        if k:
+            rank = (i.get("closedAt") or "", int(i["number"]))
+            if k not in last_closed or rank > last_closed[k]:
+                last_closed[k] = rank
     actions: list[tuple] = []
     for row in rows:
         nums = sorted(by_key.get(row["key"], []))
         if row["stale"]:
             if nums:
                 actions += [("edit", n, body(row, today, run_url)) for n in nums]
+            elif row["key"] in last_closed:
+                actions.append(("reopen", last_closed[row["key"]][1], body(row, today, run_url)))
             else:
                 actions.append(("create", title(cfg, row), body(row, today, run_url)))
         else:
@@ -195,36 +216,57 @@ def gh(args: list[str]) -> str:
     return subprocess.run(["gh", *args], check=True, capture_output=True, text=True).stdout
 
 
-def apply(actions: list[tuple], cfg: dict, repo: str, run=gh) -> list[str]:
+def _why(e: Exception) -> str:
+    """The error with gh's own stderr (pipeline/stale-check-silent-failure), on one line, capped."""
+    err = getattr(e, "stderr", None) or ""
+    if isinstance(e, subprocess.CalledProcessError):   # the command's first words only, never the issue body
+        cmd = e.cmd if isinstance(e.cmd, list) else [str(e.cmd)]
+        head = f"{' '.join(str(c) for c in cmd[:3])} exited {e.returncode}"
+    else:
+        head = str(e)
+    return " ".join(f"{head}: {err}".split())[:500]
+
+
+def apply(actions: list[tuple], cfg: dict, repo: str, run=None) -> list[str]:
     """Runs each action; one failed call is reported and the rest still run. Returns the failures."""
+    run = run or gh
     failed = []
     for kind, ref, text in actions:
         if kind == "create":
-            args = ["issue", "create", "--repo", repo, "--title", ref, "--label", cfg["label"], "--body", text]
+            calls = [["issue", "create", "--repo", repo, "--title", ref, "--label", cfg["label"], "--body", text]]
         elif kind == "edit":
-            args = ["issue", "edit", str(ref), "--repo", repo, "--body", text]
+            calls = [["issue", "edit", str(ref), "--repo", repo, "--body", text]]
+        elif kind == "reopen":
+            calls = [["issue", "reopen", str(ref), "--repo", repo, "--comment", "Stale again; reopened by the daily run."],
+                     ["issue", "edit", str(ref), "--repo", repo, "--body", text]]
         else:
-            args = ["issue", "close", str(ref), "--repo", repo, "--reason", "completed", "--comment", text]
-        try:
-            run(args)
-        except (subprocess.CalledProcessError, OSError) as e:
-            failed.append(f"{kind} {ref}: {e}")
+            calls = [["issue", "close", str(ref), "--repo", repo, "--reason", "completed", "--comment", text]]
+        for args in calls:
+            try:
+                run(args)
+            except (subprocess.CalledProcessError, OSError) as e:
+                failed.append(f"{kind} {ref}: {_why(e)}")
+                break
     return failed
 
 
-def open_issues(cfg: dict, repo: str, run=gh) -> list[dict]:
-    out = run(["issue", "list", "--repo", repo, "--state", "open", "--label", cfg["label"], "--limit", "200",
-               "--json", "number,title"])
+def list_issues(cfg: dict, repo: str, state: str, run=None) -> list[dict]:
+    out = (run or gh)(["issue", "list", "--repo", repo, "--state", state, "--label", cfg["label"], "--limit", "200",
+               "--json", "number,title" + (",closedAt" if state == "closed" else "")])
     return json.loads(out or "[]")
 
 
-def ensure_label(cfg: dict, repo: str, run=gh) -> None:
-    """Creates the label once; an existing label is left as it is (the create call then fails, which is fine)."""
+def ensure_label(cfg: dict, repo: str, run=None) -> str | None:
+    """Creates the label once and leaves an existing one as it is. Returns an error text when the label can be neither
+    created nor found (every later create would then fail), else None."""
     try:
-        run(["label", "create", cfg["label"], "--repo", repo, "--color", "d4c5f9",
+        (run or gh)(["label", "create", cfg["label"], "--repo", repo, "--color", "d4c5f9",
              "--description", "A source's newest record is older than its threshold (config/staleness.yml)"])
-    except (subprocess.CalledProcessError, OSError):
-        pass
+        return None
+    except (subprocess.CalledProcessError, OSError) as e:
+        if "already exists" in (getattr(e, "stderr", None) or ""):
+            return None
+        return f"label {cfg['label']}: {_why(e)}"
 
 
 # ---- CLI ----------------------------------------------------------------------------------------------------------
@@ -271,19 +313,23 @@ def main(argv: list[str] | None = None) -> int:
     server = os.environ.get("GITHUB_SERVER_URL", "")
     run_id = os.environ.get("GITHUB_RUN_ID", "")
     run_url = f"{server}/{repo}/actions/runs/{run_id}" if server and run_id else ""
-    ensure_label(cfg, repo)
+    failed = []
+    label_err = ensure_label(cfg, repo)
+    if label_err:
+        failed.append(label_err)
     try:
-        current = open_issues(cfg, repo)
+        current = list_issues(cfg, repo, "open")
+        closed = list_issues(cfg, repo, "closed")
     except (subprocess.CalledProcessError, OSError, ValueError) as e:
-        print(f"::warning::staleness: could not list open issues, nothing changed: {e}")
+        print(f"::warning::staleness: could not list issues, nothing changed: {_why(e)}")
         return 2       # never create without knowing what is open (stale-check/no-duplicate-issue)
-    actions = plan(rows, current, cfg, today, run_url)
-    failed = apply(actions, cfg, repo)
+    actions = plan(rows, current, cfg, today, run_url, closed)
+    failed += apply(actions, cfg, repo)
     for kind, ref, _ in actions:
         print(f"{kind} {ref}")
     for f in failed:
         print(f"::warning::staleness issue call failed: {f}")
-    return 0
+    return 1 if failed else 0    # a failed call fails the (continue-on-error) step, which opens its own issue
 
 
 if __name__ == "__main__":
