@@ -117,6 +117,9 @@
       {% if school %}
       <li class="day-coming"><strong>{{ school.label }}.</strong> <span class="chip chip-coming">Coming</span> Its meetings are not collected yet, so none are shown here. <a data-ext="school" href="{{ school.url }}" target="_blank" rel="noopener noreferrer">{{ school.link_label }}<span class="sr-only"> (opens in a new tab)</span></a>.</li>
       {% endif %}
+      {% if committees %}
+      <li class="day-coming"><strong>{{ committees.label }}.</strong> <span class="chip chip-coming">Coming</span> Their meetings are not collected yet, so none are shown here.{% for l in committees.links %} <a data-ext="committee" href="{{ l.url }}" target="_blank" rel="noopener noreferrer">{{ l.label }}<span class="sr-only"> (opens in a new tab)</span></a>.{% endfor %}</li>
+      {% endif %}
     </ul>
   </section>
 </div>

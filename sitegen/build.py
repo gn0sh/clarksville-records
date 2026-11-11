@@ -384,8 +384,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     are shown as agenda-only meetings (sitegen/county_agendas.py); left out, config.COUNTY_AGENDAS for a real build
     and none for a fixture build. None: no agenda-only meetings.
     `morning_manifests`: the collectors' manifests the morning note (sitegen/morning.py) reads first_fetched_at from;
-    left out, config/site.yml `fetch_manifests` (the one list, morning.manifest_paths) for a real build and none for a fixture build (made-up sources
-    have no manifest rows). None: no morning/ files. The preview target writes none.
+    left out, config/site.yml `fetch_manifests` (the one list, morning.manifest_paths) for a real build and none for
+    a fixture build (made-up sources have no manifest rows). None: no morning/ files. The preview target writes none.
     `export`: whether the open-data export (collector export, data/) goes with this build. A preview still over its
     cap without the transcript pages is built again with export=False: no page (data.html, about.html, the finance
     and contracts indexes) links a data/ file, data.html and about.html say the files are on the full site, and any
@@ -599,6 +599,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         render("votes_year.html.j2", f"votes/{year}.html", f"Votes {year}", **views.votes_year(year, ix))
     for sb in [e["school"] for e in site["nav"] if e.get("school")]:   # the school board's "coming" page (views._nav)
         pg = {**sb["page"], "link": {"url": sb["url"], "label": sb.get("link_label") or sb["label"], "kind": "school"}}
+        render("coming.html.j2", f"{pg['slug']}.html", pg["title"], page=pg)
+    for cm in [e["committees"] for e in site["nav"] if e.get("committees")]:   # the committees' "coming" page
+        pg = {**cm["page"], "links": [{**x, "kind": "committee"} for x in cm["links"]]}
         render("coming.html.j2", f"{pg['slug']}.html", pg["title"], page=pg)
     render("search.html.j2", "search.html", "Search", **views.search_page(ix, fx, cixs, rpx))
     for c in config.SITE["coming"]:

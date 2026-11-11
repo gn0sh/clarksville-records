@@ -168,7 +168,8 @@ def scheduled_cards(cix, start: date, end: date, today: date | None = None) -> l
             "kind": "council", "dot": DOTS["council"], "id": f"{cix.slug}-{row['date']}-{row['kind']}-scheduled",
             "body": cix.body_name, "title": cix.kind_labels.get(row["kind"], row["kind"]), "href": None,
             "docs": [], "video": None, "votes": [], "state": "scheduled", "cases": [], "sols": [],
-            "minutes_note": None, "cal_title": row.get("title") or "", "agenda_url": row["agenda_url"] if views.https_url(row.get("agenda_url")) else "",
+            "minutes_note": None, "cal_title": row.get("title") or "",
+            "agenda_url": row["agenda_url"] if views.https_url(row.get("agenda_url")) else "",
             "built_text": date_text(today),
             "record": {"url": cix.cfg["record_url"], "label": cix.cfg["record_label"], "ext": True}}))
     return out
@@ -284,7 +285,7 @@ def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None,
     school = sb if sb.get("label") and views.https_url(sb.get("url")) else None
     return {"weeks": weeks, "start": start.isoformat(), "end": end.isoformat(), "built": today.isoformat(),
             "start_text": date_text(start), "end_text": date_text(end), "built_text": date_text(today),
-            "tz": config.SITE["site_timezone"], "school": school,
+            "tz": config.SITE["site_timezone"], "school": school, "committees": views.committees(),
             "n_cards": sum(len(v) for v in by_day.values()),
             "coverage": _coverage(ix, cixs, rpx, fx, start, end, counts, ax)}
 
