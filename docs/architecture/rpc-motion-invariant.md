@@ -339,3 +339,12 @@ before/after confirmed counts (1307 motions, 1088 confirmed at 0927bfe) by reaso
 - `rpc-votes/elect-adjourn-doc`: the ELECT_ADJOURN wording above and in rpc_minutes.py now says what it does.
 - Mutation table (tools/rpc_rule10_mutation.py) adds the two-kinds check, the "Motion" label, both "recommend" rules,
   each KIND_HOLDS entry and each table-family polarity.
+- Rebuild (two identical builds; the 24422eb build reproduced the committed rpc.json byte for byte): 564 -> 560. All
+  four lost motions are toward under-confirming:
+  - 2023-04-25-regular-motion-10 ("a motion for approval of deferral request ... Motion for deferral passed"): defer
+    and approval. It was confirmed as "Motion to defer".
+  - 2026-05-26-regular-motion-21, -24, -25 ("a motion to approve the deferral consent agenda ... Motion passes for
+    approval"): consent agenda and the deferrals list. They were confirmed as the consent agenda.
+  Possible later recall fix, not taken: let the consent agenda hold the deferrals list, and treat "approval of
+  (the) deferral request" as defer. Four more already-unconfirmed motions now show as plain "Motion":
+  2022-11-22-regular-motion-9, 2024-06-25-regular-motion-7 and -8, and 2026-02-24-regular-motion-2.

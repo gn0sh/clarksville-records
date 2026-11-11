@@ -39912,7 +39912,7 @@
       "printed": "10/27/2026"
     }
   ],
-  "motion_rules": "rpc-motion-invariant-4",
+  "motion_rules": "rpc-motion-invariant-5",
   "motions": [
     {
       "abstained": [],
@@ -43311,14 +43311,16 @@
       "case_id": null,
       "confirmed": false,
       "id": "2022-11-22-regular-motion-9",
-      "kind": "Motion for disapproval",
+      "kind": "Motion",
       "meeting_id": "2022-11-22-regular",
       "moved_by": "Mr. Powers",
       "nays": [],
       "outcome": "motion for disapproval passed",
       "page": 8,
       "reasons": [
+        "the mover's words name two kinds of motion",
         "a sentence of the vote is not one the reader knows",
+        "the outcome names another kind of motion",
         "the case section prints another case on this meeting's agenda"
       ],
       "seconded_by": "Mrs. Streetman",
@@ -45128,15 +45130,18 @@
       "abstained": [],
       "case": "CZ-23-2022",
       "case_id": "2023-04-25-regular-cz-23-2022",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2023-04-25-regular-motion-10",
-      "kind": "Motion to defer",
+      "kind": "Motion",
       "meeting_id": "2023-04-25-regular",
       "moved_by": "Mr. Spigner",
       "nays": [],
       "outcome": "Motion for deferral passed",
       "page": 6,
-      "reasons": [],
+      "reasons": [
+        "the mover's words name two kinds of motion",
+        "the outcome names another kind of motion"
+      ],
       "seconded_by": "Mr. Jiminez",
       "source_id": "src-691f96bf1eb2",
       "tally": null
@@ -49426,13 +49431,14 @@
       "case_id": null,
       "confirmed": false,
       "id": "2024-06-25-regular-motion-7",
-      "kind": "Motion to defer",
+      "kind": "Motion",
       "meeting_id": "2024-06-25-regular",
       "moved_by": "Commissioner Kimbrough",
       "nays": [],
       "outcome": null,
       "page": 8,
       "reasons": [
+        "the mover's words name two kinds of motion",
         "a sentence of the vote is not one the reader knows",
         "no outcome read",
         "case number not on this meeting's agenda"
@@ -49443,19 +49449,21 @@
     },
     {
       "abstained": [],
-      "case": null,
+      "case": "S-31-2024",
       "case_id": null,
       "confirmed": false,
       "id": "2024-06-25-regular-motion-8",
-      "kind": "Motion to approve the minutes",
+      "kind": "Motion",
       "meeting_id": "2024-06-25-regular",
       "moved_by": "Commissioner Kimbrough",
       "nays": [],
       "outcome": null,
       "page": 13,
       "reasons": [
+        "the mover's words name two kinds of motion",
         "a sentence of the vote is not one the reader knows",
-        "no outcome read"
+        "no outcome read",
+        "case number not on this meeting's agenda"
       ],
       "seconded_by": "Commissioner Streetman",
       "source_id": "src-4cb725f379dd",
@@ -59085,13 +59093,14 @@
       "case_id": null,
       "confirmed": false,
       "id": "2026-02-24-regular-motion-2",
-      "kind": "Motion to defer",
+      "kind": "Motion",
       "meeting_id": "2026-02-24-regular",
       "moved_by": "Stacey Streetman",
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 1,
       "reasons": [
+        "the mover's words name two kinds of motion",
         "subject not read",
         "the outcome names another kind of motion",
         "unmodelled wording: a vote word the reader does not read"
@@ -61756,15 +61765,18 @@
       "abstained": [],
       "case": "Z-6-2026",
       "case_id": "2026-05-26-regular-z-6-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-05-26-regular-motion-21",
-      "kind": "Motion to approve the consent agenda",
+      "kind": "Motion",
       "meeting_id": "2026-05-26-regular",
       "moved_by": "Stacey Streetman",
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 18,
-      "reasons": [],
+      "reasons": [
+        "the mover's words name two kinds of motion",
+        "the outcome names another kind of motion"
+      ],
       "seconded_by": "Bill Kimbrough",
       "source_id": "src-3d10232d6a67",
       "tally": null
@@ -61810,15 +61822,18 @@
       "abstained": [],
       "case": "Z-18-2026",
       "case_id": "2026-05-26-regular-z-18-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-05-26-regular-motion-24",
-      "kind": "Motion to approve the consent agenda",
+      "kind": "Motion",
       "meeting_id": "2026-05-26-regular",
       "moved_by": "Stacey Streetman",
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 21,
-      "reasons": [],
+      "reasons": [
+        "the mover's words name two kinds of motion",
+        "the outcome names another kind of motion"
+      ],
       "seconded_by": "Bill Kimbrough",
       "source_id": "src-3d10232d6a67",
       "tally": null
@@ -61827,15 +61842,18 @@
       "abstained": [],
       "case": "Z-19-2026",
       "case_id": "2026-05-26-regular-z-19-2026",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2026-05-26-regular-motion-25",
-      "kind": "Motion to approve the consent agenda",
+      "kind": "Motion",
       "meeting_id": "2026-05-26-regular",
       "moved_by": "Stacey Streetman",
       "nays": [],
       "outcome": "Motion passes for approval",
       "page": 22,
-      "reasons": [],
+      "reasons": [
+        "the mover's words name two kinds of motion",
+        "the outcome names another kind of motion"
+      ],
       "seconded_by": "Bill Kimbrough",
       "source_id": "src-3d10232d6a67",
       "tally": null
