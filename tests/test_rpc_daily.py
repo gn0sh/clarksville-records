@@ -1,0 +1,395 @@
+"""The Regional Planning Commission step of the daily run (collector/rpc.py run_step, collector/__main__.py run_rpc).
+
+Polite (robots.txt first, the crawl-delay between requests, our User-Agent), stopped by the first 403/429 with no
+further request to the host, and all or nothing on the committed files: listing.json, manifest.json, changes.jsonl
+and rpc.json change only on a complete run. No network: every request goes to a fake opener."""
+import json
+import re
+from pathlib import Path
+
+import pytest
+
+import collector.__main__ as M
+from collector import rpc, rpc_agenda
+from collector.fetch import USER_AGENT, PoliteFetcher
+from collector.store import Store
+from collector.tests.test_fetch import Clock, FakeNet
+
+ROOT = Path(__file__).resolve().parent.parent
+FIX = ROOT / "collector" / "tests" / "fixtures" / "rpc"
+CFG = rpc.load_config()
+LISTING = CFG.listing_url
+ROBOTS = "https://www.cmcrpc.com/robots.txt"
+ROBOTS_TXT = b"User-agent: *\ncrawl-delay: 10\n"
+PAGE = (FIX / "listing.html").read_text(encoding="utf-8")
+NEW_URL = "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/11/Agenda-11.24.2026.pdf"
+NEW_ROW = ('<tr class="kb-table-row">\n<td><p>11/24/2026</p></td>\n'
+           f'<td><p><a href="{NEW_URL}">Agenda</a></p></td>\n<td><p>Minutes</p></td>\n</tr>\n')
+FIRST_ROW = '<tr class="kb-table-row">\n<td class="kb-table-data"><p class="wp-block-paragraph">10/27/2026'
+AGENDA_PAGES = (FIX / "agenda_2026-10-27.txt").read_text(encoding="utf-8").split("\f")    # every PDF reads as this one
+PAGE_NEW = PAGE.replace(FIRST_ROW, NEW_ROW + FIRST_ROW)
+assert PAGE_NEW != PAGE
+
+
+def doc_urls(page: str = PAGE) -> list[str]:
+    """Every document the listing asks the collector to fetch, in listing order, once each."""
+    rows, _ = rpc.parse_listing(page, CFG)
+    return list(dict.fromkeys(d["url"] for r in rows for d in r["docs"] if d["fetch"]))
+
+
+def body_for(url: str) -> bytes:
+    return (b"PK\x03\x04 " if url.lower().endswith(".docx") else b"%PDF-1.4 ") + url.encode()
+
+
+def routes(page: str = PAGE, **override) -> dict:
+    out = {ROBOTS: (200, ROBOTS_TXT), LISTING: (200, page.encode())}
+    out.update({u: (200, body_for(u)) for u in doc_urls(page)})
+    out.update(override)
+    return out
+
+
+def fake_build(cfg, rows, store, audit_path=None):
+    """The real build with the PDF text and OCR readers replaced (no poppler, no tesseract in a unit test)."""
+    def no_ocr(pdf, sha, pages):
+        raise RuntimeError("no OCR in this test")
+    return rpc_agenda.build(cfg, rows, store, extract=lambda p: AGENDA_PAGES, ocr=no_ocr, audit_path=audit_path)
+
+
+class Site:
+    """A checkout in tmp_path: the committed files under data/, the store beside them, and a fake cmcrpc.com."""
+
+    def __init__(self, tmp_path: Path):
+        self.root = tmp_path
+        self.p = rpc.paths(CFG, tmp_path)
+        self.store_dir = tmp_path / "store"
+        self.calls: list[str] = []
+        self.slept: list[float] = []
+
+    def run(self, net_routes: dict | None = None, offline: bool = False, build=fake_build, cap=rpc.DAILY_FETCH_CAP):
+        log: dict = {}
+        fetcher = None
+        net = None
+        if not offline:
+            net, clock = FakeNet(net_routes if net_routes is not None else routes()), Clock()
+            fetcher = PoliteFetcher(opener=net, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: [])
+        store = Store(manifest_path=self.p["manifest"], root=self.store_dir)
+        code = rpc.run_step(log, offline, fetcher=fetcher, cfg=CFG, root=self.root, store=store, build=build,
+                            max_requests=cap)
+        if net is not None:
+            self.calls = [u for u, _ in net.calls]
+            self.agents = {ua for _, ua in net.calls}
+            self.slept = clock.slept
+        else:
+            self.calls = []
+        assert log["rpc"]["exit"] == code
+        return code, log["rpc"]
+
+    def committed(self) -> dict:
+        """The bytes of every file the step may commit (None when absent)."""
+        return {k: (self.p[k].read_bytes() if self.p[k].is_file() else None)
+                for k in ("listing", "manifest", "changes", "facts")}
+
+    def docs_requested(self) -> list[str]:
+        return [u for u in self.calls if u not in (ROBOTS, LISTING)]
+
+    def facts(self) -> dict:
+        return json.loads(self.p["facts"].read_text(encoding="utf-8"))
+
+    def empty_store(self, keep: int = 0) -> None:
+        for f in sorted(self.store_dir.iterdir())[keep:]:
+            f.unlink()
+
+
+@pytest.fixture
+def site(tmp_path):
+    return Site(tmp_path)
+
+
+@pytest.fixture
+def seeded(site):
+    """A checkout whose last run was complete: the committed files and a full store."""
+    code, _ = site.run()
+    assert code == rpc.STEP_OK
+    return site
+
+
+# ------------------------------------------------------------------ a complete run
+def test_complete_run_is_polite_and_writes_every_file(site):
+    code, out = site.run()
+    assert code == rpc.STEP_OK and out["changed"] is True
+    assert site.calls[:2] == [ROBOTS, LISTING]                       # robots.txt before anything else
+    assert site.docs_requested() == doc_urls()                       # each listed document once, none built
+    assert all(u.startswith("https://www.cmcrpc.com/") for u in site.calls)      # Drive and YouTube never requested
+    assert site.agents == {USER_AGENT}
+    assert len(site.slept) == len(site.calls) - 1 and min(site.slept) >= 9.99    # the crawl-delay, every request
+    facts = site.facts()
+    assert facts["motion_rules"] and len(facts["meetings"]) == 11
+    assert sum(1 for m in facts["meetings"] for d in m["documents"] if d["source_id"]) >= len(doc_urls())
+    assert all(v is not None for k, v in site.committed().items() if k != "changes")
+    assert json.loads((site.root / "build" / "rpc-report.json").read_text())["exit"] == 0
+
+
+def test_second_run_asks_for_the_listing_only_and_changes_nothing(seeded):
+    before = seeded.committed()
+    code, out = seeded.run()
+    assert code == rpc.STEP_OK and out["changed"] is False
+    assert seeded.calls == [ROBOTS, LISTING]
+    assert seeded.committed() == before
+
+
+def test_a_newly_listed_document_is_fetched_and_shown(seeded):
+    code, _ = seeded.run(routes(PAGE_NEW))
+    assert code == rpc.STEP_OK
+    assert seeded.docs_requested() == [NEW_URL]
+    m = {m["id"]: m for m in seeded.facts()["meetings"]}["2026-11-24-regular"]
+    assert m["documents"][0]["url"] == NEW_URL and m["documents"][0]["source_id"]
+    assert NEW_URL in {e["url"] for e in json.loads(seeded.p["manifest"].read_text())}
+
+
+# ------------------------------------------------------------------ a block: stop, keep nothing
+@pytest.mark.parametrize("status", [403, 429])
+def test_block_on_a_new_document_stops_and_leaves_the_committed_files(seeded, status):
+    before = seeded.committed()
+    code, out = seeded.run(routes(PAGE_NEW, **{NEW_URL: (status, b"slow down")}))
+    assert code == rpc.STEP_FETCH and "HostBlocked" in out["status"]
+    assert seeded.calls == [ROBOTS, LISTING, NEW_URL]                # asked once, never again
+    assert seeded.committed() == before                              # not even the new listing row is kept
+
+
+@pytest.mark.parametrize("status", [403, 429])
+def test_block_part_way_through_a_cold_store_makes_no_further_request(seeded, status):
+    before = seeded.committed()
+    seeded.empty_store()
+    urls = doc_urls()
+    code, out = seeded.run(routes(**{urls[3]: (status, b"")}))
+    assert code == rpc.STEP_FETCH
+    assert seeded.docs_requested() == urls[:4]                       # the fourth answered the block: nothing after it
+    assert out["fetch"]["fetched"]["not_tried"] == len(urls) - 4
+    assert seeded.committed() == before
+    # the next run (the next day) goes on from the bytes already stored: no document is asked for twice
+    code, _ = seeded.run()
+    assert code == rpc.STEP_OK and seeded.docs_requested() == urls[3:]
+    assert seeded.committed() == before
+
+
+@pytest.mark.parametrize("blocked", [ROBOTS, LISTING])
+@pytest.mark.parametrize("status", [403, 429])
+def test_block_before_any_document_writes_nothing(site, blocked, status):
+    code, out = site.run(routes(**{blocked: (status, b"")}))
+    assert code == rpc.STEP_FETCH and "nothing changed" in out["status"]
+    assert site.calls == ([ROBOTS] if blocked == ROBOTS else [ROBOTS, LISTING])
+    assert site.committed() == {"listing": None, "manifest": None, "changes": None, "facts": None}
+
+
+def test_robots_disallow_is_obeyed(seeded):
+    before = seeded.committed()
+    code, out = seeded.run(routes(**{ROBOTS: (200, b"User-agent: *\nDisallow: /\n")}))
+    assert code == rpc.STEP_FETCH and "RobotsDisallowed" in out["status"]
+    assert seeded.calls == [ROBOTS]
+    assert seeded.committed() == before
+
+
+def test_listing_page_that_changed_fails_and_keeps_the_record(seeded):
+    before = seeded.committed()
+    code, out = seeded.run(routes(**{LISTING: (200, b"<html><body>We moved</body></html>")}))
+    assert code == rpc.STEP_FETCH and "ListingError" in out["status"]
+    assert seeded.committed() == before
+
+
+# ------------------------------------------------------------------ a cold store: a few documents per run
+def test_cold_store_is_filled_a_few_documents_per_run(seeded):
+    before = seeded.committed()
+    seeded.empty_store()
+    urls = doc_urls()
+    asked: list[str] = []
+    codes = []
+    for _ in range(len(urls)):
+        code, out = seeded.run(cap=4)
+        codes.append(code)
+        assert len(seeded.docs_requested()) <= 4
+        asked += seeded.docs_requested()
+        assert seeded.committed() == before                          # nothing is committed until the store is whole
+        if code == rpc.STEP_OK:
+            break
+        assert code == rpc.STEP_FILLING and "filling the store" in out["status"]
+    assert codes[-1] == rpc.STEP_OK and codes[:-1] == [rpc.STEP_FILLING] * (len(codes) - 1) and len(codes) > 1
+    assert asked == urls                                             # every document once over all the runs
+
+
+def test_more_new_documents_than_the_cap_requests_none(site):
+    code, out = site.run(cap=3)
+    assert code == rpc.STEP_FETCH and "TooManyNew" in out["status"]
+    assert site.calls == [ROBOTS, LISTING]
+    assert site.committed() == {"listing": None, "manifest": None, "changes": None, "facts": None}
+
+
+# ------------------------------------------------------------------ never a smaller or half-read record
+def test_one_failed_new_document_is_listed_with_no_source(seeded):
+    code, _ = seeded.run(routes(PAGE_NEW, **{NEW_URL: (404, b"")}))
+    assert code == rpc.STEP_OK
+    m = {m["id"]: m for m in seeded.facts()["meetings"]}["2026-11-24-regular"]
+    assert m["documents"][0]["fetched"] is False and m["documents"][0]["source_id"] is None
+    assert len(seeded.facts()["meetings"]) == 12
+
+
+def test_a_stored_document_that_cannot_be_fetched_again_refuses_the_result(seeded):
+    before = seeded.committed()
+    seeded.empty_store()
+    urls = doc_urls()
+    code, out = seeded.run(routes(**{urls[0]: (404, b"")}))
+    assert code == rpc.STEP_REFUSED and "not in the store" in out["status"]
+    assert seeded.committed() == before
+
+
+def test_a_result_that_drops_a_meeting_is_refused(seeded):
+    before = seeded.committed()
+    code, out = seeded.run(routes(PAGE.replace("10/27/2026", "10/28/2026")))     # the id of a meeting changes
+    assert code == rpc.STEP_REFUSED and "would drop 1 of the 11" in out["status"]
+    assert seeded.committed() == before
+
+
+def test_a_document_that_is_no_longer_read_is_refused(seeded):
+    old = seeded.facts()
+    read = next(m for m in old["meetings"] if m["agenda_read_by"])
+    new = json.loads(json.dumps(old))
+    next(m for m in new["meetings"] if m["id"] == read["id"])["agenda_read_by"] = None
+    assert "the agenda was read" in rpc.shrink_reason(old, new)
+    lost = json.loads(json.dumps(old))
+    for d in next(m for m in lost["meetings"] if m["id"] == read["id"])["documents"]:
+        d["source_id"] = None
+    assert "had a source" in rpc.shrink_reason(old, lost)
+    moved = json.loads(json.dumps(old))                 # the same agenda posted again under another link: no loss
+    next(m for m in moved["meetings"] if m["id"] == read["id"])["documents"][0]["url"] += "?v=2"
+    assert rpc.shrink_reason(old, moved) is None and rpc.shrink_reason(old, old) is None
+
+
+def test_case_shortfall_is_a_gate_and_keeps_the_record(seeded):
+    before = seeded.committed()
+
+    def short(cfg, rows, store, audit_path=None):
+        facts, summary = fake_build(cfg, rows, store)
+        return facts, {**summary, "case_shortfalls": ["2026-11-24-regular"]}
+    code, out = seeded.run(routes(PAGE_NEW), build=short)
+    assert code == rpc.STEP_GATE and "2026-11-24-regular" in out["status"]
+    assert seeded.committed() == before
+
+
+def test_an_unexpected_error_never_raises_and_keeps_the_record(seeded):
+    before = seeded.committed()
+
+    def boom(cfg, rows, store, audit_path=None):
+        raise ValueError("parser bug")
+    code, out = seeded.run(routes(PAGE_NEW), build=boom)
+    assert code == rpc.STEP_ERROR and "ValueError: parser bug" in out["status"]
+    assert seeded.committed() == before
+
+
+# ------------------------------------------------------------------ offline
+def test_offline_with_a_partial_store_keeps_the_record_and_is_not_a_failure(seeded):
+    before = seeded.committed()
+    seeded.empty_store(keep=2)
+    code, out = seeded.run(offline=True)
+    assert code == rpc.STEP_OK and out["kept"] is True and "not in the store" in out["status"]
+    assert seeded.calls == [] and seeded.committed() == before
+
+
+def test_offline_with_the_whole_store_rebuilds_without_a_request(seeded):
+    before = seeded.committed()
+    seeded.p["facts"].write_text(json.dumps({**seeded.facts(), "motion_rules": None}), encoding="utf-8")
+    code, out = seeded.run(offline=True)
+    assert code == rpc.STEP_OK and out["changed"] is True
+    assert seeded.calls == [] and seeded.committed() == before
+
+
+def test_offline_in_a_fresh_checkout_does_nothing(site):
+    code, out = site.run(offline=True)
+    assert code == rpc.STEP_OK and out["kept"] is True
+    assert site.committed() == {"listing": None, "manifest": None, "changes": None, "facts": None}
+
+
+def test_the_real_checkout_step_is_offline_safe(tmp_path, monkeypatch):
+    """`collector run --offline` in a checkout with no RPC store bytes: the committed RPC files are not touched."""
+    monkeypatch.setenv("RECORDS_STORE", str(tmp_path / "empty-store"))
+    p = rpc.paths(CFG)
+    before = {k: p[k].read_bytes() for k in ("listing", "manifest", "facts")}
+    monkeypatch.setattr(rpc, "write_json", lambda path, obj: False)      # no report into the real build/
+    log: dict = {}
+    assert rpc.run_step(log, True) == rpc.STEP_OK and log["rpc"]["kept"] is True
+    assert {k: p[k].read_bytes() for k in before} == before
+
+
+# ------------------------------------------------------------------ `collector run`: the step's own exit code
+@pytest.fixture
+def county_run(tmp_path, monkeypatch):
+    """`collector run --offline` with every other step replaced, so only the exit-code rule is under test."""
+    import collector.export
+    import sitegen.build
+    report = {"gates": {"roll_calls": 1, "verified": 1, "verified_rate": 1.0, "held_back": 0,
+                        "held_back_source_error": 0, "verified_rate_gate": {"min": 0.9, "pass": True},
+                        "g4": {"status": "pass", "uniform_share": 0.0, "flagged": []}}, "pass": True}
+    state = {"fail": False, "rpc": 0, "order": [], "rpc_args": None}
+
+    class B:
+        unresolved = {}
+
+    def build(store, log, use_ocr=True):
+        log["parsed"] = 1
+        if state["fail"]:
+            log["failures"].append({"stage": "parse", "error": "boom"})
+        return {"meetings": [{"id": "m"}]}, report, B()
+
+    def run_rpc(log, offline, fetcher=None):
+        state["order"].append("rpc")
+        state["rpc_args"] = (offline, fetcher)
+        log["rpc"] = {"exit": state["rpc"], "status": "stopped, nothing changed: HostBlocked: HTTP 429"}
+        return state["rpc"]
+    for name, value in (("FACTS", tmp_path / "facts.json"), ("BUILD", tmp_path / "build"),
+                        ("MANIFEST", tmp_path / "manifest.json"), ("FINANCE", tmp_path / "finance.json"),
+                        ("cmd_build", build), ("run_finance", lambda store, log, offline, **kw: 0),
+                        ("run_agendas", lambda log, offline, fetcher=None: state["order"].append("agendas")),
+                        ("run_rpc", run_rpc), ("shrink_reason", lambda facts, log, path: None),
+                        ("name_candidates", lambda b, roster: {}), ("load_seat_rows", lambda: None)):
+        monkeypatch.setattr(M, name, value)
+    monkeypatch.setattr(sitegen.build, "build", lambda *a, **k: state["order"].append("site"))
+    monkeypatch.setattr(sitegen.build, "write_publish_manifest", lambda *a, **k: None)
+    monkeypatch.setattr(collector.export, "export_site", lambda *a, **k: [])
+    return state
+
+
+@pytest.mark.parametrize("rpc_code,county_fails,code", [
+    (0, False, 0),
+    (rpc.STEP_FETCH, False, M.RPC_FAILED), (rpc.STEP_GATE, False, M.RPC_FAILED),
+    (rpc.STEP_REFUSED, False, M.RPC_FAILED), (rpc.STEP_ERROR, False, M.RPC_FAILED),
+    (rpc.STEP_FILLING, False, M.RPC_FILLING),
+    (rpc.STEP_FETCH, True, 2), (rpc.STEP_FILLING, True, 2),          # the county's own failure keeps its code
+])
+def test_run_reports_the_rpc_step_with_its_own_code(county_run, capsys, tmp_path, rpc_code, county_fails, code):
+    county_run["rpc"], county_run["fail"] = rpc_code, county_fails
+    assert M.main(["run", "--offline"]) == code
+    out = capsys.readouterr().out
+    assert ("gh issue create" in out) == (code not in (0, M.RPC_FILLING))
+    if code == M.RPC_FAILED:
+        assert "Collector RPC step failed" in out and "HostBlocked" in out
+    assert county_run["order"] == ["agendas", "rpc", "site"]         # before the site build, which reads rpc.json
+    assert county_run["rpc_args"] == (True, None)                    # offline: no fetcher, no request
+    assert json.loads((tmp_path / "build" / "run-log.json").read_text())["rpc"]["exit"] == rpc_code
+    assert (M.RPC_FAILED, M.RPC_FILLING) == (5, 6) and not {5, 6} & {0, 2, 3, M.REFUSED}
+
+
+def test_run_rpc_shares_the_runs_fetcher(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(rpc, "run_step", lambda log, offline, fetcher=None: seen.update(a=(offline, fetcher)) or 0)
+    f = object()
+    assert M.run_rpc({}, False, fetcher=f) == 0 and seen["a"] == (False, f)
+
+
+# ------------------------------------------------------------------ the workflow's Collect step
+def test_workflow_collect_step_treats_only_filling_as_a_warning():
+    text = (ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding="utf-8")
+    step = text.split("- name: Collect (polite fetch, parse, verify)")[1].split("\n      - name:")[0]
+    lines = [ln.strip() for ln in step.splitlines() if ln.strip() and not ln.strip().startswith("#")]
+    assert "python -m collector run; county=$?" in lines
+    assert 'if [ "$county" = 6 ]; then' in lines and "county=0" in lines
+    assert lines[-1] == '[ "$city" = 0 ] && [ "$county" = 0 ]'       # 5 (and 2, 3, 4) still fail the step
+    assert not re.search(r"county\"? = 5", step) and "cmcrpc.com" not in " ".join(lines)   # no fetch outside the collector
+    assert f"at most {rpc.DAILY_FETCH_CAP} documents per run" in step

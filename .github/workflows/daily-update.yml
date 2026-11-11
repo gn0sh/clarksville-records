@@ -89,11 +89,23 @@ jobs:
           # the site (build/site) from everything; it also reads the County Commission agenda page and any new agenda
           # PDFs (collector/county_agenda.py: one page request, new PDFs only, the same polite fetcher).
           # Exit 0 ok, 2 fetch/parse failures, 3 gate failure.
+          # The county run also runs the Regional Planning Commission step (collector/rpc.py run_step: the listing
+          # page and new documents from www.cmcrpc.com through the same polite fetcher; robots.txt crawl-delay 10; the
+          # first 403/429 ends that host's requests for the run). It is all or nothing: unless it succeeds, the RPC
+          # files stay exactly as committed. Its codes, used only when everything else is ok:
+          #   5 the RPC step failed (blocked, listing not read, a gate, or a result that would shrink the record):
+          #     this step fails, like any collection failure.
+          #   6 the RPC document store is still being filled (at most 40 documents per run): not a failure. The run
+          #     goes on with the committed RPC files and a warning.
           python -m collector city run; city=$?
           python -m collector run; county=$?
           echo "city_exit=$city county_exit=$county"
           echo "city=$city" >> "$GITHUB_OUTPUT"
           echo "county=$county" >> "$GITHUB_OUTPUT"
+          if [ "$county" = 6 ]; then
+            echo "::warning::The RPC document store is still being filled; the RPC pages use the committed data."
+            county=0
+          fi
           [ "$city" = 0 ] && [ "$county" = 0 ]
 
       # Only for a manual rebuild-only run (collect=false): build from the committed data, no network.

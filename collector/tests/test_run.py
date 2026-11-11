@@ -209,6 +209,7 @@ def sandbox(tmp_path, monkeypatch):
     state["agenda_calls"] = []
     monkeypatch.setattr(M, "run_agendas",
                         lambda log, offline, fetcher=None: state["agenda_calls"].append((offline, fetcher)))
+    monkeypatch.setattr(M, "run_rpc", lambda log, offline, fetcher=None: 0)   # the RPC step: tests/test_rpc_daily.py
     return state
 
 
