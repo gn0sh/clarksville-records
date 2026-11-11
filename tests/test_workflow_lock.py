@@ -1,5 +1,6 @@
 """The daily-update workflow ships locked: its deploy job runs only when RECORDS_DEPLOY_ENABLED is 'true' (CEO hard
 stop 1), nothing else may publish, and no secrets are used."""
+import json
 import itertools
 import os
 import re
@@ -386,7 +387,6 @@ def _rpc_issue_step():
 @pytest.mark.skipif(not shutil.which("jq"), reason="jq not installed")
 def test_rpc_issue_strips_backticks_so_site_text_stays_in_the_fence(tmp_path):
     """ci/issue-markdown-fence: a status holding ``` (text from the site) cannot close the code fence."""
-    import json
     status = "stopped: FetchFailed ```\n# injected heading\n``` https://www.cmcrpc.com/x.pdf"
     _, body = _run_issue_step(tmp_path, _rpc_issue_step(), run_log=json.dumps({"rpc": {"status": status}}))
     assert body.count("```") == 2                                      # only the step's own fence
@@ -746,7 +746,7 @@ def _pr_check(tmp_path, ops, pulls, gh_fail=False, baseline="BASE"):
     assert _git(work, "rev-parse", "--is-shallow-repository") == "true"
     resolved = {shas[k]: [{**p, "merge_commit_sha": shas.get(p["merge_commit_sha"], p["merge_commit_sha"])}
                           for p in v] for k, v in pulls.items()}
-    (tmp_path / "pulls.json").write_text(__import__("json").dumps(resolved))
+    (tmp_path / "pulls.json").write_text(json.dumps(resolved))
     bindir.mkdir()
     (bindir / "gh").write_text(_PULLS_STUB)
     (bindir / "gh").chmod(0o755)
@@ -855,7 +855,6 @@ def test_the_pr_check_fails_closed_when_github_cannot_be_read(tmp_path):
 def test_the_pr_check_jq_filter_with_real_jq():
     """The --jq expression gh evaluates (gojq), run through jq where it is installed: counts only a merged PR into
     main whose merge commit is this commit."""
-    import json
     _need_jq()
     sha = "a" * 40
     for prs, want in (([_pr(sha)], "1"), ([_pr(sha, merged=False)], "0"), ([_pr(sha, base="dev")], "0"),
@@ -925,7 +924,6 @@ def test_protect_main_creates_once_and_updates_after(tmp_path, existing):
 
 
 def test_protect_main_scripts_share_one_ruleset_body():
-    import json
     body = json.loads((ROOT / "scripts" / "main-ruleset.json").read_text(encoding="utf-8"))
     assert body["name"] == "main: pull request required" and body["enforcement"] == "active"
     assert body["bypass_actors"] == [{"actor_id": 15368, "actor_type": "Integration", "bypass_mode": "always"}]
