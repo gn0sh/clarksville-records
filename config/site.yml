@@ -214,12 +214,13 @@ swap_source: "https://montgomerytn.gov/storage/departments/election/Elected%20Of
 
 # Item type rule (design 5.4), mechanical and the same for every item; rendered on the About page. An item matches a
 # type when its number starts with one of the prefixes, or its verbatim title contains one of the words (any case).
-# AB- is not mapped: its meaning is still to be confirmed from the agendas (design Q4).
+# AB- is not mapped: its meaning is still to be confirmed from the agendas (design Q4). "ORDINANCE " and "RESOLUTION "
+# (with the space) are the kind words the City Council's minutes print in front of an item's number.
 item_types:
   - {key: rezoning, label: Rezoning, prefixes: ["CZ-", "CZO-"], words: ["rezone", "rezoning", "zoning"]}
   - {key: budget, label: Budget and finance, prefixes: [], words: ["budget", "appropriat"]}
-  - {key: resolution, label: Resolution, prefixes: [], words: ["resolution"]}
-  - {key: ordinance, label: Ordinance, prefixes: [], words: ["ordinance"]}
+  - {key: resolution, label: Resolution, prefixes: ["RESOLUTION "], words: ["resolution"]}
+  - {key: ordinance, label: Ordinance, prefixes: ["ORDINANCE "], words: ["ordinance"]}
   - {key: appointment, label: Appointment, prefixes: [], words: ["appoint", "nominat"]}
 
 # Day by day (Daylight M2, sitegen/days.py, today.html): the week strip and day cards. The build writes every day from
