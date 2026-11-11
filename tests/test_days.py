@@ -247,6 +247,16 @@ def test_scheduled_skips_rows_without_a_date_or_kind(tmp_path):
     assert [d for d, _ in got] == ["2026-11-12"]
 
 
+def test_scheduled_never_shows_a_row_listed_from_another_category(tmp_path):
+    """D1: a "General" event is the council's only once page 1 of its stored file prints the council heading; a
+    future one has no file yet, so it is not shown as a council meeting (a "One Time Event" may be any board's)."""
+    rows = [{"date": "2026-11-12", "kind": "other", "title": "One Time Event", "listed_as": "General / One Time Event",
+             "page1_required": "City Council - Special Session"},
+            {"date": "2026-11-13", "kind": "regular", "title": "Regular Session"}]
+    got = days.scheduled_cards(_sched(tmp_path, rows), date(2026, 11, 1), date(2026, 12, 12), date(2026, 11, 10))
+    assert [d for d, _ in got] == ["2026-11-13"]
+
+
 def test_rpc_cards_list_each_case_as_printed_with_its_agenda_page(tmp_path):
     from test_rpc_pages import AGENDA, rpc_facts
     (tmp_path / "rpc.json").write_text(json.dumps(rpc_facts(tmp_path)), encoding="utf-8")
