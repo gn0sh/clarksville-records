@@ -175,6 +175,8 @@ def preview(day: dict, feeds: list[dict], cfg: dict | None = None) -> dict:
         entries.append({**e, "href": e.get("href") or "",
                         "lists_attr": " ".join(e.get("lists") or []), "seat_body": e.get("seat_body"),
                         "vote_on": e.get("vote_on"),
+                        "watch": e["watch"] if (e.get("watch") or {}).get("url") and config.https_link(
+                            e["watch"]["url"]) else None,
                         "district": e.get("district"), "ward": e.get("ward"),
                         "source": {"url": url, "page": src.get("page") if url else None}})
     return {"day": day, "entries": entries, "lede": lede, "backfill": day.get("backfill") is True,

@@ -69,6 +69,11 @@ every body's sources on or before the note's day (`morning.as_of`), the America/
 (docs/architecture/local-dates.md). Beside it, `data_as_of_utc` (bool, additive) is `true` when some
 source has no manifest row, so the day is a stored UTC day instead (a fixture build).
 T1 additions (additive; T3 and the sender may rely on them):
+- every entry carries `watch` (2026-11-11, sitegen/watch.py): `{url, link, label, ext}` for an entry about a meeting
+  of a body with a config/site.yml `video:` entry (a council meeting's own recording when exactly one meeting of that
+  body that day carries a video_url `transcripts.video_ok` allows, else the body's official video page), else `null`
+  (no such body entry, or no meeting: a solicitation). The preview page shows it; the mail render does not yet (its
+  `link_hosts` would need the video hosts first);
 - every entry carries `seat_body`: `"district"` (county entries), `"ward"` (council entries) or `null`; `select()`'s
   `seats` rule is "`seat_body` is district and a district is stored, or ward and a ward is stored";
 - a `vote` entry also carries `confirmed` (bool), `outcome` and `tally` (both `null` unless confirmed; RPC: the minutes'

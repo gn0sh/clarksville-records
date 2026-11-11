@@ -1,11 +1,13 @@
 {% extends "base.html.j2" %}
 {% from "_rpc.html.j2" import rpc_docs %}
+{% from "_macros.html.j2" import watch_link %}
 {# The Regional Planning Commission's home (sitegen/rpc.py home): every listed meeting, newest first, by year, with its
    documents. Each meeting's agenda cases are on its year page. #}
 {% block main %}
 <h1>{{ body }}</h1>
 <p class="lede">Meetings, agendas and minutes listed on the commission's own page, <span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>: {{ n_meetings }} meetings, {{ n_docs }} documents collected{% if fetched_to %} (latest fetched {{ fetched_to }}){% endif %}, {{ n_cases }} case items read from the agendas.{% if n_link_only %} {{ n_link_only }} documents are linked on another host and were not collected.{% endif %}</p>
 <p class="muted">Case items are shown as each agenda prints them, with a link to the agenda page. {{ n_motions }} motions are read from the minutes ({{ n_motions_confirmed }} confirmed): who moved and seconded each, who voted nay or abstained, and the outcome, as printed. Scanned agendas and minutes are read by OCR (text recognition), which can misread; the PDF page is the record.</p>
+{% if watch %}<p class="watch-line">{{ watch_link(watch) }}</p>{% endif %}
 <nav aria-label="Meetings by year" class="year-nav">
   <ul class="inline-list">
     {% for y in years %}<li><a href="{{ y.href }}">{{ y.year }}</a></li>{% endfor %}

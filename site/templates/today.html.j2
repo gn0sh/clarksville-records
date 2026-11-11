@@ -1,5 +1,5 @@
 {% extends "base.html.j2" %}
-{% from "_macros.html.j2" import item_link, item_title, not_confirmed, nc_mark, vote_grid, clamp %}
+{% from "_macros.html.j2" import item_link, item_title, not_confirmed, nc_mark, vote_grid, clamp, watch_link %}
 {% from "_rpc.html.j2" import rpc_docs %}
 {# Day by day (Daylight M2, sitegen/days.py). Every day of the window is a section (#d-<date>). static/days.js shows
    the week strip and one day at a time; without it the page is a list of the days that have records (empty days are
@@ -13,8 +13,8 @@
     {% if c.title %}<p class="day-card-kind">{{ c.title }}{% if c.state == "scheduled" %} <span class="chip chip-status">Scheduled</span>{% endif %}{% if c.get("agenda_only") %} <span class="chip chip-status">Agenda</span>{% endif %}{% if c.cancelled %} <span class="chip chip-status">Cancelled</span>{% endif %}</p>{% elif c.cancelled %}<p class="day-card-kind"><span class="chip chip-status">Cancelled</span></p>{% endif %}
   </header>
   {% if c.kind == "rpc" %}{{ rpc_docs(c.rpc) }}{% endif %}
-  {% if c.docs or c.video or c.href or c.minutes_note %}
-  <p class="day-docs">{% for d in c.docs %}{{ d.word }}: <a href="{{ d.url }}" target="_blank" rel="noopener noreferrer">{{ d.what }}<span class="sr-only"> (opens in a new tab)</span></a>. {% endfor %}{% if c.minutes_note %}{{ c.minutes_note }} {% endif %}{% if c.video %}<a data-ext="video" href="{{ c.video }}" target="_blank" rel="noopener noreferrer">Video<span class="sr-only"> of this meeting (opens in a new tab)</span></a>. {% endif %}{% if c.href %}<a href="{{ root }}{{ c.href }}">{% if c.kind == "bids" %}All bids and awards{% else %}Meeting page{% endif %}</a>{% endif %}</p>
+  {% if c.docs or c.watch or c.href or c.minutes_note %}
+  <p class="day-docs">{% for d in c.docs %}{{ d.word }}: <a href="{{ d.url }}" target="_blank" rel="noopener noreferrer">{{ d.what }}<span class="sr-only"> (opens in a new tab)</span></a>. {% endfor %}{% if c.minutes_note %}{{ c.minutes_note }} {% endif %}{% if c.watch %}{{ watch_link(c.watch) }} {% endif %}{% if c.href %}<a href="{{ root }}{{ c.href }}">{% if c.kind == "bids" %}All bids and awards{% else %}Meeting page{% endif %}</a>{% endif %}</p>
   {% endif %}
 
   {% if c.state == "votes" %}

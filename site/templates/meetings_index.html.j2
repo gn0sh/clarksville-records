@@ -1,7 +1,9 @@
 {% extends "base.html.j2" %}
+{% from "_macros.html.j2" import watch_link %}
 {% block main %}
 <h1>Meetings</h1>
 <p class="lede">{{ coverage.body }}, {{ coverage.from }} to {{ coverage.to }}. Newest first. Each meeting page shows attendance, motions and roll calls.</p>
+{% if watch %}<p class="watch-line">{{ watch_link(watch) }}</p>{% endif %}
 {% if agenda_only %}
 <section aria-labelledby="agenda-only-h">
 <h2 id="agenda-only-h">Agendas without minutes yet</h2>

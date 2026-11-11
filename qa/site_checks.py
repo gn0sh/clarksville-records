@@ -109,11 +109,12 @@ NARROW = 360  # AC-F10: the Bids and awards pages are also checked at 360 px
 # External links that are not minutes PDFs but are allowed: a holder record's roster source, the map's boundary source,
 # the county redistricting page / old-lines map, and the footer support link. Each must be marked data-ext and https.
 EXT_KINDS = {"roster", "map", "county", "support", "lookup", "geocoder", "corrections", "video", "operator", "record",
-             "listed", "school", "committee", "provider", "body"}   # listed: an RPC document on a host we do not collect from (Google Drive), linked as listed
+             "listed", "school", "committee", "watch", "provider", "body"}   # listed: an RPC document on a host we do not collect from (Google Drive), linked as listed
 # body: About's link to each body's own official site (config/site.yml unofficial.bodies)
 # provider: the morning note provider's privacy policy (config morning_note.privacy_url), only while it is enabled
 # school: the day page's one plain link to the school board's site (config/site.yml school_board.url; never fetched)
 # committee: the committees' "coming" links to their official source pages (config/site.yml committees.links)
+# watch: a body's official meeting video page (config/site.yml video.<body>.url; never fetched)
 # the data-transcript attribute itself, not data-transcript-foo
 TRANSCRIPT_TEXT = re.compile(r"(<(span|p)\b[^>]*\sdata-transcript(?=[\s=/>])[^>]*>)[^<]*(</\2>)")
 VIDEO_HREF = re.compile(r"(https://[^#\s]+)(?:#t=(\d+))?")
@@ -547,6 +548,8 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
         out.add(cfg["school_board"]["url"])          # the day page's "coming" school board link
     out |= {x["url"] for x in (cfg.get("committees") or {}).get("links") or []   # the committees' "coming" links
             if isinstance(x, dict) and x.get("url")}
+    out |= {v["url"] for v in (cfg.get("video") or {}).values()   # the "Watch" links (sitegen/watch.py)
+            if isinstance(v, dict) and isinstance(v.get("url"), str) and v["url"].startswith("https://")}
     out |= corrections_log_urls(corrections_path)    # the corrections page's "Source" links
     if cfg.get("operator_url"):
         out.add(cfg["operator_url"])                 # the footer's "gnoshcodes LLC" link

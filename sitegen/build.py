@@ -17,7 +17,7 @@ from . import rpc as rpc_mod
 from . import morning_page
 from . import budget_views, config, council as council_mod, days as days_mod, feeds as feeds_mod, fin_views, \
     georef as georef_mod, localdates, morning as morning_mod, unofficial as unofficial_mod, \
-    transcripts as transcripts_mod, \
+    transcripts as transcripts_mod, watch as watch_mod, \
     seats as seats_mod, views
 
 
@@ -321,7 +321,7 @@ def site_url_problems(cfg: dict) -> list[str]:
             out += [f"{k} must be set when {link} is" for k in needs
                     if not isinstance(cfg.get(k), str) or not cfg[k].strip()]
     return (out + corrections_problems(cfg) + feeds_mod.problems(cfg) + morning_mod.problems(cfg)
-            + unofficial_mod.problems(cfg))
+            + unofficial_mod.problems(cfg) + watch_mod.problems(cfg))
 
 
 # config/site.yml `corrections:` (views.corrections_context): a GitHub owner/name and a plain e-mail address. Both go
@@ -588,6 +588,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
            home_feeds=body_feeds)
     render("officials.html.j2", "officials.html", "Officials", **views.officials_page(ix))
     render("meetings_index.html.j2", "meetings.html", "Meetings", **views.meetings_page(ix),
+           watch=watch_mod.body(config.SITE["county_key"]),
            agenda_only=ax.list_entries() if ax else [], agendas_href=agendas_mod.PAGE,
            agenda_list_lede=config.COUNTY_AGENDAS_TEXT["list_lede"])
     if ax and ax.meetings:
@@ -661,14 +662,15 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         render("official_roster.html.j2", f"officials/{oid}.html", ctx["official"]["name"], **ctx)
     for m in facts["meetings"]:
         ctx = views.meeting(m["id"], ix)
-        render("meeting.html.j2", f"meetings/{m['id']}.html", f"Meeting {m['date']}", m=ctx, **ctx)
+        render("meeting.html.j2", f"meetings/{m['id']}.html", f"Meeting {m['date']}", m=ctx, **ctx,
+               watch=watch_mod.meeting(config.SITE["county_key"], m.get("video_url")))
     render_year_pages()   # county items; each council's meetings and items (in parts when too big)
     render_transcript_pages()
     for c in cixs:  # council pages (council.py): home, one page per member and per year of their history
         cs = council_mod.site_for(site, c)
         render("council_home.html.j2", c.home_href(), c.page_name(), cs, council=c.nav_label,
                council_href=c.home_href(), **council_mod.home(c),
-               home_feeds=[f for f in body_feeds if f["key"] == c.body_key])
+               home_feeds=[f for f in body_feeds if f["key"] == c.body_key], watch=watch_mod.body(c.body_key))
         for o in c.facts["officials"]:
             ctx = council_mod.member(o["id"], c)
             groups = [g for g in ctx["row_groups"] if g["year"]]
@@ -695,7 +697,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                 rel, (name, s), kw = year_page(run, ctx)
                 render("official_year.html.j2", rel, name, s, **kw)
     if rpx is not None:   # Regional Planning Commission (sitegen/rpc.py): home and one page per year of meetings
-        render("rpc_home.html.j2", rpx.home_href(), rpx.page_name(), **rpx.home())
+        render("rpc_home.html.j2", rpx.home_href(), rpx.page_name(), **rpx.home(), watch=watch_mod.body(rpx.body_key))
         for y in rpx.years():
             render("rpc_meetings_year.html.j2", rpx.year_href(y), rpx.page_name(f"Meetings {y}"),
                    rpc_href=rpx.home_href(), rpc_label=rpx.nav_label, **rpx.meetings_year(y))

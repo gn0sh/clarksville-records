@@ -259,6 +259,19 @@ school_board:
     planned: ["Board meeting agendas", "Board meeting minutes and recorded votes"]
     link_lede: "Until then, the official source is the school system website:"
 
+# Official meeting video, per body key (county_key above; a council's and the RPC's body_key), Brian 2026-11-11
+# (sitegen/watch.py): one plain "Watch" link to the page where the body itself posts its meeting video. A link only:
+# nothing is ever fetched from it. A body with no official stream has no entry, and no link is ever guessed. `host`
+# fills {host} in video_label. A council meeting whose own recording the facts carry links that instead
+# (video_recording).
+video:
+  county: {url: "https://www.youtube.com/channel/UColCy-INQM4uZSqrJCeHTGg", host: YouTube}
+  city: {url: "https://clarksvilletn.portal.civicclerk.com/", host: "the city's CivicClerk portal"}
+  rpc: {url: "https://www.youtube.com/@CMCRPC", host: YouTube}
+video_link: Watch
+video_label: "Official video (opens {host})"
+video_recording: "Official video (opens the meeting's MP4 recording)"
+
 # The city and county committees on the day page and in the menu: a "coming" placeholder with plain links to the
 # official source pages (docs/research/committee-sources-2026-11-11.md), no collection yet. Every word of the page is
 # here: no dates, no numbers, no names of officials. Leave the block out to show no placeholder.

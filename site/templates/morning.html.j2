@@ -1,5 +1,6 @@
 {% extends "base.html.j2" %}
 {% from "_morning.html.j2" import picker %}
+{% from "_macros.html.j2" import watch_link %}
 {% block main %}
 {# Morning note preview (Daylight M3, sitegen/morning_page.py): one day of the digest (morning/latest.json), every
    list, rendered here; static/morning.js filters it on this device by the #lists= picks and the seats static/seats.js
@@ -18,6 +19,7 @@
       <p class="mn-meta"><span class="chip chip-kind">{{ e.recorded }}</span> {{ e.body_name }}{% if e.meeting_date %}, <span class="nowrap">{{ e.meeting_date }}</span>{% endif %}{% if e.vote_on %}, <span class="nowrap mn-vote-on">{{ text.vote_on_label }}: {{ e.vote_on }}</span>{% endif %}{% if e.district is not none %} <span class="nowrap">{{ text.district_label }} {{ e.district }}</span>{% endif %}{% if e.ward is not none %} <span class="nowrap">{{ text.ward_label }} {{ e.ward }}</span>{% endif %}</p>
       <p class="mn-title">{% if e.href %}<a href="{{ root }}{{ e.href }}">{{ e.title }}</a>{% else %}{{ e.title }}{% endif %}</p>
       {% if e.source.url %}<p class="mn-src"><a href="{{ e.source.url }}" target="_blank" rel="noopener noreferrer">{{ text.source_label }}{% if e.source.page %}, {{ text.page_label }} {{ e.source.page }}{% endif %}<span class="sr-only"> (opens in a new tab)</span></a></p>{% endif %}
+      {% if e.watch %}<p class="mn-watch">{{ watch_link(e.watch) }}</p>{% endif %}
     </li>
     {% endfor %}
     {% if unplaced %}

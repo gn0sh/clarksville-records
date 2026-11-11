@@ -581,7 +581,26 @@ def documents(ix, councils=(), rpx=None, ax=None, fx=None, bg=None, first=None, 
         docs += _rpc_documents(rpx, txt, zoning)
     if fx is not None:
         docs += _finance_documents(fx, bg, cfg, txt, first or {}, mn["cutoff"], cfg["site_timezone"])
+    _add_watch(docs, ix, councils, cfg)
     return docs
+
+
+def _add_watch(docs: list[dict], ix, councils, cfg: dict) -> None:
+    """Each entry about a meeting carries `watch` (sitegen/watch.py): {url, link, label, ext} or null. A council
+    meeting's own recording when exactly one meeting of that body on that date carries one, else the body's page;
+    null for a body with no `video:` entry and for an entry with no meeting (a solicitation)."""
+    from . import watch
+    recordings: dict[tuple, set] = {}
+    for b, facts in [(cfg["county_key"], ix.facts), *((c.body_key, c.facts) for c in councils)]:
+        for m in facts["meetings"]:
+            recordings.setdefault((b, m["date"]), set()).add(m.get("video_url") or "")
+    for d in docs:
+        for e in d["entries"]:
+            if not e.get("meeting_date"):
+                e["watch"] = None
+                continue
+            vids = recordings.get((e["body"], e["meeting_date"]), set())
+            e["watch"] = watch.meeting(e["body"], next(iter(vids)) if len(vids) == 1 else None, cfg)
 
 
 def resolve(docs: list[dict], first: dict[str, datetime]) -> None:
@@ -669,6 +688,7 @@ def own_text(note: dict) -> list[str]:
     for e in note["entries"]:
         out += [e["recorded"], e["body_name"]] + ([e["title"]] if e.get("title_ours") else [])
         out += [e["vote_on"]] if e.get("vote_on") else []       # a fixed config label, never the record's text
+        out += [e["watch"]["link"], e["watch"]["label"]] if e.get("watch") else []   # config text
     return out
 
 
