@@ -850,9 +850,15 @@ def with_members(cfg, *members):
 
 
 def run_cited(cfg, meetings, cite_pages=(APPLICANTS_P1, "page 2", CLAUNCH_P3), cite_meeting="2026-02-11",
-              stored=True, cite_entry: dict | None = None):
-    """run() with the cited file (fileId 3068) in the store, read as `cite_pages`."""
+              stored=True, cite_entry: dict | None = None, cite_row: dict | None = None):
+    """run() with the cited file (fileId 3068) in the store, read as `cite_pages`. By default the cited file is the
+    minutes of a listed council meeting on cite_meeting (the Special Session), as in the data; cite_row changes that
+    row (False: no row, so the file is no kept meeting's source)."""
     rows, entries, by_url = [], [], {}
+    if cite_row is not False:
+        rows.append({"date": cite_meeting, "title": "Special Session", "kind": "special", "agenda_id": "cc-3068",
+                     "agenda_url": None, "minutes_url": CITE, "source": "civicclerk", "video_url": None,
+                     **(cite_row or {})})
     for n, (date, text) in enumerate(meetings, 1):
         url = API.format(n)
         rows.append({"date": date, "title": "City Council Regular Session", "kind": "regular",
@@ -865,14 +871,16 @@ def run_cited(cfg, meetings, cite_pages=(APPLICANTS_P1, "page 2", CLAUNCH_P3), c
 
     def parse(path, c):
         sha = str(path).rsplit("/", 1)[-1][:-4]
-        return parse_text([by_url[next(e["url"] for e in entries if e["sha256"] == sha)]], c)
+        url = next(e["url"] for e in entries if e["sha256"] == sha)
+        return parse_text(list(cite_pages), c) if url == CITE else parse_text([by_url[url]], c)
 
     def pages(path):
         assert path.stem == entry(CITE, "minutes", cite_meeting, 99)["sha256"]
         return list(cite_pages)
     facts, summary = build(cfg, rows, FakeStore(entries), parse=parse, inspect=lambda p: (3, "text"), pages=pages)
     jsonschema.validate({k: v for k, v in facts.items() if k != "_wards"}, SCHEMA)
-    assert_name_invariant(cfg, facts, dict(meetings))
+    assert_name_invariant(cfg, {**facts, "meetings": [m for m in facts["meetings"] if m["minutes_url"] != CITE]},
+                          dict(meetings))
     return facts, summary
 
 
@@ -897,7 +905,7 @@ def test_n10_the_cited_minutes_resolve_claunch_from_the_seating_on(cfg):
     assert off["name_source"] == {"source_id": src["id"], "page": 3, "quote": CLAUNCH["quote"]}
     assert [w for w in facts["_wards"] if w.get("configured")] == [{
         "official_id": "city-eric-claunch", "raw_name": "Eric Claunch", "ward": 2, "pro_tem": False,
-        "meeting_id": None, "date": "2026-02-19", "source_id": src["id"], "page": 3, "configured": True}]
+        "meeting_id": "2026-02-11-special", "date": "2026-02-19", "source_id": src["id"], "page": 3, "configured": True}]
     assert summary["members"] == [{"check": "member_cited", "ok": True, "name": "Eric Claunch", "ward": 2,
                                    "seated": "2026-02-19", "cite_url": CITE, "cite_page": 3,
                                    "detail": "quote found on page 3"}]
@@ -950,10 +958,16 @@ def test_n10_the_applicants_page_alone_resolves_nothing(cfg):
     # review city-verify/cited-member-fail-open: a date the check needs is missing -> left out, never passed
     ({}, {"cite_entry": {"meeting_date": None}},
      "the cited record has no meeting date, so the seated date cannot be checked"),
-    ({"kind": "roster_page"}, {"cite_entry": {"kind": "roster_page", "meeting_date": None, "first_fetched_at": None}},
+    ({"kind": "roster_page"}, {"cite_entry": {"kind": "roster_page", "meeting_date": None, "first_fetched_at": None},
+                               "cite_row": False},
      "the roster page has no fetch date, so the seated date cannot be checked"),
-    ({"kind": "roster_page"}, {"cite_entry": {"kind": "roster_page", "meeting_date": None}},
+    ({"kind": "roster_page"}, {"cite_entry": {"kind": "roster_page", "meeting_date": None}, "cite_row": False},
      "seated 2026-02-19 is before the roster page was fetched (2026-11-09)"),
+    # review city-verify/cited-member-body-unchecked: the cited file must be the source of a kept council meeting:
+    # not a file no listed meeting has, and not another body's minutes (a D1 row whose page 1 is not the council)
+    ({}, {"cite_row": False}, "the cited file is not the source of a council meeting this build kept"),
+    ({}, {"cite_row": {"page1_required": "City Council - Special Session", "listed_as": "General / Special Session"}},
+     "the cited file is not the source of a council meeting this build kept"),
 ])
 def test_n10_an_entry_whose_cite_does_not_check_out_is_left_out_with_the_reason(cfg, change, kw, reason):
     facts, summary = run_cited(with_members(cfg, {**CLAUNCH, **change}), CLAUNCH_MEETINGS, **kw)
@@ -963,6 +977,34 @@ def test_n10_an_entry_whose_cite_does_not_check_out_is_left_out_with_the_reason(
         summary["problems"]
     assert not any(o.get("name_source") for o in facts["officials"])
     assert not any(w.get("configured") for w in facts["_wards"])
+    assert "city-eric-claunch" not in {o["id"] for o in facts["officials"]}        # resolved nowhere, fail closed
+
+
+def test_n10_a_cited_file_of_another_body_is_never_used_even_on_the_cited_page():
+    """city-verify/cited-member-body-unchecked, the build's two runs: the first run used the entry, found its file is
+    not a kept meeting's source, and was thrown away; nothing of it reaches the facts. When the D1 page 1 does print
+    the council, the same entry resolves Claunch in one run."""
+    from collector import city_build
+    cfg = ac.load_config()
+    calls = []
+    real = city_build.cited_members
+
+    def spy(*a, **k):
+        calls.append(a[3] if len(a) > 3 else k.get("kept"))
+        return real(*a, **k)
+    d1 = {"page1_required": "City Council - Special Session", "listed_as": "General / Special Session"}
+    city_build.cited_members = spy
+    try:
+        facts, summary = run_cited(with_members(cfg, CLAUNCH), CLAUNCH_MEETINGS, cite_row=d1)
+        assert len(calls) == 2 and calls[0] is None and "src-" + "63".ljust(12, "0") not in calls[1]
+        assert att(facts, "2026-03-05")["CLAUNCH"] is None and summary["skipped_events"]
+        calls.clear()
+        facts, summary = run_cited(with_members(cfg, CLAUNCH), CLAUNCH_MEETINGS, cite_row=d1,
+                                   cite_pages=("City Council - Special Session\n" + APPLICANTS_P1, "page 2", CLAUNCH_P3))
+        assert calls == [None] and not summary["skipped_events"]
+        assert att(facts, "2026-03-05")["CLAUNCH"] == "city-eric-claunch" and summary["members"][0]["ok"]
+    finally:
+        city_build.cited_members = real
 
 
 @pytest.mark.parametrize("bad,match", [

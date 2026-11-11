@@ -248,7 +248,11 @@ is in the city manifest); the stored file's manifest `kind` equals the entry's `
 fetch date for `roster_page`), and a missing date that check needs fails it (`cited-member-fail-open`); the quote
 contains the name and prints "Ward {ward}" as whole words (`cited-member-ward-unchecked`); and the `quote`,
 whitespace collapsed, is on `cite_page` of the stored
-file's text (the city reader's, W1 applied). If any fails, the entry is left out of the book for that build (so the
+file's text (the city reader's, W1 applied); and the cited file is the `source_id` of a council meeting the build
+kept (review `city-verify/cited-member-body-unchecked`: never another body's minutes, e.g. a D1 event whose page 1
+fails). That last check needs the kept meetings, which never depend on the members, so when an entry fails it the
+build runs once more without it and the first run is discarded. In effect only `minutes` entries can pass today; the
+other kinds need a rule of their own before use. If any fails, the entry is left out of the book for that build (so the
 surname is held as before) and the run report lists it (`build.members`, and `problems`); it never resolves anyone on
 trust.
 
@@ -272,7 +276,10 @@ listing query, 2026-11-11; other "General" events are other boards). Discovery a
 `categoryName eq 'General' and eventName eq 'Special Session'` from 2024-01-01, and keeps such an event only when page
 1 of its agenda or minutes prints "City Council - Special Session" as a line of its own (whitespace and format
 characters aside; never the same words inside a longer line, review `d1-page1-substring`); any other is skipped and
-named in the run report.
+named in the run report. The check runs before the two listings are joined (`civicclerk.merge_sources(page1_ok=)`,
+review `city-verify/d1-merge-before-page1`): a D1 row is paired with an Agenda Center meeting of the same date and kind
+only after it passes, so a failing row never replaces a council meeting nor is cited under its `also_listed`; with no
+check (no store), a D1 row is never paired.
 This stores fileId 3068 (needed by M1's build check) and adds that meeting: 2 roll calls (one prints "HOLLEMNA", held).
 
 ### W1. Invisible format characters in the text layer (a reading fix)

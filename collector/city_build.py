@@ -203,12 +203,16 @@ def page1_check(row: dict, store: Store, pages=read_pages) -> str | None:
             f"'{want}' on a line of its own: skipped, not this body's meeting")
 
 
-def cited_members(cfg: AgendaCenterConfig, store: Store, pages=read_pages) -> tuple[list[dict], list[dict]]:
+def cited_members(cfg: AgendaCenterConfig, store: Store, pages=read_pages,
+                  kept: set | None = None) -> tuple[list[dict], list[dict]]:
     """Build check `member_cited` for each configured member (path N10, M1): the stored bytes for its cite_url exist;
     the stored file is of the entry's kind (the manifest's kind equals `kind`; an agenda never qualifies); `seated` is
     not before the cited record's meeting (nor, for a roster page snapshot, before it was fetched), and a date that
-    check needs is present; the quote names the person and prints "Ward {ward}" as whole words; and the quote,
-    whitespace collapsed, is printed on cite_page of the stored file's text.
+    check needs is present; the quote names the person and prints "Ward {ward}" as whole words; the quote,
+    whitespace collapsed, is printed on cite_page of the stored file's text; and, when `kept` is given (the source
+    ids of the council meetings the build kept), the cited file is the source of one of them
+    (city-verify/cited-member-body-unchecked: never another body's minutes). build() makes the last check once its
+    meetings are known, and builds again without any entry that fails it.
     -> (entries that pass, each with the cited file's manifest entry; one report row per entry). An entry that fails
     is left out of the roster book for this build, so its surname is held as before: never resolved on trust."""
     ok, report = [], []
@@ -241,6 +245,8 @@ def cited_members(cfg: AgendaCenterConfig, store: Store, pages=read_pages) -> tu
                 text, why = [], f"the cited file could not be read: {type(ex).__name__}"
             if why is None and not (m["cite_page"] <= len(text) and page_has(text[m["cite_page"] - 1], m["quote"])):
                 why = f"the quote is not on page {m['cite_page']} of the cited file"
+            if why is None and kept is not None and f"src-{e['sha256'][:12]}" not in kept:
+                why = "the cited file is not the source of a council meeting this build kept"
         report.append({"check": "member_cited", "ok": why is None, "name": m["name"], "ward": m["ward"],
                        "seated": m["seated"], "cite_url": m["cite_url"], "cite_page": m["cite_page"],
                        "detail": why or f"quote found on page {m['cite_page']}"})
@@ -256,12 +262,18 @@ def member_basis(m: dict) -> str:
 
 
 def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_minutes_pdf,
-          inspect=inspect_pdf, pages=read_pages) -> tuple[dict, dict]:
+          inspect=inspect_pdf, pages=read_pages, _kept: set | None = None) -> tuple[dict, dict]:
+    """The city's facts from the listing rows and the stored files -> (facts with "_wards", run summary).
+
+    A configured member counts only when its cited file is the source of a council meeting this build keeps
+    (city-verify/cited-member-body-unchecked). Which meetings are kept never depends on the members, so when an entry
+    fails that check the build runs once more with `_kept` (the kept meetings' source ids) and the entry left out:
+    nothing it would have resolved stays in the facts. Fail closed; no second run when every entry passes."""
     officials = Officials(cfg)
     sources: dict[str, dict] = {}
     meetings, roll_calls, motions, items, events, wards = [], [], [], {}, [], []
     problems, unresolved = [], Counter()
-    members, members_report = cited_members(cfg, store, pages)      # path N10: only entries whose cite checks out
+    members, members_report = cited_members(cfg, store, pages, _kept)   # path N10: only entries whose cite checks out
     book = RosterBook(cfg, members)  # full-name attendance lists so far, bounded per meeting (resolve_surnames)
     word_breaks: list[dict] = []    # every break-free (N9) use, for the run report
     status_count = Counter()
@@ -375,6 +387,11 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
                      problems, unresolved, book.for_meeting(meeting["date"]), word_breaks)
         book.add(printed_full_names(cfg, officials, pm, meeting["date"]))
 
+    kept = {x["source_id"] for x in meetings}
+    if any(f"src-{m['entry']['sha256'][:12]}" not in kept for m in members):
+        if _kept is not None:         # cannot happen (cited_members left them out): never publish on trust
+            raise RuntimeError("city build: a configured member's cited file is not a kept meeting's source")
+        return build(cfg, rows, store, parse, inspect, pages, _kept=kept)
     for m in members:                 # a configured member who resolved: the record that names them, and their seat
         oid = official_id(officials.canonical(m["name"]))
         if oid not in officials.by_id:
