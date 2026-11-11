@@ -10,6 +10,9 @@ from sitegen.build import BuildError, build
 from test_rpc_pages import read, rpc_cfg, site as rpc_site  # noqa: F401  (module fixtures: the fixture RPC build)
 
 
+FRESH = re.compile(r'<(section|details) class="freshness".*?</\1>', re.S)
+
+
 def text(html: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html))
 
@@ -21,7 +24,7 @@ def test_county_line_is_computed_from_the_facts(pages, facts):
     assert freshness.county(views.Index(facts)) == {
         "body": config.SITE["county_body"],
         "parts": [{"what": "minutes and votes", "iso": latest, "text": freshness.date_text(latest)}]}
-    sec = re.search(r'<section class="freshness".*?</section>', pages["index.html"], re.S).group(0)
+    sec = FRESH.search(pages["index.html"]).group(0)
     assert f'<time class="nowrap" datetime="{latest}">{freshness.date_text(latest)}</time>' in sec
     assert freshness.NOTE in sec
 
@@ -61,9 +64,9 @@ def test_finance_line():
 
 def test_rpc_home_has_its_own_line(rpc_site):  # noqa: F811
     home = read(rpc_site, "rpc/index.html")
-    sec = text(re.search(r'<section class="freshness".*?</section>', home, re.S).group(0))
+    sec = text(FRESH.search(home).group(0))
     assert "Regional Planning Commission: " in sec and "agendas through" in sec
-    landing = text(re.search(r'<section class="freshness".*?</section>', read(rpc_site, "index.html"), re.S).group(0))
+    landing = text(FRESH.search(read(rpc_site, "index.html")).group(0))
     assert "Montgomery County Commission: minutes and votes through" in landing
     assert "Regional Planning Commission: " in landing
 
