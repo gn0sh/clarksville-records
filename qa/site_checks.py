@@ -21,6 +21,8 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   provenance  derived seat dates are worded as seen in roll calls; no term wording, no inferred cutover date;
               the cutover is immaterial (architecture, invariant `provenance`)
   totals      "Recorded absent at X of Y meetings" equals a recount from the meeting pages (AC2.2)
+  official-numbers  each official page's numbers agree with themselves: one value per data-n key, parts add up to
+              their whole, legends and Totals repeat the sentences (site-polish/official-totals-consistent)
   name-links  every occurrence of an official's display name in the visible text of a page is inside an <a> to that
               official's page (standing rule), except in <title>, <option>, item titles (data-item-title: text in
               the document, never linked), the operator lines (footer, About) and on the official's own page
@@ -1305,6 +1307,71 @@ def check_totals(site: Path, pages: dict[str, Page], facts: dict, meetings: str 
     return problems, f"{len(facts['officials'])} officials under {folder}/ recounted"
 
 
+DATA_N = re.compile(r'data-n="([a-z_-]+)"[^>]*>(\d+)<')
+VOTE_KEYS = ("yes", "no", "abstain", "other")
+
+
+def official_number_problems(text: str) -> list[str]:
+    """site-polish/official-totals-consistent, restated here (no call into sitegen): on one official page every number
+    marked data-n shows the same value wherever it appears, the parts add up to their whole (meetings present + absent
+    = meetings listed; votes + roll calls while absent + no vote recorded = roll calls; Yes + No + Abstain + Other =
+    votes; each bar's legend equals the sentence above it), and the Totals sentences repeat the same numbers."""
+    seen: dict[str, set[int]] = defaultdict(set)
+    for k, n in DATA_N.findall(text):
+        seen[k].add(int(n))
+    out = [f"{k} shows {sorted(v)}" for k, v in sorted(seen.items()) if len(v) > 1]
+    n = {k: next(iter(v)) for k, v in seen.items()}
+    need = ("meetings_listed", "present", "absent", "rc_total", "rc_voted", "rc_absent", "rc_novote", "rc_total_nc",
+            "rc_voted_nc", "rc_absent_nc", "rc_novote_nc", "att-present", "att-absent",
+            *(f"vote-{k}" for k in (*VOTE_KEYS, "absent", "novote")))
+    missing = [k for k in need if k not in n]
+    if missing:
+        return out + [f"no data-n for {', '.join(missing)}"]
+
+    def eq(label: str, a: int, b: int) -> None:
+        if a != b:
+            out.append(f"{label}: {a} != {b}")
+    eq("present + absent = meetings listed", n["present"] + n["absent"], n["meetings_listed"])
+    eq("attendance legend present", n["att-present"], n["present"])
+    eq("attendance legend absent", n["att-absent"], n["absent"])
+    for sfx, leg in (("", "vote-"), ("_nc", "vote-nc-")):
+        eq(f"rc_voted{sfx} + rc_absent{sfx} + rc_novote{sfx} = rc_total{sfx}",
+           n["rc_voted" + sfx] + n["rc_absent" + sfx] + n["rc_novote" + sfx], n["rc_total" + sfx])
+        if all(f"{leg}{k}" in n for k in VOTE_KEYS):   # the not confirmed legend exists only with values shown
+            eq(f"{leg}Yes+No+Abstain+Other = rc_voted{sfx}", sum(n[f"{leg}{k}"] for k in VOTE_KEYS), n["rc_voted" + sfx])
+            eq(f"{leg}absent legend", n[f"{leg}absent"], n["rc_absent" + sfx])
+            eq(f"{leg}novote legend", n[f"{leg}novote"], n["rc_novote" + sfx])
+    plain = re.sub(r"<[^>]+>", "", html.unescape(text))
+    m = re.search(r"Recorded absent at (\d+) of (\d+) meetings", plain)
+    if not m:
+        out.append("no 'Recorded absent at X of Y meetings' sentence")
+    else:
+        eq("Totals: absent", int(m.group(1)), n["absent"])
+        eq("Totals: meetings", int(m.group(2)), n["meetings_listed"])
+    m = re.search(r"Roll call votes, \S+ to \S+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other confirmed; "
+                  r"(?:(\d+) votes? in not confirmed\* roll calls|(\d+) Yes\*, (\d+) No\*, (\d+) Abstain\*, (\d+) Other\*)",
+                  plain)
+    if not m:
+        out.append("no 'Roll call votes' totals sentence")
+    else:
+        g = [int(x) if x is not None else None for x in m.groups()]
+        for k, v in zip(VOTE_KEYS, g[:4]):
+            eq(f"Totals: {k}", v, n[f"vote-{k}"])
+        eq("Totals: not confirmed votes", g[4] if g[4] is not None else sum(g[5:]), n["rc_voted_nc"])
+    return out
+
+
+def check_official_numbers(site: Path, facts: dict, folder: str = "officials") -> tuple[list[str], str]:
+    problems, n = [], 0
+    for o in facts["officials"]:
+        f = site / folder / f"{o['id']}.html"
+        if not f.is_file():
+            continue
+        n += 1
+        problems += [f"{folder}/{o['id']}.html: {p}" for p in official_number_problems(f.read_text(encoding="utf-8"))]
+    return problems, f"{n} official pages under {folder}/ agree with themselves"
+
+
 class NameLinks(HTMLParser):
     """Visible text nodes of one page with whether each sits inside an <a> and where that <a> points."""
     SKIP = {"script", "style", "title", "option", "head"}
@@ -2397,6 +2464,11 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
         p2, n2 = check_totals(site, pages, c["facts"], c["prefix"] + "meetings/", c["prefix"] + "members")
         problems, note = problems + p2, f"{note}; {n2}"
     rep.add("totals", problems, "AC2.2: " + note)
+    problems, note = check_official_numbers(site, facts)
+    for c in cs:
+        p2, n2 = check_official_numbers(site, c["facts"], c["prefix"] + "members")
+        problems, note = problems + p2, f"{note}; {n2}"
+    rep.add("official-numbers", problems, note)
     problems, note = check_provenance(site, pages, facts, read_roster(seats_path), cfg)
     rep.add("provenance", problems, note)
     problems, note = check_name_links(site, facts, read_roster(seats_path), cs)

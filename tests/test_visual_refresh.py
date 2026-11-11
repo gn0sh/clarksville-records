@@ -15,7 +15,7 @@ VOTES = re.compile(r"Roll call votes, [0-9-]+ to [0-9-]+: (\d+) Yes, (\d+) No, (
                    r"(\d+) Yes\*, (\d+) No\*, (\d+) Abstain\*, (\d+) Other\* not confirmed\.")
 # SHOW_UNCONFIRMED_VALUES = False (the default): a count of unconfirmed roll calls, no breakdown
 VOTES_HIDDEN = re.compile(r"Roll call votes, [0-9-]+ to [0-9-]+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other "
-                          r"confirmed; (\d+) roll calls? not confirmed\*, see each page\.")
+                          r"confirmed; (\d+) votes? in not confirmed\* roll calls, see each page\.")
 
 
 def test_official_counts_sum_and_agree_with_the_totals_sentences(facts):

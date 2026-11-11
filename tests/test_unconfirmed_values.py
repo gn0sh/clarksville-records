@@ -8,6 +8,7 @@ True: values are shown, starred (the rest of this behaviour is tested in test_he
 import copy
 import csv
 import io
+import re
 import json
 import re
 from html import unescape
@@ -78,10 +79,10 @@ def test_official_page_counts_unconfirmed_roll_calls_without_a_breakdown(tmp_pat
     sentence = views.totals_sentences(views.Index(facts), "a-example")[1]
     page = unescape(pages["officials/a-example.html"])
     if switch:
-        assert "1 Yes*, 0 No*" in sentence and "Yes*: 1" in page
+        assert "1 Yes*, 0 No*" in sentence and "Yes*: 1" in re.sub(r"<[^>]+>", "", page)   # legend numbers carry data-n
     else:
         assert sentence == ("Roll call votes, 2024-10-07 to 2024-12-09: 3 Yes, 0 No, 0 Abstain, 0 Other confirmed; "
-                            "1 roll call not confirmed*, see each page.")
+                            "1 vote in not confirmed* roll calls, see each page.")
         assert "Yes*" not in page and "No*" not in page
 
 

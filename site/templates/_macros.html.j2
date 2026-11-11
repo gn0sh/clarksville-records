@@ -90,16 +90,16 @@
 <div class="bar" aria-hidden="true">{% for s in segments %}<span class="seg seg-{{ s.key }}" style="--n: {{ s.n }}"></span>{% endfor %}</div>
 {%- endmacro %}
 
-{% macro legend(segments, star=false) -%}
+{% macro legend(segments, star=false, n_prefix="") -%}
 <ul class="legend">
 {% for s in segments %}
-  <li><span class="key seg-{{ s.key }}" aria-hidden="true"></span>{{ s.label }}{% if star %}*{% endif %}: {{ s.n }}</li>
+  <li><span class="key seg-{{ s.key }}" aria-hidden="true"></span>{{ s.label }}{% if star %}*{% endif %}: {% if n_prefix %}<span data-n="{{ n_prefix }}{{ s.key }}">{{ s.n }}</span>{% else %}{{ s.n }}{% endif %}</li>
 {% endfor %}
 </ul>
 {%- endmacro %}
 
-{% macro stat(number, label) -%}
-<li class="stat"><span class="stat-num">{{ number }}</span><span class="stat-label">{{ label }}</span></li>
+{% macro stat(number, label, n_key="") -%}
+<li class="stat"><span class="stat-num"{% if n_key %} data-n="{{ n_key }}"{% endif %}>{{ number }}</span><span class="stat-label">{{ label }}</span></li>
 {%- endmacro %}
 
 {% macro badge(initials, big=false) -%}
