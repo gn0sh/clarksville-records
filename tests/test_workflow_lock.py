@@ -463,7 +463,7 @@ def test_note_runs_only_in_the_one_locked_case(event, var, ref):
     # note-job/mask-ifs-cr: a secret pasted with Windows line ends, and the other ASCII characters Python's \s splits on
     "abc-1\r\ndef_2\r\n", "abc-1,\r\ndef_2", "abc-1\rdef_2", "abc-1\vdef_2\fghi3", "abc-1\x1cdef_2\x1fghi3", "\r\n",
     # note-job/mask-unicode-ws: Unicode whitespace splits neither in bash nor in canary_ids (which then refuses)
-    "abc-1\u00a0def_2", "\u00a0abc-1", "abc-1,\u2003def_2",
+    "abc-1\u00a0def_2", "\u00a0abc-1", "abc-1,\u2003def_2", "abc-1\u2028def_2", "abc-1\x85def_2",
 ])
 def test_mask_step_masks_every_canary_id_deliver_accepts(value, tmp_path):
     """security-note-workflow L2: every id sender/deliver.py's canary_ids reads (commas or any whitespace, every
@@ -475,8 +475,12 @@ def test_mask_step_masks_every_canary_id_deliver_accepts(value, tmp_path):
     step = WF["jobs"]["note"]["steps"][0]
     r = subprocess.run(["bash", "-e", "-c", step["run"]], cwd=tmp_path, capture_output=True, text=True, check=True,
                        env={**os.environ, "CANARY_IDS": value})
-    masked = [line.removeprefix("::add-mask::") for line in r.stdout.splitlines()]
-    assert all(line.startswith("::add-mask::") for line in r.stdout.splitlines())
+    # split on "\n" only, as the runner reads workflow commands: splitlines() would also cut at \r, \x1c-\x1e,
+    # \x85 or U+2028 inside an id (note-job/mask-ifs-cr)
+    *lines, last = r.stdout.split("\n")
+    assert last == ""                                       # every line ends with "\n" (or nothing is printed)
+    masked = [line.removeprefix("::add-mask::") for line in lines]
+    assert all(line.startswith("::add-mask::") for line in lines)
     expected = set(re.split(r"[ \t\n\r\v\f\x1c-\x1f,]+", value)) - {""}     # IFS: the comma and ASCII whitespace only
     assert set(masked) == expected
     if all(re.fullmatch(r"[A-Za-z0-9_-]{1,64}", p) for p in expected):
