@@ -413,6 +413,18 @@ def test_enabled_path_in_a_test_config(tmp_path, monkeypatch):
     assert " name=" not in _main(pages["morning/index.html"]).split('class="mn-picker"')[1].split("</fieldset>")[0]
 
 
+@pytest.mark.parametrize("on", [True, False])
+def test_support_line_beside_the_sign_up_only_with_support_on(tmp_path, monkeypatch, on):
+    """Brian 2026-11-10: the sign-up says the service is free and always will be and links the tip jar, only when
+    the footer support link is switched on (tests/support-line-alerts-untested)."""
+    cfg = copy.deepcopy(config.SITE)
+    cfg["morning_note"].update(ENABLED)
+    cfg.update(support_enabled=on, support_url="https://buymeacoffee.com/gnoshcodes")
+    note = _note(_build(tmp_path / "site", monkeypatch, cfg)["alerts.html"])
+    assert (cfg["support_line"] in note) is on
+    assert ('data-ext="support" href="https://buymeacoffee.com/gnoshcodes"' in note) is on
+
+
 def test_enabled_without_privacy_or_action_renders_the_off_state(tmp_path, monkeypatch):
     cfg = copy.deepcopy(config.SITE)
     cfg["morning_note"].update({**ENABLED, "privacy_url": ""})
