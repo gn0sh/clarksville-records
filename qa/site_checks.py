@@ -1705,7 +1705,9 @@ FETCH_DAY = re.compile(
     r'href="(?P<href>https?://[^"]+)"'
     r"|(?P<kind>[Ff]etched between|[Ff]etched on|latest fetched|Data as of|[Ff]etched|at fetch \(|"
     r"(?:[Cc]ollected|[Aa]dded|[Dd]ownloaded|[Rr]etrieved)(?: on)?,?)\s"
-    r"(?P<day>\d{4}-\d{2}-\d{2})(?P<utc> \(UTC day\))?(?: and (?P<day2>\d{4}-\d{2}-\d{2})(?P<utc2> \(UTC day\))?)?")
+    # the footer prints its day in words inside <time class="data-as-of" datetime="ISO"> (sitegen/build.py as_of_day)
+    r'(?:<time class="data-as-of" datetime=")?(?P<day>\d{4}-\d{2}-\d{2})(?:">[^<]*</time>)?'
+    r"(?P<utc> \(UTC day\))?(?: and (?P<day2>\d{4}-\d{2}-\d{2})(?P<utc2> \(UTC day\))?)?")
 FETCH_AGGREGATE = ("fetched between", "fetched on", "latest fetched", "data as of")
 # other words a fetch day may follow; after "meeting " ("the latest meeting collected, D") the day is a meeting date
 FETCH_OTHER_WORDS = ("collected", "added", "downloaded", "retrieved")

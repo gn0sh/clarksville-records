@@ -58,7 +58,7 @@
 
   {% if doors %}
   <h2 class="sec-h" id="doors-h">Start here</h2>
-  <ul class="doors" aria-labelledby="doors-h">
+  <ul class="doors doors-{{ doors | length }}" aria-labelledby="doors-h">
     {% for d in doors %}
     <li class="door door-{{ d.key }}">
       <h3>{{ d.title }}</h3>
