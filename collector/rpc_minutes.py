@@ -594,8 +594,7 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
         lead = text[prev:m.start()]
         prev = m.start() + len(para)
         cut = re.search(r",?\s*seconded|\.\s|stating|based|because", after)
-        kind_words = after[:cut.start()] if cut else after[:120]
-        kind = motion_kind(kind_words)
+        kind = motion_kind(after[:cut.start()] if cut else after[:120])
         if case is None and case_ok and kind in (MOTION_DEFAULT, "Motion for approval") and oc:
             # with no case, "made a motion of approval ... deferrals were approved": the outcome as printed names the
             # meeting's business the motion approved (a fixed label, never the sentence)
@@ -666,11 +665,11 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
             mv.tally = re.sub(r"\s", "", tally) if tally else None
             if len(list(OUTCOME.finditer(after))) > 1:
                 reasons.append("more than one outcome")
-            # the mover's polarity from the mover's own words (or the type they gave); an outcome that names one
-            # needs the same from the mover: "made the motion for disapproval ... Motion for approval passed", and
+            # the mover's polarity from the type their words gave (MOTION_KINDS); an outcome that names one needs
+            # the same from the mover: "made the motion for disapproval ... Motion for approval passed", and
             # (rpc-votes/outcome-other-motion) "made the motion to table the case ... Motion passes for approval" or
             # "made the motion stating ... Motion for approval passed", where the mover's words name none
-            a, b = _polarity(kind_words) or _polarity(kind), _polarity(mv.outcome)
+            a, b = _polarity(kind), _polarity(mv.outcome)
             if b and a != b:
                 reasons.append(WHY_OTHER_KIND)
         else:
