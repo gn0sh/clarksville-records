@@ -18,8 +18,10 @@ Files (per locality, so the county's data/manifest.json and data/facts.json are 
 
 Exit codes (the workflow's Collect step fails the run, and so opens the issue, on any non-zero code; spec AC4.4):
 0 ok (a single file that is skipped, e.g. a .docx behind a PDF link, is logged and stays 0); 2 a listing could not be
-read; 5 a host or policy refused us at any stage (HostBlocked 403/429, HostRefused, ProxyRefused, RobotsDisallowed:
-alerting/city-fetch-failures-exit-0). A refusal is never retried and never worked around: the code only reports it.
+read; 3 the G4 skew gate flagged an official (build/city-report.json build.gates; the AC-P1 verified rate is reported
+there but sets no code); 5 a host or policy refused us at any stage (HostBlocked 403/429, HostRefused, ProxyRefused,
+RobotsDisallowed: alerting/city-fetch-failures-exit-0). A refusal is never retried and never worked around: the code
+only reports it.
 """
 from __future__ import annotations
 
@@ -36,6 +38,7 @@ from .store import Store, fetch_into_store, store_dir
 ROOT = Path(__file__).resolve().parent.parent
 STOP = (HostBlocked, HostRefused, ProxyRefused, RobotsDisallowed)   # the host said no (or policy): stop, never retry
 LISTING_FAILED = 2
+GATE_FAILED = 3        # G4 flagged an official (spec G4: release blocked), as the county's gate failure code
 BLOCKED = 5            # its own code, so the alert says "refused", not "failed" (4 is the county run's offline refusal)
 
 
@@ -172,13 +175,17 @@ def main(argv: list[str]) -> int:
         report["build"] = summary
     write_json(p["report"], {**report, "fetch_log": log.get("fetch_log", [])})
     print(json.dumps({k: v for k, v in report.items()}, indent=1, default=str)[:4000])
-    if "build" in report:              # the gates (AC-P1, G4) are reported, as the county's; they set no exit code
+    code = exit_code(log)
+    if "build" in report:              # the gates (AC-P1, G4) with the county's code: see GATE_FAILED
         g = report["build"]["gates"]
         print(f"collector city: {g['roll_calls']} roll calls, {g['verified']} verified "
-              f"({100 * g['verified_rate']:.1f}%, gate {'pass' if g['verified_rate_gate']['pass'] else 'FAIL'}); "
+              f"({100 * g['verified_rate']:.1f}%, AC-P1 {'pass' if g['verified_rate_gate']['pass'] else 'FAIL'}); "
               f"G4 {g['g4']['status']}, flagged {g['g4']['flagged'] or 'none'} "
               f"(uniform share {g['g4']['uniform_share']})", flush=True)
-    code = exit_code(log)
+        if code == 0 and not g["g4"]["pass"]:
+            print(f"collector city: G4 skew gate FAILED (exit {GATE_FAILED}): {', '.join(g['g4']['flagged'])}",
+                  file=sys.stderr, flush=True)
+            code = GATE_FAILED
     if code == BLOCKED:
         print(f"collector city: REFUSED by a host or by policy (exit {BLOCKED}); not retried. See the failures above.",
               file=sys.stderr, flush=True)

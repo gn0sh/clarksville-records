@@ -11,6 +11,15 @@ never set a link: an attendance list printed as surnames is read against full na
 an unresolved surname holds the meeting's attendance), and a minutes file listed for two meetings is read only for the
 meeting whose call-to-order date it prints (`minutes_status: other_meeting` for the other).
 
+**Gates (problem family `city-verify`, 2026-11-11).** The city build reports AC-P1 (verified rate >= 90%) and G4 (skew)
+with the county's own code, `collector/verify.gates`, unchanged ("Invariant: held-back counts" in
+`docs/architecture/clarksville-records.md`), in `build/city-report.json` under `build.gates`, with `build.pass` true
+only when both pass, and one line on stdout. No city check marks a hold as an error of the source document itself, so
+none is left out of the rates. A G4 flag is a release block (spec G4): `collector city build|run` exits 3, the county's
+gate code, after any fetch code (2, 5) is settled, and the workflow's Collect step fails on it like any non-zero city
+code. The AC-P1 rate is reported only and sets no city code (the county's 3 covers both): at 79% today it would stop
+every daily refresh, so whether it blocks the city is the manager's call.
+
 ## Vote-to-item link invariant (problem family `city-votes/item-link`)
 
 Stated after the family's second hit (delta re-review of 1ea1e44..f1dedd8, 2026-11-09). Hit 1: votes linked to the
