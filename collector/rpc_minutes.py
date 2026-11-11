@@ -227,7 +227,11 @@ LEAD_ABSTAIN = re.compile(rf"^(?P<names>{NAMES})\s+(?i:abstain(?:ed|s)?(?:\s+fro
                           rf"\s+(?:from|on)\s+(?P<case>{CASE_WORD}))?)\s*\.?$")
 LIST_KINDS = frozenset({"Motion to approve the consent agenda", "Motion to approve the deferrals"})
 # The motion's type in plain words: the first pattern that matches the words right after "motion" / "moved" (up to the
-# seconder or the sentence end) gives a fixed label. Never any part of the sentence.
+# seconder or the sentence end) gives a fixed label. Never any part of the sentence. When the words match the patterns
+# of two kinds ("to approve the request to continue the existing use", "for approval subject to tabling the sign
+# request"), the motion is not confirmed (WHY_TWO_KINDS, rpc-votes/kind-order-new-kinds): the order cannot tell which
+# kind the mover meant. Two exceptions: a kind whose own words hold another kind's (KIND_HOLDS), and "recommend",
+# which names a kind only when no other kind's words are there ("to recommend denial" is "Motion for disapproval").
 MOTION_KINDS = (
     (r"consent\s+agenda", "Motion to approve the consent agenda"),
     (r"\bminutes\b", "Motion to approve the minutes"),
@@ -238,12 +242,21 @@ MOTION_KINDS = (
     (r"\bto\s+table\b|\btabling\b", "Motion to table"),        # the verb: never "the Use Table"
     (r"\bto\s+postpone\b|\bpostponement\b", "Motion to postpone"),
     (r"\bto\s+continue\b(?!\s+as\b)|\bcontinuance\b", "Motion to continue"),   # not "to continue as Chairman"
-    (r"\bapprov|\brecommend", "Motion for approval"),
+    (r"\bapprov", "Motion for approval"),
     (r"\belect\b|\bnominat", "Motion to elect"),
     (r"\badjourn", "Motion to adjourn"),
 )
+RECOMMEND = (r"\brecommend", "Motion for approval")     # only when no pattern of MOTION_KINDS matches
+# a kind whose own words hold other kinds' patterns: "to approve the consent agenda", "approval of the minutes", "to
+# approve the deferrals and withdrawals" each name one kind
+KIND_HOLDS = {"Motion to approve the consent agenda": frozenset({"Motion for approval"}),
+              "Motion to approve the minutes": frozenset({"Motion for approval"}),
+              "Motion to approve the deferrals": frozenset({"Motion to defer", "Motion to withdraw",
+                                                           "Motion for approval"})}
 MOTION_DEFAULT = "Motion"
-# an election or adjournment has no case to approve or deny: the motion passing "for approval" approves it
+# an election or adjournment has no case, so it names no polarity of its own. Counting it as "approve" confirms nothing
+# new: it only keeps the outcome check (the mover's polarity must be the outcome's) from rejecting an election or
+# adjournment whose outcome says "for approval". One whose outcome names denial, deferral or tabling is still rejected
 ELECT_ADJOURN = {"Motion to elect": "approve", "Motion to adjourn": "approve"}
 MEETING_KINDS = {"Motion to elect", "Motion to adjourn", "Motion to approve the minutes"}
 # the meeting's own business (rule 1): the only motions confirmed with no case; every other kind disposes of a case
@@ -282,6 +295,7 @@ WHY_TWO = "more than one motion on one case section"
 WHY_REPEATED = "case section repeated"
 WHY_OTHER_CASE = "the motion's sentences name another case number"
 WHY_OTHER_KIND = "the outcome names another kind of motion"     # or the mover's words name no kind it names
+WHY_TWO_KINDS = "the mover's words name two kinds of motion"     # rpc-votes/kind-order-new-kinds
 WHY_SECTION_OTHER_CASE = "the case section prints another case on this meeting's agenda"
 WHY_OFF_AGENDA = "case number not on this meeting's agenda"       # collector/rpc_agenda.read_all_minutes
 WHY_SUBJECT = "subject not read"
@@ -300,7 +314,7 @@ PARA_MAX = 900          # characters a motion's sentences may span before its ou
 # as `motion_rules`; sitegen/rpc.py and qa/site_checks.py restate it and show every motion of a record without it as
 # not confirmed. Change it whenever a rule changes what is confirmed, so an older record is never shown under rules
 # it was not read by.
-MOTION_RULES = "rpc-motion-invariant-4"
+MOTION_RULES = "rpc-motion-invariant-5"
 
 
 def _clean(line: str) -> str:
@@ -448,11 +462,17 @@ class Motion:
         return not self.reasons
 
 
+def motion_kinds(words: str) -> list[str]:
+    """Every kind whose pattern the mover's words match, in MOTION_KINDS order, less the kinds the first one holds in
+    its own words (KIND_HOLDS); "recommend" only when none matches. More than one is WHY_TWO_KINDS."""
+    found = list(dict.fromkeys(label for pattern, label in MOTION_KINDS if re.search(pattern, words, re.I)))
+    if not found:
+        return [RECOMMEND[1]] if re.search(RECOMMEND[0], words, re.I) else []
+    return found[:1] + [k for k in found[1:] if k not in KIND_HOLDS.get(found[0], ())]
+
+
 def motion_kind(words: str) -> str:
-    for pattern, label in MOTION_KINDS:
-        if re.search(pattern, words, re.I):
-            return label
-    return MOTION_DEFAULT
+    return next(iter(motion_kinds(words)), MOTION_DEFAULT)
 
 
 def _polarity(text: str) -> str | None:
@@ -466,8 +486,11 @@ def _polarity(text: str) -> str | None:
         return "approve"
     if "defer" in t:
         return "defer"
-    if re.search(r"\btabl|\bpostpon|\bcontinu", t):     # rpc-votes/outcome-other-motion: "Motion to table passed"
-        return "table"
+    # rpc-votes/outcome-other-motion: "Motion to table passed"; each its own polarity (rpc-votes/polarity-table-family:
+    # "made the motion to postpone the case ... Motion to table passed" is not confirmed)
+    for word, polarity in ((r"\btabl", "table"), (r"\bpostpon", "postpone"), (r"\bcontinu", "continue")):
+        if re.search(word, t):
+            return polarity
     if "approv" in t:
         return "approve"
     return None
@@ -596,7 +619,9 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
         lead = text[prev:m.start()]
         prev = m.start() + len(para)
         cut = re.search(r",?\s*seconded|\.\s|stating|based|because", after)
-        kind = motion_kind(after[:cut.start()] if cut else after[:120])
+        kinds = motion_kinds(after[:cut.start()] if cut else after[:120])
+        # two kinds (WHY_TWO_KINDS below): the words give no one type, so the motion is shown as plain "Motion"
+        kind = kinds[0] if len(kinds) == 1 else MOTION_DEFAULT
         if case is None and case_ok and kind in (MOTION_DEFAULT, "Motion for approval") and oc:
             # with no case, "made a motion of approval ... deferrals were approved": the outcome as printed names the
             # meeting's business the motion approved (a fixed label, never the sentence)
@@ -605,6 +630,8 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
         mv = Motion(page=page_at(m.start()), case=None if own else case, case_printed=None if own else case_printed,
                     kind=kind, mover=_squash(m.group("mover")), seconder=None, para=_squash(para), lead=_squash(lead))
         reasons = mv.reasons
+        if len(kinds) > 1:      # rpc-votes/kind-order-new-kinds: never confirmed under the kind the order puts first
+            reasons.append(WHY_TWO_KINDS)
         list_motion = kind in LIST_KINDS
         # rule 10a: the body is the mover clause and the known shapes only
         listed, clauses = body_clauses(after, surnames)

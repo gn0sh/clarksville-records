@@ -303,8 +303,9 @@ before/after confirmed counts (1307 motions, 1088 confirmed at 0927bfe) by reaso
   "Motion to table" (`to table` or `tabling`), "Motion to postpone" (`to postpone` or `postponement`) and "Motion to
   continue" (`to continue` but not `to continue as`, or `continuance`). They need the verb form, so "the Use Table" and
   "as they continue to do" are not kinds. A kind with no polarity ("Motion") under an outcome that names one is
-  WHY_OTHER_KIND. An election or adjournment counts as "approve" (ELECT_ADJOURN): it has no case, and passing
-  "for approval" approves the motion. With neither side naming a polarity ("made the motion ... motion passed"), the
+  WHY_OTHER_KIND. An election or adjournment counts as "approve" (ELECT_ADJOURN). It confirms nothing new: an
+  election or adjournment has no case and names no polarity, so this only keeps the check from rejecting one whose
+  outcome says "for approval"; one whose outcome names denial, deferral or tabling is still rejected. With neither side naming a polarity ("made the motion ... motion passed"), the
   motion is still confirmed as kind "Motion".
   Deviation: the brief offered mover words or new kinds. The mover's own words added nothing over the kind, and their
   mutant survived, so only the kind is used.
@@ -319,3 +320,22 @@ before/after confirmed counts (1307 motions, 1088 confirmed at 0927bfe) by reaso
     stays confirmed as "Motion".
 - Rebuild (merged with project-thread-hu3mew c0c4813): 566 -> 564, only those two. Five unconfirmed motions have a new
   kind label (table or postpone).
+
+## Fixes from the delta review of 92a0c69..24422eb (backend-engineer, 2026-11-11; MOTION_RULES "rpc-motion-invariant-5")
+- `rpc-votes/kind-order-new-kinds`: the kind came from the first MOTION_KINDS pattern the mover's words match, and the
+  table, postpone, continue, withdraw and defer patterns sit before approval's. So "made the motion to approve the
+  request to continue the existing use ... Motion passed" was confirmed as "Motion to continue". Now every pattern is
+  tried (`motion_kinds`). Words that match two kinds are not confirmed, reason WHY_TWO_KINDS "the mover's words name two
+  kinds of motion", and the motion's kind is plain "Motion", so no wrong type is shown even as unconfirmed. Two
+  exceptions, so one kind is still one kind:
+  - KIND_HOLDS: a kind whose own words hold another kind's. "the consent agenda" and "the minutes" hold approval; "the
+    deferrals (and withdrawals)" holds defer, withdraw and approval.
+  - "recommend" names approval only when no other pattern matches ("to recommend denial" is "Motion for disapproval",
+    "to recommend a 30 day deferral" is "Motion to defer"). Before, it was part of approval's pattern, so these would
+    have matched two kinds.
+  "for approval with denial of the sign variance" now also matches two kinds (before: "Motion for disapproval").
+- `rpc-votes/polarity-table-family`: `_polarity` gives table, postpone and continue a value each, so "made a motion to
+  postpone the case ... Motion to table passed" is WHY_OTHER_KIND.
+- `rpc-votes/elect-adjourn-doc`: the ELECT_ADJOURN wording above and in rpc_minutes.py now says what it does.
+- Mutation table (tools/rpc_rule10_mutation.py) adds the two-kinds check, the "Motion" label, both "recommend" rules,
+  each KIND_HOLDS entry and each table-family polarity.

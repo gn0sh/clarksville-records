@@ -453,3 +453,47 @@ def test_an_election_or_adjournment_passing_for_approval_is_confirmed(text, kind
 def test_table_and_continue_as_nouns_are_not_a_kind(words):
     assert R.motion_kind(f"made the motion for approval {words}") == "Motion for approval"
     assert R.motion_kind(f"made the motion {words}") == "Motion"
+
+
+# rpc-votes/kind-order-new-kinds: mover words matching two kinds' patterns are never confirmed under the first one
+@pytest.mark.parametrize("words", [
+    "made the motion to approve the request to continue the existing use",
+    "made a motion to recommend approval to allow the church to continue operating",
+    "made the motion for approval with a condition to postpone grading",
+    "made the motion for approval subject to tabling the sign request",
+    "made the motion to approve the request to withdraw condition 3",
+    "made the motion to approve the request to defer the sign variance",
+    "made the motion for approval with denial of the sign variance",
+])
+def test_mover_words_naming_two_kinds_are_not_confirmed(words):
+    m = one(f"Joe Smith {words}, seconded by Stacey Streetman. All others voted in favor. Motion passed.",
+            extra=("Joe Smith",))
+    held(m, R.WHY_TWO_KINDS)
+    assert m.kind == "Motion"       # never shown under table / postpone / continue / withdraw / defer / disapproval
+
+
+@pytest.mark.parametrize("words,kind", [
+    # a kind whose own words hold another kind's, and "recommend" before another kind, name one kind
+    ("made the motion to approve the consent agenda", "Motion to approve the consent agenda"),
+    ("made the motion to approve the minutes", "Motion to approve the minutes"),
+    ("made the motion to approve the deferrals and withdrawals", "Motion to approve the deferrals"),
+    ("made the motion to recommend denial", "Motion for disapproval"),
+    ("made the motion to recommend a 30 day deferral", "Motion to defer"),
+    ("made the motion to recommend approval", "Motion for approval"),
+    ("made the motion to recommend the request to the City Council", "Motion for approval"),
+])
+def test_one_kind_named_through_another_kinds_words_is_confirmed(words, kind):
+    m = one(f"Joe Smith {words}, seconded by Stacey Streetman. All others voted in favor. Motion passed.",
+            extra=("Joe Smith",), head="" if kind in R.MEETING_BUSINESS else Z5)
+    ok(m)
+    assert m.kind == kind
+
+
+# rpc-votes/polarity-table-family: table, postpone and continue are three polarities, not one
+@pytest.mark.parametrize("mover,outcome", [("to postpone the case", "Motion to table passed."),
+                                           ("to table the case", "Motion passed to postpone."),
+                                           ("to continue the case", "Motion to table passed."),
+                                           ("to postpone the case", "Motion passed to continue.")])
+def test_table_postpone_and_continue_are_each_their_own_polarity(mover, outcome):
+    held(one(f"Joe Smith made a motion {mover}, seconded by Stacey Streetman. All others voted in favor. {outcome}",
+             extra=("Joe Smith",)), R.WHY_OTHER_KIND)

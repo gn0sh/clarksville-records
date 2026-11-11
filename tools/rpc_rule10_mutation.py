@@ -37,7 +37,8 @@ muts += [
      "        if False and (body_end is None"),
     ("rule 9: a vote word after the 'in favor' sentence in the body",
      "\n                                             or LEFTOVER_VOTE.search(window, fav.end(), len(para))):", "):"),
-    ("polarity: table / postpone / continue", 'if re.search(r"\\btabl|\\bpostpon|\\bcontinu", t):', "if False:"),
+    ("polarity: table / postpone / continue", "        if re.search(word, t):\n            return polarity",
+     "        if False:\n            return polarity"),
     # review of 33e13a2: the mover's polarity, the table kinds, a lack of a second in the mover clause
     ("polarity: a mover naming no kind passes", "            if b and a != b:", "            if a and b and a != b:"),
     ("kind: table", '"Motion to table"),', '"Motion"),'),
@@ -47,6 +48,25 @@ muts += [
     ("polarity: an election or adjournment passing for approval", "_polarity(kind) or ELECT_ADJOURN.get(kind),",
      "_polarity(kind),"),
     ("10a mover clause: lack of a second", "                or LACK_OF_SECOND.search(own)", ""),
+    # delta review of 92a0c69..24422eb: two kinds in the mover's words; table, postpone and continue apart
+    ("kind: two kinds in the mover's words", "        if len(kinds) > 1:", "        if False:"),
+    ("kind: two kinds shown under the first", "kind = kinds[0] if len(kinds) == 1 else MOTION_DEFAULT",
+     "kind = next(iter(kinds), MOTION_DEFAULT)"),
+    ("kind: recommend before another kind", "label for pattern, label in MOTION_KINDS if",
+     "label for pattern, label in MOTION_KINDS + (RECOMMEND,) if"),
+    ("kind: recommend alone", "return [RECOMMEND[1]] if re.search(RECOMMEND[0], words, re.I) else []", "return []"),
+    ("kind holds: consent agenda", '"Motion to approve the consent agenda": frozenset({"Motion for approval"}),',
+     '"Motion to approve the consent agenda": frozenset(),'),
+    ("kind holds: minutes", '"Motion to approve the minutes": frozenset({"Motion for approval"}),',
+     '"Motion to approve the minutes": frozenset(),'),
+    ("kind holds: deferrals hold defer", 'frozenset({"Motion to defer", "Motion to withdraw",',
+     'frozenset({"Motion to withdraw",'),
+    ("kind holds: deferrals hold withdraw", 'frozenset({"Motion to defer", "Motion to withdraw",',
+     'frozenset({"Motion to defer",'),
+    ("kind holds: deferrals hold approval", '"Motion to withdraw",\n' + " " * 59 + '"Motion for approval"})}',
+     '"Motion to withdraw"})}'),
+    ("polarity: postpone is its own", '(r"\\bpostpon", "postpone")', '(r"\\bpostpon", "table")'),
+    ("polarity: continue is its own", '(r"\\bcontinu", "continue")', '(r"\\bcontinu", "table")'),
 ]
 # 10c: each MEMBER_VOTE alternative
 mv_line = src[src.index("MEMBER_VOTE = ("):src.index(")\n", src.index("MEMBER_VOTE = (")) + 1]

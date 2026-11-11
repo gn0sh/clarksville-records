@@ -560,7 +560,7 @@ def test_attach_places_a_motion_under_its_case_only_while_nothing_doubts_the_cas
 
 def test_the_build_writes_the_readers_motion_rules_into_the_record(attached):
     facts, summary, _ = attached
-    assert facts["motion_rules"] == R.MOTION_RULES == "rpc-motion-invariant-4"
+    assert facts["motion_rules"] == R.MOTION_RULES == "rpc-motion-invariant-5"
     assert facts["schema"] == "rpc-1"          # the record's layout is unchanged; only the rules it was read by
 
 
