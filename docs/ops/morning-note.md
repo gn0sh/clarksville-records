@@ -44,6 +44,49 @@ and may be labelled differently. Record what each screen really says in `docs/pl
    Copy it once; it goes straight into the GitHub secret in step 2.3 and nowhere else (not a file, chat or issue).
 
 ## 2. GitHub settings (Brian, once; nothing runs yet)
+0. **Brian: protect `main` first** (security-note-workflow M1). The `morning-note` environment's "main only" rule
+   (step 2.2) only says *which branch* may use the secret; without protection anyone who can push could put a
+   changed workflow straight onto `main` and it would get the key. So `main` must take changes by pull request only,
+   except the daily job's own `data/` commit (the `push` job, `GITHUB_TOKEN`, `github-actions[bot]`).
+   1. Open https://github.com/gn0sh/clarksville-records/settings/rules > **New ruleset** > **New branch ruleset**.
+   2. **Ruleset name** `main: pull request required`; **Enforcement status** **Active**.
+   3. **Bypass list** > **Add bypass**: pick **GitHub Actions** if it is offered (allow: **Always**). Do not add
+      yourself or **Repository admin**.
+   4. **Target branches** > **Add target** > **Include default branch**.
+   5. Tick **Restrict deletions**, **Block force pushes**, and **Require a pull request before merging** (required
+      approvals: 0, since Brian is the only reviewer with write access; the team's review is the PR review). Leave
+      every other rule off (no required status checks: a `GITHUB_TOKEN` commit triggers no workflow). **Create**.
+   6. If **GitHub Actions** was not offered in 2.0.3, create the same ruleset from a terminal instead (the API takes the
+      Actions app as actor; `15368` is the id of the `github-actions` app):
+      ```
+      gh api -X POST repos/gn0sh/clarksville-records/rulesets --input - <<'EOF'
+      {"name": "main: pull request required", "target": "branch", "enforcement": "active",
+       "conditions": {"ref_name": {"include": ["~DEFAULT_BRANCH"], "exclude": []}},
+       "bypass_actors": [{"actor_id": 15368, "actor_type": "Integration", "bypass_mode": "always"}],
+       "rules": [{"type": "deletion"}, {"type": "non_fast_forward"},
+                 {"type": "pull_request", "parameters": {"required_approving_review_count": 0,
+                  "dismiss_stale_reviews_on_push": false, "require_code_owner_review": false,
+                  "require_last_push_approval": false, "required_review_thread_resolution": false}}]}
+      EOF
+      ```
+   Check: `gh api repos/gn0sh/clarksville-records/rules/branches/main --jq '[.[].type] | sort'` prints
+   `["deletion","non_fast_forward","pull_request"]`, and
+   `gh api repos/gn0sh/clarksville-records/rulesets --jq '.[] | select(.name=="main: pull request required") | .id' | xargs -I{} gh api repos/gn0sh/clarksville-records/rulesets/{} --jq '.enforcement, .bypass_actors'`
+   prints `active` and only the `Integration` actor `15368`. Then **Actions** > **Daily update** > **Run workflow**
+   (collect on): the `push` job must go green with a `data/` commit on `main`. If it fails with "Changes must be
+   made through a pull request", the bypass did not take: set the ruleset's Enforcement to **Disabled** (data
+   collection resumes), and use the fallback below.
+   - **Unverified (Nov 11 2026):** whether a ruleset on a personal-account public repository can list GitHub Actions
+     (`GITHUB_TOKEN`) as a bypass actor. The team could not reach GitHub's docs or this repo's settings from its
+     session. Community reports differ: the UI's bypass picker may not list the Actions app, while the API call in
+     2.0.6 has been reported to work. Record what was seen in `docs/platform-facts.md`.
+   - **Fallback if the bypass is refused:** the team changes the `push` job (reviewed PR) to push `data/` to a
+     `data/<date>` branch and open and merge its own PR with `GITHUB_TOKEN` (0 required approvals, so the ruleset
+     allows it; needs **Settings > Actions > General > Allow GitHub Actions to create and approve pull requests**).
+     CODEOWNERS plus "require review from Code Owners" on its own is **not** a fix: it only applies to pull requests,
+     so it stops nothing unless the same ruleset also blocks direct pushes. A write-access deploy key as the bypass
+     actor would also work but is a new secret (hard stop 5); not recommended.
+   - Until this check passes, the note job must stay off (`MORNING_NOTE_SEND` unset): section 4 item 6.
 1. **Brian:** https://github.com/gn0sh/clarksville-records/settings/environments > **New environment** > name
    `morning-note` > **Configure environment**.
 2. **Brian:** in `morning-note`, **Deployment branches and tags** > **Selected branches and tags** > **Add deployment
@@ -59,8 +102,16 @@ and may be labelled differently. Record what each screen really says in `docs/pl
 
 ## 3. T4.0 probe (team addresses only; devops with Brian's account)
 On a separate **test** newsletter, with only team addresses subscribed, answer each item and write the answer into
-`docs/platform-facts.md` ("Morning note provider", with the date and who saw it). From the probe run with the
-scoped key in a local shell variable, never in a file, a commit or a log:
+`docs/platform-facts.md` ("Morning note provider", with the date and who saw it). The probe uses its own scoped key
+made on the **test** newsletter only (never the live newsletter's key from 1.7), entered without echo or shell
+history, never in a file, a commit or a log:
+```
+read -rs BUTTONDOWN_API_KEY && export BUTTONDOWN_API_KEY    # paste the key, then Enter; nothing is shown
+# the probe calls; the header goes in on stdin, so the key is not in the process list either:
+printf 'Authorization: Token %s\n' "$BUTTONDOWN_API_KEY" | curl -sS -H @- https://api.buttondown.com/v1/emails
+unset BUTTONDOWN_API_KEY
+```
+When the probe is finished, delete that key in the test newsletter's Settings > API. Answer each item:
 1. An email's `filters` takes `subscriber.metadata.note_edition equals <value>` and reaches only the matching
    subscribers (stamp one of two team subscribers: the other gets nothing).
 2. `status: "scheduled"` with `publish_date` holds until then; which `status` sends at once. Creating a draft sends
@@ -89,6 +140,9 @@ architect.
 3. T4.8 security review of the T4.5 commit passed.
 4. `morning_note.enabled: true` and `morning_note.sender.enabled: true`, with `canary_only: true` (the default).
 5. The site deploy is live (`RECORDS_DEPLOY_ENABLED` is `true`): the note job needs a successful deploy.
+6. `main` is protected (step 2.0): both `gh api` checks of 2.0 print what they should, and the last scheduled run's
+   `push` job committed `data/` to `main` under the ruleset (or the 2.0 fallback is merged and green). Link the
+   check output in the go-live PR.
 
 ## 5. Go-live: Canary week (Brian; hard stop 1)
 1. **Brian:** https://github.com/gn0sh/clarksville-records/settings/variables/actions > **New repository variable** >

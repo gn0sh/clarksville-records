@@ -228,6 +228,11 @@ If neither mode passes, stop and return to the architect.
 ### T4.8 Security review
 Fresh review at the T4.5 commit against the nine threat points in the architecture. The workflow job does not merge
 before it passes.
+Launch precondition (security-note-workflow M1, Nov 11 2026): `main` is protected by a ruleset requiring a pull
+request, with only the GitHub Actions bot (the daily `push` job's `data/` commit) as bypass, or the runbook's
+fallback (the push job opens and merges its own PR) is merged. Without it the `morning-note` environment's main-only
+rule can be bypassed by a direct push. Steps and `gh api` checks: `docs/ops/morning-note.md` step 2.0; checked in
+section 4 item 6 before `MORNING_NOTE_SEND` is set.
 
 ### Order for T4
 T4.1 + T4.2 + T4.3 + T4.6 in parallel now (T4.6 touches only templates and `morning_note.page`; T4.3 owns the rest of
