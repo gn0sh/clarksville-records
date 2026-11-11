@@ -971,11 +971,14 @@ def vote_on_rule() -> list[dict]:
 def confirmed_rate(ix: Index) -> dict:
     """A body's roll calls confirmed against its minutes, counted from the facts at build time (about.html#the-record,
     Brian 2026-11-11): never typed, so it follows each new facts file. `text`: "1,756 of 2,235" and the share to one
-    decimal place."""
+    decimal place. The share is the one percentage on the site, and it is about the body's record (how much of the
+    minutes the reader confirmed), never about an official: templates carry no "%" (test_site_neutrality), so it is
+    written here, and tests/test_about_owner.py checks no official's page shows one."""
     g = record_glance(ix)
     n, total = g["rc_confirmed"], g["rc_total"]
     pct = f"{100 * n / total:.1f}" if total else "0.0"
     return {"body": ix.body_name, "href": ix.home_href(), "confirmed": n, "total": total, "pct": pct,
+            "share": f"{pct}%",
             "text": f"{n:,} of {total:,}", "record": {"url": ix.cfg["record_url"], "label": ix.cfg["record_label"]}}
 
 

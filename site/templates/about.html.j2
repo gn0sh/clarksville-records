@@ -28,7 +28,7 @@
     <li class="stat stat-dates"><span class="stat-num"><span class="nowrap">{{ glance.from }}</span> to <span class="nowrap">{{ glance.to }}</span></span><span class="stat-label">dates covered</span></li>
   </ul>
   <p class="glance-note">{{ glance.rc_confirmed }} of {{ glance.rc_total }} roll calls are confirmed; the other {{ glance.rc_unconfirmed }} are shown with an asterisk and a link to the page of the minutes. {{ glance.motions_held }} motion {{ "attribution is" if glance.motions_held == 1 else "attributions are" }} under review. {{ glance.att_not_shown }} {{ "meeting has" if glance.att_not_shown == 1 else "meetings have" }} no attendance shown. See the <a href="#verified">data rules</a>.</p>
-  {% for r in council_rates %}<p class="glance-note" data-confirmed-rate="{{ r.body }}">{{ r.text }} <a href="{{ root }}{{ r.href }}">{{ r.body }}</a> roll calls ({{ r.pct }}%) are confirmed against the official minutes; the rest are shown as not confirmed, each with its reason and a link to the source.</p>{% endfor %}
+  {% for r in council_rates %}<p class="glance-note" data-confirmed-rate="{{ r.body }}">{{ r.text }} <a href="{{ root }}{{ r.href }}">{{ r.body }}</a> roll calls ({{ r.share }}) are confirmed against the official minutes; the rest are shown as not confirmed, each with its reason and a link to the source.</p>{% endfor %}
   </div>
 </section>
 

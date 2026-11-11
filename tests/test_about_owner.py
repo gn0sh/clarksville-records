@@ -119,3 +119,16 @@ def test_site_checks_about_passes_and_catches_drift(about_site, tmp_path, cfg, c
     text = "\n".join(problems)
     assert "Clarksville City Council rate reads" in text, problems
     assert "does not link" in text and "prints a year" in text, problems
+
+
+def test_the_rate_is_the_only_percentage_and_never_on_an_official_page(about_site):
+    """test_site_neutrality bans "%" in templates (no score about a person); the About rate's share is written by
+    views.confirmed_rate and is about the body's record. No official's page, nor any page but About, shows one."""
+    for p in about_site.rglob("*.html"):
+        rel = p.relative_to(about_site).as_posix()
+        body = re.sub(r"<(script|style)\b.*?</\1>", "", p.read_text(encoding="utf-8"), flags=re.S)
+        shown = re.findall(r"\d%", plain(body))
+        if rel == "about.html":
+            assert len(shown) == 1, shown
+        else:
+            assert not shown, (rel, shown)
