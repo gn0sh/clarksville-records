@@ -354,3 +354,12 @@ def test_a_later_cap_never_raises_an_earlier_one():
     f.limit_hosts(("h.example",), 1)
     f.limit_hosts(("h.example",), 10)
     assert f.remaining("h.example") == 1
+
+
+def test_the_docs_name_methods_that_exist():
+    """The docstrings point at real methods (a renamed method once left `limit_host` behind)."""
+    import re
+    from collector import fetch as F
+    text = F.__doc__ + F.RequestCapReached.__doc__
+    for name in set(re.findall(r"\b(limit_hosts?|site_key|check_redirect)\b", text)):
+        assert hasattr(F.PoliteFetcher, name) or hasattr(F, name), name

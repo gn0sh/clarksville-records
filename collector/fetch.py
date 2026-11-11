@@ -12,9 +12,9 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
   server error; a second reset fails the fetch. At most RESET_RETRIES_PER_HOST resets are retried per host per
   run: after that a reset fails the fetch at once, so a relay that keeps dropping cannot double the requests;
 - a 403 or 429 sent by the site stops that host for the rest of the run, with no retry by another
-  host, header or proxy, and never sooner than the host delay. A refusal by the sandbox's own egress proxy (a rejected CONNECT, which the
-  site never sees) is a different case: it is logged as ProxyRefused and does not mark the site as
-  having blocked us. A 403 that cannot be attributed to the proxy is treated as the site's;
+  host, header or proxy, and it is never asked again in that run, sooner or later. A refusal by the sandbox's own
+  egress proxy (a rejected CONNECT, which the site never sees) is a different case: it is logged as ProxyRefused and
+  does not mark the site as having blocked us. A 403 that cannot be attributed to the proxy is treated as the site's;
 - every request waits the host delay first, whatever the previous answer was (a 304, a 404, a 5xx, a reset): no
   status code ever shortens the gap;
 - one site, one state (fetch/host-key-normalization): the delay, a block and the request count are kept per
@@ -83,7 +83,7 @@ class ProxyRefused(Exception):
 
 
 class RequestCapReached(Exception):
-    """The run's request cap for this host (limit_host) is used up. No request was made."""
+    """The run's request cap for this host's cap group (limit_hosts) is used up. No request was made."""
 
 
 class FetchFailed(Exception):
@@ -143,14 +143,15 @@ class PoliteFetcher:
     extra_denied: tuple = ()                         # hosts denied for this run, e.g. finance.yml bonfire_hosts
     max_bytes: int = MAX_BYTES
     reset_retries: int = RESET_RETRIES_PER_HOST     # per host per run
-    _last: dict = field(default_factory=dict)        # host -> clock() of last request
-    _robots: dict = field(default_factory=dict)      # host -> RobotFileParser
-    _blocked: dict = field(default_factory=dict)     # host -> reason (site said 403/429)
-    _proxy_refused: dict = field(default_factory=dict)  # host -> count
-    _delay: dict = field(default_factory=dict)       # host -> delay (robots Crawl-delay may raise it)
-    _resets: dict = field(default_factory=dict)      # host -> resets retried this run
-    _sent: dict = field(default_factory=dict)        # host -> requests sent this run (every one, retries included)
-    _caps: list = field(default_factory=list)        # [(frozenset of hosts, request limit)] (limit_hosts)
+    # Per-site state is keyed by site_key(host); robots.txt by the exact lowercase host.
+    _last: dict = field(default_factory=dict)        # site -> clock() of last request
+    _robots: dict = field(default_factory=dict)      # exact host -> RobotFileParser
+    _blocked: dict = field(default_factory=dict)     # site -> reason (site said 403/429)
+    _proxy_refused: dict = field(default_factory=dict)  # site -> count
+    _delay: dict = field(default_factory=dict)       # site -> delay (any of its robots.txt Crawl-delays may raise it)
+    _resets: dict = field(default_factory=dict)      # site -> resets retried this run
+    _sent: dict = field(default_factory=dict)        # site -> requests sent this run (every one, retries included)
+    _caps: list = field(default_factory=list)        # [(frozenset of sites, request limit)] (limit_hosts)
     log: list = field(default_factory=list)          # [{event, host, url, detail}]
 
     # ------------------------------------------------------------ policy
