@@ -103,14 +103,18 @@ def test_the_block_may_be_left_out_and_must_be_a_mapping():
 def test_the_stdlib_reader_agrees_with_yaml_on_the_shipped_file():
     got = settings_mod.parse(SITE_YML.read_text(encoding="utf-8"))
     full = yaml.safe_load(SITE_YML.read_text(encoding="utf-8"))
-    assert got["sender"] == {k: v for k, v in full["morning_note"]["sender"].items() if k != "text"}
-    assert got["top"] == {k: full[k] for k in ("site_timezone", "district_count", "ward_count", "support_url")}
+    sender = full["morning_note"]["sender"]
+    assert got["sender"] == {**{k: v for k, v in sender.items() if k != "text"},
+                             "text.subject": sender["text"]["subject"]}      # text: its subject line only
+    assert got["top"] == {k: full[k] for k in ("site_timezone", "district_count", "ward_count", "support_url",
+                                               "site_name")}
     s = settings_mod.load(SITE_YML)
     assert (s.enabled, s.canary_only, s.mode, s.max_recipients, s.timezone) == (False, True, "stamp", 2000, "America/Chicago")
     assert (s.district_count, s.ward_count, s.send_at, s.latest_send) == (21, 12, "07:00", "10:00")
 
 
 BASE = """site_timezone: America/Chicago   # a comment
+site_name: Daylight
 district_count: 21
 ward_count: 12
 other:
@@ -159,7 +163,16 @@ def test_the_reader_takes_only_the_sender_block():
     ("    send_at: \"07:00\"", "    send_at: \"7am\""), ("    send_at: \"07:00\"", "    send_at: \"12:00\""),
     ("    send_at: \"07:00\"", "    send_at: \"07:00"),                              # an open quote
     ("  sender:\n    enabled: false", "  sender: {enabled: false}\n  x:"),          # flow style: not read, so missing
-    ("district_count: 21", "district_count: many"), ("site_timezone: America/Chicago   # a comment\n", "")])
+    ("district_count: 21", "district_count: many"), ("site_timezone: America/Chicago   # a comment\n", ""),
+    # sender/plan-untrusted/subject-unchecked: site_name and text.subject are read now, and held as strictly
+    ("site_name: Daylight\n", ""), ("site_name: Daylight", "site_name: two words"), ("site_name: Daylight", "site_name:"),
+    ("      subject: \"{site_name} morning note, {date}\"\n", ""),
+    ("      subject: \"{site_name} morning note, {date}\"", "      subject: \"{site_name} morning note, {date}\"\n"
+                                                           "      subject: \"other\""),         # set twice
+    ("      subject: \"{site_name} morning note, {date}\"", "      subject: {site_name} morning note, {date}"),
+    ("      subject: \"{site_name} morning note, {date}\"", "      subject:"),
+    ("      subject: \"{site_name} morning note, {date}\"", "      subject: \"\""),
+    ("      subject: \"{site_name} morning note, {date}\"", "      subject: \"a‮b\"")])
 def test_anything_the_reader_cannot_read_is_an_error_never_a_guess(old, new):
     assert old in BASE
     with pytest.raises(settings_mod.SettingsError):
@@ -291,7 +304,8 @@ def test_parity_with_pyyaml_on_the_shipped_file():
 @pytest.mark.parametrize("path, value", [
     (("morning_note", "sender", "enabled"), True), (("morning_note", "sender", "canary_only"), False),
     (("morning_note", "sender", "max_recipients"), 64), (("morning_note", "sender", "max_recipients"), "2000"),
-    (("morning_note", "sender", "enabled"), 0), (("ward_count",), 13)])
+    (("morning_note", "sender", "enabled"), 0), (("ward_count",), 13), (("site_name",), "Elsewhere"),
+    (("morning_note", "sender", "text", "subject"), "{site_name} other, {date}")])
 def test_parity_names_any_value_pyyaml_reads_differently(path, value):
     text = SITE_YML.read_text(encoding="utf-8")
     loaded = yaml.safe_load(text)

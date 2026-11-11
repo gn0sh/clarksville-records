@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import re
+import unicodedata
+from datetime import date
 
 PLAN_SCHEMA = "morning-send/1"
 NOTE_SCHEMA = "morning-note/1"                             # sitegen.morning.SCHEMA (a test keeps them equal)
@@ -69,3 +71,31 @@ def signature(lists, district, ward) -> str:
     alphabetical order, then the district and the ward, "-" for none). Unknown list keys are left out."""
     picked = sorted(k for k in LIST_KEYS if k in set(lists))
     return f"{','.join(picked)}|{district if district is not None else '-'}|{ward if ward is not None else '-'}"
+
+
+# sender/plan-untrusted/subject-unchecked: one rule for the subject, so the deliver stage can rebuild it from the
+# repository's config and refuse a plan whose subject is anything else.
+MAX_TITLE = 600         # a longer title is cut here and marked with CUT; the site's page carries all of it
+CUT = "..."
+
+
+def clean(text) -> str:
+    """One line of plain text: control and format characters are dropped (whitespace ones stay, as word breaks),
+    then runs of whitespace become one space, and anything past MAX_TITLE characters is cut. In that order
+    (render/clean-order): collapsing first left "a \\xad b" as "a  b", a double space the deliver check refuses."""
+    s = "".join(c for c in str(text if text is not None else "")
+                if c.isspace() or unicodedata.category(c) not in ("Cc", "Cf"))
+    s = " ".join(s.split())
+    return s if len(s) <= MAX_TITLE else s[:MAX_TITLE].rstrip() + CUT
+
+
+def day_words(iso: str) -> str:
+    """"2026-11-11" -> "November 11, 2026" (as the preview page writes a day). ValueError for a day that is not one."""
+    d = date.fromisoformat(iso)
+    return f"{d:%B} {d.day}, {d.year}"
+
+
+def subject_line(template: str, site_name: str, iso: str) -> str:
+    """The subject for day `iso`: the config's `morning_note.sender.text.subject` with `{site_name}` and `{date}`
+    filled in, cleaned. render.subject writes it (and adds the AUTHORITY check); deliver rebuilds it to compare."""
+    return clean(template.replace("{site_name}", site_name).replace("{date}", day_words(iso)))

@@ -10,6 +10,7 @@ from __future__ import annotations
 import copy
 import dataclasses
 import functools
+import http.client
 import json
 import re
 import socket
@@ -237,6 +238,53 @@ def test_each_request_is_checked_against_the_pinned_host_on_its_own(url):
     assert http.requests == [] and str(e.value) == "GET /emails: a URL off the pinned host"
 
 
+UNSAFE = ["\t", "\n", "\r", " ", "\x00", "\x1f", "\x7f", "é", "​", "\\"]
+
+
+@pytest.mark.parametrize("ch", UNSAFE, ids=repr)
+def test_a_url_with_a_control_space_non_ascii_or_backslash_is_refused(ch):
+    """sender/transport/parse-differential: urlsplit drops a tab or newline that another parser keeps, so any such
+    character anywhere in a URL is refused before it is parsed; also in a next link."""
+    http = FakeHTTP()
+    for url in (f"https://api.buttondown.com/v1/emails{ch}", f"https://api.buttondown.com{ch}/v1/emails",
+                f"https://api.buttondown.com/v1/em{ch}ails?page=2", f"https://api.buttondown.com{ch}@evil.example/v1/x"):
+        with pytest.raises(deliver.ProviderError) as e:
+            client(http)._send("GET", url, "/emails")
+        assert str(e.value) == "GET /emails: a URL off the pinned host"
+    nxt = f"https://api.buttondown.com/v1/emails?page=2{ch}"
+    http = FakeHTTP(faults={("GET", "/emails"): [Resp(200, {"results": [], "next": nxt, "count": 0})]})
+    with pytest.raises(deliver.ProviderError) as e:
+        client(http).emails()
+    assert str(e.value) == "GET /emails: a next link off the pinned host" and len(http.requests) == 1
+
+
+@pytest.mark.parametrize("field, value", [("type", "http"), ("host", "evil.example"), ("selector", "/v2/emails"),
+                                          ("host", "api.buttondown.com:443")])
+def test_the_request_urllib_builds_must_agree_on_scheme_host_and_path(monkeypatch, field, value):
+    """The second parse: whatever urllib's Request makes of the URL is checked again before it is opened."""
+    class Skewed(urllib.request.Request):
+        @property
+        def selector(self):
+            return value if field == "selector" else super().selector
+
+        @selector.setter
+        def selector(self, v):
+            self.__dict__["_sel"] = v
+
+    real = urllib.request.Request
+
+    def make(*a, **k):
+        r = Skewed(*a, **k) if field == "selector" else real(*a, **k)
+        if field != "selector":
+            setattr(r, field, value)
+        return r
+    monkeypatch.setattr(bd.urllib.request, "Request", make)
+    http = FakeHTTP()
+    with pytest.raises(deliver.ProviderError) as e:
+        client(http).emails()
+    assert str(e.value) == "GET /emails: a URL off the pinned host" and http.requests == []
+
+
 def test_a_listing_is_read_page_by_page_and_reduced_at_the_boundary(plan):
     rows = people(plan)
     http = FakeHTTP(rows, page_size=2)
@@ -327,6 +375,27 @@ def test_a_connection_failure_carries_no_url_and_is_not_chained(exc):
         client(http).subscriber("sub-0001-secret")
     assert str(e.value) == "GET /subscribers/{id}: the connection failed"
     assert e.value.__cause__ is None and e.value.__suppress_context__
+
+
+@pytest.mark.parametrize("exc", [http.client.BadStatusLine(SECRET_BODY), http.client.LineTooLong(SECRET_BODY),
+                                 http.client.RemoteDisconnected(SECRET_BODY), http.client.IncompleteRead(b"sub-0001-secret"),
+                                 http.client.HTTPException(f"{BASE}/subscribers/sub-0001-secret")])
+def test_an_http_client_error_is_wrapped_never_let_out(exc):
+    """sender/adapter-errors/httpexception-unwrapped: http.client's own errors (not all are OSError) carry what the
+    server sent; each becomes the fixed connection-failed error, not chained."""
+    with pytest.raises(deliver.ProviderError) as e:
+        client(FakeHTTP(faults={("GET", "/subscribers/{id}"): [exc]})).subscriber("sub-0001-secret")
+    assert str(e.value) == "GET /subscribers/{id}: the connection failed"
+    assert e.value.__cause__ is None and e.value.__suppress_context__
+
+
+def test_an_http_client_error_while_reading_is_wrapped_too():
+    class Broken(Resp):
+        def read(self, n=-1):
+            raise http.client.IncompleteRead(SECRET_BODY.encode())
+    with pytest.raises(deliver.ProviderError) as e:
+        client(FakeHTTP(faults={("GET", "/emails"): [Broken(200, {"results": []})]})).emails()
+    assert str(e.value) == "GET /emails: the answer could not be read" and SECRET_BODY not in repr(e.value)
 
 
 @pytest.mark.parametrize("bad_id", ["../emails", "a/b", "a?b", "a%2fb", "", "x" * 65, None, "é"])
@@ -653,7 +722,7 @@ def test_buttondown_is_the_only_sender_module_that_imports_a_network_library():
 def test_the_adapter_imports_the_standard_library_only():
     src = (ROOT / "sender" / "buttondown.py").read_text(encoding="utf-8")
     mods = {m.split(".")[0] for m in re.findall(r"^\s*(?:from|import)\s+([\w.]+)", src, re.M)}
-    assert mods <= {"", "__future__", "json", "re", "ssl", "time", "urllib", "datetime", "email"}, mods
+    assert mods <= {"", "__future__", "http", "json", "re", "ssl", "time", "urllib", "datetime", "email"}, mods
     assert not re.search(r"\bprint\(|\blogging\b|set_debuglevel|debuglevel=[1-9]", src)
 
 

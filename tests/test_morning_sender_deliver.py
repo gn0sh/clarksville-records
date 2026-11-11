@@ -16,7 +16,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from sitegen import config
-from sender import common, deliver, plan as plan_mod, settings as settings_mod
+from sender import common, deliver, plan as plan_mod, render, settings as settings_mod
 from test_morning import D, inputs  # noqa: F401
 from test_morning_sender_plan import TEST_HOSTS, cfg_with, msite  # noqa: F401
 
@@ -271,6 +271,45 @@ def test_a_subject_that_is_not_one_printable_line_sends_nothing(plan, subject):
     assert go(copy.deepcopy(plan), Fake(people(plan)))[0].status == "sent"
 
 
+@pytest.mark.parametrize("subject", [
+    "Daylight morning note, November 12, 2026",                          # another day's
+    "Daylight morning note, November 11, 2026 - URGENT: reply with your password",
+    "Official notice from the City", "Daylight morning note,  November 11, 2026", "Daylight"])
+@pytest.mark.parametrize("mode", ["stamp", "ids"])
+def test_a_subject_other_than_the_one_the_config_gives_sends_nothing(plan, subject, mode):
+    """sender/plan-untrusted/subject-unchecked: each subject is rebuilt from the repository's site_name and
+    text.subject for the plan's day; a printable but different one (the plan comes from the job that parses
+    untrusted PDFs) is refused before any provider call, in every edition and in the dry run too."""
+    assert plan["editions"][0]["subject"] == f"Daylight morning note, {render.day_words(DAY)}"
+    for i in (0, len(plan["editions"]) - 1):
+        bad = copy.deepcopy(plan)
+        bad["editions"][i]["subject"] = subject
+        fake = Fake(people(plan))
+        res, text = go(bad, fake, s=settings(mode=mode))
+        assert (res.code, res.status) == (2, "bad-plan") and "subject" in text and fake.calls == []
+        assert go(bad, fake, live=False)[0].status == "bad-plan"
+
+
+def test_the_expected_subject_comes_from_the_repository_config_not_the_plan(plan):
+    fake = Fake(people(plan))
+    res, _ = go(copy.deepcopy(plan), fake, s=settings(subject_template="{site_name} note for {date}"))
+    assert (res.code, res.status) == (2, "bad-plan") and fake.calls == []
+    res, _ = go(copy.deepcopy(plan), Fake(people(plan)), s=settings(site_name="Elsewhere"))
+    assert res.status == "bad-plan"
+    for broken in ({"site_name": ""}, {"subject_template": ""}):
+        assert go(copy.deepcopy(plan), Fake(people(plan)), s=settings(**broken))[0].status == "bad-plan"
+
+
+def test_deliver_rebuilds_the_subject_exactly_as_render_writes_it():
+    ctx = {"site_name": "Day  light­", "text": {"subject": "{site_name}\tnote, {date} "}}
+    for day in ("2026-01-01", "2026-11-11", "2028-02-29"):
+        assert render.subject(ctx, day) == common.subject_line("{site_name}\tnote, {date} ", "Day  light­", day)
+    s = settings_mod.load(ROOT / "config" / "site.yml")
+    assert (s.site_name, s.subject_template) == (config.SITE["site_name"],
+                                                 config.SITE["morning_note"]["sender"]["text"]["subject"])
+    assert deliver.expected_subject(s, "2026-13-40") is None
+
+
 def test_a_signature_with_non_ascii_digits_sends_nothing(plan):
     bad = copy.deepcopy(plan)
     bad["signatures"]["budget|1\u0667|-"] = next(iter(bad["signatures"].values()))
@@ -408,6 +447,26 @@ def test_an_edition_that_could_not_leave_by_latest_send_stops_the_run(plan):
     assert "latest_send" in text
     fake = Fake(people(plan))
     assert go(plan, fake, now=at(9, 58))[0].status == "late" and fake.created == []
+
+
+def test_ids_mode_rechecks_latest_send_before_each_draft_and_each_send(plan):
+    """sender/never-late/ids-no-recheck: `ids` mails at once, so a run that crosses latest_send part way stops
+    there: no further draft is created and no draft is sent after it (exit 2, "late")."""
+    at = lambda h, m: datetime(2026, 11, 11, h, m, tzinfo=TZ)              # noqa: E731
+    s = settings(mode="ids")
+    # the run's start, then edition 1's draft and send, then edition 2's draft: past latest_send
+    fake = Fake(people(plan))
+    res, text = go(plan, fake, s=s, now=None, clock=clock_of(at(5, 0), at(9, 59), at(10, 0), at(10, 1)))
+    assert (res.code, res.status, res.editions) == (2, "late", 1)
+    assert len(fake.created) == 1 and len(fake.sent_drafts) == 1 and "latest_send" in text
+    # past latest_send between edition 1's draft and its send: the draft is made (it claims the edition), never sent
+    fake = Fake(people(plan))
+    res, _ = go(plan, fake, s=s, now=None, clock=clock_of(at(5, 0), at(9, 59), at(10, 0) + timedelta(seconds=1)))
+    assert (res.code, res.status, res.editions) == (2, "late", 0)
+    assert len(fake.created) == 1 and fake.sent_drafts == []
+    # in time throughout: all three are sent
+    fake = Fake(people(plan))
+    assert go(plan, fake, s=s, now=None, clock=clock_of(at(5, 0), at(9, 0)))[0].editions == 3
 
 
 def test_ids_mode_drafts_then_sends_to_ids_and_never_writes_a_subscriber(plan):
