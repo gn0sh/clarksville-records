@@ -230,8 +230,9 @@ architect.
   GitHub lets a run be re-run for 30 days, with that day's older note job and weaker checks (no workflow-file
   diff, no pull request check). Either keep to this rule (and the required reviewer of section 5 step 0 holds such a
   run too), or set `MORNING_NOTE_SEND` no sooner than 30 days after the last change to the note job's checks merged.
-- **Don't merge changes to `sender/`, `config/site.yml` or `.github/` while a Daily update run is in progress.** The note job's
-  stale check would stop and no note would be sent that day.
+- **Don't merge changes to `sender/`, `config/site.yml` or `.github/workflows/daily-update.yml` while a Daily update
+  run is in progress.** The note job's stale check compares exactly those with `main` and would stop, and no note
+  would be sent that day. Other `.github/` files are not compared (they still need a pull request: step 2.0).
 - **Before you click Run workflow, open Actions. If a Daily update run is Queued, don't start one.** All runs share
   one concurrency group with one pending slot: a manual run queued then replaces the pending scheduled run (09:07
   UTC), and only a scheduled run sends the note, so that day gets no email.
@@ -256,7 +257,8 @@ the records are on the site and in the feeds. Do not re-run the job after 10:00 
 cancelled `note` job opens the same issue. A failure in "Download the morning note plan", "Validate the plan files"
 or "Check the plan" means the plan from the update job was missing or did not pass the checks: look at that run's
 "Plan the morning note" step. A failure in "Check this commit's sender and config are main's" means an older run was
-re-run, or a sender/config change merged during the run (see "Rules for manual runs and re-runs"): nothing was sent.
+re-run, or a change to `sender/`, `config/site.yml` or the workflow file merged during the run (see "Rules for
+manual runs and re-runs"): nothing was sent.
 A failure in "Check sender, config and workflow changes reached main by pull request" means either
 `MAIN_PR_BASELINE` is unset or invalid (the log says so: section 4 item 7), or a commit on `main` after the
 baseline that touches `sender/`, `config/site.yml` or `.github/` (its sha is in the log) is not the merge of a pull
