@@ -65,6 +65,16 @@ jobs:
           sudo apt-get install -y -qq poppler-utils tesseract-ocr
           python -m pip install -r requirements.txt
 
+      # The text and OCR caches below are only valid for the tesseract and poppler (pdftotext) that wrote them: their
+      # version lines, hashed, are part of that cache's key, so an image update starts a fresh cache.
+      - name: Record OCR tool versions
+        id: tools
+        run: |
+          set -euo pipefail
+          v=$( { tesseract --version 2>&1 | head -n 1; pdftotext -v 2>&1 | head -n 1; } | sha256sum | cut -c1-16)
+          [[ "$v" =~ ^[0-9a-f]{16}$ ]]
+          echo "versions=$v" >> "$GITHUB_OUTPUT"
+
       # data/store/ (the downloaded PDFs, about 3 GB, never committed) is kept between runs in the Actions cache.
       - name: Restore document store
         id: store
@@ -87,8 +97,8 @@ jobs:
           path: |
             data/text
             data/ocr
-          key: records-derived-v1-${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.txt') }}-${{ github.run_id }}
-          restore-keys: records-derived-v1-${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.txt') }}-
+          key: records-derived-v1-${{ steps.tools.outputs.versions }}-${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.txt') }}-${{ github.run_id }}
+          restore-keys: records-derived-v1-${{ steps.tools.outputs.versions }}-${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.txt') }}-
 
       - name: Count stored files before collection
         run: |
@@ -185,7 +195,7 @@ jobs:
           path: |
             data/text
             data/ocr
-          key: records-derived-v1-${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.txt') }}-${{ github.run_id }}
+          key: records-derived-v1-${{ steps.tools.outputs.versions }}-${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.txt') }}-${{ github.run_id }}
 
       # The data commit happens in the separate push job, so this job never holds a write token.
       # Not uploaded: the git-ignored caches (the 3 GB document store and derived text/OCR).

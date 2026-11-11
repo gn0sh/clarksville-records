@@ -77,7 +77,10 @@ def test_the_workflow_restores_the_text_and_ocr_caches_before_collecting():
     restore = _steps()["Restore text and OCR caches"]
     assert "actions/cache/restore@" in restore["uses"]
     assert restore["with"]["path"].split() == ["data/text", "data/ocr"]
-    code = "${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.txt') }}"
+    code = ("${{ steps.tools.outputs.versions }}-"
+            "${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.txt') }}")
+    names = [s.get("name") for s in WF["jobs"]["update"]["steps"]]
+    assert names.index("Record OCR tool versions") < names.index("Restore text and OCR caches")
     assert restore["with"]["restore-keys"] == f"records-derived-v1-{code}-"         # ci/derived-cache-integrity
     assert restore["with"]["key"] == f"records-derived-v1-{code}-${{{{ github.run_id }}}}"
     assert names.index("Restore text and OCR caches") < names.index("Collect (polite fetch, parse, verify)")
@@ -101,3 +104,29 @@ def test_the_runbook_names_the_cache_rules_and_the_pages_branch_check():
     text = (ROOT / "docs" / "ops" / "launch-runbook.md").read_text(encoding="utf-8")
     assert "by the scheduled run on `main` only" in text
     assert "environments/github-pages/deployment-branch-policies" in text and "ci/pages-env-branch" in text
+    assert "tesseract and pdftotext versions" in text
+
+
+def test_the_tool_version_step_prints_one_short_hex_output(tmp_path):
+    """The step's own script, run here: the output is 16 hex characters and changes with a tool's version line."""
+    import os
+    import shutil
+    import subprocess
+    script = _steps()["Record OCR tool versions"]["run"]
+    assert "secrets." not in script and "${{" not in script        # nothing interpolated into the shell
+
+    def run(tess_line):
+        bindir = tmp_path / "bin"
+        bindir.mkdir(exist_ok=True)
+        for name, line in (("tesseract", tess_line), ("pdftotext", "pdftotext version 24.02.0")):
+            f = bindir / name
+            f.write_text(f"#!/bin/sh\necho '{line}'\n")
+            f.chmod(0o755)
+        out = tmp_path / "out"
+        out.write_text("")
+        env = {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}", "GITHUB_OUTPUT": str(out)}
+        subprocess.run([shutil.which("bash"), "-c", script], env=env, check=True)
+        line = out.read_text().strip()
+        assert line.startswith("versions=") and len(line) == len("versions=") + 16
+        return line
+    assert run("tesseract 5.3.4") != run("tesseract 5.5.0")
