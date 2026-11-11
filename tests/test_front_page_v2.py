@@ -4,6 +4,7 @@ list (a selection of today.html's own cards: sitegen/days.py landing_meetings), 
 their empty states; static/landing.js moving a row whose day has passed. Rules kept: nothing new collected, no
 official named outside the wards and districts list, no Planning Commission vote, works without script."""
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -60,6 +61,7 @@ def test_landing_meetings_takes_the_next_and_the_last_three_bids_left_out_cancel
              "2026-12-03": [card("council", "scheduled")]})
     m = days.landing_meetings(c, date(2026, 11, 11))
     assert [r["iso"] for r in m["upcoming"]] == ["2026-11-11", "2026-11-20", "2026-12-01"]   # today counts as coming
+    assert [r["iso"] for r in m["spare"]] == ["2026-12-03"]          # built hidden, shown by landing.js in turn
     assert [r["iso"] for r in m["recent"]] == ["2026-11-09", "2026-11-02", "2026-10-27"]      # newest first
     assert [r["chip"] for r in m["upcoming"]] == ["Agenda", "Cancelled", "Scheduled"]
     assert [r["chip"] for r in m["recent"]] == ["Votes", "Agenda", None]
@@ -75,7 +77,7 @@ def test_an_rpc_card_never_shows_votes():
 
 def test_landing_meetings_is_empty_when_the_window_is():
     m = days.landing_meetings(ctx({}), date(2026, 11, 11))
-    assert m["upcoming"] == [] and m["recent"] == []
+    assert m["upcoming"] == [] and m["recent"] == [] and m["spare"] == []
 
 
 # ---- the page --------------------------------------------------------------------------------------------------
@@ -143,7 +145,7 @@ def test_meetings_say_their_build_date_and_link_each_day(html):
     main = main_of(html)
     assert 'As of <time datetime="2024-12-01">December 1, 2024</time>.' in main
     rows = re.findall(r'<a class="meet-row" href="(today\.html#d-[0-9-]+)"', main)
-    assert rows
+    assert rows and "data-built-text" not in main
     page = parse(html)
     ids = {n.attrs.get("id") for n in page.walk()}
     assert "meet-stale" in ids and 'href="today.html#day-bodies-h"' in main
@@ -200,3 +202,64 @@ def test_landing_js_moves_passed_rows_to_most_recent():
     assert moved["recent"] == [{"from": "up", "i": 1}, {"from": "up", "i": 0}, {"from": "recent", "i": 0}]
     assert none == {"upcoming": [0], "recent": []}
     assert three == 3 and leap == 3
+
+
+def test_landing_js_reads_today_from_date_parts_in_the_site_zone():
+    probe = ("const L = require(process.argv[1]);"
+             "console.log(JSON.stringify([L.todayIn('America/Chicago', new Date('2026-11-12T05:30:00Z')),"
+             " L.todayIn('America/Chicago', new Date('2026-11-12T06:30:00Z'))]))")
+    res = subprocess.run([_node(), "-e", probe, str(LANDING_JS)], capture_output=True, text=True, check=True)
+    assert json.loads(res.stdout) == ["2026-11-11", "2026-11-12"]
+
+
+def _browser_ok():
+    return bool(shutil.which("node")) and (os.path.exists("/opt/pw-browsers") or bool(shutil.which("playwright")))
+
+
+ROW = ('<li data-iso="{iso}"{hidden}><a class="meet-row" href="today.html#d-{iso}"><span class="meet-what">Body</span>'
+       '{chip}</a></li>')
+
+
+def _row(iso, chip=None, hidden=False):
+    return ROW.format(iso=iso, hidden=" hidden" if hidden else "",
+                      chip=f'<span class="chip chip-status" data-chip="{chip}">{chip}</span>' if chip else "")
+
+
+def _render(tmp_path, up, recent, now):
+    """The landing's meetings section as index.html.j2 builds it (built 2026-11-11, n 3), landing.js run at `now`."""
+    html = (f'<!doctype html><section class="meetings" id="meetings" data-built="2026-11-11" data-tz="America/Chicago" '
+            f'data-n="3"><p id="meet-stale" hidden>stale</p><ul id="meet-up"{"" if up else " hidden"}>{"".join(up)}</ul>'
+            f'<p id="meet-up-empty"{" hidden" if up else ""}>none</p><ul id="meet-recent"{"" if recent else " hidden"}>'
+            f'{"".join(recent)}</ul><p id="meet-recent-empty"{" hidden" if recent else ""}>none</p></section>'
+            f'<script src="{LANDING_JS.as_uri()}"></script>')
+    f = tmp_path / "p.html"
+    f.write_text(html, encoding="utf-8")
+    env = dict(os.environ)
+    if "NODE_PATH" not in env:
+        env["NODE_PATH"] = subprocess.run(["npm", "root", "-g"], capture_output=True, text=True).stdout.strip()
+    res = subprocess.run(["node", str(ROOT / "tests" / "landing_render_browser.js"), str(f), now],
+                         capture_output=True, text=True, timeout=120, env=env)
+    assert res.returncode == 0, res.stderr
+    return json.loads(res.stdout)
+
+
+@pytest.mark.skipif(not _browser_ok(), reason="Playwright (node) not available")
+def test_render_moves_passed_rows_refills_from_spares_and_drops_scheduled(tmp_path):
+    up = [_row("2026-11-12", "Scheduled"), _row("2026-11-16", "Agenda"), _row("2026-11-19", "Scheduled"),
+          _row("2026-12-01", "Scheduled", hidden=True), _row("2026-12-03", hidden=True)]
+    recent = [_row("2026-11-09", "Agenda"), _row("2026-11-05", "Votes"), _row("2026-11-02")]
+    # read on Nov 11 (the build day): nothing moves, spares stay hidden
+    same = _render(tmp_path, up, recent, "2026-11-11T20:00:00Z")
+    assert same["up"] == ["2026-11-12 Scheduled", "2026-11-16 Agenda", "2026-11-19 Scheduled"] and not same["stale"]
+    # Nov 17 in Clarksville: two rows moved (Scheduled dropped, Agenda kept), two spares shown, the build 6 days old
+    late = _render(tmp_path, up, recent, "2026-11-17T18:00:00Z")
+    assert late["up"] == ["2026-11-19 Scheduled", "2026-12-01 Scheduled", "2026-12-03"]
+    assert late["recent"] == ["2026-11-16 Agenda", "2026-11-12", "2026-11-09 Agenda"]
+    assert late["stale"] and late["upList"] and not late["upEmpty"]
+    # after every upcoming day: the list is hidden and the empty line shows
+    gone = _render(tmp_path, up, recent, "2026-12-10T18:00:00Z")
+    assert gone["up"] == [] and not gone["upList"] and gone["upEmpty"]
+    assert gone["recent"] == ["2026-12-03", "2026-12-01", "2026-11-19"]
+    # nothing recent at build time: the moved row fills it and the empty line goes
+    only = _render(tmp_path, up[:1], [], "2026-11-13T18:00:00Z")
+    assert only["recent"] == ["2026-11-12"] and not only["recEmpty"] and only["upEmpty"]

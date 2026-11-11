@@ -329,6 +329,9 @@ def landing_meetings(page_ctx: dict, today: date | None = None, n: int = 3) -> d
                              "body": c["body"], "title": c.get("title"), "dot": c["dot"], "chip": chip(c),
                              "href": f"{PAGE}#{d['anchor']}"})
     t = today.isoformat()
-    upcoming = [r for r in rows if r["iso"] >= t][:n]
+    ahead = [r for r in rows if r["iso"] >= t]
     recent = [r for r in rows if r["iso"] < t][-n:][::-1]
-    return {"upcoming": upcoming, "recent": recent, "built": t, "built_text": date_text(today), "n": n}
+    # `spare`: the next upcoming rows after the first n, built hidden; static/landing.js shows them in turn when the
+    # page is read after a shown row's day has passed, so "Coming up" stays full (front-page/stale-upcoming-not-refilled)
+    return {"upcoming": ahead[:n], "spare": ahead[n:n + 2 * n], "recent": recent, "built": t,
+            "built_text": date_text(today), "n": n}

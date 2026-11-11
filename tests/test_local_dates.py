@@ -219,6 +219,12 @@ RPC = {"sources": [{"url": URL3, "sha256": SHA, "fetched_at": "2026-11-08"}]}   
     ("<p>Data as of 2026-11-09</p>", True),
     ("<p>Data as of 2026-11-08</p>", False),     # a manifest row's local day, but not this body's latest
     ("<p>Data as of 2026-11-10 (UTC day)</p>", False),   # the source has its instant: no label
+    # the footer's day in words, in <time class="data-as-of" datetime="ISO"> (sitegen/build.py as_of_day): the ISO day
+    # is what is checked (dates/check-time-form-untested)
+    ('<p>Data as of <time class="data-as-of" datetime="2026-11-09">November 9, 2026</time></p>', True),
+    ('<p>Data as of <time class="data-as-of" datetime="2026-11-08">November 8, 2026</time></p>', False),
+    ('<p>Data as of <time class="data-as-of" datetime="2026-11-10">November 10, 2026</time> (UTC day)</p>', False),
+    ('<p>Data as of <time class="data-as-of" datetime="2026-11-10">November 10, 2026</time></p>', False),
     ("<p>Minutes fetched between 2026-11-08 and 2026-11-09.</p>", False),
     ("<p>3 documents collected (latest fetched 2026-11-07)</p>", True),     # the RPC's own latest, local
     ("<p>3 documents collected (latest fetched 2026-11-08)</p>", False),    # its stored UTC day
