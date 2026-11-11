@@ -1,6 +1,7 @@
 """docs/architecture/pipeline-limits-invariant.md: every limit sits above the largest real input with margin, and a
 limit trip is reported."""
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -16,6 +17,38 @@ def _fresh_trips():
     limits.reset()
     yield
     limits.reset()
+
+
+# ------------------------------------------------------------------ meta: no limit skips the margin table
+
+ROOT = Path(__file__).resolve().parents[2]
+DOC = ROOT / "docs" / "architecture" / "pipeline-limits-invariant.md"
+# a module-level constant whose name has MAX, CAP or TIMEOUT as a word (MAX_BYTES, DAILY_FETCH_CAP, PARA_MAX; not
+# CAPS_NAMES_RE)
+LIMIT_NAME = re.compile(r"^((?:[A-Z0-9]+_)*(?:MAX|CAP|TIMEOUT)(?:_[A-Z0-9]+)*)\s*(?::[^=]*)?=", re.M)
+LITERAL_TIMEOUT = re.compile(r"\btimeout=(\d+(?:\.\d+)?)\b")
+
+
+def test_every_limit_is_in_the_invariant_table():
+    """Every module-level MAX/CAP/TIMEOUT constant and every literal `timeout=N` in collector/ is a row of the
+    table (by `module.NAME`, or NAME in a row that names module.py), so a new limit cannot skip the margin check."""
+    rows = [ln for ln in DOC.read_text(encoding="utf-8").splitlines() if ln.startswith("| L")]
+    missing = []
+    for path in sorted((ROOT / "collector").glob("*.py")):
+        src, mod = path.read_text(encoding="utf-8"), path.stem
+        for name in LIMIT_NAME.findall(src):
+            if not any(name in r and (f"{mod}.{name}" in r or f"{mod}.py" in r) for r in rows):
+                missing.append(f"{mod}.{name}")
+        for n in LITERAL_TIMEOUT.findall(src):
+            if not any(f"timeout={n}" in r and f"{mod}.py" in r for r in rows):
+                missing.append(f"{mod}.py timeout={n}")
+    assert missing == [], f"limits not in {DOC.name}: {missing}"
+
+
+def test_the_meta_check_sees_the_limits_it_must():
+    found = {(p.stem, n) for p in (ROOT / "collector").glob("*.py") for n in LIMIT_NAME.findall(p.read_text())}
+    assert {("ocr", "OCR_TIMEOUT"), ("fetch", "MAX_BYTES"), ("rpc", "DAILY_FETCH_CAP"), ("minutes", "MAX_PAGES"),
+            ("rpc_agenda", "RPC_MAX_OCR_PAGES"), ("rpc_minutes", "PARA_MAX")} <= found
 
 
 # ------------------------------------------------------------------ margins (L7, L16)

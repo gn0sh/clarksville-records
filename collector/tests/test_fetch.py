@@ -338,6 +338,20 @@ def test_a_malformed_first_url_is_fetch_failed():
     assert net.calls == []
 
 
+@pytest.mark.parametrize("path", ["/a\tb.pdf", "/a\r\nX-Evil: 1", "/a b.pdf", "/a\x00.pdf", "/a\x7f.pdf", "/a\x1f"])
+def test_a_space_or_control_character_is_refused_first_or_on_a_redirect(path):
+    """urlsplit strips tab/CR/LF but urllib.request.Request sends them: refused before any request."""
+    from collector.fetch import SchemeRefused
+    f, net, _ = make({})
+    with pytest.raises(SchemeRefused, match="control character"):
+        f.get("https://h.example" + path)
+    assert net.calls == []
+    f, net, _ = make({"https://h.example/r": (302, b"", {"Location": "https://g.example" + path})})
+    with pytest.raises(SchemeRefused):
+        f.get("https://h.example/r")
+    assert [u for u, _ in net.calls] == ["https://h.example/robots.txt", "https://h.example/r"]
+
+
 def test_redirect_loop_fails():
     from collector.fetch import FetchFailed
     f, net, _ = make({"https://h.example/a": (302, b"", {"Location": "https://h.example/a"})})

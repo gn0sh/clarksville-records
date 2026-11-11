@@ -83,7 +83,7 @@
       "properties": {
         "document_id": { "$ref": "#/$defs/document_id", "description": "UX awardee_source, with awardee_page" },
         "tab_type": { "enum": ["lump_sum", "not_read"], "description": "unit-price and itemised layouts are not_read in 1a (link only, counted in coverage)" },
-        "not_read_reason": { "enum": ["layout", "scan", "shared_url", "not_pdf", "not_fetched", "unreadable", null], "description": "null when lump_sum; feeds coverage.n_tab_not_read. not_pdf: the link is a .docx or its bytes are not a PDF (document status not_pdf), so nothing is read. not_fetched: the link was dead at fetch or is link only (a bid site or a host off the allowlist), so there are no bytes to read" },
+        "not_read_reason": { "enum": ["layout", "scan", "shared_url", "not_pdf", "not_fetched", "unreadable", null], "description": "null when lump_sum; feeds coverage.n_tab_not_read. not_pdf: the link is a .docx or its bytes are not a PDF (document status not_pdf), so nothing is read. not_fetched: the link was dead at fetch or is link only (a bid site or a host off the allowlist), so there are no bytes to read. unreadable: the file was fetched but pdfinfo/pdftotext failed or timed out on it (source text_layer unreadable), so nothing is read; it is not a scan" },
         "project_text": { "type": ["string", "null"] },
         "bid_date_text": { "type": ["string", "null"] },
         "bid_date_page": { "oneOf": [{ "$ref": "#/$defs/page" }, { "type": "null" }], "description": "page of bid_date_text in document_id; null when bid_date_text is null" },

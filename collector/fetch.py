@@ -119,6 +119,7 @@ def host_matches(host: str, names) -> bool:
 
 
 PLAIN_HOST = re.compile(r"[a-z0-9.-]+")
+CONTROL_OR_SPACE = re.compile(r"[\x00-\x20\x7f]")
 
 
 def plain_hostname(host: str) -> str | None:
@@ -220,7 +221,12 @@ class PoliteFetcher:
             raise HostRefused(f"{host}: not on the allowlist")
 
     def check_url(self, url: str) -> None:
-        """fetch/scheme-port-unpinned: https://, port 443 or none, no user info. Raises SchemeRefused otherwise."""
+        """fetch/scheme-port-unpinned: https://, port 443 or none, no user info, no space or control character.
+        Raises SchemeRefused otherwise."""
+        if CONTROL_OR_SPACE.search(url):
+            # urlsplit drops tab/CR/LF but urllib.request.Request sends them: refuse rather than guess the URL
+            self.log.append({"event": "refused", "host": "", "url": repr(url), "detail": "control character or space"})
+            raise SchemeRefused(f"{url!r}: a space or control character in the URL")
         parts = split_url(url)
         try:
             port = parts.port
@@ -394,6 +400,10 @@ class PoliteFetcher:
         loc = next((v for k, v in (headers or {}).items() if k.lower() == "location"), None)
         if not loc:
             raise FetchFailed(f"{url}: redirect without a Location header")
+        if CONTROL_OR_SPACE.search(loc):    # urljoin would silently drop a tab/CR/LF and fetch another URL
+            self.log.append({"event": "refused", "host": split_url(url).netloc, "url": url,
+                             "detail": f"control character or space in Location {loc!r}"})
+            raise SchemeRefused(f"{url}: redirect Location {loc!r} has a space or control character")
         try:
             nxt = urllib.parse.urljoin(url, loc)
         except ValueError as e:     # e.g. Location: https://[x/
