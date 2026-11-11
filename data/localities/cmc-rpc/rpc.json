@@ -39912,7 +39912,7 @@
       "printed": "10/27/2026"
     }
   ],
-  "motion_rules": "rpc-motion-invariant-1",
+  "motion_rules": "rpc-motion-invariant-2",
   "motions": [
     {
       "abstained": [],
@@ -40851,8 +40851,7 @@
       "outcome": "the motion passed",
       "page": 22,
       "reasons": [
-        "no seconder read",
-        "unmodelled wording: a vote word the reader does not read"
+        "no seconder read"
       ],
       "seconded_by": null,
       "source_id": "src-5fcfca9f9f50",
@@ -45022,7 +45021,7 @@
       "outcome": null,
       "page": 6,
       "reasons": [
-        "no outcome read"
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining"
       ],
       "seconded_by": "Mr. Smith",
       "source_id": "src-691f96bf1eb2",
@@ -48184,10 +48183,11 @@
       "nays": [
         "Mr. Long"
       ],
-      "outcome": "All others were in favor",
+      "outcome": null,
       "page": 8,
       "reasons": [
         "case number not read",
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "a member named as voting nay or abstaining is not one member present"
       ],
       "seconded_by": "Mr. Huneycutt",
@@ -48473,7 +48473,7 @@
       "outcome": null,
       "page": 5,
       "reasons": [
-        "no outcome read",
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "case number not on this meeting's agenda"
       ],
       "seconded_by": "Mr. Long",
@@ -48532,7 +48532,7 @@
       "outcome": null,
       "page": 8,
       "reasons": [
-        "no outcome read",
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "unmodelled wording: an amendment, substitute or reconsideration",
         "case number not on this meeting's agenda"
       ],
@@ -49488,7 +49488,6 @@
       "page": 7,
       "reasons": [
         "seconder is not one member present",
-        "unmodelled wording: a vote word the reader does not read",
         "case number not on this meeting's agenda"
       ],
       "seconded_by": "Commissioner Charlie",
@@ -49508,7 +49507,6 @@
       "outcome": "the motion passed",
       "page": 8,
       "reasons": [
-        "unmodelled wording: a vote word the reader does not read",
         "case number not on this meeting's agenda"
       ],
       "seconded_by": "Commissioner Kimbrough",
@@ -49525,7 +49523,7 @@
       "meeting_id": "2024-08-13-special",
       "moved_by": "Bill Kimbrough",
       "nays": [],
-      "outcome": "All were in favor",
+      "outcome": "Motion passed on the Consent Agenda",
       "page": 9,
       "reasons": [
         "case number not on this meeting's agenda"
@@ -49544,7 +49542,7 @@
       "meeting_id": "2024-08-13-special",
       "moved_by": "Bill Kimbrough",
       "nays": [],
-      "outcome": "All were in favor",
+      "outcome": "Motion passed on the Consent Agenda",
       "page": 10,
       "reasons": [
         "case number not on this meeting's agenda"
@@ -49681,10 +49679,11 @@
       "meeting_id": "2024-08-19-cdrb",
       "moved_by": "Gail Longton",
       "nays": [],
-      "outcome": "All voted in favor",
+      "outcome": null,
       "page": 5,
       "reasons": [
         "subject not read",
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Wanda Smith",
@@ -49731,7 +49730,9 @@
       "tally": null
     },
     {
-      "abstained": [],
+      "abstained": [
+        "Michael Long"
+      ],
       "case": "Z-30-2024",
       "case_id": "2024-08-27-regular-z-30-2024",
       "confirmed": false,
@@ -49743,7 +49744,8 @@
       "outcome": null,
       "page": 3,
       "reasons": [
-        "no outcome read",
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
+        "a member named as voting nay or abstaining is not one member present",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Jeff Henley",
@@ -49763,8 +49765,7 @@
       "outcome": "the motion passed",
       "page": 4,
       "reasons": [
-        "seconder is not one member present",
-        "unmodelled wording: a vote word the reader does not read"
+        "seconder is not one member present"
       ],
       "seconded_by": "Michael Long",
       "source_id": "src-7a2942cd456e",
@@ -49821,8 +49822,7 @@
       "outcome": "the motion passed",
       "page": 9,
       "reasons": [
-        "mover is not one member present",
-        "unmodelled wording: a vote word the reader does not read"
+        "mover is not one member present"
       ],
       "seconded_by": "Jeff Henley",
       "source_id": "src-7a2942cd456e",
@@ -49841,8 +49841,7 @@
       "outcome": "the motion passed",
       "page": 10,
       "reasons": [
-        "mover is not one member present",
-        "unmodelled wording: a vote word the reader does not read"
+        "mover is not one member present"
       ],
       "seconded_by": "Jeff Henley",
       "source_id": "src-7a2942cd456e",
@@ -49861,8 +49860,7 @@
       "outcome": "the motion passed",
       "page": 11,
       "reasons": [
-        "mover is not one member present",
-        "unmodelled wording: a vote word the reader does not read"
+        "mover is not one member present"
       ],
       "seconded_by": "Jeff Henley",
       "source_id": "src-7a2942cd456e",
@@ -50103,8 +50101,7 @@
       "page": 22,
       "reasons": [
         "mover is not one member present",
-        "no outcome read",
-        "unmodelled wording: a vote word the reader does not read"
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining"
       ],
       "seconded_by": "Jeff Henley",
       "source_id": "src-7a2942cd456e",
@@ -50123,8 +50120,7 @@
       "outcome": "the motion passed",
       "page": 23,
       "reasons": [
-        "mover is not one member present",
-        "unmodelled wording: a vote word the reader does not read"
+        "mover is not one member present"
       ],
       "seconded_by": "Jeff Henley",
       "source_id": "src-7a2942cd456e",
@@ -50143,8 +50139,7 @@
       "outcome": "the motion passed",
       "page": 24,
       "reasons": [
-        "mover is not one member present",
-        "unmodelled wording: a vote word the reader does not read"
+        "mover is not one member present"
       ],
       "seconded_by": "Jeff Henley",
       "source_id": "src-7a2942cd456e",
@@ -50300,9 +50295,10 @@
       "meeting_id": "2024-09-23-cdrb",
       "moved_by": "Eric Huneycutt",
       "nays": [],
-      "outcome": "All others voted in favor",
+      "outcome": null,
       "page": 4,
       "reasons": [
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read",
         "more than one motion on one case section"
       ],
@@ -50389,18 +50385,15 @@
       "abstained": [],
       "case": "Z-36-2024",
       "case_id": "2024-09-24-regular-z-36-2024",
-      "confirmed": false,
+      "confirmed": true,
       "id": "2024-09-24-regular-motion-4",
       "kind": "Motion to defer",
       "meeting_id": "2024-09-24-regular",
       "moved_by": "Bill Kimbrough",
       "nays": [],
-      "outcome": null,
+      "outcome": "the motion passed for a 30 day deferral",
       "page": 3,
-      "reasons": [
-        "no outcome read",
-        "unmodelled wording: a vote word the reader does not read"
-      ],
+      "reasons": [],
       "seconded_by": "Jeff Henley",
       "source_id": "src-4b1175b480c7",
       "tally": null
@@ -50436,7 +50429,7 @@
       "meeting_id": "2024-09-24-regular",
       "moved_by": "Charlie Patterson",
       "nays": [],
-      "outcome": "All others voted in favor",
+      "outcome": "Motion was approved on the Consent Agenda",
       "page": 5,
       "reasons": [],
       "seconded_by": "Jeff Henley",
@@ -50447,7 +50440,7 @@
       "abstained": [],
       "case": "SR-26-2024",
       "case_id": "2024-09-24-regular-sr-26-2024",
-      "confirmed": false,
+      "confirmed": true,
       "id": "2024-09-24-regular-motion-7",
       "kind": "Motion for approval",
       "meeting_id": "2024-09-24-regular",
@@ -50455,9 +50448,7 @@
       "nays": [],
       "outcome": "the motion passed",
       "page": 6,
-      "reasons": [
-        "unmodelled wording: a vote word the reader does not read"
-      ],
+      "reasons": [],
       "seconded_by": "Jeff Henley",
       "source_id": "src-4b1175b480c7",
       "tally": null
@@ -50466,7 +50457,7 @@
       "abstained": [],
       "case": "SR-50-2024",
       "case_id": "2024-09-24-regular-sr-50-2024",
-      "confirmed": false,
+      "confirmed": true,
       "id": "2024-09-24-regular-motion-8",
       "kind": "Motion for approval",
       "meeting_id": "2024-09-24-regular",
@@ -50474,9 +50465,7 @@
       "nays": [],
       "outcome": "the motion passed",
       "page": 7,
-      "reasons": [
-        "unmodelled wording: a vote word the reader does not read"
-      ],
+      "reasons": [],
       "seconded_by": "Joe Smith",
       "source_id": "src-4b1175b480c7",
       "tally": null
@@ -50507,7 +50496,7 @@
       "abstained": [],
       "case": "SR-54-2024",
       "case_id": "2024-09-24-regular-sr-54-2024",
-      "confirmed": false,
+      "confirmed": true,
       "id": "2024-09-24-regular-motion-10",
       "kind": "Motion for approval",
       "meeting_id": "2024-09-24-regular",
@@ -50515,9 +50504,7 @@
       "nays": [],
       "outcome": "the motion passed",
       "page": 9,
-      "reasons": [
-        "unmodelled wording: a vote word the reader does not read"
-      ],
+      "reasons": [],
       "seconded_by": "Joe Smith",
       "source_id": "src-4b1175b480c7",
       "tally": null
@@ -50526,7 +50513,7 @@
       "abstained": [],
       "case": "SR-56-2024",
       "case_id": "2024-09-24-regular-sr-56-2024",
-      "confirmed": false,
+      "confirmed": true,
       "id": "2024-09-24-regular-motion-11",
       "kind": "Motion for approval",
       "meeting_id": "2024-09-24-regular",
@@ -50534,9 +50521,7 @@
       "nays": [],
       "outcome": "the motion passed",
       "page": 10,
-      "reasons": [
-        "unmodelled wording: a vote word the reader does not read"
-      ],
+      "reasons": [],
       "seconded_by": "Joe Smith",
       "source_id": "src-4b1175b480c7",
       "tally": null
@@ -50658,7 +50643,7 @@
       "abstained": [],
       "case": "Z-39-2024",
       "case_id": "2024-10-29-regular-z-39-2024",
-      "confirmed": false,
+      "confirmed": true,
       "id": "2024-10-29-regular-motion-7",
       "kind": "Motion for approval",
       "meeting_id": "2024-10-29-regular",
@@ -50666,9 +50651,7 @@
       "nays": [],
       "outcome": "the motion passed",
       "page": 6,
-      "reasons": [
-        "unmodelled wording: a vote word the reader does not read"
-      ],
+      "reasons": [],
       "seconded_by": "Bill Kimbrough",
       "source_id": "src-47f932c8b8ec",
       "tally": null
@@ -50677,7 +50660,7 @@
       "abstained": [],
       "case": "Z-40-2024",
       "case_id": "2024-10-29-regular-z-40-2024",
-      "confirmed": false,
+      "confirmed": true,
       "id": "2024-10-29-regular-motion-8",
       "kind": "Motion for approval",
       "meeting_id": "2024-10-29-regular",
@@ -50685,9 +50668,7 @@
       "nays": [],
       "outcome": "motion was passed",
       "page": 7,
-      "reasons": [
-        "unmodelled wording: a vote word the reader does not read"
-      ],
+      "reasons": [],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-47f932c8b8ec",
       "tally": null
@@ -50717,18 +50698,15 @@
       "abstained": [],
       "case": "CZ-7-2024",
       "case_id": "2024-10-29-regular-cz-7-2024",
-      "confirmed": false,
+      "confirmed": true,
       "id": "2024-10-29-regular-motion-10",
       "kind": "Motion to defer",
       "meeting_id": "2024-10-29-regular",
       "moved_by": "Jeff Henley",
       "nays": [],
-      "outcome": null,
+      "outcome": "the motion passed for a 30 day deferral",
       "page": 9,
-      "reasons": [
-        "no outcome read",
-        "unmodelled wording: a vote word the reader does not read"
-      ],
+      "reasons": [],
       "seconded_by": "Michael Long",
       "source_id": "src-47f932c8b8ec",
       "tally": null
@@ -50783,7 +50761,7 @@
       "meeting_id": "2024-10-29-regular",
       "moved_by": "Bill Kimbrough",
       "nays": [],
-      "outcome": "All others voted in favor",
+      "outcome": "Motion was approved on consent agenda",
       "page": 13,
       "reasons": [],
       "seconded_by": "Jeff Henley",
@@ -50821,7 +50799,7 @@
       "meeting_id": "2024-10-29-regular",
       "moved_by": "Jeff Henley",
       "nays": [],
-      "outcome": "All others voted in favor",
+      "outcome": "Motion was approved on consent agenda",
       "page": 15,
       "reasons": [],
       "seconded_by": "Stacey Streetman",
@@ -50838,7 +50816,7 @@
       "meeting_id": "2024-10-29-regular",
       "moved_by": "Jeff Henley",
       "nays": [],
-      "outcome": "All others voted in favor",
+      "outcome": "Motion was approved on consent agenda",
       "page": 16,
       "reasons": [],
       "seconded_by": "Stacey Streetman",
@@ -50849,7 +50827,7 @@
       "abstained": [],
       "case": "SR-61-2024",
       "case_id": "2024-10-29-regular-sr-61-2024",
-      "confirmed": false,
+      "confirmed": true,
       "id": "2024-10-29-regular-motion-17",
       "kind": "Motion for approval",
       "meeting_id": "2024-10-29-regular",
@@ -50857,9 +50835,7 @@
       "nays": [],
       "outcome": "motion passed",
       "page": 17,
-      "reasons": [
-        "unmodelled wording: a vote word the reader does not read"
-      ],
+      "reasons": [],
       "seconded_by": "Mr. Kimbrough",
       "source_id": "src-47f932c8b8ec",
       "tally": null
@@ -50885,7 +50861,7 @@
       "abstained": [],
       "case": "AB-5-2024",
       "case_id": "2024-10-29-regular-ab-5-2024",
-      "confirmed": false,
+      "confirmed": true,
       "id": "2024-10-29-regular-motion-19",
       "kind": "Motion for approval",
       "meeting_id": "2024-10-29-regular",
@@ -50893,9 +50869,7 @@
       "nays": [],
       "outcome": "the motion passed",
       "page": 19,
-      "reasons": [
-        "unmodelled wording: a vote word the reader does not read"
-      ],
+      "reasons": [],
       "seconded_by": "Bill Kimbrough",
       "source_id": "src-47f932c8b8ec",
       "tally": null
@@ -50950,10 +50924,11 @@
       "nays": [
         "Eric Huneycutt"
       ],
-      "outcome": "all others voted in favor",
+      "outcome": null,
       "page": 20,
       "reasons": [
-        "subject not read"
+        "subject not read",
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining"
       ],
       "seconded_by": "Bill Kimbrough",
       "source_id": "src-47f932c8b8ec",
@@ -51211,7 +51186,7 @@
       "meeting_id": "2024-11-26-regular",
       "moved_by": "Eric Huneycutt",
       "nays": [],
-      "outcome": "All others voted in favor",
+      "outcome": "Motion was approved on consent agenda",
       "page": 14,
       "reasons": [],
       "seconded_by": "Michael Long",
@@ -51245,7 +51220,7 @@
       "meeting_id": "2024-11-26-regular",
       "moved_by": "Eric Huneycutt",
       "nays": [],
-      "outcome": "All others voted in favor",
+      "outcome": "Motion was approved on consent agenda",
       "page": 17,
       "reasons": [],
       "seconded_by": "Michael Long",
@@ -52192,9 +52167,10 @@
       "nays": [
         "Valerie Guzman"
       ],
-      "outcome": "all others voted in favor",
+      "outcome": null,
       "page": 21,
       "reasons": [
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Joe Smith",
@@ -52230,9 +52206,10 @@
       "meeting_id": "2025-01-28-regular",
       "moved_by": "Valerie Guzman",
       "nays": [],
-      "outcome": "All others voted in favor",
+      "outcome": null,
       "page": 23,
       "reasons": [
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: an amendment, substitute or reconsideration"
       ],
@@ -52308,9 +52285,10 @@
       "meeting_id": "2025-02-24-cdrb",
       "moved_by": "Wanda Smith",
       "nays": [],
-      "outcome": "All others voted in favor",
+      "outcome": null,
       "page": 8,
       "reasons": [
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: members named as voting in favour",
         "unmodelled wording: an amendment, substitute or reconsideration"
@@ -53473,9 +53451,10 @@
       "meeting_id": "2025-03-25-regular",
       "moved_by": "Michael Long",
       "nays": [],
-      "outcome": "All others voted in favor",
+      "outcome": null,
       "page": 37,
       "reasons": [
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: a tie or a vote of the chair",
         "unmodelled wording: an amendment, substitute or reconsideration"
@@ -53511,11 +53490,12 @@
       "meeting_id": "2025-04-21-cdrb",
       "moved_by": "Eric Huneycutt",
       "nays": [],
-      "outcome": "All others were in favor",
+      "outcome": null,
       "page": 3,
       "reasons": [
         "more than one seconder read",
         "no seconder read",
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: an amendment, substitute or reconsideration"
       ],
@@ -53733,9 +53713,10 @@
       "nays": [
         "Stacey Streetman"
       ],
-      "outcome": "All others voted in favor",
+      "outcome": null,
       "page": 16,
       "reasons": [
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Valerie Guzman",
@@ -54200,9 +54181,10 @@
       "nays": [
         "Stacey Streetman"
       ],
-      "outcome": "All members voted in favor",
+      "outcome": null,
       "page": 8,
       "reasons": [
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Joe Smith",
@@ -54974,7 +54956,7 @@
       ],
       "case": "S-42-2025",
       "case_id": "2025-06-24-regular-s-42-2025",
-      "confirmed": true,
+      "confirmed": false,
       "id": "2025-06-24-regular-motion-15",
       "kind": "Motion for approval",
       "meeting_id": "2025-06-24-regular",
@@ -54982,9 +54964,11 @@
       "nays": [
         "Bill Kimbrough"
       ],
-      "outcome": "All members voted in favor",
+      "outcome": null,
       "page": 17,
-      "reasons": [],
+      "reasons": [
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining"
+      ],
       "seconded_by": "Stacey Streetman",
       "source_id": "src-b77675a0da03",
       "tally": null
@@ -57432,9 +57416,10 @@
       "meeting_id": "2025-10-28-regular",
       "moved_by": "Charlie Patterson",
       "nays": [],
-      "outcome": "All members voted in favor",
+      "outcome": null,
       "page": 34,
       "reasons": [
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: a tie or a vote of the chair"
       ],
@@ -61558,9 +61543,10 @@
       "meeting_id": "2026-05-26-regular",
       "moved_by": "Bill Kimbrough",
       "nays": [],
-      "outcome": "All members were in favor",
+      "outcome": null,
       "page": 33,
       "reasons": [
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read"
       ],
       "seconded_by": "Joe Smith",
@@ -63640,9 +63626,10 @@
       "meeting_id": "2026-08-25-regular",
       "moved_by": "Valerie Guzman",
       "nays": [],
-      "outcome": "All members voted in favor",
+      "outcome": null,
       "page": 26,
       "reasons": [
+        "no outcome printed: the 'in favor' sentence goes on or members are named as voting nay or abstaining",
         "unmodelled wording: a vote word the reader does not read",
         "unmodelled wording: a tie or a vote of the chair"
       ],
