@@ -1779,7 +1779,7 @@ def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bo
     fetch day, else the previous fetch day's links: a Details list after its links), or is labelled "(UTC day)"
     when no linked source has an instant; (2) an aggregate ("fetched between A and B", "fetched on", "latest
     fetched", "Data as of") is its own page's sources' day (_aggregate_ok: a council's pages, `councils_` {prefix,
-    facts}, by the council's sources; every other page by `county`'s; "latest fetched" by `rpc`'s); a day after
+    facts}, by the council's sources; the RPC's pages (its slug) by `rpc`'s; every other page by `county`'s; "latest fetched" by `rpc`'s); a day after
     "collected", "added", "downloaded" or "retrieved" is a fetch day as in (1), or after "meeting " a meeting date of
     the page's facts; (3) the same for the search index's s.f beside s.u and (4) each feed entry's summary "fetched D"
     beside its related link."""
@@ -1789,6 +1789,9 @@ def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bo
     instants = fetch_instants(cfg, fixture, rows)
     rpc_span = _fetch_span((rpc or {}).get("sources") or [], rows)
     scopes = [(c["prefix"], c["facts"]) for c in councils_]
+    rpc_slug = ((rpc or {}).get("_cfg") or {}).get("slug")
+    if rpc_slug:   # the RPC's own pages date their footer by its sources (site-polish/rpc-subtitle: Rpc.site_for)
+        scopes.append((rpc_slug + "/", rpc))
     spans = {id(f): _fetch_span(f.get("sources") or [], rows) for _, f in scopes + [("", county)]}
     problems: list[str] = []
     n = labelled_n = 0
