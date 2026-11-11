@@ -1119,6 +1119,9 @@ def test_the_stage_step_copies_only_senders_own_python_files(tmp_path):
     (work / "sender" / "__pycache__" / "deliver.cpython-312.pyc").write_bytes(b"\0" * 16)
     (work / "sender" / "sub" / "x.py").write_text("x = 1\n")
     (work / "sender" / "notes.txt").write_text("x\n")
+    # the blobs as committed: no .gitattributes rule (export-ignore, export-subst) changes what is staged
+    (work / ".gitattributes").write_text("sender/common.py export-ignore\nsender/*.py export-subst\n")
+    (work / "sender" / "common.py").write_text((work / "sender" / "common.py").read_text() + "# $Format:%H$\n")
     _commit_all(work)
     (work / "sender" / "uncommitted.py").write_text("x = 1\n")                    # the working folder is not read
     runner = tmp_path / "runner"
@@ -1131,7 +1134,8 @@ def test_the_stage_step_copies_only_senders_own_python_files(tmp_path):
     assert sorted(p.name for p in lib.iterdir()) == ["py", "site.yml"] and not any(
         p.is_symlink() for p in lib.rglob("*"))
     assert re.fullmatch(r"[0-9a-f]{64}", lib_env["NOTE_LIB_SUM"])
-    assert not list(runner.glob("note-src.*"))                                     # the archive folder is removed
+    assert (lib / "py" / "sender" / "common.py").read_text().endswith("# $Format:%H$\n")
+    assert (lib / "py" / "sender" / "deliver.py").read_bytes() == (ROOT / "sender" / "deliver.py").read_bytes()
     for rel, target in (("sender", "real"), ("config/site.yml", "../site.yml")):
         w2 = tmp_path / f"w-{rel.replace('/', '-')}"
         shutil.copytree(work, w2, symlinks=True, ignore=shutil.ignore_patterns(".git"))

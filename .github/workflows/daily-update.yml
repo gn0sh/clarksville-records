@@ -535,7 +535,8 @@ jobs:
       # anything from the checkout's working folder. `python -m sender` (or -c) puts the current folder first on
       # sys.path, so a root json.py would shadow the standard library in the step that holds the key. Before the plan
       # is downloaded, this step takes sender/'s top-level regular *.py files and config/site.yml from this commit's
-      # git objects (git archive; checked by the two steps above), never a symlink, subfolder or __pycache__, into a
+      # git objects (git ls-tree + git cat-file blob: no .gitattributes export-subst/export-ignore as git archive
+      # would apply; checked by the two steps above), never a symlink, subfolder or __pycache__, into a
       # new random folder NOTE_LIB, and records a sha256 digest of that folder's whole listing and contents
       # (NOTE_LIB_SUM). Every later Python step first re-checks the digest (exact: a file added, changed or removed,
       # a __pycache__ or a symlink stops the job), then runs `python -I -S -X pycache_prefix=<new empty folder> -c`
@@ -546,14 +547,17 @@ jobs:
         run: |
           set -euo pipefail
           lib=$(mktemp -d "$RUNNER_TEMP/note-lib.XXXXXXXXXX")
-          src=$(mktemp -d "$RUNNER_TEMP/note-src.XXXXXXXXXX")
-          git archive --format=tar HEAD -- sender config/site.yml | tar -x -C "$src"
           mkdir -p "$lib/py/sender"
-          find "$src/sender" -maxdepth 1 -type f -name '*.py' -exec cp -- {} "$lib/py/sender/" \;
-          if [ -f "$src/config/site.yml" ] && ! [ -L "$src/config/site.yml" ]; then
-            cp -- "$src/config/site.yml" "$lib/site.yml"
-          fi
-          rm -rf "$src"
+          while IFS= read -r -d '' entry; do
+            path="${entry#*$'\t'}"
+            read -r mode type sha <<< "${entry%%$'\t'*}"
+            if [ "$type" != blob ] || { [ "$mode" != 100644 ] && [ "$mode" != 100755 ]; }; then continue; fi
+            if [ "$path" = config/site.yml ]; then
+              git cat-file blob "$sha" > "$lib/site.yml"
+            elif [[ "$path" =~ ^sender/[A-Za-z0-9_]+\.py$ ]]; then
+              git cat-file blob "$sha" > "$lib/py/$path"
+            fi
+          done < <(git ls-tree -z HEAD -- sender/ config/site.yml)
           for f in py/sender/__init__.py py/sender/__main__.py site.yml; do
             if ! [ -f "$lib/$f" ]; then echo "::error::$f is not in this commit. Nothing sent."; exit 2; fi
           done
