@@ -272,6 +272,59 @@ def test_filling_requests_gaps_only_and_the_new_documents_after(seeded):
     assert NEW_URL in {e["url"] for e in json.loads(seeded.p["manifest"].read_text())}
 
 
+PAGE_NEW_LAST = PAGE.replace("<tr><td><p>13/45/2022", NEW_ROW + "<tr><td><p>13/45/2022", 1)   # new one asked for last
+
+
+def test_a_cut_off_after_gaps_were_filled_is_filling_and_heals_next_run(seeded):
+    """rpc-daily/cut-off-self-heals: the cap ran out on the new document only because a gap's retry took a request,
+    but the run filled gaps, so the next run has room: exit 6 (not a failure), then 0."""
+    assert PAGE_NEW_LAST != PAGE and doc_urls(PAGE_NEW_LAST)[-1] == NEW_URL
+    seeded.empty_store()
+    urls = doc_urls()
+    cap = len(urls) + 1 + 2                                        # every gap and the new one, robots and listing
+    code, out = seeded.run(routes(PAGE_NEW_LAST, **{urls[0]: (503, b"busy")}), cap=cap)
+    assert code == rpc.STEP_FILLING and out["fetch"]["fetched"]["new_cut_off"] == 1
+    assert NEW_URL not in seeded.docs_requested()
+    code, _ = seeded.run(routes(PAGE_NEW_LAST), cap=cap)
+    assert code == rpc.STEP_OK and seeded.docs_requested() == [urls[0], NEW_URL]
+
+
+def test_stall_messages_name_the_capped_recovery(site):
+    code, out = site.run(cap=3)                                    # TooManyNew
+    assert code == rpc.STEP_FETCH and "repeats every day until someone acts" in out["status"]
+    assert "python -m collector rpc fetch --limit 30" in rpc.RECOVERY
+    assert "python -m collector rpc fetch --limit" in out["status"]
+
+
+def test_the_by_hand_fetch_is_capped_and_keeps_what_it_fetched(site):
+    """The recovery: `rpc fetch --limit N` asks for at most N documents the store lacks, never more than the cap
+    (robots.txt and the listing included), waits the crawl-delay, and keeps them in the manifest, so the next day's
+    call goes on where it stopped."""
+    urls = doc_urls()
+    asked = []
+    for _ in range(4):
+        net, clock = FakeNet(routes()), Clock()
+        f = PoliteFetcher(opener=net, clock=clock.now, sleep=clock.sleep, proxy_failures=lambda: [])
+        store = Store(manifest_path=site.p["manifest"], root=site.store_dir)
+        log = rpc.new_log()
+        rpc.cmd_fetch(CFG, store, site.p["listing"], log, fetcher=f, limit=5, max_requests=rpc.DAILY_FETCH_CAP,
+                      keeps_manifest=True)
+        calls = [u for u, _ in net.calls]
+        docs = [u for u in calls if u not in (ROBOTS, LISTING)]
+        assert len(docs) <= 5 and len(calls) <= rpc.DAILY_FETCH_CAP and min(clock.slept) >= 9.99
+        asked += docs
+    assert asked == urls                                           # 5 + 5 + 5 + 1, in listing order, once each
+    assert {e["url"] for e in json.loads(site.p["manifest"].read_text())} == set(urls)
+
+
+def test_the_by_hand_fetch_command_uses_the_cap(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(rpc, "cmd_fetch", lambda *a, **k: seen.update(k) or [])
+    monkeypatch.setattr(rpc, "write_json", lambda path, obj: False)      # no report into the real build/
+    assert rpc.main(["fetch", "--limit", "30"]) == 0
+    assert seen["limit"] == 30 and seen["max_requests"] == rpc.DAILY_FETCH_CAP == 40 and seen["keeps_manifest"]
+
+
 def test_a_cap_too_small_for_the_listing_is_a_fetch_failure_with_no_request_past_it(site):
     code, out = site.run(cap=1)
     assert code == rpc.STEP_FETCH and "RequestCapReached" in out["status"]

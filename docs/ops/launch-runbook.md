@@ -23,15 +23,27 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   - city: 2 a listing not read or fetch/parse failures, 5 a host or robots.txt refused the collector (403/429 and the
     like). On 5 do not re-run to "try again" and do not change the fetcher: read `build/city-report.json` in the run
     log and ask the manager.
-  - county: 2 fetch/parse failures (votes or finance), 3 gate failure, 4 offline run refused, 5 the RPC step failed
-    (cmcrpc.com blocked us, listing not read, an RPC gate, or a result that would shrink the RPC record; reason in
-    `build/run-log.json` `rpc`). A 429 from cmcrpc.com is never retried in that run; the next try is the next day's run,
-    so do not dispatch a manual run to "try again" the same day.
-  - **Partial** (not a failure): county 6, the RPC document store is still being filled (at most 40 requests to
-    cmcrpc.com per run, robots.txt and the listing included). The run goes on with the committed RPC files and a
-    `::warning::`; the data and site are committed as for 0.
-  - A failed fetch never deletes data: the RPC step is all or nothing on its committed files; a hard failure stops the
-    push job, so no partial result reaches `main`; the document store and caches are only ever added to.
+  - county: 2 fetch/parse failures (votes or finance), 3 gate failure, 4 offline run refused.
+- **RPC only** (not a failure of the run; one source must not freeze the daily refresh). The RPC step's codes are used
+  only when everything else is ok, and the RPC files (`data/localities/cmc-rpc/`) are restored byte for byte unless
+  the step succeeds, so the city, county and finance data still commit and deploy:
+  - **Partial**: county 6, the RPC document store is still being filled (at most 40 requests to cmcrpc.com per run,
+    robots.txt and the listing included). A `::warning::`; the next runs fill it on their own.
+  - **RPC failed**: county 5 the RPC step failed (cmcrpc.com blocked us, listing not read, an RPC gate, a result that
+    would shrink the RPC record, or an RPC backlog, below; reason in `build/run-log.json` `rpc`). A `::warning::` and
+    one open "Daily update: RPC step failed" issue (a comment on it each later day, never a new issue). A 429 from
+    cmcrpc.com is never retried in that run; the next try is the next day's run, so do not dispatch a manual run to
+    "try again" the same day.
+- **RPC backlog** (rpc-daily/stall-needs-human): the RPC failure says `TooManyNew` (more newly listed documents than
+  one run may request) or "the cap of 40 requests ran out" with no stored gap filled. Neither clears by itself: it
+  **repeats every day until someone acts**, because a daily run that cannot finish keeps no manifest entry. Recovery,
+  capped like the daily step (40 requests per call, robots.txt crawl-delay obeyed, a 403/429 stops it): look at
+  https://www.cmcrpc.com/documents/agenda-minutes/ first (did the site move its files?), then on a checkout of `main`
+  with the store restored, run `python -m collector rpc fetch --limit 30` once a day until it no longer prints
+  "documents still to fetch", then commit `data/localities/cmc-rpc/` (listing.json, manifest.json). The next daily
+  run fetches any bytes its cache lacks as gaps and rebuilds rpc.json; the RPC issue can be closed when it is green.
+- A failed fetch never deletes data: the RPC step is all or nothing on its committed files; a hard failure stops the
+  push job, so no partial result reaches `main`; the document store and caches are only ever added to.
 - Collection keeps the collector's rules: honest User-Agent, robots.txt, 10 s between requests per host.
 - The downloaded PDFs (about 3 GB, not in git) live in the Actions cache (`records-store-v1-*`, 10 GB repo limit, evicted
   after 7 days unused; the daily run keeps it warm). A cold cache refetches about 930 documents at 10 s each: 3 to 5

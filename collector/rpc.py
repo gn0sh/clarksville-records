@@ -1,7 +1,10 @@
 """Regional Planning Commission (RPC) from www.cmcrpc.com: list its meetings, fetch their agendas and minutes, read the
 agendas' case items (milestone RPC-1).
 
-python -m collector rpc fetch [--limit N]    the listing page, then every listed PDF/DOCX on the RPC's own host
+python -m collector rpc fetch [--limit N]    the listing page, then the listed PDF/DOCX the store lacks (at most N
+                                             of them; at most DAILY_FETCH_CAP requests, crawl-delay obeyed). The
+                                             manifest keeps what it fetched: the capped recovery for a backlog
+                                             (docs/ops/launch-runbook.md, "RPC backlog")
 python -m collector rpc build                read the stored agendas -> data/localities/cmc-rpc/rpc.json
 python -m collector rpc run                  fetch then build
 python -m collector rpc daily [--offline]    the daily step on its own (run_step below; `collector run` calls it)
@@ -61,6 +64,9 @@ STEP_OK, STEP_ERROR, STEP_FETCH, STEP_GATE, STEP_REFUSED, STEP_FILLING = 0, 1, 2
 # one run on 2026-11-10 (docs/status.md). Enforced by the fetcher (PoliteFetcher.limit_hosts): the 41st request is
 # never made.
 DAILY_FETCH_CAP = 40
+# The capped by-hand recovery when the daily step cannot finish on its own (TooManyNew, a cut-off by the cap).
+RECOVERY = "python -m collector rpc fetch --limit 30 (once a day until the backlog is in, then commit; " \
+           "docs/ops/launch-runbook.md 'RPC backlog')"
 # What the daily step puts back byte for byte unless it succeeds: what cmd_fetch may rewrite, and rpc.json, which
 # only run_step writes, last (rpc-daily/restore-misses-rpc-json).
 COMMITTED = ("listing", "manifest", "changes", "facts")
@@ -272,11 +278,14 @@ def fetch_listing(f: PoliteFetcher, cfg: RpcConfig) -> str:
 
 
 def cmd_fetch(cfg: RpcConfig, store: Store, listing_path: Path, log: dict, fetcher=None,
-              limit: int | None = None, max_requests: int | None = None) -> list[dict]:
-    """The listing page, then each listed document the store lacks. `max_requests` (the daily step): at most that
-    many requests go to the RPC's hosts this run, robots.txt and the listing included (a hard cap in the fetcher);
-    the documents left over are counted in log['fetched']['over_cap'] and left for a later run.
-    A failure where the host or policy said no carries `stop: True`."""
+              limit: int | None = None, max_requests: int | None = None, keeps_manifest: bool = False) -> list[dict]:
+    """The listing page, then each listed document the store lacks. `max_requests`: at most that many requests go to
+    the RPC's hosts this run, robots.txt and the listing included (a hard cap in the fetcher); the documents left
+    over are counted in log['fetched']['over_cap'] and left for a later run. `limit`: at most that many documents
+    are requested (the stored ones need no request and are not counted). `keeps_manifest` (the by-hand fetch,
+    whose manifest is kept): new documents are fetched in listing order up to the cap, since what it fetches stays
+    known; the daily step (False) restores the manifest on any shortfall, so it asks for new ones only when all
+    fit. A failure where the host or policy said no carries `stop: True`."""
     f = fetcher or PoliteFetcher()
     hosts = {urllib.parse.urlsplit(cfg.listing_url).netloc.lower(), *cfg.fetch_hosts}
     if max_requests is not None:
@@ -299,9 +308,12 @@ def cmd_fetch(cfg: RpcConfig, store: Store, listing_path: Path, log: dict, fetch
             elif not d["fetch"]:
                 log["link_only"] = log.get("link_only", 0) + 1
     if limit is not None:
-        jobs = jobs[:limit]
+        needs = [d["url"] for _, d in jobs if not ((e := store.latest(d["url"])) and store.has_bytes(e["sha256"]))]
+        keep = set(needs[:max(0, limit)])
+        jobs = [(r, d) for r, d in jobs if d["url"] in keep or d["url"] not in needs]
     over_cap: set[str] = set()
     new_urls: set[str] = set()
+    gap_urls: set[str] = set()
     if max_requests is not None:
         # Requests this run: the documents the manifest lists whose bytes the store lacks (their bytes stay in the
         # store, so a capped run still gets closer), and the newly listed ones only when everything fits in this run.
@@ -311,19 +323,22 @@ def cmd_fetch(cfg: RpcConfig, store: Store, listing_path: Path, log: dict, fetch
         gaps = [u for u, e in known.items() if e and not store.has_bytes(e["sha256"])]
         new = [u for u, e in known.items() if not e]
         budget = min((f.remaining(h) for h in hosts if f.remaining(h) is not None), default=max_requests)
-        if len(new) > budget:
+        if keeps_manifest:
+            over_cap = set((gaps + new)[budget:])
+        elif len(new) > budget:
             # More new documents than one run may request (the site moved its files?). A run that cannot finish
             # keeps no manifest entry, so asking for part of them would ask again every day: ask for none.
             log["failures"].append({"stage": "fetch", "stop": True, "error": (
                 f"TooManyNew: {len(new)} newly listed documents, more than the {budget} requests this run has left "
-                f"(cap {max_requests}); "
-                f"none requested (run `python -m collector rpc run` by hand after a look at the listing)")})
+                f"(cap {max_requests}); none requested. It repeats every day until someone acts: after a look at "
+                f"the listing, run {RECOVERY}")})
             store.save()
             log["fetch_log"] = f.log
             return rows
-        if len(gaps) + len(new) > budget:
+        elif len(gaps) + len(new) > budget:
             over_cap = set(gaps[budget:]) | set(new)       # gaps only; the new ones wait for a run that can finish
         new_urls = set(new)
+        gap_urls = set(gaps)
     stopped = False
     for r, d in jobs:
         if stopped:
@@ -337,11 +352,13 @@ def cmd_fetch(cfg: RpcConfig, store: Store, listing_path: Path, log: dict, fetch
             _, status = fetch_into_store(f, store, d["url"], {"kind": d["kind"], "meeting_date": r["date"],
                                                                "label": f"{r['printed']} {d['kind']}"}, expect=expect)
             log["fetched"][status] = log["fetched"].get(status, 0) + 1
+            if d["url"] in gap_urls and status not in ("cached", "cached-meta"):
+                log["fetched"]["gaps_filled"] = log["fetched"].get("gaps_filled", 0) + 1   # kept across runs
             store.save()                      # saved as it goes, so a stopped run keeps what it fetched
         except RequestCapReached:             # retries or redirects used the cap up: no request was made
             log["fetched"]["over_cap"] = log["fetched"].get("over_cap", 0) + 1
-            if d["url"] in new_urls:          # a new document cut off by the cap: this run cannot finish, and the
-                log["fetched"]["new_cut_off"] = log["fetched"].get("new_cut_off", 0) + 1   # next would do the same
+            if d["url"] in new_urls and not keeps_manifest:   # a new document cut off by the cap: this run cannot
+                log["fetched"]["new_cut_off"] = log["fetched"].get("new_cut_off", 0) + 1   # finish, nor may the next
         except STOP as e:
             log["failures"].append({"stage": "fetch", "url": d["url"], "error": f"{type(e).__name__}: {e}",
                                     "stop": True})
@@ -412,12 +429,14 @@ def _daily(cfg: RpcConfig, p: dict, out: dict, offline: bool, fetcher, store: St
             out["status"] = f"stopped, nothing changed: {stops[0]['error']}"[:400]
             return STEP_FETCH
         cut = flog["fetched"].get("new_cut_off", 0)
-        if cut:
-            # rpc-daily/filling-livelock: only newly listed documents are left and the cap ran out on them (retries
-            # or redirects took the requests). The next run would make the same requests and stop at the same place,
-            # so this is a hard failure for a person to look at, never "filling".
+        if cut and not flog["fetched"].get("gaps_filled"):
+            # rpc-daily/filling-livelock: the cap ran out on newly listed documents (retries or redirects took the
+            # requests) and no stored gap was filled, so the next run would make the same requests and stop at the
+            # same place: a failure for a person to look at, never "filling". When gaps were filled this run, the
+            # next one has more room, so it is filling (rpc-daily/cut-off-self-heals).
             out["status"] = (f"stopped, nothing changed: {cut} newly listed documents not requested, the cap of "
-                             f"{max_requests} requests ran out (retries or redirects); a later run would repeat it")
+                             f"{max_requests} requests ran out (retries or redirects). It repeats every day until "
+                             f"someone acts: run {RECOVERY}")
             return STEP_FETCH
         left = flog["fetched"].get("over_cap", 0)
         if left:
@@ -486,7 +505,8 @@ def run_step(log: dict, offline: bool, fetcher=None, cfg: RpcConfig | None = Non
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser(prog="python -m collector rpc")
     ap.add_argument("command", choices=("fetch", "build", "run", "daily"))
-    ap.add_argument("--limit", type=int, default=None, help="fetch at most N files (testing)")
+    ap.add_argument("--limit", type=int, default=None,
+                    help="request at most N documents the store lacks (never more than the 40-request cap allows)")
     ap.add_argument("--offline", action="store_true", help="daily: no fetching, build from the store")
     a = ap.parse_args(argv)
     if a.command == "daily":
@@ -496,7 +516,12 @@ def main(argv: list[str]) -> int:
     store = Store(manifest_path=p["manifest"])
     log = new_log()
     if a.command in ("fetch", "run"):
-        cmd_fetch(cfg, store, p["listing"], log, limit=a.limit)
+        # by hand too: the same cap and crawl-delay as the daily step; what it fetches stays in the manifest
+        cmd_fetch(cfg, store, p["listing"], log, limit=a.limit, max_requests=DAILY_FETCH_CAP, keeps_manifest=True)
+        left = log["fetched"].get("over_cap", 0) + log["fetched"].get("not_tried", 0)
+        if left:
+            print(f"collector rpc: {left} documents still to fetch; run this again tomorrow (cap "
+                  f"{DAILY_FETCH_CAP} requests per run), then commit data/localities/{cfg.locality}/", flush=True)
     report = {"fetch": {k: v for k, v in log.items() if k != "fetch_log"}}
     if a.command in ("build", "run"):
         from .rpc_agenda import build
@@ -506,7 +531,7 @@ def main(argv: list[str]) -> int:
         report["build"] = summary
     write_json(p["report"], {**report, "fetch_log": log.get("fetch_log", [])})
     print(json.dumps(report, indent=1, default=str)[:4000])
-    if any(f["stage"] == "listing" for f in log["failures"]):
+    if any(f["stage"] == "listing" or f.get("stop") for f in log["failures"]):   # not read, or the host said no
         return 2
     short = report.get("build", {}).get("case_shortfalls") or []
     if short:   # the completeness check: an agenda prints more "CASE NUMBER:" than the cases read
