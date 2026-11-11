@@ -407,7 +407,9 @@ def shrink_reason(old: dict, new: dict, hold_motions: bool = False, allow_shrink
     Compared per meeting and document kind, so a document the RPC posts again under a new link is not a loss.
     Also (limits invariant rule 3): a motion confirmed in the committed record that is not confirmed in `new`, unless
     hold_motions is on (nothing is published confirmed, and a reader fix is expected to unconfirm motions) or
-    allow_shrink accepts it deliberately."""
+    allow_shrink accepts it deliberately. A motion whose meeting's minutes source_id changed (the RPC posted
+    different bytes) is a correction, not a loss (shrink guard G4 (i): motion ids `<meeting>-motion-<n>` do not
+    depend on the bytes, so the source_id tells)."""
     now = {m["id"]: m for m in new.get("meetings", [])}
     gone = sorted(m["id"] for m in old.get("meetings", []) if m["id"] not in now)
     if gone:
@@ -424,11 +426,34 @@ def shrink_reason(old: dict, new: dict, hold_motions: bool = False, allow_shrink
                 return f"{m['id']}: the {what} was read in the committed record and would not be"
     if not hold_motions and not allow_shrink:
         confirmed = {x["id"] for x in new.get("motions", []) if x.get("confirmed")}
-        lost = sorted(x["id"] for x in old.get("motions", []) if x.get("confirmed") and x["id"] not in confirmed)
+        corrected = {c["meeting_id"]: set(c["new_source_ids"]) for c in minutes_corrections(old, new)}
+
+        def correction(x: dict) -> bool:
+            return x.get("meeting_id") in corrected and x.get("source_id") not in corrected[x["meeting_id"]]
+        lost = sorted(x["id"] for x in old.get("motions", []) if x.get("confirmed") and x["id"] not in confirmed
+                      and not correction(x))
         if lost:
             return (f"{len(lost)} motions confirmed in the committed record would not be confirmed, e.g. "
                     f"{', '.join(lost[:3])} (a limit trip or a reader change); pass --allow-shrink to accept it")
     return None
+
+
+def minutes_corrections(old: dict, new: dict) -> list[dict]:
+    """Shrink guard G4 (i), G1 (b): meetings whose minutes had a source in the committed record and have a different one
+    in `new` (the RPC posted different bytes), with their confirmed motion counts:
+    [{meeting_id, source_ids, new_source_ids, confirmed: [old, new]}]."""
+    def minutes(m: dict) -> set:
+        return {d["source_id"] for d in m.get("documents", []) if d.get("kind") == "minutes" and d.get("source_id")}
+    now = {m["id"]: minutes(m) for m in new.get("meetings", [])}
+    out = []
+    for m in old.get("meetings", []):
+        was, to = minutes(m), now.get(m["id"], set())
+        if was and to and not was & to:
+            def n(f):
+                return sum(1 for x in f.get("motions", []) if x.get("meeting_id") == m["id"] and x.get("confirmed"))
+            out.append({"meeting_id": m["id"], "source_ids": sorted(was), "new_source_ids": sorted(to),
+                        "confirmed": [n(old), n(new)]})
+    return out
 
 
 def _daily(cfg: RpcConfig, p: dict, out: dict, offline: bool, fetcher, store: Store, build, max_requests,
@@ -474,6 +499,8 @@ def _daily(cfg: RpcConfig, p: dict, out: dict, offline: bool, fetcher, store: St
         out["status"] = f"nothing changed: {len(short)} agendas with cases not read: {', '.join(short)}"
         return STEP_GATE
     old = json.loads(p["facts"].read_text(encoding="utf-8")) if p["facts"].is_file() else None
+    if old:
+        out["corrections"] = minutes_corrections(old, facts)     # reported in the run summary (G1 (b), G4 (i))
     why = shrink_reason(old, facts, hold_motions=cfg.hold_motions, allow_shrink=allow_shrink) if old else None
     if why:
         out["status"] = f"nothing changed: {why}"
@@ -519,6 +546,11 @@ def run_step(log: dict, offline: bool, fetcher=None, cfg: RpcConfig | None = Non
         out["build"]["problems"] = len(problems)          # the full list is in build/rpc-report.json
     log["rpc"] = out
     print(f"collector: rpc: exit {code}: {out['status']}", flush=True)
+    for c in out.get("corrections") or []:
+        print(f"collector: rpc: correction: {c['meeting_id']} minutes "
+              f"{'+'.join(x.removeprefix('src-')[:8] for x in c['source_ids'])} -> "
+              f"{'+'.join(x.removeprefix('src-')[:8] for x in c['new_source_ids'])}, "
+              f"confirmed {c['confirmed'][0]} -> {c['confirmed'][1]}", flush=True)
     print(limits.summary("collector: rpc", since), flush=True)
     return code
 

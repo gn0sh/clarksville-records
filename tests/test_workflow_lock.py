@@ -83,7 +83,8 @@ def _holds(expr: str, ctx: dict) -> bool:
 def _ctx(**over) -> dict:
     """A scheduled run on main, deploy enabled, both needed jobs green."""
     ctx = {"vars.RECORDS_DEPLOY_ENABLED": "true", "github.ref": "refs/heads/main", "github.event_name": "schedule",
-           "inputs.collect": None, "needs.update.result": "success", "needs.push.result": "success",
+           "inputs.collect": None, "inputs.allow_shrink": None, "needs.update.result": "success",
+           "needs.push.result": "success",
            "cancelled": False}
     return {**ctx, **{k.replace("__", "."): v for k, v in over.items()}}
 
@@ -328,24 +329,26 @@ def test_no_untrusted_triggers_and_no_echoed_credentials(path):
 
 def test_a_hard_failure_never_reaches_main_and_the_exit_codes_are_documented():
     """A failed fetch never deletes data: on any hard exit code the Collect step fails, so the data artifact is not
-    uploaded and the push job (which needs a successful update) never runs. Only the RPC step's own codes pass:
-    county 6 (partial) and county 5 (RPC failed; its files are restored by the step, everything else publishes)."""
+    uploaded and the push job (which needs a successful update) never runs. Only the warnings pass: county 6
+    (partial), county 5 (RPC failed; its files are restored by the step, everything else publishes) and county 7
+    (the shrink guard kept county documents as committed; everything else publishes)."""
     steps = {s.get("name"): s for s in WF["jobs"]["update"]["steps"]}
     assert steps["Upload refreshed data"]["if"].startswith("success() && ")
     assert WF["jobs"]["push"]["needs"] == "update" and "always()" not in WF["jobs"]["push"]["if"]
     script = steps["Collect (polite fetch, parse, verify)"]["run"]
-    cases = [(0, 0, 0), (0, 6, 0), (0, 5, 0), (2, 0, 1), (5, 0, 1), (0, 2, 1), (0, 3, 1), (0, 4, 1), (2, 5, 1),
-             (5, 6, 1)]
+    cases = [(0, 0, 0), (0, 6, 0), (0, 5, 0), (0, 7, 0), (2, 0, 1), (5, 0, 1), (0, 2, 1), (0, 3, 1), (0, 4, 1),
+             (2, 5, 1), (5, 6, 1), (2, 7, 1)]
     for city, county, ok in cases:
         fake = script.replace("python -m collector city run; city=$?", f"city={city}").replace(
-            "python -m collector run; county=$?", f"county={county}")
+            'python -m collector run "${shrink[@]}"; county=$?', f"county={county}")
         r = subprocess.run(["bash", "-c", fake], env={**os.environ, "GITHUB_OUTPUT": os.devnull},
                            capture_output=True, text=True)
         assert (r.returncode != 0) == bool(ok), (city, county, r.stdout, r.stderr)
     runbook = (ROOT / "docs" / "ops" / "launch-runbook.md").read_text(encoding="utf-8")
     for phrase in ("**Hard failure**", "**Partial**", "county 6", "5 the RPC step failed",
                    "A failed fetch never deletes data", "at most 40 requests", "**RPC only**", "**RPC backlog**",
-                   "repeats every day until someone acts", "python -m collector rpc fetch --limit 30"):
+                   "repeats every day until someone acts", "python -m collector rpc fetch --limit 30",
+                   "**County meetings kept**", "county 7", "Daily update: county meetings kept", "allow_shrink"):
         assert phrase in runbook, phrase
 
 

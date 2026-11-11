@@ -229,21 +229,20 @@ def test_exit_codes(sandbox, capsys, fail, gate_pass, fin_code, code):
 
 
 @pytest.mark.parametrize("allow", [False, True])
-def test_online_run_keeps_the_committed_facts_when_a_verified_roll_call_would_be_lost(sandbox, monkeypatch, capsys,
-                                                                                      allow):
-    """pipeline/shrink-guard-offline-only: online too, a roll call verified in the committed facts that the new
-    result has unverified keeps the committed file, names the id and exits 3 with the usual issue;
-    --allow-shrink accepts it."""
+def test_online_run_keeps_the_document_when_a_verified_roll_call_would_be_lost(sandbox, monkeypatch, capsys, allow):
+    """pipeline/shrink-guard-freezes-all (rule 3 G1-G3): online, a roll call verified in the committed facts that the
+    same document's new reading has unverified keeps that document's records as committed, names the id, and exits
+    7 (a warning) with the issue; --allow-shrink lets the new reading win (exit 0)."""
     import copy
     old = committed_facts()
     M.FACTS.write_text(json.dumps(old), encoding="utf-8")
-    before = M.FACTS.read_bytes()
     new = copy.deepcopy(old)
     rc = next(r for r in new["roll_calls"] if r["verification"]["status"] == "verified")
     rc["verification"]["status"] = "unverified"
 
     class B:
         unresolved = {}
+        source_errors = set()
 
     def fake_build(store, log, use_ocr=True):
         log["parsed"] = 1
@@ -253,13 +252,17 @@ def test_online_run_keeps_the_committed_facts_when_a_verified_roll_call_would_be
     monkeypatch.setattr(M, "finance_fetcher", lambda: None)
     code = M.main(["run"] + (["--allow-shrink"] if allow else []))
     out, err = capsys.readouterr()
+    run_log = json.loads((M.BUILD / "run-log.json").read_text())
     if allow:
         assert code == 0 and json.loads(M.FACTS.read_text())["roll_calls"] == new["roll_calls"]
+        assert run_log["kept_meetings"] == [] and run_log["allowed_shrink"][0]["ids"] == [rc["id"]]
+        assert f"ALLOWED (--allow-shrink) {rc['source_id']}" in err
     else:
-        assert code == 3 and M.FACTS.read_bytes() == before                  # the committed file stands
-        assert f"KEPT facts.json unchanged: 1 roll calls verified in facts.json would no longer be verified: {rc['id']}" \
-            in err
-        assert "gh issue create" in out and rc["id"] in out                  # the usual issue names it
+        assert code == M.KEPT and json.loads(M.FACTS.read_text()) == old       # that document is the committed one
+        (k,) = run_log["kept_meetings"]
+        assert k["source_id"] == rc["source_id"] and k["ids"] == [rc["id"]]
+        assert f"collector: KEPT {rc['source_id']} (" in err and rc["id"] in err
+        assert "gh issue create" in out and "Collector kept county meetings" in out and rc["id"] in out
 
 
 def test_county_summary_reports_only_the_county_steps_trips(sandbox, monkeypatch, capsys):

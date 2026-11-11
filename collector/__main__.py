@@ -4,20 +4,28 @@ python -m collector city {fetch,build,run}     (City Council, Agenda Center: col
 python -m collector rpc {fetch,build,run}      (Regional Planning Commission: collector/rpc.py)
 python -m collector transcripts import <dir>   (meeting video transcripts: collector/transcripts.py)
 run: discover -> fetch new (polite), and refetch any manifest minutes whose bytes the store lacks -> parse ->
-resolve names -> verify -> data/facts.json -> finance fetch and
+resolve names -> verify -> shrink guard -> data/facts.json -> finance fetch and
 build (fin_run.run_step: data/finance.json, build/report.json `finance`) -> county agendas (county_agenda.run_step:
 the agenda page, new agenda PDFs, data/county-agendas/agendas.json) -> Regional Planning Commission (rpc.run_step:
 the listing page, new documents, data/localities/cmc-rpc/rpc.json; all or nothing) -> sitegen -> export ->
 build/report.json, build/run-log.json. Exit 0 ok, 2 on fetch/parse failures (votes or finance), 3 on a gate failure
-(votes gates, or finance parity 'review needed'). The RPC step has its own codes, used only when everything else is
-ok: 5 the RPC step failed (blocked by a 403/429, listing not read, a gate, or a result that would shrink the record),
-6 the RPC store is still being filled, a few documents per run. On 5 and 6 the RPC files are exactly as committed and
-the site is built from them; the step's own code and reason are in build/run-log.json `rpc`.
-On 2, 3 or 5 it prints the `gh issue create` command it would run (task D1).
+(votes gates, or finance parity 'review needed'), 7 (KEPT, a warning) when the shrink guard kept a source document's
+meetings as committed, or a correction lowered a document's verified count; everything else is published. The RPC
+step has its own codes, used only when everything else is ok: 5 the RPC step failed (blocked by a 403/429, listing
+not read, a gate, or a result that would shrink the record), 6 the RPC store is still being filled, a few documents
+per run. On 5 and 6 the RPC files are exactly as committed and the site is built from them; the step's own code and
+reason are in build/run-log.json `rpc` (under 7 too). Precedence 2 > 3 > 7 > 5/6.
+On 2, 3, 5 or 7 it prints the `gh issue create` command it would run (task D1).
+Shrink guard (docs/architecture/pipeline-limits-invariant.md "Rule 3: the shrink guard", G1-G4), per source
+document and every meeting in it, compared by sha256 against the committed data/facts.json: the same document that
+lost a verified roll call or a meeting, or a document missing from the result, keeps its committed records exactly
+(exit 7, build/run-log.json `kept_meetings`); a document whose bytes changed is a correction, the new reading wins
+(`corrections`). --allow-shrink lets the new result win for every meeting (still listed).
 --offline skips discovery and fetching (votes and finance) and uses the store (data/store/, or RECORDS_STORE).
 Offline guard (provenance/offline-run-overwrites-facts): an offline run (and `build`) refuses, exit 4, writing
-nothing, when minutes PDFs the manifest lists are missing from the store, when no minutes parse, or when the result
-would drop a meeting data/facts.json has. --allow-shrink lets a deliberate shrink through.
+nothing, when minutes PDFs the manifest lists are missing from the store, when no minutes parse, when the result
+would drop a meeting data/facts.json has, or when the shrink guard would keep a document. --allow-shrink lets a
+deliberate shrink through.
 export: build/site/data/ from the committed files (county facts, each council's facts, finance), no parsing.
 """
 from __future__ import annotations
@@ -129,6 +137,9 @@ def run_agendas(log: dict, offline: bool, fetcher: PoliteFetcher | None = None) 
 
 
 RPC_FAILED, RPC_FILLING = 5, 6       # `run` exit codes for the RPC step alone (everything else ok)
+# `run` warning exit (shrink guard G2.4): a source document's meetings were kept as committed, or a correction lowered
+# a document's verified count; everything else was published. Unused by city_run (0/2/5) and rpc.py's step codes.
+KEPT = 7
 
 
 def run_rpc(log: dict, offline: bool, fetcher: PoliteFetcher | None = None, allow_shrink: bool = False) -> int:
@@ -183,29 +194,48 @@ def cmd_build(store: Store, log: dict, use_ocr: bool = True) -> tuple[dict, dict
     for p in b.problems:
         log["failures"].append({"stage": "assemble", **p})
     facts = b.facts(roster)
-    g = gates(facts, b.source_errors)
-    log["held_back"] = g["held_back"]
     report = {
-        "generated_for": {"coverage": facts["coverage"], "sources": len(facts["sources"])},
-        "gates": g,
-        "pass": g["verified_rate_gate"]["pass"] and g["g4"]["pass"],
-        "held_back_roll_calls": [
-            {"id": r["id"], "meeting_id": r["meeting_id"], "page": r["page"],
-             "source_error": r["id"] in b.source_errors,
-             "failed": [c["check"] for c in r["verification"]["checks"] if not c["ok"]]}
-            for r in facts["roll_calls"] if r["verification"]["status"] != "verified"],
-        "meetings_attendance_unverified": [m["id"] for m in facts["meetings"]
-                                           if m["verification"]["status"] != "verified"],
+        **gate_report(facts, b.source_errors, log),
         "consent_roll_calls_not_expanded": sorted(b.consent_unexpanded),
-        "motions_held_back": sum(m["verification"]["status"] != "verified" for m in facts["motions"]),
         "documents": documents_report(parsed_docs, b),
-        "meetings_by_year": meetings_by_year(facts),
         "meeting_copies": copies,
         "consent_reprints": dict(sorted(b.consent_reprints.items())),
         "superseded_sources": log.get("superseded", []),
         "problems": b.problems,
     }
     return facts, report, b
+
+
+def gate_report(facts: dict, source_errors: set, log: dict) -> dict:
+    """The build/report.json fields that depend on the facts as published: the gates (verify.gates), `pass` and the
+    held-back lists. cmd_build calls it on the new result, and cmd_run again on the merged facts when the shrink guard
+    kept a document (G2.3), so a kept meeting never fails a gate the published file would pass."""
+    g = gates(facts, source_errors)
+    log["held_back"] = g["held_back"]
+    return {
+        "generated_for": {"coverage": facts["coverage"], "sources": len(facts["sources"])},
+        "gates": g,
+        "pass": g["verified_rate_gate"]["pass"] and g["g4"]["pass"],
+        "held_back_roll_calls": [
+            {"id": r["id"], "meeting_id": r["meeting_id"], "page": r["page"],
+             "source_error": r["id"] in source_errors,
+             "failed": [c["check"] for c in r["verification"]["checks"] if not c["ok"]]}
+            for r in facts["roll_calls"] if r["verification"]["status"] != "verified"],
+        "meetings_attendance_unverified": [m["id"] for m in facts["meetings"]
+                                           if m["verification"]["status"] != "verified"],
+        "motions_held_back": sum(m["verification"]["status"] != "verified" for m in facts["motions"]),
+        "meetings_by_year": meetings_by_year(facts),
+    }
+
+
+def merged_source_errors(facts: dict, b) -> set:
+    """Source-document-error roll call ids among `facts`: the build's own (b.source_errors) plus a kept committed roll
+    call's failed `source_consistent` check (collector/facts.py writes that check for exactly those ids)."""
+    ids = {r["id"] for r in facts["roll_calls"]}
+    own = set(getattr(b, "source_errors", None) or ()) & ids
+    return own | {r["id"] for r in facts["roll_calls"]
+                  if any(c.get("check") == "source_consistent" and not c.get("ok")
+                         for c in (r.get("verification") or {}).get("checks", []))}
 
 
 def documents_report(parsed_docs: list, b: Builder) -> list[dict]:
@@ -263,13 +293,15 @@ def name_candidates(b: Builder, roster: list[dict]) -> dict:
 
 
 def issue_command(code: int, log: dict, report: dict | None) -> str:
-    title = {2: "Collector run failed", RPC_FAILED: "Collector RPC step failed"}.get(code, "Collector gates failed")
+    title = {2: "Collector run failed", RPC_FAILED: "Collector RPC step failed",
+             KEPT: "Collector kept county meetings"}.get(code, "Collector gates failed")
     rpc = log.get("rpc") or {}
     body = {"exit": code, "failures": log["failures"][:20], "rpc": {"exit": rpc.get("exit"), "status": rpc.get("status")},
             "gates": (report or {}).get("gates", {}).get("verified_rate_gate"),
             "g4_flagged": (report or {}).get("gates", {}).get("g4", {}).get("flagged"),
             "finance_build_exit": log.get("fin_build"),          # 3: parity 'review needed' (A5)
-            "kept_facts": log.get("kept_facts"), "limits": log.get("limits")}
+            "kept_meetings": log.get("kept_meetings"), "corrections": log.get("corrections"),
+            "limits": log.get("limits")}
     return (f"gh issue create --repo {REPO} --title {shlex.quote(title)} "
             f"--body {shlex.quote(json.dumps(body, indent=1))}")
 
@@ -285,7 +317,9 @@ def missing_inputs(store: Store) -> list[dict]:
 
 def shrink_reason(facts: dict, log: dict, facts_path: Path) -> str | None:
     """Why an offline result must not replace facts_path, or None. Refused: no minutes parsed, a document not in the
-    store, or a meeting the current file has that the new result lacks (provenance/offline-run-overwrites-facts)."""
+    store, a meeting the current file has that the new result lacks (provenance/offline-run-overwrites-facts), or a
+    source document the shrink guard would keep (G2.7: the same sha256 rule as online, so a correction, a document
+    whose bytes changed, is not refused)."""
     gone = [f for f in log["failures"] if f.get("stage") == "parse" and "not in the store" in f.get("error", "")]
     if gone:
         return f"{len(gone)} minutes documents are not in the store, e.g. {gone[0].get('url')}"
@@ -299,10 +333,15 @@ def shrink_reason(facts: dict, log: dict, facts_path: Path) -> str | None:
         return (f"the result has {len(facts['meetings'])} meetings and would drop {len(dropped)} of the "
                 f"{len(old.get('meetings', []))} in {Path(facts_path).name}, e.g. {', '.join(dropped[:3])}. "
                 f"A parser change that renames meeting ids also causes this; pass --allow-shrink to override")
-    lost = lost_verified(facts, old)
-    if lost:
-        return lost_message(lost, facts_path)
+    kept = shrink_guard(facts, old, Path(facts_path).name)["kept"]
+    if kept:
+        return lost_message(kept, facts_path)
     return None
+
+
+# ------------------------------------------------------------------ the shrink guard (limits invariant rule 3)
+class GuardUnitError(RuntimeError):
+    """The guard's unit (a source document and every meeting in it) does not hold: a bug, never a run result."""
 
 
 def _verified(rc: dict) -> bool:
@@ -310,17 +349,141 @@ def _verified(rc: dict) -> bool:
     return (v.get("status") if isinstance(v, dict) else v) == "verified"
 
 
-def lost_verified(facts: dict, old: dict | None) -> list[str]:
-    """Limits invariant rule 3: ids of roll calls verified in the committed facts `old` that `facts` no longer has
-    verified (a too-tight limit or a lost OCR reading would otherwise unverify a published vote silently)."""
-    verified = {r["id"] for r in facts.get("roll_calls", []) if _verified(r)}
-    return sorted(r["id"] for r in (old or {}).get("roll_calls", []) if _verified(r) and r["id"] not in verified)
+def check_unit(facts: dict, which: str) -> None:
+    """G1 assertion: every meeting has a source_id, and every roll call, motion and item event names a meeting of the
+    file and that meeting's source_id. The guard keeps whole documents by these two keys, so a file in which they
+    disagree cannot be guarded: raise, and re-plan the guard before merging the change that broke it."""
+    src = {}
+    bad = []
+    for m in facts.get("meetings", []):
+        src[m.get("id")] = m.get("source_id")
+        if not m.get("source_id"):
+            bad.append(f"meeting {m.get('id')} has no source_id")
+    for key in ("roll_calls", "motions", "item_events"):
+        for r in facts.get(key, []):
+            mid = r.get("meeting_id")
+            if mid not in src:
+                bad.append(f"{key} {r.get('id')} names meeting {mid}, which is not in the file")
+            elif r.get("source_id") != src[mid]:
+                bad.append(f"{key} {r.get('id')} names source {r.get('source_id')}, its meeting {mid} has {src[mid]}")
+    if bad:
+        raise GuardUnitError(
+            f"shrink guard: the unit (one source document and every meeting in it) does not hold in {which}: "
+            f"{len(bad)} records, e.g. {'; '.join(bad[:3])}. Re-plan the guard before merging "
+            f"(docs/architecture/pipeline-limits-invariant.md, 'Rule 3: the shrink guard', G1)")
 
 
-def lost_message(lost: list[str], facts_path: Path) -> str:
-    return (f"{len(lost)} roll calls verified in {Path(facts_path).name} would no longer be verified: "
-            f"{', '.join(lost[:20])}{' ...' if len(lost) > 20 else ''} (a limit trip, a lost OCR reading or a parser "
-            f"change); pass --allow-shrink to accept it")
+def shrink_guard(new: dict, old: dict, name: str = "facts.json") -> dict:
+    """G1 (docs/architecture/pipeline-limits-invariant.md, "Rule 3: the shrink guard"): compare the new result with the
+    committed facts `old` per source document S (and every meeting Ms it carries), by sha256.
+    (a) S's bytes are in the result: a roll call of S verified in `old` and not verified (or absent) in `new`, or a
+        meeting of Ms gone, keeps S (a limit trip, a lost OCR reading, a parser change).
+    (b) S's bytes are not, but every meeting of Ms is, under another source: a correction; the new reading wins.
+    (c) S's bytes are not and a meeting of Ms is absent too (not in the store, a fetch or parse failure, a timeout):
+        transient, keeps S.
+    Gains are never guarded. Returns {'kept': [{source_id, meeting_ids, ids (lost verified roll calls), reason}],
+    'corrections': [{meeting_ids, source_id, new_source_ids, sha256, new_sha256, verified: [old, new]}]}."""
+    check_unit(new, "the new result")
+    check_unit(old, name)
+    new_sha = {s.get("sha256") for s in new.get("sources", []) if s.get("sha256")}
+    new_ids = {s["id"] for s in new.get("sources", [])}
+    sha_of_new = {s["id"]: s.get("sha256") or s["id"] for s in new.get("sources", [])}
+    old_sha = {s["id"]: s.get("sha256") for s in old.get("sources", [])}
+    now_src = {m["id"]: m["source_id"] for m in new.get("meetings", [])}
+    now_verified = {r["id"] for r in new.get("roll_calls", []) if _verified(r)}
+    units: dict[str, list] = {}
+    for m in old.get("meetings", []):
+        units.setdefault(m["source_id"], []).append(m["id"])
+    verified: dict[str, list] = {}
+    for r in old.get("roll_calls", []):
+        if _verified(r):
+            verified.setdefault(r["source_id"], []).append(r["id"])
+    kept, corrections = [], []
+    for sid in sorted(units):
+        ms, was, h = sorted(units[sid]), sorted(verified.get(sid, [])), old_sha.get(sid)
+        h8 = (h or sid.removeprefix("src-"))[:8]
+        gone = [m for m in ms if m not in now_src]
+        if (h in new_sha) if h else (sid in new_ids):                                          # (a) same bytes
+            lost = [i for i in was if i not in now_verified]
+            why = []
+            if lost:
+                why.append(f"{len(lost)} roll calls verified in {name} are no longer verified")
+            if gone:
+                why.append(f"meetings gone from the result: {', '.join(gone)} (a parser change that renames ids "
+                           f"needs --allow-shrink)")
+            if why:
+                kept.append({"source_id": sid, "meeting_ids": ms, "ids": lost,
+                             "reason": f"same document (sha256 {h8}): " + "; ".join(why)})
+        elif not gone:                                                                          # (b) correction
+            to = sorted({now_src[m] for m in ms})
+            n_new = sum(1 for r in new.get("roll_calls", []) if r.get("meeting_id") in ms and _verified(r))
+            corrections.append({"meeting_ids": ms, "source_id": sid, "new_source_ids": to, "sha256": h,
+                                "new_sha256": [sha_of_new.get(t, t) for t in to], "verified": [len(was), n_new]})
+        else:                                                                                   # (c) missing
+            kept.append({"source_id": sid, "meeting_ids": ms, "ids": was,
+                         "reason": f"document sha256 {h8} not in the result (not in the store, or a fetch or parse "
+                                   f"failure) and meetings absent: {', '.join(gone)}"})
+    return {"kept": kept, "corrections": corrections}
+
+
+def keep_documents(new: dict, old: dict, kept: list[dict]) -> dict:
+    """G2.1: `new` with every kept document's records replaced by the committed ones, byte for byte. A record is the
+    document's when its meeting is one of the kept meetings or its source is the kept source or a new source carrying
+    one of them (closed over both files, so no meeting is ever shown twice). Committed items the kept records name are
+    added back when `new` lacks them; officials come from `new`. Lists are sorted as Builder.facts sorts them, so a
+    document kept two days running writes the same file."""
+    ms = {m for k in kept for m in k["meeting_ids"]}
+    sids = {k["source_id"] for k in kept}
+    pairs = [(m["id"], m["source_id"]) for f in (new, old) for m in f.get("meetings", [])]
+    grew = True
+    while grew:
+        grew = False
+        for mid, sid in pairs:
+            if (mid in ms) != (sid in sids):
+                ms.add(mid)
+                sids.add(sid)
+                grew = True
+
+    def mine(r: dict, key: str = "meeting_id") -> bool:
+        return r.get(key) in ms or r.get("source_id") in sids
+    out = dict(new)
+    for k, key in (("meetings", "id"), ("roll_calls", "meeting_id"), ("motions", "meeting_id"),
+                   ("item_events", "meeting_id")):
+        out[k] = sorted([r for r in new.get(k, []) if not mine(r, key)] + [r for r in old.get(k, []) if mine(r, key)],
+                        key=lambda x: x["id"])
+    out["sources"] = sorted([s for s in new.get("sources", []) if s["id"] not in sids]
+                            + [s for s in old.get("sources", []) if s["id"] in sids], key=lambda x: x["id"])
+    have = {i["id"] for i in new.get("items", [])}
+    named = {r.get("item_id") for k in ("roll_calls", "motions", "item_events") for r in old.get(k, []) if mine(r)}
+    out["items"] = sorted(list(new.get("items", [])) + [i for i in old.get("items", [])
+                                                         if i["id"] in named and i["id"] not in have],
+                          key=lambda x: x["id"])
+    dates = [m["date"] for m in out["meetings"] if m.get("date")]
+    if dates and isinstance(new.get("coverage"), dict):       # the published meetings' range, kept ones included
+        out["coverage"] = {**new["coverage"], "from": min(dates), "to": max(dates)}
+    return out
+
+
+def lost_message(kept: list[dict], facts_path: Path) -> str:
+    """One line for every kept document (the offline refusal and the online issue)."""
+    docs = "; ".join(kept_line(k) for k in kept[:10]) + (" ..." if len(kept) > 10 else "")
+    return (f"{len(kept)} source documents in {Path(facts_path).name} would lose verified roll calls or meetings: "
+            f"{docs} (a limit trip, a lost OCR reading, a missing document or a parser change); pass --allow-shrink "
+            f"to accept it")
+
+
+def kept_line(k: dict) -> str:
+    ids = k.get("ids") or []
+    return (f"{k['source_id']} ({', '.join(k['meeting_ids'])}): {k['reason']}"
+            + (f": {', '.join(ids[:20])}{' ...' if len(ids) > 20 else ''}" if ids else ""))
+
+
+def correction_line(c: dict) -> str:
+    """G1(b): `correction: <meeting ids> source <old8> -> <new8>, verified <n_old> -> <n_new>`."""
+    old8 = (c.get("sha256") or c["source_id"].removeprefix("src-"))[:8]
+    new8 = "+".join((h or "")[:8] or t.removeprefix("src-")[:8] for h, t in zip(c["new_sha256"], c["new_source_ids"]))
+    return (f"correction: {', '.join(c['meeting_ids'])} source {old8} -> {new8}, "
+            f"verified {c['verified'][0]} -> {c['verified'][1]}")
 
 
 def refuse(why: str, since: int = 0) -> int:
@@ -370,15 +533,23 @@ def cmd_run(args) -> int:
         why = shrink_reason(facts, log, FACTS)
         if why:
             return refuse(why, since)
-    # online too (pipeline/shrink-guard-offline-only): a committed verified roll call that would lose its status
-    # keeps the committed facts file, and the run ends with exit 3 and the usual issue (--allow-shrink accepts it)
+    # the shrink guard, online and offline (docs/architecture/pipeline-limits-invariant.md "Rule 3", G1-G3): per
+    # source document, by sha256. A kept document's records are the committed ones; everything else is published,
+    # and the gates run on what is published. --allow-shrink lets the new result win for every meeting (still listed).
     old = json.loads(FACTS.read_text(encoding="utf-8")) if FACTS.is_file() else None
-    lost = [] if allow else lost_verified(facts, old)
-    if lost:
-        log["kept_facts"] = lost_message(lost, FACTS)
-        facts = old                             # the committed file stands, for the export and site steps too
+    guard = shrink_guard(facts, old, FACTS.name) if old is not None else {"kept": [], "corrections": []}
+    kept = [] if allow else guard["kept"]
+    log["kept_meetings"] = kept
+    log["corrections"] = guard["corrections"]
+    if allow and guard["kept"]:
+        log["allowed_shrink"] = guard["kept"]
+    if kept:
+        facts = keep_documents(facts, old, kept)
+        report.update(gate_report(facts, merged_source_errors(facts, b), log))      # G2.3
+    for c in guard["corrections"]:
+        print(f"collector: {correction_line(c)}", flush=True)
     county_trips = limits.tripped(since)       # the county build; the agendas step is added below
-    changed = False if lost else write_if_changed(FACTS, dumps(facts))
+    changed = write_if_changed(FACTS, dumps(facts))
     BUILD.mkdir(parents=True, exist_ok=True)
     write_if_changed(BUILD / "report.json", dumps(report))
     write_if_changed(BUILD / "name-candidates.json", dumps(name_candidates(b, load_roster(NAMES))))
@@ -414,9 +585,14 @@ def cmd_run(args) -> int:
           f"(uniform share {g['g4']['uniform_share']}); "
           f"failures {len(log['failures'])}", flush=True)
     print(limits.render("collector", county_trips), flush=True)
-    code = 2 if log["failures"] else (0 if report["pass"] and fin_code == 0 and not lost else 3)
-    if lost:
-        print(f"collector: KEPT {FACTS.name} unchanged: {log['kept_facts']}", file=sys.stderr, flush=True)
+    code = 2 if log["failures"] else (0 if report["pass"] and fin_code == 0 else 3)
+    for k in kept:
+        print(f"collector: KEPT {kept_line(k)}", file=sys.stderr, flush=True)
+    for k in log.get("allowed_shrink", []):
+        print(f"collector: ALLOWED (--allow-shrink) {kept_line(k)}", file=sys.stderr, flush=True)
+    lowered = [] if allow else [c for c in guard["corrections"] if c["verified"][1] < c["verified"][0]]
+    if code == 0 and (kept or lowered):          # precedence 2 > 3 > 7 > 5/6; the RPC outcome is in run-log `rpc`
+        code = KEPT
     if code == 0 and rpc_code:
         from .rpc import STEP_FILLING
         code = RPC_FILLING if rpc_code == STEP_FILLING else RPC_FAILED
@@ -450,7 +626,9 @@ def main(argv=None) -> int:
     ap.add_argument("--internal", action="store_true", help="build the internal review page too")
     ap.add_argument("--no-ocr", action="store_true", help="text layer only (no tesseract second reading)")
     ap.add_argument("--allow-shrink", action="store_true",
-                    help="offline: let a result with fewer meetings, or missing store files, replace data/facts.json")
+                    help="let a result with fewer meetings or verified roll calls replace data/facts.json, online and "
+                         "offline (the shrink guard keeps no document; offline: missing store files too); RPC: "
+                         "unconfirmed motions too")
     ap.add_argument("--out", default=str(BUILD / "site"), help="export: the site folder (default build/site)")
     args = ap.parse_args(argv)
     if args.command == "export":

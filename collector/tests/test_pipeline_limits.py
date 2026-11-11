@@ -223,36 +223,46 @@ def test_each_run_summary_prints_the_limits_line(which, monkeypatch, capsys, tmp
 
 # ------------------------------------------------------------------ rule 3: the shrink guard
 
-def _rc(rid, status):
-    return {"id": rid, "verification": {"status": status, "checks": []}}
+def _rc(rid, status, sid="src-30a9df8f0000", mid="m1"):
+    return {"id": rid, "meeting_id": mid, "source_id": sid, "verification": {"status": status, "checks": []}}
+
+
+def _doc(rcs, sha="30a9df8f" + "0" * 56, mid="m1"):
+    sid = f"src-{sha[:12]}"
+    return {"sources": [{"id": sid, "sha256": sha}], "meetings": [{"id": mid, "source_id": sid}],
+            "roll_calls": [dict(r, source_id=sid) for r in rcs]}
 
 
 def test_county_guard_refuses_a_committed_verified_roll_call_that_is_no_longer_verified(tmp_path):
     from collector import __main__ as M
-    old = {"meetings": [{"id": "m1"}], "roll_calls": [_rc("rc-30a9df8f-p519-0", "verified"), _rc("rc-b", "verified"),
-                                                       _rc("rc-c", "unverified")]}
+    old = _doc([_rc("rc-30a9df8f-p519-0", "verified"), _rc("rc-b", "verified"), _rc("rc-c", "unverified")])
     path = tmp_path / "facts.json"
     path.write_text(json.dumps(old), encoding="utf-8")
     log = {"parsed": 1, "failures": []}
-    same = {"meetings": [{"id": "m1"}], "roll_calls": old["roll_calls"]}
-    assert M.shrink_reason(same, log, path) is None
-    lost = {"meetings": [{"id": "m1"}], "roll_calls": [_rc("rc-30a9df8f-p519-0", "unverified"), _rc("rc-b", "verified")]}
+    assert M.shrink_reason(_doc(old["roll_calls"]), log, path) is None
+    lost = _doc([_rc("rc-30a9df8f-p519-0", "unverified"), _rc("rc-b", "verified")])
     why = M.shrink_reason(lost, log, path)
-    assert "1 roll calls verified in facts.json would no longer be verified" in why
-    assert "rc-30a9df8f-p519-0" in why and "--allow-shrink" in why
-    gone = {"meetings": [{"id": "m1"}], "roll_calls": [_rc("rc-b", "verified")]}       # dropped: also no longer verified
+    assert "1 source documents in facts.json would lose verified roll calls or meetings" in why
+    assert "rc-30a9df8f-p519-0" in why and "--allow-shrink" in why and "rc-b" not in why
+    gone = _doc([_rc("rc-b", "verified")])                                              # dropped: also lost
     assert "rc-30a9df8f-p519-0" in M.shrink_reason(gone, log, path)
-    better = {"meetings": [{"id": "m1"}], "roll_calls": old["roll_calls"][:2] + [_rc("rc-c", "verified")]}
+    better = _doc(old["roll_calls"][:2] + [_rc("rc-c", "verified")])
     assert M.shrink_reason(better, log, path) is None                                 # gaining one is fine
+    # G2.7: new bytes for the same meeting are a correction, not refused offline either
+    corrected = _doc([_rc("rc-11111111-p519-0", "unverified")], sha="1" * 64)
+    assert M.shrink_reason(corrected, log, path) is None
 
 
 def test_county_allow_shrink_skips_the_guard():
-    """cmd_run calls shrink_reason only when the run is offline and --allow-shrink is not given."""
+    """cmd_run calls shrink_reason only when the run is offline and --allow-shrink is not given; online and offline
+    the guard's kept documents are applied unless --allow-shrink is given."""
     import inspect
 
     from collector import __main__ as M
     src = inspect.getsource(M.cmd_run)
     assert "if args.offline and not allow:\n        why = shrink_reason(facts, log, FACTS)" in src
+    assert 'kept = [] if allow else guard["kept"]' in src
+    assert "facts = keep_documents(facts, old, kept)" in src
 
 
 def _motion(mid, confirmed):
