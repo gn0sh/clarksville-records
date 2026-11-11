@@ -938,13 +938,23 @@ def test_protect_main_scripts_share_one_ruleset_body():
 
 
 # ------------------------------------------------------------------ deps/transitive-unpinned: the hashed lock
+def _pep503(name: str) -> str:
+    """PEP 503 normalised project name (deps/lock-name-normalise): runs of -, _ and . are one -, lower case."""
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def test_lock_names_are_pep503_normalised():
+    assert _pep503("Jinja2") == "jinja2" and _pep503("zope.interface") == "zope-interface"
+    assert _pep503("typing_extensions") == _pep503("Typing-Extensions") == _pep503("typing__extensions")
+
+
 def _lock_pins() -> dict:
     """{name: (version, [hashes])} from requirements.lock (pip-compile --generate-hashes output)."""
     pins, name = {}, None
     for line in (ROOT / "requirements.lock").read_text(encoding="utf-8").splitlines():
         m = re.match(r"^([A-Za-z0-9_.-]+)==([^\s\\;]+)", line)
         if m:
-            name = m.group(1).lower().replace("_", "-")
+            name = _pep503(m.group(1))
             pins[name] = (m.group(2), [])
         h = re.search(r"--hash=sha256:([0-9a-f]{64})", line)
         if h and name:
@@ -967,7 +977,7 @@ def test_the_lock_matches_requirements_txt_and_the_runner_python():
         line = line.split("#")[0].strip()
         if line:
             name, version = line.split("==")
-            assert pins[name.lower().replace("_", "-")][0] == version, f"{name}: rerun pip-compile (requirements.lock)"
+            assert pins[_pep503(name)][0] == version, f"{name}: rerun pip-compile (requirements.lock)"
     py = {s["with"]["python-version"] for j in WF["jobs"].values() for s in j["steps"]
           if s.get("uses", "").startswith("actions/setup-python")}
     assert py == {"3.12"}                                                         # the Python the lock was compiled on
