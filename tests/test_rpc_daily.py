@@ -345,6 +345,34 @@ def test_an_unexpected_error_never_raises_and_keeps_the_record(seeded):
     assert seeded.committed() == before
 
 
+def test_a_failed_rpc_json_write_leaves_the_committed_record(seeded, monkeypatch):
+    """rpc-daily/restore-misses-rpc-json: a write that dies part way (disk full, a kill) leaves rpc.json whole, and
+    the snapshot puts every committed file back, rpc.json included."""
+    assert "facts" in rpc.COMMITTED
+    before = seeded.committed()
+    real = Path.write_text
+
+    def dies_on_rpc_json(self, text, *a, **k):
+        if self.name.startswith("rpc.json"):
+            real(self, text[:20], *a, **k)                 # a short write, then the failure
+            raise OSError("No space left on device")
+        return real(self, text, *a, **k)
+    monkeypatch.setattr(Path, "write_text", dies_on_rpc_json)
+    code, out = seeded.run(routes(PAGE_NEW))
+    monkeypatch.undo()
+    assert code == rpc.STEP_ERROR and "No space left" in out["status"]
+    assert seeded.committed() == before
+    assert not list(seeded.p["facts"].parent.glob("*.part"))                  # nothing half written is left
+
+
+def test_committed_files_are_written_through_a_part_file(tmp_path, monkeypatch):
+    seen = []
+    real = Path.replace
+    monkeypatch.setattr(Path, "replace", lambda self, t: seen.append((self.name, Path(t).name)) or real(self, t))
+    assert rpc.write_json(tmp_path / "rpc.json", {"a": 1}) is True
+    assert seen == [("rpc.json.part", "rpc.json")] and json.loads((tmp_path / "rpc.json").read_text()) == {"a": 1}
+
+
 # ------------------------------------------------------------------ offline
 def test_offline_with_a_partial_store_keeps_the_record_and_is_not_a_failure(seeded):
     before = seeded.committed()

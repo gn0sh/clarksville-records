@@ -61,7 +61,9 @@ STEP_OK, STEP_ERROR, STEP_FETCH, STEP_GATE, STEP_REFUSED, STEP_FILLING = 0, 1, 2
 # one run on 2026-11-10 (docs/status.md). Enforced by the fetcher (PoliteFetcher.limit_hosts): the 41st request is
 # never made.
 DAILY_FETCH_CAP = 40
-COMMITTED = ("listing", "manifest", "changes")   # what cmd_fetch may rewrite; rpc.json is written by run_step alone
+# What the daily step puts back byte for byte unless it succeeds: what cmd_fetch may rewrite, and rpc.json, which
+# only run_step writes, last (rpc-daily/restore-misses-rpc-json).
+COMMITTED = ("listing", "manifest", "changes", "facts")
 KEYS = ("locality", "body", "nav_label", "slug", "body_key", "listing_url", "record_url", "record_label", "facts",
         "fetch_hosts", "fetch_extensions", "kind_rules", "kind_labels", "case_types")
 DATE = re.compile(r"^\s*(\d{1,2})/(\d{1,2})/(\d{4})\s*(.*)$", re.S)
@@ -245,7 +247,13 @@ def write_json(p: Path, obj) -> bool:
     if p.exists() and p.read_text(encoding="utf-8") == text:
         return False
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(text, encoding="utf-8")
+    tmp = p.with_name(p.name + ".part")     # a stopped write leaves a .part, never a short committed file
+    try:
+        tmp.write_text(text, encoding="utf-8")
+        tmp.replace(p)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
     return True
 
 
