@@ -20,27 +20,27 @@ ROOT = Path(__file__).resolve().parent.parent
 OCR_CACHE = Path(os.environ.get("RECORDS_OCR_CACHE", ROOT / "data" / "ocr"))
 DPI = 300
 OCR_TIMEOUT = 600        # seconds per poppler/tesseract call; a timeout is an OCR failure for that roll call
-# pipeline/parser-dos-untimed: a hostile PDF must not make one render exhaust memory or the run render forever. Real
-# stored pages are letter/legal (largest side 804 pt on 2026-11-11); a page larger than 36 in (2592 pt) on a side is
-# not rendered, nor is any page past MAX_OCR_PAGES (largest real document: 51 pages). Either is an OCR failure for
-# that page (fail closed: the reading is missing, never guessed), reported like a timeout.
+# pipeline/parser-dos-untimed: a hostile PDF must not make one render exhaust memory or run forever. The caps bound
+# what one page costs, never where in a document we may read (docs/architecture/pipeline-limits-invariant.md rule 4).
+# Real stored pages: letter/legal, largest side 804 pt; largest documents 621 pp county minutes, 90 pp RPC
+# (2026-11-11). A page larger than 36 in (2592 pt, 3.2x) on a side is not rendered: an OCR failure for that page (fail
+# closed: the reading is missing, never guessed), reported as a limit trip like a timeout.
 PAGE_INFO_TIMEOUT = 60   # seconds for the pdfinfo call that reads the page's boxes
 MAX_PAGE_PTS = 2592.0
 MAX_PAGE_PX = int(MAX_PAGE_PTS / 72 * DPI)     # the render's hard pixel bound (pdftoppm -W/-H), whatever pdfinfo said
-MAX_OCR_PAGES = 200
 _BOX = re.compile(r"^Page\s+\d+\s+(?:size:\s+([\d.]+)\s+x\s+([\d.]+)|(?:Media|Crop)Box:\s+([-\d.]+)\s+([-\d.]+)\s+"
                   r"([-\d.]+)\s+([-\d.]+))", re.M)
 
 
 class PageRefused(RuntimeError):
-    """The page is not rendered for OCR: too large, past MAX_OCR_PAGES, or its size could not be read."""
+    """The page is not rendered for OCR: too large, or its size could not be read."""
 
 
 def check_page(pdf: Path, page: int) -> None:
     """Raise PageRefused unless `page` exists within the caps: its size, MediaBox and CropBox (pdfinfo -box, with a
     timeout) all at most MAX_PAGE_PTS on each side."""
-    if page < 1 or page > MAX_OCR_PAGES:
-        raise PageRefused(f"page {page} not rendered: OCR reads at most {MAX_OCR_PAGES} pages of a document")
+    if page < 1:
+        raise PageRefused(f"page {page} not rendered: no such page")
     out = subprocess.run(["pdfinfo", "-f", str(page), "-l", str(page), "-box", str(pdf)], capture_output=True,
                          timeout=PAGE_INFO_TIMEOUT).stdout.decode("utf-8", "replace")
     sides = []
