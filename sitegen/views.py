@@ -982,12 +982,23 @@ def confirmed_rate(ix: Index) -> dict:
             "text": f"{n:,} of {total:,}", "record": {"url": ix.cfg["record_url"], "label": ix.cfg["record_label"]}}
 
 
+def county_rate(ix: Index) -> dict:
+    """The county's confirmed rate in the same shape and words as each council's (confirmed_rate), so the About page
+    labels every body's line the same way (site-polish/about-rate-unlabelled); it links the county's meetings."""
+    g = record_glance(ix)
+    n, total = g["rc_confirmed"], g["rc_total"]
+    pct = f"{100 * n / total:.1f}" if total else "0.0"
+    return {"body": ix.facts["coverage"]["body"], "href": "meetings.html", "confirmed": n, "total": total, "pct": pct,
+            "share": f"{pct}%", "text": f"{n:,} of {total:,}"}
+
+
 def operator_person(official_id: str | None, councils) -> dict | None:
     """config/site.yml `operator_person` (Brian 2026-11-11): the official who runs the site, for one line on the About
     page. Everything printed is read from the data: the name from the council's facts, the link to the official's
     own vote history page (the rule for every official's name), the body's name, and the seat from the seat records
     (sitegen/seats.py: current when the latest minutes read list them). A term end is printed only from a seat record
-    with a sourced end; none of the city's records has one, so the page says "until his term ends" with no date.
+    with a sourced end; none of the city's records has one, so the page prints no date. The line names no pronoun
+    (site-polish/operator-pronoun-typed): it reads the same for anyone.
     None when unset; a set id that no built council knows is the caller's error (a fixture build has no councils)."""
     if not official_id:
         return None

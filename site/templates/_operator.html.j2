@@ -1,0 +1,6 @@
+{# The official who runs the operator (config/site.yml operator_person, views.operator_person), one line read from
+   the data: the same on About and on Who runs this (site-polish/operator-disclosure-split), checked on both by
+   qa/site_checks.py `about`. No pronoun (site-polish/operator-pronoun-typed): the line reads the same for anyone. #}
+{% macro operator_person_line(site, root, p) %}
+{% if p %}<p id="operator-person">{{ site.operator }} is run by <a href="{{ root }}{{ p.href }}">{{ p.name }}</a>, who {% if p.current %}is on the {{ p.body }}{% if p.seat %} ({{ p.seat }}){% endif %}{% if p.term_end %}, in a term that ends on {{ p.term_end }}{% endif %}{% else %}has served on the {{ p.body }}{% endif %}. Votes by {{ p.name }} are shown by the same rules as every other official's.</p>{% endif %}
+{% endmacro %}

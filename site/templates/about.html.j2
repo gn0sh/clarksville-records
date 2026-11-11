@@ -1,13 +1,14 @@
 {% extends "base.html.j2" %}
 {% from "_macros.html.j2" import stat %}
 {% from "_unofficial.html.j2" import about_section %}
+{% from "_operator.html.j2" import operator_person_line %}
 {% block main %}
 <h1>About this site and its data rules</h1>
 
 <section aria-labelledby="operator">
   <h2 id="operator">Who runs this site</h2>
   <p>This site is run by {{ site.operator }}. {% if not site.cfg.live %}The site is a preview: it has not launched yet, and its pages may still change. {% endif %}More on <a href="{{ root }}who-runs-this.html">Who runs this</a>, <a href="{{ root }}our-rules.html">Our rules</a>, <a href="{{ root }}corrections.html">Corrections</a> and <a href="{{ root }}method.html">Method</a>.</p>
-  {% if operator_person %}<p id="operator-person">{{ site.operator }} is run by <a href="{{ root }}{{ operator_person.href }}">{{ operator_person.name }}</a>, who {% if operator_person.current %}is on the {{ operator_person.body }}{% if operator_person.seat %} ({{ operator_person.seat }}){% endif %} until {% if operator_person.term_end %}his term ends on {{ operator_person.term_end }}{% else %}his term ends{% endif %}{% else %}has served on the {{ operator_person.body }}{% endif %}. His votes are shown by the same rules as every other official's.</p>{% endif %}
+  {{ operator_person_line(site, root, operator_person) }}
 </section>
 
 {{ about_section(site, root) }}
@@ -27,8 +28,8 @@
     {{ stat(glance.rc_unconfirmed, "roll calls shown but not confirmed*") }}
     <li class="stat stat-dates"><span class="stat-num"><span class="nowrap">{{ glance.from }}</span> to <span class="nowrap">{{ glance.to }}</span></span><span class="stat-label">dates covered</span></li>
   </ul>
-  <p class="glance-note">{{ glance.rc_confirmed }} of {{ glance.rc_total }} roll calls are confirmed; the other {{ glance.rc_unconfirmed }} are shown with an asterisk and a link to the page of the minutes. {{ glance.motions_held }} motion {{ "attribution is" if glance.motions_held == 1 else "attributions are" }} under review. {{ glance.att_not_shown }} {{ "meeting has" if glance.att_not_shown == 1 else "meetings have" }} no attendance shown. See the <a href="#verified">data rules</a>.</p>
-  {% for r in council_rates %}<p class="glance-note" data-confirmed-rate="{{ r.body }}">{{ r.text }} <a href="{{ root }}{{ r.href }}">{{ r.body }}</a> roll calls ({{ r.share }}) are confirmed against the official minutes; the rest are shown as not confirmed, each with its reason and a link to the source.</p>{% endfor %}
+  {% for r in body_rates %}<p class="glance-note" data-confirmed-rate="{{ r.body }}">{{ r.text }} <a href="{{ root }}{{ r.href }}">{{ r.body }}</a> roll calls ({{ r.share }}) are confirmed against the official minutes; the rest are shown as not confirmed, each with its reason and a link to the source.</p>{% endfor %}
+  <p class="glance-note">{{ coverage.body }}: {{ glance.motions_held }} motion {{ "attribution is" if glance.motions_held == 1 else "attributions are" }} under review. {{ glance.att_not_shown }} {{ "meeting has" if glance.att_not_shown == 1 else "meetings have" }} no attendance shown. See the <a href="#verified">data rules</a>.</p>
   </div>
 </section>
 

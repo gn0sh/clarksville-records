@@ -2291,12 +2291,32 @@ ABOUT_RATE = re.compile(r'<p class="glance-note" data-confirmed-rate="(?P<body>[
 OPERATOR_PERSON = re.compile(r'<p id="operator-person">(?P<text>.*?)</p>', re.S)
 
 
-def check_about(site: Path, cs: list[dict], cfg: dict) -> tuple[list[str], str]:
-    """about.html against the facts (Brian 2026-11-11): (a) each built council's confirmed rate reads "<n> of <total>
-    <body> roll calls (<pct>%) are confirmed", restated here from that council's facts (verification status
-    "verified"), so the page can never drift from the record; (b) with config operator_person set and that official
-    in a built council, one operator line that names them, links their own vote history page
-    (<slug>/members/<id>.html) and prints no date the data does not hold."""
+def _rate_problems(text: str | None, body: str, rcs: list[dict], href: str) -> tuple[list[str], str]:
+    n = sum(1 for rc in rcs if rc["verification"]["status"] == "verified")
+    want = f"{n:,} of {len(rcs):,}"
+    pct = f"({100 * n / len(rcs):.1f}%)" if rcs else "(0.0%)"
+    plain = html.unescape(re.sub(r"<[^>]+>", "", text or ""))
+    if text is None:
+        return [f"about.html: no confirmed rate for {body}"], f"{body} {want} {pct}"
+    if not plain.startswith(f"{want} {body} roll calls {pct} are confirmed"):
+        return [f"about.html: {body} rate reads {plain[:80]!r}, the facts give {want} {pct}"], f"{body} {want} {pct}"
+    if f'href="{href}"' not in text:
+        return [f"about.html: {body} rate does not link the body's pages"], f"{body} {want} {pct}"
+    return [], f"{body} {want} {pct}"
+
+
+OPERATOR_PAGES = ("about.html", "who-runs-this.html")
+
+
+def check_about(site: Path, cs: list[dict], cfg: dict, county: dict | None = None) -> tuple[list[str], str]:
+    """about.html and who-runs-this.html against the facts (Brian 2026-11-11): (a) every body's confirmed rate, the
+    county's (`county`: its facts) and each built council's, reads "<n> of <total> <body> roll calls (<pct>%) are
+    confirmed" and links the body's pages, restated here from the facts (verification status "verified"), so the page
+    can never drift from the record and every body's line is labelled the same way; (b) with config operator_person set
+    and that official in a built council, one operator line on each of About and Who runs this, the same on both, that
+    names them, links their own vote history page (<slug>/members/<id>.html), prints no date the data does not hold,
+    names the council's body, and says "is on" with their ward exactly when the council's latest attendance list
+    places them there (latest_listed, expected_ward_holders: the seat records' rule), else "has served on"."""
     page = site / "about.html"
     if not page.is_file():
         return ["about.html: missing"], "no About page"
@@ -2304,38 +2324,52 @@ def check_about(site: Path, cs: list[dict], cfg: dict) -> tuple[list[str], str]:
     problems: list[str] = []
     shown = {html.unescape(m.group("body")): m.group("text") for m in ABOUT_RATE.finditer(raw)}
     notes = []
-    for c in cs:
-        body = _council_cfg(c["slug"]).get("body_name") or c["facts"]["coverage"]["body"]
-        rcs = c["facts"]["roll_calls"]
-        n = sum(1 for rc in rcs if rc["verification"]["status"] == "verified")
-        want = f"{n:,} of {len(rcs):,}"
-        pct = f"({100 * n / len(rcs):.1f}%)" if rcs else "(0.0%)"
-        text = shown.pop(body, None)
-        plain = html.unescape(re.sub(r"<[^>]+>", "", text or ""))
-        if text is None:
-            problems.append(f"about.html: no confirmed rate for {body}")
-        elif not plain.startswith(f"{want} {body} roll calls {pct} are confirmed"):
-            problems.append(f"about.html: {body} rate reads {plain[:80]!r}, the facts give {want} {pct}")
-        elif f'href="{c["slug"]}/index.html"' not in text:
-            problems.append(f"about.html: {body} rate does not link the body's pages")
-        notes.append(f"{body} {want} {pct}")
+    bodies = [(county["coverage"]["body"], county["roll_calls"], "meetings.html")] if county else []
+    bodies += [(_council_cfg(c["slug"]).get("body_name") or c["facts"]["coverage"]["body"], c["facts"]["roll_calls"],
+                f'{c["slug"]}/index.html') for c in cs]
+    for body, rcs, href in bodies:
+        p, note = _rate_problems(shown.pop(body, None), body, rcs, href)
+        problems += p
+        notes.append(note)
     problems += [f"about.html: a confirmed rate for {b}, which this build has no facts for" for b in shown]
     pid = cfg.get("operator_person")
     owner = next((c for c in cs if any(o["id"] == pid for o in c["facts"]["officials"])), None) if pid else None
-    lines = OPERATOR_PERSON.findall(raw)
-    if owner is None:
-        if lines:
-            problems.append("about.html: an operator line with no operator_person in a built council")
-    elif len(lines) != 1:
-        problems.append(f"about.html: {len(lines)} operator lines, want 1")
-    else:
+    texts = {}
+    for rel in OPERATOR_PAGES:
+        f = site / rel
+        lines = OPERATOR_PERSON.findall(f.read_text(encoding="utf-8")) if f.is_file() else []
+        if owner is None:
+            if lines:
+                problems.append(f"{rel}: an operator line with no operator_person in a built council")
+            continue
+        if len(lines) != 1:
+            problems.append(f"{rel}: {len(lines)} operator lines, want 1")
+            continue
+        texts[rel] = lines[0]
+    if owner is not None and texts:
+        if len(set(texts.values())) > 1:
+            problems.append("who-runs-this.html: the operator line differs from About's")
         o = next(o for o in owner["facts"]["officials"] if o["id"] == pid)
-        want = f'<a href="{owner["slug"]}/members/{pid}.html">{html.escape(o["name"])}</a>'
-        if want not in lines[0]:
-            problems.append(f"about.html: the operator line does not link {o['name']} to their vote history page")
-        if re.search(r"\b(19|20)\d\d\b", html.unescape(re.sub(r"<[^>]+>", "", lines[0]))):
-            problems.append("about.html: the operator line prints a year")   # no term date is in the city's data
-        notes.append(f"operator line links {owner['slug']}/members/{pid}.html")
+        body = _council_cfg(owner["slug"]).get("body_name") or owner["facts"]["coverage"]["body"]
+        wards = owner["wards"] if "wards" in owner else _council_wards(owner["slug"])
+        _, named, _ = latest_listed(owner["facts"], wards)
+        ward = next((w for w, oid in expected_ward_holders(wards, owner["facts"]).items() if oid == pid), None)
+        for rel, line in texts.items():
+            text = html.unescape(re.sub(r"<[^>]+>", "", line))
+            want = f'<a href="{owner["slug"]}/members/{pid}.html">{html.escape(o["name"])}</a>'
+            if want not in line:
+                problems.append(f"{rel}: the operator line does not link {o['name']} to their vote history page")
+            if re.search(r"\b(19|20)\d\d\b", text):
+                problems.append(f"{rel}: the operator line prints a year")   # no term date is in the city's data
+            if pid in named:
+                seat = f"is on the {body}" + (f" (Ward {ward})" if ward is not None else "")
+                if seat not in text:
+                    problems.append(f"{rel}: the operator line does not say {seat!r}, as the latest attendance "
+                                    "list places them")
+            elif f"has served on the {body}" not in text or " is on the " in text:
+                problems.append(f"{rel}: the operator line does not say 'has served on the {body}'; the latest "
+                                "attendance list does not name them")
+        notes.append(f"operator line links {owner['slug']}/members/{pid}.html on {', '.join(texts)}")
     return problems, "; ".join(notes) or "no councils"
 
 
@@ -2615,7 +2649,7 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("transcripts", problems, note)
     problems, note = check_unofficial(site, pages, cfg)
     rep.add("unofficial/notice-on-every-page", problems, note)
-    problems, note = check_about(site, cs, cfg)
+    problems, note = check_about(site, cs, cfg, county=facts)
     rep.add("about", problems, note)
     problems, note = check_current_holders(site, facts, read_roster(seats_path), cs)
     rep.add("current-holders", problems, note)

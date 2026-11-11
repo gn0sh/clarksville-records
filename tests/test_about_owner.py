@@ -51,8 +51,13 @@ def test_operator_line_reads_name_seat_and_link_from_the_data(about_site, city_f
     assert (about_site / f"city/members/{PERSON}.html").is_file()       # his vote history page, as every official's
     text = plain(lines[0])
     assert text.startswith(f"{config.OPERATOR_NAME} is run by {o['name']}, who ")
-    assert "until his term ends." in text and not re.search(r"\b(19|20)\d\d\b", text)   # no date the data lacks
-    assert text.endswith("His votes are shown by the same rules as every other official's.")
+    assert not re.search(r"\b(19|20)\d\d\b", text)                    # no date the data lacks
+    assert text.endswith(f"Votes by {o['name']} are shown by the same rules as every other official's.")
+    # no typed pronoun (site-polish/operator-pronoun-typed): the line reads the same for anyone
+    assert not re.search(r"\b(he|his|him|she|her|hers|they|their|them)\b", text, re.I), text
+    # the same line on Who runs this (site-polish/operator-disclosure-split)
+    who = (about_site / "who-runs-this.html").read_text(encoding="utf-8")
+    assert SC.OPERATOR_PERSON.findall(who) == lines
     # neutral: no praise, no campaign or donation link inside the line
     assert not re.search(r"vote for|elect|campaign|proud|honou?r|serv(es|ing) the people", text, re.I)
     assert raw.count("href=") and "buymeacoffee" not in lines[0]
@@ -82,9 +87,15 @@ def test_confirmed_rate_is_computed_from_the_facts(about_site, city_facts):  # n
     assert 0 < n < len(rcs)                   # the subset has a held roll call, so the rate is not trivially 100%
     raw = (about_site / "about.html").read_text(encoding="utf-8")
     rates = {unescape(m.group("body")): plain(m.group("text")) for m in SC.ABOUT_RATE.finditer(raw)}
-    assert rates == {"Clarksville City Council": (
-        f"{n:,} of {len(rcs):,} Clarksville City Council roll calls ({100 * n / len(rcs):.1f}%) are confirmed against "
-        "the official minutes; the rest are shown as not confirmed, each with its reason and a link to the source.")}
+    county = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    cn = sum(1 for rc in county["roll_calls"] if views.is_verified(rc))
+    ct = len(county["roll_calls"])
+    tail = " are confirmed against the official minutes; the rest are shown as not confirmed, each with its reason and a link to the source."
+    # every body's line in the same words (site-polish/about-rate-unlabelled), in alphabetical order of body
+    assert rates == {
+        "Clarksville City Council": f"{n:,} of {len(rcs):,} Clarksville City Council roll calls ({100 * n / len(rcs):.1f}%)" + tail,
+        "Montgomery County Commission": f"{cn:,} of {ct:,} Montgomery County Commission roll calls ({100 * cn / ct:.1f}%)" + tail}
+    assert list(rates) == sorted(rates)
 
 
 def test_confirmed_rate_follows_a_new_facts_file(cfg, city_facts, city_wards):  # noqa: F811
@@ -104,8 +115,10 @@ def test_confirmed_rate_follows_a_new_facts_file(cfg, city_facts, city_wards):  
 def test_site_checks_about_passes_and_catches_drift(about_site, tmp_path, cfg, city_facts):  # noqa: F811
     cs = [qa_council(cfg, city_facts)]
     site_cfg = {"operator_person": PERSON}
-    problems, note = SC.check_about(about_site, cs, site_cfg)
+    county = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    problems, note = SC.check_about(about_site, cs, site_cfg, county=county)
     assert problems == [] and "Clarksville City Council" in note and f"members/{PERSON}.html" in note, problems
+    assert "Montgomery County Commission" in note and "who-runs-this.html" in note
     bad = tmp_path / "site"
     shutil.copytree(about_site, bad)
     page = bad / "about.html"
@@ -113,12 +126,20 @@ def test_site_checks_about_passes_and_catches_drift(about_site, tmp_path, cfg, c
     m = SC.ABOUT_RATE.search(raw)
     raw = raw.replace(m.group("text"), "1,999 of 2,235" + m.group("text").split(" ", 3)[3], 1)
     raw = raw.replace(f'href="city/members/{PERSON}.html"', 'href="city/index.html"', 1)
-    raw = raw.replace("until his term ends", "until his term ends in 2027", 1)
+    raw = raw.replace(" are shown by the same rules", " (since 2027) are shown by the same rules", 1)
+    raw = re.sub(r"is on the Clarksville City Council \(Ward \d+\)", "has served on the Clarksville City Council", raw, count=1)
     page.write_text(raw, encoding="utf-8")
-    problems, _ = SC.check_about(bad, cs, site_cfg)
+    (bad / "who-runs-this.html").write_text(
+        re.sub(r'<p id="operator-person">.*?</p>', "", (bad / "who-runs-this.html").read_text(encoding="utf-8"), flags=re.S),
+        encoding="utf-8")
+    problems, _ = SC.check_about(bad, cs, site_cfg, county=county)
     text = "\n".join(problems)
     assert "Clarksville City Council rate reads" in text, problems
     assert "does not link" in text and "prints a year" in text, problems
+    assert "does not say 'is on the Clarksville City Council (Ward" in text, problems     # tense and seat vs the records
+    assert "who-runs-this.html: 0 operator lines" in text, problems
+    problems, _ = SC.check_about(about_site, cs, site_cfg)                  # no county facts: its line is extra
+    assert any("Montgomery County Commission, which this build has no facts for" in p for p in problems), problems
 
 
 def test_the_rate_is_the_only_percentage_and_never_on_an_official_page(about_site):
@@ -129,6 +150,6 @@ def test_the_rate_is_the_only_percentage_and_never_on_an_official_page(about_sit
         body = re.sub(r"<(script|style)\b.*?</\1>", "", p.read_text(encoding="utf-8"), flags=re.S)
         shown = re.findall(r"\d%", plain(body))
         if rel == "about.html":
-            assert len(shown) == 1, shown
+            assert len(shown) == 2, shown          # one per body: the county and the city
         else:
             assert not shown, (rel, shown)
