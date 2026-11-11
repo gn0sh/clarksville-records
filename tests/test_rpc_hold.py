@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 from collector import rpc_export as RE
-from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, rpc_config_unheld
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT, rpc_config_unheld
 from sitegen import config, days, morning, rpc
 from sitegen.build import build
 from test_export_rpc import MEETING, facts_with_motions
@@ -275,6 +275,37 @@ def test_site_checks_rpc_morning_fails_a_missing_note_when_one_is_expected(input
         assert SC.check_rpc_morning(site, rec(inputs, True))[0] == []
         shutil.rmtree(site / "morning", ignore_errors=True)
     assert not (site / "morning").exists()
+
+
+def test_run_checks_fails_a_real_pages_build_without_its_morning_note(tmp_path):
+    """run_checks wires note_expected from config morning_note and the target: the committed data built for pages
+    (which writes morning/), checked with morning/ and then without it, as pages (FAIL) and as preview (pass). The
+    checks run on the build's top-level pages and morning/ only: rpc-morning reads morning/*.json and rpc.json, and a
+    whole real site takes minutes to check."""
+    from qa import site_checks as SC
+    built = tmp_path / "real" / "build" / "site"
+    build(ROOT / "data" / "facts.json", built, target="pages")
+    assert config.SITE.get("morning_note") is not None and (built / "morning").is_dir()
+    site = tmp_path / "site"
+    site.mkdir()
+    for f in built.glob("*.html"):
+        shutil.copy(f, site / f.name)
+    shutil.copytree(built / "morning", site / "morning")
+    facts = SC.load_facts(ROOT / "data" / "facts.json")
+    assert SC.rpc_facts(facts) is not None and SC.rpc_held(SC.rpc_facts(facts))   # a real record, the hold on
+
+    def rpc_morning(target):
+        rep = SC.run_checks(site, facts, browser=False, target=target)
+        return next(r for r in rep.results if r[0] == "rpc-morning")
+
+    name, ok, problems, note = rpc_morning("pages")
+    assert ok and problems == [] and "hold_motions on" in note and "0 morning notes" not in note, problems
+    shutil.rmtree(site / "morning")
+    name, ok, problems, note = rpc_morning("pages")
+    assert not ok and problems == [
+        "morning/: no morning note, though config morning_note is set and this is a pages build"], problems
+    name, ok, problems, note = rpc_morning("preview")      # the preview writes no note: nothing expected
+    assert ok and problems == [] and note.startswith("0 RPC vote entries in 0 morning notes"), problems
 
 
 def test_show_unconfirmed_values_never_overrides_the_hold(inputs, monkeypatch):

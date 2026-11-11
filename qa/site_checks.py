@@ -475,7 +475,8 @@ def check_rpc_morning(site: Path, rpc: dict | None, note_expected: bool = False)
     in rpc.json under the current motion_rules while rpc.yml `hold_motions` is off; any other carries none of those
     and none of its motion's mover, seconder, nays or abstainers (allowed: a value the record's agendas, listing or
     sources print themselves, as rpc-export). `note_expected` (config morning_note set, a pages build: build.py writes
-    the note then): a build with no morning/*.json is a problem, not a pass (rpc-hold/morning-dir-absent)."""
+    the note then): a build with no morning/*.json is a problem, not a pass (rpc-hold/morning-dir-absent). With no
+    RPC record (`rpc` None) nothing is checked, a missing note included."""
     if not rpc:
         return [], "no RPC facts"
     notes = sorted((site / "morning").glob("*.json")) if (site / "morning").is_dir() else []
@@ -2371,7 +2372,9 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
         rep.add("rpc-motions", problems, note)
         problems, note = check_rpc_export(site, rpc)
         rep.add("rpc-export", problems, note)
-        # build.py writes the note on every target but preview while config morning_note is set (a real build)
+        # build.py writes the note on every target but preview while config morning_note is set (a real build).
+        # The missing-note check rides on rpc-morning, so it runs only when the RPC is configured (rpc_facts not
+        # None); a build without the RPC is not checked for morning/ here.
         problems, note = check_rpc_morning(site, rpc, cfg.get("morning_note") is not None and target != "preview")
         rep.add("rpc-morning", problems, note)
     county_pages = {rel: pg for rel, pg in pages.items() if not any(rel.startswith(c["prefix"]) for c in cs)}
