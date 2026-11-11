@@ -68,6 +68,12 @@ and may be labelled differently. Record what each screen really says in `docs/pl
    - What stops a writer who goes around all of this is a person: the optional required reviewer on the
      `morning-note` environment (section 5, step 0), which holds every job that would get the key until Brian
      approves it.
+   - **Known gap (unverified; main-protect/ff-push-marks-pr-merged):** GitHub may mark an open pull request as
+     merged when its head commit is pushed straight to `main` (a fast-forward push, for example by a workflow using
+     the Actions bypass), and then report that commit as the pull request's merge commit. The note job's PR check
+     would pass for that commit although nobody merged the pull request on its page. Only the required reviewer on
+     the `morning-note` environment covers this. A pull request shown as merged that nobody merged on its page is a
+     direct push: treat it as in "When the note job fails".
    `main` takes changes by pull request only, except the daily job's own `data/` commit (the `push` job,
    `GITHUB_TOKEN`, `github-actions[bot]`).
    1. Open https://github.com/gn0sh/clarksville-records/settings/rules > **New ruleset** > **New branch ruleset**.
