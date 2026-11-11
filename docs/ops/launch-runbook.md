@@ -123,7 +123,11 @@ come from `docs/reviews/security-review-morning-2b4796b.md`.
 - [ ] `python -m qa.site_checks` passes on the enabled build, and `pytest tests/test_morning_page.py` passes: an
       enabled build has no "never sent anywhere" sentence (finding 1) and posts no seat unless the box is ticked
       (finding 3).
-- [ ] The sender job and its API key have had their own security review (they do not exist yet).
+- [ ] The sender job and its API key have had their own security review (T4.8, at the T4.5 commit).
+
+The sender itself (account setup, GitHub environment and secrets, the T4.0 probe, canary week, go-live and
+rollback) has its own runbook: `docs/ops/morning-note.md`. Its `note` job is locked by the repository variable
+`MORNING_NOTE_SEND` (unset today) and runs only after a successful deploy.
 
 ## Add to the uptime monitor (after the first deploy is live; devops, separate PR in gn0sh/gnosh-uptime)
 Described diff for `monitor.config.json`, add one entry to `targets` (not applied; that repo is not touched here):
