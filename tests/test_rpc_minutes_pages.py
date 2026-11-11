@@ -51,6 +51,7 @@ def site(tmp_path_factory):
         motion(7, moved_by="Caseless Mover"),                       # no case, not the meeting's own business
         motion(8, kind="Motion to adjourn", outcome="carried unanimously"),     # the minutes' own words
     ]
+    facts["checked_through"] = "2026-10-27"     # rule 11: the hand-written motions stand for a checked meeting
     (d / "rpc.json").write_text(json.dumps(facts), encoding="utf-8")
     county = json.loads(FIXTURE.read_text(encoding="utf-8"))
     county["items"].append({"id": "CZ-12-2026", "link_basis": "number", "number": "CZ-12-2026",
@@ -190,7 +191,7 @@ def test_site_checks_rpc_motions_passes_on_the_built_pages(site):
     pages = {f.relative_to(site).as_posix(): SC.parse(f) for f in site.rglob("*.html")}
     problems, note = SC.check_rpc_motions(site, pages, _site_rpc(site))
     assert problems == [] and ("8 motion blocks, 2 shown confirmed (6 confirmed in rpc.json; motion_rules "
-                               "rpc-motion-invariant-5)") in note, problems
+                               "rpc-motion-invariant-6)") in note, problems
 
 
 def test_site_checks_rpc_motions_catches_a_leak_a_misplaced_motion_and_unanimous(site, tmp_path):
@@ -238,7 +239,7 @@ def test_site_checks_rpc_motions_on_a_record_the_reader_never_wrote(tmp_path):
 def test_the_motion_rules_marker_is_one_value_in_the_reader_the_pages_and_the_site_check():
     from collector import rpc_minutes
     from qa import site_checks as SC
-    assert rpc_minutes.MOTION_RULES == rpc.MOTION_RULES == SC.RPC_MOTION_RULES == "rpc-motion-invariant-5"
+    assert rpc_minutes.MOTION_RULES == rpc.MOTION_RULES == SC.RPC_MOTION_RULES == "rpc-motion-invariant-6"
 
 
 @pytest.mark.parametrize("rules", [None, "rpc-motion-invariant-0"])
@@ -334,6 +335,19 @@ def test_site_checks_counts_a_motion_shown_on_two_pages_once(tmp_path):
     rec = _guard_record(motion(1, id="m-1", meeting_id="mt", case="Z-1-2026", case_id="c1"))
     problems, note = SC.check_rpc_motions(tmp_path, pages, rec)
     assert problems == [] and "2 motion blocks, 2 shown confirmed" in note, problems
+
+
+@pytest.mark.parametrize("checked,problem", [("2026-09-22", True), ("2026-10-27", False), (None, False)])
+def test_site_checks_fails_a_motion_shown_confirmed_after_the_records_gate_date(tmp_path, checked, problem):
+    """rpc-motions (g), rule 11: no block is shown confirmed for a meeting after rpc.json's `checked_through`."""
+    from qa import site_checks as SC
+    block = '<section id="mt"><div id="case-c1"><div class="rpc-motion" id="m-1"><p>x</p></div></div></section>'
+    pages = {"rpc/meetings/2026.html": SC.parse(_guard_page(tmp_path, "rpc/meetings/2026.html", block))}
+    rec = {**_guard_record(motion(1, id="m-1", meeting_id="mt", case="Z-1-2026", case_id="c1")),
+           "meetings": [{"id": "mt", "date": "2026-10-27"}], "checked_through": checked}
+    problems, _ = SC.check_rpc_motions(tmp_path, pages, rec)
+    assert problems == ([f"rpc/meetings/2026.html#m-1: shown confirmed, but its meeting (2026-10-27) is after the "
+                         f"minutes a QA sample checked (checked_through {checked})"] if problem else []), problems
 
 
 @pytest.mark.parametrize("rel,body", [

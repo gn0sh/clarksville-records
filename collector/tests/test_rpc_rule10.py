@@ -448,11 +448,113 @@ def test_an_election_or_adjournment_passing_for_approval_is_confirmed(text, kind
 
 
 @pytest.mark.parametrize("words", ["for the addition of truck stops to the Use Table",       # real 2023-07-25 m 12
-                                   "as they continue to do",                                 # real 2025-10-28 m 31
                                    "for Richard Swift to continue as Chairman"])            # real 2023-01-24 m 16
 def test_table_and_continue_as_nouns_are_not_a_kind(words):
-    assert R.motion_kind(f"made the motion for approval {words}") == "Motion for approval"
+    # neither a label nor, with the nouns dropped (KIND_NOUNS), a stem of the two-kinds check
+    assert R.motion_kinds(f"made the motion for approval {words}") == ["Motion for approval"]
+    assert R.motion_kinds(f"made the motion to recommend {words}") == ["Motion for approval"]
     assert R.motion_kind(f"made the motion {words}") == "Motion"
+
+
+def test_continue_as_a_bare_verb_is_a_second_kind_of_the_two_kinds_check():
+    # real 2025-10-28 m 31: not the verb form, so no label of its own, but its stem is a second kind (under-confirmed)
+    assert R.motion_kind("made the motion as they continue to do") == "Motion"
+    assert R.motion_kinds("made the motion for approval as they continue to do") == ["Motion for approval",
+                                                                                     "Motion to continue"]
+
+
+# rpc-votes/recommend-default-kind: "recommend" with no other kind's pattern named approval, though the past
+# participles (tabled, continued, postponed, withdrawn, denied) name another kind; now two kinds, withheld
+@pytest.mark.parametrize("words", [
+    "made the motion to recommend that the case be tabled",
+    "made the motion to recommend that the request be continued to next month",
+    "made the motion to recommend that the case be postponed",
+    "made the motion to recommend that the request be denied",
+])
+def test_recommend_with_a_past_participle_of_another_kind_is_not_confirmed(words):
+    m = one(f"Joe Smith {words}, seconded by Stacey Streetman. All others voted in favor. Motion passed.",
+            extra=("Joe Smith",))
+    held(m, R.WHY_TWO_KINDS)
+    assert m.kind == "Motion"
+
+
+# rpc-votes/kind-holds-bare-verb: a list kind holds approval (and the deferrals list, defer and withdraw), never a
+# bare verb of another kind; for the two-kinds check the loose stems are read
+@pytest.mark.parametrize("words", [
+    "made the motion to approve the consent agenda and table item 5",
+    "made the motion to approve the minutes and table item 5",
+    "made the motion to approve the deferrals and continue item 5",
+    "made the motion to approve the deferrals and postpone item 5",
+    "made the motion to approve the consent agenda with item 5 denied",
+    "made the motion to approve the minutes and continue the work session",
+])
+def test_a_list_kind_and_a_bare_verb_of_another_kind_are_not_confirmed(words):
+    m = one(f"Joe Smith {words}, seconded by Stacey Streetman. All others voted in favor. Motion passed.",
+            extra=("Joe Smith",), head="")
+    held(m, R.WHY_TWO_KINDS)
+    assert m.kind == "Motion"
+
+
+@pytest.mark.parametrize("words,kind", [
+    ("made the motion to approve the deferral", "Motion to approve the deferrals"),        # real 2024-01-23 m 2
+    ("made the motion to approve deferrals and withdrawal", "Motion to approve the deferrals"),  # 2022-12-27 m 2
+    ("made the motion to approve the consent agenda", "Motion to approve the consent agenda"),
+])
+def test_a_list_kind_holding_only_its_own_words_stays_confirmed(words, kind):
+    m = one(f"Joe Smith {words}, seconded by Stacey Streetman. All others voted in favor. Motion passed.",
+            extra=("Joe Smith",), head="")
+    ok(m)
+    assert m.kind == kind
+
+
+def test_a_stem_alone_names_no_kind():
+    # the label needs a kind's own pattern: "that the case be tabled" is plain "Motion" (no polarity either side)
+    assert R.motion_kinds("made the motion that the case be tabled") == []
+    m = one("Joe Smith made the motion that the case be tabled, seconded by Stacey Streetman. All others voted in "
+            "favor. Motion passed.", extra=("Joe Smith",))
+    ok(m)
+    assert m.kind == "Motion"
+
+
+# rpc-votes/withdrawal-label: "to approve the withdrawal" is not the list of deferrals (and withdrawals)
+@pytest.mark.parametrize("words", ["made the motion to approve the withdrawal", "made a motion to approve the withdrawals",
+                                   "made the motion to approve the withdrawal of the request"])
+@pytest.mark.parametrize("head", [Z5, ""])
+def test_approving_a_withdrawal_is_not_the_deferrals_list(words, head):
+    m = one(f"Joe Smith {words}, seconded by Stacey Streetman. All others voted in favor. Motion passes for approval.",
+            extra=("Joe Smith",), head=head)
+    held(m, R.WHY_TWO_KINDS)
+    assert m.kind == "Motion"
+
+
+# rpc-votes/mover-negation: a negation in the mover clause turns the kind around, which its pattern cannot read
+@pytest.mark.parametrize("words", [
+    "made the motion to not approve the request",
+    "made the motion not to approve the request",
+    "made the motion that the request not be approved",
+    "made the motion for no approval of the request",
+    # no kind in the words before "stating": the whole mover clause is read
+    "made the motion stating that the request not be approved",
+    "made the motion based on the staff report that it does not meet the plan",
+    # a negation up to two words before a kind's stem, anywhere in the mover clause
+    "made the motion for approval stating that the request not be approved",
+    "made the motion for approval because staff did not recommend denial",
+])
+def test_a_negation_in_the_mover_clause_is_not_confirmed(words):
+    m = one(f"Joe Smith {words}, seconded by Stacey Streetman. All others voted in favor. Motion passed.",
+            extra=("Joe Smith",))
+    held(m, R.WHY_UNLISTED)
+
+
+@pytest.mark.parametrize("words", [
+    # real 2022-05-24 m 11, 2023-03-28 m 6, 2022-12-27 m 18: the mover's reasons after a kind, no kind turned around
+    "made the motion for approval stating it is not out of character with the surrounding development pattern",
+    "made the motion for approval stating that the request does not alter the overall density of the property",
+    "made the motion for approval stating they are within the guidelines and not asking for any variances",
+])
+def test_a_negation_in_the_movers_reasons_after_the_kind_stays_confirmed(words):
+    ok(one(f"Joe Smith {words}, seconded by Stacey Streetman. All others voted in favor. Motion passed.",
+           extra=("Joe Smith",)))
 
 
 # rpc-votes/kind-order-new-kinds: mover words matching two kinds' patterns are never confirmed under the first one
@@ -479,6 +581,7 @@ def test_mover_words_naming_two_kinds_are_not_confirmed(words):
     ("made the motion to approve the deferrals and withdrawals", "Motion to approve the deferrals"),
     ("made the motion to recommend denial", "Motion for disapproval"),
     ("made the motion to recommend a 30 day deferral", "Motion to defer"),
+    ("made the motion to recommend that the request be withdrawn", "Motion to withdraw"),     # the kind's own pattern
     ("made the motion to recommend approval", "Motion for approval"),
     ("made the motion to recommend the request to the City Council", "Motion for approval"),
 ])

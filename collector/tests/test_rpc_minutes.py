@@ -520,7 +520,13 @@ MINUTES_TEXT = ("REGIONAL PLANNING COMMISSION MINUTES\nOctober 27, 2026\nMEMBERS
 
 
 @pytest.fixture()
-def attached(tmp_path):
+def attached(tmp_path, monkeypatch):
+    # rule 11: these minutes (2026-10-27) count as checked, so the attach rules are what is tested
+    monkeypatch.setattr(R, "CHECKED_THROUGH", "2026-10-27")
+    return _attach(tmp_path)
+
+
+def _attach(tmp_path):
     cfg = rpc.load_config()
     a_url, m_url = "https://www.cmcrpc.com/a-10-27-2026.pdf", "https://www.cmcrpc.com/m-10-27-2026.pdf"
     rows = rpc.assign_ids([{"date": "2026-10-27", "label": "RPC", "printed": "10/27/2026", "kind": "regular",
@@ -560,8 +566,41 @@ def test_attach_places_a_motion_under_its_case_only_while_nothing_doubts_the_cas
 
 def test_the_build_writes_the_readers_motion_rules_into_the_record(attached):
     facts, summary, _ = attached
-    assert facts["motion_rules"] == R.MOTION_RULES == "rpc-motion-invariant-5"
+    assert facts["motion_rules"] == R.MOTION_RULES == "rpc-motion-invariant-6"
     assert facts["schema"] == "rpc-1"          # the record's layout is unchanged; only the rules it was read by
+    assert facts["checked_through"] == R.CHECKED_THROUGH
+
+
+# rule 11, the safety gate: minutes of a meeting after CHECKED_THROUGH (added by the daily collector after launch) are
+# never confirmed, whatever the reader makes of them; the date sits in one place and the build writes it
+def test_the_committed_record_confirms_nothing_after_the_gate_date():
+    import json
+    from pathlib import Path
+    facts = json.loads((Path(__file__).resolve().parents[2] / "data/localities/cmc-rpc/rpc.json")
+                       .read_text(encoding="utf-8"))
+    assert facts["checked_through"] == R.CHECKED_THROUGH
+    dates = {m["id"]: m["date"] for m in facts["meetings"]}
+    late = [mv for mv in facts["motions"] if dates[mv["meeting_id"]] > R.CHECKED_THROUGH]
+    assert all(not mv["confirmed"] and R.WHY_UNCHECKED in mv["reasons"] for mv in late)
+
+
+def test_motions_of_minutes_after_the_gate_date_are_never_confirmed(tmp_path, monkeypatch):
+    monkeypatch.setattr(R, "CHECKED_THROUGH", "2026-10-26")      # the day before these minutes' meeting
+    facts, summary, _ = _attach(tmp_path)
+    assert facts["checked_through"] == "2026-10-26"
+    assert facts["motions"] and not any(mv["confirmed"] for mv in facts["motions"])
+    assert all(R.WHY_UNCHECKED in mv["reasons"] for mv in facts["motions"])
+    assert summary["motions_confirmed"] == 0 and summary["motions_not_confirmed_by_reason"][R.WHY_UNCHECKED] == 7
+    z1 = next(mv for mv in facts["motions"] if mv["case"] == "Z-1-2026")
+    # not a doubt about the case: placed under it, shown as not confirmed with the page link like any withheld vote
+    assert z1["case_id"] == "2026-10-27-regular-z-1-2026" and z1["reasons"] == [R.WHY_UNCHECKED]
+    assert R.WHY_UNCHECKED not in R.CASE_REASONS
+
+
+def test_motions_of_minutes_on_the_gate_date_are_read_as_before(tmp_path, monkeypatch):
+    monkeypatch.setattr(R, "CHECKED_THROUGH", "2026-10-27")
+    facts, summary, _ = _attach(tmp_path)
+    assert summary["motions_confirmed"] == 2 and R.WHY_UNCHECKED not in summary["motions_not_confirmed_by_reason"]
 
 
 def test_the_motions_audit_is_internal_one_line_per_motion(attached, tmp_path):

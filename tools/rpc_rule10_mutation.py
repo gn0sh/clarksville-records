@@ -54,7 +54,8 @@ muts += [
      "kind = next(iter(kinds), MOTION_DEFAULT)"),
     ("kind: recommend before another kind", "label for pattern, label in MOTION_KINDS if",
      "label for pattern, label in MOTION_KINDS + (RECOMMEND,) if"),
-    ("kind: recommend alone", "return [RECOMMEND[1]] if re.search(RECOMMEND[0], words, re.I) else []", "return []"),
+    ("kind: recommend alone", "found = [RECOMMEND[1]] if re.search(RECOMMEND[0], words, re.I) else []",
+     "found = []"),
     ("kind holds: consent agenda", '"Motion to approve the consent agenda": frozenset({"Motion for approval"}),',
      '"Motion to approve the consent agenda": frozenset(),'),
     ("kind holds: minutes", '"Motion to approve the minutes": frozenset({"Motion for approval"}),',
@@ -67,6 +68,28 @@ muts += [
      '"Motion to withdraw"})}'),
     ("polarity: postpone is its own", '(r"\\bpostpon", "postpone")', '(r"\\bpostpon", "table")'),
     ("polarity: continue is its own", '(r"\\bcontinu", "continue")', '(r"\\bcontinu", "table")'),
+    # delta review of 44a6ade: loose stems for the two-kinds check, the deferrals list, a negation, the gate date
+    ("kind stems: table", '(r"\\btabl", "Motion to table"), ', ""),
+    ("kind stems: postpone", '(r"\\bpostpon", "Motion to postpone"),', ""),
+    ("kind stems: continue", '(r"\\bcontinu", "Motion to continue"), ', ""),
+    ("kind stems: deny", ', (r"\\bden(?:y|ial|ied)", "Motion for disapproval")', ""),
+    ("kind stems: read for the two kinds", "for k in found[1:] + stems", "for k in found[1:]"),
+    ("kind nouns: Use Table", 'r"\\buse\\s+tables?\\b|\\bcontinue\\s+as\\b"', 'r"\\bcontinue\\s+as\\b"'),
+    ("kind nouns: continue as", 'r"\\buse\\s+tables?\\b|\\bcontinue\\s+as\\b"', 'r"\\buse\\s+tables?\\b"'),
+    ("kind: a stem alone names no kind", "found = [RECOMMEND[1]] if re.search(RECOMMEND[0], words, re.I) else []",
+     "found = [RECOMMEND[1]] if re.search(RECOMMEND[0], words, re.I) else "
+     "[k for p, k in KIND_STEMS if re.search(p, words, re.I)][:1]"),
+    ("kind: the deferrals list names a deferral", '(?:the\\s+|all\\s+)?deferrals?", "Motion to approve the deferrals"',
+     '(?:the\\s+|all\\s+)?(?:deferrals?|withdrawals?)", "Motion to approve the deferrals"'),
+    ("mover negation: in the kind's words", "                or NEGATION.search(kind_words if kinds else "
+     "mover_clause(after))\n", ""),
+    ("mover negation: the whole clause when no kind", "NEGATION.search(kind_words if kinds else mover_clause(after))",
+     "NEGATION.search(kind_words)"),
+    ("mover negation: a negated kind anywhere", "\n                or NEGATED_KIND.search(mover_clause(after))", ""),
+    ("mover negation: 'no'", 'NEGATION = re.compile(r"\\bnot\\b|\\bno\\b", re.I)',
+     'NEGATION = re.compile(r"\\bnot\\b", re.I)'),
+    ("gate: minutes after CHECKED_THROUGH", 'if m["date"] > RM.CHECKED_THROUGH:', "if False:",
+     "collector/rpc_agenda.py"),
 ]
 # 10c: each MEMBER_VOTE alternative
 mv_line = src[src.index("MEMBER_VOTE = ("):src.index(")\n", src.index("MEMBER_VOTE = (")) + 1]
@@ -112,14 +135,18 @@ muts += [
 
 rows = []
 FREE = '_FREE_WORDS_LATE = r"[a-z](?:[a-z -]|\\d{1,3}(?=[\\s-]*days?\\b)){0,60}?"\n'
-for name, old, new in muts:
-    assert src.count(old) == 1, (name, src.count(old))
-    mutant = src.replace(old, new)
+for name, old, new, *where in muts:
+    # a mutant names its file when it is not the reader (the gate date is applied in collector/rpc_agenda.py)
+    fpath = tree / where[0] if where else path
+    fsrc = fpath.read_text(encoding="utf-8")
+    assert fsrc.count(old) == 1, (name, fsrc.count(old))
+    mutant = fsrc.replace(old, new)
     if "_FREE_WORDS_LATE" in new:
         mutant = mutant.replace("OUTCOME_WORDS = _FREE_WORDS_LATE", FREE + "OUTCOME_WORDS = _FREE_WORDS_LATE")
-    path.write_text(mutant, encoding="utf-8")
+    fpath.write_text(mutant, encoding="utf-8")
     r = subprocess.run([sys.executable, "-B", "-m", "pytest", "-q", "-x", "-p", "no:cacheprovider", *TESTS],
                        cwd=tree, capture_output=True, text=True)
+    fpath.write_text(fsrc, encoding="utf-8")
     last = (r.stdout.strip().splitlines() or ["?"])[-1]
     failed = re.search(r"FAILED (\S+)", r.stdout)
     killer = failed.group(1).split("::")[-1] if failed else ("(error) " + last if r.returncode else "")

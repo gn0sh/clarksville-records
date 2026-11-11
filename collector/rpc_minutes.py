@@ -213,6 +213,16 @@ ELECT_CLAUSE = re.compile(rf"^\s*(?i:to\s+(?:nominate|elect))\s+{NAME}\s+(?i:(?:
                           rf"chair(?:man|woman|person)?(?:\s+for\s+20\d\d)?)\s*$")
 TITLED = re.compile(rf"{HON}\s*[A-Z]")
 EXCEPTION_WORD = re.compile(r"\b(?:except\w*|but|exception)\b", re.I)
+# rpc-votes/mover-negation: a negation in the words the kind is read from turns the kind around ("to not approve the
+# request", "for no approval"), which the kind's pattern cannot read: the body is not one the reader knows
+# (WHY_UNLISTED). Only those words (up to "stating", "based", "because", the second or the sentence's end) when they
+# give a kind: the mover's reasons after them ("for approval stating it is not out of character with ...") cannot
+# turn "for approval" around. When they give none, the whole mover clause ("made the motion stating that the
+# request not be approved"). Anywhere in the mover clause, a negation up to two words before a kind's stem
+# (NEGATED_KIND: "for approval stating that the request not be approved")
+NEGATION = re.compile(r"\bnot\b|\bno\b", re.I)
+NEGATED_KIND = re.compile(r"\b(?:not|no)\s+(?:[a-z]+\s+){0,2}(?:approv|disapprov|den(?:y|ial|ied)|defer|tabl|postpon|"
+                          r"continu|withdraw|recommend|elect|nominat|adjourn)", re.I)
 # rule 10b: after the outcome, any outcome, "in favor" or motion is a doubt (no distance limit)
 TAIL_OUTCOME = (OUTCOME, FAVOUR, re.compile(r"\bmotion\b", re.I), re.compile(r"\bmoved\b", re.I),
                 re.compile(r"\bseconded\b", re.I))      # "... Motion passed. Mrs. Streetman then moved to deny"
@@ -235,7 +245,9 @@ LIST_KINDS = frozenset({"Motion to approve the consent agenda", "Motion to appro
 MOTION_KINDS = (
     (r"consent\s+agenda", "Motion to approve the consent agenda"),
     (r"\bminutes\b", "Motion to approve the minutes"),
-    (r"\bapprov\w*\s+(?:the\s+|all\s+)?(?:deferrals?|withdrawals?)", "Motion to approve the deferrals"),
+    # the list of deferrals (and withdrawals): "deferral" must be named. "to approve the withdrawal" alone names
+    # withdraw and approval, two kinds (rpc-votes/withdrawal-label: never shown as the deferrals list)
+    (r"\bapprov\w*\s+(?:the\s+|all\s+)?deferrals?", "Motion to approve the deferrals"),
     (r"\bdisapprov|\bden(?:y|ial)\b", "Motion for disapproval"),
     (r"\bdefer", "Motion to defer"),
     (r"\bwithdraw", "Motion to withdraw"),
@@ -247,6 +259,15 @@ MOTION_KINDS = (
     (r"\badjourn", "Motion to adjourn"),
 )
 RECOMMEND = (r"\brecommend", "Motion for approval")     # only when no pattern of MOTION_KINDS matches
+# rpc-votes/kind-holds-bare-verb, rpc-votes/recommend-default-kind: for the two-kinds check only, the loose stems of
+# the kinds whose label needs a verb form ("approve the minutes and table item 5", "to recommend that the case be
+# tabled", "... that the request be continued", "... be denied"). A stem never gives a label: words with a stem and
+# no kind's pattern ("that the case be tabled") stay plain "Motion". The nouns the label patterns exclude are dropped
+# first (KIND_NOUNS: "the Use Table", "to continue as Chairman"). Withdraw and defer need none: their label patterns
+# are already the loose stems \bwithdraw and \bdefer
+KIND_STEMS = ((r"\btabl", "Motion to table"), (r"\bpostpon", "Motion to postpone"),
+              (r"\bcontinu", "Motion to continue"), (r"\bden(?:y|ial|ied)", "Motion for disapproval"))
+KIND_NOUNS = re.compile(r"\buse\s+tables?\b|\bcontinue\s+as\b", re.I)
 # a kind whose own words hold other kinds' patterns: "to approve the consent agenda", "approval of the minutes", "to
 # approve the deferrals and withdrawals" each name one kind
 KIND_HOLDS = {"Motion to approve the consent agenda": frozenset({"Motion for approval"}),
@@ -314,7 +335,14 @@ PARA_MAX = 900          # characters a motion's sentences may span before its ou
 # as `motion_rules`; sitegen/rpc.py and qa/site_checks.py restate it and show every motion of a record without it as
 # not confirmed. Change it whenever a rule changes what is confirmed, so an older record is never shown under rules
 # it was not read by.
-MOTION_RULES = "rpc-motion-invariant-5"
+MOTION_RULES = "rpc-motion-invariant-6"
+# The safety gate (rule 11, docs/architecture/rpc-motion-invariant.md): the newest meeting whose motions a QA sample
+# has checked against the minutes. A motion of a meeting after it is never confirmed (WHY_UNCHECKED), whatever the
+# reader makes of it, so minutes the daily collector adds stay withheld until a QA sample moves this date and the
+# record is rebuilt (collector/rpc_agenda.read_all_minutes applies it; rpc_agenda.build writes it into rpc.json as
+# `checked_through`). The one place this date is set.
+CHECKED_THROUGH = "2026-09-22"
+WHY_UNCHECKED = "not yet checked against the minutes"
 
 
 def _clean(line: str) -> str:
@@ -463,12 +491,19 @@ class Motion:
 
 
 def motion_kinds(words: str) -> list[str]:
-    """Every kind whose pattern the mover's words match, in MOTION_KINDS order, less the kinds the first one holds in
-    its own words (KIND_HOLDS); "recommend" only when none matches. More than one is WHY_TWO_KINDS."""
+    """Every kind whose pattern the mover's words match, in MOTION_KINDS order ("recommend" only when none matches),
+    then every kind whose loose stem they hold (KIND_STEMS, the nouns KIND_NOUNS dropped), less the kinds the first
+    one holds in its own words (KIND_HOLDS). The first is the label; more than one is WHY_TWO_KINDS. A stem alone
+    names no kind."""
     found = list(dict.fromkeys(label for pattern, label in MOTION_KINDS if re.search(pattern, words, re.I)))
     if not found:
-        return [RECOMMEND[1]] if re.search(RECOMMEND[0], words, re.I) else []
-    return found[:1] + [k for k in found[1:] if k not in KIND_HOLDS.get(found[0], ())]
+        found = [RECOMMEND[1]] if re.search(RECOMMEND[0], words, re.I) else []
+    if not found:
+        return []
+    loose = KIND_NOUNS.sub(" ", words)
+    stems = [label for pattern, label in KIND_STEMS if re.search(pattern, loose, re.I)]
+    return list(dict.fromkeys(found[:1] + [k for k in found[1:] + stems
+                                           if k != found[0] and k not in KIND_HOLDS.get(found[0], ())]))
 
 
 def motion_kind(words: str) -> str:
@@ -522,15 +557,22 @@ def _member_surnames(members: list[str], roster=()) -> set[str]:
 END = re.compile(r"\s*\.?\s*$")
 
 
+def mover_clause(after: str) -> str:
+    """The mover clause's own words: the motion's words after the mover's name up to the second's own words or the
+    end of its sentence."""
+    ahead = SECOND_AHEAD.search(after)
+    se = _sentence_end(after, 0)
+    stop = min(ahead.start() if ahead else len(after), se - 1 if after[se - 1:se] == "." else se)
+    return after[:max(stop, 0)]
+
+
 def body_clauses(after: str, surnames: set[str]) -> tuple[bool, list[tuple[str, str, re.Match]]]:
     """Rule 10a: whether a motion's words after the mover's name are the mover clause, then only SHAPES clauses in
     phase order (one second, any votes, at most one outcome, then its "with ... voting nay"), joined by JOIN, then
     the end; and the clauses read, [(phase, label, match)] (match positions in `after`)."""
     clauses: list[tuple[str, str, re.Match]] = []
-    ahead = SECOND_AHEAD.search(after)
-    se = _sentence_end(after, 0)
-    stop = min(ahead.start() if ahead else len(after), se - 1 if after[se - 1:se] == "." else se)
-    own = after[:max(stop, 0)]
+    own = mover_clause(after)
+    stop = len(own)
     if not ELECT_CLAUSE.match(own):
         if (TITLED.search(own) or LEFTOVER_VOTE.search(own) or EXCEPTION_WORD.search(own)
                 or LACK_OF_SECOND.search(own)          # rpc-votes/no-second: "made a motion that died for lack of a second"
@@ -619,7 +661,8 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
         lead = text[prev:m.start()]
         prev = m.start() + len(para)
         cut = re.search(r",?\s*seconded|\.\s|stating|based|because", after)
-        kinds = motion_kinds(after[:cut.start()] if cut else after[:120])
+        kind_words = after[:cut.start()] if cut else after[:120]
+        kinds = motion_kinds(kind_words)
         # two kinds (WHY_TWO_KINDS below): the words give no one type, so the motion is shown as plain "Motion"
         kind = kinds[0] if len(kinds) == 1 else MOTION_DEFAULT
         if case is None and case_ok and kind in (MOTION_DEFAULT, "Motion for approval") and oc:
@@ -635,7 +678,11 @@ def read_motions(text: str, page_at, case: str | None, case_printed: str | None,
         list_motion = kind in LIST_KINDS
         # rule 10a: the body is the mover clause and the known shapes only
         listed, clauses = body_clauses(after, surnames)
-        if not listed or not (any(ph == "outcome" for ph, _, _ in clauses) or (oc is not None and oc is fav)):
+        if (not listed or not (any(ph == "outcome" for ph, _, _ in clauses) or (oc is not None and oc is fav))
+                # rpc-votes/mover-negation: in the words the kind is read from, or, when they give no kind, anywhere
+                # in the mover clause ("made the motion stating that the request not be approved")
+                or NEGATION.search(kind_words if kinds else mover_clause(after))
+                or NEGATED_KIND.search(mover_clause(after))):
             reasons.append(WHY_UNLISTED)
         # rule 10d: an abstention in the body naming a case: the motion's own case is its abstention; another case
         # on the agenda of a list motion is an abstention on one case of the list (not this motion's, as printed)

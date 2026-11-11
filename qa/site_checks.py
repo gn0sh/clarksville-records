@@ -221,7 +221,7 @@ RPC_BUSINESS = {"Motion to elect", "Motion to adjourn", "Motion to approve the m
                 "Motion to approve the consent agenda", "Motion to approve the deferrals"}
 # the reader's rules (collector/rpc_minutes.py MOTION_RULES): a record written without them shows no motion confirmed.
 # Restated on purpose (the guard imports nothing from the code it checks); tests/test_rpc_minutes_pages.py pins it equal
-RPC_MOTION_RULES = "rpc-motion-invariant-5"
+RPC_MOTION_RULES = "rpc-motion-invariant-6"
 MOTION_BLOCK = re.compile(r'<div class="rpc-motion(?P<nc> nc)?" id="(?P<id>[^"]+)">(?P<body>.*?)</div>', re.S)
 RPC_PLACE = re.compile(r'id="(?:case-(?P<case>[^"]+)|(?P<meeting>[^"]+)-motions)"')
 ITEM_TITLE_SPAN = re.compile(r"<span data-item-title>.*?</span>", re.S)
@@ -244,13 +244,17 @@ def check_rpc_motions(site: Path, pages: dict[str, "Page"], rpc: dict | None) ->
     (counted by motion id, so a block shown on two pages counts once); (c) it sits under its record's case_id, a case
     on its meeting's agenda, or is the meeting's own business with no case; (d) no nay or abstainer is (by surname)
     its mover or seconder; (e) no page with RPC content (the RPC's own pages, index.html, today.html, any page with an
-    RPC card or motion block) says "unanimous" outside the minutes' own words (data-item-title)."""
+    RPC card or motion block) says "unanimous" outside the minutes' own words (data-item-title); (g) when rpc.json
+    has `checked_through` (rule 11), no block shown confirmed is of a meeting after it."""
     if not rpc:
         return [], "no RPC facts"
     motions = {mv["id"]: mv for mv in rpc.get("motions", [])}
     cases = {c["id"]: c for c in rpc["cases"]}
     rules = rpc.get("motion_rules")
     current = rules == RPC_MOTION_RULES
+    # (g) rule 11: the record's own gate date (collector/rpc_minutes.py CHECKED_THROUGH, written there by the build)
+    checked = rpc.get("checked_through")
+    dates = {m["id"]: m.get("date") for m in rpc.get("meetings", [])}
     problems: list[str] = []
     seen, shown_ok = 0, 0
     per_case: dict[str, set[str]] = defaultdict(set)     # case id -> ids of the disposing motions shown confirmed
@@ -285,6 +289,10 @@ def check_rpc_motions(site: Path, pages: dict[str, "Page"], rpc: dict | None) ->
                     problems.append(f"{rel}#{mid}: a motion not confirmed shows {', '.join(sorted(set(leak)))}")
                 continue
             shown_ok += 1
+            when = dates.get(mv["meeting_id"]) or mv["meeting_id"][:10]
+            if checked and when > checked:
+                problems.append(f"{rel}#{mid}: shown confirmed, but its meeting ({when}) is after the minutes a QA "
+                                f"sample checked (checked_through {checked})")
             before = [p for p in places if p[0] < b.start()]
             under = before[-1][1] if before else None
             if under and mv["kind"] not in RPC_BUSINESS:
