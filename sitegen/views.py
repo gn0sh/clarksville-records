@@ -342,6 +342,12 @@ def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), 
             if sb.get("label") and https_url(sb.get("url")) and pg.get("slug") and pg.get("title"):
                 out.append({"label": pg.get("nav_label") or pg["title"], "href": f"{pg['slug']}.html",
                             "page": pg["title"], "coming": True, "school": sb})
+            # The committees' "coming" page (config/site.yml committees.page), modelled on the school board's.
+            cm = committees()
+            if cm is not None:
+                pg = cm["page"]
+                out.append({"label": pg.get("nav_label") or pg["title"], "href": f"{pg['slug']}.html",
+                            "page": pg["title"], "coming": True, "committees": cm})
     return out
 
 
@@ -981,6 +987,19 @@ RECORD_RPC = frozenset({"rpc_home.html.j2", "rpc_meetings_year.html.j2"})   # th
 RECORD_FINANCE = frozenset({"fin_index.html.j2", "fin_fund.html.j2", "fin_capital.html.j2"})
 
 
+def committees(cfg: dict | None = None) -> dict | None:
+    """config/site.yml `committees:` when it may be shown (a label, a page with a slug and title, and every link an
+    https URL with a label), else None: no menu entry, no page and no day-page line. Nothing in it is fetched."""
+    cm = (config.SITE if cfg is None else cfg).get("committees") or {}
+    pg = cm.get("page") or {}
+    links = cm.get("links") or []
+    if not (cm.get("label") and pg.get("slug") and pg.get("title") and links):
+        return None
+    if not all(isinstance(x, dict) and https_url(x.get("url")) and x.get("label") for x in links):
+        return None
+    return cm
+
+
 def https_url(u) -> bool:
     """True for a non-empty https:// URL that has a hostname (a link the site may print as an official source)."""
     if not isinstance(u, str) or not u.strip() or u != u.strip():
@@ -1439,7 +1458,8 @@ def item_types(item: dict) -> list[str]:
     """Design 5.4: number prefix, else fixed words in the verbatim title; can match several; else "other"."""
     number, title = (item.get("number") or "").upper(), (item.get("title") or "").casefold()
     out = [t["key"] for t in config.SITE["item_types"]
-           if any(number.startswith(p.upper()) for p in t["prefixes"]) or any(_word_start(w).search(title) for w in t["words"])]
+           if any(number.startswith(p.upper()) for p in t["prefixes"])
+           or any(_word_start(w).search(title) for w in t["words"])]
     return out or ["other"]
 
 

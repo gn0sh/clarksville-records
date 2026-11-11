@@ -2,6 +2,7 @@
 {% from "_macros.html.j2" import clamp, not_confirmed, person, fact_meta %}
 {% from "_fin_macros.html.j2" import fin_link, fin_cite, fin_cites, doc_link, notes_ab, words_toggle %}
 {% block main %}
+<div class="fin">
 {# Design finance-contracts 5. The same structure for every solicitation (N1); state is carried by words only. #}
 <p class="crumb"><a href="index.html">{{ c.title }}</a></p>
 <h1>{{ title }}</h1>
@@ -69,4 +70,5 @@
 {{ words_toggle(words, c, root) }}
 <p class="meta">{{ fact_meta(root, sol.id) }}</p>
 {% if disclosure %}{% include "_disclosure.html.j2" %}{% endif %}
+</div>
 {% endblock %}
