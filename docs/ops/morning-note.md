@@ -60,8 +60,10 @@ and may be labelled differently. Record what each screen really says in `docs/pl
       approvals: 0, since Brian is the only reviewer with write access; the team's review is the PR review). Leave
       every other rule off (no required status checks: a `GITHUB_TOKEN` commit triggers no workflow). **Create**.
    6. **Brian, from a terminal** (if GitHub Actions was not offered in 2.0.3, or to check the ruleset made in 2.0.5).
-      Prerequisite, once: install GitHub CLI (`winget install GitHub.cli`) and run `gh auth login`, signed in as the
-      repository owner. Then, in PowerShell in the repository folder, one line:
+      Prerequisite, once: install GitHub CLI (`winget install GitHub.cli`), then **open a new PowerShell window** so
+      `gh` is found, and run `gh auth login`, signed in as the repository owner. Get the repository (once, after these
+      scripts have reached `main`): `gh repo clone gn0sh/clarksville-records; cd clarksville-records`. Then, in
+      PowerShell in that folder, one line:
       ```
       powershell -ExecutionPolicy Bypass -File scripts\protect-main.ps1
       ```
@@ -158,12 +160,14 @@ architect.
 
 ## Rules for manual runs and re-runs
 - **Never re-run a Daily update run from an earlier day** ("Re-run all jobs" or "Re-run failed jobs" on yesterday's
-  run). It checks out that day's commit while the plan is built from today's `main`; the note job now stops with
-  "an older run was re-run" when the sender code or config differ, but the deploy and data jobs would still run on
-  the old commit. Start a new run with **Run workflow** instead.
-- **No manual runs between 08:00 and 10:00 UTC** (2 to 4 AM CST, 3 to 5 AM CDT). All runs share one concurrency
-  group with one pending slot: a manual run queued then replaces the pending 09:07 scheduled run, and only a
-  scheduled run sends the note, so that day gets no email.
+  run). The run uses that day's workflow file, but the plan is built from today's `main`; the note job now stops with
+  "an older run was re-run" when the sender code or config differ. Only the workflow file is the old version: the
+  `update` job checks out current `main`. Start a new run with **Run workflow** instead.
+- **Don't merge changes to `sender/` or `config/site.yml` while a Daily update run is in progress.** The note job's
+  stale check would stop and no note would be sent that day.
+- **Before you click Run workflow, open Actions. If a Daily update run is Queued, don't start one.** All runs share
+  one concurrency group with one pending slot: a manual run queued then replaces the pending scheduled run (09:07
+  UTC), and only a scheduled run sends the note, so that day gets no email.
 
 ## Rollback and stopping
 - **Stop all sending (one step, Brian or anyone with admin):**
@@ -185,4 +189,4 @@ the records are on the site and in the feeds. Do not re-run the job after 10:00 
 cancelled `note` job opens the same issue. A failure in "Download the morning note plan", "Validate the plan files"
 or "Check the plan" means the plan from the update job was missing or did not pass the checks: look at that run's
 "Plan the morning note" step. A failure in "Check this commit's sender and config are main's" means an older run was
-re-run (see "Rules for manual runs and re-runs"): nothing was sent.
+re-run, or a sender/config change merged during the run (see "Rules for manual runs and re-runs"): nothing was sent.

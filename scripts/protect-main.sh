@@ -12,11 +12,13 @@ gh auth status >/dev/null 2>&1 || { echo "Not signed in: run gh auth login (as t
 ids=$(gh api "repos/$repo/rulesets" --jq "$find")
 if [ -z "$ids" ]; then
   echo "No ruleset yet: creating it."
-  gh api -X POST "repos/$repo/rulesets" --input "$body" --silent
+  gh api -X POST "repos/$repo/rulesets" --input "$body" --silent \
+    || { echo "Creating the ruleset failed (see the message above). Nothing was changed. Send this output to the team."; exit 1; }
 else
   for id in $ids; do
     echo "Ruleset $id already exists: updating it."
-    gh api -X PUT "repos/$repo/rulesets/$id" --input "$body" --silent
+    gh api -X PUT "repos/$repo/rulesets/$id" --input "$body" --silent \
+      || { echo "Updating ruleset $id failed (see the message above). Nothing was changed. Send this output to the team."; exit 1; }
   done
 fi
 
