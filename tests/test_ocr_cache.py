@@ -38,6 +38,36 @@ def test_a_changed_document_has_a_new_cache_key():
     assert ocr.cache_path(SHA, 1) != ocr.cache_path("cd" * 32, 1)      # new bytes, new hash: read afresh
 
 
+def test_a_truncated_text_cache_is_deleted_and_read_again(tmp_path, monkeypatch):
+    """ci/derived-cache-truncated: a short .pages.json (a run stopped mid-write, a bad cache) is never trusted."""
+    from collector import extract
+    calls = []
+    monkeypatch.setattr(extract, "extract_pages", lambda pdf: calls.append(pdf) or ["page one", "page two"])
+    pdf = tmp_path / f"{SHA}.pdf"
+    c = tmp_path / "text" / f"{SHA}.pages.json"
+    c.parent.mkdir()
+    c.write_text('["page one", "pa')                                       # truncated JSON
+    assert extract.cached_pages(pdf, c.parent) == ["page one", "page two"] and len(calls) == 1
+    assert extract.cached_pages(pdf, c.parent) == ["page one", "page two"] and len(calls) == 1   # now cached
+    c.write_text('{"not": "pages"}')
+    assert extract.cached_pages(pdf, c.parent) == ["page one", "page two"] and len(calls) == 2
+    assert not list(c.parent.glob("*.part"))
+
+
+def test_the_text_cache_is_written_through_a_part_file(tmp_path, monkeypatch):
+    from collector import extract
+    seen = []
+    real_replace = Path.replace
+
+    def spy(self, target):
+        seen.append((self.name, Path(target).name))
+        return real_replace(self, target)
+    monkeypatch.setattr(Path, "replace", spy)
+    monkeypatch.setattr(extract, "extract_pages", lambda pdf: ["x"])
+    extract.cached_pages(tmp_path / f"{SHA}.pdf", tmp_path)
+    assert seen == [(f"{SHA}.pages.json.part", f"{SHA}.pages.json")]
+
+
 def _steps():
     return {s.get("name"): s for s in WF["jobs"]["update"]["steps"]}
 
