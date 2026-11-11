@@ -27,7 +27,8 @@ from .extract import cached_pages, image_only_pages
 
 ROOT = Path(__file__).resolve().parent.parent
 TEXT_CACHE = ROOT / "data" / "text"
-MAX_PAGES = 1000          # the Aug 2024 minutes run to 621 pages
+MAX_PAGES = 1500          # limits invariant L7: largest real county minutes 621 pp (Aug 2024; data/facts.json,
+                          # 2026-11-11), cap ~2.4x. Over it the document is a parse failure (shrink guard)
 OCR_WORKERS = 4
 
 

@@ -58,7 +58,9 @@ ALLOWED_HOSTS = ("montgomerytn.gov", "mcgtn.org", "d6.mcgtn.org",
 # cityofclarksville.com blocks automated tools: never collect from it. dev2.montgomerytn.gov (the M0 index host)
 # answered 403 from the site on 2026-11-07: stopped for good, never retried by another route.
 DENIED_HOSTS = ("cityofclarksville.com", "dev2.montgomerytn.gov")
-MAX_BYTES = 50 * 1024 * 1024
+# pipeline/fetch-cap-no-margin (limits invariant L16): largest real file 52,041,095 B (city agenda 2021-10-28,
+# clarksville-tn manifest, 2026-11-11); 200 MiB is ~4x. The body is held in memory: fine on the runner.
+MAX_BYTES = 200 * 1024 * 1024
 PROXY_REFUSALS_BEFORE_SKIP = 3
 MAX_REDIRECTS = 5
 RESET_RETRIES_PER_HOST = 3

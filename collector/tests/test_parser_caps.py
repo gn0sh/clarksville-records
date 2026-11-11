@@ -1,5 +1,6 @@
 """pipeline/parser-dos-untimed (security review tip c6cf774, finding 5): pdfinfo calls have a timeout and a hung one
-fails that file closed, reported, never the run; OCR renders no oversized page, whatever its position in the document (pipeline-limits-invariant rule 4)."""
+fails that file closed, reported, never the run; OCR renders no oversized page, whatever its position in the document
+(pipeline-limits-invariant rule 4)."""
 import os
 import shutil
 import subprocess
