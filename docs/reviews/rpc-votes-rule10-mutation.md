@@ -36,6 +36,12 @@ Final run:
 | 10b tail trigger: OUTCOME | killed | test_an_outcome_in_favor_or_motion_after_the_outcome_is_not_confirmed |
 | 10b tail trigger: FAVOUR | killed | test_an_outcome_in_favor_or_motion_after_the_outcome_is_not_confirmed |
 | 10b tail trigger: motion | killed | test_a_pulled_consent_case_after_the_vote_is_not_confirmed |
+| 10b tail trigger: moved | killed | test_a_second_motion_after_the_outcome_is_not_confirmed |
+| 10b tail trigger: seconded | killed | test_a_second_motion_after_the_outcome_is_not_confirmed |
+| outcome words: free text instead of the vocabulary | killed | test_an_outcome_holds_only_its_vocabulary |
+| body runs to an outcome-shaped sentence | killed | test_an_outcome_holds_only_its_vocabulary |
+| rule 9: a vote word after the 'in favor' sentence in the body | killed | test_a_vote_word_after_the_in_favor_sentence_drops_it_as_the_outcome |
+| polarity: table / postpone / continue | killed | test_an_outcome_of_another_kind_of_motion_is_not_confirmed |
 | 10c MEMBER_VOTE: abstain | killed | test_a_member_vote_in_the_lead_is_not_confirmed |
 | 10c MEMBER_VOTE: recus | killed | test_a_member_vote_in_the_lead_is_not_confirmed |
 | 10c MEMBER_VOTE: conflict | killed | test_a_member_vote_in_the_lead_is_not_confirmed |
@@ -65,4 +71,4 @@ Final run:
 | 10d body: list-part member written nowhere | killed | test_a_list_motion_abstention_on_another_listed_case_is_not_confirmed |
 | 10d body: another case on a caseless motion | killed | test_a_caseless_motion_abstention_naming_a_case_names_another_case |
 
-**49 of 49 killed.**
+**55 of 55 killed** (re-run at 2f2cd35+, after the code review of d76f361: six new rows above; a mutant that fails to import is now reported BROKEN, never counted as killed).
