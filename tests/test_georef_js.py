@@ -142,7 +142,7 @@ def test_js_district_for_matches_python(run, i):
     py, js = gr.district_for(*POINTS[i], D, G), run["points"][i]
     assert js["district"] == py["district"] and js["near_boundary"] == py["near_boundary"], (POINTS[i], py, js)
     assert abs(js["distance_m"] - py["distance_m"]) <= 0.11
-    assert all(abs(a - b) <= 0.011 for a, b in zip(js["page_xy"], py["page_xy"]))
+    assert "page_xy" not in js   # nothing on the landing reads it since the map left (no pin to place)
     assert js.get("overlap") == py.get("overlap") and js.get("closest") == py.get("closest")
 
 
