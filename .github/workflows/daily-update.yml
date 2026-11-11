@@ -449,6 +449,18 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
+      # A re-run of an older run ("Re-run all jobs") checks out that day's github.sha, while the update job builds
+      # the plan from today's main. Refuse unless this commit's sender code and site config are main's (note-job/
+      # stale-rerun). The repository is public, so the fetch needs no token (none is kept on disk).
+      - name: Check this commit's sender and config are main's
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin main
+          if ! git diff --quiet HEAD FETCH_HEAD -- config/site.yml sender/; then
+            echo "::error::config/site.yml or sender/ differ from main: an older run was re-run. Nothing sent."
+            exit 2
+          fi
+
       - name: Set up Python (standard library only, no pip step)
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
@@ -505,11 +517,12 @@ jobs:
           if [ "$MORNING_NOTE_SEND" = "true" ]; then live=(--live); fi
           python -E -s -m sender deliver --plan "$PLAN" "${live[@]}"
 
-  # The note job failed: one open "Daily update: morning note failed" issue, a comment on it on later days. A
-  # separate job with fixed text (the job holding the key opens nothing and has no issues permission).
+  # The note job failed or was cancelled (by hand or by GitHub): one open "Daily update: morning note
+  # failed" issue, a comment on it on later days (note-failed/silent-noncompletion). A separate job with fixed text
+  # (the job holding the key opens nothing and has no issues permission). Skipped (locked) never opens one.
   note-failed:
     needs: note
-    if: always() && needs.note.result == 'failure'
+    if: always() && (needs.note.result == 'failure' || needs.note.result == 'cancelled')
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -521,7 +534,7 @@ jobs:
           NOTE_TITLE: "Daily update: morning note failed"
         run: |
           set -eu
-          body="The morning note job failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. The site, the data commit and the deploy are not affected. A note is never sent the next day; see docs/ops/morning-note.md, 'When the note job fails'."
+          body="The morning note job failed or was cancelled: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. The site, the data commit and the deploy are not affected. A note is never sent the next day; see docs/ops/morning-note.md, 'When the note job fails'."
           open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "\"$NOTE_TITLE\" in:title" \
                    --json number,title --jq 'map(select(.title == $ENV.NOTE_TITLE)) | .[0].number // empty')
           if [ -z "$open" ]; then

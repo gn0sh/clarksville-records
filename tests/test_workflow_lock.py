@@ -461,12 +461,15 @@ def test_note_runs_only_in_the_one_locked_case(event, var, ref):
     "abc-1", "abc-1,def_2", "abc-1, def_2", "abc-1 def_2", "abc-1\ndef_2", " abc-1,\n def_2\tghi3 \n", "a*,b?\n[c]",
     "", "  \n",
 ])
-def test_mask_step_masks_every_canary_id_deliver_accepts(value):
+def test_mask_step_masks_every_canary_id_deliver_accepts(value, tmp_path):
     """security-note-workflow L2: every id sender/deliver.py's canary_ids reads (commas or any whitespace, every
-    line) is masked one by one, and nothing else is printed (no glob expansion of an id)."""
+    line) is masked one by one, and nothing else is printed (no glob expansion of an id). The step runs in a folder
+    holding files the glob ids would match (a1, bx, c), so dropping `set -f` fails this test."""
     from sender.deliver import canary_ids
+    for name in ("a1", "bx", "c"):
+        (tmp_path / name).write_text("")
     step = WF["jobs"]["note"]["steps"][0]
-    r = subprocess.run(["bash", "-e", "-c", step["run"]], cwd=ROOT, capture_output=True, text=True, check=True,
+    r = subprocess.run(["bash", "-e", "-c", step["run"]], cwd=tmp_path, capture_output=True, text=True, check=True,
                        env={**os.environ, "CANARY_IDS": value})
     masked = [line.removeprefix("::add-mask::") for line in r.stdout.splitlines()]
     assert all(line.startswith("::add-mask::") for line in r.stdout.splitlines())
@@ -578,7 +581,8 @@ def test_the_plan_file_check_uses_max_plan_bytes():
 @pytest.mark.parametrize("open_issue", ["", "9"])
 def test_note_failure_opens_its_own_issue_from_a_separate_job(tmp_path, open_issue):
     nf = WF["jobs"]["note-failed"]
-    assert nf["needs"] == "note" and nf["if"] == "always() && needs.note.result == 'failure'"
+    assert nf["needs"] == "note"
+    assert nf["if"] == "always() && (needs.note.result == 'failure' || needs.note.result == 'cancelled')"
     assert nf["permissions"] == {"issues": "write"} and "issues" not in WF["jobs"]["note"]["permissions"]
     step = nf["steps"][0]
     assert step["env"]["NOTE_TITLE"] == "Daily update: morning note failed"
@@ -593,3 +597,52 @@ def test_the_note_runbook_exists_with_the_switches():
     for phrase in ("MORNING_NOTE_SEND", "BUTTONDOWN_API_KEY", "MORNING_NOTE_CANARY_IDS", "morning-note",
                    "T4.0", "Canary", "Go-live", "Rollback", "link_hosts", "canary_only", "Deployment branches"):
         assert phrase in text, phrase
+
+
+@pytest.mark.parametrize("result,fires", [("failure", True), ("cancelled", True), ("success", False),
+                                          ("skipped", False)])
+def test_note_failed_fires_on_failure_or_cancel_never_on_skip(result, fires):
+    """note-failed/silent-noncompletion: a cancelled note job (by hand, or by GitHub) is not a silent day."""
+    expr = WF["jobs"]["note-failed"]["if"]
+    py = (expr.replace("always() && ", "").replace("needs.note.result", repr(result))
+          .replace("||", "or").replace("&&", "and"))
+    assert eval(py) == fires                                                     # noqa: S307  our own expression
+
+
+def _git(cwd, *args):
+    return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "-c", "init.defaultBranch=main",
+                           *args], cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def _stale_check(tmp_path, change: str) -> int:
+    """Run the note job's main-match step in a checkout of commit A while origin/main is A plus `change`."""
+    step = _note_steps()["Check this commit's sender and config are main's"]
+    origin, src, work = tmp_path / "origin.git", tmp_path / "src", tmp_path / "work"
+    _git(tmp_path, "init", "-q", "--bare", str(origin))
+    _git(tmp_path, "init", "-q", str(src))
+    for rel in ("config/site.yml", "sender/deliver.py", "data/x.json"):
+        (src / rel).parent.mkdir(parents=True, exist_ok=True)
+        (src / rel).write_text("a\n")
+    _git(src, "add", "-A")
+    _git(src, "commit", "-q", "-m", "A")
+    sha_a = _git(src, "rev-parse", "HEAD")
+    if change:
+        (src / change).write_text("b\n")
+        _git(src, "commit", "-q", "-am", "B")
+    _git(src, "push", "-q", f"file://{origin}", "HEAD:refs/heads/main")
+    _git(tmp_path, "clone", "-q", "--depth=1", "--no-single-branch", f"file://{origin}", str(work))
+    _git(work, "fetch", "-q", "--depth=1", "origin", sha_a)
+    _git(work, "checkout", "-q", "--detach", sha_a)
+    r = subprocess.run(["bash", "-c", step["run"]], cwd=work, capture_output=True, text=True)
+    return r.returncode
+
+
+@pytest.mark.parametrize("change,ok", [("", True), ("data/x.json", True), ("sender/deliver.py", False),
+                                       ("config/site.yml", False)])
+def test_note_refuses_an_older_commit_than_main(tmp_path, change, ok):
+    """note-job/stale-rerun: re-running an older run checks out that day's github.sha while the plan is built from
+    today's main; the note job must stop unless sender/ and config/site.yml are main's. Data commits are fine."""
+    names = [s.get("name") for s in WF["jobs"]["note"]["steps"]]
+    assert names.index("Check out this run's commit") + 1 == names.index(
+        "Check this commit's sender and config are main's")
+    assert (_stale_check(tmp_path, change) == 0) == ok
