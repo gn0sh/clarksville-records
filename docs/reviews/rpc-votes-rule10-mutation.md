@@ -42,6 +42,13 @@ Final run:
 | body runs to an outcome-shaped sentence | killed | test_an_outcome_holds_only_its_vocabulary |
 | rule 9: a vote word after the 'in favor' sentence in the body | killed | test_a_vote_word_after_the_in_favor_sentence_drops_it_as_the_outcome |
 | polarity: table / postpone / continue | killed | test_an_outcome_of_another_kind_of_motion_is_not_confirmed |
+| polarity: a mover naming no kind passes | killed | test_an_outcome_naming_a_kind_the_mover_did_not_is_not_confirmed |
+| polarity: an election or adjournment passing for approval | killed | test_an_election_or_adjournment_passing_for_approval_is_confirmed |
+| kind: table | killed | test_real_2025_03_25_motion_9_tabling_the_case_stays_confirmed |
+| kind: postpone | killed | test_a_mover_and_outcome_of_one_kind_are_confirmed |
+| kind: continue | killed | test_a_mover_and_outcome_of_one_kind_are_confirmed |
+| kind: table needs the verb | killed | test_table_and_continue_as_nouns_are_not_a_kind |
+| 10a mover clause: lack of a second | killed | test_a_lack_of_a_second_in_the_mover_clause_is_not_confirmed |
 | 10c MEMBER_VOTE: abstain | killed | test_a_member_vote_in_the_lead_is_not_confirmed |
 | 10c MEMBER_VOTE: recus | killed | test_a_member_vote_in_the_lead_is_not_confirmed |
 | 10c MEMBER_VOTE: conflict | killed | test_a_member_vote_in_the_lead_is_not_confirmed |
@@ -71,4 +78,7 @@ Final run:
 | 10d body: list-part member written nowhere | killed | test_a_list_motion_abstention_on_another_listed_case_is_not_confirmed |
 | 10d body: another case on a caseless motion | killed | test_a_caseless_motion_abstention_naming_a_case_names_another_case |
 
-**55 of 55 killed** (re-run at 2f2cd35+, after the code review of d76f361: six new rows above; a mutant that fails to import is now reported BROKEN, never counted as killed).
+**62 of 62 killed** (re-run at 071cd2c, after the delta review of 33e13a2, which added seven rows above. The 55 of 55 run
+after the review of d76f361 added six. A mutant that fails to import is reported BROKEN and never counted as killed.
+One mutant from this round, "polarity from the mover's words", survived: the words added nothing over the kind, so the code
+was simplified to the kind and that mutant was dropped.)
