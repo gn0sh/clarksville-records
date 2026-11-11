@@ -218,6 +218,8 @@ class PoliteFetcher:
             if e.code >= 500 and _retry:
                 self.log.append({"event": "retry", "host": host, "url": url, "detail": f"HTTP {e.code}"})
                 return self._raw_get(url, _retry=False, _headers=_headers)
+            if e.code == 304:   # a conditional GET's "unchanged": a request like any other, logged as one
+                self.log.append({"event": "get", "host": host, "url": url, "detail": "304"})
             return e.code, (e.read() or b""), dict(e.headers or {})
         except (urllib.error.URLError, OSError) as e:
             if _is_tunnel_refusal(e):

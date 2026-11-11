@@ -324,3 +324,5 @@ def test_a_304_never_skips_or_shortens_the_crawl_delay():
     times = [t for _, t in sent]
     assert all(b - a >= 30.0 for a, b in zip(times, times[1:]))   # every gap, after a 304 too, is the full delay
     assert clock.slept == [30.0] * 4
+    gets = [(x["url"], x["detail"]) for x in f.log if x["event"] == "get" and x["url"] != sent[0][0]]
+    assert gets == [(u, "304"), (v, "304"), (u, "200"), (v, "304")]   # a 304 is logged as the request it was
