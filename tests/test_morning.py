@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pytest
 
-from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS
-from sitegen import config, fin_views, morning, rpc, views
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, rpc_config_unheld
+from sitegen import config, fin_views, morning, views
 from sitegen.build import BuildError, build, site_url_problems
 from test_rpc_pages import rpc_facts
 from test_site_neutrality import BANNED
@@ -35,7 +35,7 @@ LATE_DOC = "src-ec95c284feb1"              # Riding Mowers award letter: first f
 
 def mv(k, case, **kw):
     base = {"id": f"2026-10-27-regular-motion-{k}", "meeting_id": "2026-10-27-regular", "source_id": "src-fixturemin",
-            "page": 2, "case": None, "case_id": f"2026-10-27-regular-{case.lower()}", "kind": "Motion for approval",
+            "page": 2, "case": case, "case_id": f"2026-10-27-regular-{case.lower()}", "kind": "Motion for approval",
             "moved_by": "Fixture Mover", "seconded_by": "Fixture Seconder", "nays": ["Fixture Nay"], "abstained": [],
             "outcome": "Motion passes for approval 5-1", "tally": "5-1", "confirmed": True, "reasons": []}
     return {**base, **kw}
@@ -81,7 +81,7 @@ def inputs(tmp_path_factory):
     county = json.loads(FIXTURE.read_text(encoding="utf-8"))
     fin = json.loads(FIN.read_text(encoding="utf-8"))
     (d / "manifest.json").write_text(json.dumps(manifest_rows(county, rpcf, agendas, fin)), encoding="utf-8")
-    return {"dir": d, "rpc": {**rpc.load_config("cmc-rpc"), "facts_path": d / "rpc.json"},
+    return {"dir": d, "rpc": {**rpc_config_unheld(), "facts_path": d / "rpc.json"},
             "agendas": d / "agendas.json", "manifests": [d / "manifest.json"], "rpcf": rpcf, "county": county}
 
 

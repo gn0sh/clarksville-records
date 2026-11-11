@@ -494,7 +494,7 @@ def _rpc_documents(rpx, txt: dict, zoning: _Zoning) -> list[dict]:
     by_source: dict[str, list] = {}
     for c in rpx.facts["cases"]:
         by_source.setdefault(c["source_id"], []).append(("case", c))
-    for mv in rpx.facts.get("motions", []):
+    for mv in rpx.motions:      # as the pages show them (Rpc.motions: the hold, the rules marker, record_doubts)
         by_source.setdefault(mv["source_id"], []).append(("motion", mv))
     docs = []
     body, name = rpx.body_key, rpx.body

@@ -7,7 +7,7 @@ what the pages hold back):
   stored `facts["motions"]`. A motion that is not confirmed is not a row at all: no mover, seconder, nay, abstainer,
   outcome or case number of it is in any public file. meetings.csv counts them (`motions_not_confirmed`), so a reader
   sees that the minutes hold more than the file. A record whose `motion_rules` is not the reader's current rules
-  (written before them) exports no motion.
+  (written before them) exports no motion, nor does any record while rpc.yml `hold_motions` is on.
 - Nays and abstainers only as the minutes name them; an empty cell says nothing was named. No column, key or value of
   ours says "unanimous" or carries a tally: the outcome is the minutes' own words.
 - A case is the agenda's own words, with the agenda page that prints it. Names are as printed (the RPC's members have

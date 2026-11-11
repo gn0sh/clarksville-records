@@ -16,7 +16,7 @@ did not shows its type and the county's "Not confirmed" note, with no names, out
 (config.SHOW_UNCONFIRMED_VALUES). The invariant is docs/architecture/rpc-motion-invariant.md; the checks it allows
 on the stored record alone are applied again here (record_doubts), so an older facts file never shows more, and a
 facts file whose `motion_rules` is not the reader's current rules (MOTION_RULES) shows no motion confirmed and none
-under a case.
+under a case; nor does any facts file while rpc.yml `hold_motions` is on (WHY_HELD).
 """
 from __future__ import annotations
 
@@ -57,6 +57,10 @@ MEETING_BUSINESS = frozenset({"Motion to elect", "Motion to adjourn", "Motion to
 # it), so none of its motions is shown confirmed and none is placed under a case (C1 is in doubt too)
 MOTION_RULES = "rpc-motion-invariant-1"
 WHY_STALE = "record written before the motion invariant"
+# rpc.yml `hold_motions: true`: every motion is held as on a stale record (none confirmed, none under a case), whatever
+# the record says, while the votes are re-checked against the minutes. One switch for the pages, the day cards, the
+# morning note and the export (each reads Rpc.motions); qa/site_checks.py restates it.
+WHY_HELD = "held: Planning Commission votes are being re-checked against the minutes"
 
 
 def _surname(name: str) -> str:
@@ -93,11 +97,15 @@ def record_doubts(motions: list[dict]) -> dict[str, tuple[list[str], bool]]:
     return out
 
 
-def shown_motions(motions: list[dict], rules: str | None) -> list[dict]:
+def shown_motions(motions: list[dict], rules: str | None, hold: bool) -> list[dict]:
     """The motions as the pages treat them: one the stored record shows failing the invariant is not confirmed, and
     one whose case is in doubt is placed under no case (record_doubts). `rules`: the record's `motion_rules` (no
     default, so a caller cannot skip it); any other than MOTION_RULES (a record written before the reader's rules)
-    confirms none and places none under a case."""
+    confirms none and places none under a case. `hold` (rpc.yml `hold_motions`, no default either): the same for
+    every motion, with WHY_HELD."""
+    if hold:
+        return [{**mv, "confirmed": False, "reasons": list(mv.get("reasons") or []) + [WHY_HELD], "case_id": None}
+                for mv in motions]
     if rules != MOTION_RULES:
         return [{**mv, "confirmed": False, "reasons": list(mv.get("reasons") or []) + [WHY_STALE], "case_id": None}
                 for mv in motions]
@@ -144,8 +152,12 @@ class Rpc:
             self.cases_by_meeting[c["meeting_id"]].append(c)
         # minutes motions (collector/rpc_minutes.py), as the pages treat them (shown_motions): on their agenda case
         # when the record places them there (case_id: only while nothing doubts the case), else in the meeting's own
-        # list, with no case number
-        self.motions = shown_motions(facts.get("motions", []), facts.get("motion_rules"))
+        # list, with no case number; rpc.yml `hold_motions: true` holds every one (WHY_HELD)
+        hold = cfg.get("hold_motions", False)
+        if not isinstance(hold, bool):
+            raise RpcError(f"rpc.yml hold_motions {hold!r}: true or false")
+        self.held = hold
+        self.motions = shown_motions(facts.get("motions", []), facts.get("motion_rules"), hold)
         self.motions_by_case: dict[str, list[dict]] = defaultdict(list)
         self.motions_by_meeting: dict[str, list[dict]] = defaultdict(list)
         for mv in self.motions:
@@ -204,7 +216,7 @@ class Rpc:
         "Not confirmed" note only, while config.SHOW_UNCONFIRMED_VALUES is off (as for the county's roll calls): no
         names, outcome or case number. Nays only as named; nothing here ever says a vote was unanimous."""
         s = self.sources[mv["source_id"]]
-        shown = mv["confirmed"] or config.SHOW_UNCONFIRMED_VALUES
+        shown = mv["confirmed"] or (config.SHOW_UNCONFIRMED_VALUES and not self.held)   # the hold wins
         src = {"url": f"{s['url']}#page={mv['page']}", "page": mv["page"], "kind": "minutes"}
         return {"id": mv["id"], "kind": mv["kind"], "confirmed": mv["confirmed"], "src": src,
                 "case": mv["case"] if shown and not mv["case_id"] else None,
@@ -299,6 +311,7 @@ class Rpc:
                 "n_meetings": len(self.facts["meetings"]), "n_cases": len(self.facts["cases"]),
                 "n_motions": len(self.motions),
                 "n_motions_confirmed": sum(1 for mv in self.motions if mv["confirmed"]),
+                "motions_held": self.held,
                 "n_docs": len(self.facts["sources"]),
                 "n_link_only": sum(1 for m in self.facts["meetings"] for d in m["documents"]
                                    if not d["fetched"] and d["kind"] != "video"),

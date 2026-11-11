@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from collector.rpc_minutes import link_key
-from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS
+from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, rpc_config_unheld
 from sitegen import config, rpc
 from sitegen.build import BuildError, build
 from test_rpc_pages import rpc_facts
@@ -58,7 +58,7 @@ def site(tmp_path_factory):
     (d / "facts.json").write_text(json.dumps(county), encoding="utf-8")
     out = d / "build" / "site"
     build(d / "facts.json", out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS,
-          rpc={**rpc.load_config("cmc-rpc"), "facts_path": d / "rpc.json"})
+          rpc={**rpc_config_unheld(), "facts_path": d / "rpc.json"})
     return out
 
 
@@ -121,7 +121,7 @@ def test_a_motion_citing_a_page_outside_its_source_fails_the_build(tmp_path):
     p.write_text(json.dumps(facts), encoding="utf-8")
     with pytest.raises(BuildError, match="cases or motions cite"):
         build(FIXTURE, tmp_path / "site", seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS,
-              rpc={**rpc.load_config("cmc-rpc"), "facts_path": p})
+              rpc={**rpc_config_unheld(), "facts_path": p})
 
 
 def test_an_unconfirmed_off_agenda_motion_shows_no_case_number(site):
@@ -160,7 +160,7 @@ def test_record_doubts_restates_the_record_checks():
     d = rpc.record_doubts(ms)
     assert d == {"2026-10-27-regular-motion-1": (["a member named as voting nay is the mover or seconder"], False),
                  "2026-10-27-regular-motion-2": (["a member named as voting nay is the mover or seconder"], False)}
-    shown = {mv["id"]: mv for mv in rpc.shown_motions(ms, rpc.MOTION_RULES)}
+    shown = {mv["id"]: mv for mv in rpc.shown_motions(ms, rpc.MOTION_RULES, False)}
     assert shown["2026-10-27-regular-motion-1"]["case_id"] == "c1"      # the doubt is not about the case
     assert not shown["2026-10-27-regular-motion-1"]["confirmed"] and shown["2026-10-27-regular-motion-4"]["confirmed"]
 
@@ -174,7 +174,7 @@ def test_no_page_says_unanimous_outside_the_minutes_own_words(site):
 
 def test_search_records_carry_no_motion_fields(site):
     facts = json.loads((site.parent.parent / "rpc.json").read_text(encoding="utf-8"))
-    recs = rpc.Rpc({**rpc.load_config("cmc-rpc"), "facts_path": site.parent.parent / "rpc.json"}, facts).search_records()
+    recs = rpc.Rpc({**rpc_config_unheld(), "facts_path": site.parent.parent / "rpc.json"}, facts).search_records()
     blob = json.dumps(recs)
     for value in ("Fixture Mover", "Hidden Mover", "Stale Mover", "Motion passes for approval", "Fixture Nay"):
         assert value not in blob
@@ -182,7 +182,7 @@ def test_search_records_carry_no_motion_fields(site):
 
 def _site_rpc(site: Path) -> dict:
     facts = json.loads((site.parent.parent / "rpc.json").read_text(encoding="utf-8"))
-    return {**facts, "_cfg": rpc.load_config("cmc-rpc")}
+    return {**facts, "_cfg": rpc_config_unheld()}
 
 
 def test_site_checks_rpc_motions_passes_on_the_built_pages(site):
@@ -244,10 +244,10 @@ def test_the_motion_rules_marker_is_one_value_in_the_reader_the_pages_and_the_si
 @pytest.mark.parametrize("rules", [None, "rpc-motion-invariant-0"])
 def test_a_record_without_the_current_motion_rules_confirms_nothing_and_places_nothing(rules):
     ms = [motion(1, case="Z-1-2026", case_id="c1"), motion(2, kind="Motion to adjourn")]
-    shown = rpc.shown_motions(ms, rules)
+    shown = rpc.shown_motions(ms, rules, False)
     assert [(mv["confirmed"], mv["case_id"]) for mv in shown] == [(False, None), (False, None)]
     assert all(rpc.WHY_STALE in mv["reasons"] for mv in shown)
-    assert [mv["confirmed"] for mv in rpc.shown_motions(ms, rpc.MOTION_RULES)] == [True, True]
+    assert [mv["confirmed"] for mv in rpc.shown_motions(ms, rpc.MOTION_RULES, False)] == [True, True]
 
 
 @pytest.fixture(scope="module")
@@ -267,7 +267,7 @@ def stale_site(tmp_path_factory):
     (d / "rpc.json").write_text(json.dumps(facts), encoding="utf-8")
     out = d / "build" / "site"
     build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS,
-          rpc={**rpc.load_config("cmc-rpc"), "facts_path": d / "rpc.json"})
+          rpc={**rpc_config_unheld(), "facts_path": d / "rpc.json"})
     return out
 
 
