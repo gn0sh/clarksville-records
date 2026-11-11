@@ -194,7 +194,8 @@ def councils(facts: dict) -> list[dict]:
     out = []
     for loc in _site_cfg().get("councils") or []:
         c = yaml.safe_load((ROOT / "config" / "localities" / loc / "council.yml").read_text(encoding="utf-8"))
-        out.append({"slug": c["slug"], "prefix": c["slug"] + "/", "facts": load_facts(ROOT / c["facts"])})
+        out.append({"slug": c["slug"], "prefix": c["slug"] + "/", "facts": load_facts(ROOT / c["facts"]),
+                    "held_sentences": c.get("held_sentences")})
     return out
 
 
@@ -986,12 +987,22 @@ def finance_fact_ids(fin: dict | None) -> set[str]:
     return ids
 
 
+def held_sentence(rc: dict, sentences: dict) -> str:
+    """A held roll call's sentence (council.yml held_sentences): its one failed check's, names_resolve and
+    surnames_resolve counted as one, else `other`."""
+    failed = {"names_resolve" if c["check"] == "surnames_resolve" else c["check"]
+              for c in rc["verification"]["checks"] if not c["ok"]}
+    one = next(iter(failed)) if len(failed) == 1 else None
+    return (sentences.get(one) or sentences["other"]) if one else sentences["other"]
+
+
 def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: bool,
                      show_values: bool | None = None, fin: dict | None = None, official_prefix: str = "officials/",
-                     export: bool = True) -> list[str]:
+                     export: bool = True, held_sentences: dict | None = None) -> list[str]:
     """`pages`: the pages built from `facts` (a council's pages are checked against the council's facts, with its
     member pages under `official_prefix`); the token scan always covers every file. `export`: data/facts.json is
-    this facts file's export."""
+    this facts file's export. `held_sentences`: the council's sentence per held check (council.yml), so each held
+    roll call must show its own."""
     if show_values is None:  # the build's switch; the rule itself is restated here, not called from sitegen
         from sitegen.config import SHOW_UNCONFIRMED_VALUES as show_values
     problems = []
@@ -1043,15 +1054,24 @@ def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: 
     confirmed = {r["id"] for r in facts["roll_calls"] if r["verification"]["status"] == "verified"}
     rc_event = {e["id"]: e["ref"] for e in facts["item_events"] if e["type"] == "roll_call"}
     note = "Not confirmed: this page was hard to read."
+    # a council with held_sentences: each held roll call shows the sentence of the check that held it, never the
+    # generic note (the rule restated from council.yml, not called from sitegen: city-verify V5)
+    expected = {r["id"]: held_sentence(r, held_sentences) for r in facts["roll_calls"]
+                if r["verification"]["status"] == "unverified"} if held_sentences else {}
+    every_note = {note, *(held_sentences or {}).values()}
     for rel, pg in pages.items():
         if rel == "review.html":
             continue
         for fid, text in pg.fact_texts:
             rc = rc_event.get(fid, fid.split("/")[0])
             text = html.unescape(text)
-            if rc in unconfirmed and note not in text:
-                problems.append(f"{rel}: {fid} shows an unconfirmed roll call without the 'Not confirmed' note")
-            elif rc in confirmed and (note in text or "*" in text):
+            want = expected.get(rc, note)
+            if rc in unconfirmed and want not in text:
+                problems.append(f"{rel}: {fid} shows an unconfirmed roll call without the 'Not confirmed' note"
+                                + (f" of its check ({want!r})" if rc in expected else ""))
+            elif rc in unconfirmed and rc in expected and any(n in text for n in every_note - {want}):
+                problems.append(f"{rel}: {fid} shows an unconfirmed roll call with another check's note")
+            elif rc in confirmed and (any(n in text for n in every_note) or "*" in text):
                 problems.append(f"{rel}: {fid} shows a confirmed roll call with a '*' or the 'Not confirmed' note")
             if rc in unconfirmed and not show_values and (m := PARSED_VALUE.search(text)):
                 problems.append(f"{rel}: {fid} shows a parsed value {m.group(0)!r} of an unconfirmed roll call")
@@ -2381,7 +2401,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     problems = check_unverified(site, county_pages, facts, internal, fin=finance)
     for c in cs:
         mine = {rel: pg for rel, pg in pages.items() if rel.startswith(c["prefix"])}
-        problems += check_unverified(site, mine, c["facts"], internal, official_prefix=c["prefix"] + "members/", export=False)
+        problems += check_unverified(site, mine, c["facts"], internal, official_prefix=c["prefix"] + "members/",
+                                     export=False, held_sentences=c.get("held_sentences"))
     rep.add("unverified", problems, ("internal build" if internal else "public build") + "".join(f"; {c['slug']}/ against its own facts" for c in cs))
     fact_ids = {o["id"] for o in facts["officials"]}
     roster_only = tuple(sorted({r["official_id"] for r in read_roster(seats_path) if r.get("official_id")} - fact_ids))

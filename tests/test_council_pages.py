@@ -216,14 +216,57 @@ def test_held_roll_calls_show_not_confirmed_and_no_value(site, cpages, city_fact
     assert held
     city_pages = {rel: site_checks.parse(out / rel) for rel in cpages if rel.startswith("city/")}
     problems = site_checks.check_unverified(out, city_pages, city_facts, internal=False,
-                                            official_prefix="city/members/", export=False)
+                                            official_prefix="city/members/", export=False,
+                                            held_sentences=CFG["held_sentences"])
     assert problems == []
     year = {m["id"]: m["date"][:4] for m in city_facts["meetings"]}
     for r in held:
         html = cpages[f"city/meetings/{year[r['meeting_id']]}.html"]
         block = html.split(f'id="{r["id"]}"', 1)[1].split("</article>", 1)[0]
-        assert "Not confirmed: this page was hard to read." in block
+        assert site_checks.held_sentence(r, CFG["held_sentences"]) in block          # its check's sentence (V5)
+        assert "this page was hard to read" not in block
         assert not site_checks.PARSED_VALUE.search(block)
+    # without the council's sentences the check expects the generic note, and so fails on these pages
+    assert site_checks.check_unverified(out, city_pages, city_facts, internal=False, official_prefix="city/members/",
+                                        export=False)
+
+
+ONE = {"one_vote_per_present_member": "Not confirmed: the minutes list a member as present but give no vote for "
+                                      "them here.",
+       "names_resolve": "Not confirmed: a name in this vote does not match a member on the official record.",
+       "attendance_verified": "Not confirmed: this meeting's attendance list could not be matched to the official "
+                              "record.",
+       "outcome_consistent": "Not confirmed: the outcome the minutes state does not match the votes they list."}
+
+
+@pytest.mark.parametrize("failed,sentence", [
+    (["one_vote_per_present_member"], ONE["one_vote_per_present_member"]),
+    (["names_resolve"], ONE["names_resolve"]),
+    (["surnames_resolve"], ONE["names_resolve"]),
+    (["attendance_verified"], ONE["attendance_verified"]),
+    (["outcome_consistent"], ONE["outcome_consistent"]),
+    (["vote_matches_item"], "Not confirmed: the automatic checks did not pass."),
+    (["names_resolve", "one_vote_per_present_member"], "Not confirmed: the automatic checks did not pass."),
+])
+def test_a_held_city_roll_call_gets_the_one_fixed_sentence_of_its_check(failed, sentence):
+    rc = {"verification": {"status": "unverified",
+                           "checks": [{"check": c, "ok": False} for c in failed] + [{"check": "votes_listed", "ok": True}]}}
+    assert CFG["held_sentences"] == {**ONE, "other": "Not confirmed: the automatic checks did not pass."}
+    assert views.held_note(rc, CFG["held_sentences"]) == sentence == site_checks.held_sentence(rc, CFG["held_sentences"])
+    assert views.held_note(rc, None) is None
+    assert views.held_note({"verification": {"status": "verified", "checks": []}}, CFG["held_sentences"]) is None
+
+
+def test_bad_held_sentences_are_refused(tmp_path, monkeypatch):
+    import yaml
+    raw = yaml.safe_load((ROOT / "config" / "localities" / "clarksville-tn" / "council.yml").read_text())
+    d = tmp_path / "localities" / "x"
+    d.mkdir(parents=True)
+    monkeypatch.setattr(config, "CONFIG_DIR", tmp_path)
+    for bad in ({"names_resolve": "Not confirmed: x."}, {"other": "this page was hard to read"}, ["x"]):
+        (d / "council.yml").write_text(yaml.safe_dump({**raw, "held_sentences": bad}))
+        with pytest.raises(ValueError, match="held_sentences"):
+            config.load_council("x")
 
 
 def test_every_name_links_to_its_member_page_and_every_fact_to_its_source(site, cpages, city_facts):
