@@ -26,6 +26,7 @@ title_seats:
 evidence:
   ward: attendance lists
   title: roll calls
+  configured: the minutes that record the seating   # a configured, cited member's seating (agenda-center.yml members)
 latest_words: the latest minutes read   # "seen in attendance lists from X to L, the latest minutes read"
 
 # How each meeting kind (schema meeting.kind, from agenda-center.yml kind_rules) is named on the pages.

@@ -88,8 +88,13 @@ def ward_rows(wards: list[dict], facts: dict, cfg: dict) -> list[dict]:
                          "source": _src(sources, first["source_id"], first["page"]),
                          "last_source": _src(sources, last["source_id"], last["page"]),
                          "dates": "observed", "printed": None, "lines": None, "note": None, "name": None,
-                         "evidence": cfg["evidence"]["ward"], "printed_to": None})
+                         # a record that starts at a configured seating (path N10) is seen first in that record
+                         "evidence": (cfg["evidence"].get("configured", CONFIGURED_EVIDENCE) if first.get("configured")
+                                      else cfg["evidence"]["ward"]), "printed_to": None})
     return rows
+
+
+CONFIGURED_EVIDENCE = "the minutes that record the seating"
 
 
 def title_rows(facts: dict, cfg: dict) -> list[dict]:

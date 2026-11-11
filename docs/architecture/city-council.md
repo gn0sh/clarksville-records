@@ -336,7 +336,9 @@ naming only members whose token now resolves) and, at the CLAUNCH meetings, CLAU
 | + W1/W2 attendance (2020-10-01: 18; 2022-04-07: 6; the other 18 there also lack a vote for DaJuan Little, 13 of them for Vondell Richmond too, both printed "left early") | +24 | |
 | + W2 vote tokens elsewhere | +3 | |
 | After | 1,822 / 2,235 (D1: about 1,823 / 2,237) | 81.5% |
-2026 goes from 14 to 53 of 83. **90% is not reachable this way**: it needs 2,012, 190 more. Of the 413 still held,
+2026 goes from 14 to 53 of 83. **Built (V6, 2026-11-11):** 1,823 of 2,237 (81.5%), 2026 54 of 85: the 66 estimated
+plus the D1 meeting's 2 roll calls (one verified, one held: "HOLLEMNA"); no verified vote changed
+(`tests/test_city_verify_data.py`). **90% is not reachable this way**: it needs 2,012, 190 more. Of the 413 still held,
 272 fail `one_vote_per_present_member` (a member on the attendance list with no vote and no NOTE, often printed
 "left early" or "arrived at"), 248 have a misspelt or unparsed vote name, 100 sit at meetings whose attendance is held,
 52 fail `outcome_consistent`. Each is a printed fact we cannot confirm without guessing who voted how or when a

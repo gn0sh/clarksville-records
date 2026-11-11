@@ -45319,6 +45319,30 @@
       "type": "roll_call"
     },
     {
+      "date": "2026-02-11",
+      "id": "ev-df53b5ec-p2-1",
+      "item_id": "t-a4ee187ec2",
+      "label": "The motion to amend the motion to postpone passed.",
+      "meeting_id": "2026-02-11-special",
+      "order": 1,
+      "page": 2,
+      "ref": "rc-df53b5ec-p2-0",
+      "source_id": "src-df53b5ec7368",
+      "type": "roll_call"
+    },
+    {
+      "date": "2026-02-11",
+      "id": "ev-df53b5ec-p2-3",
+      "item_id": "t-a4ee187ec2",
+      "label": "The motion to recess passed.",
+      "meeting_id": "2026-02-11-special",
+      "order": 3,
+      "page": 2,
+      "ref": "rc-df53b5ec-p2-1",
+      "source_id": "src-df53b5ec7368",
+      "type": "roll_call"
+    },
+    {
       "date": "2026-03-05",
       "id": "ev-209ffc71-p1-0",
       "item_id": "ordinance-39-2025-26",
@@ -53939,7 +53963,7 @@
       "id": "resolution-39-2020-21",
       "link_basis": "number",
       "number": "RESOLUTION 39-2020-21",
-      "title": "D eclaring intent to reimburse $40,000,000 for certain project expenditures with proceeds of general obligation bonds, notes, or other debt obligations",
+      "title": "Declaring intent to reimburse $40,000,000 for certain project expenditures with proceeds of general obligation bonds, notes, or other debt obligations",
       "year": 2020
     },
     {
@@ -56538,6 +56562,13 @@
       "number": null,
       "title": "CONSENT AGENDA City Clerk",
       "year": 2022
+    },
+    {
+      "id": "t-a4ee187ec2",
+      "link_basis": "title",
+      "number": null,
+      "title": "MINUTES",
+      "year": 2026
     },
     {
       "id": "t-a66c151782",
@@ -69622,9 +69653,9 @@
           "status": "present"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "page": 1,
-          "raw_name": "J eff Henley",
+          "raw_name": "Jeff Henley",
           "status": "present"
         },
         {
@@ -69661,8 +69692,7 @@
         "checks": [
           {
             "check": "names_well_formed",
-            "detail": "J eff Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -69679,7 +69709,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -74677,7 +74707,7 @@
           "status": "present"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "page": 1,
           "raw_name": "StaceyStreetman",
           "status": "present"
@@ -74710,8 +74740,7 @@
         "checks": [
           {
             "check": "names_well_formed",
-            "detail": "StaceyStreetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -74729,11 +74758,11 @@
           },
           {
             "check": "surnames_resolve",
-            "detail": "1 printed as surnames: not resolved: StaceyStreetman (no roster entry)",
-            "ok": false
+            "detail": "1 printed as surnames: StaceyStreetman read as StaceyStreetman (Stacey Streetman), word break ignored",
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -83034,6 +83063,124 @@
       "video_url": "https://cpmedia.azureedge.net/clarksvilletn/eb64a83b80.mp4"
     },
     {
+      "agenda_source_id": "src-d0356f9016e4",
+      "agenda_url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2887,plainText=false)",
+      "attendance": [
+        {
+          "official_id": "city-jimmy-brown",
+          "page": 1,
+          "raw_name": "BROWN",
+          "status": "present"
+        },
+        {
+          "official_id": "city-tim-chandler",
+          "page": 1,
+          "raw_name": "CHANDLER",
+          "status": "present"
+        },
+        {
+          "official_id": "city-jerry-haywood",
+          "page": 1,
+          "raw_name": "HAYWOOD",
+          "status": "present"
+        },
+        {
+          "official_id": "city-travis-holleman",
+          "page": 1,
+          "raw_name": "HOLLEMAN",
+          "status": "present"
+        },
+        {
+          "official_id": "city-keri-lovato",
+          "page": 1,
+          "raw_name": "LOVATO",
+          "status": "present"
+        },
+        {
+          "official_id": "city-ambar-marquis",
+          "page": 1,
+          "raw_name": "MARQUIS",
+          "status": "present"
+        },
+        {
+          "official_id": "city-carlos-peters",
+          "page": 1,
+          "raw_name": "PETERS",
+          "status": "present"
+        },
+        {
+          "official_id": "city-joe-pitts",
+          "page": 1,
+          "raw_name": "PITTS",
+          "status": "present"
+        },
+        {
+          "official_id": "city-joe-shakeenab",
+          "page": 1,
+          "raw_name": "SHAKEENAB",
+          "status": "present"
+        },
+        {
+          "official_id": "city-wanda-smith",
+          "page": 1,
+          "raw_name": "SMITH",
+          "status": "present"
+        },
+        {
+          "official_id": "city-stacey-streetman",
+          "page": 1,
+          "raw_name": "STREETMAN",
+          "status": "present"
+        },
+        {
+          "official_id": "city-brian-zacharias",
+          "page": 1,
+          "raw_name": "ZACHARIAS",
+          "status": "present"
+        }
+      ],
+      "attendance_status": "extracted",
+      "body": "Clarksville City Council",
+      "date": "2026-02-11",
+      "id": "2026-02-11-special",
+      "kind": "special",
+      "listing_source": "civicclerk",
+      "minutes_status": "read",
+      "minutes_url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3068,plainText=false)",
+      "source_id": "src-df53b5ec7368",
+      "stated_absent_count": null,
+      "title": "Special Session",
+      "verification": {
+        "checks": [
+          {
+            "check": "names_well_formed",
+            "ok": true
+          },
+          {
+            "check": "one_entry_per_official",
+            "ok": true
+          },
+          {
+            "check": "present_listed",
+            "detail": "12 present, 0 absent",
+            "ok": true
+          },
+          {
+            "check": "presiding_resolves",
+            "detail": "Joe Pitts by the attendance of 2025-01-02",
+            "ok": true
+          },
+          {
+            "check": "surnames_resolve",
+            "detail": "12 printed as surnames: 3 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06",
+            "ok": true
+          }
+        ],
+        "status": "verified"
+      },
+      "video_url": "https://cpmedia.azureedge.net/clarksvilletn/dc06087750.mp4"
+    },
+    {
       "agenda_source_id": "src-66fd22a69023",
       "agenda_url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2919,plainText=false)",
       "attendance": [],
@@ -83076,7 +83223,7 @@
           "status": "present"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "page": 1,
           "raw_name": "CLAUNCH",
           "status": "present"
@@ -83157,8 +83304,7 @@
         "checks": [
           {
             "check": "names_well_formed",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -83176,11 +83322,11 @@
           },
           {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06; not resolved: CLAUNCH (no roster entry)",
-            "ok": false
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06; CLAUNCH: by the configured member Eric Claunch (seated 2026-02-19, minutes p. 3)",
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "video_url": "https://cpmedia.azureedge.net/clarksvilletn/b900a5678c.mp4"
     },
@@ -83228,7 +83374,7 @@
           "status": "present"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "page": 1,
           "raw_name": "CLAUNCH",
           "status": "present"
@@ -83309,8 +83455,7 @@
         "checks": [
           {
             "check": "names_well_formed",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -83328,11 +83473,11 @@
           },
           {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06; not resolved: CLAUNCH (no roster entry)",
-            "ok": false
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06; CLAUNCH: by the configured member Eric Claunch (seated 2026-02-19, minutes p. 3)",
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "video_url": "https://cpmedia.azureedge.net/clarksvilletn/29f2861502.mp4"
     },
@@ -83380,7 +83525,7 @@
           "status": "present"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "page": 1,
           "raw_name": "CLAUNCH",
           "status": "present"
@@ -83461,8 +83606,7 @@
         "checks": [
           {
             "check": "names_well_formed",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -83480,11 +83624,11 @@
           },
           {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06; not resolved: CLAUNCH (no roster entry)",
-            "ok": false
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06; CLAUNCH: by the configured member Eric Claunch (seated 2026-02-19, minutes p. 3)",
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "video_url": "https://cpmedia.azureedge.net/clarksvilletn/f284bab59c.mp4"
     },
@@ -83532,7 +83676,7 @@
           "status": "present"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "page": 1,
           "raw_name": "CLAUNCH",
           "status": "present"
@@ -83613,8 +83757,7 @@
         "checks": [
           {
             "check": "names_well_formed",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -83632,11 +83775,11 @@
           },
           {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06; not resolved: CLAUNCH (no roster entry)",
-            "ok": false
+            "detail": "13 printed as surnames: 3 by the attendance of 2025-01-02; 9 by the attendance of 2025-02-06; CLAUNCH: by the configured member Eric Claunch (seated 2026-02-19, minutes p. 3)",
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "video_url": "https://cpmedia.azureedge.net/clarksvilletn/ed3a7d0510.mp4"
     },
@@ -117031,7 +117174,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -117056,7 +117199,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -117078,7 +117221,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -117103,7 +117246,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -117116,7 +117259,7 @@
       },
       "page": 4,
       "seconded_by": {
-        "official_id": null,
+        "official_id": "city-jeff-henley",
         "raw_name": "Henley"
       },
       "source_id": "src-da71ebde7953",
@@ -117125,7 +117268,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -117142,15 +117285,15 @@
           },
           {
             "check": "seconder_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_resolves",
             "detail": "Henley",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -117172,7 +117315,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -117197,7 +117340,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -117219,7 +117362,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -117244,7 +117387,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -117266,7 +117409,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -117291,7 +117434,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -117313,7 +117456,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -117338,7 +117481,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -117360,7 +117503,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -117385,7 +117528,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -117407,7 +117550,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -117432,7 +117575,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -117445,7 +117588,7 @@
       },
       "page": 6,
       "seconded_by": {
-        "official_id": null,
+        "official_id": "city-jeff-henley",
         "raw_name": "Henley"
       },
       "source_id": "src-da71ebde7953",
@@ -117454,7 +117597,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -117471,15 +117614,15 @@
           },
           {
             "check": "seconder_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_resolves",
             "detail": "Henley",
-            "ok": false
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -117501,7 +117644,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -117526,7 +117669,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -117548,7 +117691,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -117573,7 +117716,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -117581,7 +117724,7 @@
       "item_id": "resolution-23-2020-21",
       "meeting_id": "2020-10-01-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-jeff-henley",
         "raw_name": "Henley"
       },
       "page": 8,
@@ -117595,7 +117738,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -117603,12 +117746,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -117620,7 +117763,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -117642,7 +117785,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -117667,7 +117810,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       }
     },
     {
@@ -132419,7 +132562,7 @@
       "item_id": "ordinance-96-2021-22",
       "meeting_id": "2022-04-07-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-stacey-streetman",
         "raw_name": "Streetman"
       },
       "page": 3,
@@ -132430,7 +132573,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -132438,12 +132581,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -132463,7 +132606,7 @@
       "item_id": "ordinance-97-2021-22",
       "meeting_id": "2022-04-07-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-stacey-streetman",
         "raw_name": "Streetman"
       },
       "page": 4,
@@ -132474,7 +132617,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -132482,12 +132625,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -132507,7 +132650,7 @@
       "item_id": "ordinance-98-2021-22",
       "meeting_id": "2022-04-07-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-stacey-streetman",
         "raw_name": "Streetman"
       },
       "page": 4,
@@ -132518,7 +132661,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -132526,12 +132669,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -132551,7 +132694,7 @@
       "item_id": "ordinance-99-2021-22",
       "meeting_id": "2022-04-07-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-stacey-streetman",
         "raw_name": "Streetman"
       },
       "page": 4,
@@ -132562,7 +132705,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -132570,12 +132713,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -132595,7 +132738,7 @@
       "item_id": "ordinance-100-2021-22",
       "meeting_id": "2022-04-07-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-stacey-streetman",
         "raw_name": "Streetman"
       },
       "page": 5,
@@ -132606,7 +132749,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -132614,12 +132757,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -132639,7 +132782,7 @@
       "item_id": "ordinance-102-2021-22",
       "meeting_id": "2022-04-07-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-stacey-streetman",
         "raw_name": "Streetman"
       },
       "page": 5,
@@ -132650,7 +132793,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -132658,12 +132801,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -132683,7 +132826,7 @@
       "item_id": "ordinance-103-2021-22",
       "meeting_id": "2022-04-07-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-stacey-streetman",
         "raw_name": "Streetman"
       },
       "page": 6,
@@ -132694,7 +132837,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -132702,12 +132845,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -132727,7 +132870,7 @@
       "item_id": "ordinance-105-2021-22",
       "meeting_id": "2022-04-07-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-stacey-streetman",
         "raw_name": "Streetman"
       },
       "page": 6,
@@ -132738,7 +132881,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -132746,12 +132889,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -132771,7 +132914,7 @@
       "item_id": "ordinance-106-2021-22",
       "meeting_id": "2022-04-07-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-stacey-streetman",
         "raw_name": "Streetman"
       },
       "page": 6,
@@ -132782,7 +132925,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -132790,12 +132933,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -132815,7 +132958,7 @@
       "item_id": "resolution-54-2021-22",
       "meeting_id": "2022-04-07-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-stacey-streetman",
         "raw_name": "Streetman"
       },
       "page": 7,
@@ -132826,7 +132969,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -132834,12 +132977,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -132859,7 +133002,7 @@
       "item_id": "resolution-55-2021-22",
       "meeting_id": "2022-04-07-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-stacey-streetman",
         "raw_name": "Streetman"
       },
       "page": 7,
@@ -132870,7 +133013,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -132878,12 +133021,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -132903,7 +133046,7 @@
       "item_id": "ordinance-92-2021-22",
       "meeting_id": "2022-04-07-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-stacey-streetman",
         "raw_name": "Streetman"
       },
       "page": 7,
@@ -132914,7 +133057,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -132922,12 +133065,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -132958,7 +133101,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -132991,7 +133134,7 @@
       "item_id": "ordinance-93-2021-22",
       "meeting_id": "2022-04-07-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-stacey-streetman",
         "raw_name": "Streetman"
       },
       "page": 8,
@@ -133002,7 +133145,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -133010,12 +133153,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -133035,7 +133178,7 @@
       "item_id": "ordinance-94-2021-22",
       "meeting_id": "2022-04-07-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-stacey-streetman",
         "raw_name": "Streetman"
       },
       "page": 9,
@@ -133046,7 +133189,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -133054,12 +133197,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -133079,7 +133222,7 @@
       "item_id": "resolution-56-2021-22",
       "meeting_id": "2022-04-07-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-stacey-streetman",
         "raw_name": "Streetman"
       },
       "page": 10,
@@ -133090,7 +133233,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -133098,12 +133241,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -133123,7 +133266,7 @@
       "item_id": "resolution-58-2021-22",
       "meeting_id": "2022-04-07-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-stacey-streetman",
         "raw_name": "Streetman"
       },
       "page": 10,
@@ -133134,7 +133277,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -133142,12 +133285,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -133178,7 +133321,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -157425,7 +157568,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -157469,7 +157612,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -157513,7 +157656,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -157557,7 +157700,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -157601,7 +157744,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -157645,7 +157788,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -157689,7 +157832,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -157733,7 +157876,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -157777,7 +157920,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -157821,7 +157964,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -157865,7 +158008,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -157909,7 +158052,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -157953,7 +158096,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -157997,7 +158140,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158041,7 +158184,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158085,7 +158228,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158129,7 +158272,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158173,7 +158316,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158217,7 +158360,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158261,7 +158404,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158305,7 +158448,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158349,7 +158492,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158393,7 +158536,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158437,7 +158580,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158481,7 +158624,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158525,7 +158668,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158569,7 +158712,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158613,7 +158756,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158657,7 +158800,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158701,7 +158844,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158745,7 +158888,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158789,7 +158932,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158833,7 +158976,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158877,7 +159020,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158921,7 +159064,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -158965,7 +159108,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -159009,7 +159152,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -159053,7 +159196,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -159086,7 +159229,7 @@
       "item_id": "ordinance-58-2025-26",
       "meeting_id": "2026-06-04-regular",
       "moved_by": {
-        "official_id": null,
+        "official_id": "city-eric-claunch",
         "raw_name": "Claunch"
       },
       "page": 4,
@@ -159097,7 +159240,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -159105,12 +159248,12 @@
           },
           {
             "check": "mover_present",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_resolves",
             "detail": "Claunch",
-            "ok": false
+            "ok": true
           },
           {
             "check": "seconder_present",
@@ -159141,7 +159284,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -159185,7 +159328,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -159229,7 +159372,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -159273,7 +159416,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -159317,7 +159460,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -159414,6 +159557,19 @@
       "id": "city-deanna-mclaughlin",
       "name": "Deanna McLaughlin",
       "surname": "McLaughlin",
+      "title": "City Council Member"
+    },
+    {
+      "aliases": [],
+      "given": "Eric",
+      "id": "city-eric-claunch",
+      "name": "Eric Claunch",
+      "name_source": {
+        "page": 3,
+        "quote": "Eric Claunch was selected as the Ward 2 replacement and was sworn in by Mayor Pitts.",
+        "source_id": "src-df53b5ec7368"
+      },
+      "surname": "Claunch",
       "title": "City Council Member"
     },
     {
@@ -281561,12 +281717,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -281599,7 +281754,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -281639,7 +281794,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "AYE",
           "value": "yes"
@@ -281696,12 +281851,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -281734,7 +281888,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -281774,7 +281928,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "AYE",
           "value": "yes"
@@ -281831,12 +281985,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -281869,7 +282022,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -281909,7 +282062,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "AYE",
           "value": "yes"
@@ -281966,12 +282119,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -282004,7 +282156,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -282038,7 +282190,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "AYE",
           "value": "yes"
@@ -282101,12 +282253,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -282139,7 +282290,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -282179,7 +282330,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "AYE",
           "value": "yes"
@@ -282236,12 +282387,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -282274,7 +282424,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -282314,7 +282464,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "AYE",
           "value": "yes"
@@ -282371,12 +282521,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -282409,7 +282558,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -282449,7 +282598,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "AYE",
           "value": "yes"
@@ -282506,12 +282655,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -282544,7 +282692,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -282572,7 +282720,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "AYE",
           "value": "yes"
@@ -282641,12 +282789,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -282679,7 +282826,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -282719,7 +282866,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "AYE",
           "value": "yes"
@@ -282776,12 +282923,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -282814,7 +282960,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -282854,7 +283000,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "AYE",
           "value": "yes"
@@ -282911,12 +283057,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -282949,7 +283094,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -282989,7 +283134,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "AYE",
           "value": "yes"
@@ -283046,12 +283191,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -283084,7 +283228,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -283160,7 +283304,7 @@
           "value": "no"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "NAY",
           "value": "no"
@@ -283181,12 +283325,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -283219,7 +283362,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -283259,7 +283402,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "AYE",
           "value": "yes"
@@ -283316,12 +283459,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -283354,7 +283496,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -283394,7 +283536,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "AYE",
           "value": "yes"
@@ -283451,12 +283593,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -283489,7 +283630,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -283523,7 +283664,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "AYE",
           "value": "yes"
@@ -283586,12 +283727,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -283624,7 +283764,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -283658,7 +283798,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "AYE",
           "value": "yes"
@@ -283721,12 +283861,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -283759,7 +283898,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -283787,7 +283926,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "AYE",
           "value": "yes"
@@ -283856,12 +283995,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Henley",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -283894,7 +284032,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -283922,7 +284060,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jeff-henley",
           "raw_name": "Henley",
           "raw_value": "AYE",
           "value": "yes"
@@ -349117,12 +349255,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -349155,7 +349292,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -349225,7 +349362,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -349252,12 +349389,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -349290,7 +349426,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -349360,7 +349496,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -349387,12 +349523,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -349425,7 +349560,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -349489,7 +349624,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -349522,12 +349657,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -349560,7 +349694,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -349630,7 +349764,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -349657,12 +349791,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -349736,7 +349869,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -349787,12 +349920,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -349890,7 +350022,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -349917,12 +350049,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -350014,7 +350145,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -350047,12 +350178,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -350150,7 +350280,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -350177,12 +350307,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -350280,7 +350409,7 @@
           "value": "no"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "NAY",
           "value": "no"
@@ -350307,12 +350436,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -350398,7 +350526,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -350431,12 +350559,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -350528,7 +350655,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -350555,12 +350682,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -350652,7 +350778,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -350679,12 +350805,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -350776,7 +350901,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -350803,12 +350928,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -350900,7 +351024,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -350927,12 +351051,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -351024,7 +351147,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -351051,12 +351174,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -351148,7 +351270,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -351175,11 +351297,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "R reynolds, Streetman",
+            "detail": "R reynolds",
             "ok": false
           },
           {
@@ -351272,7 +351394,7 @@
           "value": "no"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "NAY",
           "value": "no"
@@ -351299,12 +351421,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -351378,7 +351499,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -351423,12 +351544,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -351502,7 +351622,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -351547,12 +351667,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -351644,7 +351763,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -351671,12 +351790,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -351768,7 +351886,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -351795,12 +351913,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -351833,7 +351950,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -351903,7 +352020,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -351930,12 +352047,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -351997,7 +352113,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -352054,12 +352170,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "Streetman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -352092,7 +352207,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -352162,7 +352277,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-stacey-streetman",
           "raw_name": "Streetman",
           "raw_value": "AYE",
           "value": "yes"
@@ -358956,7 +359071,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "H olleman, Pits",
+            "detail": "Pits; H olleman read as Holleman (Travis Holleman), word break ignored",
             "ok": false
           },
           {
@@ -358965,8 +359080,7 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-travis-holleman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
@@ -359007,7 +359121,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-travis-holleman",
           "raw_name": "H olleman",
           "raw_value": "AYE",
           "value": "yes"
@@ -364749,8 +364863,8 @@
           },
           {
             "check": "names_resolve",
-            "detail": "H olleman",
-            "ok": false
+            "detail": "H olleman read as Holleman (Travis Holleman), word break ignored",
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -364758,8 +364872,7 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-travis-holleman",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
@@ -364784,7 +364897,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -364842,7 +364955,7 @@
           "value": "no"
         },
         {
-          "official_id": null,
+          "official_id": "city-travis-holleman",
           "raw_name": "H olleman",
           "raw_value": "NAY",
           "value": "no"
@@ -418849,8 +418962,8 @@
           },
           {
             "check": "names_resolve",
-            "detail": "LOV ATO",
-            "ok": false
+            "detail": "LOV ATO read as LOVATO (Keri Lovato), word break ignored",
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -418858,8 +418971,7 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-keri-lovato",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
@@ -418884,7 +418996,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -418918,7 +419030,7 @@
           "value": "no"
         },
         {
-          "official_id": null,
+          "official_id": "city-keri-lovato",
           "raw_name": "LOV ATO",
           "raw_value": "NAY",
           "value": "no"
@@ -425723,8 +425835,8 @@
           },
           {
             "check": "names_resolve",
-            "detail": "H AYWOOD",
-            "ok": false
+            "detail": "H AYWOOD read as HAYWOOD (Jerry Haywood), word break ignored",
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -425732,8 +425844,7 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-jerry-haywood",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
@@ -425758,7 +425869,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -425774,7 +425885,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jerry-haywood",
           "raw_name": "H AYWOOD",
           "raw_value": "AYE",
           "value": "yes"
@@ -426127,8 +426238,8 @@
           },
           {
             "check": "names_resolve",
-            "detail": "H OLLEMAN",
-            "ok": false
+            "detail": "H OLLEMAN read as HOLLEMAN (Travis Holleman), word break ignored",
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -426136,7 +426247,7 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-brian-zacharias, city-travis-holleman",
+            "detail": "city-brian-zacharias",
             "ok": false
           },
           {
@@ -426184,7 +426295,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-travis-holleman",
           "raw_name": "H OLLEMAN",
           "raw_value": "AYE",
           "value": "yes"
@@ -439251,7 +439362,7 @@
           },
           {
             "check": "names_resolve",
-            "detail": "H AYWOOD, MARQIS",
+            "detail": "MARQIS; H AYWOOD read as HAYWOOD (Jerry Haywood), word break ignored",
             "ok": false
           },
           {
@@ -439260,7 +439371,7 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-ambar-marquis, city-jerry-haywood",
+            "detail": "city-ambar-marquis",
             "ok": false
           },
           {
@@ -439296,7 +439407,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jerry-haywood",
           "raw_name": "H AYWOOD",
           "raw_value": "AYE",
           "value": "yes"
@@ -439358,25 +439469,24 @@
       ]
     },
     {
-      "id": "rc-209ffc71-p2-0",
-      "item_id": "ordinance-39-2025-26",
-      "meeting_id": "2026-03-05-regular",
-      "motion_id": "mo-209ffc71-p1-0",
+      "id": "rc-df53b5ec-p2-0",
+      "item_id": "t-a4ee187ec2",
+      "meeting_id": "2026-02-11-special",
+      "motion_id": null,
       "outcome": "passed",
-      "outcome_text": "The motion to adopt ORDINANCE 39-2025-26 (FIRST READING) passed.",
+      "outcome_text": "The motion to amend the motion to postpone passed.",
       "page": 2,
-      "source_id": "src-209ffc71a926",
+      "source_id": "src-df53b5ec7368",
       "stated_tally": null,
       "verification": {
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -439388,7 +439498,137 @@
           },
           {
             "check": "outcome_consistent",
-            "detail": "passed with 13 yes and 0 no",
+            "detail": "passed with 10 yes and 2 no",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer",
+            "ok": true
+          },
+          {
+            "check": "vote_matches_item",
+            "ok": true
+          },
+          {
+            "check": "voters_recorded_present",
+            "ok": true
+          },
+          {
+            "check": "votes_listed",
+            "ok": true
+          }
+        ],
+        "status": "verified"
+      },
+      "votes": [
+        {
+          "official_id": "city-jimmy-brown",
+          "raw_name": "BROWN",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-tim-chandler",
+          "raw_name": "CHANDLER",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-keri-lovato",
+          "raw_name": "LOVATO",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-ambar-marquis",
+          "raw_name": "MARQUIS",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-carlos-peters",
+          "raw_name": "PETERS",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-joe-pitts",
+          "raw_name": "PITTS",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-joe-shakeenab",
+          "raw_name": "SHAKEENAB",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-wanda-smith",
+          "raw_name": "SMITH",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-stacey-streetman",
+          "raw_name": "STREETMAN",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-brian-zacharias",
+          "raw_name": "ZACHARIAS",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-jerry-haywood",
+          "raw_name": "HAYWOOD",
+          "raw_value": "NAY",
+          "value": "no"
+        },
+        {
+          "official_id": "city-travis-holleman",
+          "raw_name": "HOLLEMAN",
+          "raw_value": "NAY",
+          "value": "no"
+        }
+      ]
+    },
+    {
+      "id": "rc-df53b5ec-p2-1",
+      "item_id": "t-a4ee187ec2",
+      "meeting_id": "2026-02-11-special",
+      "motion_id": null,
+      "outcome": "passed",
+      "outcome_text": "The motion to recess passed.",
+      "page": 2,
+      "source_id": "src-df53b5ec7368",
+      "stated_tally": null,
+      "verification": {
+        "checks": [
+          {
+            "check": "attendance_verified",
+            "ok": true
+          },
+          {
+            "check": "names_resolve",
+            "detail": "HOLLEMNA",
+            "ok": false
+          },
+          {
+            "check": "one_entry_per_official",
+            "ok": true
+          },
+          {
+            "check": "one_vote_per_present_member",
+            "detail": "city-travis-holleman",
+            "ok": false
+          },
+          {
+            "check": "outcome_consistent",
+            "detail": "passed with 9 yes and 3 no",
             "ok": true
           },
           {
@@ -439425,7 +439665,135 @@
           "value": "yes"
         },
         {
+          "official_id": "city-ambar-marquis",
+          "raw_name": "MARQUIS",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-carlos-peters",
+          "raw_name": "PETERS",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-joe-pitts",
+          "raw_name": "PITTS",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-joe-shakeenab",
+          "raw_name": "SHAKEENAB",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-wanda-smith",
+          "raw_name": "SMITH",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-stacey-streetman",
+          "raw_name": "STREETMAN",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-brian-zacharias",
+          "raw_name": "ZACHARIAS",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-jerry-haywood",
+          "raw_name": "HAYWOOD",
+          "raw_value": "NAY",
+          "value": "no"
+        },
+        {
           "official_id": null,
+          "raw_name": "HOLLEMNA",
+          "raw_value": "NAY",
+          "value": "no"
+        },
+        {
+          "official_id": "city-keri-lovato",
+          "raw_name": "LOVATO",
+          "raw_value": "NAY",
+          "value": "no"
+        }
+      ]
+    },
+    {
+      "id": "rc-209ffc71-p2-0",
+      "item_id": "ordinance-39-2025-26",
+      "meeting_id": "2026-03-05-regular",
+      "motion_id": "mo-209ffc71-p1-0",
+      "outcome": "passed",
+      "outcome_text": "The motion to adopt ORDINANCE 39-2025-26 (FIRST READING) passed.",
+      "page": 2,
+      "source_id": "src-209ffc71a926",
+      "stated_tally": null,
+      "verification": {
+        "checks": [
+          {
+            "check": "attendance_verified",
+            "ok": true
+          },
+          {
+            "check": "names_resolve",
+            "ok": true
+          },
+          {
+            "check": "one_entry_per_official",
+            "ok": true
+          },
+          {
+            "check": "one_vote_per_present_member",
+            "ok": true
+          },
+          {
+            "check": "outcome_consistent",
+            "detail": "passed with 13 yes and 0 no",
+            "ok": true
+          },
+          {
+            "check": "reading_used",
+            "detail": "text-layer",
+            "ok": true
+          },
+          {
+            "check": "vote_matches_item",
+            "ok": true
+          },
+          {
+            "check": "voters_recorded_present",
+            "ok": true
+          },
+          {
+            "check": "votes_listed",
+            "ok": true
+          }
+        ],
+        "status": "verified"
+      },
+      "votes": [
+        {
+          "official_id": "city-jimmy-brown",
+          "raw_name": "BROWN",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-tim-chandler",
+          "raw_name": "CHANDLER",
+          "raw_value": "AYE",
+          "value": "yes"
+        },
+        {
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -439506,12 +439874,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -439544,7 +439911,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -439554,7 +439921,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -439641,11 +440008,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH, PITT",
+            "detail": "PITT",
             "ok": false
           },
           {
@@ -439695,7 +440062,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -439776,12 +440143,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -439814,7 +440180,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -439830,7 +440196,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -439911,12 +440277,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -439949,7 +440314,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -439959,7 +440324,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -440046,12 +440411,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -440084,7 +440448,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -440100,7 +440464,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -440181,12 +440545,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -440219,7 +440582,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -440235,7 +440598,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -440316,11 +440679,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH, AYWOOD",
+            "detail": "AYWOOD",
             "ok": false
           },
           {
@@ -440371,7 +440734,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -440452,12 +440815,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -440490,7 +440852,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -440506,7 +440868,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -440587,11 +440949,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH, H",
+            "detail": "H",
             "ok": false
           },
           {
@@ -440642,7 +441004,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -440675,7 +441037,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
@@ -440687,7 +441049,7 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-ambar-marquis, city-brian-zacharias, city-carlos-peters, city-jerry-haywood, city-jimmy-brown, city-joe-shakeenab, city-keri-lovato, city-stacey-streetman, city-tim-chandler, city-travis-holleman, city-wanda-smith",
+            "detail": "city-ambar-marquis, city-brian-zacharias, city-carlos-peters, city-eric-claunch, city-jerry-haywood, city-jimmy-brown, city-joe-shakeenab, city-keri-lovato, city-stacey-streetman, city-tim-chandler, city-travis-holleman, city-wanda-smith",
             "ok": false
           },
           {
@@ -440731,12 +441093,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -440769,7 +441130,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -440785,7 +441146,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -440866,12 +441227,12 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH, H AYWOOD",
-            "ok": false
+            "detail": "H AYWOOD read as HAYWOOD (Jerry Haywood), word break ignored",
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -440879,7 +441240,7 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-jerry-haywood, city-tim-chandler",
+            "detail": "city-tim-chandler",
             "ok": false
           },
           {
@@ -440915,13 +441276,13 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jerry-haywood",
           "raw_name": "H AYWOOD",
           "raw_value": "AYE",
           "value": "yes"
@@ -440996,12 +441357,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -441045,7 +441405,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -441126,12 +441486,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -441175,7 +441534,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -441256,12 +441615,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -441305,7 +441663,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -441380,12 +441738,12 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH, H AYWOOD",
-            "ok": false
+            "detail": "H AYWOOD read as HAYWOOD (Jerry Haywood), word break ignored",
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -441393,8 +441751,7 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-jerry-haywood",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
@@ -441419,7 +441776,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -441435,13 +441792,13 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jerry-haywood",
           "raw_name": "H AYWOOD",
           "raw_value": "AYE",
           "value": "yes"
@@ -441516,12 +441873,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -441554,7 +441910,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -441570,7 +441926,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -441651,12 +442007,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -441689,7 +442044,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -441699,7 +442054,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -441786,12 +442141,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -441824,7 +442178,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -441840,7 +442194,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -441921,12 +442275,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -441959,7 +442312,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -441975,7 +442328,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -442056,12 +442409,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -442094,7 +442446,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -442110,7 +442462,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -442191,12 +442543,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -442229,7 +442580,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -442245,7 +442596,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -442326,12 +442677,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -442364,7 +442714,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -442380,7 +442730,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -442461,12 +442811,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -442499,7 +442848,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -442509,7 +442858,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -442596,12 +442945,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -442634,7 +442982,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -442674,7 +443022,7 @@
           "value": "no"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "NAY",
           "value": "no"
@@ -442731,12 +443079,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -442769,7 +443116,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -442827,7 +443174,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "NAY",
           "value": "no"
@@ -442866,12 +443213,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -442944,7 +443290,7 @@
           "value": "no"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "NAY",
           "value": "no"
@@ -443001,12 +443347,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -443039,7 +443384,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -443091,7 +443436,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "NAY",
           "value": "no"
@@ -443136,12 +443481,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -443174,7 +443518,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -443190,7 +443534,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -443271,12 +443615,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -443309,7 +443652,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -443325,7 +443668,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -443406,12 +443749,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -443444,7 +443786,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -443490,7 +443832,7 @@
           "value": "no"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "NAY",
           "value": "no"
@@ -443541,12 +443883,12 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH, H AYWOOD",
-            "ok": false
+            "detail": "H AYWOOD read as HAYWOOD (Jerry Haywood), word break ignored",
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -443554,8 +443896,7 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-jerry-haywood",
-            "ok": false
+            "ok": true
           },
           {
             "check": "outcome_consistent",
@@ -443580,7 +443921,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -443596,13 +443937,13 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jerry-haywood",
           "raw_name": "H AYWOOD",
           "raw_value": "AYE",
           "value": "yes"
@@ -443677,12 +444018,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -443726,7 +444066,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -443807,12 +444147,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -443856,7 +444195,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -443937,12 +444276,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -443986,7 +444324,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -444061,12 +444399,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -444110,7 +444447,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -444185,12 +444522,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -444234,7 +444570,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -444315,12 +444651,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -444364,7 +444699,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -444445,12 +444780,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -444483,7 +444817,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -444499,7 +444833,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -444580,12 +444914,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -444618,7 +444951,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -444628,7 +444961,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -444715,12 +445048,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -444753,7 +445085,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -444769,7 +445101,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -444850,12 +445182,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -444898,7 +445229,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -444979,12 +445310,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -445017,7 +445347,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -445033,7 +445363,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -445114,11 +445444,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH, SHAKEENAQB",
+            "detail": "SHAKEENAQB",
             "ok": false
           },
           {
@@ -445169,7 +445499,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -445250,12 +445580,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -445288,7 +445617,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -445352,7 +445681,7 @@
           "value": "no"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "NAY",
           "value": "no"
@@ -445385,12 +445714,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -445423,7 +445751,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -445439,7 +445767,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -445520,12 +445848,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -445558,7 +445885,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -445574,7 +445901,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -445655,12 +445982,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -445693,7 +446019,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -445733,7 +446059,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "NAY",
           "value": "no"
@@ -445790,12 +446116,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -445828,7 +446153,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -445844,7 +446169,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -445925,12 +446250,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -445963,7 +446287,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -445991,7 +446315,7 @@
           "value": "no"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "NAY",
           "value": "no"
@@ -446060,12 +446384,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -446098,7 +446421,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -446108,7 +446431,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -446195,12 +446518,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -446233,7 +446555,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -446243,7 +446565,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -446330,11 +446652,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CAHNDLER, CLAUNCH, H AYWOOD, MARUIS",
+            "detail": "CAHNDLER, MARUIS; H AYWOOD read as HAYWOOD (Jerry Haywood), word break ignored",
             "ok": false
           },
           {
@@ -446343,7 +446665,7 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-ambar-marquis, city-jerry-haywood, city-tim-chandler",
+            "detail": "city-ambar-marquis, city-tim-chandler",
             "ok": false
           },
           {
@@ -446385,13 +446707,13 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-jerry-haywood",
           "raw_name": "H AYWOOD",
           "raw_value": "AYE",
           "value": "yes"
@@ -446466,11 +446788,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "BR4OWN, CLAUNCH",
+            "detail": "BR4OWN",
             "ok": false
           },
           {
@@ -446521,7 +446843,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -446602,12 +446924,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -446640,7 +446961,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -446686,7 +447007,7 @@
           "value": "no"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "NAY",
           "value": "no"
@@ -446737,11 +447058,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH, LOVTO",
+            "detail": "LOVTO",
             "ok": false
           },
           {
@@ -446792,7 +447113,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -446873,11 +447194,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH, H",
+            "detail": "H",
             "ok": false
           },
           {
@@ -446928,7 +447249,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -446961,7 +447282,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
@@ -446973,7 +447294,7 @@
           },
           {
             "check": "one_vote_per_present_member",
-            "detail": "city-ambar-marquis, city-brian-zacharias, city-carlos-peters, city-jerry-haywood, city-jimmy-brown, city-joe-shakeenab, city-keri-lovato, city-stacey-streetman, city-tim-chandler, city-travis-holleman, city-wanda-smith",
+            "detail": "city-ambar-marquis, city-brian-zacharias, city-carlos-peters, city-eric-claunch, city-jerry-haywood, city-jimmy-brown, city-joe-shakeenab, city-keri-lovato, city-stacey-streetman, city-tim-chandler, city-travis-holleman, city-wanda-smith",
             "ok": false
           },
           {
@@ -447017,12 +447338,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -447055,7 +447375,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -447071,7 +447391,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -447152,12 +447472,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -447190,7 +447509,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -447206,7 +447525,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -447287,11 +447606,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH, CAHNDLER",
+            "detail": "CAHNDLER",
             "ok": false
           },
           {
@@ -447336,7 +447655,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -452791,6 +453110,26 @@
       "sha256": "eccc59a53b9abbb12753064ab77a4d82d620d46e8ce0122dcf66a8c76b370916",
       "text_layer": "text",
       "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3065,plainText=false)"
+    },
+    {
+      "fetched_at": "2026-11-11",
+      "id": "src-d0356f9016e4",
+      "kind": "agenda",
+      "meeting_date": "2026-02-11",
+      "pages": 1,
+      "sha256": "d0356f9016e473baca11175eacbf3d14347f24bfe82b9c358ea6f70a2f72d3f1",
+      "text_layer": "text",
+      "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2887,plainText=false)"
+    },
+    {
+      "fetched_at": "2026-11-11",
+      "id": "src-df53b5ec7368",
+      "kind": "minutes",
+      "meeting_date": "2026-02-11",
+      "pages": 3,
+      "sha256": "df53b5ec7368c467a6a665b3532916a2adae93949319b6ef4d607f0719392c65",
+      "text_layer": "text",
+      "url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3068,plainText=false)"
     },
     {
       "fetched_at": "2026-11-09",

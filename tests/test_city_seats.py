@@ -459,3 +459,24 @@ def test_an_open_record_seen_after_l_is_dated_to_where_it_was_seen():
     s = _seats(rows, latest)
     m = s.current_of_seat("city-mayor")
     assert s.dates_text(m) == "seen in roll calls from 2020-09-01 to 2020-09-01"
+
+
+def test_ward_2_starts_with_the_configured_member_on_the_seating_date_with_its_source(real_city):
+    """city-verify M1: Eric Claunch (configured, cited: the 2026-02-11 Special Session minutes, resumed 2026-02-19,
+    p. 3) holds Ward 2 from 2026-02-19, the record citing that page; Deanna McLaughlin's record ends before it."""
+    facts, wards, cix = real_city
+    src = next(s for s in facts["sources"] if s["url"].endswith("fileId=3068,plainText=false)"))
+    rows = [r for r in cix._rows if r["seat"] == "ward-2"]
+    claunch = next(r for r in rows if r["official_id"] == "city-eric-claunch")
+    assert claunch["start"] == "2026-02-19" and claunch["source"] == f"{src['url']}#page=3"
+    assert claunch["end"] is None and cix.seats.current_of_seat("ward-2")["official_id"] == "city-eric-claunch"
+    mcl = next(r for r in rows if r["official_id"] == "city-deanna-mclaughlin")
+    assert mcl["end"] is not None and mcl["end"] < "2026-02-19"
+    assert site_checks.expected_ward_holders(wards, facts)[2] == "city-eric-claunch"
+    assert cix.seats.header_text("city-eric-claunch") == (
+        "Ward 2, seen in the minutes that record the seating from 2026-02-19 to 2026-02-19; listed by name in "
+        "attendance lists to 2026-06-04, the latest minutes read")
+    head = views.official("city-eric-claunch", cix)["name_source"]
+    assert head["quote"] == "Eric Claunch was selected as the Ward 2 replacement and was sworn in by Mayor Pitts."
+    assert head["src"]["url"] == f"{src['url']}#page=3" and head["date"] == "2026-02-11" and head["kind"] == "minutes"
+    assert views.official("city-deanna-mclaughlin", cix)["name_source"] is None

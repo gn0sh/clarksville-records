@@ -1005,6 +1005,23 @@
     "video_url": "https://cpmedia.azureedge.net/clarksvilletn/eb64a83b80.mp4"
   },
   {
+    "agenda_id": "cc-3067",
+    "agenda_name": "Agenda",
+    "agenda_url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2887,plainText=false)",
+    "date": "2026-02-11",
+    "event_id": 3067,
+    "has_media": true,
+    "has_previous_versions": false,
+    "kind": "special",
+    "listed_as": "General / Special Session",
+    "minutes_name": "Minutes",
+    "minutes_url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3068,plainText=false)",
+    "page1_required": "City Council - Special Session",
+    "source": "civicclerk",
+    "title": "Special Session",
+    "video_url": "https://cpmedia.azureedge.net/clarksvilletn/dc06087750.mp4"
+  },
+  {
     "agenda_id": "cc-2906",
     "agenda_name": "Agenda",
     "agenda_url": "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2919,plainText=false)",

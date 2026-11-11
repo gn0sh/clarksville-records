@@ -29,6 +29,7 @@ def subset(facts: dict, meeting_ids) -> dict:
     src = {m["source_id"] for m in meetings} | {m.get("agenda_source_id") for m in meetings}
     src |= {x["source_id"] for x in rcs + mos + evs}
     src |= {f["source_id"] for i in items for f in (i.get("zoning") or {}).values() if f}
+    src |= {o["name_source"]["source_id"] for o in facts["officials"] if o.get("name_source")}
     return {**facts, "fixture": True, "meetings": meetings, "roll_calls": rcs, "motions": mos, "item_events": evs,
             "items": items, "sources": [s for s in facts["sources"] if s["id"] in src], "corrections": []}
 
