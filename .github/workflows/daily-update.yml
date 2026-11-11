@@ -460,16 +460,17 @@ jobs:
           persist-credentials: false
 
       # A re-run of an older run ("Re-run all jobs") checks out that day's github.sha and runs that day's workflow
-      # file, while the update job builds the plan from today's main. Refuse unless this commit's tree outside data/
-      # (sender code, site config, workflows, everything else) is main's (note-job/stale-rerun,
-      # note-job/stale-rerun-workflow-gap, main-protect/pr-check-path-scope: the same pathspec as the PR check). The
+      # file, while the update job builds the plan from today's main. Refuse unless this commit's sender code, site
+      # config and workflows are main's (note-job/stale-rerun, note-job/stale-rerun-workflow-gap). Narrower than the
+      # PR check on purpose (main-protect/stale-check-availability): the job loads nothing else from the checkout
+      # (the staged sender below), and a docs PR merged during the run must not cancel the day's note. The
       # repository is public, so the fetch needs no token (none is kept on disk).
       - name: Check this commit's sender and config are main's
         run: |
           set -euo pipefail
           git fetch --no-tags --depth=1 origin main
-          if ! git diff --quiet HEAD FETCH_HEAD -- . ':(exclude)data/'; then
-            echo "::error::files outside data/ differ from main: an older run was re-run. Nothing sent."
+          if ! git diff --quiet HEAD FETCH_HEAD -- sender/ config/site.yml .github/; then
+            echo "::error::sender/, config/site.yml or .github/ differ from main: an older run was re-run. Nothing sent."
             exit 2
           fi
 
@@ -530,23 +531,36 @@ jobs:
         with:
           python-version: "3.12"
 
-      # main-protect/pr-check-path-scope: no Python in this job imports from the checkout. `python -m sender` (or -c)
-      # puts the current folder first on sys.path, so a root json.py or argparse.py would shadow the standard library
-      # in the step that holds the key. Only sender/'s own regular *.py files (checked by the two steps above; no
-      # symlink, no __pycache__ .pyc, no subfolder) are copied to a folder outside the checkout, and every python run
-      # below is `python -I -S -c` with that folder alone put on sys.path: -I drops the current folder, the PYTHON*
-      # variables and the user site, -S site-packages and .pth files. The current folder is used only to read
-      # config/site.yml (data). See docs/architecture/main-protect-invariant.md.
+      # main-protect/pr-check-path-scope, main-protect/staged-lib-integrity: no Python in this job imports or reads
+      # anything from the checkout's working folder. `python -m sender` (or -c) puts the current folder first on
+      # sys.path, so a root json.py would shadow the standard library in the step that holds the key. Before the plan
+      # is downloaded, this step takes sender/'s top-level regular *.py files and config/site.yml from this commit's
+      # git objects (git archive; checked by the two steps above), never a symlink, subfolder or __pycache__, into a
+      # new random folder NOTE_LIB, and records a sha256 digest of that folder's whole listing and contents
+      # (NOTE_LIB_SUM). Every later Python step first re-checks the digest (exact: a file added, changed or removed,
+      # a __pycache__ or a symlink stops the job), then runs `python -I -S -X pycache_prefix=<new empty folder> -c`
+      # with $NOTE_LIB/py alone added to sys.path and --config $NOTE_LIB/site.yml: -I drops the current folder, the
+      # PYTHON* variables and the user site, -S site-packages and .pth files, pycache_prefix any .pyc beside the
+      # sources. See docs/architecture/main-protect-invariant.md.
       - name: Stage the sender outside the checkout
         run: |
           set -euo pipefail
-          lib="$RUNNER_TEMP/note-lib"
-          rm -rf "$lib"
-          mkdir -p "$lib/sender"
-          find sender -maxdepth 1 -type f -name '*.py' -exec cp -- {} "$lib/sender/" \;
-          if ! [ -f "$lib/sender/__init__.py" ] || ! [ -f "$lib/sender/__main__.py" ]; then
-            echo "::error::sender/ has no __init__.py or __main__.py. Nothing sent."; exit 2
+          lib=$(mktemp -d "$RUNNER_TEMP/note-lib.XXXXXXXXXX")
+          src=$(mktemp -d "$RUNNER_TEMP/note-src.XXXXXXXXXX")
+          git archive --format=tar HEAD -- sender config/site.yml | tar -x -C "$src"
+          mkdir -p "$lib/py/sender"
+          find "$src/sender" -maxdepth 1 -type f -name '*.py' -exec cp -- {} "$lib/py/sender/" \;
+          if [ -f "$src/config/site.yml" ] && ! [ -L "$src/config/site.yml" ]; then
+            cp -- "$src/config/site.yml" "$lib/site.yml"
           fi
+          rm -rf "$src"
+          for f in py/sender/__init__.py py/sender/__main__.py site.yml; do
+            if ! [ -f "$lib/$f" ]; then echo "::error::$f is not in this commit. Nothing sent."; exit 2; fi
+          done
+          sum=$(cd "$lib" && { find . -printf '%y %m %p\n' | LC_ALL=C sort
+                find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum; } | sha256sum)
+          echo "NOTE_LIB=$lib" >> "$GITHUB_ENV"
+          echo "NOTE_LIB_SUM=${sum%% *}" >> "$GITHUB_ENV"
 
       # Outside the checkout: the plan comes from the job that parses untrusted PDFs.
       - name: Download the morning note plan
@@ -561,9 +575,14 @@ jobs:
       - name: Validate the plan files
         run: |
           set -euo pipefail
+          sum=$(cd "$NOTE_LIB" && { find . -printf '%y %m %p\n' | LC_ALL=C sort
+                find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum; } | sha256sum)
+          if [ "${sum%% *}" != "$NOTE_LIB_SUM" ]; then
+            echo "::error::the staged sender changed after it was staged. Nothing sent."; exit 2
+          fi
           dir="$RUNNER_TEMP/morning-send"
-          max=$(python -I -S -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.common import MAX_PLAN_BYTES; print(int(MAX_PLAN_BYTES))' \
-                  "$RUNNER_TEMP/note-lib")
+          max=$(python -I -S -X pycache_prefix="$(mktemp -d)" -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.common import MAX_PLAN_BYTES; print(int(MAX_PLAN_BYTES))' \
+                  "$NOTE_LIB/py")
           bad=0
           while IFS= read -r -d '' f; do echo "::error::not a regular file or folder: ${f#"$dir"/}"; bad=1
           done < <(find "$dir" -mindepth 1 ! -type f ! -type d -print0)
@@ -587,8 +606,14 @@ jobs:
       # The dry run first: checks the plan (check_plan) and prints what would be sent; no connection, no secret.
       - name: Check the plan (dry run, no secret)
         run: |
-          python -I -S -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.__main__ import main; sys.exit(main(sys.argv[2:]))' \
-            "$RUNNER_TEMP/note-lib" deliver --plan "$PLAN"
+          set -euo pipefail
+          sum=$(cd "$NOTE_LIB" && { find . -printf '%y %m %p\n' | LC_ALL=C sort
+                find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum; } | sha256sum)
+          if [ "${sum%% *}" != "$NOTE_LIB_SUM" ]; then
+            echo "::error::the staged sender changed after it was staged. Nothing sent."; exit 2
+          fi
+          python -I -S -X pycache_prefix="$(mktemp -d)" -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.__main__ import main; sys.exit(main(sys.argv[2:]))' \
+            "$NOTE_LIB/py" deliver --plan "$PLAN" --config "$NOTE_LIB/site.yml"
 
       # The only step with the API key. --live only when the variable is exactly 'true' (the job's own `if:` already
       # requires it; this is the second lock). Totals only in the log.
@@ -598,10 +623,16 @@ jobs:
           MORNING_NOTE_CANARY_IDS: ${{ secrets.MORNING_NOTE_CANARY_IDS }}
           MORNING_NOTE_SEND: ${{ vars.MORNING_NOTE_SEND }}
         run: |
+          set -euo pipefail
+          sum=$(cd "$NOTE_LIB" && { find . -printf '%y %m %p\n' | LC_ALL=C sort
+                find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum; } | sha256sum)
+          if [ "${sum%% *}" != "$NOTE_LIB_SUM" ]; then
+            echo "::error::the staged sender changed after it was staged. Nothing sent."; exit 2
+          fi
           live=()
           if [ "$MORNING_NOTE_SEND" = "true" ]; then live=(--live); fi
-          python -I -S -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.__main__ import main; sys.exit(main(sys.argv[2:]))' \
-            "$RUNNER_TEMP/note-lib" deliver --plan "$PLAN" "${live[@]}"
+          python -I -S -X pycache_prefix="$(mktemp -d)" -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.__main__ import main; sys.exit(main(sys.argv[2:]))' \
+            "$NOTE_LIB/py" deliver --plan "$PLAN" --config "$NOTE_LIB/site.yml" "${live[@]}"
 
   # The note job failed or was cancelled (by hand or by GitHub): one open "Daily update: morning note
   # failed" issue, a comment on it on later days (note-failed/silent-noncompletion). A separate job with fixed text
