@@ -324,6 +324,29 @@ def test_one_list_that_does_not_name_a_member_shows_no_wrong_holder_and_the_next
     assert _shown(cix2)["ward-1"] == oid and cix2.seats.is_current(oid)
 
 
+def test_a_member_left_out_of_the_real_2026_07_09_list_is_held_over_not_former(real_city, tmp_path):
+    """city-seats/one-list-drop-prev-incomplete (code review SHOULD, acc8832): the 2026-07-06 list prints 13 names and
+    resolves 12 (CLAULNCH is the 13th). A 2026-07-09 list missing one member resolves 12 too: counted against the 07-06
+    list's resolved names only it looked complete and closed the member's record (Served previously). Counted against
+    every name 07-06 prints, it is short: the member is held over, neither current nor former."""
+    facts, wards = real_city[:2]
+    oid = "city-brian-zacharias"
+    assert {w["official_id"] for w in wards if w["date"] == "2026-07-09"} >= {oid}
+    assert council.latest_list_incomplete(wards, facts, "2026-07-09", "2026-07-06") is False   # the real list
+    facts, wards = _drop(facts, wards, oid, "2026-07-09")
+    assert len({w["official_id"] for w in wards if w["date"] == "2026-07-09"}) == 12
+    assert len({w["official_id"] for w in wards if w["date"] == "2026-07-06"}) == 12      # CLAULNCH unresolved
+    assert council.latest_list_incomplete(wards, facts, "2026-07-09", "2026-07-06") is True
+    rows, latest = council.holder_rows(wards, facts, CFG)
+    rec = next(r for r in rows if r["official_id"] == oid)
+    assert latest == "2026-07-09" and rec["end"] is None and rec["held_over"] and rec["seen_to"] == "2026-07-06"
+    cix = council.load({**CFG}, facts, wards)
+    assert not cix.seats.is_current(oid) and _shown(cix)["ward-1"] is None
+    sec = _sections(cix)
+    assert oid not in sec["current"] and oid not in sec["previous"]
+    assert site_checks.check_current_holders(_home(tmp_path, _shown(cix)), facts, [], _cs(facts, wards))[0] == []
+
+
 def test_a_cut_off_latest_list_holds_over_and_a_complete_one_closes():
     """The latest list names fewer members than the one before (cut off): b is held over, not current and not
     former. A complete latest list (a new member named in full, nobody unresolved) that leaves b out closes b's

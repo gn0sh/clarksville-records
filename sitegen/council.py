@@ -158,16 +158,21 @@ def extend_by_listings(rows: list[dict], wards: list[dict], facts: dict, cfg: di
 def latest_list_incomplete(wards: list[dict], facts: dict, latest: str | None, prev: str | None) -> bool:
     """True when the latest attendance list cannot show that a member of the list before it has gone: it prints a
     name that resolves to no official (a misspelling such as ZAHARIAS, or a new name the record cannot place yet),
-    or it resolves fewer members than the list before it (a list cut off, or a page not read)."""
+    or it resolves fewer members than the list before it prints (a list cut off, or a page not read). The list before
+    it is counted by every name it prints, resolved or not (city-seats/one-list-drop-prev-incomplete: the 2026-07-06
+    list resolves 12 of its 13 names, CLAULNCH being the 13th, so a 2026-07-09 list missing one member must not look
+    complete against it). An unresolved name is counted once per printed spelling: on a day with two lists it may be
+    a member another list resolves, which only makes the latest list look short (held over, never closed)."""
     if latest is None or prev is None:
         return False
     officials = {o["id"] for o in facts["officials"]}
     resolved = {d: {w["official_id"] for w in wards if w["date"] == d and w.get("official_id") in officials}
                 for d in (latest, prev)}
-    unresolved = any(w["date"] == latest and w.get("official_id") not in officials for w in wards) or any(
-        not a.get("official_id") for m in facts.get("meetings", []) if m.get("date") == latest
-        for a in m.get("attendance") or [])
-    return unresolved or len(resolved[latest]) < len(resolved[prev])
+    unresolved = {d: {w.get("raw_name") or "" for w in wards if w["date"] == d and w.get("official_id") not in officials}
+                  | {a.get("raw_name") or "" for m in facts.get("meetings", []) if m.get("date") == d
+                     for a in m.get("attendance") or [] if not a.get("official_id")}
+                  for d in (latest, prev)}
+    return bool(unresolved[latest]) or len(resolved[latest]) < len(resolved[prev]) + len(unresolved[prev])
 
 
 def holder_rows(wards: list[dict], facts: dict, cfg: dict) -> tuple[list[dict], str | None]:
