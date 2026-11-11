@@ -137,6 +137,15 @@ against a fake HTTP layer, sockets refused):
   `stamp_secret`. The adapter is imported only on the live path (a subprocess test checks a dry run loads no
   `socket`, `ssl`, `http` or `urllib`).
 
+- T4.8 review of a4b3571 (APPROVE; fixed before go-live, each with a test): the deliver stage rebuilds every
+  edition's subject from the repository's `site_name` and `text.subject` (now read by the stdlib reader, held to
+  PyYAML parity; `site_name` must stay one word or be quoted) and refuses any other (subject-unchecked); `ids` mode
+  rechecks `latest_send` before each draft and each send (ids-no-recheck); `http.client.HTTPException` is wrapped
+  like every other transport error (httpexception-unwrapped); a URL with a control, space, non-ASCII or backslash
+  character is refused before parsing, and urllib's own `Request` must agree on scheme, host and `/v1/` path
+  (parse-differential). Point 5 (the provider ignores `filters`) is the T4.0 negative probe, not code: nothing the
+  API answers before the send can show who a filter reached.
+
 Verify in T4.0 probe (built from the documented or assumed shape; every one fails closed if wrong, so a wrong guess
 stops the send rather than widening it):
 1. Listings are `{"results": [...], "next": <url or null>, "count": n}` and `next` is an absolute
