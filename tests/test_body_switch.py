@@ -141,7 +141,7 @@ def test_city_and_rpc_homes_are_their_hubs(site, html):
     rpc_page = html["rpc/index.html"]
     rpc = hub_cards(rpc_page)
     assert list(rpc)[:2] == ["meetings", "cases"]
-    assert "funded through the city and county budgets, so it has no budget page" in plain(rpc_page)
+    assert "No budget of the Regional Planning Commission is collected, so none is shown." in plain(rpc_page)
     assert '<p class="hub-kicker">Regional Planning Commission</p>' in rpc_page
 
 

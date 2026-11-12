@@ -383,7 +383,7 @@ switch:
       short: RPC
       kicker: Regional Planning Commission
       about: The Clarksville-Montgomery County Regional Planning Commission.
-      note: "The Regional Planning Commission is funded through the city and county budgets, so it has no budget page here."
+      note: "No budget of the Regional Planning Commission is collected, so none is shown."
       cards:
         - {key: meetings, title: Meetings, text: "Meetings, agendas and minutes listed on the commission's own page."}
         - {key: cases, title: Rezoning cases, text: "Case items on each meeting's agenda, as the agenda prints them."}
