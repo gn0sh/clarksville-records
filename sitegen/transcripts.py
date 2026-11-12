@@ -2,7 +2,7 @@
 
 Rules:
 - Every transcript line is shown as the speech-recognition software wrote it, except that street addresses and phone
-  numbers are replaced by a placeholder that sends the reader to the video at that time (sitegen/privacy.py, done in
+  numbers are replaced by a placeholder that sends the reader to the video at that time (collector/privacy.py, done in
   load, so no copy of the text anywhere on the site carries them), labelled "Transcript", with its time
   linked to that moment of the meeting's own video (`<video_url>#t=<whole seconds>`) when that video_url is an https
   .mp4 on a host in config.VIDEO_HOSTS with no "#" in it (video_ok); otherwise the times are text only, no links. Nothing is summarised,
@@ -35,7 +35,9 @@ import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from . import config, privacy, views
+from collector import privacy
+
+from . import config, views
 
 CALL_ON_SECONDS = 20
 FOLDER = "transcripts"

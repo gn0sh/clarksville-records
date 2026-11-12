@@ -1,4 +1,4 @@
-"""Private details in transcript text (security review M1, privacy/transcript-private-addresses; sitegen/privacy.py).
+"""Private details in transcript text (security review M1, privacy/transcript-private-addresses; collector/privacy.py).
 
 Rules under test: street addresses and phone numbers are masked everywhere in transcript text before anything is
 shown or quoted (transcript pages, call-on excerpts on member pages); never ordinance numbers, dates, dollar amounts or
@@ -13,7 +13,7 @@ import pytest
 
 from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, ROOT
 from qa import site_checks
-from sitegen import privacy
+from collector import privacy
 from sitegen import transcripts as tx
 from sitegen.build import build
 
@@ -70,6 +70,26 @@ def test_addresses_and_phone_numbers_are_masked(text, masked):
 ])
 def test_numbers_that_are_not_addresses_are_left(text):
     assert privacy.mask(text) == text
+
+
+_RUN = "twenty-two and " * 60
+
+
+@pytest.mark.parametrize("text", [
+    _RUN, _RUN.rstrip(), _RUN + "Sample", _RUN + "Sample Court", "I live at " + _RUN, "my address is " + _RUN + "x",
+    " ".join(["five"] * 60), " ".join(["five"] * 60) + " Example Street", "call " + " ".join(["nine"] * 60) + " now",
+])
+def test_long_number_word_runs_finish_quickly(text):
+    """privacy/mask-regex-redos: a run of spelled-out numbers with no street (or a long spelled digit run) cannot make
+    the masker or the site check's restated rule backtrack exponentially."""
+    import time
+    for f in (privacy.spans, privacy.mask, site_checks.private_details):
+        t0 = time.perf_counter()
+        f(text)
+        assert time.perf_counter() - t0 < 0.5, f.__qualname__
+    t0 = time.perf_counter()
+    privacy.mask_segments([[0.0, 1.0, text], [1.0, 2.0, text]])
+    assert time.perf_counter() - t0 < 0.5
 
 
 def test_an_address_split_over_two_lines_is_masked_on_both_and_times_kept():

@@ -2253,7 +2253,7 @@ class TranscriptLines(HTMLParser):
             self._li["label"] += d
 
 
-# privacy/transcript-private-addresses, restated here (not imported from sitegen/privacy.py): a house number (digits,
+# privacy/transcript-private-addresses, restated here (not imported from collector/privacy.py): a house number (digits,
 # not part of a dollar amount, decimal, comma number or hyphenated number, and not after a word that names something
 # else), one to three street-name words that are not function words or units, and a street suffix; or a phone number.
 _PRIV_NOT_NAME = set("""a an the and or but so of to in on at by for from with into off over up down out about than

@@ -66,8 +66,12 @@ CUES = r"(?:(?:live[sd]?|living|reside[sd]?|residing)\s+(?:at|on)|address\s+is)"
 
 _NUM_WORD = r"(?:" + "|".join(_NUMBER_WORDS) + r")(?:-(?:" + "|".join(_DIGIT_WORDS[2:]) + r"))?"
 _DIGITS = r"\d{1,5}(?![.,]\d)\b"
-_NUM_TOKEN = r"(?:" + _DIGITS + "|" + _NUM_WORD + r"\b)"
-# a house number: number tokens, Whisper may put "or" for "oh" between spelled ones ("five or five")
+# One number token, atomic ((?>...), Python 3.11+): once a token has matched it is never re-split, so "twenty-two"
+# is one token, not "twenty" + "-two" as well, and a long run of number words with no street after it fails in linear
+# time instead of trying every split (privacy/mask-regex-redos). The word boundary is inside the group, so "sixteen"
+# still matches as "sixteen" and not as "six".
+_NUM_TOKEN = r"(?>" + _DIGITS + "|" + _NUM_WORD + r"\b)"
+# a house number: number tokens (each atomic), Whisper may put "or" for "oh" between spelled ones ("five or five")
 _NUM_SEQ = _NUM_TOKEN + r"(?:(?:[\s-]+|\s+or\s+)" + _NUM_TOKEN + r"){0,5}"
 _NUMBERS = r"(?P<num>" + _NUM_SEQ + r"(?:\s*(?:,|and|&)\s*" + _NUM_SEQ + r")*)"
 _WORD = (r"(?!(?:" + "|".join(sorted(NOT_A_STREET_WORD, key=len, reverse=True)).replace("'", "['’]")
