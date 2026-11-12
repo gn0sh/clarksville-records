@@ -1106,6 +1106,10 @@ def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: 
                 problems.append(f"{rel}: {fid} shows an unconfirmed roll call with another check's note")
             elif rc in confirmed and (any(n in text for n in every_note) or "*" in text):
                 problems.append(f"{rel}: {fid} shows a confirmed roll call with a '*' or the 'Not confirmed' note")
+            # a Moved or Seconded row (shown only for a verified motion) never carries a roll call's note as its own:
+            # a held roll call's outcome is named as the roll call's (city-verify/moved-row-note-ambiguous)
+            if fid.endswith(("/moved", "/seconded")) and any(n in text for n in every_note):
+                problems.append(f"{rel}: {fid} carries a roll call's 'Not confirmed' note as if the motion were held")
             if rc in unconfirmed and not show_values and (m := PARSED_VALUE.search(text)):
                 problems.append(f"{rel}: {fid} shows a parsed value {m.group(0)!r} of an unconfirmed roll call")
     # SHOW_UNCONFIRMED_VALUES off: the public export carries no value, outcome or tally of an unconfirmed roll call
