@@ -481,7 +481,8 @@ def test_official_record_is_the_minutes_else_the_citys_video(built):
     assert rec == {"url": video, "label": "the city's meeting video (MP4)", "ext": "video"}
     assert views.official_record("transcript.html.j2", {}, {**ctx, "doc": None})["url"] == video
     # a video the site may not link: back to the agenda; the meeting page itself is unchanged
-    rec = views.official_record("transcript.html.j2", {}, {**ctx, "video_ok": False, "doc": {"url": agenda, "kind": "agenda"}})
+    no_link = {**ctx, "video_ok": False, "doc": {"url": agenda, "kind": "agenda"}}
+    rec = views.official_record("transcript.html.j2", {}, no_link)
     assert rec["url"] == agenda
     assert views.official_record("meeting.html.j2", {}, {**ctx, "doc": {"url": agenda, "kind": "agenda"}})["url"] == agenda
 

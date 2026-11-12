@@ -1087,8 +1087,9 @@ def about(facts) -> dict:
 
 
 # Template groups for the "Unofficial copy. Official record:" line (base.html.j2). A meeting page links its own minutes
-# PDF (a transcript page with no minutes posted links the city's video instead); a page of a body's meetings, items, votes or officials links the body's minutes listing (site.record, which a
-# council overrides); finance and contract pages link the county's budget page and purchasing archive.
+# PDF (a transcript page with no minutes posted links the city's video instead); a page of a body's meetings, items,
+# votes or officials links the body's minutes listing (site.record, which a council overrides); finance and contract
+# pages link the county's budget page and purchasing archive.
 RECORD_BODY = frozenset({
     "votes_year.html.j2", "items_year.html.j2", "official.html.j2", "official_year.html.j2", "official_roster.html.j2",
     "district.html.j2", "council_home.html.j2", "council_meetings_year.html.j2", "council_items_year.html.j2"})

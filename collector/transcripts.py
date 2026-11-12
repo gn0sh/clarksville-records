@@ -25,7 +25,8 @@ A transcript whose video_url names no meeting's video, or a match that is not ex
 the reason; nothing is guessed. Every timestamp link on the site goes to the matched meeting's own video_url.
 When two inputs match one meeting, the later created_at (then the later file name) is kept.
 Every import also removes the transcript files already in the folder that no longer match a meeting of the facts file
-(the meeting is gone, its video_url changed, or its event_id differs in the facts or the listing), so the index never names a stale transcript.
+(the meeting is gone, its video_url changed, or its event_id differs in the facts or the listing), so the index
+never names a stale transcript.
 
 Deterministic and idempotent: the output depends only on the inputs and the facts file (no clock), files are
 rewritten only when their text changes, and running the same import twice changes nothing.
