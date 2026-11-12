@@ -19,8 +19,8 @@ Files (per locality, so the county's data/manifest.json and data/facts.json are 
 
 Exit codes (the workflow's Collect step fails the run, and so opens the issue, on any non-zero code; spec AC4.4):
 0 ok (a single file that is skipped, e.g. a .docx behind a PDF link, is logged and stays 0); 2 a listing could not be
-read, or the shrink guard held a result back; 3 the G4 skew gate flagged an official (build/city-report.json build.gates; the AC-P1 verified rate is reported
-there but sets no code); 5 a host or policy refused us at any stage (HostBlocked 403/429, HostRefused, ProxyRefused,
+read, or the shrink guard held a result back; 3 the G4 skew gate flagged an official (build/city-report.json
+build.gates; the AC-P1 verified rate is reported there but sets no code); 5 a host or policy refused us at any stage (HostBlocked 403/429, HostRefused, ProxyRefused,
 RobotsDisallowed: alerting/city-fetch-failures-exit-0). A refusal is never retried and never worked around: the code
 only reports it.
 
