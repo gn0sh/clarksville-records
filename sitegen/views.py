@@ -1087,7 +1087,7 @@ def about(facts) -> dict:
 
 
 # Template groups for the "Unofficial copy. Official record:" line (base.html.j2). A meeting page links its own minutes
-# PDF; a page of a body's meetings, items, votes or officials links the body's minutes listing (site.record, which a
+# PDF (a transcript page with no minutes posted links the city's video instead); a page of a body's meetings, items, votes or officials links the body's minutes listing (site.record, which a
 # council overrides); finance and contract pages link the county's budget page and purchasing archive.
 RECORD_BODY = frozenset({
     "votes_year.html.j2", "items_year.html.j2", "official.html.j2", "official_year.html.j2", "official_roster.html.j2",
@@ -1127,7 +1127,11 @@ def official_record(template: str, site: dict, ctx: dict) -> dict | None:
     rec = None
     if template in ("meeting.html.j2", "transcript.html.j2"):
         d = ctx.get("doc") or {}
-        if d.get("url"):   # a minutes PDF: allowed like any other source link, so no data-ext
+        if (template == "transcript.html.j2" and (d.get("kind") or "").lower() != "minutes" and ctx.get("video_ok")
+                and ctx.get("video_url")):
+            # no minutes posted: the city's recording is the official record of what the transcript shows
+            rec = {"url": ctx["video_url"], "label": "the city's meeting video (MP4)", "ext": "video"}
+        elif d.get("url"):   # a minutes PDF: allowed like any other source link, so no data-ext
             rec = {"url": d["url"], "label": f"{d.get('kind') or 'Minutes'} PDF", "ext": False}
         elif template == "transcript.html.j2":
             rec = site.get("record")   # no minutes PDF known: the council's own record page

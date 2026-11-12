@@ -464,6 +464,28 @@ def test_transcript_page_lines(built):
     assert 'id="s7" class="call-on"' not in page        # "holloman": not matched
 
 
+def test_official_record_is_the_minutes_else_the_citys_video(built):
+    out, result, cfg, sub = built
+    page = (out / "city" / "transcripts" / f"{MEETING}.html").read_text(encoding="utf-8")
+    m = next(x for x in sub["meetings"] if x["id"] == MEETING)
+    minutes = next(s for s in sub["sources"] if s["id"] == m["source_id"])["url"]
+    assert re.search(r'Official record: <a href="' + re.escape(html.escape(minutes)) + '"', page)
+    from sitegen import views
+    video, agenda = m["video_url"], "https://clarksvilletn.api.civicclerk.com/v1/agenda.pdf"
+    ctx = {"video_url": video, "video_ok": True}
+    # minutes posted: the minutes PDF
+    rec = views.official_record("transcript.html.j2", {}, {**ctx, "doc": {"url": minutes, "kind": "minutes"}})
+    assert rec["url"] == minutes and rec["ext"] is False
+    # no minutes (the source is the agenda): the city's video, marked as a video link
+    rec = views.official_record("transcript.html.j2", {}, {**ctx, "doc": {"url": agenda, "kind": "agenda"}})
+    assert rec == {"url": video, "label": "the city's meeting video (MP4)", "ext": "video"}
+    assert views.official_record("transcript.html.j2", {}, {**ctx, "doc": None})["url"] == video
+    # a video the site may not link: back to the agenda; the meeting page itself is unchanged
+    rec = views.official_record("transcript.html.j2", {}, {**ctx, "video_ok": False, "doc": {"url": agenda, "kind": "agenda"}})
+    assert rec["url"] == agenda
+    assert views.official_record("meeting.html.j2", {}, {**ctx, "doc": {"url": agenda, "kind": "agenda"}})["url"] == agenda
+
+
 def test_member_pages_list_call_ons_verbatim_and_alike(built):
     out, result, cfg, sub = built
     smith = (out / "city" / "members" / "city-wanda-smith.html").read_text(encoding="utf-8")

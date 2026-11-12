@@ -44,7 +44,7 @@
 {# M1.5: every fact-bearing page (build.REPORT_TEMPLATES) links the report page; static/nav.js adds this page's path
    (and the #anchor the reader came to) to the link's #fragment when it is followed. #}
 {% if official_record is defined and official_record %}
-<p class="official-record">Unofficial copy. Official record: <a{% if official_record.get("ext", true) %} data-ext="record"{% endif %} href="{{ official_record.url }}" target="_blank" rel="noopener noreferrer">{{ official_record.label }}<span class="sr-only"> (opens in a new tab)</span></a>.</p>
+<p class="official-record">Unofficial copy. Official record: {% set rx = official_record.get("ext", true) %}<a{% if rx %} data-ext="{{ rx if rx is string else 'record' }}"{% endif %} href="{{ official_record.url }}" target="_blank" rel="noopener noreferrer">{{ official_record.label }}<span class="sr-only"> (opens in a new tab)</span></a>.</p>
 {% endif %}
 {% if report_page is defined and report_page %}
 <p class="report-page"><a href="{{ root }}report.html">Report an error on this page</a></p>
