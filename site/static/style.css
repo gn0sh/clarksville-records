@@ -1065,6 +1065,10 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 }
 @media (prefers-reduced-motion: no-preference) { .sky-sun { transition: transform 1.4s cubic-bezier(.2, .7, .2, 1); } }
 .has-sky .masthead { z-index: 1; }
+/* A body's landing page (a "Show records from" target other than All) has the sun but no date line under the name
+   plate, so the plate, tag and kicker stop short of the sun's column (its disc and inner ring): no text over the sun */
+.has-sky { --sun-room: calc(clamp(76px, 15vw, 190px) + clamp(8px, 2vw, 22px)); }
+.has-sky:not(:has(#sky-hero)) .brand { padding-right: var(--sun-room); }
 .sky-hero { position: relative; z-index: 1; max-width: var(--measure); margin: 0 auto; padding: 0 var(--gutter) 10px; }
 .sky-hero[hidden] { display: none; }
 /* with the script the date line keeps its space before it is filled (js-flag.js), so nothing jumps */
@@ -1078,6 +1082,11 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
   .sky-sun { --sun-max: .5; }
   /* without the script there is no date line, so on a phone only a sliver of sun shows, clear of the name plate */
   html:not(.js) .has-sky:has(#sky-hero[hidden]) .sky-sun { --sun-max: .15; }
+  /* on a phone a body's landing page keeps the text full width: the same sliver as above, script or not, in a strip
+     under the kicker just tall enough for its disc and inner ring at the top of the arc */
+  .has-sky:not(:has(#sky-hero)) .sky-sun { --sun-max: .15; }
+  .has-sky:not(:has(#sky-hero)) .brand { padding-right: 0; }
+  .has-sky:not(:has(#sky-hero)) .masthead { padding-bottom: calc(.15 * clamp(76px, 15vw, 190px) + clamp(8px, 2vw, 22px)); }
   .sky-hero { padding-bottom: 6px; }
   .sky-date { font-size: 1.8rem; }
 }

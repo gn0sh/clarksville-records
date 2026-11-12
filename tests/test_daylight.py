@@ -53,7 +53,12 @@ def test_only_the_landing_has_the_sky_and_its_date_waits_for_the_script(site):
     assert html.index('id="sky-hero"') < html.index('<main id="main">') < html.index('<h1 id="welcome-h"')
     for name, other in pages.items():
         if name != "index.html":
-            assert "sky-hero" not in other and "sky.js" not in other, name
+            assert "sky-hero" not in other, name                      # the date line is the landing's alone
+            # the sun (and its script) is on each "Show records from" target, the switch's own pages, and no other
+            here = re.search(r'<nav class="body-switch"[^>]*data-here="([^"]*)"', other)
+            target = bool(here and here.group(1))
+            assert ('id="sky-sun"' in other) == target and ("static/sky.js" in other) == target, name
+            assert ("has-sky" in other) == target, name
 
 
 def test_no_inline_script_or_handlers_and_no_outside_fonts(site):

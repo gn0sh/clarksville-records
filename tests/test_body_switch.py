@@ -299,6 +299,52 @@ def test_method_page_lists_both_storage_keys(html):
     assert keys == {"cr-your-seats", "cr-body"}
 
 
+def test_every_switch_target_has_the_sky_sun_and_no_other_page_does(site, html):
+    """Owner, 2026-11-12: the sun at the top showed only on All. Every option's own page now has the landing's sky sun
+    (decorative, set by static/sky.js from the viewer's clock, at midday by CSS without it); the date line stays on
+    the home page; inner pages keep the plain header."""
+    sun = '<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>'
+    _, opts = switch_of(html["index.html"])
+    targets = {SC.resolve("index.html", href) for href, _, _, _ in opts}
+    assert len(targets) == 5 and targets <= set(html)
+    for rel, page in html.items():
+        depth = "../" * rel.count("/")
+        on = rel in targets
+        header = page[page.index('<header class="site-header'):page.index("</header>")]
+        assert (sun in header) == on and header.count('id="sky-sun"') == (1 if on else 0), rel
+        assert ('<header class="site-header has-sky">' in page) == on, rel
+        assert (f'<script src="{depth}static/sky.js" defer></script>' in page) == on, rel
+        assert ('id="sky-hero"' in page) == (rel == "index.html"), rel
+    # without the date line a body page keeps its text clear of the sun: the brand column stops short of it (wide
+    # screens), and on a phone a sliver shows in a strip under the kicker
+    assert ".has-sky:not(:has(#sky-hero)) .brand { padding-right: var(--sun-room); }" in CSS
+    phone = CSS[CSS.index("@media (max-width: 699px) {\n  .sky-in"):]
+    phone = phone[:phone.index("\n}\n")]
+    assert ".has-sky:not(:has(#sky-hero)) .sky-sun { --sun-max: .15; }" in phone
+    assert ".has-sky:not(:has(#sky-hero)) .masthead { padding-bottom:" in phone
+
+
+def test_sky_js_reads_no_home_only_data():
+    """static/sky.js on a body page: only #sky-sun is there, so it sets the sun and returns before the date line."""
+    src = (ROOT / "site" / "static" / "sky.js").read_text(encoding="utf-8")
+    assert src.index('getElementById("sky-sun")') < src.index("if (!hero || !weekday || !date) { return; }")
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node not installed")
+    script = (
+        "const els = {};"
+        "global.document = {getElementById: (id) => id === 'sky-sun' ? (els[id] = els[id] || {style: {setProperty:"
+        " (k, v) => { els[id][k] = v; }}}) : null};"
+        "global.window = global; global.addEventListener = () => {};"
+        f"const src = require('fs').readFileSync({json.dumps(str(ROOT / 'site' / 'static' / 'sky.js'))}, 'utf8');"
+        "(function (module) { eval(src); })(undefined);"
+        "console.log(JSON.stringify(els['sky-sun']['--sun-alt']));")
+    out = subprocess.run([node, "-e", script], capture_output=True, text=True, timeout=30)
+    assert out.returncode == 0, out.stderr
+    alt = float(json.loads(out.stdout))
+    assert -0.25 <= alt <= 1
+
+
 def test_switch_css_targets_and_no_old_colors():
     block = CSS[CSS.index('==== "Show records from"'):]
     assert "min-height: 44px" in block and "overflow-x: auto" in block
