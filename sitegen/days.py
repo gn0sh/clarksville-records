@@ -28,7 +28,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from . import config, localdates, views, watch
+from . import bodies, config, localdates, views, watch
 
 WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 # Minutes states of a council meeting (schema meeting.minutes_status) other than "read", in plain words.
@@ -289,14 +289,12 @@ def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None,
         for _ in range(7):
             iso = d.isoformat()
             cards = by_day.get(iso, [])
-            n_meet = sum(1 for c in cards if c["kind"] != "bids")
-            n_bids = sum(len(c["sols"]) for c in cards)
-            label = [f"{n_meet} {'meeting' if n_meet == 1 else 'meetings'}" if n_meet else "no meetings"]
-            if n_bids:
-                label.append(f"{n_bids} {'bid listing' if n_bids == 1 else 'bid listings'}")
+            # the day button's aria-label counts every card; static/switch.js swaps in the count of the chosen
+            # body's cards (data-label-<body>), the same cards whose dots stay visible
             days.append({"iso": iso, "anchor": f"d-{iso}", "text": day_text(d), "dow": d.strftime("%a"),
                          "n": d.day, "month": d.strftime("%b"), "cards": cards,
-                         "dots": [c["dot"] for c in cards], "label": f"{day_text(d)}: {', '.join(label)}"})
+                         "dots": [c["dot"] for c in cards], "label": day_label(d, cards),
+                         "labels": {k: day_label(d, [c for c in cards if c["bkey"] == k]) for k in bodies.ORDER}})
             d += timedelta(days=1)
         weeks.append({"first": days[0], "days": days})
     sb = config.SITE.get("school_board") or {}
@@ -309,6 +307,16 @@ def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None,
 
 
 PAGE = "today.html"
+
+
+def day_label(d: date, cards: list[dict]) -> str:
+    """A day button's spoken name: the day, then how many meetings and bid listings `cards` hold."""
+    n_meet = sum(1 for c in cards if c["kind"] != "bids")
+    n_bids = sum(len(c["sols"]) for c in cards)
+    label = [f"{n_meet} {'meeting' if n_meet == 1 else 'meetings'}" if n_meet else "no meetings"]
+    if n_bids:
+        label.append(f"{n_bids} {'bid listing' if n_bids == 1 else 'bid listings'}")
+    return f"{day_text(d)}: {', '.join(label)}"
 
 
 # ---------------------------------------------------------------------------------------------------------------

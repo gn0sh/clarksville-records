@@ -91,7 +91,7 @@
       <div class="strip-weeks">
         {% for w in weeks %}
         <div class="strip-week" data-week="{{ loop.index0 }}" role="group" aria-label="Week of {{ w.first.text }}"{% if not loop.first %} hidden{% endif %}>
-          {% for d in w.days %}<button type="button" class="day" data-date="{{ d.iso }}" aria-pressed="false" aria-label="{{ d.label }}"><span class="day-dow">{{ d.dow }}</span><b>{{ d.n }}</b><em aria-hidden="true">{% for c in d.cards %}<i class="dot dot-{{ c.dot }}" data-body="{{ c.bkey }}"></i>{% endfor %}</em></button>{% endfor %}
+          {% for d in w.days %}<button type="button" class="day" data-date="{{ d.iso }}" aria-pressed="false" aria-label="{{ d.label }}" data-label-all="{{ d.label }}"{% for k, l in d.labels.items() %} data-label-{{ k }}="{{ l }}"{% endfor %}><span class="day-dow">{{ d.dow }}</span><b>{{ d.n }}</b><em aria-hidden="true">{% for c in d.cards %}<i class="dot dot-{{ c.dot }}" data-body="{{ c.bkey }}"></i>{% endfor %}</em></button>{% endfor %}
         </div>
         {% endfor %}
       </div>

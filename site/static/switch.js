@@ -6,7 +6,9 @@
    data-body-choice attribute this script keeps on <html>, and hears each change as a "bodychoice" event.
    The choice is saved only when the visitor clicks an option (or "Show all"): opening a body's hub page shows that body
    as the choice on that page and leaves the saved one alone. A page that names the bodies it can filter
-   (data-body-live) ignores a saved body it does not hold. */
+   (data-body-live) ignores a saved body it does not hold. An element with data-label-all (a day button) has its
+   aria-label swapped for its data-label-<body> text, so a screen reader hears the count a sighted visitor sees; its
+   data-label-suffix, if any, is kept at the end. */
 (function () {
   var nav = document.getElementById("body-switch");
   if (!nav) { return; }
@@ -14,7 +16,7 @@
   var main = document.getElementById("main");
   var here = nav.getAttribute("data-here") || "";
   var list = nav.querySelector(".bs-list");
-  var links = {}, mem = null, line = null;
+  var links = {}, mem = null, line = null, cur = ALL;
   var as = nav.querySelectorAll("a[data-switch]");
   for (var i = 0; i < as.length; i++) { links[as[i].getAttribute("data-switch")] = as[i]; }
 
@@ -74,8 +76,19 @@
     if (slot) { slot.appendChild(line); } else { first.parentNode.insertBefore(line, first); }
   }
 
+  function relabel(choice) {
+    var els = main ? main.querySelectorAll("[data-label-all]") : [];
+    for (var i = 0; i < els.length; i++) {
+      var t = els[i].getAttribute("data-label-" + choice);
+      if (choice === ALL || t === null) { t = els[i].getAttribute("data-label-all"); }
+      els[i].setAttribute("aria-label", t + (els[i].getAttribute("data-label-suffix") || ""));
+    }
+  }
+
   function apply(choice) {
+    cur = choice;
     document.documentElement.setAttribute("data-body-choice", choice);
+    relabel(choice);
     mark(choice);
     var items = tagged(), shown = 0, i;
     for (i = 0; i < items.length; i++) {
@@ -103,6 +116,9 @@
   var first = here && here !== ALL ? here : read();
   if (live() && first !== ALL && !liveHas(first)) { first = ALL; }
   apply(first);
+  // Scripts that run after this one may move or show rows (static/landing.js, static/days.js): once every deferred
+  // script has run, apply the choice again so the "nothing of this body" flags and labels match the rows as shown.
+  document.addEventListener("DOMContentLoaded", function () { apply(cur); });
 
   nav.addEventListener("click", function (e) {
     var a = e.target.closest ? e.target.closest("a[data-switch]") : null;

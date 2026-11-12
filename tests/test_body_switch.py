@@ -227,6 +227,14 @@ def test_rows_carry_their_body_for_the_filter(site, html):
     dots = re.findall(r'<i class="dot dot-[a-z]+" data-body="([a-z]+)"></i>', today)
     assert sorted(dots) == sorted(body for _, body in cards)             # the week strip's dots follow the filter
     assert today.count("<div data-body-line></div>") == 1
+    # each day button carries the spoken count per body, so static/switch.js can swap it with the dots
+    for btn in re.findall(r'<button type="button" class="day"[^>]*>', today):
+        attrs = dict(re.findall(r'(aria-label|data-label-[a-z]+)="([^"]*)"', btn))
+        assert attrs["aria-label"] == attrs["data-label-all"], btn
+        assert sorted(k[11:] for k in attrs if k.startswith("data-label-") and k != "data-label-all") == sorted(
+            bodies.ORDER), btn
+    assert 'aria-label="Monday, November 4: 1 meeting" data-label-all="Monday, November 4: 1 meeting" ' \
+           'data-label-county="Monday, November 4: 1 meeting" data-label-city="Monday, November 4: no meetings"' in today
     home = html["index.html"]
     rows = re.findall(r'<li data-iso="[^"]+" data-body="([a-z]+)"', home)
     assert len(rows) == home.count("<li data-iso=") and set(rows) <= {county, "city", "rpc"}
@@ -364,6 +372,62 @@ for (const r of ['', ...(process.env.NODE_PATH || '').split(path.delimiter).filt
   await p.waitForLoadState();
   out.nojs = p.url().split('/').pop();
   await ctx.close();
+  // 6. Search: a ticked Body box wins over the remembered choice, and the "Showing ... only" line is hidden meanwhile;
+  //    a remembered body the search index does not hold is ignored there
+  ctx = await browser.newContext({viewport: {width: 1280, height: 800}});
+  p = await ctx.newPage();
+  const sstate = () => p.evaluate(() => {
+    const l = document.getElementById('bs-line');
+    return {line: l ? l.textContent.replace(/\s+/g, ' ').trim() : '', shown: !!l && !l.hidden && l.offsetParent !== null,
+            count: document.getElementById('count').textContent,
+            cur: [...document.querySelectorAll('#body-switch a[aria-current]')].map((a) => a.dataset.switch)};
+  });
+  await p.goto(site + 'search.html?q=a');
+  out.searchAll = await sstate();
+  await p.evaluate(() => localStorage.setItem('cr-body', 'city'));
+  await p.goto(site + 'search.html?q=a&body=county');
+  out.searchBox = await sstate();
+  await p.evaluate(() => { const b = document.querySelector('input[name="body"][value="county"]'); b.checked = false;
+                           b.dispatchEvent(new Event('change', {bubbles: true})); });
+  out.searchPref = await sstate();
+  await p.evaluate(() => localStorage.setItem('cr-body', 'school'));
+  await p.goto(site + 'search.html?q=a');
+  out.searchSchool = await sstate();
+  // 7. opening a hub page shows that body there but never changes the saved choice
+  await p.evaluate(() => localStorage.setItem('cr-body', 'county'));
+  await p.goto(site + 'school-board.html');
+  out.hubVisit = await state(p);
+  await p.goto(site + 'meetings.html');
+  out.afterHub = await state(p);
+  await ctx.close();
+  // 8. home page read after its build day: static/landing.js moves rows, then the "No meetings of the body you chose"
+  //    flags follow the rows as shown
+  ctx = await browser.newContext({viewport: {width: 1280, height: 800}});
+  p = await ctx.newPage();
+  await p.clock.setFixedTime(new Date('2025-01-01T18:00:00Z'));
+  await p.goto(site + 'index.html');
+  await p.evaluate(() => localStorage.setItem('cr-body', 'county'));
+  await p.goto(site + 'index.html');
+  out.landing = await p.evaluate(() => [...document.querySelectorAll('.meet-col')].map((c) => ({
+    flagged: c.classList.contains('bs-all-off'),
+    rows: [...c.querySelectorAll('li[data-body]')].filter((li) => !li.hidden && !li.classList.contains('bs-off'))
+      .map((li) => li.dataset.iso),
+    none: getComputedStyle(c.querySelector('.bs-none')).display !== 'none'})));
+  await ctx.close();
+  // 9. day buttons: the spoken count is the chosen body's, today's mark kept; Show all restores the full count
+  ctx = await browser.newContext({viewport: {width: 1280, height: 800}});
+  p = await ctx.newPage();
+  await p.clock.setFixedTime(new Date('2024-11-04T18:00:00Z'));
+  await p.goto(site + 'today.html');
+  await p.evaluate(() => localStorage.setItem('cr-body', 'rpc'));
+  await p.goto(site + 'today.html');
+  const days = (k) => p.evaluate((k) => [...document.querySelectorAll('#day-strip button.day')].map((b) => ({
+    label: b.getAttribute('aria-label'), want: b.getAttribute('data-label-' + k) + (b.getAttribute('data-label-suffix') || ''),
+    dots: [...b.querySelectorAll('.dot')].filter((d) => getComputedStyle(d).display !== 'none').length})), k);
+  out.daysRpc = await days('rpc');
+  await p.click('#bs-line button');
+  out.daysAll = await days('all');
+  await ctx.close();
   await browser.close();
   console.log(JSON.stringify(out));
 })();
@@ -384,6 +448,12 @@ def test_switch_in_a_browser(site, tmp_path):
     county_tag = f'data-body="{config.SITE["county_key"]}" aria-labelledby'
     assert page.count(county_tag) >= 2
     (copy / "today.html").write_text(page.replace(county_tag, 'data-body="rpc" aria-labelledby', 1), encoding="utf-8")
+    # on the home page the recent row becomes another body's, so its column holds none of the county's until
+    # static/landing.js moves the passed upcoming county row into it (scenario 8)
+    home = (copy / "index.html").read_text(encoding="utf-8")
+    row = f'<li data-iso="2024-11-04" data-body="{config.SITE["county_key"]}">'
+    assert home.count(row) == 1 and home.count('<li data-iso="2024-12-09"') == 1
+    (copy / "index.html").write_text(home.replace(row, '<li data-iso="2024-11-04" data-body="rpc">'), encoding="utf-8")
     site = copy
     script = tmp_path / "switch.js"
     script.write_text(PROBE, encoding="utf-8")
@@ -414,3 +484,20 @@ def test_switch_in_a_browser(site, tmp_path):
     bl = r["blocked"]
     assert bl["cur"] == ["county"] and set(bl["visible"]) == {county} and bl["stored"] == "blocked", bl
     assert r["nojs"] == "montgomery-county.html"
+    sa, sb, sp, ss = r["searchAll"], r["searchBox"], r["searchPref"], r["searchSchool"]
+    assert sa["count"] and sa["count"] != "0 results" and not sa["shown"], sa
+    assert sb["cur"] == ["city"] and not sb["shown"] and sb["count"] != "0 results", sb    # the Body box decides
+    assert sp["shown"] and sp["line"].startswith("Showing Clarksville only"), sp               # no box: the choice
+    assert ss["cur"] == ["all"] and ss["line"] == "" and ss["count"] == sa["count"], ss          # not in the index
+    hv, ah = r["hubVisit"], r["afterHub"]
+    assert hv["url"].endswith("school-board.html") and hv["cur"] == ["school"] and hv["stored"] == "county", hv
+    assert ah["cur"] == ["county"] and ah["stored"] == "county" and ah["off"] == 0, ah
+    up, rec = r["landing"]
+    assert up == {"flagged": False, "rows": [], "none": False}, up                 # moved out: its own empty line
+    assert rec == {"flagged": False, "rows": ["2024-12-09"], "none": False}, rec   # a county row is shown
+    rpc_days, all_days = r["daysRpc"], r["daysAll"]
+    assert rpc_days and all(d["label"] == d["want"] for d in rpc_days), rpc_days
+    assert all(d["dots"] == 0 and re.search(r": no meetings( \(today\))?$", d["label"]) for d in rpc_days), rpc_days
+    assert [d["label"] for d in rpc_days if d["label"].endswith("(today)")] == ["Monday, November 4: no meetings (today)"]
+    assert all(d["label"] == d["want"] for d in all_days), all_days
+    assert "Monday, November 4: 1 meeting (today)" in [d["label"] for d in all_days]
