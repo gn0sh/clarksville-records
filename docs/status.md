@@ -149,7 +149,7 @@
 
 ## Blockers (2026-11-10)
 - RPC rebuild: cmcrpc.com answered 429 after 51 of 168 files on the refetch into this container's store (05:50Z). Obeying it; retry scheduled 07:25Z, then back off. rpc.json is not rebuilt until the store is complete.
-- Transcripts: results are on DESKTOP-NEL11IQ (C:\\Users\\bezac\\records-transcripts\\out); this thread needs Brian's device link to fetch them.
+- Transcripts: results are on Brian's PC; this thread needs Brian's device link to fetch them.
 - Follow-up nits: politeness/daily-full-pdf-recheck (HEAD instead of GET), idempotence/kind-mismatch-double-card, private fetch._host_matches import.
 
 ## Problem keys
@@ -315,7 +315,7 @@ Keep in mind while coding: a possible future free app where anyone enters a ZIP 
 - 2026-11-09 23:12Z Brian: map only useful first visit; address lookup solves it. Next (after branding fixes merge): landing leads with address search; map secondary (collapsed or below); remember the visitor's ward/district in localStorage for return visits ("Your seats").
 - 2026-11-09 | frontend-engineer | sonnet/medium | branding review fixes | merged 3933a90 (1608 passed); delta APPROVE
 - 2026-11-09 | frontend-engineer | sonnet/medium | address-first landing + Your seats (localStorage) | running
-- 2026-11-09 23:31Z Remote Control on the 3070 (DESKTOP-NEL11IQ) approved by Brian and running: CivicClerk City Council videos 2024+, faster-whisper large-v3 on GPU, output C:\Users\bezac\records-transcripts\out. Container CPU loop (small.en) keeps running as a fallback.
+- 2026-11-09 23:31Z Remote Control on Brian's PC approved by Brian and running: CivicClerk City Council videos 2024+, faster-whisper large-v3 on GPU. Container CPU loop (small.en) keeps running as a fallback.
 
 - 2026-11-11 (manager): **gnoshcodes LLC exists.** Brian filed GNOSHCODES LLC with the TN Secretary of State on 2026-11-10 (Active), and asked on 2026-11-10 3:31 PM CT for the sites to show "gnoshcodes LLC" (thread "Show gnoshcodes LLC across sites"); operator is "gnoshcodes LLC" (788f08b). The interim content rules written "until the LLC exists" (votes only from the official record; no AI-written text about named officials) STAY IN FORCE until Brian re-decides them explicitly; they do not lapse with the filing.
 - 2026-11-11 | code-reviewer | opus/high | re-review of manager merges, support line, LICENSE/NOTICE, LLC operator | request changes -> fixed: operator/llc-unverified (verified + recorded above), license/third-party-carveout (NOTICE fonts OFL), tests/support-line-alerts-untested (test added); merges confirmed sound
