@@ -1,14 +1,27 @@
 # Status
 
-**Feature:** milestone 1, County Commission votes and attendance (private preview).
-**Stage:** M0 passed. Build M1 (backend B1-B4, frontend F1-F5). **Pace:** top priority today (Brian 2026-11-07 18:52Z), normal pace, 2-3 agents in parallel.
+**Feature:** Daylight public-records site, launch candidate (Brian's review Fri Nov 13; rest of scope Wed Nov 18).
+**Stage:** Review, security and QA passed on the integration branch; squash-merged to `main` with deploy and morning note still locked. Preview https://gn0sh.github.io/clarksville-records/ = build of 4f1b90a (gh-pages 5e711fe): site_checks PASS, pii_scan 0 hits, brand checks PASS.
+**Next:** Brian's Friday review; go-live waits on his typed OK (hard stop 1) and the go-live ask list; Nov 18 batch (ADR 0006 list).
 
 ## Waiting on the CEO
-(none)
+- Friday review of the preview (looks right? yes / list changes) | https://gn0sh.github.io/clarksville-records/ | open on phone + PC | asked 2026-11-12 in thread "Launch the Daylight records site" | default: keep building the Nov 18 batch
 
 ## Run ledger
 | Date | Role | Model/effort | Task | Outcome |
 |---|---|---|---|---|
+| 2026-11-12 | code-reviewer | opus/medium | navy recolor delta 3e34967..5b401e6 + full suite | approve with nits (should-fix a11y/link-affordance/council-seats-note-cite, pre-existing); 1387+2742 pass |
+| 2026-11-12 | frontend-engineer | opus/medium | seat note/cite links + nits -> b707b5b | done; 1387+2743 pass, site_checks PASS |
+| 2026-11-12 | code-reviewer | opus/medium (resumed) | delta b707b5b | approve; nit layout/council-seat-note-wrap |
+| 2026-11-12 | frontend-engineer | opus/medium (resumed) | orphan colon -> ec55390 | done; 1387+2744 pass; manager spot-check with screenshots |
+| 2026-11-12 | frontend-engineer | fable | navy recolor -> 3e34967, fixes -> 5b401e6 | done |
+| 2026-11-12 | code-reviewer | opus/medium | recolor 3e34967 | approve with nits (1 should-fix, 3 nits) |
+| 2026-11-12 | qa-engineer | opus/high | delta 7823d5b (ADR 0006 guards) | PASS (1 minor shrink/kept-meeting-item-drift, Nov 18) |
+| 2026-11-12 | security-engineer | opus/high | daily-update.yml delta 7823d5b | approve (2 low, Nov 18) |
+| 2026-11-12 | code-reviewer | opus/high | qafix dc32de8..1381e5a, delta 7823d5b | request changes (1 must-fix shrink/) -> approve |
+| 2026-11-12 | backend-engineer | opus/high | ADR 0006 guards 1381e5a, fixes 7823d5b | done |
+| 2026-11-12 | software-architect | opus/high | ADR 0006 daily refresh data guards | done |
+| 2026-11-12 | qa-engineer | opus/high | full QA a605d25 | FAIL (2 major pipeline, 5 minor; site 10/10) -> fixed via ADR 0006 |
 | 2026-11-10 | manager | - | full suite + site_checks on cf9ef18 (new container; store not present, built from committed data) | 1929 pass, 5 skip; site_checks PASS (pages target) |
 | 2026-11-10 | code-reviewer | opus/high | fresh review RPC M2 0927bfe | request changes: verified-gate/unread-dissent-confirmed, attribution/missed-heading-merges-cases (must); 3 should-fix, 2 nits |
 | 2026-11-10 | software-architect | opus/high | RPC motion invariant (loop rule) | done, c98e53e docs/architecture/rpc-motion-invariant.md |
@@ -140,6 +153,9 @@
 | 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
 
 ## Decisions
+- 2026-11-12 (Brian, 5:34 AM CT, card): Daylight uses the gnoshcodes navy #0F1F3D + orange #D2561B (switch, not keep). Done, on preview.
+- 2026-11-12 (manager): PR #1 is SQUASH-merged so raw transcript text in branch history never reaches `main`. Accepted residual: raw text stays in the history of public claude/* branches and gh-pages (rewriting it is hard stop 2); recorded with security (reviews security-privacy-fresh-99ee4ff).
+- 2026-11-12 (manager): accepted residuals from security/QA lows go to the Nov 18 batch (ADR 0006 list): shrink/kept-meeting-item-drift, workflow/notify-step-ungated-ref, workflow/exit-precedence-comment, brand/old-logo-in-design-mocks (docs only), brand/check-coverage/decimal-hsl (comment notes the gap).
 - 2026-11-10 (Brian, 1:42 AM CT): site address is daylight.gnoshcodes.com. 3:10 AM CT: Buttondown is the morning-note sender; account, DNS and payment are his steps at go-live. 2:26 AM CT: run workers on Fable.
 - 2026-11-10 (manager): topic-rezoning.xml keeps one URL with a per-body cap. RPC pages show 0 confirmed motions until rpc.json is rebuilt with the motion_rules marker.
 - 2026-11-09 (manager): **Preview file cap.** The claude.ai artifact preview is capped at 500 files, and the real build is now at 500 after dropping its transcript page. From now on the review surface is the gh-pages preview (pages target, cap 3000), not the artifact. The artifact preview, if still used, may leave out sections. Reason: Daylight, RPC and wards each add files; the artifact limit can't grow.
