@@ -1211,7 +1211,9 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 .bs-list a:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; border-radius: 999px; }
 .bs-list a[aria-current], .bs-list a[aria-current]:visited { background: var(--blue); color: var(--on-blue); border-bottom-color: var(--sun); }
 .bs-list a[aria-current]:hover { background: var(--blue-hover); }
-.bs-list a[aria-current]:focus-visible { outline-color: var(--on-blue); box-shadow: inset 0 0 0 6px var(--blue); }
+/* the chosen (filled) chip keeps the orange ring of the others (3:1 or more against the bar in both themes), with a
+   white band inside it, so the ring stands apart from the navy fill too (WCAG 2.4.7, 1.4.11) */
+.bs-list a[aria-current]:focus-visible { outline-color: var(--focus); box-shadow: inset 0 0 0 5px var(--on-blue); }
 .bs-list .chip-coming { font-size: var(--t-xs); line-height: 1.3; padding: 0 6px; }
 .bs-list a[aria-current] .chip-coming { color: var(--on-blue); border-color: var(--on-blue); }
 .bs-short { display: none; }
