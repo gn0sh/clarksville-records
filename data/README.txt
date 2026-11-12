@@ -7,7 +7,7 @@ If this site and the official document differ, the official document is right. N
 How to report a correction: https://gn0sh.github.io/clarksville-records/report.html
 
 The official sites:
-  City of Clarksville: https://www.cityofclarksville.com/
+  City of Clarksville: https://www.clarksvilletn.gov/
   Montgomery County government: https://www.montgomerytn.gov/
   Clarksville-Montgomery County School System (CMCSS): https://www.cmcss.net/
   Clarksville-Montgomery County Regional Planning Commission: https://www.cmcrpc.com/

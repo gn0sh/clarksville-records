@@ -25,13 +25,25 @@
 <p class="kicker">Montgomery County Commission minutes, <span class="nowrap">2020-02-10</span> to <span class="nowrap">2026-05-11</span></p>    </div>
   </div>
 </header>
+<nav class="body-switch" id="body-switch" aria-labelledby="body-switch-l" data-here="">
+  <div class="bs-in">
+    <p class="bs-label" id="body-switch-l">Show records from</p>
+    <ul class="bs-list">
+      <li><a href="../index.html" data-switch="all" data-label="All">All</a></li>
+      <li><a href="../montgomery-county.html" data-switch="county" data-label="Montgomery County">Montgomery County</a></li>
+      <li><a href="../city/index.html" data-switch="city" data-label="Clarksville">Clarksville</a></li>
+      <li><a href="../school-board.html" data-switch="school" data-label="School board">School board <span class="chip chip-coming">Coming</span></a></li>
+      <li><a href="../rpc/index.html" data-switch="rpc" data-label="Planning (RPC)"><span class="bs-long">Planning (RPC)</span><span class="bs-short" aria-hidden="true">RPC</span></a></li>
+    </ul>
+  </div>
+</nav>
 <main id="main">
 <div class="fin">
 <h1>Finance</h1>
-<p class="coverage">3846 budget lines from 2 books; 26 totals do not add up as printed and are marked.</p>
+<p class="note body-note" id="body-note"><strong>County budget only so far. City and school board budgets are coming.</strong> Until then, the official sites are: <a data-ext="body" href="https://www.clarksvilletn.gov/" target="_blank" rel="noopener noreferrer">City of Clarksville website<span class="sr-only"> (opens in a new tab)</span></a>, <a data-ext="school" href="https://www.cmcss.net/" target="_blank" rel="noopener noreferrer">CMCSS website<span class="sr-only"> (opens in a new tab)</span></a>.</p><p class="coverage">3846 budget lines from 2 books; 26 totals do not add up as printed and are marked.</p>
 <p class="note">Amounts are whole dollars as printed in the book. Transfers and available funds are listed in their own section, and some printed totals include them, as each total says. No county-wide total is shown.</p>
 
-<section aria-labelledby="books-h">
+<div data-body="county"><section aria-labelledby="books-h">
 <h2 id="books-h">Budget books</h2>
 <ul class="fin-books">
   <li><a href="https://montgomerytn.gov/storage/departments/account-budget/FY%202027%20Approved%20Budget.pdf" target="_blank" rel="noopener noreferrer">Fiscal Year 2027 Approved Budget<span class="sr-only"> (opens the budget book PDF in a new tab)</span></a> <span class="muted">FY2027, approved, fetched 2026-11-08</span></li>
@@ -88,6 +100,7 @@
 </table>
 </div>
 <p><a href="../capital/index.html">Capital projects</a></p></section>
+</div>
 <p class="exports">Download: <a href="../data/budget_lines.csv">Budget lines (CSV)</a> <span class="sep" aria-hidden="true">&middot;</span> <a href="../data/budget_checks.csv">Total checks (CSV)</a> <span class="sep" aria-hidden="true">&middot;</span> <a href="../data/finance.json">JSON</a></p><details class="words">
   <summary>Words used on this page</summary>
   <dl>
@@ -119,6 +132,7 @@
       <li><a href="../votes/2026.html">Votes</a></li>
       <li><a href="../meetings.html">Meetings</a></li>
       <li><a href="../officials.html">Officials</a></li>
+      <li><a href="../montgomery-county.html">Montgomery County</a></li>
       <li><a href="../city/index.html">City Council</a></li>
       <li><a href="../rpc/index.html">Planning Commission</a></li>
       <li><a href="../school-board.html">School board <span class="chip chip-coming">Coming</span></a></li>
@@ -152,5 +166,6 @@
 <script src="../static/nav.js" defer></script>
 <script src="../static/filter.js" defer></script>
 <script src="../static/clamp.js" defer></script>
+<script src="../static/switch.js" defer></script>
 </body>
 </html>

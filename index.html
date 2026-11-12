@@ -28,6 +28,18 @@
   <p class="sky-day"><span class="sky-dow"><span id="sky-weekday"></span><span class="sky-in"> in Clarksville</span></span> <a class="sky-link" href="today.html"><time class="sky-date" id="sky-date"></time><span class="sky-go" aria-hidden="true">&rsaquo;</span><span class="sr-only">: meetings day by day</span></a></p>
 </div>
 </header>
+<nav class="body-switch" id="body-switch" aria-labelledby="body-switch-l" data-here="all">
+  <div class="bs-in">
+    <p class="bs-label" id="body-switch-l">Show records from</p>
+    <ul class="bs-list">
+      <li><a href="index.html" data-switch="all" data-label="All" aria-current="page">All</a></li>
+      <li><a href="montgomery-county.html" data-switch="county" data-label="Montgomery County">Montgomery County</a></li>
+      <li><a href="city/index.html" data-switch="city" data-label="Clarksville">Clarksville</a></li>
+      <li><a href="school-board.html" data-switch="school" data-label="School board">School board <span class="chip chip-coming">Coming</span></a></li>
+      <li><a href="rpc/index.html" data-switch="rpc" data-label="Planning (RPC)"><span class="bs-long">Planning (RPC)</span><span class="bs-short" aria-hidden="true">RPC</span></a></li>
+    </ul>
+  </div>
+</nav>
 <main id="main">
 <div class="landing">
   <section class="welcome" aria-labelledby="welcome-h">
@@ -95,40 +107,62 @@
     </li>
   </ul>
 
+  <section class="bodies" aria-labelledby="bodies-h">
+  <h2 class="sec-h" id="bodies-h">Public bodies on this site</h2>
+  <p class="sec-sub">Each body keeps its own records. Choose one to see only its records.</p>
+  <ul class="bodies-list">
+    <li class="bodies-card" data-hub="county">
+      <h3><a href="montgomery-county.html">Montgomery County</a></h3>
+<p>The Montgomery County Commission.</p><p><span class="bodies-k">On this site:</span> Meetings, Votes, Finance, Bids and awards, Capital projects.</p><p class="bodies-coming"><span class="bodies-k">Coming:</span> County Budget Committee.</p>    </li>
+    <li class="bodies-card" data-hub="city">
+      <h3><a href="city/index.html">Clarksville</a></h3>
+<p>The Clarksville City Council.</p><p><span class="bodies-k">On this site:</span> Meetings, Votes, Transcripts.</p><p class="bodies-coming"><span class="bodies-k">Coming:</span> Finance, Finance and Audit committees.</p>    </li>
+    <li class="bodies-card" data-hub="school">
+      <h3><a href="school-board.html">School board</a> <span class="chip chip-coming">Coming</span></h3>
+<p>The Clarksville-Montgomery County School System (CMCSS) board.</p><p class="bodies-coming"><span class="bodies-k">Coming:</span> Meetings, Votes, Budget.</p>    </li>
+    <li class="bodies-card" data-hub="rpc">
+      <h3><a href="rpc/index.html">Planning (RPC)</a></h3>
+<p>The Clarksville-Montgomery County Regional Planning Commission.</p><p><span class="bodies-k">On this site:</span> Meetings, Rezoning cases.</p><p class="bodies-coming"><span class="bodies-k">Coming:</span> Votes.</p>    </li>
+  </ul>
+</section>
+
+
   <section class="meetings" id="meetings" aria-labelledby="meet-h" data-built="2026-11-12" data-tz="America/Chicago" data-n="3">
     <h2 class="sec-h" id="meet-h">Meetings</h2>
     <p class="sec-sub">As of <time datetime="2026-11-12">November 12, 2026</time>. Tap a meeting for its agenda, minutes and votes.</p>
     <p class="sec-sub meet-stale" id="meet-stale" hidden>This list was built on November 12, 2026; later meetings appear when it is built again.</p>
-    <div class="meet-cols">
-      <div class="meet-col">
+    <div data-body-line></div>    <div class="meet-cols">
+      <div class="meet-col" data-body-group>
         <h3 id="up-h">Coming up</h3>
-        <ul class="meet-list" id="meet-up" aria-labelledby="up-h">      <li data-iso="2026-12-01"><a class="meet-row" href="today.html#d-2026-12-01">
+        <ul class="meet-list" id="meet-up" aria-labelledby="up-h">      <li data-iso="2026-12-01" data-body="city"><a class="meet-row" href="today.html#d-2026-12-01">
         <span class="meet-date" aria-hidden="true"><span class="dow">Tue</span><b>1</b><span class="mon">Dec</span></span>
         <span class="meet-what"><span class="sr-only">Tuesday, December 1: </span><span class="meet-body"><i class="dot dot-city" aria-hidden="true"></i>Clarksville City Council</span><span class="meet-kind">Executive session</span></span>
 <span class="chip chip-status" data-chip="Scheduled">Scheduled</span></a></li>
-      <li data-iso="2026-12-03"><a class="meet-row" href="today.html#d-2026-12-03">
+      <li data-iso="2026-12-03" data-body="city"><a class="meet-row" href="today.html#d-2026-12-03">
         <span class="meet-date" aria-hidden="true"><span class="dow">Thu</span><b>3</b><span class="mon">Dec</span></span>
         <span class="meet-what"><span class="sr-only">Thursday, December 3: </span><span class="meet-body"><i class="dot dot-city" aria-hidden="true"></i>Clarksville City Council</span><span class="meet-kind">Regular session</span></span>
 <span class="chip chip-status" data-chip="Scheduled">Scheduled</span></a></li>
 </ul>
         <p class="meet-empty" id="meet-up-empty" hidden>No upcoming meetings are in these records yet. A meeting appears here once its body posts an agenda or lists a date.</p>
+        <p class="meet-empty bs-none">No meetings of the body you chose are listed here.</p>
       </div>
-      <div class="meet-col">
+      <div class="meet-col" data-body-group>
         <h3 id="past-h">Most recent</h3>
-        <ul class="meet-list" id="meet-recent" aria-labelledby="past-h">      <li data-iso="2026-11-09"><a class="meet-row" href="today.html#d-2026-11-09">
+        <ul class="meet-list" id="meet-recent" aria-labelledby="past-h">      <li data-iso="2026-11-09" data-body="county"><a class="meet-row" href="today.html#d-2026-11-09">
         <span class="meet-date" aria-hidden="true"><span class="dow">Mon</span><b>9</b><span class="mon">Nov</span></span>
         <span class="meet-what"><span class="sr-only">Monday, November 9: </span><span class="meet-body"><i class="dot dot-county" aria-hidden="true"></i>Montgomery County Commission</span><span class="meet-kind">Formal meeting</span></span>
 <span class="chip chip-status" data-chip="Agenda">Agenda</span></a></li>
-      <li data-iso="2026-11-05"><a class="meet-row" href="today.html#d-2026-11-05">
+      <li data-iso="2026-11-05" data-body="city"><a class="meet-row" href="today.html#d-2026-11-05">
         <span class="meet-date" aria-hidden="true"><span class="dow">Thu</span><b>5</b><span class="mon">Nov</span></span>
         <span class="meet-what"><span class="sr-only">Thursday, November 5: </span><span class="meet-body"><i class="dot dot-city" aria-hidden="true"></i>Clarksville City Council</span><span class="meet-kind">Regular session</span></span>
 <span class="chip chip-status" data-chip="Agenda">Agenda</span></a></li>
-      <li data-iso="2026-11-02"><a class="meet-row" href="today.html#d-2026-11-02">
+      <li data-iso="2026-11-02" data-body="county"><a class="meet-row" href="today.html#d-2026-11-02">
         <span class="meet-date" aria-hidden="true"><span class="dow">Mon</span><b>2</b><span class="mon">Nov</span></span>
         <span class="meet-what"><span class="sr-only">Monday, November 2: </span><span class="meet-body"><i class="dot dot-county" aria-hidden="true"></i>Montgomery County Commission</span><span class="meet-kind">Informal meeting</span></span>
 <span class="chip chip-status" data-chip="Agenda">Agenda</span></a></li>
 </ul>
         <p class="meet-empty" id="meet-recent-empty" hidden>No meetings in the last four weeks are in these records.</p>
+        <p class="meet-empty bs-none">No meetings of the body you chose are listed here.</p>
       </div>
     </div>
     <p class="meet-foot">Only meetings in these records are listed: a meeting appears once its body posts an agenda or lists a date. Each body's own calendar is the official schedule. <a href="today.html#day-bodies-h">What is and is not collected</a></p>
@@ -226,6 +260,7 @@
       <li><a href="votes/2026.html">Votes</a></li>
       <li><a href="meetings.html">Meetings</a></li>
       <li><a href="officials.html">Officials</a></li>
+      <li><a href="montgomery-county.html">Montgomery County</a></li>
       <li><a href="city/index.html">City Council</a></li>
       <li><a href="rpc/index.html">Planning Commission</a></li>
       <li><a href="school-board.html">School board <span class="chip chip-coming">Coming</span></a></li>
@@ -259,6 +294,7 @@
 <script src="static/nav.js" defer></script>
 <script src="static/filter.js" defer></script>
 <script src="static/clamp.js" defer></script>
+<script src="static/switch.js" defer></script>
 <script src="static/sky.js" defer></script>
 <script src="static/seats.js" defer></script><script src="static/georef.js" defer></script>
 <script src="static/address.js" defer></script><script src="static/landing.js" defer></script></body>

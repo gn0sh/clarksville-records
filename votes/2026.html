@@ -25,13 +25,24 @@
 <p class="kicker">Montgomery County Commission minutes, <span class="nowrap">2020-02-10</span> to <span class="nowrap">2026-05-11</span></p>    </div>
   </div>
 </header>
+<nav class="body-switch" id="body-switch" aria-labelledby="body-switch-l" data-here="">
+  <div class="bs-in">
+    <p class="bs-label" id="body-switch-l">Show records from</p>
+    <ul class="bs-list">
+      <li><a href="../index.html" data-switch="all" data-label="All">All</a></li>
+      <li><a href="../montgomery-county.html" data-switch="county" data-label="Montgomery County">Montgomery County</a></li>
+      <li><a href="../city/index.html" data-switch="city" data-label="Clarksville">Clarksville</a></li>
+      <li><a href="../school-board.html" data-switch="school" data-label="School board">School board <span class="chip chip-coming">Coming</span></a></li>
+      <li><a href="../rpc/index.html" data-switch="rpc" data-label="Planning (RPC)"><span class="bs-long">Planning (RPC)</span><span class="bs-short" aria-hidden="true">RPC</span></a></li>
+    </ul>
+  </div>
+</nav>
 <main id="main">
 <h1>Votes, 2026</h1>
 <p class="lede">Every roll call in 2026, newest first. Each links to its meeting page, where every member's vote is shown.</p>
 <nav class="year-nav" aria-label="Votes by year"><ul>
 <li><a href="2026.html" aria-current="page">2026</a></li><li><a href="2025.html">2025</a></li><li><a href="2024.html">2024</a></li><li><a href="2023.html">2023</a></li><li><a href="2022.html">2022</a></li><li><a href="2021.html">2021</a></li><li><a href="2020.html">2020</a></li></ul></nav>
-<ol class="vote-list">
-  <li class="fact" data-fact-id="rc-93343719-p190-0">
+<ol class="vote-list" data-body="county">  <li class="fact" data-fact-id="rc-93343719-p190-0">
     <p class="tl-head"><a class="date" href="../meetings/2026-05-11-formal.html#rc-93343719-p190-0">2026-05-11</a> <a href="../items/2026.html#t-95058f3b63"><span data-item-title>Consent Agenda</span></a> <span class="muted"><a href="../about.html#vote-on">Vote on</a>: Consent agenda.</span></p>
     <p class="tl-sub">Outcome: <span class="chip chip-outcome">Passed</span> (counted: 19 yes, 0 no, 2 absent)</p>
     <p class="meta"><span class="cite-label">Source:</span> <a href="https://montgomeryminutes.bisonline.com/viewpdf.php?id=OUNneHLsT98Uwt0uWG6DqR9Ebrd4UJkLm%2BdXB%2BqlD4Y%3D#page=190" target="_blank" rel="noopener noreferrer">p. 190, fetched 2026-11-07<span class="sr-only"> (opens the minutes PDF in a new tab)</span></a> <span class="sep" aria-hidden="true">&middot;</span> <span class="fact-id">Fact id <code>rc-93343719-p190-0</code></span> <span class="sep" aria-hidden="true">&middot;</span> <a href="../report.html" aria-label="Report an error in rc-93343719-p190-0">Report an error</a></p>
@@ -133,6 +144,7 @@
       <li><a href="../votes/2026.html" aria-current="page">Votes</a></li>
       <li><a href="../meetings.html">Meetings</a></li>
       <li><a href="../officials.html">Officials</a></li>
+      <li><a href="../montgomery-county.html">Montgomery County</a></li>
       <li><a href="../city/index.html">City Council</a></li>
       <li><a href="../rpc/index.html">Planning Commission</a></li>
       <li><a href="../school-board.html">School board <span class="chip chip-coming">Coming</span></a></li>
@@ -166,5 +178,6 @@
 <script src="../static/nav.js" defer></script>
 <script src="../static/filter.js" defer></script>
 <script src="../static/clamp.js" defer></script>
+<script src="../static/switch.js" defer></script>
 </body>
 </html>

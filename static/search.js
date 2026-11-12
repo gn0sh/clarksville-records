@@ -97,9 +97,23 @@
   // ---- matching
   // r.x: a solicitation's department and every bidder name (finance-contracts F7)
   function hay(r) { return (r.n + " " + r.t + " " + (r.st || "") + " " + (r.z || "") + " " + (r.x || "")).toLowerCase(); }
+  // The header's "Show records from" choice (static/switch.js keeps it on <html>): used only while no Body box is
+  // ticked and only for a body this index holds (the form's data-body-live), never written to the URL, and shown by
+  // the switch's own "Showing ... only" line above the form. While a Body box is ticked that line is hidden, since
+  // the boxes, not the choice, then decide what is shown.
+  var LIVE = " " + (form.getAttribute("data-body-live") || "") + " ";
+  function chosenBody() {
+    var v = document.documentElement.getAttribute("data-body-choice");
+    return v && v !== "all" && LIVE.indexOf(" " + v + " ") >= 0 ? v : "";
+  }
+  function bodyLine(st) {
+    var el = document.getElementById("bs-line");
+    if (el) { el.hidden = st.body.length > 0; }
+  }
   function baseMatch(r, st, toks) {  // every filter except official, vote and outcome
     if (st.kind.length && st.kind.indexOf(r.k) < 0) { return false; }
     if (st.body.length && st.body.indexOf(r.b) < 0) { return false; }
+    if (!st.body.length && st.pref && r.b !== st.pref) { return false; }
     if (st.from || st.to) {
       var lo = st.from ? +st.from : -Infinity, hi = st.to ? +st.to : Infinity;
       if (!r.y.some(function (y) { return y >= lo && y <= hi; })) { return false; }
@@ -190,6 +204,8 @@
   function update(keepPage) {
     state = fromControls();
     writeURL(state);
+    state.pref = chosenBody();
+    bodyLine(state);
     form.querySelectorAll('input[name="vote"]').forEach(function (el) { el.disabled = !state.official; });
     renderChips(state);
     if (!keepPage) { shown = PAGE; }
@@ -270,6 +286,12 @@
     } else {
       document.getElementById("copied").textContent = "Copy this address: " + location.href;
     }
+  });
+  document.addEventListener("bodychoice", function () { update(); });
+  // A click in the "Show records from" switch decides: the Body boxes (and the URL's body) are cleared, and the
+  // bodychoice event that follows updates the results. Ticking a box later decides again, as before.
+  document.addEventListener("bodypick", function () {
+    form.querySelectorAll('input[name="body"]').forEach(function (el) { el.checked = false; });
   });
   update();
 })();

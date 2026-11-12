@@ -25,10 +25,23 @@
 <p class="kicker">Montgomery County Commission minutes, <span class="nowrap">2020-02-10</span> to <span class="nowrap">2026-05-11</span></p>    </div>
   </div>
 </header>
+<nav class="body-switch" id="body-switch" aria-labelledby="body-switch-l" data-here="">
+  <div class="bs-in">
+    <p class="bs-label" id="body-switch-l">Show records from</p>
+    <ul class="bs-list">
+      <li><a href="index.html" data-switch="all" data-label="All">All</a></li>
+      <li><a href="montgomery-county.html" data-switch="county" data-label="Montgomery County">Montgomery County</a></li>
+      <li><a href="city/index.html" data-switch="city" data-label="Clarksville">Clarksville</a></li>
+      <li><a href="school-board.html" data-switch="school" data-label="School board">School board <span class="chip chip-coming">Coming</span></a></li>
+      <li><a href="rpc/index.html" data-switch="rpc" data-label="Planning (RPC)"><span class="bs-long">Planning (RPC)</span><span class="bs-short" aria-hidden="true">RPC</span></a></li>
+    </ul>
+  </div>
+</nav>
 <main id="main">
 <h1>Meetings</h1>
 <p class="lede">Montgomery County Commission, 2020-02-10 to 2026-05-11. Newest first. Each meeting page shows attendance, motions and roll calls.</p>
-<p class="watch-line"><a class="watch" data-ext="watch" href="https://www.youtube.com/channel/UColCy-INQM4uZSqrJCeHTGg" target="_blank" rel="noopener noreferrer">Watch<span class="sr-only"> (opens in a new tab)</span></a> <span class="watch-note">Official video channel (opens YouTube).</span></p><section aria-labelledby="agenda-only-h">
+<p class="watch-line"><a class="watch" data-ext="watch" href="https://www.youtube.com/channel/UColCy-INQM4uZSqrJCeHTGg" target="_blank" rel="noopener noreferrer">Watch<span class="sr-only"> (opens in a new tab)</span></a> <span class="watch-note">Official video channel (opens YouTube).</span></p><div data-body="county">
+<section aria-labelledby="agenda-only-h">
 <h2 id="agenda-only-h">Agendas without minutes yet</h2>
 <p>Meetings the minutes on this site do not cover, from the agendas the county posted. <a href="meetings/agendas.html">All agenda items</a>.</p>
 <ol class="timeline meetings" aria-label="Meetings with an agenda and no minutes yet">
@@ -389,6 +402,7 @@
   </li>
 </ol>
 </details>
+</div>
 </main>
 <footer class="site-footer">
   <section class="unofficial-notice" aria-labelledby="unofficial-h">
@@ -408,6 +422,7 @@
       <li><a href="votes/2026.html">Votes</a></li>
       <li><a href="meetings.html" aria-current="page">Meetings</a></li>
       <li><a href="officials.html">Officials</a></li>
+      <li><a href="montgomery-county.html">Montgomery County</a></li>
       <li><a href="city/index.html">City Council</a></li>
       <li><a href="rpc/index.html">Planning Commission</a></li>
       <li><a href="school-board.html">School board <span class="chip chip-coming">Coming</span></a></li>
@@ -441,5 +456,6 @@
 <script src="static/nav.js" defer></script>
 <script src="static/filter.js" defer></script>
 <script src="static/clamp.js" defer></script>
+<script src="static/switch.js" defer></script>
 </body>
 </html>

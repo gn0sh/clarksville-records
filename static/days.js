@@ -59,6 +59,7 @@
       if (buttons[iso] && iso === today) {
         buttons[iso].classList.add("today");
         buttons[iso].setAttribute("aria-current", "date");
+        buttons[iso].setAttribute("data-label-suffix", " (today)");   /* static/switch.js keeps it when it relabels */
         buttons[iso].setAttribute("aria-label", buttons[iso].getAttribute("aria-label") + " (today)");
       }
     });

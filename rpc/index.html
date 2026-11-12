@@ -25,7 +25,20 @@
 <p class="kicker">Clarksville-Montgomery County Regional Planning Commission meetings, <span class="nowrap">2022-01-25</span> to <span class="nowrap">2026-10-27</span></p>    </div>
   </div>
 </header>
+<nav class="body-switch" id="body-switch" aria-labelledby="body-switch-l" data-here="rpc">
+  <div class="bs-in">
+    <p class="bs-label" id="body-switch-l">Show records from</p>
+    <ul class="bs-list">
+      <li><a href="../index.html" data-switch="all" data-label="All">All</a></li>
+      <li><a href="../montgomery-county.html" data-switch="county" data-label="Montgomery County">Montgomery County</a></li>
+      <li><a href="../city/index.html" data-switch="city" data-label="Clarksville">Clarksville</a></li>
+      <li><a href="../school-board.html" data-switch="school" data-label="School board">School board <span class="chip chip-coming">Coming</span></a></li>
+      <li><a href="../rpc/index.html" data-switch="rpc" data-label="Planning (RPC)" aria-current="page"><span class="bs-long">Planning (RPC)</span><span class="bs-short" aria-hidden="true">RPC</span></a></li>
+    </ul>
+  </div>
+</nav>
 <main id="main">
+<p class="hub-kicker">Regional Planning Commission</p>
 <h1>Clarksville-Montgomery County Regional Planning Commission</h1>
 <p class="lede">Meetings, agendas and minutes listed on the commission's own page, <span class="nowrap">2022-01-25</span> to <span class="nowrap">2026-10-27</span>: 97 meetings, 168 documents collected (latest fetched 2026-11-09), 1341 case items read from the agendas. 17 documents are linked on another host and were not collected.</p>
 <p class="muted">Case items are shown as each agenda prints them, with a link to the agenda page. 1307 motions are read from the minutes. Their votes are being re-checked against the minutes, so no vote is shown for now: each motion shows only its type and a link to its page of the minutes, where the vote is printed. Scanned agendas and minutes are read by OCR (text recognition), which can misread; the PDF page is the record.</p>
@@ -37,7 +50,27 @@
 <p class="muted fresh-note">Agendas are posted before a meeting and minutes after it, so the minutes run behind the agendas.</p>
 </section>
 
-<p class="watch-line"><a class="watch" data-ext="watch" href="https://www.youtube.com/@CMCRPC" target="_blank" rel="noopener noreferrer">Watch<span class="sr-only"> (opens in a new tab)</span></a> <span class="watch-note">Official video channel (opens YouTube).</span></p><nav aria-label="Meetings by year" class="year-nav">
+<p class="watch-line"><a class="watch" data-ext="watch" href="https://www.youtube.com/@CMCRPC" target="_blank" rel="noopener noreferrer">Watch<span class="sr-only"> (opens in a new tab)</span></a> <span class="watch-note">Official video channel (opens YouTube).</span></p><section class="hub" aria-labelledby="hub-h" data-hub="rpc">
+  <h2 class="sec-h" id="hub-h">Sections</h2>
+  <ul class="hub-cards">
+    <li class="hub-card" data-card="meetings">
+      <h3>Meetings</h3>
+      <p>Meetings, agendas and minutes listed on the commission&#39;s own page.</p>
+      <p class="hub-go"><a href="../rpc/index.html#y2026-h"><span>Meetings</span><span class="sr-only">, Planning (RPC)</span><span class="go" aria-hidden="true">&rsaquo;</span></a></p>
+    </li>
+    <li class="hub-card" data-card="cases">
+      <h3>Rezoning cases</h3>
+      <p>Case items on each meeting&#39;s agenda, as the agenda prints them.</p>
+      <p class="hub-go"><a href="../rpc/meetings/2026.html"><span>Rezoning cases</span><span class="sr-only">, Planning (RPC)</span><span class="go" aria-hidden="true">&rsaquo;</span></a></p>
+    </li>
+    <li class="hub-card is-coming" data-card="votes">
+      <h3>Votes <span class="chip chip-coming">Coming</span></h3>
+      <p>Votes return after the minutes reader passes a fresh check. Until then each motion links its page of the minutes.</p>
+<p class="hub-go">Official source: <a data-ext="record" href="https://www.cmcrpc.com/documents/agenda-minutes/" target="_blank" rel="noopener noreferrer">Regional Planning Commission agendas and minutes page<span class="sr-only"> (opens in a new tab)</span></a></p>    </li>
+  </ul>
+<p class="note hub-note">No budget of the Regional Planning Commission is collected, so none is shown.</p></section>
+
+<nav aria-label="Meetings by year" class="year-nav">
   <ul class="inline-list">
 <li><a href="meetings/2026.html">2026</a></li><li><a href="meetings/2025.html">2025</a></li><li><a href="meetings/2024.html">2024</a></li><li><a href="meetings/2023.html">2023</a></li><li><a href="meetings/2022.html">2022</a></li>  </ul>
 </nav>
@@ -942,6 +975,7 @@
       <li><a href="../votes/2026.html">Votes</a></li>
       <li><a href="../meetings.html">Meetings</a></li>
       <li><a href="../officials.html">Officials</a></li>
+      <li><a href="../montgomery-county.html">Montgomery County</a></li>
       <li><a href="../city/index.html">City Council</a></li>
       <li><a href="../rpc/index.html" aria-current="page">Planning Commission</a></li>
       <li><a href="../school-board.html">School board <span class="chip chip-coming">Coming</span></a></li>
@@ -975,5 +1009,6 @@
 <script src="../static/nav.js" defer></script>
 <script src="../static/filter.js" defer></script>
 <script src="../static/clamp.js" defer></script>
+<script src="../static/switch.js" defer></script>
 </body>
 </html>
