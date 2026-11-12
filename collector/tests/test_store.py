@@ -66,6 +66,48 @@ def test_new_bytes_for_known_url_become_a_new_source_and_are_logged(tmp_path):
     assert rec["old"] == old["sha256"] and rec["new"] == new["sha256"] and rec["source_url"] == "https://h/a"
 
 
+def test_superseded_document_change_line_matches_the_changes_schema(tmp_path):
+    """CI run 43266569362: a replaced document wrote "page": null and the site build rejected changes.jsonl."""
+    from sitegen.build import read_changes
+    st = make(tmp_path)
+    st.put("https://h/a", b"%PDF-old")
+    st.put("https://h/a", b"%PDF-new")
+    line = json.loads((tmp_path / "changes.jsonl").read_text().splitlines()[0])
+    assert None not in line.values() and "page" not in line
+    assert read_changes(tmp_path / "changes.jsonl")[0]["new"] == line["new"]
+
+
+def test_rpc_locality_store_change_line_matches_the_changes_schema(tmp_path):
+    """The RPC writes its own changes.jsonl beside data/localities/<x>/manifest.json, through the same Store."""
+    from sitegen.build import read_changes
+    d = tmp_path / "data" / "localities" / "rpc"
+    st = Store(manifest_path=d / "manifest.json", root=tmp_path / "store", now=lambda: "2026-11-07T00:00:00+00:00")
+    st.put("https://h/agenda.docx", b"PK-old")
+    st.put("https://h/agenda.docx", b"PK-new")
+    assert len(read_changes(d / "changes.jsonl")) == 1
+
+
+def test_log_change_drops_none_values(tmp_path):
+    st = make(tmp_path)
+    st._log_change({"date": "2026-11-07", "note": "n", "page": None, "old": None, "source_url": "https://h/a"})
+    assert json.loads((tmp_path / "changes.jsonl").read_text()) == {"date": "2026-11-07", "note": "n",
+                                                                     "source_url": "https://h/a"}
+
+
+@pytest.mark.parametrize("rec", [
+    {"date": "2026-11-07", "source_url": "http://h/a"},       # the site only links https
+    {"date": "2026-11-07", "page": 0},
+    {"date": "7 Nov 2026"},
+    {"note": "no date"},
+    {"date": "2026-11-07", "extra": "x"},
+])
+def test_log_change_refuses_a_line_the_build_would_reject(tmp_path, rec):
+    st = make(tmp_path)
+    with pytest.raises(ValueError, match="changes.schema.json"):
+        st._log_change(rec)
+    assert not (tmp_path / "changes.jsonl").exists()
+
+
 def test_non_pdf_body_is_a_failure(tmp_path):
     with pytest.raises(FetchFailed):
         fetch_into_store(FakeFetcher(b"<html>"), make(tmp_path), "https://h/a")
