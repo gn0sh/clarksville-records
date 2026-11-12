@@ -95,8 +95,8 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
 - The text layers and OCR readings (`data/text`, `data/ocr`, keyed by document sha256 and page) live in their own
   cache (`records-derived-v1-<hash of the tesseract and pdftotext versions>-<hash of collector/extract.py,
   collector/ocr.py, requirements.lock>-*`), restored before
-  Collect and saved when it grew, even after a failed step, by the scheduled run on `main` only (a manual run, which
-  may be on another ref, never saves it; it still saves the document store). A change to those files starts a fresh
+  Collect and saved when it grew, even after a failed step, by a run on `main` only (scheduled, or a manual seed run;
+  a manual run on another ref never saves it; every run still saves the document store). A change to those files starts a fresh
   cache. A truncated text cache file is deleted and read again. A document
   whose hash is unchanged is never OCR'd again. Worst case per warm run: only documents first fetched in that run are
   OCR'd (RPC at most 38: 40 requests less robots.txt and the listing; county and city minutes as many as were newly

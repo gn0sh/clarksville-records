@@ -558,7 +558,7 @@ def test_an_rpc_failure_with_a_good_county_run_still_commits_the_county_data(cou
     wf = yaml.safe_load((ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding="utf-8"))
     steps = {s.get("name"): s for s in wf["jobs"]["update"]["steps"]}
     script = steps["Collect (polite fetch, parse, verify)"]["run"].replace(
-        "python -m collector city run; city=$?", "city=0").replace(
+        "python -m collector city run --agendas; city=$?", "city=0").replace(
         'python -m collector run "${shrink[@]}"; county=$?', f"county={M.RPC_FAILED}")
     out = tmp_path / "gh-output"
     r = subprocess.run(["bash", "-c", script], env={**os.environ, "GITHUB_OUTPUT": str(out)}, capture_output=True,

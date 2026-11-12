@@ -21,7 +21,7 @@ STEPS = {s.get("name"): s for s in WF["jobs"]["update"]["steps"]}
 COLLECT = STEPS["Collect (polite fetch, parse, verify)"]
 KEPT_ISSUE = STEPS["Open or update the county kept-meetings issue"]
 RPC_ISSUE = STEPS["Open or update the RPC issue"]
-CITY_LINE = "python -m collector city run; city=$?"
+CITY_LINE = "python -m collector city run --agendas; city=$?"
 COUNTY_LINE = 'python -m collector run "${shrink[@]}"; county=$?'
 BOOK = "src-7325525d58ca"                       # the committed five-minutes book with two meetings
 

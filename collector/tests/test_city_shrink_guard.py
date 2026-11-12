@@ -598,7 +598,7 @@ def test_city_7_never_hides_a_county_hard_failure(tmp_path, county):
 
 
 def test_the_city_run_line_takes_no_allow_shrink():
-    assert "python -m collector city run; city=$?" in STEPS["Collect (polite fetch, parse, verify)"]["run"]
+    assert "python -m collector city run --agendas; city=$?" in STEPS["Collect (polite fetch, parse, verify)"]["run"]
 
 
 def test_city_kept_issue_lists_the_guard_and_strips_backticks(tmp_path):
