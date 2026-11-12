@@ -58,6 +58,8 @@ TRANSCRIPTS = ROOT / "data" / "localities" / "clarksville-tn" / "transcripts"
     ("call (931) 555-0104 or 555-0105 today", f"call {P} or {P} today"),
     ("or text 931.555.0107 any time", f"or text {P} any time"),
     ("my number is nine three one five five five zero one zero six", f"my number is {P}"),
+    ("or call the hotline at 9 3 1 5 5 5 0 1 0 8 the hotline", f"or call the hotline at {P} the hotline"),
+    ("is 5 5 5 0 1 0 9. this concludes", f"is {P}. this concludes"),
 ])
 def test_addresses_and_phone_numbers_are_masked(text, masked):
     assert privacy.mask(text) == masked
@@ -80,6 +82,7 @@ def test_addresses_and_phone_numbers_are_masked(text, masked):
     "will city court be open", "and this was voted on in 1983 by the way", "the 14th of March at 8 a.m.",
     "Resolution 3710 2526, a resolution", "the city website was from 2023 2023 it",
     "we went to the four city court sessions", "item 6 Example Street paving", "district 5 Sample Road widening",
+    "the vote was 7 0 0 and the motion carries", "items 1 2 3 4 5 and 6 on consent", "page 1 2 3 4 5 6 7.5 inches",
 ])
 def test_numbers_that_are_not_addresses_are_left(text):
     assert privacy.mask(text) == text
@@ -91,6 +94,7 @@ _RUN = "twenty-two and " * 60
 @pytest.mark.parametrize("text", [
     _RUN, _RUN.rstrip(), _RUN + "Sample", _RUN + "Sample Court", "I live at " + _RUN, "my address is " + _RUN + "x",
     " ".join(["five"] * 60), " ".join(["five"] * 60) + " Example Street", "call " + " ".join(["nine"] * 60) + " now",
+    " ".join(["5"] * 60), " ".join(["5"] * 60) + ".5", "1 " * 60 + "Example Street",
 ])
 def test_long_number_word_runs_finish_quickly(text):
     """privacy/mask-regex-redos: a run of spelled-out numbers with no street (or a long spelled digit run) cannot make
@@ -139,6 +143,7 @@ def test_the_qa_rule_agrees_with_the_masker():
     assert site_checks.private_details("My address is 418 Example Court, Clarksville")
     assert site_checks.private_details("Sam Sample, 236 Fixture Court.")
     assert site_checks.private_details("call (931) 555-0104 today")
+    assert site_checks.private_details("the hotline at 9 3 1 5 5 5 0 1 0 8 the hotline")
 
 
 # ------------------------------------------------------------------------------------- masked at import and at rest

@@ -2256,7 +2256,8 @@ class TranscriptLines(HTMLParser):
 
 # privacy/transcript-private-addresses, restated here (not imported from collector/privacy.py): a house number (digits,
 # not part of a dollar amount, decimal, comma number or hyphenated number, and not after a word that names something
-# else), one to three street-name words that are not function words or units, and a street suffix; or a phone number.
+# else), one to three street-name words that are not function words or units, and a street suffix; or a phone number
+# (3-3-4 or 3-4 digit groups, or seven or more single digits apart).
 _PRIV_NOT_NAME = set("""a an the and or but so of to in on at by for from with into off over up down out about than
 then that this these those there here it it's its is are was were be i we you he she they my your his her their
 what when where if as also known like just only not no yes do did have has had will would can could each every
@@ -2271,7 +2272,8 @@ PRIVATE_ADDRESS = re.compile(r"(?<![\w$#/.,'’-])(\d{1,5})(?![.,]\d)((?:\s+(?:[
                              r"|\s+[A-Za-z][A-Za-z'’-]*){1,3})\s+(?:street|avenue|road|drive|court|lane|boulevard|blvd|"
                              r"pike|place|way|circle|trail|parkway|alley|cove)\b", re.I)
 PRIVATE_PHONE = re.compile(r"(?<![\w$.,-])(?:\(\d{3}\)\s*|\d{3}[\s.-]{1,2})\d{3}[\s.-]{1,2}\d{4}(?![\w-])(?!\s*[.,]?\s*\d)"
-                           r"|(?<![\w$.,-])\d{3}[.-]\d{4}(?![\w-])(?![.,]\d)")
+                           r"|(?<![\w$.,-])\d{3}[.-]\d{4}(?![\w-])(?![.,]\d)"
+                           r"|(?<![\w$.,-])(?:\d\s+){6,}\d(?![\w-])(?![.,]\d)")
 
 
 def private_details(text: str) -> list[str]:

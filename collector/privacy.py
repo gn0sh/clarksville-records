@@ -19,8 +19,9 @@ What is masked (rules, each with the false positives it avoids):
 - A house number someone says they live at, with no suffix: "I live at 640 samplewood since 2003", "my address is 515",
   up to the first function word or punctuation.
 - A phone number: ten digits in 3-3-4 groups (any of space, ".", "-", "()" between them), seven digits as 3-4 joined by
-  "-" or ".", or seven or more spelled-out digits in a row. Every phone number, official lines included: a list of
-  "official" numbers would need checking against each body, and the video has them all.
+  "-" or ".", seven or more spelled-out digits in a row, or seven or more single digits apart ("9 3 1 5 5 5 0 1 0 0").
+  Every phone number, official lines included: a list of "official" numbers would need checking against each body,
+  and the video has them all.
 Every example in this module is synthetic (invented names and streets, 555-01xx numbers), never a real transcript line.
 Each rule errs toward masking: a street named in a zoning item read aloud is masked too (it is on the item's own pages).
 """
@@ -86,7 +87,8 @@ CUED = re.compile(r"\b" + CUES + r"\b[\s.,:]*" + _START + _NUMBERS + r"(?:\s+(?!
 _SEP = r"(?:\s*[.-]\s*|\s+)"
 PHONE = re.compile(r"(?<![\w$.,-])(?:\(\s*\d{3}\s*\)\s*|\d{3}" + _SEP + r")\d{3}" + _SEP + r"\d{4}(?![\w-])(?!\s*[.,]?\s*\d)"
                    r"|(?<![\w$.,-])\d{3}[.-]\d{4}(?![\w-])(?![.,]\d)"
-                   r"|\b(?:(?:" + "|".join(_DIGIT_WORDS) + r")[\s,-]+){6,}(?:" + "|".join(_DIGIT_WORDS) + r")\b", re.I)
+                   r"|\b(?:(?:" + "|".join(_DIGIT_WORDS) + r")[\s,-]+){6,}(?:" + "|".join(_DIGIT_WORDS) + r")\b"
+                   r"|(?<![\w$.,-])(?:\d\s+){6,}\d(?![\w-])(?![.,]\d)", re.I)
 
 
 def _house_number_ok(text: str, m: re.Match) -> bool:
