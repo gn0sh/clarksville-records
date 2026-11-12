@@ -340,8 +340,25 @@ votes included (`tests/test_city_verify_data.py`, V6 digest). Held in the new me
 (page-1 heading "July 9, 2026 at 4:30 PM", but called to order "on Monday, July 6, 2026": two dates, so held; its
 agenda keeps the meeting, `other_meeting`, and its 30 roll calls, 21 verified, are not read). Rebuilt from the store
 (2026-11-12, all 608 manifest files byte-identical): 1,912 of 2,354 verified (81.2%), 401 meetings; the 1,823 of the
-V6 digest are not touched (none is in a D1 meeting). The latest attendance list is now 2026-07-06, which prints
-CLAULNCH (resolves to no one), so Ward 2's Eric Claunch is held over: Ward 2 shows no holder, only the neutral note.
+V6 digest are not touched (none is in a D1 meeting). The latest attendance list is now 2026-07-06. Its page 1
+(fileId 3254, text layer) prints "PRESENT: BROWN, CHANDLER, CLAULNCH, HAYWOOD, ..." (13 names, "ABSENT: NONE"), but
+the same page prints CLAUNCH in its votes ("AYE: CHANDLER, CLAUNCH, HAYWOOD, ..."). As printed, CLAULNCH resolves to
+no one, so Ward 2's Eric Claunch was held over, and a held-over note says what the list prints ("the attendance lists
+of 2026-07-06 print a name the record cannot place: CLAULNCH"), never "not named", unless the list truly leaves the
+member out (city-seats/held-over-note-says-not-named).
+
+**Printing corrections (2026-11-12, city-seats/printed-misspelling-of-seated-member).** `agenda-center.yml
+printing_corrections` holds curated, per-meeting, attendance-only corrections, each `{meeting, minutes_url, page,
+printed, reads}`; the one entry is `{2026-07-06, fileId 3254, p. 1, CLAULNCH, CLAUNCH}`. The build
+(`city_build.printing_corrections`) applies an entry only to the meeting whose date and minutes file it names, and
+only when: that page prints `printed` once in its PRESENT list and it does not resolve as printed; the attendance does
+not also print `reads`; a vote line of that page prints `reads`; and `reads` is exactly one full name on the meeting's
+roster book, which no other attendance entry resolves to (the one member the list otherwise leaves out). Otherwise it
+is not applied (fail closed: the token stays held), with a failed `printing_correction` check, a run-report problem
+and a `printing_corrections` report row. Vote, absent, mover and seconder tokens are never corrected, nor any other
+meeting or page. The attendance entry keeps `raw_name` as printed; its wards.json row adds `reads`. A seat record
+read through it says so plainly wherever its dates are worded, and the council home's seat line shows 'the attendance
+lists of 2026-07-06 print the name as "CLAULNCH"', linked to that page.
 
 ### W1. Invisible format characters in the text layer (a reading fix)
 2020-10-01 page 1 prints "Jeff Henley"; its text layer has "J", a zero-width word (U+200B ZERO WIDTH SPACE, x0 = x1 =
