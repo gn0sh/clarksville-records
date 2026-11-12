@@ -4,7 +4,9 @@ loses committed meetings never replaces the committed city data. The committed r
 warns (exit 7, `guard` in build/city-report.json), so the workflow publishes everything else and opens the city
 meetings-kept issue; a vanished row with no minutes dated today or later drops quietly. The county's rule 3
 (test_shrink_guard.py), at the city's units."""
+import copy
 import json
+from pathlib import Path
 
 import pytest
 
@@ -15,7 +17,8 @@ from collector.city_run import cmd_fetch, cmd_fetch_civicclerk, new_log
 from collector.store import Store
 from collector.tests.test_agenda_center import FIX, FakeFetcher, small_cfg
 from collector.tests.test_civicclerk import JAN4, WORK, Pages
-from collector.tests.test_shrink_guard import STEPS, collect, issue_step
+from collector.shrink_guard import check_unit, shrink_guard
+from collector.tests.test_shrink_guard import STEPS, collect, issue_step, rehash
 
 EMPTY_200 = b"<html><body><div id='main'>Agenda Center</div></body></html>"      # no heading, no table
 
@@ -141,54 +144,176 @@ def test_a_vanished_row_with_minutes_is_kept_and_warns(ccfg, acfg, tmp_path):
     assert city_run.kept_anything(log) and "dropped_unminuted" not in log["guard"]
 
 
-# ------------------------------------------------------------------ the build: committed meetings are never dropped
+# ------------------------------------------------------------------ the facts guard (ADR 0006 fix 2), on the committed city
+CITY = Path(__file__).resolve().parents[2] / "data" / "localities" / "clarksville-tn"
+
+
+@pytest.fixture(scope="module")
+def committed_city():
+    return (json.loads((CITY / "facts.json").read_text(encoding="utf-8")),
+            json.loads((CITY / "wards.json").read_text(encoding="utf-8")))
+
+
+def minutes_meetings(facts, wards):
+    """Committed meetings read from their minutes, with a verified roll call, an agenda source of their own and ward
+    entries: the guard's unit at its fullest (chosen from the file, so no id is pinned)."""
+    kind = {s["id"]: s["kind"] for s in facts["sources"]}
+    in_wards = {w["meeting_id"] for w in wards}
+    verified = {r["meeting_id"] for r in facts["roll_calls"] if r["verification"]["status"] == "verified"}
+    return [m for m in facts["meetings"] if kind[m["source_id"]] == "minutes" and m["id"] in verified
+            and m["id"] in in_wards and m.get("agenda_source_id") not in (None, m["source_id"])]
+
+
+def records_of(facts, mid):
+    m = next(x for x in facts["meetings"] if x["id"] == mid)
+    srcs = {m["source_id"], m.get("agenda_source_id")}
+    return {"meeting": m, **{k: [r for r in facts[k] if r["meeting_id"] == mid] for k in ("roll_calls", "motions",
+                                                                                          "item_events")},
+            "sources": sorted((s for s in facts["sources"] if s["id"] in srcs), key=lambda s: s["id"])}
+
+
+def without(facts, wards, mid, keep_agenda=True):
+    """The build when one meeting's minutes are missing from the store: the meeting is agenda-only (keep_agenda) or
+    absent, its minutes source and records gone, its ward entries gone."""
+    f = copy.deepcopy(facts)
+    m = next(x for x in f["meetings"] if x["id"] == mid)
+    f["sources"] = [s for s in f["sources"] if s["id"] != m["source_id"]
+                    and (keep_agenda or s["id"] != m.get("agenda_source_id"))]
+    for k in ("roll_calls", "motions", "item_events"):
+        f[k] = [r for r in f[k] if r["meeting_id"] != mid]
+    if keep_agenda:
+        m.update(source_id=m["agenda_source_id"], minutes_status="not_posted", minutes_url=None, attendance=[],
+                 attendance_status="not_extracted")
+    else:
+        f["meetings"] = [x for x in f["meetings"] if x["id"] != mid]
+    return f, [w for w in wards if w["meeting_id"] != mid]
+
+
+def plus_new_meeting(facts, wards):
+    """Another meeting's new data: a new agenda-only meeting at the end of the listing."""
+    f = copy.deepcopy(facts)
+    last = f["meetings"][-1]
+    src = {**next(s for s in f["sources"] if s["id"] == last["source_id"]), "id": "src-feedfacefeed",
+           "sha256": "feedfacefeed" + "0" * 52, "url": "https://example.test/new-agenda.pdf", "meeting_date": "2099-01-07"}
+    f["sources"].append(src)
+    f["meetings"].append({**last, "id": "2099-01-07-regular", "date": "2099-01-07", "source_id": src["id"],
+                          "agenda_source_id": src["id"], "minutes_url": None, "minutes_status": "not_posted",
+                          "attendance": [], "agenda_url": src["url"]})
+    return f, wards
+
+
 @pytest.fixture
-def city(tmp_path, monkeypatch):
-    """`collector city build` with the build faked: it returns `state['meetings']`; nothing touches data/."""
+def city(tmp_path, monkeypatch, committed_city):
+    """`collector city build` on a copy of the committed city files, the build faked: it returns state['new'] and
+    state['wards']; nothing touches data/."""
+    import collector.city_build as cb
+    from collector.verify import gates
+    facts, wards = committed_city
     d = tmp_path / "data"
     p = {"dir": d, "listing": d / "listing.json", "manifest": d / "manifest.json", "facts": d / "facts.json",
          "wards": d / "wards.json", "cc_listing": d / "cc.json", "report": tmp_path / "city-report.json"}
+    city_run.write_json(p["facts"], facts)
+    city_run.write_json(p["wards"], wards)
     monkeypatch.setattr(city_run, "paths", lambda cfg, root=None: p)
     monkeypatch.setattr(city_run, "listing_rows", lambda p, cfg, store=None: ([], []))
-    state = {"meetings": ["2026-11-05-regular", "2026-11-20-regular"], "p": p}
-    gates = {"roll_calls": 0, "verified": 0, "verified_rate": 0.0, "verified_rate_gate": {"pass": True},
-             "g4": {"status": "ok", "flagged": [], "uniform_share": 0, "pass": True}}
+    state = {"new": copy.deepcopy(facts), "wards": copy.deepcopy(wards), "p": p, "facts": facts, "w": wards}
 
     def build(cfg, rows, store):
-        return ({"meetings": [{"id": m} for m in state["meetings"]], "_wards": [{"meeting_id": m}
-                                                                             for m in state["meetings"]]},
-                {"gates": gates})
-    import collector.city_build as cb
+        f = copy.deepcopy(state["new"])
+        return {**f, "_wards": copy.deepcopy(state["wards"])}, {"gates": gates(f, set())}
     monkeypatch.setattr(cb, "build", build)
-    d.mkdir(parents=True)
-    p["facts"].write_text(json.dumps({"meetings": [{"id": "2026-11-05-regular"}]}))
-    p["wards"].write_text("[]")
+    state["out"] = lambda: (json.loads(p["facts"].read_text(encoding="utf-8")),
+                            json.loads(p["wards"].read_text(encoding="utf-8")))
+    state["guard"] = lambda: json.loads(p["report"].read_text(encoding="utf-8"))["guard"]
     return state
 
 
-def test_a_build_that_drops_a_committed_meeting_keeps_it_and_exits_7(city, capsys):
-    city["meetings"] = []
-    before = {k: city["p"][k].read_text() for k in ("facts", "wards")}
-    assert city_run.main(["build"]) == city_run.KEPT == 7
-    assert {k: city["p"][k].read_text() for k in ("facts", "wards")} == before
-    report = json.loads(city["p"]["report"].read_text())
-    assert report["fetch"]["failures"] == []
-    assert report["guard"]["kept_meetings"][0]["meeting_ids"] == ["2026-11-05-regular"]
-    assert "KEPT" in capsys.readouterr().err
+def test_city_unit_holds_on_committed_facts(committed_city):
+    """The county's unit (one source document and its meetings) holds for the city, and the committed facts against
+    themselves keep nothing."""
+    facts, _ = committed_city
+    check_unit(facts, "city facts.json")
+    check_unit(city_run.minutes_units(facts), "city minutes units")
+    assert shrink_guard(facts, city_run.minutes_units(facts)) == {"kept": [], "corrections": []}
+
+
+def test_city_missing_minutes_keeps_that_meeting_only(city):
+    m = minutes_meetings(city["facts"], city["w"])[-1]["id"]
+    new, wards = without(city["facts"], city["w"], m)
+    city["new"], city["wards"] = plus_new_meeting(new, wards)
+    assert city_run.main(["build"]) == city_run.KEPT
+    out, wards_out = city["out"]()
+    assert records_of(out, m) == records_of(city["facts"], m)                      # byte-identical as committed
+    assert [w for w in wards_out if w["meeting_id"] == m] == [w for w in city["w"] if w["meeting_id"] == m]
+    assert "2099-01-07-regular" in {x["id"] for x in out["meetings"]}              # another meeting's new data
+    assert [x["id"] for x in out["meetings"]][:-1] == [x["id"] for x in city["facts"]["meetings"]]   # same order
+    [k] = city["guard"]()["kept_meetings"]
+    assert k["meeting_ids"] == [m] and k["ids"]
+
+
+def test_city_kept_twice_is_byte_identical(city):
+    m = minutes_meetings(city["facts"], city["w"])[0]["id"]
+    city["new"], city["wards"] = without(city["facts"], city["w"], m)
+    assert city_run.main(["build"]) == city_run.KEPT
+    first = (city["p"]["facts"].read_bytes(), city["p"]["wards"].read_bytes())
+    assert first == ((CITY / "facts.json").read_bytes(), (CITY / "wards.json").read_bytes())    # as committed
+    assert city_run.main(["build"]) == city_run.KEPT
+    assert (city["p"]["facts"].read_bytes(), city["p"]["wards"].read_bytes()) == first
+
+
+def test_city_kept_meeting_agenda_source_is_published(city):
+    m = minutes_meetings(city["facts"], city["w"])[-2]
+    city["new"], city["wards"] = without(city["facts"], city["w"], m["id"], keep_agenda=False)
+    assert m["agenda_source_id"] not in {s["id"] for s in city["new"]["sources"]}
+    assert city_run.main(["build"]) == city_run.KEPT
+    out, _ = city["out"]()
+    assert {m["source_id"], m["agenda_source_id"]} <= {s["id"] for s in out["sources"]}
+    check_unit(out, "the merged city facts")
+
+
+def _reposted(city, m, lose=False):
+    """The city posted new bytes of m's minutes at a new url: new sha, new source and record ids (the county test's
+    rehash), the meeting's minutes_url the new one."""
+    new, sid = rehash(city["facts"], m["source_id"])
+    url = "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=99999,plainText=false)"
+    for s in new["sources"]:
+        if s["id"] == sid:
+            s["url"] = url
+    mm = next(x for x in new["meetings"] if x["id"] == m["id"])
+    mm["minutes_url"] = url
+    if lose:
+        rc = next(r for r in new["roll_calls"] if r["source_id"] == sid and r["verification"]["status"] == "verified")
+        checks = [dict(c) for c in rc["verification"]["checks"]]
+        checks[0]["ok"] = False                                     # a check fails, so the status and checks agree
+        rc["verification"] = {**rc["verification"], "status": "unverified", "checks": checks}
+    return new
+
+
+@pytest.mark.parametrize("lose, code", [(False, 0), (True, city_run.KEPT)])
+def test_city_reposted_minutes_is_a_correction(city, lose, code):
+    m = minutes_meetings(city["facts"], city["w"])[-3]
+    city["new"] = _reposted(city, m, lose)
+    assert city_run.main(["build"]) == code
+    out, _ = city["out"]()
+    assert out == city["new"]                                        # the new reading wins: a correction, not kept
+    g = city["guard"]()
+    [c] = g["corrections"]
+    assert c["meeting_ids"] == [m["id"]] and "kept_meetings" not in g
+    assert bool(g.get("lowered")) is lose
 
 
 def test_a_build_that_keeps_every_committed_meeting_is_written(city):
+    city["new"], city["wards"] = plus_new_meeting(city["facts"], city["w"])
     assert city_run.main(["build"]) == 0
-    assert [m["id"] for m in json.loads(city["p"]["facts"].read_text())["meetings"]] == [
-        "2026-11-05-regular", "2026-11-20-regular"]
+    assert city["out"]()[0] == city["new"] and city["guard"]() == {}
 
 
 def test_allow_shrink_writes_a_smaller_build_and_records_it(city):
-    city["meetings"] = []
+    m = minutes_meetings(city["facts"], city["w"])[0]["id"]
+    city["new"], city["wards"] = without(city["facts"], city["w"], m, keep_agenda=False)
     assert city_run.main(["build", "--allow-shrink"]) == 0
-    assert json.loads(city["p"]["facts"].read_text())["meetings"] == []
-    report = json.loads(city["p"]["report"].read_text())
-    assert report["guard"]["allowed_shrink"] == [{"facts": "facts.json", "dropped": ["2026-11-05-regular"]}]
+    assert city["out"]()[0] == city["new"]
+    assert city["guard"]()["allowed_shrink"][0]["kept_meetings"][0]["meeting_ids"] == [m]
 
 
 # ------------------------------------------------------------------ the workflow: city 7 is a warning with its own issue

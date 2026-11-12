@@ -212,6 +212,10 @@ def test_each_run_summary_prints_the_limits_line(which, monkeypatch, capsys, tmp
     else:
         from collector import city_run
         monkeypatch.setattr(city_run, "write_json", lambda path, obj: None)
+        d = tmp_path / "city"          # no committed facts here: the fake build is not judged by the shrink guard
+        monkeypatch.setattr(city_run, "paths", lambda cfg, root=None: {
+            "dir": d, "listing": d / "listing.json", "manifest": d / "manifest.json", "facts": d / "facts.json",
+            "wards": d / "wards.json", "cc_listing": d / "cc.json", "report": d / "city-report.json"})
         monkeypatch.setattr(city_run, "listing_rows", lambda p, cfg, store=None: ([], []))
         # a passing build summary: city_run prints its gates line (AC-P1, G4) after the limits line
         passing = {"gates": {"roll_calls": 0, "verified": 0, "verified_rate": 0.0,

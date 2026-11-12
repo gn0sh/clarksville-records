@@ -30,7 +30,10 @@ Shrink guard (ADR 0006; the county's rule 3, docs/architecture/pipeline-limits-i
 listing read without an error but missing rows the committed listing has (an empty page, a 200 with no heading and no
 rows, an events page of `{"value": []}`) keeps the committed rows (`kept_listing_rows`, exit 7), except a row with no
 minutes dated on or after the run's UTC day (a cancelled or rescheduled event): it is dropped and listed under
-`dropped_unminuted`, no code. A build that would drop a committed meeting keeps the committed facts (exit 7).
+`dropped_unminuted`, no code. The build is then judged by the county's shrink guard (collector/shrink_guard.py,
+guard_facts): each committed meeting read from its minutes that lost verified roll calls, is gone, or whose minutes
+are missing from the run is kept exactly as committed (records, sources, agenda source, wards; exit 7) and the rest
+is published; a replaced file is a correction (7 only when its verified count fell or its votes changed).
 The guard's findings are under `guard` in build/city-report.json; it is never a `failures` row.
 --allow-shrink (a deliberate removal at the source, or a parser change that renames meeting ids) lets it through,
 recorded under `allowed_shrink`.
@@ -46,6 +49,7 @@ from pathlib import Path
 from . import civicclerk, limits
 from .agenda_center import AgendaCenterConfig, ListingError, discover, load_config
 from .fetch import FetchFailed, HostBlocked, HostRefused, PoliteFetcher, ProxyRefused, RobotsDisallowed
+from .shrink_guard import keep_closure, keep_documents, shrink_guard
 from .store import Store, fetch_into_store, store_dir
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -129,11 +133,72 @@ def _print(r: dict, key: str) -> dict:
             "title": r.get("title"), "minutes_url": r.get("minutes_url")}
 
 
-def facts_shrink(new: dict, old: dict | None) -> list[str]:
-    """Meeting ids the committed city facts have and the new build lacks (sorted)."""
-    if not old:
-        return []
-    return sorted({m["id"] for m in old.get("meetings", [])} - {m["id"] for m in new.get("meetings", [])})
+# ------------------------------------------------------------------ the facts guard (ADR 0006 fix 2)
+def minutes_units(old: dict) -> dict:
+    """The committed facts the guard compares (ADR 0006 fix 2): only meetings whose source is a minutes source (a
+    meeting read from its minutes), with their records. An agenda-only meeting is the listing guard's to keep."""
+    kind = {s["id"]: s.get("kind") for s in old.get("sources", [])}
+    ms = {m["id"] for m in old.get("meetings", []) if kind.get(m.get("source_id")) == "minutes"}
+    return {**old, "meetings": [m for m in old.get("meetings", []) if m["id"] in ms],
+            **{k: [r for r in old.get(k, []) if r.get("meeting_id") in ms] for k in ("roll_calls", "motions",
+                                                                                     "item_events")}}
+
+
+def city_superseded(store: Store, old: dict, new: dict) -> set:
+    """The sha256 of every committed document replaced (shrink_guard (b), a correction): the store's superseded
+    versions, plus the committed minutes of any meeting whose listing row now names a different minutes_url (the
+    listing replaced the file)."""
+    shas = {e["sha256"] for e in store.superseded() if e.get("sha256")}
+    sha = {s["id"]: s.get("sha256") for s in old.get("sources", [])}
+    now = {m["id"]: m for m in new.get("meetings", [])}
+    for m in old.get("meetings", []):
+        n = now.get(m["id"])
+        if n and m.get("minutes_url") and n.get("minutes_url") and n["minutes_url"] != m["minutes_url"] \
+                and sha.get(m.get("source_id")):
+            shas.add(sha[m["source_id"]])
+    return shas
+
+
+def splice(new: list, old: list, from_old, ident) -> list:
+    """`new` without the records `from_old` claims, plus those records from `old`, each placed right after the record
+    it follows in `old` (the city's lists keep listing and document order, not id order). A record kept two days
+    running lands in the same place, so the written file is byte-identical."""
+    out = [x for x in new if not from_old(x)]
+    present = {ident(x) for x in out}
+    after: dict = {}
+    anchor = None
+    for x in old:
+        if from_old(x):
+            after.setdefault(anchor, []).append(x)
+        elif ident(x) in present:
+            anchor = ident(x)
+    res = list(after.pop(None, []))
+    for x in out:
+        res.append(x)
+        res.extend(after.pop(ident(x), []))
+    return res
+
+
+def keep_city(new: dict, old: dict, wards_new: list, wards_old: list, kept: list[dict]) -> tuple[dict, list]:
+    """The county's keep_documents on the city facts (ADR 0006 fix 2), in the city's own order: every kept meeting's
+    records, sources and items exactly as committed, its committed agenda source (agenda_source_id) too, and its
+    wards.json entries; everything else as built."""
+    ms, sids = keep_closure(new, old, kept)
+    base = keep_documents(new, old, kept)            # items, sources and coverage as the county keeps them
+
+    def mine(r: dict, key: str = "meeting_id") -> bool:
+        return r.get(key) in ms or r.get("source_id") in sids
+    out = dict(base)
+    out["meetings"] = splice(new.get("meetings", []), old.get("meetings", []), lambda m: mine(m, "id"), lambda m: m["id"])
+    for k in ("roll_calls", "motions", "item_events"):
+        out[k] = splice(new.get(k, []), old.get(k, []), mine, lambda r: r["id"])
+    have = {s["id"] for s in base["sources"]}
+    agenda = {m.get("agenda_source_id") for m in old.get("meetings", []) if m["id"] in ms} - {None}
+    out["sources"] = sorted(base["sources"] + [s for s in old.get("sources", []) if s["id"] in agenda - have],
+                            key=lambda s: (s.get("meeting_date") or "", s["id"]))
+    wards = splice(wards_new, wards_old, lambda w: w.get("meeting_id") in ms,
+                   lambda w: json.dumps(w, sort_keys=True))
+    return out, wards
 
 
 def paths(cfg: AgendaCenterConfig, root: Path = ROOT) -> dict:
@@ -224,6 +289,42 @@ def listing_rows(p: dict, cfg: AgendaCenterConfig, store: Store | None = None) -
     return civicclerk.merge_sources(ac, cc, page1_ok=lambda r: page1_check(r, store) is None)
 
 
+def guard_facts(facts: dict, wards: list, p: dict, store: Store, log: dict, summary: dict,
+                allow_shrink: bool = False) -> tuple[dict, list]:
+    """ADR 0006 fix 2: the county's shrink guard (collector/shrink_guard.py) on the city facts. Each committed meeting
+    read from its minutes is compared, by its minutes' sha256, with the new build: lost verified roll calls, a meeting
+    gone, or its minutes missing from the run keep that meeting exactly as committed (records, sources, agenda source,
+    wards); a replaced file is a correction (the new reading wins, a warning only when its verified count fell or its
+    votes changed). The merged facts and wards are returned (always written), the gates recomputed on them."""
+    from .verify import gates
+    if not p["facts"].exists():
+        return facts, wards
+    old = json.loads(p["facts"].read_text(encoding="utf-8"))
+    wards_old = json.loads(p["wards"].read_text(encoding="utf-8")) if p["wards"].exists() else []
+    res = shrink_guard(facts, minutes_units(old), p["facts"].name, city_superseded(store, old, facts))
+    g = log.setdefault("guard", {})
+    kept = res["kept"]
+    if res["corrections"]:
+        g["corrections"] = res["corrections"]
+        g["lowered"] = [c for c in res["corrections"] if c["verified"][1] < c["verified"][0] or c.get("votes_changed")]
+        if not g["lowered"]:
+            del g["lowered"]
+    if kept and allow_shrink:
+        g["allowed_shrink"] = g.get("allowed_shrink", []) + [{"facts": p["facts"].name, "kept_meetings": kept}]
+        kept = []
+    if not kept:
+        return facts, wards
+    g["kept_meetings"] = kept
+    g["withheld_new"] = sorted({m for k in kept for m in k.get("withheld_new") or []})
+    for k in kept:
+        print(f"collector city: KEPT {k['source_id']} ({', '.join(k['meeting_ids'])}): {k['reason']}",
+              file=sys.stderr, flush=True)
+    merged, wards = keep_city(facts, old, wards, wards_old, kept)
+    summary["gates"] = gates(merged, set())          # the gates judge what is published (the county's G2.3)
+    summary["pass"] = summary["gates"]["verified_rate_gate"]["pass"] and summary["gates"]["g4"]["pass"]
+    return merged, wards
+
+
 def new_log() -> dict:
     return {"failures": [], "fetched": {}}
 
@@ -262,20 +363,9 @@ def main(argv: list[str]) -> int:
         facts, summary = build(cfg, rows, store)
         summary["duplicates"] = dups
         wards = facts.pop("_wards")
-        old = json.loads(p["facts"].read_text(encoding="utf-8")) if p["facts"].exists() else None
-        dropped = facts_shrink(facts, old)
-        guard = log.setdefault("guard", {})
-        if dropped and not a.allow_shrink:
-            n_new, n_old = len(facts.get("meetings") or []), len(old.get("meetings") or [])
-            guard.setdefault("kept_meetings", []).append({"meeting_ids": dropped, "reason": "meetings gone from the result"})
-            print(f"collector city: KEPT the build has {n_new} meetings and would drop {len(dropped)} of the {n_old} "
-                  f"in {p['facts'].name}, e.g. {', '.join(dropped[:3])}; {p['facts'].name} and {p['wards'].name} are "
-                  f"kept as committed", file=sys.stderr, flush=True)
-        else:
-            if dropped:
-                guard.setdefault("allowed_shrink", []).append({"facts": p["facts"].name, "dropped": dropped})
-            write_json(p["wards"], wards)
-            write_json(p["facts"], facts)
+        facts, wards = guard_facts(facts, wards, p, store, log, summary, a.allow_shrink)
+        write_json(p["wards"], wards)
+        write_json(p["facts"], facts)
         report["build"] = summary
         report["fetch"] = {k: v for k, v in log.items() if k != "fetch_log"}
     report["guard"] = log.get("guard") or {}
