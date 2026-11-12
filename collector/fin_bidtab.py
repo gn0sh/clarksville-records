@@ -45,6 +45,10 @@ from .pdfwords import Line, Word, lines as group_lines
 
 AMOUNT = re.compile(r"^\$?(\d{1,3}(?:,\d{3})*)(?:\.(\d{2}))?$")
 FILL = re.compile(r"_+")
+# fin/ligature-department: a PDF text layer can carry a typeset ligature as one presentation-form character
+# ("Sheriﬀ’s Oﬃce"). These five are the NFKC decomposition of the Latin ligatures U+FB00-FB04, the same letters as
+# printed; nothing else is normalised (curly apostrophes and every other character stay as the text layer has them).
+LIGATURES = str.maketrans({"\ufb00": "ff", "\ufb01": "fi", "\ufb02": "fl", "\ufb03": "ffi", "\ufb04": "ffl"})
 NAME_GAP = 1.6           # word heights between two name lines of one block (the 8 real block tabs: under 1.2)
 NO_HEADER = "no bidder table header the rules know (itemised or unit-price layout, not read in 1a)"
 
@@ -80,7 +84,7 @@ def cents(token: str) -> int | None:
 
 
 def clean(text: str) -> str:
-    return " ".join(FILL.sub(" ", text).split())
+    return " ".join(FILL.sub(" ", text.translate(LIGATURES)).split())
 
 
 def _starts_with(text: str, label: str) -> str | None:
