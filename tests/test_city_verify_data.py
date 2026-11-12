@@ -4,7 +4,13 @@ changes no vote of a roll call verified before, adds the one D1 meeting (2 roll 
 every newly verified roll call passes every check it already had.
 
 D1 widened (2026-11-11): the council meetings CivicClerk files under "General" by other names add 16 meetings (147 roll
-calls, 110 verified); every roll call verified at V6 (1,823 of 2,237) is unchanged, votes included (V6_DIGEST)."""
+calls, 110 verified); every roll call verified at V6 (1,823 of 2,237) is unchanged, votes included (V6_DIGEST).
+
+D1 minutes identity (2026-11-12, d1-minutes-identity): an also-listed row's minutes are read only when their own page 1
+prints the heading and every printed date is the row's date. 2026-07-09 is agenda-only (its minutes are called to order
+"Monday, July 6, 2026": 30 roll calls, 21 verified, no longer read) and 2026-02-19 is skipped (its agenda's page 1 does
+not print the heading on a line of its own; its file was the 2026-02-11 minutes, read once for 2026-02-11, no roll
+calls). 15 meetings remain from the widening (117 roll calls, 89 verified); V6_DIGEST is unchanged."""
 import hashlib
 import json
 
@@ -89,14 +95,16 @@ NEWLY_VERIFIED = [
 ]
 
 
-# The 16 meetings the D1 widening added (event names other than "Special Session" under "General").
-WIDENED = ["2025-02-18-special", "2025-06-17-special", "2025-06-24-special", "2025-11-12-special", "2026-02-19-special",
+# The 15 meetings the D1 widening added (event names other than "Special Session" under "General"); 2026-02-19, the
+# 16th, is skipped by the minutes identity check (SKIPPED).
+WIDENED = ["2025-02-18-special", "2025-06-17-special", "2025-06-24-special", "2025-11-12-special",
            "2026-04-06-special", "2026-04-29-special", "2026-05-07-special", "2026-05-26-work-session",
            "2026-06-11-special", "2026-06-16-special", "2026-06-22-special", "2026-06-29-special", "2026-07-02-regular",
            "2026-07-06-special", "2026-07-09-special"]
 # Every roll call verified at V6 (committed facts at e7cdcb5: 1,823 of 2,237), digested as BEFORE_DIGEST is
 V6_VERIFIED = 1823
 V6_DIGEST = "cefce9ab1c1dffb89766c7373d419eef57f3f911ca344d316992eb5590b2cebc"
+SKIPPED = "2026-02-19-special"
 
 
 def facts():
@@ -115,7 +123,7 @@ def test_only_the_listed_roll_calls_turned_verified_and_no_verified_vote_changed
                     if verified(r) and r["id"] not in NEWLY_VERIFIED and r["meeting_id"] not in WIDENED)
     assert len(before) == BEFORE_VERIFIED
     assert hashlib.sha256(json.dumps(before).encode()).hexdigest() == BEFORE_DIGEST
-    assert (len(now), len(f["roll_calls"])) == (1933, 2384)
+    assert (len(now), len(f["roll_calls"])) == (1912, 2354)
 
 
 def test_the_d1_widening_adds_only_council_meetings_and_changes_no_verified_roll_call():
@@ -125,13 +133,19 @@ def test_the_d1_widening_adds_only_council_meetings_and_changes_no_verified_roll
     assert len(v6) == V6_VERIFIED
     assert hashlib.sha256(json.dumps(v6).encode()).hexdigest() == V6_DIGEST
     ms = {m["id"]: m for m in f["meetings"]}
-    assert set(WIDENED) <= set(ms) and len(ms) == 402
+    assert set(WIDENED) <= set(ms) and len(ms) == 401
     assert {ms[i]["listing_source"] for i in WIDENED} == {"civicclerk"}
     rcs = [r for r in f["roll_calls"] if r["meeting_id"] in WIDENED]
-    assert (len(rcs), sum(map(verified, rcs))) == (147, 110)
-    # the resumed session of 2026-02-19 has the 2026-02-11 minutes posted again: read once, for 2026-02-11
-    assert ms["2026-02-19-special"]["minutes_status"] == "other_meeting"
+    assert (len(rcs), sum(map(verified, rcs))) == (117, 89)
+    # the resumed session of 2026-02-19 has the 2026-02-11 minutes posted again: read once, for 2026-02-11; the
+    # 2026-02-19 row's agenda page 1 does not vouch for it, so it is skipped
+    assert SKIPPED not in ms
     assert ms["2026-02-11-special"]["minutes_status"] == "read"
+    # 2026-07-09: the minutes print July 9 in the heading but are called to order "Monday, July 6, 2026": agenda-only
+    m = ms["2026-07-09-special"]
+    assert m["minutes_status"] == "other_meeting" and not m.get("attendance")
+    assert not [r for r in f["roll_calls"] if r["meeting_id"] == m["id"]]
+    assert not [s for s in f["sources"] if s["meeting_date"] == "2026-07-09" and s["kind"] == "minutes"]
 
 
 def test_the_d1_meeting_is_built_with_its_two_roll_calls():

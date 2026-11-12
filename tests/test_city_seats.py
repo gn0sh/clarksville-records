@@ -324,27 +324,65 @@ def test_one_list_that_does_not_name_a_member_shows_no_wrong_holder_and_the_next
     assert _shown(cix2)["ward-1"] == oid and cix2.seats.is_current(oid)
 
 
-def test_a_member_left_out_of_the_real_2026_07_09_list_is_held_over_not_former(real_city, tmp_path):
+def _next_list(facts, wards, date, after="2026-07-06"):
+    """A list after the real latest one (2026-07-06), dated `date`: the 07-06 list with CLAULNCH read as Claunch, so it
+    resolves all 13 names. (The 2026-07-09 minutes printed such a list; they are agenda-only since d1-minutes-identity,
+    being called to order on July 6, so the next real list is not in the data yet. A made-up date avoids that row.)"""
+    rows = [{**w, "date": date, "meeting_id": f"{date}-special"} for w in wards if w["date"] == after]
+    claunch = next(w for w in wards if w["official_id"] == "city-eric-claunch" and w["date"] == "2026-06-22")
+    rows.append({**claunch, "date": date, "meeting_id": f"{date}-special"})
+    meeting = next(m for m in facts["meetings"] if m["date"] == after)
+    att = [a for a in meeting["attendance"] if a.get("official_id")] + [
+        {"official_id": "city-eric-claunch", "page": 1, "raw_name": "CLAUNCH", "status": "present"}]
+    facts = {**facts, "meetings": [*facts["meetings"], {**meeting, "id": f"{date}-special", "date": date,
+                                                         "attendance": att}]}
+    return facts, wards + rows
+
+
+def test_a_member_left_out_of_the_list_after_2026_07_06_is_held_over_not_former(real_city, tmp_path):
     """city-seats/one-list-drop-prev-incomplete (code review SHOULD, acc8832): the 2026-07-06 list prints 13 names and
-    resolves 12 (CLAULNCH is the 13th). A 2026-07-09 list missing one member resolves 12 too: counted against the 07-06
+    resolves 12 (CLAULNCH is the 13th). A next list missing one member resolves 12 too: counted against the 07-06
     list's resolved names only it looked complete and closed the member's record (Served previously). Counted against
     every name 07-06 prints, it is short: the member is held over, neither current nor former."""
-    facts, wards = real_city[:2]
+    facts, wards = _next_list(*real_city[:2], "2026-07-20")
     oid = "city-brian-zacharias"
-    assert {w["official_id"] for w in wards if w["date"] == "2026-07-09"} >= {oid}
-    assert council.latest_list_incomplete(wards, facts, "2026-07-09", "2026-07-06") is False   # the real list
-    facts, wards = _drop(facts, wards, oid, "2026-07-09")
-    assert len({w["official_id"] for w in wards if w["date"] == "2026-07-09"}) == 12
+    assert {w["official_id"] for w in wards if w["date"] == "2026-07-20"} >= {oid}
+    assert council.latest_list_incomplete(wards, facts, "2026-07-20", "2026-07-06") is False   # the full list
+    facts, wards = _drop(facts, wards, oid, "2026-07-20")
+    assert len({w["official_id"] for w in wards if w["date"] == "2026-07-20"}) == 12
     assert len({w["official_id"] for w in wards if w["date"] == "2026-07-06"}) == 12      # CLAULNCH unresolved
-    assert council.latest_list_incomplete(wards, facts, "2026-07-09", "2026-07-06") is True
+    assert council.latest_list_incomplete(wards, facts, "2026-07-20", "2026-07-06") is True
     rows, latest = council.holder_rows(wards, facts, CFG)
     rec = next(r for r in rows if r["official_id"] == oid)
-    assert latest == "2026-07-09" and rec["end"] is None and rec["held_over"] and rec["seen_to"] == "2026-07-06"
+    assert latest == "2026-07-20" and rec["end"] is None and rec["held_over"] and rec["seen_to"] == "2026-07-06"
     cix = council.load({**CFG}, facts, wards)
     assert not cix.seats.is_current(oid) and _shown(cix)["ward-1"] is None
     sec = _sections(cix)
     assert oid not in sec["current"] and oid not in sec["previous"]
     assert site_checks.check_current_holders(_home(tmp_path, _shown(cix)), facts, [], _cs(facts, wards))[0] == []
+
+
+def test_the_real_latest_list_2026_07_06_holds_ward_2_over_and_shows_no_wrong_holder(real_city, tmp_path):
+    """The real latest list (2026-07-06) prints CLAULNCH, which resolves to no official (never a guess): the list is
+    incomplete, so Eric Claunch (last listed 2026-06-22) is held over, not current and not former, and Ward 2 shows no
+    holder, only the neutral held-over note."""
+    facts, wards, cix = real_city
+    assert cix.seats.latest == "2026-07-06"
+    assert council.latest_list_incomplete(wards, facts, "2026-07-06", "2026-06-22") is True
+    oid = "city-eric-claunch"
+    assert not cix.seats.is_current(oid) and cix.seats.current_of_seat("ward-2") is None
+    row = next(s for s in council.seat_list(cix) if s["seat"] == "ward-2")
+    assert row["holder"] is None and row["note"]["href"] == cix.official_href(oid)
+    assert row["note"]["text"] == ("last listed in attendance lists 2026-06-22; not named in the attendance lists "
+                                   "of 2026-07-06")
+    sec = _sections(cix)
+    assert oid not in sec["current"] and oid not in sec["previous"] and oid in sec.get("held", set())
+    assert 2 not in site_checks.expected_ward_holders(wards, facts)
+    assert site_checks.check_current_holders(_home(tmp_path, _shown(cix)), facts, [], _cs(facts, wards))[0] == []
+    # a page that shows anyone as the Ward 2 holder fails
+    problems, _ = site_checks.check_current_holders(_home(tmp_path, {**_shown(cix), "ward-2": oid}), facts, [],
+                                                    _cs(facts, wards))
+    assert any(f"ward-2 shows {oid}" in p for p in problems)
 
 
 def test_a_cut_off_latest_list_holds_over_and_a_complete_one_closes():
@@ -395,7 +433,7 @@ def test_city_seats_csv_separates_printed_and_name_only_dates(real_city):
     assert mcl["listed_last"] == "2026-01-08" and mcl["listed_last_source"] == mcl["last_source_url"]
     assert "by name only, without the seat" in mcl["dates_basis"] and "not term dates" in mcl["dates_basis"]
     smith = next(r for r in out if r["official_id"] == "city-wanda-smith")
-    assert smith["seen_last"] == "" and smith["listed_last"] == "2026-07-09" and smith["printed_last"] == "2025-03-06"
+    assert smith["seen_last"] == "" and smith["listed_last"] == "2026-07-06" and smith["printed_last"] == "2025-03-06"
 
 
 def test_the_site_check_fails_a_holder_the_latest_list_does_not_name_and_a_wrong_mayor(real_city, tmp_path):
@@ -497,19 +535,20 @@ def test_an_open_record_seen_after_l_is_dated_to_where_it_was_seen():
 
 def test_ward_2_starts_with_the_configured_member_on_the_seating_date_with_its_source(real_city):
     """city-verify M1: Eric Claunch (configured, cited: the 2026-02-11 Special Session minutes, resumed 2026-02-19,
-    p. 3) holds Ward 2 from 2026-02-19, the record citing that page; Deanna McLaughlin's record ends before it."""
+    p. 3) holds Ward 2 from 2026-02-19, the record citing that page; Deanna McLaughlin's record ends before it. The
+    latest list (2026-07-06) prints CLAULNCH, which resolves to no one, so his record stays open but held over: Ward 2
+    shows no holder (test_the_real_latest_list_2026_07_06_holds_ward_2_over_and_shows_no_wrong_holder)."""
     facts, wards, cix = real_city
     src = next(s for s in facts["sources"] if s["url"].endswith("fileId=3068,plainText=false)"))
     rows = [r for r in cix._rows if r["seat"] == "ward-2"]
     claunch = next(r for r in rows if r["official_id"] == "city-eric-claunch")
     assert claunch["start"] == "2026-02-19" and claunch["source"] == f"{src['url']}#page=3"
-    assert claunch["end"] is None and cix.seats.current_of_seat("ward-2")["official_id"] == "city-eric-claunch"
+    assert claunch["end"] is None and claunch["held_over"] and cix.seats.current_of_seat("ward-2") is None
     mcl = next(r for r in rows if r["official_id"] == "city-deanna-mclaughlin")
     assert mcl["end"] is not None and mcl["end"] < "2026-02-19"
-    assert site_checks.expected_ward_holders(wards, facts)[2] == "city-eric-claunch"
     assert cix.seats.header_text("city-eric-claunch") == (
         "Ward 2, seen in the minutes that record the seating from 2026-02-19 to 2026-02-19; listed by name in "
-        "attendance lists to 2026-07-09, the latest minutes read")
+        "attendance lists to 2026-06-22; not named in the attendance lists of 2026-07-06, the latest minutes read")
     head = views.official("city-eric-claunch", cix)["name_source"]
     assert head["quote"] == "Eric Claunch was selected as the Ward 2 replacement and was sworn in by Mayor Pitts."
     assert head["src"]["url"] == f"{src['url']}#page=3" and head["date"] == "2026-02-11" and head["kind"] == "minutes"

@@ -338,8 +338,10 @@ votes included (`tests/test_city_verify_data.py`, V6 digest). Held in the new me
 2026-02-19 (its file is the 2026-02-11 minutes; its agenda's page 1 prints "City Council - Special Session
 (Continuation" on one line, not the heading alone, so the event is now skipped; it had no roll calls) and 2026-07-09
 (page-1 heading "July 9, 2026 at 4:30 PM", but called to order "on Monday, July 6, 2026": two dates, so held; its
-agenda keeps the meeting, `other_meeting`, and its 30 roll calls, 21 verified, are not read). Expected after a rebuild
-from the store: 1,912 of 2,354 verified; the 1,823 of the V6 digest are not touched (none is in a D1 meeting).
+agenda keeps the meeting, `other_meeting`, and its 30 roll calls, 21 verified, are not read). Rebuilt from the store
+(2026-11-12, all 608 manifest files byte-identical): 1,912 of 2,354 verified (81.2%), 401 meetings; the 1,823 of the
+V6 digest are not touched (none is in a D1 meeting). The latest attendance list is now 2026-07-06, which prints
+CLAULNCH (resolves to no one), so Ward 2's Eric Claunch is held over: Ward 2 shows no holder, only the neutral note.
 
 ### W1. Invisible format characters in the text layer (a reading fix)
 2020-10-01 page 1 prints "Jeff Henley"; its text layer has "J", a zero-width word (U+200B ZERO WIDTH SPACE, x0 = x1 =
