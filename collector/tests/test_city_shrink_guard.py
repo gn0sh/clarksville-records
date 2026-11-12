@@ -514,6 +514,8 @@ def test_agenda_only_meetings_kept_twice_is_byte_identical(city, monkeypatch):
     listed(city, city["facts"], monkeypatch)
     assert city_run.main(["build"]) == city_run.KEPT
     assert city["p"]["facts"].read_bytes() == (CITY / "facts.json").read_bytes()
+    [k] = city["guard"]()["kept_meetings"]                    # its agenda still in the result: the guard's (a)
+    assert "needs --allow-drop <meeting id>" in k["reason"] and "--allow-shrink" not in k["reason"]
     assert city_run.main(["build"]) == city_run.KEPT
     assert city["p"]["facts"].read_bytes() == (CITY / "facts.json").read_bytes()
 
@@ -556,6 +558,17 @@ def test_an_agenda_only_meeting_whose_minutes_now_read_is_not_kept(city, monkeyp
     listed(city, facts, monkeypatch)
     assert city_run.main(["build"]) == 0
     assert city["out"]()[0] == new and city["guard"]() == {}
+
+
+def test_a_gone_meeting_reason_names_the_runs_own_drop_flag():
+    """The county's kept reason names --allow-shrink, the city's --allow-drop (the city has no --allow-shrink)."""
+    src = {"id": "src-aaaa", "sha256": "a" * 64, "url": "u"}
+    old = {"sources": [src], "meetings": [{"id": "d-regular", "source_id": "src-aaaa"}]}
+    new = {"sources": [src], "meetings": []}
+    [k] = shrink_guard(new, old)["kept"]
+    assert "needs --allow-shrink)" in k["reason"]
+    [k] = shrink_guard(new, old, drop_flag="--allow-drop <meeting id>")["kept"]
+    assert "needs --allow-drop <meeting id>)" in k["reason"] and "--allow-shrink" not in k["reason"]
 
 
 def test_guarded_units_adds_only_gone_agenda_only_meetings_still_listed():

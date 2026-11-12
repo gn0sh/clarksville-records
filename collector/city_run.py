@@ -37,7 +37,10 @@ a committed agenda-only meeting the build lacks while its row is still listed (i
 rest is published; a replaced file is a correction (7 only when its verified count fell or its votes changed).
 The guard's findings are under `guard` in build/city-report.json; it is never a `failures` row.
 --allow-drop ID[,ID] (ADR 0006 I4: a deliberate drop names its ids) lets the named ones go: a meeting id (or a
-listing row key, as the kept entries print them); naming a meeting id also lets its listing row go. An id that
+listing row key, as the kept entries print them); naming a meeting id also lets its listing row go (only a row
+with that meeting's minutes_url). An agenda-only meeting (no minutes_url) whose row vanished: name the row key
+only, and the meeting drops with its row (naming its meeting id too refuses, exit 2, as the meeting is then no
+longer kept); one whose row is still listed (its agenda not in the store): name its meeting id. An id that
 matches nothing is refused: exit 2, and the listings, facts.json and wards.json are left as they were. Each drop is
 listed under `allowed_drop`. The workflow never passes it: the manual path is a local run, then a PR.
 """
@@ -376,7 +379,8 @@ def guard_facts(facts: dict, wards: list, p: dict, store: Store, log: dict, summ
     old = json.loads(p["facts"].read_text(encoding="utf-8"))
     wards_old = json.loads(p["wards"].read_text(encoding="utf-8")) if p["wards"].exists() else []
     res = shrink_guard(facts, guarded_units(old, facts, listed, kind_of), p["facts"].name,
-                       city_superseded(store, old, facts), unread_meetings(old, facts))
+                       city_superseded(store, old, facts), unread_meetings(old, facts),
+                       drop_flag="--allow-drop <meeting id>")
     g = log.setdefault("guard", {})
     kept = res["kept"]
     if res["corrections"]:

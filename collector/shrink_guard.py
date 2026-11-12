@@ -63,7 +63,8 @@ def vote_content(facts: dict, meeting_ids) -> list:
                   for r in facts.get("roll_calls", []) if r.get("meeting_id") in ms)
 
 
-def shrink_guard(new: dict, old: dict, name: str = "facts.json", superseded=(), unread=()) -> dict:
+def shrink_guard(new: dict, old: dict, name: str = "facts.json", superseded=(), unread=(),
+                 drop_flag: str = "--allow-shrink") -> dict:
     """G1 (docs/architecture/pipeline-limits-invariant.md, "Rule 3: the shrink guard"): compare the new result with the
     committed facts `old` per source document S (and every meeting Ms it carries), by sha256.
     (a) S's bytes are in the result: a roll call of S verified in `old` and not verified (or absent) in `new`, or a
@@ -76,7 +77,9 @@ def shrink_guard(new: dict, old: dict, name: str = "facts.json", superseded=(), 
         kept (shrink/city-correction-on-unread-file).
     (c) S's bytes are not and a meeting of Ms is absent too (not in the store, a fetch or parse failure, a timeout):
         transient, keeps S.
-    Gains are never guarded. Returns {'kept': [{source_id, meeting_ids, ids (lost verified roll calls), reason,
+    Gains are never guarded. `drop_flag` is the flag a kept reason names for a deliberate drop (the county's
+    --allow-shrink; the city passes its --allow-drop).
+    Returns {'kept': [{source_id, meeting_ids, ids (lost verified roll calls), reason,
     closure: {meeting_ids, source_ids}, withheld_new}], 'corrections': [{meeting_ids, source_id, new_source_ids,
     sha256, new_sha256, verified: [old, new], votes_changed}]}. `closure` is every meeting and source keep_documents
     takes back with S; `withheld_new` the meetings in it that only the new result has (not published while S is
@@ -112,7 +115,7 @@ def shrink_guard(new: dict, old: dict, name: str = "facts.json", superseded=(), 
                 why.append(f"{len(lost)} roll calls verified in {name} are no longer verified")
             if gone:
                 why.append(f"meetings gone from the result: {', '.join(gone)} (a parser change that renames ids "
-                           f"needs --allow-shrink)")
+                           f"needs {drop_flag})")
             if why:
                 kept.append({"source_id": sid, "meeting_ids": ms, "ids": lost,
                              "reason": f"same document (sha256 {h8}): " + "; ".join(why)})

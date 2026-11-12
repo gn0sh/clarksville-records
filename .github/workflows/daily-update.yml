@@ -53,7 +53,8 @@ jobs:
       sha: ${{ steps.checkout.outputs.commit }}   # the main commit this run built on; the push job commits on it
       allowed: ${{ steps.collect.outputs.allowed }}   # yes: a manual allow_shrink run replaced kept documents
     # A warm daily run takes minutes (10 s per request, only new documents). A cold cache (first run, or after the
-    # cache was evicted) refetches about 930 documents at 10 s each plus parsing: budget the hosted-runner maximum.
+    # cache was evicted) refetches about 1,150 documents (city agendas included) at 10 s each plus parsing, 4 to 5
+    # hours: budget the hosted-runner maximum.
     timeout-minutes: 355
     permissions:
       contents: read         # check out main; the token is NOT persisted (pipeline/token-exposure-untrusted-parse)

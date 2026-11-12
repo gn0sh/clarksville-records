@@ -90,8 +90,8 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   push job, so no partial result reaches `main`; the document store and caches are only ever added to.
 - Collection keeps the collector's rules: honest User-Agent, robots.txt, 10 s between requests per host.
 - The downloaded PDFs (about 3 GB, not in git) live in the Actions cache (`records-store-v1-*`, 10 GB repo limit, evicted
-  after 7 days unused; the daily run keeps it warm). A cold cache refetches about 930 documents at 10 s each: 3 to 5
-  hours. The job limit is 355 minutes.
+  after 7 days unused; the daily run keeps it warm). A cold cache refetches about 1,150 documents (the city's agendas
+  included) at 10 s each: 4 to 5 hours. The job limit is 355 minutes.
 - The text layers and OCR readings (`data/text`, `data/ocr`, keyed by document sha256 and page) live in their own
   cache (`records-derived-v1-<hash of the tesseract and pdftotext versions>-<hash of collector/extract.py,
   collector/ocr.py, requirements.lock>-*`), restored before
