@@ -3,7 +3,7 @@
 {# Search (design 5). Filters live in the URL so a search can be shared or bookmarked; nothing is stored about the
    visitor (N6). The index is static/search-index.js, built with the site; static/search.js filters it. #}
 <h1>Search records</h1>
-<form id="search-form" class="search-form" role="search" action="search.html" method="get">
+<form id="search-form" class="search-form" role="search" action="search.html" method="get" data-body-live="{{ bodies | map(attribute='key') | join(' ') }}">
   <label for="q" class="sr-only">Search records</label>
   <div class="search-row">
     <input id="q" name="q" type="search" placeholder="Item title, number, name or street">

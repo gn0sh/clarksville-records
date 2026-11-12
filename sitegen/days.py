@@ -137,6 +137,7 @@ def council_card(cix, m: dict) -> dict:
            else {"url": cix.cfg["record_url"], "label": cix.cfg["record_label"], "ext": True}
            if views.https_url(cix.cfg.get("record_url")) else None)
     return {"kind": "council", "dot": DOTS["council"], "id": f"{cix.slug}-{m['id']}", "body": cix.body_name,
+            "bkey": getattr(cix, "body_key", None) or DOTS["council"],
             "title": cix.kind_labels.get(m["kind"], m["kind"]), "href": cix.meeting_href(m["id"]),
             "docs": docs, "minutes_note": None if status == "read" else MINUTES_WORDS.get(status),
             "watch": watch.meeting(getattr(cix, "body_key", None), m.get("video_url")),
@@ -174,6 +175,7 @@ def scheduled_cards(cix, start: date, end: date, today: date | None = None) -> l
         seen.add(key)
         out.append((row["date"], {
             "kind": "council", "dot": DOTS["council"], "id": f"{cix.slug}-{row['date']}-{row['kind']}-scheduled",
+            "bkey": getattr(cix, "body_key", None) or DOTS["council"],
             "body": cix.body_name, "title": cix.kind_labels.get(row["kind"], row["kind"]), "href": None,
             "docs": [], "watch": watch.body(getattr(cix, "body_key", None)), "votes": [],
             "state": "scheduled",
@@ -191,6 +193,7 @@ def rpc_card(rpx, m: dict) -> dict:
     rec = ({"url": agenda["url"], "label": "the RPC's agenda PDF", "ext": False} if agenda
            else {"url": rpx.cfg["record_url"], "label": rpx.cfg["record_label"], "ext": True})
     return {"kind": "rpc", "dot": DOTS["rpc"], "id": f"{rpx.slug}-{m['id']}", "body": ctx["kind_label"],
+            "bkey": rpx.body_key,
             "title": None, "href": ctx["href"], "rpc": ctx, "docs": [], "minutes_note": None,
             "watch": watch.body(rpx.body_key),
             "votes": [], "state": "agenda" if ctx["cases"] else "none", "cases": ctx["cases"], "sols": [],
@@ -277,6 +280,9 @@ def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None,
             c.setdefault("cancelled", False)
             c.setdefault("rpc", None)
             c.setdefault("agenda_items", [])
+            # whose record the card is, for the "Show records from" switch (data-body): county meetings and the
+            # county's bid listings carry the county's key
+            c.setdefault("bkey", config.SITE["county_key"])
     weeks, d = [], start
     while d <= end:
         days = []
@@ -332,6 +338,7 @@ def landing_meetings(page_ctx: dict, today: date | None = None, n: int = 3) -> d
                     continue
                 rows.append({"iso": d["iso"], "dow": d["dow"], "n": d["n"], "month": d["month"], "text": d["text"],
                              "body": c["body"], "title": c.get("title"), "dot": c["dot"], "chip": chip(c),
+                             "bkey": c.get("bkey") or config.SITE["county_key"],
                              "href": f"{PAGE}#{d['anchor']}"})
     t = today.isoformat()
     ahead = [r for r in rows if r["iso"] >= t]

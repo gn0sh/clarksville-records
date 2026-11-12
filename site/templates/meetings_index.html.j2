@@ -4,6 +4,8 @@
 <h1>Meetings</h1>
 <p class="lede">{{ coverage.body }}, {{ coverage.from }} to {{ coverage.to }}. Newest first. Each meeting page shows attendance, motions and roll calls.</p>
 {% if watch %}<p class="watch-line">{{ watch_link(watch) }}</p>{% endif %}
+{# every row here is the county's: static/switch.js hides the lists when another body is chosen #}
+<div data-body="{{ site.cfg.county_key }}">
 {% if agenda_only %}
 <section aria-labelledby="agenda-only-h">
 <h2 id="agenda-only-h">Agendas without minutes yet</h2>
@@ -43,4 +45,5 @@
 {% else %}
 <p>No meetings are available yet.</p>
 {% endif %}
+</div>
 {% endblock %}
