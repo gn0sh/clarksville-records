@@ -1,0 +1,58 @@
+"""The gnoshcodes credit is the hook (gnoshcodes.com), not the old logo D, and the site check
+`brand/no-old-gnoshcodes` fails a build that still carries the old logo."""
+import hashlib
+import re
+import shutil
+
+from qa import site_checks
+from sitegen import config
+
+BRAND = config.STATIC_DIR / "brand"
+OLD_WORDMARK = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 8 273 50"><path fill="#2B4BA5" '
+                'd="M-2 24h4v4h-4zM-2 28h4v4h-4z"/><path d="M98.95 23.46L94 22L89.05 23.46"/></svg>')
+OLD_MARK = '<svg viewBox="0 0 64 64"><path d="M8 20h6v6h-6zM8 26h6v6h-6z"/><path d="M32 11A21 21 0 0 1 32 53"/></svg>'
+
+
+def test_hook_lockups_ship_with_an_accessible_name_and_no_old_logo():
+    for mode in ("light", "dark"):
+        svg = (BRAND / f"gnoshcodes-hook-{mode}.svg").read_text(encoding="utf-8")
+        assert 'role="img" aria-label="gnoshcodes"' in svg and "<title>gnoshcodes</title>" in svg, mode
+        assert not any(s.decode() in svg for s in site_checks.OLD_BRAND_SIGNATURES), mode
+        assert "<text" not in svg and "font-family" not in svg, mode    # outlined: no font is loaded for the logo
+    assert not list(BRAND.glob("gnoshcodes-wordmark-*"))
+    assert hashlib.sha1((BRAND / "favicon.ico").read_bytes()).hexdigest() != site_checks.OLD_BRAND_FAVICON_SHA1
+
+
+def test_built_footer_credit_uses_the_hook_light_and_dark(built, pages):
+    for name, html in pages.items():
+        if "gc-credit" not in html:
+            continue
+        credit = re.search(r'<p class="gc-credit">(.*?)</p>', html).group(1)
+        assert re.findall(r'src="[^"]*static/brand/(gnoshcodes-hook-(?:light|dark)\.svg)"', credit) == \
+            ["gnoshcodes-hook-light.svg", "gnoshcodes-hook-dark.svg"], name
+        assert credit.count('alt="gnoshcodes"') == 2, name
+    assert site_checks.check_old_brand(built)[0] == []
+
+
+def test_check_fails_on_old_path_data_names_and_favicon(built, tmp_path):
+    site = tmp_path / "site"
+    shutil.copytree(built, site)
+    assert site_checks.check_old_brand(site)[0] == []
+    (site / "static" / "brand" / "gnoshcodes-wordmark-color-light.svg").write_text(OLD_WORDMARK, encoding="utf-8")
+    (site / "static" / "mark.svg").write_text(OLD_MARK, encoding="utf-8")
+    page = site / "index.html"
+    page.write_text(page.read_text(encoding="utf-8").replace("gnoshcodes-hook-dark.svg", "gnoshcodes-lockup-color-dark.svg"),
+                    encoding="utf-8")
+    shutil.copy(BRAND / "favicon.ico", site / "static" / "brand" / "icon-copy.ico")   # the new favicon passes
+    problems = site_checks.check_old_brand(site)[0]
+    assert len(problems) == 4, problems
+    assert any(p.startswith("static/brand/gnoshcodes-wordmark-color-light.svg: named like") for p in problems)
+    assert any(p.startswith("static/brand/gnoshcodes-wordmark-color-light.svg: 2 old") for p in problems)
+    assert any(p.startswith("static/mark.svg: 2 old") for p in problems)
+    assert any(p.startswith("index.html: 1 old") for p in problems)
+
+
+def test_check_fails_on_the_old_favicon_bytes(tmp_path, monkeypatch):
+    (tmp_path / "favicon.ico").write_bytes(b"\x00old")
+    monkeypatch.setattr(site_checks, "OLD_BRAND_FAVICON_SHA1", hashlib.sha1(b"\x00old").hexdigest())
+    assert site_checks.check_old_brand(tmp_path)[0] == ["favicon.ico: is the old gnoshcodes favicon"]

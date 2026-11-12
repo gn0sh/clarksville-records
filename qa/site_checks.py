@@ -27,6 +27,8 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               official's page (standing rule), except in <title>, <option>, item titles (data-item-title: text in
               the document, never linked), the operator lines (footer, About) and on the official's own page
   footer      "Provided as a free service by gnoshcodes LLC." on every page
+  brand/no-old-gnoshcodes  no built file carries the old gnoshcodes logo (logo D: its path data or kit file names)
+              and none is the old favicon; the footer credit is the hook (gnoshcodes.com)
   external    no third-party scripts, styles, images or fonts (N6); the landing address box's geocoder (called
               only on submit) is exactly config/site.yml geocoder_url; a page that loads static/address.js carries
               its settings block (addr-config); every page has one CSP meta whose script-src is 'self' only, plus
@@ -1491,6 +1493,32 @@ def check_name_links(site: Path, facts: dict, roster: list[dict], councils_=()) 
     return problems, f"{checked} name links checked on {len(pages)} pages"
 
 
+# The old gnoshcodes logo ("logo D", brand kit v1: a pixel ring and a pixel-to-curve wordmark), replaced by the hook
+# (gnoshcodes.com) before launch. Signatures: the mark's pixel ring and its arc (every mark, lockup, stacked and
+# app-icon file of the kit), the wordmark's pixel "g" and its "s" curve (the wordmark files), the kit's file names,
+# and the kit favicon's bytes (sha1).
+OLD_BRAND_SIGNATURES = (b"M8 20h6v6h-6z", b"M32 11A21 21 0 0 1 32 53", b"M-2 24h4v4h-4z", b"L94 22L89.05 23.46")
+OLD_BRAND_NAMES = re.compile(rb"gnoshcodes-(?:(?:wordmark|mark|lockup|stacked)-(?:color-light|color-dark|black|blue|white)|app-icon)\b")
+OLD_BRAND_FAVICON_SHA1 = "b6d981bbbdab7d4fa9fd2d2234f3e2950ce9c488"
+
+
+def check_old_brand(site: Path) -> tuple[list[str], str]:
+    """brand/no-old-gnoshcodes: no built file (pages, styles, scripts, images, feeds, data) carries the old gnoshcodes
+    logo's path data or file names, no file is named like the old kit, and no file is the old favicon."""
+    problems, n = [], 0
+    for f in sorted(p for p in site.rglob("*") if p.is_file()):
+        rel, n = f.relative_to(site).as_posix(), n + 1
+        if OLD_BRAND_NAMES.search(rel.encode()):
+            problems.append(f"{rel}: named like the old gnoshcodes logo kit")
+        body = f.read_bytes()
+        if hashlib.sha1(body).hexdigest() == OLD_BRAND_FAVICON_SHA1:
+            problems.append(f"{rel}: is the old gnoshcodes favicon")
+        hits = sum(sig in body for sig in OLD_BRAND_SIGNATURES) + len(OLD_BRAND_NAMES.findall(body))
+        if hits:
+            problems.append(f"{rel}: {hits} old gnoshcodes logo signature(s) (path data or file name)")
+    return problems, f"{n} files scanned for the old logo's path data, file names and favicon"
+
+
 def check_footer(pages: dict[str, Page], operator: str) -> list[str]:
     needle = re.compile(r"Provided as a free service by\s+" + re.escape(operator) + r"\s*\.")
     return [f"{rel}: no 'Provided as a free service by {operator}.' footer" for rel, pg in pages.items()
@@ -2847,6 +2875,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     problems, note = check_name_links(site, facts, read_roster(seats_path), cs)
     rep.add("name-links", problems, note)
     rep.add("footer", check_footer(pages, operator), f"'Provided as a free service by {operator}.' on {len(pages)} pages")
+    problems, note = check_old_brand(site)
+    rep.add("brand/no-old-gnoshcodes", problems, note)
     rep.add("external", check_external(pages, site, cfg))
     problems, note = check_report_channel(pages, cfg, target)
     rep.add("report-channel", problems, note)
