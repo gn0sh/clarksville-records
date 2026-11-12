@@ -307,6 +307,34 @@ def test_switch_css_targets_and_no_old_colors():
     assert ".hub-card.is-coming { border: 2px dashed" in block
 
 
+def _lum(hexc: str) -> float:
+    c = [int(hexc.lstrip("#")[i:i + 2], 16) / 255 for i in (0, 2, 4)]
+    c = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+    return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+
+def _ratio(a: str, b: str) -> float:
+    la, lb = sorted((_lum(a), _lum(b)), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+
+def test_focus_ring_on_the_chosen_chip_is_visible_in_both_themes():
+    """switch-a11y/focus-on-current-chip: the chosen chip's focus ring is the orange of the other chips with a white
+    band inside, so it stands 3:1 or more against the bar around it and against the navy fill (WCAG 2.4.7, 1.4.11)."""
+    rule = re.search(r"\.bs-list a\[aria-current\]:focus-visible \{([^}]*)\}", CSS).group(1)
+    assert "outline-color: var(--focus)" in rule and "box-shadow: inset 0 0 0 5px var(--on-blue)" in rule
+    base = re.search(r"\.bs-list a:focus-visible \{([^}]*)\}", CSS).group(1)
+    assert "outline: 3px solid var(--focus)" in base and "outline-offset: -3px" in base
+    root_at = CSS.index(":root {")
+    light = dict(re.findall(r"--([a-z-]+): (#[0-9A-Fa-f]{6})", CSS[root_at:CSS.index("}", root_at)]))
+    dark_at = CSS.index(':root[data-theme="dark"] {')
+    dark = {**light, **dict(re.findall(r"--([a-z-]+): (#[0-9A-Fa-f]{6})", CSS[dark_at:CSS.index("}", dark_at)]))}
+    for theme in (light, dark):
+        assert _ratio(theme["focus"], theme["surface"]) >= 3, theme      # ring against the bar
+        assert _ratio(theme["focus"], theme["on-blue"]) >= 3, theme      # ring against its white band
+        assert _ratio(theme["on-blue"], theme["blue"]) >= 3, theme       # the band against the navy fill
+
+
 PROBE = r"""
 const path = require('path');
 let pw;
@@ -435,6 +463,46 @@ for (const r of ['', ...(process.env.NODE_PATH || '').split(path.delimiter).filt
   await p.click('#bs-line button');
   out.daysAll = await days('all');
   await ctx.close();
+  // 10. Search with a Body box ticked: a click on a chip decides (boxes and the URL's body cleared); a box ticked
+  //     later decides again
+  ctx = await browser.newContext({viewport: {width: 1280, height: 800}});
+  p = await ctx.newPage();
+  await p.goto(site + 'search.html?q=a&body=county');
+  const boxes = () => p.evaluate(() => ({
+    ticked: [...document.querySelectorAll('input[name="body"]:checked')].map((b) => b.value),
+    url: location.search, count: document.getElementById('count').textContent,
+    line: (() => {
+      const l = document.getElementById('bs-line');
+      return l && !l.hidden ? l.textContent.replace(/\s+/g, ' ').trim() : '';
+    })(),
+    stored: localStorage.getItem('cr-body')}));
+  out.pickBefore = await boxes();
+  await p.click('#body-switch a[data-switch="city"]');
+  out.pickAfter = await boxes();
+  await p.evaluate(() => { const b = document.querySelector('input[name="body"][value="county"]'); b.checked = true;
+                           b.dispatchEvent(new Event('change', {bubbles: true})); });
+  out.pickBoxAgain = await boxes();
+  await ctx.close();
+  // 11. one status line and one bodychoice event per page load, though the choice is applied again after the other
+  //     scripts ran
+  ctx = await browser.newContext({viewport: {width: 1280, height: 800}});
+  await ctx.addInitScript(() => {
+    window.__bs = {lines: 0, events: 0};
+    document.addEventListener('bodychoice', () => { window.__bs.events++; });
+    new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => {
+      if (n.id === 'bs-line') { window.__bs.lines++; }
+    })))
+      .observe(document, {childList: true, subtree: true});
+  });
+  p = await ctx.newPage();
+  await p.goto(site + 'index.html');
+  await p.evaluate(() => localStorage.setItem('cr-body', 'county'));
+  out.once = {};
+  for (const page of ['today.html', 'search.html?q=a', 'meetings.html', 'index.html']) {
+    await p.goto(site + page);
+    out.once[page] = await p.evaluate(() => window.__bs);
+  }
+  await ctx.close();
   await browser.close();
   console.log(JSON.stringify(out));
 })();
@@ -509,3 +577,9 @@ def test_switch_in_a_browser(site, tmp_path):
     assert [d["label"] for d in rpc_days if d["label"].endswith("(today)")] == ["Monday, November 4: no meetings (today)"]
     assert all(d["label"] == d["want"] for d in all_days), all_days
     assert "Monday, November 4: 1 meeting (today)" in [d["label"] for d in all_days]
+    pb, pa, pt = r["pickBefore"], r["pickAfter"], r["pickBoxAgain"]
+    assert pb["ticked"] == ["county"] and "body=county" in pb["url"] and pb["line"] == "", pb
+    assert pa["ticked"] == [] and "body=" not in pa["url"] and pa["stored"] == "city", pa       # the chip decides
+    assert pa["line"].startswith("Showing Clarksville only") and pa["count"] != pb["count"], pa
+    assert pt["ticked"] == ["county"] and pt["line"] == "" and pt["count"] == pb["count"], pt   # a box decides again
+    assert r["once"] == {p: {"lines": 1, "events": 1} for p in r["once"]}, r["once"]
