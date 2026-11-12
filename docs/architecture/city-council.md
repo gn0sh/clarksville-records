@@ -444,6 +444,8 @@ plus the D1 meeting's 2 roll calls (one verified, one held: "HOLLEMNA"); no veri
 member left, so no rule we would accept closes the gap.
 
 ### Launch treatment (a decision for Brian)
+**Decided (Brian, 2026-11-11 ~1:45 PM CT, decision card): (A) show city roll calls at the verified rate (~82%), each held vote linked to its source with a plain reason; About states the city's confirmed rate.** The default (B) below no longer applies.
+
 Recommendation: **show city roll calls at the verified rate they reach (about 82%), the held ones as the spec's P3
 already does (listed, link only, no value read from them), with a plain reason per hold**; report the city's rate
 on the About page and in the run report; AC-P1 stays the county gate (it passes) and is reported, not blocking, for
