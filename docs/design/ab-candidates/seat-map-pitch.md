@@ -1,0 +1,356 @@
+## Pitch: Seat Map
+
+**Idea:** The map is the home page. Tap your area or type your address to see your city ward and county district seats, then every recorded vote cast from each seat.
+
+**Who it serves:** Residents on a phone who don't know who represents them. Reporters who need the fastest route to a seat's record.
+
+**Why it fits the rules:** All 33 areas share one neutral tint. A selected area gets an outline, never a colour that implies a judgement. The cards beside the map are chronological only. Vote pages list plain-text votes with no tallies or attendance rates. *(Judgment, high confidence: per-value totals invite scoring.)*
+
+**Weakest part:** The map itself. It is the least usable element for screen-reader and keyboard users, small districts are hard to tap at 360 px, and one address sits in both a ward and a district. The address box and the text list of all seats mitigate this but don't remove it.
+
+**Strongest alternative (do the simplest thing):** An address box plus a plain list of 12 wards and 21 districts, with the map below. It is cheaper, fully accessible and arguably better. *(Medium confidence.)*
+
+**Costs and limits:**
+- Address search needs a third-party geocoder. That means a privacy notice, rate limits and a dependency outside the static site.
+- Boundary SVG must be simplified to stay light.
+- Vote filters need small JavaScript or pre-generated pages.
+- Automatic transcripts need an error disclaimer.
+- Estimate: 8–12 build days, excluding the data pipeline. *(Low confidence.)*
+
+**Questions for the client**
+1. Show ward and district together for one address? *Recommend yes.*
+2. Accept a third-party geocoder? *Recommend yes, disclosed in Method, with the list as fallback.*
+3. Put former officials on the map? *Recommend no; link them from seat history.*
+
+===HTML===
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Clarksville &amp; Montgomery County Records: Seat Map direction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@400;600&family=Outfit:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{--b:#2B4BA5;--bd:#20397F;--o:#EF5E35;--ot:#B8401A;--ink:#1A1D24;--mut:#4F5563;--line:#D3D8E3;--bg:#F4F6FB;--mono:"JetBrains Mono",ui-monospace,monospace}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.5 Inter,system-ui,sans-serif;color:var(--ink);background:#E6E9F0}
+h1,h2,h3{font-family:Outfit,system-ui,sans-serif;line-height:1.2;margin:0}
+a{color:var(--b);text-underline-offset:2px}
+:focus-visible{outline:3px solid var(--o);outline-offset:2px}
+.top :focus-visible{outline-color:#fff}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.mock-h{max-width:1280px;margin:28px auto 8px;padding:0 12px;font:600 13px/1 Inter,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--mut)}
+.frame{max-width:1280px;margin:0 auto;background:var(--bg);border:1px solid var(--line)}
+.mono,time{font-family:var(--mono);font-size:.92em}
+/* header */
+.top{background:var(--b);color:#fff;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:10px 16px}
+.ibtn{min-width:44px;min-height:44px;display:inline-grid;place-items:center;background:transparent;border:2px solid rgba(255,255,255,.55);border-radius:8px;color:inherit;cursor:pointer}
+.brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none;min-height:44px}
+.mark{width:44px;height:44px;background:#fff;border-radius:8px;display:grid;place-items:center;flex:none}
+.brand b{display:block;font:700 18px/1.15 Outfit,sans-serif}
+.brand small{font-size:13px;opacity:.9}
+.search{flex:1 1 320px;display:flex;margin-left:auto;max-width:560px}
+.search input{flex:1;min-width:0;min-height:44px;border:0;border-radius:8px 0 0 8px;padding:0 12px;font:inherit;color:var(--ink)}
+.btn{min-height:44px;padding:0 16px;border:0;border-radius:8px;font:600 15px Inter,sans-serif;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.btn-o{background:var(--o);color:#1A1D24}
+.search .btn{border-radius:0 8px 8px 0}
+.btn-line{background:#fff;color:var(--b);border:2px solid var(--b)}
+/* home */
+.home{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;padding:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px}
+.card h2{font-size:18px;margin-bottom:10px}
+.mapcard h1{font-size:24px}
+.addr{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 4px;align-items:flex-end}
+.addr label{flex:1 1 100%;font-weight:600;font-size:15px}
+.addr input{flex:1 1 220px;min-height:44px;border:2px solid #7A8193;border-radius:8px;padding:0 12px;font:inherit}
+.hint{font-size:13px;color:var(--mut);margin:4px 0 0}
+.layers{display:flex;gap:0;margin:12px 0 10px;border:2px solid var(--b);border-radius:8px;width:max-content;max-width:100%;overflow:hidden}
+.layers a{min-height:40px;padding:10px 14px;text-decoration:none;font-weight:600;font-size:14px;line-height:1.4}
+.layers a[aria-current]{background:var(--b);color:#fff}
+.map{position:relative;height:clamp(260px,50vh,440px);border:2px dashed #8E95A6;border-radius:8px;background:#E8ECF4 repeating-linear-gradient(45deg,transparent 0 22px,rgba(43,75,165,.06) 22px 44px);display:grid;place-items:center;text-align:center;padding:16px;color:var(--mut)}
+.map strong{display:block;color:var(--ink);font:600 16px Outfit,sans-serif}
+.pin{position:absolute;left:46%;top:38%}
+.zoom{position:absolute;right:10px;top:10px;display:grid;gap:6px}
+.zoom button{width:44px;height:44px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:20px;cursor:pointer}
+.listlink{display:inline-flex;align-items:center;min-height:44px;font-weight:600}
+.side{display:grid;gap:16px;align-content:start}
+.seat{display:grid;gap:2px;padding:10px 0;border-top:1px solid var(--line)}
+.seat:first-of-type{border-top:0;padding-top:0}
+.seat .k{font-size:13px;color:var(--mut)}
+.seat .n{font-weight:600}
+.seat a{min-height:44px;display:inline-flex;align-items:center}
+ul.plain{list-style:none;margin:0;padding:0}
+.ev{display:grid;grid-template-columns:96px 1fr;gap:4px 10px;padding:8px 0;border-top:1px solid var(--line);font-size:15px}
+.ev:first-child{border-top:0}
+.ev time{color:var(--mut);padding-top:2px}
+.ev a{display:inline-block;min-height:24px;padding:10px 0;margin:-10px 0}
+.browse{display:flex;flex-wrap:wrap;gap:8px}
+.browse a{min-height:44px;display:inline-flex;align-items:center;padding:0 12px;border:1px solid var(--line);border-radius:22px;text-decoration:none;font-size:14px;font-weight:600;background:var(--bg)}
+/* official */
+.page{padding:16px;max-width:1100px}
+.crumbs{font-size:14px;margin-bottom:10px}
+.crumbs ol{list-style:none;display:flex;flex-wrap:wrap;gap:4px;margin:0;padding:0}
+.crumbs li+li::before{content:"›";margin-right:4px;color:var(--mut)}
+.crumbs a{display:inline-block;padding:10px 0}
+.notice{border-left:4px solid var(--o);background:#fff;padding:10px 14px;margin:0 0 16px;font-size:15px}
+.who{display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between;align-items:flex-start}
+.who h1{font-size:28px;margin-bottom:8px}
+dl.facts{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:0;font-size:15px}
+dl.facts dt{color:var(--mut)}
+dl.facts dd{margin:0}
+.acts{display:flex;flex-wrap:wrap;gap:8px}
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin:16px 0 8px}
+.filters label{display:grid;gap:4px;font-size:14px;font-weight:600}
+.filters select,.filters input{min-height:44px;border:2px solid #7A8193;border-radius:8px;padding:0 10px;font:inherit;background:#fff;min-width:140px}
+.count{font-size:14px;color:var(--mut);margin:8px 0}
+table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);font-size:15px}
+caption{text-align:left;font:600 17px Outfit,sans-serif;padding:0 0 8px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:#EEF1F8;font-size:13px;font-weight:600;color:#333A48}
+td.v{font-weight:600}
+details summary{cursor:pointer;color:var(--b);font-weight:600;font-size:14px;min-height:44px;display:flex;align-items:center;width:max-content}
+details p{margin:0 0 6px;max-width:60ch}
+.src a{display:block;min-height:24px;padding:4px 0}
+.pager{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0}
+.pager a{min-width:44px;min-height:44px;display:inline-grid;place-items:center;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:#fff;text-decoration:none}
+.pager a[aria-current]{background:var(--b);color:#fff;border-color:var(--b)}
+/* footer */
+.foot{background:#fff;border-top:1px solid var(--line);padding:16px;font-size:14px;display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between;align-items:center}
+.foot ul{display:flex;flex-wrap:wrap;gap:0 16px;list-style:none;margin:0;padding:0}
+.foot a{display:inline-flex;align-items:center;min-height:44px}
+/* drawer */
+.drawer{position:fixed;inset:0 auto 0 0;width:min(320px,88vw);background:#fff;box-shadow:4px 0 24px rgba(0,0,0,.25);padding:12px 16px;overflow:auto;z-index:10}
+.drawer .ibtn{border-color:var(--b);color:var(--b)}
+.drawer ul{list-style:none;margin:8px 0 16px;padding:0}
+.drawer a{display:flex;align-items:center;min-height:44px;border-bottom:1px solid var(--line);text-decoration:none;font-weight:600}
+.drawer h2{font-size:14px;color:var(--mut);margin-top:8px}
+@media (max-width:900px){.home{grid-template-columns:1fr}}
+@media (max-width:640px){
+.top{padding:8px 10px}
+.brand b{font-size:15px}
+.brand small{display:none}
+.search{flex-basis:100%;max-width:none;order:3}
+.home,.page{padding:10px}
+.mapcard h1,.who h1{font-size:22px}
+.layers a{padding:10px}
+thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+table,tbody,tr,td{display:block}
+table{border:0;background:none}
+tr{background:#fff;border:1px solid var(--line);border-radius:8px;margin-bottom:10px;padding:6px 0}
+td{border:0;padding:4px 12px;display:grid;grid-template-columns:84px 1fr;gap:8px}
+td::before{content:attr(data-label);font-size:13px;color:var(--mut);font-weight:400}
+}
+</style>
+</head>
+<body>
+
+<nav id="drawer" class="drawer" aria-label="Main" hidden>
+  <button class="ibtn" type="button" data-drawer aria-controls="drawer" aria-label="Close menu"><svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 4l12 12M16 4L4 16" stroke="currentColor" stroke-width="2.5"/></svg></button>
+  <h2>Records</h2>
+  <ul>
+    <li><a href="#home">Home and map</a></li><li><a href="#">Meetings</a></li><li><a href="#">Votes</a></li>
+    <li><a href="#">Officials, current and former</a></li><li><a href="#">Rezoning cases</a></li><li><a href="#">Budgets</a></li>
+    <li><a href="#">Bids and contracts</a></li><li><a href="#">Capital projects</a></li><li><a href="#">Transcripts</a></li>
+    <li><a href="#">Alerts</a></li><li><a href="#">Downloads</a></li>
+  </ul>
+  <h2>About</h2>
+  <ul>
+    <li><a href="#">Who runs this</a></li><li><a href="#">Our rules</a></li><li><a href="#">Method</a></li>
+    <li><a href="#">Corrections</a></li><li><a href="#">Report an error</a></li>
+  </ul>
+</nav>
+
+<h2 class="mock-h" id="home">Home</h2>
+<div class="frame">
+  <header class="top">
+    <button class="ibtn" type="button" data-drawer aria-controls="drawer" aria-expanded="false" aria-label="Open menu"><svg width="22" height="18" viewBox="0 0 22 18" aria-hidden="true"><path d="M1 2h20M1 9h20M1 16h20" stroke="currentColor" stroke-width="2.5"/></svg></button>
+    <a class="brand" href="#home">
+      <span class="mark"><svg viewBox="4 4 50 56" width="30" height="34" aria-hidden="true"><path fill="#2B4BA5" d="M8 20h6v6h-6zM8 26h6v6h-6zM8 32h6v6h-6zM8 38h6v6h-6zM14 14h6v6h-6zM14 20h6v6h-6zM14 38h6v6h-6zM14 44h6v6h-6zM20 8h6v6h-6zM20 14h6v6h-6zM20 44h6v6h-6zM20 50h6v6h-6zM26 8h6v6h-6zM26 50h6v6h-6z"/><path d="M32 11A21 21 0 0 1 32 53" fill="none" stroke="#EF5E35" stroke-width="6"/></svg></span>
+      <span><b>Clarksville &amp; Montgomery County Records</b><small>A gnoshcodes project</small></span>
+    </a>
+    <form class="search" role="search" action="#">
+      <label class="sr" for="q1">Search all records</label>
+      <input id="q1" type="search" name="q" placeholder="Search meetings, votes, officials, cases">
+      <button class="btn btn-o" type="submit">Search</button>
+    </form>
+  </header>
+
+  <main class="home">
+    <section class="card mapcard" aria-labelledby="maph">
+      <h1 id="maph">Find your ward and district</h1>
+      <form class="addr" action="#">
+        <label for="addr1">Street address in Montgomery County</label>
+        <input id="addr1" name="address" autocomplete="street-address" placeholder="[STREET ADDRESS]">
+        <button class="btn btn-o" type="submit">Show my seats</button>
+      </form>
+      <p class="hint">The address is sent to [GEOCODING SERVICE] to find a location. Details are on the Method page.</p>
+
+      <nav class="layers" aria-label="Map layer">
+        <a href="#" aria-current="page">City wards (12)</a>
+        <a href="#">County districts (21)</a>
+      </nav>
+
+      <div class="map" role="img" aria-label="Map placeholder: boundaries of 12 city wards. Use the address box or the text list instead.">
+        <div class="zoom"><button type="button" aria-label="Zoom in">+</button><button type="button" aria-label="Zoom out">−</button></div>
+        <svg class="pin" width="28" height="38" viewBox="0 0 28 38" aria-hidden="true"><path d="M14 1C7 1 1 6.6 1 13.6 1 23 14 37 14 37s13-14 13-23.4C27 6.6 21 1 14 1z" fill="#EF5E35" stroke="#1A1D24" stroke-width="2"/><circle cx="14" cy="14" r="5" fill="#fff"/></svg>
+        <div><strong>[MAP PLACEHOLDER]</strong>Clickable boundaries for 12 city wards / 21 county commission districts.<br>All areas use one neutral tint. The selected area gets an outline only.</div>
+      </div>
+      <a class="listlink" href="#">Text list of all 12 wards and 21 districts</a>
+    </section>
+
+    <div class="side">
+      <section class="card" aria-labelledby="yh">
+        <h2 id="yh">Seats for [ADDRESS]</h2>
+        <div class="seat">
+          <span class="k">Clarksville City Council · [WARD N]</span>
+          <span class="n">[OFFICIAL NAME]</span>
+          <a href="#vote">Vote history for [WARD N]</a>
+        </div>
+        <div class="seat">
+          <span class="k">Montgomery County Commission · [DISTRICT N]</span>
+          <span class="n">[OFFICIAL NAME]</span>
+          <a href="#vote">Vote history for [DISTRICT N]</a>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="mh">
+        <h2 id="mh">Upcoming meetings</h2>
+        <ul class="plain">
+          <li class="ev"><time datetime="">[DATE]</time><span>[MEETING TITLE] · <a href="#">Agenda</a></span></li>
+          <li class="ev"><time datetime="">[DATE]</time><span>[MEETING TITLE] · <a href="#">Agenda</a></span></li>
+          <li class="ev"><time datetime="">[DATE]</time><span>[MEETING TITLE] · <a href="#">Agenda</a></span></li>
+        </ul>
+      </section>
+
+      <section class="card" aria-labelledby="ph">
+        <h2 id="ph">Recently posted</h2>
+        <p class="hint" style="margin:-6px 0 6px">By date posted, newest first.</p>
+        <ul class="plain">
+          <li class="ev"><time datetime="">[DATE]</time><span><a href="#">Minutes: [MEETING TITLE]</a></span></li>
+          <li class="ev"><time datetime="">[DATE]</time><span><a href="#">Transcript: [MEETING TITLE]</a></span></li>
+          <li class="ev"><time datetime="">[DATE]</time><span><a href="#">Rezoning case [CASE NO.]</a></span></li>
+        </ul>
+      </section>
+
+      <nav class="card" aria-labelledby="bh">
+        <h2 id="bh">Browse</h2>
+        <div class="browse">
+          <a href="#">Meetings</a><a href="#">Votes</a><a href="#">Rezoning</a><a href="#">Budgets</a>
+          <a href="#">Bids &amp; contracts</a><a href="#">Capital projects</a><a href="#">Downloads</a><a href="#">Alerts</a>
+        </div>
+      </nav>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <p style="margin:0">Provided as a free service by gnoshcodes · <a href="#">Buy Me a Coffee</a></p>
+    <ul><li><a href="#">Who runs this</a></li><li><a href="#">Our rules</a></li><li><a href="#">Method</a></li><li><a href="#">Corrections</a></li><li><a href="#">Report an error</a></li></ul>
+  </footer>
+</div>
+
+<h2 class="mock-h" id="vote">Official's vote history</h2>
+<div class="frame">
+  <header class="top">
+    <button class="ibtn" type="button" data-drawer aria-controls="drawer" aria-expanded="false" aria-label="Open menu"><svg width="22" height="18" viewBox="0 0 22 18" aria-hidden="true"><path d="M1 2h20M1 9h20M1 16h20" stroke="currentColor" stroke-width="2.5"/></svg></button>
+    <a class="brand" href="#home">
+      <span class="mark"><svg viewBox="4 4 50 56" width="30" height="34" aria-hidden="true"><path fill="#2B4BA5" d="M8 20h6v6h-6zM8 26h6v6h-6zM8 32h6v6h-6zM8 38h6v6h-6zM14 14h6v6h-6zM14 20h6v6h-6zM14 38h6v6h-6zM14 44h6v6h-6zM20 8h6v6h-6zM20 14h6v6h-6zM20 44h6v6h-6zM20 50h6v6h-6zM26 8h6v6h-6zM26 50h6v6h-6z"/><path d="M32 11A21 21 0 0 1 32 53" fill="none" stroke="#EF5E35" stroke-width="6"/></svg></span>
+      <span><b>Clarksville &amp; Montgomery County Records</b><small>A gnoshcodes project</small></span>
+    </a>
+    <form class="search" role="search" action="#">
+      <label class="sr" for="q2">Search all records</label>
+      <input id="q2" type="search" name="q" placeholder="Search meetings, votes, officials, cases">
+      <button class="btn btn-o" type="submit">Search</button>
+    </form>
+  </header>
+
+  <main class="page">
+    <nav class="crumbs" aria-label="Breadcrumb"><ol><li><a href="#home">Home</a></li><li><a href="#">Officials</a></li><li aria-current="page">[OFFICIAL NAME]</li></ol></nav>
+
+    <p class="notice">Unofficial copy. Official record: <a href="#">[OFFICIAL SOURCE DOCUMENT TITLE]</a></p>
+
+    <section class="card who" aria-labelledby="oh">
+      <div>
+        <h1 id="oh">[OFFICIAL NAME]</h1>
+        <dl class="facts">
+          <dt>Body</dt><dd>Clarksville City Council</dd>
+          <dt>Seat</dt><dd>[WARD N] · <a href="#">All holders of this seat</a></dd>
+          <dt>Status</dt><dd>[CURRENT / FORMER]</dd>
+          <dt>Term on record</dt><dd><time>[DATE]</time> – <time>[DATE]</time> · <a href="#">Source</a></dd>
+        </dl>
+      </div>
+      <div class="acts">
+        <a class="btn btn-line" href="#">Download CSV</a>
+        <a class="btn btn-line" href="#">Download JSON</a>
+        <a class="btn btn-line" href="#">Alert feed</a>
+      </div>
+    </section>
+
+    <form class="filters" action="#" aria-label="Filter votes">
+      <label>Year<select name="y"><option>All years</option><option>[YEAR]</option></select></label>
+      <label>Vote<select name="v"><option>All</option><option>Aye</option><option>Nay</option><option>Abstain</option><option>Absent</option></select></label>
+      <label>Topic or keyword<input type="search" name="k" placeholder="[KEYWORD]"></label>
+      <button class="btn btn-o" type="submit">Apply</button>
+    </form>
+    <p class="count" aria-live="polite">Showing [N] of [N] roll-call votes, newest first.</p>
+
+    <table>
+      <caption>Roll-call votes by [OFFICIAL NAME]</caption>
+      <thead><tr><th scope="col">Date</th><th scope="col">Meeting</th><th scope="col">Item</th><th scope="col">Vote</th><th scope="col">Outcome</th><th scope="col">Source</th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-label="Date"><time>[DATE]</time></td>
+          <td data-label="Meeting"><a href="#">[MEETING TITLE]</a></td>
+          <td data-label="Item"><div>[AGENDA ITEM TITLE]<details><summary>Show more</summary><p>[FULL MOTION TEXT]</p></details></div></td>
+          <td data-label="Vote" class="v">Aye</td>
+          <td data-label="Outcome">[PASSED / FAILED] <span class="mono">[N]–[N]</span></td>
+          <td data-label="Source" class="src"><div><a href="#">Minutes p. <span class="mono">[N]</span></a><a href="#">Video <span class="mono">[HH:MM:SS]</span></a></div></td>
+        </tr>
+        <tr>
+          <td data-label="Date"><time>[DATE]</time></td>
+          <td data-label="Meeting"><a href="#">[MEETING TITLE]</a></td>
+          <td data-label="Item"><div>[AGENDA ITEM TITLE]<details><summary>Show more</summary><p>[FULL MOTION TEXT]</p></details></div></td>
+          <td data-label="Vote" class="v">Nay</td>
+          <td data-label="Outcome">[PASSED / FAILED] <span class="mono">[N]–[N]</span></td>
+          <td data-label="Source" class="src"><div><a href="#">Minutes p. <span class="mono">[N]</span></a><a href="#">Video <span class="mono">[HH:MM:SS]</span></a></div></td>
+        </tr>
+        <tr>
+          <td data-label="Date"><time>[DATE]</time></td>
+          <td data-label="Meeting"><a href="#">[MEETING TITLE]</a></td>
+          <td data-label="Item"><div>[AGENDA ITEM TITLE]<details><summary>Show more</summary><p>[FULL MOTION TEXT]</p></details></div></td>
+          <td data-label="Vote" class="v">Abstain</td>
+          <td data-label="Outcome">[PASSED / FAILED] <span class="mono">[N]–[N]</span></td>
+          <td data-label="Source" class="src"><div><a href="#">Minutes p. <span class="mono">[N]</span></a><a href="#">Video <span class="mono">[HH:MM:SS]</span></a></div></td>
+        </tr>
+        <tr>
+          <td data-label="Date"><time>[DATE]</time></td>
+          <td data-label="Meeting"><a href="#">[MEETING TITLE]</a></td>
+          <td data-label="Item"><div>[AGENDA ITEM TITLE]<details><summary>Show more</summary><p>[FULL MOTION TEXT]</p></details></div></td>
+          <td data-label="Vote" class="v">Absent</td>
+          <td data-label="Outcome">[PASSED / FAILED] <span class="mono">[N]–[N]</span></td>
+          <td data-label="Source" class="src"><div><a href="#">Minutes p. <span class="mono">[N]</span></a><a href="#">Transcript (automatic) <span class="mono">[HH:MM:SS]</span></a></div></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <nav class="pager" aria-label="Pages of votes">
+      <a href="#">Previous</a><a href="#" aria-current="page">1</a><a href="#">2</a><a href="#">[N]</a><a href="#">Next</a>
+    </nav>
+    <p class="hint">Automatic transcripts may contain errors. The official minutes and video are the record. <a href="#">Report an error</a></p>
+  </main>
+
+  <footer class="foot">
+    <p style="margin:0">Provided as a free service by gnoshcodes · <a href="#">Buy Me a Coffee</a></p>
+    <ul><li><a href="#">Who runs this</a></li><li><a href="#">Our rules</a></li><li><a href="#">Method</a></li><li><a href="#">Corrections</a></li><li><a href="#">Report an error</a></li></ul>
+  </footer>
+</div>
+
+<script>
+(function(){var d=document.getElementById('drawer'),last;
+function set(o){d.hidden=!o;document.querySelectorAll('[aria-expanded][aria-controls=drawer]').forEach(function(b){b.setAttribute('aria-expanded',o)});if(o){d.querySelector('button').focus()}else if(last){last.focus()}}
+document.querySelectorAll('[data-drawer]').forEach(function(b){b.addEventListener('click',function(){if(d.hidden)last=b;set(d.hidden)})});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&!d.hidden)set(false)});})();
+</script>
+</body>
+</html>

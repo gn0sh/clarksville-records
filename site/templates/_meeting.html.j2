@@ -1,0 +1,66 @@
+{% from "_macros.html.j2" import source_cell, cite, person, item_link, motion_block, roll_call_block, chip, stat %}
+{# A meeting's stats, attendance, and motions and roll calls, from views.meeting. Used by the county's meeting page
+   (one meeting, h2, plain ids) and a council's meetings-by-year page (one section per meeting, h3, ids prefixed by
+   the meeting id so they are unique on the page). #}
+{% macro meeting_stats(m) %}
+  <ul class="stats stats-meeting">
+    {% if m.attendance_state == "shown" %}
+    {{ stat(m.stats.present ~ " of " ~ m.stats.listed, "members present") }}
+    {% elif m.attendance_state == "under_review" %}
+    {{ stat("n/a", "attendance under review, not shown") }}
+    {% else %}
+    {{ stat("n/a", "attendance not extracted, not shown") }}
+    {% endif %}
+    {{ stat(m.stats.motions, "motions") }}
+    {{ stat(m.stats.rc_confirmed, "roll calls confirmed") }}
+    {{ stat(m.stats.rc_unconfirmed, "roll calls not confirmed*") }}
+    {{ stat(m.stats.unmatched, "names not matched to an official") }}
+  </ul>
+{% endmacro %}
+
+{% macro meeting_sections(m, root, h="h2", pre="") %}
+{% set hb = "h3" if h == "h2" else "h4" %}
+<section aria-labelledby="{{ pre }}attendance">
+  <{{ h }} id="{{ pre }}attendance">Attendance</{{ h }}>
+  {% if m.attendance_state == "shown" %}
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Attendance table{% if pre %}, {{ m.meeting.date }}{% endif %}">
+  {# Explicit roles: style.css makes this table a grid at phone width, which removes native table semantics. #}
+  <table class="attendance" role="table">
+    <thead role="rowgroup"><tr role="row"><th scope="col" role="columnheader">Member</th><th scope="col" role="columnheader">Recorded</th><th scope="col" role="columnheader">Source</th></tr></thead>
+    <tbody role="rowgroup">
+    {% for a in m.attendance %}
+      <tr role="row" class="fact" data-fact-id="{{ a.fact_id }}">
+        <th scope="row" role="rowheader">{{ person(a.who, root) }}</th>
+        <td role="cell">{{ chip(a.status, a.status | lower) }}</td>
+        <td role="cell" class="cite">{{ source_cell(a.src, root, a.fact_id) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% elif m.attendance_state == "under_review" %}
+  <p>Attendance for this meeting is under review and is not shown.</p>
+  {% else %}
+  <p>Attendance not extracted for this meeting.</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="{{ pre }}motions">
+  <{{ h }} id="{{ pre }}motions">Motions and roll calls</{{ h }}>
+  <p>In the order they appear in the minutes.</p>
+  {% if m.unconfirmed_text %}<p class="nc-summary">{{ m.unconfirmed_text }}</p>{% endif %}
+  {% for b in m.blocks %}
+  <article class="fact block {{ 'block-roll' if b.kind == 'roll_call' else 'block-motion' }}{% if b.kind == 'roll_call' and not b.confirmed %} nc{% endif %}" id="{{ b.id }}" data-fact-id="{{ b.id }}">
+    <{{ hb }}>{{ "Roll call" if b.kind == "roll_call" else "Motion" }}: {{ item_link(b.item, root) }}{% if b.kind == "roll_call" and not b.confirmed %} <span class="chip chip-status"><span aria-hidden="true">*</span> Not confirmed</span>{% endif %}</{{ hb }}>
+    {% if b.kind == "roll_call" %}
+    {{ roll_call_block(b, root) }}
+    {% else %}
+    {{ motion_block(b, root) }}
+    {% endif %}
+    {{ cite(b.src, root, b.id) }}
+  </article>
+  {% else %}
+  <p>No motions or roll calls are shown for this meeting.</p>
+  {% endfor %}
+</section>
+{% endmacro %}

@@ -1,0 +1,74 @@
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import clamp, not_confirmed, person, fact_meta %}
+{% from "_fin_macros.html.j2" import fin_link, fin_cite, fin_cites, doc_link, notes_ab, words_toggle %}
+{% block main %}
+<div class="fin">
+{# Design finance-contracts 5. The same structure for every solicitation (N1); state is carried by words only. #}
+<p class="crumb"><a href="index.html">{{ c.title }}</a></p>
+<h1>{{ title }}</h1>
+<p class="sol-meta">Department: {% if dept and dept.held %}{{ not_confirmed(dept.src, dept.check) }}{% elif dept %}{{ dept.text }} {{ fin_cite(dept.src) }}{% else %}{{ c.no_department }}{% endif %}{% if number %} <span class="sep" aria-hidden="true">&middot;</span> Number: {{ number }}{% endif %}</p>
+<p class="sol-meta">Archive date as printed: {{ archive_date_text or c.archive_date_empty }} {{ fin_cite(archive_src) }}</p>
+<p class="coverage">{{ coverage_sentence }}</p>
+
+<section aria-labelledby="docs-h">
+<h2 id="docs-h">Documents</h2>
+<div class="table-scroll fin-scroll">
+<table class="fin-stack sol-docs">
+  <caption class="sr-only">Documents, by document date</caption>
+  <thead>
+    <tr><th scope="col">Stage</th><th scope="col">Document</th><th scope="col">Date</th><th scope="col">Source</th></tr>
+  </thead>
+  <tbody>
+  {% for d in docs %}
+    <tr class="fact" data-fact-id="{{ d.fact_id }}">
+      <th scope="row" class="c-stage" data-label="Stage">{% if d.glossary %}<a href="{{ root }}glossary.html#{{ d.glossary }}">{{ d.stage_label }}</a>{% else %}{{ d.stage_label }}{% endif %}</th>
+      <td class="c-doc" data-label="Document">{{ doc_link(d, c, d.label, long=true) }}{% if d.scanned %}<br><small>{{ c.scanned_detail }}</small>{% endif %}{% if not d.href %} <a href="{{ archive_src.url }}" target="_blank" rel="noopener noreferrer">{{ c.archive_link }}</a>{% endif %}</td>
+      <td class="c-date" data-label="Date">{% if d.date %}{{ d.date }}{% else %}<span class="muted">{{ c.no_date }}</span>{% endif %}</td>
+      <td class="c-source cite" data-label="Source">{% set fetched %}{% if d.fetched %}<p>Document fetched {{ d.fetched }}.</p>{% endif %}{% endset %}{{ fin_cites([d.row_src], root, d.fact_id, fetched) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+</section>
+
+<section aria-labelledby="tab-h">
+<h2 id="tab-h"><a href="{{ root }}glossary.html#bid-tab">Bid tab</a></h2>
+{% if differ %}
+<div class="note differ"><p>{{ differ.sentence }} {% for d in differ.docs %}{{ doc_link(d, c, d.label) }}{% if not loop.last %}, {% endif %}{% endfor %}.</p><p>{{ differ.fields | join(", ") }}.</p></div>
+{% endif %}
+{% if tab is none %}
+<p>{{ c.no_tab_detail }}</p>
+{% elif tab.kind != "lump_sum" %}
+<p>{{ tab.reason }} {{ doc_link(tab.doc, c, tab.doc.label, long=true) }}</p>
+{% else %}
+<div class="table-scroll fin-scroll">
+<table class="fin-stack sol-bidders">
+  <caption>{{ c.tab_heading }}</caption>
+  <thead>
+    <tr><th scope="col">Bidder</th><th scope="col" class="num">Bid total as printed</th><th scope="col">Source</th></tr>
+  </thead>
+  <tbody>
+  {% for b in tab.bidders %}
+    <tr class="fact" data-fact-id="{{ b.fact_id }}">
+      <th scope="row" class="c-bidder" data-label="Bidder">{{ person(b.who, root) }}</th>
+      <td class="num c-total" data-label="Bid total">{% if b.total is none %}{{ not_confirmed(b.src, b.check) }}{% else %}{{ b.total }}{% endif %}</td>
+      <td class="c-source cite" data-label="Source">{{ fin_cites([b.src], root, b.fact_id) }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% for dt in (tab.bid_date, tab.award_date) if dt %}<p class="tab-date">{{ dt.label }} {{ dt.text }} {{ fin_cite(dt.src) }}</p>
+{% endfor %}
+<p class="awardee">{% if tab.awardee.sentence %}{{ tab.awardee.sentence }}{% elif tab.awardee.held %}{{ not_confirmed(tab.awardee.src, tab.awardee.check) }}{% else %}{{ tab.awardee.lead }}{{ person(tab.awardee.who, root) }}{{ tab.awardee.tail }} Source: {{ fin_link(tab.awardee.src) }}, fetched {{ tab.awardee.src.fetched }}.{% if tab.awardee.state %} {{ tab.awardee.state }}{% endif %}{% endif %}</p>
+{% endif %}
+</section>
+
+{{ notes_ab(notes) }}
+{# Design 5.4: a "Related item" row only on an exact stretch match. Empty slot in 1a. #}
+{{ words_toggle(words, c, root) }}
+<p class="meta">{{ fact_meta(root, sol.id) }}</p>
+{% if disclosure %}{% include "_disclosure.html.j2" %}{% endif %}
+</div>
+{% endblock %}

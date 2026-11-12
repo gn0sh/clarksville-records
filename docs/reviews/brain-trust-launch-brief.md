@@ -1,0 +1,9 @@
+# Brain Trust brief: Daylight public launch (2026-11-11)
+
+**The proposal.** Make "Daylight" public at daylight.gnoshcodes.com (GitHub Pages, free) for Clarksville and Montgomery County, TN residents. It collects public records (county commission and city council agendas, minutes and roll-call votes; Regional Planning Commission meetings and agendas; county budgets, bids and capital projects) and shows them searchable, with every fact linked to its source document. A GitHub Actions job collects new records daily and redeploys. An optional morning email note (via Buttondown) lists new agendas. Free; a Buy Me a Coffee tip link is the only money. Run by gnoshcodes (a one-person LLC); the owner is not named on the site.
+
+**Planned scope at launch (Fri Nov 13 review, go-live after the owner's OK).** County and city meetings, votes and officials (every official's name links to their vote history); RPC meetings and agendas, with RPC motion results held as "Not confirmed" site-wide because a review found misread votes; finance and bids; CSV/JSON exports; RSS feeds; "Watch" livestream links per meeting; corrections via GitHub issues. Committees and the school board (CMCSS, "coming soon" placeholder) come Nov 18.
+
+**Fixed rules.** Strictly neutral and factual: every official shown the same way, no scores, rankings or commentary, no AI-written text about named officials; votes only from the official record; polite collection only (robots.txt, crawl delay, public pages, never work around a block).
+
+**Read.** Spec `docs/specs/clarksville-records.md`; plan `docs/plan/one-week-finish.md`; runbook `docs/ops/launch-runbook.md`; morning note `docs/ops/morning-note.md`; security `docs/reviews/security-review-launch.md`; earlier panels `docs/reviews/brain-trust-*.md`; status `docs/status.md` (read only the top sections). Preview: https://gn0sh.github.io/clarksville-records/ (fetch if your tools allow).

@@ -1,0 +1,8 @@
+# FIXTURE for tests only: made-up holder records for the made-up people in facts.sample.json.
+# Shape: architecture, invariant `provenance` (dates: observed needs last_source; dates: sourced needs printed).
+- {official_id: a-example, seat: district-1, dates: observed, lines: current, start: "2024-11-04", end: null, source: "https://example.org/fixture/roster.pdf#page=1", last_source: "https://example.org/fixture/roster.pdf#page=2"}
+- {official_id: b-sample, seat: district-2, dates: observed, lines: current, start: "2024-11-04", end: "2024-11-04", source: "https://example.org/fixture/roster.pdf#page=1", last_source: "https://example.org/fixture/roster.pdf#page=2"}
+- {official_id: d-testperson, seat: district-2, dates: observed, lines: current, start: "2024-12-09", end: null, source: "https://example.org/fixture/minutes.pdf#page=2", last_source: "https://example.org/fixture/minutes.pdf#page=3"}
+- {official_id: c-placeholder, seat: county-mayor, dates: sourced, printed: "2022-2026", start: "2022-09-01", end: null, source: "https://example.org/fixture/roster.pdf#page=2"}
+- {official_id: f-rosteronly, name: F. Rosteronly, seat: city-mayor, dates: sourced, printed: "2023-2027", start: "2023-01-01", end: null, source: "https://example.org/fixture/roster.pdf#page=3"}
+- {official_id: null, seat: district-3, dates: observed, start: "2024-11-04", end: null, source: "https://example.org/fixture/minutes.pdf#page=3", last_source: "https://example.org/fixture/minutes.pdf#page=4"}

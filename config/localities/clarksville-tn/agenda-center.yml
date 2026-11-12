@@ -1,0 +1,155 @@
+# City of Clarksville, TN: City Council meetings from the city's CivicPlus Agenda Center (milestone M4, slice 1).
+# collector/agenda_center.py loads and checks this file; the code holds no locality literal. A missing or malformed key
+# fails the load loudly. Facts about the site: docs/platform-facts.md, "City of Clarksville".
+#
+# Never cityofclarksville.com (it blocks automated tools; denied in collector/fetch.py whatever this file says).
+# robots.txt (www.clarksvilletn.gov, checked 2026-11-09): /AgendaCenter allowed for `*`, Crawl-delay 10. The polite
+# fetcher reads robots.txt every run and checks every URL against it.
+
+locality: clarksville-tn
+body: Clarksville City Council
+official_title: City Council Member
+
+# Agenda Center listing. The category page loads other years with a POST (UpdateCategoryList); the collector only
+# GETs, so it reads the Agenda Center's own search page, one request per year, limited to this category.
+host: www.clarksvilletn.gov
+category_id: 3
+category_name: City Council
+search_url: "https://www.clarksvilletn.gov/AgendaCenter/Search/?term=&CIDs={cid}&startDate=01/01/{year}&endDate=12/31/{year}&dateRange=&dateSelector="
+years: [2016, 2024]          # first and last year listed (newest entry seen: 2024); CivicClerk holds later ones
+
+# Meeting kind from the listed title (case-insensitive; the first regex that matches wins). Titles are shown as
+# printed; the kind only groups them and names the meeting id. A meeting that matches none is "other". Kinds must be
+# in schema/facts.schema.json meeting.kind.
+kind_rules:
+  - [executive, '\bexecutive\b']
+  - [work-session, '\bwork\s*session\b|\bworkshop\b']
+  # before special: CivicClerk lists "Ethics Code Review Special Called Meeting" (2024-02-26); the Agenda Center's
+  # Ethics Code Review meetings are committee meetings. No Agenda Center title has both words (checked 2026-11-09).
+  - [committee, '\bcode review\b']
+  - [special,'\bspecial\b|\boath of office\b']
+  - [public-hearing, '\bpublic\s+hearing\b']
+  - [committee, '\bcommittee\b|\bcode review\b|\bbudget review\b|\bmtg notice\b']
+  - [regular, '\bregular\b']
+  - [other, '^']
+
+# Minutes. Vote lines start with one of these labels and a colon ("AYE: Allen, Burkhart, ..."). value is the
+# schema vote value; raw_value keeps the label as printed. ABSENT names are attendance at the vote, not a vote.
+vote_labels:                 # quoted: YAML reads a bare yes/no as true/false
+  "AYE": "yes"
+  "AYES": "yes"
+  "YES": "yes"
+  "NAY": "no"
+  "NAYS": "no"
+  "NO": "no"
+  "ABSTAIN": "abstain"
+  "ABSTAINED": "abstain"
+  "ABSTENTION": "abstain"
+  "ABSTENTIONS": "abstain"
+  "RECUSED": "other"
+  "PASS": "other"
+  "NOT VOTING": "other"        # 2019-07-25
+  "NO RESPONSE": "other"       # 2020 remote meetings: no answer at the roll call
+absent_labels: [ABSENT, "NOT PRESENT"]
+# Attendance lines of the ATTENDANCE section. 2020-2021 remote and hybrid meetings print PARTICIPATING, or
+# IN PERSON plus VIA GOOGLE MEETS; all of them count as present.
+present_labels: [PRESENT, PARTICIPATING, IN PERSON, VIA GOOGLE MEETS, VIA GOOGLE MEET, REMOTE, REMOTELY]
+# A NOTE line inside a vote block ("NOTE: Councilman Alexander was not present for this vote.") names members who
+# did not vote because they were out of the room; they count as absent for that vote only.
+note_labels: [NOTE]
+# Words that end a vote block's name list (the outcome sentence that follows it).
+outcome_passed: '\b(passed|adopted|approved|carried)\b'
+outcome_failed: '\b(failed|defeated|denied|did not pass)\b'
+# Item numbers as the minutes print them ("ORDINANCE 47-2019-20", "RESOLUTION 33-2019-20").
+item_number: '\b(ORDINANCE|RESOLUTION)\s+(\d{1,3}-\d{4}-\d{2})\b'
+# The item kinds as the minutes name them in a sentence ("adopt this ordinance", "these resolutions"; any case).
+# A vote is linked to a numbered item only when what it is on agrees with the item: see collector/city_minutes.py.
+item_kinds: [ordinance, resolution]
+# Votes that are never on one numbered item, whatever item they follow: the motion, the lead-in to the vote or the
+# outcome sentence says so (case-insensitive). They are linked to their section heading.
+not_item_votes: '\badjourn|\bconsent\s+agenda\b|\bappoint'
+# The sentence that leads into a vote ("The following vote on the motion to postpone was recorded:", "A voice vote
+# was taken"), from these words on (case-insensitive). Only such a sentence counts as the vote's own words when the
+# minutes' last sentence before the vote lines is read; any other last sentence ("Councilman Grubbs abstained from
+# voting on ORDINANCE 46-2015-16.") is not about the vote and never links it. Spellings as printed: "voe", "voet".
+vote_lead_in: '\bthe\s+following\b[^.]*?\b(?:vote|voe|voet|recorded|taken)\b|\b(?:voice|roll\s+call)\s+vote\s+was\s+(?:recorded|taken)\b'
+# A sentence about a member's own vote, not about the item ("... abstained from voting on ORDINANCE 46-2015-16",
+# "... recused himself", "... noted his abstention"). An item number in it is never what "this ordinance" refers to.
+vote_asides: '\babstain|\babstention|\brecus'
+# The presiding officer, from the call-to-order sentence ("called to order by Mayor Joe Pitts"). Groups: title, name.
+# When the title is presiding_title (the mayor, who is not on the PRESENT line and votes), the mayor is added to the
+# meeting's roster only when `mayors` below covers the meeting's date with that name (or a full-name attendance list
+# since the latest seating prints that name as Mayor); else the presiding name is held (check presiding_resolves),
+# never added (city-votes/presiding-guest: a joint session "called to order by Mayor Wes Golden" of the county).
+# A Mayor Pro Tem presiding is already on the PRESENT line as a member; the sentence adds nobody.
+presiding: "called to order by (?P<title>Mayor Pro Tem|Mayor)\\s+(?P<name>[A-Z][a-z][A-Za-z'-]*(?:\\s+[A-Z]\\.)?(?:\\s+[A-Z][a-z][A-Za-z'-]*)+)"
+presiding_title: Mayor
+# When the council is seated: on the 1st of `month` every `every_years` years from `from_year`. Every wholesale change
+# of members in the full-name attendance lists of 2016-2025 falls at the first January meeting of an odd year (2017,
+# 2019, 2021, 2023, 2025), after the November elections of even years (observed in the data, not taken from the
+# charter). An attendance list printed as surnames is read only against full-name lists printed since the latest
+# seating (docs/architecture/city-council.md, name resolution invariant). Without this key no earlier list is used.
+seating: {month: 1, every_years: 2, from_year: 2017}
+# The city's mayor, as configured, cited seating entries (name resolution invariant, path N3). The mayor is not on the
+# PRESENT line of most minutes, so this is the source that puts the mayor on a meeting's roster; the call-to-order
+# sentence alone never does. Terms are inclusive, may not overlap, and change only at a seating (Kim McMillan called
+# every stored meeting to order through 2018-11-01, Joe Pitts every one from 2019-01-03 to the latest stored, 2026-06-04).
+# Each cite is a stored minutes file that prints the person as the city's mayor. A mayor seated 2027-01-01 needs a new
+# entry, cited from the minutes, before those meetings are built; until then their presiding mayor is held.
+mayors:
+  - name: Kim McMillan
+    from: "2015-01-01"
+    to: "2018-12-31"
+    cite: "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_12062018-107 p.1 'ABSENT: Mayor Kim McMillan'; https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01032017-61 p.1 'Mayor McMillan administered the Oath of Office to members of the City Council'"
+  - name: Joe Pitts
+    from: "2019-01-01"
+    to: "2026-12-31"
+    cite: "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2623,plainText=false) p.1 (2025-01-02) 'PRESENT: ... Joe Pitts (Mayor)' and 'Mayor Pitts administered the Oath of Office of City Council'"
+
+# Members seated between full-name attendance lists, each citing an official record of the seating (name resolution
+# invariant, path N10; docs/architecture/city-council.md "Verified-rate plan", M1; ADR 0005). The attendance has
+# printed surnames only since 2025-03-06, so a member seated after that is on no full-name list. An entry puts the
+# person in the roster book from `seated` as the holder of `ward` (replacing any earlier holder), until a later list
+# or entry gives the ward to someone else or the next seating. kind: minutes | resolution | oath | roster_page |
+# certified_results. The build checks that the stored file of cite_url prints `quote` (whitespace collapsed) on
+# cite_page and that the quote names the person; otherwise the entry is left out (the surname stays held) and the
+# run report says why. Applicant lists, agendas, titled prose, transcripts, video and news never qualify.
+members:
+  # City Council Special Session of 2026-02-11, resumed 2026-02-19 (CivicClerk lists it under "General"; D1).
+  # Page 1 lists seven applicants; page 2: "Because the vote was recessed to February 19, there was no Oath of
+  # Office"; page 3 records the seating.
+  - name: Eric Claunch
+    ward: 2
+    seated: "2026-02-19"
+    kind: minutes
+    cite_url: "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3068,plainText=false)"
+    cite_page: 3
+    quote: "Eric Claunch was selected as the Ward 2 replacement and was sworn in by Mayor Pitts."
+
+# Printing corrections: one attendance printing of one meeting, read as another surname (city-seats/printed-misspelling-
+# of-seated-member; docs/architecture/city-council.md "Minutes identity"). Attendance only: never a vote, mover or
+# seconder token, never another meeting or page. The build applies an entry only when the meeting's minutes are
+# minutes_url, `page` prints `printed` in its attendance (PRESENT) list once and prints `reads` in a vote line, the
+# attendance does not print `reads` too, and `reads` resolves to exactly one member of the meeting's roster book whom
+# the list names nowhere else; otherwise it is not applied (the name stays held) and the run report says why. The
+# seat pages say what the list prints.
+printing_corrections:
+  # City Council Special Session of 2026-07-06 (CivicClerk fileId 3254, text layer): p. 1 prints
+  # "PRESENT: BROWN, CHANDLER, CLAULNCH, HAYWOOD, ..." (13 names; "ABSENT: NONE") and, in its first vote,
+  # "AYE: CHANDLER, CLAUNCH, HAYWOOD, ...". CLAUNCH (Eric Claunch, Ward 2, seated 2026-02-19) is the only roster
+  # member the list otherwise leaves out.
+  - meeting: "2026-07-06"
+    minutes_url: "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3254,plainText=false)"
+    page: 1
+    printed: CLAULNCH
+    reads: CLAUNCH
+
+# Name fixes for the same person printed two ways: printed form -> the form most minutes print. Each entry is the
+# same ward in the same term (checked in data/localities/clarksville-tn/wards.json, 2026-11-09); applied to every
+# printing alike. Vote names are never fixed here: a misspelt vote name stays unresolved and its roll call is held.
+aliases:
+  "DaJaun Little": "DaJuan Little"     # Ward 3, 10 printings 2022-11-03 on; DaJuan Little 46 printings, Ward 3
+  "DuJuan Little": "DaJuan Little"     # Ward 3, 2021-10-05
+  "Jaon Knight": "Jason Knight"        # Ward 5, 2021-01-05
+  "Trish Butler": "Trisha Butler"      # Ward 12, 2021-04-29
+  "Amber Marquis": "Ambar Marquis"     # Ward 5, 2024-05-02 (CivicClerk); Ambar Marquis Ward 5 in every other 2024-25 list

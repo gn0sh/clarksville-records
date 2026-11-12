@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>MOCK: Daylight front page v2 (docs/design/front-page-v2.md)</title>
+<!--
+  STATIC DESIGN MOCK. Not production code; never ship as is. Spec: docs/design/front-page-v2.md.
+  Every value below is copied from the build of 2026-11-11 (build/site/index.html and build/site/today.html):
+  the three recent meetings, the two scheduled meetings, the freshness lines, "12 wards and 21 districts",
+  "Data as of 2026-11-07", the notice text and the footer. Links are the real site-relative hrefs and do not
+  resolve from this folder. Tokens and type are those of site/static/style.css (Daylight).
+-->
+<style>
+@font-face { font-family: "Outfit"; font-weight: 100 900; font-display: swap; src: url("../../site/static/brand/Outfit-var.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 400; font-display: swap; src: url("../../site/static/brand/Inter-400.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-weight: 600; font-display: swap; src: url("../../site/static/brand/Inter-600.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 100 800; font-display: swap; src: url("../../site/static/brand/JetBrainsMono-var.woff2") format("woff2"); }
+:root {
+  --bg: #F7F8FC; --sky: #D6E2FB; --surface: #FFFFFF; --surface-2: #E8EDFA; --fg: #141A2E; --muted: #4A5470;
+  --border: #D5DAE8; --link: #2B4BA5; --blue: #2B4BA5; --on-blue: #FFFFFF; --sun: #EF5E35; --halo: #F9B9A4;
+  --focus: #EF5E35; --mark: #2E3A57; --mark-soft: #7C86A3;
+  --font-head: Outfit, "Avenir Next", "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  --font-body: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --gutter: 16px; --measure: 64rem; --radius: 6px; --radius-lg: 12px;
+  --t-xs: .8rem; --t-sm: .9rem; --t-lg: 1.25rem; --t-xl: 1.56rem; --t-2xl: 1.95rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0D1224; --sky: #18245A; --surface: #161C33; --surface-2: #1B2443; --fg: #EEF1F8; --muted: #A3ACC4;
+    --border: #2C3552; --link: #9DB1F5; --blue: #3D5FC4; --halo: #7A3320; --mark: #D5DAE8; }
+}
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 var(--font-body); overflow-wrap: break-word; }
+a { color: var(--link); text-underline-offset: 2px; text-decoration-thickness: 1px; }
+a:hover { text-decoration-thickness: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.muted { color: var(--muted); }
+.nowrap { white-space: nowrap; }
+h1, h2, h3 { font-family: var(--font-head); }
+
+/* ---- header: unchanged from the live site ---- */
+.site-header { position: relative; overflow: hidden; background: linear-gradient(var(--sky), color-mix(in srgb, var(--sky) 35%, var(--bg))); border-bottom: 2px solid var(--fg); --focus: var(--fg); }
+.masthead { position: relative; z-index: 1; max-width: var(--measure); margin: 0 auto; padding: 10px var(--gutter); display: flex; align-items: flex-start; gap: 10px 16px; min-height: 48px; }
+.menu-btn { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 12px 6px 10px; font-size: var(--t-sm); font-weight: 600; color: var(--fg); background: color-mix(in srgb, var(--surface) 55%, transparent); border: 2px solid var(--fg); border-radius: var(--radius-lg); text-decoration: none; }
+.menu-icon, .menu-icon::before, .menu-icon::after { display: block; width: 18px; height: 2px; background: currentColor; border-radius: 1px; }
+.menu-icon { position: relative; } .menu-icon::before, .menu-icon::after { content: ""; position: absolute; left: 0; }
+.menu-icon::before { top: -6px; } .menu-icon::after { top: 6px; }
+.site-name { margin: 0; font-family: var(--font-head); font-weight: 800; font-size: 1.35rem; line-height: 1.05; letter-spacing: -.02em; }
+.site-name a { display: inline-flex; align-items: center; gap: 10px; color: var(--fg); text-decoration: none; }
+.plate-sun { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--sun); box-shadow: 0 0 0 4px var(--halo); }
+.plate { display: grid; }
+.plate-place { font-family: var(--font-mono); font-size: .62rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); line-height: 1.5; }
+.unofficial-tag { margin: 2px 0 0; font-size: var(--t-sm); font-weight: 600; }
+.sky-sun-frame { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.sky-sun { --size: clamp(76px, 15vw, 190px); position: absolute; bottom: 0; right: max(var(--gutter), calc(50% - var(--measure) / 2 + var(--gutter))); width: var(--size); height: var(--size); border-radius: 50%; background: var(--sun);
+  box-shadow: 0 0 0 clamp(8px, 2vw, 22px) color-mix(in srgb, var(--halo) 55%, transparent), 0 0 0 clamp(18px, 4.5vw, 48px) color-mix(in srgb, var(--halo) 26%, transparent); transform: translateY(55%); }
+.sky-hero { position: relative; z-index: 1; max-width: var(--measure); margin: 0 auto; padding: 0 var(--gutter) 10px; }
+.sky-day { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 16px; font-family: var(--font-head); line-height: 1.1; }
+.sky-dow { font-weight: 500; font-size: 1.05rem; }
+.sky-link { color: var(--fg); text-decoration: none; display: inline-flex; align-items: baseline; gap: 6px; min-height: 44px; }
+.sky-date { font-weight: 800; font-size: 1.9rem; line-height: 1; letter-spacing: -.035em; text-decoration: underline; text-decoration-color: var(--sun); text-decoration-thickness: 3px; text-underline-offset: 5px; }
+.sky-go { font-weight: 800; font-size: 1.5rem; }
+
+main, .site-footer { max-width: var(--measure); margin: 0 auto; padding: 0 var(--gutter); }
+main { padding-top: 20px; padding-bottom: 32px; }
+
+/* ---- 1 welcome ---- */
+.welcome h1 { font-size: var(--t-2xl); line-height: 1.15; margin: 4px 0 8px; font-weight: 700; letter-spacing: -.015em; max-width: 40rem; }
+.welcome .lede { margin: 0 0 6px; font-size: 1.06rem; max-width: 40rem; }
+.welcome .unofficial-line { margin: 0; font-size: var(--t-sm); color: var(--muted); max-width: 40rem; }
+
+/* ---- 2 address ---- */
+.find { margin: 20px 0 0; padding: 16px; background: var(--surface); border: 2px solid var(--fg); border-radius: var(--radius-lg); max-width: 44rem; }
+.find h2 { margin: 0 0 2px; font-size: var(--t-lg); line-height: 1.25; }
+.find label { display: block; margin: 0 0 8px; color: var(--muted); font-size: var(--t-sm); }
+.search-row { display: flex; gap: 8px; }
+.search-row input { flex: 1 1 auto; width: 0; min-width: 0; min-height: 44px; padding: 8px 12px; font: inherit; color: var(--fg); background: var(--surface); border: 2px solid var(--fg); border-radius: var(--radius-lg); }
+.search-row button { min-height: 44px; padding: 8px 16px; color: var(--on-blue); background: var(--blue); border: 1px solid var(--blue); border-radius: var(--radius-lg); cursor: pointer; font-family: var(--font-head); font-weight: 700; font-size: 1.02rem; }
+.addr-privacy { margin: 8px 0 0; font-size: var(--t-xs); color: var(--muted); }
+.find .alt { margin: 6px 0 0; font-size: var(--t-sm); }
+.find .alt a { display: inline-block; padding: 10px 0; }
+
+/* ---- section heads ---- */
+.sec-h { font-size: var(--t-xl); line-height: 1.2; margin: 36px 0 4px; font-weight: 700; letter-spacing: -.01em; }
+.sec-sub { margin: 0 0 12px; color: var(--muted); font-size: var(--t-sm); max-width: 44rem; }
+
+/* ---- 3 doors ---- */
+.doors { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.door { background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--mark); border-radius: var(--radius-lg); padding: 14px 14px 6px; display: flex; flex-direction: column; }
+.door h3 { margin: 0 0 4px; font-size: var(--t-lg); line-height: 1.2; }
+.door p { margin: 0 0 8px; font-size: var(--t-sm); color: var(--muted); flex: 1 1 auto; }
+.door ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
+.door li + li { border-top: 1px solid var(--border); }
+.door a { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 8px 0; font-weight: 600; text-decoration: none; }
+.door a:hover span:first-child { text-decoration: underline; text-decoration-thickness: 2px; }
+.door a .go { font-family: var(--font-head); font-weight: 800; font-size: 1.2rem; line-height: 1; }
+
+/* ---- 4 meetings ---- */
+.meet-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; }
+.meet-col h3 { margin: 0 0 6px; font-family: var(--font-mono); font-size: var(--t-xs); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.meet-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
+.meet-list li { border-bottom: 1px solid var(--border); }
+.meet-row { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 64px; padding: 8px 4px; color: var(--fg); text-decoration: none; }
+.meet-row:hover { background: var(--surface-2); }
+.meet-row:hover .meet-body { text-decoration: underline; text-decoration-thickness: 2px; }
+.meet-date { display: grid; justify-items: center; line-height: 1.05; }
+.meet-date .dow, .meet-date .mon { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.meet-date b { font-family: var(--font-head); font-size: 1.5rem; font-weight: 800; }
+.meet-body { display: block; font-weight: 600; color: var(--link); }
+.meet-kind { display: block; font-size: var(--t-sm); color: var(--muted); }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--link); margin-right: 6px; vertical-align: 1px; }
+.dot-county { background: var(--sun); } .dot-rpc { background: var(--mark-soft); }
+.chip { display: inline-block; padding: 1px 8px; border: 1px dashed var(--mark); border-radius: 999px; font-size: var(--t-xs); background: var(--surface); color: var(--fg); white-space: nowrap; }
+.meet-foot { margin: 10px 0 0; font-size: var(--t-sm); color: var(--muted); max-width: 48rem; }
+.meet-more { margin: 4px 0 0; }
+.meet-more a { display: inline-block; padding: 10px 0; font-weight: 600; }
+
+/* ---- 5 search ---- */
+.landing-search { max-width: 44rem; }
+.landing-search input { border-radius: var(--radius-lg); }
+
+/* ---- 6 more ---- */
+.more { margin-top: 28px; border-top: 1px solid var(--border); }
+.more details { border-bottom: 1px solid var(--border); }
+.more summary { cursor: pointer; min-height: 44px; padding: 10px 0; font-weight: 600; }
+.more ul { margin: 0 0 12px; padding-left: 1.2em; font-size: var(--t-sm); }
+.more p { margin: 0 0 12px; font-size: var(--t-sm); color: var(--muted); }
+
+/* ---- footer: unchanged from the live site ---- */
+.site-footer { border-top: 1px solid var(--border); padding-top: 14px; padding-bottom: 32px; color: var(--muted); font-size: var(--t-sm); }
+.site-footer p { margin: .25em 0; }
+.unofficial-notice { margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--border); border-left: 4px solid var(--mark); border-radius: var(--radius); background: var(--surface-2); color: var(--fg); }
+.unofficial-notice p { margin: 0; font-size: 1rem; line-height: 1.45; }
+.support { display: inline-flex; align-items: center; min-height: 44px; padding: 4px 14px; border: 2px solid var(--fg); border-radius: 999px; color: var(--fg); font-family: var(--font-head); font-weight: 700; text-decoration: none; margin-left: 4px; }
+.gc-credit { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: .6em 0 .25em; }
+.gc-credit img { display: block; width: 160px; height: auto; }
+
+@media (max-width: 899px) {
+  .doors { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 599px) {
+  .welcome h1 { font-size: 1.6rem; }
+  .welcome .lede { font-size: 1rem; }
+  .sky-in { display: none; }
+  .sky-sun { transform: translateY(70%); }
+  .doors { grid-template-columns: 1fr; gap: 10px; }
+  .door p { flex: none; }
+  .meet-cols { grid-template-columns: 1fr; }
+  .sec-h { margin-top: 28px; }
+  .find { padding: 14px 12px; }
+}
+</style>
+</head>
+<body class="page-landing">
+<header class="site-header has-sky">
+  <div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun"></div></div>
+  <div class="masthead">
+    <a class="menu-btn" href="#site-nav"><span class="menu-icon" aria-hidden="true"></span><span>Menu</span></a>
+    <div class="brand">
+      <p class="site-name"><a href="index.html"><span class="plate-sun" aria-hidden="true"></span><span class="plate"><span class="plate-name">Daylight</span> <span class="plate-place">Clarksville-Montgomery County</span></span></a></p>
+      <p class="unofficial-tag">Independent, unofficial</p>
+    </div>
+  </div>
+  <div class="sky-hero">
+    <p class="sky-day"><span class="sky-dow">Wednesday<span class="sky-in"> in Clarksville</span></span> <a class="sky-link" href="today.html"><time class="sky-date" datetime="2026-11-11">November 11</time><span class="sky-go" aria-hidden="true">&rsaquo;</span><span class="sr-only">: meetings day by day</span></a></p>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- 1 Welcome -->
+  <section class="welcome">
+    <h1>Your city and county government, on the record.</h1>
+    <p class="lede">See who represents you, how they voted, when they meet and how the county spends money. Every fact links to the official document it came from.</p>
+    <p class="unofficial-line" id="unofficial-short">Independent, unofficial: not from or endorsed by any government body. <a href="about.html#unofficial">About this site</a></p>
+  </section>
+
+  <!-- 2 Find who represents you (the existing address box, same ids and behaviour) -->
+  <section class="find" aria-labelledby="find-h">
+    <h2 id="find-h">Find who represents you</h2>
+    <form id="addr-form">
+      <label for="addr-q">Enter your street address to see your city ward and county district.</label>
+      <div class="search-row">
+        <input id="addr-q" type="text" autocomplete="street-address" maxlength="200" placeholder="Street address, city" aria-describedby="addr-privacy">
+        <button type="submit">Find</button>
+      </div>
+      <p class="addr-privacy" id="addr-privacy">Your address is sent to the U.S. Census Bureau's geocoder to find where it is. This site doesn't store it. <a href="#">Census's privacy policy</a> applies.</p>
+    </form>
+    <p class="alt"><a href="#wards-districts">Or pick from the list of 12 wards and 21 districts</a></p>
+  </section>
+
+  <!-- 3 Start here: four doors -->
+  <h2 class="sec-h" id="doors-h">Start here</h2>
+  <ul class="doors" aria-labelledby="doors-h">
+    <li class="door">
+      <h3>Who's in office</h3>
+      <p>The council member for each of 12 city wards and the commissioner for each of 21 county districts.</p>
+      <ul>
+        <li><a href="city/index.html"><span>City Council</span><span class="go" aria-hidden="true">&rsaquo;</span></a></li>
+        <li><a href="officials.html"><span>County Commission</span><span class="go" aria-hidden="true">&rsaquo;</span></a></li>
+      </ul>
+    </li>
+    <li class="door">
+      <h3>How they voted</h3>
+      <p>Each recorded vote, by meeting and by member, linked to the page of the minutes it came from.</p>
+      <ul>
+        <li><a href="city/index.html"><span>City Council votes</span><span class="go" aria-hidden="true">&rsaquo;</span></a></li>
+        <li><a href="votes/2026.html"><span>County Commission votes</span><span class="go" aria-hidden="true">&rsaquo;</span></a></li>
+      </ul>
+    </li>
+    <li class="door">
+      <h3>Meetings and agendas</h3>
+      <p>The agenda before a meeting; the minutes and votes after it, once they are posted.</p>
+      <ul>
+        <li><a href="today.html"><span>Day by day</span><span class="go" aria-hidden="true">&rsaquo;</span></a></li>
+        <li><a href="rpc/index.html"><span>Planning Commission</span><span class="go" aria-hidden="true">&rsaquo;</span></a></li>
+      </ul>
+    </li>
+    <li class="door">
+      <h3>County money</h3>
+      <p>Montgomery County's budget books, and the bids and awards its purchasing office lists.</p>
+      <ul>
+        <li><a href="finance/index.html"><span>County budget</span><span class="go" aria-hidden="true">&rsaquo;</span></a></li>
+        <li><a href="contracts/index.html"><span>Bids and awards</span><span class="go" aria-hidden="true">&rsaquo;</span></a></li>
+      </ul>
+    </li>
+  </ul>
+
+  <!-- 4 Meetings: coming up and recent, from sitegen/days.py page() cards -->
+  <section aria-labelledby="meet-h" id="meetings" data-built="2026-11-11">
+    <h2 class="sec-h" id="meet-h">Meetings</h2>
+    <p class="sec-sub">As of <time datetime="2026-11-11">November 11, 2026</time>. Tap a meeting for its agenda, minutes and votes.</p>
+    <div class="meet-cols">
+      <div class="meet-col">
+        <h3 id="up-h">Coming up</h3>
+        <ul class="meet-list" aria-labelledby="up-h">
+          <li><a class="meet-row" href="today.html#d-2026-12-01">
+            <span class="meet-date" aria-hidden="true"><span class="dow">Tue</span><b>1</b><span class="mon">Dec</span></span>
+            <span><span class="sr-only">Tuesday, December 1: </span><span class="meet-body"><i class="dot dot-city" aria-hidden="true"></i>Clarksville City Council</span><span class="meet-kind">Executive session</span></span>
+            <span class="chip">Scheduled</span></a></li>
+          <li><a class="meet-row" href="today.html#d-2026-12-03">
+            <span class="meet-date" aria-hidden="true"><span class="dow">Thu</span><b>3</b><span class="mon">Dec</span></span>
+            <span><span class="sr-only">Thursday, December 3: </span><span class="meet-body"><i class="dot dot-city" aria-hidden="true"></i>Clarksville City Council</span><span class="meet-kind">Regular session</span></span>
+            <span class="chip">Scheduled</span></a></li>
+        </ul>
+      </div>
+      <div class="meet-col">
+        <h3 id="past-h">Most recent</h3>
+        <ul class="meet-list" aria-labelledby="past-h">
+          <li><a class="meet-row" href="today.html#d-2026-11-09">
+            <span class="meet-date" aria-hidden="true"><span class="dow">Mon</span><b>9</b><span class="mon">Nov</span></span>
+            <span><span class="sr-only">Monday, November 9: </span><span class="meet-body"><i class="dot dot-county" aria-hidden="true"></i>Montgomery County Commission</span><span class="meet-kind">Formal meeting</span></span>
+            <span class="chip">Agenda</span></a></li>
+          <li><a class="meet-row" href="today.html#d-2026-11-05">
+            <span class="meet-date" aria-hidden="true"><span class="dow">Thu</span><b>5</b><span class="mon">Nov</span></span>
+            <span><span class="sr-only">Thursday, November 5: </span><span class="meet-body"><i class="dot dot-city" aria-hidden="true"></i>Clarksville City Council</span><span class="meet-kind">Regular session</span></span>
+            <span class="chip">Agenda</span></a></li>
+          <li><a class="meet-row" href="today.html#d-2026-11-02">
+            <span class="meet-date" aria-hidden="true"><span class="dow">Mon</span><b>2</b><span class="mon">Nov</span></span>
+            <span><span class="sr-only">Monday, November 2: </span><span class="meet-body"><i class="dot dot-county" aria-hidden="true"></i>Montgomery County Commission</span><span class="meet-kind">Informal meeting</span></span>
+            <span class="chip">Agenda</span></a></li>
+        </ul>
+      </div>
+    </div>
+    <p class="meet-foot">Only meetings in these records are listed: a meeting appears once its body posts an agenda or lists a date. Each body's own calendar is the official schedule. <a href="today.html#day-bodies-h">What is and is not collected</a></p>
+    <p class="meet-more"><a href="today.html">All meetings, day by day &rsaquo;</a></p>
+  </section>
+
+  <!-- 5 One search -->
+  <h2 class="sec-h" id="search-h">Looking for something specific?</h2>
+  <form class="landing-search" action="search.html" method="get" role="search" aria-labelledby="search-h">
+    <label for="landing-q" class="sec-sub" style="display:block">Search by street, name, topic or item number.</label>
+    <div class="search-row">
+      <input id="landing-q" name="q" type="search" placeholder="For example: Rossview Road">
+      <button type="submit">Search</button>
+    </div>
+  </form>
+
+  <!-- 6 More about these records (the three existing details, moved down, content unchanged) -->
+  <div class="more">
+    <details>
+      <summary>How recent the records are</summary>
+      <ul>
+        <li>Montgomery County Commission: minutes and votes through <a href="meetings/2026-05-11-formal.html"><time class="nowrap" datetime="2026-05-11">May 11, 2026</time></a>; agendas through <a href="meetings/agendas.html#2026-11-09-formal"><time class="nowrap" datetime="2026-11-09">November 9, 2026</time></a>.</li>
+        <li>Clarksville City Council: minutes and votes through <a href="city/meetings/2026.html#2026-06-04-regular"><time class="nowrap" datetime="2026-06-04">June 4, 2026</time></a>; agendas through <a href="city/meetings/2026.html#2026-11-05-regular"><time class="nowrap" datetime="2026-11-05">November 5, 2026</time></a>.</li>
+        <li>Clarksville-Montgomery County Regional Planning Commission: minutes through <a href="rpc/meetings/2026.html#2026-09-22-regular"><time class="nowrap" datetime="2026-09-22">September 22, 2026</time></a>; agendas through <a href="rpc/meetings/2026.html#2026-10-27-regular"><time class="nowrap" datetime="2026-10-27">October 27, 2026</time></a>.</li>
+        <li>Montgomery County finance: approved budget books through <a href="finance/index.html#books-h"><span class="nowrap">fiscal year 2027</span></a>; bids and awards through <a href="contracts/bid-boolean-mast-arm-traffic-signal.html"><time class="nowrap" datetime="2026-10-19">October 19, 2026</time></a>.</li>
+      </ul>
+      <p>Agendas are posted before a meeting and minutes after it, so the minutes run behind the agendas.</p>
+    </details>
+    <details id="wards-districts">
+      <summary>All 12 wards and 21 districts, as a list</summary>
+      <p>(Unchanged: the existing list of districts and wards, each with its page and current holder.)</p>
+    </details>
+    <details>
+      <summary>How the address lookup works, and what is saved</summary>
+      <p>(Unchanged: the existing lookup caption with its source links, plus the "After a lookup, only the district and ward numbers are kept..." note moved here from under the address box.)</p>
+    </details>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <section class="unofficial-notice" aria-labelledby="unofficial-h">
+    <p id="unofficial-h"><strong>Independent, unofficial</strong></p>
+    <p>Daylight is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls. <a href="report.html">How to report a correction</a>.</p>
+  </section>
+  <p>Provided as a free service by <a href="https://gnoshcodes.com/">gnoshcodes LLC</a>. <a class="support" href="https://buymeacoffee.com/gnoshcodes">Buy Me a Coffee</a></p>
+  <p class="gc-credit"><img src="../../site/static/brand/gnoshcodes-wordmark-color-light.svg" alt="gnoshcodes" width="160" height="29"><span>A gnoshcodes project.</span></p>
+  <p><a href="about.html">About this site and its data rules.</a> Data as of 2026-11-07</p>
+  <p id="site-nav" class="muted">(All pages menu: unchanged.)</p>
+</footer>
+</body>
+</html>

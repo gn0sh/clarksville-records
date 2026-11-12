@@ -1,0 +1,107 @@
+# Zoning case facts for Montgomery County, TN (collector/zoning.py reads this file).
+#
+# Each printing below is one place the minutes print a rezoning case's facts. A pattern runs on one page's text with
+# its whitespace collapsed to single spaces; its named groups are the fields it reads (applicant, location, acreage,
+# from_zoning, to_zoning). A field is published only when clean readings from both engines (text layer and tesseract)
+# agree and no reading dissents (collector/zoning.py, "the agreement rule"), so a pattern here only proposes
+# readings; it never decides a value on its own.
+#
+# An acreage printing may wrap its number in `acreage_printed`: the words the page prints with it ("approximately",
+# "+/-", "acres"), published as `acreage.printed` beside the number.
+# Patterns are case-insensitive unless a printing sets `case: true`. Add a printing when a new layout is seen on a page.
+# A group that matches but whose value fails its check is a malformed reading and vetoes the field. So a value group
+# is bounded by labels, never by the shape of a clean value (architecture, "label-bounded values"): once a printing's
+# labels are found, the group takes whatever is printed between them ("1.82 ±", "1.2O", "2.32-2.5", "R- 1", "AG
+# Agricultural"), and only the value check in collector/zoning.py decides clean or malformed. A pattern must not
+# overrun its value either: marks the page prints around a value (table rules and fill lines that tesseract reads as
+# "|", "_", "=", "—", quotes, an empty "/ - /" slot), the word "District" after a named district and the "and" before
+# WHEREAS sit outside the group, and a blank value (PROPOSED ZONING, ACREAGE TO BE REZONED) reads nothing.
+
+# Case numbers that are rezoning applications (an applicant and a property). CZO- cases amend the zoning text and
+# name no applicant, so they carry no zoning facts.
+case_prefixes: ["CZ"]
+
+# The county's zoning districts as the resolutions print them: "zone change from AG Agricultural District to R-1
+# Single-Family Residential District". A zoning reading counts only when every code in it is one of these exactly as
+# printed (spaces around the dash dropped, nothing else changed: "C-S", "R-l", "B-i" are not codes, so those
+# readings are dropped, never corrected). Where the district's name is printed after its code it must be this name
+# (letters only, any case, "and" read as "&"), so a misread code whose name says otherwise is dropped too.
+districts:
+  AG: Agricultural
+  AGC: Agricultural Commercial
+  E-1: Single-Family Estate
+  E-1A: Single-Family Estate
+  EM-1: Single-Family Mobile Home Estate
+  R-1: Single-Family Residential
+  R-1A: Single-Family Residential
+  R-2: Two-Family Residential
+  R-2D: Two-Family Residential
+  R-3: [Three Family Residential, Two and Three Family Residential]
+  R-4: Multiple-Family Residential
+  R-6: Single-Family Residential
+  RM-1: Single Family Mobile Home Residential
+  RM-2: Single Family Mobile Home Residential
+  C-1: Neighborhood Commercial
+  C-2: General Commercial
+  C-4: Highway Interchange
+  C-5: Highway & Arterial Commercial
+  O-1: Office
+  M-1: Light Industrial
+  M-2: General Industrial
+  M-3: Planned Industrial
+  MXU-PUD: Mixed Use Planned Unit Development
+
+# Where a page belongs to a case: the first case number printed on the page (a resolution's or staff report's header)
+# must be a valid number, read by collector.parse.ITEM_RE and norm_item, with nothing else changed.
+printings:
+  # Agenda and minutes listing: "CZ-22-2021   Application of Mark Ireland from AG to R-1". The case number starts the
+  # entry; the entry runs to the next case or item number, a section heading, or a blank line.
+  - name: listing
+    kind: entry
+    pattern: '^Applica\s?tion\s?of\s?(?P<applicant>.+?)\s+from\s+(?P<from_zoning>.+?)(?:\s+District)?\s+to\s+(?P<to_zoning>.+?)(?:\s+District)?(?:\s*\(.*\))?(?:\s+[-|_=—~°*$‘!''.,]+)*\s*\.?$'
+    named_districts: true
+
+  # The zoning resolution's own text (one page, sometimes running onto the next).
+  - name: heading
+    kind: resolution
+    case: true
+    pattern: 'ZONE CLASSIFICATION OF THE PROPERTY OF (?:[|_=—~°*$‘]+ )?(?P<applicant>.{1,160}?)(?: [|_=—~°*$‘]+)* ["“”]?W\S{4,8},? an application'
+  - name: submitted
+    kind: resolution
+    pattern: 'has been subm\w{2,6} by (?P<applicant>.+?)(?:[ ,;.]*(?:and\b|[|_=—~°*$‘]+))*[ ,;.]*(?:[|_=—~°*$‘]+)?W\S{4,8},? said property'
+  - name: change
+    kind: resolution
+    pattern: 'zone change from (?P<from_zoning>.+?)(?: District)?(?: [/|_=—~°*$‘-]+)* to (?P<to_zoning>.+?)(?: District)?(?: ?[/|_=—~°*$‘-]+)* has[ ,]*been'
+    named_districts: true
+  - name: identified
+    kind: resolution
+    pattern: 'said property is identified as .{0,120}?[ ,]containing(?: ,)* ?(?:an area of ?)?(?P<acreage_printed>(?:approximately )?(?P<acreage>(?!an\b|approx|[,.](?!\d))\S+?(?: \S+?){0,4}?)(?P<acreage_suffix> ?(?:\+ ?[/1!lI] ?-|±)| (?![-–~]?(?:\d+(?:[.,]\d+)?|[.,]\d+)(?: |acres))(?=\S{0,4}[-+/±])(?!\S*[A-Za-z]{2})\S{1,5}|(?: [,;|]+)+)?? ?acres)'
+  - name: located
+    kind: resolution
+    pattern: 'situated in[ ,:|]*Civil[ ,|]*District \S{1,3}?,? (?:located )?(?P<location>.+?)(?:[ ;,]*(?:and\b|[|_=—~°*$‘.]+(?= )))*[ ;,]*(?:[|_=—~°*$‘]+)?W\S{4,8},? said property is described'
+  - name: approved
+    kind: resolution
+    pattern: 'that,? the zone classification of ?the property of ?(?P<applicant>.+?)(?: [|_=—~°*$‘]+)* from (?P<from_zoning>.+?)(?: District)?(?: [/|_=—~°*$‘-]+)* to (?P<to_zoning>.+?)(?: District)?(?: ?[/|_=—~°*$‘.-]+)* is hereby approved'
+    named_districts: true
+
+  # The planning staff's review sheet attached to the resolution.
+  - name: staff-applicant
+    kind: staff
+    pattern: 'NAME OF APPLICANT:? ?(?P<applicant>.+?)(?:[ ,]*[|_=—~°*$‘]+)* (?:AGENT|GENERAL INFORMATION|TAX PLAT|ACREAGE)'
+  - name: staff-acreage
+    kind: staff
+    pattern: 'ACREAGE ?TO ?BE ?REZONED[:.]* ?(?P<acreage_printed>(?P<acreage>(?!:|\.(?!\d)|PRE\S{2,3}NT)\S+?(?: (?!PRE\S{2,3}NT)\S+?){0,2}?)(?P<acreage_suffix> ?(?:\+ ?[/1!lI] ?-|±)| (?!PRE\S{2,3}NT)(?![-–~]?(?:\d+(?:[.,]\d+)?|[.,]\d+)(?: |$))(?=\S{0,4}[-+/±])(?!\S*[A-Za-z]{2})\S{1,5})??)(?: ?[|;,_=—~°*$‘]+)*(?= PRE\S{2,3}NT|$)'
+  - name: staff-location
+    kind: staff
+    pattern: 'PROPERTY LOCATION:? (?:[-|_=—~°*$‘]+ )?(?P<location>.+?)(?: [|_=—~°*$‘]+)* (?:CITY COUNCIL WARD|COUNTY COMMISSION DISTRICT|DESCRIPTION OF PROPERTY)'
+  - name: staff-present
+    kind: staff
+    pattern: 'PRE\S{2,3}NT ?Z\w{4,5}\b[:.~]?(?: ?[|_=—~°*$‘]+)?(?: ?(?P<from_zoning>(?![\s:.~]|PROPOSED\b).{1,80}?)(?: District)?(?: ?[-|_=—~°*$‘.,]+)*)?? PROPOSED ?Z\w{4,5}\b[:.~]?(?: ?[|_=—~°*$‘]+)?(?: ?(?P<to_zoning>(?![\s:.~]|EXTENSION\b|OF ZONING\b|TAX\b|PROPERTY\b).{1,80}?)(?: District)?(?: ?[-|_=—~°*$‘.,]+)*)?? ?(?=EXTENSION|OF ZONING\b|TAX ?[A-Z]|PROPERTY|GEN\. ?LOC|$)'
+    named_districts: true
+
+# Pages of a resolution: the page must carry this text (and the case number in its header).
+resolution_marker: 'ZONE\s+CLASSIFICATION\s+OF\s+THE\s+PROPERTY\s+OF'
+resolution_end: 'Duly\s+passed'
+staff_marker: 'STAFF\s+REVIEW'
+# A listing entry stops at these headings.
+entry_stop: '^(?:RESOLUTIONS|CONSENT AGENDA|ORDINANCES|NEW BUSINESS|OLD BUSINESS|REPORTS|ADJOURN\w*|The following)\b'

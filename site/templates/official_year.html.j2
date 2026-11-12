@@ -1,0 +1,33 @@
+{% extends "base.html.j2" %}
+{% from "_history.html.j2" import history_groups %}
+{# A council member's history for one year, or for a run of consecutive years that fits one page (history_by_year;
+   build.py pack_years; city-pages/page-weight, city-pages/file-budget): the same table as an official page, one
+   group per year, linked from the member's page. #}
+{% block main %}
+<p class="kicker-line"><a href="{{ root }}{{ council_href }}">{{ council }}</a></p>
+<h1><a href="{{ root }}{{ official_href }}">{{ official.name }}</a>: {{ year }}</h1>
+<p class="lede">Votes, attendance, and motions and seconds the minutes attribute to this person {{ "in" if years|length == 1 else "from" }} {{ year }}, newest first.</p>
+<nav aria-label="History by year" class="year-nav">
+  <ul class="inline-list">
+    {% for y in year_pages %}<li><a href="{{ root }}{{ y.href }}"{% if y.year in years %} aria-current="page"{% endif %}>{{ y.year }}</a></li>{% endfor %}
+  </ul>
+</nav>
+<section aria-labelledby="history-h">
+  <h2 id="history-h">History, {{ year }}</h2>
+  <form id="filters" class="filters toolbar" hidden>
+    <div>
+      <label for="filter-type">Type</label>
+      <select id="filter-type">
+        <option value="">All types</option>
+        {% for value, label in types %}
+        <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+  <p id="no-match" hidden role="status">No rows match these filters.</p>
+  <div id="history">
+  {{ history_groups(groups, root, open_all=True) }}
+  </div>
+</section>
+{% endblock %}

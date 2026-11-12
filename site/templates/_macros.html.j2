@@ -1,0 +1,148 @@
+{# Shared pieces. N4: every fact shows a source link with the page. N5: every fact shows its id and a report link. #}
+
+{# The official video of a meeting or body (sitegen/watch.py): every word is config text, the link is config's or the
+   meeting's own recording (data-ext "watch" or "video"). #}
+{% macro watch_link(w) %}<a class="watch" data-ext="{{ w.ext }}" href="{{ w.url }}" target="_blank" rel="noopener noreferrer">{{ w.link }}<span class="sr-only"> (opens in a new tab)</span></a> <span class="watch-note">{{ w.label }}.</span>{% endmacro %}
+
+{% macro source(src) -%}
+<a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">p. {{ src.page }}, fetched {{ src.fetched }}<span class="sr-only"> (opens the {{ src.kind }} PDF in a new tab)</span></a>
+{%- endmacro %}
+
+{# Shown beside every fact whose automatic checks did not pass (invariant: held-back counts). Links to the exact page.
+   `check`: the check that held a finance value; its fixed sentence is config/finance_text.yml `held` (env global
+   held_text; an unknown check fails the render). `src.held_note`: a council roll call's sentence for the check that
+   held it (views.held_note, council.yml held_sentences). Left out, the vote pages' own sentence. #}
+{% macro not_confirmed(src, check=none) -%}
+<span class="unconfirmed">{% if check %}* Not confirmed. {{ held_text[check] }}{% elif src.held_note is defined %}* {{ src.held_note }}{% else %}* Not confirmed: this page was hard to read.{% endif %} <a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">Read it yourself<span class="sr-only"> (p. {{ src.page }} of the {{ src.kind }} PDF, opens in a new tab)</span></a>.</span>
+{%- endmacro %}
+
+{# A confirmed fact (a Moved or Seconded row) whose motion's roll call is held (city-verify/moved-row-note-ambiguous):
+   the note names the roll call, not the fact, so it never reads as if who moved or seconded were unconfirmed. The
+   reason is the held roll call's own sentence without its "Not confirmed: " lead. `seconded`: the motion records a
+   seconder; without one the note says only "Who moved it" (city-verify/moved-row-note-ambiguous). #}
+{% macro outcome_not_confirmed(src, seconded=true) -%}
+{%- set lead = "Not confirmed: " -%}
+{%- set why = (src.held_note[lead|length:] if src.held_note.startswith(lead) else src.held_note) if src.held_note is defined else "this page was hard to read." -%}
+<span class="unconfirmed">* Outcome not confirmed: the roll call on this motion is held. {{ why[:1]|upper }}{{ why[1:] }} {% if seconded %}Who moved and seconded it is confirmed.{% else %}Who moved it is confirmed.{% endif %} <a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">Read it yourself<span class="sr-only"> (p. {{ src.page }} of the {{ src.kind }} PDF, opens in a new tab)</span></a>.</span>
+{%- endmacro %}
+
+{# The asterisk, so screen readers say the words rather than "star" (design 2.6). #}
+{% macro nc_mark() -%}
+<span class="nc-mark" aria-hidden="true">*</span><span class="sr-only"> (not confirmed)</span>
+{%- endmacro %}
+
+{% macro report(root, fact_id) -%}
+<a href="{{ root }}report.html" aria-label="Report an error in {{ fact_id }}">Report an error</a>
+{%- endmacro %}
+
+{% macro fact_meta(root, fact_id) -%}
+<span class="fact-id">Fact id <code>{{ fact_id }}</code></span> <span class="sep" aria-hidden="true">&middot;</span> {{ report(root, fact_id) }}
+{%- endmacro %}
+
+{# A table cell's source: only the page link shows; fetch date, fact id and "Report an error" sit in a small Details
+   toggle. `extra` is further per-row text (the not-confirmed explanation) shown first in the toggle. #}
+{% macro source_cell(src, root, fact_id, extra="") -%}
+<a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">p. {{ src.page }}<span class="sr-only"> (opens the {{ src.kind }} PDF in a new tab)</span></a>
+<details class="row-details"><summary>Details</summary><div class="row-details-body">{{ extra }}<p>Fetched {{ src.fetched }}.</p><p>{{ fact_meta(root, fact_id) }}</p></div></details>
+{%- endmacro %}
+
+{# Long text clamped to ~2-3 lines when scripts run (static/clamp.js adds the Show more button); the full text is always in the page. #}
+{% macro clamp(lines=2) -%}<span class="clamp" data-lines="{{ lines }}">{{ caller() }}</span>{%- endmacro %}
+
+{# The citation line under every fact. #}
+{% macro cite(src, root, fact_id) -%}
+<p class="meta"><span class="cite-label">Source:</span> {{ source(src) }} <span class="sep" aria-hidden="true">&middot;</span> {{ fact_meta(root, fact_id) }}</p>
+{%- endmacro %}
+
+{# Design 6A.2: the seat held on that date, as plain text after the name, the same style for everyone. #}
+{% macro person(p, root) -%}
+{% if p is none %}<span class="muted">Not recorded</span>{% elif p.href %}<a href="{{ root }}{{ p.href }}">{{ p.name }}</a>{% if p.seat %}<span class="seat">, {{ p.seat }}</span>{% endif %}{% else %}{{ p.name }}{% endif %}
+{%- endmacro %}
+
+{# "Moved by A (seat), seconded by B": every name links to that official's page (standing rule). parts from views.motion_for. #}
+{% macro motion_by(parts, root) -%}
+{% for p in parts %}{% if loop.first %}{{ p.word | capitalize }}{% else %}{{ p.word }}{% endif %} by <a href="{{ root }}{{ p.href }}">{{ p.name }}</a>{% if p.seat %} ({{ p.seat }}){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+{%- endmacro %}
+
+{% macro seat(text) -%}
+{% if text %}<span class="seat">{{ text }}</span>{% endif %}
+{%- endmacro %}
+
+{# An item's title, verbatim from the minutes. Names in it are text in the document (applicants, buyers, agents), not
+   an official acting, so they never link to an official's page (manager decision 2026-11-09). data-item-title marks
+   it for the QA name-links check. #}
+{% macro item_title(title) -%}
+<span data-item-title>{{ title }}</span>
+{%- endmacro %}
+
+{# The parts of a year page too big for one page (build.py plan_parts): each part by its date range. #}
+{% macro parts_nav(parts, label, intro="This year is on {n} pages, by date:") -%}
+{% if parts and parts | length > 1 %}
+<nav aria-label="{{ label }}" class="year-nav parts-nav">
+  <p class="muted">{{ intro.replace("{n}", parts | length | string) }}</p>
+  <ul class="inline-list">
+    {% for p in parts %}<li><a href="{{ p.href }}"{% if p.current %} aria-current="page"{% endif %}>{{ p.label }}</a></li>{% endfor %}
+  </ul>
+</nav>
+{% endif %}
+{%- endmacro %}
+
+{% macro item_link(item, root) -%}
+{% if item.href %}<a href="{{ root }}{{ item.href }}">{% if item.number %}<strong>{{ item.number }}</strong> {% endif %}{{ item_title(item.title) }}</a>{% else %}{{ item_title(item.title) }}{% endif %}
+{%- endmacro %}
+
+{# A vote or attendance chip: swatch (pattern, never colour) plus the word. key is yes/no/abstain/other/present/absent. #}
+{% macro chip(label, key, star=false) -%}
+<span class="chip"><span class="key seg-{{ key }}" aria-hidden="true"></span><span>{{ label }}{% if star %}{{ nc_mark() }}{% endif %}</span></span>
+{%- endmacro %}
+
+{# The stacked bar: every segment, always, in the order views.py gives, with --n the only inline style. #}
+{% macro bar(segments) -%}
+<div class="bar" aria-hidden="true">{% for s in segments %}<span class="seg seg-{{ s.key }}" style="--n: {{ s.n }}"></span>{% endfor %}</div>
+{%- endmacro %}
+
+{% macro legend(segments, star=false, n_prefix="") -%}
+<ul class="legend">
+{% for s in segments %}
+  <li><span class="key seg-{{ s.key }}" aria-hidden="true"></span>{{ s.label }}{% if star %}*{% endif %}: {% if n_prefix %}<span data-n="{{ n_prefix }}{{ s.key }}">{{ s.n }}</span>{% else %}{{ s.n }}{% endif %}</li>
+{% endfor %}
+</ul>
+{%- endmacro %}
+
+{% macro stat(number, label, n_key="") -%}
+<li class="stat"><span class="stat-num"{% if n_key %} data-n="{{ n_key }}"{% endif %}>{{ number }}</span><span class="stat-label">{{ label }}</span></li>
+{%- endmacro %}
+
+{% macro badge(initials, big=false) -%}
+<span class="badge{% if big %} badge-lg{% endif %}" aria-hidden="true">{{ initials }}</span>
+{%- endmacro %}
+
+{# Votes by member, alphabetical as views.py orders them. A name that did not match shows the fixed text only. #}
+{% macro vote_grid(votes, root) %}
+<ul class="vote-grid" aria-label="Votes by member">
+  {% for v in votes %}
+  <li><span class="vname">{{ person(v.who, root) }}{% if v.star and not v.who.href %}{{ nc_mark() }}{% endif %}</span> {{ chip(v.label, v.key, v.star) }}</li>
+  {% endfor %}
+</ul>
+{% endmacro %}
+
+{# A motion or roll call as one block. Used on meeting pages and item pages.
+   The minutes' sentence is never shown: only the motion type, and who moved and seconded it when the rule allows. #}
+{% macro motion_block(b, root) %}
+<p><strong>{{ b.text }}.</strong></p>
+{% if b.attribution_held %}
+<p class="held">Attribution under review.</p>
+{% else %}
+<p>{% if b.moved_by %}Moved by {{ person(b.moved_by, root) }}{% endif %}{% if b.moved_by and b.seconded_by %}, {% endif %}{% if b.seconded_by %}{% if b.moved_by %}seconded{% else %}Seconded{% endif %} by {{ person(b.seconded_by, root) }}{% endif %}.</p>
+{% endif %}
+{% endmacro %}
+
+{% macro roll_call_block(b, root) %}
+{% if not b.confirmed %}<p class="nc-note">{{ not_confirmed(b.src) }}</p>{% endif %}
+<p class="outcome"><strong class="label">Outcome{% if not b.confirmed and not b.outcome.hidden %}*{% endif %}:</strong> <span class="chip chip-outcome">{{ b.outcome.label }}{% if b.outcome.hidden %}{{ nc_mark() }}{% endif %}</span>{% if b.outcome.tally %} ({{ b.outcome.tally }}){% endif %}.</p>
+{% if b.bar %}{{ bar(b.bar) }}{% endif %}
+{% if b.vote_on %}<p class="vote-on-line"><strong><a href="{{ root }}about.html#vote-on">Vote on</a>:</strong> {{ b.vote_on }}.</p>{% endif %}
+{% if b.motion_label %}<p class="motion-line"><strong>{{ b.motion_label }}.</strong> {% if b.motion_by %}{{ motion_by(b.motion_by, root) }}.{% else %}Attribution under review.{% endif %}</p>{% endif %}
+<p class="label votes-label">Votes, alphabetical</p>
+{{ vote_grid(b.votes, root) }}
+{% endmacro %}

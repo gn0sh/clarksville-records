@@ -1,0 +1,45 @@
+{% extends "base.html.j2" %}
+{# County Commission meetings with an agenda and no minutes yet (sitegen/county_agendas.py), newest first. One section
+   per meeting (#<meeting id>): its agenda PDF, its items as the agenda prints them, each linked to the agenda page it
+   is printed on. Item titles carry data-item-title: words in the document, never linked or reworded. #}
+{% block main %}
+<p class="kicker-line"><a href="{{ root }}meetings.html">Meetings</a></p>
+<h1>Agendas without minutes yet</h1>
+<p class="lede">{{ body }}. The minutes on this site run to {{ minutes_to }}. These meetings have an agenda posted by the county and no minutes yet, so no votes or attendance are shown. Each item is listed as the agenda prints it; an agenda lists what may be taken up, not what was decided.</p>
+{% if meetings %}
+<details class="toc-group" open>
+  <summary>{{ meetings | length }} {{ "meeting" if meetings | length == 1 else "meetings" }}</summary>
+  <ul class="toc">
+    {% for m in meetings %}
+    <li><a href="#{{ m.id }}">{{ m.date }}, {{ m.kind_label }}</a></li>
+    {% endfor %}
+  </ul>
+</details>
+{% for m in meetings %}
+<section class="council-meeting" id="{{ m.id }}" aria-labelledby="h-{{ m.id }}">
+  <header class="meeting-head">
+    <p class="kind-line"><span class="chip chip-kind">{{ m.kind_label }}</span> <span class="chip chip-status">Agenda</span></p>
+    <h2 id="h-{{ m.id }}">{{ m.kind_label }}, <span class="nowrap">{{ m.date_text }}</span></h2>
+    <p class="source-line">Agenda: <a href="{{ m.doc.url }}" target="_blank" rel="noopener noreferrer">PDF, {{ m.doc.pages }} {{ "page" if m.doc.pages == 1 else "pages" }}<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ m.doc.fetched }}.{% if m.minutes_note %} {{ m.minutes_note }}{% elif m.on_build_day %} The meeting is on the day this page was built ({{ built_text }}).{% elif m.upcoming %} The meeting has not been held yet.{% endif %}</p>
+    <p class="official-record">Unofficial copy. Official record: <a href="{{ m.doc.url }}" target="_blank" rel="noopener noreferrer">the county's agenda PDF<span class="sr-only"> (opens in a new tab)</span></a>.</p>
+  </header>
+  {% if m.entries %}
+  <h3 id="{{ m.id }}-items">Items on the agenda ({{ m.entries | length }})</h3>
+  <ul class="day-items">
+    {% for it in m.entries %}
+    <li class="day-item" id="{{ it.anchor }}">
+      <p class="say"><strong>{{ it.printed }}</strong>{% if it.section %} <span class="muted">{{ it.section }}</span>{% endif %}</p>
+      <p><span data-item-title>{{ it.title }}</span></p>
+      <p class="meta"><a href="{{ it.src }}" target="_blank" rel="noopener noreferrer">agenda p. {{ it.page }}<span class="sr-only"> (opens in a new tab)</span></a>{% if it.item_href %} <a href="{{ root }}{{ it.item_href }}">Record of {{ it.number }} in the minutes</a>{% endif %}</p>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="muted">No numbered items read from this agenda; see the PDF.</p>
+  {% endif %}
+</section>
+{% endfor %}
+{% else %}
+<p>Every agenda the county has posted is covered by minutes on this site.</p>
+{% endif %}
+{% endblock %}

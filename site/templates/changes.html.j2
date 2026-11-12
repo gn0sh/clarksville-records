@@ -1,0 +1,18 @@
+{% extends "base.html.j2" %}
+{% block main %}
+<h1>Changes</h1>
+<p>Every change to a shown fact is recorded here. The earlier value stays in this list.</p>
+{% if entries %}
+<ol class="changes">
+  {% for e in entries %}
+  <li>
+    <p><strong>{{ e.get("date", "") }}</strong>{% if e.get("fact_id") %} <code>{{ e.fact_id }}</code>{% endif %}</p>
+    <p>{% if e.get("field") %}{{ e.field }}: {% endif %}{% if "old" in e %}was &ldquo;{{ e.old }}&rdquo;, {% endif %}{% if "new" in e %}now &ldquo;{{ e.new }}&rdquo;.{% endif %}{% if e.get("note") %} {{ e.note }}{% endif %}</p>
+    {% if e.get("source_url") %}<p><a href="{{ e.source_url }}{% if e.get('page') %}#page={{ e.page }}{% endif %}" target="_blank" rel="noopener noreferrer">Source{% if e.get("page") %}, p. {{ e.page }}{% endif %}<span class="sr-only"> (opens in a new tab)</span></a></p>{% endif %}
+  </li>
+  {% endfor %}
+</ol>
+{% else %}
+<p>No changes recorded yet.</p>
+{% endif %}
+{% endblock %}

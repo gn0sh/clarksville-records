@@ -1,0 +1,46 @@
+{% extends "base.html.j2" %}
+{% block main %}
+{# M1.5 correction intake (docs/design/correction-intake.md). A static page: no form posts anywhere, nothing is
+   stored. static/report.js reads this page's #fragment (page=..., id=...), shows it with textContent only, and adds
+   it, URL-encoded, to the channel links below. Without scripts the page still says what to include. #}
+<h1>Report an error</h1>
+<p class="lede">If a fact on this site does not match its source document, please say so. Every report is checked against the source document.</p>
+
+<div id="report-about" class="report-about" hidden>
+  <h2>This report is about</h2>
+  <p class="muted">Taken from the link you followed (not checked against the source document).</p>
+  <dl>
+    <dt>Page</dt><dd id="report-page-url"></dd>
+    <dt>Fact id</dt><dd id="report-fact-id"></dd>
+  </dl>
+</div>
+
+<h2>What to include</h2>
+<ol>
+  <li>The address of the page with the error.</li>
+  <li>The fact: its fact id (under Details on a row, or beside the fact), or the words as the page shows them.</li>
+  <li>The source document and page number that shows the right value.</li>
+</ol>
+
+<h2>Send it</h2>
+{% if corr.open %}
+<ul class="report-channels">
+  {% if corr.issue_url %}
+  <li><a id="report-issue" data-ext="corrections" href="{{ corr.issue_url }}" target="_blank" rel="noopener noreferrer">Open an issue on GitHub<span class="sr-only"> (opens in a new tab)</span></a>: it asks for the page, the fact id and what the source says. Needs a free GitHub account; the report is public, so it asks for no personal details.</li>
+  {% endif %}
+  {% if corr.mailto %}
+  <li><a id="report-mail" data-ext="corrections" href="{{ corr.mailto }}">Send it by email</a>.</li>
+  {% endif %}
+</ul>
+{% else %}
+<p id="report-closed">Corrections open when the site launches.</p>
+{% endif %}
+
+<h2>What happens next</h2>
+<p>The report is checked against the source document. The site shows what the source document says, never a changed value without a source, and every change is recorded on the <a href="{{ root }}changes.html">Changes</a> page. See <a href="{{ root }}about.html#how-corrections-work">how corrections work</a>.</p>
+<p class="muted">This page stores nothing about you and sends nothing.{% if corr.issue_url and corr.mailto %} The links above open GitHub or your email program only when you choose them.{% elif corr.issue_url %} The link above opens GitHub only when you choose it.{% elif corr.mailto %} The link above opens your email program only when you choose it.{% endif %}</p>
+{% endblock %}
+{% block scripts %}
+<script src="{{ root }}static/pages.js" defer></script>
+<script src="{{ root }}static/report.js" defer></script>
+{% endblock %}

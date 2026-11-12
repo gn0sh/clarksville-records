@@ -1,0 +1,85 @@
+{% from "_unofficial.html.j2" import footer_notice %}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="{{ csp if csp is defined else site.csp }}">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+{% set brand = site.site_name ~ " (" ~ (site.unofficial.tag | lower) ~ ")" %}{# the tag leads every title and share card #}
+<title>{{ brand }} | {{ page_name }}</title>
+<meta name="description" content="{{ site.unofficial.notice }}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{ brand }}">
+<meta property="og:title" content="{{ brand }} | {{ page_name }}">
+<meta property="og:description" content="{{ site.unofficial.notice }}">
+<link rel="icon" href="{{ root }}static/brand/favicon.ico?v=hook" sizes="any">
+<link rel="stylesheet" href="{{ root }}static/style.css">
+{% block head %}{% endblock %}
+</head>
+<body{% if page_name == "Home" %} class="page-landing"{% endif %}>
+<a class="skip" href="#main">Skip to content</a>
+{% if site.fixture %}
+<div class="banner" role="note"><strong>FIXTURE.</strong> This page shows made-up test data, not real records.</div>
+{% endif %}
+<header class="site-header{% if page_name == "Home" %} has-sky{% endif %}">
+  {# Daylight name plate (docs/design/daylight): the sun dot, the name and the place, on every page. The landing adds
+     the sky: a sun that static/sky.js sets by the viewer's clock (CSS places it at midday without the script) and
+     today's date, which stays hidden without the script (a static page can't know today's date). #}
+  {% block sky_sun %}{% endblock %}
+  <div class="masthead">
+    {# Design 2.1: without JS this is a link to the full list in the footer; static/nav.js swaps it for a button that
+       opens the drawer (a native <dialog> built from that same list, so the footer list is the single source). #}
+    <a id="nav-open" class="menu-btn" href="#site-nav"><span class="menu-icon" aria-hidden="true"></span><span class="menu-word">Menu</span></a>
+    <div class="brand">
+      <p class="site-name"><a href="{{ root }}index.html"><span class="plate-sun" aria-hidden="true"></span><span class="plate"><span class="plate-name">{{ site.site_name }}</span> <span class="plate-place">{{ site.cfg.site_place }}</span></span></a></p>
+      <p class="unofficial-tag">{{ site.unofficial.tag }}</p>
+      {% if page_name != "Home" %}<p class="kicker">{{ site.coverage.body }} {{ site.coverage_what | default("minutes") }}, <span class="nowrap">{{ site.coverage.from }}</span> to <span class="nowrap">{{ site.coverage.to }}</span></p>{% endif %}
+    </div>
+  </div>
+  {% block sky %}{% endblock %}
+</header>
+<main id="main">
+{% block main %}{% endblock %}
+{# M1.5: every fact-bearing page (build.REPORT_TEMPLATES) links the report page; static/nav.js adds this page's path
+   (and the #anchor the reader came to) to the link's #fragment when it is followed. #}
+{% if official_record is defined and official_record %}
+<p class="official-record">Unofficial copy. Official record: {% set rx = official_record.get("ext", true) %}<a{% if rx %} data-ext="{{ rx if rx is string else 'record' }}"{% endif %} href="{{ official_record.url }}" target="_blank" rel="noopener noreferrer">{{ official_record.label }}<span class="sr-only"> (opens in a new tab)</span></a>.</p>
+{% endif %}
+{% if report_page is defined and report_page %}
+<p class="report-page"><a href="{{ root }}report.html">Report an error on this page</a></p>
+{% endif %}
+</main>
+<footer class="site-footer">
+  {{ footer_notice(site, root) }}
+  <p>Provided as a free service by {% if site.operator_url %}<a data-ext="operator" href="{{ site.operator_url }}" rel="noopener noreferrer">{{ site.operator }}</a>{% else %}{{ site.operator }}{% endif %}.{% if site.support_url %} <a data-ext="support" href="{{ site.support_url }}" rel="noopener noreferrer">{{ site.support_label }}</a>{% endif %}</p>
+  <p class="gc-credit"><img class="gc-logo gc-logo-light" src="{{ root }}static/brand/gnoshcodes-hook-light.svg" alt="gnoshcodes" width="160" height="32"><img class="gc-logo gc-logo-dark" src="{{ root }}static/brand/gnoshcodes-hook-dark.svg" alt="gnoshcodes" width="160" height="32"><span>A gnoshcodes project.</span></p>
+  <p><a href="{{ root }}about.html">About this site and its data rules.</a> Data as of {{ site.data_as_of | as_of_day }}</p>
+  <nav id="site-nav" class="site-nav" aria-label="All pages" data-root="{{ root }}" data-search="{{ root }}search.html">
+    <h2 class="site-nav-h">All pages</h2>
+    <ul class="nav-list">
+      {% for e in site.nav %}
+      {% if e.href %}
+      <li><a href="{{ root }}{{ e.href }}"{% if page_name == e.page or page_name.startswith(e.page ~ " ") or page_name.startswith(e.page ~ ":") %} aria-current="page"{% endif %}>{{ e.label }}{% if e.coming %} <span class="chip chip-coming">Coming</span>{% endif %}</a></li>
+      {% else %}
+      <li><span class="nav-group">{{ e.label }}</span>
+        <ul class="nav-years" aria-label="{{ e.label }} by year">
+          {% for y in site.item_years_desc %}
+          <li><a href="{{ root }}items/{{ y }}.html"{% if page_name == "Items " ~ y %} aria-current="page"{% endif %}>{{ y }}</a></li>
+          {% endfor %}
+        </ul>
+      </li>
+      {% endif %}
+      {% endfor %}
+      {% if site.internal %}
+      <li><a href="{{ root }}review.html"{% if page_name == "Review (internal)" %} aria-current="page"{% endif %}>Review (internal)</a></li>
+      {% endif %}
+    </ul>
+  </nav>
+</footer>
+<script src="{{ root }}static/nav.js" defer></script>
+<script src="{{ root }}static/filter.js" defer></script>
+<script src="{{ root }}static/clamp.js" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

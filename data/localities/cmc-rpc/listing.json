@@ -1,0 +1,2388 @@
+[
+  {
+    "cancelled": false,
+    "date": "2026-10-27",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-10.27.2026.pdf"
+      }
+    ],
+    "id": "2026-10-27-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [
+      "minutes"
+    ],
+    "printed": "10/27/2026"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-10-26",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-10-26-2026-Common-Design-Review.pdf"
+      }
+    ],
+    "id": "2026-10-26-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [
+      "minutes"
+    ],
+    "printed": "10/26/2026 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-09-22",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-09.22.2026.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/09.22.2026_RPC-MTG-MINS.pdf"
+      }
+    ],
+    "id": "2026-09-22-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "9/22/2026"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-09-21",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-9-21-2026-Common-Design-Review-1.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/09.21.2026-CDRB-MTG-MINS.pdf"
+      }
+    ],
+    "id": "2026-09-21-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "9/21/2026 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-08-25",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/09/Agenda-08.25.2026.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/09/08.25.2026_RPC-MTG-MINS.pdf"
+      }
+    ],
+    "id": "2026-08-25-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "8/25/2026"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-08-24",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/10/Agenda-8-24-2026-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/09/08.24.2026-CDRB-MTG-MINS.pdf"
+      }
+    ],
+    "id": "2026-08-24-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "8/24/2026 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-07-28",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-07-28-2026.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/07.23.2026_RPC-MTG-MINS.pdf"
+      }
+    ],
+    "id": "2026-07-28-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "7/28/2026"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-07-27",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-7-27-2026-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/07.27.2026_CDRB-MTG-MINS.pdf"
+      }
+    ],
+    "id": "2026-07-27-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "7/27/2026 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-06-23",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/Agenda-06-23-2026.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/08/06.23.2026_RPC-MTG-MINS.pdf"
+      }
+    ],
+    "id": "2026-06-23-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "6/23/2026"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-06-22",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/06/Agenda-6-22-2026-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/07/06.22.2026_CDRB-MTG-MINS.pdf"
+      }
+    ],
+    "id": "2026-06-22-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "6/22/2026 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-05-26",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/06/Agenda-05-26-2026.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/06/05.26.2026-RPC-Minutes.pdf"
+      }
+    ],
+    "id": "2026-05-26-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "5/26/2026"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-05-18",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/06/Agenda-5-18-2026-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/06/05.18.2026-CDRB-Minutes.pdf"
+      }
+    ],
+    "id": "2026-05-18-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "5/18/2026 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-05-12",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/05/05.12.2026-RPC_Excecutive_Committee_Meeting_Minutes.pdf"
+      }
+    ],
+    "id": "2026-05-12-executive",
+    "kind": "executive",
+    "label": "Executive Committee (Budget)",
+    "no_doc": [
+      "agenda"
+    ],
+    "printed": "5/12/2026 – Executive Committee (Budget)"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-04-28",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/05/Agenda-04-28-2026.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/05/04.28.2026-RPC-Minutes.pdf"
+      }
+    ],
+    "id": "2026-04-28-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "4/28/2026"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-04-27",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/05/Agenda-4-27-2026-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/05/04.27.2026-CDRB-Minutes.pdf"
+      }
+    ],
+    "id": "2026-04-27-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "4/27/2026 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-03-24",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/04/Agenda-3-24-2026.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/05/03.24.2026_RPC-MTG-MINS.pdf"
+      }
+    ],
+    "id": "2026-03-24-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "3/24/2026"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-03-23",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/04/Agenda-3-23-2026-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/05/03.23.2026_CDRB-MTG-MINS.pdf"
+      }
+    ],
+    "id": "2026-03-23-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "3/23/2026 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-02-24",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/04/Agenda-02-24-2026.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/05/02.24.2026_RPC-MTG-MINS.pdf"
+      }
+    ],
+    "id": "2026-02-24-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "2/24/2026"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-02-23",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/04/Agenda-2-23-2026-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/04/CDRB_February-2026_Signed.pdf"
+      }
+    ],
+    "id": "2026-02-23-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "2/23/2026 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2026-02-06",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/02/Special-Called-Agenda-for-2-6-2026.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/04/Signed-02.2026_Special-Call-Meeting-Mins.pdf"
+      }
+    ],
+    "id": "2026-02-06-special",
+    "kind": "special",
+    "label": "Special Called Meeting",
+    "no_doc": [],
+    "printed": "2/6/2026 – Special Called Meeting"
+  },
+  {
+    "cancelled": true,
+    "date": "2026-01-27",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/02/Agenda-1-27-2026.pdf"
+      }
+    ],
+    "id": "2026-01-27-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "1/27/2026 *CANCELLED*"
+  },
+  {
+    "cancelled": true,
+    "date": "2026-01-26",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/01/Agenda-1-26-2026-Common-Design-Review.pdf"
+      }
+    ],
+    "id": "2026-01-26-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "1/26/2026 – CDRB *CANCELLED*"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-12-19",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/02/RPC-Agenda-12-19-2025.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/04/Signed_12.19.2025-MTG-MINS.pdf"
+      }
+    ],
+    "id": "2025-12-19-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "12/19/2025"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-12-15",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/02/Agenda-12-15-2025-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/02/CDRB_12.15.25-MTG-MINS.pdf"
+      }
+    ],
+    "id": "2025-12-15-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "12/15/2025 -CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-11-25",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2025/12/RPC-Agenda-11-25-2025.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2025/12/11-25-2025-RPC-MTG-MINS-SIGNED.pdf"
+      }
+    ],
+    "id": "2025-11-25-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "11/25/2025"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-11-24",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2025/11/Agenda-11-24-2025-Common-Design-Review-1.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2025/12/11.24.2025-CDRB-Signed-Minutes.pdf"
+      }
+    ],
+    "id": "2025-11-24-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "11/24/2025 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-10-28",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2025/11/RPC-Agenda-10-28-2025.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2025/12/10-28-2025-RPC-MTG-MINS-SIGNED.pdf"
+      }
+    ],
+    "id": "2025-10-28-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "10/28/2025"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-10-27",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2025/11/Agenda-10-27-2025-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/08/Signed-RPC-Minutes-07-29-2025.pdf"
+      }
+    ],
+    "id": "2025-10-27-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "10/27/2025 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-09-23",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2025/11/RPC-Agenda-9-23-2025.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2025/11/09.23.2025-MTG-MINS-signed.pdf"
+      }
+    ],
+    "id": "2025-09-23-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "9/23/2025"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-09-22",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2025/11/Agenda-9-22-2025-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2025/11/09.22.2025-CDRB-Signed-Mins.pdf"
+      }
+    ],
+    "id": "2025-09-22-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "9/22/2025 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-08-26",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2025/11/RPC-Agenda-8-26-2025.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2025/11/08.26.2025-MTG-MINS-signed.pdf"
+      }
+    ],
+    "id": "2025-08-26-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "8/26/2025"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-08-25",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2025/11/Agenda-8-25-2025-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2025/11/08.25.2025-CDRB-Minutes.pdf"
+      }
+    ],
+    "id": "2025-08-25-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "8/25/2025 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-07-29",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/08/RPC-Agenda-7-29-2025.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/08/Signed-RPC-Minutes-07-29-2025.pdf"
+      }
+    ],
+    "id": "2025-07-29-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "7/29/2025"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-07-28",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/08/Agenda-7-28-2025-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/08/Signed-CDRB-07-28-2025.pdf"
+      }
+    ],
+    "id": "2025-07-28-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "7/28/2025 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-06-24",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/08/RPC-Agenda-6-24-2025.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/08/RPC-06.24.2025-Approved-Minutes.pdf"
+      }
+    ],
+    "id": "2025-06-24-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "6/24/2025"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-06-23",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/06/Agenda-6-23-2025-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/02/06.23.2025-CDRB-Signed-Mins.pdf"
+      }
+    ],
+    "id": "2025-06-23-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "6/23/2025 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-05-27",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/06/Agenda-5-27-2025.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/08/RPC-05.27.2025-Approved-Minutes.pdf"
+      }
+    ],
+    "id": "2025-05-27-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "5/27/2025"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-05-19",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/06/Agenda-5-19-2025-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/06/May-19-2025-CDRB-Minutes.pdf"
+      }
+    ],
+    "id": "2025-05-19-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "5/19/2025 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-04-22",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/05/Agenda-4-22-2025.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/05/4-22-2025-Meeting-Mins.pdf"
+      }
+    ],
+    "id": "2025-04-22-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "4/22/2025"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-04-21",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/05/Agenda-4-21-2025-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/06/Common-Design-Review-Board-April-Signed-Minutes.pdf"
+      }
+    ],
+    "id": "2025-04-21-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "4/21/2025 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-04-11",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/04/RPC-Executive-Committee-Agenda-April-11-2025.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/04/Executive-Committee-Meeting-Minutes.pdf"
+      }
+    ],
+    "id": "2025-04-11-executive",
+    "kind": "executive",
+    "label": "Executive Committee (Budget)",
+    "no_doc": [],
+    "printed": "4/11/2025 – Executive Committee (Budget)"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-03-25",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/03/RPC-Agenda-03-25-2025.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/04/March-25-2025-Meeting-Minutes.pdf"
+      }
+    ],
+    "id": "2025-03-25-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "3/25/2025"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-03-24",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/04/Agenda-3-24-2025-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/04/CDRB-March-Minutes.pdf"
+      }
+    ],
+    "id": "2025-03-24-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "3/24/2025 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-02-25",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/03/RPC-Agenda-2-25-2025.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/04/RPC-MTG-MIN-2-25-2025.pdf"
+      }
+    ],
+    "id": "2025-02-25-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "2/25/2025"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-02-24",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/04/Agenda-2-24-2025-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/04/Common-Design-Review-Board-February-Signed-Minutes.pdf"
+      }
+    ],
+    "id": "2025-02-24-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "2/24/2025 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-01-28",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/01/RPC-AGENDA-1-28-2025.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/03/RPC-MTG-MIN-1-28-2025.pdf"
+      }
+    ],
+    "id": "2025-01-28-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "1/28/2025"
+  },
+  {
+    "cancelled": false,
+    "date": "2025-01-27",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/04/Agenda-1-27-2025-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/04/Common-Design-Review-Baord-January-Signed-Minutes.pdf"
+      }
+    ],
+    "id": "2025-01-27-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "1/27/2025 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-12-20",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/12/RPC-AGENDA-12-20-2024.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/01/RPC-MTG-MIN-12-20-2024.pdf"
+      }
+    ],
+    "id": "2024-12-20-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "12/20/2024"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-11-26",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/12/RPC-AGENDA-11-26-2024.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2025/01/RPC-MTG-MIN-11-26-24.pdf"
+      }
+    ],
+    "id": "2024-11-26-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "11/26/2024"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-10-29",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/11/RPC-AGENDA-10-29-2024.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/11/RPC-MTG-MIN-10-29-2024.pdf"
+      }
+    ],
+    "id": "2024-10-29-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "10/29/2024"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-09-24",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/10/RPC-AGENDA-09-24-2024.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/11/RPC-MTG-Minutes-09-24-2024.pdf"
+      }
+    ],
+    "id": "2024-09-24-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "9/24/2024"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-09-23",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/09/Agenda-9-23-2024-Common-Design-Review.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/02/09.23.2024-CDRB-Mins.pdf"
+      }
+    ],
+    "id": "2024-09-23-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "9/23/2024 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-08-27",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/09/RPC-Agenda-08-27-2024.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/09/RPC-MTG-MIN-08-27-2024.pdf"
+      }
+    ],
+    "id": "2024-08-27-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "8/27/2024"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-08-19",
+    "docs": [
+      {
+        "fetch": false,
+        "host": "drive.google.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://drive.google.com/file/d/1ZDqL8WKVMDjN4zfNKMsTz1lCpnHOS0xH/view?usp=drive_link"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/02/08.19.2024-CDRB-Mins.pdf"
+      }
+    ],
+    "id": "2024-08-19-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "8/19/2024 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-08-13",
+    "docs": [
+      {
+        "fetch": false,
+        "host": "drive.google.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://drive.google.com/file/d/1o1V9D2C3SuycyIN1QxGKbTAHqdUyZ9tz/view?usp=drive_link"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/08/Minutes-08-13-2024.pdf"
+      }
+    ],
+    "id": "2024-08-13-special",
+    "kind": "special",
+    "label": "Special Called Meeting",
+    "no_doc": [],
+    "printed": "8/13/2024 – Special Called Meeting"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-07-23",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/07/RPC-AGENDA-07-23-2024-1.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/07/RPC-Meeting-No-quorum-07-23-24.pdf"
+      }
+    ],
+    "id": "2024-07-23-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "7/23/2024"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-06-25",
+    "docs": [
+      {
+        "fetch": false,
+        "host": "drive.google.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://drive.google.com/file/d/1mSJR3zi-17XC4KwKcUrgJ0FzS34Le2Qv/view?usp=drive_link"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/07/RPC-Meeting-Minutes-Draft-06-25-2024.pdf"
+      }
+    ],
+    "id": "2024-06-25-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "6/25/2024"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-05-28",
+    "docs": [
+      {
+        "fetch": false,
+        "host": "drive.google.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://drive.google.com/file/d/16XQWwMZeeNJ8UPiuS78kkX2XnG_VEj5k/view?usp=drive_link"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/06/RPC-MTG-MIN-05-28-2024.pdf"
+      }
+    ],
+    "id": "2024-05-28-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "5/28/2024"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-05-20",
+    "docs": [
+      {
+        "fetch": false,
+        "host": "drive.google.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://drive.google.com/file/d/1X3wBFXEMqFr690hbJskOk-yccBDpsUhN/view?usp=drive_link"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/02/05.20.2024-CDRB-Mins.pdf"
+      }
+    ],
+    "id": "2024-05-20-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "5/20/2024 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-04-23",
+    "docs": [
+      {
+        "fetch": false,
+        "host": "drive.google.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://drive.google.com/file/d/1JkcKbQtCvV_Gmb5KL8L5ARt75VJc-yV4/view?usp=drive_link"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/05/RPC-MTG-MIN-04-23-2024.pdf"
+      }
+    ],
+    "id": "2024-04-23-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "4/23/2024"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-04-22",
+    "docs": [
+      {
+        "fetch": false,
+        "host": "drive.google.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://drive.google.com/file/d/1KkNkbmqINONjFwl3LnhD1F4WhNPloG4K/view?usp=drive_link"
+      },
+      {
+        "fetch": false,
+        "host": "drive.google.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://drive.google.com/file/d/13kxtLX01i1Kj0u8b8B1Ge5NZ9EbQD2YM/view?usp=drive_link"
+      }
+    ],
+    "id": "2024-04-22-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "4/22/2024 -CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-04-18",
+    "docs": [
+      {
+        "fetch": false,
+        "host": "drive.google.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://drive.google.com/file/d/1jIDVWgBO10cgKgq-QhTLccsB7aQgJjea/view?usp=drive_link"
+      }
+    ],
+    "id": "2024-04-18-executive",
+    "kind": "executive",
+    "label": "Exec Comm Meeting",
+    "no_doc": [
+      "minutes"
+    ],
+    "printed": "4/18/2024 – Exec Comm Meeting"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-03-26",
+    "docs": [
+      {
+        "fetch": false,
+        "host": "drive.google.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://drive.google.com/file/d/1A2jsoYphJ9XMFebTA-n-OW9pC2gkzFXy/view?usp=drive_link"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/05/RPC-MTG-MIN-03-26-2024.pdf"
+      }
+    ],
+    "id": "2024-03-26-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "3/26/2024"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-03-25",
+    "docs": [
+      {
+        "fetch": false,
+        "host": "drive.google.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://drive.google.com/file/d/1NSNM3dIBKccvyIuoJ40LLP79hul0oD9w/view?usp=drive_link"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/02/03.25.2024-CDRB-Mins.pdf"
+      }
+    ],
+    "id": "2024-03-25-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "3/25/2024- CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-02-27",
+    "docs": [
+      {
+        "fetch": false,
+        "host": "drive.google.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://drive.google.com/file/d/1L3B9hIG0WBXIA5U4DJvgztby7AIckHHg/view?usp=drive_link"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/05/RPC-MTG-MIN-02-27-2024.pdf"
+      }
+    ],
+    "id": "2024-02-27-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "2/27/2024"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-02-26",
+    "docs": [
+      {
+        "fetch": false,
+        "host": "drive.google.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://drive.google.com/file/d/1rQQqG1Y4EWz4tJc_7OcCgJyB1JKZdNgC/view?usp=drive_link"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/02/02.26.2024-CDRB-Mins.pdf"
+      }
+    ],
+    "id": "2024-02-26-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "2/26/2024 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2024-01-23",
+    "docs": [
+      {
+        "fetch": false,
+        "host": "drive.google.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://drive.google.com/file/d/1B_fMMAdTm2TvlIK16KdQ6XiTp81mMr65/view?usp=sharing"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/02/RPC-MTG-MIN-1-23-2024.pdf"
+      }
+    ],
+    "id": "2024-01-23-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "1/23/2024"
+  },
+  {
+    "cancelled": false,
+    "date": "2023-12-21",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/12/Agenda-12-21-2023.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2024/01/RPC-MTG-MIN-12-21-2023.pdf"
+      }
+    ],
+    "id": "2023-12-21-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "12/21/2023"
+  },
+  {
+    "cancelled": false,
+    "date": "2023-11-28",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/11/Agenda-11-28-2023.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/12/RPC-MTG-MIN-11-28-2023.pdf"
+      }
+    ],
+    "id": "2023-11-28-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "11/28/2023"
+  },
+  {
+    "cancelled": false,
+    "date": "2023-11-20",
+    "docs": [
+      {
+        "fetch": false,
+        "host": "drive.google.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://drive.google.com/file/d/18PPjOTEOV_UuWdMWzakxvQ_WQ_HiFR7V/view?usp=drive_link"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp2025/wp-content/uploads/2026/02/11.20.2023-CDRB-Mins.pdf"
+      }
+    ],
+    "id": "2023-11-20-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [],
+    "printed": "11/20/2023 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2023-10-24",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/10/Agenda-10-24-2023.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/11/RPC-MTG-MIN-10-24-2023.pdf"
+      }
+    ],
+    "id": "2023-10-24-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "10/24/2023"
+  },
+  {
+    "cancelled": false,
+    "date": "2023-10-23",
+    "docs": [
+      {
+        "fetch": false,
+        "host": "drive.google.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://drive.google.com/file/d/19jOkyRhue7lgvU7px2YlfUEkNf0qHnxU/view?usp=drive_link"
+      }
+    ],
+    "id": "2023-10-23-cdrb",
+    "kind": "cdrb",
+    "label": "CDRB",
+    "no_doc": [
+      "agenda"
+    ],
+    "printed": "10/23/2023 – CDRB"
+  },
+  {
+    "cancelled": false,
+    "date": "2023-10-13",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/10/RPC-SPECIAL-CALLED-MTG-MIN-10-13-2023.pdf"
+      }
+    ],
+    "id": "2023-10-13-special",
+    "kind": "special",
+    "label": "Special Called",
+    "no_doc": [],
+    "printed": "10/13/2023 – Special Called"
+  },
+  {
+    "cancelled": false,
+    "date": "2023-09-26",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/09/Agenda-9-26-2023-1.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/10/RPC-MTG-MIN-9-26-2023-1.pdf"
+      },
+      {
+        "fetch": false,
+        "host": "www.youtube.com",
+        "kind": "video",
+        "link_text": "YouTube Video",
+        "url": "https://www.youtube.com/watch?v=h6iqTk7Yu3E"
+      }
+    ],
+    "id": "2023-09-26-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "9/26/2023"
+  },
+  {
+    "cancelled": false,
+    "date": "2023-08-29",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/08/Agenda-8-29-2023-1.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/10/RPC-MTG-MIN-8-29-2023.pdf"
+      }
+    ],
+    "id": "2023-08-29-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "8/29/2023"
+  },
+  {
+    "cancelled": false,
+    "date": "2023-07-25",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/07/Agenda-7-25-2023-1.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/08/RPC-MTG-MIN-7-25-2023.pdf"
+      }
+    ],
+    "id": "2023-07-25-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "7/25/2023"
+  },
+  {
+    "cancelled": false,
+    "date": "2023-06-27",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/03/Agenda-6-27-2023.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/07/RPC-MTG-MIN-6-27-2023.pdf"
+      }
+    ],
+    "id": "2023-06-27-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "6/27/2023"
+  },
+  {
+    "cancelled": false,
+    "date": "2023-05-23",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/03/Agenda-5-23-2023.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/06/RPC-MTG-MIN-5-23-2023.pdf"
+      }
+    ],
+    "id": "2023-05-23-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "5/23/2023"
+  },
+  {
+    "cancelled": false,
+    "date": "2023-04-25",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/03/Agenda-4-25-2023-1.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/05/RPC-MTG-MIN-4-25-2023.pdf"
+      }
+    ],
+    "id": "2023-04-25-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "4/25/2023"
+  },
+  {
+    "cancelled": false,
+    "date": "2023-04-11",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/04/RPC-Executive-Committee-Agenda.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/04/RPC-EXEC-CMTE-MTG-4-11-2023.pdf"
+      }
+    ],
+    "id": "2023-04-11-executive",
+    "kind": "executive",
+    "label": "Executive",
+    "no_doc": [],
+    "printed": "4/11/2023 – Executive"
+  },
+  {
+    "cancelled": false,
+    "date": "2023-03-28",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/03/Agenda-3-28-2023.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/04/RPC-MTG-MIN-3-28-2023.pdf"
+      }
+    ],
+    "id": "2023-03-28-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "3/28/2023"
+  },
+  {
+    "cancelled": false,
+    "date": "2023-02-21",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/02/Agenda-2-21-2023-1.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/03/RPC-MTG-MIN-2-21-2023.pdf"
+      }
+    ],
+    "id": "2023-02-21-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "2/21/2023"
+  },
+  {
+    "cancelled": false,
+    "date": "2023-01-24",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/01/Agenda-1-24-2023.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/02/RPC-MTG-MIN-1-24-2023.pdf"
+      }
+    ],
+    "id": "2023-01-24-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "1/24/2023"
+  },
+  {
+    "cancelled": false,
+    "date": "2022-12-27",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/12/Agenda-12-27-2022.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2023/01/RPC-MTG-MIN-12-27-2022.pdf"
+      }
+    ],
+    "id": "2022-12-27-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "12/27/2022"
+  },
+  {
+    "cancelled": false,
+    "date": "2022-11-22",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/11/Agenda-11-22-2022.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/12/RPC-MTG-MIN-11-22-2022.pdf"
+      }
+    ],
+    "id": "2022-11-22-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "11/22/2022"
+  },
+  {
+    "cancelled": false,
+    "date": "2022-10-25",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/10/Agenda-10-25-2022.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/11/RPC-MTG-MIN-10-25-2022.pdf"
+      }
+    ],
+    "id": "2022-10-25-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "10/25/2022"
+  },
+  {
+    "cancelled": false,
+    "date": "2022-09-27",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/09/Agenda-9-27-2022-1.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/10/RPC-MTG-MIN-9-27-2022.pdf"
+      }
+    ],
+    "id": "2022-09-27-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "9/27/2022"
+  },
+  {
+    "cancelled": false,
+    "date": "2022-08-23",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/08/Agenda-8-23-2022.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/09/RPC-MTG-MIN-8-23-2022.pdf"
+      }
+    ],
+    "id": "2022-08-23-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "8/23/2022"
+  },
+  {
+    "cancelled": false,
+    "date": "2022-08-23",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/08/SPECIAL-CALLED-AGENDA.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/09/RPC-SPECIAL-CALLED-MTG-MIN-8-23-2022.pdf"
+      }
+    ],
+    "id": "2022-08-23-special",
+    "kind": "special",
+    "label": "Special Called",
+    "no_doc": [],
+    "printed": "8/23/2022 Special Called"
+  },
+  {
+    "cancelled": false,
+    "date": "2022-07-26",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/07/Agenda-7-26-2022-1.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/08/RPC-MTG-MIN-7-26-2022.pdf"
+      }
+    ],
+    "id": "2022-07-26-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "7/26/2022"
+  },
+  {
+    "cancelled": false,
+    "date": "2022-06-28",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/06/Agenda-6-28-2022-1.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/07/RPC-MTG-MIN-6-28-2022.pdf"
+      }
+    ],
+    "id": "2022-06-28-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "6/28/2022"
+  },
+  {
+    "cancelled": false,
+    "date": "2022-05-24",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/05/Agenda-5-24-2022.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/06/RPC-MTG-MIN-5-24-2022-1.pdf"
+      }
+    ],
+    "id": "2022-05-24-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "5/24/2022"
+  },
+  {
+    "cancelled": false,
+    "date": "2022-04-26",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/04/Agenda-4-26-2022-1.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/05/RPC-MTG-MIN-4-26-2022.pdf"
+      }
+    ],
+    "id": "2022-04-26-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "4/26/2022"
+  },
+  {
+    "cancelled": false,
+    "date": "2022-04-25",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/04/REGIONAL-PLANNING-COMMISSION-EXECUTIVE-COMMITTEE-AGENDA-1.docx"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/04/RPC-EXEC-CMTE-MTG-4-25-2022.pdf"
+      }
+    ],
+    "id": "2022-04-25-executive",
+    "kind": "executive",
+    "label": "Executive",
+    "no_doc": [],
+    "printed": "4/25/2022 – Executive"
+  },
+  {
+    "cancelled": false,
+    "date": "2022-03-29",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/03/Agenda-3-29-2022.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/04/RPC-MTG-MIN-3-29-2022.pdf"
+      }
+    ],
+    "id": "2022-03-29-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "3/29/2022"
+  },
+  {
+    "cancelled": false,
+    "date": "2022-02-22",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/02/Agenda-2-22-2022-1.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/03/RPC-MTG-MIN-2-22-2022.pdf"
+      }
+    ],
+    "id": "2022-02-22-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "2/22/2022"
+  },
+  {
+    "cancelled": false,
+    "date": "2022-01-25",
+    "docs": [
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "agenda",
+        "link_text": "Agenda",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/01/Agenda-1-25-2022.pdf"
+      },
+      {
+        "fetch": true,
+        "host": "www.cmcrpc.com",
+        "kind": "minutes",
+        "link_text": "Minutes",
+        "url": "https://www.cmcrpc.com/wp-content/uploads/2022/02/RPC-MTG-MIN-1-25-2022.pdf"
+      }
+    ],
+    "id": "2022-01-25-regular",
+    "kind": "regular",
+    "label": "",
+    "no_doc": [],
+    "printed": "1/25/2022"
+  }
+]

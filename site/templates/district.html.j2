@@ -1,0 +1,77 @@
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import seat %}
+{% from "_history.html.j2" import history_groups %}
+{% from "_map.html.j2" import county_map %}
+{# A holder record's sources: the first meeting's roll-call page and, for an observed record, the last one's. #}
+{% macro cites(r, root) -%}
+<span class="cite">Source: <a data-ext="roster" href="{{ r.src }}" target="_blank" rel="noopener noreferrer">{% if r.last_src %}first, {% endif %}{{ r.src_label }}<span class="sr-only"> (opens in a new tab)</span></a>{% if r.last_src %}; <a data-ext="roster" href="{{ r.last_src }}" target="_blank" rel="noopener noreferrer">last, {{ r.last_src_label }}<span class="sr-only"> (opens in a new tab)</span></a>{% endif %}</span>
+{%- endmacro %}
+{% macro holder_blocks(blocks) %}
+{% for b in blocks %}
+<section class="holder" aria-labelledby="h-{{ b.period }}-{{ loop.index }}">
+  <h3 id="h-{{ b.period }}-{{ loop.index }}"><a href="{{ root }}{{ b.href }}">{{ b.name }}</a>, {{ b.heading_rest }}</h3>
+  <p class="totals-line">{{ b.sentence }}</p>
+  {% if b.has_rows %}
+  {{ history_groups(b.row_groups, root) }}
+  {% else %}
+  <p>No roll call votes in this period.</p>
+  {% endif %}
+  <p><a href="{{ root }}{{ b.href }}">All of {{ b.name }}'s records</a></p>
+</section>
+{% endfor %}
+{% endmacro %}
+{% block main %}
+{# Seat page (design 4). One template for every seat: the same sections, fixed sentences and order by date (N1). #}
+<h1>{{ title }}</h1>
+<p class="note">District lines changed with the county's <a data-ext="county" href="{{ redistricting_page }}" target="_blank" rel="noopener noreferrer">{{ redistricting_label }}<span class="sr-only"> (opens in a new tab)</span></a>. {{ notice }}{% if swap %} <span class="swap-line">{{ swap.before }}<a data-ext="county" href="{{ swap.url }}" target="_blank" rel="noopener noreferrer">{{ swap.link }}<span class="sr-only"> (opens in a new tab)</span></a>{{ swap.after }}</span>{% endif %}</p>
+{% if map %}
+<p class="sr-only">{{ label }} is shown on the county map.</p>
+{{ county_map(map, root, site.cfg) }}
+<p class="map-caption">Current district lines. Boundaries: <a data-ext="map" href="{{ map.source_url }}" target="_blank" rel="noopener noreferrer">{{ map.source_title }}<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ map.fetched }}.</p>
+{% endif %}
+
+<section aria-labelledby="current-h">
+  <h2 id="current-h">Current</h2>
+  {% if current %}
+  <p class="holder-row"><span>{% if current.who and current.who.href %}<a href="{{ root }}{{ current.who.href }}">{{ current.who.name }}</a> {{ seat(current.label) }}{% elif current.who %}{{ current.who.name }} {{ seat(current.label) }}{% else %}Seat vacant{% endif %}, {{ current.dates_text }}.</span> {{ cites(current, root) }}</p>
+  <p class="basis muted">{{ basis }}.</p>
+  {% else %}
+  <p class="holder-row">Current member not yet recorded</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="previous-h">
+  <h2 id="previous-h">Served previously</h2>
+  {% if previous %}
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Earlier holders of this seat">
+  <table class="holders">
+    <thead><tr><th scope="col">Person</th><th scope="col">Seen in roll calls</th><th scope="col">Lines</th><th scope="col">Source</th></tr></thead>
+    <tbody>
+    {% for r in previous %}
+      <tr>
+        <td>{% if r.who and r.who.href %}<a href="{{ root }}{{ r.who.href }}">{{ r.who.name }}</a>{% elif r.who %}{{ r.who.name }}{% else %}Seat vacant{% endif %}</td>
+        <td>{{ r.dates_text }}</td>
+        <td>{{ r.lines_text }}</td>
+        <td>{{ cites(r, root) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p>No earlier holders are recorded for this seat.</p>
+  {% endif %}
+</section>
+
+<section aria-labelledby="lines-current-h">
+  <h2 id="lines-current-h">Current district lines{% if cur_first %}: roll calls from {{ cur_first }}{% endif %}</h2>
+  {% if current_blocks %}{{ holder_blocks(current_blocks) }}{% else %}<p>No votes are recorded for {{ label }} in the minutes collected so far.</p>{% endif %}
+</section>
+
+<section aria-labelledby="lines-old-h">
+  <h2 id="lines-old-h">Old district lines{% if old_last %}: roll calls to {{ old_last }}{% endif %}</h2>
+  <p>{% if old_map_url %}<a data-ext="county" href="{{ old_map_url }}" target="_blank" rel="noopener noreferrer">Map of the old district lines (PDF)<span class="sr-only"> (opens in a new tab)</span></a>{% else %}The map of the old district lines has not been found yet. County redistricting page: <a data-ext="county" href="{{ redistricting_page }}" target="_blank" rel="noopener noreferrer">{{ redistricting_page }}<span class="sr-only"> (opens in a new tab)</span></a>{% endif %}</p>
+  {% if old_blocks %}{{ holder_blocks(old_blocks) }}{% else %}<p>No votes are recorded for {{ label }} in the minutes collected so far.</p>{% endif %}
+</section>
+<p class="muted">Holder records give the first and last meetings whose roll-call tables print a person in this seat, with links to both pages; they are not term dates (<a href="{{ root }}about.html#seats">how seats are recorded</a>). Wrong or missing? <a href="{{ root }}report.html">Report an error</a>.</p>
+{% endblock %}

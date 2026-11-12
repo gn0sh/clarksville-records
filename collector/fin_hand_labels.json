@@ -1,0 +1,154 @@
+{
+  "_about": "AC-F6 hand labels for the Bids and awards slice (1a). Written by qa-engineer on 2026-11-08 by reading page 1 of each bid-tab PDF in data/store with `pdftotext -layout` and by eye, NOT from collector output. Keys are solicitation slugs. tab: 'read' (the collector shows bidders), 'not_read' (a bid tab link exists but nothing may be read from it; reason is the expected not_read_reason) or 'none' (no bid-tab link). bidders are in PRINTED order, names as printed (a line wrap joined by one space), total as printed with its $ sign and spacing. reads_as_number false means the total is printed in a form (e.g. '$ 765,790.00' with a space) the site must show as Not confirmed*, not as a number. total is the amount printed on the line labelled 'Total Bid:' / 'TOTAL:' / 'Total' / 'Lump Sum Bid', or the only amount printed ('Base Bid:' tabs, listed in base_bid_only). awardee is the 'Bid Awarded to' line as printed, or null when the tab prints none. For not_read tabs, tab_prints_awardee records what a person can read, and the collector must NOT show it. document_labels (optional) are the archive link labels, order-free. scanned_award_letters (optional) is the number of award-type documents that are scanned images.",
+  "solicitations": {
+    "bid-2174-rossview-road-demolition": {
+      "tab": "read", "tab_type": "lump_sum", "bid_date": "10/08/25", "award_date": null, "awardee": null,
+      "document_labels": ["BID PDF", "INTENT TO AWARD LETTER", "BID TAB"],
+      "bidders": [
+        ["Providence Builders", "$19,500.00", true], ["Modern Day Wrecking", "$23,480.00", true],
+        ["Triple S Contracting", "$29,555.00", true], ["Nxt Gen Excavating LLC", "$49,347.90", true],
+        ["PLW Construction", "$53,000.00", true], ["Tugsun Group", "$55,000.00", true],
+        ["Justice Farms LLC", "$61,100.00", true], ["Workman General Contractors LLC", "$68,665.00", true],
+        ["Magnum Opus Construction", "$74,873.00", true]
+      ]
+    },
+    "bid-400-pageant-lane-building-emergency-reroof": {
+      "tab": "read", "tab_type": "lump_sum", "bid_date": "7/8/25", "award_date": null, "awardee": null, "base_bid_only": true,
+      "bidders": [["Modern HCR", "$61,950.00", true], ["Eskola", "$68,450.00", true]]
+    },
+    "bid-advertisement-full-depth-reclamation": {
+      "tab": "read", "tab_type": "lump_sum", "bid_date": "10-1-26 at 10 a.m.", "award_date": null, "awardee": null,
+      "bidders": [
+        ["Byrne & Jones Construction", "$1,203,210.00", true], ["Estes Bros. Const. Inc.", "$1,188,243.00", true],
+        ["Martin Paving Company, Inc", "$803,500.00", true], ["Mt. Carmel Stabilization Group", "$839,460.50", true]
+      ]
+    },
+    "bid-courts-center-generator-replacement": {
+      "tab": "read", "tab_type": "lump_sum", "bid_date": "9/1/2026", "award_date": null, "awardee": null, "base_bid_only": true,
+      "bidders": [
+        ["John Bouchard & Sons (JBS)", "$324,600.00", true], ["Rubicon Engineering", "$383,000.00", true],
+        ["Intech", "$399,500.00", true], ["Knight Electric", "$495,720.00", true],
+        ["Active Energy Services, LLC", "$506,200.00", true], ["Neely Engineering & Contracting", "$550,430.75", true]
+      ]
+    },
+    "bid-ems-station-28-new-facility": {
+      "tab": "read", "tab_type": "lump_sum", "bid_date": "12/04/2025", "award_date": null, "awardee": null,
+      "bidders": [
+        ["C & C Contracting", "$3,510,000.00", true], ["Drakes Creek Builders", "$3,719,532.25", true],
+        ["Nex-Gen Construction", "$3,843,000.00", true], ["Boger Construction", "$3,804,000.00", true],
+        ["RG Anderson Company", "$3,834,000.00", true], ["The BJC Group Inc", "$3,905,113.00", true],
+        ["A & K Construction", "$3,970,000.00", true], ["B.R. Miller & Company", "$4,010,788.00", true],
+        ["Hughes Construction", "$4,107,000.00", true], ["Providence Builders", "$4,133,890.00", true],
+        ["The Parent Company", "$4,171,000.00", true], ["Centrury Construction Group", "$4,228,331.00", true],
+        ["Bangs & Massie Construction", "$4,279,653.00", true], ["Scott, Murphy & Daniel", "$4,370,798.76", true],
+        ["Fellowship Construction", "$4,357,498.00", true]
+      ]
+    },
+    "bid-full-depth-reclamation-project-of-old-clarksville-springfield-road-and-section-1-of-sycamore-hills-drive": {
+      "tab": "read", "tab_type": "lump_sum", "bid_date": "4-8-25", "award_date": "4-22-25", "awardee": "Mt. Carmel Stabilization Group",
+      "bidders": [
+        ["Byrne and Jones", "$ 765,790.00", false], ["Mt. Carmel Stabilization Group", "$736,985.00", true],
+        ["Turner Asphalt", "$ 1,290,650.00", false]
+      ]
+    },
+    "bid-hvac-replacement-lone-oak-community-center": {
+      "tab": "read", "tab_type": "lump_sum", "bid_date": "7/01/2026", "award_date": null, "awardee": null,
+      "bidders": [
+        ["Morton Mechanical", "$97,166.00", true], ["Action Air Conditioning Service, Inc.", "$108,505.00", true],
+        ["Justice Farms", "$125,185.70", true]
+      ]
+    },
+    "bid-interior-renovations-to-montgomery-co-purchasing-and-building-codes": {
+      "tab": "read", "tab_type": "lump_sum", "bid_date": "4/22/2025", "award_date": null, "awardee": null, "base_bid_only": true,
+      "bidders": [
+        ["MDI Construction", "$324,043.20", true], ["Providence Builders", "$385,350.00", true],
+        ["Triple S Contracting", "$394,793.00", true], ["B.R. Miller & Company", "$416,500.00", true],
+        ["Huges Construction", "$418,937.00", true], ["C & C Contracting", "$479,750.00", true],
+        ["Nex-Gen Construction", "$508,300.00", true], ["Romach Inc", "$576,498.00", true],
+        ["Bulley Andrews/Rock City Construction", "$619,000.00", true], ["Rubicon Construction", "$680,010.31", true]
+      ]
+    },
+    "bid-mcso-fire-system-upgrade": {
+      "tab": "read", "tab_type": "lump_sum", "bid_date": "11-12-25 at 2 p.m.", "award_date": "11-17-25", "awardee": "Integrated Protection Services",
+      "bidders": [
+        ["Convergint Technologies", "$112,475.00", true], ["Integrated Protection Services", "$84,982.08", true],
+        ["Southeastern Sound, Inc/Eagle Fire, Inc", "$90,439.00", true]
+      ]
+    },
+    "bid-palmyra-salt-shed-foundation": {
+      "tab": "read", "tab_type": "lump_sum", "bid_date": "7-23-26 at 10 a.m.", "award_date": null, "awardee": null,
+      "bidders": [
+        ["Beech Construction Services", "$361,000.00", true], ["Justice Farms LLC", "$372,198.80", true],
+        ["Taylor’s Concrete Service", "$255,700.00", true], ["Tugsun Group Inc", "$341,487.00", true]
+      ]
+    },
+    "bid-sheriff-s-office-vehicle-equipment": {
+      "tab": "read", "tab_type": "lump_sum", "bid_date": "5-13-25 at 10 a.m. CST", "award_date": "5-28-25", "awardee": "Truckers Lighthouse",
+      "bidders": [
+        ["Columbia CDJR", "$89,230.00", true], ["On-Duty Depot", "$101,850.00", true], ["Truckers Lighthouse", "$77,667.80", true]
+      ]
+    },
+    "bid-sinkhole-repairs-grace-community-church": {
+      "tab": "read", "tab_type": "lump_sum", "bid_date": "4-22-22 at 10 a.m.", "award_date": null, "awardee": null,
+      "bidders": [
+        ["Justice Farms LLC", "$287,875.00", true], ["Morgan Contractors", "$355,000.00", true], ["Tugsun Group Inc", "$516,900.00", true]
+      ]
+    },
+    "bid-veterans-plaza-gutter-replacement": {
+      "tab": "read", "tab_type": "lump_sum", "bid_date": "8/25/2026", "award_date": null, "awardee": null,
+      "bidders": [
+        ["Modern Heating Cooling Roofing", "$91,700.00", true], ["Empire Roofing", "$99,932.00", true], ["Eskola Roofing", "$114,300.00", true]
+      ]
+    },
+    "bid-wheel-loader": {
+      "tab": "read", "tab_type": "lump_sum", "bid_date": "2-20-25 at 2p.m.", "award_date": "2-26-25", "awardee": "McCoy Construction &Forestry",
+      "bidders": [["McCoy Construction & Forestry", "$189,000.00", true], ["Thompson Machinery", "$211,887.00", true]]
+    },
+    "request-for-bid-generator-electrical-alteration": {
+      "tab": "read", "tab_type": "lump_sum", "bid_date": "6/25/2026", "award_date": null, "awardee": null,
+      "bidders": [
+        ["Optimal Electric Pro", "$39,915.00", true], ["Knight Electric, Inc.", "$62,137.00", true],
+        ["Stansell Electric", "$65,811.00", true], ["Shelby Electric Company, Inc.", "$70,661.73", true],
+        ["Keatts Electric", "$79,000.00", true], ["Justice Farms", "$115,910.00", true], ["Active Energy Services", "$218,357.00", true]
+      ]
+    },
+    "rfp-rossview-rd-rollow-ln-sightline-improvements": {
+      "tab": "read", "tab_type": "lump_sum", "bid_date": "3-6-26 at 2 p.m.", "award_date": "3-9-26", "awardee": "Byard Construction, LLC",
+      "bidders": [
+        ["Byard Construction, LLC", "$189,970.00", true], ["Justice Farms, LLC", "$336,540.00", true], ["Tugsun Group Inc", "$439,900.00", true]
+      ]
+    },
+    "bid-asphalt-oil": {
+      "tab": "not_read", "reason": "layout", "tab_prints_awardee": "Ergon Asphalt & Emulsion",
+      "note": "unit prices per gallon (LPA-SS-1, RS-2, Trackless Tack), no total column: correctly not read",
+      "document_labels": ["BID PDF", "BID TAB", "AWARD LETTER"], "scanned_award_letters": 1
+    },
+    "bid-woodlawn-park-fencing": {
+      "tab": "not_read", "reason": "layout", "tab_prints_awardee": "Justice Farms",
+      "note": "a person can read six bidders and totals, one row says 'Not Complete': a coverage gap, not a wrong value"
+    },
+    "rfp-rfid-gates": {
+      "tab": "not_read", "reason": "layout", "tab_prints_awardee": "Envisionware",
+      "note": "five bidders with totals plus a 'Scoring Total' column: a coverage gap, not a wrong value"
+    },
+    "bid-timber-bridge-repair-project": {
+      "tab": "not_read", "reason": "layout", "tab_prints_awardee": null,
+      "note": "item-by-item unit-price tabulation for three contractors (railroad bridge): correctly not read"
+    },
+    "bid-veterans-plaza-hvac-replacement": {
+      "tab": "not_read", "reason": "layout", "tab_prints_awardee": null,
+      "note": "block layout with Base Bid, Add Alternate #1 and #2 and Total Bid: a coverage gap, not a wrong value"
+    },
+    "bid-ems-safety-gear": {
+      "tab": "not_read", "reason": "shared_url",
+      "document_labels": ["BID PDF", "BID TAB", "AWARD LETTER", "QUESTIONS/ANSWERS"], "scanned_award_letters": 1
+    },
+    "request-for-bid-metal-pipe-bands": {
+      "tab": "not_read", "reason": "not_pdf", "tab_prints_awardee": null,
+      "document_labels": ["Request for Bid", "Bid Tab", "Award Letter", "Required Forms"]
+    },
+    "bid-advertisement-sr12-excell-rd-intersection-improvements": {
+      "tab": "none", "document_labels": ["Bid Advertisement"]
+    }
+  }
+}

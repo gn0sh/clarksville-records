@@ -1,0 +1,1559 @@
+{
+ "books": [
+  {
+   "columns": [
+    {
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "edition": "approved",
+   "fiscal_year": 2027,
+   "id": "fy2027-approved",
+   "pages_read": [
+    10,
+    20,
+    21,
+    22,
+    23,
+    100
+   ],
+   "source_id": "src-56b559f55084",
+   "title": "FIXTURE Example County Budget FY2027"
+  }
+ ],
+ "budget_lines": [
+  {
+   "account_code": "41100",
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "90,000",
+     "dollars": 90000,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "92,000",
+     "dollars": 92000,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "95,000",
+     "dollars": 95000,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": null,
+   "department": null,
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE GENERAL FUND",
+   "fund_no": "901",
+   "heading_as_printed": "LOCAL TAXES",
+   "heading_from_total": false,
+   "held": null,
+   "id": "fy2027-approved/p10/r1",
+   "label_as_printed": "Property Taxes - Current",
+   "page": 10,
+   "row_role": "detail",
+   "scope_line_ids": [],
+   "statement": "revenue",
+   "tags": []
+  },
+  {
+   "account_code": "41200",
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "4,000",
+     "dollars": 4000,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "3,500",
+     "dollars": 3500,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "3,500",
+     "dollars": 3500,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": null,
+   "department": null,
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE GENERAL FUND",
+   "fund_no": "901",
+   "heading_as_printed": "LOCAL TAXES",
+   "heading_from_total": false,
+   "held": null,
+   "id": "fy2027-approved/p10/r2",
+   "label_as_printed": "Property Taxes - Delinquent",
+   "page": 10,
+   "row_role": "detail",
+   "scope_line_ids": [],
+   "statement": "revenue",
+   "tags": []
+  },
+  {
+   "account_code": null,
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "94,000",
+     "dollars": 94000,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "95,500",
+     "dollars": 95500,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "98,500",
+     "dollars": 98500,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": {
+    "per_cell": [
+     {
+      "diff": 0,
+      "printed": 94000,
+      "sum": 94000
+     },
+     {
+      "diff": 0,
+      "printed": 95500,
+      "sum": 95500
+     },
+     {
+      "diff": 0,
+      "printed": 98500,
+      "sum": 98500
+     }
+    ],
+    "state": "exact"
+   },
+   "department": null,
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE GENERAL FUND",
+   "fund_no": "901",
+   "heading_as_printed": "LOCAL TAXES",
+   "heading_from_total": false,
+   "held": null,
+   "id": "fy2027-approved/p10/r3",
+   "label_as_printed": "Total LOCAL TAXES",
+   "page": 10,
+   "row_role": "total",
+   "scope_line_ids": [
+    "fy2027-approved/p10/r1",
+    "fy2027-approved/p10/r2"
+   ],
+   "statement": "revenue",
+   "tags": []
+  },
+  {
+   "account_code": "49800",
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "1,500",
+     "dollars": 1500,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "1,500",
+     "dollars": 1500,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "-",
+     "dollars": 0,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": null,
+   "department": null,
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE GENERAL FUND",
+   "fund_no": "901",
+   "heading_as_printed": "Other Sources (Non-Revenue)",
+   "heading_from_total": false,
+   "held": null,
+   "id": "fy2027-approved/p10/r4",
+   "label_as_printed": "Transfers In",
+   "page": 10,
+   "row_role": "detail",
+   "scope_line_ids": [],
+   "statement": "revenue",
+   "tags": [
+    "non_revenue",
+    "transfer"
+   ]
+  },
+  {
+   "account_code": "59100",
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "-",
+     "dollars": 0,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "10,000",
+     "dollars": 10000,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "5,000",
+     "dollars": 5000,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": null,
+   "department": "EXAMPLE PARK TRAIL",
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE CAPITAL PROJECTS FUND",
+   "fund_no": "951",
+   "heading_as_printed": "EXAMPLE PARK TRAIL",
+   "heading_from_total": true,
+   "held": null,
+   "id": "fy2027-approved/p100/r1",
+   "label_as_printed": "Construction",
+   "page": 100,
+   "row_role": "detail",
+   "scope_line_ids": [],
+   "statement": "expenditure",
+   "tags": []
+  },
+  {
+   "account_code": "59200",
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "1,500",
+     "dollars": 1500,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "2,000",
+     "dollars": 2000,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "500",
+     "dollars": 500,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": null,
+   "department": "EXAMPLE PARK TRAIL",
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE CAPITAL PROJECTS FUND",
+   "fund_no": "951",
+   "heading_as_printed": "EXAMPLE PARK TRAIL",
+   "heading_from_total": true,
+   "held": null,
+   "id": "fy2027-approved/p100/r2",
+   "label_as_printed": "Engineering",
+   "page": 100,
+   "row_role": "detail",
+   "scope_line_ids": [],
+   "statement": "expenditure",
+   "tags": []
+  },
+  {
+   "account_code": null,
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "1,500",
+     "dollars": 1500,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "12,000",
+     "dollars": 12000,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "5,500",
+     "dollars": 5500,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": {
+    "per_cell": [
+     {
+      "diff": 0,
+      "printed": 1500,
+      "sum": 1500
+     },
+     {
+      "diff": 0,
+      "printed": 12000,
+      "sum": 12000
+     },
+     {
+      "diff": 0,
+      "printed": 5500,
+      "sum": 5500
+     }
+    ],
+    "state": "exact"
+   },
+   "department": "EXAMPLE PARK TRAIL",
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE CAPITAL PROJECTS FUND",
+   "fund_no": "951",
+   "heading_as_printed": "EXAMPLE PARK TRAIL",
+   "heading_from_total": true,
+   "held": null,
+   "id": "fy2027-approved/p100/r3",
+   "label_as_printed": "Total EXAMPLE PARK TRAIL",
+   "page": 100,
+   "row_role": "total",
+   "scope_line_ids": [
+    "fy2027-approved/p100/r1",
+    "fy2027-approved/p100/r2"
+   ],
+   "statement": "expenditure",
+   "tags": []
+  },
+  {
+   "account_code": null,
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "-",
+     "dollars": 0,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "25,000",
+     "dollars": 25000,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "-",
+     "dollars": 0,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": {
+    "per_cell": [
+     {
+      "diff": 0,
+      "printed": 0,
+      "sum": 0
+     },
+     {
+      "diff": 25000,
+      "printed": 25000,
+      "sum": 0
+     },
+     {
+      "diff": 0,
+      "printed": 0,
+      "sum": 0
+     }
+    ],
+    "state": "does_not_add_up"
+   },
+   "department": "EXAMPLE PUBLIC ART",
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE CAPITAL PROJECTS FUND",
+   "fund_no": "951",
+   "heading_as_printed": "EXAMPLE PUBLIC ART",
+   "heading_from_total": true,
+   "held": null,
+   "id": "fy2027-approved/p100/r4",
+   "label_as_printed": "Total EXAMPLE PUBLIC ART",
+   "page": 100,
+   "row_role": "total",
+   "scope_line_ids": [],
+   "statement": "expenditure",
+   "tags": []
+  },
+  {
+   "account_code": "51100",
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "1,000",
+     "dollars": 1000,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "1,100",
+     "dollars": 1100,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "1,200",
+     "dollars": 1200,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": null,
+   "department": "EXAMPLE DEPARTMENT A",
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE GENERAL FUND",
+   "fund_no": "901",
+   "heading_as_printed": "EXAMPLE DEPARTMENT A",
+   "heading_from_total": false,
+   "held": null,
+   "id": "fy2027-approved/p20/r1",
+   "label_as_printed": "Salaries",
+   "page": 20,
+   "row_role": "detail",
+   "scope_line_ids": [],
+   "statement": "expenditure",
+   "tags": []
+  },
+  {
+   "account_code": null,
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "500",
+     "dollars": 500,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "550",
+     "dollars": 550,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "600",
+     "dollars": 600,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": null,
+   "department": "EXAMPLE DEPARTMENT A",
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE GENERAL FUND",
+   "fund_no": "901",
+   "heading_as_printed": "EXAMPLE DEPARTMENT A",
+   "heading_from_total": false,
+   "held": null,
+   "id": "fy2027-approved/p20/r2",
+   "label_as_printed": "Salaries & Benefits",
+   "page": 20,
+   "row_role": "detail",
+   "scope_line_ids": [],
+   "statement": "expenditure",
+   "tags": []
+  },
+  {
+   "account_code": "53100",
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "201",
+     "dollars": 201,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "300",
+     "dollars": 300,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "333",
+     "dollars": 333,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": null,
+   "department": "EXAMPLE DEPARTMENT A",
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE GENERAL FUND",
+   "fund_no": "901",
+   "heading_as_printed": "EXAMPLE DEPARTMENT A",
+   "heading_from_total": false,
+   "held": null,
+   "id": "fy2027-approved/p20/r3",
+   "label_as_printed": "Supplies",
+   "page": 20,
+   "row_role": "detail",
+   "scope_line_ids": [],
+   "statement": "expenditure",
+   "tags": []
+  },
+  {
+   "account_code": "53200",
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "100",
+     "dollars": 100,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "50",
+     "dollars": 50,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "67",
+     "dollars": 67,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": null,
+   "department": "EXAMPLE DEPARTMENT A",
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE GENERAL FUND",
+   "fund_no": "901",
+   "heading_as_printed": "EXAMPLE DEPARTMENT A",
+   "heading_from_total": false,
+   "held": null,
+   "id": "fy2027-approved/p20/r4",
+   "label_as_printed": "Travel",
+   "page": 20,
+   "row_role": "detail",
+   "scope_line_ids": [],
+   "statement": "expenditure",
+   "tags": []
+  },
+  {
+   "account_code": null,
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "301",
+     "dollars": 301,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "350",
+     "dollars": 350,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "400",
+     "dollars": 400,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": {
+    "per_cell": [
+     {
+      "diff": 0,
+      "printed": 301,
+      "sum": 301
+     },
+     {
+      "diff": 0,
+      "printed": 350,
+      "sum": 350
+     },
+     {
+      "diff": 0,
+      "printed": 400,
+      "sum": 400
+     }
+    ],
+    "state": "exact"
+   },
+   "department": "EXAMPLE DEPARTMENT A",
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE GENERAL FUND",
+   "fund_no": "901",
+   "heading_as_printed": "EXAMPLE DEPARTMENT A",
+   "heading_from_total": false,
+   "held": null,
+   "id": "fy2027-approved/p20/r5",
+   "label_as_printed": "Other Expenditures",
+   "page": 20,
+   "row_role": "subtotal",
+   "scope_line_ids": [
+    "fy2027-approved/p20/r3",
+    "fy2027-approved/p20/r4"
+   ],
+   "statement": "expenditure",
+   "tags": []
+  },
+  {
+   "account_code": null,
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "1,802",
+     "dollars": 1802,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "2,000",
+     "dollars": 2000,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "2,200",
+     "dollars": 2200,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": {
+    "per_cell": [
+     {
+      "diff": 1,
+      "printed": 1802,
+      "sum": 1801
+     },
+     {
+      "diff": 0,
+      "printed": 2000,
+      "sum": 2000
+     },
+     {
+      "diff": 0,
+      "printed": 2200,
+      "sum": 2200
+     }
+    ],
+    "state": "within_rounding"
+   },
+   "department": "EXAMPLE DEPARTMENT A",
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE GENERAL FUND",
+   "fund_no": "901",
+   "heading_as_printed": "EXAMPLE DEPARTMENT A",
+   "heading_from_total": false,
+   "held": null,
+   "id": "fy2027-approved/p20/r6",
+   "label_as_printed": "Total EXAMPLE DEPARTMENT A",
+   "page": 20,
+   "row_role": "total",
+   "scope_line_ids": [
+    "fy2027-approved/p20/r1",
+    "fy2027-approved/p20/r2",
+    "fy2027-approved/p20/r3",
+    "fy2027-approved/p20/r4"
+   ],
+   "statement": "expenditure",
+   "tags": []
+  },
+  {
+   "account_code": "51100",
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "3,000",
+     "dollars": 3000,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "3,000",
+     "dollars": 3000,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "3,000",
+     "dollars": 3000,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": null,
+   "department": "EXAMPLE DEPARTMENT B",
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE GENERAL FUND",
+   "fund_no": "901",
+   "heading_as_printed": "EXAMPLE DEPARTMENT B",
+   "heading_from_total": false,
+   "held": null,
+   "id": "fy2027-approved/p21/r1",
+   "label_as_printed": "Salaries",
+   "page": 21,
+   "row_role": "detail",
+   "scope_line_ids": [],
+   "statement": "expenditure",
+   "tags": []
+  },
+  {
+   "account_code": "53100",
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "400",
+     "dollars": 400,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": null,
+     "dollars": null,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "450",
+     "dollars": 450,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": null,
+   "department": "EXAMPLE DEPARTMENT B",
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE GENERAL FUND",
+   "fund_no": "901",
+   "heading_as_printed": "EXAMPLE DEPARTMENT B",
+   "heading_from_total": false,
+   "held": null,
+   "id": "fy2027-approved/p21/r2",
+   "label_as_printed": "Supplies",
+   "page": 21,
+   "row_role": "detail",
+   "scope_line_ids": [],
+   "statement": "expenditure",
+   "tags": []
+  },
+  {
+   "account_code": null,
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "3,400",
+     "dollars": 3400,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "3,100",
+     "dollars": 3100,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "3,450",
+     "dollars": 3450,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": {
+    "per_cell": [
+     {
+      "diff": 0,
+      "printed": 3400,
+      "sum": 3400
+     },
+     {
+      "diff": 100,
+      "printed": 3100,
+      "sum": 3000
+     },
+     {
+      "diff": 0,
+      "printed": 3450,
+      "sum": 3450
+     }
+    ],
+    "state": "does_not_add_up"
+   },
+   "department": "EXAMPLE DEPARTMENT B",
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE GENERAL FUND",
+   "fund_no": "901",
+   "heading_as_printed": "EXAMPLE DEPARTMENT B",
+   "heading_from_total": false,
+   "held": null,
+   "id": "fy2027-approved/p21/r3",
+   "label_as_printed": "Total EXAMPLE DEPARTMENT B",
+   "page": 21,
+   "row_role": "total",
+   "scope_line_ids": [
+    "fy2027-approved/p21/r1",
+    "fy2027-approved/p21/r2"
+   ],
+   "statement": "expenditure",
+   "tags": []
+  },
+  {
+   "account_code": "55900",
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "250",
+     "dollars": 250,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "250",
+     "dollars": 250,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "300",
+     "dollars": 300,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": null,
+   "department": "OPERATING TRANSFERS",
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE GENERAL FUND",
+   "fund_no": "901",
+   "heading_as_printed": "OPERATING TRANSFERS",
+   "heading_from_total": false,
+   "held": null,
+   "id": "fy2027-approved/p22/r1",
+   "label_as_printed": "Transfer to Capital Projects Fund",
+   "page": 22,
+   "row_role": "detail",
+   "scope_line_ids": [],
+   "statement": "expenditure",
+   "tags": [
+    "transfer"
+   ]
+  },
+  {
+   "account_code": null,
+   "book_id": "fy2027-approved",
+   "cells": [
+    {
+     "as_printed": "(1,200)",
+     "dollars": -1200,
+     "fiscal_year": 2025,
+     "header_as_printed": "FY 2025 Actuals",
+     "kind": "actual"
+    },
+    {
+     "as_printed": "5,000",
+     "dollars": 5000,
+     "fiscal_year": 2026,
+     "header_as_printed": "FY 2026 Amended",
+     "kind": "amended"
+    },
+    {
+     "as_printed": "4,800",
+     "dollars": 4800,
+     "fiscal_year": 2027,
+     "header_as_printed": "FY 2027 Budget",
+     "kind": "adopted"
+    }
+   ],
+   "check": null,
+   "department": null,
+   "edition": "approved",
+   "edition_differs": [],
+   "fund_name": "EXAMPLE GENERAL FUND",
+   "fund_no": "901",
+   "heading_as_printed": "AVAILABLE FUNDS",
+   "heading_from_total": false,
+   "held": null,
+   "id": "fy2027-approved/p23/r1",
+   "label_as_printed": "Unassigned Fund Balance",
+   "page": 23,
+   "row_role": "detail",
+   "scope_line_ids": [],
+   "statement": "fund_balance",
+   "tags": [
+    "available_funds"
+   ]
+  }
+ ],
+ "coverage": {
+  "by_department_year": {
+   "Example Facilities": {
+    "2026": {
+     "rows": 1,
+     "tab_read": 1,
+     "with_tab": 1
+    }
+   },
+   "Example Highway": {
+    "2026": {
+     "rows": 1,
+     "tab_read": 1,
+     "with_tab": 1
+    }
+   },
+   "Example Parks": {
+    "2026": {
+     "rows": 1,
+     "tab_read": 1,
+     "with_tab": 1
+    }
+   },
+   "not stated": {
+    "not stated": {
+     "rows": 2,
+     "tab_read": 0,
+     "with_tab": 1
+    }
+   }
+  },
+  "n_award_letters": 1,
+  "n_award_scanned": 1,
+  "n_bid_tab_links": 4,
+  "n_books": 1,
+  "n_docs": 11,
+  "n_docs_scanned": 1,
+  "n_flag": 2,
+  "n_lines": 19,
+  "n_tab_not_read": {
+   "layout": 1,
+   "not_fetched": 0,
+   "not_pdf": 0,
+   "scan": 0,
+   "shared_url": 0
+  },
+  "n_tab_read": 3,
+  "n_total": 5
+ },
+ "documents": [
+  {
+   "doc_date_page": null,
+   "doc_date_text": null,
+   "fetched_at": "2026-11-07",
+   "id": "doc-1e4afb2617",
+   "link_label": "Bid Tab",
+   "scanned": false,
+   "shared_by": [],
+   "source_id": "src-790d8c31470f",
+   "stage": "bid_tab",
+   "status": "fetched",
+   "url": "https://example.invalid/fixture/finance/tab-paving-unit.pdf"
+  },
+  {
+   "doc_date_page": 1,
+   "doc_date_text": "January 6, 2026",
+   "fetched_at": "2026-11-07",
+   "id": "doc-1ead6510fe",
+   "link_label": "Bid",
+   "scanned": false,
+   "shared_by": [],
+   "source_id": "src-863709ff82f2",
+   "stage": "bid",
+   "status": "fetched",
+   "url": "https://example.invalid/fixture/finance/bid-mowers.pdf"
+  },
+  {
+   "doc_date_page": null,
+   "doc_date_text": null,
+   "fetched_at": null,
+   "id": "doc-25b726266e",
+   "link_label": "Bid on Bonfire",
+   "scanned": false,
+   "shared_by": [],
+   "source_id": null,
+   "stage": "other",
+   "status": "link_only",
+   "url": "https://example.invalid/bonfire/opportunity/1"
+  },
+  {
+   "doc_date_page": null,
+   "doc_date_text": null,
+   "fetched_at": "2026-11-07",
+   "id": "doc-3b55539a53",
+   "link_label": "Bid Tab",
+   "scanned": false,
+   "shared_by": [],
+   "source_id": "src-c8f172e9aebf",
+   "stage": "bid_tab",
+   "status": "fetched",
+   "url": "https://example.invalid/fixture/finance/tab-mowers.pdf"
+  },
+  {
+   "doc_date_page": null,
+   "doc_date_text": null,
+   "fetched_at": "2026-11-07",
+   "id": "doc-4c5912f33a",
+   "link_label": "Award Letter",
+   "scanned": true,
+   "shared_by": [],
+   "source_id": "src-ec95c284feb1",
+   "stage": "award_letter",
+   "status": "fetched",
+   "url": "https://example.invalid/fixture/finance/award-mowers.pdf"
+  },
+  {
+   "doc_date_page": null,
+   "doc_date_text": null,
+   "fetched_at": "2026-11-07",
+   "id": "doc-69bd62ac22",
+   "link_label": "BID TAB",
+   "scanned": false,
+   "shared_by": [],
+   "source_id": "src-a81ad7605a23",
+   "stage": "bid_tab",
+   "status": "fetched",
+   "url": "https://example.invalid/fixture/finance/tab-salt.pdf"
+  },
+  {
+   "doc_date_page": null,
+   "doc_date_text": null,
+   "fetched_at": "2026-11-07",
+   "id": "doc-7dc1dee3a0",
+   "link_label": "Addendum 1",
+   "scanned": false,
+   "shared_by": [],
+   "source_id": null,
+   "stage": "addendum",
+   "status": "not_pdf",
+   "url": "https://example.invalid/fixture/finance/addendum-chairs.docx"
+  },
+  {
+   "doc_date_page": null,
+   "doc_date_text": null,
+   "fetched_at": "2026-11-07",
+   "id": "doc-c5d98b0beb",
+   "link_label": "Bid Tab",
+   "scanned": false,
+   "shared_by": [],
+   "source_id": "src-48539e740f3c",
+   "stage": "bid_tab",
+   "status": "fetched",
+   "url": "https://example.invalid/fixture/finance/tab-roof.pdf"
+  },
+  {
+   "doc_date_page": null,
+   "doc_date_text": null,
+   "fetched_at": "2026-11-07",
+   "id": "doc-cba9e5754a",
+   "link_label": "Vendor Forms",
+   "scanned": false,
+   "shared_by": [
+    "sol-office-chairs-fixture",
+    "sol-road-salt-fixture"
+   ],
+   "source_id": "src-9d2739b63d08",
+   "stage": "forms",
+   "status": "fetched",
+   "url": "https://example.invalid/fixture/finance/vendor-forms.pdf"
+  },
+  {
+   "doc_date_page": null,
+   "doc_date_text": null,
+   "fetched_at": "2026-11-07",
+   "id": "doc-e1c3736912",
+   "link_label": "Specifications",
+   "scanned": false,
+   "shared_by": [],
+   "source_id": null,
+   "stage": "drawings",
+   "status": "dead_at_fetch",
+   "url": "https://example.invalid/fixture/finance/specs-chairs.pdf"
+  },
+  {
+   "doc_date_page": 1,
+   "doc_date_text": "March 3, 2026",
+   "fetched_at": "2026-11-07",
+   "id": "doc-f5ae712dba",
+   "link_label": "Notice of Intent",
+   "scanned": false,
+   "shared_by": [],
+   "source_id": "src-0cd55512a046",
+   "stage": "notice_of_intent",
+   "status": "fetched",
+   "url": "https://example.invalid/fixture/finance/noi-roof.pdf"
+  }
+ ],
+ "fixture": true,
+ "schema_version": "1.0",
+ "solicitations": [
+  {
+   "archive_date": null,
+   "archive_date_text": "Currently Under Review",
+   "archive_source_id": "src-b7aa79793fb3",
+   "archive_status": "Currently Under Review",
+   "bid_tab": null,
+   "department": null,
+   "document_ids": [
+    "doc-7dc1dee3a0",
+    "doc-e1c3736912",
+    "doc-cba9e5754a"
+   ],
+   "document_labels": [
+    "Addendum 1",
+    "Specifications",
+    "Vendor Forms"
+   ],
+   "documents_differ": null,
+   "held": [],
+   "id": "sol-office-chairs-fixture",
+   "number": null,
+   "row": 3,
+   "slug": "office-chairs-fixture",
+   "title": "FIXTURE Office Chairs",
+   "year": null
+  },
+  {
+   "archive_date": null,
+   "archive_date_text": "",
+   "archive_source_id": "src-b7aa79793fb3",
+   "archive_status": null,
+   "bid_tab": {
+    "award_date_page": null,
+    "award_date_text": null,
+    "awardee_match": null,
+    "awardee_page": null,
+    "awardee_text": null,
+    "bid_date_page": null,
+    "bid_date_text": null,
+    "bidders": [],
+    "document_id": "doc-1e4afb2617",
+    "not_read_reason": "layout",
+    "project_text": null,
+    "tab_type": "not_read"
+   },
+   "department": null,
+   "document_ids": [
+    "doc-1e4afb2617"
+   ],
+   "document_labels": [
+    "Bid Tab"
+   ],
+   "documents_differ": null,
+   "held": [],
+   "id": "sol-paving-unit-prices-fixture",
+   "number": null,
+   "row": 5,
+   "slug": "paving-unit-prices-fixture",
+   "title": "FIXTURE Paving Unit Prices",
+   "year": null
+  },
+  {
+   "archive_date": "2026-02-02",
+   "archive_date_text": "F EBRUARY 2, 2026",
+   "archive_source_id": "src-b7aa79793fb3",
+   "archive_status": null,
+   "bid_tab": {
+    "award_date_page": 1,
+    "award_date_text": "2-2-26",
+    "awardee_match": "bidder:1",
+    "awardee_page": 1,
+    "awardee_text": "Alpha Turf &Equipment Co.",
+    "bid_date_page": 1,
+    "bid_date_text": "1-20-26",
+    "bidders": [
+     {
+      "name": "Alpha Turf & Equipment Co.",
+      "page": 1,
+      "printed_order": 1,
+      "total_as_printed": "$48,250.00",
+      "total_cents": 4825000
+     },
+     {
+      "name": "Beta Mower Supply",
+      "page": 1,
+      "printed_order": 2,
+      "total_as_printed": "$51,900.00",
+      "total_cents": 5190000
+     }
+    ],
+    "document_id": "doc-3b55539a53",
+    "not_read_reason": null,
+    "project_text": "FIXTURE Riding Mowers",
+    "tab_type": "lump_sum"
+   },
+   "department": {
+    "page": 1,
+    "source_id": "src-c8f172e9aebf",
+    "text": "Example Parks"
+   },
+   "document_ids": [
+    "doc-1ead6510fe",
+    "doc-3b55539a53",
+    "doc-4c5912f33a",
+    "doc-25b726266e"
+   ],
+   "document_labels": [
+    "Bid",
+    "Bid Tab",
+    "Award Letter",
+    "Bid on Bonfire"
+   ],
+   "documents_differ": null,
+   "held": [],
+   "id": "sol-riding-mowers-fixture",
+   "number": null,
+   "row": 1,
+   "slug": "riding-mowers-fixture",
+   "title": "FIXTURE Riding Mowers (2)",
+   "year": 2026
+  },
+  {
+   "archive_date": "2026-10-14",
+   "archive_date_text": "OCTOBER 14. 2026",
+   "archive_source_id": "src-b7aa79793fb3",
+   "archive_status": null,
+   "bid_tab": {
+    "award_date_page": 2,
+    "award_date_text": "10-14-26",
+    "awardee_match": "not_a_listed_bidder",
+    "awardee_page": 2,
+    "awardee_text": "Gamma Minerals LLC",
+    "bid_date_page": 1,
+    "bid_date_text": "9-30-26",
+    "bidders": [
+     {
+      "name": "Delta Salt Company",
+      "page": 1,
+      "printed_order": 1,
+      "total_as_printed": "$112,400.00",
+      "total_cents": 11240000
+     },
+     {
+      "name": "Epsilon Supply Group",
+      "page": 1,
+      "printed_order": 2,
+      "total_as_printed": "$1O9,875.00",
+      "total_cents": null
+     },
+     {
+      "name": "Zeta Industrial Products",
+      "page": 2,
+      "printed_order": 3,
+      "total_as_printed": "$118,020.50",
+      "total_cents": 11802050
+     }
+    ],
+    "document_id": "doc-69bd62ac22",
+    "not_read_reason": null,
+    "project_text": "FIXTURE Road Salt",
+    "tab_type": "lump_sum"
+   },
+   "department": {
+    "page": 1,
+    "source_id": "src-a81ad7605a23",
+    "text": "Example Highway"
+   },
+   "document_ids": [
+    "doc-69bd62ac22",
+    "doc-cba9e5754a"
+   ],
+   "document_labels": [
+    "BID TAB",
+    "Vendor Forms"
+   ],
+   "documents_differ": null,
+   "held": [
+    {
+     "check": "amount-format",
+     "field": "bid_tab.bidders[1].total_cents"
+    }
+   ],
+   "id": "sol-road-salt-fixture",
+   "number": null,
+   "row": 2,
+   "slug": "road-salt-fixture",
+   "title": "FIXTURE Road Salt",
+   "year": 2026
+  },
+  {
+   "archive_date": "2026-03-10",
+   "archive_date_text": "MARCH 10, 2026",
+   "archive_source_id": "src-b7aa79793fb3",
+   "archive_status": null,
+   "bid_tab": {
+    "award_date_page": 1,
+    "award_date_text": "3-10-26",
+    "awardee_match": "bidder:2",
+    "awardee_page": 1,
+    "awardee_text": "Eta Roofing Inc.",
+    "bid_date_page": 1,
+    "bid_date_text": "2-24-26",
+    "bidders": [
+     {
+      "name": "Theta Roof Works",
+      "page": 1,
+      "printed_order": 1,
+      "total_as_printed": "$73,000.00",
+      "total_cents": 7300000
+     },
+     {
+      "name": "Eta Roofing Inc.",
+      "page": 1,
+      "printed_order": 2,
+      "total_as_printed": "$69,450.00",
+      "total_cents": 6945000
+     }
+    ],
+    "document_id": "doc-c5d98b0beb",
+    "not_read_reason": null,
+    "project_text": "FIXTURE Roof Repair",
+    "tab_type": "lump_sum"
+   },
+   "department": {
+    "page": 1,
+    "source_id": "src-48539e740f3c",
+    "text": "Example Facilities"
+   },
+   "document_ids": [
+    "doc-c5d98b0beb",
+    "doc-f5ae712dba"
+   ],
+   "document_labels": [
+    "Bid Tab",
+    "Notice of Intent"
+   ],
+   "documents_differ": {
+    "document_ids": [
+     "doc-c5d98b0beb",
+     "doc-f5ae712dba"
+    ],
+    "fields": [
+     "awardee"
+    ]
+   },
+   "held": [],
+   "id": "sol-roof-repair-fixture",
+   "number": null,
+   "row": 4,
+   "slug": "roof-repair-fixture",
+   "title": "FIXTURE Roof Repair, Example Annex",
+   "year": 2026
+  }
+ ],
+ "sources": [
+  {
+   "content_type": "application/pdf",
+   "creator": "Example Writer 1.0",
+   "fetched_at": "2026-11-07",
+   "id": "src-0cd55512a046",
+   "kind": "notice",
+   "pages": 1,
+   "sha256": "0cd55512a046d56563e20d3e1b57df3b84398e8f0396f00286317e2230f565f9",
+   "text_layer": "text",
+   "url": "https://example.invalid/fixture/finance/noi-roof.pdf"
+  },
+  {
+   "content_type": "application/pdf",
+   "creator": "Example Writer 1.0",
+   "fetched_at": "2026-11-07",
+   "id": "src-48539e740f3c",
+   "kind": "bid_tab",
+   "pages": 1,
+   "sha256": "48539e740f3cbd5c695770c5f7b9fa5890bd94bea6e84d882eb8904d96d51632",
+   "text_layer": "text",
+   "url": "https://example.invalid/fixture/finance/tab-roof.pdf"
+  },
+  {
+   "content_type": "application/pdf",
+   "creator": "Example Writer 1.0",
+   "fetched_at": "2026-11-07",
+   "id": "src-56b559f55084",
+   "kind": "budget_book",
+   "pages": 120,
+   "sha256": "56b559f5508417fe844d911dc79d412da3894fe58419032ce8aab2eb7d7ec00f",
+   "text_layer": "text",
+   "url": "https://example.invalid/fixture/finance/budget-fy2027.pdf"
+  },
+  {
+   "content_type": "application/pdf",
+   "creator": "Example Writer 1.0",
+   "fetched_at": "2026-11-07",
+   "id": "src-790d8c31470f",
+   "kind": "bid_tab",
+   "pages": 3,
+   "sha256": "790d8c31470f188ec3a8c1f0c819eb603dc9f3a1fb2b6c56dda10e60ee9a7d2c",
+   "text_layer": "text",
+   "url": "https://example.invalid/fixture/finance/tab-paving-unit.pdf"
+  },
+  {
+   "content_type": "application/pdf",
+   "creator": "Example Writer 1.0",
+   "fetched_at": "2026-11-07",
+   "id": "src-863709ff82f2",
+   "kind": "bid",
+   "pages": 12,
+   "sha256": "863709ff82f21a5cc98e8124e55c243e24a9961eb9bfc03957dd6c5e53fed085",
+   "text_layer": "text",
+   "url": "https://example.invalid/fixture/finance/bid-mowers.pdf"
+  },
+  {
+   "content_type": "application/pdf",
+   "creator": "Example Writer 1.0",
+   "fetched_at": "2026-11-07",
+   "id": "src-9d2739b63d08",
+   "kind": "other",
+   "pages": 4,
+   "sha256": "9d2739b63d08ef8fb62a4e19cd47752d42e7ff34205221b4fb6c822cb3e1062f",
+   "text_layer": "text",
+   "url": "https://example.invalid/fixture/finance/vendor-forms.pdf"
+  },
+  {
+   "content_type": "application/pdf",
+   "creator": "Example Writer 1.0",
+   "fetched_at": "2026-11-07",
+   "id": "src-a81ad7605a23",
+   "kind": "bid_tab",
+   "pages": 2,
+   "sha256": "a81ad7605a237044292abec13b8e25b5f08339adde5187851b6cb1d2e05f8f36",
+   "text_layer": "text",
+   "url": "https://example.invalid/fixture/finance/tab-salt.pdf"
+  },
+  {
+   "content_type": "text/html",
+   "creator": null,
+   "fetched_at": "2026-11-07",
+   "id": "src-b7aa79793fb3",
+   "kind": "archive_index",
+   "pages": null,
+   "sha256": "b7aa79793fb330eefbc15e7895d87326e9e5c893b67cb9c6f778a063557355e7",
+   "text_layer": "text",
+   "url": "https://example.invalid/fixture/finance/purchasing-archive.html"
+  },
+  {
+   "content_type": "application/pdf",
+   "creator": "Example Writer 1.0",
+   "fetched_at": "2026-11-07",
+   "id": "src-c8f172e9aebf",
+   "kind": "bid_tab",
+   "pages": 1,
+   "sha256": "c8f172e9aebf99bfa5b9fa9307e640fe52bdef834886032a434bde4b21e74b0e",
+   "text_layer": "text",
+   "url": "https://example.invalid/fixture/finance/tab-mowers.pdf"
+  },
+  {
+   "content_type": "application/pdf",
+   "creator": "Example Scanner 9",
+   "fetched_at": "2026-11-07",
+   "id": "src-ec95c284feb1",
+   "kind": "award_letter",
+   "pages": 1,
+   "sha256": "ec95c284feb12ab50ed9c131fd81d6f2c9dbd88ee70dbb8a6d94c4c22761ea1b",
+   "text_layer": "none",
+   "url": "https://example.invalid/fixture/finance/award-mowers.pdf"
+  }
+ ]
+}

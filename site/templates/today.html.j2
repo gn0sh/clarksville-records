@@ -1,0 +1,127 @@
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import item_link, item_title, not_confirmed, nc_mark, vote_grid, clamp, watch_link %}
+{% from "_rpc.html.j2" import rpc_docs %}
+{# Day by day (Daylight M2, sitegen/days.py). Every day of the window is a section (#d-<date>). static/days.js shows
+   the week strip and one day at a time; without it the page is a list of the days that have records (empty days are
+   left out by CSS). Votes come from views._roll_call_block, so a held roll call shows "Not confirmed" and no value.
+   Agenda and archive text carries data-item-title: the document's words, never linked or reworded. #}
+{% block head %}<script src="{{ root }}static/js-flag.js"></script>{% endblock %}
+{% macro card(c) %}
+<article class="day-card day-card-{{ c.kind }}" id="{{ c.id }}" aria-labelledby="{{ c.id }}-h">
+  <header class="day-card-hd">
+    <h3 id="{{ c.id }}-h"><span class="dot dot-{{ c.dot }}" aria-hidden="true"></span>{{ c.body }}</h3>
+    {% if c.title %}<p class="day-card-kind">{{ c.title }}{% if c.state == "scheduled" %} <span class="chip chip-status">Scheduled</span>{% endif %}{% if c.get("agenda_only") %} <span class="chip chip-status">Agenda</span>{% endif %}{% if c.cancelled %} <span class="chip chip-status">Cancelled</span>{% endif %}</p>{% elif c.cancelled %}<p class="day-card-kind"><span class="chip chip-status">Cancelled</span></p>{% endif %}
+  </header>
+  {% if c.kind == "rpc" %}{{ rpc_docs(c.rpc) }}{% endif %}
+  {% if c.docs or c.watch or c.href or c.minutes_note %}
+  <p class="day-docs">{% for d in c.docs %}{{ d.word }}: <a href="{{ d.url }}" target="_blank" rel="noopener noreferrer">{{ d.what }}<span class="sr-only"> (opens in a new tab)</span></a>. {% endfor %}{% if c.minutes_note %}{{ c.minutes_note }} {% endif %}{% if c.watch %}{{ watch_link(c.watch) }} {% endif %}{% if c.href %}<a href="{{ root }}{{ c.href }}">{% if c.kind == "bids" %}All bids and awards{% else %}Meeting page{% endif %}</a>{% endif %}</p>
+  {% endif %}
+
+  {% if c.state == "votes" %}
+  <p class="label day-part">Votes from the minutes, in minutes order ({{ c.votes | length }})</p>
+  <ul class="day-items">
+    {% for b in c.votes %}
+    <li class="day-item fact{% if not b.confirmed %} nc{% endif %}" data-fact-id="{{ b.id }}">
+      <p class="say">{{ item_link(b.item, root) }}</p>
+      {% if not b.confirmed %}<p class="nc-note">{{ not_confirmed(b.src) }}</p>{% endif %}
+      <p class="meta"><span class="v">{{ b.outcome.label }}{% if b.outcome.hidden %}{{ nc_mark() }}{% endif %}</span>{% if b.outcome.tally %} <span class="muted">({{ b.outcome.tally }})</span>{% endif %} <a href="{{ b.src.url }}" target="_blank" rel="noopener noreferrer">minutes p. {{ b.src.page }}<span class="sr-only"> (opens the PDF in a new tab)</span></a></p>
+      <details class="roll"><summary>All {{ b.votes | length }} votes, by name</summary>{{ vote_grid(b.votes, root) }}</details>
+    </li>
+    {% endfor %}
+  </ul>
+  {% elif c.state == "agenda" and c.kind == "rpc" %}
+  <p class="label day-part">Cases on the agenda, as printed ({{ c.cases | length }})</p>
+  <ul class="day-items">
+    {% for x in c.cases %}
+    <li class="day-item">
+      <p class="say"><strong>{{ x.number_printed }}</strong> <span class="muted">{{ x.case_type }}</span>{% if x.note %} <span class="chip chip-status">{{ x.note }}</span>{% endif %}</p>
+      {% if x.request %}<p>{% call clamp(2) %}<span data-item-title>{{ x.request }}</span>{% endcall %}</p>{% endif %}
+      <p class="meta">{% if x.src %}<a href="{{ x.src }}" target="_blank" rel="noopener noreferrer">agenda p. {{ x.page }}<span class="sr-only"> (opens in a new tab)</span></a> {% endif %}<a href="{{ root }}{{ c.rpc.href.split('#')[0] }}#{{ x.anchor }}">All case details</a></p>
+    </li>
+    {% endfor %}
+  </ul>
+  {% elif c.state == "agenda" and c.kind == "county" %}
+  {% if c.agenda_items %}
+  <p class="label day-part">Items on the agenda, as printed ({{ c.agenda_items | length }})</p>
+  <ul class="day-items">
+    {% for x in c.agenda_items %}
+    <li class="day-item">
+      <p class="say"><strong>{{ x.printed }}</strong>{% if x.section %} <span class="muted">{{ x.section }}</span>{% endif %}</p>
+      <p>{% call clamp(2) %}<span data-item-title>{{ x.title }}</span>{% endcall %}</p>
+      <p class="meta"><a href="{{ x.src }}" target="_blank" rel="noopener noreferrer">agenda p. {{ x.page }}<span class="sr-only"> (opens in a new tab)</span></a></p>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="day-none">The agenda is linked above. No numbered items were read from it, and no votes are shown until the minutes are posted.</p>
+  {% endif %}
+  {% elif c.state == "agenda" %}
+  <p class="day-none">The agenda is linked above. Its items are not read on this site, and no votes are shown until the minutes are read.</p>
+  {% elif c.state == "scheduled" %}
+  <p class="day-none">On the city's calendar as of {{ c.built_text }}{% if c.cal_title %}: <span data-item-title>{{ c.cal_title }}</span>{% endif %}. {% if c.agenda_url %}<a href="{{ c.agenda_url }}" data-ext="listed" target="_blank" rel="noopener noreferrer">Agenda<span class="sr-only"> (opens in a new tab)</span></a>.{% else %}No agenda posted.{% endif %}</p>
+  {% elif c.state == "bids" %}
+  <ul class="day-items">
+    {% for s in c.sols %}
+    <li class="day-item">
+      <p class="say"><a href="{{ root }}{{ s.href }}">{{ item_title(s.title) }}</a></p>
+      <p class="meta">Date printed on the <a href="{{ s.src.url }}" target="_blank" rel="noopener noreferrer">{{ s.src.label }}<span class="sr-only"> (opens in a new tab)</span></a>: <span data-item-title>{{ s.date_text }}</span></p>
+    </li>
+    {% endfor %}
+  </ul>
+  {% elif c.kind == "rpc" and c.rpc.agenda and c.rpc.agenda.no_text %}
+  <p class="day-none">The agenda is a scan with no text layer; its cases were not read.</p>
+  {% else %}
+  <p class="day-none">No votes or agenda items are shown for this meeting.</p>
+  {% endif %}
+  {% if c.record %}<p class="official-record">Unofficial copy. Official record: <a{% if c.record.ext %} data-ext="record"{% endif %} href="{{ c.record.url }}" target="_blank" rel="noopener noreferrer">{{ c.record.label }}<span class="sr-only"> (opens in a new tab)</span></a>.</p>{% endif %}
+</article>
+{% endmacro %}
+
+{% block main %}
+<div class="days" id="days" data-tz="{{ tz }}" data-start="{{ start }}" data-end="{{ end }}" data-built="{{ built }}">
+  <h1>Day by day</h1>
+  <p class="lede">Public meetings of the bodies this site collects, and bids on the dates the county prints, from <span class="nowrap">{{ start_text }}</span> to <span class="nowrap">{{ end_text }}</span>. Before a meeting a day shows its agenda; after it, the votes and how each member voted, once the minutes are read.</p>
+  <p class="days-note" id="days-out" hidden>This page covers <span class="nowrap">{{ start_text }}</span> to <span class="nowrap">{{ end_text }}</span>. It was built on {{ built_text }}; later days appear when it is built again.</p>
+  <p class="days-note days-nojs">Days with no records are left out of this list.</p>
+
+  <nav class="day-strip" id="day-strip" aria-label="Pick a day" hidden>
+    <div class="strip-row">
+      <button type="button" class="wk-step" id="wk-prev" aria-label="Earlier week"><span aria-hidden="true">&lsaquo;</span></button>
+      <div class="strip-weeks">
+        {% for w in weeks %}
+        <div class="strip-week" data-week="{{ loop.index0 }}" role="group" aria-label="Week of {{ w.first.text }}"{% if not loop.first %} hidden{% endif %}>
+          {% for d in w.days %}<button type="button" class="day" data-date="{{ d.iso }}" aria-pressed="false" aria-label="{{ d.label }}"><span class="day-dow">{{ d.dow }}</span><b>{{ d.n }}</b><em aria-hidden="true">{% for x in d.dots %}<i class="dot dot-{{ x }}"></i>{% endfor %}</em></button>{% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="wk-step" id="wk-next" aria-label="Later week"><span aria-hidden="true">&rsaquo;</span></button>
+    </div>
+  </nav>
+  <p class="sr-only" id="day-status" role="status" aria-live="polite"></p>
+
+  <div class="day-list">
+    {% for w in weeks %}{% for d in w.days %}
+    <section class="day-sheet{% if not d.cards %} is-empty{% endif %}" id="{{ d.anchor }}" data-date="{{ d.iso }}" aria-labelledby="{{ d.anchor }}-h">
+      <header class="day-head"><p class="label day-when" aria-hidden="true"></p><h2 id="{{ d.anchor }}-h" tabindex="-1">{{ d.text }}</h2></header>
+      {% for c in d.cards %}{{ card(c) }}{% else %}<p class="day-empty">No public meetings or bid listings in these records on this day.</p>{% endfor %}
+    </section>
+    {% endfor %}{% endfor %}
+  </div>
+
+  <section class="day-bodies" aria-labelledby="day-bodies-h">
+    <h2 id="day-bodies-h">What this page holds</h2>
+    <ul class="day-cover">
+      {% for b in coverage %}
+      <li><strong>{{ b.body }}.</strong> {{ b.what }} On this page: {{ b.n }} {{ b.get("unit", "meeting") }}{{ "" if b.n == 1 else "s" }}.</li>
+      {% endfor %}
+      {% if school %}
+      <li class="day-coming"><strong>{{ school.label }}.</strong> <span class="chip chip-coming">Coming</span> Its meetings are not collected yet, so none are shown here. <a data-ext="school" href="{{ school.url }}" target="_blank" rel="noopener noreferrer">{{ school.link_label }}<span class="sr-only"> (opens in a new tab)</span></a>.</li>
+      {% endif %}
+      {% if committees %}
+      <li class="day-coming"><strong>{{ committees.label }}.</strong> <span class="chip chip-coming">Coming</span> Their meetings are not collected yet, so none are shown here.{% for l in committees.links %} <a data-ext="committee" href="{{ l.url }}" target="_blank" rel="noopener noreferrer">{{ l.label }}<span class="sr-only"> (opens in a new tab)</span></a>.{% endfor %}</li>
+      {% endif %}
+    </ul>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ root }}static/days.js" defer></script>{% endblock %}

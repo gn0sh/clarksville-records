@@ -1,14 +1,338 @@
 # Status
 
-**Feature:** milestone 1, County Commission votes and attendance (private preview).
-**Stage:** Define. **Pace:** slow, one agent at a time (coordinator, 2026-11-07).
+**Feature:** Daylight public-records site, launch candidate (Brian's review Fri Nov 13; rest of scope Wed Nov 18).
+**Stage:** Review, security and QA passed on the integration branch; squash-merged to `main` with deploy and morning note still locked. Preview https://gn0sh.github.io/clarksville-records/ = build of 4f1b90a (gh-pages 5e711fe): site_checks PASS, pii_scan 0 hits, brand checks PASS.
+**Next:** Brian's Friday review; go-live waits on his typed OK (hard stop 1) and the go-live ask list; Nov 18 batch (ADR 0006 list).
 
 ## Waiting on the CEO
-(none)
+- Friday review of the preview (looks right? yes / list changes) | https://gn0sh.github.io/clarksville-records/ | open on phone + PC | asked 2026-11-12 in thread "Launch the Daylight records site" | default: keep building the Nov 18 batch
 
 ## Run ledger
 | Date | Role | Model/effort | Task | Outcome |
 |---|---|---|---|---|
+| 2026-11-12 | code-reviewer | opus/medium | navy recolor delta 3e34967..5b401e6 + full suite | approve with nits (should-fix a11y/link-affordance/council-seats-note-cite, pre-existing); 1387+2742 pass |
+| 2026-11-12 | frontend-engineer | opus/medium | seat note/cite links + nits -> b707b5b | done; 1387+2743 pass, site_checks PASS |
+| 2026-11-12 | code-reviewer | opus/medium (resumed) | delta b707b5b | approve; nit layout/council-seat-note-wrap |
+| 2026-11-12 | frontend-engineer | opus/medium (resumed) | orphan colon -> ec55390 | done; 1387+2744 pass; manager spot-check with screenshots |
+| 2026-11-12 | frontend-engineer | fable | navy recolor -> 3e34967, fixes -> 5b401e6 | done |
+| 2026-11-12 | code-reviewer | opus/medium | recolor 3e34967 | approve with nits (1 should-fix, 3 nits) |
+| 2026-11-12 | qa-engineer | opus/high | delta 7823d5b (ADR 0006 guards) | PASS (1 minor shrink/kept-meeting-item-drift, Nov 18) |
+| 2026-11-12 | security-engineer | opus/high | daily-update.yml delta 7823d5b | approve (2 low, Nov 18) |
+| 2026-11-12 | code-reviewer | opus/high | qafix dc32de8..1381e5a, delta 7823d5b | request changes (1 must-fix shrink/) -> approve |
+| 2026-11-12 | backend-engineer | opus/high | ADR 0006 guards 1381e5a, fixes 7823d5b | done |
+| 2026-11-12 | software-architect | opus/high | ADR 0006 daily refresh data guards | done |
+| 2026-11-12 | qa-engineer | opus/high | full QA a605d25 | FAIL (2 major pipeline, 5 minor; site 10/10) -> fixed via ADR 0006 |
+| 2026-11-10 | manager | - | full suite + site_checks on cf9ef18 (new container; store not present, built from committed data) | 1929 pass, 5 skip; site_checks PASS (pages target) |
+| 2026-11-10 | code-reviewer | opus/high | fresh review RPC M2 0927bfe | request changes: verified-gate/unread-dissent-confirmed, attribution/missed-heading-merges-cases (must); 3 should-fix, 2 nits |
+| 2026-11-10 | software-architect | opus/high | RPC motion invariant (loop rule) | done, c98e53e docs/architecture/rpc-motion-invariant.md |
+| 2026-11-10 | code-reviewer | opus/medium | county agendas 7e54c2e | approve with nits (2 should-fix, 4 nits) |
+| 2026-11-10 | security-engineer | opus/high | county agendas 7e54c2e + workflow | pass with conditions (3 low) |
+| 2026-11-10 | backend-engineer | opus/medium | county agenda review fixes | done, 18bb9ee: 1934 pass |
+| 2026-11-10 | code-reviewer / security-engineer | opus (resumed) | delta re-reviews 18bb9ee | approve with nits / PASS; merged cab905c |
+| 2026-11-10 | frontend-engineer | sonnet/medium | days/scheduled-agenda-link, days/coverage-count + review nits | done, c529f60: 1931 pass; review approve with nits (sonnet), nits fixed; merged |
+| 2026-11-10 | software-architect | opus/medium | morning note M3 design + tasks | done, b96fc8b |
+| 2026-11-10 | backend-engineer | sonnet/medium | morning note T2 feeds | done, 01640a5: 1934 pass |
+| 2026-11-10 | code-reviewer | opus/high | morning T1 6aeb85a (fresh) + delta 0deb62c | request changes (2 must-fix: morning-digest/vote-meeting-date, preview-export-links); delta approve with nits |
+| 2026-11-10 | backend-engineer | opus/high | T1 review fixes | done, 0deb62c: 1059 pass |
+| 2026-11-10 | code-reviewer | opus/high | morning T3+T2 0a7723d (fresh) + delta 2b4796b | request changes (feeds/rezoning-keeps-every-body + 3 merge must-fix); delta approve with nits |
+| 2026-11-10 | backend-engineer | opus/high | merge T1+T3, T3 review fixes | done, 2b4796b: 2039 pass; site_checks pages + preview PASS |
+| 2026-11-10 | code-reviewer | opus/high | RPC fix 5769870 (fresh, family 3rd hit) + delta cf7a0ef | request changes (rpc-motion/c3-stale-record, c3-vote-words); delta approve with nits |
+| 2026-11-10 | backend-engineer | opus/xhigh | RPC fix round 2 (escalated) | done, cf7a0ef: 2023 pass; 0 of 1307 shown confirmed until rebuild; merged ed4b997 |
+| 2026-11-10 | security-engineer | opus/high | morning note 2b4796b | pass with conditions (1 medium, enabled-state only); merged fa9e9b0 |
+| 2026-11-10 | devops-engineer | sonnet/medium | domain -> daylight.gnoshcodes.com (Brian 1:42 AM CT) | done, 335bce1; gnoshcodes-site 83e04d6; merged 3132311 |
+| 2026-11-10 | backend-engineer | fable | verify merged tip fa9e9b0 + security follow-ups | fa9e9b0: 2133 pass, both site_checks PASS; fixes 1d638db (2224 pass), security delta pending |
+| 2026-11-10 | backend-engineer | fable | RPC store refetch + rebuild | running |
+| 2026-11-11 | qa-engineer | opus/high | RPC votes sample vs minutes | FAIL 77/78 (rpc-votes) |
+| 2026-11-11 | devops-engineer | opus/high | RPC daily collector + pipeline (ccdc5db..727a0ed) | 3117 pass; merged c0c4813 |
+| 2026-11-11 | security-engineer | opus/high | RPC pipeline | APPROVE, 4 low (fixed) |
+| 2026-11-11 | backend-engineer | opus/high | small batch + Watch links (fa693e0..40d5fd7) | 3050 pass; merged 370f048 |
+| 2026-11-11 | code-reviewer | opus/high | small batch | APPROVE WITH NITS (4, fixed) |
+| 2026-11-11 | code-reviewer | opus/high | RPC pipeline + delta | APPROVE WITH NITS (2 should-fix, then 3 CI nits; fixed) |
+| 2026-11-11 | backend-engineer | opus/high | RPC votes rounds 1-4 (bb7c6d1..24422eb) | 564 confirmed, 62/62 mutants; delta review pending |
+| 2026-11-11 | software-architect | opus/high | rpc-votes re-plan, rule 10 (255f0ae) | done; 21 consumers listed |
+| 2026-11-11 | code-reviewer | opus/high | rpc-votes / rule 10 | REQUEST CHANGES x2 (re-plan failure count 1) |
+| 2026-11-11 | qa-engineer | opus/high | RPC votes rounds 2-3 | FAIL (2 abstentions), then PASS at d76f361 |
+| 2026-11-11 | backend-engineer | opus/high | sender-live T4.4 (7ec1774..522eaed) | 3174 pass; merged 8db84cc |
+| 2026-11-11 | security-engineer | opus/high | sender T4.8 + delta a13b1b0 | APPROVE (1 medium 3 low fixed) |
+| 2026-11-11 | code-reviewer | opus/high | sender-live | APPROVE WITH NITS (fixed 522eaed) |
+| 2026-11-11 | devops-engineer | opus/high | T4.5 note workflow + T4.7 runbook (4421741) | 3369 pass; review pending |
+| 2026-11-07 | product-manager | sonnet/medium | spec v1 | done, 23ad7c5 |
+| 2026-11-07 | brain-trust x6 | opus/high (api) | spec review | 5 Fix First, 1 Rethink; ~$0.37 |
+| 2026-11-07 | backend-engineer | opus/high | M0 parse spike | done, a9e1262: 95.8% Verified (138/144), 0 wrong of 380 hand-labelled votes |
+| 2026-11-07 | software-architect | opus/high | M1 design, ADR 0001, tasks, schema | done, 2db2bde |
+| 2026-11-07 | frontend-engineer | sonnet/high | F1-F5 site generator | done, 157e789 |
+| 2026-11-07 | backend-engineer | opus/high | B1-B4 collector | done, b956334 (full corpus blocked by dev2 403) |
+| 2026-11-07 | deep-researcher | sonnet/medium | find 2025-26 county + post-2024 city minutes | found prod clerk page + CivicClerk |
+| 2026-11-07 | qa-engineer | sonnet/high | test plan + spot-check + site checks | done, 2a377d3 |
+| 2026-11-07 | backend-engineer | opus/high | prod discovery, 2022-26 corpus, review fixes | done, e80ec75: 64 meetings, 336/413 verified |
+| 2026-11-07 | code-reviewer | opus/high | fresh review e80ec75 | request changes: consent reprints not fixed (2nd item-history hit) |
+| 2026-11-07 | software-architect | opus/high | one-vote invariant + fix (loop rule) | running |
+| 2026-11-07 | qa-engineer | sonnet/high | final QA + spot check on 5b09728 | FAIL: 19/20 (OCR name in motion text), consent dupes, 81.4% verified |
+| 2026-11-07 | frontend-engineer | sonnet/high | hide unverified motion text + raw outcome text | running |
+| 2026-11-07 | code-reviewer | opus/high | review collector | request changes: 4 must-fix, 4 should-fix |
+| 2026-11-07 | code-reviewer | opus/medium | review F1-F5 | request changes: 1 high, 2 medium, 4 low, 1 nit |
+| 2026-11-07 | frontend-engineer | opus/high (stepped up) | fix review findings | done, 98c98c0 |
+| 2026-11-07 | code-reviewer | opus/medium | delta re-review | request changes: neutrality 2nd hit, about page copy |
+| 2026-11-07 | software-architect | opus/high | held-count invariant + fix (loop rule) | done, a8154fa |
+| 2026-11-07 | code-reviewer | opus/medium | delta re-review x2 | approve (1 low passed to backend: g4-blind-to-uniform) |
+| 2026-11-07 | code-reviewer | opus/high | delta re-review of consent fix 92213e8 | approve; nit: identical same-mover reconsideration would merge (no live case) |
+| 2026-11-07 | frontend-engineer | sonnet/medium | verified motions show type + resolved Moved/Seconded names (0719820) | done, 262 tests pass |
+| 2026-11-07 | code-reviewer | sonnet/medium | review 0719820 | request changes: leak-path/data-downloads, leak-path/raw-name-fallback, partial attribution, tests |
+| 2026-11-07 | code-reviewer | sonnet/medium | delta re-review of leak fixes 07f990e | request changes: raw-ocr-leak/vote-raw-value |
+| 2026-11-07 | ux-designer | opus/medium | visual refresh spec | done, docs/design/visual-refresh.md |
+| 2026-11-07 | frontend-engineer | opus/high | unconfirmed votes shown with asterisk + invariant rewrite (a991a10) | done, 270 pass |
+| 2026-11-07 | code-reviewer | opus/high | review a991a10 | request changes: 1 must-fix raw-ocr-leak/verification-detail; neutrality/held-count (3rd hit, attribution rule 6: decided unconfirmed motions never show names); raw-ocr-leak/qa-outcome-benign |
+| 2026-11-07 | frontend-engineer | sonnet/high | visual refresh build (ca700ea) | done, 276 pass |
+| 2026-11-07 | brain-trust x6 | opus/high (api) | round 2, corrected operator facts | 6 Fix First; unanimous: unconfirmed rows show no vote value (CEO card open) |
+| 2026-11-07 | backend-engineer | opus/high | fix a991a10 findings + link-only switch (07be770) | done, 299 pass |
+| 2026-11-07 | frontend-engineer | sonnet/low | not-confirmed chip style (95e1235) | done |
+| 2026-11-07 | code-reviewer | opus/high | delta re-review 16ee1fc | approve with nits (doc drift fixed) |
+| 2026-11-07 | qa-engineer | sonnet/medium | M1 QA at 95e1235 | FAIL on AC-P1 only (82.3%); spot check 20/20; key parse-accuracy/verified-rate |
+
+| 2026-11-07 | backend-engineer | opus/high | raise verified rate | done, 345d497: 362/390 verified (92.8%), AC-P1 passes, 315 tests pass |
+| 2026-11-07 | deep-researcher | sonnet/medium | district/ward map data | done, docs/research/district-ward-map-data.md (GIS hosts blocked by egress; used county vector PDFs) |
+| 2026-11-07 | ux-designer | opus/medium | landing map, drawer, search, current/former officials | done, a85e0e6 docs/design/landing-search-nav.md |
+| 2026-11-08 | code-reviewer | opus/high | review efbf38f..345d497 | request changes: 1 must-fix parse-accuracy/combine-ignores-unclean-dissent; should-fix outcome-crosses-clause, neutrality/derived-count-shown-as-stated; nit two-thirds |
+| 2026-11-08 | backend-engineer | opus/high | fix review findings | done, 50b4bbf/0464107: 361/390 (92.6%), 327 pass |
+| 2026-11-08 | code-reviewer | opus/high | delta re-review 0464107 | approve |
+| 2026-11-08 | frontend-engineer | opus/medium | landing, drawer, officials, search, footer | done, 864b7e1: 412 pass; gaps: votes[].district, pre-2026 CZ titles lack applicant names |
+| 2026-11-08 | code-reviewer | opus/high | review landing/search/seats at a552cd4 | request changes: must-fix provenance/derived-seat-dates-shown-as-term; should-fix qa-weakened/ext-link-any-host, qa-tool/layout-counts-year-tables (pre-existing), locality/hard-coded-text; 4 nits |
+| 2026-11-08 | qa-engineer | sonnet/medium | QA landing/search/seats + spot-check newly verified | FAIL: landing/one-screen, attribution/seat-label-missing-former, attribution/seat-label-missing-meeting-history; AC-P1 361/390 PASS; spot-check 10/10 |
+| 2026-11-08 | backend-engineer | opus/medium | rezoning applicant/location fields + search | done, e4dadf3: 74/88 CZ items have applicant or location, 431 pass |
+| 2026-11-08 | software-architect | opus/high | provenance invariant + consumer list (loop rule) | done, 2c9dba6 |
+| 2026-11-08 | backend-engineer | opus/medium | provenance B1-B3, seats.csv, seating page | done, 430c090/6e6c968: lines_effective stated (2022-08-30 oath date, 2022-09-12 minutes p37); 424 pass |
+| 2026-11-08 | frontend-engineer | opus/medium | provenance F1-F6 + review/QA fixes + zoning on item pages | done, dd63506: 474 pass, site_checks all PASS, landing 667/667 phone, 800/800 desktop |
+| 2026-11-08 | backend-engineer | opus/medium | (mis-resumed finished map-seats agent) | waste:duplicate |
+| 2026-11-08 | code-reviewer | sonnet/medium | review rezoning fields | request changes: parse-accuracy/single-engine-misread-agrees, malformed-dissent-dropped; 3 nits |
+| 2026-11-08 | software-architect | opus/medium | independent-readings invariant (loop rule, parse-accuracy 2nd hit) | done, e9c7502 |
+| 2026-11-08 | backend-engineer | opus/high | independent-readings fixes + acreage printed + open-run check | done, ddf84e2..475bb60: verified 351/390 (0.900, gate passes, no headroom), zoning fields 289->218, 0 vote values changed, 458 pass |
+| 2026-11-08 | frontend-engineer | sonnet/medium | merge readings fix, render acreage.printed, officials headings | done, 3471566: 487 pass, site_checks PASS |
+| 2026-11-08 | code-reviewer | opus/high | fresh review d251fcb (readings + acreage) | request changes: must-fix parse-accuracy/reprint-dissent-unchecked (rate to 0.890), provenance/acreage-printed-uncorroborated; should-fix tests-miss-new-dissent, registry-walk-skips-dicts; nit a11y |
+| 2026-11-08 | backend-engineer | opus/high | reprint dissent + acreage fixes, then headroom by better readings | done, b2d0d0f..42d763e: 347/390 after fixes, 354/390 (0.908) after headroom; 0 verified values changed; 26-2-6 p138 = 2 real roll calls; 0 titles fixed (glue not seen by both engines); 499 pass |
+| 2026-11-08 | code-reviewer | opus/high | delta re-review of 42d763e | approve with nits: glyph-scope, narrow-pattern-drops-veto, schema-printed-null |
+| 2026-11-08 | backend-engineer | opus/medium | 3 review nits | done, 98e6b21: 354/390 kept, 502 pass |
+| 2026-11-08 | qa-engineer | sonnet/medium | verify b983bfb | PASS: 508 pass, site_checks PASS all (44,100 name links, row-height 4 widths); process/offline-build-clobbers-facts (low) |
+| 2026-11-08 | code-reviewer | opus/high | fresh review frontend pass + nits at b983bfb | request changes: must-fix provenance/vote-on-rule-unpublished, parse-accuracy/narrow-pattern-drops-veto (staff pattern, repeat); nit suffix-swallows-range; should-fix neutrality/unconfirmed-vote-on-untested, perf/clamp-layout-thrash |
+| 2026-11-08 | backend-engineer | opus/high | review fixes at b983bfb (all acreage patterns listed first) | done, 24dfba7..ccf6f95: label-bounded values rule + consumer list; 13 zoning fields published, 5 vetoed; 560 pass; 354/390 |
+| 2026-11-08 | code-reviewer | opus/high | fresh review c2dda39..ccf6f95 | approve with nits: should-fix parse-accuracy/suffix-swallows-unit (latent, no data) |
+| 2026-11-08 | backend-engineer | opus/high | suffix must hold a sign mark | done, 8e5fe69: 564 pass, no data change |
+| 2026-11-08 | code-reviewer | opus/high | delta re-review 8e5fe69 | approve; latent nit: hyphenated unit word ("sq-ft") still a suffix |
+| 2026-11-08 | frontend-engineer | sonnet/medium | name links site-wide + table row heights + not-confirmed chip + vote-on label | done, 8a50f58: 44,100 name links checked; row-height check at 4 widths; final full suite and site_checks not re-run after last tweak |
+| 2026-11-08 | code-reviewer | opus/high | delta re-review of landing fixes | approve with nits: a11y-headings/officials-sections; provenance/acreage-not-as-printed (3rd provenance hit, fresh review next); provenance/open-run-latest-mismatch (latent) |
+| 2026-11-08 | qa-engineer | sonnet/medium | re-test landing bugs | PASS all; site_checks PASS incl. layout, provenance |
+| 2026-11-09 | frontend-engineer | opus/medium | address-first landing + remember seats on device | done, de57078: 1615 pass, site_checks PASS |
+| 2026-11-09 | code-reviewer | sonnet/medium | review 58d7db1 landing | approve with nits (4: your-seats/*) |
+| 2026-11-09 | frontend-engineer | sonnet/medium | fix your-seats nits | done, 58f12a1: 35 pass, site_checks PASS |
+| 2026-11-09 | backend-engineer | sonnet/medium | RPC + CMCSS source survey | done: RPC open 2022-2026; CMCSS Cloudflare-blocked |
+| 2026-11-09 | backend-engineer | sonnet/medium | ward boundary source survey | done: RPC poster PDF usable; APSU needs permission |
+| 2026-11-09 | frontend-engineer | opus/high | Daylight M1 look + landing | done, 969be7e: 1640 pass, site_checks PASS |
+| 2026-11-09 | code-reviewer | opus/medium | review b4d0fa9 Daylight M1 | approve with nits (daylight/*: 3 should-fix, 3 nits) |
+| 2026-11-09 | frontend-engineer | sonnet/medium | fix daylight/* findings | done, f2e08c2: 72 pass, site_checks PASS |
+| 2026-11-09 | backend-engineer | opus/high | city ward lookup from RPC poster | done, d9af8dc: 1775 pass |
+| 2026-11-09 | code-reviewer | opus/medium | review d9af8dc wards | approve with nits (wards/*: 3 should-fix, 2 nits, reuse-permission escalated to go-live gate) |
+| 2026-11-09 | backend-engineer | sonnet/medium | fix wards/* | done, 611c5b4: 325 pass, site_checks PASS |
+| 2026-11-09 | backend-engineer | opus/medium | RPC M1 collector + pages | done, 8b4d521: 1649 pass, 97 meetings, 168 docs |
+| 2026-11-09 | code-reviewer | opus/medium | review 8b4d521 RPC | request changes (rpc/case-dropped-silently must-fix) |
+| 2026-11-09 | backend-engineer | opus/high | fix rpc/* | done, c574381: 1856 pass, 1285 cases, 0 shortfalls |
+| 2026-11-09 | code-reviewer | opus/medium | delta re-review c574381 | approve with nits (rpc/completeness-scope, rpc/watermark-overmatch -> RPC M2) |
+| 2026-11-09 | frontend-engineer | opus/high | Daylight M2 today.html | done, 40facde: 1881 pass |
+| 2026-11-09 | code-reviewer | opus/medium | review 40facde days | request changes (days/scheduled-past-or-moved must-fix) |
+| 2026-11-09 | backend-engineer | sonnet/medium | county recency research | done: county posting lag; no agenda adapter |
+| 2026-11-09 | frontend-engineer | sonnet/medium | fix days/* | done, 2379c01: 19 pass |
+| 2026-11-09 | code-reviewer | opus/medium | delta re-review 2379c01 | approve with nits (days/scheduled-agenda-link should-fix, days/coverage-count) |
+| 2026-11-09 | backend-engineer | opus/high | RPC M2 minutes OCR, motions, CZ links, CDRB OCR | done, 0927bfe: 1894 pass, 10/10 spot check; review pending |
+| 2026-11-09 | backend-engineer | opus/medium | county agenda adapter + day cards + 4 minutes refetch | done, 7e54c2e: 1897 pass; review + security (workflow touched) pending |
+| 2026-11-08 | frontend-engineer | sonnet/medium | GoVoteTN lookup line | done, 1d2fe84; review approve with 3 nits |
+| 2026-11-08 | backend-engineer | opus/high | georeference district map (pin M1) | done, 187d5a4: 575 pass, held-out max 4.5 m |
+| 2026-11-08 | frontend-engineer | opus/medium | address pin M2 (box, georef.js, Census JSONP) | done, b470a4f: 614 pass, site_checks PASS; live geocoder untested (blocked here) |
+| 2026-11-08 | code-reviewer | opus/high | address pin 1a54ff0..8233541 | request changes: addr-pin/ambiguous-match, addr-pin/privacy-copy-not-config (medium); n6/jsonp-is-third-party-script, live-endpoint-unverified, geocoder-margin-judgment (low) |
+| 2026-11-08 | security-engineer | opus/high | address lookup 187d5a4..8233541 | pass with conditions: third-party-script/jsonp-runs-in-origin (medium, public gate), no-csp, privacy/promise-incomplete, privacy/preview-csp-report, qa-guard/addr-config-silent-miss (low) |
+| 2026-11-08 | frontend-engineer | opus/high | address pin review + security fixes (sandboxed iframe, CSP, ambiguity) | done, 468e27b: 636 pass, site_checks PASS both builds |
+| 2026-11-08 | security-engineer | opus/high | fresh re-review 8233541..5fc4e82 | PASS; gate jsonp-runs-in-origin cleared (Chromium); low: srcdoc-csp-safari-unverified, frame-src-guard-unpinned, hostile-answer-freezes-tab (accept, document), dead-code |
+| 2026-11-08 | code-reviewer (API agent.py) | opus/medium | delta re-review of address pin fixes | approve ($0.35; pytest not runnable in the API sandbox, node checks 8/8); nit: 20-match boundary untested |
+| 2026-11-08 | backend-engineer | opus/medium | map from county PDFs + seats.yml | done, 014b52b: 21 districts traced (19/20 swap verified), 49 seat records, 0 seat-check problems; wards unavailable (raster); 333 pass |
+
+## Decisions
+- 2026-11-12 (Brian, 5:34 AM CT, card): Daylight uses the gnoshcodes navy #0F1F3D + orange #D2561B (switch, not keep). Done, on preview.
+- 2026-11-12 (manager): PR #1 is SQUASH-merged so raw transcript text in branch history never reaches `main`. Accepted residual: raw text stays in the history of public claude/* branches and gh-pages (rewriting it is hard stop 2); recorded with security (reviews security-privacy-fresh-99ee4ff).
+- 2026-11-12 (manager): accepted residuals from security/QA lows go to the Nov 18 batch (ADR 0006 list): shrink/kept-meeting-item-drift, workflow/notify-step-ungated-ref, workflow/exit-precedence-comment, brand/old-logo-in-design-mocks (docs only), brand/check-coverage/decimal-hsl (comment notes the gap).
+- 2026-11-10 (Brian, 1:42 AM CT): site address is daylight.gnoshcodes.com. 3:10 AM CT: Buttondown is the morning-note sender; account, DNS and payment are his steps at go-live. 2:26 AM CT: run workers on Fable.
+- 2026-11-10 (manager): topic-rezoning.xml keeps one URL with a per-body cap. RPC pages show 0 confirmed motions until rpc.json is rebuilt with the motion_rules marker.
+- 2026-11-09 (manager): **Preview file cap.** The claude.ai artifact preview is capped at 500 files, and the real build is now at 500 after dropping its transcript page. From now on the review surface is the gh-pages preview (pages target, cap 3000), not the artifact. The artifact preview, if still used, may leave out sections. Reason: Daylight, RPC and wards each add files; the artifact limit can't grow.
+- 2026-11-09 (manager): **Go-live gate.** Before public launch, ask the RPC for written OK to reuse geometry traced from its ward poster and from the county district map. This is outreach (hard stop 4), so it goes in the go-live batch. The internal preview is fine meanwhile.
+- 2026-11-09 (manager): **Daylight name.** The trademark and domain check goes in the go-live batch.
+- 2026-11-07 G1: footer line on every page + About page naming the operator (CEO, card).
+
+## Blockers (2026-11-10)
+- RPC rebuild: cmcrpc.com answered 429 after 51 of 168 files on the refetch into this container's store (05:50Z). Obeying it; retry scheduled 07:25Z, then back off. rpc.json is not rebuilt until the store is complete.
+- Transcripts: results are on Brian's PC; this thread needs Brian's device link to fetch them.
+- Follow-up nits: politeness/daily-full-pdf-recheck (HEAD instead of GET), idempotence/kind-mismatch-double-card, private fetch._host_matches import.
 
 ## Problem keys
-(none)
+| Family | Hits | Keys |
+|---|---|---|
+| neutrality | 3 (review, delta, review 11-08): architect states invariant | held-count-by-resolved-id, under-review-mislabelled, derived-count-shown-as-stated |
+| verified-gate | 2 (review, QA motion-text-names): manager decision, show motion type only when unverified | motion-over-hidden |
+| escape | 1 (review) | unsafe-url-scheme |
+| contract | 1 (review) | no-referential-check |
+| attribution | 1 (review) | motion-ignores-context, item-link-unchecked, name-pairing-no-margin, one-entry-per-official |
+| item-history | 2 (review x2): architect states invariant | consent-reprint-duplicates, consent-pulled |
+| politeness | 1 (review) | redirect-bypass |
+| idempotence | 1 (review) | superseded-source |
+| provenance | 4 (review 11-08 x2, delta, fresh b983bfb): invariant stated (2c9dba6); fresh review on next fix | derived-count-shown-as-stated, derived-seat-dates-shown-as-term, acreage-not-as-printed, open-run-latest-mismatch, vote-on-rule-unpublished |
+| parse-accuracy | 3 (review 11-08, rezoning review, fresh review d251fcb): invariant stated e9c7502; implementation miss #2 of the re-plan at b983bfb (sibling staff-acreage pattern left out of the consumer list): every pattern consumer must now be listed before the fix; FYI to Brian, no ask | narrow-pattern-drops-veto, suffix-swallows-range, verified-rate, combine-ignores-unclean-dissent, outcome-crosses-clause, two-thirds-majority |
+
+## Skipped panels
+- Architect recommended a 3-member Brain Trust on the facts schema and id scheme; skipped for today's preview (private, data regenerated from source each run, so the schema is cheap to change before public launch). Revisit at M1.5.
+- M0 note: first index request got a 403 from the sandbox egress proxy (allowlist not yet live), not from the county; the engineer retried once. Fetcher must tell proxy CONNECT refusals apart from server 403s (B1).
+- Private preview artifact: https://claude.ai/artifact/QkxSRXNSMiWXpHUoLj8ynj (v1 draft with 11 meetings, published from build/publish/index.html + build/site files; republish same path).
+
+## Decisions (Brian, 2026-11-07 3:54 PM ET)
+- Unverified roll calls are no longer held back. They are shown with an asterisk, "not confirmed", and a link to the exact PDF page. Totals split confirmed and unconfirmed. Unmatched names are never guessed. Supersedes the hold-back display rule (P2 still decides "confirmed"); G4 skew check still reported.
+
+- Brian 2026-11-07 4:47 PM ET: unconfirmed roll calls show NO vote value, link only (card). SHOW_UNCONFIRMED_VALUES stays False.
+
+- 2026-11-07 ~5:25 PM ET: preview republished (version 2) at https://claude.ai/artifact/QkxSRXNSMiWXpHUoLj8ynj: visual refresh, 64 meetings 2020-02-10 to 2026-05-11, link-only unconfirmed roll calls, public data export. QA at 95e1235: 20/20 spot check, site checks pass, CEO decision holds; FAIL only on AC-P1 (82.3% verified < 90%), which gates public launch, not the private preview. Next: raise verified rate (backend; start with outcome_consistent failures, e.g. rc-09962951-p101-1), then M1.5.
+
+## Next after votes (Brian, 2026-11-07 5:32 PM ET)
+Once votes and voting records are done: finance. Revenue and expenditures, who got contracts and for how much, capital projects, and links to every related city and county document. Goal in his words: give residents "every opportunity" to dig in themselves. The site stays neutral: data, totals, source links and open downloads, never accusations. This is M2 (budgets/finance) + M3 (contracts) + capital projects; product-manager to fold it into the spec when M2 starts. Known gap: county minutes don't name vendors; award sources (Bonfire, purchasing archive, budget books, comptroller audits) still to verify.
+
+## Design constraint (Brian, 2026-11-07 5:38 PM ET)
+Keep in mind while coding: a possible future free app where anyone enters a ZIP code and gets the same (or configurable) information for their locality. Do NOTHING toward it now; just avoid hard-coding Clarksville/Montgomery assumptions where a config value or per-source adapter costs the same (body names, rosters, URLs, branding text in config, sources as adapters). Reviewers flag new hard-coding.
+- 2026-11-07 ~5:40 PM ET: preview v3 published (dropdown menus, collapsed years, Esc/outside-click close). UX pass reviewed (approve after delta).
+
+## UX direction (Brian, 2026-11-07 5:54-6:00 PM ET)
+- Landing is one screen: a map of the county commission districts and city wards. Clicking a seat shows everyone who held it and how they voted.
+- Search must have filters, because people will search for rezoning applicants.
+- The menu reserves space for Finance and Capital projects. A finance-over-time chart explorer (county against city and other counties) comes later.
+- The main menu is a top-left navigation drawer.
+- Current members are shown apart from former ones, and every name carries a seat label (District N, Ward N, Mayor).
+- Footer reads "Provided as a free service by Brian Zacharias." The Buy Me a Coffee link stays in config and is empty until Brian sends his page URL. The ethics check (G6) runs before the link goes public, because he sits on Council until January.
+- Manager decisions on the design questions: Q3 uses a first-party JSON search index (no Pagefind yet, to keep under the file budget). Q6 amends N6 to allow first-party static scripts. Q10 orders current officials by seat number. Q9 skips the focus group while the site is private.
+- Map source: the GIS hosts are blocked by the sandbox egress, and the allowlist prompt failed twice and was dropped. Boundaries are extracted from the county's own vector redistricting PDFs on mcgtn.org.
+- 2026-11-08: the county district map is traced from the county's own vector PDF (Redistricting20211018.pdf), with numbers 19 and 20 swapped per the 2021-11-08 amendment. The swap was verified against the 2026 roster and the per-district maps. City wards are unavailable: the city PDF is raster. The fallback is the APSU layer once that host is allowed.
+- Open parser finding (item-history family, 3rd hit): the 2024-09-09 minutes on p50 reprint the 2020 roll call for item 20-9-14 as an exhibit. It is filed as a 2024 unverified roll call. The architect must restate the invariant before the fix (loop rule). Seat derivation uses verified roll calls only, so seats are unaffected.
+- Backlog (from frontend, 2026-11-08): rezoning items (CZ-) before 2026 carry only the case number as their title, so searching by applicant name finds only the newer ones. backend-engineer to pull applicant and street from the item text. This is the owner's named search use case.
+- 2026-11-08 manager decisions: a name on a date with no roster record is labelled "seat not recorded". Seats are published as seats.csv. Zoning codes are not glyph-corrected (misread codes stay null).
+- Open parser finding (item-history family): the 2024-09-09 minutes on p50 reprint a 2020 roll call as an exhibit, and it is filed as a 2024 unverified roll call. The architect must restate the invariant before the fix.
+- 2026-11-08: the independent-readings rule took verified roll calls to 351/390, exactly 90.0%. It passes AC-P1 with no headroom. Manager decisions: a lone "-" beside a vote stays non-malformed, because the invariant does not list it (counting it would give 0.846). The reprint gap is queued for the architect: a printing held only because of its tesseract reading does not veto a reprint of the same table.
+- Next to win back headroom: the mid-row district-token misread (rc-84fcd6d8-p70-0) and the tesseract-garbled stated tallies (6 roll calls).
+- 2026-11-08 ~9:50 PM ET: preview v4 published at https://claude.ai/artifact/QkxSRXNSMiWXpHUoLj8ynj (map landing, drawer, seats, search, rezoning fields, public build, review.html removed). It was built from data/facts.json at d251fcb with sitegen plus collector.export; the publish recipe is build/publish/index.html (head/body stripped) plus a files map of build/site/*.
+- 2026-11-08 manager decision: apply the independent-readings rule fully, including dissent from reprints, even though the verified rate drops to about 0.890, below the AC-P1 gate. The gate only blocks going public, not the private preview. Headroom is to be won back only by more correct readings, never by relaxing checks.
+- Queued for the architect: a rule for glued title words ("ofthe"; 61 titles). Neither engine sees the break, so the shown-form rule can't fix it. Also queued: whether derived coverage.from/to may use "from/to" wording.
+- Queued (Brian, 2026-11-07 10:48 PM ET): address search that drops a pin on the map and names the district. Plan: Census geocoder client-side with a privacy note, plus georeferencing the PDF-space map with control points. Starts after the table fixes.
+
+- 2026-11-08 ~late evening ET: preview v5 published at https://claude.ai/artifact/QkxSRXNSMiWXpHUoLj8ynj from 8e5fe69 (name links everywhere, compact tables with Show more, Vote on label explained on About, stricter acreage reading). site_checks PASS (159 files). Queued: GoVoteTN link, address pin (Census JSONP + georeferenced map, docs/research/address-lookup.md), latent nit suffix-swallows-unit (hyphenated unit words).
+- 2026-11-08: GoVoteTN lookup line merged (1d2fe84, review approve with nits: config-comment/orphaned-support-note, landing-config/hardcoded-link-text, test-adequacy/qa-allowlist-untested) and published as preview v6 (index only). Link sits above the fold at 375x667 and 1280x800 (manager check). Address pin M1: backend-engineer georeferencing the district map (opus/high).
+- 2026-11-08: address pin M1 merged (187d5a4): State Plane + affine fit, 7 county-corner control points from USGS National Map TIGER (Census hosts blocked by sandbox proxy), held-out max 4.5 m, boundary_margin_m 100. Unverified: Census geocoder accuracy/JSONP (unreachable here); artifact preview likely blocks census.gov script, so the pin must degrade to the GoVoteTN link there. M2 (UI + JS port) with frontend-engineer (opus/medium).
+- Public-launch gates added 2026-11-08: (a) JSONP isolated in an opaque-origin sandboxed iframe plus a meta CSP, re-checked by a fresh security review at opus/high; (b) decide the public hosting origin (not a shared github.io origin with other gn0sh sites); (c) one live Census lookup checked on a device once the site is hosted outside the claude.ai preview. The preview is built with no address box (the preview sandbox blocks census.gov), so it shows only the GoVoteTN line.
+- 2026-11-08 1:25 AM ET pacing (coordinator): one subagent at a time; self-contained work (QA re-checks, tests, docs, non-security reviews) goes through gnoshcodes scripts/api/agent.py (Sonnet for routine). Security reviews stay in-session.
+- 2026-11-08 ~2:30 AM ET: preview v7 published from 5fc4e82, built with `sitegen --no-geocoder` (no address box; GoVoteTN line only) and CSP meta stripped from the preview copy (build/preview) because the claude.ai host has its own sandbox; site_checks PASS on build/site first. Queued (low): frame-src-guard-unpinned + dead-code (backend), hostile-answer-freezes-tab note (docs), 20-match test, suffix-swallows-unit hyphen nit, srcdoc-csp-safari-unverified (with gate c). agent.py needs bubblewrap + socat (installed with apt this session).
+- 2026-11-08 ~1:45 PM ET: low follow-ups merged (0e0ece9; API agent.py sonnet, $0.15; 164 targeted tests pass; offline run in the backend worktree leaves facts.json unchanged at 354/390). API month to date $161 of $170, so the next worker tasks run in-session.
+- HANDOVER (thread near the 250K context limit): the votes milestone, landing UX and address pin are done and reviewed. Preview v7 is at https://claude.ai/artifact/QkxSRXNSMiWXpHUoLj8ynj; the publish recipe is `sitegen --no-geocoder`, then export, then copy build/site to build/preview with the CSP meta stripped, then build/publish/index.html (head/body stripped) plus the files map. Next phase: finance and contracts (M2/M3: revenue and expenditure, contract awardees and amounts, capital projects, links to every source document; neutral). Still queued: architect rulings (glued title words, coverage.from/to wording, item-history exhibit reprint), M1.5 correction intake plus security review, and public-launch gates (G6 ethics check, hosting origin, a live Census check on a device including Safari CSP, AC-P1 already passes). City wards are still blocked (raster PDF only).
+
+## Finance and contracts phase (thread "Add finance and contracts to records site", started 2026-11-08)
+- Sources verified 2026-11-08 (platform-facts, last section): two budget books with text tables; purchasing archive table of 91 solicitations (2025-2026), 32 text bid tabs, award letters are scans; Bonfire robots disallows all (link only).
+- Spec docs/specs/finance-contracts.md (774a31e). Brain Trust (3, sonnet) docs/reviews/brain-trust-finance-contracts.md changed the plan: slice 1a "Bids and awards" with values only from text bid tabs (no OCR values), slice 1b budget books + capital fund; no cross-solicitation or county-wide sums.
+- Now: software-architect (opus/high) and ux-designer (sonnet/medium) in parallel. API credits nearly spent, so workers run in-session.
+- Run ledger: 2026-11-08 product-manager sonnet/medium spec v1 + BT fold-in: done | brain-trust x3 sonnet/medium: devil, resident, finance; all critical, plan changed (see table).
+- 2026-11-08 evening: architecture (ADR 0002, tasks F0-F15) and design merged; F0 schema+fixture, F1-F5c collector (live fetch, polite, no blocks: 90 archive rows, 295 documents, 53 scanned), F6-F7 Bids and awards pages merged (257faf5, 886 tests pass). Only 5 of 56 bid tabs read as lump-sum; widening now. Slice 1b budget reader running in parallel.
+- Fixed in passing: tests/test_address_box.py referenced ADDR_CONFIG removed in 0e0ece9 (2 failing tests since the last thread); fixed in 7dd4c82.
+- Queued for frontend after widening: coverage sentence must use the live scan count (28 of 70 award letters have text); cite bid/award dates (schema page field); held-path indexing; raise MAX_FILES (91 contract pages); confirm new fixed wording in config/finance_text.yml with design.
+- Run ledger: architect opus/high design: done (subtotal rounding finding: 410 exact, 99 within $1-4, 6 off) | ux sonnet/medium design: done | backend opus/medium F0: done | frontend opus/medium F6-F7: done, 33 tests | backend opus/high F1-F5c: done, 12 commits, +1324 source lines (over the 900 estimate).
+- 2026-11-08 4:26 PM ET pacing (usage thread): weekly usage 91%; ONE subagent at a time from now. Two were already running (frontend fixes, 1b delta re-review); no new spawns until both finish.
+- Review reports 1a and 1b (opus/high): REQUEST CHANGES; all backend findings fixed in f0b7bdb (1b: p103 scope-class fix; FY2025 kind override recorded in ADR 0002). AC-F4 award-letter agreement deferred to slice 1a.2 (manager decision).
+- 2026-11-08: slice 1a delta re-review APPROVE WITH NITS (118b5e5); slice 1b budget delta re-review APPROVE (f0b7bdb). Next (one agent at a time): frontend F13/F14 budget + capital pages with the held-sentence fix and MAX_FILES 500; then QA spot check; then preview v8.
+- Run ledger: code-reviewer opus/high 1a: request changes (1 must, 5 should) -> delta approve w/ nits | code-reviewer opus/high 1b: request changes (1 must, 4 should) -> delta approve | backend opus/high widen: 5->16 tabs | backend opus/high 1b F9-F12: done | backend opus/high review fixes: 12 fixed | frontend sonnet/medium 1a fixes: done.
+- 2026-11-08: QA (sonnet/medium) PASS WITH MINOR ISSUES (a15bf8c): 0 of 30 spot-check mismatches; full sweep of all 3,846 budget rows and 80 bid-tab rows: 0 mismatches; 24 hand-labelled solicitations. Bugs: B1-B3 note wording (frontend, fixing now), B4 parity by department is near-vacuous because department is known only from a read tab (known limit, product-manager to revisit in 1a.2), B5 doc fixed. Danger noted: `collector run --offline` without the minutes PDFs overwrites data/facts.json; backend to guard it (queued, key provenance/offline-run-overwrites-facts).
+- 2026-11-08 ~6:00 PM ET: preview v8 published at https://claude.ai/artifact/QkxSRXNSMiWXpHUoLj8ynj (artifact versions 8-9, two publishes because of the 255-files-per-call limit) from 3d wording merge on top of 94397ba: Bids and awards (90 solicitations, 16 bid tabs read), Finance (7 fund pages, both budget books, 3,846 lines), Capital projects, glossary. site_checks PASS (263 files). Old finance.html and capital-projects.html removed. Note: the artifact reports sharing "Anyone with the link" (unchanged by us); asked Brian whether to restrict it.
+- Next (queued, one agent at a time): F8/F15 exports (flip EXPORTS_READY), slice 1a.2 (unit-price tabs, award-letter agreement AC-F4, department from archive titles for parity), guard `collector run --offline` from overwriting facts.json, contract-to-commission-vote links (stretch). Waiting on CEO: AC-F17 usefulness test (find 3 contracts by vendor), batched with his next check.
+- 2026-11-09 ~7 PM ET (Nov 8 local): Brian asked for a note explaining each total that doesn't add up. Done (frontend sonnet/medium e8b6af8/c6e008a + manager wording tweak): per column, printed total, sum of lines, and 'The printed total is N higher/lower'; no-lines and within-rounding cases worded. site_checks PASS; republished as artifact version 10.
+- 2026-11-09: Brian (relayed by coordinator): council seat is not a factor. Dropped the council-ethics hold: Buy Me a Coffee footer link enabled (support_enabled true), per-page operator disclosure requirement removed from the finance spec; G1 footer stays. Remaining public-launch gates: correction intake, hosting origin, live Census check.
+- 2026-11-09: support link live in preview (artifact version 11); landing still fits 375x667 after a CSS-only fix (37cb7da, frontend sonnet/medium). Full suite 1104 passed.
+- 2026-11-09 (Brian via coordinator): next feature after finance = alerts on agenda items, especially zoning (M5). Sketch after finance/contracts: email sign-up, topic/address/district matching, new-agenda detection; compatible with a possible standalone meeting-alerts app.
+- 2026-11-09 (Brian via coordinator): priority = finish Montgomery County and get it complete and on the web. Later: a paid product anywhere in the US (enter a ZIP, same records and alerts), maybe state and national bodies; monetizing alerts is a future option. Build nothing for it now; keep jurisdiction data-driven (config + per-source adapters) where it's cheap, as the 2026-11-07 design constraint already says.
+- 2026-11-09: DEADLINE (Brian): finished MoCo + Clarksville product within a week, target Sun 2026-11-15. Plan: docs/plan/one-week-finish.md. Waiting on CEO: (CivicClerk hosts allowed 11/9) | CivicClerk collection OK (yes rec.) | public repo + Pages at records.gnoshcodes.com (yes rec.) | go-live go-ahead (hard stop 1). Defaults: city from the Agenda Center (2016 to May 2024) only; no public hosting.
+- 2026-11-09 | backend-engineer | opus/default | M4 slice 1: city Agenda Center collector | done: 305 meetings, 168 minutes, 1,859 roll calls (82.1% verified, below 90% gate), 1163 tests pass; merged 8c17453
+- 2026-11-09 | code-reviewer | opus/default | review M4 slice 1 | request changes: 1 high (city-votes/item-link), 2 medium, 2 low
+- 2026-11-09 | backend-engineer | opus/high | fix M4 review findings | done: 5 fixed, 1181 tests pass, verified 81.7%; f1dedd8
+- 2026-11-09 | code-reviewer | opus/default | delta re-review M4 fixes | approve + 1 medium (city-votes/item-link 2nd hit -> architect invariant first)
+- Problem-key ledger: city-votes/item-link hits 2 (review, delta re-review).
+- 2026-11-09 | software-architect+backend | opus/high | item-link invariant + fix, page-number fix | done: invariant in docs/architecture/city-council.md, 1208 tests pass, verified 1525/1850 (82.4%); 47c8eb1
+- 2026-11-09 | code-reviewer | opus/default | delta re-review 2 | approve (1 low docstring)
+- 2026-11-09 | frontend-engineer | opus/default | M4 slice 2: city pages | done: 49 pages, 312 files, site_checks pass, 1251 tests; 89b94b2. Open: cross-body name links in titles, page weight (3.8 MB)
+- 2026-11-09 9:56 AM ET: Brian: after the 3 PM ET reset, records is #1 priority and gets nearly all usage, efficiently. Plan: from 3 PM run 2 agents in parallel (e.g. exports + report-an-error, then alerts + hosting). The business plan is in a separate thread.
+- 2026-11-09 | code-reviewer | opus/default | review city pages | request changes: 2 med-high, 1 med, 2 low
+- DECISION 2026-11-09: names inside item titles never link to an official's page (they can be applicants or buyers with the same name). Names link only where the minutes record an official acting.
+- 2026-11-09 | frontend-engineer | opus/default | fix city page findings | done: 4 fixed, 1263 tests, site_checks pass, 445/500 files; d90ebeb. Follow-up: finance pages over 1 MB (finance/101 3.7 MB)
+- 2026-11-09 | code-reviewer | opus/default | delta re-review city fixes | approve (crawl: 0 broken links, all 305 meetings/1850 roll calls once)
+- 2026-11-09 | backend-engineer | opus/default | exports + offline guard + finance page weight | done: EXPORTS_READY on, city exports, guard exits 4, finance pages split, 468 files, site_checks pass, 1280 tests; 5d2e560. Note: store lacks 59 county minutes PDFs (offline run refuses, as designed).
+- 2026-11-09 | code-reviewer | opus/default | review exports | request changes: 1 medium (fin-export/held-leak), fix running (sonnet)
+- 2026-11-09: polite county fetch filled the store (59 missing minutes down to 4; the fetch treats those 4 as unchanged, so they are not refetched). facts.json unchanged. Follow-up: refetch the 4 (low).
+- 2026-11-09 | backend-engineer | sonnet/default | fix fin-export/held-leak | done, 1280 tests
+- 2026-11-09 | manager | delta check of 40ef363 (held-leak fix): diff matches the finding, 15 tests pass. Approved.
+- 2026-11-09 10:15 AM ET, Brian answered all four: (1) CivicClerk collection YES; (2) public repo + GitHub Pages at records.gnoshcodes.com YES (we flip the repo and the site at launch, after the security review, QA and a history secret scan, with the final go-live go-ahead still asked once); (3) AC-F17 "found" 3 contracts by vendor: PASS; (4) keep the preview shared as "Anyone with the link": YES. Waiting on CEO now: only the final go-live go-ahead (plus the Porkbun DNS step at launch).
+- 2026-11-09 ~10:45 AM ET: preview v9 published at https://claude.ai/artifact/QkxSRXNSMiWXpHUoLj8ynj (artifact versions 12-15, four publishes for the 64 MB/255-file limits) from 40ef363: City Council 2016-2024, downloads on, split pages. site_checks PASS (468 files, 162 MB).
+- 2026-11-09 10:26 AM ET: pacing hold from the usage thread (weekly at 99%). Finish the running corrections agent; no new subagents until the 3 PM ET reset, then full speed (Brian: records #1).
+- 2026-11-09 | frontend-engineer | opus/default | correction intake (M1.5) | done: report.html + issue form, off by default, 1308 tests, site_checks pass; 35b4fea. Next: security review after the reset. To enable: corrections.github_repo once the repo is public.
+- 2026-11-09 1:35 PM ET: Brian reported the Buy Me a Coffee link 404s; corrected to his link https://buymeacoffee.com/gnoshcodes (no www) in config and test; preview republished (artifact versions 16-18).
+- 2026-11-09 1:35 PM ET: told Brian the earliest go-live is Wed Nov 11 for the core (county, city 2016-2024, finance, downloads, corrections); CivicClerk 2024+ and alerts follow as updates by Fri Nov 13. Card: launch core Wed (rec) vs all at once ~Fri. Default if no answer: core Wed, still gated on his go-live go-ahead.
+- 2026-11-09 | security-engineer | opus/high | correction intake + public surface + history | PASS WITH FINDINGS: 1 medium (csv formula injection), 3 low; repo safe to make public. Fixes running.
+- 2026-11-09 1:38 PM ET: Brian chose to launch everything at once, about Fri Nov 13 (CivicClerk 2024+ and alerts included). Go-live still needs his go-ahead.
+- 2026-11-09 2:00 PM ET: Brian: don't forget YouTube transcripts with timestamp links for member comments (added to the Fri launch list). Found the city publishes public MP4s on CivicClerk (platform-facts). County is on YouTube only, so a source is still being researched. Asked Brian: run Whisper on the 3070 overnight (yes rec) / no (container, newest meetings only).
+- 2026-11-09 2:45 PM ET: Brian: use the 3070 24/7 for transcription until done. Remote Control requested (card): faster-whisper large-v3 on CUDA, CivicClerk City Council MP4s 2024+, JSON per meeting with word timestamps, to branch transcripts/city-civicclerk. County source: decision card (ask county for files rec / video links only / YouTube captions not rec).
+- 2026-11-09 1:50 PM ET: allowlisted cpmedia.azureedge.net (city video) and huggingface.co, cdn-lfs.hf.co, cas-bridge.xethub.hf.co (Whisper model). Container trial running: faster-whisper small.en int8 on CPU, Nov 5 Regular Session, output in the scratchpad tx/out. Brian: switch to Central time from 20:43 UTC.
+- 2026-11-09 | backend-engineer | sonnet/default | security fixes 1-5 | done: 1316 tests, site_checks pass; d0385a9. Delta security re-confirm next.
+- 2026-11-09 | security-engineer | opus/high | delta re-confirm | PASS, 1-5 fixed
+- 2026-11-09 ~2:20 PM CT | backend-engineer | opus/default | M4 slice 3: CivicClerk 2024+ | done (handoff lost in a container restart; manager verified git): ADR 0003, 385 meetings, 2,235 roll calls (1,756 verified, 78.6%), video URLs stored; e136a8b. Full suite + site_checks re-run by manager.
+- 2026-11-09 | code-reviewer | opus/default | review CivicClerk slice | request changes: 1 medium (city-votes/surname-stale-book), 3 low. Ledger: city-votes family hit 3 (item-link x2, surname-stale-book): architect states the name-resolution invariant first; fresh review after the fix.
+- 2026-11-09: manager verify of e136a8b: 1371 passed, 2 skipped; site_checks PASS; 469 files.
+- 2026-11-09 | frontend-engineer | opus/default | Alerts v1 | done: 7 Atom feeds (county/city meetings + 5 topics) + Alerts page, 477/500 files, site_checks PASS; 229e62f. No per-district/ward feeds: items carry no location and the file budget is too tight. Note: the 500-file cap is a preview-host limit; GitHub Pages has none, so at launch the cap applies only to the preview copy. Launch to-do: alerts.site_url = https://records.gnoshcodes.com/.
+- 2026-11-09 | code-reviewer | sonnet/default | review alerts | request changes: 1 medium (xml-illegal-chars), 4 low; fixes running (sonnet)
+- 2026-11-09 3:15 PM CT: Brian wants a trusted colleague to see the site outside Claude. Sent the preview artifact link (Anyone with the link). A GitHub Pages copy is built in build/pages (477 files, 179 MB) but needs the repo public (hard stop); held unless he asks.
+- 2026-11-09 3:20 PM CT: Brian asked for a temporary non-Claude link for 1 hour for one trusted colleague (his request = approval for this temporary preview). Pushed the built site with a Preview banner to branch gh-pages (647df71). Sent him the 2 steps (repo public, Pages from gh-pages) and the takedown (set Private). URL https://gn0sh.github.io/clarksville-records/.
+- 2026-11-09 | software-architect+backend | opus/high | name-resolution invariant + surname-stale-book, year-run-label, dropped-citation | done: counts unchanged (2,235 / 1,756), 1,385 tests, site_checks PASS; e76cb2f. Fresh independent review next (3rd hit in city-votes).
+- 2026-11-09 | frontend-engineer | sonnet/default | alerts fixes 1-5 | done, 1413 tests; 61ab4f6 merged
+- 2026-11-09 | manager | fixed a bad merge: 4d6b794 committed conflict markers in tests/test_council_pages.py (manager error: a piped merge hid the failure); resolved by keeping both test blocks; 152 targeted tests pass. Lesson: never pipe git merge; check its exit code.
+- 2026-11-09 | code-reviewer | sonnet | delta re-review alerts | APPROVE. Low left: 'Reappointment' no longer counts as an appointment (word-start match); backlog.
+- 2026-11-09 ~3:45 PM CT: transcription trial OK: faster-whisper small.en int8 on 4 CPUs ran 100 min of audio in 30 min (3.3x realtime) with good quality (Nov 5 Regular Session, 1,271 segments). The container loop now transcribes all 65 CivicClerk City Council videos (29 Regular, the rest Executive Sessions), newest first, about 30 h in total; the 3070 takes over once Brian approves. Transcript feature (import + pages + chair call-on lists) assigned to an engineer.
+- 2026-11-09 3:30 PM CT: the repo is PUBLIC (GitHub API: visibility public, has_pages true; created 2026-11-07), though CLAUDE.md and our notes called it private. Brian found it already public. Left as is (security review: safe). Preview live at https://gn0sh.github.io/clarksville-records/ from gh-pages. Takedown = delete the gh-pages branch on Brian's 'take it down'. CLAUDE.md 'private repo' wording is now stale (fix at launch).
+- 2026-11-09 | code-reviewer | opus/high | fresh name-resolution review | request changes: city-votes/titled-nonmember (med-high, reproduced), alias-in-votes (low), empty-book-2027 (info). city-votes family hit 4; re-plan fail 1 of 2 before escalating. Report docs/reviews/code-review-name-resolution.md
+- 2026-11-09 | backend-engineer | opus/high | fix titled-name corroboration + alias canonicalization + residual-risk doc | running
+- 2026-11-09 | frontend-engineer | sonnet/medium | gnoshcodes.com records card | done: gn0sh/gnoshcodes-site branch claude/records-product 78afcb4, not merged; merge at launch with go-ahead (hard stop 1)
+- 2026-11-09 | frontend-engineer | sonnet/medium | gnoshcodes branding + operator credit + trust pages (Who runs this, Our rules, Corrections, Method) + Official record line | merged a9348df (conflicts in site_checks/style.css resolved keeping both). Follow-ups: transcript pages need the Official record line; kit asks for a placeholder-logo credit line (decide); needs code review
+- 2026-11-09 21:48Z: Brian said "go" to full parallel helpers through the Friday launch (coordinator relay).
+- 2026-11-09 | devops-engineer | sonnet/medium | prod hosting: locked daily-update + Pages workflow, CNAME, launch runbook | running
+- 2026-11-09 | qa-engineer | sonnet/medium | launch test plan | done: docs/qa/launch-test-plan.md; manager decisions recorded (city verified-rate waiver, transcript coverage, preview limits non-blocking)
+- 2026-11-09: CLAUDE.md hard stop 1 wording fixed (repo is already public).
+- Follow-up (from launch plan): Alerts page must say per-ward/district feeds are not available yet; add the NEW tests listed in docs/qa/launch-test-plan.md before the final QA pass.
+- 2026-11-09 | backend-engineer | opus/high | titled-name corroboration + aliases + docs | merged 15dd2e4; alias + 2027 doc resolved
+- 2026-11-09 | code-reviewer | opus/high | delta re-review 15dd2e4 | request changes: titled-nonmember still open, presiding-guest (new). city-votes re-plan failure 2 of 2: manager decision to remove prose inference entirely (fail-safe: hold) instead of escalating to Brian; next failure in this family goes to Brian.
+- 2026-11-09 | backend-engineer | opus/xhigh (escalated) | fail-safe titled names + presiding guest | merged b321fc7: prose inference removed, cited mayors config, counts unchanged; delta re-review APPROVE. city-votes family closed; backlog: city-votes/presiding-own-list (low)
+- 2026-11-09 | backend-engineer | opus/medium | meeting transcripts: import, per-meeting pages with #t= links, call-on lists, per-target file cap | merged 4c8d76a; 1 transcript imported, 43 call-ons detected, 0 linked (2026-11-05 minutes not posted yet). Needs code review.
+- 2026-11-09 22:13Z: Brian approved the public-service plan (https://claude.ai/artifact/TDXodocHLxuRXzU2HHGoiA): LLC before launch (his step), no outreach. Launch scope adds: Who runs this (gnoshcodes, no personal name), Our rules (firewall), Corrections policy + public log, Method page, "Unofficial copy. Official record:" line on record pages (added to the branding task), cookie-free analytics, weekly digest. Until the LLC exists: votes only from the record, no AI-written text about named officials. Transcripts are verbatim machine transcription (labelled), not AI-written text about officials: kept.
+- Analytics needs an account with a free cookie-free service (e.g. GoatCounter or Cloudflare Web Analytics): hard stop 4, to be batched into the launch ask. Default if no answer: launch without analytics.
+- 2026-11-09 | devops-engineer | sonnet/medium | daily-update workflow (locked deploy), CNAME, launch runbook | merged 1802b97 (manager resolved conflict: build target via RECORDS_BUILD_TARGET=pages instead of RECORDS_MAX_FILES). Action pins verified by git ls-remote (setup-python v5.6.0, cache v4.2.3). Scheduled runs need main updated before a seeding dry run.
+- 2026-11-09 | code-reviewer | opus/medium | transcript feature | request changes: transcripts/call-on-misattribution (must: bare "recognized" matches prose), transcripts/call-on-absent-member (must), unresolved-entry blocking (should), excerpt-framing, site-files/cap-off-by-one, video-host, import-match, attr regex
+- 2026-11-09 | backend-engineer | opus/high | transcript review fixes | running
+- 2026-11-09 | security-engineer | opus/high | daily-update workflow and launch runbook | PASS WITH FINDINGS: F1 domain/dangling-cname (fix before go-live), F2 token exposure, F3 cache integrity, F4 parser timeouts, F5 env branch policy. docs/reviews/security-review-pipeline.md
+- Launch ask to batch for Brian: verify gnoshcodes.com in GitHub Pages settings (TXT record at Porkbun). Go-live waits on it.
+- 2026-11-09 22:20Z Brian: keep building; go-live waits until he judges the site matches his vision, LLC after that. Friday Nov 13 = ready for his review, not an automatic launch. Everything free, BMAC tip jar only. Interim rule stays: votes only from the record, no AI-written text about named officials. Analytics ask deferred to go-live.
+- 2026-11-09 | contractor (Maren Okafor, product designer) | opus/medium via run.py | two design directions for Brian: Public Ledger, Seat Map ($0.70) | delivered; pitches /mnt/project-files/records/design-pitches/; in-house mockup https://claude.ai/artifact/QVWsoSaeux8euggRVcJSRq. Waiting on Brian's pick (default: keep current look + gnoshcodes branding).
+- 2026-11-09 | devops-engineer | sonnet/medium | pipeline F1-F5 | merged 06ca645; fresh security review PASS WITH FINDINGS (push-reverts-concurrent-data med, 3 low)
+- 2026-11-09 | devops-engineer | sonnet/medium | push-job fixes 1-4 | merged 34ef0c8; security delta PASS
+- 2026-11-09 | backend-engineer | opus/high | transcript review fixes 1-8 | merged f265787 (1527 passed); code-review delta: request changes (call-on gap allows sentence break; 'you recognized that...'), transcripts/call-on-misattribution hit 2
+- 2026-11-09 | software-architect+engineer | opus/high | call-on invariant stated, then fix | merged ad02de2; delta APPROVE, family closed
+- 2026-11-09 23:0xZ merged tree a9348df+: full suite 1566 passed, 2 skipped; sitegen 435 pages / 490 files (preview cap 500); site_checks PASS.
+- 2026-11-09 | code-reviewer | sonnet/medium | branding + trust pages | request changes (1 must, 7 should); docs/reviews/code-review-branding.md
+- 2026-11-09 | frontend-engineer | sonnet/medium | branding review fixes + transcript record line + alerts per-ward note | running
+- 2026-11-09 | code-reviewer | opus | call-on delta 11106f7 | approve
+- 2026-11-09 23:07Z Brian: keep both designs (Public Ledger, Seat Map) for A/B testing once the site is complete; decide then. Saved in docs/design/ab-candidates/. A/B needs analytics (go-live ask).
+- 2026-11-09 23:12Z Brian: map only useful first visit; address lookup solves it. Next (after branding fixes merge): landing leads with address search; map secondary (collapsed or below); remember the visitor's ward/district in localStorage for return visits ("Your seats").
+- 2026-11-09 | frontend-engineer | sonnet/medium | branding review fixes | merged 3933a90 (1608 passed); delta APPROVE
+- 2026-11-09 | frontend-engineer | sonnet/medium | address-first landing + Your seats (localStorage) | running
+- 2026-11-09 23:31Z Remote Control on Brian's PC approved by Brian and running: CivicClerk City Council videos 2024+, faster-whisper large-v3 on GPU. Container CPU loop (small.en) keeps running as a fallback.
+
+- 2026-11-11 (manager): **gnoshcodes LLC exists.** Brian filed GNOSHCODES LLC with the TN Secretary of State on 2026-11-10 (Active), and asked on 2026-11-10 3:31 PM CT for the sites to show "gnoshcodes LLC" (thread "Show gnoshcodes LLC across sites"); operator is "gnoshcodes LLC" (788f08b). The interim content rules written "until the LLC exists" (votes only from the official record; no AI-written text about named officials) STAY IN FORCE until Brian re-decides them explicitly; they do not lapse with the filing.
+- 2026-11-11 | code-reviewer | opus/high | re-review of manager merges, support line, LICENSE/NOTICE, LLC operator | request changes -> fixed: operator/llc-unverified (verified + recorded above), license/third-party-carveout (NOTICE fonts OFL), tests/support-line-alerts-untested (test added); merges confirmed sound
+- 2026-11-11 (Brian, 11:49 PM CT Nov 10): committee records are REQUIRED before Daylight is done, but not for Friday's review: city Finance + Audit (CivicClerk cats 27, 44), county Budget Committee/Hearing agendas (2026, collect before January), then the other city committees. Plan: docs/research/committee-sources-2026-11-11.md. Friday Nov 13 stays on pace.

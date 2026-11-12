@@ -1,0 +1,877 @@
+# Daily update and GitHub Pages deploy for https://daylight.gnoshcodes.com/
+#
+# update job : collect politely, rebuild, check, upload the refreshed data/ and the site as artifacts. It parses
+#              untrusted downloaded PDFs, so it has read-only repo access and no persisted token. It never publishes.
+# push job   : commits the refreshed data/ (from the update job's artifact) to main. The only job with contents: write;
+#              it parses nothing.
+# deploy job : publishes that artifact to GitHub Pages. LOCKED until launch: it runs only when the repository variable
+#              RECORDS_DEPLOY_ENABLED is exactly 'true'. Setting that variable is the CEO's go-live step (hard stop 1).
+#              See docs/ops/launch-runbook.md.
+# note job   : sends the morning note from the update job's plan. LOCKED: only on schedule, on main, when the
+#              repository variable MORNING_NOTE_SEND is exactly 'true', after deploy succeeded. The only job with
+#              secrets (BUTTONDOWN_API_KEY, MORNING_NOTE_CANARY_IDS, in the morning-note environment), each in one
+#              step's env. See docs/ops/morning-note.md. Every other job uses GITHUB_TOKEN only.
+# note-failed: opens or comments on one "Daily update: morning note failed" issue when the note job failed.
+# Every fixed-title issue lookup lists only issues opened by GitHub Actions (--app github-actions), so an outsider's
+# issue with the same title in this public repo is never commented on in its place (ci/issue-title-squat).
+#
+# Collection keeps the collector's own rules (collector/fetch.py): one honest User-Agent, robots.txt obeyed, at least
+# 10 s between requests per host (more where robots.txt asks). Nothing here changes them.
+name: Daily update
+
+on:
+  schedule:
+    - cron: "7 9 * * *"        # 09:07 UTC daily (03:07 CST / 04:07 CDT), off the hour to avoid the scheduler rush
+  workflow_dispatch:
+    inputs:
+      collect:
+        description: "Fetch new records first (false = rebuild and redeploy from the committed data only, no fetching)"
+        type: boolean
+        default: true
+      # Read by the Collect step through env only, and passed as --allow-shrink only on a manual run with the value
+      # exactly true: a scheduled run never passes it, and its result commits from main only (the push job's `if`).
+      allow_shrink:
+        description: "Accept a result that unverifies committed roll calls or unconfirms motions (county and RPC); manual runs only"
+        type: boolean
+        default: false
+
+# One run at a time, never cancel one mid-fetch or mid-deploy.
+concurrency:
+  group: daily-update
+  cancel-in-progress: false
+
+permissions: {}
+
+# Build overrides, set on the build and check steps only (the tests assert the defaults, so they run without them):
+#   RECORDS_SITE_URL   feeds carry absolute links to the public site (read by sitegen/config.py and qa/site_checks.py)
+#   RECORDS_BUILD_TARGET=pages  file cap of GitHub Pages (3000), not the claude.ai preview's 500
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    outputs:
+      sha: ${{ steps.checkout.outputs.commit }}   # the main commit this run built on; the push job commits on it
+      allowed: ${{ steps.collect.outputs.allowed }}   # yes: a manual allow_shrink run replaced kept documents
+    # A warm daily run takes minutes (10 s per request, only new documents). A cold cache (first run, or after the
+    # cache was evicted) refetches about 930 documents at 10 s each plus parsing: budget the hosted-runner maximum.
+    timeout-minutes: 355
+    permissions:
+      contents: read         # check out main; the token is NOT persisted (pipeline/token-exposure-untrusted-parse)
+      issues: write          # open one issue when a run fails
+    steps:
+      - name: Check out main
+        id: checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: main
+          persist-credentials: false  # untrusted PDFs are parsed in this job: no token on disk
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.lock
+
+      # requirements.lock is pip-compile's output from requirements.txt (Python 3.12, every package and every
+      # transitive one pinned with its sha256): --require-hashes refuses any file that does not match
+      # (deps/transitive-unpinned). Regenerate it after changing requirements.txt; see the lock file's header.
+      - name: Install system tools and Python packages
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils tesseract-ocr
+          python -m pip install --require-hashes -r requirements.lock
+
+      # The text and OCR caches below are only valid for the tesseract and poppler (pdftotext) that wrote them: their
+      # version lines, hashed, are part of that cache's key, so an image update starts a fresh cache.
+      - name: Record OCR tool versions
+        id: tools
+        run: |
+          set -euo pipefail
+          v=$( { tesseract --version 2>&1 | head -n 1; pdftotext -v 2>&1 | head -n 1; } | sha256sum | cut -c1-16)
+          [[ "$v" =~ ^[0-9a-f]{16}$ ]]
+          echo "versions=$v" >> "$GITHUB_OUTPUT"
+
+      # data/store/ (the downloaded PDFs, about 3 GB, never committed) is kept between runs in the Actions cache.
+      - name: Restore document store
+        id: store
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: data/store
+          key: records-store-v1-${{ github.run_id }}
+          restore-keys: records-store-v1-
+
+      # data/text and data/ocr (text layers and tesseract readings, keyed by the document's sha256 and page) are kept
+      # too, in their own cache so the store's cache key and version stay as they are. With them restored, a document
+      # whose hash is unchanged is never OCR'd again: only newly fetched documents are (pipeline/re-ocr-every-run).
+      # The key carries a hash of the code and tools that write these files (ci/derived-cache-integrity), so a change
+      # to the extractor, the OCR or a pinned package (requirements.lock, so a transitive pin counts too:
+      # deps/derived-cache-key) starts a fresh cache instead of reusing old readings. Only the
+      # scheduled run on main saves it, so a manual run on another ref cannot seed the cache main restores.
+      - name: Restore text and OCR caches
+        id: derived
+        uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            data/text
+            data/ocr
+          key: records-derived-v1-${{ steps.tools.outputs.versions }}-${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.lock') }}-${{ github.run_id }}
+          restore-keys: records-derived-v1-${{ steps.tools.outputs.versions }}-${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.lock') }}-
+
+      - name: Count stored files before collection
+        run: |
+          echo "STORE_BEFORE=$(find data/store -type f 2>/dev/null | wc -l)" >> "$GITHUB_ENV"
+          echo "DERIVED_BEFORE=$(find data/text data/ocr -type f 2>/dev/null | wc -l)" >> "$GITHUB_ENV"
+
+      - name: Collect (polite fetch, parse, verify)
+        id: collect
+        if: github.event_name == 'schedule' || inputs.collect
+        env:
+          RECORDS_SITE_URL: https://daylight.gnoshcodes.com/
+          RECORDS_BUILD_TARGET: pages
+          ALLOW_SHRINK: ${{ inputs.allow_shrink }}
+        run: |
+          set +e
+          # City first: it rewrites data/localities/clarksville-tn/*. The county run then builds facts, finance and
+          # the site (build/site) from everything; it also reads the County Commission agenda page and any new agenda
+          # PDFs (collector/county_agenda.py: one page request, new PDFs only, the same polite fetcher).
+          # Exit codes (docs/ops/launch-runbook.md "Exit codes"). Hard failures fail this step: nothing is uploaded,
+          # committed or deployed, the committed data/ on main is untouched and one issue opens.
+          #   city:   0 ok, 2 a listing not read (or fetch/parse failures), 3 the G4 skew gate flagged an official,
+          #           5 a host or robots.txt refused us; 7 is a warning (below).
+          #   county: 0 ok, 2 fetch/parse failures, 3 gate failure, 4 offline run refused.
+          # Warnings (the step passes, so everything else still commits and deploys; precedence 2 > 3 > 7 > 5/6):
+          #   city 7: the city shrink guard kept committed city rows or meetings exactly as committed (a listing
+          #     that lost rows, a missing or unread minutes file, lost verified roll calls) or a correction lowered a
+          #     verified count (docs/adr/0006-daily-refresh-data-guards.md): output city_kept=yes and the step below
+          #     opens or comments on one city meetings-kept issue. The city run never gets allow_shrink (ADR 0006 I4).
+          #   7 the shrink guard kept one or more county source documents exactly as committed (a lost verified roll
+          #     call or meeting, or a document missing from the run), or a correction (new bytes) lowered a
+          #     document's verified count: output kept=yes and the step below opens or comments on one
+          #     kept-meetings issue. One exit code cannot also carry the RPC outcome, so under 7 it is read from
+          #     build/run-log.json .rpc.exit (0 ok, 6 filling, anything else or unreadable: failed).
+          # The county run also runs the Regional Planning Commission step (collector/rpc.py run_step: the listing
+          # page and new documents from www.cmcrpc.com through the same polite fetcher; robots.txt crawl-delay 10; the
+          # first 403/429 ends that host's requests for the run). It is all or nothing: unless it succeeds, the RPC
+          # files stay exactly as committed, so one source never freezes the daily refresh: its codes, used only when
+          # everything else is ok, are warnings, and the city, county and finance data still commit and deploy:
+          #   5 the RPC step failed (blocked, listing not read, a gate, a result that would shrink the record, or a
+          #     backlog that needs a person: TooManyNew, a cut-off by the cap): a warning, and the step below opens
+          #     or comments on one RPC-only issue.
+          #   6 partial: the RPC document store is still being filled (at most 40 requests per run): a warning.
+          # allow_shrink (workflow_dispatch input, read through env, never interpolated here): --allow-shrink on a
+          # manual run only, and only when the value is exactly true.
+          shrink=()
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "$ALLOW_SHRINK" = true ]; then
+            shrink=(--allow-shrink)
+            echo "::warning::allow_shrink: the county and RPC results replace committed verified roll calls and confirmed motions."
+          fi
+          python -m collector city run; city=$?
+          python -m collector run "${shrink[@]}"; county=$?
+          echo "city_exit=$city county_exit=$county"
+          city_kept=no
+          if [ "$city" = 7 ]; then
+            echo "::warning::City meetings were kept as committed (or a correction lowered a verified count); everything else is published. See the city meetings-kept issue."
+            city_kept=yes; city=0
+          fi
+          kept=no
+          rpc=ok
+          if [ "$county" = 7 ]; then
+            echo "::warning::County meetings were kept as committed (or a correction lowered a verified count); everything else is published. See the kept-meetings issue."
+            kept=yes; county=0
+            rpc_exit=$(jq -r '.rpc.exit // "unreadable"' build/run-log.json 2>/dev/null) || rpc_exit=unreadable
+            if [ "$rpc_exit" = 6 ]; then
+              echo "::warning::The RPC document store is still being filled; the RPC pages use the committed data."
+              rpc=filling
+            elif [ "$rpc_exit" != 0 ]; then
+              echo "::warning::The RPC step failed; the RPC files are unchanged and everything else is published. See the RPC issue."
+              rpc=failed
+            fi
+          fi
+          # ci/allow-shrink-audit: a manual allow_shrink run that let the new result replace documents the guard
+          # would have kept (run-log.json allowed_shrink) is marked in the data commit message and on the
+          # kept-meetings issue, so it leaves a visible trace.
+          allowed=no
+          if [ "${#shrink[@]}" -gt 0 ]; then
+            n=$(jq -r '.allowed_shrink // [] | length' build/run-log.json 2>/dev/null) || n=0
+            if [ "${n:-0}" != 0 ]; then allowed=yes; fi
+          fi
+          echo "city=$city" >> "$GITHUB_OUTPUT"
+          echo "city_kept=$city_kept" >> "$GITHUB_OUTPUT"
+          echo "county=$county" >> "$GITHUB_OUTPUT"
+          echo "kept=$kept" >> "$GITHUB_OUTPUT"
+          echo "allowed=$allowed" >> "$GITHUB_OUTPUT"
+          if [ "$county" = 6 ]; then
+            echo "::warning::The RPC document store is still being filled; the RPC pages use the committed data."
+            rpc=filling; county=0
+          elif [ "$county" = 5 ]; then
+            echo "::warning::The RPC step failed; the RPC files are unchanged and everything else is published. See the RPC issue."
+            rpc=failed; county=0
+          fi
+          echo "rpc=$rpc" >> "$GITHUB_OUTPUT"
+          [ "$city" = 0 ] && [ "$county" = 0 ]
+
+      # Only for a manual rebuild-only run (collect=false): build from the committed data, no network.
+      - name: Rebuild site from committed data
+        if: github.event_name == 'workflow_dispatch' && !inputs.collect
+        env:
+          RECORDS_SITE_URL: https://daylight.gnoshcodes.com/
+          RECORDS_BUILD_TARGET: pages
+        run: |
+          python -m sitegen --facts data/facts.json --out build/site
+          python -m collector export
+
+      - name: Site checks
+        env:
+          RECORDS_SITE_URL: https://daylight.gnoshcodes.com/
+          RECORDS_BUILD_TARGET: pages
+        run: python -m qa.site_checks --site build/site --facts data/facts.json --store data/store --no-browser
+
+      # Morning note, plan stage (docs/architecture/morning-note.md "Workflow changes"): the dry run, every day, no
+      # network and no secret. It reads build/site/morning/<today>.json and writes build/morning-send/<today>/ (no
+      # subscriber data: safe as a public artifact). While the sender is disabled it is a rehearsal and exits 0 on a
+      # plan error. continue-on-error: a failed plan never fails this job or holds back the data commit and deploy;
+      # the note job then finds no artifact, fails, and opens its own issue.
+      - name: Plan the morning note (dry run, no network)
+        id: plan
+        continue-on-error: true
+        env:
+          RECORDS_SITE_URL: https://daylight.gnoshcodes.com/   # the editions link site pages from alerts.site_url
+        run: python -m sender plan --rehearse --site build/site --out build/morning-send
+
+      - name: Tests (full suite, about 12 min, default settings)
+        run: python -m pytest -q -x
+
+      # Data age (config/staleness.yml, docs/ops/launch-runbook.md "Paused sources"): only after a green run, so it
+      # judges the data this run publishes. Reads data/ only, no network, no token. continue-on-error: a stale source
+      # or a broken check never holds back upload, push or deploy.
+      - name: Check data age
+        id: staleness
+        if: success()
+        continue-on-error: true
+        run: python -m qa.staleness check --data data --out build/staleness.json
+
+      # One open "Stale source: ... [key]" issue per stale source, labelled stale-source: created once, its body
+      # edited on later days (never a second issue), closed when the source is fresh again. main only, so a run on
+      # another ref never opens or closes one. Fixed text from our own data, passed to gh as arguments (no shell).
+      - name: Open, update or close stale-source issues
+        id: stale_issues
+        if: success() && steps.staleness.outcome == 'success' && github.ref == 'refs/heads/main'
+        continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m qa.staleness issues --report build/staleness.json
+
+      # continue-on-error hides a broken data-age check (pipeline/stale-check-silent-failure): one open issue with a
+      # fixed title, a comment each later day instead of a new issue. Fixed text, passed with --body-file.
+      - name: Open or update the data-age check issue
+        if: >-
+          always() && github.ref == 'refs/heads/main' &&
+          (steps.staleness.outcome == 'failure' || steps.stale_issues.outcome == 'failure')
+        continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AGE_TITLE: "Daily update: data-age check broken"
+        run: |
+          set -eu
+          body="$RUNNER_TEMP/age-issue.md"
+          {
+            echo "The data-age check (qa/staleness.py) failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "Stale sources may go unreported until it is fixed. Everything else was published as usual."
+            echo "Read the 'Check data age' and 'Open, update or close stale-source issues' steps in the run log"
+            echo "(gh errors are printed there as warnings). See docs/ops/launch-runbook.md, 'Paused sources'."
+          } > "$body"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$AGE_TITLE\" in:title" \
+                   --json number,title --jq 'map(select(.title == $ENV.AGE_TITLE)) | .[0].number // empty')
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$AGE_TITLE" --body-file "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+          fi
+
+      # Failed collection or checks: the steps below that publish do not run (no commit, no new artifact, no deploy).
+      # The last deployed site stays up. One open issue: created once, then a comment on each later failure.
+      - name: Open an issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CITY_EXIT: ${{ steps.collect.outputs.city }}
+          COUNTY_EXIT: ${{ steps.collect.outputs.county }}
+        run: |
+          title="Daily update failed"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$title\" in:title" --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+          body="Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID (collector exits: city=$CITY_EXIT, county=$COUNTY_EXIT). The last deployed site is unchanged."
+          # a later failure comments on the open issue, so a repeat is never silent (ci/failure-issue-silent-repeat)
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body "$body"
+          fi
+
+      # The RPC step failed while everything else was ok (county exit 5): one open issue for the RPC alone, with a
+      # comment each later day instead of a new issue. The reason is read from build/run-log.json into a file and
+      # passed with --body-file, never through the shell or an expression.
+      - name: Open or update the RPC issue
+        if: always() && steps.collect.outputs.rpc == 'failed'
+        continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RPC_TITLE: "Daily update: RPC step failed"
+        run: |
+          set -eu
+          body="$RUNNER_TEMP/rpc-issue.md"
+          {
+            echo "The Regional Planning Commission step failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "The RPC files are unchanged; the city, county and finance data were published as usual."
+            echo
+            echo "Reason (build/run-log.json rpc.status):"
+            echo
+            echo '```'
+            # backticks are dropped so site text cannot close the fence (ci/issue-markdown-fence); a missing or
+            # unreadable run-log.json gives "unknown" (ci/issue-reason-missing)
+            reason=$(set -o pipefail; jq -r '.rpc.status // "unknown"' build/run-log.json 2>/dev/null | tr -d '`' | head -c 1500) \
+              || reason=unknown
+            [ -n "$reason" ] || reason=unknown
+            echo "$reason"
+            echo
+            echo '```'
+            echo "If it says TooManyNew or 'the cap of', it repeats every day until someone acts: see"
+            echo "docs/ops/launch-runbook.md, 'RPC backlog'."
+          } > "$body"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$RPC_TITLE\" in:title" \
+                   --json number,title --jq 'map(select(.title == $ENV.RPC_TITLE)) | .[0].number // empty')
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$RPC_TITLE" --body-file "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+          fi
+
+      # The shrink guard kept county source documents as committed (county exit 7): one open issue, with a comment
+      # each later day instead of a new issue. The kept documents and corrections are read from build/run-log.json
+      # into a file and passed with --body-file, never through the shell or an expression.
+      - name: Open or update the county kept-meetings issue
+        if: always() && (steps.collect.outputs.kept == 'yes' || steps.collect.outputs.allowed == 'yes')
+        continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEPT_TITLE: "Daily update: county meetings kept"
+        run: |
+          set -eu
+          body="$RUNNER_TEMP/kept-issue.md"
+          detail="$RUNNER_TEMP/kept-detail.json"
+          # backticks are dropped so site text cannot close the fence (ci/issue-markdown-fence); a missing or
+          # unreadable run-log.json gives "unknown" (ci/issue-reason-missing)
+          kept=unknown
+          if jq '{withheld_new: [.kept_meetings[]?.withheld_new[]?], allowed_shrink, kept_meetings, corrections}' \
+               build/run-log.json > "$detail" 2>/dev/null; then
+            kept=$(tr -d '`' < "$detail" | head -c 3000)
+          fi
+          [ -n "$kept" ] || kept=unknown
+          allowed_n=$(jq -r '.allowed_shrink // [] | length' build/run-log.json 2>/dev/null) || allowed_n=0
+          {
+            if [ "${allowed_n:-0}" != 0 ]; then
+              echo "allow_shrink: a manual run let the new result replace the documents listed under allowed_shrink (verified roll calls or meetings the guard would have kept): $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            else
+              echo "The county run kept some meetings exactly as committed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            fi
+            echo "Everything else (city, other county meetings, finance, agendas, RPC unless its own issue says otherwise) was published as usual."
+            echo "withheld_new lists new meetings held back with a kept document (they appear once it is no longer kept)."
+            echo
+            echo "Kept documents, corrections and allowed downgrades (build/run-log.json):"
+            echo
+            echo '```'
+            echo "$kept"
+            echo '```'
+            echo
+            echo "It repeats every day until the cause clears or someone acts: see docs/ops/launch-runbook.md,"
+            echo "'County meetings kept'."
+          } > "$body"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$KEPT_TITLE\" in:title" \
+                   --json number,title --jq 'map(select(.title == $ENV.KEPT_TITLE)) | .[0].number // empty')
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$KEPT_TITLE" --body-file "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+          fi
+
+      # The city shrink guard kept committed city rows or meetings (city exit 7, ADR 0006): one open issue, with a
+      # comment each later day instead of a new issue. A copy of the county step: the guard's findings are read from
+      # build/city-report.json into a file and passed with --body-file, never through the shell or an expression.
+      - name: Open or update the city meetings-kept issue
+        if: always() && steps.collect.outputs.city_kept == 'yes'
+        continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEPT_TITLE: "Daily update: city meetings kept"
+        run: |
+          set -eu
+          body="$RUNNER_TEMP/city-kept-issue.md"
+          detail="$RUNNER_TEMP/city-kept-detail.json"
+          # backticks are dropped so site text cannot close the fence (ci/issue-markdown-fence); a missing or
+          # unreadable city-report.json gives "unknown" (ci/issue-reason-missing)
+          kept=unknown
+          if jq '.guard | {kept_listing_rows, kept_meetings, withheld_new, corrections, lowered, dropped_unminuted, allowed_drop}' \
+               build/city-report.json > "$detail" 2>/dev/null; then
+            kept=$(tr -d '`' < "$detail" | head -c 3000)
+          fi
+          [ -n "$kept" ] || kept=unknown
+          {
+            echo "The city run kept some rows or meetings exactly as committed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "Everything else (other city meetings, county, finance, agendas, RPC unless its own issue says otherwise) was published as usual."
+            echo "withheld_new lists new meetings held back with a kept document (they appear once it is no longer kept)."
+            echo
+            echo "Kept rows and meetings, corrections and quiet drops (build/city-report.json guard):"
+            echo
+            echo '```'
+            echo "$kept"
+            echo '```'
+            echo
+            echo "It repeats every day until the cause clears or someone acts: see docs/ops/launch-runbook.md,"
+            echo "'City meetings kept'."
+          } > "$body"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$KEPT_TITLE\" in:title" \
+                   --json number,title --jq 'map(select(.title == $ENV.KEPT_TITLE)) | .[0].number // empty')
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$KEPT_TITLE" --body-file "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+          fi
+
+      # Keep newly fetched PDFs even when a later step failed, so a retry does not refetch them (10 s each).
+      - name: Check whether the store grew
+        if: always() && steps.store.conclusion == 'success'
+        run: echo "STORE_GREW=$([ "$(find data/store -type f 2>/dev/null | wc -l)" -gt "$STORE_BEFORE" ] && echo yes || echo no)" >> "$GITHUB_ENV"
+
+      - name: Save document store
+        if: always() && env.STORE_GREW == 'yes'
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: data/store
+          key: records-store-v1-${{ github.run_id }}
+
+      - name: Check whether the text and OCR caches grew
+        if: always() && steps.derived.conclusion == 'success'
+        run: echo "DERIVED_GREW=$([ "$(find data/text data/ocr -type f 2>/dev/null | wc -l)" -gt "$DERIVED_BEFORE" ] && echo yes || echo no)" >> "$GITHUB_ENV"
+
+      - name: Save text and OCR caches
+        if: always() && env.DERIVED_GREW == 'yes' && github.event_name == 'schedule' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            data/text
+            data/ocr
+          key: records-derived-v1-${{ steps.tools.outputs.versions }}-${{ hashFiles('collector/extract.py', 'collector/ocr.py', 'requirements.lock') }}-${{ github.run_id }}
+
+      # The data commit happens in the separate push job, so this job never holds a write token.
+      # Not uploaded: the git-ignored caches (the 3 GB document store and derived text/OCR).
+      - name: Upload refreshed data
+        if: success() && (github.event_name == 'schedule' || inputs.collect)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: records-data
+          path: |
+            data
+            !data/store
+            !data/raw
+            !data/text
+            !data/ocr
+            !data/out
+          retention-days: 2
+          if-no-files-found: error
+
+      # Pages deployed from Actions takes the domain from the repository settings; the file keeps the domain with the
+      # build output (and serves a branch-based deploy too).
+      - name: Add CNAME
+        if: success()
+        run: cp deploy/CNAME build/site/CNAME
+
+      - name: Upload Pages artifact
+        if: success()
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        with:
+          path: build/site
+          retention-days: 2
+
+      # The plan for the note job (no subscriber data, no secret). Only a plan that was written is uploaded.
+      - name: Upload the morning note plan
+        if: success() && steps.plan.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: morning-send
+          path: build/morning-send
+          retention-days: 2
+          if-no-files-found: ignore   # a rehearsal that wrote nothing must not fail this job
+
+  push:
+    needs: update
+    # main only (pipeline/dispatch-non-main-ref): a manual run on another branch must never commit to main.
+    if: (github.event_name == 'schedule' || inputs.collect) && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write        # commit refreshed data/ to main: the only job that can write to the repository
+      issues: write          # open one issue when this job fails (pipeline/push-failure-silent)
+    steps:
+      # The exact commit the update job built on, not whatever main is now: the data commit is made on it, then
+      # rebased onto main below, so a concurrent edit to data/ is a loud conflict, never a silent revert
+      # (pipeline/push-reverts-concurrent-data).
+      - name: Check out the commit the update job built on
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.update.outputs.sha }}
+
+      - name: Download refreshed data
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: records-data
+          path: ${{ runner.temp }}/records-data
+
+      # The artifact came from the job that parses untrusted PDFs: treat it as input (pipeline/push-unvalidated-artifact).
+      # Allowed: regular files named *.json or *.yml, and the change logs the collector appends beside each manifest
+      # when a document changes (files named exactly changes.jsonl: pipeline/changes-jsonl-rejected). None over
+      # 50 MB, no symlinks. The files are only committed, never run or parsed here.
+      - name: Validate refreshed data
+        run: |
+          set -eu
+          dir="$RUNNER_TEMP/records-data"
+          bad=0
+          while IFS= read -r -d '' f; do
+            echo "::error::not a regular file or directory (symlink or special file): $f"; bad=1
+          done < <(find "$dir" ! -type f ! -type d -print0)
+          while IFS= read -r -d '' f; do
+            case "$f" in
+              *.json|*.yml|*/changes.jsonl) ;;
+              *) echo "::error::file type not allowed in data/: $f"; bad=1 ;;
+            esac
+          done < <(find "$dir" -type f -print0)
+          while IFS= read -r -d '' f; do
+            echo "::error::file over 50 MB: $f"; bad=1
+          done < <(find "$dir" -type f -size +50M -print0)
+          [ "$bad" = 0 ]
+
+      - name: Commit refreshed data to main
+        env:
+          ALLOWED: ${{ needs.update.outputs.allowed }}
+        run: |
+          # data/ in a fresh checkout holds only tracked files (the ignored caches are absent), so replacing it whole
+          # keeps deletions too. Only data/ is ever staged.
+          rm -rf data
+          cp -a "$RUNNER_TEMP/records-data" data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then
+            echo "No data changes."
+          else
+            msg="Daily update: refreshed records data ($(date -u +%F))"
+            if [ "$ALLOWED" = yes ]; then     # ci/allow-shrink-audit: the manual override is named in the history
+              msg="$msg; allow_shrink: committed verified roll calls or meetings replaced by a manual run"
+            fi
+            git commit -m "$msg"
+            # A concurrent change to data/ on main conflicts here and fails the job (the failure step opens the issue).
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+
+      - name: Open an issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Daily update failed"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$title\" in:title" --json number,title --jq "map(select(.title == \"$title\")) | .[0].number // empty")
+          body="The push job failed (data not committed to main): $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. The last deployed site is unchanged."
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body "$body"
+          fi
+
+  deploy:
+    needs: [update, push]
+    # LOCKED: does not run until the CEO sets the repository variable RECORDS_DEPLOY_ENABLED to 'true' (Settings >
+    # Secrets and variables > Actions > Variables). Do not remove this condition. Hard stop 1.
+    # Also main only (pipeline/dispatch-non-main-ref).
+    # After the lock (pipeline/deploy-independent-of-push): update must have succeeded, and push must have succeeded
+    # too, so the site never goes live from data that is not on main. The one run where push is skipped by design is
+    # the manual rebuild-only run (collect = false: nothing to commit; the runbook's rollback path), which still
+    # deploys. !cancelled() is there because a job whose `needs` include a skipped job is itself skipped unless its
+    # `if` calls a status function; every job result is then tested by name, so this only ever narrows the lock.
+    if: >-
+      vars.RECORDS_DEPLOY_ENABLED == 'true' && github.ref == 'refs/heads/main'
+      && !cancelled() && needs.update.result == 'success'
+      && (needs.push.result == 'success'
+      || (needs.push.result == 'skipped' && github.event_name == 'workflow_dispatch' && !inputs.collect))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      pages: write           # publish to GitHub Pages
+      id-token: write        # deploy-pages verifies the artifact's origin with an OIDC token
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # ci/deploy-lock-case-insensitive: an expression's == ignores case ('TRUE', 'True' would pass the job's `if`),
+      # so the lock is checked again, exactly, in bash before anything is published.
+      - name: Check the deploy lock is exactly 'true'
+        env:
+          E: ${{ vars.RECORDS_DEPLOY_ENABLED }}
+        run: '[ "$E" = true ]'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+
+  # Morning note, deliver stage (docs/architecture/morning-note.md "Workflow changes"; runbook docs/ops/morning-note.md).
+  # LOCKED: runs only on the daily schedule, on main, when the repository variable MORNING_NOTE_SEND is exactly
+  # 'true' (Brian's go-live switch, hard stop 1), and only after update and deploy both succeeded (so it cannot run
+  # while the deploy is locked, and an email never links a page that is not live). A manual run never sends. It
+  # runs after deploy, so a note failure can never hold back the data commit or the deploy; it opens its own issue
+  # (the note-failed job), never the "Daily update failed" one.
+  # Least privilege: contents: read and pull-requests: read only (the PR check below reads, never writes); the
+  # job's GITHUB_TOKEN is given to that one step only. The API key and the canary ids are secrets of the `morning-note`
+  # environment (deployment branch main only), each given as env to the one step that needs it, never in a `run:`
+  # expression. No pip install, no cache, no artifact upload, no step summary; the deliver stage prints totals only.
+  # Never twice across runs: the workflow-level `concurrency: daily-update` group (one run at a time, never
+  # cancelled) holds this job too; do not give it a group of its own.
+  note:
+    needs: [update, deploy]
+    if: github.event_name == 'schedule' && vars.MORNING_NOTE_SEND == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read    # the "reached main by pull request" check only
+    environment: morning-note
+    steps:
+      # First, before anything else: the canary ids are masked one by one (the secret as a whole is masked by
+      # GitHub, a single id taken from it is not).
+      - name: Mask the canary ids
+        env:
+          CANARY_IDS: ${{ secrets.MORNING_NOTE_CANARY_IDS }}
+        run: |
+          # Split the whole value (every line) on commas and whitespace, as sender/deliver.py canary_ids does: every
+          # ASCII character Python's \s matches, \r included, so a secret pasted with CRLF line ends still masks each
+          # id (note-job/mask-ifs-cr). These are exactly canary_ids' separators (_CANARY_WS); Unicode whitespace such
+          # as NBSP splits in neither (note-job/mask-unicode-ws). Any other character fails canary_ids' id check, and
+          # nothing is sent.
+          set -f
+          IFS=$', \t\r\n\v\f\x1c\x1d\x1e\x1f'
+          for id in ${CANARY_IDS:-}; do
+            if [ -n "$id" ]; then echo "::add-mask::$id"; fi
+          done
+
+      # This run's own commit (security L6), not the update job's output; no token on disk.
+      - name: Check out this run's commit
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      # A re-run of an older run ("Re-run all jobs") checks out that day's github.sha and runs that day's workflow
+      # file, while the update job builds the plan from today's main. Refuse unless this commit's sender code, site
+      # config and workflows are main's (note-job/stale-rerun, note-job/stale-rerun-workflow-gap). Narrower than the
+      # PR check on purpose (main-protect/stale-check-availability): the job loads nothing else from the checkout
+      # (the staged sender below), and a docs PR merged during the run must not cancel the day's note. The
+      # repository is public, so the fetch needs no token (none is kept on disk).
+      - name: Check this commit's sender and config are main's
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin main
+          if ! git diff --quiet HEAD FETCH_HEAD -- sender/ config/site.yml .github/; then
+            echo "::error::sender/, config/site.yml or .github/ differ from main: an older run was re-run. Nothing sent."
+            exit 2
+          fi
+
+      # main-protect/actions-bypass-reopens-M1, main-protect/pr-check-last-commit-only: the main ruleset lets GitHub
+      # Actions push main directly (for the push job's data/ commit), so a workflow on any branch could put changed
+      # sender code, config or workflows on main without a pull request. Refuse unless EVERY commit on this commit's
+      # first-parent line (main's own commits: no commit of a merged-in branch counts) after MAIN_PR_BASELINE that
+      # touches anything outside data/ is the merge or squash commit of a merged pull request into main.
+      # Checking only the newest such commit would let any later PR launder an earlier direct push.
+      # main-protect/pr-check-path-scope: the pathspec is the whole tree but data/ (the push job's daily commits), not
+      # just sender/, config/site.yml and .github/: a root *.py, a sitegen/ module or any other file is code a later
+      # change could load. docs/architecture/main-protect-invariant.md lists every path code reaches this job by.
+      # MAIN_PR_BASELINE is main's commit at go-live (runbook docs/ops/morning-note.md 4.7): history up to and
+      # including it was checked by hand then. Until it is set to a 40-hex commit on main's first-parent line the
+      # step refuses (fail closed). Changing it is a change to .github/, so it needs a PR itself, and that PR is
+      # after any baseline it can name, so it is always checked. The daily data/ commits touch none of those paths,
+      # so they never trip it. From go-live on, every change outside data/ reaches main by a pull request merged
+      # with "Create a merge commit" or "Squash and merge" (runbook 2.0). This does not stop a writer who merges
+      # their own PR (0 approvals), nor a pushed workflow that drops this step: the runbook's required reviewer on
+      # the morning-note environment does. The history is fetched without file contents.
+      - name: Check sender, config and workflow changes reached main by pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MAIN_PR_BASELINE: ""   # go-live: set to main's commit sha by PR (runbook 4.7); empty refuses every send
+        run: |
+          set -euo pipefail
+          base="${MAIN_PR_BASELINE:-}"
+          if ! [[ "$base" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::MAIN_PR_BASELINE is not set to a commit sha (runbook docs/ops/morning-note.md 4.7). Nothing sent."; exit 2
+          fi
+          deepen=()
+          if [ "$(git rev-parse --is-shallow-repository)" = true ]; then deepen=(--unshallow); fi
+          git fetch --no-tags --filter=blob:none "${deepen[@]}" origin main
+          if [ "$(git rev-parse --is-shallow-repository)" != false ]; then
+            echo "::error::could not read main's full history. Nothing sent."; exit 2
+          fi
+          on_line=$(git rev-list --first-parent HEAD | grep -Fxc -- "$base" || true)
+          if [ "$on_line" != 1 ]; then
+            echo "::error::MAIN_PR_BASELINE $base is not a commit on main's first-parent line. Nothing sent."; exit 2
+          fi
+          shas=$(git log --first-parent --format=%H "$base..HEAD" -- . ':(exclude)data/')
+          if [ -z "$shas" ]; then
+            echo "::error::no commit after MAIN_PR_BASELINE touches anything outside data/ (the commit that set it must). Nothing sent."; exit 2
+          fi
+          for sha in $shas; do
+            if ! [[ "$sha" =~ ^[0-9a-f]{40}$ ]]; then echo "::error::unexpected git log output. Nothing sent."; exit 2; fi
+            n=$(SHA="$sha" gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" --jq \
+                  '[.[] | select(.merged_at != null and .base.ref == "main" and .merge_commit_sha == $ENV.SHA)] | length')
+            if [ "$n" != 1 ]; then
+              echo "::error::$sha (a change outside data/ on main after MAIN_PR_BASELINE) is not the merge of a pull request into main. Nothing sent."
+              exit 2
+            fi
+          done
+          echo "Every change outside data/ on main after $base was merged by pull request: $(echo "$shas" | wc -l) commit(s)."
+
+      - name: Set up Python (standard library only, no pip step)
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.12"
+
+      # main-protect/pr-check-path-scope, main-protect/staged-lib-integrity: no Python in this job imports or reads
+      # anything from the checkout's working folder. `python -m sender` (or -c) puts the current folder first on
+      # sys.path, so a root json.py would shadow the standard library in the step that holds the key. Before the plan
+      # is downloaded, this step takes sender/'s top-level regular *.py files and config/site.yml from this commit's
+      # git objects (git ls-tree + git cat-file blob: no .gitattributes export-subst/export-ignore as git archive
+      # would apply; checked by the two steps above), never a symlink, subfolder or __pycache__, into a
+      # new random folder NOTE_LIB, and records a sha256 digest of that folder's whole listing and contents
+      # (NOTE_LIB_SUM). Every later Python step first re-checks the digest (exact: a file added, changed or removed,
+      # a __pycache__ or a symlink stops the job), then runs `python -I -S -X pycache_prefix=<new empty folder> -c`
+      # (the folder made by `pc=$(mktemp -d)` on its own line, so a failed mktemp stops the step under set -e)
+      # with $NOTE_LIB/py alone added to sys.path and --config $NOTE_LIB/site.yml: -I drops the current folder, the
+      # PYTHON* variables and the user site, -S site-packages and .pth files, pycache_prefix any .pyc beside the
+      # sources. See docs/architecture/main-protect-invariant.md.
+      - name: Stage the sender outside the checkout
+        run: |
+          set -euo pipefail
+          lib=$(mktemp -d "$RUNNER_TEMP/note-lib.XXXXXXXXXX")
+          mkdir -p "$lib/py/sender"
+          while IFS= read -r -d '' entry; do
+            path="${entry#*$'\t'}"
+            read -r mode type sha <<< "${entry%%$'\t'*}"
+            if [ "$type" != blob ] || { [ "$mode" != 100644 ] && [ "$mode" != 100755 ]; }; then continue; fi
+            if [ "$path" = config/site.yml ]; then
+              git cat-file blob "$sha" > "$lib/site.yml"
+            elif [[ "$path" =~ ^sender/[A-Za-z0-9_]+\.py$ ]]; then
+              git cat-file blob "$sha" > "$lib/py/$path"
+            fi
+          done < <(git ls-tree -z HEAD -- sender/ config/site.yml)
+          for f in py/sender/__init__.py py/sender/__main__.py site.yml; do
+            if ! [ -f "$lib/$f" ]; then echo "::error::$f is not in this commit. Nothing sent."; exit 2; fi
+          done
+          sum=$(cd "$lib" && { find . -printf '%y %m %p\n' | LC_ALL=C sort &&
+                find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum; } | sha256sum)
+          echo "NOTE_LIB=$lib" >> "$GITHUB_ENV"
+          echo "NOTE_LIB_SUM=${sum%% *}" >> "$GITHUB_ENV"
+
+      # Outside the checkout: the plan comes from the job that parses untrusted PDFs.
+      - name: Download the morning note plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: morning-send
+          path: ${{ runner.temp }}/morning-send
+
+      # The files: one <YYYY-MM-DD>/ folder holding plan.json and edition-<key>.html|.txt only, regular files (no
+      # symlink), at most MAX_PLAN_BYTES (sender/common.py) in total. The plan's schema, field types, bodies and links
+      # are checked by the next step (sender.deliver.check_plan, with link_hosts from the repository's config).
+      - name: Validate the plan files
+        run: |
+          set -euo pipefail
+          sum=$(cd "$NOTE_LIB" && { find . -printf '%y %m %p\n' | LC_ALL=C sort &&
+                find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum; } | sha256sum)
+          if [ "${sum%% *}" != "$NOTE_LIB_SUM" ]; then
+            echo "::error::the staged sender changed after it was staged. Nothing sent."; exit 2
+          fi
+          dir="$RUNNER_TEMP/morning-send"
+          pc=$(mktemp -d)
+          max=$(python -I -S -X pycache_prefix="$pc" -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.common import MAX_PLAN_BYTES; print(int(MAX_PLAN_BYTES))' \
+                  "$NOTE_LIB/py")
+          bad=0
+          while IFS= read -r -d '' f; do echo "::error::not a regular file or folder: ${f#"$dir"/}"; bad=1
+          done < <(find "$dir" -mindepth 1 ! -type f ! -type d -print0)
+          days=$(find "$dir" -mindepth 1 -maxdepth 1 -type d | wc -l)
+          others=$(find "$dir" -mindepth 1 -maxdepth 1 ! -type d | wc -l)
+          if [ "$days" != 1 ] || [ "$others" != 0 ]; then echo "::error::expected one day folder"; bad=1; fi
+          day=$(find "$dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | head -n 1)
+          [[ "$day" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "::error::the day folder is not a date"; bad=1; }
+          while IFS= read -r -d '' f; do
+            name="${f##*/}"
+            [[ "$name" == plan.json || "$name" =~ ^edition-[0-9a-f]{12}\.(html|txt)$ ]] \
+              || { echo "::error::file not allowed in the plan"; bad=1; }
+          done < <(find "$dir" -mindepth 2 -print0)
+          [ -f "$dir/$day/plan.json" ] || { echo "::error::no plan.json"; bad=1; }
+          [ -z "$(find "$dir" -mindepth 3 -print -quit)" ] || { echo "::error::nested folders"; bad=1; }
+          total=$(find "$dir" -type f -printf '%s\n' | awk '{s+=$1} END {print s+0}')
+          [ "$total" -le "$max" ] || { echo "::error::the plan is over MAX_PLAN_BYTES"; bad=1; }
+          [ "$bad" = 0 ]
+          echo "PLAN=$dir/$day/plan.json" >> "$GITHUB_ENV"
+
+      # The dry run first: checks the plan (check_plan) and prints what would be sent; no connection, no secret.
+      - name: Check the plan (dry run, no secret)
+        run: |
+          set -euo pipefail
+          sum=$(cd "$NOTE_LIB" && { find . -printf '%y %m %p\n' | LC_ALL=C sort &&
+                find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum; } | sha256sum)
+          if [ "${sum%% *}" != "$NOTE_LIB_SUM" ]; then
+            echo "::error::the staged sender changed after it was staged. Nothing sent."; exit 2
+          fi
+          pc=$(mktemp -d)
+          python -I -S -X pycache_prefix="$pc" -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.__main__ import main; sys.exit(main(sys.argv[2:]))' \
+            "$NOTE_LIB/py" deliver --plan "$PLAN" --config "$NOTE_LIB/site.yml"
+
+      # The only step with the API key. --live only when the variable is exactly 'true' (the job's own `if:` already
+      # requires it; this is the second lock). Totals only in the log.
+      - name: Deliver the morning note
+        env:
+          BUTTONDOWN_API_KEY: ${{ secrets.BUTTONDOWN_API_KEY }}
+          MORNING_NOTE_CANARY_IDS: ${{ secrets.MORNING_NOTE_CANARY_IDS }}
+          MORNING_NOTE_SEND: ${{ vars.MORNING_NOTE_SEND }}
+        run: |
+          set -euo pipefail
+          sum=$(cd "$NOTE_LIB" && { find . -printf '%y %m %p\n' | LC_ALL=C sort &&
+                find . -type f -print0 | LC_ALL=C sort -z | xargs -0 -r sha256sum; } | sha256sum)
+          if [ "${sum%% *}" != "$NOTE_LIB_SUM" ]; then
+            echo "::error::the staged sender changed after it was staged. Nothing sent."; exit 2
+          fi
+          live=()
+          if [ "$MORNING_NOTE_SEND" = "true" ]; then live=(--live); fi
+          pc=$(mktemp -d)
+          python -I -S -X pycache_prefix="$pc" -c 'import sys; sys.path.insert(0, sys.argv[1]); from sender.__main__ import main; sys.exit(main(sys.argv[2:]))' \
+            "$NOTE_LIB/py" deliver --plan "$PLAN" --config "$NOTE_LIB/site.yml" "${live[@]}"
+
+  # The note job failed or was cancelled (by hand or by GitHub): one open "Daily update: morning note
+  # failed" issue, a comment on it on later days (note-failed/silent-noncompletion). A separate job with fixed text
+  # (the job holding the key opens nothing and has no issues permission). Skipped (locked) never opens one.
+  note-failed:
+    needs: note
+    if: always() && (needs.note.result == 'failure' || needs.note.result == 'cancelled')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update the morning note issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NOTE_TITLE: "Daily update: morning note failed"
+        run: |
+          set -eu
+          body="The morning note job failed or was cancelled: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID. The site, the data commit and the deploy are not affected. A note is never sent the next day; see docs/ops/morning-note.md, 'When the note job fails'."
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$NOTE_TITLE\" in:title" \
+                   --json number,title --jq 'map(select(.title == $ENV.NOTE_TITLE)) | .[0].number // empty')
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$NOTE_TITLE" --body "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body "$body"
+          fi

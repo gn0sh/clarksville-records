@@ -1,0 +1,5772 @@
+{
+ "what": "Every event CivicClerk lists under category General, 2024-01-18 to 2027-01-19, as the API returned it",
+ "fetched": "2026-11-11",
+ "how": "collector.fetch.PoliteFetcher (robots.txt checked first, 10 s between requests, GET only), following @odata.nextLink on the API host",
+ "url": "https://clarksvilletn.api.civicclerk.com/v1/Events?$filter=categoryName%20eq%20%27General%27%20and%20startDateTime%20ge%202024-01-01T00:00:00Z&$orderby=startDateTime%20asc",
+ "pages_sha256": [
+  "9add0eaf1449153eb205774c8049f017d5d829bbf7fcb2231035b0e06d1d7f20",
+  "e16c5cf53e250aa93e20954f17ff6a82dbc209eeab3e21be28ea5512b315f64c",
+  "c9e268036f8764b3af72b37fefe6b960259d92d27cb4c80e3e1836821098db93",
+  "dd3bd5762e9d31ecae70a0e1b0b0b0495dc2d0754127d6ffa300684237baf04c",
+  "4aeaf587d505860a4c28d8961fc31668b182767476a40dcdd1b75c143f9d57e4",
+  "f467ec81c2d700b1b9e48b0f9abbb794ba780272b84442e9fd8ddf9e08cb016e",
+  "ce330578cf411cbbacef2115f5f24a414c2ed4e9398772526c9dc698a2643954",
+  "968d0399bc63c784f21baa07eabc846358e1780c3c78cb49bf801e5f37986a3b",
+  "b1b8b5013123183fdf74687adfe4ece256ed5f857129d49c4b833f1f17f91eed",
+  "bc88348be3f8517ad168b545030b00d7a7b21239ed7be64040f21781f8ceda00",
+  "ebb476e0ec6ef7fb6b3e7c74c38e185d6f3e918893107c60507f21d12f99a795",
+  "f4e686a5541c2f1b83d58b1f7616fa01df4d3a247acd2f5009c0a96a6ec90308",
+  "0a2f0b42a7686b74294648d55d2bf2d9505142c0ad7f4f2c86c716abde1e2d16",
+  "502e81ec1ea465cf48ca18d9dd328814f20248645ddd68e960f376d539675c2e",
+  "dd40fff894467a2753b88cacf22773493bb5add3ba4091b83e909c0e57daaa01",
+  "1743f95043e952fedc73ed1661e204858c3217938c29b7ee4015cf79a2eba5c8",
+  "a7fcb3f5447e4eaf3c9630cd1f2fa24cdb9cb34234ed8e6c90e790acc7f73192",
+  "e309b4dcd28731ebeabad625338d47acb317ad0bc508514d87e14d0752e315a5",
+  "367ed7f303c3123e796fbffd5479e1d05c7282354a57968e8adfdbea5d4148d6",
+  "bd40bae35f9401bd4c5e3b60cfd930eb858cbbbb485f6de6e4e18412f5d30e74",
+  "3ffe6dc4579f48972459bca7043c03c6fddefe6e30e68a5dd4486904ee625b49",
+  "5e52852ebe7fbdc33f28265590e3556cb4eab944a4cb57cdbdde46d233e64cc8",
+  "c7c8d23a1decc1b740122b672b9f7ae7fe15074fdfda6f53b471ea27f78e2d03",
+  "fffe739aae478f52d6b48a9f74729a4e00a01f6f47924e7b6e172c0a7a115cba",
+  "b54a6a4ff7445e93f6557c137f3f7ae9f5dfc3fa50e5b653bb66ae2a102b2486"
+ ],
+ "fields": {
+  "date": "startDateTime, first ten characters as printed (civicclerk.parse_events)",
+  "asked": "the name contains one of also_list name_words (case-insensitive), so discovery asks for it",
+  "pattern_page1": "the page-1 heading of the first configured event pattern that matches the whole name (civicclerk.also_pattern), else null: not listed",
+  "files": "publishedFiles: type, name, publishOn date, fileId"
+ },
+ "count": 374,
+ "events": [
+  {
+   "date": "2024-01-18",
+   "id": 1735,
+   "name": "Sidewalk Ordinance Meeting (Canceled)",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2024-02-21",
+   "id": 1770,
+   "name": "Housing Authority Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Housing Authority Agenda",
+     "publish_on": "2024-02-16",
+     "file_id": 1918
+    }
+   ]
+  },
+  {
+   "date": "2024-02-27",
+   "id": 1779,
+   "name": "Sustainability Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2024-02-23",
+     "file_id": 1936
+    }
+   ]
+  },
+  {
+   "date": "2024-03-18",
+   "id": 1819,
+   "name": "Sustainability Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2024-03-15",
+     "file_id": 1963
+    }
+   ]
+  },
+  {
+   "date": "2024-03-19",
+   "id": 1818,
+   "name": "Clarksville Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2024-03-14",
+     "file_id": 1962
+    }
+   ]
+  },
+  {
+   "date": "2024-04-10",
+   "id": 1838,
+   "name": "Industrial Development Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2024-04-05",
+     "file_id": 1996
+    }
+   ]
+  },
+  {
+   "date": "2024-04-12",
+   "id": 1837,
+   "name": "CBID Planning & Development Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2024-04-05",
+     "file_id": 1995
+    }
+   ]
+  },
+  {
+   "date": "2024-04-15",
+   "id": 1834,
+   "name": "Sustainability Board Meeting - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2024-04-17",
+   "id": 1876,
+   "name": "Clarksville Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2024-04-12",
+     "file_id": 2034
+    }
+   ]
+  },
+  {
+   "date": "2024-05-15",
+   "id": 1928,
+   "name": "Industrial Development Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2024-05-13",
+     "file_id": 2074
+    }
+   ]
+  },
+  {
+   "date": "2024-05-15",
+   "id": 1927,
+   "name": "Clarksville Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2024-05-11",
+     "file_id": 2073
+    }
+   ]
+  },
+  {
+   "date": "2024-06-17",
+   "id": 1954,
+   "name": "Sustainability Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2024-06-14",
+     "file_id": 2109
+    }
+   ]
+  },
+  {
+   "date": "2024-06-18",
+   "id": 1962,
+   "name": "Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2024-06-14",
+     "file_id": 2111
+    }
+   ]
+  },
+  {
+   "date": "2024-06-27",
+   "id": 4189,
+   "name": "Arts & Heritage Council",
+   "asked": true,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2024-07-09",
+   "id": 1970,
+   "name": "Industrial Development Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2024-07-03",
+     "file_id": 2132
+    }
+   ]
+  },
+  {
+   "date": "2024-07-09",
+   "id": 2895,
+   "name": "One Time Event",
+   "asked": true,
+   "pattern_page1": "City Council - Special Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "ACT Authority",
+     "publish_on": "2025-08-08",
+     "file_id": 2656
+    },
+    {
+     "type": "Minutes",
+     "name": "ACT Authority",
+     "publish_on": "2025-08-08",
+     "file_id": 2657
+    }
+   ]
+  },
+  {
+   "date": "2024-07-15",
+   "id": 1976,
+   "name": "Sustainability Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2024-07-12",
+     "file_id": 2140
+    }
+   ]
+  },
+  {
+   "date": "2024-07-30",
+   "id": 1994,
+   "name": "Clarksville Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2024-07-26",
+     "file_id": 2166
+    }
+   ]
+  },
+  {
+   "date": "2024-08-19",
+   "id": 2356,
+   "name": "Sustainability Board - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2024-09-16",
+   "id": 2372,
+   "name": "Sustainability Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2024-09-13",
+     "file_id": 2209
+    }
+   ]
+  },
+  {
+   "date": "2024-10-21",
+   "id": 2431,
+   "name": "Sustainability Board Meeting - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2024-11-13",
+   "id": 2450,
+   "name": "IDB Board of Directors Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2024-11-12",
+     "file_id": 2282
+    }
+   ]
+  },
+  {
+   "date": "2025-01-08",
+   "id": 2544,
+   "name": "Tree Board - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2025-01-20",
+   "id": 2547,
+   "name": "Martin Luther King, Jr. Holiday -  City Offices Closed",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2025-01-23",
+   "id": 2551,
+   "name": "City Council Training Session",
+   "asked": true,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-01-22",
+     "file_id": 2361
+    }
+   ]
+  },
+  {
+   "date": "2025-01-27",
+   "id": 2556,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-01-27",
+     "file_id": 2367
+    }
+   ]
+  },
+  {
+   "date": "2025-01-27",
+   "id": 2555,
+   "name": "Designations Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-01-27",
+     "file_id": 2366
+    }
+   ]
+  },
+  {
+   "date": "2025-01-28",
+   "id": 2553,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-01-24",
+     "file_id": 2362
+    }
+   ]
+  },
+  {
+   "date": "2025-01-28",
+   "id": 2554,
+   "name": "Beer Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-01-26",
+     "file_id": 2364
+    }
+   ]
+  },
+  {
+   "date": "2025-01-28",
+   "id": 2557,
+   "name": "Regional Planning Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-01-27",
+     "file_id": 2368
+    }
+   ]
+  },
+  {
+   "date": "2025-02-05",
+   "id": 2558,
+   "name": "ACT Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-02-03",
+     "file_id": 2371
+    }
+   ]
+  },
+  {
+   "date": "2025-02-13",
+   "id": 2575,
+   "name": "Senior Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2025-02-18",
+   "id": 2577,
+   "name": "City Council Special Session",
+   "asked": true,
+   "pattern_page1": "City Council - Special Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-02-14",
+     "file_id": 2384
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3074
+    }
+   ]
+  },
+  {
+   "date": "2025-02-20",
+   "id": 2582,
+   "name": "Senior Center Board Mtg. - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-02-18",
+     "file_id": 2391
+    }
+   ]
+  },
+  {
+   "date": "2025-02-24",
+   "id": 2578,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-02-18",
+     "file_id": 2387
+    }
+   ]
+  },
+  {
+   "date": "2025-02-24",
+   "id": 2581,
+   "name": "Clarksville Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2025-02-24",
+   "id": 2583,
+   "name": "Roxy Regional Theater Fundraising Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-02-18",
+     "file_id": 2392
+    }
+   ]
+  },
+  {
+   "date": "2025-02-25",
+   "id": 2584,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-02-21",
+     "file_id": 2395
+    }
+   ]
+  },
+  {
+   "date": "2025-02-25",
+   "id": 2599,
+   "name": "Adult Oriented Establishment Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-02-24",
+     "file_id": 2399
+    }
+   ]
+  },
+  {
+   "date": "2025-02-25",
+   "id": 2560,
+   "name": "Restoring Clarksville Initiative Task Force",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-02-11",
+     "file_id": 2382
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-03-10",
+     "file_id": 2416
+    }
+   ]
+  },
+  {
+   "date": "2025-02-27",
+   "id": 2580,
+   "name": "EDC Executive Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-02-18",
+     "file_id": 2389
+    }
+   ]
+  },
+  {
+   "date": "2025-02-27",
+   "id": 2601,
+   "name": "Clarksville Arts & Heritage Council",
+   "asked": true,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-02-25",
+     "file_id": 2400
+    }
+   ]
+  },
+  {
+   "date": "2025-03-04",
+   "id": 2603,
+   "name": "Adult Oriented Establishment Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-03-03",
+     "file_id": 2402
+    }
+   ]
+  },
+  {
+   "date": "2025-03-04",
+   "id": 2604,
+   "name": "Tree Board Subcommittee Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-03-03",
+     "file_id": 2403
+    }
+   ]
+  },
+  {
+   "date": "2025-03-04",
+   "id": 2605,
+   "name": "Tree Board Subcommittee Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2025-03-05",
+   "id": 2602,
+   "name": "Human Relations Commission - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2025-03-06",
+   "id": 2657,
+   "name": "Senior Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-03-04",
+     "file_id": 2406
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3055
+    }
+   ]
+  },
+  {
+   "date": "2025-03-20",
+   "id": 2675,
+   "name": "EDC Board of Directors mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2025-03-21",
+   "id": 2690,
+   "name": "Taxicab Permit Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-03-18",
+     "file_id": 2423
+    }
+   ]
+  },
+  {
+   "date": "2025-03-24",
+   "id": 2676,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-03-17",
+     "file_id": 2418
+    }
+   ]
+  },
+  {
+   "date": "2025-03-25",
+   "id": 2692,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-03-21",
+     "file_id": 2425
+    }
+   ]
+  },
+  {
+   "date": "2025-03-27",
+   "id": 2674,
+   "name": "EDC Executive Committee  - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2025-04-09",
+   "id": 2695,
+   "name": "Human Relations Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-04-08",
+     "file_id": 2437
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-05-20",
+     "file_id": 2490
+    }
+   ]
+  },
+  {
+   "date": "2025-04-16",
+   "id": 2702,
+   "name": "One Time Event",
+   "asked": true,
+   "pattern_page1": "City Council - Special Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Public Safety Committee Meeting",
+     "publish_on": "2025-04-15",
+     "file_id": 2443
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-05-27",
+     "file_id": 2499
+    }
+   ]
+  },
+  {
+   "date": "2025-04-21",
+   "id": 2703,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-04-17",
+     "file_id": 2445
+    }
+   ]
+  },
+  {
+   "date": "2025-04-21",
+   "id": 2720,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-04-21",
+     "file_id": 2453
+    }
+   ]
+  },
+  {
+   "date": "2025-04-23",
+   "id": 2717,
+   "name": "Airport Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-04-21",
+     "file_id": 2454
+    }
+   ]
+  },
+  {
+   "date": "2025-04-30",
+   "id": 2723,
+   "name": "Audit Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-04-28",
+     "file_id": 2457
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-07-31",
+     "file_id": 2633
+    }
+   ]
+  },
+  {
+   "date": "2025-05-06",
+   "id": 2748,
+   "name": "FY26 Budget Committee Review Mtg (Public Safety)",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-05-01",
+     "file_id": 2461
+    }
+   ]
+  },
+  {
+   "date": "2025-05-07",
+   "id": 2749,
+   "name": "Finance Committee FY26 Budget Review Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-05-01",
+     "file_id": 2462
+    }
+   ]
+  },
+  {
+   "date": "2025-05-07",
+   "id": 2750,
+   "name": "Finance Committee FY26 Budget Review Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-05-01",
+     "file_id": 2463
+    }
+   ]
+  },
+  {
+   "date": "2025-05-07",
+   "id": 2754,
+   "name": "Human Relations Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-05-06",
+     "file_id": 2467
+    }
+   ]
+  },
+  {
+   "date": "2025-05-08",
+   "id": 2751,
+   "name": "FY26 Budget Committee Review Mtg (Transportation/Streets/Garage)",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-05-01",
+     "file_id": 2464
+    }
+   ]
+  },
+  {
+   "date": "2025-05-08",
+   "id": 2752,
+   "name": "FY26 Budget Committee Review Mtg (Neighborhood & Community Services Committee)",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-05-01",
+     "file_id": 2465
+    }
+   ]
+  },
+  {
+   "date": "2025-05-09",
+   "id": 2753,
+   "name": "FY26 Budget Committee Review Mtg (Parks & Recreation Committee)",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-05-01",
+     "file_id": 2466
+    }
+   ]
+  },
+  {
+   "date": "2025-05-14",
+   "id": 2727,
+   "name": "Tree Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-05-12",
+     "file_id": 2474
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-06-12",
+     "file_id": 2515
+    }
+   ]
+  },
+  {
+   "date": "2025-05-14",
+   "id": 2795,
+   "name": "One Time Event",
+   "asked": true,
+   "pattern_page1": "City Council - Special Session",
+   "files": []
+  },
+  {
+   "date": "2025-05-15",
+   "id": 2767,
+   "name": "Senior Center Board Mtg.",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-05-12",
+     "file_id": 2475
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3062
+    }
+   ]
+  },
+  {
+   "date": "2025-05-19",
+   "id": 2800,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-05-16",
+     "file_id": 2486
+    }
+   ]
+  },
+  {
+   "date": "2025-05-20",
+   "id": 2797,
+   "name": "Customs House Museum Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-05-16",
+     "file_id": 2484
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-07-29",
+     "file_id": 2601
+    }
+   ]
+  },
+  {
+   "date": "2025-05-22",
+   "id": 2799,
+   "name": "Ethics Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-05-16",
+     "file_id": 2488
+    }
+   ]
+  },
+  {
+   "date": "2025-05-22",
+   "id": 2792,
+   "name": "ACT Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "ACT Authority",
+     "publish_on": "2025-05-15",
+     "file_id": 2482
+    }
+   ]
+  },
+  {
+   "date": "2025-05-27",
+   "id": 2803,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-05-23",
+     "file_id": 2497
+    }
+   ]
+  },
+  {
+   "date": "2025-05-27",
+   "id": 2850,
+   "name": "Beer Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2025-06-04",
+   "id": 2814,
+   "name": "Human Relations Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-06-03",
+     "file_id": 2503
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-07-29",
+     "file_id": 2593
+    }
+   ]
+  },
+  {
+   "date": "2025-06-11",
+   "id": 2840,
+   "name": "Industrial Development Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-06-09",
+     "file_id": 2509
+    }
+   ]
+  },
+  {
+   "date": "2025-06-11",
+   "id": 2728,
+   "name": "Tree Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-06-05",
+     "file_id": 2506
+    }
+   ]
+  },
+  {
+   "date": "2025-06-12",
+   "id": 2841,
+   "name": "Senior Center Board Mtg.",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-06-10",
+     "file_id": 2510
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-07-29",
+     "file_id": 2606
+    }
+   ]
+  },
+  {
+   "date": "2025-06-16",
+   "id": 2842,
+   "name": "ACT Authority Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "ACT Authority",
+     "publish_on": "2025-06-13",
+     "file_id": 2520
+    },
+    {
+     "type": "Minutes",
+     "name": "ACT Authority",
+     "publish_on": "2025-08-07",
+     "file_id": 2652
+    }
+   ]
+  },
+  {
+   "date": "2025-06-17",
+   "id": 2805,
+   "name": "City Council Special Session - First Reading of the Budget",
+   "asked": true,
+   "pattern_page1": "City Council - Special Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-06-13",
+     "file_id": 2516
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3071
+    }
+   ]
+  },
+  {
+   "date": "2025-06-23",
+   "id": 2843,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-06-16",
+     "file_id": 2521
+    }
+   ]
+  },
+  {
+   "date": "2025-06-23",
+   "id": 2848,
+   "name": "Roxy Regional Theater Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-06-20",
+     "file_id": 2528
+    }
+   ]
+  },
+  {
+   "date": "2025-06-24",
+   "id": 2847,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-06-20",
+     "file_id": 2523
+    }
+   ]
+  },
+  {
+   "date": "2025-06-24",
+   "id": 2851,
+   "name": "Beer Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda ",
+     "publish_on": "2025-06-22",
+     "file_id": 2529
+    }
+   ]
+  },
+  {
+   "date": "2025-06-24",
+   "id": 2806,
+   "name": "City Council Special Session - Second Reading of the Budget",
+   "asked": true,
+   "pattern_page1": "City Council - Special Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-06-20",
+     "file_id": 2526
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3072
+    }
+   ]
+  },
+  {
+   "date": "2025-07-08",
+   "id": 2857,
+   "name": "After Hours Establishment Board Agenda- July 8, 2025",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-06-26",
+     "file_id": 2537
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3061
+    }
+   ]
+  },
+  {
+   "date": "2025-07-09",
+   "id": 2729,
+   "name": "Tree Board - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-07-07",
+     "file_id": 2546
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-09-26",
+     "file_id": 2721
+    }
+   ]
+  },
+  {
+   "date": "2025-07-15",
+   "id": 2863,
+   "name": "Customs House Museum Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-07-11",
+     "file_id": 2550
+    }
+   ]
+  },
+  {
+   "date": "2025-07-17",
+   "id": 2865,
+   "name": "Senior Center Board Mtg.",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-07-15",
+     "file_id": 2558
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-11-19",
+     "file_id": 2793
+    }
+   ]
+  },
+  {
+   "date": "2025-07-17",
+   "id": 2866,
+   "name": "Arts & Heritage Council",
+   "asked": true,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-07-15",
+     "file_id": 2559
+    }
+   ]
+  },
+  {
+   "date": "2025-07-21",
+   "id": 2881,
+   "name": "Roxy Regional Theater Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-07-18",
+     "file_id": 2561
+    }
+   ]
+  },
+  {
+   "date": "2025-07-22",
+   "id": 2884,
+   "name": "CDE Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-07-18",
+     "file_id": 2562
+    }
+   ]
+  },
+  {
+   "date": "2025-07-23",
+   "id": 2885,
+   "name": "Airport Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-07-21",
+     "file_id": 2566
+    },
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2025-07-18",
+     "file_id": 2563
+    }
+   ]
+  },
+  {
+   "date": "2025-07-28",
+   "id": 2886,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-07-21",
+     "file_id": 2565
+    }
+   ]
+  },
+  {
+   "date": "2025-07-30",
+   "id": 2853,
+   "name": "Audit Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-07-25",
+     "file_id": 2569
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-12-04",
+     "file_id": 2816
+    }
+   ]
+  },
+  {
+   "date": "2025-07-30",
+   "id": 2883,
+   "name": "Legislative Agenda Committee Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-07-28",
+     "file_id": 2573
+    }
+   ]
+  },
+  {
+   "date": "2025-07-31",
+   "id": 2889,
+   "name": "Senior Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-07-29",
+     "file_id": 2608
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-08-04",
+     "file_id": 2637
+    }
+   ]
+  },
+  {
+   "date": "2025-08-05",
+   "id": 2891,
+   "name": "CHA Special Board Mtg Notice",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2025-08-06",
+   "id": 2892,
+   "name": "Human Relations Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-08-04",
+     "file_id": 2635
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-11-19",
+     "file_id": 2800
+    }
+   ]
+  },
+  {
+   "date": "2025-08-11",
+   "id": 2890,
+   "name": "After Hours Establishment Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-08-11",
+     "file_id": 2666
+    }
+   ]
+  },
+  {
+   "date": "2025-08-13",
+   "id": 2730,
+   "name": "Tree Board - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2025-08-14",
+   "id": 2899,
+   "name": "Senior Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-08-12",
+     "file_id": 2667
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-11-19",
+     "file_id": 2794
+    }
+   ]
+  },
+  {
+   "date": "2025-08-14",
+   "id": 2898,
+   "name": "Legislative Agenda Committee Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-08-13",
+     "file_id": 2671
+    }
+   ]
+  },
+  {
+   "date": "2025-08-22",
+   "id": 2914,
+   "name": "Designations Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-08-20",
+     "file_id": 2678
+    }
+   ]
+  },
+  {
+   "date": "2025-08-25",
+   "id": 2913,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Common Design Review Board",
+     "publish_on": "2025-08-18",
+     "file_id": 2675
+    }
+   ]
+  },
+  {
+   "date": "2025-08-26",
+   "id": 2916,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-08-22",
+     "file_id": 2680
+    }
+   ]
+  },
+  {
+   "date": "2025-08-26",
+   "id": 2915,
+   "name": "Beer Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-08-22",
+     "file_id": 2679
+    }
+   ]
+  },
+  {
+   "date": "2025-09-03",
+   "id": 2918,
+   "name": "Legislative Agenda Committee Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-08-29",
+     "file_id": 2690
+    }
+   ]
+  },
+  {
+   "date": "2025-09-03",
+   "id": 2921,
+   "name": "Human Relations Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-08-29",
+     "file_id": 2687
+    },
+    {
+     "type": "Minutes",
+     "name": "Human Relations Commission",
+     "publish_on": "2025-09-08",
+     "file_id": 2697
+    }
+   ]
+  },
+  {
+   "date": "2025-09-10",
+   "id": 2731,
+   "name": "Tree Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-09-05",
+     "file_id": 2695
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-10-09",
+     "file_id": 2735
+    }
+   ]
+  },
+  {
+   "date": "2025-09-10",
+   "id": 2923,
+   "name": "Legislative Agenda Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-09-09",
+     "file_id": 2699
+    }
+   ]
+  },
+  {
+   "date": "2025-09-16",
+   "id": 2925,
+   "name": "Customs House Museum Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-09-12",
+     "file_id": 2702
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-11-19",
+     "file_id": 2795
+    }
+   ]
+  },
+  {
+   "date": "2025-09-18",
+   "id": 2927,
+   "name": "Senior Board Fundraising Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-09-15",
+     "file_id": 2704
+    }
+   ]
+  },
+  {
+   "date": "2025-09-18",
+   "id": 2928,
+   "name": "Arts & Heritage Council",
+   "asked": true,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-09-16",
+     "file_id": 2707
+    }
+   ]
+  },
+  {
+   "date": "2025-09-22",
+   "id": 2926,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-09-15",
+     "file_id": 2703
+    }
+   ]
+  },
+  {
+   "date": "2025-09-23",
+   "id": 2931,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-09-19",
+     "file_id": 2710
+    }
+   ]
+  },
+  {
+   "date": "2025-09-23",
+   "id": 2930,
+   "name": "Beer Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-09-19",
+     "file_id": 2709
+    }
+   ]
+  },
+  {
+   "date": "2025-09-26",
+   "id": 2932,
+   "name": "Senior Board Special Called Training Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2025-10-01",
+   "id": 2934,
+   "name": "Human Relations Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-09-26",
+     "file_id": 2714
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-11-19",
+     "file_id": 2797
+    }
+   ]
+  },
+  {
+   "date": "2025-10-08",
+   "id": 2732,
+   "name": "Tree Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-10-06",
+     "file_id": 2733
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3051
+    }
+   ]
+  },
+  {
+   "date": "2025-10-08",
+   "id": 2991,
+   "name": "Legislative Agenda Committee Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-10-06",
+     "file_id": 2734
+    }
+   ]
+  },
+  {
+   "date": "2025-10-09",
+   "id": 2935,
+   "name": "IDB Board of Directors Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2025-09-26",
+     "file_id": 2719
+    }
+   ]
+  },
+  {
+   "date": "2025-10-15",
+   "id": 2933,
+   "name": "Civil Rights Sub-Committee Mtg - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2025-10-16",
+   "id": 3006,
+   "name": "Senior Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-10-14",
+     "file_id": 2740
+    }
+   ]
+  },
+  {
+   "date": "2025-10-16",
+   "id": 3007,
+   "name": "Arts & Heritage Council",
+   "asked": true,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-10-14",
+     "file_id": 2741
+    }
+   ]
+  },
+  {
+   "date": "2025-10-20",
+   "id": 3013,
+   "name": "Roxy Regional Theater Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-10-20",
+     "file_id": 2748
+    }
+   ]
+  },
+  {
+   "date": "2025-10-21",
+   "id": 3012,
+   "name": "Museum Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-10-17",
+     "file_id": 2746
+    }
+   ]
+  },
+  {
+   "date": "2025-10-22",
+   "id": 3011,
+   "name": "Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-10-17",
+     "file_id": 2744
+    }
+   ]
+  },
+  {
+   "date": "2025-10-23",
+   "id": 3014,
+   "name": "Legislative Agenda Presentation",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-10-21",
+     "file_id": 2751
+    }
+   ]
+  },
+  {
+   "date": "2025-10-27",
+   "id": 3020,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-10-27",
+     "file_id": 2764
+    }
+   ]
+  },
+  {
+   "date": "2025-10-27",
+   "id": 3015,
+   "name": "Special Called Gas & Water Committee Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-10-22",
+     "file_id": 2752
+    }
+   ]
+  },
+  {
+   "date": "2025-10-27",
+   "id": 3008,
+   "name": "Finance Committee Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-10-24",
+     "file_id": 2760
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2025-12-04",
+     "file_id": 2820
+    }
+   ]
+  },
+  {
+   "date": "2025-10-28",
+   "id": 3018,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-10-24",
+     "file_id": 2759
+    }
+   ]
+  },
+  {
+   "date": "2025-10-28",
+   "id": 3019,
+   "name": "Beer Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-10-26",
+     "file_id": 2763
+    }
+   ]
+  },
+  {
+   "date": "2025-10-29",
+   "id": 2725,
+   "name": "Audit Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-10-24",
+     "file_id": 2761
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-04-30",
+     "file_id": 3023
+    }
+   ]
+  },
+  {
+   "date": "2025-11-05",
+   "id": 3023,
+   "name": "Human Relations Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-11-03",
+     "file_id": 2768
+    }
+   ]
+  },
+  {
+   "date": "2025-11-12",
+   "id": 3024,
+   "name": "Special Called City Council Meeting",
+   "asked": true,
+   "pattern_page1": "City Council - Special Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-11-07",
+     "file_id": 2772
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3070
+    }
+   ]
+  },
+  {
+   "date": "2025-11-13",
+   "id": 3025,
+   "name": "Senior Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda ",
+     "publish_on": "2025-11-12",
+     "file_id": 2773
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3040
+    }
+   ]
+  },
+  {
+   "date": "2025-11-17",
+   "id": 3017,
+   "name": "After Hours Establishment Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-11-13",
+     "file_id": 2774
+    }
+   ]
+  },
+  {
+   "date": "2025-11-17",
+   "id": 3027,
+   "name": "Roxy Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-11-14",
+     "file_id": 2782
+    }
+   ]
+  },
+  {
+   "date": "2025-11-18",
+   "id": 3026,
+   "name": "Convention & Visitor Bureau - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-11-14",
+     "file_id": 2776
+    }
+   ]
+  },
+  {
+   "date": "2025-11-18",
+   "id": 3028,
+   "name": "Museum Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-11-14",
+     "file_id": 2783
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3050
+    }
+   ]
+  },
+  {
+   "date": "2025-11-19",
+   "id": 3009,
+   "name": "Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2025-11-19",
+   "id": 2733,
+   "name": "Tree Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-11-14",
+     "file_id": 2780
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3057
+    }
+   ]
+  },
+  {
+   "date": "2025-11-20",
+   "id": 3037,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-11-18",
+     "file_id": 2792
+    }
+   ]
+  },
+  {
+   "date": "2025-11-20",
+   "id": 3034,
+   "name": "Arts & Heritage Council",
+   "asked": true,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-11-18",
+     "file_id": 2791
+    }
+   ]
+  },
+  {
+   "date": "2025-11-24",
+   "id": 3030,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-11-17",
+     "file_id": 2787
+    }
+   ]
+  },
+  {
+   "date": "2025-11-24",
+   "id": 3035,
+   "name": "Finance Committee Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-11-21",
+     "file_id": 2806
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3078
+    }
+   ]
+  },
+  {
+   "date": "2025-11-25",
+   "id": 3038,
+   "name": "Beer Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-11-21",
+     "file_id": 2805
+    }
+   ]
+  },
+  {
+   "date": "2025-12-01",
+   "id": 3040,
+   "name": "Roxy Regional Theater Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-12-01",
+     "file_id": 2811
+    }
+   ]
+  },
+  {
+   "date": "2025-12-03",
+   "id": 3039,
+   "name": "Human Relations Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-11-26",
+     "file_id": 2809
+    }
+   ]
+  },
+  {
+   "date": "2025-12-05",
+   "id": 3042,
+   "name": "Arts & Heritage Council - Monument Committee",
+   "asked": true,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2025-12-09",
+   "id": 3041,
+   "name": "Special Called Senior Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-12-02",
+     "file_id": 2814
+    }
+   ]
+  },
+  {
+   "date": "2025-12-10",
+   "id": 3045,
+   "name": "IDB Board of Directors Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2025-12-09",
+     "file_id": 2828
+    }
+   ]
+  },
+  {
+   "date": "2025-12-10",
+   "id": 3043,
+   "name": "Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-12-04",
+     "file_id": 2821
+    }
+   ]
+  },
+  {
+   "date": "2025-12-10",
+   "id": 2734,
+   "name": "Tree Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2025-12-11",
+   "id": 3046,
+   "name": "EDC Board of Directors mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2025-12-09",
+     "file_id": 2829
+    }
+   ]
+  },
+  {
+   "date": "2025-12-11",
+   "id": 3047,
+   "name": "Senior Center Board Mtg.",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-12-09",
+     "file_id": 2830
+    }
+   ]
+  },
+  {
+   "date": "2025-12-15",
+   "id": 3044,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-12-09",
+     "file_id": 2826
+    }
+   ]
+  },
+  {
+   "date": "2025-12-16",
+   "id": 3049,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-12-12",
+     "file_id": 2835
+    }
+   ]
+  },
+  {
+   "date": "2025-12-16",
+   "id": 3031,
+   "name": "Beer Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-12-12",
+     "file_id": 2834
+    }
+   ]
+  },
+  {
+   "date": "2025-12-16",
+   "id": 3048,
+   "name": "Museum Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-12-12",
+     "file_id": 2833
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3042
+    }
+   ]
+  },
+  {
+   "date": "2025-12-22",
+   "id": 3050,
+   "name": "Finance Committee Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2025-12-22",
+     "file_id": 2839
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3079
+    }
+   ]
+  },
+  {
+   "date": "2026-01-05",
+   "id": 3052,
+   "name": "Gas & Water Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-01-02",
+     "file_id": 2841
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3052
+    }
+   ]
+  },
+  {
+   "date": "2026-01-14",
+   "id": 3081,
+   "name": "Tree Board Jan 14, 2026",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-01-12",
+     "file_id": 2852
+    }
+   ]
+  },
+  {
+   "date": "2026-01-15",
+   "id": 3083,
+   "name": "Arts & Heritage Council",
+   "asked": true,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-01-13",
+     "file_id": 2853
+    }
+   ]
+  },
+  {
+   "date": "2026-01-15",
+   "id": 3084,
+   "name": "Senior Center Board Mtg.",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-01-13",
+     "file_id": 2854
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3036
+    }
+   ]
+  },
+  {
+   "date": "2026-01-19",
+   "id": 3097,
+   "name": "Roxy Board Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-01-20",
+   "id": 3098,
+   "name": "Museum Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-01-19",
+     "file_id": 2860
+    }
+   ]
+  },
+  {
+   "date": "2026-01-22",
+   "id": 3118,
+   "name": "EDC Executive Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-01-21",
+     "file_id": 2866
+    }
+   ]
+  },
+  {
+   "date": "2026-01-26",
+   "id": 3100,
+   "name": "Common Design Review Board - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-01-20",
+     "file_id": 2861
+    }
+   ]
+  },
+  {
+   "date": "2026-01-27",
+   "id": 3101,
+   "name": "Restoring Clarksville - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-01-29",
+   "id": 3121,
+   "name": "Special Called Senior Board Meeting (canceled due to weather)",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-01-23",
+     "file_id": 2870
+    }
+   ]
+  },
+  {
+   "date": "2026-01-30",
+   "id": 3120,
+   "name": "Power Board (Rescheduled due to weather)",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-01-23",
+     "file_id": 2869
+    }
+   ]
+  },
+  {
+   "date": "2026-02-03",
+   "id": 3122,
+   "name": "Beer Board - Rescheduled to 2/3/26",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda ",
+     "publish_on": "2026-01-31",
+     "file_id": 2874
+    }
+   ]
+  },
+  {
+   "date": "2026-02-04",
+   "id": 3103,
+   "name": "Board of Zoning Appeals",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-02",
+     "file_id": 2876
+    }
+   ]
+  },
+  {
+   "date": "2026-02-04",
+   "id": 2987,
+   "name": "Audit Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-02",
+     "file_id": 2875
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-04-30",
+     "file_id": 3024
+    }
+   ]
+  },
+  {
+   "date": "2026-02-06",
+   "id": 3130,
+   "name": "Special Called Regional Planning Commission Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-05",
+     "file_id": 2882
+    }
+   ]
+  },
+  {
+   "date": "2026-02-10",
+   "id": 3124,
+   "name": "Transportation, Streets, Garage Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-05",
+     "file_id": 2884
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-02-13",
+     "file_id": 2900
+    }
+   ]
+  },
+  {
+   "date": "2026-02-11",
+   "id": 3123,
+   "name": "Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-03",
+     "file_id": 2881
+    }
+   ]
+  },
+  {
+   "date": "2026-02-11",
+   "id": 3117,
+   "name": "Airport Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-11",
+     "file_id": 2896
+    }
+   ]
+  },
+  {
+   "date": "2026-02-11",
+   "id": 3125,
+   "name": "Tree Board Feb. 11, 2026  - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-02-11",
+   "id": 3067,
+   "name": "Special Session",
+   "asked": true,
+   "pattern_page1": "City Council - Special Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-09",
+     "file_id": 2887
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3068
+    }
+   ]
+  },
+  {
+   "date": "2026-02-12",
+   "id": 3131,
+   "name": "Convention & Visitor Bureau",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-09",
+     "file_id": 2893
+    },
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-02-09",
+     "file_id": 2891
+    }
+   ]
+  },
+  {
+   "date": "2026-02-12",
+   "id": 3135,
+   "name": "Special Called Senior Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-10",
+     "file_id": 2895
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3031
+    }
+   ]
+  },
+  {
+   "date": "2026-02-12",
+   "id": 3136,
+   "name": "Senior Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-11",
+     "file_id": 2897
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3032
+    }
+   ]
+  },
+  {
+   "date": "2026-02-16",
+   "id": 3139,
+   "name": "Roxy Regional Theater Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-13",
+     "file_id": 2904
+    }
+   ]
+  },
+  {
+   "date": "2026-02-17",
+   "id": 3149,
+   "name": "Museum Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda ",
+     "publish_on": "2026-02-14",
+     "file_id": 2909
+    }
+   ]
+  },
+  {
+   "date": "2026-02-18",
+   "id": 3132,
+   "name": "Industrial Development Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-13",
+     "file_id": 2898
+    },
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-02-09",
+     "file_id": 2892
+    }
+   ]
+  },
+  {
+   "date": "2026-02-18",
+   "id": 3140,
+   "name": "Clarksville Housing Authority - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-02-19",
+   "id": 3133,
+   "name": "EDC Executive Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-17",
+     "file_id": 2910
+    },
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-02-09",
+     "file_id": 2890
+    }
+   ]
+  },
+  {
+   "date": "2026-02-19",
+   "id": 3134,
+   "name": "Design & Review Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-09",
+     "file_id": 2894
+    },
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-02-09",
+     "file_id": 2889
+    }
+   ]
+  },
+  {
+   "date": "2026-02-19",
+   "id": 3137,
+   "name": "Gas & Water Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda ",
+     "publish_on": "2026-02-13",
+     "file_id": 2907
+    }
+   ]
+  },
+  {
+   "date": "2026-02-19",
+   "id": 3151,
+   "name": "Arts & Heritage Council",
+   "asked": true,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-17",
+     "file_id": 2912
+    }
+   ]
+  },
+  {
+   "date": "2026-02-19",
+   "id": 3138,
+   "name": "City Council Special Session",
+   "asked": true,
+   "pattern_page1": "City Council - Special Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-13",
+     "file_id": 2903
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3069
+    }
+   ]
+  },
+  {
+   "date": "2026-02-23",
+   "id": 3152,
+   "name": "Regional Planning Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-18",
+     "file_id": 2913
+    }
+   ]
+  },
+  {
+   "date": "2026-02-23",
+   "id": 3150,
+   "name": "Common Design Review Board/Historical Zoning Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-17",
+     "file_id": 2911
+    }
+   ]
+  },
+  {
+   "date": "2026-02-23",
+   "id": 3154,
+   "name": "Audit Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-19",
+     "file_id": 2914
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-04-30",
+     "file_id": 3025
+    }
+   ]
+  },
+  {
+   "date": "2026-02-24",
+   "id": 3157,
+   "name": "CDE Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-20",
+     "file_id": 2917
+    }
+   ]
+  },
+  {
+   "date": "2026-02-24",
+   "id": 3156,
+   "name": "Beer Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-20",
+     "file_id": 2916
+    }
+   ]
+  },
+  {
+   "date": "2026-02-24",
+   "id": 3033,
+   "name": "Civil Rights Sub-Committee Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-02-24",
+   "id": 3148,
+   "name": "Restoring Clarksville",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-13",
+     "file_id": 2906
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-03-30",
+     "file_id": 2977
+    }
+   ]
+  },
+  {
+   "date": "2026-02-25",
+   "id": 3155,
+   "name": "Housing Authority Special Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-20",
+     "file_id": 2915
+    }
+   ]
+  },
+  {
+   "date": "2026-03-03",
+   "id": 4158,
+   "name": "Roxy Regional Theater Executive Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-02-25",
+     "file_id": 2920
+    }
+   ]
+  },
+  {
+   "date": "2026-03-04",
+   "id": 4160,
+   "name": "ACT Authority Meet and Greet",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-03-04",
+   "id": 3158,
+   "name": "Human Relations Commission - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-03-09",
+   "id": 4162,
+   "name": "IDB Executive Committee Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-04",
+     "file_id": 2930
+    },
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-03-04",
+     "file_id": 2929
+    }
+   ]
+  },
+  {
+   "date": "2026-03-10",
+   "id": 4179,
+   "name": "Transportation, Streets, Garage Committee - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-06",
+     "file_id": 2936
+    }
+   ]
+  },
+  {
+   "date": "2026-03-11",
+   "id": 4163,
+   "name": "IDB Board of Directors Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-06",
+     "file_id": 2938
+    },
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-03-04",
+     "file_id": 2931
+    }
+   ]
+  },
+  {
+   "date": "2026-03-11",
+   "id": 4180,
+   "name": "Clarksville Housing Authority Special Called Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-06",
+     "file_id": 2937
+    }
+   ]
+  },
+  {
+   "date": "2026-03-11",
+   "id": 3126,
+   "name": "Tree Board March 11, 2026 - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-03-12",
+   "id": 4161,
+   "name": "Senior Center Board Mtg.",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-04",
+     "file_id": 2927
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3038
+    }
+   ]
+  },
+  {
+   "date": "2026-03-16",
+   "id": 4182,
+   "name": "Roxy Regional Theater Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-13",
+     "file_id": 2941
+    }
+   ]
+  },
+  {
+   "date": "2026-03-17",
+   "id": 4183,
+   "name": "Senior Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-03-13",
+     "file_id": 2944
+    }
+   ]
+  },
+  {
+   "date": "2026-03-17",
+   "id": 4164,
+   "name": "Clarksville Montgomery County Tourist Commission (DBA Visit Clarksville)",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-13",
+     "file_id": 2943
+    },
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-03-04",
+     "file_id": 2932
+    }
+   ]
+  },
+  {
+   "date": "2026-03-17",
+   "id": 4184,
+   "name": "Museum Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-13",
+     "file_id": 2945
+    }
+   ]
+  },
+  {
+   "date": "2026-03-17",
+   "id": 4167,
+   "name": "Gas & Water Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-15",
+     "file_id": 2949
+    }
+   ]
+  },
+  {
+   "date": "2026-03-18",
+   "id": 3141,
+   "name": "Clarksville Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-13",
+     "file_id": 2946
+    }
+   ]
+  },
+  {
+   "date": "2026-03-19",
+   "id": 4188,
+   "name": "Arts & Heritage Council",
+   "asked": true,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-17",
+     "file_id": 2954
+    }
+   ]
+  },
+  {
+   "date": "2026-03-23",
+   "id": 4185,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-16",
+     "file_id": 2951
+    }
+   ]
+  },
+  {
+   "date": "2026-03-23",
+   "id": 4190,
+   "name": "Designations Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-19",
+     "file_id": 2959
+    }
+   ]
+  },
+  {
+   "date": "2026-03-24",
+   "id": 4194,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-20",
+     "file_id": 2961
+    }
+   ]
+  },
+  {
+   "date": "2026-03-24",
+   "id": 4195,
+   "name": "Beer Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-20",
+     "file_id": 2963
+    }
+   ]
+  },
+  {
+   "date": "2026-03-24",
+   "id": 4186,
+   "name": "Regional Planning Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-16",
+     "file_id": 2953
+    }
+   ]
+  },
+  {
+   "date": "2026-03-24",
+   "id": 4196,
+   "name": "Restoring Clarksville",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-03-25",
+   "id": 4193,
+   "name": "Audit Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-23",
+     "file_id": 2965
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-04-30",
+     "file_id": 3026
+    }
+   ]
+  },
+  {
+   "date": "2026-03-26",
+   "id": 4192,
+   "name": "EDC Finance Committee Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-19",
+     "file_id": 2960
+    }
+   ]
+  },
+  {
+   "date": "2026-03-31",
+   "id": 4166,
+   "name": "Economic Development Council Executive Committee",
+   "asked": true,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda ",
+     "publish_on": "2026-03-28",
+     "file_id": 2971
+    },
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-03-04",
+     "file_id": 2934
+    }
+   ]
+  },
+  {
+   "date": "2026-03-31",
+   "id": 4165,
+   "name": "Economic Development Council",
+   "asked": true,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-04-01",
+   "id": 4197,
+   "name": "Human Relations Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-03-24",
+     "file_id": 2966
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-04-14",
+     "file_id": 2994
+    }
+   ]
+  },
+  {
+   "date": "2026-04-06",
+   "id": 4198,
+   "name": "City Council Special Session",
+   "asked": true,
+   "pattern_page1": "City Council - Special Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-01",
+     "file_id": 3077
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-07-23",
+     "file_id": 3198
+    }
+   ]
+  },
+  {
+   "date": "2026-04-08",
+   "id": 3127,
+   "name": "Tree Board April 8, 2026",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda ",
+     "publish_on": "2026-04-06",
+     "file_id": 2984
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-12",
+     "file_id": 3097
+    }
+   ]
+  },
+  {
+   "date": "2026-04-14",
+   "id": 4202,
+   "name": "Transportation, Streets, Garage Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-04-10",
+     "file_id": 2989
+    }
+   ]
+  },
+  {
+   "date": "2026-04-15",
+   "id": 3142,
+   "name": "Clarksville Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-04-10",
+     "file_id": 2988
+    }
+   ]
+  },
+  {
+   "date": "2026-04-16",
+   "id": 4203,
+   "name": "Senior Center Board Mtg.",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-04-14",
+     "file_id": 2993
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-05-01",
+     "file_id": 3039
+    }
+   ]
+  },
+  {
+   "date": "2026-04-16",
+   "id": 4204,
+   "name": "Arts & Heritage Council",
+   "asked": true,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-04-14",
+     "file_id": 2995
+    }
+   ]
+  },
+  {
+   "date": "2026-04-21",
+   "id": 4214,
+   "name": "Museum Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-04-17",
+     "file_id": 3006
+    }
+   ]
+  },
+  {
+   "date": "2026-04-21",
+   "id": 4168,
+   "name": "Gas & Water Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-04-16",
+     "file_id": 3003
+    }
+   ]
+  },
+  {
+   "date": "2026-04-22",
+   "id": 4212,
+   "name": "Airport Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-04-23",
+   "id": 4217,
+   "name": "CDE Personnel Committee Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-04-21",
+     "file_id": 3009
+    }
+   ]
+  },
+  {
+   "date": "2026-04-23",
+   "id": 4216,
+   "name": "CDE Power Board Budget  & Finance Committee Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-04-21",
+     "file_id": 3008
+    }
+   ]
+  },
+  {
+   "date": "2026-04-27",
+   "id": 4215,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-04-20",
+     "file_id": 3007
+    }
+   ]
+  },
+  {
+   "date": "2026-04-28",
+   "id": 4223,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-04-24",
+     "file_id": 3015
+    }
+   ]
+  },
+  {
+   "date": "2026-04-28",
+   "id": 4221,
+   "name": "Beer Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-04-24",
+     "file_id": 3013
+    }
+   ]
+  },
+  {
+   "date": "2026-04-28",
+   "id": 4222,
+   "name": "Adult Oriented Establishment Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-04-24",
+     "file_id": 3014
+    }
+   ]
+  },
+  {
+   "date": "2026-04-28",
+   "id": 4218,
+   "name": "Regional Planning Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-04-22",
+     "file_id": 3010
+    }
+   ]
+  },
+  {
+   "date": "2026-04-28",
+   "id": 4213,
+   "name": "Restoring Clarksville",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-04-17",
+     "file_id": 3005
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-07-22",
+     "file_id": 3195
+    }
+   ]
+  },
+  {
+   "date": "2026-04-29",
+   "id": 2988,
+   "name": "Audit Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-04-27",
+     "file_id": 3019
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-08-04",
+     "file_id": 3224
+    }
+   ]
+  },
+  {
+   "date": "2026-04-29",
+   "id": 4220,
+   "name": "Special Called Senior Board Meeting - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-04-29",
+   "id": 4191,
+   "name": "Special Called City Council Meeting",
+   "asked": true,
+   "pattern_page1": "City Council - Special Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-04-27",
+     "file_id": 3018
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-07-23",
+     "file_id": 3199
+    }
+   ]
+  },
+  {
+   "date": "2026-05-05",
+   "id": 4205,
+   "name": "FY27 Budget Committee Review Meeting (Public Safety Committee)",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-04-14",
+     "file_id": 2996
+    }
+   ]
+  },
+  {
+   "date": "2026-05-06",
+   "id": 4206,
+   "name": "FY27 Budget Committee Review Meeting (Finance Committee)",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-04-14",
+     "file_id": 2997
+    }
+   ]
+  },
+  {
+   "date": "2026-05-06",
+   "id": 4226,
+   "name": "Finance Budget Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-05-06",
+   "id": 4207,
+   "name": "FY27 Budget Committee Review Meeting (Museum, RPC & Airport)",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-04-14",
+     "file_id": 2998
+    }
+   ]
+  },
+  {
+   "date": "2026-05-06",
+   "id": 4208,
+   "name": "FY27  Budget Committee Review Mtg (Parks & Recreation Committee)",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-04-14",
+     "file_id": 2999
+    }
+   ]
+  },
+  {
+   "date": "2026-05-06",
+   "id": 4209,
+   "name": "FY27 Budget Committee Review Meeting (Neighborhood & Community Services)",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-04-14",
+     "file_id": 3000
+    }
+   ]
+  },
+  {
+   "date": "2026-05-06",
+   "id": 4224,
+   "name": "Human Relations Commission - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-05-07",
+   "id": 4225,
+   "name": "Special Called Airport Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-05-07",
+   "id": 4210,
+   "name": "FY27 Budget Committee Review Meeting (Transportation, Streets, Garage)",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-04-14",
+     "file_id": 3001
+    }
+   ]
+  },
+  {
+   "date": "2026-05-07",
+   "id": 4199,
+   "name": "City Council Special Session",
+   "asked": true,
+   "pattern_page1": "City Council - Special Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-05",
+     "file_id": 3085
+    }
+   ]
+  },
+  {
+   "date": "2026-05-12",
+   "id": 4227,
+   "name": "EDC TIF Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-05-06",
+     "file_id": 3087
+    }
+   ]
+  },
+  {
+   "date": "2026-05-12",
+   "id": 4234,
+   "name": "ACT Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-05-13",
+   "id": 4228,
+   "name": "IDB Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-05-06",
+     "file_id": 3088
+    }
+   ]
+  },
+  {
+   "date": "2026-05-13",
+   "id": 4237,
+   "name": "Ad Hoc Advisory Garage Mural Project",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-05-13",
+   "id": 3128,
+   "name": "Tree Board May 13, 2026",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-11",
+     "file_id": 3096
+    }
+   ]
+  },
+  {
+   "date": "2026-05-13",
+   "id": 4233,
+   "name": "EDC Nominating Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-08",
+     "file_id": 3093
+    }
+   ]
+  },
+  {
+   "date": "2026-05-14",
+   "id": 4238,
+   "name": "Ad Hoc Advisory Committee - Painting Tennessee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-05-18",
+   "id": 4235,
+   "name": "Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-11",
+     "file_id": 3095
+    }
+   ]
+  },
+  {
+   "date": "2026-05-18",
+   "id": 4236,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-12",
+     "file_id": 3098
+    }
+   ]
+  },
+  {
+   "date": "2026-05-18",
+   "id": 4242,
+   "name": "Roxy Regional Theater Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-14",
+     "file_id": 3100
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-07-17",
+     "file_id": 3181
+    }
+   ]
+  },
+  {
+   "date": "2026-05-19",
+   "id": 4229,
+   "name": "EDC Executive Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-15",
+     "file_id": 3107
+    },
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-05-06",
+     "file_id": 3089
+    }
+   ]
+  },
+  {
+   "date": "2026-05-19",
+   "id": 4231,
+   "name": "EDC Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-15",
+     "file_id": 3104
+    },
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-05-06",
+     "file_id": 3090
+    }
+   ]
+  },
+  {
+   "date": "2026-05-19",
+   "id": 4230,
+   "name": "CVB Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-15",
+     "file_id": 3106
+    },
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-05-06",
+     "file_id": 3091
+    }
+   ]
+  },
+  {
+   "date": "2026-05-19",
+   "id": 4243,
+   "name": "Museum Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-18",
+     "file_id": 3109
+    }
+   ]
+  },
+  {
+   "date": "2026-05-20",
+   "id": 4244,
+   "name": "Special Called Senior Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-18",
+     "file_id": 3110
+    }
+   ]
+  },
+  {
+   "date": "2026-05-20",
+   "id": 3143,
+   "name": "Clarksville Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-18",
+     "file_id": 3108
+    }
+   ]
+  },
+  {
+   "date": "2026-05-21",
+   "id": 4245,
+   "name": "Arts & Heritage Council",
+   "asked": true,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-19",
+     "file_id": 3111
+    }
+   ]
+  },
+  {
+   "date": "2026-05-26",
+   "id": 4247,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-22",
+     "file_id": 3115
+    }
+   ]
+  },
+  {
+   "date": "2026-05-26",
+   "id": 4248,
+   "name": "Beer Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-22",
+     "file_id": 3116
+    }
+   ]
+  },
+  {
+   "date": "2026-05-26",
+   "id": 4211,
+   "name": "Special Work Session - Budget",
+   "asked": true,
+   "pattern_page1": "City Council - Special Work Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-22",
+     "file_id": 3114
+    }
+   ]
+  },
+  {
+   "date": "2026-05-27",
+   "id": 4249,
+   "name": "Special Called Senior Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-22",
+     "file_id": 3117
+    }
+   ]
+  },
+  {
+   "date": "2026-05-27",
+   "id": 4169,
+   "name": "Gas & Water Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-20",
+     "file_id": 3112
+    }
+   ]
+  },
+  {
+   "date": "2026-06-03",
+   "id": 4251,
+   "name": "Human Relations Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-05-29",
+     "file_id": 3119
+    }
+   ]
+  },
+  {
+   "date": "2026-06-04",
+   "id": 4253,
+   "name": "TIF Committee (IDB)",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-02",
+     "file_id": 3122
+    },
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-06-01",
+     "file_id": 3121
+    }
+   ]
+  },
+  {
+   "date": "2026-06-04",
+   "id": 4266,
+   "name": "Arts & Heritage Book subcommittee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-02",
+     "file_id": 3124
+    }
+   ]
+  },
+  {
+   "date": "2026-06-09",
+   "id": 4241,
+   "name": "ACT Authority Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "ACT Agenda",
+     "publish_on": "2026-06-04",
+     "file_id": 3125
+    }
+   ]
+  },
+  {
+   "date": "2026-06-09",
+   "id": 4268,
+   "name": "Transportation, Streets, Garage Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-05",
+     "file_id": 3127
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-07-20",
+     "file_id": 3186
+    }
+   ]
+  },
+  {
+   "date": "2026-06-09",
+   "id": 4269,
+   "name": "Roxy Regional Theater Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-05",
+     "file_id": 3128
+    }
+   ]
+  },
+  {
+   "date": "2026-06-10",
+   "id": 3129,
+   "name": "Tree Board June 10, 2026",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-08",
+     "file_id": 3131
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-08-10",
+     "file_id": 3237
+    }
+   ]
+  },
+  {
+   "date": "2026-06-11",
+   "id": 4239,
+   "name": "Special Session and First Reading of the Budget",
+   "asked": true,
+   "pattern_page1": "City Council - Special Work Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-09",
+     "file_id": 3132
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-08-13",
+     "file_id": 3249
+    }
+   ]
+  },
+  {
+   "date": "2026-06-15",
+   "id": 4271,
+   "name": "Roxy Regional Theater Board  Special Called Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-12",
+     "file_id": 3133
+    }
+   ]
+  },
+  {
+   "date": "2026-06-16",
+   "id": 4273,
+   "name": "Housing Authority Special Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-12",
+     "file_id": 3137
+    },
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-06-12",
+     "file_id": 3138
+    }
+   ]
+  },
+  {
+   "date": "2026-06-16",
+   "id": 4272,
+   "name": "Museum Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-12",
+     "file_id": 3136
+    }
+   ]
+  },
+  {
+   "date": "2026-06-16",
+   "id": 4240,
+   "name": "Special Budget Session",
+   "asked": true,
+   "pattern_page1": "City Council - Special Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-12",
+     "file_id": 3139
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-08-13",
+     "file_id": 3250
+    }
+   ]
+  },
+  {
+   "date": "2026-06-17",
+   "id": 3144,
+   "name": "Clarksville Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-12",
+     "file_id": 3141
+    }
+   ]
+  },
+  {
+   "date": "2026-06-18",
+   "id": 4170,
+   "name": "Gas & Water Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-15",
+     "file_id": 3144
+    }
+   ]
+  },
+  {
+   "date": "2026-06-19",
+   "id": 4250,
+   "name": "Juneteenth Holiday",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-06-22",
+   "id": 4274,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-15",
+     "file_id": 3143
+    }
+   ]
+  },
+  {
+   "date": "2026-06-22",
+   "id": 4275,
+   "name": "Special Session - 1st Reading of the Budget",
+   "asked": true,
+   "pattern_page1": "City Council - Special Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-22",
+     "file_id": 3151
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-08-13",
+     "file_id": 3251
+    }
+   ]
+  },
+  {
+   "date": "2026-06-23",
+   "id": 4278,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-18",
+     "file_id": 3148
+    }
+   ]
+  },
+  {
+   "date": "2026-06-23",
+   "id": 4279,
+   "name": "Regional Planning Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-22",
+     "file_id": 3150
+    }
+   ]
+  },
+  {
+   "date": "2026-06-26",
+   "id": 4280,
+   "name": "Civil Rights Sub-Committee Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-22",
+     "file_id": 3152
+    }
+   ]
+  },
+  {
+   "date": "2026-06-29",
+   "id": 4281,
+   "name": "City Council Special Session",
+   "asked": true,
+   "pattern_page1": "City Council - Special Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-29",
+     "file_id": 3159
+    }
+   ]
+  },
+  {
+   "date": "2026-06-30",
+   "id": 4276,
+   "name": "Restoring Clarksville",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-17",
+     "file_id": 3145
+    }
+   ]
+  },
+  {
+   "date": "2026-07-02",
+   "id": 4283,
+   "name": "Beer Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-30",
+     "file_id": 3161
+    }
+   ]
+  },
+  {
+   "date": "2026-07-02",
+   "id": 4252,
+   "name": "Regular Session",
+   "asked": true,
+   "pattern_page1": "City Council - Regular Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-30",
+     "file_id": 3162
+    }
+   ]
+  },
+  {
+   "date": "2026-07-06",
+   "id": 4284,
+   "name": "City Council Special Session",
+   "asked": true,
+   "pattern_page1": "City Council - Special Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-07-02",
+     "file_id": 3163
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-08-13",
+     "file_id": 3254
+    }
+   ]
+  },
+  {
+   "date": "2026-07-07",
+   "id": 4282,
+   "name": "CHA Operations Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-06-26",
+     "file_id": 3155
+    }
+   ]
+  },
+  {
+   "date": "2026-07-08",
+   "id": 4285,
+   "name": "Tree Board - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-07-09",
+   "id": 4286,
+   "name": "City Council Special Session",
+   "asked": true,
+   "pattern_page1": "City Council - Special Session",
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-07-07",
+     "file_id": 3164
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-08-13",
+     "file_id": 3255
+    }
+   ]
+  },
+  {
+   "date": "2026-07-14",
+   "id": 4289,
+   "name": "ACT Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "ACT Authority",
+     "publish_on": "2026-07-13",
+     "file_id": 3170
+    }
+   ]
+  },
+  {
+   "date": "2026-07-14",
+   "id": 4291,
+   "name": "Transportation/Streets/Garage Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda ",
+     "publish_on": "2026-07-10",
+     "file_id": 3169
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-07-22",
+     "file_id": 3194
+    }
+   ]
+  },
+  {
+   "date": "2026-07-15",
+   "id": 3145,
+   "name": "Clarksville Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-07-13",
+     "file_id": 3172
+    }
+   ]
+  },
+  {
+   "date": "2026-07-16",
+   "id": 4295,
+   "name": "Senior Board Special Called Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-07-14",
+     "file_id": 3176
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-07-31",
+     "file_id": 3220
+    }
+   ]
+  },
+  {
+   "date": "2026-07-16",
+   "id": 4294,
+   "name": "Arts & Heritage Council",
+   "asked": true,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-07-14",
+     "file_id": 3175
+    }
+   ]
+  },
+  {
+   "date": "2026-07-20",
+   "id": 4298,
+   "name": "Roxy Regional Theater Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-07-17",
+     "file_id": 3180
+    }
+   ]
+  },
+  {
+   "date": "2026-07-21",
+   "id": 4297,
+   "name": "Museum Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-07-17",
+     "file_id": 3179
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-09-11",
+     "file_id": 3285
+    }
+   ]
+  },
+  {
+   "date": "2026-07-21",
+   "id": 4172,
+   "name": "Gas & Water Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-07-16",
+     "file_id": 3177
+    }
+   ]
+  },
+  {
+   "date": "2026-07-23",
+   "id": 4296,
+   "name": "Housing Authority - Property Mgmt Committee Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-07-24",
+     "file_id": 3210
+    }
+   ]
+  },
+  {
+   "date": "2026-07-27",
+   "id": 4293,
+   "name": "Civil Rights Sub-Committee Mtg - CANCELED",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-07-27",
+   "id": 4300,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-07-20",
+     "file_id": 3192
+    }
+   ]
+  },
+  {
+   "date": "2026-07-27",
+   "id": 4301,
+   "name": "Designations Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-07-21",
+     "file_id": 3193
+    }
+   ]
+  },
+  {
+   "date": "2026-07-28",
+   "id": 4304,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-07-24",
+     "file_id": 3207
+    }
+   ]
+  },
+  {
+   "date": "2026-07-28",
+   "id": 4311,
+   "name": "Regional Planning Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-07-27",
+     "file_id": 3214
+    }
+   ]
+  },
+  {
+   "date": "2026-07-28",
+   "id": 4307,
+   "name": "Convention & Visitor Bureau",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-07-27",
+     "file_id": 3212
+    }
+   ]
+  },
+  {
+   "date": "2026-07-28",
+   "id": 4303,
+   "name": "Clarksville Housing Authority Special Called Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-07-23",
+     "file_id": 3206
+    }
+   ]
+  },
+  {
+   "date": "2026-07-29",
+   "id": 2989,
+   "name": "Audit Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-07-27",
+     "file_id": 3211
+    }
+   ]
+  },
+  {
+   "date": "2026-07-30",
+   "id": 4305,
+   "name": "Beer Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-07-28",
+     "file_id": 3215
+    }
+   ]
+  },
+  {
+   "date": "2026-08-05",
+   "id": 4308,
+   "name": "Human Relations Commission - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-08-07",
+   "id": 4316,
+   "name": "Roxy Regional Theater Special Called Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-08-05",
+     "file_id": 3225
+    }
+   ]
+  },
+  {
+   "date": "2026-08-11",
+   "id": 4292,
+   "name": "Transportation/Streets/Garage Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-08-10",
+     "file_id": 3230
+    }
+   ]
+  },
+  {
+   "date": "2026-08-12",
+   "id": 4333,
+   "name": "EDC Health, Education & Housing Facilities Board Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-08-10",
+     "file_id": 3242
+    }
+   ]
+  },
+  {
+   "date": "2026-08-12",
+   "id": 4332,
+   "name": "Arts & Heritage Book subcommittee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-08-10",
+     "file_id": 3241
+    }
+   ]
+  },
+  {
+   "date": "2026-08-12",
+   "id": 4330,
+   "name": "Tree Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "agenda",
+     "publish_on": "2026-08-07",
+     "file_id": 3233
+    },
+    {
+     "type": "Minutes",
+     "name": "Minutes",
+     "publish_on": "2026-10-09",
+     "file_id": 3314
+    }
+   ]
+  },
+  {
+   "date": "2026-08-12",
+   "id": 4334,
+   "name": "IDB Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-08-10",
+     "file_id": 3243
+    }
+   ]
+  },
+  {
+   "date": "2026-08-17",
+   "id": 4309,
+   "name": "Roxy Regional Theater Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-08-18",
+   "id": 4310,
+   "name": "Museum Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-08-11",
+     "file_id": 3244
+    }
+   ]
+  },
+  {
+   "date": "2026-08-20",
+   "id": 4336,
+   "name": "Arts & Heritage Council",
+   "asked": true,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-08-13",
+     "file_id": 3247
+    }
+   ]
+  },
+  {
+   "date": "2026-08-24",
+   "id": 4314,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-08-24",
+   "id": 4335,
+   "name": "Designations Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Designations Committee",
+     "publish_on": "2026-08-20",
+     "file_id": 3259
+    }
+   ]
+  },
+  {
+   "date": "2026-08-24",
+   "id": 4312,
+   "name": "Finance Committee Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "agenda",
+     "publish_on": "2026-08-13",
+     "file_id": 3258
+    }
+   ]
+  },
+  {
+   "date": "2026-08-25",
+   "id": 4313,
+   "name": "Regional Planning Commission",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-09-02",
+   "id": 4340,
+   "name": "Human Relations Commission - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-09-08",
+   "id": 4341,
+   "name": "Transportation, Streets, Garage Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-09-03",
+     "file_id": 3272
+    }
+   ]
+  },
+  {
+   "date": "2026-09-09",
+   "id": 4342,
+   "name": "Tree Board Sept. 9, 2026",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-09-08",
+     "file_id": 3274
+    }
+   ]
+  },
+  {
+   "date": "2026-09-15",
+   "id": 4347,
+   "name": "Customs House Museum Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-09-11",
+     "file_id": 3284
+    }
+   ]
+  },
+  {
+   "date": "2026-09-15",
+   "id": 4174,
+   "name": "Gas & Water Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-09-11",
+     "file_id": 3282
+    }
+   ]
+  },
+  {
+   "date": "2026-09-16",
+   "id": 3146,
+   "name": "Clarksville Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-09-09",
+     "file_id": 3276
+    }
+   ]
+  },
+  {
+   "date": "2026-09-17",
+   "id": 4345,
+   "name": "EDC Board of Directors mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-09-15",
+     "file_id": 3290
+    },
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-09-10",
+     "file_id": 3279
+    }
+   ]
+  },
+  {
+   "date": "2026-09-17",
+   "id": 4346,
+   "name": "Economic Development Council",
+   "asked": true,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-09-15",
+     "file_id": 3289
+    },
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-09-10",
+     "file_id": 3278
+    }
+   ]
+  },
+  {
+   "date": "2026-09-17",
+   "id": 4350,
+   "name": "Arts & Heritage Council",
+   "asked": true,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-09-15",
+     "file_id": 3291
+    }
+   ]
+  },
+  {
+   "date": "2026-09-21",
+   "id": 4349,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-09-15",
+     "file_id": 3292
+    }
+   ]
+  },
+  {
+   "date": "2026-09-21",
+   "id": 4299,
+   "name": "Roxy Regional Theater Board Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "agenda",
+     "publish_on": "2026-09-18",
+     "file_id": 3293
+    }
+   ]
+  },
+  {
+   "date": "2026-09-22",
+   "id": 4351,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "agenda",
+     "publish_on": "2026-09-18",
+     "file_id": 3294
+    }
+   ]
+  },
+  {
+   "date": "2026-09-22",
+   "id": 4352,
+   "name": "Beer Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "agenda",
+     "publish_on": "2026-09-18",
+     "file_id": 3297
+    }
+   ]
+  },
+  {
+   "date": "2026-09-23",
+   "id": 4353,
+   "name": "Special Called Housing Authority Meeting",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-09-21",
+     "file_id": 3298
+    }
+   ]
+  },
+  {
+   "date": "2026-09-30",
+   "id": 4354,
+   "name": "IDB Board of Directors Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-09-25",
+     "file_id": 3305
+    }
+   ]
+  },
+  {
+   "date": "2026-10-07",
+   "id": 4357,
+   "name": "EDC Board of Directors mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Notice",
+     "name": "Notice",
+     "publish_on": "2026-10-05",
+     "file_id": 3309
+    }
+   ]
+  },
+  {
+   "date": "2026-10-13",
+   "id": 4356,
+   "name": "Transportation, Streets, Garage Committee - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-10-09",
+     "file_id": 3312
+    }
+   ]
+  },
+  {
+   "date": "2026-10-14",
+   "id": 4358,
+   "name": "Tree Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda ",
+     "publish_on": "2026-10-13",
+     "file_id": 3317
+    }
+   ]
+  },
+  {
+   "date": "2026-10-20",
+   "id": 4364,
+   "name": "Museum Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda ",
+     "publish_on": "2026-10-16",
+     "file_id": 3320
+    }
+   ]
+  },
+  {
+   "date": "2026-10-20",
+   "id": 4175,
+   "name": "Gas & Water Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda ",
+     "publish_on": "2026-10-15",
+     "file_id": 3319
+    }
+   ]
+  },
+  {
+   "date": "2026-10-21",
+   "id": 4366,
+   "name": "Access Board of Appeals - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-10-21",
+   "id": 3147,
+   "name": "Clarksville Housing Authority",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-10-19",
+     "file_id": 3321
+    }
+   ]
+  },
+  {
+   "date": "2026-10-26",
+   "id": 4365,
+   "name": "Common Design Review Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-10-19",
+     "file_id": 3322
+    }
+   ]
+  },
+  {
+   "date": "2026-10-27",
+   "id": 4369,
+   "name": "Beer Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-10-23",
+     "file_id": 3328
+    }
+   ]
+  },
+  {
+   "date": "2026-10-27",
+   "id": 4368,
+   "name": "Power Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-10-23",
+     "file_id": 3326
+    }
+   ]
+  },
+  {
+   "date": "2026-10-28",
+   "id": 2990,
+   "name": "Audit Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-10-23",
+     "file_id": 3327
+    }
+   ]
+  },
+  {
+   "date": "2026-11-04",
+   "id": 4370,
+   "name": "Human Relations Commission - Canceled",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-11-10",
+   "id": 4372,
+   "name": "Transportation, Streets, Garage Committee",
+   "asked": false,
+   "pattern_page1": null,
+   "files": [
+    {
+     "type": "Agenda",
+     "name": "Agenda",
+     "publish_on": "2026-11-06",
+     "file_id": 3334
+    }
+   ]
+  },
+  {
+   "date": "2026-11-17",
+   "id": 4176,
+   "name": "Gas & Water Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-11-18",
+   "id": 4371,
+   "name": "Special Called Audit Committee Mtg",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2026-12-15",
+   "id": 4177,
+   "name": "Gas & Water Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  },
+  {
+   "date": "2027-01-19",
+   "id": 4178,
+   "name": "Gas & Water Board",
+   "asked": false,
+   "pattern_page1": null,
+   "files": []
+  }
+ ]
+}

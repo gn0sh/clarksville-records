@@ -1,0 +1,58 @@
+# City of Clarksville, TN: the City Council pages of the site (M4 slice 2). sitegen/council.py reads this file for
+# every locality listed under `councils:` in config/site.yml; the code holds no locality literal. Paths are relative
+# to the repository root. The facts file is the city collector's (collector/city_run.py), in schema/facts.schema.json.
+
+body_key: city                       # search index body key ("b"), also the Search page's Body filter value
+body_name: Clarksville City Council  # as the minutes and the facts file name it
+record_url: https://clarksvilletn.portal.civicclerk.com/      # "Unofficial copy. Official record:" on this body's pages
+record_label: City of Clarksville CivicClerk portal
+nav_label: City Council              # the menu entry and the page names ("City Council: Meetings 2019")
+slug: city                           # every page of this body lives under <slug>/ (index, members, meetings, items)
+facts: data/localities/clarksville-tn/facts.json
+wards: data/localities/clarksville-tn/wards.json   # each member's ward as printed in each meeting's attendance list
+# The CivicClerk events listing (collector/civicclerk.py). The day page (sitegen/days.py) lists a meeting the city's
+# calendar schedules that is not in the facts file yet as "scheduled", linked to record_url. Optional.
+calendar: data/localities/clarksville-tn/civicclerk-listing.json
+
+# Seats (design 4.1, invariant `provenance`). A ward holder record is a run of meetings whose attendance list prints
+# the member with that ward number, dates observed (the first and last such meetings), never term dates. A ward
+# printed for a member at fewer than `min_ward_prints` meetings in a row is not made a record (a single print that
+# disagrees with the member's own run either side is read as a misprint or misread; the meeting's own page still
+# links the source). The mayor's seat is taken from the roll calls whose votes list a person with that title.
+seat_word: ward                      # seat ids ward-<n>; labels from config/site.yml ward_label ("Ward 3")
+min_ward_prints: 2
+title_seats:
+  Mayor: city-mayor                  # an official whose title is Mayor holds the city-mayor seat on their roll calls
+evidence:
+  ward: attendance lists
+  title: roll calls
+  configured: the minutes that record the seating   # a configured, cited member's seating (agenda-center.yml members)
+latest_words: the latest minutes read   # "seen in attendance lists from X to L, the latest minutes read"
+
+# How each meeting kind (schema meeting.kind, from agenda-center.yml kind_rules) is named on the pages.
+kind_labels:
+  regular: Regular session
+  executive: Executive session
+  special: Special session
+  committee: Committee meeting
+  work-session: Work session
+  public-hearing: Public hearing
+  other: Other meeting
+
+# Shown for an item whose title the minutes reader could not take from the minutes (its number is still shown).
+untitled_item: Title not read from the minutes
+
+# Why a held roll call is not confirmed (city-verify V5, docs/architecture/city-council.md "Launch treatment"): one
+# fixed sentence per check, the same for every member, shown in place of "this page was hard to read" (most city
+# holds are pages that read fine where the minutes leave something out). attendance_verified wins whenever it failed
+# (every other check of the roll call reads that attendance); else the sentence of the roll call's one failed check
+# (names_resolve and surnames_resolve count as one); `other` for any other check or several. outcome_consistent has
+# its sentence only when an outcome was read (passed or failed): "outcome not read" is `other`. No sentence says
+# the minutes are wrong: a hold may be our reading's. sitegen/views.py held_note; qa/site_checks.py checks every
+# held roll call shows its own sentence.
+held_sentences:
+  one_vote_per_present_member: "Not confirmed: the minutes list a member as present but give no vote for them here."
+  names_resolve: "Not confirmed: a name in this vote does not match a member on the official record."
+  attendance_verified: "Not confirmed: this meeting's attendance list could not be matched to the official record."
+  outcome_consistent: "Not confirmed: the stated outcome could not be matched to the votes listed."
+  other: "Not confirmed: the automatic checks did not pass."

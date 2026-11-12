@@ -1,0 +1,122 @@
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import source, fact_meta, item_link, not_confirmed, nc_mark, chip, bar, legend, stat, badge, seat %}
+{% from "_history.html.j2" import history_groups %}
+{% block main %}
+<header class="official-head">
+  {{ badge(initials, true) }}
+  <div class="official-id">
+    <h1>{{ official.name }}</h1>
+    <p class="title-line">{{ official.title }}</p>
+    {% if seat_header %}<p class="seat-line">{{ seat(seat_header) }}</p>{% endif %}
+    {% if name_source %}<p class="muted name-source">Name and ward from the {{ name_source.kind }} of {{ name_source.date }}, {{ source(name_source.src) }}: &ldquo;{{ name_source.quote }}&rdquo;</p>{% endif %}
+    <p class="muted coverage">{{ coverage_sentence }}</p>
+  </div>
+</header>
+{# One set of numbers (site-polish/official-totals-consistent): each count has one label and one unit (meetings,
+   roll calls or votes) wherever it appears, and the parts are shown with the whole they add up to. data-n marks each
+   number for qa/site_checks.py official-numbers. #}
+{% macro rc_split(st, sfx, what) -%}
+Of <span data-n="rc_total{{ sfx }}">{{ st['rc_total' ~ sfx] }}</span> {{ what }} roll {{ 'call' if st['rc_total' ~ sfx] == 1 else 'calls' }} at meetings where this person is listed in the attendance, or where a vote is recorded for them: a vote is recorded for this person in <span data-n="rc_voted{{ sfx }}">{{ st['rc_voted' ~ sfx] }}</span>; <span data-n="rc_absent{{ sfx }}">{{ st['rc_absent' ~ sfx] }}</span> {{ 'was' if st['rc_absent' ~ sfx] == 1 else 'were' }} held at meetings where this person is recorded absent; <span data-n="rc_novote{{ sfx }}">{{ st['rc_novote' ~ sfx] }}</span> {{ 'has' if st['rc_novote' ~ sfx] == 1 else 'have' }} no vote recorded for this person while recorded present.
+{%- endmacro %}
+<ul class="stats stats-official">
+  {{ stat(stats.meetings_listed, "meetings with attendance shown", "meetings_listed") }}
+  {{ stat(stats.present, "meetings recorded present", "present") }}
+  {{ stat(stats.rc_voted, "votes in confirmed roll calls", "rc_voted") }}
+  {{ stat(stats.rc_voted_nc, "votes in not confirmed* roll calls", "rc_voted_nc") }}
+  {{ stat(stats.moved, "motions moved", "moved") }}
+  {{ stat(stats.seconded, "motions seconded", "seconded") }}
+</ul>
+
+<section aria-labelledby="attendance-h">
+  <h2 id="attendance-h">Attendance</h2>
+  <p>Recorded present at <span data-n="present">{{ stats.present }}</span> and absent at <span data-n="absent">{{ stats.absent }}</span> of <span data-n="meetings_listed">{{ stats.meetings_listed }}</span> meetings with attendance shown, {{ coverage.from }} to {{ coverage.to }}.</p>
+  {{ bar(attendance_bar) }}
+  {{ legend(attendance_bar, n_prefix="att-") }}
+</section>
+
+<section aria-labelledby="votes-h">
+  <h2 id="votes-h">Roll-call votes</h2>
+  <h3>Confirmed roll calls</h3>
+  <p>{{ rc_split(stats, "", "confirmed") }} The bar shows confirmed roll calls only.</p>
+  {{ bar(vote_bar) }}
+  {{ legend(vote_bar, n_prefix="vote-") }}
+  <h3>Not confirmed roll calls*</h3>
+  <p>{{ rc_split(stats, "_nc", "not confirmed") }}</p>
+  {% if vote_legend_nc %}{{ legend(vote_legend_nc, true, n_prefix="vote-nc-") }}
+  <p class="muted">* Shown as printed in the minutes; they did not pass the automatic checks. Each row in the history links to its page. Confirmed and not confirmed roll calls are never added together.</p>
+  {% else %}<p class="muted">* They did not pass the automatic checks, so no vote from them is shown here. Each row in the history links to its page of the minutes. Confirmed and not confirmed roll calls are never added together.</p>{% endif %}
+</section>
+
+<section aria-labelledby="totals-h">
+  <h2 id="totals-h">Totals</h2>
+  <ul class="totals">
+  {% for t in totals %}
+    <li>{{ t }}</li>
+  {% endfor %}
+  </ul>
+  {% if held_by_check %}<p class="muted">* Not confirmed: the automatic checks could not confirm it against the minutes. Each such row below says which check did not pass and links to the page. Confirmed and not confirmed votes are never added together.</p>{% else %}<p class="muted">* Not confirmed: the page in the minutes was hard to read, so the automatic checks could not confirm it. Each such row below links to the page. Confirmed and not confirmed votes are never added together.</p>{% endif %}
+</section>
+
+{% if called_on is defined %}
+<section aria-labelledby="called-on-h">
+  <h2 id="called-on-h">Called on in meetings (transcript)</h2>
+  <p>Where the automatic transcript of a meeting's video shows the chair calling on this person by title and surname, with the surname matched to that meeting's attendance list in the minutes (never to the voice). Each entry links to that moment in the city's video and quotes about 20 seconds of transcript text after the call-on, word for word. The transcript is made by speech-recognition software and may contain errors; the video is the record.</p>
+  {% if called_on %}
+  <ul class="call-ons">
+    {% for r in called_on %}
+    <li data-meeting="{{ r.meeting_id }}"><a href="{{ root }}{{ r.meeting_href }}">{{ r.meeting_label }}</a>: {% if r.video_href %}<a data-ext="video" href="{{ r.video_href }}" target="_blank" rel="noopener noreferrer">{{ r.time }} in the video<span class="sr-only"> (opens in a new tab)</span></a>{% else %}{{ r.time }} in the video{% endif %}{% if r.line_href %} (<a href="{{ root }}{{ r.line_href }}">line in the transcript</a>){% endif %}
+      <p class="muted">Matched words: &ldquo;<span class="tx-matched" data-transcript>{{ r.matched }}</span>&rdquo;</p>
+      <blockquote class="tx-quote"><p class="muted">Transcript text after the chair called on {{ official.name }}:</p><p data-transcript>{{ r.excerpt }}</p></blockquote></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No call-ons found in the {{ transcripts_read }} meeting {{ "transcript" if transcripts_read == 1 else "transcripts" }} read so far.</p>
+  {% endif %}
+</section>
+
+{% endif %}
+<section aria-labelledby="history-h">
+  <h2 id="history-h">History</h2>
+  {% if year_pages is not none %}
+  <p>Votes, attendance, and motions and seconds the minutes attribute to this person, one page per year.</p>
+  {% if year_pages %}
+  <ul class="year-links">
+    {% for y in year_pages %}
+    <li><a href="{{ root }}{{ y.href }}">{{ y.year }}</a> <span class="muted">({{ y.n }} {{ "row" if y.n == 1 else "rows" }})</span></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No votes, attendance, motions or seconds are shown for this person in this period.</p>
+  {% endif %}
+  {% else %}
+  <p>Votes, attendance, and motions and seconds the minutes attribute to this person, newest first.</p>
+  <form id="filters" class="filters toolbar" hidden>
+    <div>
+      <label for="filter-type">Type</label>
+      <select id="filter-type">
+        <option value="">All types</option>
+        {% for value, label in types %}
+        <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="filter-year">Year</label>
+      <select id="filter-year">
+        <option value="">All years</option>
+        {% for y in years %}
+        <option value="{{ y }}">{{ y }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+  <p id="no-match" hidden role="status">No rows match these filters.</p>
+  {# The explicit table roles are kept on purpose: style.css sets display:block on this table at phone width, which
+     removes native table semantics in Chromium and WebKit. The roles restore them. One table per year, each in a
+     <details> (newest year open); filter.js filters the rows across all of them. #}
+  <div id="history">
+  {{ history_groups(row_groups, root) }}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

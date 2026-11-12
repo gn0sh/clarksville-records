@@ -1,0 +1,65 @@
+# Clarksville-Montgomery County Regional Planning Commission (RPC): its meetings, agendas and minutes from the RPC's
+# own site (milestone RPC-1). collector/rpc.py loads and checks this file; sitegen/rpc.py reads the same file for the
+# site pages. Facts about the source: docs/platform-facts.md, "Regional Planning Commission"; survey:
+# docs/research/rpc-cmcss-sources.md.
+#
+# robots.txt (www.cmcrpc.com, checked 2026-11-10): `User-agent: *`, crawl-delay 10, no Disallow. The polite fetcher
+# reads robots.txt every run, checks every URL against it and waits the crawl-delay between requests.
+# Links are taken from the listing page as printed; the collector never builds a document URL (the file names
+# follow no single pattern).
+
+locality: cmc-rpc
+body: Clarksville-Montgomery County Regional Planning Commission
+nav_label: Planning Commission      # the menu entry and the page names ("Planning Commission: Meetings 2025")
+slug: rpc                           # every page of this body lives under <slug>/
+body_key: rpc                       # search index body key ("b")
+listing_url: https://www.cmcrpc.com/documents/agenda-minutes/
+record_url: https://www.cmcrpc.com/documents/agenda-minutes/   # "Unofficial copy. Official record:" on the RPC home
+record_label: Regional Planning Commission agendas and minutes page
+facts: data/localities/cmc-rpc/rpc.json
+
+# Hold every motion as "Not confirmed" (sitegen/rpc.py shown_motions, WHY_HELD). On since 2026-11-11: a review found
+# the minutes reader confirming votes the minutes do not print (2026-05-26-regular-motion-2, 2026-06-23-regular-motion-4
+# stored as "approve the consent agenda / passes"), and a wrong confirmed vote is never shown
+# (docs/architecture/rpc-motion-invariant.md). While on: every page, day card and morning note shows each motion's type
+# and its minutes page only, none under a case, and data/rpc/ exports no motion row; qa/site_checks.py fails any motion
+# shown confirmed or exported. To lift: fix the reader (collector/rpc_minutes.py), rebuild rpc.json, spot-check it
+# against the minutes, then set this to false (or delete the line) in its own reviewed PR.
+hold_motions: true
+
+# Hosts whose documents are fetched (also on collector/fetch.py ALLOWED_HOSTS). A listed link on any other host
+# (Google Drive, YouTube) is kept in the listing with its URL and never requested.
+fetch_hosts: [www.cmcrpc.com, cmcrpc.com]
+fetch_extensions: [.pdf, .docx]
+
+# Which body a listed row belongs to, from the row's label after the date (case-insensitive; the first match wins).
+# Labels are shown as printed; the kind only groups the meetings and names the meeting id.
+kind_rules:
+  - [cdrb, '\bcdrb\b|common design review']
+  - [executive, '\bexec']
+  - [special, '\bspecial\b']
+  - [regular, '^']
+kind_labels:
+  regular: Regional Planning Commission
+  special: Regional Planning Commission, special called meeting
+  executive: Regional Planning Commission, Executive Committee
+  cdrb: Common Design Review Board
+
+# Case types by case-number prefix, in the words of the agendas' own "CASE TYPE:" headings (CITY ZONING, COUNTY
+# ZONING, SUBDIVISION(S), SUBDIVISION VARIANCE(S), SITE REVIEW(S), LANDSCAPE APPEAL(S), ABANDONMENT(S); agendas of
+# 2026-06-23 to 2026-10-27). Read from the prefix, not the nearest heading: some agendas leave a heading out (the
+# 2026-08-25 agenda prints its S- plats under "COUNTY ZONING"). A prefix not listed here shows as "Other case".
+case_types:
+  Z: City zoning
+  ZO: City zoning
+  CZ: County zoning
+  CZO: County zoning
+  S: Subdivision
+  V: Subdivision variance
+  SR: Site review
+  LA: Landscape appeal
+  AB: Abandonment
+  MSCD: Design review     # CDRB agendas: "HISTORIC ZONING COMMISSION & COMMON DESIGN REVIEW BOARD CASES"
+  DDR: Design review
+  DO: Design review       # CDRB agendas from 2025-11: corridor overlay design review ("DO - 2 - 2026")
+  HZ: Historic zoning     # CDRB agendas: Historic Zoning Commission cases ("HZ-3- 2025")

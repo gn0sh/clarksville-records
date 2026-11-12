@@ -1,0 +1,54 @@
+# City of Clarksville, TN: City Council meetings from the city's CivicClerk portal (M4, slice 3), 2024 on.
+# collector/civicclerk.py loads and checks this file; the code holds no locality literal. Facts about the API:
+# docs/platform-facts.md, "CivicClerk". Decision and robots judgment: docs/adr/0003-civicclerk-collection.md.
+#
+# robots.txt (api host, checked 2026-11-09): `User-agent: *` Allow /, Content-Signal search=yes, ai-train=no,
+# use=reference; named AI crawlers (ClaudeBot etc.) are disallowed. Our collector matches only `*` (its own honest
+# User-Agent), uses the records for reference only and never for training. Brian approved collection 2026-11-09.
+# GET only, 10 s between requests, a 403/429 stops the host for the run (collector/fetch.py).
+
+locality: clarksville-tn
+api_host: clarksvilletn.api.civicclerk.com
+category_name: City Council            # events whose categoryName is exactly this; every other board is left out
+from_date: "2024-01-01"                # the Agenda Center holds the council's meetings to January 2024
+# The events listing (OData). Pages follow @odata.nextLink, which must stay on api_host.
+events_url: "https://{host}/v1/Events?$filter=categoryName%20eq%20%27{category}%27%20and%20startDateTime%20ge%20{from_date}T00:00:00Z&$orderby=startDateTime%20asc"
+# A published file (agenda or minutes PDF) by its fileId, as the portal itself downloads it.
+file_url: "https://{host}/v1/Meetings/GetMeetingFileStream(fileId={file_id},plainText=false)"
+# publishedFiles[].type values taken as the agenda and the minutes (other types, e.g. packets, are not fetched)
+agenda_types: [Agenda]
+minutes_types: [Minutes]
+# Video: mediaSourcePathMp4 is kept as the meeting's video link only when it is a full https URL on one of these
+# hosts (a bare storage path such as "stream/CLARKSVILLETN/<uuid>.mp4" has no documented public URL: not guessed).
+video_hosts: [cpmedia.azureedge.net]
+# D1 (docs/architecture/city-council.md, "Verified-rate plan" D1): CivicClerk files some City Council meetings under
+# category "General", under names that vary ("Special Session", "City Council Special Session", "Special Called City
+# Council Meeting", "Special Budget Session", "Regular Session", ...; the full General listing, 2024-01-18 to
+# 2027-01-19, 374 events, fetched 2026-11-11, is docs/research/civicclerk-general-listing-2026-11-11.json). Discovery asks for General events whose name contains any of `name_words` (OData contains,
+# case-insensitive: checked 2026-11-11), lists an event only when its whole name matches one of `events` (regex,
+# case-insensitive, whitespace collapsed; the first match wins), and the build keeps it only when page 1 of its stored
+# agenda or minutes prints that pattern's `page1` as a line of its own; any other (another board's meeting) is
+# skipped and named in build/city-report.json. Both its agenda and its minutes are fetched, so page 1 can be checked.
+also_events_url: "https://{host}/v1/Events?$filter=categoryName%20eq%20%27{category}%27%20and%20startDateTime%20ge%20{from_date}T00:00:00Z%20and%20({names})&$orderby=startDateTime%20asc"
+also_list:
+  - category_name: General
+    name_words: [Session, Council, One Time Event]
+    events:
+      # the page-1 headings below are as printed on each kind's agendas and minutes (read 2026-11-11, 2025-02-18 to
+      # 2026-07-09); 2026-06-11 "Special Session and First Reading of the Budget" prints "City Council - Special Work
+      # Session". "One Time Event" is a name several bodies use (2024-07-09 ACT Authority, 2025-04-16 Public Safety
+      # Committee): listed so a council one would be found, and skipped by its page 1 otherwise.
+      - event_name: '(City Council )?Special Session( - (First|Second|1st|2nd) Reading of the Budget)?'
+        page1: "City Council - Special Session"
+      - event_name: 'Special Called City Council Meeting'
+        page1: "City Council - Special Session"
+      - event_name: 'Special Budget Session'
+        page1: "City Council - Special Session"
+      - event_name: 'Special Session and First Reading of the Budget'
+        page1: "City Council - Special Work Session"
+      - event_name: '(City Council )?Special Work Session( - Budget)?'
+        page1: "City Council - Special Work Session"
+      - event_name: '(City Council )?Regular Session'
+        page1: "City Council - Regular Session"
+      - event_name: 'One Time Event'
+        page1: "City Council - Special Session"

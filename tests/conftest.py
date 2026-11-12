@@ -1,0 +1,90 @@
+import json
+import sys
+from html.parser import HTMLParser
+from pathlib import Path
+
+import pytest
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from sitegen.build import build  # noqa: E402
+
+FIXTURE = ROOT / "site" / "fixtures" / "facts.sample.json"
+FIXTURE_SEATS = ROOT / "site" / "fixtures" / "seats.sample.yml"
+FIXTURE_DISTRICTS = ROOT / "site" / "fixtures" / "districts.sample.json"
+
+
+def rpc_config_unheld(locality: str = "cmc-rpc") -> dict:
+    """The RPC's rpc.yml (sitegen.rpc.load_config) with `hold_motions` off: the tests of the reader's rules on fixture
+    motions. The hold itself, as shipped, is tested in tests/test_rpc_hold.py."""
+    from sitegen import rpc
+    return {**rpc.load_config(locality), "hold_motions": False}
+
+
+@pytest.fixture(scope="session")
+def facts():
+    return json.loads(FIXTURE.read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="session")
+def built(tmp_path_factory):
+    """The fixture site, built once with --internal so review.html exists, with the fixture roster and map."""
+    out = tmp_path_factory.mktemp("site") / "build" / "site"
+    build(FIXTURE, out, internal=True, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS)
+    return out
+
+
+@pytest.fixture(scope="session")
+def pages(built):
+    return {p.relative_to(built).as_posix(): p.read_text(encoding="utf-8") for p in built.rglob("*.html")}
+
+
+class Node:
+    def __init__(self, tag, attrs, parent):
+        self.tag, self.attrs, self.parent, self.children, self.text = tag, dict(attrs), parent, [], []
+        self.parts = []  # text and child nodes in document order
+
+    def walk(self):
+        yield self
+        for c in self.children:
+            yield from c.walk()
+
+    def all_text(self):
+        """Text of this element and everything inside it, in document order."""
+        return "".join(p if isinstance(p, str) else p.all_text() for p in self.parts)
+
+
+VOID = {"meta", "link", "br", "img", "input", "hr"}
+
+
+class _Tree(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.root = Node("root", {}, None)
+        self.cur = self.root
+
+    def handle_starttag(self, tag, attrs):
+        n = Node(tag, attrs, self.cur)
+        self.cur.children.append(n)
+        self.cur.parts.append(n)
+        if tag not in VOID:
+            self.cur = n
+
+    def handle_endtag(self, tag):
+        n = self.cur
+        while n is not self.root and n.tag != tag:
+            n = n.parent
+        if n is not self.root:
+            self.cur = n.parent
+
+    def handle_data(self, data):
+        self.cur.text.append(data)
+        self.cur.parts.append(data)
+
+
+def parse(html: str) -> Node:
+    t = _Tree()
+    t.feed(html)
+    return t.root

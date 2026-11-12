@@ -1,0 +1,16 @@
+{# The seat page's small county outline as inline SVG (design 4), with that one district hatched. aria-hidden: the
+   page says in words which district it is. Every district path has the same class and no inline fill: the fill never
+   encodes anything (design 10). The landing draws no map (CEO, 2026-11-10); its address lookup reads the traced
+   lines from its settings block instead (views.address_context). #}
+{% macro county_map(map, root, cfg) %}
+<svg class="county-map county-map-small" viewBox="{{ map.viewBox }}" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect class="hatch-line" width="2" height="6"/></pattern></defs>
+  {% if map.outline %}<path class="county-outline" d="{{ map.outline }}"/>{% endif %}
+  <g id="layer-districts">
+    {% for d in map.districts %}
+    <path class="district{% if d.this %} is-this{% endif %}" d="{{ d.path }}"/>
+    {% endfor %}
+  </g>
+  {% if map.river %}<path class="river" d="{{ map.river }}"/>{% endif %}
+</svg>
+{% endmacro %}

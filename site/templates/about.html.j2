@@ -1,0 +1,157 @@
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import stat %}
+{% from "_unofficial.html.j2" import about_section %}
+{% from "_operator.html.j2" import operator_person_line %}
+{% block main %}
+<h1>About this site and its data rules</h1>
+
+<section aria-labelledby="operator">
+  <h2 id="operator">Who runs this site</h2>
+  <p>This site is run by {{ site.operator }}. {% if not site.cfg.live %}The site is a preview: it has not launched yet, and its pages may still change. {% endif %}More on <a href="{{ root }}who-runs-this.html">Who runs this</a>, <a href="{{ root }}our-rules.html">Our rules</a>, <a href="{{ root }}corrections.html">Corrections</a> and <a href="{{ root }}method.html">Method</a>.</p>
+  {{ operator_person_line(site, root, operator_person) }}
+</section>
+
+{{ about_section(site, root) }}
+
+<section aria-labelledby="collected">
+  <h2 id="collected">What is collected, and from where</h2>
+  <p>The site reads the official minutes of the {{ coverage.body }}, as published by the county, for {{ coverage.from }} to {{ coverage.to }}. Each minutes PDF is downloaded politely (it follows the site's robots rules and waits between requests) and kept unchanged. A computer program reads the text of each PDF. The county's minutes record motions, seconds, roll call votes and attendance. They do not record spoken comments, so none are shown.</p>
+  <p>Every fact on this site links to the minutes PDF, opened at the page where the fact appears, and shows the date the PDF was fetched: the day in {{ site.cfg.today_place }} (the site's time zone). A date marked (UTC day) is the day in Coordinated Universal Time, for a file whose fetch time is not recorded; it can be one day after the day in {{ site.cfg.today_place }}.</p>
+</section>
+
+<section aria-labelledby="the-record">
+  <h2 id="the-record">The record</h2>
+  <div class="glance">
+  <ul class="stats">
+    {{ stat(glance.meetings, "meetings in the record") }}
+    {{ stat(glance.rc_confirmed, "roll calls confirmed") }}
+    {{ stat(glance.rc_unconfirmed, "roll calls shown but not confirmed*") }}
+    <li class="stat stat-dates"><span class="stat-num"><span class="nowrap">{{ glance.from }}</span> to <span class="nowrap">{{ glance.to }}</span></span><span class="stat-label">dates covered</span></li>
+  </ul>
+  {% for r in body_rates %}<p class="glance-note" data-confirmed-rate="{{ r.body }}">{{ r.text }} <a href="{{ root }}{{ r.href }}">{{ r.body }}</a> roll calls ({{ r.share }}) are confirmed against the official minutes; the rest are shown as not confirmed, each with its reason and a link to the source.</p>{% endfor %}
+  <p class="glance-note">{{ coverage.body }}: {{ glance.motions_held }} motion {{ "attribution is" if glance.motions_held == 1 else "attributions are" }} under review. {{ glance.att_not_shown }} {{ "meeting has" if glance.att_not_shown == 1 else "meetings have" }} no attendance shown. See the <a href="#verified">data rules</a>.</p>
+  </div>
+</section>
+
+<section aria-labelledby="verified">
+  <h2 id="verified">Verified and not confirmed facts</h2>
+  <p>A computer program can misread a page, so each extracted fact is checked automatically before it is shown. For a roll call the checks are: every member present has exactly one recorded vote; the Yes, No and Abstain totals equal the totals the minutes state; the recorded outcome agrees with the votes; and every name matches the roster for that meeting. A roll call that passes every check is <em>confirmed</em>. {% if site.show_unconfirmed_values %}A roll call that fails any check is still shown, marked with an asterisk (*) and &ldquo;Not confirmed: this page was hard to read. Read it yourself&rdquo;, with a link to that page of the minutes. Confirmed and not confirmed votes are always counted separately, for example &ldquo;12 Yes, 3 No confirmed; 2 Yes* not confirmed&rdquo;, and a not confirmed vote never changes a confirmed total.{% else %}A roll call that fails any check is still listed, marked with an asterisk (*) and &ldquo;Not confirmed: this page was hard to read. Read it yourself&rdquo;, with a link to that page of the minutes, but no vote, outcome or tally the program read from it is shown: each vote and the outcome read &ldquo;Not confirmed*&rdquo;, here and in the data files below. Confirmed votes are counted on their own, for example &ldquo;12 Yes, 3 No confirmed; 2 votes in not confirmed* roll calls, see each page&rdquo;, and a not confirmed roll call never changes a confirmed total.{% endif %} A vote whose name could not be matched to an official is never placed under anyone: it appears only on the meeting and item pages, as &ldquo;Name not matched*&rdquo;, and is counted once, in one sentence that is the same on every official's page. For a motion the checks are that the people named as moving and seconding it match the roster, were present, and are two different people; if any of these fails, the motion is marked &ldquo;Attribution under review&rdquo; and no one is named as moving or seconding it, even when its roll call is shown. The minutes' own sentence for a motion, and the names exactly as the program read them, are never shown on these pages or included in the data files below, because the program can misread names in them. Each motion is shown as its kind, such as &ldquo;Motion to adopt&rdquo;. A {% if not site.show_unconfirmed_values %}confirmed {% endif %}roll call shows its outcome as Passed, Failed or Other with a tally counted from the votes shown on the page, never the minutes' own outcome sentence. Attendance that fails its checks is not shown. Scanned minutes with no readable text are shown as &ldquo;Attendance not extracted for this meeting.&rdquo;</p>
+</section>
+
+<section aria-labelledby="merge-rules">
+  <h2 id="merge-rules">How names are matched</h2>
+  <p>The same four rules apply to every person:</p>
+  <ol>
+    <li>Normalise the name from the minutes: remove a leading title (Commissioner, Comm., Chairman, Chairwoman, Mayor, Mr., Mrs., Ms., Dr.), remove periods and commas, collapse spaces, ignore capitalisation.</li>
+    <li>Match the result exactly against each official's name and listed variants (below).</li>
+    <li>Match on surname alone only when exactly one official at that meeting has that surname.</li>
+    <li>Anything else is unmatched: the name is shown as &ldquo;Name not matched&rdquo; and the fact is not confirmed. Names are never matched by closeness of spelling. A variant is added to the table below only by a recorded change.</li>
+  </ol>
+  <h3 id="aliases">Name variants merged into each official</h3>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Name variants">
+  <table class="aliases">
+    <thead><tr><th scope="col">Official</th><th scope="col">Variants seen in the minutes</th></tr></thead>
+    <tbody>
+    {% for o in officials %}
+      <tr>
+        <th scope="row"><a href="{{ root }}officials/{{ o.id }}.html">{{ o.name }}</a></th>
+        <td data-variants>{% if o.aliases %}{{ o.aliases | join("; ") }}{% else %}None recorded{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section aria-labelledby="seats">
+  <h2 id="seats">Seats, current members and those who served previously</h2>
+  <p>Each seat ({{ site.cfg.district_label }} 1 to {{ site.cfg.district_count }}{% for o in site.cfg.other_seats %}, {{ o.label }}{% endfor %}) has a list of holder records. For the commission districts, a holder record gives the first and last meetings whose roll-call tables print that person in that seat, with links to both pages, worded &ldquo;seen in roll calls&rdquo;. These are not term dates: a term is shown only when a source prints it, in its own words (&ldquo;term 2022-2026, as the source prints it&rdquo;). &ldquo;Current&rdquo; means seen in the roll calls of the latest meeting collected (or, for a term from a source, that the source prints no end), and is always shown with that basis. Everyone else with a record served previously. A person with no record yet is listed under &ldquo;Seat not yet recorded&rdquo;, and a name on a meeting date that no record covers reads &ldquo;seat not recorded&rdquo;: nobody is placed in a seat by guess. The seat shown next to a name on a meeting page is the one that meeting's roll-call table prints, or, between two meetings that print the same seat, that seat.</p>
+  <p>District lines changed with the county's <a data-ext="county" href="{{ site.cfg.redistricting_page }}" target="_blank" rel="noopener noreferrer">{{ site.cfg.redistricting_label }}<span class="sr-only"> (opens in a new tab)</span></a>. The exact day the new lines took effect is not printed in any source collected, so the site splits votes at the change between two meetings: the last roll call under the old lines and the first under the current lines, both named on each seat page. Votes under the old lines are listed under &ldquo;Old district lines&rdquo; and never added to votes under the current lines.{% if swap %} {{ swap.before }}<a data-ext="county" href="{{ swap.url }}" target="_blank" rel="noopener noreferrer">{{ swap.link }}<span class="sr-only"> (opens in a new tab)</span></a>{{ swap.after }}{% endif %}</p>
+</section>
+
+<section aria-labelledby="item-types">
+  <h2 id="item-types">How item types are decided</h2>
+  <p>The same rule for every item. An item has a type when its number starts with one of the prefixes below, or its title, as printed in the minutes, contains one of the words (any capitalisation). An item can have more than one type. An item with none of them is &ldquo;Other&rdquo;.</p>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Item type rule">
+  <table class="aliases">
+    <thead><tr><th scope="col">Type</th><th scope="col">Number starts with</th><th scope="col">Title contains</th></tr></thead>
+    <tbody>
+    {% for t in site.cfg.item_types %}
+      <tr><th scope="row">{{ t.label }}</th><td>{{ t.prefixes | join(", ") or "None" }}</td><td>{{ t.words | join(", ") }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section aria-labelledby="motion-kinds">
+  <h2 id="motion-kinds">How motion kinds are decided</h2>
+  <p>The same rule for every motion. The kind shown (for example &ldquo;Motion to adopt&rdquo;) is decided by the team, not printed in the minutes: the motion's text is searched for the phrases below, in this order, and the first match gives the kind (any capitalisation; &ldquo;...&rdquo; stands for any words in between). A motion with none of them is &ldquo;{{ motion_default }}&rdquo;. Only the kind is shown, never the minutes' sentence.</p>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Motion kind rule">
+  <table class="aliases">
+    <thead><tr><th scope="col">Kind</th><th scope="col">Text contains</th></tr></thead>
+    <tbody>
+    {% for k in motion_kinds %}
+      <tr><th scope="row">{{ k.label }}</th><td>{{ k.phrases | join("; ") }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section aria-labelledby="vote-on">
+  <h2 id="vote-on">How &ldquo;Vote on&rdquo; is decided</h2>
+  <p>The same rule for every roll call. The &ldquo;Vote on&rdquo; label (for example &ldquo;Amendment&rdquo;) is decided by the team, not printed as a label in the minutes. It comes from the sentence the minutes print just before the roll call, the one that says what was adopted or failed by the roll call vote that follows. That whole sentence must take one of the forms below, checked in this order, and the first match gives the label (any capitalisation; words in [brackets] may be missing; &ldquo;th~&rdquo; is read as &ldquo;the&rdquo;; a colon and stray marks at the end are ignored). Before it there may be one other word (a name) or earlier text that ends in punctuation. A sentence that takes none of these forms gets no label, and a roll call that is not confirmed never gets one. Only the label is shown, never the minutes' sentence.</p>
+  <div class="table-scroll" tabindex="0" role="region" aria-label="Vote on rule">
+  <table class="aliases">
+    <thead><tr><th scope="col">Vote on</th><th scope="col">The sentence reads</th></tr></thead>
+    <tbody>
+    {% for k in vote_on_kinds %}
+      <tr><th scope="row">{{ k.label }}</th><td>{{ k.clause }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section aria-labelledby="neutrality">
+  <h2 id="neutrality">Neutrality rules</h2>
+  <ol>
+    <li>Every official is shown with the same layout, the same fields and the same order. People are listed alphabetically by surname, except current members, who are listed by seat number. Nothing is ever ordered by a count.</li>
+    <li>Only facts are shown. Attendance is Present or Absent as the minutes record it. A vote is Yes, No or Abstain, or Other, with the minutes' wording only when it is one of Recused, Absent, Not voting or Present. Nothing is turned into a judgment.</li>
+    <li>Counts appear only as plain totals, with the number of meetings they come from and the date range stated, worded the same way for everyone. Nothing is sorted by a count or highlighted for one.</li>
+    <li>Every fact shows a link to its source document and page, and the date it was fetched.</li>
+    <li>Every fact has a way to report a mistake (see below).</li>
+    <li>There are no advertisements, campaign links, outside scripts, outside fonts or visitor tracking. {% if site.cfg.geocoder_url %}The site's own small scripts make no network requests, except one: when you look up an address in the box on the home page, the address you type is sent to {{ site.cfg.geocoder_label }}, and its answer is loaded from there.{% else %}The site's own small scripts make no network requests.{% endif %}</li>
+  </ol>
+</section>
+
+<section aria-labelledby="corrections">
+  <h2 id="corrections">Report an error</h2>
+  <p>Every fact has a <a href="{{ root }}report.html">Report an error</a> link. It opens a short page that says what to include: the page address, the fact id shown on the row, and the source document and page that shows the right value.</p>
+  <p>A vote's fact id is the roll call id, a slash, and the official's id. An attendance fact id is the meeting id, <code>/att/</code>, and the official's id. A Moved or Seconded fact id is the motion id, a slash, and <code>moved</code> or <code>seconded</code>.</p>
+  <h3 id="how-corrections-work">How corrections work</h3>
+  <p>Each report is checked against the source document it names. The site then shows what the source document says, with a link to it; a value is never changed without a source. The same rule applies to every official and every record, whoever sends the report. When a fix is made, the change is recorded on the <a href="{{ root }}changes.html">Changes</a> page.</p>
+</section>
+
+<section aria-labelledby="exports">
+  <h2 id="exports">Open data</h2>
+  <p>All shown facts, with their sources, are available as files so this site is not the only copy. The files carry the same facts as the pages: official ids and names, each motion's kind, whether each roll call and vote is confirmed, and links to the source pages, but not the program's raw reading of names, vote wording or motion sentences.</p>
+  {% if site.export_omitted %}
+  <p>The files are left out of this preview copy of the site, which is limited in size. The full site carries them.</p>
+  {% else %}
+  <ul>
+    <li><a href="{{ root }}data/facts.json">facts.json</a> (all shown facts and sources)</li>
+    <li><a href="{{ root }}data/officials.csv">officials.csv</a></li>
+    <li><a href="{{ root }}data/meetings.csv">meetings.csv</a></li>
+    <li><a href="{{ root }}data/attendance.csv">attendance.csv</a></li>
+    <li><a href="{{ root }}data/roll_calls.csv">roll_calls.csv</a></li>
+    <li><a href="{{ root }}data/votes.csv">votes.csv</a></li>
+    <li><a href="{{ root }}data/motions.csv">motions.csv</a></li>
+    <li><a href="{{ root }}data/items.csv">items.csv</a></li>
+    <li><a href="{{ root }}data/item_events.csv">item_events.csv</a></li>
+    <li><a href="{{ root }}data/sources.csv">sources.csv</a></li>
+  </ul>
+  {% endif %}
+</section>
+{% endblock %}

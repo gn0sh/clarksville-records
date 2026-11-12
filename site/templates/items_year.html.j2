@@ -1,0 +1,60 @@
+{% extends "base.html.j2" %}
+{% from "_macros.html.j2" import source, fact_meta, cite, motion_block, roll_call_block, item_title, parts_nav %}
+{% block main %}
+{% block items_head %}
+<h1>Items first seen in {{ year }}</h1>
+<p class="lede">Each item shows every appearance in the minutes, oldest first. Items are linked by their official number; items without a number are linked only when the title matches exactly, and say so.</p>
+{% endblock %}
+{{ parts_nav(parts, "Items first seen in " ~ year ~ ", by date") }}
+<nav aria-label="Items in {{ year }}" class="toc-groups">
+  {% for g in toc_groups %}
+  <details class="toc-group">
+    <summary>{{ g.label }} <span class="muted">({{ g.entries|length }} {{ "item" if g.entries|length == 1 else "items" }})</span></summary>
+    <ul class="toc">
+    {% for it in g.entries %}
+      <li>{% if it.number %}<a href="#{{ it.id }}">{{ it.number }}</a>{% else %}<a href="#{{ it.id }}">{{ item_title(it.title) }}</a>{% endif %}</li>
+    {% endfor %}
+    </ul>
+  </details>
+  {% endfor %}
+</nav>
+
+{% for it in items %}
+<section class="item" id="{{ it.id }}" aria-labelledby="h-{{ it.id }}">
+  {% if it.number %}<p class="item-num">{{ it.number }}</p>{% endif %}
+  <h2 id="h-{{ it.id }}" class="item-h">{{ item_title(it.title) }}</h2>
+  <p class="item-basis"><span class="chip chip-type">{{ it.basis }}</span></p>
+  {% if it.zoning %}
+  <div class="zoning">
+    <p class="zoning-h">Case details, as printed in the minutes</p>
+    <dl class="zoning-list">
+    {% for z in it.zoning %}
+      <div class="zoning-row" data-zoning="{{ z.key }}"><dt>{{ z.label }}</dt><dd>{{ z.value }} <span class="cite">{{ source(z.src) }}</span></dd></div>
+    {% endfor %}
+    </dl>
+  </div>
+  {% endif %}
+  {% if it.rpc %}
+  <div class="rpc-link">
+    <p><strong>Planning Commission → County Commission:</strong> this case on the Regional Planning Commission's agendas, linked by its case number.</p>
+    <ul>
+      {% for r in it.rpc %}<li><a href="{{ root }}{{ r.href }}">{{ r.label }}: {{ r.number }}</a></li>{% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+  <ol class="events timeline">
+  {% for e in it.events %}
+    <li class="event fact ev-{{ e.type }}{% if e.roll_call and not e.roll_call.confirmed %} nc{% endif %}" data-fact-id="{{ e.id }}">
+      <p class="event-head"><span class="date"><a href="{{ root }}{{ e.meeting_href }}">{{ e.date }}</a></span> <span class="chip chip-type">{{ e.type_label }}</span>{% if e.roll_call and not e.roll_call.confirmed %} <span class="chip chip-status"><span aria-hidden="true">*</span> Not confirmed</span>{% endif %}</p>
+      {% if e.label %}<p class="label">{{ e.label }}</p>{% endif %}
+      {% if e.roll_call %}{{ roll_call_block(e.roll_call, root) }}{% endif %}
+      {% if e.motion %}{{ motion_block(e.motion, root) }}{% endif %}
+      {{ cite(e.src, root, e.id) }}
+    </li>
+  {% endfor %}
+  </ol>
+</section>
+{% else %}
+<p>No items are available for {{ year }}.</p>
+{% endfor %}
+{% endblock %}

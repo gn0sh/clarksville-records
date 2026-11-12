@@ -1,0 +1,339 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "clarksville-records/finance/1.0",
+  "title": "clarksville-records finance facts file",
+  "description": "Contract between the finance collector (fin_facts.py) and sitegen (fin_views.py). data/finance.json, beside facts.json; shares the source store and src-<sha12> ids (ADR 0002). Architecture: docs/architecture/finance-contracts.md section 3. Lists are sorted by id; keys sorted. Dates are ISO yyyy-mm-dd. Every shown value names source_id and page. A held value is null here and listed with the check that held it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "sources", "solicitations", "documents", "books", "budget_lines", "coverage"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "fixture": { "type": "boolean", "description": "true only in fixture files; sitegen shows a FIXTURE banner on every page" },
+    "sources": { "type": "array", "items": { "$ref": "#/$defs/source" } },
+    "solicitations": { "type": "array", "items": { "$ref": "#/$defs/solicitation" } },
+    "documents": { "type": "array", "items": { "$ref": "#/$defs/document" } },
+    "books": { "type": "array", "items": { "$ref": "#/$defs/book" } },
+    "budget_lines": { "type": "array", "items": { "$ref": "#/$defs/budget_line" } },
+    "coverage": { "$ref": "#/$defs/coverage" }
+  },
+  "$defs": {
+    "date": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "page": { "type": "integer", "minimum": 1 },
+    "count": { "type": "integer", "minimum": 0 },
+    "year": { "type": "integer", "minimum": 1900, "maximum": 2100 },
+    "source_id": { "type": "string", "pattern": "^src-[0-9a-f]{12}$" },
+    "document_id": { "type": "string", "pattern": "^doc-[0-9a-f]{10}$" },
+    "solicitation_id": { "type": "string", "pattern": "^sol-[a-z0-9]+(-[a-z0-9]+)*$" },
+    "book_id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "line_id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*/p[1-9][0-9]*/r[0-9]+$", "description": "<book_id>/p<page>/r<text line on the page, from 1>. Lists sort by id as text (p100 before p28); book order is (book_id, int page, int r) parsed from the id" },
+    "check_name": { "type": "string", "pattern": "^[a-z0-9]+([-_][a-z0-9]+)*$", "description": "the check that held a value, e.g. amount-format, column-align, scan-values, award-source" },
+    "tag": { "enum": ["transfer", "non_revenue", "available_funds"] },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "url", "sha256", "kind", "fetched_at", "pages", "text_layer", "content_type", "creator"],
+      "properties": {
+        "id": { "$ref": "#/$defs/source_id" },
+        "url": { "type": "string", "format": "uri" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "kind": { "enum": ["archive_index", "bid", "rfp", "bid_tab", "award_letter", "notice", "other", "budget_book"] },
+        "fetched_at": { "$ref": "#/$defs/date", "description": "first fetch of this hash" },
+        "pages": { "type": ["integer", "null"], "minimum": 1, "description": "PDF page count; null for the archive HTML" },
+        "text_layer": { "enum": ["text", "ocr", "none", "unreadable"], "description": "the existing enum; HTML is text. Only text sources may carry values (scan-values/*). unreadable: fetched, but pdfinfo/pdftotext failed or timed out on it (not a scan; pages null)" },
+        "content_type": { "enum": ["application/pdf", "text/html"] },
+        "creator": { "type": ["string", "null"], "description": "PDF Creator/Producer as stored, e.g. a scanner name; null when absent or HTML" }
+      }
+    },
+    "held": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "check"],
+      "properties": {
+        "field": { "type": "string", "minLength": 1, "description": "path of the held value inside its record, e.g. bid_tab.bidders[2].total_cents; the value itself is null" },
+        "check": { "$ref": "#/$defs/check_name" }
+      }
+    },
+    "cited_text": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "source_id", "page"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1, "description": "verbatim" },
+        "source_id": { "$ref": "#/$defs/source_id" },
+        "page": { "$ref": "#/$defs/page" }
+      }
+    },
+    "bidder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["printed_order", "name", "total_as_printed", "total_cents", "page"],
+      "properties": {
+        "printed_order": { "type": "integer", "minimum": 1, "description": "order on the tab; the only order the site uses (never by amount)" },
+        "name": { "type": "string", "minLength": 1, "description": "as printed; continuation lines joined with one space" },
+        "total_as_printed": { "type": ["string", "null"], "description": "the Total token as printed" },
+        "total_cents": { "type": ["integer", "null"], "minimum": 0, "description": "UX total_dollars; null when held (see solicitation.held)" },
+        "page": { "$ref": "#/$defs/page" }
+      }
+    },
+    "bid_tab": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["document_id", "tab_type", "not_read_reason", "project_text", "bid_date_text", "bid_date_page", "awardee_text", "awardee_page", "award_date_text", "award_date_page", "awardee_match", "bidders"],
+      "description": "Values come only from document_id, a text-layer bid tab whose shared_by is empty (award-source/*). UX total_check_ok is not stored: a lump-sum tab has nothing to add.",
+      "properties": {
+        "document_id": { "$ref": "#/$defs/document_id", "description": "UX awardee_source, with awardee_page" },
+        "tab_type": { "enum": ["lump_sum", "not_read"], "description": "unit-price and itemised layouts are not_read in 1a (link only, counted in coverage)" },
+        "not_read_reason": { "enum": ["layout", "scan", "shared_url", "not_pdf", "not_fetched", "unreadable", null], "description": "null when lump_sum; feeds coverage.n_tab_not_read. not_pdf: the link is a .docx or its bytes are not a PDF (document status not_pdf), so nothing is read. not_fetched: the link was dead at fetch or is link only (a bid site or a host off the allowlist), so there are no bytes to read. unreadable: the file was fetched but pdfinfo/pdftotext failed or timed out on it (source text_layer unreadable), so nothing is read; it is not a scan" },
+        "project_text": { "type": ["string", "null"] },
+        "bid_date_text": { "type": ["string", "null"] },
+        "bid_date_page": { "oneOf": [{ "$ref": "#/$defs/page" }, { "type": "null" }], "description": "page of bid_date_text in document_id; null when bid_date_text is null" },
+        "awardee_text": { "type": ["string", "null"], "description": "Bid Awarded to, as printed; null when none named or not read" },
+        "awardee_page": { "oneOf": [{ "$ref": "#/$defs/page" }, { "type": "null" }] },
+        "award_date_text": { "type": ["string", "null"] },
+        "award_date_page": { "oneOf": [{ "$ref": "#/$defs/page" }, { "type": "null" }], "description": "page of award_date_text in document_id; null when award_date_text is null" },
+        "awardee_match": {
+          "oneOf": [
+            { "type": "string", "pattern": "^bidder:[1-9][0-9]*$" },
+            { "enum": ["none_named", "not_a_listed_bidder", "ambiguous", null] }
+          ],
+          "description": "bidder:<printed_order> on exactly one normalised match; null when not_read"
+        },
+        "bidders": { "type": "array", "items": { "$ref": "#/$defs/bidder" } }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "tab_type": { "const": "lump_sum" } } },
+          "then": { "properties": { "not_read_reason": { "const": null }, "bidders": { "minItems": 1 }, "awardee_match": { "type": "string" } } },
+          "else": { "properties": { "not_read_reason": { "type": "string" }, "bidders": { "maxItems": 0 }, "awardee_text": { "const": null }, "awardee_match": { "const": null }, "bid_date_text": { "const": null }, "bid_date_page": { "const": null }, "award_date_text": { "const": null }, "award_date_page": { "const": null } } }
+        },
+        {
+          "if": { "properties": { "bid_date_text": { "const": null } } },
+          "then": { "properties": { "bid_date_page": { "const": null } } },
+          "else": { "properties": { "bid_date_page": { "$ref": "#/$defs/page" } } }
+        },
+        {
+          "if": { "properties": { "award_date_text": { "const": null } } },
+          "then": { "properties": { "award_date_page": { "const": null } } },
+          "else": { "properties": { "award_date_page": { "$ref": "#/$defs/page" } } }
+        }
+      ]
+    },
+    "solicitation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "slug", "title", "archive_date_text", "archive_date", "archive_status", "year", "department", "number", "document_ids", "document_labels", "bid_tab", "documents_differ", "held", "row", "archive_source_id"],
+      "properties": {
+        "id": { "$ref": "#/$defs/solicitation_id", "description": "sol-<slug>; on a slug collision sol-<slug>-<sha1(first doc url)[:6]>" },
+        "slug": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+        "title": { "type": "string", "minLength": 1, "description": "verbatim from the archive row" },
+        "archive_date_text": { "type": "string", "description": "Award Date cell verbatim; may be empty" },
+        "archive_date": { "oneOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }], "description": "parsed by date_formats with the two repairs only" },
+        "archive_status": { "type": ["string", "null"], "description": "a status word from finance.yml as printed, e.g. No Award" },
+        "year": { "oneOf": [{ "$ref": "#/$defs/year" }, { "type": "null" }], "description": "from archive_date, else null" },
+        "department": { "oneOf": [{ "$ref": "#/$defs/cited_text" }, { "type": "null" }], "description": "bid tab Department only; the archive prints none" },
+        "number": { "type": ["string", "null"], "description": "null in 1a: no solicitation number is printed in anything read" },
+        "document_ids": { "type": "array", "items": { "$ref": "#/$defs/document_id" }, "description": "archive order; count equals the row's links (doc-completeness/*)" },
+        "document_labels": { "type": "array", "items": { "type": "string" }, "description": "this row's link text verbatim, parallel to document_ids; a shared URL's document.link_label is only its first row's (doc-completeness/label-not-verbatim)" },
+        "bid_tab": { "oneOf": [{ "$ref": "#/$defs/bid_tab" }, { "type": "null" }], "description": "null = No bid tab (UX has_bid_tab = bid_tab is not null)" },
+        "documents_differ": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["fields", "document_ids"],
+              "properties": {
+                "fields": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["awardee", "n_bidders"] } },
+                "document_ids": { "type": "array", "minItems": 2, "uniqueItems": true, "items": { "$ref": "#/$defs/document_id" } }
+              }
+            },
+            { "type": "null" }
+          ]
+        },
+        "held": { "type": "array", "items": { "$ref": "#/$defs/held" }, "description": "values held as Not confirmed*" },
+        "row": { "type": "integer", "minimum": 1, "description": "archive table row index (header row excluded, first data row = 1)" },
+        "archive_source_id": { "$ref": "#/$defs/source_id" }
+      }
+    },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "url", "link_label", "stage", "source_id", "status", "scanned", "doc_date_text", "doc_date_page", "shared_by", "fetched_at"],
+      "properties": {
+        "id": { "$ref": "#/$defs/document_id", "description": "doc-<sha1(url)[:10]>" },
+        "url": { "type": "string", "format": "uri" },
+        "link_label": { "type": "string", "description": "verbatim archive link text" },
+        "stage": { "enum": ["bid_tab", "award_letter", "partial_award", "notice_of_intent", "notice_of_award", "bid", "rfp", "rfq", "addendum", "qa", "forms", "advertisement", "drawings", "other"] },
+        "source_id": { "oneOf": [{ "$ref": "#/$defs/source_id" }, { "type": "null" }], "description": "null when not fetched: Bonfire, non-PDF, dead link" },
+        "status": { "enum": ["fetched", "not_pdf", "link_only", "dead_at_fetch"] },
+        "scanned": { "type": "boolean", "description": "true when the source's text_layer is none or a scanner's ocr: no value is read from it. False for an unreadable source (not a scan; its value is not read either)" },
+        "doc_date_text": { "type": ["string", "null"], "description": "UX doc_date: only a text document's own labelled date" },
+        "doc_date_page": { "oneOf": [{ "$ref": "#/$defs/page" }, { "type": "null" }] },
+        "shared_by": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/solicitation_id" }, "description": "other solicitations linking the same URL; non-empty = link only, no values" },
+        "fetched_at": { "oneOf": [{ "$ref": "#/$defs/date" }, { "type": "null" }], "description": "fetch (or failed fetch) date; null for link_only" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "fetched" } } },
+          "then": { "properties": { "source_id": { "type": "string" }, "fetched_at": { "type": "string" } } },
+          "else": { "properties": { "source_id": { "const": null }, "scanned": { "const": false }, "doc_date_text": { "const": null } } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "dead_at_fetch" } } },
+          "then": { "properties": { "fetched_at": { "type": "string" } } }
+        },
+        {
+          "if": { "properties": { "status": { "const": "link_only" } } },
+          "then": { "properties": { "fetched_at": { "const": null } } }
+        },
+        {
+          "if": { "properties": { "scanned": { "const": true } } },
+          "then": { "properties": { "doc_date_text": { "const": null }, "doc_date_page": { "const": null } } }
+        }
+      ]
+    },
+    "column": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["header_as_printed", "fiscal_year", "kind"],
+      "properties": {
+        "header_as_printed": { "type": "string", "minLength": 1, "description": "header lines of one band joined with one space" },
+        "fiscal_year": { "$ref": "#/$defs/year" },
+        "kind": { "enum": ["actual", "amended", "adopted", "projected"] }
+      }
+    },
+    "book": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "edition", "fiscal_year", "source_id", "pages_read", "columns"],
+      "properties": {
+        "id": { "$ref": "#/$defs/book_id", "description": "e.g. fy2027-approved; a book is one fixed edition" },
+        "title": { "type": "string", "minLength": 1 },
+        "edition": { "type": "string", "minLength": 1, "description": "as named in finance.yml, e.g. approved" },
+        "fiscal_year": { "$ref": "#/$defs/year" },
+        "source_id": { "$ref": "#/$defs/source_id" },
+        "pages_read": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/page" } },
+        "columns": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/column" } }
+      }
+    },
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["header_as_printed", "fiscal_year", "kind", "as_printed", "dollars"],
+      "properties": {
+        "header_as_printed": { "type": "string", "minLength": 1 },
+        "fiscal_year": { "$ref": "#/$defs/year" },
+        "kind": { "enum": ["actual", "amended", "adopted", "projected"] },
+        "as_printed": { "type": ["string", "null"], "description": "token as printed, parentheses kept; null = blank cell (not printed)" },
+        "dollars": { "type": ["integer", "null"], "description": "whole dollars; \"-\" is 0; null when blank or held" }
+      }
+    },
+    "budget_line": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "book_id", "edition", "fund_no", "fund_name", "statement", "heading_as_printed", "heading_from_total", "department", "account_code", "label_as_printed", "row_role", "tags", "cells", "page", "scope_line_ids", "check", "edition_differs", "held"],
+      "properties": {
+        "id": { "$ref": "#/$defs/line_id", "description": "<book_id>/p<page>/r<line index>" },
+        "book_id": { "$ref": "#/$defs/book_id" },
+        "edition": { "type": "string", "minLength": 1 },
+        "fund_no": { "type": "string", "pattern": "^\\d{3}$" },
+        "fund_name": { "type": "string", "minLength": 1 },
+        "statement": { "enum": ["revenue", "expenditure", "fund_balance"], "description": "UX section = statement + tags" },
+        "heading_as_printed": { "type": ["string", "null"] },
+        "heading_from_total": { "type": "boolean", "description": "heading taken from the scope's total label minus \"Total \" (capital projects with no heading); never a key" },
+        "department": { "type": ["string", "null"], "description": "expenditure heading or null" },
+        "account_code": { "type": ["string", "null"], "pattern": "^\\d+$", "description": "UX account_no" },
+        "label_as_printed": { "type": "string", "minLength": 1 },
+        "row_role": { "enum": ["detail", "subtotal", "total"], "description": "UX row_kind" },
+        "tags": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/tag" } },
+        "cells": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/cell" }, "description": "the book's column order" },
+        "page": { "$ref": "#/$defs/page" },
+        "scope_line_ids": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/line_id" }, "description": "subtotal/total only: the detail lines checked against" },
+        "check": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["state", "per_cell"],
+              "description": "UX subtotal_check = check + scope_line_ids",
+              "properties": {
+                "state": { "enum": ["exact", "within_rounding", "does_not_add_up", "not_checked"], "description": "not_checked: the total or a scope line is held (Not confirmed*), counted apart from does_not_add_up" },
+                "per_cell": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["printed", "sum", "diff"],
+                    "properties": {
+                      "printed": { "type": ["integer", "null"], "description": "the cell's dollars" },
+                      "sum": { "type": "integer", "description": "sum of the scope lines' dollars in this column (blank = not added)" },
+                      "diff": { "type": ["integer", "null"], "description": "printed - sum; null when printed is null" }
+                    }
+                  }
+                }
+              }
+            },
+            { "type": "null" }
+          ]
+        },
+        "edition_differs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/line_id" }, "description": "matching lines in other books with different dollars (both ways)" },
+        "held": { "oneOf": [{ "$ref": "#/$defs/check_name" }, { "type": "null" }], "description": "check that held this line back, e.g. column-align" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "row_role": { "const": "detail" } } },
+          "then": { "properties": { "scope_line_ids": { "maxItems": 0 }, "check": { "const": null } } },
+          "else": { "properties": { "check": { "type": "object" } } }
+        }
+      ]
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["n_total", "n_bid_tab_links", "n_tab_read", "n_tab_not_read", "n_award_letters", "n_award_scanned", "n_docs", "n_docs_scanned", "n_lines", "n_books", "n_flag", "by_department_year"],
+      "description": "one function (fin_checks.coverage) feeds every page and the report",
+      "properties": {
+        "n_total": { "$ref": "#/$defs/count", "description": "solicitations (archive rows)" },
+        "n_bid_tab_links": { "$ref": "#/$defs/count" },
+        "n_tab_read": { "$ref": "#/$defs/count" },
+        "n_tab_not_read": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["layout", "scan", "shared_url", "not_pdf", "not_fetched"],
+          "properties": {
+            "layout": { "$ref": "#/$defs/count" },
+            "scan": { "$ref": "#/$defs/count" },
+            "shared_url": { "$ref": "#/$defs/count" },
+            "not_pdf": { "$ref": "#/$defs/count" },
+            "not_fetched": { "$ref": "#/$defs/count" },
+            "unreadable": { "$ref": "#/$defs/count", "description": "added 2026-11-11; optional so builds before it stay valid" }
+          }
+        },
+        "n_award_letters": { "$ref": "#/$defs/count" },
+        "n_award_scanned": { "$ref": "#/$defs/count" },
+        "n_docs": { "$ref": "#/$defs/count" },
+        "n_docs_scanned": { "$ref": "#/$defs/count" },
+        "n_lines": { "$ref": "#/$defs/count" },
+        "n_books": { "$ref": "#/$defs/count" },
+        "n_flag": { "$ref": "#/$defs/count", "description": "subtotal/total lines whose check is does_not_add_up" },
+        "by_department_year": {
+          "type": "object",
+          "description": "department text or \"not stated\" -> year or \"not stated\" -> counts",
+          "additionalProperties": {
+            "type": "object",
+            "propertyNames": { "pattern": "^(\\d{4}|not stated)$" },
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["rows", "with_tab", "tab_read"],
+              "properties": {
+                "rows": { "$ref": "#/$defs/count" },
+                "with_tab": { "$ref": "#/$defs/count" },
+                "tab_read": { "$ref": "#/$defs/count" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

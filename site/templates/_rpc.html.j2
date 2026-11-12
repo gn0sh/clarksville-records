@@ -1,0 +1,36 @@
+{% from "_macros.html.j2" import not_confirmed %}
+{# Regional Planning Commission blocks (sitegen/rpc.py). A meeting's documents: a collected file links to the RPC's own
+   copy; a file on a host we do not collect from is listed with its link and says so. #}
+{% macro rpc_docs(m) -%}
+<ul class="doc-links">
+  {% for d in m.docs %}
+  <li>{{ d.label }}: {% if d.collected %}<a href="{{ d.url }}" target="_blank" rel="noopener noreferrer">{{ d.what }}<span class="sr-only"> (opens in a new tab)</span></a> <span class="doc-note">fetched {{ d.fetched }}{% if d.no_text and d.ocr %}; a scan with no text layer, read by OCR{% elif d.no_text %}; a scan with no text layer, not read{% endif %}</span>{% else %}<a data-ext="listed" href="{{ d.url }}" target="_blank" rel="noopener noreferrer">link on {{ d.host }}<span class="sr-only"> (opens in a new tab)</span></a> <span class="doc-note">listed on the RPC page; not collected or read</span>{% endif %}</li>
+  {% endfor %}
+  {% for k in m.not_posted %}<li>{{ k }}: <span class="doc-note">not linked on the RPC page</span></li>{% endfor %}
+</ul>
+{%- endmacro %}
+
+{# One motion read from the minutes (collector/rpc_minutes.py, docs/architecture/rpc-motion-invariant.md). Confirmed:
+   its type in fixed words, then who moved, seconded, voted nay or abstained and the outcome, each in the minutes' own
+   words (data-item-title: text in the document, never linked or reworded); nays only as named, an empty list shows
+   nothing, and nothing here says a vote was unanimous. Not confirmed: its type and the county's "Not confirmed" note
+   only: no names, outcome or case number. Held (rpc.yml hold_motions): its type and its minutes page, nothing else. #}
+{% macro rpc_motion(mv) -%}
+{% if mv.held %}{# rpc.yml hold_motions: no vote content of any kind, only the motion's type and its minutes page #}
+<div class="rpc-motion held" id="{{ mv.id }}">
+  <p class="motion-line"><strong>{{ mv.kind }}.</strong> <a href="{{ mv.src.url }}" target="_blank" rel="noopener noreferrer">minutes p. {{ mv.src.page }}<span class="sr-only"> (opens in a new tab)</span></a></p>
+</div>
+{%- else %}
+<div class="rpc-motion{% if not mv.confirmed %} nc{% endif %}" id="{{ mv.id }}">
+  <p class="motion-line"><strong>{{ mv.kind }}{% if mv.confirmed and mv.case %} ({{ mv.case }}){% endif %}.</strong>{% if not mv.confirmed %} <span class="chip chip-status"><span aria-hidden="true">*</span> Not confirmed</span>{% endif %}</p>
+  {% if mv.confirmed %}
+  <p>{% if mv.moved_by %}Moved by <span data-item-title>{{ mv.moved_by }}</span>{% endif %}{% if mv.seconded_by %}, seconded by <span data-item-title>{{ mv.seconded_by }}</span>{% else %}; no second{% endif %}.</p>
+  {% if mv.nays %}<p>Voted nay, as printed: <span data-item-title>{{ mv.nays | join(", ") }}</span>.</p>{% endif %}
+  {% if mv.abstained %}<p>Abstained, as printed: <span data-item-title>{{ mv.abstained | join(", ") }}</span>.</p>{% endif %}
+  <p class="outcome"><strong class="label">Outcome, as printed:</strong> <span data-item-title>{{ mv.outcome }}</span>. <a href="{{ mv.src.url }}" target="_blank" rel="noopener noreferrer">minutes p. {{ mv.src.page }}<span class="sr-only"> (opens in a new tab)</span></a></p>
+  {% else %}
+  <p class="nc-note">{{ not_confirmed(mv.src) }}</p>
+  {% endif %}
+</div>
+{%- endif %}
+{%- endmacro %}

@@ -1,0 +1,11 @@
+{% extends "base.html.j2" %}
+{% block main %}
+{# Design finance-contracts 3: alphabetical, one sentence each, the text of config/finance_text.yml. #}
+<h1>Glossary</h1>
+<dl class="glossary">
+{% for g in entries %}
+  <dt id="{{ g.id }}">{{ g.term }}</dt>
+  <dd>{{ g.text }}</dd>
+{% endfor %}
+</dl>
+{% endblock %}

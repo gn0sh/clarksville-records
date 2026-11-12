@@ -1,0 +1,30 @@
+{% extends "base.html.j2" %}
+{% block main %}
+<h1>Method</h1>
+<section aria-labelledby="collect-h">
+  <h2 id="collect-h">How records are collected</h2>
+  <p>Only public pages and public documents are read. Each site's robots.txt and crawl delay are obeyed, and a block is never worked around. The collector names itself honestly: <code>{{ user_agent }}</code>. Sources and dates are listed on <a href="{{ root }}about.html#collected">About</a>.</p>
+</section>
+<section aria-labelledby="votes-h">
+  <h2 id="votes-h">How votes are read and checked</h2>
+  <p>A computer program reads each minutes PDF. Each extracted roll call is then checked automatically against fixed rules, the same for every official (see <a href="{{ root }}about.html#verified">Verified and not confirmed facts</a>). Every fact links the page of the source document it came from.</p>
+  <p>A roll call that fails a check is shown with an asterisk and a link to the page{% if site.show_unconfirmed_values %}, marked not confirmed, and counted apart from the confirmed ones{% else %}, but with no value{% endif %}. Of the county's {{ glance.rc_total }} roll calls, {{ glance.rc_confirmed }} are confirmed. The city council's own count is on its coverage lines.</p>
+</section>
+<section aria-labelledby="tx-h">
+  <h2 id="tx-h">Transcripts</h2>
+  <p>Where a meeting has a transcript, it is made automatically by software, is labelled as machine-made, and may be wrong. The official minutes and recordings are the record.</p>
+</section>
+<section aria-labelledby="never-h">
+  <h2 id="never-h">What is never done</h2>
+  <p>No official is put in an order by how they voted, and no number is used to judge anyone. Counts appear only as plain totals with the dates they cover, worded the same way for everyone. See <a href="{{ root }}about.html#neutrality">Neutrality rules</a>.</p>
+  <p>This site sets no cookies and has no accounts. If you use the address search, your district and ward numbers are kept in your own browser (local storage, one key, <code>cr-your-seats</code>) so the home page can show "Your seats" next time. {% if site.morning_note %}{{ site.morning_note.seats_sent }}{% else %}It stays on your device and is never sent anywhere.{% endif %} The Forget button on that box removes it. The address you type is not kept.</p>
+</section>
+{% if site.morning_note %}
+{# Only while the morning note's sign-up form is enabled (sitegen/morning_page.py privacy()); config text. #}
+<section aria-labelledby="note-sent-h">
+  <h2 id="note-sent-h">{{ site.morning_note.heading }}</h2>
+  <p>{{ site.morning_note.sent }} {{ site.morning_note.unsubscribe }}</p>
+  <p><a data-ext="provider" href="{{ site.morning_note.privacy_url }}" rel="noopener noreferrer">{{ site.morning_note.provider }}: {{ site.morning_note.privacy_label }}</a>. <a href="{{ root }}{{ site.morning_note.signup_href }}">{{ site.morning_note.signup_link }}</a>.</p>
+</section>
+{% endif %}
+{% endblock %}

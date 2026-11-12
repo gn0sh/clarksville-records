@@ -1,0 +1,23 @@
+# Recurring procedural titles (architecture "Item history" rule 4). An unnumbered item whose normalised title
+# (casefold, collapsed spaces, trailing punctuation removed) matches any pattern below is never linked by title:
+# each appearance is its own item. Otherwise one "item" would collect every meeting's minutes approval.
+# Erring here only splits a history; it never links two different items.
+patterns:
+  - '\bminutes\b'                       # "Commission Minutes November 12, 2024", "February 10, 2020, Minutes of the Board"
+  - "clerk.?s report"                   # "County Clerk's Report", "County Clerk's Report and Notary List"
+  - '\bnotary\b'
+  - '\bnominations?\b'                  # "Nominating Committee Nominations", "Mayor Nominations and Appointments"
+  - '\bnominating\b'
+  - '\bappointments?\b'
+  - '^consent\W*agenda'
+  - '^(the )?(amended )?resolutions?$'  # a bare "Resolution" / "Amended Resolution" with no number
+  - '^(the )?amendments?$'
+  - '^(the )?(amended )?resolution\b.*\bamended\b'   # "Resolution, As Amended": every meeting has one
+  - '^(the )?(friendly |amended )?amendments?\b'      # "Friendly Amendment", "Amendment, made by ..."
+  - '^(the )?motion\b'
+  - '^invocation\b'
+  - '^pledge\b'
+  - '^roll call\b'
+  - '^call to order\b'
+  - '^adjourn'
+  - '^reports?\b'

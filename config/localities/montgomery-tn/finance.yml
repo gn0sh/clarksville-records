@@ -1,0 +1,144 @@
+# Finance and contracts sources for Montgomery County, TN (collector/fin_config.py loads and checks this file).
+# Architecture: docs/architecture/finance-contracts.md (A2). Every URL, label, word list and heading rule the finance
+# adapters use lives here; the code holds no locality literal (AC-F12). A missing or malformed key fails the load.
+
+# ---------------------------------------------------------------- purchasing archive (adapter 1, fin_archive.py)
+# One HTML table; row 1 is the header, checked by exact text (a change raises StructureChanged).
+archive_url: https://montgomerytn.gov/purchasing/archive
+archive_header: ["Bid Name", "Bid Documents", "Award Date"]
+
+# Award Date cell words that are a status, not a date (matched whole, any case; stored as printed).
+status_words: ["Currently Under Review", "No Award", "NOT AWARDED", "UNDER REVIEW"]
+
+# strptime formats for the Award Date cell, tried in order. Only two mechanical repairs are applied before parsing:
+# spaces inside a month word ("F EBRUARY") are closed, and "." before the year becomes "," ("OCTOBER 30. 2025").
+date_formats: ["%B %d, %Y"]
+
+# Stage of each archive link, from its label (ordered; the first regex that matches wins; case-insensitive; the
+# label's whitespace, no-break spaces included, is collapsed first). Specific rules come before general ones:
+# "Partial Award Letter 1" is a partial award, "Bid Advertisement" an advertisement, "Addenda Acknowledgement" a form.
+stage_rules:
+  - [bid_tab, '\bbid\s*tab']
+  - [partial_award, '\bpartial\s+award']
+  - [notice_of_intent, '\bintent\s+to\s+award']
+  - [notice_of_award, '\bnotice\s+of\s+award']
+  - [award_letter, '\baward\b']
+  - [qa, '\bquestions?\b|\bq\s*&\s*as?\b']
+  - [forms, '\bforms?\b|\backnowle']
+  - [addendum, '\baddendum\b']
+  - [advertisement, '\badvertis|\binvitation\b|\bad\b']
+  - [drawings, '\bdrawings?\b']
+  - [rfp, '\brfp\b|\brequest\s+for\s+proposals?\b']
+  - [rfq, '\brfq\b|\brequest\s+for\s+quotes?\b']
+  - [bid, '\bbid\b|\brequest\s+for\s+bid\b']
+  - [other, '^']               # catch-all, an empty label included
+
+# Bid sites the county links to. Never requested (robots.txt disallows all); the fetcher hard-denies these hosts and
+# their links are kept as link-only documents.
+bonfire_hosts: ["mcgtn.bonfirehub.com"]
+
+# PDF Creator/Producer values that mean the file came from a scanner. Such a file's text, if any, is OCR: no value
+# is read from it (scan-values/*). Regexes, case-insensitive.
+scan_producers: ['KONICA MINOLTA', '^KM_', 'bizhub', 'Paper Capture', 'ScanSnap', 'RICOH', 'Xerox', 'Canon iR',
+                 'HP Digital Sending', 'SHARP MX', 'Kyocera', 'TASKalfa', 'Lexmark', 'OCR']
+
+# ---------------------------------------------------------------- bid tabs (adapter 2, fin_bidtab.py)
+bidtab:
+  # Field labels at the start of a line, each field's labels as printed on the real tabs; a ":" right after the
+  # label is part of it ("Department:"). The value is the rest of the line with "_" fill removed.
+  fields:
+    project: ["Bid Project", "Bid Tab for"]
+    department: ["Department"]
+    bid_date: ["Bid Date", "Bid Opening Date"]
+    awardee: ["Bid Awarded to"]
+    award_date: ["Date Bid Awarded"]
+  # Layout "table" (one line per bidder): the header line holds a name column and one total column, exactly
+  # (optional ones may be absent). Any other header word means another layout (itemised, unit price): not read.
+  columns:
+    name: ["Bidder Name"]
+    total: ["Lump Sum Bid", "Total Bid", "Total"]
+  optional_columns: ["Notes"]
+  # A line starting with one of these ends the bidder table (as does any field label).
+  table_end: ["Notes:"]
+  # Layout "blocks" (engineering tabs, one block of labelled amounts per bidder): the header line is exactly
+  # `header` (name column first); the lines just above and below it may hold only `header_words` (addendum
+  # columns). Each block starts at `first_label`; every amount has a label ending in ":". A bidder's printed total
+  # is its one `total_labels` amount, or its `first_label` amount when that is its only one. `marks` are the
+  # addendum and bid-bond ticks (a word with no letter or digit counts too).
+  blocks:
+    header: ["Contractor", "Bid Bond", "Bid Amount"]
+    header_words: ["Addendum", "No.", "No"]
+    first_label: "Base Bid:"
+    total_labels: ["Total Bid:", "TOTAL:"]
+    marks: ["P", "N/A"]
+
+# ---------------------------------------------------------------- budget books (adapter 3, fin_budget.py)
+# Layouts checked on both books by `pdfwords` (task F9, 2026-11-08; docs/platform-facts.md). Same page titles,
+# fund lines, row forms and band layout in both; the FY2024-25 book prints two-digit years ("FY 23 Actuals"), calls its
+# budget-year column "FY 25 Projection" and its derived columns "Increase/Decrease Amount" and "Percentage Change".
+budget:
+  # pages: the PDF page range searched for statement pages (a page is read only when its title line matches).
+  # kind_overrides (optional): header as printed -> kind, for that book only; one that matches no header fails it.
+  books:
+    - id: fy2027-approved
+      title: "Fiscal Year 2027 Approved Budget"
+      edition: approved
+      fiscal_year: 2027
+      url: https://montgomerytn.gov/storage/departments/account-budget/FY%202027%20Approved%20Budget.pdf
+      pages: [28, 119]
+    - id: fy2025-approved
+      title: "2024-2025 Approved Budget"
+      edition: approved
+      fiscal_year: 2025
+      url: https://mcgtn.org/storage/departments/account-budget/MONTGOMERY%20COUNTY%202024-2025%20BUDGET%20BOOK%20AS%20APPROVED.pdf
+      pages: [29, 108]
+      # In this approved book the budget-year column is printed "FY 25 Projection": it is the adopted FY2025 budget,
+      # not an estimate (ADR 0002 amendment 2026-11-08). The header is still stored and shown as printed.
+      kind_overrides: {"FY 25 Projection": adopted}
+  # Page role by an exact title line. Consolidated pages: only the fund-balance block is read.
+  page_titles:
+    revenue: "Estimated Revenue and Available Funds"
+    expenditure: "Statement of Proposed Expenditures"
+    fund_balance: "Estimated Revenue and Available Funds - Consolidated"
+  # Column kind by a whole word of the band's header, first match in this order ("FY 2026 Amended Budget" is
+  # amended). A header band with none of these words and none of ignore_words fails the book.
+  kind_words:
+    - [Amended, amended]
+    - [Actuals, actual]
+    - [Projections, projected]
+    - [Projection, projected]
+    - [Projected, projected]
+    - [Budget, adopted]
+  # Derived columns: read only to place the bands, never stored or shown.
+  ignore_words: ["Difference", "Change", "Increase/Decrease", "Percentage"]
+  # Words a header line may hold besides kind and ignore words (and the year).
+  header_words: ["FY", "Budgeted", "Amount", "Percent"]
+  # Fiscal year of a header band; two digits mean 20xx.
+  year: '\bFY\s*(\d{4}|\d{2})\b'
+  rows:
+    fund_line: '^(?P<name>.+ FUND) (?P<no>\d{3})$'
+    account_code: '^\d{5}$'
+    # Subtotal label -> the account codes it adds up (a regex on the code). Its scope is the coded rows directly above
+    # it whose code matches: "Capital Expenditures" adds the 57xxx capital codes, not a 53xxx service row printed in
+    # the same block (FY2025 p. 103, budget-reconcile/subtotal-scope-class).
+    subtotal_labels:
+      Other Expenditures: '^5[3-6]\d{3}$'
+      Capital Expenditures: '^57\d{3}$'
+    total: '^Total '
+    # Totals over the whole fund's statement (revenue or expenditure), not one section.
+    fund_totals: ['^Total Revenues$', '^Total Revenues .+ FUND \d{3}$', '^Total Expenditures .+ FUND \d{3}$']
+    # A detail row after which a new scope opens (fund-balance block: the components under Total Fund Balance).
+    scope_break_after: ['^Estimated Ending Fund Balance']
+    # The printed page number at the foot of a page.
+    footer: '^\d{1,4}$'
+  # Tags by account code or by section or department heading (whole heading, any case).
+  tags:
+    transfer:
+      codes: ["49800", "55900"]
+      headings: ["OPERATING TRANSFERS"]
+    non_revenue:
+      codes: []
+      headings: ["Other Sources (Non-Revenue)"]
+  # Consolidated-page rows that are read (tag available_funds); every other consolidated row is skipped.
+  fund_balance_labels: ['^Estimated .*Fund Balance', '^Total Fund Balance$']
+capital_fund: "171"
