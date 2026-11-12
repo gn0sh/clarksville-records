@@ -122,7 +122,7 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
    prints only `main` (ci/pages-env-branch: a settings check only, nothing in the workflow changes; the deploy job's
    own `github.ref == 'refs/heads/main'` term is the first lock, this is the second).
 4. Pre-launch security checks the manager owns: fresh history secret scan, QA pass, CEO phone check.
-5. No old gnoshcodes branding (site check brand/no-old-gnoshcodes PASS; eyeball footer light + dark).
+5. No old gnoshcodes branding (site check brand/no-old-gnoshcodes PASS; eyeball footer light + dark) and no old Daylight blue or orange (site check brand/no-old-daylight-colors PASS).
 
 ## Go-live (CEO, about 5 minutes; do in this order)
 0. **Verify gnoshcodes.com** (once, before any DNS change): open https://github.com/settings/pages > Add a domain >
