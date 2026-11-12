@@ -940,6 +940,10 @@ table.budget td.c-source { min-width: 9rem; }
 .kicker-line { margin: 0 0 4px; font-size: var(--t-sm); }
 ol.council-seats li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 7px 4px; }
 ol.council-seats .d-label { min-width: 5.5em; font-weight: 600; }
+/* The member-name and "(source: p. N)" links in a seat's note stay inline and underlined: the row styling of
+   ol.districts a (flex, padding, no underline) is for the home page's row links only. */
+ol.council-seats .d-note a, ol.council-seats .d-printed a { display: inline; min-height: 0; padding: 0; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+ol.council-seats .d-note a:hover, ol.council-seats .d-printed a:hover { text-decoration-thickness: 2px; }
 .council-meeting { border-top: 2px solid var(--border); margin-top: 1.5em; padding-top: 0.5em; }
 /* Report an error (M1.5): the page-level link on fact pages and the report page's "This report is about" box. */
 .report-page { margin: 2em 0 0; font-size: var(--t-xs); color: var(--muted); }

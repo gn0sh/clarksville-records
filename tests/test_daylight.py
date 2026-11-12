@@ -224,3 +224,29 @@ console.log(JSON.stringify([els["sky-weekday"].textContent, els["sky-date"].text
     weekday, date, iso, hidden, viewer_weekday = json.loads(res.stdout)
     assert viewer_weekday == "Wednesday"             # the viewer's own zone is already on the next day
     assert (weekday, date, iso, hidden) == ("Tuesday", "November 10", "2026-11-10", False)
+
+
+def test_council_seat_note_and_cite_links_stay_inline_and_underlined():
+    """a11y/link-affordance/council-seats-note-cite: ol.districts a (flex, padding, no underline) styles the home page's
+    row links; the member-name and "(source: p. N)" links in a council seat's note must stay inline and underlined
+    (SC 1.4.1), while the home rows and the holder-name underline are unchanged."""
+    css = CSS.read_text(encoding="utf-8")
+    reset = re.search(r"^ol\.council-seats \.d-note a, ol\.council-seats \.d-printed a \{([^}]*)\}", css, re.M)
+    assert reset, "no reset rule for the seat note/cite links"
+    body = reset.group(1)
+    assert re.search(r"display: inline;", body)
+    assert re.search(r"padding: 0;", body) and re.search(r"min-height: 0;", body)
+    assert re.search(r"text-decoration: underline;", body)
+    # The reset outranks ol.districts a (0,1,2) and the 900px rule, and no later rule takes the underline away.
+    assert css.index(reset.group(0)) > css.index("ol.districts a { display: flex;")
+    assert not re.search(r"ol\.council-seats \.d-(note|printed) a[^{]*\{[^}]*text-decoration: none", css)
+    # The home rows and holder names keep their styling.
+    assert "ol.districts a { display: flex; gap: 10px; padding: 7px 4px; min-height: 40px; align-items: baseline; " \
+           "text-decoration: none; }" in css
+    assert re.search(r"ol\.districts \.d-holder a \{ text-decoration: underline", css)
+    # The template still puts every note and cite link inside .d-note / .d-printed.
+    tpl = (ROOT / "site" / "templates" / "council_home.html.j2").read_text(encoding="utf-8")
+    li = re.search(r'<ol class="districts council-seats">(.*?)</ol>', tpl, re.S).group(1)
+    for part in re.split(r'(?=<span class="d-(?:label|holder|printed|note))', li):
+        if "<a " in part:
+            assert part.startswith(('<span class="d-holder', '<span class="d-printed', '<span class="d-note')), part[:60]
