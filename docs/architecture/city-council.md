@@ -564,15 +564,64 @@ every resolved call-on on the meeting's own shown attendance).
 
 ## Private details in transcript text (problem family `privacy/transcript-private-addresses`)
 
-Security review M1 (2026-11-12). Residents give their home address (and now and then a phone number) in public
-comment, and the transcript has no speaker tags. So every street address and phone number in transcript TEXT is
-replaced, by pattern, with "[address omitted; hear it in the video at this time]" / "[phone number omitted; ...]"
-(`sitegen/privacy.py`, rules and their false-positive guards in its docstring). It is done once, in
-`transcripts.load`, before detection, so every consumer above (transcript pages, call-on matched words and excerpts)
-reads masked text only; a line keeps its time link. Every phone number is masked, official lines included (no
-allow-list to keep true). The committed `data/localities/<locality>/transcripts/*.json` stay verbatim (the import's
-output); nothing on the site copies them. Transcript pages carry `<meta name="robots" content="noindex">` and one line
-saying addresses and phone numbers are left out, linking `report.html` for a removal or correction. Site check
-`transcripts/private-addresses` (`qa/site_checks.py`, the rule restated) fails a build with an address or phone number
-in any `data-transcript` text, or with a committed transcript line that holds one in any built file (pages, `data/`,
-the search index). Tests: `tests/test_transcript_privacy.py`.
+Security review M1 (2026-11-12), delta review N1-N4 (same day). The family was hit twice, so this section states the
+invariant and every place that can carry the text before the next fix. Tasks: `docs/tasks/privacy-invariant.md`.
+
+### The invariant
+
+**No resident's home address, house number or phone number taken from a meeting transcript or from RPC case data
+may appear in any file committed to this repo or published to the site.** "Any file" means everything: committed
+data (`data/localities/**`), built pages, `data/` exports, the search index, code (constants, comments, docstrings),
+tests, test fixtures, docs, ADRs, reviews and `docs/status.md`. Examples in code, tests and docs use synthetic values
+only: invented names, invented streets on obvious placeholder names, and phone numbers in the fictional
+555-0100..555-0199 range (e.g. 931-555-0100).
+
+Scope notes (assumptions, recorded by the architect):
+- Transcripts: every street address, cued house number and phone number in the TEXT is masked (rules in the masker's
+  docstring). This errs toward masking: a zoning address read aloud is masked too (it is on the item's own pages).
+- RPC case data: every phone number in any field is stripped at parse time (`collector/rpc_agenda.py strip_phones`).
+  The case's subject-property location and the applicant/agent name are what the public agenda is about and stay
+  shown; an applicant's contact address, if one is ever printed separately from the subject property, is not.
+- What is masked is text, not the video: the city's recording still has it, and the placeholder says so.
+
+### Decision (manager, 2026-11-12): option (b)
+
+1. The committed `data/localities/<locality>/transcripts/*.json` are masked in place in a **new commit** (no history
+   rewrite), and the import masks before it writes, so the data is masked at rest from now on.
+2. The site build still masks on load (defence in depth) and fails if a committed transcript is not already masked.
+3. PR #1 is **squash-merged** to `main`, so `main`'s history never holds raw transcript text or the RPC phone.
+4. Accepted residual risk: raw text remains in the history of public `claude/*` feature branches (raw transcript
+   commits 4a2888d, f1d5fcd and the fix commits that copied real lines into tests). It was spoken at a public meeting
+   and is in the city's video; it is not on the default branch. Deleting or rewriting those branches is a hard stop
+   and Brian's call, not the team's.
+5. Open (flagged to the manager): the current tree of public branch `gh-pages` (preview build 43b1a9c) also carries
+   unmasked transcript text and the RPC phone. A rebuilt preview fixes its tree; its history is the same kind of
+   residual as item 4 and needs the same record.
+
+### Every producer and consumer, and its control
+
+| # | Place that can carry the text | Kind | Control |
+|---|---|---|---|
+| 1 | Raw Whisper output (collector input folder, outside the repo) | source | Never committed; read only by the import and by the out-of-repo scan (row 14). |
+| 2 | Import `collector/transcripts.py import_dir` -> `render` -> `_write` | producer | Masks segments (`mask_segments`) before `render`; refuses to write a file whose segments still match the rule. |
+| 3 | Committed `data/localities/<locality>/transcripts/*.json` (+ `index.json`) | committed data | Masked at rest (decision 1); test + site check that every committed segment is already masked (row 12). `index.json` holds no text. |
+| 4 | Re-mask of committed JSON when the rule changes (`collector/transcripts.py remask`) | producer | Rewrites committed JSON through the same masker, no raw input needed; idempotent (`mask(mask(x)) == mask(x)`). |
+| 5 | Site load `sitegen/transcripts.py load` | consumer | Masks again (defence in depth) and raises `TranscriptLoadError` if that changed any committed line (data not masked at rest). |
+| 6 | Transcript pages `site/templates/transcript.html.j2` (`data-transcript` text) | published | Text from row 5 only; robots `noindex`; privacy line linking `report.html`. |
+| 7 | Member pages "Called on in meetings": matched words and excerpts (`Transcripts.member_rows`, `official.html.j2`) | published | Text from row 5 only (detection runs after masking). |
+| 8 | Meeting/year pages that say a transcript exists (`council_meetings_year.html.j2`), Method page | published | No transcript text; keep it that way (row 12 covers all pages). |
+| 9 | CSV/JSON export (`collector/export.py`), search index (`static/search-index.js`) | published | Carry no transcript text today; row 12 scans them anyway. |
+| 10 | RPC parse `collector/rpc_agenda.py case_record` -> committed `data/localities/cmc-rpc/rpc.json` -> RPC pages, `data/rpc/*` export, search index | producer + published | `strip_phones` on every field at parse time; test that committed `rpc.json` has no phone pattern in any string (a regex, not a stored number). |
+| 11 | The masker `collector/privacy.py` (moved from `sitegen/privacy.py` so the import can use it without the collector importing sitegen) and the rule comment in `collector/rpc_agenda.py` | code | Synthetic examples only in constants, comments and docstrings. |
+| 12 | Site check `transcripts/private-addresses` (`qa/site_checks.py`, rule restated) | check | (a) every `data-transcript` text and call-on excerpt passes the restated rule; (b) every committed transcript segment passes it (masked at rest); (c) `data/` and the search index carry no transcript segment text at all (needles: the committed, masked lines, safe to hold). It no longer relies on raw lines as needles (there are none once row 3 holds). |
+| 13 | Tests and fixtures (`tests/test_transcript_privacy.py`, `collector/tests/test_rpc.py`, `collector/tests/fixtures/**`, `site/fixtures/**`) | code | Synthetic data only; a fixture built from a real document has its resident contact details replaced before commit. |
+| 14 | Out-of-repo leak scan `qa/pii_scan.py --raw <folder outside the repo>` | check | Reads raw transcripts from outside the repo, takes the spans the masker would mask, holds them in memory only, and scans every git-tracked file and an optional built site for them. Reports `path:line` and a count, never the matched text; writes nothing. Run by the importer after each import and before each merge to `main`. |
+| 15 | Docs, ADRs, reviews, `docs/status.md`, PR bodies and review reports | docs | Quote by `path:line` or with synthetic text; reviewers' reports are redacted before the manager commits them; row 14 covers committed docs. |
+
+No guard test may grep the tree for the known real strings: such a test would itself commit them. Row 14 is the
+replacement: its needles come from data outside the repo and are never written down. Salted-hash needles were
+considered and rejected: a house number (at most five digits) on a known local street list is cheap to brute-force,
+so a committed hash leaks the address it guards.
+
+Known gap, follow-up after go-live (N4, `privacy/transcript-street-only`): first-person "I live on/off <street>"
+with no house number, and a bare house number with no street after a pause. Tests: `tests/test_transcript_privacy.py`.
