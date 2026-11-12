@@ -94,9 +94,9 @@ def test_a_clean_tree_reports_zero_hits(tmp_path):
 
 def test_source_data_and_public_places_are_public_not_hits(tmp_path):
     files = {"data/rpc.json": json.dumps({"cases": [{"location": "1100 Sample Road"}]}),
-             "fixtures/page.html": "<p>Office</p><p>350 Pageant Lane</p>\n",
+             "fixtures/page.html": f"<p>Office</p><p>{pii_scan.PUBLIC_PLACES[1].title()}</p>\n",
              "data/t/transcripts/x.json": json.dumps({"segments": [[0, 1, ADDRESS]]})}
-    raw_lines = RAW_LINES + ["meeting at 350 Pageant Lane tonight"]
+    raw_lines = RAW_LINES + [f"meeting at {pii_scan.PUBLIC_PLACES[1].title()} tonight"]
     repo = _git_repo(tmp_path / "repo", files)
     raw = _raw(tmp_path / "outside" / "raw", raw_lines)
     out = io.StringIO()
@@ -104,7 +104,7 @@ def test_source_data_and_public_places_are_public_not_hits(tmp_path):
     text = out.getvalue()
     assert "PUBLIC tracked:data/rpc.json:1" in text and "PUBLIC tracked:fixtures/page.html:1" in text
     assert "HIT tracked:data/t/transcripts/x.json:1" in text and code == 1    # a transcript file is never source data
-    assert "sample road" not in text.lower() and "pageant" not in text.lower()
+    assert "sample road" not in text.lower() and pii_scan.PUBLIC_PLACES[1] not in text.lower()
 
 
 def test_a_raw_folder_inside_the_repo_is_refused(tmp_path, capsys):
