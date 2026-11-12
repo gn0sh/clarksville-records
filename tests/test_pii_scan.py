@@ -3,7 +3,8 @@
 Rules under test: needles are the spans the masker would mask in raw transcripts read from a folder outside the
 repo; every tracked file (and an optional built site) is scanned case-insensitively with whitespace folded; the output
 names path:line and counts only, never the matched text; a --raw folder inside the repo is refused; nothing is
-written; a needle that is also committed source data or a listed public building is reported as public, not a hit.
+written; a needle is public, not a hit, only as a whole token in a named public field (RPC case location, agenda item
+title) or as exactly a listed public building.
 All values are synthetic."""
 import io
 import json
@@ -116,3 +117,48 @@ def test_a_raw_folder_inside_the_repo_is_refused(tmp_path, capsys):
     assert pii_scan.main(["--raw", str(inside)]) == 2
     assert "inside the repo" in capsys.readouterr().err
     assert pii_scan.main(["--raw", str(tmp_path / "missing")]) == 2
+
+
+def _scan_lines(tmp_path, files, raw_lines):
+    repo = _git_repo(tmp_path / "repo", files)
+    raw = _raw(tmp_path / "outside" / "raw", raw_lines)
+    out = io.StringIO()
+    return pii_scan.scan(raw, None, root=repo, out=out), out.getvalue()
+
+
+def test_raw_text_copied_into_a_data_file_is_a_hit_not_public(tmp_path):
+    """Security review M1: only the named public fields clear a needle, never any string of data/** (raw text copied
+    into a data file, or into another field of the RPC data, would otherwise whitelist itself)."""
+    files = {"data/notes.json": json.dumps({"note": RAW_LINES[1]}),
+             "data/rpc.json": json.dumps({"cases": [{"location": "1100 Sample Road", "applicant": RAW_LINES[1]}]}),
+             "data/facts.json": json.dumps({"items": [{"title": "Zoning case", "summary": RAW_LINES[1]}]})}
+    code, text = _scan_lines(tmp_path, files, RAW_LINES)
+    assert code == 1
+    for rel in ("data/notes.json", "data/rpc.json", "data/facts.json"):
+        assert f"HIT tracked:{rel}:1" in text, rel
+    assert "1 more public" in text                      # the case location still clears its own needle
+    assert "418" not in text and "example court" not in text.lower()
+
+
+def test_a_public_location_clears_whole_tokens_only(tmp_path):
+    """Security review M1: house 10 is not cleared by house 110 on the same street (word boundaries), while an
+    agenda item title and the case location clear the exact address."""
+    files = {"data/rpc.json": json.dumps({"cases": [{"location": "110 Sample Lane Clarksville TN"}]}),
+             "data/county-agendas/agendas.json": json.dumps(
+                 {"meetings": [{"items": [{"title": "Rezoning at 1100 Sample Road"}]}]}),
+             "notes.md": "she lives at\n10 Sample Lane\n"}
+    code, text = _scan_lines(tmp_path, files, ["My address is 10 Sample Lane.", RAW_LINES[3]])
+    assert code == 1 and "HIT tracked:notes.md:2" in text
+    assert "0 text needles" not in text and "(1 more public)" in text   # the agenda title clears 1100 only
+    assert "PUBLIC tracked:data/county-agendas/agendas.json:1" in text
+    assert "sample lane" not in text.lower() and "sample road" not in text.lower()
+
+
+def test_a_merged_span_holding_a_public_place_and_another_number_is_a_hit(tmp_path):
+    """Security review L1: PUBLIC_PLACES clear a needle by equality only, so "12 and <public place>" is a hit."""
+    place = pii_scan.PUBLIC_PLACES[1].title()
+    files = {"notes.md": f"x\nmy address is 12 and {place}, thanks\n", "office.md": f"{place}\n"}
+    code, text = _scan_lines(tmp_path, files, [f"my address is 12 and {place}, thanks", f"meeting at {place} tonight"])
+    assert code == 1 and "HIT tracked:notes.md:2" in text
+    assert "PUBLIC tracked:office.md:1" in text and "(1 more public)" in text
+    assert pii_scan.PUBLIC_PLACES[1] not in text.lower()

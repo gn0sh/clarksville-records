@@ -15,10 +15,13 @@ digits with any of space, ".", "-", "(" or ")" between them. The --raw folder mu
 must never be committed). Exit 0: no hits; 1: hits; 2: refused or unreadable.
 
 The masker errs toward masking (an address read aloud from a zoning item, the council chambers' address), so a
-needle is "public", not a hit, when it is also (a) a string of the committed source data outside the transcript
-folders (data/**/*.json: an RPC case's subject-property location, an item title; public case data the architecture
-keeps shown), or (b) one of PUBLIC_PLACES, a government building. Public matches are listed as `PUBLIC path:line` and
-counted apart; phone numbers are never public. Review the PUBLIC list when it changes.
+needle is "public", not a hit, only when it is (a) a whole-token match (word boundaries on both sides: house 10 is not
+cleared by house 110) inside one of the named public fields of the committed data outside the transcript folders,
+PUBLIC_FIELDS (an RPC case's subject-property location, an agenda item's title: public case data the architecture keeps
+shown), or (b) exactly one of PUBLIC_PLACES, a government building (a merged span holding one and another number is a
+hit). It never clears a needle because the text is somewhere else in data/** (raw text copied into a data file would
+whitelist itself; security review M1). Public matches are listed as `PUBLIC path:line` and counted apart; phone
+numbers are never public. Review the PUBLIC list when it changes.
 
 No guard test may grep the tree for real strings (it would commit them): this scan is the replacement. Run it after
 each import and before each merge to `main`.
@@ -41,6 +44,9 @@ TEXT_SUFFIXES = {".html", ".js", ".json", ".csv", ".xml", ".txt", ".ics", ".md",
 SHORT = 8           # a needle with no letters under this many characters carries context
 # Government buildings (where the bodies meet or keep office), already in tracked fixtures and tests: never a resident.
 PUBLIC_PLACES = ("106 public square", "350 pageant lane")
+# The only fields of data/**/*.json (outside the transcript folders) whose strings may clear a needle, as paths from the
+# document root: the RPC case's subject-property location and the agenda item titles (city facts, county agendas).
+PUBLIC_FIELDS = frozenset({".cases[].location", ".items[].title", ".meetings[].items[].title"})
 
 
 class ScanError(ValueError):
@@ -117,34 +123,39 @@ def needles(raw: Path) -> tuple[set[str], set[str], dict]:
     return texts, phones, counts
 
 
-def public_text(root: Path = ROOT) -> str:
-    """Every string of the committed source data outside the transcript folders (data/**/*.json), folded, one per
-    line."""
+def public_text(root: Path = ROOT) -> list[str]:
+    """The strings of the PUBLIC_FIELDS of the committed source data outside the transcript folders, folded."""
     out: list[str] = []
 
-    def walk(v):
+    def walk(v, path: str):
         if isinstance(v, str):
-            out.append(_fold(v))
+            if path in PUBLIC_FIELDS:
+                out.append(_fold(v))
         elif isinstance(v, dict):
-            for x in v.values():
-                walk(x)
+            for k, x in v.items():
+                walk(x, f"{path}.{k}")
         elif isinstance(v, list):
             for x in v:
-                walk(x)
+                walk(x, f"{path}[]")
     for p in tracked_files(root):
         rel = p.relative_to(root).as_posix()
         if rel.startswith("data/") and rel.endswith(".json") and "/transcripts/" not in rel:
             try:
-                walk(json.loads(p.read_text(encoding="utf-8")))
+                walk(json.loads(p.read_text(encoding="utf-8")), "")
             except (OSError, UnicodeDecodeError, json.JSONDecodeError):
                 continue
-    return "\n".join(out)
+    return out
+
+
+def _whole(needle: str) -> re.Pattern:
+    return re.compile(r"(?<!\w)" + re.escape(needle) + r"(?!\w)")
 
 
 def split_public(texts: set[str], root: Path = ROOT) -> tuple[set[str], set[str]]:
-    """(private needles, public needles): public when also in the committed source data or a PUBLIC_PLACES entry."""
+    """(private needles, public needles): public when a whole-token match inside a PUBLIC_FIELDS string, or exactly a
+    PUBLIC_PLACES entry."""
     src = public_text(root)
-    public = {n for n in texts if n in src or any(pl in n for pl in PUBLIC_PLACES)}
+    public = {n for n in texts if n in PUBLIC_PLACES or any(n in s and _whole(n).search(s) for s in src)}
     return texts - public, public
 
 
