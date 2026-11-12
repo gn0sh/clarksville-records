@@ -1528,7 +1528,8 @@ def check_old_brand(site: Path) -> tuple[list[str], str]:
 # Daylight's first palette (Digital blue and Human orange), replaced by the gnoshcodes navy #0F1F3D and orange #D2561B
 # on 2026-11-12. Matched as a CSS/SVG color, any case: "#" then the six digits, alone or with a two-digit alpha, and
 # not followed by another hex digit (so a longer hex string, such as a hash in the data, is not a hit); or the same
-# color as an rgb()/rgba() triple, comma or space separated.
+# color as an rgb()/rgba() triple, comma or space separated. Not caught (a known gap, judged low risk since our
+# sources write colors as hex): rgb() with decimal or percent channels, and hsl()/hsla() forms of the old colors.
 OLD_DAYLIGHT_COLORS = re.compile(
     rb"#(2B4BA5|EF5E35)(?:[0-9A-Fa-f]{2})?(?![0-9A-Fa-f])"
     rb"|rgba?\(\s*(43\s*[,\s]\s*75\s*[,\s]\s*165|239\s*[,\s]\s*94\s*[,\s]\s*53)(?![0-9.])", re.I)
