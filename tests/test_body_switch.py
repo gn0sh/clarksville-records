@@ -288,10 +288,11 @@ def test_switch_script_storage_rules():
 
 
 def test_method_page_lists_both_storage_keys(html):
-    """Security L1: the Method page names every localStorage key the scripts use, and says cr-body is never sent."""
+    """Security L1: the Method page names every localStorage key the scripts use, and says cr-body stays on the device."""
     method = plain(html["method.html"])
     assert "cr-your-seats" in method and "cr-body" in method
-    assert "key cr-body ) so other pages show the same body. It is never sent anywhere. Choosing All removes it." in method
+    assert ("key cr-body ) so other pages show the same body. This choice stays on your device: no page or form "
+            "sends it. Choosing All removes it.") in method
     keys = set()
     for js in (ROOT / "site" / "static").glob("*.js"):
         keys |= set(re.findall(r'"(cr-[a-z-]+)"', js.read_text(encoding="utf-8")))
