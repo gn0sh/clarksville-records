@@ -3,6 +3,7 @@
 python -m collector city fetch [--agendas] [--limit N] [--source S]   listings + minutes PDFs (+ agenda PDFs)
 python -m collector city build                            read the stored minutes -> data/localities/<loc>/facts.json
 python -m collector city run [--agendas]                  fetch then build
+  --allow-shrink   let a listing that drops committed rows, or a build that drops committed meetings, through
 
 Two listings (M4 slice 3): the Agenda Center (2016 to January 2024, one GET per year) and CivicClerk (2024 on, the
 API's events pages; collector/civicclerk.py, ADR 0003). The build joins them with civicclerk.merge_sources: one
@@ -18,10 +19,18 @@ Files (per locality, so the county's data/manifest.json and data/facts.json are 
 
 Exit codes (the workflow's Collect step fails the run, and so opens the issue, on any non-zero code; spec AC4.4):
 0 ok (a single file that is skipped, e.g. a .docx behind a PDF link, is logged and stays 0); 2 a listing could not be
-read; 3 the G4 skew gate flagged an official (build/city-report.json build.gates; the AC-P1 verified rate is reported
+read, or the shrink guard held a result back; 3 the G4 skew gate flagged an official (build/city-report.json build.gates; the AC-P1 verified rate is reported
 there but sets no code); 5 a host or policy refused us at any stage (HostBlocked 403/429, HostRefused, ProxyRefused,
 RobotsDisallowed: alerting/city-fetch-failures-exit-0). A refusal is never retried and never worked around: the code
 only reports it.
+
+Shrink guard (shrink/city-listing-unguarded; the county's rule 3, docs/architecture/pipeline-limits-invariant.md, at
+the city's two units): a listing read without an error but missing rows the committed listing has (an empty page, a
+200 with no heading and no rows, an events page of `{"value": []}`) keeps the committed rows and is a listing failure
+(stage `shrink`, exit 2); a build that would drop a meeting the committed facts.json has writes neither facts.json
+nor wards.json and is a failure too (exit 2). Nothing is lost: the committed files stay, and the issue opens.
+--allow-shrink (a deliberate removal at the source, or a parser change that renames meeting ids) lets it through,
+recorded under `allowed_shrink` in build/city-report.json.
 """
 from __future__ import annotations
 
@@ -42,6 +51,10 @@ GATE_FAILED = 3        # G4 flagged an official (spec G4: release blocked), as t
 BLOCKED = 5            # its own code, so the alert says "refused", not "failed" (4 is the county run's offline refusal)
 
 
+class ShrinkRefused(RuntimeError):
+    """A result that would lose committed city rows or meetings (the shrink guard): never written over them."""
+
+
 def failure(stage: str, e: Exception, **extra) -> dict:
     """One log['failures'] row. `refused` marks a STOP error: exit_code turns any of them into BLOCKED."""
     row = {"stage": stage, **extra, "error": f"{type(e).__name__}: {e}"}
@@ -55,7 +68,41 @@ def exit_code(log: dict) -> int:
     could not be read, else 0. A lone FetchFailed on one file stays 0: it is logged and that file is skipped."""
     if any(f.get("refused") for f in log["failures"]):
         return BLOCKED
-    return LISTING_FAILED if any(f["stage"] == "listing" for f in log["failures"]) else 0
+    return LISTING_FAILED if any(f["stage"] in ("listing", "shrink") for f in log["failures"]) else 0
+
+
+def _row_key(r: dict, key: str):
+    return r.get(key) or (r.get("date"), r.get("title"), r.get("minutes_url"))
+
+
+def guard_listing(rows: list[dict], previous: list[dict] | None, key: str, name: str, log: dict,
+                  allow_shrink: bool = False, **extra) -> list[dict]:
+    """The listing to write: `rows` as read, plus every committed row (`previous`) the read lacks, kept as committed,
+    and a `shrink` failure naming them (exit 2). A row is one meeting by `key` (agenda_id, event_id). Gains are never
+    guarded; --allow-shrink lets the smaller listing win and records it."""
+    have = {_row_key(r, key) for r in rows}
+    dropped = [r for r in previous or [] if _row_key(r, key) not in have]
+    if not dropped:
+        return rows
+    ids = [str(_row_key(r, key)) for r in dropped]
+    if allow_shrink:
+        log.setdefault("allowed_shrink", []).append({"listing": name, "dropped": ids})
+        print(f"collector city: ALLOWED (--allow-shrink) {name}: {len(dropped)} committed rows dropped", flush=True)
+        return rows
+    why = (f"{name}: the listing as read has {len(rows)} rows and lacks {len(dropped)} of the {len(previous)} "
+           f"committed rows, e.g. {', '.join(ids[:5])} (an empty or changed page). The committed rows are kept; if "
+           f"they were removed at the source, run with --allow-shrink")
+    log["failures"].append(failure("shrink", ShrinkRefused(why), **extra))
+    log.setdefault("kept_listing_rows", []).append({"listing": name, "kept": ids})
+    print(f"collector city: SHRINK GUARD {why}", file=sys.stderr, flush=True)
+    return sorted(rows + dropped, key=lambda r: (r.get("date") or "", str(_row_key(r, key))))
+
+
+def facts_shrink(new: dict, old: dict | None) -> list[str]:
+    """Meeting ids the committed city facts have and the new build lacks (sorted)."""
+    if not old:
+        return []
+    return sorted({m["id"] for m in old.get("meetings", [])} - {m["id"] for m in new.get("meetings", [])})
 
 
 def paths(cfg: AgendaCenterConfig, root: Path = ROOT) -> dict:
@@ -74,7 +121,7 @@ def write_json(p: Path, obj) -> bool:
 
 
 def cmd_fetch(cfg: AgendaCenterConfig, store: Store, listing_path: Path, log: dict, fetcher=None,
-              agendas: bool = False, limit: int | None = None) -> list[dict]:
+              agendas: bool = False, limit: int | None = None, allow_shrink: bool = False) -> list[dict]:
     f = fetcher or PoliteFetcher()
     previous = json.loads(listing_path.read_text(encoding="utf-8")) if listing_path.exists() else None
     try:
@@ -83,13 +130,13 @@ def cmd_fetch(cfg: AgendaCenterConfig, store: Store, listing_path: Path, log: di
         log["failures"].append(failure("listing", e))
         log["fetch_log"] = f.log
         return []
-    write_json(listing_path, rows)
+    write_json(listing_path, guard_listing(rows, previous, "agenda_id", listing_path.name, log, allow_shrink))
     return fetch_files(f, store, rows, log, agendas, limit)
 
 
 def cmd_fetch_civicclerk(cc: civicclerk.CivicClerkConfig, kind_of, store: Store, listing_path: Path, log: dict,
                          fetcher=None, agendas: bool = False, limit: int | None = None,
-                         cache_dir: Path | None = None) -> list[dict]:
+                         cache_dir: Path | None = None, allow_shrink: bool = False) -> list[dict]:
     """The CivicClerk listing (every events page, cached) then its minutes (and agendas). A listing that fails part
     way is not written, so the last full civicclerk-listing.json stays."""
     f = fetcher or PoliteFetcher()
@@ -99,7 +146,9 @@ def cmd_fetch_civicclerk(cc: civicclerk.CivicClerkConfig, kind_of, store: Store,
         log["failures"].append(failure("listing", e, source=civicclerk.SOURCE))
         log["fetch_log"] = f.log
         return []
-    write_json(listing_path, rows)
+    previous = json.loads(listing_path.read_text(encoding="utf-8")) if listing_path.exists() else None
+    write_json(listing_path, guard_listing(rows, previous, "event_id", listing_path.name, log, allow_shrink,
+                                           source=civicclerk.SOURCE))
     return fetch_files(f, store, rows, log, agendas, limit)
 
 
@@ -155,6 +204,9 @@ def main(argv: list[str]) -> int:
     ap.add_argument("--locality", default="clarksville-tn")
     ap.add_argument("--source", choices=("all", "agenda-center", "civicclerk"), default="all",
                     help="which listing to fetch (the build always reads both)")
+    ap.add_argument("--allow-shrink", action="store_true",
+                    help="let a listing that drops committed rows, or a build that drops committed meetings, replace "
+                         "the committed files (the shrink guard)")
     a = ap.parse_args(argv)
     cfg = load_config(Path(ROOT / "config" / "localities" / a.locality / "agenda-center.yml"))
     cc_path = civicclerk.config_path(a.locality)
@@ -166,19 +218,34 @@ def main(argv: list[str]) -> int:
     if a.command in ("fetch", "run"):
         fetcher = PoliteFetcher()
         if a.source in ("all", "agenda-center"):
-            cmd_fetch(cfg, store, p["listing"], log, fetcher=fetcher, agendas=a.agendas, limit=a.limit)
+            cmd_fetch(cfg, store, p["listing"], log, fetcher=fetcher, agendas=a.agendas, limit=a.limit,
+                      allow_shrink=a.allow_shrink)
         if cc and a.source in ("all", "civicclerk"):
             cmd_fetch_civicclerk(cc, cfg.kind_of, store, p["cc_listing"], log, fetcher=fetcher, agendas=a.agendas,
-                                 limit=a.limit)
+                                 limit=a.limit, allow_shrink=a.allow_shrink)
     report = {"fetch": {k: v for k, v in log.items() if k != "fetch_log"}}
     if a.command in ("build", "run"):
         from .city_build import build
         rows, dups = listing_rows(p, cfg, store)
         facts, summary = build(cfg, rows, store)
         summary["duplicates"] = dups
-        write_json(p["wards"], facts.pop("_wards"))
-        write_json(p["facts"], facts)
+        wards = facts.pop("_wards")
+        old = json.loads(p["facts"].read_text(encoding="utf-8")) if p["facts"].exists() else None
+        dropped = facts_shrink(facts, old)
+        if dropped and not a.allow_shrink:
+            why = (f"the build has {len(facts['meetings'])} meetings and would drop {len(dropped)} of the "
+                   f"{len(old['meetings'])} in {p['facts'].name}, e.g. {', '.join(dropped[:3])}; {p['facts'].name} "
+                   f"and {p['wards'].name} were left unchanged. A parser change that renames meeting ids also causes "
+                   f"this; pass --allow-shrink to accept it")
+            log["failures"].append(failure("shrink", ShrinkRefused(why)))
+            print(f"collector city: SHRINK GUARD {why}", file=sys.stderr, flush=True)
+        else:
+            if dropped:
+                log.setdefault("allowed_shrink", []).append({"facts": p["facts"].name, "dropped": dropped})
+            write_json(p["wards"], wards)
+            write_json(p["facts"], facts)
         report["build"] = summary
+        report["fetch"] = {k: v for k, v in log.items() if k != "fetch_log"}
     report["limits"] = limits.tripped(since)
     write_json(p["report"], {**report, "fetch_log": log.get("fetch_log", [])})
     print(json.dumps({k: v for k, v in report.items()}, indent=1, default=str)[:4000])

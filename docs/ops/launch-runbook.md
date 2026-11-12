@@ -20,7 +20,10 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   deploys without a push.
 - Exit codes (shown in the failure issue as `city=` and `county=`). **Hard failure** (the Collect step fails: nothing
   is uploaded, committed or deployed; data/ on `main` and the live site stay as they were; one issue opens):
-  - city: 2 a listing not read or fetch/parse failures, 5 a host or robots.txt refused the collector (403/429 and the
+  - city: 2 a listing not read or fetch/parse failures, or the city shrink guard held a result back (a `shrink`
+    failure in `build/city-report.json`: a listing missing committed rows, e.g. an empty page, or a build that would
+    drop a committed meeting; the committed files are kept. If the rows really were removed at the source, run
+    `python -m collector city run --allow-shrink` locally and open a PR), 5 a host or robots.txt refused the collector (403/429 and the
     like). On 5 do not re-run to "try again" and do not change the fetcher: read `build/city-report.json` in the run
     log and ask the manager. 3 the G4 skew gate flagged an official (`build.gates.g4.flagged` in
     `build/city-report.json`): a release block, as the county's 3; the city's AC-P1 verified rate is reported there
