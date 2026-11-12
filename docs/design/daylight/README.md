@@ -28,7 +28,7 @@ Daylight's color is now the gnoshcodes brand pair, not the mock's Digital blue `
 |---|---|---|---|
 | `--link` | `#0F1F3D` navy | `#A9BDE6` | links |
 | `--blue` / `--on-blue` | `#0F1F3D` / `#FFFFFF` | `#4F6FB0` / `#FFFFFF` | buttons, pills |
-| `--blue-hover` | `#33497A` | `#3F5C98` | a button under the pointer (plus an underline) |
+| `--blue-hover` | `#33497A` | `#3F5C98` | a button under the pointer (plus an underline); white on it 8.84:1 light, 6.57:1 dark |
 | `--band-bg` / `--band-fg` / `--band-muted` | `#0F1F3D` / `#FFFFFF` / `#D5DCEA` | `#1A2F5A` / `#EEF1F8` / `#C3CCDE` | at-a-glance band, morning-note card |
 | `--sun`, `--focus` | `#D2561B` orange | `#D2561B` | the sun, plate dot, county dot, focus rings; never text |
 | `--halo` | `#EFC4AF` | `#703420` | ring around the sun |
