@@ -561,3 +561,18 @@ None may re-detect or re-resolve; each reads `Transcripts.call_ons` (resolved en
 
 Tests: `tests/test_transcripts.py` (forms accepted and held, including the reviewer's sentences; resolution rules;
 every resolved call-on on the meeting's own shown attendance).
+
+## Private details in transcript text (problem family `privacy/transcript-private-addresses`)
+
+Security review M1 (2026-11-12). Residents give their home address (and now and then a phone number) in public
+comment, and the transcript has no speaker tags. So every street address and phone number in transcript TEXT is
+replaced, by pattern, with "[address omitted; hear it in the video at this time]" / "[phone number omitted; ...]"
+(`sitegen/privacy.py`, rules and their false-positive guards in its docstring). It is done once, in
+`transcripts.load`, before detection, so every consumer above (transcript pages, call-on matched words and excerpts)
+reads masked text only; a line keeps its time link. Every phone number is masked, official lines included (no
+allow-list to keep true). The committed `data/localities/<locality>/transcripts/*.json` stay verbatim (the import's
+output); nothing on the site copies them. Transcript pages carry `<meta name="robots" content="noindex">` and one line
+saying addresses and phone numbers are left out, linking `report.html` for a removal or correction. Site check
+`transcripts/private-addresses` (`qa/site_checks.py`, the rule restated) fails a build with an address or phone number
+in any `data-transcript` text, or with a committed transcript line that holds one in any built file (pages, `data/`,
+the search index). Tests: `tests/test_transcript_privacy.py`.

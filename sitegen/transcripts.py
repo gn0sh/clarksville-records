@@ -1,7 +1,9 @@
 """Meeting video transcripts on a council's pages (spec AC6.3; transcripts from collector/transcripts.py).
 
 Rules:
-- Every transcript line is shown as the speech-recognition software wrote it, labelled "Transcript", with its time
+- Every transcript line is shown as the speech-recognition software wrote it, except that street addresses and phone
+  numbers are replaced by a placeholder that sends the reader to the video at that time (sitegen/privacy.py, done in
+  load, so no copy of the text anywhere on the site carries them), labelled "Transcript", with its time
   linked to that moment of the meeting's own video (`<video_url>#t=<whole seconds>`) when that video_url is an https
   .mp4 on a host in config.VIDEO_HOSTS with no "#" in it (video_ok); otherwise the times are text only, no links. Nothing is summarised,
   reworded or corrected; the page says the video is the record.
@@ -33,13 +35,16 @@ import re
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from . import config, views
+from . import config, privacy, views
 
 CALL_ON_SECONDS = 20
 FOLDER = "transcripts"
 LABEL = "Transcript"
 NOTICE = ("Automatic transcript made by speech-recognition software from the city's video. It may contain errors. "
           "The video is the record.")
+# One plain line on every transcript page (security review M1): what is left out and where to ask for a removal.
+PRIVACY_NOTE = ("Street addresses and phone numbers spoken at the meeting are left out of this text; the video has them. "
+                "To ask for a removal or a correction, use")
 # Titles a presiding officer uses to give a member the floor. The surname is one word after the title.
 TITLES = r"council(?:man|woman|person|member|lady)|chair(?:man|woman|person)?|vice[\s-]+chair(?:man|woman|person)?"
 _NAME = r"(?P<name>[A-Za-z][A-Za-z'’-]*)"
@@ -98,8 +103,9 @@ def clock(seconds: float) -> str:
 
 def load(facts_path: Path, facts: dict) -> dict[str, dict]:
     """{meeting id: transcript} from <facts folder>/transcripts/index.json (none: {}). Every transcript must name a
-    meeting of these facts and carry exactly that meeting's video_url; its segments [start, end, text]. (Whether its
-    times link to the video is video_ok's rule.)"""
+    meeting of these facts and carry exactly that meeting's video_url; its segments [start, end, text], returned with
+    addresses and phone numbers masked (privacy.mask_segments; `masked_segments`: how many lines changed). (Whether
+    its times link to the video is video_ok's rule.)"""
     folder = Path(facts_path).parent / FOLDER
     index_path = folder / "index.json"
     if not index_path.is_file():
@@ -118,7 +124,8 @@ def load(facts_path: Path, facts: dict) -> dict[str, dict]:
                                                                  and math.isfinite(x) and x >= 0 for x in s[:2])
                     and isinstance(s[2], str)):
                 raise TranscriptLoadError(f"{folder / entry['file']}: malformed segment {s!r:.80}")
-        out[mid] = t
+        segments, masked = privacy.mask_segments(t["segments"])
+        out[mid] = {**t, "segments": segments, "masked_segments": len(masked)}
     return out
 
 
@@ -298,6 +305,7 @@ class Transcripts:
         return {"meeting": m, "doc": doc, "kind_label": self.cix.kind_labels[m["kind"]],
                 "meeting_href": self.cix.meeting_href(meeting_id), "video_url": t["video_url"],
                 "video_ok": video_ok(t["video_url"]),
-                "notice": NOTICE, "label": LABEL, "model": t["model"], "model_version": t["model_version"],
+                "notice": NOTICE, "privacy_note": PRIVACY_NOTE, "label": LABEL, "model": t["model"],
+                "model_version": t["model_version"],
                 "created_at": t["created_at"], "call_on_count": len(self.call_ons.get(meeting_id, [])),
                 "lines": self.lines(meeting_id)}

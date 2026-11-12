@@ -59,7 +59,11 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   files       at most the target's file cap: --target preview (claude.ai artifact, 500) or pages (GitHub Pages, 3000)
   transcripts every line of a transcript page (<folder>/transcripts/*.html) has its time linked to its meeting's own
               video as <video_url>#t=<whole seconds>, the "Transcript" label and the notice; every call-on entry on a
-              member page links a video time; video links (data-ext="video") go only to a meeting's video_url
+              member page links a video time; video links (data-ext="video") go only to a meeting's video_url;
+              transcript pages carry robots noindex and the privacy line linking report.html
+  transcripts/private-addresses  no transcript text (data-transcript) on any page shows a street address or phone
+              number, and no file of the build (pages, data/, search index) carries a committed transcript line that
+              holds one (privacy/transcript-private-addresses)
   current-holders  no seat says "Current member not yet recorded" (nor lists its member under Served previously)
               while the latest list names the member last printed in it: a council's latest attendance list, the
               county's confirmed roll calls of the latest meeting (city-seats/current-holder-matches-latest-attendance)
@@ -197,7 +201,8 @@ def councils(facts: dict) -> list[dict]:
     for loc in _site_cfg().get("councils") or []:
         c = yaml.safe_load((ROOT / "config" / "localities" / loc / "council.yml").read_text(encoding="utf-8"))
         out.append({"slug": c["slug"], "prefix": c["slug"] + "/", "facts": load_facts(ROOT / c["facts"]),
-                    "held_sentences": c.get("held_sentences")})
+                    "held_sentences": c.get("held_sentences"),
+                    "transcripts_dir": (ROOT / c["facts"]).parent / "transcripts"})
     return out
 
 
@@ -2248,6 +2253,74 @@ class TranscriptLines(HTMLParser):
             self._li["label"] += d
 
 
+# privacy/transcript-private-addresses, restated here (not imported from sitegen/privacy.py): a house number (digits,
+# not part of a dollar amount, decimal, comma number or hyphenated number, and not after a word that names something
+# else), one to three street-name words that are not function words or units, and a street suffix; or a phone number.
+_PRIV_NOT_NAME = set("""a an the and or but so of to in on at by for from with into off over up down out about than
+then that this these those there here it it's its is are was were be i we you he she they my your his her their
+what when where if as also known like just only not no yes do did have has had will would can could each every
+other another more less many some any all both same whole foot feet mile miles acre acres percent per square year
+years month months day days hour hours minute minutes time times car cars home homes house houses unit units lot
+lots people lane lanes way wheel wide k thousand ordinance resolution fails council councilman councilwoman
+councilmember mayor clerk zero oh one two three four five six seven eight nine ten twenty thirty forty fifty
+hundred""".split())
+_PRIV_NOT_AFTER = {"ordinance", "resolution", "highway", "route", "us", "sr", "ward", "district", "number", "no",
+                   "item", "phase", "the", "approximately", "about", "year", "years", "since"}
+PRIVATE_ADDRESS = re.compile(r"(?<![\w$#/.,'’-])(\d{1,5})(?![.,]\d)((?:\s+(?:[A-Za-z]\.){1,3}|\s+\d{1,3}(?:st|nd|rd|th)"
+                             r"|\s+[A-Za-z][A-Za-z'’-]*){1,3})\s+(?:street|avenue|road|drive|court|lane|boulevard|blvd|"
+                             r"pike|place|way|circle|trail|parkway|alley|cove)\b", re.I)
+PRIVATE_PHONE = re.compile(r"(?<![\w$.,-])(?:\(\d{3}\)\s*|\d{3}[\s.-]{1,2})\d{3}[\s.-]{1,2}\d{4}(?![\w-])(?!\s*[.,]?\s*\d)"
+                           r"|(?<![\w$.,-])\d{3}[.-]\d{4}(?![\w-])(?![.,]\d)")
+
+
+def private_details(text: str) -> list[str]:
+    """Street addresses and phone numbers in a piece of transcript text (the restated rule above)."""
+    out = [m.group(0) for m in PRIVATE_PHONE.finditer(text)]
+    for m in PRIVATE_ADDRESS.finditer(text):
+        before = re.findall(r"[A-Za-z]+", text[max(0, m.start() - 30):m.start()])
+        words = [w.strip(".").lower() for w in m.group(2).split()]
+        if (before and before[-1].lower() in _PRIV_NOT_AFTER) or any(w in _PRIV_NOT_NAME for w in words):
+            continue
+        out.append(m.group(0))
+    return out
+
+
+def check_private_details(site: Path, cs: list[dict]) -> tuple[list[str], str]:
+    """privacy/transcript-private-addresses: (1) every data-transcript text on every page is free of street addresses
+    and phone numbers; (2) no file of the build carries, verbatim, a committed transcript line (data/localities/
+    <locality>/transcripts/*.json) that holds one: not a page, not data/ (the export), not the search index."""
+    problems, texts, needles = [], 0, set()
+    for c in cs:
+        folder = c.get("transcripts_dir")
+        for f in sorted(Path(folder).glob("*.json")) if folder else ():
+            if f.name == "index.json":
+                continue
+            for seg in json.loads(f.read_text(encoding="utf-8")).get("segments") or []:
+                t = " ".join(str(seg[2]).split()) if isinstance(seg, list) and len(seg) == 3 else ""
+                if len(t) >= 20 and private_details(t):
+                    needles.add(t)
+    files = 0
+    for f in sorted(site.rglob("*")):
+        if not f.is_file() or f.suffix.lower() not in (".html", ".js", ".json", ".csv", ".xml", ".txt", ".ics"):
+            continue
+        files += 1
+        rel = f.relative_to(site).as_posix()
+        body = f.read_text(encoding="utf-8", errors="replace")
+        if f.suffix.lower() == ".html":
+            for m in TRANSCRIPT_TEXT.finditer(body):
+                texts += 1
+                seg = html.unescape(re.sub(r"^<[^>]*>|</[^>]*>$", "", m.group(0)))
+                for d in private_details(seg):
+                    problems.append(f"{rel}: transcript text shows {d!r}")
+        if needles:
+            flat = " ".join(html.unescape(body).split())
+            for n in needles:
+                if n in flat or json.dumps(n)[1:-1] in body:
+                    problems.append(f"{rel}: carries an unmasked transcript line: {n[:60]!r}")
+    return problems, (f"{texts} transcript texts on pages; {files} files checked for {len(needles)} committed "
+                      f"transcript lines that hold an address or phone number")
+
+
 def check_transcripts(site: Path, cs: list[dict]) -> tuple[list[str], str]:
     """Transcript pages and member call-ons (sitegen/transcripts.py, spec AC6.3)."""
     problems, n_pages, n_lines, n_calls = [], 0, 0, 0
@@ -2264,6 +2337,12 @@ def check_transcripts(site: Path, cs: list[dict]) -> tuple[list[str], str]:
             n_pages += 1
             if TRANSCRIPT_NOTICE not in " ".join("".join(p.text).split()):
                 problems.append(f"{rel}: the transcript notice is missing")
+            raw = f.read_text(encoding="utf-8")
+            if not re.search(r'<meta name="robots" content="noindex">', raw.split("</head>")[0]):
+                problems.append(f"{rel}: no robots noindex in its head")
+            if not re.search(r'<p class="privacy-note">[^<]*addresses and phone numbers[^<]*<a href="[./]*report\.html">',
+                             raw):
+                problems.append(f"{rel}: the privacy line (addresses left out, report link) is missing")
             if not p.lines:
                 problems.append(f"{rel}: no transcript lines")
             linked = video_ok(videos[mid])
@@ -2699,6 +2778,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("dates/freshness-linked", problems, note)
     problems, note = check_transcripts(site, cs)
     rep.add("transcripts", problems, note)
+    problems, note = check_private_details(site, cs)
+    rep.add("transcripts/private-addresses", problems, note)
     problems, note = check_unofficial(site, pages, cfg)
     rep.add("unofficial/notice-on-every-page", problems, note)
     problems, note = check_about(site, cs, cfg, county=facts)
