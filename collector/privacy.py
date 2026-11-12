@@ -1,10 +1,11 @@
 """Private details in meeting transcript text (security review M1, privacy/transcript-private-addresses).
 
 Residents give their home address (and now and then a phone number) at the start of public comment. The transcript
-has no speaker tags, so these are found by pattern in the TEXT, everywhere in every transcript, and replaced before
-anything is shown, quoted or matched (sitegen/transcripts.py load): the transcript page, the call-on excerpts on member
-pages, and every other copy. The video still has them, so the placeholder tells the reader to hear it there; the line
-keeps its time link.
+has no speaker tags, so these are found by pattern in the TEXT, everywhere in every transcript, and replaced when a
+transcript is imported (collector/transcripts.py import_dir, and remask for the committed files), so the committed text
+is masked at rest, and again before anything is shown, quoted or matched (sitegen/transcripts.py load): the
+transcript page, the call-on excerpts on member pages, and every other copy. The video still has them, so the
+placeholder tells the reader to hear it there; the line keeps its time link.
 
 What is masked (rules, each with the false positives it avoids):
 - A street address: a house number, one to four street-name words, and a street suffix ("418 Example Court",

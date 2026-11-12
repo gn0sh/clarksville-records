@@ -1,6 +1,7 @@
 """Meeting video transcripts (AC6.3): import speech-recognition output into a compact, committed form.
 
     python -m collector transcripts import <dir> [--locality clarksville-tn]
+    python -m collector transcripts remask [--locality clarksville-tn]   (also: python -m collector.transcripts remask)
 
 Input: JSON files named <YYYY-MM-DD>_<eventId>.json, made outside the repo by speech-recognition software (Whisper)
 from the city's public meeting videos (docs/platform-facts.md, "Meeting video"). Each has event_id, event_name,
@@ -8,8 +9,11 @@ start, video_url, model, model_version, created_at and segments [{start, end, te
 
 Output, under <the council's facts folder>/transcripts/ (data/localities/<locality>/transcripts/):
 - <meeting-id>.json: the provenance fields plus segments as [start, end, text] (word-level data dropped), one
-  segment per line. Text is kept as the software wrote it, apart from whitespace runs folded to one space and
-  control characters removed; it is never summarised, reworded or corrected.
+  segment per line. Text is kept as the software wrote it, apart from whitespace runs folded to one space, control
+  characters removed, and street addresses and phone numbers replaced by a placeholder (collector/privacy.py
+  mask_segments, privacy/transcript-private-addresses) before anything is written, so the committed text is masked at
+  rest; it is never summarised, reworded or corrected. A file whose text still holds an address or phone number after
+  masking is not written (skipped with the reason).
 - index.json: which meetings have a transcript ({meeting id: {file, segments, video_url, ...}}), rebuilt from the
   folder's files on every import, so it always names exactly the transcripts that are there.
 
@@ -30,6 +34,10 @@ never names a stale transcript.
 
 Deterministic and idempotent: the output depends only on the inputs and the facts file (no clock), files are
 rewritten only when their text changes, and running the same import twice changes nothing.
+
+remask: rewrites every committed transcript JSON of the council through the same masker, with no raw input (after a
+change to the masking rules). Idempotent: mask(mask(x)) == mask(x), so a second run changes no byte; segment times
+and counts never change. A file that still holds a match after masking is left as it is and the command exits 1.
 """
 from __future__ import annotations
 
@@ -40,6 +48,8 @@ import math
 import re
 import sys
 from pathlib import Path
+
+from . import privacy
 
 ROOT = Path(__file__).resolve().parent.parent
 NAME_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})_(\d+)\.json$")
@@ -189,6 +199,15 @@ def stale(t: dict, meetings: dict[str, dict], listing: dict[str, set[str]]) -> s
     return listing_differs(t, m["video_url"], listing)
 
 
+def mask_record(rec: dict) -> tuple[dict, int]:
+    """(rec with its segments' addresses and phone numbers masked, how many lines changed). Raises TranscriptError
+    when the masked text still matches the rule (the masker is not at a fixed point on it), so it is never written."""
+    segments, changed = privacy.mask_segments(rec["segments"])
+    if privacy.spans(" ".join(s[2] for s in segments)):
+        raise TranscriptError("the text still holds an address or phone number after masking; not written")
+    return {**rec, "segments": segments}, len(changed)
+
+
 def render(rec: dict) -> str:
     """The committed form: sorted keys, one segment per line, no clock."""
     head = {k: v for k, v in rec.items() if k != "segments"}
@@ -227,7 +246,7 @@ def import_dir(src: Path, facts: dict, out_dir: Path, kind_of, listing: dict[str
     log = {"imported": [], "unchanged": [], "skipped": [], "removed": []}
     for path in sorted(Path(src).glob("*.json")):
         try:
-            rec = read_input(path)
+            rec, masked = mask_record(read_input(path))
         except TranscriptError as exc:
             log["skipped"].append({"file": path.name, "why": str(exc)})
             continue
@@ -242,7 +261,7 @@ def import_dir(src: Path, facts: dict, out_dir: Path, kind_of, listing: dict[str
         if not _ID_RE.match(m["id"]):
             log["skipped"].append({"file": path.name, "why": f"meeting id {m['id']!r} is not a safe file name"})
             continue
-        rec = {**rec, "meeting_id": m["id"], "matched_by": how, "video_url": m["video_url"]}
+        rec = {**rec, "meeting_id": m["id"], "matched_by": how, "video_url": m["video_url"], "_masked": masked}
         prev = chosen.get(m["id"])
         if prev is not None:
             keep, drop = sorted([prev, rec], key=lambda r: (r["created_at"], r["source_file"]))[::-1]
@@ -251,10 +270,12 @@ def import_dir(src: Path, facts: dict, out_dir: Path, kind_of, listing: dict[str
             rec = keep
         chosen[m["id"]] = rec
     for mid, rec in sorted(chosen.items()):
+        masked = rec.pop("_masked")
         changed = _write(out_dir / f"{mid}.json", render(rec))
         log["imported" if changed else "unchanged"].append({"file": rec["source_file"], "meeting_id": mid,
                                                              "matched_by": rec["matched_by"],
-                                                             "segments": len(rec["segments"])})
+                                                             "segments": len(rec["segments"]),
+                                                             "masked_segments": masked})
     by_id = {m["id"]: m for m in meetings}
     for p in sorted(Path(out_dir).glob("*.json")) if Path(out_dir).is_dir() else []:
         if p.name == "index.json":
@@ -276,6 +297,33 @@ def import_dir(src: Path, facts: dict, out_dir: Path, kind_of, listing: dict[str
     return log
 
 
+def remask(out_dir: Path) -> dict:
+    """Rewrite every committed transcript in out_dir through the masker (no raw input). Returns {"remasked": [...],
+    "unchanged": [...], "refused": [...]}; a refused file (still matching after masking, or not a transcript) is left
+    as it is, and so is index.json; else index.json is rebuilt (it holds no text). Segment times and counts never
+    change."""
+    log = {"remasked": [], "unchanged": [], "refused": []}
+    for p in sorted(Path(out_dir).glob("*.json")):
+        if p.name == "index.json":
+            continue
+        try:
+            t = json.loads(p.read_text(encoding="utf-8"))
+            if not isinstance(t, dict) or not isinstance(t.get("segments"), list):
+                raise TranscriptError("not a transcript object")
+            new, masked = mask_record(t)
+            if [s[:2] for s in new["segments"]] != [s[:2] for s in t["segments"]]:
+                raise TranscriptError("masking changed a segment's times or the segment count")
+        except (UnicodeDecodeError, json.JSONDecodeError, TranscriptError) as exc:
+            log["refused"].append({"file": p.name, "why": str(exc)})
+            continue
+        changed = _write(p, render(new))
+        log["remasked" if changed else "unchanged"].append({"file": p.name, "masked_segments": masked})
+    if Path(out_dir).is_dir() and not log["refused"]:      # a refused file leaves the index as it was
+        _write(Path(out_dir) / "index.json",
+               json.dumps(build_index(Path(out_dir)), indent=1, sort_keys=True, ensure_ascii=False) + "\n")
+    return log
+
+
 def transcripts_dir(facts_path: Path) -> Path:
     """Where a council's transcripts live: beside its facts file."""
     return Path(facts_path).parent / "transcripts"
@@ -287,9 +335,17 @@ def main(argv=None) -> int:
     imp = sub.add_parser("import", help="import transcript JSON files from a folder")
     imp.add_argument("src", help="folder of <YYYY-MM-DD>_<eventId>.json files")
     imp.add_argument("--locality", default="clarksville-tn", help="the council (config/localities/<locality>/)")
+    rem = sub.add_parser("remask", help="re-mask every committed transcript of the council (no raw input)")
+    rem.add_argument("--locality", default="clarksville-tn", help="the council (config/localities/<locality>/)")
+    rem.add_argument("--dir", help="a transcripts folder instead of the council's (tests)")
     a = ap.parse_args(argv)
     from sitegen.config import load_council
     from .agenda_center import config_path, load_config
+    if a.cmd == "remask":
+        folder = Path(a.dir) if a.dir else transcripts_dir(load_council(a.locality)["facts_path"])
+        log = remask(folder)
+        print(json.dumps(log, indent=1, sort_keys=True))
+        return 1 if log["refused"] else 0
     cfg = load_council(a.locality)
     facts = json.loads(Path(cfg["facts_path"]).read_text(encoding="utf-8"))
     kind_of = load_config(config_path(a.locality)).kind_of
@@ -304,3 +360,7 @@ def main(argv=None) -> int:
     log = import_dir(Path(a.src), facts, transcripts_dir(cfg["facts_path"]), kind_of, listing)
     print(json.dumps(log, indent=1, sort_keys=True))
     return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
