@@ -44,7 +44,10 @@ schema/changes.schema.json one line of data/changes.jsonl (collector -> sitegen)
   hard-denied in code, whatever the allowlist says. Discovery reads the production index
   `https://montgomerytn.gov/clerk/county-commission-minutes`; link labels are hints only.
 - Redirects are not followed automatically: each `Location` goes back through `get()` (allowlist, denied hosts,
-  robots, per-host delay), at most 5 hops, or the fetch fails (politeness/redirect-bypass).
+  robots, per-host delay), at most 5 hops, or the fetch fails (politeness/redirect-bypass). Every hop must be https
+  on the default port; the one rewrite is an upgrade (fetch/redirect-http-upgrade, 2026-11-12): a `Location` of plain
+  `http://` with no port and no user info is requested as `https://` on the same host, path and query, then checked
+  like any hop. No request is ever sent over http (mcgtn.org answers 301 to `http://montgomerytn.gov/<same path>`).
 - Per host: fetch and cache `robots.txt` once per run (`urllib.robotparser`; 404 means allow all, per RFC 9309; any other
   error means stop that host). `can_fetch(UA, url)` is checked before every request.
 - Delay per host = max(robots Crawl-delay, host floor). Floor: 10 s on every host (M1 build, 2026-11-07; was 5 s

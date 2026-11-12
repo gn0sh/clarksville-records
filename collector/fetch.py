@@ -14,7 +14,10 @@ Rules (spec AC4.2, AC4.3; architecture "Polite fetcher"):
   delay), at most MAX_REDIRECTS hops, or the fetch fails;
 - https on the default port only (fetch/scheme-port-unpinned): every request, the first URL, robots.txt and every
   redirect hop, must be https:// with no port other than 443 and no user:password@; anything else is refused with no
-  request (SchemeRefused, a HostRefused), so a redirect cannot downgrade to http:// or move to another port;
+  request (SchemeRefused, a HostRefused), so a redirect cannot downgrade to http:// or move to another port. The
+  one exception is an upgrade, never a downgrade (fetch/redirect-http-upgrade, upgrade_http): a redirect Location of
+  plain http:// with no port and no user info is requested as https:// on the same host and path, and then goes
+  through every check above; the http:// URL itself is never requested;
 - a connection reset (the sandbox relay dropping a slow exchange) is retried once after the host delay, like a
   server error; a second reset fails the fetch. At most RESET_RETRIES_PER_HOST resets are retried per host per
   run: after that a reset fails the fetch at once, so a relay that keeps dropping cannot double the requests;
@@ -141,6 +144,22 @@ def split_url(url: str) -> urllib.parse.SplitResult:
         return urllib.parse.urlsplit(url)
     except ValueError as e:
         raise FetchFailed(f"{url!r}: malformed URL ({e})") from None
+
+
+def upgrade_http(url: str) -> str:
+    """fetch/redirect-http-upgrade: a redirect Location of plain http:// with no port and no user:password@ ->
+    the same host, path and query on https:// (the default port). Anything else is returned unchanged, so check_url
+    still refuses it. The http:// URL itself is never requested: no request ever leaves https on port 443. Seen
+    2026-11-12: mcgtn.org (Cloudflare) answers every path, robots.txt included, with 301 to http://montgomerytn.gov/
+    <same path>. Same host and path as the Location, like discover.https_same_host: not another route."""
+    try:
+        p = urllib.parse.urlsplit(url)
+        port = p.port
+    except ValueError:                           # malformed, or a port out of range: check_url refuses it
+        return url
+    if p.scheme.lower() != "http" or port is not None or "@" in p.netloc or not p.hostname:
+        return url
+    return urllib.parse.urlunsplit(("https",) + tuple(p)[1:])
 
 
 def site_key(host: str) -> str:
@@ -410,6 +429,10 @@ class PoliteFetcher:
             self.log.append({"event": "error", "host": split_url(url).netloc, "url": url,
                              "detail": f"malformed Location {loc!r}"})
             raise FetchFailed(f"{url}: malformed redirect Location {loc!r} ({e})") from None
+        up = upgrade_http(nxt)
+        if up != nxt:
+            self.log.append({"event": "upgraded", "host": split_url(nxt).netloc, "url": nxt, "detail": up})
+            nxt = up
         host = split_url(nxt).netloc
         self.log.append({"event": "redirect", "host": urllib.parse.urlsplit(url).netloc, "url": url, "detail": nxt})
         self.check_url(nxt)                     # every hop, not only the first URL: no http:// or other port

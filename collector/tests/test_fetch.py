@@ -219,7 +219,8 @@ def test_redirect_to_a_robots_disallowed_path_is_refused():
     assert "https://g.example/private/x.pdf" not in [u for u, _ in net.calls]
 
 
-@pytest.mark.parametrize("target", ["http://h.example/b.pdf", "http://g.example/b.pdf", "https://h.example:8443/b.pdf",
+@pytest.mark.parametrize("target", ["http://h.example:8080/b.pdf", "http://g.example:80/b.pdf", "http://u:p@g.example/b.pdf",
+                                    "http://g.example:99999/b.pdf", "https://h.example:8443/b.pdf",
                                     "https://g.example:80/b.pdf", "https://g.example:99999/b.pdf",
                                     "https://u:p@g.example/b.pdf", "ftp://g.example/b.pdf"])
 def test_redirect_off_https_or_to_another_port_is_refused_without_a_request(target):
@@ -235,15 +236,15 @@ def test_redirect_off_https_or_to_another_port_is_refused_without_a_request(targ
 def test_a_later_hop_off_https_is_refused_too():
     from collector.fetch import SchemeRefused
     f, net, _ = make({"https://h.example/a": (301, b"", {"Location": "https://g.example/b"}),
-                      "https://g.example/b": (302, b"", {"Location": "http://g.example/c.pdf"}),
-                      "http://g.example/c.pdf": (200, b"%PDF-1")})
+                      "https://g.example/b": (302, b"", {"Location": "http://g.example:8080/c.pdf"}),
+                      "http://g.example:8080/c.pdf": (200, b"%PDF-1")})
     with pytest.raises(SchemeRefused):
         f.get("https://h.example/a")
-    assert "http://g.example/c.pdf" not in [u for u, _ in net.calls]
+    assert not [u for u, _ in net.calls if u.startswith("http://") or ":8080" in u]
 
 
-@pytest.mark.parametrize("loc", ["http://h.example/robots.txt", "https://h.example:8443/robots.txt",
-                                 "https://unlisted.example/robots.txt"])
+@pytest.mark.parametrize("loc", ["http://h.example:8080/robots.txt", "https://h.example:8443/robots.txt",
+                                 "https://unlisted.example/robots.txt", "http://unlisted.example/robots.txt"])
 def test_robots_txt_redirect_refused_disallows_the_host_for_the_run(loc):
     """The robots.txt redirect is never followed; the host is then disallowed (cached), so a second fetch makes no
     request at all, robots.txt included."""
@@ -278,6 +279,77 @@ def test_redirect_to_https_on_port_443_is_followed():
     f, net, _ = make({"https://h.example/a": (302, b"", {"Location": "https://g.example:443/b.pdf"}),
                       "https://g.example:443/b.pdf": (200, b"%PDF-1")})
     assert f.get("https://h.example/a")[1] == b"%PDF-1"
+
+
+# fetch/redirect-http-upgrade: mcgtn.org answers every path with 301 to http://montgomerytn.gov/<same path> (Cloudflare,
+# seen 2026-11-12). The plain http:// Location is requested as https://, same host, path and query; never as http://.
+MCGTN = {"https://mcgtn.org/robots.txt": (301, b"", {"Location": "http://montgomerytn.gov/robots.txt"}),
+         "https://montgomerytn.gov/robots.txt": (200, b"User-agent: *\nDisallow:\n"),
+         "https://mcgtn.org/storage/a%20b.pdf?x=1": (301, b"", {"Location": "http://montgomerytn.gov/storage/a%20b.pdf?x=1"}),
+         "https://montgomerytn.gov/storage/a%20b.pdf?x=1": (200, b"%PDF-1")}
+
+
+def make_county(routes):
+    f, net, clock = make(routes)
+    f.allowed_hosts = ("mcgtn.org", "montgomerytn.gov")
+    return f, net, clock
+
+
+def test_an_http_redirect_is_requested_as_https_on_the_same_host_and_path():
+    f, net, clock = make_county(dict(MCGTN))
+    assert f.get("https://mcgtn.org/storage/a%20b.pdf?x=1")[1] == b"%PDF-1"
+    assert [u for u, _ in net.calls] == ["https://mcgtn.org/robots.txt", "https://montgomerytn.gov/robots.txt",
+                                         "https://mcgtn.org/storage/a%20b.pdf?x=1",
+                                         "https://montgomerytn.gov/robots.txt",
+                                         "https://montgomerytn.gov/storage/a%20b.pdf?x=1"]
+    assert not [u for u, _ in net.calls if not u.startswith("https://")]
+    assert [e["detail"] for e in f.log if e["event"] == "upgraded"] == [
+        "https://montgomerytn.gov/robots.txt", "https://montgomerytn.gov/storage/a%20b.pdf?x=1"]
+    # robots.txt is per exact host (RFC 9309): read for mcgtn.org (through the redirect) and for montgomerytn.gov
+    # itself, as before; every request on one site waited the 10 s floor
+    assert clock.slept == [10.0, 10.0]
+
+
+def test_the_robots_txt_reached_by_an_upgraded_redirect_is_obeyed():
+    routes = dict(MCGTN)
+    routes["https://montgomerytn.gov/robots.txt"] = (200, b"User-agent: *\nDisallow: /storage/\n")
+    f, net, _ = make_county(routes)
+    with pytest.raises(RobotsDisallowed):
+        f.get("https://mcgtn.org/storage/a%20b.pdf?x=1")
+    assert [u for u, _ in net.calls] == ["https://mcgtn.org/robots.txt", "https://montgomerytn.gov/robots.txt"]
+
+
+def test_an_upgraded_redirect_to_a_denied_or_unlisted_host_is_refused_without_a_request():
+    for loc in ("http://dev2.montgomerytn.gov/x.pdf", "http://unlisted.example/x.pdf"):
+        f, net, _ = make_county({"https://mcgtn.org/robots.txt": (404, b""),
+                                 "https://mcgtn.org/a": (301, b"", {"Location": loc})})
+        with pytest.raises(HostRefused):
+            f.get("https://mcgtn.org/a")
+        assert [u for u, _ in net.calls] == ["https://mcgtn.org/robots.txt", "https://mcgtn.org/a"]
+
+
+def test_an_http_redirect_loop_ends_at_the_hop_limit():
+    from collector.fetch import FetchFailed, MAX_REDIRECTS
+    f, net, _ = make({"https://h.example/a": (301, b"", {"Location": "http://h.example/a"})})
+    with pytest.raises(FetchFailed, match="redirects"):
+        f.get("https://h.example/a")
+    assert len([u for u, _ in net.calls if u == "https://h.example/a"]) == MAX_REDIRECTS + 1
+    assert not [u for u, _ in net.calls if u.startswith("http://")]
+
+
+@pytest.mark.parametrize("url, out", [
+    ("http://h.example/a?b=1#c", "https://h.example/a?b=1#c"),
+    ("HTTP://H.example/a", "https://H.example/a"),
+    ("http://h.example:80/a", "http://h.example:80/a"),          # an explicit port is not upgraded: refused
+    ("http://h.example:8080/a", "http://h.example:8080/a"),
+    ("http://u:p@h.example/a", "http://u:p@h.example/a"),
+    ("http://h.example:99999/a", "http://h.example:99999/a"),
+    ("http:///a", "http:///a"),
+    ("ftp://h.example/a", "ftp://h.example/a"),
+    ("https://h.example/a", "https://h.example/a")])
+def test_upgrade_http_rewrites_only_plain_http_on_the_default_port(url, out):
+    from collector.fetch import upgrade_http
+    assert upgrade_http(url) == out
 
 
 @pytest.mark.parametrize("bad", ["evil.com%23.h.example", "evil.com%40.h.example", "evil.com%2f.h.example",
