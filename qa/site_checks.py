@@ -1170,8 +1170,12 @@ def check_layout(site: Path, facts: dict, folder: str = "officials") -> tuple[li
 # ---------------------------------------------------------------- provenance (derived vs stated)
 # Restated from the architecture's invariant `provenance`, not imported from sitegen.
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+# "seen in the minutes that record the seating": a council record that starts at a configured, cited seating
+# (council.yml evidence.configured; path N10), observed from that record, never a term date. Missing here since V6
+# (0ab644d), which failed the provenance check on the Ward 2 member's page.
 DATE_PHRASES = ("seen in roll calls", "shown as vacant in roll calls", "roll calls", "seen in attendance lists",
-                "shown as vacant in attendance lists", "attendance lists")
+                "shown as vacant in attendance lists", "attendance lists",
+                "seen in the minutes that record the seating")
 SOURCE_TERM = "as the source prints it"
 BANNED = ("Held this seat", "vacant since", "to present", "in use since")
 

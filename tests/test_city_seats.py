@@ -682,6 +682,8 @@ def test_ward_2_starts_with_the_configured_member_on_the_seating_date_with_its_s
         "Ward 2, seen in the minutes that record the seating from 2026-02-19 to 2026-02-19; listed by name in "
         "attendance lists to 2026-07-06, the latest minutes read; the attendance lists of 2026-07-06 print the name as "
         '"CLAULNCH"')
+    assert site_checks.dates_worded(cix.seats.header_text("city-eric-claunch")) == []     # provenance site check
+    assert site_checks.dates_worded("Ward 2, seen in the minutes of 2026-02-19") == ["2026-02-19"]
     head = views.official("city-eric-claunch", cix)["name_source"]
     assert head["quote"] == "Eric Claunch was selected as the Ward 2 replacement and was sworn in by Mayor Pitts."
     assert head["src"]["url"] == f"{src['url']}#page=3" and head["date"] == "2026-02-11" and head["kind"] == "minutes"
