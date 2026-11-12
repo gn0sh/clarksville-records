@@ -308,6 +308,74 @@ def test_city_reposted_minutes_is_a_correction(city, lose, code):
     assert bool(g.get("lowered")) is lose
 
 
+def _reposted_unread(city, m, status, same_url=False):
+    """The city replaced m's minutes (a new url, or new bytes at the same url) and the run did not read the new file:
+    not fetched (the meeting falls back to its agenda) or a parse failure (the new file is its source, no records)."""
+    new, sid = rehash(city["facts"], m["source_id"])
+    mm = next(x for x in new["meetings"] if x["id"] == m["id"])
+    if not same_url:
+        new = _reposted(city, m)
+        mm = next(x for x in new["meetings"] if x["id"] == m["id"])
+    for k in ("roll_calls", "motions", "item_events"):
+        new[k] = [r for r in new[k] if r["meeting_id"] != m["id"]]
+    if status == "not_fetched":
+        new["sources"] = [s for s in new["sources"] if s["id"] != sid]
+        mm["source_id"] = mm["agenda_source_id"]
+    mm.update(minutes_status=status, attendance=[], attendance_status="not_extracted")
+    return new, sid, [w for w in city["w"] if w["meeting_id"] != m["id"]]
+
+
+def _supersede(city, m, new, sid):
+    """The store's manifest: m's committed minutes replaced at their url by the new bytes (store.superseded())."""
+    old = next(s for s in city["facts"]["sources"] if s["id"] == m["source_id"])
+    sha = rehash(city["facts"], m["source_id"])[0]["sources"]
+    sha = next(s["sha256"] for s in sha if s["id"] == sid)
+    city_run.write_json(city["p"]["manifest"], [
+        {"url": old["url"], "sha256": old["sha256"], "kind": "minutes", "first_fetched_at": "2026-01-01T00:00:00+00:00",
+         "superseded_by": sha},
+        {"url": old["url"], "sha256": sha, "kind": "minutes", "first_fetched_at": "2026-11-12T00:00:00+00:00"}])
+
+
+@pytest.mark.parametrize("status", ["not_fetched", "parse_failed"])
+@pytest.mark.parametrize("same_url", [False, True], ids=["url-changed", "store-superseded"])
+def test_city_reposted_minutes_not_read_keeps_the_committed_meeting(city, status, same_url):
+    """shrink/city-correction-on-unread-file (ADR 0006 I1): a replaced file counts as a correction only when the new
+    file was read. Unread (not fetched, parse failed), on the url-change and the store-superseded path, the committed
+    meeting is kept byte-identical and the run warns (7) until the new file reads or --allow-drop names it."""
+    m = minutes_meetings(city["facts"], city["w"])[-3]
+    city["new"], sid, city["wards"] = _reposted_unread(city, m, status, same_url)
+    if same_url:
+        _supersede(city, m, city["new"], sid)
+    assert city_run.main(["build"]) == city_run.KEPT
+    assert (city["p"]["facts"].read_bytes(), city["p"]["wards"].read_bytes()) == \
+        ((CITY / "facts.json").read_bytes(), (CITY / "wards.json").read_bytes())    # as committed, byte for byte
+    g = city["guard"]()
+    assert "corrections" not in g
+    [k] = g["kept_meetings"]
+    assert k["meeting_ids"] == [m["id"]] and k["ids"] and "were not read" in k["reason"]
+    assert city_run.main(["build"]) == city_run.KEPT                  # kept again the next day, unchanged
+    assert city["p"]["facts"].read_bytes() == (CITY / "facts.json").read_bytes()
+
+
+def test_city_reposted_minutes_read_on_the_store_path_is_a_correction(city):
+    """The positive case on the store-superseded path: new bytes at the same url that read are a correction."""
+    m = minutes_meetings(city["facts"], city["w"])[-3]
+    city["new"], sid = rehash(city["facts"], m["source_id"])
+    _supersede(city, m, city["new"], sid)
+    assert city_run.main(["build"]) == 0
+    assert city["out"]()[0] == city["new"]
+    [c] = city["guard"]()["corrections"]
+    assert c["meeting_ids"] == [m["id"]] and c["new_source_ids"] == [sid]
+
+
+def test_unread_meetings_lists_only_committed_read_minutes_now_unread():
+    old = {"meetings": [{"id": "a", "minutes_status": "read"}, {"id": "b", "minutes_status": "scan_not_read"},
+                        {"id": "c", "minutes_status": "read"}]}
+    new = {"meetings": [{"id": "a", "minutes_status": "parse_failed"}, {"id": "b", "minutes_status": "scan_not_read"},
+                        {"id": "c", "minutes_status": "read"}, {"id": "d", "minutes_status": "not_fetched"}]}
+    assert city_run.unread_meetings(old, new) == {"a"}
+
+
 def test_a_build_that_keeps_every_committed_meeting_is_written(city):
     city["new"], city["wards"] = plus_new_meeting(city["facts"], city["w"])
     assert city_run.main(["build"]) == 0

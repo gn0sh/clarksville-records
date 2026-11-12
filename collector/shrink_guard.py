@@ -63,7 +63,7 @@ def vote_content(facts: dict, meeting_ids) -> list:
                   for r in facts.get("roll_calls", []) if r.get("meeting_id") in ms)
 
 
-def shrink_guard(new: dict, old: dict, name: str = "facts.json", superseded=()) -> dict:
+def shrink_guard(new: dict, old: dict, name: str = "facts.json", superseded=(), unread=()) -> dict:
     """G1 (docs/architecture/pipeline-limits-invariant.md, "Rule 3: the shrink guard"): compare the new result with the
     committed facts `old` per source document S (and every meeting Ms it carries), by sha256.
     (a) S's bytes are in the result: a roll call of S verified in `old` and not verified (or absent) in `new`, or a
@@ -71,7 +71,9 @@ def shrink_guard(new: dict, old: dict, name: str = "facts.json", superseded=()) 
     (b) S's bytes are not, but every meeting of Ms is, under another source, AND S was replaced: a new source carrying
         Ms has S's url, or the store marks S's sha256 superseded (`superseded`, from store.superseded()). That is a
         correction; the new reading wins (pipeline/correction-not-bytes-changed: a meeting that merely moved to
-        another document, meetings.choose, while S is unchanged is not one, and keeps S).
+        another document, meetings.choose, while S is unchanged is not one, and keeps S). A meeting of Ms in `unread`
+        (the new file was not read: not fetched, parse failed; the city passes these) is never a correction, so S is
+        kept (shrink/city-correction-on-unread-file).
     (c) S's bytes are not and a meeting of Ms is absent too (not in the store, a fetch or parse failure, a timeout):
         transient, keeps S.
     Gains are never guarded. Returns {'kept': [{source_id, meeting_ids, ids (lost verified roll calls), reason,
@@ -88,6 +90,7 @@ def shrink_guard(new: dict, old: dict, name: str = "facts.json", superseded=()) 
     old_url = {s["id"]: s.get("url") for s in old.get("sources", [])}
     url_of_new = {s["id"]: s.get("url") for s in new.get("sources", [])}
     superseded = set(superseded or ())
+    unread = set(unread or ())
     now_src = {m["id"]: m["source_id"] for m in new.get("meetings", [])}
     now_verified = {r["id"] for r in new.get("roll_calls", []) if _verified(r)}
     units: dict[str, list] = {}
@@ -115,13 +118,20 @@ def shrink_guard(new: dict, old: dict, name: str = "facts.json", superseded=()) 
                              "reason": f"same document (sha256 {h8}): " + "; ".join(why)})
         elif not gone:
             to = sorted({now_src[m] for m in ms})
-            replaced = (bool(h) and h in superseded) or (
-                bool(old_url.get(sid)) and any(url_of_new.get(t) == old_url[sid] for t in to))
+            unread_ms = sorted(unread.intersection(ms))
+            replaced = not unread_ms and ((bool(h) and h in superseded) or (
+                bool(old_url.get(sid)) and any(url_of_new.get(t) == old_url[sid] for t in to)))
             if replaced:                                                                        # (b) correction
                 n_new = sum(1 for r in new.get("roll_calls", []) if r.get("meeting_id") in ms and _verified(r))
                 corrections.append({"meeting_ids": ms, "source_id": sid, "new_source_ids": to, "sha256": h,
                                     "new_sha256": [sha_of_new.get(t, t) for t in to], "verified": [len(was), n_new],
                                     "votes_changed": vote_content(old, ms) != vote_content(new, ms)})
+            elif unread_ms:                                             # the new file was not read: not yet
+                lost = [i for i in was if i not in now_verified]
+                kept.append({"source_id": sid, "meeting_ids": ms, "ids": lost,
+                             "reason": f"document sha256 {h8} not in the result and the new minutes of "
+                                       f"{', '.join(unread_ms)} were not read (not fetched, or a parse failure): "
+                                       f"not a correction until the new file reads"})
             else:                                                       # moved to another document, S not replaced
                 lost = [i for i in was if i not in now_verified]
                 kept.append({"source_id": sid, "meeting_ids": ms, "ids": lost,

@@ -157,19 +157,34 @@ def minutes_units(old: dict) -> dict:
                                                                                      "item_events")}}
 
 
+def unread_meetings(old: dict, new: dict) -> set:
+    """The committed meetings whose minutes were read and whose minutes the new build did not read (minutes_status
+    other than read: not fetched, parse failed, a scan, ...). Their committed minutes are never replaced by a
+    correction (shrink/city-correction-on-unread-file, ADR 0006 I1): the guard keeps them until the new file reads or
+    --allow-drop names them. A meeting gone from the build is the guard's (c), not listed here."""
+    was = {m["id"] for m in old.get("meetings", []) if m.get("minutes_status") == "read"}
+    return {m["id"] for m in new.get("meetings", []) if m["id"] in was and m.get("minutes_status") != "read"}
+
+
 def city_superseded(store: Store, old: dict, new: dict) -> set:
     """The sha256 of every committed document replaced (shrink_guard (b), a correction): the store's superseded
     versions, plus the committed minutes of any meeting whose listing row now names a different minutes_url (the
-    listing replaced the file)."""
+    listing replaced the file), on both paths only when the new file was read: the sha of a committed meeting whose
+    new minutes are unread (unread_meetings) is left out, so the guard keeps that meeting (exit 7)."""
     shas = {e["sha256"] for e in store.superseded() if e.get("sha256")}
     sha = {s["id"]: s.get("sha256") for s in old.get("sources", [])}
     now = {m["id"]: m for m in new.get("meetings", [])}
+    unread = unread_meetings(old, new)
+    held = set()
     for m in old.get("meetings", []):
-        n = now.get(m["id"])
-        if n and m.get("minutes_url") and n.get("minutes_url") and n["minutes_url"] != m["minutes_url"] \
-                and sha.get(m.get("source_id")):
-            shas.add(sha[m["source_id"]])
-    return shas
+        n, h = now.get(m["id"]), sha.get(m.get("source_id"))
+        if not n or not h:
+            continue
+        if m["id"] in unread:
+            held.add(h)
+        elif m.get("minutes_url") and n.get("minutes_url") and n["minutes_url"] != m["minutes_url"]:
+            shas.add(h)
+    return shas - held
 
 
 def splice(new: list, old: list, from_old, ident) -> list:
@@ -307,14 +322,16 @@ def guard_facts(facts: dict, wards: list, p: dict, store: Store, log: dict, summ
     """ADR 0006 fix 2: the county's shrink guard (collector/shrink_guard.py) on the city facts. Each committed meeting
     read from its minutes is compared, by its minutes' sha256, with the new build: lost verified roll calls, a meeting
     gone, or its minutes missing from the run keep that meeting exactly as committed (records, sources, agenda source,
-    wards); a replaced file is a correction (the new reading wins, a warning only when its verified count fell or its
-    votes changed). The merged facts and wards are returned (always written), the gates recomputed on them."""
+    wards); a replaced file that was read is a correction (the new reading wins, a warning only when its verified count
+    fell or its votes changed), one that was not read (unread_meetings) keeps the meeting. The merged facts and wards
+    are returned (always written), the gates recomputed on them."""
     from .verify import gates
     if not p["facts"].exists():
         return facts, wards
     old = json.loads(p["facts"].read_text(encoding="utf-8"))
     wards_old = json.loads(p["wards"].read_text(encoding="utf-8")) if p["wards"].exists() else []
-    res = shrink_guard(facts, minutes_units(old), p["facts"].name, city_superseded(store, old, facts))
+    res = shrink_guard(facts, minutes_units(old), p["facts"].name, city_superseded(store, old, facts),
+                       unread_meetings(old, facts))
     g = log.setdefault("guard", {})
     kept = res["kept"]
     if res["corrections"]:
