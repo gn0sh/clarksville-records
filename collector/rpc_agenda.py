@@ -104,6 +104,22 @@ def _label_rx(printed: str) -> str:
     return r"(?<![A-Za-z])" + rx + (r"\b" if printed[-1].isalpha() else "")
 
 
+# An applicant's phone number printed in a field (security review L1, privacy/rpc-applicant-phone): "931-801-0313",
+# "(931) 801-0313", "931.801.0313", "801-0313". Never a case number, a parcel or an address range ("1645 -1665",
+# "1778, 1790, 1798"): the digits must stand alone, in 3-3-4 or 3-4 groups.
+PHONE = re.compile(r"(?<![\w-])(?:\(\d{3}\)\s*|\d{3}[\s.-])?\d{3}[.-]\d{4}(?![\w-])"
+                   r"|(?<![\w-])\d{3}\s\d{3}\s\d{4}(?![\w-])")
+
+
+def strip_phones(value: str | None) -> str | None:
+    """The value with every phone number taken out (and the spaces around it joined); None when nothing is left. A
+    value with no phone number is returned exactly as printed."""
+    if not value or not PHONE.search(value):
+        return value or None
+    out = re.sub(r"\s+([,;])", r"\1", re.sub(r"\s+", " ", PHONE.sub(" ", value))).strip(" ,;")
+    return out or None
+
+
 LABEL_RX = re.compile("|".join(f"(?P<{k}>{'|'.join(_label_rx(v) for v in vs)})" for k, vs in LABELS))
 HEARINGS = re.compile(r"UPCOMING\s+(?:ZONING\s+)?MEETINGS?\b", re.I)
 # "1. CITY COUNCIL INFORMAL October 29, 2026 @ 4:30 P.M." (the 2026-07-28 agenda numbers them V. to VIII.)
@@ -323,7 +339,7 @@ def case_record(c: dict, meeting_id: str, source_id: str, case_types: dict | Non
         "applicant_label": who_label, "applicant": who or None, "agent": f.get("agent") or None,
         "request_label": request_label if request else None, "request": request or None,
         "proposed_use": f.get("proposed_use") or None,
-        "location": f.get("location") or None,
+        "location": strip_phones(f.get("location")),   # an applicant's phone number is never shown (L1)
         "ward": int(wm.group(1)) if wm else None, "ward_printed": f.get("ward") or None,
         "district": int(dm.group(1)) if dm else None,
         "acres": f.get("acres") or None,

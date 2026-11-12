@@ -388,3 +388,48 @@ def test_build_reports_a_case_shortfall_as_a_failing_check(cfg, rows, tmp_path, 
     assert "FAIL  rpc case completeness: 1 agendas" in capsys.readouterr().err
     monkeypatch.setattr(rpc_agenda, "build", lambda c, r, s, extract=None, audit_path=None: (facts_ok, summary_ok))
     assert rpc.main(["build"]) == 0
+
+
+# ------------------------------------------------------------------ privacy/rpc-applicant-phone (security review L1)
+
+@pytest.mark.parametrize("printed, shown", [
+    ("127 Hadley Dr Clarksville TN 37042 931-801-0313", "127 Hadley Dr Clarksville TN 37042"),
+    ("Main St (931) 801-0313, Clarksville", "Main St, Clarksville"),
+    ("100 Main St 931.801.0313", "100 Main St"), ("100 Main St call 801-0313", "100 Main St call"),
+    ("100 Main St 931 801 0313", "100 Main St"), ("931-801-0313", None),
+    # never a range, a list of house numbers, a case number or a value with no phone number (kept exactly as printed)
+    ("Immediately north of 1645 -1665 Hankook Road", "Immediately north of 1645 -1665 Hankook Road"),
+    ("1778, 1790, 1798 Madison Street", "1778, 1790, 1798 Madison Street"),
+    ("1788 1790 1798 Madison Street", "1788 1790 1798 Madison Street"), ("SR-47-2024", "SR-47-2024"),
+    ("east of Killebrew Road , approximately 300 feet", "east of Killebrew Road , approximately 300 feet"),
+    ("", None), (None, None),
+])
+def test_phone_numbers_are_stripped_from_a_case_location(printed, shown):
+    assert rpc_agenda.strip_phones(printed) == shown
+
+
+def test_the_reader_never_records_a_phone_number_in_a_location():
+    pages = ["1. SR - 47 - 2024 APPLICANT: Pat Example DEVELOPMENT: Dog Boarding\n"
+             "LOCATION: 127 Hadley Dr Clarksville TN 37042 931-801-0313\n"
+             "CITY COUNCIL WARD: 9\n"]
+    res = rpc_agenda.parse_pages(pages)
+    rec = rpc_agenda.case_record(res["cases"][0], "m", "s")
+    assert rec["location"] == "127 Hadley Dr Clarksville TN 37042"
+
+
+def test_committed_rpc_json_carries_no_phone_number(tmp_path):
+    from tools import scrub_rpc_phones as scrub
+    rpc_json = Path(__file__).resolve().parents[2] / "data" / "localities" / "cmc-rpc" / "rpc.json"
+    text = rpc_json.read_text(encoding="utf-8")
+    assert not rpc_agenda.PHONE.search(text)
+    assert scrub.main(["--check", "--path", str(rpc_json)]) == 0
+    # the migration: only the location changes, and a second run changes nothing
+    d = json.loads(text)
+    d["cases"][0] = {**d["cases"][0], "location": "127 Hadley Dr Clarksville TN 37042 931-801-0313"}
+    p = tmp_path / "rpc.json"
+    p.write_text(json.dumps(d), encoding="utf-8")
+    assert scrub.main(["--path", str(p)]) == 0
+    after = json.loads(p.read_text(encoding="utf-8"))
+    assert after["cases"][0]["location"] == "127 Hadley Dr Clarksville TN 37042"
+    assert after["cases"][1:] == d["cases"][1:] and after["meetings"] == d["meetings"]
+    assert scrub.main(["--check", "--path", str(p)]) == 0
