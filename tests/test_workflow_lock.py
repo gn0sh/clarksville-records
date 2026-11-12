@@ -343,7 +343,7 @@ def test_a_hard_failure_never_reaches_main_and_the_exit_codes_are_documented():
     cases = [(0, 0, 0), (0, 6, 0), (0, 5, 0), (0, 7, 0), (2, 0, 1), (5, 0, 1), (0, 2, 1), (0, 3, 1), (0, 4, 1),
              (2, 5, 1), (5, 6, 1), (2, 7, 1), (7, 0, 0), (7, 7, 0), (7, 5, 0), (7, 2, 1), (7, 3, 1)]
     for city, county, ok in cases:
-        fake = script.replace("python -m collector city run; city=$?", f"city={city}").replace(
+        fake = script.replace("python -m collector city run --agendas; city=$?", f"city={city}").replace(
             'python -m collector run "${shrink[@]}"; county=$?', f"county={county}")
         r = subprocess.run(["bash", "-c", fake], env={**os.environ, "GITHUB_OUTPUT": os.devnull},
                            capture_output=True, text=True)

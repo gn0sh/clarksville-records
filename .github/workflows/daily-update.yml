@@ -53,7 +53,8 @@ jobs:
       sha: ${{ steps.checkout.outputs.commit }}   # the main commit this run built on; the push job commits on it
       allowed: ${{ steps.collect.outputs.allowed }}   # yes: a manual allow_shrink run replaced kept documents
     # A warm daily run takes minutes (10 s per request, only new documents). A cold cache (first run, or after the
-    # cache was evicted) refetches about 930 documents at 10 s each plus parsing: budget the hosted-runner maximum.
+    # cache was evicted) refetches about 1,150 documents (city agendas included) at 10 s each plus parsing, 4 to 5
+    # hours: budget the hosted-runner maximum.
     timeout-minutes: 355
     permissions:
       contents: read         # check out main; the token is NOT persisted (pipeline/token-exposure-untrusted-parse)
@@ -106,8 +107,8 @@ jobs:
       # whose hash is unchanged is never OCR'd again: only newly fetched documents are (pipeline/re-ocr-every-run).
       # The key carries a hash of the code and tools that write these files (ci/derived-cache-integrity), so a change
       # to the extractor, the OCR or a pinned package (requirements.lock, so a transitive pin counts too:
-      # deps/derived-cache-key) starts a fresh cache instead of reusing old readings. Only the
-      # scheduled run on main saves it, so a manual run on another ref cannot seed the cache main restores.
+      # deps/derived-cache-key) starts a fresh cache instead of reusing old readings. Only a run on main (scheduled,
+      # or a manual seed run) saves it, so a run on another ref cannot seed the cache main restores.
       - name: Restore text and OCR caches
         id: derived
         uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
@@ -135,6 +136,8 @@ jobs:
           # City first: it rewrites data/localities/clarksville-tn/*. The county run then builds facts, finance and
           # the site (build/site) from everything; it also reads the County Commission agenda page and any new agenda
           # PDFs (collector/county_agenda.py: one page request, new PDFs only, the same polite fetcher).
+          # The city run takes --agendas: its agenda-only meetings (no minutes posted) are built from their agenda
+          # PDFs, as the committed facts were; a warm run fetches only new ones (shrink/city-agenda-only-meeting-dropped).
           # Exit codes (docs/ops/launch-runbook.md "Exit codes"). Hard failures fail this step: nothing is uploaded,
           # committed or deployed, the committed data/ on main is untouched and one issue opens.
           #   city:   0 ok, 2 a listing not read (or fetch/parse failures), 3 the G4 skew gate flagged an official,
@@ -166,7 +169,7 @@ jobs:
             shrink=(--allow-shrink)
             echo "::warning::allow_shrink: the county and RPC results replace committed verified roll calls and confirmed motions."
           fi
-          python -m collector city run; city=$?
+          python -m collector city run --agendas; city=$?
           python -m collector run "${shrink[@]}"; county=$?
           echo "city_exit=$city county_exit=$county"
           city_kept=no
@@ -454,7 +457,7 @@ jobs:
         run: echo "DERIVED_GREW=$([ "$(find data/text data/ocr -type f 2>/dev/null | wc -l)" -gt "$DERIVED_BEFORE" ] && echo yes || echo no)" >> "$GITHUB_ENV"
 
       - name: Save text and OCR caches
-        if: always() && env.DERIVED_GREW == 'yes' && github.event_name == 'schedule' && github.ref == 'refs/heads/main'
+        if: always() && env.DERIVED_GREW == 'yes' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
         with:
           path: |

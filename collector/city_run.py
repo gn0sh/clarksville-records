@@ -32,11 +32,15 @@ rows, an events page of `{"value": []}`) keeps the committed rows (`kept_listing
 minutes dated on or after the run's UTC day (a cancelled or rescheduled event): it is dropped and listed under
 `dropped_unminuted`, no code. The build is then judged by the county's shrink guard (collector/shrink_guard.py,
 guard_facts): each committed meeting read from its minutes that lost verified roll calls, is gone, or whose minutes
-are missing from the run is kept exactly as committed (records, sources, agenda source, wards; exit 7) and the rest
-is published; a replaced file is a correction (7 only when its verified count fell or its votes changed).
+are missing from the run is kept exactly as committed (records, sources, agenda source, wards; exit 7), and so is
+a committed agenda-only meeting the build lacks while its row is still listed (its agenda not in the store), and the
+rest is published; a replaced file is a correction (7 only when its verified count fell or its votes changed).
 The guard's findings are under `guard` in build/city-report.json; it is never a `failures` row.
 --allow-drop ID[,ID] (ADR 0006 I4: a deliberate drop names its ids) lets the named ones go: a meeting id (or a
-listing row key, as the kept entries print them); naming a meeting id also lets its listing row go. An id that
+listing row key, as the kept entries print them); naming a meeting id also lets its listing row go (only a row
+with that meeting's minutes_url). An agenda-only meeting (no minutes_url) whose row vanished: name the row key
+only, and the meeting drops with its row (naming its meeting id too refuses, exit 2, as the meeting is then no
+longer kept); one whose row is still listed (its agenda not in the store): name its meeting id. An id that
 matches nothing is refused: exit 2, and the listings, facts.json and wards.json are left as they were. Each drop is
 listed under `allowed_drop`. The workflow never passes it: the manual path is a local run, then a PR.
 """
@@ -168,12 +172,34 @@ def _print(r: dict, key: str, meetings: dict | None = None) -> dict:
 # ------------------------------------------------------------------ the facts guard (ADR 0006 fix 2)
 def minutes_units(old: dict) -> dict:
     """The committed facts the guard compares (ADR 0006 fix 2): only meetings whose source is a minutes source (a
-    meeting read from its minutes), with their records. An agenda-only meeting is the listing guard's to keep."""
+    meeting read from its minutes), with their records.
+    guarded_units adds the agenda-only meetings a build lost (shrink/city-agenda-only-meeting-dropped)."""
     kind = {s["id"]: s.get("kind") for s in old.get("sources", [])}
     ms = {m["id"] for m in old.get("meetings", []) if kind.get(m.get("source_id")) == "minutes"}
     return {**old, "meetings": [m for m in old.get("meetings", []) if m["id"] in ms],
             **{k: [r for r in old.get(k, []) if r.get("meeting_id") in ms] for k in ("roll_calls", "motions",
                                                                                      "item_events")}}
+
+
+def guarded_units(old: dict, new: dict, listed: set | None = None, kind_of=None) -> dict:
+    """The committed facts the guard compares: minutes_units, plus every committed meeting NOT read from its minutes
+    (agenda-only: no minutes posted, or its minutes are another meeting's) that the new build lacks while its listing
+    row is still listed (shrink/city-agenda-only-meeting-dropped). The listing guard keeps such a row, but the build
+    can only make a meeting from a stored file: with an empty store (a cold cache, a run without --agendas, a fetch
+    failure) the meeting would vanish though its row is kept. Kept by the same shrink_guard (its (a) or (c): exit 7).
+    `listed` is the (date, kind) of every listing row the build read, `kind_of` the config's title -> kind (the
+    committed meeting's kind is re-read from its title, as the rows' is); None: every such meeting is still listed
+    (fail closed). A meeting whose row the listing guard let go (a cancelled future event, --allow-drop) drops."""
+    units = minutes_units(old)
+    have = {m["id"] for m in units["meetings"]}
+    now = {m["id"] for m in new.get("meetings", [])}
+
+    def still_listed(m: dict) -> bool:
+        if listed is None:
+            return True
+        return (m.get("date"), kind_of(m.get("title") or "") if kind_of else m.get("kind")) in listed
+    extra = [m for m in old.get("meetings", []) if m["id"] not in have and m["id"] not in now and still_listed(m)]
+    return {**units, "meetings": units["meetings"] + extra}
 
 
 def unread_meetings(old: dict, new: dict) -> set:
@@ -339,20 +365,22 @@ def listing_rows(p: dict, cfg: AgendaCenterConfig, store: Store | None = None) -
 
 
 def guard_facts(facts: dict, wards: list, p: dict, store: Store, log: dict, summary: dict,
-                allow_drop: set | None = None) -> tuple[dict, list]:
+                allow_drop: set | None = None, listed: set | None = None, kind_of=None) -> tuple[dict, list]:
     """ADR 0006 fix 2: the county's shrink guard (collector/shrink_guard.py) on the city facts. Each committed meeting
     read from its minutes is compared, by its minutes' sha256, with the new build: lost verified roll calls, a meeting
     gone, or its minutes missing from the run keep that meeting exactly as committed (records, sources, agenda source,
     wards); a replaced file that was read is a correction (the new reading wins, a warning only when its verified count
-    fell or its votes changed), one that was not read (unread_meetings) keeps the meeting. The merged facts and wards
-    are returned (always written), the gates recomputed on them."""
+    fell or its votes changed), one that was not read (unread_meetings) keeps the meeting. A committed agenda-only
+    meeting the build lacks while its row is still listed is kept the same way (guarded_units). The merged facts and
+    wards are returned (always written), the gates recomputed on them."""
     from .verify import gates
     if not p["facts"].exists():
         return facts, wards
     old = json.loads(p["facts"].read_text(encoding="utf-8"))
     wards_old = json.loads(p["wards"].read_text(encoding="utf-8")) if p["wards"].exists() else []
-    res = shrink_guard(facts, minutes_units(old), p["facts"].name, city_superseded(store, old, facts),
-                       unread_meetings(old, facts))
+    res = shrink_guard(facts, guarded_units(old, facts, listed, kind_of), p["facts"].name,
+                       city_superseded(store, old, facts), unread_meetings(old, facts),
+                       drop_flag="--allow-drop <meeting id>")
     g = log.setdefault("guard", {})
     kept = res["kept"]
     if res["corrections"]:
@@ -427,7 +455,8 @@ def main(argv: list[str]) -> int:
         facts, summary = build(cfg, rows, store)
         summary["duplicates"] = dups
         wards = facts.pop("_wards")
-        facts, wards = guard_facts(facts, wards, p, store, log, summary, drop)
+        listed = {(r["date"], r["kind"]) for r in rows}
+        facts, wards = guard_facts(facts, wards, p, store, log, summary, drop, listed, cfg.kind_of)
         if not unmatched_drops(log, drop):
             write_json(p["wards"], wards)
             write_json(p["facts"], facts)
