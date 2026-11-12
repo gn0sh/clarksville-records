@@ -77,9 +77,12 @@ def test_daylight_tokens_are_set_for_light_dark_and_the_theme_attribute():
     light = css[css.index(":root {"):css.index("@media (prefers-color-scheme: dark)")]
     auto = css[css.index(':root:not([data-theme="light"]) {'):]
     forced = css[css.index(':root[data-theme="dark"] {'):]
-    for block, want in ((light, {"--bg": "#F7F8FC", "--sky": "#D6E2FB", "--fg": "#141A2E", "--sun": "#EF5E35"}),
-                        (auto, {"--bg": "#0D1224", "--sky": "#18245A", "--fg": "#EEF1F8", "--link": "#9DB1F5"}),
-                        (forced, {"--bg": "#0D1224", "--sky": "#18245A", "--fg": "#EEF1F8", "--link": "#9DB1F5"})):
+    navy, orange = "#0F1F3D", "#D2561B"                # the gnoshcodes brand pair (Brian, 2026-11-12)
+    dark = {"--bg": "#0D1224", "--sky": "#15294F", "--fg": "#EEF1F8", "--link": "#A9BDE6", "--blue": "#4F6FB0",
+            "--band-bg": "#1A2F5A", "--sun": orange, "--focus": orange}
+    for block, want in ((light, {"--bg": "#F7F8FC", "--sky": "#D5DFF0", "--fg": "#141A2E", "--link": navy,
+                                 "--blue": navy, "--band-bg": navy, "--sun": orange, "--focus": orange}),
+                        (auto, dark), (forced, dark)):
         block = block[:block.index("}")]
         for k, v in want.items():
             assert re.search(rf"{k}:\s*{v}\b", block), (k, v)
@@ -114,12 +117,56 @@ PAIRS = [
     (DARK, "--fg", "--sky"), (DARK, "--muted", "--sky"), (DARK, "--muted", "--bg"), (DARK, "--link", "--bg"),
     (DARK, "--link", "--surface"), (DARK, "--on-blue", "--blue"), (DARK, "--muted", "--surface-2"),
     (DARK, "--fg", "--surface-2"),
+    # the navy recolor: the band, links on every surface and on the sky, and the orange-for-text seal
+    (LIGHT, "--band-fg", "--band-bg"), (LIGHT, "--band-muted", "--band-bg"), (LIGHT, "--link", "--surface"),
+    (LIGHT, "--link", "--sky"), (LIGHT, "--link-visited", "--bg"), (LIGHT, "--link-visited", "--surface-2"),
+    (LIGHT, "--seal", "--bg"), (LIGHT, "--seal", "--surface"),
+    (DARK, "--band-fg", "--band-bg"), (DARK, "--band-muted", "--band-bg"), (DARK, "--link", "--surface-2"),
+    (DARK, "--link", "--sky"), (DARK, "--link-visited", "--bg"), (DARK, "--link-visited", "--surface-2"),
+    (DARK, "--seal", "--bg"), (DARK, "--seal", "--surface"),
+]
+# (theme, UI token, the background it must stand 3:1 off): buttons and pills, the county dot, the initials ring,
+# and the orange button on the morning-note card
+UI_PAIRS = [
+    (LIGHT, "--blue", "--bg"), (LIGHT, "--blue", "--surface"), (LIGHT, "--blue", "--surface-2"),
+    (LIGHT, "--sun", "--surface-2"), (LIGHT, "--seal", "--surface-2"), (LIGHT, "--sun", "--band-bg"),
+    (DARK, "--blue", "--bg"), (DARK, "--blue", "--surface"), (DARK, "--blue", "--surface-2"),
+    (DARK, "--sun", "--surface-2"), (DARK, "--seal", "--surface-2"), (DARK, "--sun", "--band-bg"),
+    (DARK, "--sun", "--sky"),
 ]
 
 
 @pytest.mark.parametrize("theme,fg,bg", PAIRS)
 def test_text_pairs_meet_aa(theme, fg, bg):
     assert _ratio(theme[fg], theme[bg]) >= 4.5, (fg, bg, round(_ratio(theme[fg], theme[bg]), 2))
+
+
+@pytest.mark.parametrize("theme,fg,bg", UI_PAIRS)
+def test_ui_pairs_meet_three_to_one(theme, fg, bg):
+    assert _ratio(theme[fg], theme[bg]) >= 3, (fg, bg, round(_ratio(theme[fg], theme[bg]), 2))
+
+
+def test_no_old_daylight_color_is_left_in_the_stylesheet_and_the_morning_card_is_the_band():
+    css = CSS.read_text(encoding="utf-8")
+    assert not re.search(r"#(?:2B4BA5|EF5E35)", css, re.I)
+    assert re.search(r"\.mn-card \{ background: var\(--band-bg\); color: var\(--on-blue\)", css)
+    assert re.search(r"\.mn-card \.btn \{[^}]*background: var\(--sun\); color: #1A0B05", css)
+    for theme in (LIGHT, DARK):                       # the card's white text, and the dark words on its orange button
+        assert _ratio(theme["--on-blue"], theme["--band-bg"]) >= 4.5
+        assert _ratio("#1A0B05", theme["--sun"]) >= 4.5
+
+
+def test_button_hover_is_a_navy_step_with_an_underline_and_list_links_are_underlined_at_rest():
+    css = CSS.read_text(encoding="utf-8")
+    assert "brightness(" not in css
+    assert re.search(r"\.search-row button:hover, #more:hover, \.apply:hover \{ background: var\(--blue-hover\); "
+                     r"text-decoration: underline", css)
+    for theme in (LIGHT, DARK):
+        assert _ratio(theme["--on-blue"], theme["--blue-hover"]) >= 4.5
+        assert _ratio(theme["--blue-hover"], theme["--blue"]) >= 1.3        # a step you can see
+    assert re.search(r"\.door a span:first-child \{ text-decoration: underline", css)
+    assert re.search(r"ol\.districts a \.d-label \{ text-decoration: underline", css)
+    assert re.search(r"ol\.districts \.d-holder a \{ text-decoration: underline", css)
 
 
 @pytest.mark.parametrize("theme", [LIGHT, DARK])
@@ -132,7 +179,7 @@ def test_focus_ring_on_the_wash_is_ink():
     css = CSS.read_text(encoding="utf-8")
     assert re.search(r"\.your-seats \{[^}]*--focus: var\(--fg\)", css)
     assert re.search(r"\.menu-list a:hover:focus-visible \{ --focus: var\(--fg\)", css)
-    for theme in (LIGHT, DARK):                       # ink on the #E8EDFA wash (and its dark twin) is 3:1 or better
+    for theme in (LIGHT, DARK):                       # ink on the #E9EDF5 wash (and its dark twin) is 3:1 or better
         assert _ratio(theme["--fg"], theme["--surface-2"]) >= 3
 
 
@@ -177,3 +224,46 @@ console.log(JSON.stringify([els["sky-weekday"].textContent, els["sky-date"].text
     weekday, date, iso, hidden, viewer_weekday = json.loads(res.stdout)
     assert viewer_weekday == "Wednesday"             # the viewer's own zone is already on the next day
     assert (weekday, date, iso, hidden) == ("Tuesday", "November 10", "2026-11-10", False)
+
+
+def test_council_seat_note_and_cite_links_stay_inline_and_underlined():
+    """a11y/link-affordance/council-seats-note-cite: ol.districts a (flex, padding, no underline) styles the home page's
+    row links; the member-name and "(source: p. N)" links in a council seat's note must stay inline and underlined
+    (SC 1.4.1), while the home rows and the holder-name underline are unchanged."""
+    css = CSS.read_text(encoding="utf-8")
+    reset = re.search(r"^ol\.council-seats \.d-note a, ol\.council-seats \.d-printed a \{([^}]*)\}", css, re.M)
+    assert reset, "no reset rule for the seat note/cite links"
+    body = reset.group(1)
+    assert re.search(r"display: inline;", body)
+    assert re.search(r"padding: 0;", body) and re.search(r"min-height: 0;", body)
+    assert re.search(r"text-decoration: underline;", body)
+    # The reset outranks ol.districts a (0,1,2) and the 900px rule, and no later rule takes the underline away.
+    assert css.index(reset.group(0)) > css.index("ol.districts a { display: flex;")
+    assert not re.search(r"ol\.council-seats \.d-(note|printed) a[^{]*\{[^}]*text-decoration: none", css)
+    # The home rows and holder names keep their styling.
+    assert "ol.districts a { display: flex; gap: 10px; padding: 7px 4px; min-height: 40px; align-items: baseline; " \
+           "text-decoration: none; }" in css
+    assert re.search(r"ol\.districts \.d-holder a \{ text-decoration: underline", css)
+    # The template still puts every note and cite link inside .d-note / .d-printed.
+    tpl = (ROOT / "site" / "templates" / "council_home.html.j2").read_text(encoding="utf-8")
+    li = re.search(r'<ol class="districts council-seats">(.*?)</ol>', tpl, re.S).group(1)
+    for part in re.split(r'(?=<span class="d-(?:label|holder|printed|note))', li):
+        if "<a " in part:
+            assert part.startswith(('<span class="d-holder', '<span class="d-printed', '<span class="d-note')), part[:60]
+
+
+def test_council_seat_printed_line_and_note_sit_on_their_own_line_without_a_leading_colon():
+    """layout/council-seat-note-wrap: the printed-name line and the note always take their own line under the
+    holder's name (flex-basis 100%, indented to the name), and neither starts with ": ", which wrapped on phones to an
+    orphan colon."""
+    css = CSS.read_text(encoding="utf-8")
+    rule = re.search(r"^ol\.council-seats \.d-printed, ol\.council-seats \.d-note \{([^}]*)\}", css, re.M)
+    assert rule, "no own-line rule for the seat printed line and note"
+    assert "flex-basis: 100%;" in rule.group(1)
+    assert "padding-left: calc(5.5em + 14px);" in rule.group(1)
+    assert re.search(r"ol\.council-seats li \{ display: flex; flex-wrap: wrap; gap: 4px 10px;", css)
+    assert re.search(r"ol\.council-seats \.d-label \{ min-width: 5\.5em;", css)
+    tpl = (ROOT / "site" / "templates" / "council_home.html.j2").read_text(encoding="utf-8")
+    for cls in ("d-printed", "d-note"):
+        m = re.search(r'<span class="' + cls + r' muted">(.{0,12})', tpl)
+        assert m and not re.match(r"\s*:", m.group(1)), (cls, m and m.group(1))
