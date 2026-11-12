@@ -355,6 +355,21 @@ def test_a_hard_failure_never_reaches_main_and_the_exit_codes_are_documented():
         assert phrase in runbook, phrase
 
 
+def test_deploy_lock_is_checked_exactly_before_publishing():
+    """ci/deploy-lock-case-insensitive: GitHub's == ignores case, so the deploy job's first step checks the variable
+    again in bash, an exact match, before the deploy-pages step; it passes only on exactly 'true'."""
+    steps = WF["jobs"]["deploy"]["steps"]
+    assert [s.get("name") for s in steps] == ["Check the deploy lock is exactly 'true'", "Deploy to GitHub Pages"]
+    check = steps[0]
+    assert check["env"] == {"E": "${{ vars.RECORDS_DEPLOY_ENABLED }}"} and check["run"] == '[ "$E" = true ]'
+    assert set(check) == {"name", "env", "run"}                    # no `if:` or continue-on-error can skip it
+    assert steps[1]["uses"].startswith("actions/deploy-pages@")
+    for value, ok in (("true", True), ("TRUE", False), ("True", False), (" true", False), ("true ", False),
+                      ("", False), ("1", False), ("yes", False)):
+        r = subprocess.run(["bash", "-c", check["run"]], env={"E": value, "PATH": os.environ["PATH"]})
+        assert (r.returncode == 0) is ok, value
+
+
 def test_deploy_stays_locked_and_is_the_only_publishing_step():
     assert sum(TEXT.count(a) for a in ("actions/deploy-pages@", "peaceiris/", "gh-pages")) == 1
     assert _deploy_if().startswith(LOCK)

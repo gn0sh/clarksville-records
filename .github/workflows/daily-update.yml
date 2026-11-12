@@ -558,6 +558,12 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # ci/deploy-lock-case-insensitive: an expression's == ignores case ('TRUE', 'True' would pass the job's `if`),
+      # so the lock is checked again, exactly, in bash before anything is published.
+      - name: Check the deploy lock is exactly 'true'
+        env:
+          E: ${{ vars.RECORDS_DEPLOY_ENABLED }}
+        run: '[ "$E" = true ]'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
