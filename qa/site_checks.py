@@ -29,8 +29,8 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   footer      "Provided as a free service by gnoshcodes LLC." on every page
   brand/no-old-gnoshcodes  no built file carries the old gnoshcodes logo (logo D: its path data or kit file names)
               and none is the old favicon; the footer credit is the hook (gnoshcodes.com)
-  brand/no-old-daylight-colors  no built file carries Daylight's old blue #2B4BA5 or old orange #EF5E35 (the palette
-              is the gnoshcodes navy #0F1F3D and orange #D2561B)
+  brand/no-old-daylight-colors  no built file carries Daylight's old blue #2B4BA5 or old orange #EF5E35, as hex,
+              hex with alpha or rgb()/rgba() (the palette is the gnoshcodes navy #0F1F3D and orange #D2561B)
   external    no third-party scripts, styles, images or fonts (N6); the landing address box's geocoder (called
               only on submit) is exactly config/site.yml geocoder_url; a page that loads static/address.js carries
               its settings block (addr-config); every page has one CSP meta whose script-src is 'self' only, plus
@@ -1526,21 +1526,26 @@ def check_old_brand(site: Path) -> tuple[list[str], str]:
 
 
 # Daylight's first palette (Digital blue and Human orange), replaced by the gnoshcodes navy #0F1F3D and orange #D2561B
-# on 2026-11-12. Matched as a CSS/SVG hex color: "#" then the six digits, any case, not followed by another hex digit
-# (so a longer hex string, such as a hash in the data, is not a hit).
-OLD_DAYLIGHT_COLORS = re.compile(rb"#(?:2B4BA5|EF5E35)(?![0-9A-Fa-f])", re.I)
+# on 2026-11-12. Matched as a CSS/SVG color, any case: "#" then the six digits, alone or with a two-digit alpha, and
+# not followed by another hex digit (so a longer hex string, such as a hash in the data, is not a hit); or the same
+# color as an rgb()/rgba() triple, comma or space separated.
+OLD_DAYLIGHT_COLORS = re.compile(
+    rb"#(2B4BA5|EF5E35)(?:[0-9A-Fa-f]{2})?(?![0-9A-Fa-f])"
+    rb"|rgba?\(\s*(43\s*[,\s]\s*75\s*[,\s]\s*165|239\s*[,\s]\s*94\s*[,\s]\s*53)(?![0-9.])", re.I)
+OLD_DAYLIGHT_RGB = {"43": "#2B4BA5", "239": "#EF5E35"}
 
 
 def check_old_daylight_colors(site: Path) -> tuple[list[str], str]:
     """brand/no-old-daylight-colors: no built file (pages, styles, scripts, images, feeds, data) still carries
-    Daylight's old blue #2B4BA5 or old orange #EF5E35."""
+    Daylight's old blue #2B4BA5 or old orange #EF5E35, as a hex color (with or without alpha) or an rgb()/rgba()."""
     problems, n = [], 0
     for f in sorted(p for p in site.rglob("*") if p.is_file()):
         n += 1
-        hits = sorted({m.decode().upper() for m in OLD_DAYLIGHT_COLORS.findall(f.read_bytes())})
+        hits = sorted({"#" + hx.decode().upper() if hx else OLD_DAYLIGHT_RGB[re.match(rb"\d+", rgb).group().decode()]
+                       for hx, rgb in OLD_DAYLIGHT_COLORS.findall(f.read_bytes())})
         if hits:
             problems.append(f"{f.relative_to(site).as_posix()}: old Daylight color(s) {', '.join(hits)}")
-    return problems, f"{n} files scanned for the old Daylight blue #2B4BA5 and orange #EF5E35"
+    return problems, f"{n} files scanned for the old Daylight blue #2B4BA5 and orange #EF5E35 (hex, alpha hex, rgb)"
 
 
 def check_footer(pages: dict[str, Page], operator: str) -> list[str]:

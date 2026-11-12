@@ -69,13 +69,28 @@ def test_check_fails_on_the_old_favicon_bytes(tmp_path, monkeypatch):
 
 
 def test_old_daylight_colors_check_passes_the_build_and_fails_on_either_old_hex(built, tmp_path):
-    """brand/no-old-daylight-colors: the old blue and orange are flagged in any file and any case; a longer hex
-    string that merely contains the digits (a hash) is not."""
+    """brand/no-old-daylight-colors: the old blue and orange are flagged in any file and any case, as six digits,
+    with a two-digit alpha, or as rgb()/rgba(); a longer hex string that merely contains the digits (a hash) is not."""
     assert site_checks.check_old_daylight_colors(built)[0] == []
     (tmp_path / "a.css").write_text("a { color: #2b4ba5; } b { color: #EF5E35 }", encoding="utf-8")
+    (tmp_path / "alpha.css").write_text("a { color: #2B4BA5cc; } b { background: #ef5e3580 }", encoding="utf-8")
     (tmp_path / "icon.svg").write_text('<svg><path fill="#2B4BA5"/></svg>', encoding="utf-8")
-    (tmp_path / "data.json").write_text('{"sha": "002b4ba5ef5e35ff", "frag": "#2B4BA5ef"}', encoding="utf-8")
-    (tmp_path / "ok.css").write_text("a { color: #0F1F3D; } b { color: #D2561B }", encoding="utf-8")
+    (tmp_path / "rgb.css").write_text("a { color: rgb(43, 75, 165); } b { border-color: RGBA(239,94,53,.4) }"
+                                      " c { color: rgb(43 75 165 / 50%) }", encoding="utf-8")
+    (tmp_path / "data.json").write_text('{"sha": "002b4ba5ef5e35ff", "frag": "#2B4BA5ef12", "long": "#ef5e35abc"}',
+                                        encoding="utf-8")
+    (tmp_path / "ok.css").write_text("a { color: #0F1F3D; } b { color: #D2561B } c { color: rgb(43, 75, 16) }"
+                                     " d { color: rgba(239, 94, 530, 1) } e { color: rgb(143, 75, 165) }",
+                                     encoding="utf-8")
     problems, note = site_checks.check_old_daylight_colors(tmp_path)
-    assert problems == ["a.css: old Daylight color(s) #2B4BA5, #EF5E35", "icon.svg: old Daylight color(s) #2B4BA5"]
-    assert note.startswith("4 files scanned")
+    assert problems == ["a.css: old Daylight color(s) #2B4BA5, #EF5E35",
+                        "alpha.css: old Daylight color(s) #2B4BA5, #EF5E35",
+                        "icon.svg: old Daylight color(s) #2B4BA5",
+                        "rgb.css: old Daylight color(s) #2B4BA5, #EF5E35"]
+    assert note.startswith("6 files scanned")
+
+
+def test_old_daylight_alpha_hex_is_a_hit_only_when_no_hex_digit_follows(tmp_path):
+    (tmp_path / "hit.html").write_text('<p style="color:#2B4BA5ef">x</p>', encoding="utf-8")       # 8 digits, then a quote
+    (tmp_path / "miss.json").write_text('"#2B4BA5e" "#2B4BA5ef0" "#ef5e35123456"', encoding="utf-8")  # 7, 9, 12 digits
+    assert site_checks.check_old_daylight_colors(tmp_path)[0] == ["hit.html: old Daylight color(s) #2B4BA5"]
