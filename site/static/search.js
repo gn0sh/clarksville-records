@@ -288,5 +288,10 @@
     }
   });
   document.addEventListener("bodychoice", function () { update(); });
+  // A click in the "Show records from" switch decides: the Body boxes (and the URL's body) are cleared, and the
+  // bodychoice event that follows updates the results. Ticking a box later decides again, as before.
+  document.addEventListener("bodypick", function () {
+    form.querySelectorAll('input[name="body"]').forEach(function (el) { el.checked = false; });
+  });
   update();
 })();

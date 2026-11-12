@@ -8,7 +8,8 @@
    as the choice on that page and leaves the saved one alone. A page that names the bodies it can filter
    (data-body-live) ignores a saved body it does not hold. An element with data-label-all (a day button) has its
    aria-label swapped for its data-label-<body> text, so a screen reader hears the count a sighted visitor sees; its
-   data-label-suffix, if any, is kept at the end. */
+   data-label-suffix, if any, is kept at the end. A click on an option that filters in place (or on "Show all") is
+   first announced as a "bodypick" event, so the search page can hand the decision to the switch. */
 (function () {
   var nav = document.getElementById("body-switch");
   if (!nav) { return; }
@@ -16,7 +17,7 @@
   var main = document.getElementById("main");
   var here = nav.getAttribute("data-here") || "";
   var list = nav.querySelector(".bs-list");
-  var links = {}, mem = null, line = null, cur = ALL;
+  var links = {}, mem = null, line = null, cur = ALL, lineSig = null;
   var as = nav.querySelectorAll("a[data-switch]");
   for (var i = 0; i < as.length; i++) { links[as[i].getAttribute("data-switch")] = as[i]; }
 
@@ -70,7 +71,7 @@
     var btn = document.createElement("button");
     btn.type = "button";
     btn.textContent = "Show all";
-    btn.addEventListener("click", function () { save(ALL); apply(ALL); (links[ALL] || nav).focus(); });
+    btn.addEventListener("click", function () { pick(ALL); (links[ALL] || nav).focus(); });
     line.appendChild(btn);
     var slot = main ? main.querySelector("[data-body-line]") : null;   // the page's own place for the line, if it has one
     if (slot) { slot.appendChild(line); } else { first.parentNode.insertBefore(line, first); }
@@ -85,7 +86,9 @@
     }
   }
 
-  function apply(choice) {
+  // again: the same choice applied once more (after the other scripts ran). The status line is rebuilt, and the page
+  // told, only when what the line says would change, so a screen reader hears it once and Search updates once.
+  function apply(choice, again) {
     cur = choice;
     document.documentElement.setAttribute("data-body-choice", choice);
     relabel(choice);
@@ -106,9 +109,20 @@
       }
       groups[i].classList.toggle("bs-all-off", any && !left);
     }
-    var lv = live();
-    if (lv) { showLine(choice, liveHas(choice) ? 1 : 0, lv); } else { showLine(choice, shown, items.length ? items[0] : null); }
+    var lv = live(), has = lv ? liveHas(choice) : shown > 0, at = lv || (items.length ? items[0] : null);
+    var sig = choice + "|" + (has ? 1 : 0) + "|" + (at ? 1 : 0);
+    if (again && sig === lineSig && (!line || line.parentNode)) { return; }
+    lineSig = sig;
+    showLine(choice, has ? 1 : 0, at);
     try { document.dispatchEvent(new CustomEvent("bodychoice", { detail: choice })); } catch (e) { /* old browser: the page still filters */ }
+  }
+
+  // The visitor's own pick: saved, announced first as "bodypick" (static/search.js clears its Body boxes so the pick
+  // decides), then applied.
+  function pick(k) {
+    save(k);
+    try { document.dispatchEvent(new CustomEvent("bodypick", { detail: k })); } catch (e) { /* old browser */ }
+    apply(k);
   }
 
   // A body's hub page shows that body as the choice, on that page only (nothing is saved by a visit). The home page
@@ -118,7 +132,7 @@
   apply(first);
   // Scripts that run after this one may move or show rows (static/landing.js, static/days.js): once every deferred
   // script has run, apply the choice again so the "nothing of this body" flags and labels match the rows as shown.
-  document.addEventListener("DOMContentLoaded", function () { apply(cur); });
+  document.addEventListener("DOMContentLoaded", function () { apply(cur, true); });
 
   nav.addEventListener("click", function (e) {
     var a = e.target.closest ? e.target.closest("a[data-switch]") : null;
@@ -131,7 +145,7 @@
     for (var i = 0; i < items.length; i++) { if (items[i].getAttribute("data-body") === k) { has = true; break; } }
     if (live() ? (k === ALL || liveHas(k)) : (items.length && (k === ALL || has))) {
       e.preventDefault();
-      apply(k);
+      pick(k);
     }
   });
 })();
