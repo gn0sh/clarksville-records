@@ -383,8 +383,13 @@ dl.people dd { margin: 0; }
 pre.report { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; overflow-x: auto; font-size: 0.85rem; }
 .banner-inline { background: var(--banner-bg); color: var(--banner-fg); padding: 8px 10px; border-radius: var(--radius); }
 
-.site-footer { border-top: 3px double var(--border); padding-top: 14px; padding-bottom: 32px; color: var(--muted); font-size: var(--t-sm); }
-.site-footer p { margin: 0.25em 0; }
+/* Compact and quiet (owner, 2026-11-12: "the footer is huge"): everything at --t-sm or smaller, and the three short
+   lines (service + support, credit, About + data day) share rows where there is room. The notice and the page list
+   each take a full row. */
+.site-footer { border-top: 3px double var(--border); padding-top: 10px; padding-bottom: 20px; color: var(--muted); font-size: var(--t-sm); line-height: 1.45;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 2px 20px; }
+.site-footer p { margin: 0; }
+.site-footer > .unofficial-notice, .site-footer > .site-nav { flex: 1 1 100%; }
 
 @media (max-width: 480px) {
   .masthead { padding-top: 14px; }
@@ -506,9 +511,23 @@ dialog.drawer::backdrop { background: rgb(0 0 0 / .4); }
 .chip-coming { font-variant-caps: all-small-caps; letter-spacing: .05em; font-weight: 600; border-color: var(--mark-soft); background: transparent; color: var(--muted); padding: 0 8px; }
 .site-nav { margin-top: 18px; padding-top: 10px; border-top: 1px solid var(--border); }
 .site-nav-h { font-size: var(--t-md); margin: 0; padding: 0; border: 0; }
-.site-footer .nav-list { columns: 2 12rem; column-gap: 24px; }
-.site-footer .nav-list > li { break-inside: avoid; }
-.site-footer .nav-list > li > a, .site-footer .nav-list > li > .nav-group { color: var(--fg); padding: 6px 4px; min-height: 36px; }
+/* In the footer the list is a tight grid (about 5 across on a desktop, 2 on a phone); the year group takes one full
+   row with its years inline. Rows are 24 px for a mouse and 28 px for touch (WCAG 2.5.8 asks for 24). The drawer's
+   copy keeps the roomy 44 px rows above. */
+.site-footer .site-nav { margin-top: 8px; padding-top: 6px; }
+.site-footer .site-nav-h { font-size: var(--t-xs); color: var(--muted); }
+.site-footer .nav-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(10.5rem, calc(50% - 8px)), 1fr)); gap: 0 16px; margin-top: 2px; }
+.site-footer .nav-list > li > a, .site-footer .nav-list > li > .nav-group { color: var(--fg); padding: 0 6px; min-height: 24px; line-height: 1.6; flex-wrap: wrap; gap: 0 8px; }
+.site-footer .nav-list > li:has(> .nav-group) { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; }
+.site-footer .nav-group { font-size: var(--t-xs); color: var(--muted); }
+.site-footer .nav-years { margin: 0; padding: 0; gap: 2px 4px; }
+.site-footer .nav-years a { padding: 0 8px; min-height: 24px; line-height: 22px; box-sizing: border-box; font-size: var(--t-xs); }
+.site-footer .chip-coming { font-size: var(--t-xs); line-height: 1.3; padding: 0 6px; }
+@media (pointer: coarse) {
+  .site-footer .nav-list > li > a, .site-footer .nav-list > li > .nav-group { min-height: 28px; }
+  .site-footer .nav-years { gap: 4px; }
+  .site-footer .nav-years a { min-height: 28px; line-height: 26px; }
+}
 
 /* Search boxes */
 .search-row { display: flex; gap: 8px; }
@@ -1018,8 +1037,8 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 .tx-quote { margin: 4px 0 0; padding-left: 10px; border-left: 2px solid var(--border); }
 .tx-quote p { margin: 2px 0; }
 /* ---- gnoshcodes credit (footer) ---------------------------------------------------------------------------- */
-.gc-credit { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0.6em 0 0.25em; }
-.gc-logo { display: block; width: 160px; height: auto; }            /* the hook lockup (gnoshcodes.com), 160 px wide */
+.gc-credit { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
+.gc-logo { display: block; width: 90px; height: auto; }             /* the hook lockup (gnoshcodes.com), 90 px wide */
 .gc-logo-dark { display: none; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .gc-logo-light { display: none; }
@@ -1088,10 +1107,11 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 /* Footer: one thin rule, and the support link as a pill. */
 .site-footer { border-top: 1px solid var(--border); }
 .site-footer a[data-ext="support"] {
-  display: inline-block; padding: 0 12px; border: 2px solid var(--fg); border-radius: 999px; color: var(--fg);
-  font-family: var(--font-head); font-weight: 700; text-decoration: none;
+  display: inline-block; padding: 0 10px; border: 1px solid var(--fg); border-radius: 999px; color: var(--fg);
+  font-family: var(--font-head); font-weight: 700; text-decoration: none; min-height: 24px; line-height: 22px; box-sizing: border-box;
 }
 .site-footer a[data-ext="support"]:hover { background: var(--fg); color: var(--bg); }
+@media (pointer: coarse) { .site-footer a[data-ext="support"] { min-height: 28px; line-height: 26px; } }
 
 /* ==== Day by day (docs/design/daylight, M2; today.html, static/days.js) ======================================== */
 /* The week strip is sticky at the top while a day's cards scroll under it. Text pairs are the M1 ones (ink and muted
@@ -1166,11 +1186,13 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 }
 
 /* Independent, unofficial (config/site.yml `unofficial:`): the tag beside the site name, the home line and the footer
-   notice. Body-size text in the ink colour (not the muted grey) so it is plain, not fine print. */
+   notice. The footer notice is at the footer's small size (owner, 2026-11-12) but in the ink colour, not the muted
+   grey, and boxed, so it still reads as a plain statement. */
 .unofficial-tag { margin: 2px 0 0; color: var(--fg); font-size: var(--t-sm); font-weight: 600; }
 .unofficial-intro { margin: 6px 0; color: var(--fg); font-size: var(--t-sm); }
 .welcome .unofficial-intro { margin: 0; color: var(--muted); }
-.site-footer .unofficial-notice { margin: 0 0 14px; padding: 10px 12px; border: 1px solid var(--border); border-left: 4px solid var(--mark); border-radius: var(--radius); background: var(--surface-2); color: var(--fg); }
-.site-footer .unofficial-notice p { margin: 0; font-size: 1rem; line-height: 1.45; }
-.site-footer .unofficial-h { margin: 0 0 2px; font-size: 1rem; }
+.site-footer .unofficial-notice { margin: 0 0 6px; padding: 6px 10px; border: 1px solid var(--border); border-left: 4px solid var(--mark); border-radius: var(--radius); background: var(--surface-2); color: var(--fg); }
+.site-footer .unofficial-notice p { margin: 0; font-size: var(--t-sm); line-height: 1.45; }
+.site-footer .unofficial-notice .unofficial-h { display: inline; margin-right: 6px; }
+.site-footer .unofficial-notice .unofficial-h + p { display: inline; }
 
