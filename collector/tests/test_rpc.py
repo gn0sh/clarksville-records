@@ -391,17 +391,18 @@ def test_build_reports_a_case_shortfall_as_a_failing_check(cfg, rows, tmp_path, 
 
 
 # ------------------------------------------------------------------ privacy/rpc-applicant-phone (security review L1)
+# Synthetic values only (placeholder streets, 555-0100): never a number or an address from a real agenda.
 
 @pytest.mark.parametrize("printed, shown", [
-    ("127 Hadley Dr Clarksville TN 37042 931-801-0313", "127 Hadley Dr Clarksville TN 37042"),
-    ("Main St (931) 801-0313, Clarksville", "Main St, Clarksville"),
-    ("100 Main St 931.801.0313", "100 Main St"), ("100 Main St call 801-0313", "100 Main St call"),
-    ("100 Main St 931 801 0313", "100 Main St"), ("931-801-0313", None),
+    ("120 Fixture Ln Clarksville TN 37040 931-555-0100", "120 Fixture Ln Clarksville TN 37040"),
+    ("Sample St (931) 555-0100, Clarksville", "Sample St, Clarksville"),
+    ("100 Sample St 931.555.0100", "100 Sample St"), ("100 Sample St call 555-0100", "100 Sample St call"),
+    ("100 Sample St 931 555 0100", "100 Sample St"), ("931-555-0100", None),
     # never a range, a list of house numbers, a case number or a value with no phone number (kept exactly as printed)
-    ("Immediately north of 1645 -1665 Hankook Road", "Immediately north of 1645 -1665 Hankook Road"),
-    ("1778, 1790, 1798 Madison Street", "1778, 1790, 1798 Madison Street"),
-    ("1788 1790 1798 Madison Street", "1788 1790 1798 Madison Street"), ("SR-47-2024", "SR-47-2024"),
-    ("east of Killebrew Road , approximately 300 feet", "east of Killebrew Road , approximately 300 feet"),
+    ("Immediately north of 1600 -1620 Example Road", "Immediately north of 1600 -1620 Example Road"),
+    ("1700, 1710, 1720 Sample Street", "1700, 1710, 1720 Sample Street"),
+    ("1700 1710 1720 Sample Street", "1700 1710 1720 Sample Street"), ("SR-47-2024", "SR-47-2024"),
+    ("east of Fixture Road , approximately 300 feet", "east of Fixture Road , approximately 300 feet"),
     ("", None), (None, None),
 ])
 def test_phone_numbers_are_stripped_from_a_case_location(printed, shown):
@@ -410,11 +411,11 @@ def test_phone_numbers_are_stripped_from_a_case_location(printed, shown):
 
 def test_the_reader_never_records_a_phone_number_in_a_location():
     pages = ["1. SR - 47 - 2024 APPLICANT: Pat Example DEVELOPMENT: Dog Boarding\n"
-             "LOCATION: 127 Hadley Dr Clarksville TN 37042 931-801-0313\n"
+             "LOCATION: 120 Fixture Ln Clarksville TN 37040 931-555-0100\n"
              "CITY COUNCIL WARD: 9\n"]
     res = rpc_agenda.parse_pages(pages)
     rec = rpc_agenda.case_record(res["cases"][0], "m", "s")
-    assert rec["location"] == "127 Hadley Dr Clarksville TN 37042"
+    assert rec["location"] == "120 Fixture Ln Clarksville TN 37040"
 
 
 def test_committed_rpc_json_carries_no_phone_number(tmp_path):
@@ -425,11 +426,32 @@ def test_committed_rpc_json_carries_no_phone_number(tmp_path):
     assert scrub.main(["--check", "--path", str(rpc_json)]) == 0
     # the migration: only the location changes, and a second run changes nothing
     d = json.loads(text)
-    d["cases"][0] = {**d["cases"][0], "location": "127 Hadley Dr Clarksville TN 37042 931-801-0313"}
+    d["cases"][0] = {**d["cases"][0], "location": "120 Fixture Ln Clarksville TN 37040 931-555-0100"}
     p = tmp_path / "rpc.json"
     p.write_text(json.dumps(d), encoding="utf-8")
     assert scrub.main(["--path", str(p)]) == 0
     after = json.loads(p.read_text(encoding="utf-8"))
-    assert after["cases"][0]["location"] == "127 Hadley Dr Clarksville TN 37042"
+    assert after["cases"][0]["location"] == "120 Fixture Ln Clarksville TN 37040"
     assert after["cases"][1:] == d["cases"][1:] and after["meetings"] == d["meetings"]
     assert scrub.main(["--check", "--path", str(p)]) == 0
+
+
+def test_no_string_in_committed_rpc_json_matches_the_phone_rule():
+    """Every string value anywhere in the committed rpc.json (any field, not only `location`) has no match for
+    rpc_agenda.PHONE: a regex check, so no real number is stored in the test."""
+    rpc_json = Path(__file__).resolve().parents[2] / "data" / "localities" / "cmc-rpc" / "rpc.json"
+
+    def strings(v, path="$"):
+        if isinstance(v, str):
+            yield path, v
+        elif isinstance(v, dict):
+            for k, x in v.items():
+                yield from strings(k, f"{path}.<key>")
+                yield from strings(x, f"{path}.{k}")
+        elif isinstance(v, list):
+            for i, x in enumerate(v):
+                yield from strings(x, f"{path}[{i}]")
+
+    found = [path for path, v in strings(json.loads(rpc_json.read_text(encoding="utf-8"))) if rpc_agenda.PHONE.search(v)]
+    assert found == [], found[:5]          # paths only, never the value
+    assert rpc_agenda.PHONE.search("call 931-555-0100") and rpc_agenda.PHONE.search("(931) 555-0100")

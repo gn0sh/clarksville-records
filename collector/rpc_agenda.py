@@ -104,9 +104,9 @@ def _label_rx(printed: str) -> str:
     return r"(?<![A-Za-z])" + rx + (r"\b" if printed[-1].isalpha() else "")
 
 
-# An applicant's phone number printed in a field (security review L1, privacy/rpc-applicant-phone): "931-801-0313",
-# "(931) 801-0313", "931.801.0313", "801-0313". Never a case number, a parcel or an address range ("1645 -1665",
-# "1778, 1790, 1798"): the digits must stand alone, in 3-3-4 or 3-4 groups.
+# An applicant's phone number printed in a field (security review L1, privacy/rpc-applicant-phone): "931-555-0100",
+# "(931) 555-0100", "931.555.0100", "555-0100" (synthetic examples). Never a case number, a parcel or an address range
+# ("1600 -1620", "1700, 1710, 1720"): the digits must stand alone, in 3-3-4 or 3-4 groups.
 PHONE = re.compile(r"(?<![\w-])(?:\(\d{3}\)\s*|\d{3}[\s.-])?\d{3}[.-]\d{4}(?![\w-])"
                    r"|(?<![\w-])\d{3}\s\d{3}\s\d{4}(?![\w-])")
 
