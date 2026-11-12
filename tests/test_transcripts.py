@@ -25,6 +25,10 @@ MEETING = "2026-02-05-regular"       # minutes read, attendance shown, video on 
 HOSTILE = '<script>alert(1)</script> "quoted" & <b>bold</b> <a href="javascript:x">x</a>'
 
 
+LISTING = ctx.load_listing(CITY / "civicclerk-listing.json")
+EVENT = 2618                          # MEETING's event in the city's listing
+
+
 def kind_of(title: str) -> str:
     from collector.agenda_center import load_config
     return load_config().kind_of(title)
@@ -35,7 +39,7 @@ def city_facts() -> dict:
 
 
 def raw_transcript(meeting: dict, segments, **over) -> dict:
-    d = {"event_id": 777, "event_name": "Regular Session", "start": meeting["date"], "video_url": meeting["video_url"],
+    d = {"event_id": 2618, "event_name": "Regular Session", "start": meeting["date"], "video_url": meeting["video_url"],
          "model": "small.en", "model_version": "faster-whisper 1.2.1", "created_at": "2026-11-09T21:17:07Z",
          "segments": [{"start": a, "end": b, "text": t, "words": [{"start": a, "end": b, "word": t, "prob": 0.5}]}
                       for a, b, t in segments]}
@@ -71,10 +75,10 @@ def test_import_compacts_and_matches_by_video_url(tmp_path):
     m = next(x for x in facts["meetings"] if x["id"] == MEETING)
     write_raw(tmp_path / "in", raw_transcript(m, SEGMENTS))
     out = tmp_path / "out"
-    log = ctx.import_dir(tmp_path / "in", facts, out, kind_of)
+    log = ctx.import_dir(tmp_path / "in", facts, out, kind_of, LISTING)
     assert [r["meeting_id"] for r in log["imported"]] == [MEETING] and log["imported"][0]["matched_by"] == "video_url"
     t = json.loads((out / f"{MEETING}.json").read_text(encoding="utf-8"))
-    assert t["video_url"] == m["video_url"] and t["model"] == "small.en" and t["source_file"] == "2026-02-05_777.json"
+    assert t["video_url"] == m["video_url"] and t["model"] == "small.en" and t["source_file"] == "2026-02-05_2618.json"
     assert all(len(s) == 3 for s in t["segments"]) and "words" not in json.dumps(t)
     # hostile text is data: kept as written (escaped only when rendered); control characters removed
     assert t["segments"][3][2] == HOSTILE
@@ -86,13 +90,13 @@ def test_import_is_deterministic_and_idempotent(tmp_path):
     facts = city_facts()
     m = next(x for x in facts["meetings"] if x["id"] == MEETING)
     write_raw(tmp_path / "in", raw_transcript(m, SEGMENTS))
-    ctx.import_dir(tmp_path / "in", facts, tmp_path / "a", kind_of)
+    ctx.import_dir(tmp_path / "in", facts, tmp_path / "a", kind_of, LISTING)
     first = {p.name: p.read_bytes() for p in (tmp_path / "a").iterdir()}
-    log = ctx.import_dir(tmp_path / "in", facts, tmp_path / "a", kind_of)
+    log = ctx.import_dir(tmp_path / "in", facts, tmp_path / "a", kind_of, LISTING)
     assert log["imported"] == [] and len(log["unchanged"]) == 1
     assert {p.name: p.read_bytes() for p in (tmp_path / "a").iterdir()} == first
     # a separate run elsewhere gives the same bytes (no clock, sorted keys)
-    ctx.import_dir(tmp_path / "in", facts, tmp_path / "b", kind_of)
+    ctx.import_dir(tmp_path / "in", facts, tmp_path / "b", kind_of, LISTING)
     assert {p.name: p.read_bytes() for p in (tmp_path / "b").iterdir()} == first
 
 
@@ -100,7 +104,7 @@ def test_import_matches_by_date_and_kind_only_without_a_video_url(tmp_path):
     facts = city_facts()
     m = next(x for x in facts["meetings"] if x["id"] == MEETING)
     write_raw(tmp_path / "in", raw_transcript(m, SEGMENTS, video_url=None))
-    log = ctx.import_dir(tmp_path / "in", facts, tmp_path / "out", kind_of)
+    log = ctx.import_dir(tmp_path / "in", facts, tmp_path / "out", kind_of, LISTING)
     assert log["imported"][0]["matched_by"] == "date_kind"
     # the link always goes to the meeting's own video
     assert json.loads((tmp_path / "out" / f"{MEETING}.json").read_text())["video_url"] == m["video_url"]
@@ -113,33 +117,71 @@ def test_import_never_guesses(tmp_path):
     write_raw(tmp_path / "in", raw_transcript({**m, "date": "2026-02-06"}, SEGMENTS, video_url=None, event_id=5))
     write_raw(tmp_path / "in", raw_transcript(m, [(5.0, 1.0, "ends before it starts")], event_id=6))
     (tmp_path / "in" / "notes.json").write_text("{}")
-    log = ctx.import_dir(tmp_path / "in", facts, tmp_path / "out", kind_of)
+    log = ctx.import_dir(tmp_path / "in", facts, tmp_path / "out", kind_of, LISTING)
     assert log["imported"] == [] and len(log["skipped"]) == 4
     assert json.loads((tmp_path / "out" / "index.json").read_text()) == {}
 
 
-def test_import_keeps_the_later_transcript_of_a_meeting(tmp_path):
+def test_import_refuses_a_second_transcript_of_a_meeting_under_another_event(tmp_path):
+    # facts meetings carry no event_id: the listing decides, so a later transcript under another event is refused
     facts = city_facts()
     m = next(x for x in facts["meetings"] if x["id"] == MEETING)
-    write_raw(tmp_path / "in", raw_transcript(m, SEGMENTS, event_id=777, created_at="2026-11-09T01:00:00Z"))
+    assert "event_id" not in m
+    write_raw(tmp_path / "in", raw_transcript(m, SEGMENTS, event_id=EVENT, created_at="2026-11-09T01:00:00Z"))
     write_raw(tmp_path / "in", raw_transcript(m, SEGMENTS[:2], event_id=778, created_at="2026-11-10T01:00:00Z"))
-    ctx.import_dir(tmp_path / "in", facts, tmp_path / "out", kind_of)
-    assert json.loads((tmp_path / "out" / f"{MEETING}.json").read_text())["source_file"] == "2026-02-05_778.json"
+    log = ctx.import_dir(tmp_path / "in", facts, tmp_path / "out", kind_of, LISTING)
+    assert json.loads((tmp_path / "out" / f"{MEETING}.json").read_text())["source_file"] == "2026-02-05_2618.json"
+    assert [s["file"] for s in log["skipped"]] == ["2026-02-05_778.json"]
+    assert "listing has" in log["skipped"][0]["why"] and "event 2618" in log["skipped"][0]["why"]
+
+
+def test_import_checks_the_listing_when_the_meeting_has_no_event_id(tmp_path):
+    facts = city_facts()
+    m = next(x for x in facts["meetings"] if x["id"] == MEETING)
+    assert "event_id" not in m
+    # the wrong event, by video_url and by date + kind: refused
+    write_raw(tmp_path / "a", raw_transcript(m, SEGMENTS, event_id=900))
+    write_raw(tmp_path / "b", raw_transcript(m, SEGMENTS, event_id=900, video_url=None))
+    for d in ("a", "b"):
+        log = ctx.import_dir(tmp_path / d, facts, tmp_path / f"out-{d}", kind_of, LISTING)
+        assert log["imported"] == [] and "event 2618, the transcript is event 900" in log["skipped"][0]["why"]
+    # a video the listing does not name: refused, never imported on the facts match alone
+    write_raw(tmp_path / "c", raw_transcript(m, SEGMENTS, event_id=EVENT))
+    no_video = {u: e for u, e in LISTING.items() if u != m["video_url"]}
+    log = ctx.import_dir(tmp_path / "c", facts, tmp_path / "out-c", kind_of, no_video)
+    assert log["imported"] == [] and "names no event" in log["skipped"][0]["why"]
+    # a video the listing names under two events is ambiguous: refused
+    two = {**LISTING, m["video_url"]: {str(EVENT), "900"}}
+    assert ctx.import_dir(tmp_path / "c", facts, tmp_path / "out-c", kind_of, two)["imported"] == []
+    # the right event imports
+    log = ctx.import_dir(tmp_path / "c", facts, tmp_path / "out-c", kind_of, LISTING)
+    assert [r["meeting_id"] for r in log["imported"]] == [MEETING]
+    # and a later listing that moves the video to another event removes the committed transcript
+    log = ctx.import_dir(tmp_path / "empty", facts, tmp_path / "out-c", kind_of, {**LISTING, m["video_url"]: {"900"}})
+    assert [r["file"] for r in log["removed"]] == [f"{MEETING}.json"]
+
+
+def test_load_listing_refuses_a_missing_or_empty_listing(tmp_path):
+    with pytest.raises(ctx.TranscriptError):
+        ctx.load_listing(tmp_path / "nope.json")
+    (tmp_path / "empty.json").write_text("[]")
+    with pytest.raises(ctx.TranscriptError, match="names no video"):
+        ctx.load_listing(tmp_path / "empty.json")
 
 
 def test_import_compares_event_id_when_the_meeting_carries_one(tmp_path):
     facts = city_facts()
     m = next(x for x in facts["meetings"] if x["id"] == MEETING)
-    write_raw(tmp_path / "in", raw_transcript(m, SEGMENTS, event_id=777))
+    write_raw(tmp_path / "in", raw_transcript(m, SEGMENTS, event_id=2618))
     other = {**facts, "meetings": [{**x, "event_id": 900} if x["id"] == MEETING else x for x in facts["meetings"]]}
-    log = ctx.import_dir(tmp_path / "in", other, tmp_path / "out", kind_of)
+    log = ctx.import_dir(tmp_path / "in", other, tmp_path / "out", kind_of, LISTING)
     assert log["imported"] == [] and "event 900" in log["skipped"][0]["why"]
-    same = {**facts, "meetings": [{**x, "event_id": 777} if x["id"] == MEETING else x for x in facts["meetings"]]}
-    log = ctx.import_dir(tmp_path / "in", same, tmp_path / "out", kind_of)
+    same = {**facts, "meetings": [{**x, "event_id": 2618} if x["id"] == MEETING else x for x in facts["meetings"]]}
+    log = ctx.import_dir(tmp_path / "in", same, tmp_path / "out", kind_of, LISTING)
     assert [r["meeting_id"] for r in log["imported"]] == [MEETING]
     # without a video_url (date + kind) the event_id is compared too
-    write_raw(tmp_path / "in2", raw_transcript(m, SEGMENTS, video_url=None, event_id=777))
-    assert ctx.import_dir(tmp_path / "in2", other, tmp_path / "out2", kind_of)["imported"] == []
+    write_raw(tmp_path / "in2", raw_transcript(m, SEGMENTS, video_url=None, event_id=2618))
+    assert ctx.import_dir(tmp_path / "in2", other, tmp_path / "out2", kind_of, LISTING)["imported"] == []
 
 
 def test_import_removes_transcripts_that_no_longer_match(tmp_path):
@@ -147,33 +189,39 @@ def test_import_removes_transcripts_that_no_longer_match(tmp_path):
     m = next(x for x in facts["meetings"] if x["id"] == MEETING)
     write_raw(tmp_path / "in", raw_transcript(m, SEGMENTS))
     out = tmp_path / "out"
-    ctx.import_dir(tmp_path / "in", facts, out, kind_of)
+    ctx.import_dir(tmp_path / "in", facts, out, kind_of, LISTING)
     assert (out / f"{MEETING}.json").is_file()
     # the next import from an empty folder keeps a transcript that still matches
     (tmp_path / "empty").mkdir()
-    log = ctx.import_dir(tmp_path / "empty", facts, out, kind_of)
+    log = ctx.import_dir(tmp_path / "empty", facts, out, kind_of, LISTING)
     assert log["removed"] == [] and MEETING in json.loads((out / "index.json").read_text())
     # the meeting's video changed: the transcript no longer matches it, so it and its index entry go
     moved = {**facts, "meetings": [{**x, "video_url": "https://cpmedia.azureedge.net/clarksvilletn/new.mp4"}
                                    if x["id"] == MEETING else x for x in facts["meetings"]]}
-    log = ctx.import_dir(tmp_path / "empty", moved, out, kind_of)
+    log = ctx.import_dir(tmp_path / "empty", moved, out, kind_of, LISTING)
     assert [r["file"] for r in log["removed"]] == [f"{MEETING}.json"]
     assert not (out / f"{MEETING}.json").exists() and json.loads((out / "index.json").read_text()) == {}
     # a meeting gone from the facts, or an event_id that differs, also removes it
-    ctx.import_dir(tmp_path / "in", facts, out, kind_of)
+    ctx.import_dir(tmp_path / "in", facts, out, kind_of, LISTING)
     gone = {**facts, "meetings": [x for x in facts["meetings"] if x["id"] != MEETING]}
-    assert len(ctx.import_dir(tmp_path / "empty", gone, out, kind_of)["removed"]) == 1
-    ctx.import_dir(tmp_path / "in", facts, out, kind_of)
+    assert len(ctx.import_dir(tmp_path / "empty", gone, out, kind_of, LISTING)["removed"]) == 1
+    ctx.import_dir(tmp_path / "in", facts, out, kind_of, LISTING)
     ev = {**facts, "meetings": [{**x, "event_id": 1} if x["id"] == MEETING else x for x in facts["meetings"]]}
-    assert len(ctx.import_dir(tmp_path / "empty", ev, out, kind_of)["removed"]) == 1
+    assert len(ctx.import_dir(tmp_path / "empty", ev, out, kind_of, LISTING)["removed"]) == 1
 
 
 def test_committed_transcripts_match_their_meetings():
     facts = city_facts()
     loaded = tx.load(CITY / "facts.json", facts)
     assert loaded, "at least one transcript is committed"
+    by_id = {m["id"]: m for m in facts["meetings"]}
     for mid, t in loaded.items():
-        assert t["video_url"] == next(m for m in facts["meetings"] if m["id"] == mid)["video_url"]
+        assert t["video_url"] == by_id[mid]["video_url"]
+    # every committed file passes the importer's own check, the event listing included
+    files = [p for p in (CITY / "transcripts").glob("*.json") if p.name != "index.json"]
+    assert len(files) == len(loaded) == 17
+    for p in files:
+        assert ctx.stale(json.loads(p.read_text(encoding="utf-8")), by_id, LISTING) is None, p.name
 
 
 # ---------------------------------------------------------------------------------------------- links and detection
@@ -384,7 +432,7 @@ def city_dir(tmp_path_factory):
     (d / "wards.json").write_text(json.dumps(wards), encoding="utf-8")
     m = next(x for x in sub["meetings"] if x["id"] == MEETING)
     write_raw(d / "raw", raw_transcript(m, SEGMENTS))
-    ctx.import_dir(d / "raw", sub, d / "transcripts", kind_of)
+    ctx.import_dir(d / "raw", sub, d / "transcripts", kind_of, LISTING)
     return d, sub
 
 
@@ -414,6 +462,29 @@ def test_transcript_page_lines(built):
     # the call-on lines are marked with the member, linked
     assert re.search(r'<li id="s1" class="call-on">.*Called on: <a href="../../city/members/city-wanda-smith.html">Wanda Smith</a>', page)
     assert 'id="s7" class="call-on"' not in page        # "holloman": not matched
+
+
+def test_official_record_is_the_minutes_else_the_citys_video(built):
+    out, result, cfg, sub = built
+    page = (out / "city" / "transcripts" / f"{MEETING}.html").read_text(encoding="utf-8")
+    m = next(x for x in sub["meetings"] if x["id"] == MEETING)
+    minutes = next(s for s in sub["sources"] if s["id"] == m["source_id"])["url"]
+    assert re.search(r'Official record: <a href="' + re.escape(html.escape(minutes)) + '"', page)
+    from sitegen import views
+    video, agenda = m["video_url"], "https://clarksvilletn.api.civicclerk.com/v1/agenda.pdf"
+    ctx = {"video_url": video, "video_ok": True}
+    # minutes posted: the minutes PDF
+    rec = views.official_record("transcript.html.j2", {}, {**ctx, "doc": {"url": minutes, "kind": "minutes"}})
+    assert rec["url"] == minutes and rec["ext"] is False
+    # no minutes (the source is the agenda): the city's video, marked as a video link
+    rec = views.official_record("transcript.html.j2", {}, {**ctx, "doc": {"url": agenda, "kind": "agenda"}})
+    assert rec == {"url": video, "label": "the city's meeting video (MP4)", "ext": "video"}
+    assert views.official_record("transcript.html.j2", {}, {**ctx, "doc": None})["url"] == video
+    # a video the site may not link: back to the agenda; the meeting page itself is unchanged
+    no_link = {**ctx, "video_ok": False, "doc": {"url": agenda, "kind": "agenda"}}
+    rec = views.official_record("transcript.html.j2", {}, no_link)
+    assert rec["url"] == agenda
+    assert views.official_record("meeting.html.j2", {}, {**ctx, "doc": {"url": agenda, "kind": "agenda"}})["url"] == agenda
 
 
 def test_member_pages_list_call_ons_verbatim_and_alike(built):

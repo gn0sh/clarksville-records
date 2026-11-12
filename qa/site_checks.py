@@ -2382,13 +2382,19 @@ def check_about(site: Path, cs: list[dict], cfg: dict, county: dict | None = Non
         wards = owner["wards"] if "wards" in owner else _council_wards(owner["slug"])
         _, named, _ = latest_listed(owner["facts"], wards)
         ward = next((w for w, oid in expected_ward_holders(wards, owner["facts"]).items() if oid == pid), None)
+        ends = sorted({r["end"] for r in _council_seat_rows(owner, wards)
+                       if r.get("official_id") == pid and r.get("dates") == "sourced" and r.get("end")})
         for rel, line in texts.items():
             text = html.unescape(re.sub(r"<[^>]+>", "", line))
             want = f'<a href="{owner["slug"]}/members/{pid}.html">{html.escape(o["name"])}</a>'
             if want not in line:
                 problems.append(f"{rel}: the operator line does not link {o['name']} to their vote history page")
-            if re.search(r"\b(19|20)\d\d\b", text):
-                problems.append(f"{rel}: the operator line prints a year")   # no term date is in the city's data
+            # a year only inside the line's term end, and only a seat record's sourced end (the city's have none)
+            rest = text
+            for e in ends:
+                rest = rest.replace(f", in a term that ends on {e}", "")
+            if re.search(r"\b(19|20)\d\d\b", rest):
+                problems.append(f"{rel}: the operator line prints a year that is not a seat record's sourced term end")
             if pid in named:
                 seat = f"is on the {body}" + (f" (Ward {ward})" if ward is not None else "")
                 if seat not in text:
@@ -2405,6 +2411,23 @@ def _council_wards(slug: str) -> list[dict]:
     c = _council_cfg(slug)
     if c and (ROOT / c["wards"]).is_file():
         return json.loads((ROOT / c["wards"]).read_text(encoding="utf-8"))
+    return []
+
+
+def _council_seat_rows(owner: dict, wards: list[dict]) -> list[dict]:
+    """The council's holder records (sitegen/council.py holder_rows), or owner["seat_rows"] when given (tests).
+    Records that cannot be derived (wards that name a source the facts lack) give none: no term end is then allowed,
+    so a failure here only makes the year check stricter."""
+    if "seat_rows" in owner:
+        return owner["seat_rows"]
+    from sitegen import config as site_config, council as site_council
+    for loc in _site_cfg().get("councils") or []:
+        c = site_config.load_council(loc)
+        if c["slug"] == owner["slug"]:
+            try:
+                return site_council.holder_rows(wards, owner["facts"], c)[0]
+            except (KeyError, ValueError):
+                return []
     return []
 
 
