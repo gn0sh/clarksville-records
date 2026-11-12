@@ -455,6 +455,125 @@ def test_allow_drop_unknown_id_leaves_the_listing_as_it_was(acfg, tmp_path, monk
     assert [r["agenda_id"] for r in json.loads(path.read_text())] == ["10312019-303", "12302019-340"]
 
 
+# ------------------------------------------------------------------ shrink/city-agenda-only-meeting-dropped (seed run)
+def agenda_only(facts):
+    kind = {s["id"]: s["kind"] for s in facts["sources"]}
+    return [m for m in facts["meetings"] if kind[m["source_id"]] != "minutes"]
+
+
+def without_agendas(facts):
+    """The build from a store holding the minutes but no agenda PDFs (the first CI seed run, run 43235127246: an empty
+    store cache and `city run` without --agendas): every agenda-only meeting is left out ("no fetched agenda or
+    minutes file to cite"), the minutes meetings lose their agenda_source_id, the agenda sources are gone."""
+    f = copy.deepcopy(facts)
+    agendas = {s["id"] for s in f["sources"] if s["kind"] == "agenda"}
+    f["meetings"] = [m for m in f["meetings"] if m["source_id"] not in agendas]
+    for m in f["meetings"]:
+        if m.get("agenda_source_id") in agendas:
+            del m["agenda_source_id"]
+    f["sources"] = [s for s in f["sources"] if s["id"] not in agendas]
+    return f
+
+
+def listed(city, facts, monkeypatch, drop=()):
+    """The committed listings as the build reads them: one row per committed meeting (date, title, kind), less the
+    rows of the meetings in `drop` (a row the listing guard let go)."""
+    rows = [{"date": m["date"], "title": m["title"], "kind": m["kind"], "minutes_url": m["minutes_url"]}
+            for m in facts["meetings"] if m["id"] not in drop]
+    monkeypatch.setattr(city_run, "listing_rows", lambda p, cfg, store=None: (rows, []))
+
+
+def test_a_run_without_agenda_files_keeps_every_committed_agenda_only_meeting(city, monkeypatch):
+    """The seed-run failure: committed agenda-only meetings (2026-01-06-executive among them, which has a committed
+    transcript) vanished from facts.json because their agendas were not in the store, and the site build stopped on
+    'transcript for 2026-01-06-executive, which is not a meeting in the facts'. Their rows are still listed, so each is
+    kept exactly as committed (exit 7) and the transcripts load."""
+    from sitegen import transcripts
+    facts = city["facts"]
+    gone = {m["id"] for m in agenda_only(facts)}
+    assert "2026-01-06-executive" in gone and len(gone) > 100
+    city["new"] = without_agendas(facts)
+    listed(city, facts, monkeypatch)
+    assert city_run.main(["build"]) == city_run.KEPT
+    out, _ = city["out"]()
+    assert [m["id"] for m in out["meetings"]] == [m["id"] for m in facts["meetings"]]        # none lost, same order
+    was = {m["id"]: m for m in facts["meetings"]}
+    assert all(m == was[m["id"]] for m in out["meetings"] if m["id"] in gone)             # as committed
+    srcs = {s["id"] for s in out["sources"]}
+    assert {was[m]["source_id"] for m in gone} <= srcs                                     # their agendas cited
+    check_unit(out, "the merged city facts")
+    kept = {m for k in city["guard"]()["kept_meetings"] for m in k["meeting_ids"]}
+    assert gone <= kept
+    assert "2026-01-06-executive" in transcripts.load(CITY / "facts.json", out)            # the build's check holds
+
+
+def test_agenda_only_meetings_kept_twice_is_byte_identical(city, monkeypatch):
+    m = agenda_only(city["facts"])[-1]["id"]
+    city["new"] = copy.deepcopy(city["facts"])
+    city["new"]["meetings"] = [x for x in city["new"]["meetings"] if x["id"] != m]
+    listed(city, city["facts"], monkeypatch)
+    assert city_run.main(["build"]) == city_run.KEPT
+    assert city["p"]["facts"].read_bytes() == (CITY / "facts.json").read_bytes()
+    assert city_run.main(["build"]) == city_run.KEPT
+    assert city["p"]["facts"].read_bytes() == (CITY / "facts.json").read_bytes()
+
+
+def test_an_agenda_only_meeting_whose_row_was_let_go_drops(city, monkeypatch):
+    """A cancelled future event (the listing guard's dropped_unminuted) or a row named by --allow-drop: the row is no
+    longer listed, so its agenda-only meeting goes with it and nothing is kept."""
+    m = agenda_only(city["facts"])[-1]["id"]
+    city["new"] = copy.deepcopy(city["facts"])
+    city["new"]["meetings"] = [x for x in city["new"]["meetings"] if x["id"] != m]
+    listed(city, city["facts"], monkeypatch, drop={m})
+    assert city_run.main(["build"]) == 0
+    assert m not in {x["id"] for x in city["out"]()[0]["meetings"]} and city["guard"]() == {}
+
+
+def test_an_agenda_only_meeting_gone_while_listed_is_dropped_only_by_allow_drop(city, monkeypatch):
+    a, b = (m["id"] for m in agenda_only(city["facts"])[-2:])
+    city["new"] = copy.deepcopy(city["facts"])
+    city["new"]["meetings"] = [x for x in city["new"]["meetings"] if x["id"] not in (a, b)]
+    listed(city, city["facts"], monkeypatch)
+    assert city_run.main(["build", "--allow-drop", a]) == city_run.KEPT
+    ids = {x["id"] for x in city["out"]()[0]["meetings"]}
+    assert a not in ids and b in ids
+    assert [k["meeting_ids"] for k in city["guard"]()["kept_meetings"]] == [[b]]
+
+
+def test_an_agenda_only_meeting_whose_minutes_now_read_is_not_kept(city, monkeypatch):
+    """Minutes posted for a committed agenda-only meeting: the new build reads it from them (its agenda not in the
+    store). Not a loss: the new reading is published, nothing is kept."""
+    facts = city["facts"]
+    m = next(x for x in agenda_only(facts) if x["minutes_status"] == "not_posted")
+    new = copy.deepcopy(facts)
+    src = {**next(s for s in new["sources"] if s["id"] == m["source_id"]), "id": "src-feedfacefeed", "kind": "minutes",
+           "sha256": "feedfacefeed" + "0" * 52, "url": "https://example.test/minutes.pdf"}
+    new["sources"] = [s for s in new["sources"] if s["id"] != m["source_id"]] + [src]
+    mm = next(x for x in new["meetings"] if x["id"] == m["id"])
+    mm.update(source_id=src["id"], minutes_url=src["url"], minutes_status="read")
+    mm.pop("agenda_source_id", None)
+    city["new"] = new
+    listed(city, facts, monkeypatch)
+    assert city_run.main(["build"]) == 0
+    assert city["out"]()[0] == new and city["guard"]() == {}
+
+
+def test_guarded_units_adds_only_gone_agenda_only_meetings_still_listed():
+    old = {"sources": [{"id": "s-min", "kind": "minutes"}, {"id": "s-ag", "kind": "agenda"},
+                       {"id": "s-ag2", "kind": "agenda"}, {"id": "s-ag3", "kind": "agenda"}],
+           "meetings": [{"id": "d1-regular", "date": "d1", "title": "Regular", "kind": "regular", "source_id": "s-min"},
+                        {"id": "d2-regular", "date": "d2", "title": "Regular", "kind": "regular", "source_id": "s-ag"},
+                        {"id": "d3-special", "date": "d3", "title": "Special", "kind": "special", "source_id": "s-ag2"},
+                        {"id": "d4-regular", "date": "d4", "title": "Regular", "kind": "regular", "source_id": "s-ag3"}],
+           "roll_calls": [], "motions": [], "item_events": []}
+    new = {"meetings": [{"id": "d4-regular"}]}
+    ids = lambda u: [m["id"] for m in u["meetings"]]                                        # noqa: E731
+    assert ids(city_run.guarded_units(old, new)) == ["d1-regular", "d2-regular", "d3-special"]   # fail closed
+    assert ids(city_run.guarded_units(old, new, {("d2", "regular")})) == ["d1-regular", "d2-regular"]
+    # the committed kind is re-read from the title with the current config, as the listing rows' kind is
+    assert ids(city_run.guarded_units(old, new, {("d3", "work")}, lambda t: "work")) == ["d1-regular", "d3-special"]
+
+
 def test_city_allow_shrink_flag_is_gone(capsys):
     with pytest.raises(SystemExit):
         city_run.main(["build", "--allow-shrink"])

@@ -105,3 +105,16 @@ issue that repeats daily until it clears or a person runs `--allow-drop`. Run ti
   `n <= 230` is 207 today and grows each year; tie it to `config.MAX_FILES`.
 - Unverified: whether the city ever refetches a known minutes url, so a same-url re-post is seen as a correction.
 - RPC per-meeting keep and RPC correction warning (already listed in the limits invariant, before `hold_motions` off).
+
+## Amendment 2026-11-12: agenda-only meetings (`shrink/city-agenda-only-meeting-dropped`)
+First CI seed run (43235127246, empty store cache) failed in the site build: `transcript for 2026-01-06-executive,
+which is not a meeting in the facts`. Cause: 190 of the 401 committed city meetings are agenda-only (no minutes
+posted); the build makes a meeting only from a stored file (`city_build.py` "no fetched agenda or minutes file to
+cite"), the workflow ran `city run` without `--agendas`, so no agenda was in the store, and the facts guard compared
+only minutes meetings (`minutes_units`: "an agenda-only meeting is the listing guard's to keep"), while the listing
+guard keeps the row, not the meeting. I1 was broken silently (city exit 0); the transcript loader caught it.
+Decision: `city_run.guarded_units` adds to the guard's committed side every agenda-only meeting the build lacks while a
+listing row of its date and kind is still listed; the same `shrink_guard` keeps it ((a) or (c)), same `keep_city`,
+same exit 7, same `--allow-drop`. A row the listing guard let go (a cancelled future event, `--allow-drop`) drops its
+meeting. The workflow's city run passes `--agendas` (the committed facts were built with it; a warm run fetches only
+new agendas), so the guard does not fire daily.
