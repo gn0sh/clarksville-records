@@ -22,21 +22,25 @@ Exit codes (the workflow's Collect step fails the run, and so opens the issue, o
 read, or the shrink guard held a result back; 3 the G4 skew gate flagged an official (build/city-report.json
 build.gates; the AC-P1 verified rate is reported there but sets no code); 5 a host or policy refused us at any stage
 (HostBlocked 403/429, HostRefused, ProxyRefused, RobotsDisallowed: alerting/city-fetch-failures-exit-0). A refusal is
-never retried and never worked around: the code only reports it.
+never retried and never worked around: the code only reports it. 7 (KEPT, a warning; precedence 5 > 2 > 3 > 7 > 0):
+the shrink guard kept committed city rows or meetings; the workflow publishes everything and opens the city
+meetings-kept issue (docs/adr/0006-daily-refresh-data-guards.md, I1 and I2).
 
-Shrink guard (shrink/city-listing-unguarded; the county's rule 3, docs/architecture/pipeline-limits-invariant.md, at
-the city's two units): a listing read without an error but missing rows the committed listing has (an empty page, a
-200 with no heading and no rows, an events page of `{"value": []}`) keeps the committed rows and is a listing failure
-(stage `shrink`, exit 2); a build that would drop a meeting the committed facts.json has writes neither facts.json
-nor wards.json and is a failure too (exit 2). Nothing is lost: the committed files stay, and the issue opens.
+Shrink guard (ADR 0006; the county's rule 3, docs/architecture/pipeline-limits-invariant.md, at the city's units): a
+listing read without an error but missing rows the committed listing has (an empty page, a 200 with no heading and no
+rows, an events page of `{"value": []}`) keeps the committed rows (`kept_listing_rows`, exit 7), except a row with no
+minutes dated on or after the run's UTC day (a cancelled or rescheduled event): it is dropped and listed under
+`dropped_unminuted`, no code. A build that would drop a committed meeting keeps the committed facts (exit 7).
+The guard's findings are under `guard` in build/city-report.json; it is never a `failures` row.
 --allow-shrink (a deliberate removal at the source, or a parser change that renames meeting ids) lets it through,
-recorded under `allowed_shrink` in build/city-report.json.
+recorded under `allowed_shrink`.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 from . import civicclerk, limits
@@ -49,10 +53,7 @@ STOP = (HostBlocked, HostRefused, ProxyRefused, RobotsDisallowed)   # the host s
 LISTING_FAILED = 2
 GATE_FAILED = 3        # G4 flagged an official (spec G4: release blocked), as the county's gate failure code
 BLOCKED = 5            # its own code, so the alert says "refused", not "failed" (4 is the county run's offline refusal)
-
-
-class ShrinkRefused(RuntimeError):
-    """A result that would lose committed city rows or meetings (the shrink guard): never written over them."""
+KEPT = 7               # a warning: the shrink guard kept committed rows or meetings (the county's KEPT, ADR 0006)
 
 
 def failure(stage: str, e: Exception, **extra) -> dict:
@@ -65,37 +66,67 @@ def failure(stage: str, e: Exception, **extra) -> dict:
 
 def exit_code(log: dict) -> int:
     """BLOCKED when any host or policy refused us (at the listing or at a file), else LISTING_FAILED when a listing
-    could not be read, else 0. A lone FetchFailed on one file stays 0: it is logged and that file is skipped."""
+    could not be read, else 0. A lone FetchFailed on one file stays 0: it is logged and that file is skipped. The
+    gate (3) and the guard's KEPT (7) are applied after the build, in that order (main)."""
     if any(f.get("refused") for f in log["failures"]):
         return BLOCKED
-    return LISTING_FAILED if any(f["stage"] in ("listing", "shrink") for f in log["failures"]) else 0
+    return LISTING_FAILED if any(f["stage"] == "listing" for f in log["failures"]) else 0
+
+
+def kept_anything(log: dict) -> bool:
+    """Whether the shrink guard kept committed rows or meetings, or a correction lowered a verified count (KEPT)."""
+    g = log.get("guard") or {}
+    return bool(g.get("kept_listing_rows") or g.get("kept_meetings") or g.get("lowered"))
 
 
 def _row_key(r: dict, key: str):
     return r.get(key) or (r.get("date"), r.get("title"), r.get("minutes_url"))
 
 
+def _row_order(r: dict, key: str) -> tuple:
+    v = _row_key(r, key)
+    return (r.get("date") or "", (0, v, "") if isinstance(v, int) else (1, 0, str(v)))
+
+
+def today_utc() -> str:
+    return datetime.now(timezone.utc).date().isoformat()
+
+
 def guard_listing(rows: list[dict], previous: list[dict] | None, key: str, name: str, log: dict,
-                  allow_shrink: bool = False, **extra) -> list[dict]:
-    """The listing to write: `rows` as read, plus every committed row (`previous`) the read lacks, kept as committed,
-    and a `shrink` failure naming them (exit 2). A row is one meeting by `key` (agenda_id, event_id). Gains are never
-    guarded; --allow-shrink lets the smaller listing win and records it."""
+                  allow_shrink: bool = False, today: str | None = None) -> list[dict]:
+    """The listing to write (ADR 0006 fix 1): `rows` as read, plus every committed row (`previous`) the read lacks,
+    kept as committed and listed under guard.kept_listing_rows (exit 7), except a row with no minutes dated on or after
+    `today` (UTC): a cancelled or moved future event, dropped and listed under guard.dropped_unminuted (no code). A row
+    is one meeting by `key` (agenda_id, event_id). Gains are never guarded; --allow-shrink lets the smaller listing win
+    and records it."""
     have = {_row_key(r, key) for r in rows}
-    dropped = [r for r in previous or [] if _row_key(r, key) not in have]
+    gone = [r for r in previous or [] if _row_key(r, key) not in have]
+    if not gone:
+        return rows
+    g = log.setdefault("guard", {})
+    day = today or today_utc()
+    future = [r for r in gone if not r.get("minutes_url") and (r.get("date") or "") >= day]
+    if future:
+        g.setdefault("dropped_unminuted", []).append({"listing": name, "dropped": [_print(r, key) for r in future]})
+    dropped = [r for r in gone if r not in future]
     if not dropped:
         return rows
-    ids = [str(_row_key(r, key)) for r in dropped]
+    ids = [_print(r, key) for r in dropped]
     if allow_shrink:
-        log.setdefault("allowed_shrink", []).append({"listing": name, "dropped": ids})
+        g.setdefault("allowed_shrink", []).append({"listing": name, "dropped": ids})
         print(f"collector city: ALLOWED (--allow-shrink) {name}: {len(dropped)} committed rows dropped", flush=True)
         return rows
-    why = (f"{name}: the listing as read has {len(rows)} rows and lacks {len(dropped)} of the {len(previous)} "
-           f"committed rows, e.g. {', '.join(ids[:5])} (an empty or changed page). The committed rows are kept; if "
-           f"they were removed at the source, run with --allow-shrink")
-    log["failures"].append(failure("shrink", ShrinkRefused(why), **extra))
-    log.setdefault("kept_listing_rows", []).append({"listing": name, "kept": ids})
-    print(f"collector city: SHRINK GUARD {why}", file=sys.stderr, flush=True)
-    return sorted(rows + dropped, key=lambda r: (r.get("date") or "", str(_row_key(r, key))))
+    g.setdefault("kept_listing_rows", []).append({"listing": name, "kept": ids})
+    print(f"collector city: KEPT {name}: the listing as read has {len(rows)} rows and lacks {len(dropped)} of the "
+          f"{len(previous)} committed rows, e.g. {', '.join(i['key'] for i in ids[:5])}; kept as committed",
+          file=sys.stderr, flush=True)
+    return sorted(rows + dropped, key=lambda r: _row_order(r, key))
+
+
+def _print(r: dict, key: str) -> dict:
+    """A guarded row as the kept entries print it: its key and the meeting id the build gives it (date-kind)."""
+    return {"key": str(_row_key(r, key)), "meeting": f"{r.get('date')}-{r.get('kind')}", "date": r.get("date"),
+            "title": r.get("title"), "minutes_url": r.get("minutes_url")}
 
 
 def facts_shrink(new: dict, old: dict | None) -> list[str]:
@@ -121,7 +152,8 @@ def write_json(p: Path, obj) -> bool:
 
 
 def cmd_fetch(cfg: AgendaCenterConfig, store: Store, listing_path: Path, log: dict, fetcher=None,
-              agendas: bool = False, limit: int | None = None, allow_shrink: bool = False) -> list[dict]:
+              agendas: bool = False, limit: int | None = None, allow_shrink: bool = False,
+              today: str | None = None) -> list[dict]:
     f = fetcher or PoliteFetcher()
     previous = json.loads(listing_path.read_text(encoding="utf-8")) if listing_path.exists() else None
     try:
@@ -130,13 +162,14 @@ def cmd_fetch(cfg: AgendaCenterConfig, store: Store, listing_path: Path, log: di
         log["failures"].append(failure("listing", e))
         log["fetch_log"] = f.log
         return []
-    write_json(listing_path, guard_listing(rows, previous, "agenda_id", listing_path.name, log, allow_shrink))
+    write_json(listing_path, guard_listing(rows, previous, "agenda_id", listing_path.name, log, allow_shrink, today))
     return fetch_files(f, store, rows, log, agendas, limit)
 
 
 def cmd_fetch_civicclerk(cc: civicclerk.CivicClerkConfig, kind_of, store: Store, listing_path: Path, log: dict,
                          fetcher=None, agendas: bool = False, limit: int | None = None,
-                         cache_dir: Path | None = None, allow_shrink: bool = False) -> list[dict]:
+                         cache_dir: Path | None = None, allow_shrink: bool = False,
+                         today: str | None = None) -> list[dict]:
     """The CivicClerk listing (every events page, cached) then its minutes (and agendas). A listing that fails part
     way is not written, so the last full civicclerk-listing.json stays."""
     f = fetcher or PoliteFetcher()
@@ -147,8 +180,7 @@ def cmd_fetch_civicclerk(cc: civicclerk.CivicClerkConfig, kind_of, store: Store,
         log["fetch_log"] = f.log
         return []
     previous = json.loads(listing_path.read_text(encoding="utf-8")) if listing_path.exists() else None
-    write_json(listing_path, guard_listing(rows, previous, "event_id", listing_path.name, log, allow_shrink,
-                                           source=civicclerk.SOURCE))
+    write_json(listing_path, guard_listing(rows, previous, "event_id", listing_path.name, log, allow_shrink, today))
     return fetch_files(f, store, rows, log, agendas, limit)
 
 
@@ -232,20 +264,21 @@ def main(argv: list[str]) -> int:
         wards = facts.pop("_wards")
         old = json.loads(p["facts"].read_text(encoding="utf-8")) if p["facts"].exists() else None
         dropped = facts_shrink(facts, old)
+        guard = log.setdefault("guard", {})
         if dropped and not a.allow_shrink:
             n_new, n_old = len(facts.get("meetings") or []), len(old.get("meetings") or [])
-            why = (f"the build has {n_new} meetings and would drop {len(dropped)} of the {n_old} in {p['facts'].name}, "
-                   f"e.g. {', '.join(dropped[:3])}; {p['facts'].name} and {p['wards'].name} were left unchanged. "
-                   f"A parser change that renames meeting ids also causes this; pass --allow-shrink to accept it")
-            log["failures"].append(failure("shrink", ShrinkRefused(why)))
-            print(f"collector city: SHRINK GUARD {why}", file=sys.stderr, flush=True)
+            guard.setdefault("kept_meetings", []).append({"meeting_ids": dropped, "reason": "meetings gone from the result"})
+            print(f"collector city: KEPT the build has {n_new} meetings and would drop {len(dropped)} of the {n_old} "
+                  f"in {p['facts'].name}, e.g. {', '.join(dropped[:3])}; {p['facts'].name} and {p['wards'].name} are "
+                  f"kept as committed", file=sys.stderr, flush=True)
         else:
             if dropped:
-                log.setdefault("allowed_shrink", []).append({"facts": p["facts"].name, "dropped": dropped})
+                guard.setdefault("allowed_shrink", []).append({"facts": p["facts"].name, "dropped": dropped})
             write_json(p["wards"], wards)
             write_json(p["facts"], facts)
         report["build"] = summary
         report["fetch"] = {k: v for k, v in log.items() if k != "fetch_log"}
+    report["guard"] = log.get("guard") or {}
     report["limits"] = limits.tripped(since)
     write_json(p["report"], {**report, "fetch_log": log.get("fetch_log", [])})
     print(json.dumps({k: v for k, v in report.items()}, indent=1, default=str)[:4000])
@@ -261,6 +294,10 @@ def main(argv: list[str]) -> int:
             print(f"collector city: G4 skew gate FAILED (exit {GATE_FAILED}): {', '.join(g['g4']['flagged'])}",
                   file=sys.stderr, flush=True)
             code = GATE_FAILED
+    if code == 0 and kept_anything(log):       # precedence 5 > 2 > 3 > 7 > 0 (ADR 0006)
+        print(f"collector city: KEPT (exit {KEPT}): committed rows or meetings kept, see guard in "
+              f"{p['report'].name}; everything else is published", file=sys.stderr, flush=True)
+        code = KEPT
     if code == BLOCKED:
         print(f"collector city: REFUSED by a host or by policy (exit {BLOCKED}); not retried. See the failures above.",
               file=sys.stderr, flush=True)

@@ -333,14 +333,15 @@ def test_no_untrusted_triggers_and_no_echoed_credentials(path):
 def test_a_hard_failure_never_reaches_main_and_the_exit_codes_are_documented():
     """A failed fetch never deletes data: on any hard exit code the Collect step fails, so the data artifact is not
     uploaded and the push job (which needs a successful update) never runs. Only the warnings pass: county 6
-    (partial), county 5 (RPC failed; its files are restored by the step, everything else publishes) and county 7
-    (the shrink guard kept county documents as committed; everything else publishes)."""
+    (partial), county 5 (RPC failed; its files are restored by the step, everything else publishes), county 7
+    (the shrink guard kept county documents as committed; everything else publishes) and city 7 (the city shrink
+    guard kept city rows or meetings: docs/adr/0006-daily-refresh-data-guards.md)."""
     steps = {s.get("name"): s for s in WF["jobs"]["update"]["steps"]}
     assert steps["Upload refreshed data"]["if"].startswith("success() && ")
     assert WF["jobs"]["push"]["needs"] == "update" and "always()" not in WF["jobs"]["push"]["if"]
     script = steps["Collect (polite fetch, parse, verify)"]["run"]
     cases = [(0, 0, 0), (0, 6, 0), (0, 5, 0), (0, 7, 0), (2, 0, 1), (5, 0, 1), (0, 2, 1), (0, 3, 1), (0, 4, 1),
-             (2, 5, 1), (5, 6, 1), (2, 7, 1)]
+             (2, 5, 1), (5, 6, 1), (2, 7, 1), (7, 0, 0), (7, 7, 0), (7, 5, 0), (7, 2, 1), (7, 3, 1)]
     for city, county, ok in cases:
         fake = script.replace("python -m collector city run; city=$?", f"city={city}").replace(
             'python -m collector run "${shrink[@]}"; county=$?', f"county={county}")
@@ -351,7 +352,8 @@ def test_a_hard_failure_never_reaches_main_and_the_exit_codes_are_documented():
     for phrase in ("**Hard failure**", "**Partial**", "county 6", "5 the RPC step failed",
                    "A failed fetch never deletes data", "at most 40 requests", "**RPC only**", "**RPC backlog**",
                    "repeats every day until someone acts", "python -m collector rpc fetch --limit 30",
-                   "**County meetings kept**", "county 7", "Daily update: county meetings kept", "allow_shrink"):
+                   "**County meetings kept**", "county 7", "Daily update: county meetings kept", "allow_shrink",
+                   "**City meetings kept**", "city 7", "Daily update: city meetings kept", "dropped_unminuted"):
         assert phrase in runbook, phrase
 
 

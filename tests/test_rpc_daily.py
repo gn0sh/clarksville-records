@@ -530,14 +530,15 @@ def test_run_rpc_shares_the_runs_fetcher(monkeypatch):
 
 # ------------------------------------------------------------------ the workflow's Collect step
 def test_workflow_collect_step_treats_only_the_rpc_codes_as_warnings():
-    """One source must not freeze the daily refresh: the RPC step's own codes (5 failed, 6 filling) are warnings;
-    every other county code and every city code still fails the step."""
+    """One source must not freeze the daily refresh: the RPC step's own codes (5 failed, 6 filling) and the city's
+    KEPT (7, ADR 0006) are warnings; every other county code and every other city code still fails the step."""
     text = (ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding="utf-8")
     step = text.split("- name: Collect (polite fetch, parse, verify)")[1].split("\n      - name:")[0]
     lines = [ln.strip() for ln in step.splitlines() if ln.strip() and not ln.strip().startswith("#")]
     assert 'python -m collector run "${shrink[@]}"; county=$?' in lines
     assert 'if [ "$county" = 6 ]; then' in lines and 'elif [ "$county" = 5 ]; then' in lines
     assert lines.count("rpc=failed; county=0") == 1 and lines.count("rpc=filling; county=0") == 1
+    assert 'if [ "$city" = 7 ]; then' in lines and lines.count("city_kept=yes; city=0") == 1
     assert lines[-1] == '[ "$city" = 0 ] && [ "$county" = 0 ]'       # city 2/5 and county 2/3/4 still fail
     assert not re.search(r"city\"? = [56]", step) and "cmcrpc.com" not in " ".join(lines)  # no fetch outside the collector
     assert f"at most {rpc.DAILY_FETCH_CAP} requests per run" in step
