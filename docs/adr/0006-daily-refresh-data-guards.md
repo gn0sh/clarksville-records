@@ -56,12 +56,16 @@ minutes source carries two meetings. So the county unit (one source document and
    `vote_content` from `collector/__main__.py` to `collector/shrink_guard.py` (re-exported, county tests unchanged)
    and run them in `city_run.main` (:233-246) on the city facts, guarding committed meetings whose source is a
    minutes source. City specifics: `superseded` = store-superseded shas plus the old sha of any meeting whose listing
-   row now names a different `minutes_url` (the listing replaced the file: correction); a kept meeting also takes back
+   row now names a different `minutes_url` (the listing replaced the file: correction), on both paths only when the
+   new file was read (`minutes_status` read; else the meeting is kept, 7, until it reads or `--allow-drop`:
+   `shrink/city-correction-on-unread-file`); a kept meeting also takes back
    its committed `agenda_source_id` source and its `wards.json` entries; gates (AC-P1, G4) recomputed on the merged
    facts. Write the merged facts and wards (never "write nothing"). Report `kept_meetings`, `corrections`. Tests:
    `test_city_missing_minutes_keeps_that_meeting_only` (store lacks one file: its records and wards byte-identical,
    another meeting's new data written, exit 7), `test_city_reposted_minutes_is_a_correction` (new url + sha: new
-   reading wins; 7 only if verified fell or votes changed), `test_city_kept_twice_is_byte_identical`,
+   reading wins; 7 only if verified fell or votes changed),
+   `test_city_reposted_minutes_not_read_keeps_the_committed_meeting` (not fetched, parse failed: kept, 7),
+   `test_city_kept_twice_is_byte_identical`,
    `test_city_kept_meeting_agenda_source_is_published`, `test_city_unit_holds_on_committed_facts`.
 3. **`shrink/city-allow-shrink-unscoped`.** Replace city `--allow-shrink` with `--allow-drop ID[,ID]` (meeting ids, or
    listing row keys, as printed in the kept entries); an id matching nothing exits 2 and writes nothing; each drop is
