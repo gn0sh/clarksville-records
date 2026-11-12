@@ -61,9 +61,10 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               video as <video_url>#t=<whole seconds>, the "Transcript" label and the notice; every call-on entry on a
               member page links a video time; video links (data-ext="video") go only to a meeting's video_url;
               transcript pages carry robots noindex and the privacy line linking report.html
-  transcripts/private-addresses  no transcript text (data-transcript) on any page shows a street address or phone
-              number, and no file of the build (pages, data/, search index) carries a committed transcript line that
-              holds one (privacy/transcript-private-addresses)
+  transcripts/private-addresses  no transcript text (data-transcript: transcript lines, call-on words and excerpts)
+              on any page shows a street address or phone number; every committed transcript line passes the same
+              rule (masked at rest); no file under data/ and not the search index carries any committed transcript
+              line at all (privacy/transcript-private-addresses); problems name the place, never the text
   current-holders  no seat says "Current member not yet recorded" (nor lists its member under Served previously)
               while the latest list names the member last printed in it: a council's latest attendance list, the
               county's confirmed roll calls of the latest meeting (city-seats/current-holder-matches-latest-attendance)
@@ -2285,20 +2286,93 @@ def private_details(text: str) -> list[str]:
     return out
 
 
+# Restated from collector/privacy.py ADDRESS_MASK / PHONE_MASK: only transcript text carries them
+PLACEHOLDERS = ("[address omitted; hear it in the video at this time]",
+                "[phone number omitted; hear it in the video at this time]")
+NEEDLE_MIN = 20       # committed transcript lines at least this long are looked for in data/ and the search index
+_JS_ESCAPE = re.compile(r'\\(u[0-9a-fA-F]{4}|["\\/bfnrt])')
+
+
+def _unescape_js(body: str) -> str:
+    """JSON / JS string escapes undone (\\u2019, \\", \\n ...), so a line written as a JSON string is found as text."""
+    def one(m):
+        e = m.group(1)
+        return chr(int(e[1:], 16)) if e[0] == "u" else {"b": "\b", "f": "\f", "n": "\n", "r": "\r", "t": "\t"}.get(e, e)
+    return _JS_ESCAPE.sub(one, body)
+
+
+def _source_text(transcript_dirs: list[Path]) -> str:
+    """Every string in the committed data outside the transcript folders (data/**/*.json), whitespace folded, one per
+    line: text the site has from a source document, so a transcript line equal to it (an item title read aloud) is not
+    transcript-only text."""
+    skip = {Path(d).resolve() for d in transcript_dirs if d}
+    out: list[str] = []
+
+    def walk(v):
+        if isinstance(v, str):
+            out.append(" ".join(v.split()))
+        elif isinstance(v, dict):
+            for x in v.values():
+                walk(x)
+        elif isinstance(v, list):
+            for x in v:
+                walk(x)
+    for f in sorted((ROOT / "data").rglob("*.json")):
+        if f.resolve().parent in skip:
+            continue
+        try:
+            walk(json.loads(f.read_text(encoding="utf-8")))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+    return "\n".join(out)
+
+
+def _lines_in(flat: str, by_head: dict[str, list[tuple[str, str]]]) -> list[str]:
+    """The ids of the needles (by their first NEEDLE_MIN characters) found in flat text, each starting at a word start."""
+    found = []
+    for i in range(len(flat) - NEEDLE_MIN + 1):
+        if i and flat[i - 1].isalnum():
+            continue
+        for needle, where in by_head.get(flat[i:i + NEEDLE_MIN], ()):
+            if flat.startswith(needle, i):
+                found.append(where)
+    return found
+
+
 def check_private_details(site: Path, cs: list[dict]) -> tuple[list[str], str]:
-    """privacy/transcript-private-addresses: (1) every data-transcript text on every page is free of street addresses
-    and phone numbers; (2) no file of the build carries, verbatim, a committed transcript line (data/localities/
-    <locality>/transcripts/*.json) that holds one: not a page, not data/ (the export), not the search index."""
-    problems, texts, needles = [], 0, set()
+    """privacy/transcript-private-addresses (docs/architecture/city-council.md, "Private details in transcript text"):
+    (a) every data-transcript text on every page (transcript lines and the call-on words and excerpts on member pages)
+    passes the restated rule: no street address or phone number; (b) every committed transcript segment
+    (data/localities/<locality>/transcripts/*.json) passes it, line by line and joined (masked at rest); (c) no file
+    under data/ and not static/search-index.js carries any committed transcript line (at least NEEDLE_MIN characters)
+    at all, and no placeholder: transcript text is shown only on transcript and member pages. The needles are the
+    committed, masked lines (safe to hold), less any line that is also a string of the committed source data (an item
+    title the clerk reads aloud is the item's own text, shown from the agenda). Problems name the file and line, never
+    the matched text."""
+    problems, texts, segs_checked = [], 0, 0
+    by_head: dict[str, list[tuple[str, str]]] = {}
     for c in cs:
         folder = c.get("transcripts_dir")
         for f in sorted(Path(folder).glob("*.json")) if folder else ():
             if f.name == "index.json":
                 continue
-            for seg in json.loads(f.read_text(encoding="utf-8")).get("segments") or []:
-                t = " ".join(str(seg[2]).split()) if isinstance(seg, list) and len(seg) == 3 else ""
-                if len(t) >= 20 and private_details(t):
-                    needles.add(t)
+            rel = f"{c.get('slug', '?')}/transcripts/{f.name}"
+            segs = json.loads(f.read_text(encoding="utf-8")).get("segments") or []
+            lines = [" ".join(str(seg[2]).split()) if isinstance(seg, list) and len(seg) == 3 else "" for seg in segs]
+            for i, t in enumerate(lines):
+                segs_checked += 1
+                if private_details(t):
+                    problems.append(f"{rel}#s{i}: committed transcript line holds {len(private_details(t))} address or "
+                                    "phone number matches (not masked at rest)")
+                if len(t) >= NEEDLE_MIN:
+                    by_head.setdefault(t[:NEEDLE_MIN], []).append((t, f"{rel}#s{i}"))
+            if lines and not any(private_details(t) for t in lines) and private_details(" ".join(lines)):
+                problems.append(f"{rel}: an address or phone number split over two committed lines (not masked at rest)")
+    shared = 0
+    if by_head:
+        also = set(_lines_in(_source_text([c.get("transcripts_dir") for c in cs]), by_head))
+        shared = len(also)
+        by_head = {h: kept for h, v in by_head.items() if (kept := [x for x in v if x[1] not in also])}
     files = 0
     for f in sorted(site.rglob("*")):
         if not f.is_file() or f.suffix.lower() not in (".html", ".js", ".json", ".csv", ".xml", ".txt", ".ics"):
@@ -2307,18 +2381,22 @@ def check_private_details(site: Path, cs: list[dict]) -> tuple[list[str], str]:
         rel = f.relative_to(site).as_posix()
         body = f.read_text(encoding="utf-8", errors="replace")
         if f.suffix.lower() == ".html":
-            for m in TRANSCRIPT_TEXT.finditer(body):
+            for k, m in enumerate(TRANSCRIPT_TEXT.finditer(body)):
                 texts += 1
                 seg = html.unescape(re.sub(r"^<[^>]*>|</[^>]*>$", "", m.group(0)))
-                for d in private_details(seg):
-                    problems.append(f"{rel}: transcript text shows {d!r}")
-        if needles:
-            flat = " ".join(html.unescape(body).split())
-            for n in needles:
-                if n in flat or json.dumps(n)[1:-1] in body:
-                    problems.append(f"{rel}: carries an unmasked transcript line: {n[:60]!r}")
-    return problems, (f"{texts} transcript texts on pages; {files} files checked for {len(needles)} committed "
-                      f"transcript lines that hold an address or phone number")
+                if (n := len(private_details(seg))):
+                    problems.append(f"{rel}: transcript text #{k} shows {n} address or phone number matches")
+        if rel.startswith("data/") or rel == "static/search-index.js":
+            flat = " ".join(html.unescape(_unescape_js(body)).split())
+            if (n := sum(flat.count(m) for m in PLACEHOLDERS)):
+                problems.append(f"{rel}: carries {n} transcript placeholders (transcript text outside the pages)")
+            hits = _lines_in(flat, by_head)
+            if hits:
+                problems.append(f"{rel}: carries {len(hits)} committed transcript lines ({', '.join(sorted(set(hits))[:5])})")
+    n_needles = sum(len(v) for v in by_head.values())
+    return problems, (f"{texts} transcript texts on pages; {segs_checked} committed transcript lines checked at rest; "
+                      f"{files} files, of them data/ and the search index checked for {n_needles} committed lines "
+                      f"({shared} more are also source text) and the placeholders")
 
 
 def check_transcripts(site: Path, cs: list[dict]) -> tuple[list[str], str]:

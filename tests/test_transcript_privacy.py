@@ -3,8 +3,10 @@
 Rules under test: street addresses and phone numbers are masked everywhere in transcript text before anything is
 shown or quoted (transcript pages, call-on excerpts on member pages); never ordinance numbers, dates, dollar amounts or
 resolution numbers; an address split over two lines is found; the line keeps its time link; transcript pages carry
-robots noindex and one plain line linking the site's Report an error page; qa.site_checks fails a build that shows an
-address in transcript text or carries a committed transcript line holding one in any file (pages, data/, search)."""
+robots noindex and one plain line linking the site's Report an error page; the import masks before it writes and
+`remask` re-masks committed JSON (idempotent); site load fails on a committed line that is not masked; qa.site_checks
+fails a build that shows an address in transcript text, holds a committed line that is not masked, or carries any
+committed transcript line in data/ or the search index. Every example is synthetic."""
 import json
 import re
 import shutil
@@ -112,6 +114,19 @@ def test_an_address_split_over_two_lines_is_masked_on_both_and_times_kept():
     assert out[1] == [12.5, 15.0, f"{A}, Clarksville, Tennessee."]
     assert out[2] is segs[2]
     assert privacy.mask_segments([[0, 1, "nothing here"]]) == ([[0, 1, "nothing here"]], [])
+
+
+def test_committed_transcripts_are_masked_at_rest():
+    """Every committed transcript segment is already masked: masking changes no line, and the site check's restated
+    rule finds nothing in any line or in the lines joined (privacy/transcript-private-addresses, decision (b))."""
+    files = sorted(TRANSCRIPTS.glob("2*.json"))
+    assert files
+    for f in files:
+        segs = json.loads(f.read_text(encoding="utf-8"))["segments"]
+        assert privacy.mask_segments(segs)[1] == [], f.name
+        assert privacy.spans(" ".join(s[2] for s in segs)) == [], f.name
+        assert not any(site_checks.private_details(s[2]) for s in segs), f.name
+        assert site_checks.private_details(" ".join(s[2] for s in segs)) == [], f.name
 
 
 def test_the_qa_rule_agrees_with_the_masker():
@@ -255,39 +270,87 @@ def test_call_on_excerpts_are_masked_too(site):
     assert "236 Fixture" not in smith and "I live at [address omitted; hear it in the video at this time] and" in smith
 
 
-def test_load_reports_the_masked_line_count(site):
+def test_load_fails_on_a_committed_line_that_is_not_masked(site, tmp_path):
     from sitegen.build import load_facts
     out, cs, mid, *_ = site
     folder = cs[0]["transcripts_dir"]
     t = tx.load(folder.parent / "facts.json", load_facts(folder.parent / "facts.json"))[mid]
     assert t["masked_segments"] == 0          # the import masked them: nothing left for load to change
+    # a committed transcript with a raw address (data not masked at rest): load raises, never quoting the text
+    d = tmp_path / "city"
+    shutil.copytree(folder.parent, d)
+    f = d / "transcripts" / f"{mid}.json"
+    body = json.loads(f.read_text(encoding="utf-8"))
+    body["segments"][-2][2] = "I live at 236 Fixture Court and"
+    f.write_text(json.dumps(body), encoding="utf-8")
+    with pytest.raises(tx.TranscriptLoadError) as exc:
+        tx.load(d / "facts.json", load_facts(d / "facts.json"))
+    assert "1 committed lines hold an address or phone number" in str(exc.value) and "remask" in str(exc.value)
+    assert "236" not in str(exc.value) and "Fixture" not in str(exc.value)     # build.py turns it into a BuildError
 
 
-@pytest.mark.xfail(strict=True, reason="the import now masks, so the old needles (unmasked committed lines) are gone; "
-                                       "the site check's at-rest needles come in the next commit (T5)")
+def _cs_with(cs, tmp_path, segments):
+    """cs with a synthetic committed transcripts folder holding one file of these segments."""
+    folder = tmp_path / "tx"
+    folder.mkdir()
+    (folder / "2026-01-01-regular.json").write_text(json.dumps({"segments": segments}), encoding="utf-8")
+    return [{**cs[0], "transcripts_dir": folder}]
+
+
 def test_site_check_passes_and_catches_a_leak(site, tmp_path):
     out, cs, mid, *_ = site
     problems, note = site_checks.check_private_details(out, cs)
-    assert problems == [] and "2 committed transcript lines" in note   # line 1 and line 2 (line 0 alone holds no address)
+    n_lines = len(json.loads((cs[0]["transcripts_dir"] / f"{mid}.json").read_text(encoding="utf-8"))["segments"])
+    assert problems == [] and f"{n_lines} committed transcript lines checked at rest" in note
     problems, _ = site_checks.check_transcripts(out, cs)
     assert problems == []
     copy = tmp_path / "site"
     shutil.copytree(out, copy)
-    # an unmasked address in a transcript line
+    # (a) an unmasked address in a transcript line, and in a call-on excerpt on a member page
     p = copy / "city" / "transcripts" / f"{mid}.html"
     body = p.read_text(encoding="utf-8")
     p.write_text(body.replace("Thank you. Pat Example. My address is [address omitted; hear it in the video at this time]",
                               "Thank you. Pat Example. My address is 418 Example Court", 1), encoding="utf-8")
+    member = copy / "city" / "members" / "city-wanda-smith.html"
+    mbody = member.read_text(encoding="utf-8")
+    assert "I live at [address omitted; hear it in the video at this time] and" in mbody
+    member.write_text(mbody.replace("I live at [address omitted; hear it in the video at this time] and",
+                                    "I live at 236 Fixture Court and"), encoding="utf-8")
     problems, _ = site_checks.check_private_details(copy, cs)
-    assert any("transcript text shows '418 Example Court'" in x for x in problems)
-    # a committed line copied into the export or the search index, outside any data-transcript text
+    assert any(x.startswith(f"city/transcripts/{mid}.html: transcript text #") for x in problems)
+    assert any(x.startswith("city/members/city-wanda-smith.html: transcript text #") for x in problems)
+    assert not any("418" in x or "Example Court" in x or "236" in x for x in problems)     # never the text
+    # (c) any committed transcript line (masked or not) copied into the export or the search index
     (copy / "data").mkdir(exist_ok=True)
-    (copy / "data" / "extra.json").write_text(json.dumps({"t": ADDRESS_LINES[2][2]}), encoding="utf-8")
+    masked = json.loads((cs[0]["transcripts_dir"] / f"{mid}.json").read_text(encoding="utf-8"))["segments"]
+    (copy / "data" / "extra.json").write_text(json.dumps({"t": "x " + masked[-1][2]}), encoding="utf-8")
     js = copy / "static" / "search-index.js"
-    js.write_text(js.read_text(encoding="utf-8") + "\n// " + ADDRESS_LINES[1][2], encoding="utf-8")
+    js.write_text(js.read_text(encoding="utf-8") + "\n// " + masked[-3][2], encoding="utf-8")
     problems, _ = site_checks.check_private_details(copy, cs)
-    assert any(x.startswith("data/extra.json: carries an unmasked transcript line") for x in problems)
-    assert any(x.startswith("static/search-index.js: carries an unmasked transcript line") for x in problems)
+    assert any(x.startswith("data/extra.json: carries 1 committed transcript lines") for x in problems)
+    assert any(x.startswith("static/search-index.js: carries 1 committed transcript lines") for x in problems)
+    assert "static/search-index.js: carries 2 transcript placeholders (transcript text outside the pages)" in problems
+    assert not any(x.startswith("data/extra.json: carries") and "placeholders" in x for x in problems)
+    assert not any("omitted" in x for x in problems)
+    # (b) a committed transcript that is not masked at rest: a raw line, and an address split over two lines
+    # a line that is also a string of the committed source data (an item title read aloud) is not a needle
+    title = json.loads((ROOT / "data" / "facts.json").read_text(encoding="utf-8"))["items"][0]["title"]
+    assert len(" ".join(title.split())) >= site_checks.NEEDLE_MIN
+    titled = _cs_with(cs, tmp_path, [[0, 1, " ".join(title.split())]])
+    (copy / "data" / "extra.json").write_text(json.dumps({"t": title}), encoding="utf-8")
+    js.write_text(js.read_text(encoding="utf-8").split("\n// ")[0], encoding="utf-8")
+    problems, note = site_checks.check_private_details(copy, titled)
+    assert not any(x.startswith("data/extra.json") for x in problems) and "(1 more are also source text)" in note
+    (tmp_path / "tx").rename(tmp_path / "tx0")
+    raw = _cs_with(cs, tmp_path, [[0, 1, "Thank you. I live at 236 Fixture Court and"], [1, 2, "nothing here at all"]])
+    problems, _ = site_checks.check_private_details(out, raw)
+    assert problems == ["city/transcripts/2026-01-01-regular.json#s0: committed transcript line holds 1 address or phone "
+                        "number matches (not masked at rest)"]
+    (tmp_path / "tx").rename(tmp_path / "tx1")
+    split = _cs_with(cs, tmp_path, [[0, 1, "Thank you. My address is 418"], [1, 2, "Example Court, Clarksville."]])
+    problems, _ = site_checks.check_private_details(out, split)
+    assert problems == ["city/transcripts/2026-01-01-regular.json: an address or phone number split over two committed "
+                        "lines (not masked at rest)"]
     # the noindex and the privacy line are required on every transcript page
     p.write_text(body.replace('<meta name="robots" content="noindex">', "").replace('class="privacy-note"', 'class="x"'),
                  encoding="utf-8")

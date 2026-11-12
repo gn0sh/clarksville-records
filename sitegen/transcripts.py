@@ -2,11 +2,12 @@
 
 Rules:
 - Every transcript line is shown as the speech-recognition software wrote it, except that street addresses and phone
-  numbers are replaced by a placeholder that sends the reader to the video at that time (collector/privacy.py, done in
-  load, so no copy of the text anywhere on the site carries them), labelled "Transcript", with its time
+  numbers are replaced by a placeholder that sends the reader to the video at that time (collector/privacy.py, done at
+  import so the committed text is masked at rest, and checked again in load, which fails the build on a committed line
+  it would change, so no copy of the text anywhere on the site carries them), labelled "Transcript", with its time
   linked to that moment of the meeting's own video (`<video_url>#t=<whole seconds>`) when that video_url is an https
-  .mp4 on a host in config.VIDEO_HOSTS with no "#" in it (video_ok); otherwise the times are text only, no links. Nothing is summarised,
-  reworded or corrected; the page says the video is the record.
+  .mp4 on a host in config.VIDEO_HOSTS with no "#" in it (video_ok); otherwise the times are text only, no links.
+  Nothing is summarised, reworded or corrected; the page says the video is the record.
 - Who speaks is never read from the voice. A "call-on" is found only in the transcript TEXT, under the call-on
   invariant (docs/architecture/city-council.md): a member's title and surname followed, in the same clause (only
   spaces and commas between), by "you're recognized" / "you are recognized" (or Whisper's "you recognized") that ends
@@ -106,8 +107,10 @@ def clock(seconds: float) -> str:
 def load(facts_path: Path, facts: dict) -> dict[str, dict]:
     """{meeting id: transcript} from <facts folder>/transcripts/index.json (none: {}). Every transcript must name a
     meeting of these facts and carry exactly that meeting's video_url; its segments [start, end, text], returned with
-    addresses and phone numbers masked (privacy.mask_segments; `masked_segments`: how many lines changed). (Whether
-    its times link to the video is video_ok's rule.)"""
+    addresses and phone numbers masked (privacy.mask_segments, defence in depth). The committed text is masked at rest
+    (the import and `collector transcripts remask` write it masked), so masking must change no line: a committed line
+    it would change raises TranscriptLoadError (naming the file and the line numbers, never the text), and the build
+    fails. `masked_segments` is therefore always 0. (Whether its times link to the video is video_ok's rule.)"""
     folder = Path(facts_path).parent / FOLDER
     index_path = folder / "index.json"
     if not index_path.is_file():
@@ -127,6 +130,11 @@ def load(facts_path: Path, facts: dict) -> dict[str, dict]:
                     and isinstance(s[2], str)):
                 raise TranscriptLoadError(f"{folder / entry['file']}: malformed segment {s!r:.80}")
         segments, masked = privacy.mask_segments(t["segments"])
+        if masked:
+            raise TranscriptLoadError(
+                f"{folder / entry['file']}: {len(masked)} committed lines hold an address or phone number (lines "
+                f"{', '.join(str(i) for i in masked[:10])}{' ...' if len(masked) > 10 else ''}); the data is not masked "
+                "at rest: run `python -m collector transcripts remask` (privacy/transcript-private-addresses)")
         out[mid] = {**t, "segments": segments, "masked_segments": len(masked)}
     return out
 
