@@ -226,7 +226,20 @@ def holder_rows(wards: list[dict], facts: dict, cfg: dict) -> tuple[list[dict], 
                 x is not r and x["start"] > prev and (x["seat"] == r["seat"] or x["official_id"] == r["official_id"])
                 for x in rows):
             r["end"], r["held_over"], r["unplaced"] = None, True, unplaced
+    printings(rows, wards, facts)
     return rows, latest
+
+
+def printings(rows: list[dict], wards: list[dict], facts: dict) -> None:
+    """Each record's `printings`: the attendance listings inside it that the build read through a configured printing
+    correction (wards.json `reads`; city_build.printing_corrections), so the seat's wording says what the list
+    prints (city-seats/printed-misspelling-of-seated-member): [{"printed", "reads", "date", "source_id", "page"}]."""
+    for r in rows:
+        r["printings"] = [{"printed": w["raw_name"], "reads": w["reads"], "date": w["date"],
+                           "source_id": w["source_id"], "page": w["page"]}
+                          for w in sorted(wards, key=lambda w: (w["date"], w["page"]))
+                          if w.get("reads") and r["official_id"] and w.get("official_id") == r["official_id"]
+                          and r["start"] <= w["date"] <= (r["seen_to"] or r["start"])]
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -325,7 +338,13 @@ def seat_list(cix: CouncilIndex) -> list[dict]:
                     "text": cix.seats.held_over_text(held),
                     "cites": [cix.src(*k) for k in dict.fromkeys((u["source_id"], u["page"])
                                                                    for u in held.get("unplaced") or [])]}
-        out.append({"seat": seat, "label": seat_label(seat), "holder": holder, "note": note})
+        # the holder is shown from a list that prints the name otherwise (a configured printing correction): one plain
+        # line saying what that list prints, linked to its page
+        printed = None
+        if holder is not None and cix.seats.printings_at_latest(rec):
+            printed = {"text": cix.seats.printings_text(rec, latest_only=True),
+                       "cites": [cix.src(p["source_id"], p["page"]) for p in cix.seats.printings_at_latest(rec)]}
+        out.append({"seat": seat, "label": seat_label(seat), "holder": holder, "note": note, "printed": printed})
     return out
 
 

@@ -190,6 +190,15 @@ def basis_text(rec: dict, latest: str, wording: dict | None = None) -> str:
     return f"Current: in the {rec.get('evidence') or w['evidence']} of {w['latest']}, {latest}"
 
 
+def _by_date(printings: list[dict]) -> list[tuple[str, list[str]]]:
+    out: dict[str, list[str]] = {}
+    for p in printings:
+        out.setdefault(p["date"], [])
+        if p["printed"] not in out[p["date"]]:
+            out[p["date"]].append(p["printed"])
+    return sorted(out.items())
+
+
 class Seats:
     """Holder records over one facts index. `loaded` is False when there is no roster file.
 
@@ -255,13 +264,29 @@ class Seats:
             to = f"{rec['seen_to']}; {self._at_latest(rec, ', ' + self.wording['latest'])}"
             if not rec.get("printed_to"):
                 return f"seen in {ev} from {rec['start']} to {to}"
+        # a listing read through a configured printing correction: say what the list prints (council.printings)
+        printed = f"; {self.printings_text(rec)}" if rec.get("printings") else ""
         if rec.get("printed_to"):
             # carried on by name only (council.extend_by_listings): what printed the seat, then the name-only lists
             seen = rec.get("seen_evidence") or ev
-            return f"seen in {seen} from {rec['start']} to {rec['printed_to']}; {LISTED_WORDS} {ev} to {to}"
+            return f"seen in {seen} from {rec['start']} to {rec['printed_to']}; {LISTED_WORDS} {ev} to {to}{printed}"
         if rec["end"] is None:
-            return f"seen in {ev} from {rec['start']} to {to}"
-        return f"seen in {ev} {rec['start']} to {rec['end']}"
+            return f"seen in {ev} from {rec['start']} to {to}{printed}"
+        return f"seen in {ev} {rec['start']} to {rec['end']}{printed}"
+
+    def printings_at_latest(self, rec: dict | None) -> list[dict]:
+        """The printings (council.printings) of the list a current record is last seen at."""
+        if not rec:
+            return []
+        return [p for p in rec.get("printings") or [] if p["date"] == rec.get("seen_to")]
+
+    def printings_text(self, rec: dict, latest_only: bool = False) -> str:
+        """'the attendance lists of 2026-07-06 print the name as "CLAULNCH"': plain and factual, the token as printed
+        (city-seats/printed-misspelling-of-seated-member)."""
+        ps = self.printings_at_latest(rec) if latest_only else rec.get("printings") or []
+        ev = self.wording["evidence"]
+        return "; ".join(f"the {ev} of {d} print the name as " + ", ".join(f'"{t}"' for t in toks)
+                         for d, toks in _by_date(ps))
 
     def basis(self, rec: dict) -> str:
         return basis_text(rec, self.latest, self.wording)

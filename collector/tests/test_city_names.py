@@ -96,10 +96,13 @@ def assert_name_invariant(cfg, facts: dict, texts: dict) -> None:
             if presiding["ok"]:
                 roster.add(official_id(off.canonical(pm.presiding)))
         pairs = [(oid, names[oid]) for oid in sorted(roster)]
+        # a configured printing correction applied here: its token is read as the surname the check names
+        reads = dict(re.findall(r"^(\S+) \(PRESENT, p\. \d+\) read as (\S+?):", c.get("detail", ""))[0]
+                     for c in m["verification"]["checks"] if c["check"] == "printing_correction" and c["ok"])
         for a in m["attendance"]:
             if a["official_id"] and not NAME_RE.match(a["raw_name"]):          # read from a surname, or N9
                 name = names[a["official_id"]]
-                assert name.split()[-1].lower() == a["raw_name"].lower() or \
+                assert name.split()[-1].lower() == reads.get(a["raw_name"], a["raw_name"]).lower() or \
                     break_free(a["raw_name"]) in (break_free(name), break_free(name_parts(name)[1])), (m["id"], a)
         for c in m["verification"]["checks"]:
             if c["check"] == "surnames_resolve":

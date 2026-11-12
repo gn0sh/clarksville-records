@@ -462,6 +462,36 @@ def test_a_held_over_note_says_not_named_only_when_the_list_leaves_the_member_ou
     assert [(c["url"], c["page"]) for c in row["note"]["cites"]] == [("https://example.gov/m.pdf#page=2", 2)]
 
 
+def test_a_list_read_through_a_printing_correction_says_what_it_prints():
+    """city-seats/printed-misspelling-of-seated-member: b's last listing is read through a configured printing
+    correction (wards.json `reads`, raw_name as printed). b is current from that list, and every wording of the
+    record, and the council home's seat line, says plainly what the list prints, linked to its page."""
+    wards = [_w("2020-01-01", "a", 1), _w("2020-02-01", "a", 1), _w("2020-01-01", "b", 2), _w("2020-02-01", "b", 2),
+             _w("2020-03-01", "a", None), _w("2020-03-01", "b", None),
+             {**_w("2020-04-01", "b", None), "raw_name": "QQB", "reads": "B"}, _w("2020-04-01", "a", None)]
+    facts = {**_facts("a", "b"), "items": [], "item_events": [], "motions": [], "corrections": [],
+             "officials": [{"id": i, "title": "Member", "name": f"{i.upper()} Example"} for i in ("a", "b")],
+             "coverage": {"body": CFG["body_name"], "from": "2020-01-01", "to": "2020-04-01"},
+             "sources": [{"id": "s1", "url": "https://example.gov/m.pdf", "kind": "minutes", "fetched_at": "2020-04-02",
+                          "meeting_date": "2020-04-01", "pages": 1}]}
+    rows, latest = council.holder_rows(wards, facts, CFG)
+    b = next(r for r in rows if r["official_id"] == "b")
+    assert b["end"] is None and not b["held_over"]
+    assert b["printings"] == [{"printed": "QQB", "reads": "B", "date": "2020-04-01", "source_id": "s1", "page": 1}]
+    assert next(r for r in rows if r["official_id"] == "a")["printings"] == []
+    s = _seats(rows, latest)
+    text = s.dates_text(next(r for r in s.records if r["official_id"] == "b"))
+    assert text == ("seen in attendance lists from 2020-01-01 to 2020-02-01; listed by name in attendance lists to "
+                    '2020-04-01, the latest minutes read; the attendance lists of 2020-04-01 print the name as "QQB"')
+    assert site_checks.dates_worded(text) == []
+    cix = council.load({**CFG}, facts, wards)
+    row = next(x for x in council.seat_list(cix) if x["seat"] == "ward-2")
+    assert row["holder"]["href"] == cix.official_href("b") and row["note"] is None
+    assert row["printed"]["text"] == 'the attendance lists of 2020-04-01 print the name as "QQB"'
+    assert [(c["url"], c["page"]) for c in row["printed"]["cites"]] == [("https://example.gov/m.pdf#page=1", 1)]
+    assert next(x for x in council.seat_list(cix) if x["seat"] == "ward-1")["printed"] is None
+
+
 def test_l_comes_from_the_attendance_lists_not_a_later_roll_call():
     """Nit 6: a confirmed mayor roll call at a meeting with no attendance list must not become L and close the
     wards (the original bug's shape)."""
