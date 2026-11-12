@@ -462,8 +462,36 @@ def test_the_committed_general_listing_lists_exactly_the_d1_rows(cfg, acfg):
             assert e["asked"]
             listed[e["id"]] = (e["date"], e["name"], p["page1"])
     rows = json.loads((ROOT / "data" / "localities" / "clarksville-tn" / "civicclerk-listing.json").read_text())
+    assert_d1_rows_match(rows, doc, also, listed)
+
+
+def assert_d1_rows_match(rows, doc, also, listed):
+    """pipeline/tests-pin-live-data: the committed listing grows with every daily update, so only its rows of the
+    events the 2026-11-11 listing had are compared with it; a row added since must still be one the configured
+    patterns ask for, with their page-1 heading."""
     d1 = {r["event_id"]: (r["date"], r["title"], r["page1_required"]) for r in rows if r.get("page1_required")}
-    assert listed == d1 and len(d1) == 20
+    known = {e["id"] for e in doc["events"]}
+    assert listed == {k: v for k, v in d1.items() if k in known} and len(listed) == 20
+    for k, (_, title, page1) in d1.items():
+        if k not in known:
+            p = cc.also_pattern(title, also)
+            assert p and p["page1"] == page1, (k, title)
+
+
+def test_a_d1_row_listed_after_the_research_listing_keeps_the_committed_listing_test_green(cfg, acfg):
+    """pipeline/tests-pin-live-data: the next General special session the daily update lists must not fail the test
+    of the committed listing (the daily update runs the suite before it commits); a row the patterns would not ask for
+    still fails it."""
+    from conftest import ROOT
+    doc = json.loads((ROOT / "docs" / "research" / "civicclerk-general-listing-2026-11-11.json").read_text())
+    [also] = cfg.also_list
+    rows = json.loads((ROOT / "data" / "localities" / "clarksville-tn" / "civicclerk-listing.json").read_text())
+    listed = {r["event_id"]: (r["date"], r["title"], r["page1_required"]) for r in rows if r.get("page1_required")}
+    new = next(r for r in rows if r.get("page1_required"))
+    grown = rows + [{**new, "event_id": 999999, "date": "2099-01-07"}]
+    assert_d1_rows_match(grown, doc, also, listed)
+    with pytest.raises(AssertionError):
+        assert_d1_rows_match(rows + [{**new, "event_id": 999998, "title": "Budget Retreat"}], doc, also, listed)
 
 
 def test_the_also_listing_keeps_only_its_category_and_event_name_and_marks_each_row(cfg, acfg):
