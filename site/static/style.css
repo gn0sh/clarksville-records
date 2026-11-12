@@ -1196,3 +1196,67 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 .site-footer .unofficial-notice .unofficial-h { display: inline; margin-right: 6px; }
 .site-footer .unofficial-notice .unofficial-h + p { display: inline; }
 
+
+/* ==== "Show records from": the body switch under the header, hub cards, the home overview ======================
+   sitegen/bodies.py, static/switch.js. Wide: a segmented pill group, the chosen option navy with an orange bar
+   under it. Phone: one row of 44px chips that scrolls sideways inside its own box (the page never does). */
+.body-switch { background: var(--surface); border-bottom: 1px solid var(--border); }
+.bs-in { max-width: var(--measure); margin: 0 auto; padding: 8px var(--gutter); display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.bs-label { margin: 0; font-size: var(--t-sm); font-weight: 600; color: var(--muted); white-space: nowrap; }
+.bs-list { list-style: none; margin: 0; padding: 0; display: flex; min-width: 0; max-width: 100%; overflow-x: auto; border: 1px solid var(--mark-soft); border-radius: 999px; background: var(--surface); scrollbar-width: thin; }
+.bs-list li { flex: none; display: flex; }
+.bs-list li + li { border-left: 1px solid var(--border); }
+.bs-list a, .bs-list a:visited { position: relative; display: flex; align-items: center; gap: 6px; box-sizing: border-box; min-height: 40px; padding: 3px 16px 0; border-bottom: 3px solid transparent; color: var(--fg); font-size: var(--t-sm); font-weight: 600; text-decoration: none; white-space: nowrap; }
+.bs-list a:hover { background: var(--surface-2); text-decoration: underline; text-underline-offset: 3px; }
+.bs-list a:focus-visible { outline: 3px solid var(--focus); outline-offset: -3px; border-radius: 999px; }
+.bs-list a[aria-current], .bs-list a[aria-current]:visited { background: var(--blue); color: var(--on-blue); border-bottom-color: var(--sun); }
+.bs-list a[aria-current]:hover { background: var(--blue-hover); }
+.bs-list a[aria-current]:focus-visible { outline-color: var(--on-blue); box-shadow: inset 0 0 0 6px var(--blue); }
+.bs-list .chip-coming { font-size: var(--t-xs); line-height: 1.3; padding: 0 6px; }
+.bs-list a[aria-current] .chip-coming { color: var(--on-blue); border-color: var(--on-blue); }
+.bs-short { display: none; }
+@media (max-width: 699px) {
+  .bs-in { padding: 6px var(--gutter) 8px; gap: 4px; }
+  .bs-label { flex: 0 0 100%; font-size: var(--t-xs); }
+  .bs-list { flex: 0 0 100%; gap: 8px; padding: 2px 0 4px; border: 0; border-radius: 0; background: transparent; }
+  .bs-list li + li { border-left: 0; }
+  .bs-list a, .bs-list a:visited { min-height: 44px; padding: 3px 14px 0; border: 1px solid var(--mark-soft); border-radius: 999px; background: var(--surface); }
+  .bs-list a[aria-current], .bs-list a[aria-current]:visited { border-color: var(--blue); border-bottom: 3px solid var(--sun); background: var(--blue); }
+  .bs-long { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .bs-short { display: inline; }
+}
+/* rows of another body: hidden by a class, never removed, and never by the `hidden` attribute other scripts use */
+.bs-off { display: none !important; }
+.bs-none { display: none; }
+.bs-all-off > .bs-none { display: block; }
+.bs-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 12px 0; padding: 8px 12px; border-left: 3px solid var(--sun); background: var(--surface); font-size: var(--t-sm); }
+.bs-line strong { font-weight: 600; }
+.bs-line button { min-height: 32px; padding: 2px 12px; border: 1px solid var(--blue); border-radius: 999px; background: var(--blue); color: var(--on-blue); font: inherit; font-weight: 600; cursor: pointer; }
+.bs-line button:hover { background: var(--blue-hover); text-decoration: underline; }
+.bs-line button:focus-visible, .bs-line a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+@media (pointer: coarse) { .bs-line button { min-height: 44px; } .bs-line a { display: inline-flex; align-items: center; min-height: 44px; } }
+
+.hub-kicker { margin: 0 0 4px; font-family: var(--font-mono); font-size: var(--t-xs); font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.hub-kicker + h1 { margin-top: 0; }
+.hub { margin: 20px 0 24px; }
+.hub-cards, .bodies-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr)); gap: 12px; }
+.bodies-list { grid-template-columns: repeat(auto-fill, minmax(min(13rem, 100%), 1fr)); }
+.hub-card, .bodies-card { display: flex; flex-direction: column; min-width: 0; padding: 14px; background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--mark); border-radius: var(--radius-lg); }
+.hub-card.is-coming { border: 2px dashed var(--mark-soft); background: transparent; }
+.hub-card h3, .hub-card h4, .bodies-card h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0 0 4px; padding: 0; border: 0; font-size: var(--t-lg); line-height: 1.2; }
+.hub-card p, .bodies-card p { margin: 0 0 8px; font-size: var(--t-sm); color: var(--muted); overflow-wrap: anywhere; }
+.hub-card p:first-of-type { flex: 1 1 auto; }
+.hub-card .hub-go { margin: 0; color: var(--fg); }
+.hub-go a { font-weight: 600; }
+.hub-go a:not([data-ext]) { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; border-top: 1px solid var(--border); text-decoration: none; }
+.hub-go a:not([data-ext]) span:first-child { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.hub-go a:not([data-ext]):hover span:first-child { text-decoration-thickness: 2px; }
+.hub-go .go { font-family: var(--font-head); font-weight: 800; font-size: 1.2rem; line-height: 1; }
+.hub-go a[data-ext] { display: inline-block; padding: 6px 0; }
+.hub-note { margin-top: 12px; }
+.bodies { margin: 28px 0 0; }
+.bodies-card p:last-child { margin-bottom: 0; }
+.bodies-card h3 a { display: inline-flex; align-items: center; min-height: 32px; }
+.bodies-k { font-weight: 600; color: var(--fg); }
+.body-note { margin: 0 0 12px; border-left-color: var(--sun); }
+@media (pointer: coarse) { .bodies-card h3 a { min-height: 44px; } .hub-go a[data-ext] { padding: 12px 0; } }

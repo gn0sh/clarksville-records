@@ -395,8 +395,16 @@ def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), 
 def site_context(facts, contracts: bool = False, budget: tuple = (), councils=(), rpc=None) -> dict:
     """`contracts`: finance.json is loaded, so the nav lists Bids and awards (design finance-contracts 1).
     `budget`: the budget pages built (see _nav). `councils`: the council.CouncilIndex of each council built."""
+    from . import bodies   # here, not at the top: bodies reads https_url from this module
     ix = _ix(facts)
     cfg = config.SITE
+    ctx = _site_context(ix, cfg, contracts, budget, councils, rpc)
+    # "Show records from" (sitegen/bodies.py): the switch on every page and each body's hub cards
+    ctx["switch"] = bodies.build(ctx, councils, rpc)
+    return ctx
+
+
+def _site_context(ix: "Index", cfg: dict, contracts: bool, budget: tuple, councils, rpc) -> dict:
     return {
         "cfg": cfg,
         "csp": csp(),

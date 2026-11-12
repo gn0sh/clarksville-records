@@ -14,6 +14,7 @@ import jinja2
 from markupsafe import Markup
 from jsonschema import Draft202012Validator, FormatChecker
 
+from . import bodies as bodies_mod
 from . import county_agendas as agendas_mod
 from . import rpc as rpc_mod
 from . import freshness as fresh_mod
@@ -493,6 +494,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     _clean(out, [c.slug for c in cixs] + ([rpx.slug] if rpx else []), export=export)
     site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs, rpc=rpx)
     site["internal"] = internal
+    # "Show records from" (views.site_context, sitegen/bodies.py): which page is each option's own, and the hub cards
+    switch_current = (site["switch"] or {}).get("current") or {}
+    hubs = (site["switch"] or {}).get("hubs") or {}
     # the footer's "Data as of": the latest fetch day of every file the site shows (county minutes, each council, the
     # RPC, the county agendas, finance), so no page reads as stale while a source is fresh (dates/footer-as-of-county-only)
     site["data_as_of"] = localdates.latest(
@@ -513,7 +517,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     def html_of(template: str, rel: str, page_name: str, site_ctx=None, **ctx) -> str:
         depth = rel.count("/")
         return env.get_template(template).render(
-            site=site_ctx or site, root="../" * depth, page_name=page_name,
+            site=site_ctx or site, root="../" * depth, page_name=page_name, body_current=switch_current.get(rel, ""),
             report_page=template in REPORT_TEMPLATES,
             official_record=views.official_record(template, site_ctx or site, ctx), **ctx)
 
@@ -609,6 +613,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
 
     feed_rows = feeds_mod.feed_list(cixs, rpc=rpx, fin=fin_data, target=target) if site["alerts"] else []
     body_feeds = [f for f in feed_rows if f["kind"] == "body"]   # autodiscovery on the home pages (plan F6)
+    if "county" in hubs:   # the county's hub page (the city's and the RPC's hubs are their own home pages)
+        render("hub.html.j2", hubs["county"]["href"], hubs["county"]["title"], hub=hubs["county"])
     render("officials.html.j2", "officials.html", "Officials", **views.officials_page(ix))
     render("meetings_index.html.j2", "meetings.html", "Meetings", **views.meetings_page(ix),
            watch=watch_mod.body(config.SITE["county_key"]),
@@ -623,7 +629,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         render("votes_year.html.j2", f"votes/{year}.html", f"Votes {year}", **views.votes_year(year, ix))
     for sb in [e["school"] for e in site["nav"] if e.get("school")]:   # the school board's "coming" page (views._nav)
         pg = {**sb["page"], "link": {"url": sb["url"], "label": sb.get("link_label") or sb["label"], "kind": "school"}}
-        render("coming.html.j2", f"{pg['slug']}.html", pg["title"], page=pg)
+        render("coming.html.j2", f"{pg['slug']}.html", pg["title"], page=pg, hub=hubs.get("school"))
     for cm in [e["committees"] for e in site["nav"] if e.get("committees")]:   # the committees' "coming" page
         pg = {**cm["page"], "links": [{**x, "kind": "committee"} for x in cm["links"]]}
         render("coming.html.j2", f"{pg['slug']}.html", pg["title"], page=pg)
@@ -644,7 +650,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         render("glossary.html.j2", "glossary.html", "Glossary", **fin_views.glossary())
     if bg is not None:
         title = config.FIN_TEXT["budget"]["title"]
-        render("fin_index.html.j2", budget_views.INDEX, title, **budget_views.finance_index(bg, export=export))
+        render("fin_index.html.j2", budget_views.INDEX, title, **budget_views.finance_index(bg, export=export),
+               body_note=bodies_mod.finance_note(rpx))
         # Fund and capital pages over config.PAGE_BYTES are split in parts by heading (finance-pages/page-weight):
         # every fund is planned first, so each line's row has its part before any page links to it.
         split = []
@@ -693,6 +700,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         cs = council_mod.site_for(site, c)
         render("council_home.html.j2", c.home_href(), c.page_name(), cs, council=c.nav_label,
                council_href=c.home_href(), **council_mod.home(c),
+               hub=hubs.get("city") if hubs.get("city", {}).get("href") == c.home_href() else None,
                home_feeds=[f for f in body_feeds if f["key"] == c.body_key], watch=watch_mod.body(c.body_key))
         for o in c.facts["officials"]:
             ctx = council_mod.member(o["id"], c)
@@ -721,7 +729,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                 render("official_year.html.j2", rel, name, s, **kw)
     if rpx is not None:   # Regional Planning Commission (sitegen/rpc.py): home and one page per year of meetings
         rsite = rpx.site_for(site)
-        render("rpc_home.html.j2", rpx.home_href(), rpx.page_name(), rsite, **rpx.home(),
+        render("rpc_home.html.j2", rpx.home_href(), rpx.page_name(), rsite, **rpx.home(), hub=hubs.get("rpc"),
                watch=watch_mod.body(rpx.body_key), freshness=[x for x in [fresh_mod.rpc(rpx)] if x],
                freshness_note=fresh_mod.NOTE)
         for y in rpx.years():

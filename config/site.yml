@@ -313,6 +313,86 @@ committees:
     planned: ["City Finance Committee agendas and minutes", "City Audit Committee agendas and minutes", "County Budget Committee agendas"]
     link_lede: "Until then, the official sources are:"
 
+# The "Show records from" switch (sitegen/bodies.py, static/switch.js; owner's mock 2026-11-12): on every page under
+# the header, All plus one option per body whose hub page the build makes. Every word of the switch, the hub cards and
+# the Finance page's top line is here. A card without `coming` is shown only when the build makes the page it links
+# (sitegen/bodies.py _hrefs). A `coming` card is dashed and links the body's own official page: `link.from` is a
+# dotted path into this file (or `rpc`, the RPC's record page in rpc.yml), so no URL is written twice and none is
+# invented. Where no budget or committee page of a body is known, the link is that body's home page and says so.
+switch:
+  label: Show records from
+  all: {label: All}
+  overview:
+    heading: Public bodies on this site
+    lede: "Each body keeps its own records. Choose one to see only its records."
+    present: "On this site:"
+    coming: "Coming:"
+  finance_note:
+    text: "County budget only so far. City and school board budgets are coming."
+    link_lede: "Until then, the official sites are:"
+    links:
+      - {from: unofficial.bodies.0, label: City of Clarksville website, kind: body}
+      - {from: school_board, kind: school}
+  bodies:
+    county:
+      label: Montgomery County
+      slug: montgomery-county
+      kicker: County government
+      title: Montgomery County
+      lede: "Records of the Montgomery County Commission, each linked to the county's own document."
+      about: The Montgomery County Commission.
+      cards:
+        - {key: meetings, title: Meetings, text: "County Commission meetings, with attendance, motions and roll calls."}
+        - {key: votes, title: Votes, text: "Every roll call by year, linked to its page of the minutes."}
+        - {key: finance, title: Finance, text: "The county budget books, fund by fund."}
+        - {key: bids, title: Bids and awards, text: "Solicitations and awards listed in the county purchasing archive."}
+        - {key: capital, title: Capital projects, text: "Capital projects in the county budget books."}
+        - key: budget-committee
+          title: County Budget Committee
+          coming: true
+          text: "Budget Committee agendas are not collected yet, so none are shown."
+          link: {from: committees.links.1, kind: committee}
+    city:
+      label: Clarksville
+      kicker: City government
+      about: The Clarksville City Council.
+      cards:
+        - {key: meetings, title: Meetings, go: Meetings by year, text: "City Council meetings by year, with attendance, motions and roll calls."}
+        - {key: votes, title: Votes, go: Votes by member, text: "Each council member's recorded votes."}
+        - {key: transcripts, title: Transcripts, go: Latest meetings, text: "Transcripts of council meetings, linked from each meeting that has one."}
+        - key: finance
+          title: Finance
+          coming: true
+          text: "City budget books and the property-tax split are not collected yet, so none are shown."
+          link: {from: unofficial.bodies.0, label: City of Clarksville website, kind: body}
+        - key: committees
+          title: Finance and Audit committees
+          coming: true
+          text: "Finance Committee and Audit Committee agendas and minutes are not collected yet, so none are shown."
+          link: {from: committees.links.0, kind: committee}
+    school:
+      label: School board
+      kicker: Clarksville-Montgomery County School System (CMCSS)
+      about: The Clarksville-Montgomery County School System (CMCSS) board.
+      cards:
+        - {key: meetings, title: Meetings, coming: true, text: "Board meeting agendas and minutes are not collected yet, so none are shown.", link: {from: school_board, kind: school}}
+        - {key: votes, title: Votes, coming: true, text: "Recorded votes of the board are not collected yet, so none are shown.", link: {from: school_board, kind: school}}
+        - {key: budget, title: Budget, coming: true, text: "The school system budget is not collected yet, so none is shown.", link: {from: school_board, kind: school}}
+    rpc:
+      label: Planning (RPC)
+      short: RPC
+      kicker: Regional Planning Commission
+      about: The Clarksville-Montgomery County Regional Planning Commission.
+      note: "The Regional Planning Commission is funded through the city and county budgets, so it has no budget page here."
+      cards:
+        - {key: meetings, title: Meetings, text: "Meetings, agendas and minutes listed on the commission's own page."}
+        - {key: cases, title: Rezoning cases, text: "Case items on each meeting's agenda, as the agenda prints them."}
+        - key: votes
+          title: Votes
+          coming: true
+          text: "Votes return after the minutes reader passes a fresh check. Until then each motion links its page of the minutes."
+          link: {from: rpc, kind: record}
+
 # "Coming" pages (design 6). No numbers, no sample charts, no example values.
 coming:
   - slug: finance
