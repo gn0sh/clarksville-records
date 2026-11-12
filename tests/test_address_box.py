@@ -346,6 +346,8 @@ def test_address_box_in_a_browser(real_site, tmp_path):
             for key in ("h1Bottom", "introBottom", "inputBottom", "findBottom"):
                 assert 0 < m[key] <= m["innerHeight"], (vp, key, m)
     assert set(out["fit"]) == {"375x667", "1280x800", "375x667 answered", "1280x800 answered"}
+    rv = out["revealed"]     # 320x568, right after the lookup: the whole answer is in view (address.js reveal())
+    assert rv["innerHeight"] == 568 and 0 <= rv["resultTop"] < rv["resultBottom"] <= rv["innerHeight"], rv
     c = out["cases"]
     census = "The Census places this address in "
     both = census + "District 5 and Ward 6."                 # the combined lookup: the real map holds the wards
