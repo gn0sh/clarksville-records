@@ -250,3 +250,20 @@ def test_council_seat_note_and_cite_links_stay_inline_and_underlined():
     for part in re.split(r'(?=<span class="d-(?:label|holder|printed|note))', li):
         if "<a " in part:
             assert part.startswith(('<span class="d-holder', '<span class="d-printed', '<span class="d-note')), part[:60]
+
+
+def test_council_seat_printed_line_and_note_sit_on_their_own_line_without_a_leading_colon():
+    """layout/council-seat-note-wrap: the printed-name line and the note always take their own line under the
+    holder's name (flex-basis 100%, indented to the name), and neither starts with ": ", which wrapped on phones to an
+    orphan colon."""
+    css = CSS.read_text(encoding="utf-8")
+    rule = re.search(r"^ol\.council-seats \.d-printed, ol\.council-seats \.d-note \{([^}]*)\}", css, re.M)
+    assert rule, "no own-line rule for the seat printed line and note"
+    assert "flex-basis: 100%;" in rule.group(1)
+    assert "padding-left: calc(5.5em + 10px);" in rule.group(1)
+    assert re.search(r"ol\.council-seats li \{ display: flex; flex-wrap: wrap; gap: 4px 10px;", css)
+    assert re.search(r"ol\.council-seats \.d-label \{ min-width: 5\.5em;", css)
+    tpl = (ROOT / "site" / "templates" / "council_home.html.j2").read_text(encoding="utf-8")
+    for cls in ("d-printed", "d-note"):
+        m = re.search(r'<span class="' + cls + r' muted">(.{0,12})', tpl)
+        assert m and not re.match(r"\s*:", m.group(1)), (cls, m and m.group(1))
