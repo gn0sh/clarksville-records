@@ -353,7 +353,8 @@ def test_a_hard_failure_never_reaches_main_and_the_exit_codes_are_documented():
                    "A failed fetch never deletes data", "at most 40 requests", "**RPC only**", "**RPC backlog**",
                    "repeats every day until someone acts", "python -m collector rpc fetch --limit 30",
                    "**County meetings kept**", "county 7", "Daily update: county meetings kept", "allow_shrink",
-                   "**City meetings kept**", "city 7", "Daily update: city meetings kept", "dropped_unminuted"):
+                   "**City meetings kept**", "city 7", "Daily update: city meetings kept", "dropped_unminuted",
+                   "python -m collector city run --allow-drop <id>[,<id>] --limit 0"):
         assert phrase in runbook, phrase
 
 

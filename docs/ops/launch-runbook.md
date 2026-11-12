@@ -34,6 +34,11 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   `guard`: `kept_listing_rows`, `kept_meetings`, `corrections`. A listed row with no minutes dated today or later that
   vanishes (a cancelled or moved future event) is dropped quietly and listed under `dropped_unminuted`, no code. It
   repeats every day until the cause clears or someone acts. The workflow's `allow_shrink` never reaches the city run.
+  Only when a drop is meant (the city really removed a meeting or its minutes): name each id, as the kept entries
+  print it (a meeting id such as `2026-07-09-special`, or a listing row `key`), in a local run, then open a PR:
+  `python -m collector city run --allow-drop <id>[,<id>] --limit 0`. An id that matches no kept row or meeting is
+  refused (exit 2, nothing written); every drop is listed under `guard.allowed_drop`. There is no flag that accepts
+  every drop (ADR 0006 I4).
 - **County meetings kept** (county 7, a warning; precedence 2 > 3 > 7 > 5/6). The shrink guard
   (`docs/architecture/pipeline-limits-invariant.md`, "Rule 3: the shrink guard") compares each county source document
   with the committed `data/facts.json` by sha256. The same document that lost a verified roll call or a meeting (a

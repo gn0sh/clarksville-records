@@ -91,13 +91,19 @@ def test_a_grown_listing_is_not_guarded(acfg, tmp_path):
     assert log == new_log()
 
 
-def test_allow_shrink_lets_a_deliberate_removal_through_and_records_it(acfg, tmp_path):
+def test_allow_drop_lets_a_named_listing_row_go_and_keeps_the_others(acfg, tmp_path):
+    """ADR 0006 fix 3 (I4): a deliberate drop names its ids; the row named by its key goes, the others stay kept."""
     c, path = committed_agenda_center(acfg, tmp_path)
     log = new_log()
     cmd_fetch(c, store(tmp_path), path, log, fetcher=FakeFetcher({c.listing_url(2019): EMPTY_200}),
-              allow_shrink=True)
-    assert json.loads(path.read_text()) == [] and log["failures"] == []
-    assert keys(log["guard"]["allowed_shrink"][0]["dropped"]) == ["10312019-303", "12052019-325", "12302019-340"]
+              allow_drop={"12052019-325"})
+    assert [r["agenda_id"] for r in json.loads(path.read_text())] == ["10312019-303", "12302019-340"]
+    assert keys(log["guard"]["allowed_drop"][0]["dropped"]) == ["12052019-325"]
+    assert keys(log["guard"]["kept_listing_rows"][0]["kept"]) == ["10312019-303", "12302019-340"]
+    log = new_log()                                                   # a meeting id names its row too
+    out = city_run.guard_listing([], json.loads(path.read_text()), "agenda_id", path.name, log,
+                                 allow_drop={"2019-10-31-special"})
+    assert [r["agenda_id"] for r in out] == ["12302019-340"] and log["_allow_matched"] == {"2019-10-31-special"}
 
 
 def test_an_empty_civicclerk_events_page_keeps_the_committed_listing_and_warns(ccfg, acfg, tmp_path):
@@ -308,12 +314,49 @@ def test_a_build_that_keeps_every_committed_meeting_is_written(city):
     assert city["out"]()[0] == city["new"] and city["guard"]() == {}
 
 
-def test_allow_shrink_writes_a_smaller_build_and_records_it(city):
-    m = minutes_meetings(city["facts"], city["w"])[0]["id"]
-    city["new"], city["wards"] = without(city["facts"], city["w"], m, keep_agenda=False)
-    assert city_run.main(["build", "--allow-shrink"]) == 0
-    assert city["out"]()[0] == city["new"]
-    assert city["guard"]()["allowed_shrink"][0]["kept_meetings"][0]["meeting_ids"] == [m]
+def test_allow_drop_with_an_empty_store_drops_only_the_named_meeting(city):
+    """An empty store: two committed meetings vanish from the build, one is named. It goes; the other is kept (7)."""
+    gone, stays = (m["id"] for m in minutes_meetings(city["facts"], city["w"])[:2])
+    new, wards = without(city["facts"], city["w"], gone, keep_agenda=False)
+    city["new"], city["wards"] = without(new, wards, stays, keep_agenda=False)
+    assert city_run.main(["build", "--allow-drop", gone]) == city_run.KEPT
+    out, _ = city["out"]()
+    ids = {m["id"] for m in out["meetings"]}
+    assert gone not in ids and stays in ids
+    assert records_of(out, stays) == records_of(city["facts"], stays)
+    g = city["guard"]()
+    assert [k["meeting_ids"] for k in g["kept_meetings"]] == [[stays]]
+    assert g["allowed_drop"][0]["kept_meetings"][0]["meeting_ids"] == [gone]
+
+
+def test_allow_drop_unknown_id_is_refused(city, capsys):
+    gone = minutes_meetings(city["facts"], city["w"])[0]["id"]
+    city["new"], city["wards"] = without(city["facts"], city["w"], gone, keep_agenda=False)
+    before = (city["p"]["facts"].read_bytes(), city["p"]["wards"].read_bytes())
+    assert city_run.main(["build", "--allow-drop", f"{gone},2099-01-01-regular"]) == city_run.LISTING_FAILED
+    assert (city["p"]["facts"].read_bytes(), city["p"]["wards"].read_bytes()) == before      # nothing written
+    assert "REFUSED --allow-drop 2099-01-01-regular" in capsys.readouterr().err
+
+
+def test_allow_drop_unknown_id_leaves_the_listing_as_it_was(acfg, tmp_path, monkeypatch):
+    c, path = committed_agenda_center(acfg, tmp_path)
+    before = path.read_bytes()
+    d = tmp_path
+    monkeypatch.setattr(city_run, "paths", lambda cfg, root=None: {
+        "dir": d, "listing": path, "manifest": d / "m.json", "facts": d / "facts.json", "wards": d / "wards.json",
+        "cc_listing": d / "cc.json", "report": d / "city-report.json"})
+    monkeypatch.setattr(city_run, "load_config", lambda _p: c)
+    monkeypatch.setattr(city_run, "PoliteFetcher", lambda: FakeFetcher({c.listing_url(2019): EMPTY_200}))
+    assert city_run.main(["fetch", "--source", "agenda-center", "--allow-drop", "12052019-325,nope"]) == 2
+    assert path.read_bytes() == before
+    assert city_run.main(["fetch", "--source", "agenda-center", "--allow-drop", "12052019-325"]) == city_run.KEPT
+    assert [r["agenda_id"] for r in json.loads(path.read_text())] == ["10312019-303", "12302019-340"]
+
+
+def test_city_allow_shrink_flag_is_gone(capsys):
+    with pytest.raises(SystemExit):
+        city_run.main(["build", "--allow-shrink"])
+    assert "--allow-shrink" in capsys.readouterr().err
 
 
 # ------------------------------------------------------------------ the workflow: city 7 is a warning with its own issue
