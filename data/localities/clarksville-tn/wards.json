@@ -24362,6 +24362,17 @@
   {
     "date": "2026-07-06",
     "meeting_id": "2026-07-06-special",
+    "official_id": "city-eric-claunch",
+    "page": 1,
+    "pro_tem": false,
+    "raw_name": "CLAULNCH",
+    "reads": "CLAUNCH",
+    "source_id": "src-ba3c3070361a",
+    "ward": null
+  },
+  {
+    "date": "2026-07-06",
+    "meeting_id": "2026-07-06-special",
     "official_id": "city-jerry-haywood",
     "page": 1,
     "pro_tem": false,

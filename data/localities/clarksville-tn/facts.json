@@ -87590,7 +87590,7 @@
           "status": "present"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "page": 1,
           "raw_name": "CLAULNCH",
           "status": "present"
@@ -87671,8 +87671,7 @@
         "checks": [
           {
             "check": "names_well_formed",
-            "detail": "CLAULNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -87689,12 +87688,17 @@
             "ok": true
           },
           {
+            "check": "printing_correction",
+            "detail": "CLAULNCH (PRESENT, p. 1) read as CLAUNCH: p. 1 prints CLAUNCH in a vote line, and Eric Claunch is the one member of the roster book with that surname whom the list names nowhere else (agenda-center.yml printing_corrections)",
+            "ok": true
+          },
+          {
             "check": "surnames_resolve",
-            "detail": "13 printed as surnames: 12 by the attendance of 2025-02-18; not resolved: CLAULNCH (no roster entry)",
-            "ok": false
+            "detail": "13 printed as surnames: 12 by the attendance of 2025-02-18; CLAUNCH: by the configured member Eric Claunch (seated 2026-02-19, minutes p. 3)",
+            "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "video_url": "https://cpmedia.azureedge.net/clarksvilletn/aaf4f7acf7.mp4"
     },
@@ -166367,7 +166371,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -166411,7 +166415,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -166455,7 +166459,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -166499,7 +166503,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -166543,7 +166547,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -166587,7 +166591,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -166631,7 +166635,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -166675,7 +166679,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -166719,7 +166723,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -166763,7 +166767,7 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "mover_differs_from_seconder",
@@ -468716,12 +468720,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -468754,7 +468757,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -468764,7 +468767,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -468851,11 +468854,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH, A",
+            "detail": "A",
             "ok": false
           },
           {
@@ -468906,7 +468909,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -468987,12 +468990,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -469025,7 +469027,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -469041,7 +469043,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -469122,12 +469124,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -469160,7 +469161,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -469176,7 +469177,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -469257,12 +469258,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -469295,7 +469295,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -469305,7 +469305,7 @@
           "value": "yes"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -469392,12 +469392,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -469430,7 +469429,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -469470,7 +469469,7 @@
           "value": "no"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "NAY",
           "value": "no"
@@ -469527,12 +469526,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -469565,7 +469563,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -469605,7 +469603,7 @@
           "value": "no"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "NAY",
           "value": "no"
@@ -469662,12 +469660,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -469700,7 +469697,7 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
@@ -469746,7 +469743,7 @@
           "value": "no"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "NAY",
           "value": "no"
@@ -469797,12 +469794,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -469835,11 +469831,11 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -469932,12 +469928,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -469970,11 +469965,11 @@
             "ok": true
           }
         ],
-        "status": "unverified"
+        "status": "verified"
       },
       "votes": [
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "AYE",
           "value": "yes"
@@ -470067,12 +470062,11 @@
         "checks": [
           {
             "check": "attendance_verified",
-            "ok": false
+            "ok": true
           },
           {
             "check": "names_resolve",
-            "detail": "CLAUNCH",
-            "ok": false
+            "ok": true
           },
           {
             "check": "one_entry_per_official",
@@ -470157,7 +470151,7 @@
           "value": "no"
         },
         {
-          "official_id": null,
+          "official_id": "city-eric-claunch",
           "raw_name": "CLAUNCH",
           "raw_value": "NAY",
           "value": "no"

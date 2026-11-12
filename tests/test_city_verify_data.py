@@ -123,7 +123,8 @@ def test_only_the_listed_roll_calls_turned_verified_and_no_verified_vote_changed
                     if verified(r) and r["id"] not in NEWLY_VERIFIED and r["meeting_id"] not in WIDENED)
     assert len(before) == BEFORE_VERIFIED
     assert hashlib.sha256(json.dumps(before).encode()).hexdigest() == BEFORE_DIGEST
-    assert (len(now), len(f["roll_calls"])) == (1912, 2354)
+    # 1,912 -> 1,921: the 2026-07-06 printing correction (CLAULNCH read as CLAUNCH) verifies 9 of its 11 roll calls
+    assert (len(now), len(f["roll_calls"])) == (1921, 2354)
 
 
 def test_the_d1_widening_adds_only_council_meetings_and_changes_no_verified_roll_call():
@@ -136,7 +137,10 @@ def test_the_d1_widening_adds_only_council_meetings_and_changes_no_verified_roll
     assert set(WIDENED) <= set(ms) and len(ms) == 401
     assert {ms[i]["listing_source"] for i in WIDENED} == {"civicclerk"}
     rcs = [r for r in f["roll_calls"] if r["meeting_id"] in WIDENED]
-    assert (len(rcs), sum(map(verified, rcs))) == (117, 89)
+    assert (len(rcs), sum(map(verified, rcs))) == (117, 98)       # 89 + 9 at 2026-07-06 (printing correction)
+    r0706 = [r for r in rcs if r["meeting_id"] == "2026-07-06-special"]
+    assert (len(r0706), sum(map(verified, r0706))) == (11, 9)
+    assert sorted(r["id"] for r in r0706 if not verified(r)) == ["rc-ba3c3070-p2-0", "rc-ba3c3070-p4-2"]
     # the resumed session of 2026-02-19 has the 2026-02-11 minutes posted again: read once, for 2026-02-11; the
     # 2026-02-19 row's agenda page 1 does not vouch for it, so it is skipped
     assert SKIPPED not in ms
