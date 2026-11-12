@@ -2407,14 +2407,17 @@ def check_private_details(site: Path, cs: list[dict]) -> tuple[list[str], str]:
             rel = f"{c.get('slug', '?')}/transcripts/{f.name}"
             segs = json.loads(f.read_text(encoding="utf-8")).get("segments") or []
             lines = [" ".join(str(seg[2]).split()) if isinstance(seg, list) and len(seg) == 3 else "" for seg in segs]
+            any_hit = False
             for i, t in enumerate(lines):
                 segs_checked += 1
-                if private_details(t):
-                    problems.append(f"{rel}#s{i}: committed transcript line holds {len(private_details(t))} address or "
+                hits = private_details(t)               # once per line (it runs every address and phone pattern)
+                if hits:
+                    any_hit = True
+                    problems.append(f"{rel}#s{i}: committed transcript line holds {len(hits)} address or "
                                     "phone number matches (not masked at rest)")
                 if len(t) >= NEEDLE_MIN:
                     by_head.setdefault(t[:NEEDLE_MIN], []).append((t, f"{rel}#s{i}"))
-            if lines and not any(private_details(t) for t in lines) and private_details(" ".join(lines)):
+            if lines and not any_hit and private_details(" ".join(lines)):
                 problems.append(f"{rel}: an address or phone number split over two committed lines (not masked at rest)")
     shared = 0
     if by_head:

@@ -24,14 +24,24 @@ def test_hook_lockups_ship_with_an_accessible_name_and_no_old_logo():
 
 
 def test_built_footer_credit_uses_the_hook_light_and_dark(built, pages):
+    checked = 0
     for name, html in pages.items():
         if "gc-credit" not in html:
             continue
+        checked += 1
         credit = re.search(r'<p class="gc-credit">(.*?)</p>', html).group(1)
         assert re.findall(r'src="[^"]*static/brand/(gnoshcodes-hook-(?:light|dark)\.svg)"', credit) == \
             ["gnoshcodes-hook-light.svg", "gnoshcodes-hook-dark.svg"], name
         assert credit.count('alt="gnoshcodes"') == 2, name
+    assert checked > 0                                                  # the credit is on pages, so the loop checked some
     assert site_checks.check_old_brand(built)[0] == []
+
+
+def test_every_page_asks_for_the_hook_favicon_not_a_cached_old_one(pages):
+    """Code-review nit: `?v=hook` on the favicon link, so a browser that cached the old logo D icon fetches it again."""
+    for name, html in pages.items():
+        assert re.findall(r'<link rel="icon" href="[^"]*static/brand/(favicon\.ico[^"]*)"', html) == \
+            ["favicon.ico?v=hook"], name
 
 
 def test_check_fails_on_old_path_data_names_and_favicon(built, tmp_path):
