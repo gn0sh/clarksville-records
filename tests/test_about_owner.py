@@ -142,6 +142,45 @@ def test_site_checks_about_passes_and_catches_drift(about_site, tmp_path, cfg, c
     assert any("Montgomery County Commission, which this build has no facts for" in p for p in problems), problems
 
 
+def test_site_checks_about_allows_a_year_only_as_a_sourced_term_end(about_site, tmp_path, cfg, city_facts):  # noqa: F811
+    site_cfg = {"operator_person": PERSON}
+    county = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    bad = tmp_path / "site"
+    shutil.copytree(about_site, bad)
+    for rel in SC.OPERATOR_PAGES:
+        f = bad / rel
+        f.write_text(re.sub(r"(<p id=\"operator-person\">.*?\))\.", r"\1, in a term that ends on 2028-12-31.",
+                            f.read_text(encoding="utf-8"), count=1, flags=re.S), encoding="utf-8")
+    assert "in a term that ends on 2028-12-31" in (bad / "about.html").read_text(encoding="utf-8")
+    sourced = {"official_id": PERSON, "dates": "sourced", "end": "2028-12-31"}
+    for rows, ok in (([], False), ([{**sourced, "dates": "observed"}], False), ([{**sourced, "end": "2027-12-31"}], False),
+                     ([{**sourced, "official_id": "city-someone-else"}], False), ([sourced], True)):
+        problems, _ = SC.check_about(bad, [{**qa_council(cfg, city_facts), "seat_rows": rows}], site_cfg, county=county)
+        hit = [p for p in problems if "prints a year" in p]
+        assert (hit == []) is ok, (rows, problems)
+    # a sourced end allows that date in its term-end wording only, not a year elsewhere in the line
+    raw = (bad / "about.html").read_text(encoding="utf-8").replace(" votes are shown", " votes (since 2027) are shown", 1)
+    (bad / "about.html").write_text(raw, encoding="utf-8")
+    problems, _ = SC.check_about(bad, [{**qa_council(cfg, city_facts), "seat_rows": [sourced]}], site_cfg, county=county)
+    assert any(p.startswith("about.html:") and "prints a year" in p for p in problems), problems
+
+
+def test_site_checks_about_catches_a_who_runs_this_line_that_differs(about_site, tmp_path, cfg, city_facts):  # noqa: F811
+    cs = [qa_council(cfg, city_facts)]
+    site_cfg = {"operator_person": PERSON}
+    county = json.loads(FIXTURE.read_text(encoding="utf-8"))
+    bad = tmp_path / "site"
+    shutil.copytree(about_site, bad)
+    who = bad / "who-runs-this.html"
+    raw = who.read_text(encoding="utf-8")
+    assert len(SC.OPERATOR_PERSON.findall(raw)) == 1
+    who.write_text(raw.replace("by the same rules as every other official's", "by the rules every official's are", 1),
+                   encoding="utf-8")
+    problems, _ = SC.check_about(bad, cs, site_cfg, county=county)
+    assert "who-runs-this.html: the operator line differs from About's" in problems, problems
+    assert not any(p.startswith("about.html") for p in problems), problems   # About itself still passes
+
+
 def test_the_rate_is_the_only_percentage_and_never_on_an_official_page(about_site):
     """test_site_neutrality bans "%" in templates (no score about a person); the About rate's share is written by
     views.confirmed_rate and is about the body's record. No official's page, nor any page but About, shows one."""
