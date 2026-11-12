@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import html
 import re
+import string
 import urllib.parse
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -139,11 +140,10 @@ def parse_config(cfg) -> AgendaCenterConfig:
         raise AgendaCenterConfigError("agenda-center.yml: not a mapping")
     url = _need(cfg, "search_url", str)
     host = _need(cfg, "host", str)
+    _template("search_url", url, SEARCH_URL_FIELDS)    # before any .format (agenda-center-search-url-format)
     parts = urllib.parse.urlsplit(url.format(cid=0, year=2000))
     if parts.scheme != "https" or parts.netloc != host:
         raise AgendaCenterConfigError("agenda-center.yml: search_url must be https on host")
-    if "{year}" not in url or "{cid}" not in url:
-        raise AgendaCenterConfigError("agenda-center.yml: search_url needs {cid} and {year}")
     years = _need(cfg, "years", list)
     if len(years) != 2 or not all(isinstance(y, int) for y in years) or years[0] > years[1]:
         raise AgendaCenterConfigError("agenda-center.yml: years must be [first, last]")
@@ -190,6 +190,31 @@ def parse_config(cfg) -> AgendaCenterConfig:
         presiding=_presiding(_rx(_need(cfg, "presiding", str), "presiding", 0)),
         presiding_title=_need(cfg, "presiding_title", str), aliases=dict(aliases),
         seating=dict(seating) if seating else None, mayors=mayors, members=members)
+
+
+# The listing URL template's fields, all required: a template without {year} would list one year for every year, and
+# any other field ({0}, {cid.__class__}, {year!r}, a format spec) is refused before the URL is ever filled.
+SEARCH_URL_FIELDS = {"cid", "year"}
+
+
+def _template(key: str, template: str, fields: set) -> None:
+    """A URL template names only `fields`, each bare, and every one of them; literal braces ({{ }}) are text. The same
+    whitelist as civicclerk._template (config-validation family). Raises AgendaCenterConfigError."""
+    try:
+        parsed = list(string.Formatter().parse(template))
+    except ValueError as ex:                                    # an unmatched brace
+        raise AgendaCenterConfigError(f"agenda-center.yml: {key} is not a template ({ex})") from None
+    seen = set()
+    for _, field, spec, conversion in parsed:
+        if field is None:
+            continue
+        if field not in fields or spec or conversion is not None:
+            raise AgendaCenterConfigError(f"agenda-center.yml: {key} may name only "
+                                          f"{', '.join('{' + f + '}' for f in sorted(fields))}, each bare")
+        seen.add(field)
+    if fields - seen:
+        raise AgendaCenterConfigError(f"agenda-center.yml: {key} needs "
+                                      f"{' and '.join('{' + f + '}' for f in sorted(fields - seen))}")
 
 
 def _iso(v, key: str) -> str:

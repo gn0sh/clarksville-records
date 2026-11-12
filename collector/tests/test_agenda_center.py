@@ -49,6 +49,14 @@ def test_vote_labels_are_strings_not_yaml_booleans(cfg):
     ("search_url", "http://www.clarksvilletn.gov/x?{cid}{year}", "https"),
     ("search_url", "https://cityofclarksville.com/x?{cid}{year}", "https on host"),
     ("search_url", "https://www.clarksvilletn.gov/AgendaCenter/Search/?CIDs={cid}", "{year}"),
+    ("search_url", "https://www.clarksvilletn.gov/AgendaCenter/Search/?startDate={year}", "{cid}"),
+    # config-validation/agenda-center-search-url-format: only {cid} and {year}, each bare; refused before any .format
+    ("search_url", "https://www.clarksvilletn.gov/x?{cid}{year}{0}", "may name only"),
+    ("search_url", "https://www.clarksvilletn.gov/x?{cid}{year}{host}", "may name only"),
+    ("search_url", "https://www.clarksvilletn.gov/x?{cid.__class__}{year}", "may name only"),
+    ("search_url", "https://www.clarksvilletn.gov/x?{cid}{year!r}", "may name only"),
+    ("search_url", "https://www.clarksvilletn.gov/x?{cid:>99999}{year}", "may name only"),
+    ("search_url", "https://www.clarksvilletn.gov/x?{cid}{year}{", "not a template"),
     ("years", [2024, 2016], "years"),
     ("kind_rules", [["formal", "x"]], "kind must be one of"),
     ("kind_rules", [["regular", "("]], "bad regex"),
@@ -61,6 +69,12 @@ def test_config_rejects_bad_values(key, value, match):
     bad[key] = value
     with pytest.raises(ac.AgendaCenterConfigError, match=match):
         ac.parse_config(bad)
+
+
+def test_search_url_literal_braces_are_text():
+    good = raw_cfg()
+    good["search_url"] = "https://www.clarksvilletn.gov/AgendaCenter/Search/?q={{x}}&CIDs={cid}&y={year}"
+    assert ac.parse_config(good).listing_url(2019).endswith("?q={x}&CIDs=3&y=2019")
 
 
 def test_config_missing_key_fails_loudly():
