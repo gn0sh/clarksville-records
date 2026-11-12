@@ -66,7 +66,7 @@ def test_an_empty_agenda_center_year_keeps_the_committed_rows_and_warns(acfg, tm
     assert city_run.exit_code(log) == 0 and city_run.kept_anything(log)
     [kept] = log["guard"]["kept_listing_rows"]
     assert keys(kept["kept"]) == ["10312019-303", "12052019-325", "12302019-340"]
-    assert kept["kept"][1]["meeting"] == "2019-12-05-regular"            # the id --allow-drop takes
+    assert [k["meeting"] for k in kept["kept"]] == [None] * 3       # no committed facts: only the keys name rows
 
 
 def test_a_partly_shrunk_listing_keeps_the_rows_it_lost_and_writes_what_it_gained(acfg, tmp_path):
@@ -100,10 +100,44 @@ def test_allow_drop_lets_a_named_listing_row_go_and_keeps_the_others(acfg, tmp_p
     assert [r["agenda_id"] for r in json.loads(path.read_text())] == ["10312019-303", "12302019-340"]
     assert keys(log["guard"]["allowed_drop"][0]["dropped"]) == ["12052019-325"]
     assert keys(log["guard"]["kept_listing_rows"][0]["kept"]) == ["10312019-303", "12302019-340"]
-    log = new_log()                                                   # a meeting id names its row too
-    out = city_run.guard_listing([], json.loads(path.read_text()), "agenda_id", path.name, log,
-                                 allow_drop={"2019-10-31-special"})
+    log = new_log()                         # a committed meeting id names the row carrying its minutes_url too
+    rows = json.loads(path.read_text())
+    meetings = {("2019-10-31", rows[0]["minutes_url"]): ["2019-10-31-special"]}
+    out = city_run.guard_listing([], rows, "agenda_id", path.name, log, allow_drop={"2019-10-31-special"},
+                                 meetings=meetings)
     assert [r["agenda_id"] for r in out] == ["12302019-340"] and log["_allow_matched"] == {"2019-10-31-special"}
+    assert log["guard"]["allowed_drop"][0]["dropped"][0]["meeting"] == "2019-10-31-special"
+
+
+def test_allow_drop_by_meeting_id_never_drops_another_row_of_that_day_and_kind(acfg, tmp_path):
+    """shrink/city-allow-drop-row-match (I4): naming 2019-10-31-special drops only the row with that meeting's
+    committed minutes_url; a vanished second special session that day (-2 in the build) stays kept until its key or its
+    own meeting id is named. Without committed facts a meeting id names no row at all."""
+    c, path = committed_agenda_center(acfg, tmp_path)
+    rows = json.loads(path.read_text())
+    second = {**rows[0], "agenda_id": "10312019-304", "minutes_url": rows[0]["minutes_url"] + "-2"}
+    committed = rows[:1] + [second] + rows[1:]
+    meetings = {("2019-10-31", rows[0]["minutes_url"]): ["2019-10-31-special"],
+                ("2019-10-31", second["minutes_url"]): ["2019-10-31-special-2"]}
+    log = new_log()
+    out = city_run.guard_listing([], committed, "agenda_id", path.name, log, allow_drop={"2019-10-31-special"},
+                                 meetings=meetings)
+    assert [r["agenda_id"] for r in out] == ["10312019-304", "12052019-325", "12302019-340"]
+    [k] = log["guard"]["kept_listing_rows"]
+    assert [(e["key"], e["meeting"]) for e in k["kept"]][0] == ("10312019-304", "2019-10-31-special-2")
+    log = new_log()
+    out = city_run.guard_listing([], committed, "agenda_id", path.name, log, allow_drop={"2019-10-31-special"})
+    assert out == sorted(committed, key=lambda r: city_run._row_order(r, "agenda_id"))     # nothing named
+    assert city_run.unmatched_drops(log, {"2019-10-31-special"}) == ["2019-10-31-special"]
+
+
+def test_committed_meetings_maps_date_and_minutes_url_to_ids(tmp_path):
+    f = tmp_path / "facts.json"
+    assert city_run.committed_meetings(f) == {}
+    city_run.write_json(f, {"meetings": [{"id": "d-special", "date": "d", "minutes_url": "u"},
+                                         {"id": "d-special-2", "date": "d", "minutes_url": "v"},
+                                         {"id": "d-regular", "date": "d", "minutes_url": None}]})
+    assert city_run.committed_meetings(f) == {("d", "u"): ["d-special"], ("d", "v"): ["d-special-2"]}
 
 
 def test_an_empty_civicclerk_events_page_keeps_the_committed_listing_and_warns(ccfg, acfg, tmp_path):

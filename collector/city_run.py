@@ -99,12 +99,13 @@ def today_utc() -> str:
 
 
 def guard_listing(rows: list[dict], previous: list[dict] | None, key: str, name: str, log: dict,
-                  allow_drop: set | None = None, today: str | None = None) -> list[dict]:
+                  allow_drop: set | None = None, today: str | None = None, meetings: dict | None = None) -> list[dict]:
     """The listing to write (ADR 0006 fix 1): `rows` as read, plus every committed row (`previous`) the read lacks,
     kept as committed and listed under guard.kept_listing_rows (exit 7), except a row with no minutes dated on or after
     `today` (UTC): a cancelled or moved future event, dropped and listed under guard.dropped_unminuted (no code). A row
-    is one meeting by `key` (agenda_id, event_id). Gains are never guarded; a row named in `allow_drop` (by its key or
-    its meeting id) goes and is listed under guard.allowed_drop."""
+    is one meeting by `key` (agenda_id, event_id). Gains are never guarded; a row named in `allow_drop` goes and is
+    listed under guard.allowed_drop: by its key, or by the id of the committed meeting with its date and minutes_url
+    (`meetings`, committed_meetings), never by date and kind alone (shrink/city-allow-drop-row-match)."""
     have = {_row_key(r, key) for r in rows}
     gone = [r for r in previous or [] if _row_key(r, key) not in have]
     if not gone:
@@ -113,19 +114,23 @@ def guard_listing(rows: list[dict], previous: list[dict] | None, key: str, name:
     day = today or today_utc()
     future = [r for r in gone if not r.get("minutes_url") and (r.get("date") or "") >= day]
     if future:
-        g.setdefault("dropped_unminuted", []).append({"listing": name, "dropped": [_print(r, key) for r in future]})
+        g.setdefault("dropped_unminuted", []).append({"listing": name,
+                                                       "dropped": [_print(r, key, meetings) for r in future]})
     dropped = [r for r in gone if r not in future]
     if not dropped:
         return rows
-    named = [r for r in dropped if allowed(log, allow_drop, _print(r, key)["key"], _print(r, key)["meeting"])]
+    def names(r: dict) -> list:
+        ids = (meetings or {}).get((r.get("date"), r.get("minutes_url"))) if r.get("minutes_url") else None
+        return [_print(r, key)["key"], *(ids or [])]
+    named = [r for r in dropped if allowed(log, allow_drop, *names(r))]
     if named:
-        g.setdefault("allowed_drop", []).append({"listing": name, "dropped": [_print(r, key) for r in named]})
+        g.setdefault("allowed_drop", []).append({"listing": name, "dropped": [_print(r, key, meetings) for r in named]})
         print(f"collector city: ALLOWED (--allow-drop) {name}: {', '.join(_print(r, key)['key'] for r in named)}",
               file=sys.stderr, flush=True)
     dropped = [r for r in dropped if r not in named]
     if not dropped:
         return rows
-    ids = [_print(r, key) for r in dropped]
+    ids = [_print(r, key, meetings) for r in dropped]
     g.setdefault("kept_listing_rows", []).append({"listing": name, "kept": ids})
     print(f"collector city: KEPT {name}: the listing as read has {len(rows)} rows and lacks {len(dropped)} of the "
           f"{len(previous)} committed rows, e.g. {', '.join(i['key'] for i in ids[:5])}; kept as committed",
@@ -140,9 +145,23 @@ def allowed(log: dict, allow_drop: set | None, *ids) -> bool:
     return bool(hit)
 
 
-def _print(r: dict, key: str) -> dict:
-    """A guarded row as the kept entries print it: its key and the meeting id the build gives it (date-kind)."""
-    return {"key": str(_row_key(r, key)), "meeting": f"{r.get('date')}-{r.get('kind')}", "date": r.get("date"),
+def committed_meetings(facts_path: Path) -> dict:
+    """(date, minutes_url) -> the committed meeting ids with those minutes (shrink/city-allow-drop-row-match): the only
+    way a meeting id names a listing row, so naming 2026-07-09-special never drops a vanished -2 row of that day."""
+    if not facts_path.exists():
+        return {}
+    out: dict = {}
+    for m in json.loads(facts_path.read_text(encoding="utf-8")).get("meetings", []):
+        if m.get("minutes_url"):
+            out.setdefault((m.get("date"), m["minutes_url"]), []).append(m["id"])
+    return out
+
+
+def _print(r: dict, key: str, meetings: dict | None = None) -> dict:
+    """A guarded row as the kept entries print it: its key (what --allow-drop takes for a row) and the committed
+    meeting carrying its minutes_url (committed_meetings; that id names the row too), else None."""
+    ids = (meetings or {}).get((r.get("date"), r.get("minutes_url"))) if r.get("minutes_url") else None
+    return {"key": str(_row_key(r, key)), "meeting": ", ".join(ids) if ids else None, "date": r.get("date"),
             "title": r.get("title"), "minutes_url": r.get("minutes_url")}
 
 
@@ -246,7 +265,7 @@ def write_json(p: Path, obj) -> bool:
 
 def cmd_fetch(cfg: AgendaCenterConfig, store: Store, listing_path: Path, log: dict, fetcher=None,
               agendas: bool = False, limit: int | None = None, allow_drop: set | None = None,
-              today: str | None = None) -> list[dict]:
+              today: str | None = None, meetings: dict | None = None) -> list[dict]:
     f = fetcher or PoliteFetcher()
     previous = json.loads(listing_path.read_text(encoding="utf-8")) if listing_path.exists() else None
     try:
@@ -255,14 +274,15 @@ def cmd_fetch(cfg: AgendaCenterConfig, store: Store, listing_path: Path, log: di
         log["failures"].append(failure("listing", e))
         log["fetch_log"] = f.log
         return []
-    write_json(listing_path, guard_listing(rows, previous, "agenda_id", listing_path.name, log, allow_drop, today))
+    write_json(listing_path, guard_listing(rows, previous, "agenda_id", listing_path.name, log, allow_drop, today,
+                                           meetings))
     return fetch_files(f, store, rows, log, agendas, limit)
 
 
 def cmd_fetch_civicclerk(cc: civicclerk.CivicClerkConfig, kind_of, store: Store, listing_path: Path, log: dict,
                          fetcher=None, agendas: bool = False, limit: int | None = None,
                          cache_dir: Path | None = None, allow_drop: set | None = None,
-                         today: str | None = None) -> list[dict]:
+                         today: str | None = None, meetings: dict | None = None) -> list[dict]:
     """The CivicClerk listing (every events page, cached) then its minutes (and agendas). A listing that fails part
     way is not written, so the last full civicclerk-listing.json stays."""
     f = fetcher or PoliteFetcher()
@@ -273,7 +293,8 @@ def cmd_fetch_civicclerk(cc: civicclerk.CivicClerkConfig, kind_of, store: Store,
         log["fetch_log"] = f.log
         return []
     previous = json.loads(listing_path.read_text(encoding="utf-8")) if listing_path.exists() else None
-    write_json(listing_path, guard_listing(rows, previous, "event_id", listing_path.name, log, allow_drop, today))
+    write_json(listing_path, guard_listing(rows, previous, "event_id", listing_path.name, log, allow_drop, today,
+                                           meetings))
     return fetch_files(f, store, rows, log, agendas, limit)
 
 
@@ -377,7 +398,8 @@ def main(argv: list[str]) -> int:
                     help="which listing to fetch (the build always reads both)")
     ap.add_argument("--allow-drop", action="append", default=[], metavar="ID[,ID]",
                     help="let these kept meetings (meeting ids) or listing rows (row keys) go, as the kept entries in "
-                         "build/city-report.json print them; an id that matches nothing is refused (exit 2)")
+                         "build/city-report.json print them (a meeting id names a listing row only when the row has "
+                         "that meeting's committed minutes_url); an id that matches nothing is refused (exit 2)")
     a = ap.parse_args(argv)
     cfg = load_config(Path(ROOT / "config" / "localities" / a.locality / "agenda-center.yml"))
     cc_path = civicclerk.config_path(a.locality)
@@ -391,12 +413,13 @@ def main(argv: list[str]) -> int:
     before = {k: (p[k].read_bytes() if p[k].exists() else None) for k in ("listing", "cc_listing")} if drop else {}
     if a.command in ("fetch", "run"):
         fetcher = PoliteFetcher()
+        meetings = committed_meetings(p["facts"])
         if a.source in ("all", "agenda-center"):
             cmd_fetch(cfg, store, p["listing"], log, fetcher=fetcher, agendas=a.agendas, limit=a.limit,
-                      allow_drop=drop)
+                      allow_drop=drop, meetings=meetings)
         if cc and a.source in ("all", "civicclerk"):
             cmd_fetch_civicclerk(cc, cfg.kind_of, store, p["cc_listing"], log, fetcher=fetcher, agendas=a.agendas,
-                                 limit=a.limit, allow_drop=drop)
+                                 limit=a.limit, allow_drop=drop, meetings=meetings)
     report = {"fetch": {k: v for k, v in log.items() if k not in ("fetch_log", "_allow_matched")}}
     if a.command in ("build", "run"):
         from .city_build import build

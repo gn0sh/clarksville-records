@@ -38,7 +38,9 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   print it (a meeting id such as `2026-07-09-special`, or a listing row `key`), in a local run, then open a PR:
   `python -m collector city run --allow-drop <id>[,<id>] --limit 0`. An id that matches no kept row or meeting is
   refused (exit 2, nothing written); every drop is listed under `guard.allowed_drop`. There is no flag that accepts
-  every drop (ADR 0006 I4).
+  every drop (ADR 0006 I4). A meeting id names a listing row only when the row carries that meeting's committed
+  `minutes_url` (the kept row's `meeting` field; null when none does): any other row, such as a vanished second
+  session the same day or the other listing's copy of a merged meeting, is named by its `key`.
 - **County meetings kept** (county 7, a warning; precedence 2 > 3 > 7 > 5/6). The shrink guard
   (`docs/architecture/pipeline-limits-invariant.md`, "Rule 3: the shrink guard") compares each county source document
   with the committed `data/facts.json` by sha256. The same document that lost a verified roll call or a meeting (a
