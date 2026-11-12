@@ -145,10 +145,17 @@ def test_committed_transcripts_are_masked_at_rest():
     assert files
     for f in files:
         segs = json.loads(f.read_text(encoding="utf-8"))["segments"]
-        assert privacy.mask_segments(segs)[1] == [], f.name
-        assert privacy.spans(" ".join(s[2] for s in segs)) == [], f.name
-        assert not any(site_checks.private_details(s[2]) for s in segs), f.name
-        assert site_checks.private_details(" ".join(s[2] for s in segs)) == [], f.name
+        # counts computed outside the assert (pytest prints the operands of a failing one), so a failure names the
+        # file and never prints the matched text (privacy/test-output-prints-match)
+        joined = " ".join(s[2] for s in segs)
+        n_changed = len(privacy.mask_segments(segs)[1])
+        n_spans = len(privacy.spans(joined))
+        n_lines = sum(1 for s in segs if site_checks.private_details(s[2]))
+        n_joined = len(site_checks.private_details(joined))
+        assert n_changed == 0, f"{f.name}: {n_changed} segments not masked"
+        assert n_spans == 0, f"{f.name}: {n_spans} masker spans"
+        assert n_lines == 0, f"{f.name}: {n_lines} segments match the site check's rule"
+        assert n_joined == 0, f"{f.name}: {n_joined} matches in the joined text"
 
 
 def test_the_qa_rule_agrees_with_the_masker():
@@ -157,7 +164,8 @@ def test_the_qa_rule_agrees_with_the_masker():
     for f in sorted(TRANSCRIPTS.glob("2*.json")):
         out, _ = privacy.mask_segments(json.loads(f.read_text(encoding="utf-8"))["segments"])
         for i, s in enumerate(out):
-            assert site_checks.private_details(s[2]) == [], (f.name, i)
+            n = len(site_checks.private_details(s[2]))      # a count, never the text (privacy/test-output-prints-match)
+            assert n == 0, f"{f.name} segment {i}"
     assert site_checks.private_details("My address is 418 Example Court, Clarksville")
     assert site_checks.private_details("Sam Sample, 236 Fixture Court.")
     assert site_checks.private_details("call (931) 555-0104 today")

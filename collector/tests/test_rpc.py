@@ -360,7 +360,8 @@ def test_draft_watermark_letters_stay_out_of_values():
     wm = re.compile(r"(?:^|\s)(?:T|AF|R|D)$")
     for r in recs + recs2:
         for k in ("applicant", "agent", "request", "location", "acres", "proposed_use"):
-            assert not wm.search(r[k] or ""), (r["number"], k, r[k])
+            found = wm.search(r[k] or "") is not None     # a bool: pytest would print a Match (and the value)
+            assert not found, (r["number"], k)
     assert rpc_agenda.WATERMARK.match("                              AF") and not rpc_agenda.WATERMARK.match(" ABC")
 
 
@@ -422,7 +423,8 @@ def test_committed_rpc_json_carries_no_phone_number(tmp_path):
     from tools import scrub_rpc_phones as scrub
     rpc_json = Path(__file__).resolve().parents[2] / "data" / "localities" / "cmc-rpc" / "rpc.json"
     text = rpc_json.read_text(encoding="utf-8")
-    assert not rpc_agenda.PHONE.search(text)
+    has_phone = rpc_agenda.PHONE.search(text) is not None    # a bool: pytest would print the Match and its text
+    assert not has_phone, "rpc.json carries a phone number"     # (privacy/test-output-prints-match)
     assert scrub.main(["--check", "--path", str(rpc_json)]) == 0
     # the migration: only the location changes, and a second run changes nothing
     d = json.loads(text)
