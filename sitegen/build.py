@@ -493,6 +493,11 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     _clean(out, [c.slug for c in cixs] + ([rpx.slug] if rpx else []), export=export)
     site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs, rpc=rpx)
     site["internal"] = internal
+    # the footer's "Data as of": the latest fetch day of every file the site shows (county minutes, each council, the
+    # RPC, the county agendas, finance), so no page reads as stale while a source is fresh (dates/footer-as-of-county-only)
+    site["data_as_of"] = localdates.latest(
+        ix.facts["sources"], *(c.facts["sources"] for c in cixs), rpx.facts["sources"] if rpx else (),
+        ax.sources.values() if ax else (), fx.fin["sources"] if fx else ()) or site["data_as_of"]
     site["councils"] = [council_mod.landing_entry(c) for c in cixs]
     site["purpose"] = views.purpose_line(cixs, rpc=rpx is not None, finance=fx is not None,
                                          rpc_votes=rpx is not None and rpx.votes_shown)
