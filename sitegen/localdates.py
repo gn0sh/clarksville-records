@@ -136,6 +136,20 @@ def span(srcs) -> tuple[str, str] | None:
     return d[0][0] + label, d[0][-1] + label
 
 
+def latest(*source_sets) -> str | None:
+    """The site-wide "Data as of" day (dates/footer-as-of-county-only): each data file's own latest fetch day as
+    pages print it (span: its own UTC-day label rule), then the newest of those by calendar day; on a tie the
+    unlabelled one. None: no file has a fetch day."""
+    best = None
+    for srcs in source_sets:
+        sp = span(list(srcs))
+        if sp:
+            key = (sp[1][:10], not sp[1].endswith(UTC_LABEL))
+            if best is None or key > best[0]:
+                best = (key, sp[1])
+    return best[1] if best else None
+
+
 def days(srcs) -> tuple[list[str], bool] | None:
     """(sorted plain fetch days, exact) of source records, as pages print them: site_timezone days when every source
     has its recorded instant, else stored UTC days (exact False). None: no fetch day."""

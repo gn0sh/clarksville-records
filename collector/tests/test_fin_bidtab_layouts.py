@@ -48,7 +48,7 @@ def test_lump_sum_bid_header_and_colon_labels():
 def test_colon_labels_with_fill_name_department_awardee_and_dates():
     r = read("fire_panel_bidtab")
     assert (r.tab_type, r.layout) == ("lump_sum", "table")
-    assert r.fields["department"] == ("Sheriﬀ’s Oﬃce", 1)                     # as printed, ligatures kept
+    assert r.fields["department"] == ("Sheriff’s Office", 1)        # the ligatures ﬀ ﬃ as letters, apostrophe kept
     assert r.fields["project"] == ("Fire Panel Upgrade", 1)
     assert r.fields["bid_date"] == ("11-12-25 at 2 p.m.", 1)
     assert r.fields["awardee"] == ("Integrated Protection Services", 1)
@@ -176,3 +176,25 @@ def test_block_tab_through_the_build_cites_its_pages(tmp_path, monkeypatch):
     assert t["awardee_match"] == "none_named" and s["department"] is None
     assert fin_checks.scan_guard(fin) == []
     assert any(c.cls == "lump_sum" and c.detail == "blocks: 6 bidders" for c in extras["census"])
+
+
+def test_clean_turns_only_the_latin_ligatures_into_their_letters():
+    """fin/ligature-department: ﬀ ﬁ ﬂ ﬃ ﬄ become their letters; a curly apostrophe, ½, ™, ² and ﬅ stay as the
+    text layer has them (no full NFKC)."""
+    from collector.fin_bidtab import clean
+    assert clean("Sheriﬀ’s  Oﬃce") == "Sheriff’s Office"
+    assert clean("ﬁre ﬂow ﬀ ﬃ ﬄ") == "fire flow ff ffi ffl"
+    assert clean("½ mile™ 2,000 ft² ﬅ") == "½ mile™ 2,000 ft² ﬅ"
+
+
+def test_the_committed_finance_file_has_no_ligature_in_any_department():
+    """fin/ligature-department: data/finance.json as the fixed reader writes it (departments, and the coverage keys
+    made from them)."""
+    import json
+    from conftest import ROOT
+    fin = json.loads((ROOT / "data" / "finance.json").read_text(encoding="utf-8"))
+    lig = set("ﬀﬁﬂﬃﬄ")
+    depts = [s["department"]["text"] for s in fin["solicitations"] if s["department"]]
+    assert depts and not [d for d in depts if lig & set(d)]
+    assert not [k for k in fin["coverage"]["by_department_year"] if lig & set(k)]
+    assert "Sheriff’s Office" in depts

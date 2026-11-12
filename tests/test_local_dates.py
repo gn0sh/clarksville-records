@@ -244,11 +244,44 @@ def test_site_check_rule(tmp_path, body, ok):
 def test_site_check_ties_a_council_page_to_the_councils_sources(tmp_path):
     council = {"sources": [{"url": URL2, "sha256": SHA, "fetched_at": "2026-11-08"}], "meetings": []}
     (tmp_path / "city").mkdir()
-    (tmp_path / "city" / "p.html").write_text("<p>Data as of 2026-11-08</p>", encoding="utf-8")
-    (tmp_path / "p.html").write_text("<p>Data as of 2026-11-08</p>", encoding="utf-8")
+    (tmp_path / "city" / "p.html").write_text("<p>Minutes fetched on 2026-11-08.</p>", encoding="utf-8")
+    (tmp_path / "p.html").write_text("<p>Minutes fetched on 2026-11-08.</p>", encoding="utf-8")
     problems, _ = site_checks.check_local_dates(tmp_path, {"city/p.html": None, "p.html": None}, _cfg(tmp_path),
                                                 False, county=COUNTY, councils_=[{"prefix": "city/", "facts": council}])
     assert len(problems) == 1 and problems[0].startswith("p.html: "), problems   # the county's latest is 11-09
+
+
+@pytest.mark.parametrize("finance, want, stale", [
+    # the county's latest (11-09) is newer than the council's (11-08): every page's footer says 11-09
+    ([], "2026-11-09", "2026-11-08"),
+    # a finance document stored on 11-12 (no manifest row: a UTC day, labelled) is the newest of all
+    ([{"url": URL + "?fin", "sha256": SHA, "fetched_at": "2026-11-12"}], "2026-11-12 (UTC day)", "2026-11-09"),
+])
+def test_site_check_wants_the_site_wide_latest_in_every_footer(tmp_path, finance, want, stale):
+    """dates/footer-as-of-county-only: "Data as of" is the latest fetch of every file the site shows, on every page
+    (a council's page included), so no footer reads as stale while another source is fresh."""
+    council = {"sources": [{"url": URL2, "sha256": SHA, "fetched_at": "2026-11-08"}], "meetings": []}
+    (tmp_path / "city").mkdir()
+    for rel, day in (("city/ok.html", want), ("ok.html", want), ("city/old.html", stale), ("old.html", stale)):
+        (tmp_path / rel).write_text(f"<p>Data as of {day}</p>", encoding="utf-8")
+    pages = {rel: None for rel in ("city/ok.html", "ok.html", "city/old.html", "old.html")}
+    problems, _ = site_checks.check_local_dates(tmp_path, pages, _cfg(tmp_path), False, county=COUNTY, rpc=RPC,
+                                                councils_=[{"prefix": "city/", "facts": council}],
+                                                other_sources=[finance])
+    assert sorted(p.split(":")[0] for p in problems) == ["city/old.html", "old.html"], problems
+
+
+def test_latest_is_the_newest_files_own_latest_day():
+    """sitegen's footer day (localdates.latest): each file's own latest as pages print it, then the newest."""
+    county = [{"url": URL, "sha256": SHA, "fetched_at": "2026-11-10"}]                 # 22:38 CST on 11-09
+    city = [{"url": URL2, "sha256": SHA, "fetched_at": "2026-11-08"}]
+    fin = [{"url": URL3, "sha256": SHA, "fetched_at": "2026-11-11"}]                   # no instant: a UTC day
+    localdates.use({(URL, SHA): LATE, (URL2, SHA): datetime(2026, 11, 8, 15, tzinfo=timezone.utc)})
+    assert localdates.latest(county, city) == "2026-11-09"
+    assert localdates.latest(city, county) == "2026-11-09"
+    assert localdates.latest(county, city, fin) == "2026-11-11 (UTC day)"
+    assert localdates.latest(city, [{"url": URL3, "sha256": SHA, "fetched_at": "2026-11-08"}]) == "2026-11-08"
+    assert localdates.latest([], ()) is None
 
 
 def test_site_check_in_a_fixture_build_wants_every_day_labelled(tmp_path):

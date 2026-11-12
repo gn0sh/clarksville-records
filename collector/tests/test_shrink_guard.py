@@ -254,7 +254,8 @@ def test_guard_other_sources_still_publish(county, tmp_path, capsys):
     assert county["site_facts"] == merged and county["export_facts"] == merged and merged == committed()
     assert "--body" in capsys.readouterr().out                       # the issue it would open (D1)
     code, outputs, _ = collect(tmp_path, county=M.KEPT, run_log=json.dumps({"rpc": {"exit": 0}}))
-    assert code == 0 and outputs == {"city": "0", "county": "0", "kept": "yes", "allowed": "no", "rpc": "ok"}
+    assert code == 0 and outputs == {"city": "0", "county": "0", "kept": "yes", "allowed": "no", "rpc": "ok",
+                                     "city_kept": "no"}
     assert STEPS["Upload refreshed data"]["if"].startswith("success() && ")
 
 
@@ -495,7 +496,8 @@ def test_new_meetings_withheld_with_a_kept_document_are_listed(county, tmp_path,
     assert '"withheld_new": [\n    "2026-12-14-formal"' in body
 
 
-@pytest.mark.parametrize("name", ["Open or update the RPC issue", "Open or update the county kept-meetings issue"])
+@pytest.mark.parametrize("name", ["Open or update the RPC issue", "Open or update the county kept-meetings issue",
+                                  "Open or update the city meetings-kept issue"])
 def test_issue_steps_never_block_publishing(name):
     """ci/notify-step-blocks-publish: a gh failure in a notification step leaves upload, push and deploy running."""
     assert STEPS[name]["continue-on-error"] is True

@@ -16,6 +16,16 @@
 <span class="unconfirmed">{% if check %}* Not confirmed. {{ held_text[check] }}{% elif src.held_note is defined %}* {{ src.held_note }}{% else %}* Not confirmed: this page was hard to read.{% endif %} <a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">Read it yourself<span class="sr-only"> (p. {{ src.page }} of the {{ src.kind }} PDF, opens in a new tab)</span></a>.</span>
 {%- endmacro %}
 
+{# A confirmed fact (a Moved or Seconded row) whose motion's roll call is held (city-verify/moved-row-note-ambiguous):
+   the note names the roll call, not the fact, so it never reads as if who moved or seconded were unconfirmed. The
+   reason is the held roll call's own sentence without its "Not confirmed: " lead. `seconded`: the motion records a
+   seconder; without one the note says only "Who moved it" (city-verify/moved-row-note-ambiguous). #}
+{% macro outcome_not_confirmed(src, seconded=true) -%}
+{%- set lead = "Not confirmed: " -%}
+{%- set why = (src.held_note[lead|length:] if src.held_note.startswith(lead) else src.held_note) if src.held_note is defined else "this page was hard to read." -%}
+<span class="unconfirmed">* Outcome not confirmed: the roll call on this motion is held. {{ why[:1]|upper }}{{ why[1:] }} {% if seconded %}Who moved and seconded it is confirmed.{% else %}Who moved it is confirmed.{% endif %} <a href="{{ src.url }}" target="_blank" rel="noopener noreferrer">Read it yourself<span class="sr-only"> (p. {{ src.page }} of the {{ src.kind }} PDF, opens in a new tab)</span></a>.</span>
+{%- endmacro %}
+
 {# The asterisk, so screen readers say the words rather than "star" (design 2.6). #}
 {% macro nc_mark() -%}
 <span class="nc-mark" aria-hidden="true">*</span><span class="sr-only"> (not confirmed)</span>

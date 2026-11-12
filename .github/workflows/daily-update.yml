@@ -138,9 +138,13 @@ jobs:
           # Exit codes (docs/ops/launch-runbook.md "Exit codes"). Hard failures fail this step: nothing is uploaded,
           # committed or deployed, the committed data/ on main is untouched and one issue opens.
           #   city:   0 ok, 2 a listing not read (or fetch/parse failures), 3 the G4 skew gate flagged an official,
-          #           5 a host or robots.txt refused us.
+          #           5 a host or robots.txt refused us; 7 is a warning (below).
           #   county: 0 ok, 2 fetch/parse failures, 3 gate failure, 4 offline run refused.
           # Warnings (the step passes, so everything else still commits and deploys; precedence 2 > 3 > 7 > 5/6):
+          #   city 7: the city shrink guard kept committed city rows or meetings exactly as committed (a listing
+          #     that lost rows, a missing or unread minutes file, lost verified roll calls) or a correction lowered a
+          #     verified count (docs/adr/0006-daily-refresh-data-guards.md): output city_kept=yes and the step below
+          #     opens or comments on one city meetings-kept issue. The city run never gets allow_shrink (ADR 0006 I4).
           #   7 the shrink guard kept one or more county source documents exactly as committed (a lost verified roll
           #     call or meeting, or a document missing from the run), or a correction (new bytes) lowered a
           #     document's verified count: output kept=yes and the step below opens or comments on one
@@ -165,6 +169,11 @@ jobs:
           python -m collector city run; city=$?
           python -m collector run "${shrink[@]}"; county=$?
           echo "city_exit=$city county_exit=$county"
+          city_kept=no
+          if [ "$city" = 7 ]; then
+            echo "::warning::City meetings were kept as committed (or a correction lowered a verified count); everything else is published. See the city meetings-kept issue."
+            city_kept=yes; city=0
+          fi
           kept=no
           rpc=ok
           if [ "$county" = 7 ]; then
@@ -188,6 +197,7 @@ jobs:
             if [ "${n:-0}" != 0 ]; then allowed=yes; fi
           fi
           echo "city=$city" >> "$GITHUB_OUTPUT"
+          echo "city_kept=$city_kept" >> "$GITHUB_OUTPUT"
           echo "county=$county" >> "$GITHUB_OUTPUT"
           echo "kept=$kept" >> "$GITHUB_OUTPUT"
           echo "allowed=$allowed" >> "$GITHUB_OUTPUT"
@@ -375,6 +385,49 @@ jobs:
             echo
             echo "It repeats every day until the cause clears or someone acts: see docs/ops/launch-runbook.md,"
             echo "'County meetings kept'."
+          } > "$body"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$KEPT_TITLE\" in:title" \
+                   --json number,title --jq 'map(select(.title == $ENV.KEPT_TITLE)) | .[0].number // empty')
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$KEPT_TITLE" --body-file "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+          fi
+
+      # The city shrink guard kept committed city rows or meetings (city exit 7, ADR 0006): one open issue, with a
+      # comment each later day instead of a new issue. A copy of the county step: the guard's findings are read from
+      # build/city-report.json into a file and passed with --body-file, never through the shell or an expression.
+      - name: Open or update the city meetings-kept issue
+        if: always() && steps.collect.outputs.city_kept == 'yes'
+        continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEPT_TITLE: "Daily update: city meetings kept"
+        run: |
+          set -eu
+          body="$RUNNER_TEMP/city-kept-issue.md"
+          detail="$RUNNER_TEMP/city-kept-detail.json"
+          # backticks are dropped so site text cannot close the fence (ci/issue-markdown-fence); a missing or
+          # unreadable city-report.json gives "unknown" (ci/issue-reason-missing)
+          kept=unknown
+          if jq '.guard | {kept_listing_rows, kept_meetings, withheld_new, corrections, lowered, dropped_unminuted, allowed_drop}' \
+               build/city-report.json > "$detail" 2>/dev/null; then
+            kept=$(tr -d '`' < "$detail" | head -c 3000)
+          fi
+          [ -n "$kept" ] || kept=unknown
+          {
+            echo "The city run kept some rows or meetings exactly as committed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "Everything else (other city meetings, county, finance, agendas, RPC unless its own issue says otherwise) was published as usual."
+            echo "withheld_new lists new meetings held back with a kept document (they appear once it is no longer kept)."
+            echo
+            echo "Kept rows and meetings, corrections and quiet drops (build/city-report.json guard):"
+            echo
+            echo '```'
+            echo "$kept"
+            echo '```'
+            echo
+            echo "It repeats every day until the cause clears or someone acts: see docs/ops/launch-runbook.md,"
+            echo "'City meetings kept'."
           } > "$body"
           open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$KEPT_TITLE\" in:title" \
                    --json number,title --jq 'map(select(.title == $ENV.KEPT_TITLE)) | .[0].number // empty')

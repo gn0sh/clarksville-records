@@ -725,7 +725,7 @@ def official(official_id: str, facts) -> dict:
             "meeting_label": ix.meeting_label(m), "meeting_href": ix.meeting_href(meeting_id, anchor),
             "fact_id": fact_id, "src": ix.src(source_id, page), "page": page,
             "item": None, "motion_text": None, "motion_label": None, "motion_by": None, "vote_on": None,
-            "record": "", "key": None, "outcome": None, "pos": 0, "confirmed": True,
+            "record": "", "key": None, "outcome": None, "pos": 0, "confirmed": True, "seconded": True,
         }
 
     for rc in ix.facts["roll_calls"]:
@@ -764,6 +764,7 @@ def official(official_id: str, facts) -> dict:
             r = base(kind, mo["meeting_id"], f"{mo['id']}/{role}", mo["source_id"], mo["page"], mo["id"])
             r["item"] = ix.item_ref(mo["item_id"])
             r["record"] = motion_type_label(mo["text"])  # the type only, never the minutes' sentence
+            r["seconded"] = bool(mo.get("seconded_by"))  # the note names a seconder only when the motion has one
             rc = ix.rc_by_motion.get(mo["id"])
             if rc:
                 r["outcome"] = ix.outcome(rc)

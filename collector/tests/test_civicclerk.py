@@ -462,8 +462,52 @@ def test_the_committed_general_listing_lists_exactly_the_d1_rows(cfg, acfg):
             assert e["asked"]
             listed[e["id"]] = (e["date"], e["name"], p["page1"])
     rows = json.loads((ROOT / "data" / "localities" / "clarksville-tn" / "civicclerk-listing.json").read_text())
-    d1 = {r["event_id"]: (r["date"], r["title"], r["page1_required"]) for r in rows if r.get("page1_required")}
-    assert listed == d1 and len(d1) == 20
+    assert_d1_rows_match(rows, doc, also, listed)
+
+
+def assert_d1_rows_match(rows, doc, also, listed):
+    """pipeline/tests-pin-live-data (ADR 0006 fix 4, I3): the committed listing changes with every daily update, so a
+    known event (one the 2026-11-11 listing had) is compared by id and page-1 heading only (its date and title may be
+    renamed), and may leave the listing only when it has no minutes (a cancelled event, dropped quietly by the city
+    guard); a row added since must still be one the configured patterns ask for, with their page-1 heading."""
+    d1 = {r["event_id"]: r for r in rows if r.get("page1_required")}
+    known = {e["id"]: e for e in doc["events"]}
+    assert len(listed) == 20
+    for k, (_, _, page1) in listed.items():
+        if k in d1:
+            assert d1[k]["page1_required"] == page1, k
+        else:
+            assert not any(f["type"] == "Minutes" for f in known[k]["files"]), k       # only an unminuted one goes
+    for k, r in d1.items():
+        if k in known:
+            assert k in listed, k                     # an event the patterns do not list is never a D1 row
+        else:
+            p = cc.also_pattern(r["title"], also)
+            assert p and p["page1"] == r["page1_required"], (k, r["title"])
+
+
+def test_a_d1_row_listed_after_the_research_listing_keeps_the_committed_listing_test_green(cfg, acfg):
+    """pipeline/tests-pin-live-data: what the daily update may do to the committed listing must not fail the test
+    of it (the update runs the suite before it commits): a new General special session, a renamed title, a removed
+    row without minutes. A row the patterns would not ask for, or a removed row with minutes, still fails it."""
+    from conftest import ROOT
+    doc = json.loads((ROOT / "docs" / "research" / "civicclerk-general-listing-2026-11-11.json").read_text())
+    [also] = cfg.also_list
+    rows = json.loads((ROOT / "data" / "localities" / "clarksville-tn" / "civicclerk-listing.json").read_text())
+    listed = {e["id"]: (e["date"], e["name"], e["pattern_page1"]) for e in doc["events"] if e["pattern_page1"]}
+    files = {e["id"]: e["files"] for e in doc["events"]}
+    d1 = [r for r in rows if r.get("page1_required")]
+    new = d1[0]
+    unminuted = next(r for r in d1 if not any(f["type"] == "Minutes" for f in files[r["event_id"]]))
+    minuted = next(r for r in d1 if any(f["type"] == "Minutes" for f in files[r["event_id"]]))
+    assert_d1_rows_match(rows + [{**new, "event_id": 999999, "date": "2099-01-07"}], doc, also, listed)
+    assert_d1_rows_match([{**r, "title": r["title"] + " (Rescheduled)"} if r is new else r for r in rows],
+                         doc, also, listed)
+    assert_d1_rows_match([r for r in rows if r is not unminuted], doc, also, listed)
+    with pytest.raises(AssertionError):
+        assert_d1_rows_match(rows + [{**new, "event_id": 999998, "title": "Budget Retreat"}], doc, also, listed)
+    with pytest.raises(AssertionError):
+        assert_d1_rows_match([r for r in rows if r is not minuted], doc, also, listed)
 
 
 def test_the_also_listing_keeps_only_its_category_and_event_name_and_marks_each_row(cfg, acfg):

@@ -327,7 +327,7 @@ def test_a_far_future_fiscal_year_is_an_anomaly(cfg):
 def test_every_fixed_title_issue_lookup_lists_only_actions_issues():
     text = (ROOT / ".github" / "workflows" / "daily-update.yml").read_text(encoding="utf-8")
     lookups = [ln for ln in text.splitlines() if "gh issue list" in ln]
-    assert len(lookups) == 6, lookups
+    assert len(lookups) == 7, lookups        # 7th: the city meetings-kept issue (ADR 0006)
     for ln in lookups:
         assert "--app github-actions" in ln, ln
 

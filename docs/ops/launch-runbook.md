@@ -21,11 +21,26 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
 - Exit codes (shown in the failure issue as `city=` and `county=`). **Hard failure** (the Collect step fails: nothing
   is uploaded, committed or deployed; data/ on `main` and the live site stay as they were; one issue opens):
   - city: 2 a listing not read or fetch/parse failures, 5 a host or robots.txt refused the collector (403/429 and the
-    like). On 5 do not re-run to "try again" and do not change the fetcher: read `build/city-report.json` in the run
+    like). (7 is a warning, below.) On 5 do not re-run to "try again" and do not change the fetcher: read `build/city-report.json` in the run
     log and ask the manager. 3 the G4 skew gate flagged an official (`build.gates.g4.flagged` in
     `build/city-report.json`): a release block, as the county's 3; the city's AC-P1 verified rate is reported there
     but sets no code.
   - county: 2 fetch/parse failures (votes or finance), 3 gate failure, 4 offline run refused. (7 is a warning, below.)
+- **City meetings kept** (city 7, a warning; city precedence 5 > 2 > 3 > 7;
+  `docs/adr/0006-daily-refresh-data-guards.md`). The city shrink guard keeps committed city data exactly as committed
+  when a listing comes back without rows the committed listing has (an empty page, a 200 with no rows) or the build
+  would lose a committed meeting; everything else (the other city meetings, county, finance, agendas, RPC) commits
+  and deploys. One open "Daily update: city meetings kept" issue (a comment each later day) lists `build/city-report.json`
+  `guard`: `kept_listing_rows`, `kept_meetings`, `corrections`. A listed row with no minutes dated today or later that
+  vanishes (a cancelled or moved future event) is dropped quietly and listed under `dropped_unminuted`, no code. It
+  repeats every day until the cause clears or someone acts. The workflow's `allow_shrink` never reaches the city run.
+  Only when a drop is meant (the city really removed a meeting or its minutes): name each id, as the kept entries
+  print it (a meeting id such as `2026-07-09-special`, or a listing row `key`), in a local run, then open a PR:
+  `python -m collector city run --allow-drop <id>[,<id>] --limit 0`. An id that matches no kept row or meeting is
+  refused (exit 2, nothing written); every drop is listed under `guard.allowed_drop`. There is no flag that accepts
+  every drop (ADR 0006 I4). A meeting id names a listing row only when the row carries that meeting's committed
+  `minutes_url` (the kept row's `meeting` field; null when none does): any other row, such as a vanished second
+  session the same day or the other listing's copy of a merged meeting, is named by its `key`.
 - **County meetings kept** (county 7, a warning; precedence 2 > 3 > 7 > 5/6). The shrink guard
   (`docs/architecture/pipeline-limits-invariant.md`, "Rule 3: the shrink guard") compares each county source document
   with the committed `data/facts.json` by sha256. The same document that lost a verified roll call or a meeting (a

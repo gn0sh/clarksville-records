@@ -1106,6 +1106,10 @@ def check_unverified(site: Path, pages: dict[str, Page], facts: dict, internal: 
                 problems.append(f"{rel}: {fid} shows an unconfirmed roll call with another check's note")
             elif rc in confirmed and (any(n in text for n in every_note) or "*" in text):
                 problems.append(f"{rel}: {fid} shows a confirmed roll call with a '*' or the 'Not confirmed' note")
+            # a Moved or Seconded row (shown only for a verified motion) never carries a roll call's note as its own:
+            # a held roll call's outcome is named as the roll call's (city-verify/moved-row-note-ambiguous)
+            if fid.endswith(("/moved", "/seconded")) and any(n in text for n in every_note):
+                problems.append(f"{rel}: {fid} carries a roll call's 'Not confirmed' note as if the motion were held")
             if rc in unconfirmed and not show_values and (m := PARSED_VALUE.search(text)):
                 problems.append(f"{rel}: {fid} shows a parsed value {m.group(0)!r} of an unconfirmed roll call")
     # SHOW_UNCONFIRMED_VALUES off: the public export carries no value, outcome or tally of an unconfirmed roll call
@@ -1816,12 +1820,20 @@ def _shown(day, utc) -> str:
     return f"{day}{UTC_DAY_LABEL if utc else ''}"
 
 
-def _aggregate_ok(m, span, rpc_span) -> str | None:
-    """Why an aggregate fetch day on a page breaks the rule: it must be its own sources' latest ("Data as of",
-    "latest fetched": the RPC's), or earliest and latest ("fetched between"), or the one day ("fetched on"), each
-    labelled (UTC day) exactly when a source has no recorded instant (dates/check-aggregate-loose)."""
+def _site_span(spans) -> tuple[str, str, bool] | None:
+    """The footer's site-wide day (dates/footer-as-of-county-only), restated from sitegen/localdates.py latest on
+    purpose: each file's own latest (its _fetch_span), then the newest by calendar day, on a tie the exact one."""
+    best = max((sp for sp in spans if sp), key=lambda sp: (sp[1], sp[2]), default=None)
+    return (best[1], best[1], best[2]) if best else None
+
+
+def _aggregate_ok(m, span, rpc_span, site_span=None) -> str | None:
+    """Why an aggregate fetch day on a page breaks the rule: it must be its own sources' latest ("latest fetched":
+    the RPC's), or earliest and latest ("fetched between"), or the one day ("fetched on"), each labelled (UTC day)
+    exactly when a source has no recorded instant (dates/check-aggregate-loose); the footer's "Data as of" is the
+    site-wide latest (`site_span`, dates/footer-as-of-county-only)."""
     kind = m["kind"].lower()
-    sp = rpc_span if kind == "latest fetched" else span
+    sp = rpc_span if kind == "latest fetched" else site_span if kind == "data as of" else span
     shown = f"'{m['kind']} {_shown(m['day'], m['utc'])}" + (f" and {_shown(m['day2'], m['utc2'])}'" if m["day2"] else "'")
     if sp is None:
         return f"{shown}: the page's body has no fetched sources to check it against"
@@ -1906,13 +1918,16 @@ def check_freshness_dates(site: Path, pages: dict[str, Page]) -> tuple[list[str]
 
 
 def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bool, county: dict | None = None,
-                      councils_: list[dict] | tuple = (), rpc: dict | None = None) -> tuple[list[str], str]:
+                      councils_: list[dict] | tuple = (), rpc: dict | None = None,
+                      other_sources=()) -> tuple[list[str], str]:
     """dates/no-raw-utc-day: (1) each per-document fetch day on a page ("fetched D", "Fetched D.", "at fetch (D)")
     is the site_timezone day of a manifest instant of a source linked just before it (the links since the previous
     fetch day, else the previous fetch day's links: a Details list after its links), or is labelled "(UTC day)"
     when no linked source has an instant; (2) an aggregate ("fetched between A and B", "fetched on", "latest
-    fetched", "Data as of") is its own page's sources' day (_aggregate_ok: a council's pages, `councils_` {prefix,
-    facts}, by the council's sources; the RPC's pages (its slug) by `rpc`'s; every other page by `county`'s; "latest fetched" by `rpc`'s); a day after
+    fetched") is its own page's sources' day (_aggregate_ok: a council's pages, `councils_` {prefix, facts}, by the
+    council's sources; the RPC's pages (its slug) by `rpc`'s; every other page by `county`'s; "latest fetched" by
+    `rpc`'s), and the footer's "Data as of" on every page the latest of every file's (county, councils, RPC and
+    `other_sources`: a list of source lists, the county agendas and finance); a day after
     "collected", "added", "downloaded" or "retrieved" is a fetch day as in (1), or after "meeting " a meeting date of
     the page's facts; (3) the same for the search index's s.f beside s.u and (4) each feed entry's summary "fetched D"
     beside its related link."""
@@ -1926,6 +1941,7 @@ def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bo
     if rpc_slug:   # the RPC's own pages date their footer by its sources (site-polish/rpc-subtitle: Rpc.site_for)
         scopes.append((rpc_slug + "/", rpc))
     spans = {id(f): _fetch_span(f.get("sources") or [], rows) for _, f in scopes + [("", county)]}
+    site_span = _site_span([*spans.values(), rpc_span, *(_fetch_span(list(s), rows) for s in other_sources)])
     problems: list[str] = []
     n = labelled_n = 0
     for rel in sorted(pages):
@@ -1940,7 +1956,7 @@ def check_local_dates(site: Path, pages: dict[str, Page], cfg: dict, fixture: bo
             n += 1
             labelled_n += bool(m["utc"])
             if m["kind"].lower() in FETCH_AGGREGATE:
-                why = _aggregate_ok(m, spans[id(own)], rpc_span)
+                why = _aggregate_ok(m, spans[id(own)], rpc_span, site_span)
                 if why:
                     problems.append(f"{rel}: {why}")
                 continue
@@ -2391,14 +2407,17 @@ def check_private_details(site: Path, cs: list[dict]) -> tuple[list[str], str]:
             rel = f"{c.get('slug', '?')}/transcripts/{f.name}"
             segs = json.loads(f.read_text(encoding="utf-8")).get("segments") or []
             lines = [" ".join(str(seg[2]).split()) if isinstance(seg, list) and len(seg) == 3 else "" for seg in segs]
+            any_hit = False
             for i, t in enumerate(lines):
                 segs_checked += 1
-                if private_details(t):
-                    problems.append(f"{rel}#s{i}: committed transcript line holds {len(private_details(t))} address or "
+                hits = private_details(t)               # once per line (it runs every address and phone pattern)
+                if hits:
+                    any_hit = True
+                    problems.append(f"{rel}#s{i}: committed transcript line holds {len(hits)} address or "
                                     "phone number matches (not masked at rest)")
                 if len(t) >= NEEDLE_MIN:
                     by_head.setdefault(t[:NEEDLE_MIN], []).append((t, f"{rel}#s{i}"))
-            if lines and not any(private_details(t) for t in lines) and private_details(" ".join(lines)):
+            if lines and not any_hit and private_details(" ".join(lines)):
                 problems.append(f"{rel}: an address or phone number split over two committed lines (not masked at rest)")
     shared = 0
     if by_head:
@@ -2884,7 +2903,10 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     problems, note = check_feeds(site, pages, all_sources["sources"], cfg,
                                  finance_sources=list((finance or {}).get("sources") or []))
     rep.add("feeds", problems, note)
-    problems, note = check_local_dates(site, pages, cfg, bool(facts.get("fixture")), county=facts, councils_=cs, rpc=rpc)
+    problems, note = check_local_dates(site, pages, cfg, bool(facts.get("fixture")), county=facts, councils_=cs, rpc=rpc,
+                                       # the agendas a build shows: those with a page count (sitegen/county_agendas.py)
+                                       other_sources=[[s for s in (agendas or {}).get("sources") or [] if s.get("pages")],
+                                                      (finance or {}).get("sources") or []])
     rep.add("dates/no-raw-utc-day", problems, note)
     problems, note = check_freshness_dates(site, pages)
     rep.add("dates/freshness-linked", problems, note)

@@ -1,4 +1,4 @@
-{% from "_macros.html.j2" import source, source_cell, clamp, fact_meta, item_link, not_confirmed, nc_mark, chip, motion_by %}
+{% from "_macros.html.j2" import source, source_cell, clamp, fact_meta, item_link, not_confirmed, outcome_not_confirmed, nc_mark, chip, motion_by %}
 {# The history table, one per year in a <details> (newest open). Used by official pages and seat pages. #}
 {% macro history_groups(row_groups, root, empty="No votes, attendance, motions or seconds are shown for this person in this period.", open_all=False) %}
   {% for g in row_groups %}
@@ -29,7 +29,7 @@
         </div></td>
         <td role="cell" class="c-record" data-label="Record"><div>{% if r.key %}{{ chip(r.record, r.key, not r.confirmed) }}{% else %}{{ r.record }}{% if not r.confirmed %}{{ nc_mark() }}{% endif %}{% endif %}</div></td>
         <td role="cell" class="c-outcome" data-label="Outcome"><div>{% if r.outcome and not r.outcome.hidden %}<span class="chip chip-outcome">{{ r.outcome.label }}{% if not r.outcome.confirmed %}{{ nc_mark() }}{% endif %}</span>{% if r.outcome.tally %}<br><small>{{ r.outcome.tally }}</small>{% endif %}{% elif r.outcome %}<span class="muted" aria-hidden="true">&ndash;</span><span class="sr-only">Not shown (see Details)</span>{% else %}<span class="muted">Not shown</span>{% endif %}</div></td>
-        <td role="cell" class="c-source cite" data-label="Source"><div>{% set note %}{% if not r.confirmed %}<p>{{ not_confirmed(r.src) }}</p>{% elif r.outcome and not r.outcome.confirmed %}<p>{{ not_confirmed(r.outcome.src) }}</p>{% endif %}{% endset %}{{ source_cell(r.src, root, r.fact_id, note) }}</div></td>
+        <td role="cell" class="c-source cite" data-label="Source"><div>{% set note %}{% if not r.confirmed %}<p>{{ not_confirmed(r.src) }}</p>{% elif r.outcome and not r.outcome.confirmed %}<p>{{ outcome_not_confirmed(r.outcome.src, r.seconded) }}</p>{% endif %}{% endset %}{{ source_cell(r.src, root, r.fact_id, note) }}</div></td>
       </tr>
     {% else %}
       <tr role="row" class="empty"><td role="cell" colspan="6">{{ empty }}</td></tr>
