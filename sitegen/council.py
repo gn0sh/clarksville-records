@@ -175,6 +175,27 @@ def latest_list_incomplete(wards: list[dict], facts: dict, latest: str | None, p
     return bool(unresolved[latest]) or len(resolved[latest]) < len(resolved[prev]) + len(unresolved[prev])
 
 
+def unplaced_names(wards: list[dict], facts: dict, date: str | None) -> list[dict]:
+    """The names the attendance list(s) of `date` print that resolve to no official, each with the page that prints
+    it: [{"printed", "src", "source_id", "page"}], once per spelling and page, sorted by spelling. A held-over
+    record's wording names them (city-seats/held-over-note-says-not-named): such a list does not leave its member
+    out, it prints a name the record cannot place."""
+    if date is None:
+        return []
+    officials = {o["id"] for o in facts["officials"]}
+    sources = {s["id"]: s for s in facts.get("sources", [])}
+    out = {}
+    for w in wards:
+        if w["date"] == date and w.get("official_id") not in officials and w.get("source_id") in sources:
+            out.setdefault((w.get("raw_name") or "", w["source_id"], w["page"]), None)
+    for m in facts.get("meetings", []):
+        if m.get("date") == date and m.get("source_id") in sources:
+            for a in m.get("attendance") or []:
+                if not a.get("official_id") or a["official_id"] not in officials:
+                    out.setdefault((a.get("raw_name") or "", m["source_id"], a["page"]), None)
+    return [{"printed": n, "src": _src(sources, sid, pg), "source_id": sid, "page": pg} for n, sid, pg in sorted(out) if n]
+
+
 def holder_rows(wards: list[dict], facts: dict, cfg: dict) -> tuple[list[dict], str | None]:
     """(records, L). L is the latest minutes read: the latest meeting with an attendance list (wards.json lists every
     member each list prints, ward or not); only without any list, the latest record end. A record seen at L (or
@@ -188,21 +209,23 @@ def holder_rows(wards: list[dict], facts: dict, cfg: dict) -> tuple[list[dict], 
 
     One list is not enough to close a record (city-seats, one-list drop): a record last seen at the list before L,
     whose member L's list does not name, stays open (`held_over`) when that list is incomplete
-    (latest_list_incomplete) and the record shows no successor. Seats words it as not named at L."""
+    (latest_list_incomplete) and the record shows no successor. Seats words it as not named at L, or, when L's list
+    prints a name the record cannot place (`unplaced`, unplaced_names), as printing that name."""
     rows = ward_rows(wards, facts, cfg) + title_rows(facts, cfg)
     extend_by_listings(rows, wards, facts, cfg)
     lists = sorted({w["date"] for w in wards if not w.get("configured")})    # a configured seating is not a list
     latest = lists[-1] if lists else max((r["end"] for r in rows), default=None)
     prev = lists[-2] if len(lists) > 1 else None
     short = latest_list_incomplete(wards, facts, latest, prev)
+    unplaced = unplaced_names(wards, facts, latest) if short else []
     for r in rows:
-        r["seen_to"], r["held_over"] = r["end"], False
+        r["seen_to"], r["held_over"], r["unplaced"] = r["end"], False, []
         if r["end"] >= latest:
             r["end"] = None
         elif short and r["official_id"] and r["end"] == prev and not any(
                 x is not r and x["start"] > prev and (x["seat"] == r["seat"] or x["official_id"] == r["official_id"])
                 for x in rows):
-            r["end"], r["held_over"] = None, True
+            r["end"], r["held_over"], r["unplaced"] = None, True, unplaced
     return rows, latest
 
 
@@ -297,8 +320,11 @@ def seat_list(cix: CouncilIndex) -> list[dict]:
         held = cix.seats.held_over_of_seat(seat) if holder is None else None
         note = None
         if held is not None and held["official_id"] in cix.officials:
+            # the page of each name the latest list prints but the record cannot place, linked beside the line
             note = {"name": cix.officials[held["official_id"]]["name"], "href": cix.official_href(held["official_id"]),
-                    "text": cix.seats.held_over_text(held)}
+                    "text": cix.seats.held_over_text(held),
+                    "cites": [cix.src(*k) for k in dict.fromkeys((u["source_id"], u["page"])
+                                                                   for u in held.get("unplaced") or [])]}
         out.append({"seat": seat, "label": seat_label(seat), "holder": holder, "note": note})
     return out
 

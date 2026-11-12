@@ -250,8 +250,9 @@ class Seats:
         if rec["end"] is None and rec.get("seen_to") and rec["seen_to"] > self.latest:
             to = rec["seen_to"]   # seen after L (a roll call at a meeting with no list): the date its page shows
         if rec.get("held_over"):
-            # open, but the latest list does not name the member (council.holder_rows): say so, never "to L"
-            to = f"{rec['seen_to']}; not named in the {self.wording['evidence']} of {self.latest}, {self.wording['latest']}"
+            # open, but the latest list does not name the member (council.holder_rows): say so, never "to L"; when that
+            # list prints a name the record cannot place, it does not leave the member out: say what it prints
+            to = f"{rec['seen_to']}; {self._at_latest(rec, ', ' + self.wording['latest'])}"
             if not rec.get("printed_to"):
                 return f"seen in {ev} from {rec['start']} to {to}"
         if rec.get("printed_to"):
@@ -267,8 +268,18 @@ class Seats:
 
     def held_over_text(self, rec: dict) -> str:
         """The neutral line beside a seat whose record is held over (council.holder_rows)."""
+        return f"last listed in {self.wording['evidence']} {rec['seen_to']}; {self._at_latest(rec)}"
+
+    def _at_latest(self, rec: dict, latest_words: str = "") -> str:
+        """What the latest list says of a held-over record's member (city-seats/held-over-note-says-not-named):
+        "not named in the attendance lists of L" only when the list truly leaves them out (a cut-off list); when it
+        prints a name the record cannot place (`unplaced`, council.unplaced_names), that name, as printed."""
         ev = self.wording["evidence"]
-        return f"last listed in {ev} {rec['seen_to']}; not named in the {ev} of {self.latest}"
+        names = list(dict.fromkeys(u["printed"] for u in rec.get("unplaced") or []))
+        if not names:
+            return f"not named in the {ev} of {self.latest}{latest_words}"
+        what = "a name the record cannot place" if len(names) == 1 else "names the record cannot place"
+        return f"the {ev} of {self.latest}{latest_words + ',' if latest_words else ''} print {what}: {', '.join(names)}"
 
     def view(self, rec: dict) -> dict:
         """What a page may know about a record: label, wording and sources, never a bare start/end."""

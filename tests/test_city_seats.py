@@ -373,8 +373,13 @@ def test_the_real_latest_list_2026_07_06_holds_ward_2_over_and_shows_no_wrong_ho
     assert not cix.seats.is_current(oid) and cix.seats.current_of_seat("ward-2") is None
     row = next(s for s in council.seat_list(cix) if s["seat"] == "ward-2")
     assert row["holder"] is None and row["note"]["href"] == cix.official_href(oid)
-    assert row["note"]["text"] == ("last listed in attendance lists 2026-06-22; not named in the attendance lists "
-                                   "of 2026-07-06")
+    # city-seats/held-over-note-says-not-named: the list prints CLAULNCH, so it does not leave him out; the note says
+    # what it prints, linked to that page (fileId 3254 p. 1), never "not named"
+    assert row["note"]["text"] == ("last listed in attendance lists 2026-06-22; the attendance lists of 2026-07-06 "
+                                   "print a name the record cannot place: CLAULNCH")
+    assert "not named" not in row["note"]["text"] and site_checks.dates_worded(row["note"]["text"]) == []
+    (cite,) = row["note"]["cites"]
+    assert cite["url"].endswith("fileId=3254,plainText=false)#page=1") and cite["page"] == 1
     sec = _sections(cix)
     assert oid not in sec["current"] and oid not in sec["previous"] and oid in sec.get("held", set())
     assert 2 not in site_checks.expected_ward_holders(wards, facts)
@@ -401,6 +406,60 @@ def test_a_cut_off_latest_list_holds_over_and_a_complete_one_closes():
     assert next(r for r in rows if r["official_id"] == "b")["end"] == "2020-03-01"
     rows, _ = council.holder_rows(base + [_w("2020-05-01", "a", None)], _facts("a", "b", "c"), CFG)
     assert next(r for r in rows if r["official_id"] == "b")["end"] == "2020-03-01"
+
+
+def test_a_held_over_note_says_not_named_only_when_the_list_leaves_the_member_out(tmp_path):
+    """city-seats/held-over-note-says-not-named (code review MUST-FIX, 64b5c84). Both lists hold b over. A list cut
+    off (it prints only a) truly leaves b out: "not named in". A list that prints a name the record cannot place (b's
+    name misspelt, QQZ) does not: the note and b's dates say it prints that name, as printed, and the seat note links
+    the page that prints it."""
+    base = [_w("2020-01-01", "a", 1), _w("2020-02-01", "a", 1), _w("2020-01-01", "b", 2), _w("2020-02-01", "b", 2),
+            _w("2020-03-01", "a", None), _w("2020-03-01", "b", None), _w("2020-04-01", "a", None)]
+    meetings = [{"id": f"{d}-regular", "date": d, "source_id": "s1",
+                 "attendance": [{"official_id": w["official_id"], "raw_name": w["official_id"], "page": 1,
+                                 "status": "present"} for w in base if w["date"] == d]}
+                for d in sorted({w["date"] for w in base})]
+    cut = {**_facts("a", "b"), "meetings": meetings}
+    rows, latest = council.holder_rows(base, cut, CFG)
+    s = _seats(rows, latest)
+    b = next(r for r in s.records if r["official_id"] == "b")
+    assert b["held_over"] and b["unplaced"] == []
+    assert s.held_over_text(b) == ("last listed in attendance lists 2020-03-01; not named in the attendance lists of "
+                                   "2020-04-01")
+    assert s.dates_text(b).endswith("to 2020-03-01; not named in the attendance lists of 2020-04-01, the latest "
+                                    "minutes read")
+    # the same list printing a name the record cannot place, on page 2
+    misprint = json.loads(json.dumps(cut))
+    misprint["meetings"][-1]["attendance"].append({"official_id": None, "raw_name": "QQZ", "page": 2,
+                                                   "status": "present"})
+    rows, latest = council.holder_rows(base, misprint, CFG)
+    s = _seats(rows, latest)
+    b = next(r for r in s.records if r["official_id"] == "b")
+    assert b["held_over"] and [u["printed"] for u in b["unplaced"]] == ["QQZ"]
+    assert b["unplaced"][0]["src"] == "https://example.gov/m.pdf#page=2"
+    text = s.held_over_text(b)
+    assert text == ("last listed in attendance lists 2020-03-01; the attendance lists of 2020-04-01 print a name the "
+                    "record cannot place: QQZ")
+    assert "not named" not in text and site_checks.dates_worded(text) == []
+    dates = s.dates_text(b)
+    assert dates.endswith("to 2020-03-01; the attendance lists of 2020-04-01, the latest minutes read, print a name "
+                          "the record cannot place: QQZ")
+    assert site_checks.dates_worded(dates) == []
+    # two such names: both, as printed
+    misprint["meetings"][-1]["attendance"].append({"official_id": None, "raw_name": "QQY", "page": 2,
+                                                   "status": "present"})
+    rows, latest = council.holder_rows(base, misprint, CFG)
+    b = next(r for r in _seats(rows, latest).records if r["official_id"] == "b")
+    assert _seats(rows, latest).held_over_text(b).endswith("print names the record cannot place: QQY, QQZ")
+    # the council home's seat note links the page that prints it
+    full = {**misprint, "items": [], "item_events": [], "motions": [], "corrections": [],
+            "officials": [{"id": i, "title": "Member", "name": f"{i.upper()} Example"} for i in ("a", "b")],
+            "coverage": {"body": CFG["body_name"], "from": "2020-01-01", "to": "2020-04-01"},
+            "sources": [{**misprint["sources"][0], "kind": "minutes", "fetched_at": "2020-04-02",
+                         "meeting_date": "2020-04-01", "pages": 2}]}
+    cix = council.load({**CFG}, full, base)
+    row = next(x for x in council.seat_list(cix) if x["seat"] == "ward-2")
+    assert [(c["url"], c["page"]) for c in row["note"]["cites"]] == [("https://example.gov/m.pdf#page=2", 2)]
 
 
 def test_l_comes_from_the_attendance_lists_not_a_later_roll_call():
@@ -548,7 +607,8 @@ def test_ward_2_starts_with_the_configured_member_on_the_seating_date_with_its_s
     assert mcl["end"] is not None and mcl["end"] < "2026-02-19"
     assert cix.seats.header_text("city-eric-claunch") == (
         "Ward 2, seen in the minutes that record the seating from 2026-02-19 to 2026-02-19; listed by name in "
-        "attendance lists to 2026-06-22; not named in the attendance lists of 2026-07-06, the latest minutes read")
+        "attendance lists to 2026-06-22; the attendance lists of 2026-07-06, the latest minutes read, print a name the "
+        "record cannot place: CLAULNCH")
     head = views.official("city-eric-claunch", cix)["name_source"]
     assert head["quote"] == "Eric Claunch was selected as the Ward 2 replacement and was sworn in by Mayor Pitts."
     assert head["src"]["url"] == f"{src['url']}#page=3" and head["date"] == "2026-02-11" and head["kind"] == "minutes"
