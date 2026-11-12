@@ -1,11 +1,171 @@
 {
+ "2026-01-06-executive": {
+  "created_at": "2026-11-10T11:04:45Z",
+  "event_id": "2904",
+  "file": "2026-01-06-executive.json",
+  "model": "large-v3",
+  "model_version": "faster-whisper 1.2.1",
+  "segments": 2474,
+  "source_file": "2026-01-06_2904.json",
+  "video_url": "https://cpmedia.azureedge.net/clarksvilletn/bb9317d171.mp4"
+ },
+ "2026-01-08-regular": {
+  "created_at": "2026-11-10T10:40:13Z",
+  "event_id": "2617",
+  "file": "2026-01-08-regular.json",
+  "model": "large-v3",
+  "model_version": "faster-whisper 1.2.1",
+  "segments": 2128,
+  "source_file": "2026-01-08_2617.json",
+  "video_url": "https://cpmedia.azureedge.net/clarksvilletn/8ea224fd25.mp4"
+ },
+ "2026-02-05-regular": {
+  "created_at": "2026-11-10T10:11:49Z",
+  "event_id": "2618",
+  "file": "2026-02-05-regular.json",
+  "model": "large-v3",
+  "model_version": "faster-whisper 1.2.1",
+  "segments": 3185,
+  "source_file": "2026-02-05_2618.json",
+  "video_url": "https://cpmedia.azureedge.net/clarksvilletn/eb64a83b80.mp4"
+ },
+ "2026-03-05-regular": {
+  "created_at": "2026-11-10T09:33:33Z",
+  "event_id": "2619",
+  "file": "2026-03-05-regular.json",
+  "model": "large-v3",
+  "model_version": "faster-whisper 1.2.1",
+  "segments": 2628,
+  "source_file": "2026-03-05_2619.json",
+  "video_url": "https://cpmedia.azureedge.net/clarksvilletn/b900a5678c.mp4"
+ },
+ "2026-03-26-executive": {
+  "created_at": "2026-11-10T08:58:39Z",
+  "event_id": "2907",
+  "file": "2026-03-26-executive.json",
+  "model": "large-v3",
+  "model_version": "faster-whisper 1.2.1",
+  "segments": 1006,
+  "source_file": "2026-03-26_2907.json",
+  "video_url": "https://cpmedia.azureedge.net/clarksvilletn/85954c1a57.mp4"
+ },
+ "2026-04-02-regular": {
+  "created_at": "2026-11-10T08:46:58Z",
+  "event_id": "2620",
+  "file": "2026-04-02-regular.json",
+  "model": "large-v3",
+  "model_version": "faster-whisper 1.2.1",
+  "segments": 1076,
+  "source_file": "2026-04-02_2620.json",
+  "video_url": "https://cpmedia.azureedge.net/clarksvilletn/29f2861502.mp4"
+ },
+ "2026-04-30-executive": {
+  "created_at": "2026-11-10T08:31:33Z",
+  "event_id": "2908",
+  "file": "2026-04-30-executive.json",
+  "model": "large-v3",
+  "model_version": "faster-whisper 1.2.1",
+  "segments": 1705,
+  "source_file": "2026-04-30_2908.json",
+  "video_url": "https://cpmedia.azureedge.net/clarksvilletn/1f46a50c39.mp4"
+ },
+ "2026-05-07-regular": {
+  "created_at": "2026-11-10T08:20:16Z",
+  "event_id": "2621",
+  "file": "2026-05-07-regular.json",
+  "model": "large-v3",
+  "model_version": "faster-whisper 1.2.1",
+  "segments": 4358,
+  "source_file": "2026-05-07_2621.json",
+  "video_url": "https://cpmedia.azureedge.net/clarksvilletn/f284bab59c.mp4"
+ },
+ "2026-05-28-executive": {
+  "created_at": "2026-11-10T03:30:52Z",
+  "event_id": "2909",
+  "file": "2026-05-28-executive.json",
+  "model": "large-v3",
+  "model_version": "faster-whisper 1.2.1",
+  "segments": 1625,
+  "source_file": "2026-05-28_2909.json",
+  "video_url": "https://cpmedia.azureedge.net/clarksvilletn/3d9b0ea226.mp4"
+ },
+ "2026-06-04-regular": {
+  "created_at": "2026-11-10T03:10:05Z",
+  "event_id": "2622",
+  "file": "2026-06-04-regular.json",
+  "model": "large-v3",
+  "model_version": "faster-whisper 1.2.1",
+  "segments": 2141,
+  "source_file": "2026-06-04_2622.json",
+  "video_url": "https://cpmedia.azureedge.net/clarksvilletn/ed3a7d0510.mp4"
+ },
+ "2026-06-25-executive": {
+  "created_at": "2026-11-10T02:30:07Z",
+  "event_id": "2910",
+  "file": "2026-06-25-executive.json",
+  "model": "large-v3",
+  "model_version": "faster-whisper 1.2.1",
+  "segments": 565,
+  "source_file": "2026-06-25_2910.json",
+  "video_url": "https://cpmedia.azureedge.net/clarksvilletn/a77c2e3893.mp4"
+ },
+ "2026-07-30-executive": {
+  "created_at": "2026-11-10T02:22:05Z",
+  "event_id": "2911",
+  "file": "2026-07-30-executive.json",
+  "model": "large-v3",
+  "model_version": "faster-whisper 1.2.1",
+  "segments": 5788,
+  "source_file": "2026-07-30_2911.json",
+  "video_url": "https://cpmedia.azureedge.net/clarksvilletn/fdbb25ba54.mp4"
+ },
+ "2026-08-27-executive": {
+  "created_at": "2026-11-10T01:40:06Z",
+  "event_id": "2993",
+  "file": "2026-08-27-executive.json",
+  "model": "large-v3",
+  "model_version": "faster-whisper 1.2.1",
+  "segments": 1131,
+  "source_file": "2026-08-27_2993.json",
+  "video_url": "https://cpmedia.azureedge.net/clarksvilletn/1323fff5e1.mp4"
+ },
+ "2026-09-03-regular": {
+  "created_at": "2026-11-10T01:26:33Z",
+  "event_id": "2948",
+  "file": "2026-09-03-regular.json",
+  "model": "large-v3",
+  "model_version": "faster-whisper 1.2.1",
+  "segments": 1354,
+  "source_file": "2026-09-03_2948.json",
+  "video_url": "https://cpmedia.azureedge.net/clarksvilletn/6b3f8dab74.mp4"
+ },
+ "2026-10-01-regular": {
+  "created_at": "2026-11-10T01:05:50Z",
+  "event_id": "2949",
+  "file": "2026-10-01-regular.json",
+  "model": "large-v3",
+  "model_version": "faster-whisper 1.2.1",
+  "segments": 1415,
+  "source_file": "2026-10-01_2949.json",
+  "video_url": "https://cpmedia.azureedge.net/clarksvilletn/f452cab86a.mp4"
+ },
+ "2026-10-29-executive": {
+  "created_at": "2026-11-10T00:38:02Z",
+  "event_id": "2995",
+  "file": "2026-10-29-executive.json",
+  "model": "large-v3",
+  "model_version": "faster-whisper 1.2.1",
+  "segments": 1500,
+  "source_file": "2026-10-29_2995.json",
+  "video_url": "https://cpmedia.azureedge.net/clarksvilletn/2ac98d70f9.mp4"
+ },
  "2026-11-05-regular": {
-  "created_at": "2026-11-09T21:17:07Z",
+  "created_at": "2026-11-10T00:20:15Z",
   "event_id": "2950",
   "file": "2026-11-05-regular.json",
-  "model": "small.en",
+  "model": "large-v3",
   "model_version": "faster-whisper 1.2.1",
-  "segments": 1271,
+  "segments": 1420,
   "source_file": "2026-11-05_2950.json",
   "video_url": "https://cpmedia.azureedge.net/clarksvilletn/fc4820ad23.mp4"
  }
