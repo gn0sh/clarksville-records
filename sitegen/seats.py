@@ -195,6 +195,15 @@ def basis_text(rec: dict, latest: str, wording: dict | None = None) -> str:
     return f"Current: in the {rec.get('evidence') or w['evidence']} of {w['latest']}, {latest}"
 
 
+def _by_date(printings: list[dict]) -> list[tuple[str, list[str]]]:
+    out: dict[str, list[str]] = {}
+    for p in printings:
+        out.setdefault(p["date"], [])
+        if p["printed"] not in out[p["date"]]:
+            out[p["date"]].append(p["printed"])
+    return sorted(out.items())
+
+
 class Seats:
     """Holder records over one facts index. `loaded` is False when there is no roster file.
 
@@ -256,25 +265,52 @@ class Seats:
         if rec["end"] is None and rec.get("seen_to") and rec["seen_to"] > self.latest:
             to = rec["seen_to"]   # seen after L (a roll call at a meeting with no list): the date its page shows
         if rec.get("held_over"):
-            # open, but the latest list does not name the member (council.holder_rows): say so, never "to L"
-            to = f"{rec['seen_to']}; not named in the {self.wording['evidence']} of {self.latest}, {self.wording['latest']}"
+            # open, but the latest list does not name the member (council.holder_rows): say so, never "to L"; when that
+            # list prints a name the record cannot place, it does not leave the member out: say what it prints
+            to = f"{rec['seen_to']}; {self._at_latest(rec, ', ' + self.wording['latest'])}"
             if not rec.get("printed_to"):
                 return f"seen in {ev} from {rec['start']} to {to}"
+        # a listing read through a configured printing correction: say what the list prints (council.printings)
+        printed = f"; {self.printings_text(rec)}" if rec.get("printings") else ""
         if rec.get("printed_to"):
             # carried on by name only (council.extend_by_listings): what printed the seat, then the name-only lists
             seen = rec.get("seen_evidence") or ev
-            return f"seen in {seen} {_span(rec['start'], rec['printed_to'], 'from ')}; {LISTED_WORDS} {ev} to {to}"
+            return f"seen in {seen} {_span(rec['start'], rec['printed_to'], 'from ')}; {LISTED_WORDS} {ev} to {to}{printed}"
         if rec["end"] is None:
-            return f"seen in {ev} {_span(rec['start'], to, 'from ')}"
-        return f"seen in {ev} {_span(rec['start'], rec['end'])}"
+            return f"seen in {ev} {_span(rec['start'], to, 'from ')}{printed}"
+        return f"seen in {ev} {_span(rec['start'], rec['end'])}{printed}"
+
+    def printings_at_latest(self, rec: dict | None) -> list[dict]:
+        """The printings (council.printings) of the list a current record is last seen at."""
+        if not rec:
+            return []
+        return [p for p in rec.get("printings") or [] if p["date"] == rec.get("seen_to")]
+
+    def printings_text(self, rec: dict, latest_only: bool = False) -> str:
+        """'the attendance lists of 2026-07-06 print the name as "CLAULNCH"': plain and factual, the token as printed
+        (city-seats/printed-misspelling-of-seated-member)."""
+        ps = self.printings_at_latest(rec) if latest_only else rec.get("printings") or []
+        ev = self.wording["evidence"]
+        return "; ".join(f"the {ev} of {d} print the name as " + ", ".join(f'"{t}"' for t in toks)
+                         for d, toks in _by_date(ps))
 
     def basis(self, rec: dict) -> str:
         return basis_text(rec, self.latest, self.wording)
 
     def held_over_text(self, rec: dict) -> str:
         """The neutral line beside a seat whose record is held over (council.holder_rows)."""
+        return f"last listed in {self.wording['evidence']} {rec['seen_to']}; {self._at_latest(rec)}"
+
+    def _at_latest(self, rec: dict, latest_words: str = "") -> str:
+        """What the latest list says of a held-over record's member (city-seats/held-over-note-says-not-named):
+        "not named in the attendance lists of L" only when the list truly leaves them out (a cut-off list); when it
+        prints a name the record cannot place (`unplaced`, council.unplaced_names), that name, as printed."""
         ev = self.wording["evidence"]
-        return f"last listed in {ev} {rec['seen_to']}; not named in the {ev} of {self.latest}"
+        names = list(dict.fromkeys(u["printed"] for u in rec.get("unplaced") or []))
+        if not names:
+            return f"not named in the {ev} of {self.latest}{latest_words}"
+        what = "a name the record cannot place" if len(names) == 1 else "names the record cannot place"
+        return f"the {ev} of {self.latest}{latest_words + ',' if latest_words else ''} print {what}: {', '.join(names)}"
 
     def view(self, rec: dict) -> dict:
         """What a page may know about a record: label, wording and sources, never a bare start/end."""

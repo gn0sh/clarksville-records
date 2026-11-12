@@ -270,17 +270,95 @@ attendance check detail on meeting pages and in the run report reads "CLAUNCH: b
 Claunch (seated 2026-02-19, minutes p. 3)". Ward 2's seat history starts the record on 2026-02-19 with the same source
 (seat holder invariant, rule 1); `officials.csv` and `seats.csv` carry the source.
 
-### D1. Listing: City Council Special Sessions filed under "General"
-CivicClerk lists the 2026-02-11 City Council Special Session as category "General", event "Special Session" (one
-listing query, 2026-11-11; other "General" events are other boards). Discovery also asks for
-`categoryName eq 'General' and eventName eq 'Special Session'` from 2024-01-01, and keeps such an event only when page
-1 of its agenda or minutes prints "City Council - Special Session" as a line of its own (whitespace and format
-characters aside; never the same words inside a longer line, review `d1-page1-substring`); any other is skipped and
-named in the run report. The check runs before the two listings are joined (`civicclerk.merge_sources(page1_ok=)`,
+### D1. Listing: City Council meetings filed under "General"
+CivicClerk files some City Council meetings under category "General", under names that vary: "Special Session" (the
+2026-02-11 session), "City Council Special Session", "City Council Special Session - First Reading of the Budget",
+"Special Called City Council Meeting", "Special Budget Session", "Special Session and First Reading of the Budget",
+"Special Work Session - Budget", "Regular Session" (2026-07-02). Other "General" events are other boards, some under
+council-like names ("Special Called Senior Board Meeting", "Arts & Heritage Council", "One Time Event"). Evidence: the
+full General listing 2024-01-18 to 2027-01-19 (374 events, read 2026-11-11) and page 1 of every candidate's agenda and
+minutes.
+
+**Contract** (`config/localities/clarksville-tn/civicclerk.yml` `also_list`, checked at load by `civicclerk._also`): one
+entry per category, `{category_name, name_words, events}`; `events` is a list of `{event_name, page1}`.
+- Discovery asks for `categoryName eq '<category>' and startDateTime ge <from_date> and (contains(eventName,'<w1>') or
+  ...)` over `name_words` (one paged listing per category; `contains` is case-insensitive, checked 2026-11-11). A word
+  is letters, digits and single spaces only (it goes into the OData filter).
+- An event of that category is listed only when its whole name, whitespace collapsed, matches one `event_name` regex
+  (`re.fullmatch`, case-insensitive; the first match wins). Its row carries `listed_as` ("General / <name as
+  printed>") and `page1_required` = that pattern's `page1`. Any other event of the listing is not listed.
+- The build keeps a listed event only when page 1 of its stored minutes or agenda prints that pattern's `page1` as a
+  line of its own (whitespace and format characters aside; never the same words inside a longer line, review
+  `d1-page1-substring`); any other is skipped and named in the run report. So a pattern's name never decides alone:
+  "One Time Event" is listed, and the two with files (2024-07-09 ACT Authority, 2025-04-16 Public Safety Committee)
+  are skipped on their page 1.
+- The minutes of a kept event are read only when they vouch for themselves (`city_build.minutes_identity`, review
+  `d1-minutes-identity/agenda-heading-vouches-for-minutes`): page 1 of the minutes prints the pattern's `page1` as a
+  line of its own, AND every meeting date they print is the row's date: the call-to-order sentence's and the page-1
+  heading's (`city_minutes.heading_date`, the first 8 printed lines of page 1), at least one printed, none another
+  day. The agenda's page 1 can keep the meeting, never vouch for its minutes. Minutes that fail are not inspected,
+  read or cited: the meeting is built from its agenda alone (`minutes_status: other_meeting`), or skipped when its
+  agenda's page 1 does not print `page1` either.
+- Each `event_name` must print one of `name_words` as plain letters at its top level (outside any group or class,
+  no top-level alternation, no quantifier on the word's last letter, no inline flag), so the listing asks for every
+  name the pattern can match; `civicclerk.load_config` refuses any other. Each URL template names only its own
+  fields, bare (`events_url` {host} {from_date} {category}; `also_events_url` those and {names}, required;
+  `file_url` {host} and {file_id}, required).
+- Configured patterns and headings (each heading as page 1 prints it): the Special Session names, "Special Called City
+  Council Meeting", "Special Budget Session" and "One Time Event" need "City Council - Special Session"; "Special
+  Session and First Reading of the Budget" and "(City Council) Special Work Session (- Budget)" need "City Council -
+  Special Work Session"; "(City Council) Regular Session" needs "City Council - Regular Session". "City Council
+  Training Session" (2025-01-23, agenda only, page 1 "City Council Training Session") is not listed: not a meeting of
+  the council's business. A new name needs a config line, found by re-running the full General listing (as fetched
+  2026-11-11: `docs/research/civicclerk-general-listing-2026-11-11.json`, 374 events, 2024-01-18 to 2027-01-19;
+  `test_the_committed_general_listing_lists_exactly_the_d1_rows` replays it against the config).
+- The day page's "scheduled" cards (`sitegen/days.scheduled_cards`, from `civicclerk-listing.json`) never show a row
+  with `page1_required`: a future General event has no stored file, so nothing has shown it is the council's.
+
+The check runs before the two listings are joined (`civicclerk.merge_sources(page1_ok=)`,
 review `city-verify/d1-merge-before-page1`): a D1 row is paired with an Agenda Center meeting of the same date and kind
 only after it passes, so a failing row never replaces a council meeting nor is cited under its `also_listed`; with no
 check (no store), a D1 row is never paired.
 This stores fileId 3068 (needed by M1's build check) and adds that meeting: 2 roll calls (one prints "HOLLEMNA", held).
+
+**One minutes file for two meetings** (`city_build._other_meeting`): the 2026-02-19 event is the session of 2026-02-11
+resumed, and its Minutes file (fileId 3069) is the same bytes as 3068. The existing rule reads such a file only for the
+meeting whose date it prints, once. The 2026-02-11 call-to-order sentence prints no year ("on Wednesday, February
+11, at 4:30 PM"), so the date falls back to the page-1 heading's date line (`city_minutes.heading_date`: a page-1 line
+before the "MINUTES" title that is a date and nothing else, "February 11, 2026 at 4:30 PM"). Without it neither meeting
+read the file, and the 2026-02-11 roll calls and M1's cited record (so 39 CLAUNCH roll calls) were lost.
+
+**Widened (2026-11-11):** 16 meetings added (2025-02-18, 06-17, 06-24, 11-12; 2026-02-19, 04-06, 04-29, 05-07,
+05-26, 06-11, 06-16, 06-22, 06-29, 07-02, 07-06, 07-09; 12 with minutes, 11 read), 147 roll calls, 110 verified.
+City roll calls 1,823 of 2,237 verified -> 1,933 of 2,384 (81.1%); every roll call verified before is unchanged,
+votes included (`tests/test_city_verify_data.py`, V6 digest). Held in the new meetings: source typos such as
+"CLAULNCH" (2026-07-06 attendance, so all 11 of its roll calls) and "SSTREETMAN".
+
+**Minutes identity (2026-11-11, after review of acc8832):** of the 13 D1 rows with minutes, 11 pass. Two do not:
+2026-02-19 (its file is the 2026-02-11 minutes; its agenda's page 1 prints "City Council - Special Session
+(Continuation" on one line, not the heading alone, so the event is now skipped; it had no roll calls) and 2026-07-09
+(page-1 heading "July 9, 2026 at 4:30 PM", but called to order "on Monday, July 6, 2026": two dates, so held; its
+agenda keeps the meeting, `other_meeting`, and its 30 roll calls, 21 verified, are not read). Rebuilt from the store
+(2026-11-12, all 608 manifest files byte-identical): 1,912 of 2,354 verified (81.2%), 401 meetings; the 1,823 of the
+V6 digest are not touched (none is in a D1 meeting). The latest attendance list is now 2026-07-06. Its page 1
+(fileId 3254, text layer) prints "PRESENT: BROWN, CHANDLER, CLAULNCH, HAYWOOD, ..." (13 names, "ABSENT: NONE"), but
+the same page prints CLAUNCH in its votes ("AYE: CHANDLER, CLAUNCH, HAYWOOD, ..."). As printed, CLAULNCH resolves to
+no one, so Ward 2's Eric Claunch was held over, and a held-over note says what the list prints ("the attendance lists
+of 2026-07-06 print a name the record cannot place: CLAULNCH"), never "not named", unless the list truly leaves the
+member out (city-seats/held-over-note-says-not-named).
+
+**Printing corrections (2026-11-12, city-seats/printed-misspelling-of-seated-member).** `agenda-center.yml
+printing_corrections` holds curated, per-meeting, attendance-only corrections, each `{meeting, minutes_url, page,
+printed, reads}`; the one entry is `{2026-07-06, fileId 3254, p. 1, CLAULNCH, CLAUNCH}`. The build
+(`city_build.printing_corrections`) applies an entry only to the meeting whose date and minutes file it names, and
+only when: that page prints `printed` once in its PRESENT list and it does not resolve as printed; the attendance does
+not also print `reads`; a vote line of that page prints `reads`; and `reads` is exactly one full name on the meeting's
+roster book, which no other attendance entry resolves to (the one member the list otherwise leaves out). Otherwise it
+is not applied (fail closed: the token stays held), with a failed `printing_correction` check, a run-report problem
+and a `printing_corrections` report row. Vote, absent, mover and seconder tokens are never corrected, nor any other
+meeting or page. The attendance entry keeps `raw_name` as printed; its wards.json row adds `reads`. A seat record
+read through it says so plainly wherever its dates are worded, and the council home's seat line shows 'the attendance
+lists of 2026-07-06 print the name as "CLAULNCH"', linked to that page.
 
 ### W1. Invisible format characters in the text layer (a reading fix)
 2020-10-01 page 1 prints "Jeff Henley"; its text layer has "J", a zero-width word (U+200B ZERO WIDTH SPACE, x0 = x1 =
@@ -338,7 +416,11 @@ combined, outvoted or corrected. Rule:
   a `cite_url` not stored, a `seated` before the cited meeting, a non-full name and two overlapping Ward 2 entries are
   each refused or left out with the reason; the entry replaces Deanna McLaughlin in Ward 2 from 2026-02-19.
 - D1: a "General" "Special Session" whose page 1 prints "City Council - Special Session" is kept; one that prints
-  another board is skipped and reported.
+  another board is skipped and reported. Widened: each real council name under "General" is listed with its own
+  heading and kept only on that heading (another council heading is not enough); other bodies' General names (and a
+  council name in another category) are not listed; a "One Time Event" whose page 1 is another body's is skipped and
+  named; a bad `also_list` (old flat form, a word with a quote, a bad regex, a category twice) is refused at load;
+  minutes posted for a session and its resumption are read once, for the heading date.
 - Data: the build on the committed store changes only the expected roll calls from held to verified (ids listed in the
   test), changes no vote of an already verified roll call, and adds the one D1 meeting.
 

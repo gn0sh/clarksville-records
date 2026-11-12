@@ -9,6 +9,7 @@ printed; anything that does not resolve or check out is kept, marked unverified,
 """
 from __future__ import annotations
 
+import dataclasses
 import re
 import subprocess
 import sys
@@ -203,6 +204,35 @@ def page1_check(row: dict, store: Store, pages=read_pages) -> str | None:
             f"'{want}' on a line of its own: skipped, not this body's meeting")
 
 
+def minutes_identity(row: dict, path, cfg: AgendaCenterConfig, parse=parse_minutes_pdf, pages=read_pages) -> str | None:
+    """D1 (d1-minutes-identity/agenda-heading-vouches-for-minutes): the stored minutes of a row from an also-listing
+    (`page1_required`) are read for this meeting only when page 1 of the minutes themselves prints that text as a line
+    of its own AND every meeting date they print is the row's date: the call-to-order sentence's and the page-1
+    heading's (city_minutes.heading_date), at least one of them printed, none another day. Two dates that disagree
+    (the 2026-07-09 minutes: heading "July 9, 2026", called to order "on Monday, July 6, 2026") do not say which
+    meeting the votes are from, so the minutes are held. The agenda's page 1 (page1_check) may keep the meeting, but
+    it never vouches for another file. None when the minutes pass (or the row needs no check), else why they are not
+    read: the meeting is then built from its agenda alone (minutes_status other_meeting), or skipped when its agenda
+    does not pass page1_check. A file that cannot be read for this check is not read at all (fail closed)."""
+    want = row.get("page1_required")
+    if not want:
+        return None
+    try:
+        first = (pages(path) or [""])[0]
+        if not page_has_line(first, want):
+            return (f"listed as {row.get('listed_as') or 'another category'}; page 1 of its minutes does not print "
+                    f"'{want}' on a line of its own: the minutes are not read for this meeting")
+        pm = parse(path, cfg)
+    except Exception as ex:                            # one bad file must not stop the build: not read, and named
+        return f"its minutes could not be read to check which meeting they record ({type(ex).__name__}): not read"
+    printed = [f"{d} in {where}" for d, where in ((pm.printed_date, "the call-to-order sentence"),
+                                                  (pm.heading_date, "the page-1 heading")) if d]
+    if not printed or {pm.printed_date, pm.heading_date} - {None} != {row["date"]}:
+        return (f"listed as {row.get('listed_as') or 'another category'} for {row['date']}; its minutes print "
+                f"{' and '.join(printed) or 'no meeting date'}: not read for this meeting")
+    return None
+
+
 def cited_members(cfg: AgendaCenterConfig, store: Store, pages=read_pages,
                   kept: set | None = None) -> tuple[list[dict], list[dict]]:
     """Build check `member_cited` for each configured member (path N10, M1): the stored bytes for its cite_url exist;
@@ -325,9 +355,22 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
                                    "listed_as": r.get("listed_as"), "reason": skip})
             problems.append({"meeting": r["date"], "title": r["title"], "problem": skip})
             continue
+        # D1: an also-listed row's minutes are read only when they themselves print its heading and date; checked
+        # before they are inspected or cited, so a file that fails is never this meeting's source
+        e = store.latest(r["minutes_url"]) if r.get("page1_required") and r["minutes_url"] else None
+        other_meeting = (minutes_identity(r, store.path_for(e["sha256"]), cfg, parse, pages)
+                         if e and store.has_bytes(e["sha256"]) else None)
+        if other_meeting:
+            skip = page1_check({**r, "minutes_url": None}, store, pages)    # the agenda alone must keep it
+            if skip:
+                skip += f" (and {other_meeting})"
+                skipped_events.append({"date": r["date"], "title": r["title"], "event_id": r.get("event_id"),
+                                       "listed_as": r.get("listed_as"), "reason": skip})
+                problems.append({"meeting": r["date"], "title": r["title"], "problem": skip})
+                continue
+            problems.append({"meeting": r["date"], "title": r["title"], "problem": other_meeting})
         agenda_src, _ = source_for(r["agenda_url"])
-        minutes_src, minutes_path = source_for(r["minutes_url"])
-        other_meeting = None
+        minutes_src, minutes_path = (None, None) if other_meeting else source_for(r["minutes_url"])
         if minutes_src and (posted[minutes_src["sha256"]] > 1 or minutes_src["sha256"] in read_shas):
             other_meeting = _other_meeting(minutes_src, minutes_path, r, cfg, parse, read_shas)
             if other_meeting:
@@ -443,6 +486,8 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
         "problems": problems,
         "skipped_events": skipped_events,       # D1: also-listed events whose page 1 is not this body's
         "members": members_report,              # M1: the build check member_cited, one row per configured member
+        # city-seats/printed-misspelling-of-seated-member: one row per configured printing correction
+        "printing_corrections": corrections_report(cfg, meetings),
         # W2 (path N9): every name read by its break-free key, for QA's AC-P2 sample
         "word_break_matches": word_breaks,
         # AC-P1 verified rate and G4 skew, the county's gate code as is (collector/verify.gates, architecture
@@ -452,6 +497,20 @@ def build(cfg: AgendaCenterConfig, rows: list[dict], store: Store, parse=parse_m
     }
     summary["pass"] = summary["gates"]["verified_rate_gate"]["pass"] and summary["gates"]["g4"]["pass"]
     return {**facts, "_wards": wards}, summary
+
+
+def corrections_report(cfg, meetings: list[dict]) -> list[dict]:
+    """One row per configured printing correction: applied or not, and why (its meeting's printing_correction check;
+    an entry whose meeting and minutes file no read meeting has is not applied)."""
+    out = []
+    for c in cfg.printing_corrections:
+        m = next((m for m in meetings if m["date"] == c["meeting"] and m.get("minutes_url") == c["minutes_url"]
+                  and m.get("minutes_status") == "read"), None)
+        checks = [x for x in (m["verification"]["checks"] if m else []) if x["check"] == "printing_correction"
+                  and x.get("detail", "").startswith(f"{c['printed']} (PRESENT, p. {c['page']})")]
+        out.append({**c, "ok": bool(checks) and all(x["ok"] for x in checks),
+                    "detail": checks[0]["detail"] if checks else "not applied: no meeting read from these minutes"})
+    return out
 
 
 def also_listed(x: dict, source_for) -> dict:
@@ -468,9 +527,12 @@ def also_listed(x: dict, source_for) -> dict:
 
 
 def _other_meeting(src: dict, path, row: dict, cfg, parse, read_shas: set) -> str | None:
-    """Why a minutes file listed for more than one meeting is not this meeting's, or None when it is."""
+    """Why a minutes file listed for more than one meeting is not this meeting's, or None when it is. The date is the
+    call-to-order sentence's, or, when that prints no full date, the page-1 heading's (the 2026-02-11 minutes, also
+    posted for the meeting resumed 2026-02-19, print "Wednesday, February 11," and "February 11, 2026 at 4:30 PM")."""
     try:
-        printed = parse(path, cfg).printed_date
+        pm = parse(path, cfg)
+        printed = pm.printed_date or pm.heading_date
     except Exception as ex:                                   # read again (and reported) in the main loop
         return f"the same minutes file is listed for another meeting and could not be read: {type(ex).__name__}"
     if printed != row["date"]:
@@ -735,6 +797,74 @@ def resolve_surnames(cfg, officials: Officials, pm: ParsedCityMinutes, book: dic
     return out, [_check("surnames_resolve", not unresolved, f"{len(people)} printed as surnames: {detail}")]
 
 
+def printing_corrections(cfg, officials: Officials, pm: ParsedCityMinutes, meeting: dict, book: dict | None
+                         ) -> tuple[ParsedCityMinutes, dict, dict, list]:
+    """The configured printing corrections of this meeting (agenda-center.yml printing_corrections; city-seats/
+    printed-misspelling-of-seated-member) -> (pm with each verified one's attendance entry read as `reads`,
+    {id(read Person): the token as printed}, {id(read Person): the full name it must resolve to}, checks).
+
+    An entry is for this meeting only when its date and minutes file are the meeting's. It is applied only when all
+    hold, else it is not (fail closed: the token stays as printed and held) and its check says why:
+    - `page` prints `printed` once in the attendance, in its PRESENT list, and the token does not resolve as printed;
+    - the attendance does not print `reads` as well;
+    - a vote line of `page` prints `reads` (the page itself prints the member's surname);
+    - `reads` is exactly one full name on the meeting's roster book (the resolve_surnames rule, a printed ward
+      agreeing), and no other attendance entry resolves to that name (the one member the list otherwise leaves out).
+    Only attendance entries are read: vote, absent, mover and seconder tokens are never corrected (a vote printing
+    `printed` stays unresolved), and no other meeting or page is touched."""
+    mine = [c for c in cfg.printing_corrections
+            if c["meeting"] == meeting["date"] and c["minutes_url"] == meeting.get("minutes_url")]
+    if not mine:
+        return pm, {}, {}, []
+    people = pm.present + pm.absent
+    base, _ = resolve_surnames(cfg, officials, pm, book)
+    named = {base[id(p)][0] if id(p) in base else officials.canonical(p.raw_name) for p in people
+             if id(p) in base or NAME_RE.match(clean_name(p.raw_name))}
+    fixes, checks = {}, []
+    for c in mine:
+        pg, printed, reads = c["page"], c["printed"], c["reads"]
+        hits = [p for p in people if clean_name(p.raw_name) == printed]
+        listed = [p for p in pm.present if clean_name(p.raw_name) == printed and p.page == pg]
+        why, name = None, None
+        if len(hits) != 1 or len(listed) != 1:
+            why = f"p. {pg} does not print {printed} once in its PRESENT list ({len(hits)} attendance entries)"
+        elif id(hits[0]) in base or NAME_RE.match(clean_name(printed)):
+            why = f"{printed} resolves as printed"
+        elif any(clean_name(p.raw_name).casefold() == reads.casefold() for p in people):
+            why = f"the attendance also prints {reads}"
+        elif not any(clean_name(v.raw_name) == reads for rc in pm.roll_calls if rc.page == pg for v in rc.votes):
+            why = f"no vote line of p. {pg} prints {reads}"
+        else:
+            p = hits[0]
+            cands = sorted({r["name"] for r in (book or {}).get(reads.lower(), {"people": []})["people"]
+                            if p.ward is None or r["ward"] is None or r["ward"] == p.ward})
+            if len(cands) != 1:
+                why = f"{reads} is {len(cands)} full names on the meeting's roster book, not one"
+            elif cands[0] in named:
+                why = f"the list already names {cands[0]}"
+            else:
+                name = cands[0]
+                fixes[id(p)] = (c, name)
+        detail = (f"{printed} (PRESENT, p. {pg}) read as {reads}: " +
+                  (f"p. {pg} prints {reads} in a vote line, and {name} is the one member of the roster book with "
+                   f"that surname whom the list names nowhere else (agenda-center.yml printing_corrections)"
+                   if why is None else f"not applied: {why}"))
+        checks.append(_check("printing_correction", why is None, detail))
+    if not fixes:
+        return pm, {}, {}, checks
+    printed_of, expect = {}, {}
+
+    def read(p):
+        if id(p) not in fixes:
+            return p
+        c, name = fixes[id(p)]
+        q = dataclasses.replace(p, raw_name=c["reads"])
+        printed_of[id(q)], expect[id(q)] = p.raw_name, name
+        return q
+    return (dataclasses.replace(pm, present=[read(p) for p in pm.present], absent=[read(p) for p in pm.absent]),
+            printed_of, expect, checks)
+
+
 def presiding_mayor(cfg, officials: Officials, pm: ParsedCityMinutes, book: dict | None) -> tuple[str | None, list]:
     """The presiding mayor of the call-to-order sentence ("called to order by Mayor Joe Pitts") -> (full name, checks)
     when the name is on the meeting's roster book as the Mayor seat (the configured, cited mayor whose term covers
@@ -779,26 +909,37 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
                             "official_id": oid, "name": name})
         return word_break_note(printed, name)
 
+    # printing corrections (attendance only, this meeting only): verified against this meeting's own page, then the
+    # attendance is read with the corrected token, which must resolve to the name the check found, or none is applied
+    read_pm, printed_of, expect, correction_checks = printing_corrections(cfg, officials, pm, meeting, surname_book)
     att_breaks: list = []
-    by_surname, surname_checks = resolve_surnames(cfg, officials, pm, surname_book, att_breaks)
+    by_surname, surname_checks = resolve_surnames(cfg, officials, read_pm, surname_book, att_breaks)
+    if any((by_surname.get(k) or (None,))[0] != name for k, name in expect.items()):     # cannot happen; fail closed
+        correction_checks = [{**c, "ok": False, "detail": c.get("detail", "") + " (not applied: did not resolve)"}
+                             for c in correction_checks]
+        read_pm, printed_of, att_breaks = pm, {}, []
+        by_surname, surname_checks = resolve_surnames(cfg, officials, pm, surname_book, att_breaks)
+    pm = read_pm
+    problems += [{"meeting": meeting["id"], "problem": c["detail"]} for c in correction_checks if not c["ok"]]
     presiding, presiding_checks = presiding_mayor(cfg, officials, pm, surname_book)
     for status, people in (("present", pm.present), ("absent", pm.absent)):
         for p in people:
             full = by_surname.get(id(p))
+            printed = printed_of.get(id(p), p.raw_name)       # a corrected entry keeps the token as printed
             if full is None and not NAME_RE.match(clean_name(p.raw_name)):   # not a name as printed: no official
                 malformed.append(p.raw_name)
-                att.append({"official_id": None, "raw_name": p.raw_name, "status": status, "page": p.page})
+                att.append({"official_id": None, "raw_name": printed, "status": status, "page": p.page})
                 continue
             name, mayor = full if full else (p.raw_name, p.mayor)
             oid = officials.add(name, cfg.presiding_title if mayor else cfg.official_title)
-            att.append({"official_id": oid, "raw_name": p.raw_name, "status": status, "page": p.page})
+            att.append({"official_id": oid, "raw_name": printed, "status": status, "page": p.page})
             roster.append((oid, officials.by_id[oid]["name"]))
             (present_ids if status == "present" else absent_ids).add(oid)
             if p.part_time:
                 part_time[oid] = p
-            wards.append({"official_id": oid, "raw_name": p.raw_name, "ward": p.ward, "pro_tem": p.pro_tem,
+            wards.append({"official_id": oid, "raw_name": printed, "ward": p.ward, "pro_tem": p.pro_tem,
                           "meeting_id": meeting["id"], "date": meeting["date"], "source_id": src["id"],
-                          "page": p.page})
+                          "page": p.page, **({"reads": p.raw_name} if id(p) in printed_of else {})})
     for p, name in att_breaks:
         used("attendance", p.page, p.raw_name, official_id(officials.canonical(name)))
     presiding_id = None
@@ -810,7 +951,7 @@ def _add_minutes(cfg, officials: Officials, meeting: dict, src: dict, pm: Parsed
     att_checks = [_check("present_listed", bool(pm.present), f"{len(pm.present)} present, {len(pm.absent)} absent"),
                   _check("one_entry_per_official", not dup, ", ".join(dup) or None),
                   _check("names_well_formed", not malformed, ", ".join(malformed) or None)] + surname_checks + \
-        presiding_checks
+        presiding_checks + correction_checks
     if att:
         meeting["attendance_status"] = "extracted"
         meeting["attendance"] = att

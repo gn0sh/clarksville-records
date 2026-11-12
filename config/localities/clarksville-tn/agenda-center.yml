@@ -126,6 +126,24 @@ members:
     cite_page: 3
     quote: "Eric Claunch was selected as the Ward 2 replacement and was sworn in by Mayor Pitts."
 
+# Printing corrections: one attendance printing of one meeting, read as another surname (city-seats/printed-misspelling-
+# of-seated-member; docs/architecture/city-council.md "Minutes identity"). Attendance only: never a vote, mover or
+# seconder token, never another meeting or page. The build applies an entry only when the meeting's minutes are
+# minutes_url, `page` prints `printed` in its attendance (PRESENT) list once and prints `reads` in a vote line, the
+# attendance does not print `reads` too, and `reads` resolves to exactly one member of the meeting's roster book whom
+# the list names nowhere else; otherwise it is not applied (the name stays held) and the run report says why. The
+# seat pages say what the list prints.
+printing_corrections:
+  # City Council Special Session of 2026-07-06 (CivicClerk fileId 3254, text layer): p. 1 prints
+  # "PRESENT: BROWN, CHANDLER, CLAULNCH, HAYWOOD, ..." (13 names; "ABSENT: NONE") and, in its first vote,
+  # "AYE: CHANDLER, CLAUNCH, HAYWOOD, ...". CLAUNCH (Eric Claunch, Ward 2, seated 2026-02-19) is the only roster
+  # member the list otherwise leaves out.
+  - meeting: "2026-07-06"
+    minutes_url: "https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3254,plainText=false)"
+    page: 1
+    printed: CLAULNCH
+    reads: CLAUNCH
+
 # Name fixes for the same person printed two ways: printed form -> the form most minutes print. Each entry is the
 # same ward in the same term (checked in data/localities/clarksville-tn/wards.json, 2026-11-09); applied to every
 # printing alike. Vote names are never fixed here: a misspelt vote name stays unresolved and its roll call is held.

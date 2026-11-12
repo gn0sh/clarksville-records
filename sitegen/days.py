@@ -37,7 +37,8 @@ MINUTES_WORDS = {
     "scan_not_read": "The minutes are a scanned image; nothing was read from them.",
     "not_fetched": "Minutes listed, not fetched.",
     "parse_failed": "The minutes could not be read; open them yourself.",
-    "other_meeting": "The file listed as this meeting's minutes records another meeting, so it is not used here.",
+    "other_meeting": ("The file listed as this meeting's minutes does not show that it records this meeting (it "
+                      "names another meeting or date), so it is not used here."),
     "unreadable": "The minutes file was fetched but could not be read, so nothing was taken from it.",
 }
 # The dot each kind of card draws in the strip (decorative; the button's label says the count in words).
@@ -150,7 +151,9 @@ def scheduled_cards(cix, start: date, end: date, today: date | None = None) -> l
     """Meetings on the city's calendar (council.yml `calendar`) in the window that the facts file does not hold yet:
     the calendar's own title and date only, linked to the agenda when the calendar has one, else to the council's
     record page. One card per date and kind. Rows before the build day, or whose title says moved, cancelled or
-    postponed, are not shown, and rows without a date or kind are skipped."""
+    postponed, are not shown, and rows without a date or kind are skipped. A row listed from another category (D1,
+    `page1_required`: kept only when page 1 of its stored file prints the council's heading) is never shown here,
+    since nothing has checked yet that it is this body's meeting (a "One Time Event" may be any board's)."""
     today = today or today_in_zone()
     path = cix.cfg.get("calendar")
     if not path or cix.fixture or not views.https_url(cix.cfg.get("record_url")):
@@ -163,6 +166,8 @@ def scheduled_cards(cix, start: date, end: date, today: date | None = None) -> l
     for row in sorted(json.loads(p.read_text(encoding="utf-8")), key=lambda r: (r.get("date") or "", r.get("kind") or "")):
         key = (row.get("date"), row.get("kind"))
         if not all(key) or row["date"] < today.isoformat() or _CALLED_OFF.search(row.get("title") or ""):
+            continue
+        if row.get("page1_required"):
             continue
         if not _in(row["date"], start, end) or key in held or key in seen:
             continue

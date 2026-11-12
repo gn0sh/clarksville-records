@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import html
 import re
+import string
 import urllib.parse
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -67,6 +68,10 @@ class AgendaCenterConfig:
     # ({name, ward, seated, kind, cite_url, cite_page, quote}, ...). The build checks each cite (city_build
     # cited_members) and leaves out any entry whose quote is not on that page of the stored file.
     members: tuple = ()
+    # curated, per-meeting printing corrections of the attendance list only (city-seats/printed-misspelling-of-seated-
+    # member): ({meeting, minutes_url, page, printed, reads}, ...). The build checks each against that meeting's own
+    # page (city_build.printing_corrections) and applies none that fails; never to votes or another meeting.
+    printing_corrections: tuple = ()
 
     def members_on(self, date: str) -> list[dict]:
         """The configured member entries seated on or before date (YYYY-MM-DD), oldest first. Whether one is still
@@ -139,11 +144,10 @@ def parse_config(cfg) -> AgendaCenterConfig:
         raise AgendaCenterConfigError("agenda-center.yml: not a mapping")
     url = _need(cfg, "search_url", str)
     host = _need(cfg, "host", str)
+    _template("search_url", url, SEARCH_URL_FIELDS)    # before any .format (agenda-center-search-url-format)
     parts = urllib.parse.urlsplit(url.format(cid=0, year=2000))
     if parts.scheme != "https" or parts.netloc != host:
         raise AgendaCenterConfigError("agenda-center.yml: search_url must be https on host")
-    if "{year}" not in url or "{cid}" not in url:
-        raise AgendaCenterConfigError("agenda-center.yml: search_url needs {cid} and {year}")
     years = _need(cfg, "years", list)
     if len(years) != 2 or not all(isinstance(y, int) for y in years) or years[0] > years[1]:
         raise AgendaCenterConfigError("agenda-center.yml: years must be [first, last]")
@@ -171,6 +175,7 @@ def parse_config(cfg) -> AgendaCenterConfig:
         raise AgendaCenterConfigError("agenda-center.yml: seating must be {month: 1-12, every_years: 1+, from_year}")
     mayors = _mayors(cfg.get("mayors") or [])
     members = _members(cfg.get("members") or [])
+    corrections = _printing_corrections(cfg.get("printing_corrections") or [])
     return AgendaCenterConfig(
         locality=_need(cfg, "locality", str), body=_need(cfg, "body", str),
         official_title=_need(cfg, "official_title", str), host=host,
@@ -189,7 +194,33 @@ def parse_config(cfg) -> AgendaCenterConfig:
         vote_asides=_rx(_need(cfg, "vote_asides", str), "vote_asides"),
         presiding=_presiding(_rx(_need(cfg, "presiding", str), "presiding", 0)),
         presiding_title=_need(cfg, "presiding_title", str), aliases=dict(aliases),
-        seating=dict(seating) if seating else None, mayors=mayors, members=members)
+        seating=dict(seating) if seating else None, mayors=mayors, members=members,
+        printing_corrections=corrections)
+
+
+# The listing URL template's fields, all required: a template without {year} would list one year for every year, and
+# any other field ({0}, {cid.__class__}, {year!r}, a format spec) is refused before the URL is ever filled.
+SEARCH_URL_FIELDS = {"cid", "year"}
+
+
+def _template(key: str, template: str, fields: set) -> None:
+    """A URL template names only `fields`, each bare, and every one of them; literal braces ({{ }}) are text. The same
+    whitelist as civicclerk._template (config-validation family). Raises AgendaCenterConfigError."""
+    try:
+        parsed = list(string.Formatter().parse(template))
+    except ValueError as ex:                                    # an unmatched brace
+        raise AgendaCenterConfigError(f"agenda-center.yml: {key} is not a template ({ex})") from None
+    seen = set()
+    for _, field, spec, conversion in parsed:
+        if field is None:
+            continue
+        if field not in fields or spec or conversion is not None:
+            raise AgendaCenterConfigError(f"agenda-center.yml: {key} may name only "
+                                          f"{', '.join('{' + f + '}' for f in sorted(fields))}, each bare")
+        seen.add(field)
+    if fields - seen:
+        raise AgendaCenterConfigError(f"agenda-center.yml: {key} needs "
+                                      f"{' and '.join('{' + f + '}' for f in sorted(fields - seen))}")
 
 
 def _iso(v, key: str) -> str:
@@ -267,6 +298,45 @@ def _members(raw) -> tuple:
             raise AgendaCenterConfigError(f"agenda-center.yml: members: two entries seat Ward {e['ward']} on "
                                           f"{e['seated']}")
         seen.add((e["ward"], e["seated"]))
+    return tuple(out)
+
+
+CORRECTION_KEYS = {"meeting", "minutes_url", "page", "printed", "reads"}
+
+
+def _printing_corrections(raw) -> tuple:
+    """printing_corrections: [{meeting, minutes_url, page, printed, reads}] (docs/architecture/city-council.md,
+    "Minutes identity"). One attendance printing of one meeting's minutes, read as another surname: `printed` is the
+    token as that page's attendance list prints it, `reads` the surname the same page prints elsewhere. Refused at
+    load: a key missing or extra, a meeting that is not a date, a minutes_url that is not https, a page that is not a
+    page number, a token that is not one printed surname, `reads` equal to `printed`, and two entries for one
+    printing. What needs the minutes (the page prints both tokens, `reads` resolves to the one member the list
+    otherwise leaves out) is the build's check (city_build.printing_corrections)."""
+    surname = re.compile(r"^[A-Za-z][A-Za-z'’-]+$")
+    if not isinstance(raw, list):
+        raise AgendaCenterConfigError("agenda-center.yml: printing_corrections must be a list")
+    out, seen = [], set()
+    for i, c in enumerate(raw):
+        where = f"agenda-center.yml: printing_corrections[{i}]"
+        if not (isinstance(c, dict) and set(c) == CORRECTION_KEYS):
+            raise AgendaCenterConfigError(f"{where} must be {{{', '.join(sorted(CORRECTION_KEYS))}}}")
+        url = c["minutes_url"] if isinstance(c["minutes_url"], str) else ""
+        if urllib.parse.urlsplit(url).scheme != "https" or not urllib.parse.urlsplit(url).netloc:
+            raise AgendaCenterConfigError(f"{where}.minutes_url must be an https URL")
+        if type(c["page"]) is not int or c["page"] < 1:
+            raise AgendaCenterConfigError(f"{where}.page must be a page number")
+        for k in ("printed", "reads"):
+            if not (isinstance(c[k], str) and surname.match(c[k])):
+                raise AgendaCenterConfigError(f"{where}.{k} must be one surname as the page prints it")
+        if c["printed"].casefold() == c["reads"].casefold():
+            raise AgendaCenterConfigError(f"{where}: reads must differ from printed")
+        e = {"meeting": _iso(c["meeting"], f"printing_corrections[{i}].meeting"), "minutes_url": url,
+             "page": c["page"], "printed": c["printed"], "reads": c["reads"]}
+        key = (e["meeting"], e["minutes_url"], e["page"], e["printed"].casefold())
+        if key in seen:
+            raise AgendaCenterConfigError(f"{where}: a second entry for {e['printed']} on {e['meeting']} p. {e['page']}")
+        seen.add(key)
+        out.append(e)
     return tuple(out)
 
 

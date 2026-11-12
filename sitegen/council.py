@@ -158,16 +158,42 @@ def extend_by_listings(rows: list[dict], wards: list[dict], facts: dict, cfg: di
 def latest_list_incomplete(wards: list[dict], facts: dict, latest: str | None, prev: str | None) -> bool:
     """True when the latest attendance list cannot show that a member of the list before it has gone: it prints a
     name that resolves to no official (a misspelling such as ZAHARIAS, or a new name the record cannot place yet),
-    or it resolves fewer members than the list before it (a list cut off, or a page not read)."""
+    or it resolves fewer members than the list before it prints (a list cut off, or a page not read). The list before
+    it is counted by every name it prints, resolved or not (city-seats/one-list-drop-prev-incomplete: the 2026-07-06
+    list resolves 12 of its 13 names, CLAULNCH being the 13th, so a 2026-07-09 list missing one member must not look
+    complete against it). An unresolved name is counted once per printed spelling: on a day with two lists it may be
+    a member another list resolves, which only makes the latest list look short (held over, never closed)."""
     if latest is None or prev is None:
         return False
     officials = {o["id"] for o in facts["officials"]}
     resolved = {d: {w["official_id"] for w in wards if w["date"] == d and w.get("official_id") in officials}
                 for d in (latest, prev)}
-    unresolved = any(w["date"] == latest and w.get("official_id") not in officials for w in wards) or any(
-        not a.get("official_id") for m in facts.get("meetings", []) if m.get("date") == latest
-        for a in m.get("attendance") or [])
-    return unresolved or len(resolved[latest]) < len(resolved[prev])
+    unresolved = {d: {w.get("raw_name") or "" for w in wards if w["date"] == d and w.get("official_id") not in officials}
+                  | {a.get("raw_name") or "" for m in facts.get("meetings", []) if m.get("date") == d
+                     for a in m.get("attendance") or [] if not a.get("official_id")}
+                  for d in (latest, prev)}
+    return bool(unresolved[latest]) or len(resolved[latest]) < len(resolved[prev]) + len(unresolved[prev])
+
+
+def unplaced_names(wards: list[dict], facts: dict, date: str | None) -> list[dict]:
+    """The names the attendance list(s) of `date` print that resolve to no official, each with the page that prints
+    it: [{"printed", "src", "source_id", "page"}], once per spelling and page, sorted by spelling. A held-over
+    record's wording names them (city-seats/held-over-note-says-not-named): such a list does not leave its member
+    out, it prints a name the record cannot place."""
+    if date is None:
+        return []
+    officials = {o["id"] for o in facts["officials"]}
+    sources = {s["id"]: s for s in facts.get("sources", [])}
+    out = {}
+    for w in wards:
+        if w["date"] == date and w.get("official_id") not in officials and w.get("source_id") in sources:
+            out.setdefault((w.get("raw_name") or "", w["source_id"], w["page"]), None)
+    for m in facts.get("meetings", []):
+        if m.get("date") == date and m.get("source_id") in sources:
+            for a in m.get("attendance") or []:
+                if not a.get("official_id") or a["official_id"] not in officials:
+                    out.setdefault((a.get("raw_name") or "", m["source_id"], a["page"]), None)
+    return [{"printed": n, "src": _src(sources, sid, pg), "source_id": sid, "page": pg} for n, sid, pg in sorted(out) if n]
 
 
 def holder_rows(wards: list[dict], facts: dict, cfg: dict) -> tuple[list[dict], str | None]:
@@ -183,22 +209,37 @@ def holder_rows(wards: list[dict], facts: dict, cfg: dict) -> tuple[list[dict], 
 
     One list is not enough to close a record (city-seats, one-list drop): a record last seen at the list before L,
     whose member L's list does not name, stays open (`held_over`) when that list is incomplete
-    (latest_list_incomplete) and the record shows no successor. Seats words it as not named at L."""
+    (latest_list_incomplete) and the record shows no successor. Seats words it as not named at L, or, when L's list
+    prints a name the record cannot place (`unplaced`, unplaced_names), as printing that name."""
     rows = ward_rows(wards, facts, cfg) + title_rows(facts, cfg)
     extend_by_listings(rows, wards, facts, cfg)
     lists = sorted({w["date"] for w in wards if not w.get("configured")})    # a configured seating is not a list
     latest = lists[-1] if lists else max((r["end"] for r in rows), default=None)
     prev = lists[-2] if len(lists) > 1 else None
     short = latest_list_incomplete(wards, facts, latest, prev)
+    unplaced = unplaced_names(wards, facts, latest) if short else []
     for r in rows:
-        r["seen_to"], r["held_over"] = r["end"], False
+        r["seen_to"], r["held_over"], r["unplaced"] = r["end"], False, []
         if r["end"] >= latest:
             r["end"] = None
         elif short and r["official_id"] and r["end"] == prev and not any(
                 x is not r and x["start"] > prev and (x["seat"] == r["seat"] or x["official_id"] == r["official_id"])
                 for x in rows):
-            r["end"], r["held_over"] = None, True
+            r["end"], r["held_over"], r["unplaced"] = None, True, unplaced
+    printings(rows, wards, facts)
     return rows, latest
+
+
+def printings(rows: list[dict], wards: list[dict], facts: dict) -> None:
+    """Each record's `printings`: the attendance listings inside it that the build read through a configured printing
+    correction (wards.json `reads`; city_build.printing_corrections), so the seat's wording says what the list
+    prints (city-seats/printed-misspelling-of-seated-member): [{"printed", "reads", "date", "source_id", "page"}]."""
+    for r in rows:
+        r["printings"] = [{"printed": w["raw_name"], "reads": w["reads"], "date": w["date"],
+                           "source_id": w["source_id"], "page": w["page"]}
+                          for w in sorted(wards, key=lambda w: (w["date"], w["page"]))
+                          if w.get("reads") and r["official_id"] and w.get("official_id") == r["official_id"]
+                          and r["start"] <= w["date"] <= (r["seen_to"] or r["start"])]
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -292,9 +333,18 @@ def seat_list(cix: CouncilIndex) -> list[dict]:
         held = cix.seats.held_over_of_seat(seat) if holder is None else None
         note = None
         if held is not None and held["official_id"] in cix.officials:
+            # the page of each name the latest list prints but the record cannot place, linked beside the line
             note = {"name": cix.officials[held["official_id"]]["name"], "href": cix.official_href(held["official_id"]),
-                    "text": cix.seats.held_over_text(held)}
-        out.append({"seat": seat, "label": seat_label(seat), "holder": holder, "note": note})
+                    "text": cix.seats.held_over_text(held),
+                    "cites": [cix.src(*k) for k in dict.fromkeys((u["source_id"], u["page"])
+                                                                   for u in held.get("unplaced") or [])]}
+        # the holder is shown from a list that prints the name otherwise (a configured printing correction): one plain
+        # line saying what that list prints, linked to its page
+        printed = None
+        if holder is not None and cix.seats.printings_at_latest(rec):
+            printed = {"text": cix.seats.printings_text(rec, latest_only=True),
+                       "cites": [cix.src(p["source_id"], p["page"]) for p in cix.seats.printings_at_latest(rec)]}
+        out.append({"seat": seat, "label": seat_label(seat), "holder": holder, "note": note, "printed": printed})
     return out
 
 

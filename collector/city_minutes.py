@@ -119,6 +119,7 @@ class ParsedCityMinutes:
     roll_calls: list = field(default_factory=list)
     problems: list = field(default_factory=list)
     printed_date: str | None = None     # the date of the call-to-order sentence, ISO ("... on Thursday, August 1, 2024")
+    heading_date: str | None = None     # the date line of the page-1 heading, ISO ("February 11, 2026 at 4:30 PM")
 
 
 LAYER_TIMEOUT = 120      # seconds, pdfinfo and pdffonts (limits invariant L12; city files up to 493 pp)
@@ -432,6 +433,7 @@ def parse_text(pages: list[str], cfg: AgendaCenterConfig, text_layer: str = "tex
     if pm:
         out.presiding, out.presiding_title = pm.group("name"), pm.group("title")
     out.printed_date = called_to_order_on(joined)
+    out.heading_date = heading_date(lines)
 
     item = {"number": None, "kind": None, "title": None, "heading": None}
     titles: dict = {}                  # (kind, number) -> title as first printed in this document
@@ -545,6 +547,32 @@ def called_to_order_on(text: str) -> str | None:
     if not m:
         return None
     return f"{int(m.group(3)):04d}-{MONTHS.index(m.group(1).lower()) + 1:02d}-{int(m.group(2)):02d}"
+
+
+HEADING_DATE_RE = re.compile(r"(January|February|March|April|May|June|July|August|September|October|November|"
+                             r"December)\s+(\d{1,2}),\s+(\d{4})(?:\s+at\s+\d{1,2}:\d{2}\s*[AP]\.?M\.?)?", re.I)
+
+
+HEADING_LINES = 8     # the heading block: the D1 minutes print the date as the 3rd printed line (2025-02 to 2026-07)
+
+
+def heading_date(lines: list[Line]) -> str | None:
+    """The date of the page-1 heading as YYYY-MM-DD: the first line of the heading block (the first HEADING_LINES
+    printed lines of page 1, and only those before the "MINUTES" title) that is a date and nothing else ("February
+    11, 2026 at 4:30 PM"), else None. A date line further down page 1 (a recess date, a meeting cited in the body)
+    is never the heading's. city_build._other_meeting reads it when the call-to-order sentence prints no full date
+    (the 2026-02-11 minutes print "Wednesday, February 11," with no year); city_build.minutes_identity reads both."""
+    printed = 0
+    for ln in lines:
+        if ln.page != 1 or ln.text.upper() == "MINUTES" or printed >= HEADING_LINES:
+            break
+        if not ln.text:
+            continue
+        printed += 1
+        m = HEADING_DATE_RE.fullmatch(ln.text)
+        if m:
+            return f"{int(m.group(3)):04d}-{MONTHS.index(m.group(1).lower()) + 1:02d}-{int(m.group(2)):02d}"
+    return None
 
 
 def sentences(text: str) -> list[str]:

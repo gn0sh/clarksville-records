@@ -137,7 +137,7 @@
                                                     "minutes_source_id": { "$ref": "#/$defs/source_id" } } } },
         "minutes_url": { "type": ["string", "null"], "format": "uri", "description": "city: the listed minutes file; null when none is posted" },
         "minutes_status": { "enum": ["read", "scan_not_read", "not_posted", "not_fetched", "parse_failed", "other_meeting", "unreadable"],
-                            "description": "city: read = text-layer minutes read; scan_not_read = a scan or OCR text, nothing taken from it; other_meeting = the file listed as this meeting's minutes records another meeting, so it is not read or cited for this one; unreadable = the minutes file was fetched but could not be inspected (pdfinfo/pdftotext failed or timed out), so it is not read or cited" },
+                            "description": "city: read = text-layer minutes read; scan_not_read = a scan or OCR text, nothing taken from it; other_meeting = the file listed as this meeting's minutes does not show that it records this meeting (it prints another meeting's heading or date, or, for an also-listed row, not this meeting's heading and date alone), so it is not read or cited for this one; unreadable = the minutes file was fetched but could not be inspected (pdfinfo/pdftotext failed or timed out), so it is not read or cited" },
         "attendance_status": { "enum": ["extracted", "not_extracted"] },
         "attendance": { "type": "array", "items": { "$ref": "#/$defs/attendance" } },
         "stated_absent_count": { "type": ["integer", "null"], "minimum": 0 },
