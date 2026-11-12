@@ -3,7 +3,6 @@
 {% from "_hub.html.j2" import overview %}
 {% from "_freshness.html.j2" import freshness as fresh with context %}
 {% block head %}<script src="{{ root }}static/js-flag.js"></script>{{ feed_links(home_feeds | default([]), root) }}{% endblock %}
-{% block sky_sun %}<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>{% endblock %}
 {% block sky %}
 <div class="sky-hero" id="sky-hero" data-tz="{{ site.cfg.site_timezone }}" hidden>
   <p class="sky-day"><span class="sky-dow"><span id="sky-weekday"></span><span class="sky-in"> in {{ site.cfg.today_place }}</span></span> <a class="sky-link" href="today.html"><time class="sky-date" id="sky-date"></time><span class="sky-go" aria-hidden="true">&rsaquo;</span><span class="sr-only">: meetings day by day</span></a></p>
@@ -160,8 +159,7 @@
   </div>
 </div>
 {% endblock %}
-{% block scripts %}<script src="{{ root }}static/sky.js" defer></script>
-<script src="{{ root }}static/seats.js" defer></script>{% if address %}
+{% block scripts %}<script src="{{ root }}static/seats.js" defer></script>{% if address %}
 <script src="{{ root }}static/georef.js" defer></script>
 <script src="{{ root }}static/address.js" defer></script>{% endif %}
 <script src="{{ root }}static/landing.js" defer></script>{% endblock %}
