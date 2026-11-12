@@ -161,10 +161,21 @@ def as_of_day(value) -> Markup:
         m.group(1), d.strftime("%B"), d.day, d.year, m.group(2))
 
 
+@functools.lru_cache(maxsize=1)
+def _changes_validator() -> Draft202012Validator:
+    return _validator(config.CHANGES_SCHEMA_PATH)
+
+
+def change_errors(entry) -> list[str]:
+    """Problems with one changes.jsonl line against schema/changes.schema.json (empty when it is valid). The collector
+    calls this before it appends a line, so the build's check below can never meet a line the writer let through."""
+    return _schema_errors(_changes_validator(), entry)
+
+
 def read_changes(path: Path | None) -> list[dict]:
     if path is None or not Path(path).is_file():
         return []
-    validator = _validator(config.CHANGES_SCHEMA_PATH)
+    validator = _changes_validator()
     entries = []
     for n, line in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), 1):
         if not line.strip():

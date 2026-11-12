@@ -120,10 +120,19 @@ class Store:
             self._log_change({"date": entry["first_fetched_at"][:10], "fact_id": f"src-{prev['sha256'][:12]}",
                               "field": "sha256", "old": prev["sha256"], "new": digest,
                               "note": "the county replaced this document; the old version stays as its own source",
-                              "source_url": url, "page": None})
+                              "source_url": url})
         return entry, "changed" if prev else "new"
 
     def _log_change(self, rec: dict) -> None:
+        """Append one line to changes.jsonl. Keys whose value is None are left out (the schema has no nulls; an
+        optional field is absent, not null), and the line is checked against schema/changes.schema.json with the
+        build's own check first, so a line the site build would reject is never written."""
+        from sitegen.build import change_errors
+        rec = {k: v for k, v in rec.items() if v is not None}
+        problems = change_errors(rec)
+        if problems:
+            raise ValueError(f"refusing to write a {self.changes_path.name} line that does not match "
+                             "schema/changes.schema.json:\n" + "\n".join(problems))
         self.changes_path.parent.mkdir(parents=True, exist_ok=True)
         with self.changes_path.open("a") as f:
             f.write(json.dumps(rec, sort_keys=True) + "\n")
