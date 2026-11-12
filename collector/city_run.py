@@ -233,9 +233,9 @@ def main(argv: list[str]) -> int:
         old = json.loads(p["facts"].read_text(encoding="utf-8")) if p["facts"].exists() else None
         dropped = facts_shrink(facts, old)
         if dropped and not a.allow_shrink:
-            why = (f"the build has {len(facts['meetings'])} meetings and would drop {len(dropped)} of the "
-                   f"{len(old['meetings'])} in {p['facts'].name}, e.g. {', '.join(dropped[:3])}; {p['facts'].name} "
-                   f"and {p['wards'].name} were left unchanged. A parser change that renames meeting ids also causes "
+            n_new, n_old = len(facts.get("meetings") or []), len(old.get("meetings") or [])
+            why = (f"the build has {n_new} meetings and would drop {len(dropped)} of the {n_old} in {p['facts'].name}, "
+                   f"e.g. {', '.join(dropped[:3])}; {p['facts'].name} and {p['wards'].name} were left unchanged. A parser change that renames meeting ids also causes "
                    f"this; pass --allow-shrink to accept it")
             log["failures"].append(failure("shrink", ShrinkRefused(why)))
             print(f"collector city: SHRINK GUARD {why}", file=sys.stderr, flush=True)
