@@ -22,7 +22,7 @@ operator_person: city-brian-zacharias
 # Launched or not (site-polish/about-preview, 2026-11-11). false: About says the site is a preview that has not
 # launched. Go-live sets it to true in its own one-line PR, merged on the CEO's go-ahead before the first deploy
 # (docs/ops/launch-runbook.md, Go-live step 3a). The build refuses anything but true or false.
-live: false
+live: true
 
 # "Not sure of your district?" lookup link on the landing (the state elections site). Empty renders nothing; another
 # locality sets its own. The site sends nothing there: it is a plain link the visitor chooses to follow.
