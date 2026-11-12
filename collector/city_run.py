@@ -235,8 +235,8 @@ def main(argv: list[str]) -> int:
         if dropped and not a.allow_shrink:
             n_new, n_old = len(facts.get("meetings") or []), len(old.get("meetings") or [])
             why = (f"the build has {n_new} meetings and would drop {len(dropped)} of the {n_old} in {p['facts'].name}, "
-                   f"e.g. {', '.join(dropped[:3])}; {p['facts'].name} and {p['wards'].name} were left unchanged. A parser change that renames meeting ids also causes "
-                   f"this; pass --allow-shrink to accept it")
+                   f"e.g. {', '.join(dropped[:3])}; {p['facts'].name} and {p['wards'].name} were left unchanged. "
+                   f"A parser change that renames meeting ids also causes this; pass --allow-shrink to accept it")
             log["failures"].append(failure("shrink", ShrinkRefused(why)))
             print(f"collector city: SHRINK GUARD {why}", file=sys.stderr, flush=True)
         else:
