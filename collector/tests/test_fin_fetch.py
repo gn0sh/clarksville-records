@@ -206,3 +206,28 @@ def test_fin_fetch_refuses_a_fetcher_that_allows_bonfire(tmp_path):
     from collector import fin_run
     with pytest.raises(ValueError):
         fin_run.cmd_fetch(store(tmp_path), CFG, fetcher=PoliteFetcher(), status_path=tmp_path / "s.json")
+
+
+def test_the_mcgtn_budget_book_is_fetched_through_the_http_redirect_and_stored_under_its_own_url(tmp_path):
+    """Seed run 43306524451 (2026-11-12): mcgtn.org answers 301 to http://montgomerytn.gov/<same path>, robots.txt
+    included, so robots.txt was unreadable, the whole host disallowed and the FY2025 book never stored
+    (provenance/book-missing on every run). fetch/redirect-http-upgrade: each hop is requested as https://, never
+    http://; the book is stored under the configured mcgtn.org URL, so its provenance is unchanged."""
+    from collector import fin_run
+    book = next(b for b in CFG.budget.books if urllib.parse.urlsplit(b.url).netloc == "mcgtn.org")
+    target = "http://montgomerytn.gov" + urllib.parse.urlsplit(book.url).path
+    https_target = "https" + target[len("http"):]
+    routes = {"https://mcgtn.org/robots.txt": (301, b"", {"Location": "http://montgomerytn.gov/robots.txt"}),
+              "https://montgomerytn.gov/robots.txt": (200, b"User-agent: *\nDisallow:\n"),
+              book.url: (301, b"", {"Location": target}), https_target: (200, b"%PDF-1.4 book")}
+    for b in CFG.budget.books:
+        routes.setdefault(b.url, (200, b"%PDF-1.4 other"))
+    f, net, _ = make(routes)
+    s = store(tmp_path)
+    log = {"failures": []}
+    assert fin_run.fetch_books(f, s, CFG, log, progress=lambda *a, **k: None) is False
+    assert log["failures"] == []
+    assert log["books"][book.id] == "new"
+    assert s.latest(book.url) and s.has_bytes(s.latest(book.url)["sha256"])
+    assert https_target in [u for u, _ in net.calls]
+    assert not [u for u, _ in net.calls if not u.startswith("https://")]
