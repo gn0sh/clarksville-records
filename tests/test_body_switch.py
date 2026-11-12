@@ -228,7 +228,7 @@ def test_finance_note_text_and_links():
     assert note["text"] == "County budget only so far. City and school board budgets are coming."
     assert [x["url"] for x in note["links"]] == [config.SITE["unofficial"]["bodies"][0]["url"],
                                                   config.SITE["school_board"]["url"]]
-    assert "cityofclarksville.com" in note["links"][0]["url"] and "cmcss.net" in note["links"][1]["url"]
+    assert note["links"][0]["url"] == "https://www.clarksvilletn.gov/" and "cmcss.net" in note["links"][1]["url"]
     tpl = (ROOT / "site" / "templates" / "fin_index.html.j2").read_text(encoding="utf-8")
     assert tpl.index("body_note.text") < tpl.index("coverage_sentence")     # the first line under the h1
 

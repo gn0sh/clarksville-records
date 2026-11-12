@@ -419,7 +419,7 @@ unofficial:
   # the home page's first-screen line (the full notice is in its footer, as on every page); {bodies} joins `short`
   short: "Not affiliated with or endorsed by {bodies}."
   bodies:     # name: as the notice prints it; short: in `short`; url: the body's own official site (About links each)
-    - {name: the City of Clarksville, short: the City of Clarksville, label: City of Clarksville, url: "https://www.cityofclarksville.com/"}
+    - {name: the City of Clarksville, short: the City of Clarksville, label: City of Clarksville, url: "https://www.clarksvilletn.gov/"}
     - {name: Montgomery County, short: Montgomery County, label: Montgomery County government, url: "https://www.montgomerytn.gov/"}
     - {name: the Clarksville-Montgomery County School System (CMCSS), short: CMCSS, label: Clarksville-Montgomery County School System (CMCSS), url: "https://www.cmcss.net/"}
     - {name: the Clarksville-Montgomery County Regional Planning Commission, short: the Regional Planning Commission, label: Clarksville-Montgomery County Regional Planning Commission, url: "https://www.cmcrpc.com/"}
