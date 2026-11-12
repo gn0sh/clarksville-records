@@ -7,19 +7,20 @@ pages, and every other copy. The video still has them, so the placeholder tells 
 keeps its time link.
 
 What is masked (rules, each with the false positives it avoids):
-- A street address: a house number, one to four street-name words, and a street suffix ("701 Anita Court",
-  "724 R.S. Bradley Boulevard", "512 4th Street", "3341 and 3351 Pembroke Road"). The house number is digits (at most
-  five, Whisper may split it: "10 18 swift drive", "eight 25 Marion street") or two or more spelled-out number words
-  ("seven oh one Anita Court", "five or five port street"). Never a dollar amount, a decimal, a number with a comma,
-  a part of a hyphenated number (ordinance 98-2025-26) or an ordinal ("13th"); never a number after a word that
+- A street address: a house number, one to four street-name words, and a street suffix ("418 Example Court",
+  "312 J.Q. Sample Boulevard", "205 47th Street", "1100 and 1110 Sample Road"). The house number is digits (at most
+  five, Whisper may split it: "10 42 fixture drive", "nine 14 Example street") or two or more spelled-out number words
+  ("four oh eight Example Court", "six or six sample street"). Never a dollar amount, a decimal, a number with a comma,
+  a part of a hyphenated number (ordinance 17-2025-26) or an ordinal ("14th"); never a number after a word that
   names something else (ordinance, resolution, highway, ward, district, item, phase, "the" ...). A street-name word is
-  never a function word, a unit or a number word ("80 cars to that road", "16 foot wide road", "the 2040 Spring Creek
-  Parkway", "7 Mile Ferry Road", "ordinance 74 fails councilman street").
-- A house number someone says they live at, with no suffix: "I live at 266 cheshire since 2001", "my address is 377",
+  never a function word, a unit or a number word ("90 cars to that road", "18 foot wide road", "the 2045 Example Creek
+  Parkway", "9 Mile Example Road", "ordinance 37 fails councilman street").
+- A house number someone says they live at, with no suffix: "I live at 640 samplewood since 2003", "my address is 515",
   up to the first function word or punctuation.
 - A phone number: ten digits in 3-3-4 groups (any of space, ".", "-", "()" between them), seven digits as 3-4 joined by
   "-" or ".", or seven or more spelled-out digits in a row. Every phone number, official lines included: a list of
   "official" numbers would need checking against each body, and the video has them all.
+Every example in this module is synthetic (invented names and streets, 555-01xx numbers), never a real transcript line.
 Each rule errs toward masking: a street named in a zoning item read aloud is masked too (it is on the item's own pages).
 """
 from __future__ import annotations
@@ -110,7 +111,7 @@ def spans(text: str) -> list[tuple[int, int, str]]:
                 b -= 1
             kind = mask
             if mask == PHONE_MASK and not re.search(r"\d", m.group(0)) and re.search(r"\b(?:at|on)\W*$", text[:a], re.I):
-                kind = ADDRESS_MASK     # "located at two eight nine six ...": a spelled-out house number
+                kind = ADDRESS_MASK     # "located at one two three four five six seven": a spelled-out house number
             found.append((a, b, kind))
             pos = m.end()
     found.sort()
@@ -133,7 +134,7 @@ def mask(text: str) -> str:
 def mask_segments(segments: list) -> tuple[list, list[int]]:
     """The transcript's segments [start, end, text] with every address and phone number masked, and the indexes of
     the segments that changed. The segments' texts are read joined by single spaces, so an address split over two
-    lines ("My address is 701" / "Anita Court") is found; each line it touches shows the placeholder for its part."""
+    lines ("My address is 418" / "Example Court") is found; each line it touches shows the placeholder for its part."""
     texts = [s[2] for s in segments]
     joined = " ".join(texts)
     found = spans(joined)

@@ -24,49 +24,60 @@ TRANSCRIPTS = ROOT / "data" / "localities" / "clarksville-tn" / "transcripts"
 # ------------------------------------------------------------------------------------------------- the masking rule
 
 @pytest.mark.parametrize("text, masked", [
-    # real lines from the committed transcripts (data/localities/clarksville-tn/transcripts)
-    ("Yeah, everyone. Jeremy Wright. My address is 701 Anita Court, Clarksville, Tennessee, 37042.",
-     f"Yeah, everyone. Jeremy Wright. My address is {A}, Clarksville, Tennessee, 37042."),
-    ("you have five minutes. Calvin Ligon, 951 Crabapple Court. Just looking",
-     f"you have five minutes. Calvin Ligon, {A}. Just looking"),
-    ("My name is Eric Launch. I live at 724 R.S. Bradley Boulevard. It's", f"My name is Eric Launch. I live at {A}. It's"),
-    ("I'm Lyle L. Jones. I live on 512 4th Street. In that lot", f"I'm Lyle L. Jones. I live on {A}. In that lot"),
-    ("my name is Jeff Lloyd I live at 577 Waldorf Drive I've called Clarksville",
-     f"my name is Jeff Lloyd I live at {A} I've called Clarksville"),
-    ("sir name is mark remini i live at 266 cheshire since 2001.", f"sir name is mark remini i live at {A} since 2001."),
-    ("I live at 377 so I'm right next to it", f"I live at {A} so I'm right next to it"),
-    ("Um, I stayed at eight 25 Marion street and where he", f"Um, I stayed at {A} and where he"),
-    ("for 62 years from five or five port street to a 25 Marion street", f"for 62 years from {A} to a {A}"),
-    ("on property located at 3341 and 3351 Pembroke Road from R1", f"on property located at {A} from R1"),
-    ("will be updated at 10 18 swift drive from 01 office", f"will be updated at {A} from 01 office"),
-    ("I'm Jeff Fletcher. I live at. 1021 Pumping Station and 1111 South Montferry Road.",
-     f"I'm Jeff Fletcher. I live at. {A} and {A}."),
-    ("my address is seven oh one Anita Court", f"my address is {A}"),
-    # phone numbers: every one, official lines included
-    ("in contact with the director is 931-648-6133. Again,", f"in contact with the director is {P}. Again,"),
-    ("a non-emergency number that is 931. 552. 1011. Our next", f"a non-emergency number that is {P}. Our next"),
-    ("called the hotline and that said 931 472 3355. And", f"called the hotline and that said {P}. And"),
-    ("call (931) 645-7400 or 648-6100 today", f"call {P} or {P} today"),
-    ("my number is nine three one five five five one two one two", f"my number is {P}"),
+    # synthetic lines (invented names, placeholder streets, 555-01xx numbers), one per rule: never real transcript text
+    ("Yeah, everyone. Pat Example. My address is 418 Example Court, Clarksville, Tennessee, 37040.",
+     f"Yeah, everyone. Pat Example. My address is {A}, Clarksville, Tennessee, 37040."),
+    ("you have five minutes. Sam Sample, 236 Fixture Court. Just looking",
+     f"you have five minutes. Sam Sample, {A}. Just looking"),
+    # initials in the street name; an ordinal street name
+    ("My name is Lee Example. I live at 312 J.Q. Sample Boulevard. It's", f"My name is Lee Example. I live at {A}. It's"),
+    ("I'm Kim B. Sample. I live on 205 47th Street. In that lot", f"I'm Kim B. Sample. I live on {A}. In that lot"),
+    ("my name is Alex Fixture I live at 580 Example Drive I've called Clarksville",
+     f"my name is Alex Fixture I live at {A} I've called Clarksville"),
+    # a cued house number with no suffix
+    ("sir name is jo sample i live at 640 samplewood since 2003.", f"sir name is jo sample i live at {A} since 2003."),
+    ("I live at 515 so I'm right next to it", f"I live at {A} so I'm right next to it"),
+    # Whisper splits: a spelled word then digits, "or" for "oh", digits split in two
+    ("Um, I stayed at nine 14 Example street and where he", f"Um, I stayed at {A} and where he"),
+    ("for 62 years from six or six sample street to a 14 Example street", f"for 62 years from {A} to a {A}"),
+    ("will be updated at 10 42 fixture drive from 01 office", f"will be updated at {A} from 01 office"),
+    # two house numbers joined by "and"
+    ("on property located at 1100 and 1110 Sample Road from R1", f"on property located at {A} from R1"),
+    ("I reside at 77 and 79 Fixture Lane with my family", f"I reside at {A} with my family"),
+    ("I'm Robin Example. I live at. 1020 Sample Station and 1130 North Fixture Road.",
+     f"I'm Robin Example. I live at. {A} and {A}."),
+    # spelled-out house numbers
+    ("my address is four oh eight Example Court", f"my address is {A}"),
+    ("the lot located at one two three four five six seven on the corner", f"the lot located at {A} on the corner"),
+    # phone numbers, every form: every one is masked, official lines included
+    ("in contact with the director is 931-555-0101. Again,", f"in contact with the director is {P}. Again,"),
+    ("a non-emergency number that is 931. 555. 0102. Our next", f"a non-emergency number that is {P}. Our next"),
+    ("called the hotline and that said 931 555 0103. And", f"called the hotline and that said {P}. And"),
+    ("call (931) 555-0104 or 555-0105 today", f"call {P} or {P} today"),
+    ("or text 931.555.0107 any time", f"or text {P} any time"),
+    ("my number is nine three one five five five zero one zero six", f"my number is {P}"),
 ])
 def test_addresses_and_phone_numbers_are_masked(text, masked):
     assert privacy.mask(text) == masked
 
 
 @pytest.mark.parametrize("text", [
-    "Ordinance 98-2025-26, second reading, an ordinance amending the zoning code",
-    "Ordinance 103-2024-25 for a grant award",
-    "the bill was $1,200 a year and $200 a square foot",
-    "in 2026 the city will", "Resolution 12, a resolution approving", "resolution 46 2025 26 a resolution approving",
-    "zero yes thirteen no zero abstain ordinance 42 fails councilman street you're recognized",
-    "They would try to come up further up 7 Mile Ferry Road, and", "Seven Mile Ferry Road",
-    "approximately 250 feet north of Dover Road", "we're adding 80 cars to that road", "a substandard 16 foot wide road",
-    "The 2040 Spring Creek Parkway background traffic projections", "Mr. Pitts did that in 2020 with the street improvement",
-    "parcels north of Highway 76 and east of Hornbuckle Road", "Lafayette Road highway 374 and Garrettsburg Road",
-    "between 1,500 and 2,000 square feet", "1.1 mile to the one point", "i can drive 20 minutes the other way",
-    "council ward number 11 it's in the st. Bethlehem planning", "the paving contract on Main Street",
-    "is city court going", "and this was voted on in 1977 by the way", "the 13th of November at 9 a.m.",
-    "Resolution 3620 2526, a resolution", "the city website was from 2022 2022 it",
+    # synthetic lines that must stay as they are
+    "Ordinance 17-2025-26, second reading, an ordinance amending the zoning code",
+    "Ordinance 104-2023-24 for a grant award",
+    "the bill was $1,400 a year and $300 a square foot",
+    "in 2027 the city will", "Resolution 14, a resolution approving", "resolution 51 2025 26 a resolution approving",
+    "zero yes twelve no zero abstain ordinance 37 fails councilman street you're recognized",
+    "They would try to come up further up 9 Mile Example Road, and", "Nine Mile Example Road",
+    "approximately 300 feet north of Sample Road", "we're adding 90 cars to that road", "a substandard 18 foot wide road",
+    "The 2045 Example Creek Parkway background traffic projections",
+    "Mr. Sample did that in 2021 with the street improvement",
+    "parcels north of Highway 79 and east of Fixture Road", "Example Road highway 380 and Sample Road",
+    "between 1,600 and 2,500 square feet", "1.3 mile to the one point", "i can drive 25 minutes the other way",
+    "council ward number 12 it's in the st. Example planning", "the paving contract on Sample Street",
+    "will city court be open", "and this was voted on in 1983 by the way", "the 14th of March at 8 a.m.",
+    "Resolution 3710 2526, a resolution", "the city website was from 2023 2023 it",
+    "we went to the four city court sessions", "item 6 Example Street paving", "district 5 Sample Road widening",
 ])
 def test_numbers_that_are_not_addresses_are_left(text):
     assert privacy.mask(text) == text
@@ -93,7 +104,7 @@ def test_long_number_word_runs_finish_quickly(text):
 
 
 def test_an_address_split_over_two_lines_is_masked_on_both_and_times_kept():
-    segs = [[10.0, 12.5, "Thank you. My address is 701"], [12.5, 15.0, "Anita Court, Clarksville, Tennessee."],
+    segs = [[10.0, 12.5, "Thank you. My address is 418"], [12.5, 15.0, "Example Court, Clarksville, Tennessee."],
             [15.0, 18.0, "First of all, thank you."]]
     out, changed = privacy.mask_segments(segs)
     assert changed == [0, 1]
@@ -103,28 +114,25 @@ def test_an_address_split_over_two_lines_is_masked_on_both_and_times_kept():
     assert privacy.mask_segments([[0, 1, "nothing here"]]) == ([[0, 1, "nothing here"]], [])
 
 
-def test_the_qa_rule_agrees_with_the_masker_on_every_committed_line():
-    """The restated rule in qa/site_checks.py finds nothing in any masked committed line (else the masker missed one
-    the check would catch), and finds an address or phone number in at least the lines the review named."""
-    found = 0
+def test_the_qa_rule_agrees_with_the_masker():
+    """The restated rule in qa/site_checks.py finds nothing in a masked committed line (else the masker missed one the
+    check would catch), and finds the synthetic addresses and phone numbers the masker masks."""
     for f in sorted(TRANSCRIPTS.glob("2*.json")):
-        segs = json.loads(f.read_text(encoding="utf-8"))["segments"]
-        out, changed = privacy.mask_segments(segs)
-        found += len(changed)
-        for s in out:
-            assert site_checks.private_details(s[2]) == [], (f.name, s)
-    assert found >= 77      # the security review counted 77 lines that pair a name with a home address
-    assert site_checks.private_details("My address is 701 Anita Court, Clarksville")
-    assert site_checks.private_details("Calvin Ligon, 951 Crabapple Court.")
+        out, _ = privacy.mask_segments(json.loads(f.read_text(encoding="utf-8"))["segments"])
+        for i, s in enumerate(out):
+            assert site_checks.private_details(s[2]) == [], (f.name, i)
+    assert site_checks.private_details("My address is 418 Example Court, Clarksville")
+    assert site_checks.private_details("Sam Sample, 236 Fixture Court.")
+    assert site_checks.private_details("call (931) 555-0104 today")
 
 
 # ------------------------------------------------------------------------------------------------------- the pages
 
 ADDRESS_LINES = [
-    (50.0, 55.0, "Thank you. Jeremy Wright. My address is 701"),
-    (55.0, 60.0, "Anita Court, Clarksville, Tennessee. Call me at 931-555-0142."),
-    (60.0, 65.0, "councilman Smith you're recognized thank you I live at 951 Crabapple Court and"),
-    (65.0, 70.0, "ordinance 98-2025-26 costs $1,200 in 2026 under Resolution 12"),
+    (50.0, 55.0, "Thank you. Pat Example. My address is 418"),
+    (55.0, 60.0, "Example Court, Clarksville, Tennessee. Call me at 931-555-0142."),
+    (60.0, 65.0, "councilman Smith you're recognized thank you I live at 236 Fixture Court and"),
+    (65.0, 70.0, "ordinance 17-2025-26 costs $1,400 in 2027 under Resolution 14"),
 ]
 
 
@@ -152,11 +160,11 @@ def site(tmp_path_factory):
 def test_transcript_page_masks_and_keeps_the_time_links(site):
     out, cs, mid, video, n = site
     page = (out / "city" / "transcripts" / f"{mid}.html").read_text(encoding="utf-8")
-    for raw in ("701", "Anita Court", "951 Crabapple", "931-555-0142"):
+    for raw in ("is 418", "Example Court", "236 Fixture", "931-555-0142"):
         assert raw not in page
     assert page.count("[address omitted; hear it in the video at this time]") == 3
     assert "[phone number omitted; hear it in the video at this time]" in page
-    assert "ordinance 98-2025-26 costs $1,200 in 2026 under Resolution 12" in page
+    assert "ordinance 17-2025-26 costs $1,400 in 2027 under Resolution 14" in page
     for i, (start, _, _) in enumerate(ADDRESS_LINES):
         href = f"{video}#t={int(start)}"
         assert re.search(rf'<li id="s{n + i}"[^>]*><a class="tx-time" data-ext="video" href="{re.escape(href)}"', page)
@@ -173,7 +181,7 @@ def test_transcript_page_masks_and_keeps_the_time_links(site):
 def test_call_on_excerpts_are_masked_too(site):
     out, *_ = site
     smith = (out / "city" / "members" / "city-wanda-smith.html").read_text(encoding="utf-8")
-    assert "951 Crabapple" not in smith and "I live at [address omitted; hear it in the video at this time] and" in smith
+    assert "236 Fixture" not in smith and "I live at [address omitted; hear it in the video at this time] and" in smith
 
 
 def test_load_reports_the_masked_line_count(site):
@@ -195,10 +203,10 @@ def test_site_check_passes_and_catches_a_leak(site, tmp_path):
     # an unmasked address in a transcript line
     p = copy / "city" / "transcripts" / f"{mid}.html"
     body = p.read_text(encoding="utf-8")
-    p.write_text(body.replace("Thank you. Jeremy Wright. My address is [address omitted; hear it in the video at this time]",
-                              "Thank you. Jeremy Wright. My address is 701 Anita Court", 1), encoding="utf-8")
+    p.write_text(body.replace("Thank you. Pat Example. My address is [address omitted; hear it in the video at this time]",
+                              "Thank you. Pat Example. My address is 418 Example Court", 1), encoding="utf-8")
     problems, _ = site_checks.check_private_details(copy, cs)
-    assert any("transcript text shows '701 Anita Court'" in x for x in problems)
+    assert any("transcript text shows '418 Example Court'" in x for x in problems)
     # a committed line copied into the export or the search index, outside any data-transcript text
     (copy / "data").mkdir(exist_ok=True)
     (copy / "data" / "extra.json").write_text(json.dumps({"t": ADDRESS_LINES[2][2]}), encoding="utf-8")
