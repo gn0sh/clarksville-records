@@ -133,6 +133,21 @@ def test_check_provenance_bans_the_cutover_value(tmp_path, built, facts):
     assert any("banned" in p for p in problems)
 
 
+@pytest.mark.parametrize("text", [
+    "Ward 2, 2026-02-19 to 2026-06-04",                                   # bare dates, no phrase
+    "seen in the minutes 2026-02-19",                                     # a phrase that is not one of DATE_PHRASES
+    "Ward 2, seen in the minutes that record the seating; 2026-02-19",    # the phrase, but its clause ended
+    "Ward 2, in the minutes that record the seating 2026-02-19",          # the configured phrase without "seen"
+])
+def test_dates_worded_flags_a_date_outside_its_phrase(text):
+    """site-checks/provenance-no-negative-test: each of these names a date no allowed phrase introduces."""
+    assert site_checks.dates_worded(text) == ["2026-02-19"] + (["2026-06-04"] if "2026-06-04" in text else [])
+
+
+def test_dates_worded_allows_the_configured_seating_phrase():
+    assert site_checks.dates_worded("Ward 2, seen in the minutes that record the seating 2026-02-19") == []
+
+
 def test_search_index_seat_strings_are_worded(built):
     raw = (built / "static" / "search-index.js").read_text(encoding="utf-8")
     ix = json.loads(raw[raw.index("{"):raw.rindex("}") + 1])
