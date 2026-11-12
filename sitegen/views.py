@@ -372,6 +372,13 @@ def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), 
             href = f"votes/{years[0]}.html" if years else "search.html"
         out.append({"label": label, "href": href, "page": page, "coming": coming})
         if label == "Officials":
+            # the county's hub page (config/site.yml switch.bodies.county; sitegen/bodies.py builds it whenever the
+            # switch is configured with a county body), first of the hubs, in the switch's order
+            sw = config.SITE.get("switch") or {}
+            cb = (sw.get("bodies") or {}).get("county") or {}
+            if sw.get("label") and cb.get("slug") and cb.get("label"):
+                out.append({"label": cb["label"], "href": f"{cb['slug']}.html", "page": cb.get("title") or cb["label"],
+                            "coming": False})
             out += [{"label": c.nav_label, "href": c.home_href(), "page": c.nav_label, "coming": False}
                     for c in councils]
             if rpc is not None:   # the Regional Planning Commission (sitegen/rpc.py), after the councils

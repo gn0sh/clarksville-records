@@ -104,6 +104,21 @@ def test_school_board_option_carries_the_coming_tag_and_rpc_a_short_phone_label(
     assert '<span class="bs-long">Planning (RPC)</span><span class="bs-short" aria-hidden="true">RPC</span>' in nav
 
 
+def test_footer_page_list_lists_every_hub(site, html):
+    """The footer's "All pages" list (the drawer's single source) has the county hub beside the other bodies' hubs,
+    and marks it current on its own page."""
+    def nav_hrefs(page):
+        nav = re.search(r'<nav id="site-nav".*?</nav>', page, re.S).group(0)
+        return re.findall(r'<li><a href="([^"]+)"', nav)
+    hrefs = nav_hrefs(html["about.html"])
+    hubs = ["montgomery-county.html", f"{cfg_slug(site)}/index.html", "rpc/index.html", "school-board.html"]
+    assert all(h in hrefs for h in hubs), hrefs
+    assert hrefs.index("officials.html") + 1 == hrefs.index("montgomery-county.html")
+    assert hrefs.index("montgomery-county.html") < hrefs.index(f"{cfg_slug(site)}/index.html")
+    nav = re.search(r'<nav id="site-nav".*?</nav>', html["montgomery-county.html"], re.S).group(0)
+    assert '<a href="montgomery-county.html" aria-current="page">Montgomery County</a>' in nav
+
+
 def test_county_hub_page(html):
     page = html["montgomery-county.html"]
     assert '<p class="hub-kicker">County government</p>' in page
