@@ -583,6 +583,11 @@ Scope notes (assumptions, recorded by the architect):
   The case's subject-property location and the applicant/agent name are what the public agenda is about and stay
   shown; an applicant's contact address, if one is ever printed separately from the subject property, is not.
 - What is masked is text, not the video: the city's recording still has it, and the placeholder says so.
+- Phone forms include seven or more single digits apart (Whisper's spelling of a read-out number), added 2026-11-12
+  after the row 14 scan found two such lines; the committed JSON was re-masked (row 4).
+- RPC `location` checked against the source agendas (T8): `rpc.json:16213` and `:16707` (one site-review case heard
+  twice) are the subject property printed under the agenda's LOCATION label with the case's tax map, parcel, zoning
+  and acreage, not a separate contact address; the phone printed after it is stripped (row 10).
 
 ### Decision (manager, 2026-11-12): option (b)
 
@@ -603,9 +608,9 @@ Scope notes (assumptions, recorded by the architect):
 | # | Place that can carry the text | Kind | Control |
 |---|---|---|---|
 | 1 | Raw Whisper output (collector input folder, outside the repo) | source | Never committed; read only by the import and by the out-of-repo scan (row 14). |
-| 2 | Import `collector/transcripts.py import_dir` -> `render` -> `_write` | producer | Masks segments (`mask_segments`) before `render`; refuses to write a file whose segments still match the rule. |
+| 2 | Import `collector/transcripts.py import_dir` -> `mask_record` -> `render` -> `_write` | producer | Masks segments (`mask_segments`) before `render`; skips (with the reason, never the text) a file whose masked text still matches the rule. |
 | 3 | Committed `data/localities/<locality>/transcripts/*.json` (+ `index.json`) | committed data | Masked at rest (decision 1); test + site check that every committed segment is already masked (row 12). `index.json` holds no text. |
-| 4 | Re-mask of committed JSON when the rule changes (`collector/transcripts.py remask`) | producer | Rewrites committed JSON through the same masker, no raw input needed; idempotent (`mask(mask(x)) == mask(x)`). |
+| 4 | Re-mask of committed JSON when the rule changes (`python -m collector transcripts remask`, also `python -m collector.transcripts remask`) | producer | Rewrites committed JSON through the same masker, no raw input needed; idempotent (`mask(mask(x)) == mask(x)`, a second run changes no byte); keeps segment times and count; a file still matching after masking is left as it is, `index.json` too, and the command exits 1. |
 | 5 | Site load `sitegen/transcripts.py load` | consumer | Masks again (defence in depth) and raises `TranscriptLoadError` if that changed any committed line (data not masked at rest). |
 | 6 | Transcript pages `site/templates/transcript.html.j2` (`data-transcript` text) | published | Text from row 5 only; robots `noindex`; privacy line linking `report.html`. |
 | 7 | Member pages "Called on in meetings": matched words and excerpts (`Transcripts.member_rows`, `official.html.j2`) | published | Text from row 5 only (detection runs after masking). |
@@ -613,9 +618,9 @@ Scope notes (assumptions, recorded by the architect):
 | 9 | CSV/JSON export (`collector/export.py`), search index (`static/search-index.js`) | published | Carry no transcript text today; row 12 scans them anyway. |
 | 10 | RPC parse `collector/rpc_agenda.py case_record` -> committed `data/localities/cmc-rpc/rpc.json` -> RPC pages, `data/rpc/*` export, search index | producer + published | `strip_phones` on every field at parse time; test that committed `rpc.json` has no phone pattern in any string (a regex, not a stored number). |
 | 11 | The masker `collector/privacy.py` (moved from `sitegen/privacy.py` so the import can use it without the collector importing sitegen) and the rule comment in `collector/rpc_agenda.py` | code | Synthetic examples only in constants, comments and docstrings. |
-| 12 | Site check `transcripts/private-addresses` (`qa/site_checks.py`, rule restated) | check | (a) every `data-transcript` text and call-on excerpt passes the restated rule; (b) every committed transcript segment passes it (masked at rest); (c) `data/` and the search index carry no transcript segment text at all (needles: the committed, masked lines, safe to hold). It no longer relies on raw lines as needles (there are none once row 3 holds). |
+| 12 | Site check `transcripts/private-addresses` (`qa/site_checks.py`, rule restated) | check | (a) every `data-transcript` text (transcript lines, call-on words and excerpts) passes the restated rule; (b) every committed transcript segment passes it, line by line and joined (masked at rest); (c) no file under `data/` and not the search index carries a committed transcript line of 20+ characters (needles: the committed, masked lines, safe to hold, less lines that are also a string of the committed source data, e.g. an item title the clerk reads aloud) or a mask placeholder. Problems name the file and line, never the text. It no longer relies on raw lines as needles (there are none once row 3 holds). |
 | 13 | Tests and fixtures (`tests/test_transcript_privacy.py`, `collector/tests/test_rpc.py`, `collector/tests/fixtures/**`, `site/fixtures/**`) | code | Synthetic data only; a fixture built from a real document has its resident contact details replaced before commit. |
-| 14 | Out-of-repo leak scan `qa/pii_scan.py --raw <folder outside the repo>` | check | Reads raw transcripts from outside the repo, takes the spans the masker would mask, holds them in memory only, and scans every git-tracked file and an optional built site for them. Reports `path:line` and a count, never the matched text; writes nothing. Run by the importer after each import and before each merge to `main`. |
+| 14 | Out-of-repo leak scan `python -m qa.pii_scan --raw <folder outside the repo> [--site build/site]` | check | Reads raw transcripts (and raw RPC text layers, `*.txt`) from outside the repo, takes the spans the masker would mask (a bare-number span carries up to three words of context; a phone is matched by its digits), holds them in memory only, and scans every git-tracked file and an optional built site, case-insensitively with whitespace folded. Reports `path:line` and counts, never the matched text; writes nothing; refuses a `--raw` inside the repo. A needle that is also a committed source-data string (`data/**/*.json` outside the transcript folders: an RPC subject-property location, an item title) or one of its `PUBLIC_PLACES` (government buildings) is listed as `PUBLIC`, not a hit; phones are never public. Exit 1 on any hit. Run by the importer after each import and before each merge to `main`. |
 | 15 | Docs, ADRs, reviews, `docs/status.md`, PR bodies and review reports | docs | Quote by `path:line` or with synthetic text; reviewers' reports are redacted before the manager commits them; row 14 covers committed docs. |
 
 No guard test may grep the tree for the known real strings: such a test would itself commit them. Row 14 is the
