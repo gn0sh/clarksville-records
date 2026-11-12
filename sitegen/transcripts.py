@@ -124,11 +124,11 @@ def load(facts_path: Path, facts: dict) -> dict[str, dict]:
         vu = meetings[mid].get("video_url")
         if t.get("meeting_id") != mid or not vu or t.get("video_url") != vu:
             raise TranscriptLoadError(f"{folder / entry['file']}: does not carry meeting {mid}'s video_url")
-        for s in t["segments"]:
+        for i, s in enumerate(t["segments"]):
             if not (isinstance(s, list) and len(s) == 3 and all(isinstance(x, (int, float)) and not isinstance(x, bool)
                                                                  and math.isfinite(x) and x >= 0 for x in s[:2])
                     and isinstance(s[2], str)):
-                raise TranscriptLoadError(f"{folder / entry['file']}: malformed segment {s!r:.80}")
+                raise TranscriptLoadError(f"{folder / entry['file']}: malformed segment {i}")  # index only, never its text
         segments, masked = privacy.mask_segments(t["segments"])
         if masked:
             raise TranscriptLoadError(
