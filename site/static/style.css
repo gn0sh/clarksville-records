@@ -25,6 +25,7 @@
   --link: #0F1F3D;            /* brand navy */
   --link-visited: #5c3f7a;
   --blue: #0F1F3D;            /* buttons: brand navy */
+  --blue-hover: #33497A;      /* a button under the pointer: a lighter navy (white on it is 8.8:1) */
   --on-blue: #FFFFFF;
   --sun: #D2561B;             /* brand orange: the sun, the plate dot, focus rings. Never text. */
   --halo: #EFC4AF;
@@ -56,7 +57,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0D1224; --sky: #15294F; --surface: #161C33; --surface-2: #1B2443; --fg: #EEF1F8; --muted: #A3ACC4;
-    --border: #2C3552; --link: #A9BDE6; --link-visited: #C9B0EC; --blue: #4F6FB0; --on-blue: #FFFFFF;
+    --border: #2C3552; --link: #A9BDE6; --link-visited: #C9B0EC; --blue: #4F6FB0; --blue-hover: #3F5C98; --on-blue: #FFFFFF;
     --sun: #D2561B; --halo: #703420; --focus: #D2561B;
     --band-bg: #1A2F5A; --band-fg: #EEF1F8; --band-muted: #C3CCDE; --seal: #E8702A;
     --mark: #D5DAE8; --mark-soft: #7C86A3; --banner-bg: #3a3000; --banner-fg: #ffe58a;
@@ -65,7 +66,7 @@
 }
 :root[data-theme="dark"] {
   --bg: #0D1224; --sky: #15294F; --surface: #161C33; --surface-2: #1B2443; --fg: #EEF1F8; --muted: #A3ACC4;
-  --border: #2C3552; --link: #A9BDE6; --link-visited: #C9B0EC; --blue: #4F6FB0; --on-blue: #FFFFFF;
+  --border: #2C3552; --link: #A9BDE6; --link-visited: #C9B0EC; --blue: #4F6FB0; --blue-hover: #3F5C98; --on-blue: #FFFFFF;
   --sun: #D2561B; --halo: #703420; --focus: #D2561B;
   --band-bg: #1A2F5A; --band-fg: #EEF1F8; --band-muted: #C3CCDE; --seal: #E8702A;
   --mark: #D5DAE8; --mark-soft: #7C86A3; --banner-bg: #3a3000; --banner-fg: #ffe58a;
@@ -110,7 +111,7 @@ a:focus-visible, [tabindex]:focus-visible, select:focus-visible {
 
 /* ---- Masthead: the sky band (Daylight) ------------------------------------------------------------------- */
 /* A sky that fades to the paper, over a 2px ink horizon. Text on it is ink and muted (4.5:1 or better on --sky in
-   both themes); focus rings on it are ink, because the sun ring is under 3:1 on the light sky. */
+   both themes); focus rings on it are ink, because the sun ring is only just 3:1 on the light sky (3.07). */
 .site-header {
   position: relative; overflow: hidden; color: var(--fg); background: var(--sky);
   background: linear-gradient(var(--sky), color-mix(in srgb, var(--sky) 35%, var(--bg)));
@@ -520,7 +521,9 @@ button { font: inherit; }
   min-height: 44px; padding: 8px 16px; color: var(--on-blue); background: var(--blue); border: 1px solid var(--blue);
   border-radius: var(--radius-lg); cursor: pointer; font-family: var(--font-head); font-weight: 700; font-size: 1.02rem;
 }
-.search-row button:hover, #more:hover, .apply:hover { filter: brightness(1.12); }
+/* Hover is a navy step (lighter on light, deeper on dark, white text 4.5:1 or better on both) and an underline, so it
+   never rests on the color change alone; the border keeps --blue. */
+.search-row button:hover, #more:hover, .apply:hover { background: var(--blue-hover); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .results-bar button { color: var(--fg); background: var(--surface); border-color: var(--mark); font-weight: 500; font-family: inherit; font-size: inherit; }
 input:focus-visible, button:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
@@ -589,7 +592,9 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
 .door ul { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
 .door li + li { border-top: 1px solid var(--border); }
 .door a { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; padding: 8px 0; font-weight: 600; text-decoration: none; }
-.door a:hover span:first-child { text-decoration: underline; text-decoration-thickness: 2px; }
+/* The label is underlined at rest: navy links sit next to the ink, so color alone does not say "link". */
+.door a span:first-child { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.door a:hover span:first-child { text-decoration-thickness: 2px; }
 .door .go { font-family: var(--font-head); font-weight: 800; font-size: 1.2rem; line-height: 1; }
 /* the meetings: two short lists of rows, each one link to its day on today.html */
 .meet-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; }
@@ -643,7 +648,10 @@ ol.districts { list-style: none; margin: 0; padding: 0; }
 @media (min-width: 900px) { ol.districts a { min-height: 32px; padding: 4px; } }
 ol.districts li { break-inside: avoid; border-bottom: 1px solid var(--border); }
 ol.districts a { display: flex; gap: 10px; padding: 7px 4px; min-height: 40px; align-items: baseline; text-decoration: none; }
-ol.districts a:hover .d-label { text-decoration: underline; }
+ol.districts a .d-label { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+ol.districts a:hover .d-label { text-decoration-thickness: 2px; }
+ol.districts .d-holder a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+ol.districts .d-holder a:hover { text-decoration-thickness: 2px; }
 .d-label { flex: 0 0 5.2rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .d-holder { color: var(--fg); }
 .list-h { font-size: var(--t-md); margin-top: 1.2em; }
@@ -879,7 +887,7 @@ table.budget td.c-source { min-width: 9rem; }
 .fin .sol-filters input[type="search"] { border: 2px solid var(--fg); border-radius: var(--radius-lg); background: var(--surface); }
 .fin .sol-filters select { border-radius: var(--radius-lg); background: var(--surface); }
 .fin .sol-filters button, .fin .more-btn, .fin .empty-note button { font-family: var(--font-head); font-weight: 700; font-size: var(--t-md); border-radius: var(--radius-lg); }
-.fin .sol-filters button[type="submit"]:hover { filter: brightness(1.12); }
+.fin .sol-filters button[type="submit"]:hover { background: var(--blue-hover); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .fin .fin-scroll { border: 0; border-top: 2px solid var(--fg); border-radius: 0; background: transparent; }
 .fin table.fin-stack thead th {
   background: transparent; font-family: var(--font-mono); font-size: .68rem; font-weight: 400; font-variant-caps: normal;

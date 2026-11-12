@@ -28,6 +28,7 @@ Daylight's color is now the gnoshcodes brand pair, not the mock's Digital blue `
 |---|---|---|---|
 | `--link` | `#0F1F3D` navy | `#A9BDE6` | links |
 | `--blue` / `--on-blue` | `#0F1F3D` / `#FFFFFF` | `#4F6FB0` / `#FFFFFF` | buttons, pills |
+| `--blue-hover` | `#33497A` | `#3F5C98` | a button under the pointer (plus an underline) |
 | `--band-bg` / `--band-fg` / `--band-muted` | `#0F1F3D` / `#FFFFFF` / `#D5DCEA` | `#1A2F5A` / `#EEF1F8` / `#C3CCDE` | at-a-glance band, morning-note card |
 | `--sun`, `--focus` | `#D2561B` orange | `#D2561B` | the sun, plate dot, county dot, focus rings; never text |
 | `--halo` | `#EFC4AF` | `#703420` | ring around the sun |
@@ -38,4 +39,4 @@ Daylight's color is now the gnoshcodes brand pair, not the mock's Digital blue `
 - Navy on the dark page would vanish (1.1:1 on `--bg`), so dark-mode links, buttons, band and sky are lighter navy tints.
 - The orange is about 4:1 on the paper: enough for rings and dots (3:1), not for words. Orange text uses `--seal`.
 - Paper, ink, muted, line and the vote-mark inks are unchanged: they were already navy-leaning neutrals.
-- Navy links sit close to the ink, so a link in running text is told apart by its underline, never by color alone.
+- Navy links sit close to the ink, so a link is told apart by its underline, never by color alone: the landing's door links and the ward and district lists are underlined at rest too.

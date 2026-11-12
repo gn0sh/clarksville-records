@@ -156,6 +156,19 @@ def test_no_old_daylight_color_is_left_in_the_stylesheet_and_the_morning_card_is
         assert _ratio("#1A0B05", theme["--sun"]) >= 4.5
 
 
+def test_button_hover_is_a_navy_step_with_an_underline_and_list_links_are_underlined_at_rest():
+    css = CSS.read_text(encoding="utf-8")
+    assert "brightness(" not in css
+    assert re.search(r"\.search-row button:hover, #more:hover, \.apply:hover \{ background: var\(--blue-hover\); "
+                     r"text-decoration: underline", css)
+    for theme in (LIGHT, DARK):
+        assert _ratio(theme["--on-blue"], theme["--blue-hover"]) >= 4.5
+        assert _ratio(theme["--blue-hover"], theme["--blue"]) >= 1.3        # a step you can see
+    assert re.search(r"\.door a span:first-child \{ text-decoration: underline", css)
+    assert re.search(r"ol\.districts a \.d-label \{ text-decoration: underline", css)
+    assert re.search(r"ol\.districts \.d-holder a \{ text-decoration: underline", css)
+
+
 @pytest.mark.parametrize("theme", [LIGHT, DARK])
 @pytest.mark.parametrize("bg", ["--bg", "--surface"])
 def test_sun_focus_ring_is_visible_off_the_sky(theme, bg):
