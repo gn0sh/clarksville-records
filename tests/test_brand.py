@@ -66,3 +66,16 @@ def test_check_fails_on_the_old_favicon_bytes(tmp_path, monkeypatch):
     (tmp_path / "favicon.ico").write_bytes(b"\x00old")
     monkeypatch.setattr(site_checks, "OLD_BRAND_FAVICON_SHA1", hashlib.sha1(b"\x00old").hexdigest())
     assert site_checks.check_old_brand(tmp_path)[0] == ["favicon.ico: is the old gnoshcodes favicon"]
+
+
+def test_old_daylight_colors_check_passes_the_build_and_fails_on_either_old_hex(built, tmp_path):
+    """brand/no-old-daylight-colors: the old blue and orange are flagged in any file and any case; a longer hex
+    string that merely contains the digits (a hash) is not."""
+    assert site_checks.check_old_daylight_colors(built)[0] == []
+    (tmp_path / "a.css").write_text("a { color: #2b4ba5; } b { color: #EF5E35 }", encoding="utf-8")
+    (tmp_path / "icon.svg").write_text('<svg><path fill="#2B4BA5"/></svg>', encoding="utf-8")
+    (tmp_path / "data.json").write_text('{"sha": "002b4ba5ef5e35ff", "frag": "#2B4BA5ef"}', encoding="utf-8")
+    (tmp_path / "ok.css").write_text("a { color: #0F1F3D; } b { color: #D2561B }", encoding="utf-8")
+    problems, note = site_checks.check_old_daylight_colors(tmp_path)
+    assert problems == ["a.css: old Daylight color(s) #2B4BA5, #EF5E35", "icon.svg: old Daylight color(s) #2B4BA5"]
+    assert note.startswith("4 files scanned")
