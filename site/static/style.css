@@ -1230,6 +1230,7 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 .bs-none { display: none; }
 .bs-all-off > .bs-none { display: block; }
 .bs-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 12px 0; padding: 8px 12px; border-left: 3px solid var(--sun); background: var(--surface); font-size: var(--t-sm); }
+.bs-line[hidden] { display: none; }
 .bs-line strong { font-weight: 600; }
 .bs-line button { min-height: 32px; padding: 2px 12px; border: 1px solid var(--blue); border-radius: 999px; background: var(--blue); color: var(--on-blue); font: inherit; font-weight: 600; cursor: pointer; }
 .bs-line button:hover { background: var(--blue-hover); text-decoration: underline; }

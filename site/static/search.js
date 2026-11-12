@@ -98,10 +98,17 @@
   // r.x: a solicitation's department and every bidder name (finance-contracts F7)
   function hay(r) { return (r.n + " " + r.t + " " + (r.st || "") + " " + (r.z || "") + " " + (r.x || "")).toLowerCase(); }
   // The header's "Show records from" choice (static/switch.js keeps it on <html>): used only while no Body box is
-  // ticked, never written to the URL, and shown by the switch's own "Showing ... only" line above the form.
+  // ticked and only for a body this index holds (the form's data-body-live), never written to the URL, and shown by
+  // the switch's own "Showing ... only" line above the form. While a Body box is ticked that line is hidden, since
+  // the boxes, not the choice, then decide what is shown.
+  var LIVE = " " + (form.getAttribute("data-body-live") || "") + " ";
   function chosenBody() {
     var v = document.documentElement.getAttribute("data-body-choice");
-    return v && v !== "all" ? v : "";
+    return v && v !== "all" && LIVE.indexOf(" " + v + " ") >= 0 ? v : "";
+  }
+  function bodyLine(st) {
+    var el = document.getElementById("bs-line");
+    if (el) { el.hidden = st.body.length > 0; }
   }
   function baseMatch(r, st, toks) {  // every filter except official, vote and outcome
     if (st.kind.length && st.kind.indexOf(r.k) < 0) { return false; }
@@ -198,6 +205,7 @@
     state = fromControls();
     writeURL(state);
     state.pref = chosenBody();
+    bodyLine(state);
     form.querySelectorAll('input[name="vote"]').forEach(function (el) { el.disabled = !state.official; });
     renderChips(state);
     if (!keepPage) { shown = PAGE; }

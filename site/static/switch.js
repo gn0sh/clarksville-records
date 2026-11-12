@@ -3,7 +3,10 @@
    anywhere and no cookie is set) and, on a page whose rows carry data-body, the rows of other bodies are hidden by a
    class: nothing is removed, and a line above them says what is shown and offers "Show all". When storage is blocked
    the choice still works on the page being read. The search page filters its own results (static/search.js) from the
-   data-body-choice attribute this script keeps on <html>, and hears each change as a "bodychoice" event. */
+   data-body-choice attribute this script keeps on <html>, and hears each change as a "bodychoice" event.
+   The choice is saved only when the visitor clicks an option (or "Show all"): opening a body's hub page shows that body
+   as the choice on that page and leaves the saved one alone. A page that names the bodies it can filter
+   (data-body-live) ignores a saved body it does not hold. */
 (function () {
   var nav = document.getElementById("body-switch");
   if (!nav) { return; }
@@ -95,9 +98,11 @@
     try { document.dispatchEvent(new CustomEvent("bodychoice", { detail: choice })); } catch (e) { /* old browser: the page still filters */ }
   }
 
-  // A body's hub page is that choice. The home page (All's own page) keeps whatever was chosen before.
-  if (here && here !== ALL) { save(here); }
-  apply(read());
+  // A body's hub page shows that body as the choice, on that page only (nothing is saved by a visit). The home page
+  // (All's own page) keeps whatever was chosen before. A page that lists the bodies it holds ignores any other.
+  var first = here && here !== ALL ? here : read();
+  if (live() && first !== ALL && !liveHas(first)) { first = ALL; }
+  apply(first);
 
   nav.addEventListener("click", function (e) {
     var a = e.target.closest ? e.target.closest("a[data-switch]") : null;
