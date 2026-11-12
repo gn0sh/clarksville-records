@@ -109,6 +109,24 @@ def test_long_number_word_runs_finish_quickly(text):
     assert time.perf_counter() - t0 < 0.5
 
 
+@pytest.mark.parametrize("unit", ["1 and ", "twenty-two and ", "1, "])
+def test_long_joined_number_lists_finish_quickly(unit):
+    """privacy/mask-regex-redos (security review L3): the join of house numbers ("1100 and 1110 Sample Road") is bounded,
+    so 4000 repetitions of a joinable number with no street after it finish in well under half a second, in the masker
+    and in the site check's restated rule."""
+    import time
+    text = unit * 4000
+    for f in (privacy.spans, privacy.mask, site_checks.private_details):
+        t0 = time.perf_counter()
+        f(text)
+        assert time.perf_counter() - t0 < 0.5, f.__qualname__
+
+
+def test_the_bounded_join_still_masks_a_list_of_four_house_numbers():
+    assert privacy.mask("we own 1100 and 1110 Sample Road") == f"we own {A}"
+    assert privacy.mask("lots 1, 3, 5 and 7 Example Street") == f"lots {A}"
+
+
 def test_an_address_split_over_two_lines_is_masked_on_both_and_times_kept():
     segs = [[10.0, 12.5, "Thank you. My address is 418"], [12.5, 15.0, "Example Court, Clarksville, Tennessee."],
             [15.0, 18.0, "First of all, thank you."]]

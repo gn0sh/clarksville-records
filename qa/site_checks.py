@@ -2258,6 +2258,8 @@ class TranscriptLines(HTMLParser):
 # not part of a dollar amount, decimal, comma number or hyphenated number, and not after a word that names something
 # else), one to three street-name words that are not function words or units, and a street suffix; or a phone number
 # (3-3-4 or 3-4 digit groups, or seven or more single digits apart).
+# It restates one house number, not the masker's bounded join of up to four (privacy/mask-regex-redos), so it
+# has no join to bound: each start tries at most three words, linear in the text.
 _PRIV_NOT_NAME = set("""a an the and or but so of to in on at by for from with into off over up down out about than
 then that this these those there here it it's its is are was were be i we you he she they my your his her their
 what when where if as also known like just only not no yes do did have has had will would can could each every

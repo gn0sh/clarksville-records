@@ -9,13 +9,13 @@ placeholder tells the reader to hear it there; the line keeps its time link.
 
 What is masked (rules, each with the false positives it avoids):
 - A street address: a house number, one to four street-name words, and a street suffix ("418 Example Court",
-  "312 J.Q. Sample Boulevard", "205 47th Street", "1100 and 1110 Sample Road"). The house number is digits (at most
-  five, Whisper may split it: "10 42 fixture drive", "nine 14 Example street") or two or more spelled-out number words
-  ("four oh eight Example Court", "six or six sample street"). Never a dollar amount, a decimal, a number with a comma,
-  a part of a hyphenated number (ordinance 17-2025-26) or an ordinal ("14th"); never a number after a word that
-  names something else (ordinance, resolution, highway, ward, district, item, phase, "the" ...). A street-name word is
-  never a function word, a unit or a number word ("90 cars to that road", "18 foot wide road", "the 2045 Example Creek
-  Parkway", "9 Mile Example Road", "ordinance 37 fails councilman street").
+  "312 J.Q. Sample Boulevard", "205 47th Street", "1100 and 1110 Sample Road"; up to four numbers joined). The house
+  number is digits (at most five, Whisper may split it: "10 42 fixture drive", "nine 14 Example street") or two or
+  more spelled-out number words ("four oh eight Example Court", "six or six sample street"). Never a dollar amount, a
+  decimal, a number with a comma, a part of a hyphenated number (ordinance 17-2025-26) or an ordinal ("14th"); never
+  a number after a word that names something else (ordinance, resolution, highway, ward, district, item, phase,
+  "the" ...). A street-name word is never a function word, a unit or a number word ("90 cars to that road", "18 foot
+  wide road", "the 2045 Example Creek Parkway", "9 Mile Example Road", "ordinance 37 fails councilman street").
 - A house number someone says they live at, with no suffix: "I live at 640 samplewood since 2003", "my address is 515",
   up to the first function word or punctuation.
 - A phone number: ten digits in 3-3-4 groups (any of space, ".", "-", "()" between them), seven digits as 3-4 joined by
@@ -76,7 +76,10 @@ _DIGITS = r"\d{1,5}(?![.,]\d)\b"
 _NUM_TOKEN = r"(?>" + _DIGITS + "|" + _NUM_WORD + r"\b)"
 # a house number: number tokens (each atomic), Whisper may put "or" for "oh" between spelled ones ("five or five")
 _NUM_SEQ = _NUM_TOKEN + r"(?:(?:[\s-]+|\s+or\s+)" + _NUM_TOKEN + r"){0,5}"
-_NUMBERS = r"(?P<num>" + _NUM_SEQ + r"(?:\s*(?:,|and|&)\s*" + _NUM_SEQ + r")*)"
+# up to four house numbers joined by ",", "and" or "&" ("1100 and 1110 Sample Road"). The join is bounded: an
+# unbounded one made every start in a long "1 and 1 and ..." run scan to its end, quadratic in the run
+# (privacy/mask-regex-redos, security review L3). qa/site_checks.py restates one house number only (a subset).
+_NUMBERS = r"(?P<num>" + _NUM_SEQ + r"(?:\s*(?:,|and|&)\s*" + _NUM_SEQ + r"){0,3})"
 _WORD = (r"(?!(?:" + "|".join(sorted(NOT_A_STREET_WORD, key=len, reverse=True)).replace("'", "['’]")
          + r")\b(?!['’\w]))(?:(?:[A-Za-z]\.){1,3}(?!\w)|\d{1,3}(?:st|nd|rd|th)\b|[A-Za-z][A-Za-z'’-]*)")
 _START = r"(?<![\w$#/.,'’-])"
