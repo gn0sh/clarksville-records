@@ -50,3 +50,22 @@ def test_site_check_fails_a_moved_row_that_carries_the_roll_calls_note(tmp_path,
         return [p for p in out if f"{MO}/moved" in p and "as if the motion were held" in p]
     assert problems("Not confirmed: this page was hard to read.")
     assert not problems("Outcome not confirmed: the roll call on this motion is held. This page was hard to read.")
+
+
+def test_a_motion_without_a_seconder_says_who_moved_it_only(tmp_path, facts):
+    """ADR 0006 fix 5: 726 of 1,724 city motions record no seconder; the note then says "Who moved it is confirmed"."""
+    import copy
+    import json
+    from conftest import FIXTURE_DISTRICTS, FIXTURE_SEATS
+    from sitegen.build import build
+    f = copy.deepcopy(facts)
+    next(m for m in f["motions"] if m["id"] == MO)["seconded_by"] = None
+    path = tmp_path / "facts.json"
+    path.write_text(json.dumps(f), encoding="utf-8")
+    out = tmp_path / "build" / "site"
+    build(path, out, internal=True, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS)
+    pages = {p.relative_to(out).as_posix(): p.read_text(encoding="utf-8") for p in out.rglob("*.html")}
+    found = rows(pages, f"{MO}/moved")
+    assert found and not rows(pages, f"{MO}/seconded")
+    for rel, row in found:
+        assert "Who moved it is confirmed." in row and "seconded it" not in row, rel
