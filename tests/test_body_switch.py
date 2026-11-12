@@ -263,6 +263,17 @@ def test_switch_script_storage_rules():
     assert re.search(r"\.bs-off \{ display: none !important; \}", CSS)
 
 
+def test_method_page_lists_both_storage_keys(html):
+    """Security L1: the Method page names every localStorage key the scripts use, and says cr-body is never sent."""
+    method = plain(html["method.html"])
+    assert "cr-your-seats" in method and "cr-body" in method
+    assert "key cr-body ) so other pages show the same body. It is never sent anywhere. Choosing All removes it." in method
+    keys = set()
+    for js in (ROOT / "site" / "static").glob("*.js"):
+        keys |= set(re.findall(r'"(cr-[a-z-]+)"', js.read_text(encoding="utf-8")))
+    assert keys == {"cr-your-seats", "cr-body"}
+
+
 def test_switch_css_targets_and_no_old_colors():
     block = CSS[CSS.index('==== "Show records from"'):]
     assert "min-height: 44px" in block and "overflow-x: auto" in block
