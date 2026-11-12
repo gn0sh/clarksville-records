@@ -179,7 +179,8 @@ def test_school_board_hub_is_all_coming_with_the_configured_link(html):
     sb = config.SITE["school_board"]
     for card in cards.values():
         assert '<span class="chip chip-coming">Coming</span>' in card
-        assert f'<a data-ext="school" href="{sb["url"]}" target="_blank" rel="noopener noreferrer">{sb["link_label"]}' in card
+        link = f'<a data-ext="school" href="{sb["url"]}" target="_blank" rel="noopener noreferrer">{sb["link_label"]}'
+        assert link in card
         assert '<a href="' not in card
     assert "cmcss.net" in sb["url"]
 
@@ -320,7 +321,8 @@ for (const r of ['', ...(process.env.NODE_PATH || '').split(path.delimiter).filt
     cur: [...document.querySelectorAll('#body-switch a[aria-current]')].map((a) => a.dataset.switch),
     line: (document.getElementById('bs-line') || {textContent: ''}).textContent.replace(/\s+/g, ' ').trim(),
     off: document.querySelectorAll('.bs-off').length, tagged: document.querySelectorAll('[data-body]').length,
-    visible: [...document.querySelectorAll('#main [data-body]')].filter((e) => !e.classList.contains('bs-off')).map((e) => e.dataset.body),
+    visible: [...document.querySelectorAll('#main [data-body]')].filter((e) => !e.classList.contains('bs-off'))
+      .map((e) => e.dataset.body),
     minH: Math.min(...[...document.querySelectorAll('#body-switch a')].map((a) => a.getBoundingClientRect().height)),
     stored: (() => { try { return localStorage.getItem('cr-body'); } catch (e) { return 'blocked'; } })(),
     url: location.pathname.split('/').slice(-2).join('/'),
@@ -347,7 +349,8 @@ for (const r of ['', ...(process.env.NODE_PATH || '').split(path.delimiter).filt
   await ctx.close();
   // 3. phones: no sideways scroll, 44px chips
   for (const w of [320, 390]) {
-    ctx = await browser.newContext({viewport: {width: w, height: 700}, deviceScaleFactor: 1, hasTouch: true, isMobile: true});
+    ctx = await browser.newContext({viewport: {width: w, height: 700}, deviceScaleFactor: 1, hasTouch: true,
+                                    isMobile: true});
     p = await ctx.newPage();
     await p.goto(site + 'index.html');
     out['phone' + w] = await state(p);
@@ -355,7 +358,9 @@ for (const r of ['', ...(process.env.NODE_PATH || '').split(path.delimiter).filt
   }
   // 4. storage blocked: the page still filters, nothing throws
   ctx = await browser.newContext({viewport: {width: 1280, height: 800}});
-  await ctx.addInitScript(() => { Object.defineProperty(window, 'localStorage', {get() { throw new Error('SecurityError'); }}); });
+  await ctx.addInitScript(() => {
+    Object.defineProperty(window, 'localStorage', {get() { throw new Error('SecurityError'); }});
+  });
   p = await ctx.newPage();
   const errors = [];
   p.on('pageerror', (e) => errors.push(String(e)));
@@ -422,7 +427,8 @@ for (const r of ['', ...(process.env.NODE_PATH || '').split(path.delimiter).filt
   await p.evaluate(() => localStorage.setItem('cr-body', 'rpc'));
   await p.goto(site + 'today.html');
   const days = (k) => p.evaluate((k) => [...document.querySelectorAll('#day-strip button.day')].map((b) => ({
-    label: b.getAttribute('aria-label'), want: b.getAttribute('data-label-' + k) + (b.getAttribute('data-label-suffix') || ''),
+    label: b.getAttribute('aria-label'),
+    want: b.getAttribute('data-label-' + k) + (b.getAttribute('data-label-suffix') || ''),
     dots: [...b.querySelectorAll('.dot')].filter((d) => getComputedStyle(d).display !== 'none').length})), k);
   out.daysRpc = await days('rpc');
   await p.click('#bs-line button');
@@ -476,7 +482,8 @@ def test_switch_in_a_browser(site, tmp_path):
     assert r["hub"]["url"].endswith("school-board.html") and r["hub"]["cur"] == ["school"], r["hub"]
     ot = r["other"]
     assert ot["cur"] == ["school"] and ot["visible"] == [], ot
-    assert ot["line"] == "Showing School board only Nothing on this page is from School board. School board page Show all", ot
+    assert ot["line"] == ("Showing School board only Nothing on this page is from School board. School board page "
+                          "Show all"), ot
     for w in ("phone320", "phone390"):
         assert r[w]["sw"] <= r[w]["cw"], (w, r[w])
         assert r[w]["minH"] >= 44, (w, r[w])
