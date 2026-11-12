@@ -5,9 +5,12 @@
 <div class="fin">
 {# Design finance-contracts 6: books, then funds in the book's order. No amounts, no chart, no total tile. #}
 <h1>{{ b.title }}</h1>
+{# Which body's money this is, first (owner 2026-11-12). The links are the bodies' own sites, from the config. #}
+{% if body_note is defined and body_note %}<p class="note body-note" id="body-note"><strong>{{ body_note.text }}</strong>{% if body_note.links %} {{ body_note.link_lede }}{% for l in body_note.links %} <a data-ext="{{ l.kind }}" href="{{ l.url }}" target="_blank" rel="noopener noreferrer">{{ l.label }}<span class="sr-only"> (opens in a new tab)</span></a>{{ "." if loop.last else "," }}{% endfor %}{% endif %}</p>{% endif %}
 <p class="coverage">{{ coverage_sentence }}</p>
 <p class="note">{{ notes.e }}</p>
 
+<div data-body="{{ site.cfg.county_key }}">{# every book and fund here is the county's #}
 <section aria-labelledby="books-h">
 <h2 id="books-h">{{ b.books_heading }}</h2>
 <ul class="fin-books">
@@ -40,6 +43,7 @@
 </div>
 {% if capital_href %}<p><a href="{{ root }}{{ capital_href }}">{{ b.capital_title }}</a></p>{% endif %}
 </section>
+</div>
 {% if exports %}<p class="exports">Download: <a href="{{ root }}data/budget_lines.csv">Budget lines (CSV)</a> <span class="sep" aria-hidden="true">&middot;</span> <a href="{{ root }}data/budget_checks.csv">Total checks (CSV)</a> <span class="sep" aria-hidden="true">&middot;</span> <a href="{{ root }}data/finance.json">JSON</a></p>{% endif %}
 {{ words_toggle(words, c, root) }}
 {% if disclosure %}{% include "_disclosure.html.j2" %}{% endif %}
