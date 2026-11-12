@@ -219,6 +219,16 @@
     button.disabled = false;
     form.removeAttribute("aria-busy");
     show(result);
+    reveal();
+  }
+
+  /* The answer is on the screen once it is given: on a short phone screen the body switch under the header can leave
+     it just below the fold, so the page moves by the least that shows it (never when it is already in view). */
+  function reveal() {
+    try {
+      var rc = out.getBoundingClientRect();
+      if (rc.bottom > root.innerHeight || rc.top < 0) { out.scrollIntoView({ block: "nearest" }); }
+    } catch (e) { /* an old browser: the answer is still in the page */ }
   }
 
   /* Only the current lookup's own iframe is heard, and only as data: a JSON string, parsed here, then classify. */

@@ -39,6 +39,20 @@
   </div>
   {% block sky %}{% endblock %}
 </header>
+{# "Show records from" (sitegen/bodies.py): one plain link per body to its hub page, All to the home page, so it works
+   without script. static/switch.js remembers the choice on this device and hides other bodies' rows (data-body). #}
+{% set sw = site.switch | default(none) %}{% if sw %}{% set here = body_current | default("") %}
+<nav class="body-switch" id="body-switch" aria-labelledby="body-switch-l" data-here="{{ here }}">
+  <div class="bs-in">
+    <p class="bs-label" id="body-switch-l">{{ sw.label }}</p>
+    <ul class="bs-list">
+      {% for o in sw.options %}
+      <li><a href="{{ root }}{{ o.href }}" data-switch="{{ o.key }}" data-label="{{ o.label }}"{% if o.key == here %} aria-current="page"{% endif %}>{% if o.short %}<span class="bs-long">{{ o.label }}</span><span class="bs-short" aria-hidden="true">{{ o.short }}</span>{% else %}{{ o.label }}{% endif %}{% if o.coming %} <span class="chip chip-coming">Coming</span>{% endif %}</a></li>
+      {% endfor %}
+    </ul>
+  </div>
+</nav>
+{% endif %}
 <main id="main">
 {% block main %}{% endblock %}
 {# M1.5: every fact-bearing page (build.REPORT_TEMPLATES) links the report page; static/nav.js adds this page's path
@@ -80,6 +94,7 @@
 <script src="{{ root }}static/nav.js" defer></script>
 <script src="{{ root }}static/filter.js" defer></script>
 <script src="{{ root }}static/clamp.js" defer></script>
+<script src="{{ root }}static/switch.js" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

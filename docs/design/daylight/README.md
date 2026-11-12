@@ -40,3 +40,27 @@ Daylight's color is now the gnoshcodes brand pair, not the mock's Digital blue `
 - The orange is about 4:1 on the paper: enough for rings and dots (3:1), not for words. Orange text uses `--seal`.
 - Paper, ink, muted, line and the vote-mark inks are unchanged: they were already navy-leaning neutrals.
 - Navy links sit close to the ink, so a link is told apart by its underline, never by color alone: the landing's door links and the ward and district lists are underlined at rest too.
+
+## "Show records from" switch (Brian, 2026-11-12)
+Approved mock: https://claude.ai/artifact/S5MRzw7J6fi4sY2Kqm4GjB. Four public bodies share the site, and residents mix
+them up, so every page carries one switch right under the header: All, Montgomery County, Clarksville, School board
+(Coming tag), Planning (RPC). Words, cards and links: `config/site.yml` `switch:`. Code: `sitegen/bodies.py`,
+`site/templates/_hub.html.j2`, `site/static/switch.js`. Site check: `switch/on-every-page`. Tests: `tests/test_body_switch.py`.
+
+- Each option is a plain link to that body's hub page (All is the home page), so it works without script. Hubs: the
+  county has its own page (`montgomery-county.html`); the City Council home, the RPC home and the school board's
+  "coming" page are the other three, each with a kicker and section cards under its lede.
+- A present card is shown only when the build makes the page it links. A coming card is dashed, carries the Coming tag,
+  says what is not collected and links the body's own page: always a URL already in the config (a dotted path, never a
+  second copy). No budget page of the city or the school system is in the config, so those cards and the Finance
+  page's top line link each body's home page and say "website", not "budget page".
+- Wide: a segmented pill group, the chosen option `--blue` with a `--sun` bar under it. Under 700px: one row of 44px
+  chips that scrolls sideways inside its own box; "Planning (RPC)" shows as "RPC" (the full label stays for screen readers).
+- With script the choice is kept on the device (`localStorage["cr-body"]`, a body key only; inside try/catch, and the
+  page still filters when storage is blocked). Rows that carry `data-body` are hidden by the class `bs-off`, never
+  removed, under a "Showing Clarksville only / Show all" line. Visiting a body's hub makes it the choice.
+  A click stays on the page only when the page has rows of that body; otherwise it goes to the hub.
+- Tagged: the day page's cards and week-strip dots, the home page's meeting rows, Meetings, Votes (every year), the
+  Finance index's books and funds, and Search (the choice applies while no Body box is ticked; it is not written to the
+  URL). Not tagged, so never filtered: Items, Officials, district, member, meeting, fund, capital, bids and transcript
+  pages, and each body's own pages.

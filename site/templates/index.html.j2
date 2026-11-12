@@ -1,5 +1,6 @@
 {% extends "base.html.j2" %}
 {% from "_feed_links.html.j2" import feed_links %}
+{% from "_hub.html.j2" import overview %}
 {% from "_freshness.html.j2" import freshness as fresh with context %}
 {% block head %}<script src="{{ root }}static/js-flag.js"></script>{{ feed_links(home_feeds | default([]), root) }}{% endblock %}
 {% block sky_sun %}<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>{% endblock %}
@@ -73,6 +74,8 @@
   </ul>
   {% endif %}
 
+  {{ overview(site.switch | default(none), root) }}
+
   {# A selection of today.html's own cards (sitegen/days.py landing_meetings), fixed when the site is built: it says
      so, and static/landing.js moves a row whose day has passed when the page is read later. Each row links its day
      on today.html, whose card links the source. Only the body, the meeting kind and the date are shown here. #}
@@ -83,23 +86,26 @@
     <p class="sec-sub meet-stale" id="meet-stale" hidden>This list was built on {{ m.built_text }}; later meetings appear when it is built again.</p>
     {% macro meet_rows(rows, hidden=false) %}
       {% for r in rows %}
-      <li data-iso="{{ r.iso }}"{% if hidden %} hidden{% endif %}><a class="meet-row" href="{{ root }}{{ r.href }}">
+      <li data-iso="{{ r.iso }}" data-body="{{ r.bkey }}"{% if hidden %} hidden{% endif %}><a class="meet-row" href="{{ root }}{{ r.href }}">
         <span class="meet-date" aria-hidden="true"><span class="dow">{{ r.dow }}</span><b>{{ r.n }}</b><span class="mon">{{ r.month }}</span></span>
         <span class="meet-what"><span class="sr-only">{{ r.text }}: </span><span class="meet-body"><i class="dot dot-{{ r.dot }}" aria-hidden="true"></i>{{ r.body }}</span>{% if r.title %}<span class="meet-kind">{{ r.title }}</span>{% endif %}</span>
         {% if r.chip %}<span class="chip chip-status" data-chip="{{ r.chip }}">{{ r.chip }}</span>{% endif %}</a></li>
       {% endfor %}
     {% endmacro %}
+    <div data-body-line></div>{# static/switch.js puts its "Showing ... only" line here #}
     {% if m.upcoming or m.recent %}{# a spare row is only ever after a shown one #}
     <div class="meet-cols">
-      <div class="meet-col">
+      <div class="meet-col" data-body-group>
         <h3 id="up-h">Coming up</h3>
         <ul class="meet-list" id="meet-up" aria-labelledby="up-h"{% if not m.upcoming %} hidden{% endif %}>{{ meet_rows(m.upcoming) }}{{ meet_rows(m.spare, hidden=true) }}</ul>
         <p class="meet-empty" id="meet-up-empty"{% if m.upcoming %} hidden{% endif %}>No upcoming meetings are in these records yet. A meeting appears here once its body posts an agenda or lists a date.</p>
+        <p class="meet-empty bs-none">No meetings of the body you chose are listed here.</p>
       </div>
-      <div class="meet-col">
+      <div class="meet-col" data-body-group>
         <h3 id="past-h">Most recent</h3>
         <ul class="meet-list" id="meet-recent" aria-labelledby="past-h"{% if not m.recent %} hidden{% endif %}>{{ meet_rows(m.recent) }}</ul>
         <p class="meet-empty" id="meet-recent-empty"{% if m.recent %} hidden{% endif %}>No meetings in the last four weeks are in these records.</p>
+        <p class="meet-empty bs-none">No meetings of the body you chose are listed here.</p>
       </div>
     </div>
     <p class="meet-foot">Only meetings in these records are listed: a meeting appears once its body posts an agenda or lists a date. Each body's own calendar is the official schedule. <a href="{{ root }}today.html#day-bodies-h">What is and is not collected</a></p>

@@ -28,7 +28,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from . import config, localdates, views, watch
+from . import bodies, config, localdates, views, watch
 
 WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 # Minutes states of a council meeting (schema meeting.minutes_status) other than "read", in plain words.
@@ -137,6 +137,7 @@ def council_card(cix, m: dict) -> dict:
            else {"url": cix.cfg["record_url"], "label": cix.cfg["record_label"], "ext": True}
            if views.https_url(cix.cfg.get("record_url")) else None)
     return {"kind": "council", "dot": DOTS["council"], "id": f"{cix.slug}-{m['id']}", "body": cix.body_name,
+            "bkey": getattr(cix, "body_key", None) or DOTS["council"],
             "title": cix.kind_labels.get(m["kind"], m["kind"]), "href": cix.meeting_href(m["id"]),
             "docs": docs, "minutes_note": None if status == "read" else MINUTES_WORDS.get(status),
             "watch": watch.meeting(getattr(cix, "body_key", None), m.get("video_url")),
@@ -174,6 +175,7 @@ def scheduled_cards(cix, start: date, end: date, today: date | None = None) -> l
         seen.add(key)
         out.append((row["date"], {
             "kind": "council", "dot": DOTS["council"], "id": f"{cix.slug}-{row['date']}-{row['kind']}-scheduled",
+            "bkey": getattr(cix, "body_key", None) or DOTS["council"],
             "body": cix.body_name, "title": cix.kind_labels.get(row["kind"], row["kind"]), "href": None,
             "docs": [], "watch": watch.body(getattr(cix, "body_key", None)), "votes": [],
             "state": "scheduled",
@@ -191,6 +193,7 @@ def rpc_card(rpx, m: dict) -> dict:
     rec = ({"url": agenda["url"], "label": "the RPC's agenda PDF", "ext": False} if agenda
            else {"url": rpx.cfg["record_url"], "label": rpx.cfg["record_label"], "ext": True})
     return {"kind": "rpc", "dot": DOTS["rpc"], "id": f"{rpx.slug}-{m['id']}", "body": ctx["kind_label"],
+            "bkey": rpx.body_key,
             "title": None, "href": ctx["href"], "rpc": ctx, "docs": [], "minutes_note": None,
             "watch": watch.body(rpx.body_key),
             "votes": [], "state": "agenda" if ctx["cases"] else "none", "cases": ctx["cases"], "sols": [],
@@ -277,20 +280,21 @@ def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None,
             c.setdefault("cancelled", False)
             c.setdefault("rpc", None)
             c.setdefault("agenda_items", [])
+            # whose record the card is, for the "Show records from" switch (data-body): county meetings and the
+            # county's bid listings carry the county's key
+            c.setdefault("bkey", config.SITE["county_key"])
     weeks, d = [], start
     while d <= end:
         days = []
         for _ in range(7):
             iso = d.isoformat()
             cards = by_day.get(iso, [])
-            n_meet = sum(1 for c in cards if c["kind"] != "bids")
-            n_bids = sum(len(c["sols"]) for c in cards)
-            label = [f"{n_meet} {'meeting' if n_meet == 1 else 'meetings'}" if n_meet else "no meetings"]
-            if n_bids:
-                label.append(f"{n_bids} {'bid listing' if n_bids == 1 else 'bid listings'}")
+            # the day button's aria-label counts every card; static/switch.js swaps in the count of the chosen
+            # body's cards (data-label-<body>), the same cards whose dots stay visible
             days.append({"iso": iso, "anchor": f"d-{iso}", "text": day_text(d), "dow": d.strftime("%a"),
                          "n": d.day, "month": d.strftime("%b"), "cards": cards,
-                         "dots": [c["dot"] for c in cards], "label": f"{day_text(d)}: {', '.join(label)}"})
+                         "dots": [c["dot"] for c in cards], "label": day_label(d, cards),
+                         "labels": {k: day_label(d, [c for c in cards if c["bkey"] == k]) for k in bodies.ORDER}})
             d += timedelta(days=1)
         weeks.append({"first": days[0], "days": days})
     sb = config.SITE.get("school_board") or {}
@@ -303,6 +307,16 @@ def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None,
 
 
 PAGE = "today.html"
+
+
+def day_label(d: date, cards: list[dict]) -> str:
+    """A day button's spoken name: the day, then how many meetings and bid listings `cards` hold."""
+    n_meet = sum(1 for c in cards if c["kind"] != "bids")
+    n_bids = sum(len(c["sols"]) for c in cards)
+    label = [f"{n_meet} {'meeting' if n_meet == 1 else 'meetings'}" if n_meet else "no meetings"]
+    if n_bids:
+        label.append(f"{n_bids} {'bid listing' if n_bids == 1 else 'bid listings'}")
+    return f"{day_text(d)}: {', '.join(label)}"
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -332,6 +346,7 @@ def landing_meetings(page_ctx: dict, today: date | None = None, n: int = 3) -> d
                     continue
                 rows.append({"iso": d["iso"], "dow": d["dow"], "n": d["n"], "month": d["month"], "text": d["text"],
                              "body": c["body"], "title": c.get("title"), "dot": c["dot"], "chip": chip(c),
+                             "bkey": c.get("bkey") or config.SITE["county_key"],
                              "href": f"{PAGE}#{d['anchor']}"})
     t = today.isoformat()
     ahead = [r for r in rows if r["iso"] >= t]

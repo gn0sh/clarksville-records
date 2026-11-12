@@ -1555,6 +1555,77 @@ def check_footer(pages: dict[str, Page], operator: str) -> list[str]:
             if not needle.search(" ".join(pg.text))]
 
 
+SWITCH_NAV = re.compile(r'<nav class="body-switch" id="body-switch"[^>]*?data-here="([^"]*)"[^>]*>(.*?)</nav>', re.S)
+SWITCH_LINK = re.compile(r'<a href="([^"]*)" data-switch="([^"]*)" data-label="([^"]*)"( aria-current="page")?>')
+
+
+def check_switch(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) -> tuple[list[str], str]:
+    """switch/on-every-page: the "Show records from" switch (config/site.yml `switch:`, sitegen/bodies.py) is on every
+    built page, once, between the header and <main>; its options are the same on every page, All first under the
+    configured labels; each is a plain link (so it works without script) that resolves to one built page, the same
+    page from everywhere, All to the home page; and exactly the pages that are an option's own destination mark that
+    option aria-current. A body's hub page carries its section cards, and every "coming" card there is marked Coming
+    and links an official page. A config without the block has no switch to check."""
+    cfg = _site_cfg() if cfg is None else cfg
+    sw = cfg.get("switch") or {}
+    if not sw.get("label") or not sw.get("bodies"):
+        return [], "no switch: block in config/site.yml"
+    labels = {"all": sw["all"]["label"], **{k: b["label"] for k, b in sw["bodies"].items()}}
+    problems, seen = [], {}
+    for rel in sorted(pages):
+        raw = (site / rel).read_text(encoding="utf-8")
+        navs = SWITCH_NAV.findall(raw)
+        if len(navs) != 1:
+            problems.append(f"{rel}: {len(navs)} body switches (want 1)")
+            continue
+        m = SWITCH_NAV.search(raw)
+        if not raw.index("</header>") < m.start() < raw.index('<main id="main">'):
+            problems.append(f"{rel}: the body switch is not between the header and <main>")
+        here, inner = navs[0]
+        if f">{sw['label']}</p>" not in inner:
+            problems.append(f"{rel}: the body switch has no {sw['label']!r} label")
+        opts = SWITCH_LINK.findall(inner)
+        if len(opts) != inner.count("<a "):
+            problems.append(f"{rel}: a body switch option is not a plain link with data-switch and data-label")
+        keys = [k for _, k, _, _ in opts]
+        if not keys or keys[0] != "all" or len(set(keys)) != len(keys) or len(keys) < 2:
+            problems.append(f"{rel}: body switch options {keys!r} (want all first, then each body once)")
+        current = [k for _, k, _, cur in opts if cur]
+        if current != ([here] if here else []):
+            problems.append(f"{rel}: body switch marks {current!r} current, data-here is {here!r}")
+        for href, key, label, _ in opts:
+            if labels.get(key) != html.unescape(label):
+                problems.append(f"{rel}: body switch option {key!r} is labelled {label!r}, config says {labels.get(key)!r}")
+            target = resolve(rel, href)
+            if target is None or target not in pages:
+                problems.append(f"{rel}: body switch option {key!r} links {href!r}, not a built page")
+            elif seen.setdefault(key, target) != target:
+                problems.append(f"{rel}: body switch option {key!r} links {target}, elsewhere {seen[key]}")
+            if (target == rel) != (key == here):
+                problems.append(f"{rel}: body switch option {key!r} links {target} but data-here is {here!r}")
+    if seen and seen.get("all") != "index.html":
+        problems.append(f"the body switch's All option links {seen.get('all')!r}, not index.html")
+    n_coming = 0
+    for key, rel in sorted(seen.items()):
+        if key == "all" or rel not in pages:
+            continue
+        raw = (site / rel).read_text(encoding="utf-8")
+        hub = re.search(rf'<section class="hub" aria-labelledby="hub-h" data-hub="{re.escape(key)}">(.*?)</section>', raw, re.S)
+        if not hub:
+            problems.append(f"{rel}: the {key} hub page has no section cards")
+            continue
+        for card in re.findall(r'<li class="hub-card is-coming"[^>]*>(.*?)</li>', hub.group(1), re.S):
+            n_coming += 1
+            if '<span class="chip chip-coming">Coming</span>' not in card:
+                problems.append(f"{rel}: a coming card has no Coming tag")
+            if not re.search(r'<a data-ext="[a-z]+" href="https://[^"]+"', card):
+                problems.append(f"{rel}: a coming card links no official page")
+            if re.search(r'<a href="', card):
+                problems.append(f"{rel}: a coming card links a page of this site as if it were collected")
+    return problems, (f"the switch on {len(pages)} pages, options {', '.join(seen)}; "
+                      f"{n_coming} coming cards, each tagged and linked to an official page")
+
+
 ADDRESS_JS = re.compile(r"(^|/)static/address\.js$")
 CSP_FIXED = {"default-src": ["'self'"], "connect-src": ["'none'"], "object-src": ["'none'"], "base-uri": ["'none'"],
              "frame-src": ["'self'"], "img-src": ["'self'", "data:"], "form-action": ["'self'"]}
@@ -2944,6 +3015,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     rep.add("transcripts/private-addresses", problems, note)
     problems, note = check_unofficial(site, pages, cfg)
     rep.add("unofficial/notice-on-every-page", problems, note)
+    problems, note = check_switch(site, pages, cfg)
+    rep.add("switch/on-every-page", problems, note)
     problems, note = check_about(site, cs, cfg, county=facts)
     rep.add("about", problems, note)
     problems, note = check_current_holders(site, facts, read_roster(seats_path), cs)

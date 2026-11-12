@@ -45,7 +45,7 @@ function consoleCsp(page) {
   const browser = await chromium.launch();
   const out = { fit: {}, cases: {} };
 
-  for (const [w, h] of [[375, 667], [1280, 800]]) {
+  for (const [w, h] of [[375, 667], [1280, 800], [320, 568]]) {
     const page = await browser.newPage({ viewport: { width: w, height: h } });
     await page.route(GEOCODER, (r) => r.fulfill({ status: 200, contentType: 'text/javascript',
       body: `${new URL(r.request().url()).searchParams.get('callback')}(${JSON.stringify(match(pts.district))})` }));
@@ -62,8 +62,18 @@ function consoleCsp(page) {
                inputBottom: Math.round(document.getElementById('addr-q').getBoundingClientRect().bottom),
                findBottom: Math.round(document.querySelector('#addr-form button').getBoundingClientRect().bottom),
                resultBottom: Math.round(document.getElementById('addr-result').getBoundingClientRect().bottom),
+               resultTop: Math.round(document.getElementById('addr-result').getBoundingClientRect().top),
                svgs: document.querySelectorAll('main svg').length };
     });
+    if (w === 320) {
+      // the smallest phone: address.js reveal() moves the page just enough that the answer is in view after a lookup
+      await page.fill('#addr-q', '1 Test St, Clarksville TN');
+      await page.press('#addr-q', 'Enter');
+      await page.waitForFunction(() => /places this address/.test(document.getElementById('addr-result').textContent));
+      out.revealed = await measure();
+      await page.close();
+      continue;
+    }
     out.fit[`${w}x${h}`] = await measure();
     // with the privacy line and a district answer showing (the tallest the box gets), focus kept in the box
     await page.fill('#addr-q', '1 Test St, Clarksville TN');

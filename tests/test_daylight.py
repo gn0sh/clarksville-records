@@ -267,3 +267,89 @@ def test_council_seat_printed_line_and_note_sit_on_their_own_line_without_a_lead
     for cls in ("d-printed", "d-note"):
         m = re.search(r'<span class="' + cls + r' muted">(.{0,12})', tpl)
         assert m and not re.match(r"\s*:", m.group(1)), (cls, m and m.group(1))
+
+
+# -- the footer stays compact (owner, 2026-11-12: "the footer is huge") ----------------------------------------------
+
+def test_footer_css_is_small_and_tight():
+    """Every footer text size is --t-sm or --t-xs, the page list is a multi-column grid with 24 px rows (28 px for
+    touch, WCAG 2.5.8), the credit logo is small, and the drawer's copy of the list keeps its 44 px rows."""
+    css = CSS.read_text(encoding="utf-8")
+    rules = re.findall(r"^\s*(\.site-footer[^{]*|\.gc-[^{]*)\{([^}]*)\}", css, re.M)
+    assert rules
+    for sel, body in rules:
+        for size in re.findall(r"font-size:\s*([^;]+);", body):
+            assert size.strip() in ("var(--t-sm)", "var(--t-xs)"), (sel, size)
+    assert re.search(r"^\.site-footer \{[^}]*font-size: var\(--t-sm\);", css, re.M)
+    assert re.search(r"^\.site-footer \.unofficial-notice p \{[^}]*font-size: var\(--t-sm\);", css, re.M)
+    assert re.search(r"^\.site-footer \.nav-list \{ display: grid; grid-template-columns: repeat\(auto-fill,", css, re.M)
+    row = re.search(r"^\.site-footer \.nav-list > li > a, \.site-footer \.nav-list > li > \.nav-group \{([^}]*)\}", css, re.M)
+    assert row and "min-height: 24px;" in row.group(1) and "line-height: 1.6;" in row.group(1)
+    coarse = re.search(r"@media \(pointer: coarse\) \{\n  \.site-footer \.nav-list > li > a,[^}]*min-height: (\d+)px", css)
+    assert coarse and int(coarse.group(1)) >= 24
+    logo = re.search(r"^\.gc-logo \{[^}]*width: (\d+)px;", css, re.M)
+    assert logo and int(logo.group(1)) <= 100
+    assert ".nav-list > li > a, .nav-list > li > .nav-group { display: flex; align-items: center; gap: 8px; " \
+           "padding: 9px 10px; min-height: 44px;" in css          # the drawer's rows are unchanged
+
+
+def _browser_ok():
+    return bool(shutil.which("node")) and (os.path.exists("/opt/pw-browsers") or bool(shutil.which("playwright")))
+
+
+FOOTER_PROBE = r"""
+const path = require('path');
+let pw;
+for (const r of ['', ...(process.env.NODE_PATH || '').split(path.delimiter).filter(Boolean)]) {
+  try { pw = require(r ? path.join(r, 'playwright') : 'playwright'); break; } catch (e) { /* next */ }
+}
+(async () => {
+  const [site, rel] = process.argv.slice(2);
+  const browser = await pw.chromium.launch();
+  const out = {};
+  for (const [name, width, height, touch] of [['desktop', 1280, 800, false], ['phone', 390, 844, true]]) {
+    const ctx = await browser.newContext({viewport: {width, height}, deviceScaleFactor: 1, hasTouch: touch, isMobile: touch});
+    const page = await ctx.newPage();
+    await page.goto('file://' + path.join(site, rel));
+    out[name] = await page.evaluate(() => {
+      const f = document.querySelector('.site-footer');
+      const px = e => parseFloat(getComputedStyle(e).fontSize);
+      const texts = [...f.querySelectorAll('p, a, span, h2, strong, time')].filter(e => e.offsetParent);
+      const nav = [...f.querySelectorAll('.site-nav a')];
+      return {height: f.getBoundingClientRect().height, links: nav.length,
+              maxFont: Math.max(...texts.map(px)), bodyFont: px(document.body),
+              minTarget: Math.min(...nav.map(a => a.getBoundingClientRect().height)),
+              coarse: matchMedia('(pointer: coarse)').matches,
+              hscroll: document.documentElement.scrollWidth > innerWidth};
+    });
+    await ctx.close();
+  }
+  await browser.close();
+  console.log(JSON.stringify(out));
+})();
+"""
+
+
+@pytest.mark.skipif(not _browser_ok(), reason="Playwright (node) not available")
+def test_footer_is_compact_in_a_browser(site, tmp_path):
+    """With the full page list (any page but the landing), the footer is about 350 px tall on a 1280 px desktop and
+    well under two phone screens at 390 px; no footer text is larger than the body's, and every page-list link is a
+    24 px target or taller."""
+    rel = next(r for r in sorted(_pages(site)) if r not in ("index.html", "404.html") and "/" not in r)
+    script = tmp_path / "footer.js"
+    script.write_text(FOOTER_PROBE, encoding="utf-8")
+    env = dict(os.environ)
+    env.setdefault("NODE_PATH", subprocess.run(["npm", "root", "-g"], capture_output=True, text=True).stdout.strip())
+    res = subprocess.run(["node", str(script), str(site.resolve()), rel], capture_output=True, text=True, timeout=180,
+                         env=env)
+    assert res.returncode == 0, res.stderr
+    r = json.loads(res.stdout.strip().splitlines()[-1])
+    d, p = r["desktop"], r["phone"]
+    assert d["links"] >= 10 and p["links"] == d["links"], r          # the whole list is there (the no-JS nav)
+    assert d["height"] <= 400, r
+    assert p["height"] <= 900, r
+    for v in (d, p):
+        assert v["maxFont"] < v["bodyFont"], r
+        assert v["minTarget"] >= 24, r
+        assert not v["hscroll"], r
+    assert p["coarse"] and p["minTarget"] >= 28, r

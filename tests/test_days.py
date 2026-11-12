@@ -430,7 +430,7 @@ let pw; for (const r of [process.env.NODE_PATH, '/opt/node22/lib/node_modules'].
     await p.goto('file://' + process.argv[1] + '#d-2024-12-09'); r.hash = await shown();
     await p.evaluate(() => document.querySelector('details.roll').open = true);
     r.sw = await p.evaluate(() => document.documentElement.scrollWidth); r.iw = w;
-    await p.evaluate(() => window.scrollTo(0, 600)); r.stripTop = await p.evaluate(() => document.getElementById('day-strip').getBoundingClientRect().top);
+    await p.evaluate(() => window.scrollTo(0, 800)); r.stripTop = await p.evaluate(() => document.getElementById('day-strip').getBoundingClientRect().top);
     r.errs = errs; out[w] = r; await ctx.close();
   }
   const ctx = await b.newContext({ viewport: { width: 375, height: 700 }, javaScriptEnabled: false }); const p = await ctx.newPage();

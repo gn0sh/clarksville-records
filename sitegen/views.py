@@ -372,6 +372,13 @@ def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), 
             href = f"votes/{years[0]}.html" if years else "search.html"
         out.append({"label": label, "href": href, "page": page, "coming": coming})
         if label == "Officials":
+            # the county's hub page (config/site.yml switch.bodies.county; sitegen/bodies.py builds it whenever the
+            # switch is configured with a county body), first of the hubs, in the switch's order
+            sw = config.SITE.get("switch") or {}
+            cb = (sw.get("bodies") or {}).get("county") or {}
+            if sw.get("label") and cb.get("slug") and cb.get("label"):
+                out.append({"label": cb["label"], "href": f"{cb['slug']}.html", "page": cb.get("title") or cb["label"],
+                            "coming": False})
             out += [{"label": c.nav_label, "href": c.home_href(), "page": c.nav_label, "coming": False}
                     for c in councils]
             if rpc is not None:   # the Regional Planning Commission (sitegen/rpc.py), after the councils
@@ -395,8 +402,16 @@ def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), 
 def site_context(facts, contracts: bool = False, budget: tuple = (), councils=(), rpc=None) -> dict:
     """`contracts`: finance.json is loaded, so the nav lists Bids and awards (design finance-contracts 1).
     `budget`: the budget pages built (see _nav). `councils`: the council.CouncilIndex of each council built."""
+    from . import bodies   # here, not at the top: bodies reads https_url from this module
     ix = _ix(facts)
     cfg = config.SITE
+    ctx = _site_context(ix, cfg, contracts, budget, councils, rpc)
+    # "Show records from" (sitegen/bodies.py): the switch on every page and each body's hub cards
+    ctx["switch"] = bodies.build(ctx, councils, rpc)
+    return ctx
+
+
+def _site_context(ix: "Index", cfg: dict, contracts: bool, budget: tuple, councils, rpc) -> dict:
     return {
         "cfg": cfg,
         "csp": csp(),

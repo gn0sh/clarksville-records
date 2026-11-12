@@ -7,7 +7,7 @@
    Agenda and archive text carries data-item-title: the document's words, never linked or reworded. #}
 {% block head %}<script src="{{ root }}static/js-flag.js"></script>{% endblock %}
 {% macro card(c) %}
-<article class="day-card day-card-{{ c.kind }}" id="{{ c.id }}" aria-labelledby="{{ c.id }}-h">
+<article class="day-card day-card-{{ c.kind }}" id="{{ c.id }}" data-body="{{ c.bkey }}" aria-labelledby="{{ c.id }}-h">
   <header class="day-card-hd">
     <h3 id="{{ c.id }}-h"><span class="dot dot-{{ c.dot }}" aria-hidden="true"></span>{{ c.body }}</h3>
     {% if c.title %}<p class="day-card-kind">{{ c.title }}{% if c.state == "scheduled" %} <span class="chip chip-status">Scheduled</span>{% endif %}{% if c.get("agenda_only") %} <span class="chip chip-status">Agenda</span>{% endif %}{% if c.cancelled %} <span class="chip chip-status">Cancelled</span>{% endif %}</p>{% elif c.cancelled %}<p class="day-card-kind"><span class="chip chip-status">Cancelled</span></p>{% endif %}
@@ -84,13 +84,14 @@
   <p class="days-note" id="days-out" hidden>This page covers <span class="nowrap">{{ start_text }}</span> to <span class="nowrap">{{ end_text }}</span>. It was built on {{ built_text }}; later days appear when it is built again.</p>
   <p class="days-note days-nojs">Days with no records are left out of this list.</p>
 
+  <div data-body-line></div>{# static/switch.js puts its "Showing ... only" line here #}
   <nav class="day-strip" id="day-strip" aria-label="Pick a day" hidden>
     <div class="strip-row">
       <button type="button" class="wk-step" id="wk-prev" aria-label="Earlier week"><span aria-hidden="true">&lsaquo;</span></button>
       <div class="strip-weeks">
         {% for w in weeks %}
         <div class="strip-week" data-week="{{ loop.index0 }}" role="group" aria-label="Week of {{ w.first.text }}"{% if not loop.first %} hidden{% endif %}>
-          {% for d in w.days %}<button type="button" class="day" data-date="{{ d.iso }}" aria-pressed="false" aria-label="{{ d.label }}"><span class="day-dow">{{ d.dow }}</span><b>{{ d.n }}</b><em aria-hidden="true">{% for x in d.dots %}<i class="dot dot-{{ x }}"></i>{% endfor %}</em></button>{% endfor %}
+          {% for d in w.days %}<button type="button" class="day" data-date="{{ d.iso }}" aria-pressed="false" aria-label="{{ d.label }}" data-label-all="{{ d.label }}"{% for k, l in d.labels.items() %} data-label-{{ k }}="{{ l }}"{% endfor %}><span class="day-dow">{{ d.dow }}</span><b>{{ d.n }}</b><em aria-hidden="true">{% for c in d.cards %}<i class="dot dot-{{ c.dot }}" data-body="{{ c.bkey }}"></i>{% endfor %}</em></button>{% endfor %}
         </div>
         {% endfor %}
       </div>
@@ -101,9 +102,10 @@
 
   <div class="day-list">
     {% for w in weeks %}{% for d in w.days %}
-    <section class="day-sheet{% if not d.cards %} is-empty{% endif %}" id="{{ d.anchor }}" data-date="{{ d.iso }}" aria-labelledby="{{ d.anchor }}-h">
+    <section class="day-sheet{% if not d.cards %} is-empty{% endif %}" id="{{ d.anchor }}" data-date="{{ d.iso }}" aria-labelledby="{{ d.anchor }}-h"{% if d.cards %} data-body-group{% endif %}>
       <header class="day-head"><p class="label day-when" aria-hidden="true"></p><h2 id="{{ d.anchor }}-h" tabindex="-1">{{ d.text }}</h2></header>
       {% for c in d.cards %}{{ card(c) }}{% else %}<p class="day-empty">No public meetings or bid listings in these records on this day.</p>{% endfor %}
+      {% if d.cards %}<p class="day-empty bs-none">Nothing from the body you chose is in these records on this day.</p>{% endif %}
     </section>
     {% endfor %}{% endfor %}
   </div>

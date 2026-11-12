@@ -1,0 +1,9 @@
+{% extends "base.html.j2" %}
+{% from "_hub.html.j2" import hub_cards, hub_kicker %}
+{# A body's hub page when the body has no home page of its own (sitegen/bodies.py): the county's. #}
+{% block main %}
+{{ hub_kicker(hub) }}
+<h1>{{ hub.title }}</h1>
+<p class="lede">{{ hub.lede }}</p>
+{{ hub_cards(hub, root) }}
+{% endblock %}

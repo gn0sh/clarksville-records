@@ -1,0 +1,45 @@
+{# A body's hub cards (sitegen/bodies.py; config/site.yml `switch:`). A present card links a page this build makes; a
+   coming card is dashed, says what is not collected yet and links the body's own official page (a URL from the
+   config, never fetched). #}
+{% macro coming_tag() %}<span class="chip chip-coming">Coming</span>{% endmacro %}
+{% macro hub_kicker(hub) %}{% if hub and hub.kicker %}<p class="hub-kicker">{{ hub.kicker }}</p>{% endif %}{% endmacro %}
+{% macro hub_cards(hub, root, level=2) %}
+{% if hub and hub.cards %}
+<section class="hub" aria-labelledby="hub-h" data-hub="{{ hub.key }}">
+  <h{{ level }} class="sec-h" id="hub-h">Sections</h{{ level }}>
+  <ul class="hub-cards">
+    {% for c in hub.cards %}
+    <li class="hub-card{% if c.coming %} is-coming{% endif %}" data-card="{{ c.key }}">
+      <h{{ level + 1 }}>{{ c.title }}{% if c.coming %} {{ coming_tag() }}{% endif %}</h{{ level + 1 }}>
+      <p>{{ c.text }}</p>
+      {% if c.coming %}
+      {% if c.link %}<p class="hub-go">Official source: <a data-ext="{{ c.link.kind }}" href="{{ c.link.url }}" target="_blank" rel="noopener noreferrer">{{ c.link.label }}<span class="sr-only"> (opens in a new tab)</span></a></p>{% endif %}
+      {% else %}
+      <p class="hub-go"><a href="{{ root }}{{ c.href }}"><span>{{ c.go }}</span><span class="sr-only">, {{ hub.label }}</span><span class="go" aria-hidden="true">&rsaquo;</span></a></p>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% if hub.note %}<p class="note hub-note">{{ hub.note }}</p>{% endif %}
+</section>
+{% endif %}
+{% endmacro %}
+{# The home page's overview: every body, what is on this site and what is coming. #}
+{% macro overview(sw, root) %}
+{% if sw and sw.hubs %}
+<section class="bodies" aria-labelledby="bodies-h">
+  <h2 class="sec-h" id="bodies-h">{{ sw.overview.heading }}</h2>
+  <p class="sec-sub">{{ sw.overview.lede }}</p>
+  <ul class="bodies-list">
+    {% for o in sw.options if o.key != "all" %}{% set h = sw.hubs[o.key] %}
+    <li class="bodies-card" data-hub="{{ h.key }}">
+      <h3><a href="{{ root }}{{ h.href }}">{{ h.label }}</a>{% if o.coming %} {{ coming_tag() }}{% endif %}</h3>
+      {% if h.about %}<p>{{ h.about }}</p>{% endif %}
+      {% if h.present %}<p><span class="bodies-k">{{ sw.overview.present }}</span> {{ h.present | join(", ") }}.</p>{% endif %}
+      {% if h.coming %}<p class="bodies-coming"><span class="bodies-k">{{ sw.overview.coming }}</span> {{ h.coming | join(", ") }}.</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endmacro %}
