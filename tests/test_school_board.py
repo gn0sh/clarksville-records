@@ -34,9 +34,11 @@ def test_coming_page_says_coming_and_has_the_one_link_from_config(site):
     assert f'<h1>{pg["title"]} <span class="chip chip-coming">Coming</span></h1>' in main
     assert pg["lede"] in main and pg["lede"].startswith("Coming.")
     assert all(f"<li>{p}</li>" in main for p in pg["planned"])
-    # one external link, the configured URL, marked and opened the way the day page's link is
+    # one external address, the configured URL, marked and opened the way the day page's link is: once under "What
+    # is planned" and once on each of the hub's coming cards (tests/test_body_switch.py, 2026-11-12)
     ext = re.findall(r'<a [^>]*href="(https?://[^"]+)"', main)
-    assert ext == [sb["url"]]
+    assert set(ext) == {sb["url"]} and len(ext) == 1 + main.count('class="hub-card is-coming"')
+    assert main.count("Until then, the official source is the school system website:") == 1
     assert (f'<a data-ext="school" href="{sb["url"]}" target="_blank" rel="noopener noreferrer">{sb["link_label"]}'
             '<span class="sr-only"> (opens in a new tab)</span></a>') in main
     assert sb["url"] in site_checks.allowed_external(config.SITE, None, None)
