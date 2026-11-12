@@ -3,12 +3,174 @@
   <id>tag:daylight.gnoshcodes.com,2026-11-09:feeds/topic-ordinance</id>
   <title>Daylight: Ordinance items: Montgomery County Commission and Clarksville City Council</title>
   <subtitle>Each item the Ordinance type rule matches, at each meeting it appears at. Daylight is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.</subtitle>
-  <updated>2026-11-11T12:00:00-06:00</updated>
+  <updated>2026-11-11T15:00:20-06:00</updated>
   <author>
     <name>Daylight</name>
   </author>
   <link rel="self" type="application/atom+xml" href="https://gn0sh.github.io/clarksville-records/feeds/topic-ordinance.xml" />
   <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/alerts.html" />
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-98-2025-26/2026-07-06-special</id>
+    <title>ORDINANCE 98-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T15:00:20-06:00</updated>
+    <published>2026-11-11T15:00:20-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-98-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3254,plainText=false)#page=1" title="Source document" />
+    <summary>Clarksville City Council, 2026-07-06, special session. Recorded: Motion, Roll call. Source: minutes, page 1.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-92-2025-26/2026-06-22-special</id>
+    <title>ORDINANCE 92-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T15:00:10-06:00</updated>
+    <published>2026-11-11T15:00:10-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-92-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3251,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-22, special session. Recorded: Roll call, Motion. Source: minutes, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-84-2025-26/2026-06-16-special</id>
+    <title>ORDINANCE 84-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T15:00:00-06:00</updated>
+    <published>2026-11-11T15:00:00-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-84-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3250,plainText=false)#page=1" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-16, special session. Recorded: Motion, Roll call. Source: minutes, page 1.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-87-2025-26/2026-06-16-special</id>
+    <title>ORDINANCE 87-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T15:00:00-06:00</updated>
+    <published>2026-11-11T15:00:00-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-87-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3250,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-16, special session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-86-2025-26/2026-06-16-special</id>
+    <title>ORDINANCE 86-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T15:00:00-06:00</updated>
+    <published>2026-11-11T15:00:00-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-86-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3250,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-16, special session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-85-2025-26/2026-06-16-special</id>
+    <title>ORDINANCE 85-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T15:00:00-06:00</updated>
+    <published>2026-11-11T15:00:00-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-85-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3250,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-16, special session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-89-2025-26/2026-06-16-special</id>
+    <title>ORDINANCE 89-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T15:00:00-06:00</updated>
+    <published>2026-11-11T15:00:00-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-89-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3250,plainText=false)#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-16, special session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-88-2025-26/2026-06-16-special</id>
+    <title>ORDINANCE 88-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T15:00:00-06:00</updated>
+    <published>2026-11-11T15:00:00-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-88-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3250,plainText=false)#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-16, special session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-91-2025-26/2026-06-16-special</id>
+    <title>ORDINANCE 91-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T15:00:00-06:00</updated>
+    <published>2026-11-11T15:00:00-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-91-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3250,plainText=false)#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-16, special session. Recorded: Roll call, Motion. Source: minutes, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-84-2025-26/2026-06-11-special</id>
+    <title>ORDINANCE 84-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T14:59:50-06:00</updated>
+    <published>2026-11-11T14:59:50-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-84-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3249,plainText=false)#page=1" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-11, special session. Recorded: Motion, Roll call. Source: minutes, page 1.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-87-2025-26/2026-06-11-special</id>
+    <title>ORDINANCE 87-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T14:59:50-06:00</updated>
+    <published>2026-11-11T14:59:50-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-87-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3249,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-11, special session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-86-2025-26/2026-06-11-special</id>
+    <title>ORDINANCE 86-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T14:59:50-06:00</updated>
+    <published>2026-11-11T14:59:50-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-86-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3249,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-11, special session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-85-2025-26/2026-06-11-special</id>
+    <title>ORDINANCE 85-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T14:59:50-06:00</updated>
+    <published>2026-11-11T14:59:50-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-85-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3249,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-11, special session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-89-2025-26/2026-06-11-special</id>
+    <title>ORDINANCE 89-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T14:59:50-06:00</updated>
+    <published>2026-11-11T14:59:50-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-89-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3249,plainText=false)#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-11, special session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-88-2025-26/2026-06-11-special</id>
+    <title>ORDINANCE 88-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T14:59:50-06:00</updated>
+    <published>2026-11-11T14:59:50-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-88-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3249,plainText=false)#page=3" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-11, special session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-90-2025-26/2026-06-11-special</id>
+    <title>ORDINANCE 90-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T14:59:50-06:00</updated>
+    <published>2026-11-11T14:59:50-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-90-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3249,plainText=false)#page=4" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-11, special session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-70-2025-26/2026-04-29-special</id>
+    <title>ORDINANCE 70-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T14:59:40-06:00</updated>
+    <published>2026-11-11T14:59:40-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-70-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3199,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2026-04-29, special session. Recorded: Roll call. Source: minutes, page 2.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-64-2025-26/2026-04-29-special</id>
+    <title>ORDINANCE 64-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T14:59:40-06:00</updated>
+    <published>2026-11-11T14:59:40-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-64-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3199,plainText=false)#page=2" title="Source document" />
+    <summary>Clarksville City Council, 2026-04-29, special session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
+  </entry>
   <entry>
     <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-79-2025-26/2026-06-04-regular</id>
     <title>ORDINANCE 79-2025-26: Title not read from the minutes</title>
@@ -296,167 +458,5 @@
     <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-41-2025-26" />
     <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=2" title="Source document" />
     <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-40-2025-26/2026-01-08-regular</id>
-    <title>ORDINANCE 40-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:56-06:00</updated>
-    <published>2026-11-09T12:59:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-40-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=2" title="Source document" />
-    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-46-2025-26/2026-01-08-regular</id>
-    <title>ORDINANCE 46-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:56-06:00</updated>
-    <published>2026-11-09T12:59:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-46-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=3" title="Source document" />
-    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-42-2025-26/2026-01-08-regular</id>
-    <title>ORDINANCE 42-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:56-06:00</updated>
-    <published>2026-11-09T12:59:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-42-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=3" title="Source document" />
-    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-51-2025-26/2026-01-08-regular</id>
-    <title>ORDINANCE 51-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:56-06:00</updated>
-    <published>2026-11-09T12:59:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-51-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=4" title="Source document" />
-    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-50-2025-26/2026-01-08-regular</id>
-    <title>ORDINANCE 50-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:56-06:00</updated>
-    <published>2026-11-09T12:59:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-50-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=4" title="Source document" />
-    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-49-2025-26/2026-01-08-regular</id>
-    <title>ORDINANCE 49-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:56-06:00</updated>
-    <published>2026-11-09T12:59:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-49-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=4" title="Source document" />
-    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-43-2025-26/2026-01-08-regular</id>
-    <title>ORDINANCE 43-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:56-06:00</updated>
-    <published>2026-11-09T12:59:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-43-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=6" title="Source document" />
-    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Roll call. Source: minutes, page 6.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-43-2025-25/2026-01-08-regular</id>
-    <title>ORDINANCE 43-2025-25: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:56-06:00</updated>
-    <published>2026-11-09T12:59:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-43-2025-25" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=6" title="Source document" />
-    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Roll call. Source: minutes, page 6.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-45-2025-26/2026-01-08-regular</id>
-    <title>ORDINANCE 45-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:56-06:00</updated>
-    <published>2026-11-09T12:59:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#ordinance-45-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=7" title="Source document" />
-    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 7.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-38-2025-26/2025-12-04-regular</id>
-    <title>ORDINANCE 38-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:46-06:00</updated>
-    <published>2026-11-09T12:59:46-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-38-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3063,plainText=false)#page=2" title="Source document" />
-    <summary>Clarksville City Council, 2025-12-04, regular session. Recorded: Roll call. Source: minutes, page 2.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-43-2025-26/2025-12-04-regular</id>
-    <title>ORDINANCE 43-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:46-06:00</updated>
-    <published>2026-11-09T12:59:46-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-43-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3063,plainText=false)#page=3" title="Source document" />
-    <summary>Clarksville City Council, 2025-12-04, regular session. Recorded: Roll call. Source: minutes, page 3.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-44-2025-26/2025-12-04-regular</id>
-    <title>ORDINANCE 44-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:46-06:00</updated>
-    <published>2026-11-09T12:59:46-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-44-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3063,plainText=false)#page=4" title="Source document" />
-    <summary>Clarksville City Council, 2025-12-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 4.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-35-2025-26/2025-12-04-regular</id>
-    <title>ORDINANCE 35-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:46-06:00</updated>
-    <published>2026-11-09T12:59:46-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-35-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3063,plainText=false)#page=6" title="Source document" />
-    <summary>Clarksville City Council, 2025-12-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 6.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-11-2025-26/2025-09-04-regular</id>
-    <title>ORDINANCE 11-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:26-06:00</updated>
-    <published>2026-11-09T12:59:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-11-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2755,plainText=false)#page=2" title="Source document" />
-    <summary>Clarksville City Council, 2025-09-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-10-2025-26/2025-09-04-regular</id>
-    <title>ORDINANCE 10-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:26-06:00</updated>
-    <published>2026-11-09T12:59:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-10-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2755,plainText=false)#page=2" title="Source document" />
-    <summary>Clarksville City Council, 2025-09-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 2.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-09-2025-26/2025-09-04-regular</id>
-    <title>ORDINANCE 09-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:26-06:00</updated>
-    <published>2026-11-09T12:59:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-09-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2755,plainText=false)#page=2" title="Source document" />
-    <summary>Clarksville City Council, 2025-09-04, regular session. Recorded: Roll call. Source: minutes, page 2.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-13-2025-26/2025-09-04-regular</id>
-    <title>ORDINANCE 13-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:26-06:00</updated>
-    <published>2026-11-09T12:59:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-13-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2755,plainText=false)#page=3" title="Source document" />
-    <summary>Clarksville City Council, 2025-09-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/ordinance-12-2025-26/2025-09-04-regular</id>
-    <title>ORDINANCE 12-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:26-06:00</updated>
-    <published>2026-11-09T12:59:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#ordinance-12-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2755,plainText=false)#page=3" title="Source document" />
-    <summary>Clarksville City Council, 2025-09-04, regular session. Recorded: Motion, Roll call. Source: minutes, page 3.</summary>
   </entry>
 </feed>

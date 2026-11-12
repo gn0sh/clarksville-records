@@ -3,12 +3,174 @@
   <id>tag:daylight.gnoshcodes.com,2026-11-09:feeds/city-meetings</id>
   <title>Daylight: Clarksville City Council: new agendas and minutes</title>
   <subtitle>Each agenda and each set of minutes when it is added to this site. Daylight is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.</subtitle>
-  <updated>2026-11-11T12:00:00-06:00</updated>
+  <updated>2026-11-11T15:03:40-06:00</updated>
   <author>
     <name>Daylight</name>
   </author>
   <link rel="self" type="application/atom+xml" href="https://gn0sh.github.io/clarksville-records/feeds/city-meetings.xml" />
   <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/alerts.html" />
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-07-09-special/agenda</id>
+    <title>Agenda: 2026-07-09, special session</title>
+    <updated>2026-11-11T15:03:40-06:00</updated>
+    <published>2026-11-11T15:03:40-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-07-09-special" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3164,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2026-07-09, special session. Agenda (1 page), fetched 2026-11-11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-07-06-special/agenda</id>
+    <title>Agenda: 2026-07-06, special session</title>
+    <updated>2026-11-11T15:03:30-06:00</updated>
+    <published>2026-11-11T15:03:30-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-07-06-special" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3163,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2026-07-06, special session. Agenda (1 page), fetched 2026-11-11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-07-02-regular/agenda</id>
+    <title>Agenda: 2026-07-02, regular session</title>
+    <updated>2026-11-11T15:03:20-06:00</updated>
+    <published>2026-11-11T15:03:20-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-07-02-regular" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3162,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2026-07-02, regular session. Agenda (3 pages), fetched 2026-11-11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-06-29-special/agenda</id>
+    <title>Agenda: 2026-06-29, special session</title>
+    <updated>2026-11-11T15:03:10-06:00</updated>
+    <published>2026-11-11T15:03:10-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-06-29-special" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3159,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-29, special session. Agenda (1 page), fetched 2026-11-11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-06-22-special/agenda</id>
+    <title>Agenda: 2026-06-22, special session</title>
+    <updated>2026-11-11T15:03:00-06:00</updated>
+    <published>2026-11-11T15:03:00-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-06-22-special" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3151,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-22, special session. Agenda (1 page), fetched 2026-11-11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-06-16-special/agenda</id>
+    <title>Agenda: 2026-06-16, special session</title>
+    <updated>2026-11-11T15:02:50-06:00</updated>
+    <published>2026-11-11T15:02:50-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-06-16-special" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3139,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-16, special session. Agenda (2 pages), fetched 2026-11-11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-06-11-special/agenda</id>
+    <title>Agenda: 2026-06-11, special session</title>
+    <updated>2026-11-11T15:02:40-06:00</updated>
+    <published>2026-11-11T15:02:40-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-06-11-special" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3132,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-11, special session. Agenda (2 pages), fetched 2026-11-11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-05-26-work-session/agenda</id>
+    <title>Agenda: 2026-05-26, work session</title>
+    <updated>2026-11-11T15:02:29-06:00</updated>
+    <published>2026-11-11T15:02:29-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026.html#2026-05-26-work-session" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3114,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2026-05-26, work session. Agenda (1 page), fetched 2026-11-11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-05-07-special/agenda</id>
+    <title>Agenda: 2026-05-07, special session</title>
+    <updated>2026-11-11T15:02:20-06:00</updated>
+    <published>2026-11-11T15:02:20-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026.html#2026-05-07-special" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3085,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2026-05-07, special session. Agenda (1 page), fetched 2026-11-11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-04-29-special/agenda</id>
+    <title>Agenda: 2026-04-29, special session</title>
+    <updated>2026-11-11T15:02:10-06:00</updated>
+    <published>2026-11-11T15:02:10-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026.html#2026-04-29-special" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3018,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2026-04-29, special session. Agenda (2 pages), fetched 2026-11-11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-04-06-special/agenda</id>
+    <title>Agenda: 2026-04-06, special session</title>
+    <updated>2026-11-11T15:02:00-06:00</updated>
+    <published>2026-11-11T15:02:00-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026.html#2026-04-06-special" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3077,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2026-04-06, special session. Agenda (1 page), fetched 2026-11-11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-07-06-special/minutes</id>
+    <title>Minutes: 2026-07-06, special session</title>
+    <updated>2026-11-11T15:00:20-06:00</updated>
+    <published>2026-11-11T15:00:20-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-07-06-special" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3254,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2026-07-06, special session. Minutes (5 pages), fetched 2026-11-11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-06-22-special/minutes</id>
+    <title>Minutes: 2026-06-22, special session</title>
+    <updated>2026-11-11T15:00:10-06:00</updated>
+    <published>2026-11-11T15:00:10-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-06-22-special" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3251,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-22, special session. Minutes (4 pages), fetched 2026-11-11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-06-16-special/minutes</id>
+    <title>Minutes: 2026-06-16, special session</title>
+    <updated>2026-11-11T15:00:00-06:00</updated>
+    <published>2026-11-11T15:00:00-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-06-16-special" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3250,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-16, special session. Minutes (9 pages), fetched 2026-11-11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-06-11-special/minutes</id>
+    <title>Minutes: 2026-06-11, special session</title>
+    <updated>2026-11-11T14:59:50-06:00</updated>
+    <published>2026-11-11T14:59:50-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-06-11-special" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3249,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2026-06-11, special session. Minutes (7 pages), fetched 2026-11-11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-04-29-special/minutes</id>
+    <title>Minutes: 2026-04-29, special session</title>
+    <updated>2026-11-11T14:59:40-06:00</updated>
+    <published>2026-11-11T14:59:40-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026.html#2026-04-29-special" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3199,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2026-04-29, special session. Minutes (3 pages), fetched 2026-11-11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-04-06-special/minutes</id>
+    <title>Minutes: 2026-04-06, special session</title>
+    <updated>2026-11-11T14:59:30-06:00</updated>
+    <published>2026-11-11T14:59:30-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026.html#2026-04-06-special" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3198,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2026-04-06, special session. Minutes (2 pages), fetched 2026-11-11.</summary>
+  </entry>
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-11-12-special/minutes</id>
+    <title>Minutes: 2025-11-12, special session</title>
+    <updated>2026-11-11T14:59:10-06:00</updated>
+    <published>2026-11-11T14:59:10-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025-2.html#2025-11-12-special" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3070,plainText=false)" title="Source document" />
+    <summary>Clarksville City Council, 2025-11-12, special session. Minutes (2 pages), fetched 2026-11-11.</summary>
+  </entry>
   <entry>
     <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-02-11-special/agenda</id>
     <title>Agenda: 2026-02-11, special session</title>
@@ -32,7 +194,7 @@
     <title>Agenda: 2026-11-05, regular session</title>
     <updated>2026-11-09T13:14:16-06:00</updated>
     <published>2026-11-09T13:14:16-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026.html#2026-11-05-regular" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-11-05-regular" />
     <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3332,plainText=false)" title="Source document" />
     <summary>Clarksville City Council, 2026-11-05, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -41,7 +203,7 @@
     <title>Agenda: 2026-10-29, executive session</title>
     <updated>2026-11-09T13:14:06-06:00</updated>
     <published>2026-11-09T13:14:06-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026.html#2026-10-29-executive" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-10-29-executive" />
     <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3329,plainText=false)" title="Source document" />
     <summary>Clarksville City Council, 2026-10-29, executive session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -50,7 +212,7 @@
     <title>Agenda: 2026-10-01, regular session</title>
     <updated>2026-11-09T13:13:56-06:00</updated>
     <published>2026-11-09T13:13:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026.html#2026-10-01-regular" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-10-01-regular" />
     <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3306,plainText=false)" title="Source document" />
     <summary>Clarksville City Council, 2026-10-01, regular session. Agenda (3 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -59,7 +221,7 @@
     <title>Agenda: 2026-09-24, executive session</title>
     <updated>2026-11-09T13:13:46-06:00</updated>
     <published>2026-11-09T13:13:46-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026.html#2026-09-24-executive" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-09-24-executive" />
     <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3300,plainText=false)" title="Source document" />
     <summary>Clarksville City Council, 2026-09-24, executive session. Agenda (3 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -68,7 +230,7 @@
     <title>Agenda: 2026-09-03, regular session</title>
     <updated>2026-11-09T13:13:36-06:00</updated>
     <published>2026-11-09T13:13:36-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026.html#2026-09-03-regular" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-09-03-regular" />
     <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3270,plainText=false)" title="Source document" />
     <summary>Clarksville City Council, 2026-09-03, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -77,7 +239,7 @@
     <title>Agenda: 2026-08-27, executive session</title>
     <updated>2026-11-09T13:13:26-06:00</updated>
     <published>2026-11-09T13:13:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026.html#2026-08-27-executive" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-08-27-executive" />
     <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3267,plainText=false)" title="Source document" />
     <summary>Clarksville City Council, 2026-08-27, executive session. Agenda (3 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -86,7 +248,7 @@
     <title>Agenda: 2026-08-06, regular session</title>
     <updated>2026-11-09T13:13:16-06:00</updated>
     <published>2026-11-09T13:13:16-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026.html#2026-08-06-regular" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-08-06-regular" />
     <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3227,plainText=false)" title="Source document" />
     <summary>Clarksville City Council, 2026-08-06, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -95,7 +257,7 @@
     <title>Agenda: 2026-07-30, executive session</title>
     <updated>2026-11-09T13:13:06-06:00</updated>
     <published>2026-11-09T13:13:06-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026.html#2026-07-30-executive" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-07-30-executive" />
     <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3218,plainText=false)" title="Source document" />
     <summary>Clarksville City Council, 2026-07-30, executive session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -104,7 +266,7 @@
     <title>Agenda: 2026-06-25, executive session</title>
     <updated>2026-11-09T13:12:56-06:00</updated>
     <published>2026-11-09T13:12:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026.html#2026-06-25-executive" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2026-2.html#2026-06-25-executive" />
     <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3153,plainText=false)" title="Source document" />
     <summary>Clarksville City Council, 2026-06-25, executive session. Agenda (3 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -221,7 +383,7 @@
     <title>Agenda: 2025-12-04, regular session</title>
     <updated>2026-11-09T13:10:46-06:00</updated>
     <published>2026-11-09T13:10:46-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-12-04-regular" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025-2.html#2025-12-04-regular" />
     <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2813,plainText=false)" title="Source document" />
     <summary>Clarksville City Council, 2025-12-04, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
   </entry>
@@ -230,117 +392,9 @@
     <title>Agenda: 2025-12-01, executive session</title>
     <updated>2026-11-09T13:10:37-06:00</updated>
     <published>2026-11-09T13:10:37-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-12-01-executive" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025-2.html#2025-12-01-executive" />
     <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2810,plainText=false)" title="Source document" />
     <summary>Clarksville City Council, 2025-12-01, executive session. Agenda (4 pages), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-11-06-regular/agenda</id>
-    <title>Agenda: 2025-11-06, regular session</title>
-    <updated>2026-11-09T13:10:26-06:00</updated>
-    <published>2026-11-09T13:10:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-11-06-regular" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2770,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-11-06, regular session. Agenda (5 pages), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-10-30-executive/agenda</id>
-    <title>Agenda: 2025-10-30, executive session</title>
-    <updated>2026-11-09T13:10:16-06:00</updated>
-    <published>2026-11-09T13:10:16-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-10-30-executive" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2765,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-10-30, executive session. Agenda (4 pages), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-10-02-regular/agenda</id>
-    <title>Agenda: 2025-10-02, regular session</title>
-    <updated>2026-11-09T13:10:06-06:00</updated>
-    <published>2026-11-09T13:10:06-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-10-02-regular" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2729,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-10-02, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-09-25-executive/agenda</id>
-    <title>Agenda: 2025-09-25, executive session</title>
-    <updated>2026-11-09T13:09:56-06:00</updated>
-    <published>2026-11-09T13:09:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-09-25-executive" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2713,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-09-25, executive session. Agenda (3 pages), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-09-04-regular/agenda</id>
-    <title>Agenda: 2025-09-04, regular session</title>
-    <updated>2026-11-09T13:09:46-06:00</updated>
-    <published>2026-11-09T13:09:46-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-09-04-regular" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2691,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-09-04, regular session. Agenda (5 pages), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-08-28-executive/agenda</id>
-    <title>Agenda: 2025-08-28, executive session</title>
-    <updated>2026-11-09T13:09:37-06:00</updated>
-    <published>2026-11-09T13:09:37-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-08-28-executive" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2686,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-08-28, executive session. Agenda (5 pages), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-08-07-regular/agenda</id>
-    <title>Agenda: 2025-08-07, regular session</title>
-    <updated>2026-11-09T13:09:26-06:00</updated>
-    <published>2026-11-09T13:09:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-08-07-regular" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2638,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-08-07, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-07-31-executive/agenda</id>
-    <title>Agenda: 2025-07-31, executive session</title>
-    <updated>2026-11-09T13:09:16-06:00</updated>
-    <published>2026-11-09T13:09:16-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-07-31-executive" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2631,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-07-31, executive session. Agenda (4 pages), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-07-01-regular/agenda</id>
-    <title>Agenda: 2025-07-01, regular session</title>
-    <updated>2026-11-09T13:09:06-06:00</updated>
-    <published>2026-11-09T13:09:06-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-07-01-regular" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2542,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-07-01, regular session. Agenda (4 pages), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-06-26-special/agenda</id>
-    <title>Agenda: 2025-06-26, special session</title>
-    <updated>2026-11-09T13:08:56-06:00</updated>
-    <published>2026-11-09T13:08:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-06-26-special" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2536,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-06-26, special session. Agenda (1 page), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-06-26-executive/agenda</id>
-    <title>Agenda: 2025-06-26, executive session</title>
-    <updated>2026-11-09T13:08:46-06:00</updated>
-    <published>2026-11-09T13:08:46-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-06-26-executive" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2535,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-06-26, executive session. Agenda (4 pages), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-06-12-work-session/agenda</id>
-    <title>Agenda: 2025-06-12, work session</title>
-    <updated>2026-11-09T13:08:36-06:00</updated>
-    <published>2026-11-09T13:08:36-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-06-12-work-session" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2511,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-06-12, work session. Agenda (1 page), fetched 2026-11-09.</summary>
   </entry>
   <entry>
     <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2026-06-04-regular/minutes</id>
@@ -401,62 +455,8 @@
     <title>Minutes: 2025-12-04, regular session</title>
     <updated>2026-11-09T12:59:46-06:00</updated>
     <published>2026-11-09T12:59:46-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-12-04-regular" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025-2.html#2025-12-04-regular" />
     <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3063,plainText=false)" title="Source document" />
     <summary>Clarksville City Council, 2025-12-04, regular session. Minutes (8 pages), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-10-02-regular/minutes</id>
-    <title>Minutes: 2025-10-02, regular session</title>
-    <updated>2026-11-09T12:59:36-06:00</updated>
-    <published>2026-11-09T12:59:36-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-10-02-regular" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2818,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-10-02, regular session. Minutes (5 pages), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-09-04-regular/minutes</id>
-    <title>Minutes: 2025-09-04, regular session</title>
-    <updated>2026-11-09T12:59:26-06:00</updated>
-    <published>2026-11-09T12:59:26-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-09-04-regular" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2755,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-09-04, regular session. Minutes (11 pages), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-08-07-regular/minutes</id>
-    <title>Minutes: 2025-08-07, regular session</title>
-    <updated>2026-11-09T12:59:16-06:00</updated>
-    <published>2026-11-09T12:59:16-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-08-07-regular" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2754,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-08-07, regular session. Minutes (9 pages), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-07-01-regular/minutes</id>
-    <title>Minutes: 2025-07-01, regular session</title>
-    <updated>2026-11-09T12:59:06-06:00</updated>
-    <published>2026-11-09T12:59:06-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-07-01-regular" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2753,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-07-01, regular session. Minutes (10 pages), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-06-26-special/minutes</id>
-    <title>Minutes: 2025-06-26, special session</title>
-    <updated>2026-11-09T12:58:56-06:00</updated>
-    <published>2026-11-09T12:58:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-06-26-special" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3073,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-06-26, special session. Minutes (2 pages), fetched 2026-11-09.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/meeting/2025-06-12-work-session/minutes</id>
-    <title>Minutes: 2025-06-12, work session</title>
-    <updated>2026-11-09T12:58:46-06:00</updated>
-    <published>2026-11-09T12:58:46-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/meetings/2025.html#2025-06-12-work-session" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=2627,plainText=false)" title="Source document" />
-    <summary>Clarksville City Council, 2025-06-12, work session. Minutes (1 page), fetched 2026-11-09.</summary>
   </entry>
 </feed>

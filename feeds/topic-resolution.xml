@@ -3,12 +3,21 @@
   <id>tag:daylight.gnoshcodes.com,2026-11-09:feeds/topic-resolution</id>
   <title>Daylight: Resolution items: Montgomery County Commission and Clarksville City Council</title>
   <subtitle>Each item the Resolution type rule matches, at each meeting it appears at. Daylight is an independent, unofficial site run by gnoshcodes LLC. It is not affiliated with, endorsed by, or operated by the City of Clarksville, Montgomery County, the Clarksville-Montgomery County School System (CMCSS), or the Clarksville-Montgomery County Regional Planning Commission. The official record held by each body controls.</subtitle>
-  <updated>2026-11-11T12:00:00-06:00</updated>
+  <updated>2026-11-11T14:59:30-06:00</updated>
   <author>
     <name>Daylight</name>
   </author>
   <link rel="self" type="application/atom+xml" href="https://gn0sh.github.io/clarksville-records/feeds/topic-resolution.xml" />
   <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/alerts.html" />
+  <entry>
+    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-64-2025-26/2026-04-06-special</id>
+    <title>RESOLUTION 64-2025-26: Title not read from the minutes</title>
+    <updated>2026-11-11T14:59:30-06:00</updated>
+    <published>2026-11-11T14:59:30-06:00</published>
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-64-2025-26" />
+    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3198,plainText=false)#page=1" title="Source document" />
+    <summary>Clarksville City Council, 2026-04-06, special session. Recorded: Roll call. Source: minutes, page 1.</summary>
+  </entry>
   <entry>
     <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-65-2025-26/2026-06-04-regular</id>
     <title>RESOLUTION 65-2025-26: Title not read from the minutes</title>
@@ -149,18 +158,9 @@
     <title>RESOLUTION 34-2025-26: Title not read from the minutes</title>
     <updated>2026-11-09T12:59:56-06:00</updated>
     <published>2026-11-09T12:59:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025.html#resolution-34-2025-26" />
+    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2025-2.html#resolution-34-2025-26" />
     <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=5" title="Source document" />
     <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 5.</summary>
-  </entry>
-  <entry>
-    <id>tag:daylight.gnoshcodes.com,2026-11-09:city/item/resolution-36-2025-26/2026-01-08-regular</id>
-    <title>RESOLUTION 36-2025-26: Title not read from the minutes</title>
-    <updated>2026-11-09T12:59:56-06:00</updated>
-    <published>2026-11-09T12:59:56-06:00</published>
-    <link rel="alternate" type="text/html" href="https://gn0sh.github.io/clarksville-records/city/items/2026.html#resolution-36-2025-26" />
-    <link rel="related" type="application/pdf" href="https://clarksvilletn.api.civicclerk.com/v1/Meetings/GetMeetingFileStream(fileId=3064,plainText=false)#page=7" title="Source document" />
-    <summary>Clarksville City Council, 2026-01-08, regular session. Recorded: Motion, Roll call. Source: minutes, page 7.</summary>
   </entry>
   <entry>
     <id>tag:daylight.gnoshcodes.com,2026-11-09:county/item/26-5-4/2026-05-11-formal</id>
