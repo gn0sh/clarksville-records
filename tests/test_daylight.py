@@ -77,9 +77,12 @@ def test_daylight_tokens_are_set_for_light_dark_and_the_theme_attribute():
     light = css[css.index(":root {"):css.index("@media (prefers-color-scheme: dark)")]
     auto = css[css.index(':root:not([data-theme="light"]) {'):]
     forced = css[css.index(':root[data-theme="dark"] {'):]
-    for block, want in ((light, {"--bg": "#F7F8FC", "--sky": "#D6E2FB", "--fg": "#141A2E", "--sun": "#EF5E35"}),
-                        (auto, {"--bg": "#0D1224", "--sky": "#18245A", "--fg": "#EEF1F8", "--link": "#9DB1F5"}),
-                        (forced, {"--bg": "#0D1224", "--sky": "#18245A", "--fg": "#EEF1F8", "--link": "#9DB1F5"})):
+    navy, orange = "#0F1F3D", "#D2561B"                # the gnoshcodes brand pair (Brian, 2026-11-12)
+    dark = {"--bg": "#0D1224", "--sky": "#15294F", "--fg": "#EEF1F8", "--link": "#A9BDE6", "--blue": "#4F6FB0",
+            "--band-bg": "#1A2F5A", "--sun": orange, "--focus": orange}
+    for block, want in ((light, {"--bg": "#F7F8FC", "--sky": "#D5DFF0", "--fg": "#141A2E", "--link": navy,
+                                 "--blue": navy, "--band-bg": navy, "--sun": orange, "--focus": orange}),
+                        (auto, dark), (forced, dark)):
         block = block[:block.index("}")]
         for k, v in want.items():
             assert re.search(rf"{k}:\s*{v}\b", block), (k, v)
@@ -114,12 +117,43 @@ PAIRS = [
     (DARK, "--fg", "--sky"), (DARK, "--muted", "--sky"), (DARK, "--muted", "--bg"), (DARK, "--link", "--bg"),
     (DARK, "--link", "--surface"), (DARK, "--on-blue", "--blue"), (DARK, "--muted", "--surface-2"),
     (DARK, "--fg", "--surface-2"),
+    # the navy recolor: the band, links on every surface and on the sky, and the orange-for-text seal
+    (LIGHT, "--band-fg", "--band-bg"), (LIGHT, "--band-muted", "--band-bg"), (LIGHT, "--link", "--surface"),
+    (LIGHT, "--link", "--sky"), (LIGHT, "--link-visited", "--bg"), (LIGHT, "--link-visited", "--surface-2"),
+    (LIGHT, "--seal", "--bg"), (LIGHT, "--seal", "--surface"),
+    (DARK, "--band-fg", "--band-bg"), (DARK, "--band-muted", "--band-bg"), (DARK, "--link", "--surface-2"),
+    (DARK, "--link", "--sky"), (DARK, "--link-visited", "--bg"), (DARK, "--link-visited", "--surface-2"),
+    (DARK, "--seal", "--bg"), (DARK, "--seal", "--surface"),
+]
+# (theme, UI token, the background it must stand 3:1 off): buttons and pills, the county dot, the initials ring,
+# and the orange button on the morning-note card
+UI_PAIRS = [
+    (LIGHT, "--blue", "--bg"), (LIGHT, "--blue", "--surface"), (LIGHT, "--blue", "--surface-2"),
+    (LIGHT, "--sun", "--surface-2"), (LIGHT, "--seal", "--surface-2"), (LIGHT, "--sun", "--band-bg"),
+    (DARK, "--blue", "--bg"), (DARK, "--blue", "--surface"), (DARK, "--blue", "--surface-2"),
+    (DARK, "--sun", "--surface-2"), (DARK, "--seal", "--surface-2"), (DARK, "--sun", "--band-bg"),
+    (DARK, "--sun", "--sky"),
 ]
 
 
 @pytest.mark.parametrize("theme,fg,bg", PAIRS)
 def test_text_pairs_meet_aa(theme, fg, bg):
     assert _ratio(theme[fg], theme[bg]) >= 4.5, (fg, bg, round(_ratio(theme[fg], theme[bg]), 2))
+
+
+@pytest.mark.parametrize("theme,fg,bg", UI_PAIRS)
+def test_ui_pairs_meet_three_to_one(theme, fg, bg):
+    assert _ratio(theme[fg], theme[bg]) >= 3, (fg, bg, round(_ratio(theme[fg], theme[bg]), 2))
+
+
+def test_no_old_daylight_color_is_left_in_the_stylesheet_and_the_morning_card_is_the_band():
+    css = CSS.read_text(encoding="utf-8")
+    assert not re.search(r"#(?:2B4BA5|EF5E35)", css, re.I)
+    assert re.search(r"\.mn-card \{ background: var\(--band-bg\); color: var\(--on-blue\)", css)
+    assert re.search(r"\.mn-card \.btn \{[^}]*background: var\(--sun\); color: #1A0B05", css)
+    for theme in (LIGHT, DARK):                       # the card's white text, and the dark words on its orange button
+        assert _ratio(theme["--on-blue"], theme["--band-bg"]) >= 4.5
+        assert _ratio("#1A0B05", theme["--sun"]) >= 4.5
 
 
 @pytest.mark.parametrize("theme", [LIGHT, DARK])
@@ -132,7 +166,7 @@ def test_focus_ring_on_the_wash_is_ink():
     css = CSS.read_text(encoding="utf-8")
     assert re.search(r"\.your-seats \{[^}]*--focus: var\(--fg\)", css)
     assert re.search(r"\.menu-list a:hover:focus-visible \{ --focus: var\(--fg\)", css)
-    for theme in (LIGHT, DARK):                       # ink on the #E8EDFA wash (and its dark twin) is 3:1 or better
+    for theme in (LIGHT, DARK):                       # ink on the #E9EDF5 wash (and its dark twin) is 3:1 or better
         assert _ratio(theme["--fg"], theme["--surface-2"]) >= 3
 
 

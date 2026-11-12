@@ -1,34 +1,38 @@
 /* Daylight (docs/design/daylight), a gnoshcodes project. Tokens follow the Daylight mock: paper, sky, ink, muted and
-   line neutrals, Digital blue #2B4BA5 for links and buttons, the sun #EF5E35 for the sun, the name plate dot and focus
-   rings. Outfit for display, Inter for body, JetBrains Mono for small labels (all SIL OFL 1.1, self-hosted from
+   line neutrals, and the gnoshcodes brand pair: navy #0F1F3D for links, buttons and the band, and orange #D2561B for
+   the sun, the name plate dot and focus rings. The sky, wash, halo and band tints are tints of those two. On the dark
+   theme navy would vanish into the page, so links (#A9BDE6), buttons (#4F6FB0), the band and the sky use lighter
+   navy tints there. Outfit for display, Inter for body, JetBrains Mono for small labels (all SIL OFL 1.1, self-hosted from
    static/brand/, no outside fonts, scripts or trackers).
    Branding is chrome only (sky band, links, rules, footer logo). Every vote value is drawn in the same --mark ink
    and told apart by pattern and by its word, so no value looks "good" or "bad" and the page reads in greyscale.
-   Contrast (WCAG 2.2): body/link/muted/orange-text pairs are 4.5:1 or better in both themes, on --bg, --surface and
-   --sky; focus rings (the sun) are 3:1 or better on --bg and --surface, and the sky band uses an ink ring instead. */
+   Contrast (WCAG 2.2): body/link/muted pairs are 4.5:1 or better in both themes, on --bg, --surface, --surface-2 and
+   --sky; the orange-for-text --seal is 4.5:1 or better on --bg and --surface; focus rings (the sun) are 3:1 or better
+   on --bg and --surface, and the sky band and the wash use an ink ring instead. The sun is never text: #D2561B is
+   about 4:1 on the paper, enough for a ring or a dot and not for words. */
 @font-face { font-family: "Outfit"; font-weight: 100 900; font-style: normal; font-display: swap; src: url("brand/Outfit-var.woff2") format("woff2"); }
 @font-face { font-family: "Inter"; font-weight: 400; font-style: normal; font-display: swap; src: url("brand/Inter-400.woff2") format("woff2"); }
 @font-face { font-family: "Inter"; font-weight: 600; font-style: normal; font-display: swap; src: url("brand/Inter-600.woff2") format("woff2"); }
 @font-face { font-family: "JetBrains Mono"; font-weight: 100 800; font-style: normal; font-display: swap; src: url("brand/JetBrainsMono-var.woff2") format("woff2"); }
 :root {
   --bg: #F7F8FC;              /* paper */
-  --sky: #D6E2FB;             /* top of the sky band */
+  --sky: #D5DFF0;             /* top of the sky band */
   --surface: #FFFFFF;
-  --surface-2: #E8EDFA;       /* wash */
+  --surface-2: #E9EDF5;       /* wash */
   --fg: #141A2E;              /* ink */
   --muted: #4A5470;
   --border: #D5DAE8;          /* line: decorative rules only */
-  --link: #2B4BA5;            /* Digital blue */
+  --link: #0F1F3D;            /* brand navy */
   --link-visited: #5c3f7a;
-  --blue: #2B4BA5;            /* buttons */
+  --blue: #0F1F3D;            /* buttons: brand navy */
   --on-blue: #FFFFFF;
-  --sun: #EF5E35;             /* Human orange: the sun, the plate dot, focus rings. Never text. */
-  --halo: #F9B9A4;
-  --focus: #EF5E35;
-  --band-bg: #2B4BA5;
+  --sun: #D2561B;             /* brand orange: the sun, the plate dot, focus rings. Never text. */
+  --halo: #EFC4AF;
+  --focus: #D2561B;
+  --band-bg: #0F1F3D;
   --band-fg: #FFFFFF;
-  --band-muted: #DCE3F7;
-  --seal: #B8401A;            /* orange-for-text: initials ring and ornaments */
+  --band-muted: #D5DCEA;
+  --seal: #C24A14;            /* orange-for-text: initials ring and ornaments */
   --mark: #2E3A57;            /* the one data-mark colour: bars, chips, timeline nodes */
   --mark-soft: #7C86A3;
   --banner-bg: #fff1b8;
@@ -51,19 +55,19 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0D1224; --sky: #18245A; --surface: #161C33; --surface-2: #1B2443; --fg: #EEF1F8; --muted: #A3ACC4;
-    --border: #2C3552; --link: #9DB1F5; --link-visited: #C9B0EC; --blue: #3D5FC4; --on-blue: #FFFFFF;
-    --sun: #EF5E35; --halo: #7A3320; --focus: #EF5E35;
-    --band-bg: #1B2E6B; --band-fg: #EEF1F8; --band-muted: #C5D0F2; --seal: #EF5E35;
+    --bg: #0D1224; --sky: #15294F; --surface: #161C33; --surface-2: #1B2443; --fg: #EEF1F8; --muted: #A3ACC4;
+    --border: #2C3552; --link: #A9BDE6; --link-visited: #C9B0EC; --blue: #4F6FB0; --on-blue: #FFFFFF;
+    --sun: #D2561B; --halo: #703420; --focus: #D2561B;
+    --band-bg: #1A2F5A; --band-fg: #EEF1F8; --band-muted: #C3CCDE; --seal: #E8702A;
     --mark: #D5DAE8; --mark-soft: #7C86A3; --banner-bg: #3a3000; --banner-fg: #ffe58a;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0D1224; --sky: #18245A; --surface: #161C33; --surface-2: #1B2443; --fg: #EEF1F8; --muted: #A3ACC4;
-  --border: #2C3552; --link: #9DB1F5; --link-visited: #C9B0EC; --blue: #3D5FC4; --on-blue: #FFFFFF;
-  --sun: #EF5E35; --halo: #7A3320; --focus: #EF5E35;
-  --band-bg: #1B2E6B; --band-fg: #EEF1F8; --band-muted: #C5D0F2; --seal: #EF5E35;
+  --bg: #0D1224; --sky: #15294F; --surface: #161C33; --surface-2: #1B2443; --fg: #EEF1F8; --muted: #A3ACC4;
+  --border: #2C3552; --link: #A9BDE6; --link-visited: #C9B0EC; --blue: #4F6FB0; --on-blue: #FFFFFF;
+  --sun: #D2561B; --halo: #703420; --focus: #D2561B;
+  --band-bg: #1A2F5A; --band-fg: #EEF1F8; --band-muted: #C3CCDE; --seal: #E8702A;
   --mark: #D5DAE8; --mark-soft: #7C86A3; --banner-bg: #3a3000; --banner-fg: #ffe58a;
   color-scheme: dark;
 }
@@ -170,7 +174,7 @@ small { font-size: var(--t-sm); }
 .glance .stat-label { color: var(--band-muted); }
 .glance .stat-num { font-size: 2.1rem; }
 .glance .stat-dates .stat-num { font-size: var(--t-lg); padding-top: 8px; }
-.glance-note { margin: 18px 0 0; padding-top: 12px; border-top: 1px solid rgba(220, 227, 247, .35); font-size: var(--t-sm); color: var(--band-muted); max-width: 52rem; }
+.glance-note { margin: 18px 0 0; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--band-muted) 35%, transparent); font-size: var(--t-sm); color: var(--band-muted); max-width: 52rem; }
 .glance-note a, .glance-note a:visited { color: var(--band-fg); }
 .glance a:focus-visible { outline-color: var(--band-fg); }
 
@@ -946,9 +950,10 @@ ul.feed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(mi
 
 /* Morning note (Daylight M3, sitegen/morning_page.py, static/morning.js): the mock's blue "Get the morning note" card
    on the Alerts page, and the preview page's entries. The list picks are pill checkboxes, a real <input> under each
-   label (keyboard: Tab to a pill, Space toggles it). On the blue card the ring is white, not the sun (the sun on
-   Digital blue is under 3:1). */
-.mn-card { background: var(--blue); color: var(--on-blue); border-radius: 18px; padding: clamp(18px, 3.2vw, 30px); display: grid; gap: 14px; max-width: 44rem; margin: 1.2em 0 1.6em; min-width: 0; }
+   label (keyboard: Tab to a pill, Space toggles it). The card is the navy band (--band-bg: brand navy, and a deep
+   navy on dark, so the orange button stands 3:1 or better off it in both themes). On the card the ring is white, not
+   the sun. */
+.mn-card { background: var(--band-bg); color: var(--on-blue); border-radius: 18px; padding: clamp(18px, 3.2vw, 30px); display: grid; gap: 14px; max-width: 44rem; margin: 1.2em 0 1.6em; min-width: 0; }
 .mn-card h2 { margin: 0; font-size: var(--t-xl); font-weight: 800; color: var(--on-blue); }
 .mn-card h3 { margin: 0 0 6px; font-size: var(--t-md); color: var(--on-blue); }
 .mn-card p { margin: 0; }
@@ -963,7 +968,7 @@ ul.feed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(mi
 .pick input:checked + span { background: var(--blue); color: var(--on-blue); }
 .pick input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
 .mn-card .pick span { border-color: var(--on-blue); color: var(--on-blue); }
-.mn-card .pick input:checked + span { background: var(--on-blue); color: #2B4BA5; }
+.mn-card .pick input:checked + span { background: var(--on-blue); color: var(--band-bg); }
 .mn-card label.f { font-weight: 600; font-size: var(--t-sm); display: grid; gap: 6px; }
 .mn-card input[type=email] { font: inherit; padding: 13px 14px; border-radius: 12px; border: 0; background: #FFFFFF; color: #141A2E; width: 100%; box-sizing: border-box; }
 .mn-card .btn { font: inherit; font-weight: 700; border: 0; border-radius: 999px; padding: 12px 20px; background: var(--sun); color: #1A0B05; cursor: pointer; justify-self: start; }
