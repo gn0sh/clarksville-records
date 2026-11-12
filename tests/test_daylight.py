@@ -260,7 +260,7 @@ def test_council_seat_printed_line_and_note_sit_on_their_own_line_without_a_lead
     rule = re.search(r"^ol\.council-seats \.d-printed, ol\.council-seats \.d-note \{([^}]*)\}", css, re.M)
     assert rule, "no own-line rule for the seat printed line and note"
     assert "flex-basis: 100%;" in rule.group(1)
-    assert "padding-left: calc(5.5em + 10px);" in rule.group(1)
+    assert "padding-left: calc(5.5em + 14px);" in rule.group(1)
     assert re.search(r"ol\.council-seats li \{ display: flex; flex-wrap: wrap; gap: 4px 10px;", css)
     assert re.search(r"ol\.council-seats \.d-label \{ min-width: 5\.5em;", css)
     tpl = (ROOT / "site" / "templates" / "council_home.html.j2").read_text(encoding="utf-8")

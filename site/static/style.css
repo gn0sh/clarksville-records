@@ -941,8 +941,8 @@ table.budget td.c-source { min-width: 9rem; }
 ol.council-seats li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 7px 4px; }
 ol.council-seats .d-label { min-width: 5.5em; font-weight: 600; }
 /* A seat's printed-name line and note sit on their own line under the holder's name, lined up with it (the label's
-   5.5em plus the row's 10px gap), at every width: no orphan punctuation where the row wraps. */
-ol.council-seats .d-printed, ol.council-seats .d-note { flex-basis: 100%; padding-left: calc(5.5em + 10px); }
+   5.5em, the row's 10px gap and the name link's 4px padding), at every width: no orphan punctuation where the row wraps. */
+ol.council-seats .d-printed, ol.council-seats .d-note { flex-basis: 100%; padding-left: calc(5.5em + 14px); }
 /* The member-name and "(source: p. N)" links in a seat's note stay inline and underlined: the row styling of
    ol.districts a (flex, padding, no underline) is for the home page's row links only. */
 ol.council-seats .d-note a, ol.council-seats .d-printed a { display: inline; min-height: 0; padding: 0; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
