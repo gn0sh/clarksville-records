@@ -232,7 +232,8 @@ out.capped = a.tries("1 Test St", inp.places.concat(["Extra One", "Extra Two"]),
 out.noplaces = a.tries("1 Test St", [], "TN", "Tennessee");
 out.nostate = a.tries("1 Test St", inp.places, "", "");
 out.max = a.MAX_TRIES;
-out.next = ["nomatch", "outside", "district", "near", "ambiguous", "error", "unavailable"].filter(k => a.tryNext({ kind: k }));
+const kinds = ["nomatch", "outside", "district", "near", "ambiguous", "error", "unavailable"];
+out.next = kinds.filter(k => a.tryNext({ kind: k }));
 console.log(JSON.stringify(out));
 """
 
