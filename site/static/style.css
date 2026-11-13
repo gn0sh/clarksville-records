@@ -656,6 +656,46 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
   .meet-cols { grid-template-columns: 1fr; }
   .sec-h { margin-top: 28px; }
 }
+/* ==== Phone front page, lighter (mobile-front-lite, 2026-11-13): under 600px the landing drops its explanatory copy
+   and keeps the headings, the links and the facts. Wider screens are untouched: every rule here is inside the media
+   query, apart from the two classes that pick the phone or the wide wording and the fold's hidden summary. ======== */
+.phone-only { display: none; }
+.bodies-fold { margin: 0; max-width: none; }
+.bodies-fold > summary { display: none; }   /* wide: always open, nothing to toggle (static/landing.js folds on a phone) */
+@media (max-width: 599px) {
+  .phone-only { display: inline; }
+  .phone-off { display: none; }
+  /* the meetings (what is happening) come before the doors; the order in the page itself is unchanged */
+  .landing { display: flex; flex-direction: column; }
+  .landing > * { min-width: 0; }
+  .landing > .welcome, .landing > .find, .landing > .meetings { order: -1; }
+  .welcome .lede { margin-bottom: 4px; }
+  .addr-form label { margin-bottom: 6px; }
+  .addr-alt { display: none; }   /* the official lookup is still offered with an answer that needs it */
+  .find-alt { margin-top: 2px; }
+  /* doors: the title and its links, two doors across; the sentence under each title is left to wider screens */
+  .doors, .doors:not(.doors-1) { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .door:last-child:nth-child(odd) { grid-column: 1 / -1; }   /* three doors: the third takes the row, no empty cell */
+  .door { padding: 10px 10px 2px; border-top-width: 3px; }
+  .door h3 { margin: 0 0 4px; font-size: var(--t-md); }
+  .door p { display: none; }
+  .door ul { margin-top: auto; }
+  .door a { gap: 4px; padding: 6px 0; font-size: var(--t-sm); line-height: 1.25; }
+  /* the public bodies: one line that opens the cards */
+  .bodies-fold { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-top: 8px; }
+  .bodies-fold > summary { display: list-item; cursor: pointer; min-height: 44px; box-sizing: border-box; padding: 10px 0; font-weight: 600; }
+  .bodies-fold .sec-sub { margin: 0 0 8px; }
+  .bodies-fold .bodies-list { margin: 0 0 12px; gap: 8px; }
+  .bodies-fold .bodies-card { padding: 8px 12px 10px; border-top-width: 3px; }
+  /* meetings: the date line, the rows, and the two links */
+  .meetings .sec-sub { margin-bottom: 8px; }
+  .meet-foot { margin: 0; }
+  .meet-foot a { display: inline-block; min-height: 44px; padding: 11px 0; box-sizing: border-box; }
+  .meet-more { margin: 0; }
+  /* search: the heading and the placeholder say what the label says; the label stays for screen readers */
+  .landing-search > label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  .landing-search { margin-top: 6px; position: relative; }
+}
 svg.county-map-small { max-width: 18rem; max-height: 14rem; margin: 10px 0 0; }
 .county-outline { fill: none; stroke: var(--fg); stroke-width: 2px; vector-effect: non-scaling-stroke; }
 .district { fill: var(--surface); stroke: var(--fg); stroke-width: 1px; vector-effect: non-scaling-stroke; }

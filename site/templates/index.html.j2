@@ -19,7 +19,10 @@
 <div class="landing">
   <section class="welcome" aria-labelledby="welcome-h">
     <h1 id="welcome-h" class="welcome-h">{{ site.cfg.welcome_h1 }}</h1>
-    <p class="lede">{{ welcome_lede }}</p>
+    {# Phone (mobile-front-lite): one short sentence in place of the lede, so the address box is on the first screen.
+       .phone-off / .phone-only are display:none on the other side of 600px, so only one of the two is ever read. #}
+    {% set lede_phone = site.cfg.get("welcome_lede_phone") %}
+    <p class="lede">{% if lede_phone %}<span class="phone-off">{{ welcome_lede }}</span><span class="phone-only">{{ lede_phone }}</span>{% else %}{{ welcome_lede }}{% endif %}</p>
     {# the short form; the header tag is beside the name and the full notice is in this page's footer, as on every page #}
     <p class="unofficial-intro" id="unofficial-short">{{ site.unofficial.email_line }} <a href="{{ root }}about.html#unofficial">About this site</a></p>
   </section>
@@ -40,12 +43,13 @@
     <p class="sr-only" id="seats-status" role="status" aria-live="polite"></p>
 {% if address %}
     <form class="addr-form" id="addr-form" hidden>
-      <label for="addr-q">{% if wards_live %}Enter your street address to see your city ward and county district.{% else %}Enter your street address to see your county district.{% endif %}</label>
+      <label for="addr-q">Enter your street address<span class="phone-off"> to see your {% if wards_live %}city ward and county district{% else %}county district{% endif %}</span>.</label>
       <div class="search-row">
         <input id="addr-q" type="text" autocomplete="street-address" maxlength="200" placeholder="Street address, city" aria-describedby="addr-privacy">
         <button type="submit">Find</button>
       </div>
-      <p class="addr-privacy" id="addr-privacy">Your address is sent to {{ site.cfg.geocoder_label }} to find where it is. This site doesn't store it. <a data-ext="geocoder" href="{{ site.cfg.geocoder_privacy_url }}" rel="noopener">{{ site.cfg.geocoder_short }}'s privacy policy</a> applies.{% if site.cfg.district_lookup_url %} <span class="addr-alt">Or look it up on <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">{{ site.cfg.district_lookup_label }}</a>.</span>{% endif %}</p>
+      {# Phone: the same two facts (sent to the geocoder, not stored here) and the privacy link, in fewer words. #}
+      <p class="addr-privacy" id="addr-privacy"><span class="phone-off">Your address is sent</span><span class="phone-only">Sent</span> to {{ site.cfg.geocoder_label }}<span class="phone-off"> to find where it is</span>. This site doesn't store it. <a data-ext="geocoder" href="{{ site.cfg.geocoder_privacy_url }}" rel="noopener">{{ site.cfg.geocoder_short }}'s privacy policy</a><span class="phone-off"> applies.</span>{% if site.cfg.district_lookup_url %} <span class="addr-alt">Or look it up on <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">{{ site.cfg.district_lookup_label }}</a>.</span>{% endif %}</p>
       <p class="addr-result" id="addr-result" role="status" aria-live="polite"></p>
     </form>
     <script type="application/json" id="addr-config">{{ address|tojson }}</script>
@@ -81,7 +85,7 @@
   {% set m = meetings %}
   <section class="meetings" id="meetings" aria-labelledby="meet-h" data-built="{{ m.built }}" data-tz="{{ site.cfg.site_timezone }}" data-n="{{ m.n }}">
     <h2 class="sec-h" id="meet-h">Meetings</h2>
-    <p class="sec-sub">As of <time datetime="{{ m.built }}">{{ m.built_text }}</time>. Tap a meeting for its agenda, minutes and votes.</p>
+    <p class="sec-sub">As of <time datetime="{{ m.built }}">{{ m.built_text }}</time>.<span class="phone-off"> Tap a meeting for its agenda, minutes and votes.</span></p>
     <p class="sec-sub meet-stale" id="meet-stale" hidden>This list was built on {{ m.built_text }}; later meetings appear when it is built again.</p>
     {% macro meet_rows(rows, hidden=false) %}
       {% for r in rows %}
@@ -107,7 +111,7 @@
         <p class="meet-empty bs-none">No meetings of the body you chose are listed here.</p>
       </div>
     </div>
-    <p class="meet-foot">Only meetings in these records are listed: a meeting appears once its body posts an agenda or lists a date. Each body's own calendar is the official schedule. <a href="{{ root }}today.html#day-bodies-h">What is and is not collected</a></p>
+    <p class="meet-foot"><span class="phone-off">Only meetings in these records are listed: a meeting appears once its body posts an agenda or lists a date. Each body's own calendar is the official schedule. </span><a href="{{ root }}today.html#day-bodies-h">What is and is not collected</a></p>
     {% else %}
     <p class="meet-empty">No meetings from the last four weeks or the next four are in these records.</p>
     {% endif %}
