@@ -26,7 +26,7 @@
 {% if corr.open %}
 <ul class="report-channels">
   {% if corr.mailto %}
-  <li><a id="report-mail" data-ext="corrections" href="{{ corr.mailto }}">Send it by email</a>: opens your email program. Only the site owner sees it.</li>
+  <li><a id="report-mail" data-ext="corrections" href="{{ corr.mailto }}">Send it by email</a> to {{ corr.mailto[7:] }}. It goes to the site owner.</li>
   {% endif %}
   {% if corr.issue_url %}
   <li><a id="report-issue" data-ext="corrections" href="{{ corr.issue_url }}" target="_blank" rel="noopener noreferrer">Open an issue on GitHub<span class="sr-only"> (opens in a new tab)</span></a>: it asks for the page, the fact id and what the source says. Needs a free GitHub account; the report is public, so it asks for no personal details.</li>
