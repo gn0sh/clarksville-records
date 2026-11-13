@@ -27,6 +27,8 @@ Three questions they arrive with: who represents me, what did they decide, what 
 
 Order rationale: the address box is the one action that makes the site personal, so it leads. Doors come before the
 meetings list because the list is short and can be empty; the doors never are.
+(2026-11-13: that is the order a screen of 600px or more shows. In the page itself, and on a phone, Meetings comes
+before Start here: see "Phone, lighter".)
 
 ### 3. The four doors
 Each door is a card (not itself a link) holding two links, each a full-width 44px row. Where a door covers both
@@ -45,13 +47,16 @@ Rules for doors:
 - The Planning Commission link says nothing about votes (its motions are hidden); the door sentence about votes is
   true for the county and the council only, and the "How they voted" door has no RPC link.
 - "Public money" (owner, 2026-11-13) lists the city and the county the same way. What is collected is a link row.
-  What is not collected yet is still named, in one line under the dashed "Coming" tag above the rows, the city's entry
-  first within each kind: City budget → the city hub's coming budget card (`city/index.html#card-finance`), City
-  Finance and Audit committees and County Budget Committee → `committees.html` (the page that says they are coming,
-  with the official sources). The sentence still says county, because only county money is collected. A door with
-  nothing collected is not rendered. Do not relabel it "Where the money goes".
+  What is not collected yet is still named, in one line under the dashed "Coming" tag above the rows, one group per
+  body, the city's first: "Clarksville: City budget, Finance Committee, Audit Committee. Montgomery County: Budget
+  Committee." The names are not written for the door: they are the titles of the hub cards that are `coming` and carry
+  `door: money` (`switch.bodies.*.cards` in `config/site.yml`; `sitegen/views.py door_coming`), so the door, the body
+  cards and the hub pages use the same words, and a card that is collected leaves the line by itself. Each name links
+  its card on the body's hub page (`#card-<key>`), which says what is not collected and links the official source.
+  The sentence still says county, because only county money is collected. A door with nothing collected is not
+  rendered. Do not relabel it "Where the money goes".
 - The body cards word their "Coming" lines the same way: County "Budget Committee"; Clarksville "City budget, Finance
-  Committee, Audit Committee" (one hub card per committee; the titles are `switch.bodies.*.cards` in the config).
+  Committee, Audit Committee" (one hub card per committee).
 - No counts of votes, meetings or people's activity. The only numbers are the ward and district counts.
 - Engineer: if `city/index.html` has anchors for its seats list and its meetings/votes list, point the two City
   links at them so they do not land on the same spot.
@@ -111,7 +116,7 @@ when the records do, and says so plainly when they do not.
 | Unofficial line | Independent, unofficial: not from or endorsed by any government body. [About this site] (→ `about.html#unofficial`). This is the existing `unofficial.email_line` wording. |
 | Address heading | Find who represents you |
 | Address label | Enter your street address to see your city ward and county district. (district only when wards are not live) |
-| Address button, placeholder, privacy line | Unchanged: "Find", "Street address, city", "Your address is sent to ... This site doesn't store it. ... privacy policy applies." |
+| Address button, placeholder, privacy line | Unchanged: "Find", "Street address, like 100 Main St", "Your address is sent to ... This site doesn't store it. ... privacy policy applies." |
 | Address alternative | Or pick from the list of 12 wards and 21 districts |
 | Doors heading | Start here |
 | Meetings heading / sub | Meetings / As of {built_text}. Tap a meeting for its agenda, minutes and votes. |
@@ -142,9 +147,9 @@ what the page holds and the checks read.
 | Unofficial line | Unchanged, on the first screen | `qa.site_checks` (unofficial/notice-on-every-page) fails any rule that hides an `unofficial-*` class, and `tests/test_unofficial_first_screen.py` wants the line on the first 375x667 screen |
 | Address label | "Enter your street address." | The card's heading already says "Find who represents you" |
 | Privacy line | "Sent to the U.S. Census Bureau's geocoder. This site doesn't store it. Census's privacy policy" (link) | Both reviewed facts and the link stay; two lines, down from four. "Or look it up on GoVoteTN" is not shown before a lookup: an answer that needs the official lookup still links it, and "Or pick from the list" stays |
-| Order | Welcome, address card, **Meetings**, Start here, Public bodies, search, details | What is happening comes before the ways in. The order in the page itself (headings, focus, screen readers) is unchanged: this is CSS `order` on whole sections that do not depend on each other |
+| Order | Welcome, address card, **Meetings**, Start here, Public bodies, search, details | What is happening comes before the ways in. This is the order of the page itself (review 2026-11-13), so on a phone what is seen, what is read out and what takes focus agree. A screen of 600px or more still shows Start here and Public bodies before Meetings, by CSS `order`; there the focus order is the page's, not the one seen |
 | Meetings | "As of {date}." then the rows; under them only the links "What is and is not collected" and "All meetings, day by day" (44px each) | The footnote's sentences are on the page the link opens |
-| Start here | Title and links only; each door's links two across (where a door covers both bodies: the city's on the left, the county's on the right). "Public money" keeps its "Coming" line, each name a 44px link | The sentence under each title repeats its links |
+| Start here | Title and links only; each door's links two across (where a door covers both bodies: the city's on the left, the county's on the right). "Public money" keeps its "Coming" line, each name a link at least 44px tall | The sentence under each title repeats its links |
 | Public bodies | The heading and one line, `switch.overview.fold`: "What is here and what is coming", which opens the same cards | Planned-but-missing content is still named where a visitor looks: one tap shows every body's "On this site" and "Coming" lines. A `<details>` built open; `static/landing.js` closes it on a phone when the page loads and opens it again if the window grows past 599px. Without script it stays open |
 | Search | The heading, the box and the button; the label is kept for screen readers, not shown | The placeholder says the same words |
 
