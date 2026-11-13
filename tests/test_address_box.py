@@ -456,3 +456,30 @@ def test_address_box_in_a_browser(real_site, tmp_path):
         assert v["frame"][0]["srcdoc"].startswith('<!doctype html><meta charset="utf-8"><meta name="referrer" '
                                                   'content="no-referrer"><script data-u="https://geocoding.'), k
         assert v["csp"] == [] and v["refused"] == [], (k, v["csp"], v["refused"])   # nothing blocked by the CSP
+    # address-lookup-bare-street: a street typed with no state or ZIP is tried with each county place, in order, one
+    # request at a time (one iframe at each request), at most 5, stopping at the first match inside the county
+    b = out["bare"]
+    places = config.SITE["geocoder_places"]
+    assert b["bare"]["requests"] == ["2861 McManus Circle, Clarksville, TN"]
+    assert b["bare"]["text"].startswith(both) and "Census match: 1 TEST ST" in b["bare"]["text"]
+    assert b["bare"]["seats"] == {"district": 5, "ward": 6} and "McManus" not in b["bare"]["storageText"]
+    assert b["outofcounty"]["requests"] == ["100 Test Rd, Clarksville, TN", "100 Test Rd, Woodlawn, TN"]
+    assert b["outofcounty"]["text"].startswith(both)                     # the out-of-county Clarksville match rejected
+    assert b["cap"]["requests"] == [f"1 Nowhere Ln, {p}, TN" for p in places] and len(places) == 5   # the cap
+    assert b["cap"]["text"] == ("No match was found for that address in Montgomery County. Check the spelling, or add "
+                                "the city and ZIP, or look it up on GoVoteTN.")
+    assert b["cap"]["hrefs"] == [config.SITE["district_lookup_url"]] and b["cap"]["seats"] is None
+    assert b["blocked"]["requests"] == ["2861 McManus Circle, Clarksville, TN"]       # a dead geocoder: no more tries
+    assert b["blocked"]["text"] == "Address lookup isn't available here. Look it up on GoVoteTN."
+    full = "2861 McManus Circle, Clarksville, TN 37042"
+    assert b["full"]["requests"] == [full]                               # a full address: once, as typed (not retried)
+    assert b["full"]["text"].startswith("No match was found for that address. Check the spelling, or look it up")
+    assert b["fulloutside"]["requests"] == ["1 Test St, Oak Grove, KY 42262"]
+    assert b["fulloutside"]["text"].startswith("This address is outside Montgomery County.")
+    for k, v in b.items():
+        assert v["framesAtRequest"] == [1] * len(v["requests"]), k       # sequential: never two requests at once
+        assert v["frames"] == 0 and not v["busy"] and not v["disabled"], k
+        assert v["csp"] == [] and v["refused"] == [], (k, v["csp"], v["refused"])
+        assert v["placeholder"] == "Street address, like 100 Main St", k
+        assert v["privacy"].startswith("Your address is sent to the U.S. Census Bureau's geocoder to find where it is. "
+                                       "This site doesn't store it."), k

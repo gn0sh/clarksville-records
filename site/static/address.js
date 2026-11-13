@@ -270,7 +270,7 @@
     var lk = req.lookup;
     if (lk.guessed && tryNext(result)) {
       lk.i += 1;
-      if (lk.i < lk.tries.length && lk.i < MAX_TRIES) { send(lk); return; }
+      if (lk.i < lk.tries.length && lk.i < MAX_TRIES) { lk.send(); return; }
       result = { kind: "nomatch", guessed: true };
     }
     button.disabled = false;
@@ -310,32 +310,33 @@
     finish(req, r);
   });
 
-  /* Sends the lookup's current address: a fresh sandboxed iframe for each request. */
-  function send(lk) {
-    var fr = document.createElement("iframe");
-    var req = { frame: fr, lookup: lk };
-    pending = req;
-    fr.setAttribute("sandbox", "allow-scripts");
-    fr.setAttribute("referrerpolicy", "no-referrer");
-    fr.setAttribute("title", "Address lookup");
-    fr.setAttribute("aria-hidden", "true");
-    fr.setAttribute("tabindex", "-1");
-    fr.className = "addr-frame";
-    fr.hidden = true;
-    fr.srcdoc = frameDoc(cfg.frame, jsonpUrl(cfg.geocoder, lk.tries[lk.i], CALLBACK));
-    req.timer = setTimeout(function () { finish(req, { kind: "unavailable" }); }, TIMEOUT_MS);
-    document.body.appendChild(fr);
-  }
-
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     var address = input.value.replace(/\s+/g, " ").trim();
     if (!address) { say(["Enter a street address."]); input.focus(); return; }
     if (pending) { drop(pending); }          // a new lookup replaces one still running (its later places too)
     var list = tries(address, cfg.places, cfg.state, cfg.state_name);
+    var lk = { tries: list, i: 0, guessed: list[0] !== address };
+    /* Sends the lookup's current address: a fresh sandboxed iframe for each request, only for this submit (finish
+       calls it again for the next place once the last answer is in). */
+    lk.send = function () {
+      var fr = document.createElement("iframe");
+      var req = { frame: fr, lookup: lk };
+      pending = req;
+      fr.setAttribute("sandbox", "allow-scripts");
+      fr.setAttribute("referrerpolicy", "no-referrer");
+      fr.setAttribute("title", "Address lookup");
+      fr.setAttribute("aria-hidden", "true");
+      fr.setAttribute("tabindex", "-1");
+      fr.className = "addr-frame";
+      fr.hidden = true;
+      fr.srcdoc = frameDoc(cfg.frame, jsonpUrl(cfg.geocoder, lk.tries[lk.i], CALLBACK));
+      req.timer = setTimeout(function () { finish(req, { kind: "unavailable" }); }, TIMEOUT_MS);
+      document.body.appendChild(fr);
+    };
     button.disabled = true;
     form.setAttribute("aria-busy", "true");
     say(["Looking up the address…"]);
-    send({ tries: list, i: 0, guessed: list[0] !== address });
+    lk.send();
   });
 })(typeof window !== "undefined" ? window : this);
