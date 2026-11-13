@@ -368,6 +368,8 @@ def geocoder_places_problems(cfg: dict) -> list[str]:
         return [f"geocoder_places must be a list of at most {GEOCODER_MAX_PLACES} place names, got {places!r}"]
     out += [f"geocoder_places entry {p!r} must be a plain place name" for p in places
             if not isinstance(p, str) or not _PLACE_WORD.fullmatch(p)]
+    seen = [p.strip().lower() for p in places if isinstance(p, str)]
+    out += [f"geocoder_places lists {p!r} more than once" for p in sorted({p for p in seen if seen.count(p) > 1})]
     if not isinstance(cfg.get("geocoder_state"), str) or not re.fullmatch(r"[A-Z]{2}", cfg["geocoder_state"]):
         out.append(f"geocoder_state must be a two-letter state code with geocoder_places, got {cfg.get('geocoder_state')!r}")
     name = cfg.get("geocoder_state_name")

@@ -71,36 +71,43 @@
     return out;
   }
 
-  /* Does the typed address already say where it is: the state (code or name, as a word) or a 5-digit ZIP? The
-     house number is set aside first, so "10000 Main St" is not taken for a ZIP. */
+  var UNIT = /^(?:apt|apartment|unit|ste|suite|lot|rm|room|bldg|building|trlr|#)$/i;   // "Apt 12345" is no ZIP
+  function escRe(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+  /* Does the typed address already end by saying where it is: the state (code or name, from the settings) as its
+     last word, optionally followed by a ZIP, or a ZIP (5 digits or ZIP+4) as its last word? Only the end counts, so
+     a state highway number, an avenue named for the state and "100 Main St Apt 12345" are still streets. */
   function namesPlace(address, states) {
-    if (/\b\d{5}(?:-\d{4})?\b/.test(address.replace(/^\s*\d+/, ""))) { return true; }
-    var low = " " + address.toLowerCase().replace(/[^a-z0-9]+/g, " ") + " ";
-    return states.some(function (s) {
-      var w = String(s).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-      return w && low.indexOf(" " + w + " ") >= 0;
-    });
+    var words = states.map(function (w) { return escRe(String(w).trim()); }).filter(Boolean);
+    if (words.length && new RegExp("(?:^|[\\s,])(?:" + words.join("|") + ")\\.?(?:[\\s,]+\\d{5}(?:-\\d{4})?)?[\\s,]*$", "i")
+        .test(address)) {
+      return true;
+    }
+    var m = /^(.*?)[\s,]+(\S+)[\s,]+\d{5}(?:-\d{4})?[\s,]*$/.exec(address);    // [rest, word before the ZIP]
+    return !!m && /\S/.test(m[1] + m[2]) && !UNIT.test(m[2].replace(/[.,]$/, "")) && !/#$/.test(m[2]);
   }
 
   /* The addresses one lookup sends, in order. With a state or ZIP (or no places configured): the address as typed,
-     once. Without: "<address>, <place>, <state>" for each place, except that an address that already ends with a
-     place's name is tried first with only the state added. At most MAX_TRIES. */
+     once. Ending with one of the places: that place with the state added, once. Ending with ", <a town not listed>"
+     (a comma, then letters only): the state added, once. Otherwise "<address>, <place>, <state>" for each place in
+     turn: those are guesses, so the list is marked `guessed` (a match outside the county then counts as none). The
+     visitor's own place is no guess: a match outside the county is answered as one. At most MAX_TRIES. */
   function tries(address, places, state, stateName) {
     places = (Array.isArray(places) ? places : []).filter(function (p) { return typeof p === "string" && p; });
     if (!places.length || typeof state !== "string" || !state ||
         namesPlace(address, [state].concat(stateName ? [stateName] : []))) {
       return [address];
     }
-    var base = address.replace(/[\s,]+$/, ""), low = base.toLowerCase(), own = null;
-    places.forEach(function (p) {
+    var base = address.replace(/[\s,]+$/, ""), low = base.toLowerCase();
+    var own = places.some(function (p) {
       var w = p.toLowerCase(), cut = low.length - w.length;
-      if (!own && cut > 0 && low.slice(cut) === w && /[\s,]/.test(low.charAt(cut - 1)) && low.slice(0, cut).trim()) {
-        own = p;
-      }
+      return cut > 0 && low.slice(cut) === w && /[\s,]/.test(low.charAt(cut - 1)) && /\S/.test(low.slice(0, cut));
     });
-    var out = own ? [base + ", " + state] : [];
-    places.forEach(function (p) { if (p !== own) { out.push(base + ", " + p + ", " + state); } });
-    return out.slice(0, MAX_TRIES);
+    var town = /,\s*([A-Za-z][A-Za-z .'-]*)$/.exec(base);
+    if (own || (town && !UNIT.test(town[1].trim().split(/\s+/)[0]))) { return [base + ", " + state]; }
+    var out = places.map(function (p) { return base + ", " + p + ", " + state; }).slice(0, MAX_TRIES);
+    out.guessed = true;
+    return out;
   }
 
   /* A guessed place's answer that sends the lookup on to the next place. */
@@ -316,7 +323,7 @@
     if (!address) { say(["Enter a street address."]); input.focus(); return; }
     if (pending) { drop(pending); }          // a new lookup replaces one still running (its later places too)
     var list = tries(address, cfg.places, cfg.state, cfg.state_name);
-    var lk = { tries: list, i: 0, guessed: list[0] !== address };
+    var lk = { tries: list, i: 0, guessed: list.guessed === true };
     /* Sends the lookup's current address: a fresh sandboxed iframe for each request, only for this submit (finish
        calls it again for the next place once the last answer is in). */
     lk.send = function () {

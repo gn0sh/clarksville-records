@@ -130,7 +130,7 @@ function consoleCsp(page) {
       return r.fulfill({ status: 200, contentType: 'text/javascript', body: body(u.searchParams.get('callback')) });
     });
     await page.goto(url, { waitUntil: 'load' });
-    await page.fill('#addr-q', '1 Test St, Clarksville TN <b>&"');
+    await page.fill('#addr-q', '1 Test St <b>&", Clarksville TN');
     const typed = requests.length;
     await page.click('#addr-form button');
     await page.waitForFunction(() => {
@@ -170,6 +170,11 @@ function consoleCsp(page) {
     // a full address is sent once, as typed, and answered as before
     full: { typed: '2861 McManus Circle, Clarksville, TN 37042', answer: () => 'none' },
     fulloutside: { typed: '1 Test St, Oak Grove, KY 42262', answer: () => 'outside' },
+    // a town the visitor typed is no guess: the state added once, and a match outside the county is answered so
+    owntown: { typed: '1 Test St, Nashville', answer: () => 'outside' },
+    // a new submit (a full address) while the Woodlawn try is in flight: the old lookup tries no more places
+    resubmit: { typed: '1 Nowhere Ln', answer: (a) => (/Nowhere/.test(a) ? 'outside' : 'district'),
+                resubmit: { on: '1 Nowhere Ln, Woodlawn, TN', typed: '2861 McManus Circle, Clarksville, TN 37042' } },
   };
   out.bare = {};
   for (const [name, c] of Object.entries(bare)) {
@@ -183,10 +188,19 @@ function consoleCsp(page) {
       requests.push(a);
       framesAtRequest.push(await page.evaluate(() => document.querySelectorAll('iframe').length));
       const k = c.answer(a);
+      if (c.resubmit && a === c.resubmit.on) {
+        await page.evaluate((t) => {
+          document.getElementById('addr-q').value = t;
+          document.getElementById('addr-form').requestSubmit();   // the button is disabled mid-lookup; a script can
+        }, c.resubmit.typed);                                      // still submit
+        await new Promise((res) => setTimeout(res, 500));
+      }
       if (k === 'abort') return r.abort();
       const data = k === 'none' ? { result: { input: {}, addressMatches: [] } } : match(pts[k]);
-      return r.fulfill({ status: 200, contentType: 'text/javascript',
-        body: `${u.searchParams.get('callback')}(${JSON.stringify(data)})` });
+      try {
+        return await r.fulfill({ status: 200, contentType: 'text/javascript',
+          body: `${u.searchParams.get('callback')}(${JSON.stringify(data)})` });
+      } catch (e) { return null; }   // the dropped lookup's iframe is gone: its answer has nowhere to go
     });
     await page.goto(url, { waitUntil: 'load' });
     await page.fill('#addr-q', c.typed);
