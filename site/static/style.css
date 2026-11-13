@@ -669,6 +669,9 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
   .landing { display: flex; flex-direction: column; }
   .landing > * { min-width: 0; }
   .landing > .welcome, .landing > .find, .landing > .meetings { order: -1; }
+  .landing > [data-body-line] { order: -2; }   /* the "Showing ... only" line stays first */
+  .landing > [data-body-line] > .bs-line { margin-top: 0; }
+  .bs-line { padding: 6px 10px; gap: 4px 8px; }
   .welcome .lede { margin-bottom: 4px; }
   .addr-form label { margin-bottom: 6px; }
   .addr-alt { display: none; }   /* the official lookup is still offered with an answer that needs it */
@@ -1280,10 +1283,16 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 .bs-off { display: none !important; }
 .bs-none { display: none; }
 .bs-all-off > .bs-none { display: block; }
-.bs-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 12px 0; padding: 8px 12px; border-left: 3px solid var(--sun); background: var(--surface); font-size: var(--t-sm); }
+/* "Showing <body> only  [Show all]": one compact row at every width (the name wraps before the button drops), the
+   sun-colored bar and a full border so it is not missed. Only the longer "Nothing on this page" line may wrap. */
+.bs-line { display: flex; align-items: center; gap: 4px 12px; margin: 12px 0; padding: 6px 12px; border: 1px solid var(--mark-soft); border-left: 4px solid var(--sun); border-radius: var(--radius); background: var(--surface); font-size: var(--t-sm); }
+.bs-line-none { flex-wrap: wrap; }
+.bs-line strong { min-width: 0; }
 .bs-line[hidden] { display: none; }
 .bs-line strong { font-weight: 600; }
-.bs-line button { min-height: 32px; padding: 2px 12px; border: 1px solid var(--blue); border-radius: 999px; background: var(--blue); color: var(--on-blue); font: inherit; font-weight: 600; cursor: pointer; }
+.bs-line button { position: relative; flex: none; min-height: 32px; padding: 2px 12px; border: 1px solid var(--blue); border-radius: 999px; background: var(--blue); color: var(--on-blue); font: inherit; font-weight: 600; white-space: nowrap; cursor: pointer; }
+/* the button looks 32px tall with a mouse, but 44px of the row takes the tap or click at every pointer */
+.bs-line button::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
 .bs-line button:hover { background: var(--blue-hover); text-decoration: underline; }
 .bs-line button:focus-visible, .bs-line a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 @media (pointer: coarse) { .bs-line button { min-height: 44px; } .bs-line a { display: inline-flex; align-items: center; min-height: 44px; } }

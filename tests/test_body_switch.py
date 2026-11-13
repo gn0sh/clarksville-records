@@ -218,6 +218,19 @@ def test_home_overview_lists_each_body_with_the_same_coming_items(site, html):
         assert coming and f"Coming: {', '.join(coming)}." in plain(card)
 
 
+def test_home_has_the_line_slot_first_in_the_page(html):
+    """The "Showing ... only" line (static/switch.js) goes first on the home page, before the welcome, so a choice
+    remembered from an earlier visit is seen on the first screen; the wording is the same for every body."""
+    home = html["index.html"]
+    main = home[home.index('<main id="main">'):home.index("</main>")]
+    assert main.count("<div data-body-line></div>") == 1
+    assert main.index('<div class="landing">') < main.index("<div data-body-line></div>") < main.index('class="welcome"')
+    js = SWITCH_JS.read_text(encoding="utf-8")
+    assert 'b.textContent = "Showing " + label(choice) + " only";' in js and 'btn.textContent = "Show all";' in js
+    assert 'line.setAttribute("role", "status");' in js
+    assert re.search(r"\.bs-line button::after \{[^}]*height: 44px", CSS)
+
+
 def test_rows_carry_their_body_for_the_filter(site, html):
     county = config.SITE["county_key"]
     today = html["today.html"]
@@ -549,6 +562,31 @@ for (const r of ['', ...(process.env.NODE_PATH || '').split(path.delimiter).filt
     out.once[page] = await p.evaluate(() => window.__bs);
   }
   await ctx.close();
+  // 12. the home page with a remembered choice: the line is first in the page, above the h1 on the first screen, the
+  //     name and "Show all" in one row; 44px of that row takes the tap; "Show all" clears the choice
+  out.home = {};
+  for (const [name, w, h] of [['wide', 1280, 800], ['phone', 390, 844], ['phone320', 320, 568]]) {
+    ctx = await browser.newContext({viewport: {width: w, height: h}});
+    p = await ctx.newPage();
+    await p.goto(site + 'index.html');
+    await p.evaluate(() => localStorage.setItem('cr-body', 'county'));
+    await p.reload();
+    out.home[name] = await p.evaluate(() => {
+      const l = document.getElementById('bs-line'), b = l.querySelector('button');
+      const r = l.getBoundingClientRect(), rb = b.getBoundingClientRect();
+      const hit = (dy) => document.elementFromPoint(rb.left + rb.width / 2, rb.top + rb.height / 2 + dy) === b;
+      return {text: l.textContent.replace(/\s+/g, ' ').trim(), role: l.getAttribute('role'),
+              first: document.querySelector('#main .landing').firstElementChild.contains(l),
+              aboveH1: r.bottom <= document.querySelector('h1').getBoundingClientRect().top,
+              firstScreen: r.top >= 0 && r.bottom <= window.innerHeight * 0.75,
+              oneRow: rb.top >= r.top && rb.bottom <= r.bottom && Math.abs((r.top + r.bottom) - (rb.top + rb.bottom)) < 4,
+              tap: hit(-21) && hit(21), sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth};
+    });
+    await p.click('#bs-line button');
+    out.home[name].after = await p.evaluate(() => ({line: !!document.getElementById('bs-line'),
+      stored: localStorage.getItem('cr-body'), focus: document.activeElement.getAttribute('data-switch')}));
+    await ctx.close();
+  }
   await browser.close();
   console.log(JSON.stringify(out));
 })();
@@ -629,3 +667,9 @@ def test_switch_in_a_browser(site, tmp_path):
     assert pa["line"].startswith("Showing Clarksville only") and pa["count"] != pb["count"], pa
     assert pt["ticked"] == ["county"] and pt["line"] == "" and pt["count"] == pb["count"], pt   # a box decides again
     assert r["once"] == {p: {"lines": 1, "events": 1} for p in r["once"]}, r["once"]
+    assert set(r["home"]) == {"wide", "phone", "phone320"}
+    for name, hm in r["home"].items():      # owner, 2026-11-13: a remembered choice was easy to miss on the home page
+        assert hm["text"] == "Showing Montgomery County only Show all" and hm["role"] == "status", (name, hm)
+        assert hm["first"] and hm["aboveH1"] and hm["firstScreen"], (name, hm)
+        assert hm["oneRow"] and hm["tap"] and hm["sw"] <= hm["cw"], (name, hm)
+        assert hm["after"] == {"line": False, "stored": None, "focus": "all"}, (name, hm)

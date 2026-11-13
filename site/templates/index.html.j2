@@ -17,6 +17,10 @@
    form, which needs it; then the card offers the list and the official lookup instead. #}
 {% set dl = site.cfg.district_layer %}{% set wl = site.cfg.ward_layer %}{% set wards_live = address and address.get('wards') %}{# shapes the lookup checks #}
 <div class="landing">
+  {# static/switch.js puts its "Showing ... only" line and its "Show all" button here, first on the page, when a body
+     other than All is chosen (the choice is remembered on the device): on the first screen at every width, next to
+     the switch it describes, not down by the meetings it filters (owner, 2026-11-13: the choice was easy to miss). #}
+  <div data-body-line></div>
   <section class="welcome" aria-labelledby="welcome-h">
     <h1 id="welcome-h" class="welcome-h">{{ site.cfg.welcome_h1 }}</h1>
     {# Phone (mobile-front-lite): one short sentence in place of the lede, so the address box is on the first screen.
@@ -95,7 +99,6 @@
         {% if r.chip %}<span class="chip chip-status" data-chip="{{ r.chip }}">{{ r.chip }}</span>{% endif %}</a></li>
       {% endfor %}
     {% endmacro %}
-    <div data-body-line></div>{# static/switch.js puts its "Showing ... only" line here #}
     {% if m.upcoming or m.recent %}{# a spare row is only ever after a shown one #}
     <div class="meet-cols">
       <div class="meet-col" data-body-group>
