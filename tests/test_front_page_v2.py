@@ -85,18 +85,18 @@ def test_landing_meetings_is_empty_when_the_window_is():
 def test_order_headings_and_the_address_box_ids_are_kept(html):
     main = main_of(html)
     # the fixture build has no geocoder, so no address form (its ids: tests/test_address_box.py, test_your_seats.py)
-    # the meetings come before the doors in the page: the order a phone shows (review 2026-11-13); a wide screen shows
-    # the doors and the public bodies first with CSS `order` (tests/test_mobile_front_lite.py measures both)
+    # the page's order is the wide screen's; a phone shows the meetings before the doors with CSS `order` (an accepted
+    # deviation, docs/design/front-page-v2.md "Phone, lighter"; tests/test_mobile_front_lite.py measures both widths)
     order = ['class="welcome-h"', 'id="unofficial-short"', 'id="find-h"', 'id="your-seats"', 'href="#wards-districts"',
-             'id="meet-h"', 'id="doors-h"', 'id="search-h"', 'id="landing-q"', 'id="freshness"', 'id="wards-districts"']
+             'id="doors-h"', 'id="meet-h"', 'id="search-h"', 'id="landing-q"', 'id="freshness"', 'id="wards-districts"']
     at = [main.index(s) for s in order]
     assert at == sorted(at)
     assert f'<h1 id="welcome-h" class="welcome-h">{config.SITE["welcome_h1"]}</h1>' in main
     heads = re.findall(r"<(h[1-3])\b[^>]*>(.*?)</h[1-3]>", main)
     assert [h for h in heads if h[0] == "h1"] == [("h1", config.SITE["welcome_h1"])]
     # "Public bodies on this site": the body switch's overview (tests/test_body_switch.py), 2026-11-12
-    assert [t for h, t in heads if h == "h2"][:5] == ["Find who represents you", "Meetings", "Start here",
-                                                      "Public bodies on this site",
+    assert [t for h, t in heads if h == "h2"][:5] == ["Find who represents you", "Start here",
+                                                      "Public bodies on this site", "Meetings",
                                                       "Looking for something specific?"]
 
 

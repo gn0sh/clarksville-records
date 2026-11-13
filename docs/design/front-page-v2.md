@@ -27,8 +27,8 @@ Three questions they arrive with: who represents me, what did they decide, what 
 
 Order rationale: the address box is the one action that makes the site personal, so it leads. Doors come before the
 meetings list because the list is short and can be empty; the doors never are.
-(2026-11-13: that is the order a screen of 600px or more shows. In the page itself, and on a phone, Meetings comes
-before Start here: see "Phone, lighter".)
+(2026-11-13: this is the order of the page itself and of a screen of 600px or more. A phone shows Meetings before
+Start here: see "Phone, lighter".)
 
 ### 3. The four doors
 Each door is a card (not itself a link) holding two links, each a full-width 44px row. Where a door covers both
@@ -147,7 +147,7 @@ what the page holds and the checks read.
 | Unofficial line | Unchanged, on the first screen | `qa.site_checks` (unofficial/notice-on-every-page) fails any rule that hides an `unofficial-*` class, and `tests/test_unofficial_first_screen.py` wants the line on the first 375x667 screen |
 | Address label | "Enter your street address." | The card's heading already says "Find who represents you" |
 | Privacy line | "Sent to the U.S. Census Bureau's geocoder. This site doesn't store it. Census's privacy policy" (link) | Both reviewed facts and the link stay; two lines, down from four. "Or look it up on GoVoteTN" is not shown before a lookup: an answer that needs the official lookup still links it, and "Or pick from the list" stays |
-| Order | Welcome, address card, **Meetings**, Start here, Public bodies, search, details | What is happening comes before the ways in. This is the order of the page itself (review 2026-11-13), so on a phone what is seen, what is read out and what takes focus agree. A screen of 600px or more still shows Start here and Public bodies before Meetings, by CSS `order`; there the focus order is the page's, not the one seen |
+| Order | Welcome, address card, **Meetings**, Start here, Public bodies, search, details | What is happening comes before the ways in. **Accepted deviation** (manager, 2026-11-13): this is a phone-only visual reorder, by CSS `order`, of whole sections that do not depend on each other. The page's own order stays the wide screen's (Start here, Public bodies, Meetings), so on a phone the focus and reading order differs from the visual order for these three sections. Moving Meetings up in the page instead would put the same mismatch on wide screens, where most keyboard users are, and the owner signed off the wide layout as it is. Revisit in the post-reset Fable UX pass |
 | Meetings | "As of {date}." then the rows; under them only the links "What is and is not collected" and "All meetings, day by day" (44px each) | The footnote's sentences are on the page the link opens |
 | Start here | Title and links only; each door's links two across (where a door covers both bodies: the city's on the left, the county's on the right). "Public money" keeps its "Coming" line, each name a link at least 44px tall | The sentence under each title repeats its links |
 | Public bodies | The heading and one line, `switch.overview.fold`: "What is here and what is coming", which opens the same cards | Planned-but-missing content is still named where a visitor looks: one tap shows every body's "On this site" and "Coming" lines. A `<details>` built open; `static/landing.js` closes it on a phone when the page loads and opens it again if the window grows past 599px. Without script it stays open |

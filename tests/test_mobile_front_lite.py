@@ -3,8 +3,8 @@
 600px the landing shows a one-sentence lede, a shorter address label and privacy line, the meetings before the "Start
 here" doors, the doors without their sentence, and the public bodies behind one line. Nothing leaves the page: the wide
 wording, every "Coming" note, the unofficial line, the header tag and the footer notice are all still there, and a
-screen of 600px or more looks as it did. The meetings come before the doors in the page itself (the phone's order, so
-focus and reading order match what a phone shows); a wide screen puts the doors and the bodies first with CSS `order`.
+screen of 600px or more looks as it did. The page's own order is the wide screen's (doors, bodies, meetings); a phone
+shows the meetings first with CSS `order`, an accepted deviation recorded in the design doc.
 
 Builds the county fixture with the city, RPC and finance fixtures (as tests/test_body_switch.py and
 tests/test_fin_pages.py), so all four doors are on the page, "Public money" with its "Coming" line; on the real traced
@@ -65,11 +65,6 @@ def phone_block():
     return _block("@media (max-width: 599px) {\n  .phone-only { display: inline; }")
 
 
-def wide_block():
-    """The body of the media query that keeps the wide screen's order (comments removed)."""
-    return _block("@media (min-width: 600px) {\n  .landing { display: flex; flex-direction: column; }")
-
-
 def test_each_width_reads_one_wording(html):
     phone, wide = at_width(html, phone=True), at_width(html, phone=False)
     lede = lambda n: n.tag == "p" and n.attrs.get("class") == "lede"  # noqa: E731
@@ -107,24 +102,27 @@ def test_nothing_is_taken_out_of_the_page(html):
     assert 'class="unofficial-intro" id="unofficial-short"' in html and '<p class="unofficial-tag">' in html
 
 
-def test_the_page_is_in_the_phones_order_and_a_wide_screen_reorders(html):
-    """Review 2026-11-13 (a11y/visual-vs-focus-order): on a phone nothing is moved, so focus and reading order are the
-    order seen. The wide screen's old order is kept by `order` in one media query, with the three margins that used to
-    collapse set to what they came to (the browser test below measures the result at both widths)."""
+def test_the_page_keeps_the_wide_order_and_only_a_phone_reorders(html):
+    """Manager's decision, 2026-11-13: the wide screen stays exactly as signed off, so the page's own order (what is
+    read out and what takes focus) is the wide one, and only the phone query moves the meetings up, with CSS `order`
+    on whole sections that do not depend on each other. Recorded as an accepted deviation in
+    docs/design/front-page-v2.md; no rule outside the phone query reorders the landing."""
     main = html[html.index('<main id="main">'):html.index("</main>")]
-    at = [main.index(s) for s in ('id="find-h"', 'id="meet-h"', 'id="doors-h"', 'id="bodies-h"', 'id="search-h"')]
+    at = [main.index(s) for s in ('id="find-h"', 'id="doors-h"', 'id="bodies-h"', 'id="meet-h"', 'id="search-h"')]
     assert at == sorted(at)
-    wide, phone = wide_block(), phone_block()
-    for rule in (".landing > .meetings { order: 1; }",
-                 ".landing > #search-h, .landing > .landing-search, .landing > .more { order: 2; }",
-                 ".landing > .doors { margin-top: 8px; }", ".landing > .bodies { margin-top: 0; }"):
-        assert rule in wide, rule
-    assert not re.search(r"(?<![\w-])order:", phone) and "flex-direction" not in phone
+    css = re.sub(r"/\*.*?\*/", "", CSS, flags=re.S)
+    phone = phone_block()
+    assert ".landing > .welcome, .landing > .find, .landing > .meetings { order: -1; }" in phone
+    assert ".landing { display: flex; flex-direction: column; }" in phone
+    outside = css.replace(phone, "")
+    assert ".landing >" not in outside and not re.search(r"\.landing \{[^}]*flex", outside)
+    doc = (ROOT / "docs" / "design" / "front-page-v2.md").read_text(encoding="utf-8")
+    assert "Accepted deviation" in doc and "visual order" in doc
 
 
 def test_the_phone_rules_are_all_inside_the_phone_query():
-    """A screen of 600px or more keeps its look: outside the phone query there are only the two wording classes, the
-    fold's hidden summary and the wide screen's own order block."""
+    """A screen of 600px or more keeps its look: outside the phone query there are only the two wording classes and
+    the fold's hidden summary."""
     block = phone_block()
     css = re.sub(r"/\*.*?\*/", "", CSS, flags=re.S)
     outside = css.replace(block, "")
@@ -132,6 +130,7 @@ def test_the_phone_rules_are_all_inside_the_phone_query():
     assert re.search(r"^\.bodies-fold > summary \{ display: none; \}", outside, re.M)
     assert ".phone-off" not in outside
     for rule in (".phone-off { display: none; }", ".door p:not(.door-coming) { display: none; }", ".addr-alt { display: none; }",
+                 ".landing > .welcome, .landing > .find, .landing > .meetings { order: -1; }",
                  ".bodies-fold > summary { display: list-item;"):
         assert rule in block and rule not in outside, rule
     # and nothing in it names the notice, the tag or the footer (qa/site_checks.py check_unofficial reads the same)

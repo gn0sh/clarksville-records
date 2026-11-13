@@ -668,25 +668,17 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
    and keeps the headings, the links and the facts. Wider screens are untouched: every rule here is inside the media
    query, apart from the two classes that pick the phone or the wide wording and the fold's hidden summary. ======== */
 .phone-only { display: none; }
-/* 600px and wider: the doors and the public bodies are shown before the meetings, as before, though the meetings
-   come first in the page (the phone's order). In a flex column margins no longer collapse, so the three places where
-   they did are set to what they came to: 4 + 8 under "Start here", the public bodies' own heading margin alone, and
-   8 + the h1's 4 under the switch's line. */
-@media (min-width: 600px) {
-  .landing { display: flex; flex-direction: column; }
-  .landing > * { min-width: 0; }
-  .landing > .meetings { order: 1; }
-  .landing > #search-h, .landing > .landing-search, .landing > .more { order: 2; }
-  .landing > .doors { margin-top: 8px; }
-  .landing > .bodies { margin-top: 0; }
-  .landing > [data-body-line] > .bs-line { margin-bottom: 8px; }
-}
 .bodies-fold { margin: 0; max-width: none; }
 .bodies-fold > summary { display: none; }   /* wide: always open, nothing to toggle (static/landing.js folds on a phone) */
 @media (max-width: 599px) {
   .phone-only { display: inline; }
   .phone-off { display: none; }
-  /* the meetings (what is happening) come before the doors here: the page's own order, nothing is moved */
+  /* the meetings (what is happening) come before the doors here; the order in the page itself is the wide screen's
+     (accepted deviation: docs/design/front-page-v2.md "Phone, lighter", Order) */
+  .landing { display: flex; flex-direction: column; }
+  .landing > * { min-width: 0; }
+  .landing > .welcome, .landing > .find, .landing > .meetings { order: -1; }
+  .landing > [data-body-line] { order: -2; }   /* the "Showing ... only" line stays first */
   .landing > [data-body-line] > .bs-line { margin-top: 0; }
   .bs-line { padding: 6px 10px; gap: 4px 8px; }
   .welcome .lede { margin-bottom: 4px; }
