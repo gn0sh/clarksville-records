@@ -21,6 +21,19 @@
     "last_modified": null,
     "meeting_date": null,
     "sha256": "f619c49919b963608c8e9b7e26d18b1a22d978a38b7830da8dc8a77d8f0cbdfa",
+    "superseded_by": "5ef333c3f985ac4262ac7233785eddabd0733500c6a03a2b6eb1c8d2b5198f40",
+    "url": "https://montgomerytn.gov/purchasing/archive"
+  },
+  {
+    "bytes": 259942,
+    "content_type": "text/html; charset=UTF-8",
+    "etag": null,
+    "first_fetched_at": "2026-11-13T00:03:21+00:00",
+    "kind": "archive_index",
+    "label": "purchasing archive",
+    "last_modified": null,
+    "meeting_date": null,
+    "sha256": "5ef333c3f985ac4262ac7233785eddabd0733500c6a03a2b6eb1c8d2b5198f40",
     "url": "https://montgomerytn.gov/purchasing/archive"
   },
   {
@@ -29,7 +42,7 @@
     "etag": "\"6aabe378-43ff32\"",
     "first_fetched_at": "2026-11-08T20:17:28+00:00",
     "kind": "budget_book",
-    "label": "FY 2027 Approved Budget",
+    "label": "Fiscal Year 2027 Approved Budget",
     "last_modified": "Thu, 17 Sep 2026 12:56:24 GMT",
     "meeting_date": null,
     "sha256": "f6538dd0321bbfec84927c0145f42df709dd604e4fe56ec374571fa56fbcab2c",

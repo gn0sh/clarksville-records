@@ -193889,7 +193889,8 @@
       "not_fetched": 0,
       "not_pdf": 2,
       "scan": 0,
-      "shared_url": 8
+      "shared_url": 8,
+      "unreadable": 0
     },
     "n_tab_read": 16,
     "n_total": 90
@@ -197769,7 +197770,7 @@
     {
       "archive_date": "2025-10-09",
       "archive_date_text": "OCTOBER 9, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -197872,7 +197873,7 @@
     {
       "archive_date": "2025-07-11",
       "archive_date_text": "JULY 11, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -197926,7 +197927,7 @@
     {
       "archive_date": "2026-10-06",
       "archive_date_text": "October 6, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198002,7 +198003,7 @@
     {
       "archive_date": null,
       "archive_date_text": "Currently Under Review",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": "Currently Under Review",
       "bid_tab": null,
       "department": null,
@@ -198024,7 +198025,7 @@
     {
       "archive_date": "2025-03-19",
       "archive_date_text": "MARCH 19, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -198048,7 +198049,7 @@
     {
       "archive_date": "2025-06-11",
       "archive_date_text": "JUNE 11, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198087,7 +198088,7 @@
     {
       "archive_date": "2025-02-21",
       "archive_date_text": "FEBRUARY 21, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198126,7 +198127,7 @@
     {
       "archive_date": "2026-10-19",
       "archive_date_text": "October 19, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -198152,7 +198153,7 @@
     {
       "archive_date": "2025-08-18",
       "archive_date_text": "AUGUST 18, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -198178,7 +198179,7 @@
     {
       "archive_date": "2025-06-18",
       "archive_date_text": "JUNE 18, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198217,7 +198218,7 @@
     {
       "archive_date": "2026-09-02",
       "archive_date_text": "September 2, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198303,7 +198304,7 @@
     {
       "archive_date": "2025-05-22",
       "archive_date_text": "MAY 22, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198344,7 +198345,7 @@
     {
       "archive_date": "2025-03-11",
       "archive_date_text": "MARCH 11, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198383,7 +198384,7 @@
     {
       "archive_date": "2026-09-24",
       "archive_date_text": "September 24, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -198409,7 +198410,7 @@
     {
       "archive_date": "2025-05-28",
       "archive_date_text": "MAY 28, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198450,7 +198451,7 @@
     {
       "archive_date": "2025-12-08",
       "archive_date_text": "DECEMBER 8, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198601,7 +198602,7 @@
     {
       "archive_date": "2026-07-28",
       "archive_date_text": "July 28, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198644,7 +198645,7 @@
     {
       "archive_date": "2025-05-02",
       "archive_date_text": "MAY 2, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198683,7 +198684,7 @@
     {
       "archive_date": "2025-08-29",
       "archive_date_text": "AUGUST 29, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -198709,7 +198710,7 @@
     {
       "archive_date": "2025-04-22",
       "archive_date_text": "APRIL 22, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": 1,
@@ -198785,7 +198786,7 @@
     {
       "archive_date": "2025-08-19",
       "archive_date_text": "AUGUST 19, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -198811,7 +198812,7 @@
     {
       "archive_date": "2026-10-08",
       "archive_date_text": "October 8, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198850,7 +198851,7 @@
     {
       "archive_date": "2025-06-16",
       "archive_date_text": "JUNE 16, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198891,7 +198892,7 @@
     {
       "archive_date": "2026-07-02",
       "archive_date_text": "July 2, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198954,7 +198955,7 @@
     {
       "archive_date": "2025-10-20",
       "archive_date_text": "OCTOBER 20, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198993,7 +198994,7 @@
     {
       "archive_date": "2025-06-11",
       "archive_date_text": "JUNE 11, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199034,7 +199035,7 @@
     {
       "archive_date": "2025-06-16",
       "archive_date_text": "JUNE 16, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199077,7 +199078,7 @@
     {
       "archive_date": "2025-06-17",
       "archive_date_text": "JUNE 17, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199120,7 +199121,7 @@
     {
       "archive_date": null,
       "archive_date_text": "NOT AWARDED",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": "NOT AWARDED",
       "bid_tab": null,
       "department": null,
@@ -199144,7 +199145,7 @@
     {
       "archive_date": "2026-02-12",
       "archive_date_text": "FEBRUARY 12, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -199176,7 +199177,7 @@
     {
       "archive_date": "2025-04-24",
       "archive_date_text": "APRIL 24, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199286,7 +199287,7 @@
     {
       "archive_date": "2025-05-20",
       "archive_date_text": "MAY 20, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199325,7 +199326,7 @@
     {
       "archive_date": "2025-10-30",
       "archive_date_text": "OCTOBER 30. 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -199355,7 +199356,7 @@
     {
       "archive_date": null,
       "archive_date_text": "",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -199377,7 +199378,7 @@
     {
       "archive_date": "2026-02-26",
       "archive_date_text": "FEBRUARY 26, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -199409,7 +199410,7 @@
     {
       "archive_date": "2025-11-17",
       "archive_date_text": "NOVEMBER 17, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": 1,
@@ -199476,7 +199477,7 @@
     {
       "archive_date": "2025-08-11",
       "archive_date_text": "AUGUST 11, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -199500,7 +199501,7 @@
     {
       "archive_date": null,
       "archive_date_text": "NOT AWARDED",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": "NOT AWARDED",
       "bid_tab": null,
       "department": null,
@@ -199522,7 +199523,7 @@
     {
       "archive_date": "2025-04-04",
       "archive_date_text": "APRIL 4, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -199550,7 +199551,7 @@
     {
       "archive_date": "2026-07-27",
       "archive_date_text": "July 27, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199624,7 +199625,7 @@
     {
       "archive_date": "2025-04-21",
       "archive_date_text": "APRIL 21, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -199650,7 +199651,7 @@
     {
       "archive_date": "2025-05-12",
       "archive_date_text": "MAY 12, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199691,7 +199692,7 @@
     {
       "archive_date": "2025-05-28",
       "archive_date_text": "MAY 28, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": 1,
@@ -199758,7 +199759,7 @@
     {
       "archive_date": "2026-05-04",
       "archive_date_text": "MAY 4, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199829,7 +199830,7 @@
     {
       "archive_date": "2025-05-02",
       "archive_date_text": "MAY 2, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199868,7 +199869,7 @@
     {
       "archive_date": "2025-01-27",
       "archive_date_text": "JANUARY 27, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199907,7 +199908,7 @@
     {
       "archive_date": "2025-06-04",
       "archive_date_text": "JUNE 4, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199946,7 +199947,7 @@
     {
       "archive_date": "2026-08-27",
       "archive_date_text": "August 27, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200009,7 +200010,7 @@
     {
       "archive_date": "2026-08-27",
       "archive_date_text": "August 27, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200052,7 +200053,7 @@
     {
       "archive_date": "2025-02-26",
       "archive_date_text": "FEBRUARY 26, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": 1,
@@ -200110,7 +200111,7 @@
     {
       "archive_date": "2026-03-17",
       "archive_date_text": "MARCH 17, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200151,7 +200152,7 @@
     {
       "archive_date": "2026-02-12",
       "archive_date_text": "FEBRUARY 12, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -200177,7 +200178,7 @@
     {
       "archive_date": "2026-02-03",
       "archive_date_text": "FEBRUARY 3, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200218,7 +200219,7 @@
     {
       "archive_date": "2026-07-06",
       "archive_date_text": "July 6, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200259,7 +200260,7 @@
     {
       "archive_date": "2026-06-04",
       "archive_date_text": "June 4, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200300,7 +200301,7 @@
     {
       "archive_date": "2026-06-05",
       "archive_date_text": "June 5, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200341,7 +200342,7 @@
     {
       "archive_date": "2026-06-04",
       "archive_date_text": "June 4, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200384,7 +200385,7 @@
     {
       "archive_date": "2026-06-05",
       "archive_date_text": "June 5, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200427,7 +200428,7 @@
     {
       "archive_date": "2026-06-04",
       "archive_date_text": "June 4, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200468,7 +200469,7 @@
     {
       "archive_date": "2026-06-05",
       "archive_date_text": "June 5, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200511,7 +200512,7 @@
     {
       "archive_date": "2026-06-12",
       "archive_date_text": "June 12, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200552,7 +200553,7 @@
     {
       "archive_date": "2026-06-25",
       "archive_date_text": "June 25, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200641,7 +200642,7 @@
     {
       "archive_date": null,
       "archive_date_text": "No Award",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": "No Award",
       "bid_tab": {
         "award_date_page": null,
@@ -200682,7 +200683,7 @@
     {
       "archive_date": "2026-06-02",
       "archive_date_text": "June 2, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200729,7 +200730,7 @@
     {
       "archive_date": "2026-06-05",
       "archive_date_text": "June 5, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200772,7 +200773,7 @@
     {
       "archive_date": "2026-06-29",
       "archive_date_text": "June 29, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200813,7 +200814,7 @@
     {
       "archive_date": "2026-06-05",
       "archive_date_text": "June 5, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200856,7 +200857,7 @@
     {
       "archive_date": "2026-05-20",
       "archive_date_text": "May 20, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200897,7 +200898,7 @@
     {
       "archive_date": "2025-02-11",
       "archive_date_text": "FEBRUARY 11, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200936,7 +200937,7 @@
     {
       "archive_date": "2025-11-04",
       "archive_date_text": "NOVEMBER 4, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -200960,7 +200961,7 @@
     {
       "archive_date": "2025-04-21",
       "archive_date_text": "APRIL 21, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -200986,7 +200987,7 @@
     {
       "archive_date": "2026-03-19",
       "archive_date_text": "MARCH 19, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201012,7 +201013,7 @@
     {
       "archive_date": "2025-10-17",
       "archive_date_text": "OCTOBER 17, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201040,7 +201041,7 @@
     {
       "archive_date": "2025-09-12",
       "archive_date_text": "SEPTEMBER 12, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201064,7 +201065,7 @@
     {
       "archive_date": "2025-10-28",
       "archive_date_text": "OCTOBER 28, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201090,7 +201091,7 @@
     {
       "archive_date": "2025-10-28",
       "archive_date_text": "OCTOBER 28, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201116,7 +201117,7 @@
     {
       "archive_date": "2026-07-22",
       "archive_date_text": "July 22, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201140,7 +201141,7 @@
     {
       "archive_date": "2025-04-09",
       "archive_date_text": "APRIL 9, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -201179,7 +201180,7 @@
     {
       "archive_date": "2025-03-14",
       "archive_date_text": "MARCH 14, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -201218,7 +201219,7 @@
     {
       "archive_date": "2025-08-19",
       "archive_date_text": "AUGUST 19, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201244,7 +201245,7 @@
     {
       "archive_date": "2025-02-04",
       "archive_date_text": "FEBRUARY 4, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201268,7 +201269,7 @@
     {
       "archive_date": null,
       "archive_date_text": "CURRENTLY UNDER REVIEW",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": "CURRENTLY UNDER REVIEW",
       "bid_tab": null,
       "department": null,
@@ -201290,7 +201291,7 @@
     {
       "archive_date": "2025-04-02",
       "archive_date_text": "APRIL 2, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201314,7 +201315,7 @@
     {
       "archive_date": "2025-03-03",
       "archive_date_text": "MARCH 3, 2025",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -201353,7 +201354,7 @@
     {
       "archive_date": null,
       "archive_date_text": "Currently Under Review",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": "Currently Under Review",
       "bid_tab": null,
       "department": null,
@@ -201377,7 +201378,7 @@
     {
       "archive_date": "2026-03-09",
       "archive_date_text": "MARCH 9, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": 1,
@@ -201444,7 +201445,7 @@
     {
       "archive_date": "2026-06-30",
       "archive_date_text": "June 30, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201474,7 +201475,7 @@
     {
       "archive_date": null,
       "archive_date_text": "No Award",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": "No Award",
       "bid_tab": null,
       "department": null,
@@ -201496,7 +201497,7 @@
     {
       "archive_date": null,
       "archive_date_text": "UNDER REVIEW",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": "UNDER REVIEW",
       "bid_tab": null,
       "department": null,
@@ -201520,7 +201521,7 @@
     {
       "archive_date": "2026-02-20",
       "archive_date_text": "FEBRUARY 20, 2026",
-      "archive_source_id": "src-f619c49919b9",
+      "archive_source_id": "src-5ef333c3f985",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -202721,6 +202722,17 @@
       "sha256": "5eef4b2afb63e985628d03bf2538f0f11dc1ca95f71b6370f54ad9a668dee7e5",
       "text_layer": "text",
       "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Bid%20Tab%20-%20Sheriff%27s%20Office%20Vehicle%20Equipment.pdf"
+    },
+    {
+      "content_type": "text/html",
+      "creator": null,
+      "fetched_at": "2026-11-13",
+      "id": "src-5ef333c3f985",
+      "kind": "archive_index",
+      "pages": null,
+      "sha256": "5ef333c3f985ac4262ac7233785eddabd0733500c6a03a2b6eb1c8d2b5198f40",
+      "text_layer": "text",
+      "url": "https://montgomerytn.gov/purchasing/archive"
     },
     {
       "content_type": "application/pdf",
@@ -204679,17 +204691,6 @@
       "sha256": "f51a5cfb7d720ff4d82fe22b4f48d51ea055c3b85cd31d2b0cc6d36781c9fcfc",
       "text_layer": "text",
       "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Montgomery%20County%20Roof%20Replacements_Addendum%20No_%202_3-18-25.pdf"
-    },
-    {
-      "content_type": "text/html",
-      "creator": null,
-      "fetched_at": "2026-11-08",
-      "id": "src-f619c49919b9",
-      "kind": "archive_index",
-      "pages": null,
-      "sha256": "f619c49919b963608c8e9b7e26d18b1a22d978a38b7830da8dc8a77d8f0cbdfa",
-      "text_layer": "text",
-      "url": "https://montgomerytn.gov/purchasing/archive"
     },
     {
       "content_type": "application/pdf",
