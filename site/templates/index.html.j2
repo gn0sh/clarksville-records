@@ -49,7 +49,7 @@
     <form class="addr-form" id="addr-form" hidden>
       <label for="addr-q">Enter your street address<span class="phone-off"> to see your {% if wards_live %}city ward and county district{% else %}county district{% endif %}</span>.</label>
       <div class="search-row">
-        <input id="addr-q" type="text" autocomplete="street-address" maxlength="200" placeholder="Street address, city" aria-describedby="addr-privacy">
+        <input id="addr-q" type="text" autocomplete="street-address" maxlength="200" placeholder="Street address, like 100 Main St" aria-describedby="addr-privacy">
         <button type="submit">Find</button>
       </div>
       {# Phone: the same two facts (sent to the geocoder, not stored here) and the privacy link, in fewer words. #}

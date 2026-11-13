@@ -3,7 +3,8 @@
 // Usage: node tests/address_browser.js <index.html> <points.json>   (driven by tests/test_address_box.py)
 // points.json: {"district": [lon, lat], "near": [lon, lat], "outside": [lon, lat], "other": [lon, lat],
 //               "wardnear": [lon, lat], "outsidecity": [lon, lat]}
-// Prints JSON: {fit: {...}, cases: {name: {text, href, requests, frame, frames, csp, ...}}}
+// Prints JSON: {fit: {...}, cases: {name: {text, href, requests, frame, frames, csp, ...}},
+//               bare: {name: {text, requests, framesAtRequest, ...}}}   (a street typed without state or ZIP)
 const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
@@ -129,7 +130,7 @@ function consoleCsp(page) {
       return r.fulfill({ status: 200, contentType: 'text/javascript', body: body(u.searchParams.get('callback')) });
     });
     await page.goto(url, { waitUntil: 'load' });
-    await page.fill('#addr-q', '1 Test St, Clarksville TN <b>&"');
+    await page.fill('#addr-q', '1 Test St <b>&", Clarksville TN');
     const typed = requests.length;
     await page.click('#addr-form button');
     await page.waitForFunction(() => {
@@ -153,6 +154,73 @@ function consoleCsp(page) {
     out.cases[name].typedRequests = typed;
     out.cases[name].frame = frame;
     out.cases[name].refused = refused;
+    await page.close();
+  }
+  // A street typed with no state or ZIP (address-lookup-bare-street): tried with each county place in turn, one request
+  // at a time. answer(address) -> a point name from pts, or 'none' (no match), or 'abort'.
+  const bare = {
+    // the bare street would not match; the ", Clarksville, TN" try does
+    bare: { typed: '2861 McManus Circle', answer: (a) => (/, Clarksville, TN$/.test(a) ? 'district' : 'none') },
+    // a Clarksville match outside the county is a wrong guess; Woodlawn's match inside it is the answer
+    outofcounty: { typed: '100 Test Rd', answer: (a) => (/, Woodlawn, TN$/.test(a) ? 'district' : 'outside') },
+    // every place matches outside the county: five requests, then "no match", never "outside"
+    cap: { typed: '1 Nowhere Ln', answer: () => 'outside' },
+    // a geocoder that cannot load stops the lookup at once
+    blocked: { typed: '2861 McManus Circle', answer: () => 'abort' },
+    // a full address is sent once, as typed, and answered as before
+    full: { typed: '2861 McManus Circle, Clarksville, TN 37042', answer: () => 'none' },
+    fulloutside: { typed: '1 Test St, Oak Grove, KY 42262', answer: () => 'outside' },
+    // a town the visitor typed is no guess: the state added once, and a match outside the county is answered so
+    owntown: { typed: '1 Test St, Nashville', answer: () => 'outside' },
+    // a new submit (a full address) while the Woodlawn try is in flight: the old lookup tries no more places
+    resubmit: { typed: '1 Nowhere Ln', answer: (a) => (/Nowhere/.test(a) ? 'outside' : 'district'),
+                resubmit: { on: '1 Nowhere Ln, Woodlawn, TN', typed: '2861 McManus Circle, Clarksville, TN 37042' } },
+  };
+  out.bare = {};
+  for (const [name, c] of Object.entries(bare)) {
+    const page = await browser.newPage({ viewport: { width: 375, height: 667 } });
+    await page.addInitScript(WATCH);
+    const refused = consoleCsp(page);
+    const requests = [], framesAtRequest = [];
+    await page.route(GEOCODER, async (r) => {
+      const u = new URL(r.request().url());
+      const a = u.searchParams.get('address');
+      requests.push(a);
+      framesAtRequest.push(await page.evaluate(() => document.querySelectorAll('iframe').length));
+      const k = c.answer(a);
+      if (c.resubmit && a === c.resubmit.on) {
+        await page.evaluate((t) => {
+          document.getElementById('addr-q').value = t;
+          document.getElementById('addr-form').requestSubmit();   // the button is disabled mid-lookup; a script can
+        }, c.resubmit.typed);                                      // still submit
+        await new Promise((res) => setTimeout(res, 500));
+      }
+      if (k === 'abort') return r.abort();
+      const data = k === 'none' ? { result: { input: {}, addressMatches: [] } } : match(pts[k]);
+      try {
+        return await r.fulfill({ status: 200, contentType: 'text/javascript',
+          body: `${u.searchParams.get('callback')}(${JSON.stringify(data)})` });
+      } catch (e) { return null; }   // the dropped lookup's iframe is gone: its answer has nowhere to go
+    });
+    await page.goto(url, { waitUntil: 'load' });
+    await page.fill('#addr-q', c.typed);
+    await page.press('#addr-q', 'Enter');
+    await page.waitForFunction(() => {
+      const t = document.getElementById('addr-result').textContent;
+      return t && !t.startsWith('Looking up');
+    }, null, { timeout: 60000 });
+    out.bare[name] = await page.evaluate(() => {
+      const res = document.getElementById('addr-result');
+      return { text: res.textContent, hrefs: [...res.querySelectorAll('a')].map((x) => x.getAttribute('href')),
+               frames: document.querySelectorAll('iframe').length, csp: window.__csp,
+               busy: document.getElementById('addr-form').hasAttribute('aria-busy'),
+               disabled: document.querySelector('#addr-form button').disabled,
+               seats: JSON.parse(localStorage.getItem('cr-your-seats') || 'null'),
+               storageText: JSON.stringify(localStorage) + JSON.stringify(sessionStorage),
+               placeholder: document.getElementById('addr-q').getAttribute('placeholder'),
+               privacy: document.getElementById('addr-privacy').textContent };
+    });
+    Object.assign(out.bare[name], { requests, framesAtRequest, refused });
     await page.close();
   }
   await browser.close();

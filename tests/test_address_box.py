@@ -85,7 +85,10 @@ def test_box_settings_come_from_config_and_georef(real_map_site):
                    "lookup_label": config.SITE["district_lookup_label"], "frame": views.geocode_frame_script(),
                    "ward_margin_m": wards["boundary_margin_m"], "ward_label": config.SITE["ward_label"],
                    "city": config.SITE["city_name"], "ward_map_owner": config.SITE["ward_map_owner"],
-                   "ward_map_date": wards["source_updated"]}
+                   "ward_map_date": wards["source_updated"],
+                   "places": config.SITE["geocoder_places"], "state": "TN", "state_name": "Tennessee"}
+    # the county's mailing places a bare street is tried with (address-lookup-bare-street), Clarksville first
+    assert config.SITE["geocoder_places"] == ["Clarksville", "Woodlawn", "Cunningham", "Southside", "Palmyra"]
     assert config.SITE["geocoder_url"] == "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress"
 
 
@@ -204,6 +207,71 @@ def test_lookup_label_is_required_with_the_lookup_link_and_never_defaulted(monke
     monkeypatch.setitem(config.SITE, "district_lookup_label", "")
     with pytest.raises(sitegen_build.BuildError):
         build(FIXTURE, tmp_path / "site", seats_path=None, districts_path=REAL_DISTRICTS)
+
+
+@pytest.mark.parametrize("edit", [{"geocoder_places": ["A", "B", "C", "D", "E", "F"]},      # more than 5 requests
+                                  {"geocoder_places": "Clarksville"}, {"geocoder_places": ["Clark<b>sville"]},
+                                  {"geocoder_places": [""]}, {"geocoder_state": ""}, {"geocoder_state": "Tenn"},
+                                  {"geocoder_state_name": "Tenn<b>"},
+                                  {"geocoder_places": ["Clarksville", "Woodlawn", "clarksville"]}])      # a duplicate
+def test_geocoder_places_are_plain_names_at_most_five_with_a_state(edit):
+    assert not sitegen_build.site_url_problems(dict(config.SITE))
+    assert sitegen_build.site_url_problems(dict(config.SITE, **edit)), edit
+    assert not sitegen_build.site_url_problems(dict(config.SITE, geocoder_places=[], geocoder_state=""))   # off
+
+
+def test_place_names_come_from_config_not_the_script():
+    js = (ROOT / "site" / "static" / "address.js").read_text(encoding="utf-8")
+    for word in (*config.SITE["geocoder_places"], "Tennessee", '"TN"'):
+        assert word not in js, word
+
+
+TRIES = r"""
+const a = require(process.argv[1]);
+const inp = JSON.parse(require("fs").readFileSync(0, "utf8"));
+const out = {};
+for (const t of inp.typed) {
+  const l = a.tries(t, inp.places, "TN", "Tennessee");
+  out[t] = { list: l, guessed: l.guessed === true };
+}
+out.capped = a.tries("1 Test St", inp.places.concat(["Extra One", "Extra Two"]), "TN", "Tennessee");
+out.noplaces = a.tries("1 Test St", [], "TN", "Tennessee");
+out.nostate = a.tries("1 Test St", inp.places, "", "");
+out.max = a.MAX_TRIES;
+const kinds = ["nomatch", "outside", "district", "near", "ambiguous", "error", "unavailable"];
+out.next = kinds.filter(k => a.tryNext({ kind: k }));
+console.log(JSON.stringify(out));
+"""
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node not available")
+def test_bare_street_is_tried_with_each_county_place_and_a_full_address_as_typed():
+    places = config.SITE["geocoder_places"]
+    typed = ["2861 McManus Circle", "2861 McManus Circle, Clarksville TN", "2861 McManus Circle 37042",
+             "1 Main St, Clarksville, Tennessee", "1 Main St tn", "10000 Main St", "1 Main St Woodlawn",
+             "100 Woodlawn Rd", "1 Main St 37042-1234", "1 Main St, Clarksville, TN 37042", "1234 TN-48",
+             "100 Tennessee Ave", "100 Main St Apt 12345", "2861 McManus Circle, Clarksville", "100 Main St, Nashville"]
+    res = subprocess.run(["node", "-e", TRIES, str(ROOT / "site" / "static" / "address.js")],
+                         input=json.dumps({"typed": typed, "places": places}), capture_output=True, text=True,
+                         timeout=60)
+    assert res.returncode == 0, res.stderr
+    out = json.loads(res.stdout)
+    lists = {t: out[t]["list"] for t in typed}
+
+    def guesses(t):
+        return [f"{t}, {p}, TN" for p in places]
+    for t in ("2861 McManus Circle", "10000 Main St", "100 Woodlawn Rd",   # a 5-digit house number is not a ZIP
+              "1234 TN-48", "100 Tennessee Ave", "100 Main St Apt 12345"):   # only the end names a state or ZIP
+        assert lists[t] == guesses(t) and out[t]["guessed"], t           # each county place in turn, Clarksville first
+    for t in ("2861 McManus Circle, Clarksville TN", "2861 McManus Circle 37042", "1 Main St, Clarksville, Tennessee",
+              "1 Main St tn", "1 Main St 37042-1234", "1 Main St, Clarksville, TN 37042"):
+        assert lists[t] == [t] and not out[t]["guessed"], t              # a state or ZIP: sent once, as typed
+    # a place the visitor typed (listed or not): the state added, once, and no guess
+    for t in ("1 Main St Woodlawn", "2861 McManus Circle, Clarksville", "100 Main St, Nashville"):
+        assert lists[t] == [f"{t}, TN"] and not out[t]["guessed"], t
+    assert out["max"] == 5 == sitegen_build.GEOCODER_MAX_PLACES and len(out["capped"]) == 5   # the retry cap
+    assert out["noplaces"] == ["1 Test St"] and out["nostate"] == ["1 Test St"]
+    assert out["next"] == ["nomatch", "outside"]     # an out-of-county match is a wrong guess: try the next place
 
 
 def test_privacy_url_must_be_https():
@@ -382,7 +450,7 @@ def test_address_box_in_a_browser(real_site, tmp_path):
     for k, v in c.items():
         assert v["typedRequests"] == 0 and len(v["requests"]) == 1, k        # nothing sent until submit, once
         q = v["requests"][0]
-        assert q == ("?address=1%20Test%20St%2C%20Clarksville%20TN%20%3Cb%3E%26%22&benchmark=Public_AR_Current"
+        assert q == ("?address=1%20Test%20St%20%3Cb%3E%26%22%2C%20Clarksville%20TN&benchmark=Public_AR_Current"
                      "&format=jsonp&callback=crGeocode"), q
         # the address is never stored; only the found district and ward numbers, under the one key (the reachout's
         # own write failed); a seat the lookup could not place is stored as null, never guessed
@@ -400,3 +468,35 @@ def test_address_box_in_a_browser(real_site, tmp_path):
         assert v["frame"][0]["srcdoc"].startswith('<!doctype html><meta charset="utf-8"><meta name="referrer" '
                                                   'content="no-referrer"><script data-u="https://geocoding.'), k
         assert v["csp"] == [] and v["refused"] == [], (k, v["csp"], v["refused"])   # nothing blocked by the CSP
+    # address-lookup-bare-street: a street typed with no state or ZIP is tried with each county place, in order, one
+    # request at a time (one iframe at each request), at most 5, stopping at the first match inside the county
+    b = out["bare"]
+    places = config.SITE["geocoder_places"]
+    assert b["bare"]["requests"] == ["2861 McManus Circle, Clarksville, TN"]
+    assert b["bare"]["text"].startswith(both) and "Census match: 1 TEST ST" in b["bare"]["text"]
+    assert b["bare"]["seats"] == {"district": 5, "ward": 6} and "McManus" not in b["bare"]["storageText"]
+    assert b["outofcounty"]["requests"] == ["100 Test Rd, Clarksville, TN", "100 Test Rd, Woodlawn, TN"]
+    assert b["outofcounty"]["text"].startswith(both)                     # the out-of-county Clarksville match rejected
+    assert b["cap"]["requests"] == [f"1 Nowhere Ln, {p}, TN" for p in places] and len(places) == 5   # the cap
+    assert b["cap"]["text"] == ("No match was found for that address in Montgomery County. Check the spelling, or add "
+                                "the city and ZIP, or look it up on GoVoteTN.")
+    assert b["cap"]["hrefs"] == [config.SITE["district_lookup_url"]] and b["cap"]["seats"] is None
+    assert b["blocked"]["requests"] == ["2861 McManus Circle, Clarksville, TN"]       # a dead geocoder: no more tries
+    assert b["blocked"]["text"] == "Address lookup isn't available here. Look it up on GoVoteTN."
+    full = "2861 McManus Circle, Clarksville, TN 37042"
+    assert b["full"]["requests"] == [full]                               # a full address: once, as typed (not retried)
+    assert b["full"]["text"].startswith("No match was found for that address. Check the spelling, or look it up")
+    assert b["fulloutside"]["requests"] == ["1 Test St, Oak Grove, KY 42262"]
+    assert b["fulloutside"]["text"].startswith("This address is outside Montgomery County.")
+    assert b["owntown"]["requests"] == ["1 Test St, Nashville, TN"]      # the visitor's own town: once, and no guess
+    assert b["owntown"]["text"].startswith("This address is outside Montgomery County.")
+    # a new submit while places are still being tried: the old lookup stops, only the new one's answer shows
+    assert b["resubmit"]["requests"] == ["1 Nowhere Ln, Clarksville, TN", "1 Nowhere Ln, Woodlawn, TN", full]
+    assert b["resubmit"]["text"].startswith(both)
+    for k, v in b.items():
+        assert v["framesAtRequest"] == [1] * len(v["requests"]), k       # sequential: never two requests at once
+        assert v["frames"] == 0 and not v["busy"] and not v["disabled"], k
+        assert v["csp"] == [] and v["refused"] == [], (k, v["csp"], v["refused"])
+        assert v["placeholder"] == "Street address, like 100 Main St", k
+        assert v["privacy"].startswith("Your address is sent to the U.S. Census Bureau's geocoder to find where it is. "
+                                       "This site doesn't store it."), k

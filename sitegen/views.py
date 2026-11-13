@@ -1367,6 +1367,9 @@ def address_context(districts: dict | None, georef: dict | None, geocoder: bool 
            "lookup_url": cfg.get("district_lookup_url") or "",
            "lookup_label": cfg.get("district_lookup_label") or "",
            "frame": geocode_frame_script(),
+           # a street typed with no state or ZIP is tried with each place appended (static/address.js tries)
+           "places": list(cfg.get("geocoder_places") or []), "state": cfg.get("geocoder_state") or "",
+           "state_name": cfg.get("geocoder_state_name") or "",
            "districts": [{"number": d["number"], "path": d["path"], "href": f"districts/{int(d['number']):02d}.html"}
                          for d in sorted(districts["districts"], key=lambda d: d["number"])]}
     wards = georef_mod.wards_of(districts)

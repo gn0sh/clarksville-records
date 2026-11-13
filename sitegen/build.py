@@ -348,8 +348,34 @@ def site_url_problems(cfg: dict) -> list[str]:
         if cfg.get(link):
             out += [f"{k} must be set when {link} is" for k in needs
                     if not isinstance(cfg.get(k), str) or not cfg[k].strip()]
+    out += geocoder_places_problems(cfg)
     return (out + corrections_problems(cfg) + feeds_mod.problems(cfg) + morning_mod.problems(cfg)
             + unofficial_mod.problems(cfg) + watch_mod.problems(cfg))
+
+
+# The address box's retry places (config/site.yml geocoder_places): names the box appends to a typed street, so plain
+# words only, and no more than static/address.js MAX_TRIES (5), so none is silently dropped.
+GEOCODER_MAX_PLACES = 5
+_PLACE_WORD = re.compile(r"[A-Za-z][A-Za-z .'-]{0,39}")
+
+
+def geocoder_places_problems(cfg: dict) -> list[str]:
+    places = cfg.get("geocoder_places") or []
+    if not places:
+        return []
+    out = []
+    if not isinstance(places, list) or len(places) > GEOCODER_MAX_PLACES:
+        return [f"geocoder_places must be a list of at most {GEOCODER_MAX_PLACES} place names, got {places!r}"]
+    out += [f"geocoder_places entry {p!r} must be a plain place name" for p in places
+            if not isinstance(p, str) or not _PLACE_WORD.fullmatch(p)]
+    seen = [p.strip().lower() for p in places if isinstance(p, str)]
+    out += [f"geocoder_places lists {p!r} more than once" for p in sorted({p for p in seen if seen.count(p) > 1})]
+    if not isinstance(cfg.get("geocoder_state"), str) or not re.fullmatch(r"[A-Z]{2}", cfg["geocoder_state"]):
+        out.append(f"geocoder_state must be a two-letter state code with geocoder_places, got {cfg.get('geocoder_state')!r}")
+    name = cfg.get("geocoder_state_name")
+    if name and (not isinstance(name, str) or not _PLACE_WORD.fullmatch(name)):
+        out.append(f"geocoder_state_name must be a plain state name, got {name!r}")
+    return out
 
 
 # config/site.yml `corrections:` (views.corrections_context): a GitHub owner/name and a plain e-mail address. Both go
