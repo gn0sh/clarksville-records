@@ -98,7 +98,7 @@ def test_nothing_is_taken_out_of_the_page(html):
     assert doors == 4 and len(re.findall(r'<li class="door [^>]*>\s*<h3>[^<]+</h3>\s*<p>[^<]+</p>', html)) == doors
     money = html[html.index('<li class="door door-money">'):]
     money = money[:money.index("</ul>")]
-    assert money.count('<span class="chip chip-coming">Coming</span>') == 1 and money.count('#card-') == 4, money
+    assert money.count('<span class="chip chip-coming">Coming</span>') == 1 and money.count('#card-') == 5, money
     sec = re.search(r'<section class="bodies".*?</section>', html, re.S).group(0)
     assert '<details class="bodies-fold" id="bodies-fold" open>' in sec           # built open: no script, no fold
     assert f'<summary>{config.SITE["switch"]["overview"]["fold"]}</summary>' in sec
@@ -183,8 +183,8 @@ def test_phone_and_wide_in_a_browser(site):
         assert m["tag"] and m["intro"] and m["notice"], (name, m)               # unofficial: tag, short line, footer
         assert m["doors"] == m["doorTitles"] == 4 and len(m["doorLinks"]) >= 7, (name, m)
         assert m["comingText"] == ("Coming Clarksville: City budget, Finance Committee, Audit Committee. "
-                                   "Montgomery County: Budget Committee."), (name, m)
-        assert len(m["comingLinks"]) == 4, (name, m)
+                                   "Montgomery County: Budget Committee. School board: Budget."), (name, m)
+        assert len(m["comingLinks"]) == 5, (name, m)
         assert min(m["doorLinks"]) >= 44 and m["moreLink"] >= 44, (name, m)     # tap targets
         assert m["searchName"] == "Search by street, name, topic or item number.", (name, m)
 

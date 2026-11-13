@@ -179,7 +179,9 @@ def test_bid_listings_are_not_meetings_on_the_landing(tmp_path):
     # says so (no city in this build, so no city entries)
     assert ('<p class="door-coming"><span class="chip chip-coming">Coming</span> '
             '<span class="door-coming-body">Montgomery County:</span> '
-            '<a href="montgomery-county.html#card-budget-committee">Budget Committee</a>.</p>') in main
+            '<a href="montgomery-county.html#card-budget-committee">Budget Committee</a>. '
+            '<span class="door-coming-body">School board:</span> '
+            '<a href="school-board.html#card-budget">Budget</a>.</p>') in main
     assert 'data-card="budget-committee" id="card-budget-committee"' in (out / "montgomery-county.html").read_text(encoding="utf-8")
 
 
@@ -224,6 +226,7 @@ def test_the_config_tags_the_same_cards_for_the_city_and_the_county():
              for k, b in config.SITE["switch"]["bodies"].items()}
     assert cards["city"] == ["City budget", "Finance Committee", "Audit Committee"]
     assert cards["county"] == ["Budget Committee"]
+    assert cards["school"] == ["Budget"]                        # every body shown the same way (owner, 2026-11-13)
     for b in config.SITE["switch"]["bodies"].values():          # only a coming card may carry the tag
         assert all(c.get("coming") for c in b.get("cards") or [] if c.get("door"))
 

@@ -391,7 +391,7 @@ switch:
       cards:
         - {key: meetings, title: Meetings, coming: true, text: "Board meeting agendas and minutes are not collected yet, so none are shown.", link: {from: school_board, kind: school}}
         - {key: votes, title: Votes, coming: true, text: "Recorded votes of the board are not collected yet, so none are shown.", link: {from: school_board, kind: school}}
-        - {key: budget, title: Budget, coming: true, text: "The school system budget is not collected yet, so none is shown.", link: {from: school_board, kind: school}}
+        - {key: budget, title: Budget, coming: true, door: money, text: "The school system budget is not collected yet, so none is shown.", link: {from: school_board, kind: school}}
     rpc:
       label: Planning (RPC)
       short: RPC

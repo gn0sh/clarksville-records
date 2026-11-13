@@ -49,7 +49,7 @@ Rules for doors:
 - "Public money" (owner, 2026-11-13) lists the city and the county the same way. What is collected is a link row.
   What is not collected yet is still named, in one line under the dashed "Coming" tag above the rows, one group per
   body, the city's first: "Clarksville: City budget, Finance Committee, Audit Committee. Montgomery County: Budget
-  Committee." The names are not written for the door: they are the titles of the hub cards that are `coming` and carry
+  Committee. School board: Budget." The names are not written for the door: they are the titles of the hub cards that are `coming` and carry
   `door: money` (`switch.bodies.*.cards` in `config/site.yml`; `sitegen/views.py door_coming`), so the door, the body
   cards and the hub pages use the same words, and a card that is collected leaves the line by itself. Each name links
   its card on the body's hub page (`#card-<key>`), which says what is not collected and links the official source.
