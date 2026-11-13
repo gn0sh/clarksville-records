@@ -70,7 +70,7 @@ corrections:
   # form must be on the repo's default branch for GitHub to show it. A pages build without a channel fails
   # qa/site_checks.py (report-channel).
   github_repo: "gn0sh/clarksville-records"   # "owner/name" of the PUBLIC repo: a prefilled issue from .github/ISSUE_TEMPLATE/correction.yml
-  email: ""         # an address for a mailto link (Brian may add one at go-live)
+  email: "brian@gnoshcodes.com"   # mailto link, listed first on report.html (Brian, 2026-11-13: "Report an error" should open an email to him)
 
 # Alerts v1 (M5, sitegen/feeds.py): free Atom feeds on alerts.html. We keep no list of followers and run no
 # sign-up. One "new agendas and minutes" feed per body (the county and each council below), and one feed per topic
