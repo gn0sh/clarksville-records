@@ -9,7 +9,7 @@
   <h{{ level }} class="sec-h" id="hub-h">Sections</h{{ level }}>
   <ul class="hub-cards">
     {% for c in hub.cards %}
-    <li class="hub-card{% if c.coming %} is-coming{% endif %}" data-card="{{ c.key }}">
+    <li class="hub-card{% if c.coming %} is-coming{% endif %}" data-card="{{ c.key }}" id="card-{{ c.key }}">
       <h{{ level + 1 }}>{{ c.title }}{% if c.coming %} {{ coming_tag() }}{% endif %}</h{{ level + 1 }}>
       <p>{{ c.text }}</p>
       {% if c.coming %}

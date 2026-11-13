@@ -1462,7 +1462,13 @@ def landing_doors(site: dict, rpc: tuple[str, str] | None = None) -> list[dict]:
     whose pages this build makes (the same conditions as the menu, `site["nav"]`). Where a door covers both bodies the
     City link comes first in every door (alphabetical), so neither body leads by choice. A door with no links is left
     out. `rpc`: (label, href) of the Planning Commission home when it is built; it is linked as meetings only, never
-    under votes. The only numbers are the ward and district counts."""
+    under votes. The only numbers are the ward and district counts.
+
+    "Public money" lists the city and the county the same way (owner, 2026-11-13): what is collected is a link row,
+    and what is not collected yet is still named, in the door's `coming` list (the template shows it as one line under
+    the "Coming" tag, the city's entries first), each a link to the page of this site that says so: the city hub's
+    coming budget card, the committees' "coming" page, or the county's "coming" Finance page. A door with nothing
+    collected is left out."""
     cfg = config.SITE
     nav = {e["label"]: e for e in site["nav"]}
     councils = site.get("councils") or []
@@ -1487,11 +1493,21 @@ def landing_doors(site: dict, rpc: tuple[str, str] | None = None) -> list[dict]:
          "text": "The agenda before a meeting; the minutes and votes after it, once they are posted.",
          "links": [{"label": "Day by day", "href": built("Today")},
                    {"label": rpc[0], "href": rpc[1]} if rpc else {"href": None}]},
-        {"key": "money", "title": "County money",
-         "text": f"{cfg['county_name']}'s budget books, and the bids and awards its purchasing office lists.",
-         "links": [{"label": "County budget", "href": built("Finance")},
-                   {"label": "Bids and awards", "href": built("Bids and awards")}]},
     ]
+    cm = next((e for e in site["nav"] if e.get("committees")), None)         # the committees' "coming" page
+    fin = nav.get("Finance")
+    city = councils[0]["href"] if councils else None
+    soon = [    # by kind, the city's line first: the budgets, then the committees
+        {"label": "City budget", "href": f"{city}#card-finance" if city else None},
+        {"label": "County budget", "href": fin["href"] if fin and fin["coming"] else None},
+        {"label": "City Finance and Audit committees", "href": cm["href"] if cm and city else None},
+        {"label": "County Budget Committee", "href": cm["href"] if cm else None},
+    ]
+    doors.append({"key": "money", "title": "Public money",
+                  "text": f"{cfg['county_name']}'s budget books, and the bids and awards its purchasing office lists.",
+                  "links": [{"label": "County budget", "href": built("Finance")},
+                            {"label": "Bids and awards", "href": built("Bids and awards")}],
+                  "coming": [lk for lk in soon if lk["href"]]})
     out = []
     for d in doors:
         d["links"] = [lk for lk in d["links"] if lk.get("href")]

@@ -351,7 +351,7 @@ switch:
         - {key: bids, title: Bids and awards, text: "Solicitations and awards listed in the county purchasing archive."}
         - {key: capital, title: Capital projects, text: "Capital projects in the county budget books."}
         - key: budget-committee
-          title: County Budget Committee
+          title: Budget Committee            # named the way the city's committees are (owner, 2026-11-13)
           coming: true
           text: "Budget Committee agendas are not collected yet, so none are shown."
           link: {from: committees.links.1, kind: committee}
@@ -363,15 +363,20 @@ switch:
         - {key: meetings, title: Meetings, go: Meetings by year, text: "City Council meetings by year, with attendance, motions and roll calls."}
         - {key: votes, title: Votes, go: Votes by member, text: "Each council member's recorded votes."}
         - {key: transcripts, title: Transcripts, go: Latest meetings, text: "Transcripts of council meetings, linked from each meeting that has one."}
-        - key: finance
-          title: Finance
+        - key: finance                       # the landing's "City budget" link opens this card (#card-finance)
+          title: City budget
           coming: true
           text: "City budget books and the property-tax split are not collected yet, so none are shown."
           link: {from: unofficial.bodies.0, label: City of Clarksville website, kind: body}
-        - key: committees
-          title: Finance and Audit committees
+        - key: finance-committee             # one card per committee, as the county's Budget Committee has
+          title: Finance Committee
           coming: true
-          text: "Finance Committee and Audit Committee agendas and minutes are not collected yet, so none are shown."
+          text: "Finance Committee agendas and minutes are not collected yet, so none are shown."
+          link: {from: committees.links.0, kind: committee}
+        - key: audit-committee
+          title: Audit Committee
+          coming: true
+          text: "Audit Committee agendas and minutes are not collected yet, so none are shown."
           link: {from: committees.links.0, kind: committee}
     school:
       label: School board

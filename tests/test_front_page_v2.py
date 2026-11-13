@@ -114,7 +114,8 @@ def test_fixture_doors_link_only_built_pages(html, site):
     joined = " ".join(hrefs)
     links = re.findall(r'<a href="([^"#]+)', joined)
     assert links and all((site / h).is_file() for h in links)
-    assert "County money" not in main and "Planning Commission" not in main     # not built in the fixture
+    assert "Public money" not in main and "Planning Commission" not in main     # not built in the fixture
+    assert "door-coming" not in main                                           # no door, so no "Coming" line either
     assert "city ward" not in joined                                           # no council in the fixture
 
 
@@ -129,10 +130,15 @@ def test_doors_follow_the_built_pages_city_first_and_rpc_only_under_meetings():
     assert [lk["href"] for lk in d["office"]["links"]] == ["city/index.html#seats-h", "officials.html"]
     assert [lk["href"] for lk in d["votes"]["links"]] == ["city/index.html#meetings-h", "votes/2026.html"]
     assert [lk["label"] for lk in d["meetings"]["links"]] == ["Day by day", "Planning Commission"]
+    assert d["money"]["title"] == "Public money"
     assert [lk["label"] for lk in d["money"]["links"]] == ["Bids and awards"]     # the budget is still "coming"
+    # ... and says so: the city's budget and the county's are both named under "Coming", the city's first
+    assert d["money"]["coming"] == [{"label": "City budget", "href": "city/index.html#card-finance"},
+                                    {"label": "County budget", "href": "finance.html"}]
+    assert all("coming" not in d[k] for k in ("office", "votes", "meetings"))
     assert not any("rpc" in lk["href"] for lk in d["votes"]["links"])
     site["nav"] = [e for e in nav if e["label"] != "Bids and awards"]
-    assert "money" not in {x["key"] for x in views.landing_doors(site)}            # a door with no links goes
+    assert "money" not in {x["key"] for x in views.landing_doors(site)}            # nothing collected: no door
     for x in views.landing_doors(site):
         assert not re.search(r"\b(?!12\b|21\b)\d+\b", x["text"])                   # no counts but wards and districts
 
@@ -167,7 +173,33 @@ def test_bid_listings_are_not_meetings_on_the_landing(tmp_path):
           today=date(2026, 10, 14))
     main = main_of((out / "index.html").read_text(encoding="utf-8"))
     assert config.FIN_TEXT["contracts"]["title"] not in re.sub(r'<ul class="doors".*?</ul>\s*</li>\s*</ul>', "", main, flags=re.S).split('id="meet-h"')[1].split('id="search-h"')[0]
-    assert "County money" in main and 'href="contracts/index.html"' in main
+    assert "Public money" in main and "County money" not in main and 'href="contracts/index.html"' in main
+    # the county's Budget Committee is not collected: it is named under the "Coming" tag, linked to the page that
+    # says so (no city in this build, so no city entries)
+    assert ('<p class="door-coming"><span class="chip chip-coming">Coming</span> '
+            '<a href="committees.html">County Budget Committee</a></p>') in main
+    assert (out / "committees.html").is_file()
+
+
+def test_public_money_lists_the_city_and_the_county_the_same_way():
+    """Owner, 2026-11-13: where the county's Budget Committee is named as coming, the city's budget and committees are
+    too. Collected: link rows. Not collected yet: one "Coming" list, the city's entry first within each kind."""
+    cm = {"label": "Committees", "href": "committees.html", "coming": True, "committees": {"label": "x"}}
+    nav = [{"label": "Finance", "href": "finance/index.html", "coming": False},
+           {"label": "Bids and awards", "href": "contracts/index.html", "coming": False}, cm]
+    site = {"nav": nav, "councils": [{"label": "City Council", "href": "city/index.html"}]}
+    money = {x["key"]: x for x in views.landing_doors(site)}["money"]
+    assert [lk["label"] for lk in money["links"]] == ["County budget", "Bids and awards"]
+    assert money["coming"] == [{"label": "City budget", "href": "city/index.html#card-finance"},
+                               {"label": "City Finance and Audit committees", "href": "committees.html"},
+                               {"label": "County Budget Committee", "href": "committees.html"}]
+    assert "County" in money["text"] and not re.search(r"\d", money["text"])
+    # without a city in the build, only the county's committee is named; without the committees page, nothing is
+    site["councils"] = []
+    assert [lk["label"] for lk in {x["key"]: x for x in views.landing_doors(site)}["money"]["coming"]] == [
+        "County Budget Committee"]
+    site["nav"] = nav[:2]
+    assert {x["key"]: x for x in views.landing_doors(site)}["money"]["coming"] == []
 
 
 def test_no_official_is_named_outside_the_seat_list(html):

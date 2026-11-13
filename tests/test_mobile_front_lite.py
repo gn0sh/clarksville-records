@@ -81,7 +81,7 @@ def test_each_width_reads_one_wording(html):
 def test_nothing_is_taken_out_of_the_page(html):
     """The phone layout hides with the stylesheet only: the page a wide screen, a reader without CSS and the checks
     read still holds the door sentences, every body's card and its "Coming" line, and the unofficial line."""
-    doors = html.count('<li class="door ')       # three in this build (no finance pages, so no "County money")
+    doors = html.count('<li class="door ')       # three in this build (no finance pages, so no "Public money")
     assert doors == 3 and len(re.findall(r'<li class="door [^>]*>\s*<h3>[^<]+</h3>\s*<p>[^<]+</p>', html)) == doors
     sec = re.search(r'<section class="bodies".*?</section>', html, re.S).group(0)
     assert '<details class="bodies-fold" id="bodies-fold" open>' in sec           # built open: no script, no fold
@@ -100,7 +100,7 @@ def test_the_phone_rules_are_all_inside_the_phone_query():
     assert re.search(r"^\.phone-only \{ display: none; \}$", outside, re.M)
     assert re.search(r"^\.bodies-fold > summary \{ display: none; \}", outside, re.M)
     assert ".phone-off" not in outside
-    for rule in (".phone-off { display: none; }", ".door p { display: none; }", ".addr-alt { display: none; }",
+    for rule in (".phone-off { display: none; }", ".door p:not(.door-coming) { display: none; }", ".addr-alt { display: none; }",
                  ".landing > .welcome, .landing > .find, .landing > .meetings { order: -1; }",
                  ".bodies-fold > summary { display: list-item;"):
         assert rule in block and rule not in outside, rule

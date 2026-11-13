@@ -1,6 +1,6 @@
 {% extends "base.html.j2" %}
 {% from "_feed_links.html.j2" import feed_links %}
-{% from "_hub.html.j2" import overview %}
+{% from "_hub.html.j2" import overview, coming_tag %}
 {% from "_freshness.html.j2" import freshness as fresh with context %}
 {% block head %}<script src="{{ root }}static/js-flag.js"></script>{{ feed_links(home_feeds | default([]), root) }}{% endblock %}
 {% block sky %}
@@ -71,6 +71,10 @@
     <li class="door door-{{ d.key }}">
       <h3>{{ d.title }}</h3>
       <p>{{ d.text }}</p>
+      {# what is planned but not collected yet is still named here, city and county the same way (sitegen/views.py) #}
+      {% if d.get("coming") %}
+      <p class="door-coming">{{ coming_tag() }} {% for lk in d.coming %}<a href="{{ root }}{{ lk.href }}">{{ lk.label }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+      {% endif %}
       <ul>
         {% for lk in d.links %}
         <li><a href="{{ root }}{{ lk.href }}"><span>{{ lk.label }}</span><span class="go" aria-hidden="true">&rsaquo;</span></a></li>

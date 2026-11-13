@@ -54,7 +54,7 @@ def switch_of(page: str) -> tuple[str, list[tuple[str, str, str, str]]]:
 
 def hub_cards(page: str) -> dict[str, str]:
     hub = re.search(r'<section class="hub".*?</section>', page, re.S).group(0)
-    return dict(re.findall(r'<li class="hub-card[^"]*" data-card="([^"]+)">(.*?)</li>', hub, re.S))
+    return dict(re.findall(r'<li class="hub-card[^"]*" data-card="([^"]+)" id="card-[^"]+">(.*?)</li>', hub, re.S))
 
 
 def test_the_owners_labels_in_order():
@@ -146,12 +146,15 @@ def test_a_present_card_is_shown_only_when_its_page_is_built(site, html):
 
 def test_city_and_rpc_homes_are_their_hubs(site, html):
     city = hub_cards(html[f"{cfg_slug(site)}/index.html"])
-    assert {"meetings", "votes", "finance", "committees"} <= set(city)
+    assert {"meetings", "votes", "finance", "finance-committee", "audit-committee"} <= set(city)
     assert "is-coming" not in city["meetings"] and "#meetings-h" in city["meetings"]
-    for key in ("finance", "committees"):
+    for key in ("finance", "finance-committee", "audit-committee"):
         assert '<span class="chip chip-coming">Coming</span>' in city[key]
     assert f'href="{config.SITE["unofficial"]["bodies"][0]["url"]}"' in city["finance"]
-    assert f'href="{config.SITE["committees"]["links"][0]["url"]}"' in city["committees"]
+    for key in ("finance-committee", "audit-committee"):          # one card per committee, as the county's has
+        assert f'href="{config.SITE["committees"]["links"][0]["url"]}"' in city[key]
+    # the landing's "City budget" link opens this card
+    assert '<li class="hub-card is-coming" data-card="finance" id="card-finance">' in html[f"{cfg_slug(site)}/index.html"]
     assert '<p class="hub-kicker">City government</p>' in html[f"{cfg_slug(site)}/index.html"]
     rpc_page = html["rpc/index.html"]
     rpc = hub_cards(rpc_page)
@@ -216,6 +219,11 @@ def test_home_overview_lists_each_body_with_the_same_coming_items(site, html):
         coming = [plain(re.search(r"<h\d>(.*?)<span", c, re.S).group(1)) for c in hub_cards(html[rel]).values()
                   if "chip-coming" in c]
         assert coming and f"Coming: {', '.join(coming)}." in plain(card)
+    # owner, 2026-11-13: the county's and the city's coming lines are worded the same way (each committee by its name)
+    county, city = (plain(re.search(rf'<li class="bodies-card" data-hub="{k}">(.*?)</li>', sec, re.S).group(1))
+                    for k in ("county", "city"))
+    assert county.endswith("Coming: Budget Committee.")
+    assert city.endswith("Coming: City budget, Finance Committee, Audit Committee.")
 
 
 def test_home_has_the_line_slot_first_in_the_page(html):
