@@ -37,6 +37,14 @@ geocoder_url: https://geocoding.geo.census.gov/geocoder/locations/onelineaddress
 geocoder_label: the U.S. Census Bureau's geocoder   # "Your address is sent to <label> to find where it is."
 geocoder_short: Census                               # "The Census places this address in ...", "Census's privacy policy"
 geocoder_privacy_url: https://www.census.gov/about/policies/privacy.html
+# Residents type the street only ("2861 McManus Circle"), which the Census does not match. When the typed address names
+# no state (geocoder_state, geocoder_state_name) and no 5-digit ZIP, the box tries it with each mailing place below
+# appended in turn ("2861 McManus Circle, Clarksville, TN"), one request at a time, stopping at the first match inside
+# the county; a match outside it counts as no match. At most 5 places (5 requests per lookup). An address with a state
+# or ZIP is sent once, as typed. Empty geocoder_places: always sent as typed.
+geocoder_places: [Clarksville, Woodlawn, Cunningham, Southside, Palmyra]   # the county's mailing places, most first
+geocoder_state: TN
+geocoder_state_name: Tennessee
 
 # "Unofficial copy. Official record:" line on every record page (views.official_record). A meeting page links its own
 # minutes PDF; the pages that gather many meetings link the body's minutes listing; each council names its own in

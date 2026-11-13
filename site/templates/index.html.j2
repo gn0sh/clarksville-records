@@ -42,7 +42,7 @@
     <form class="addr-form" id="addr-form" hidden>
       <label for="addr-q">{% if wards_live %}Enter your street address to see your city ward and county district.{% else %}Enter your street address to see your county district.{% endif %}</label>
       <div class="search-row">
-        <input id="addr-q" type="text" autocomplete="street-address" maxlength="200" placeholder="Street address, city" aria-describedby="addr-privacy">
+        <input id="addr-q" type="text" autocomplete="street-address" maxlength="200" placeholder="Street address, like 100 Main St" aria-describedby="addr-privacy">
         <button type="submit">Find</button>
       </div>
       <p class="addr-privacy" id="addr-privacy">Your address is sent to {{ site.cfg.geocoder_label }} to find where it is. This site doesn't store it. <a data-ext="geocoder" href="{{ site.cfg.geocoder_privacy_url }}" rel="noopener">{{ site.cfg.geocoder_short }}'s privacy policy</a> applies.{% if site.cfg.district_lookup_url %} <span class="addr-alt">Or look it up on <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">{{ site.cfg.district_lookup_label }}</a>.</span>{% endif %}</p>

@@ -84,7 +84,10 @@ def test_box_settings_come_from_config_and_georef(real_map_site):
                    "lookup_label": config.SITE["district_lookup_label"], "frame": views.geocode_frame_script(),
                    "ward_margin_m": wards["boundary_margin_m"], "ward_label": config.SITE["ward_label"],
                    "city": config.SITE["city_name"], "ward_map_owner": config.SITE["ward_map_owner"],
-                   "ward_map_date": wards["source_updated"]}
+                   "ward_map_date": wards["source_updated"],
+                   "places": config.SITE["geocoder_places"], "state": "TN", "state_name": "Tennessee"}
+    # the county's mailing places a bare street is tried with (address-lookup-bare-street), Clarksville first
+    assert config.SITE["geocoder_places"] == ["Clarksville", "Woodlawn", "Cunningham", "Southside", "Palmyra"]
     assert config.SITE["geocoder_url"] == "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress"
 
 
@@ -202,6 +205,61 @@ def test_lookup_label_is_required_with_the_lookup_link_and_never_defaulted(monke
     monkeypatch.setitem(config.SITE, "district_lookup_label", "")
     with pytest.raises(sitegen_build.BuildError):
         build(FIXTURE, tmp_path / "site", seats_path=None, districts_path=REAL_DISTRICTS)
+
+
+@pytest.mark.parametrize("edit", [{"geocoder_places": ["A", "B", "C", "D", "E", "F"]},      # more than 5 requests
+                                  {"geocoder_places": "Clarksville"}, {"geocoder_places": ["Clark<b>sville"]},
+                                  {"geocoder_places": [""]}, {"geocoder_state": ""}, {"geocoder_state": "Tenn"},
+                                  {"geocoder_state_name": "Tenn<b>"}])
+def test_geocoder_places_are_plain_names_at_most_five_with_a_state(edit):
+    assert not sitegen_build.site_url_problems(dict(config.SITE))
+    assert sitegen_build.site_url_problems(dict(config.SITE, **edit)), edit
+    assert not sitegen_build.site_url_problems(dict(config.SITE, geocoder_places=[], geocoder_state=""))   # off
+
+
+def test_place_names_come_from_config_not_the_script():
+    js = (ROOT / "site" / "static" / "address.js").read_text(encoding="utf-8")
+    for word in (*config.SITE["geocoder_places"], "Tennessee", '"TN"'):
+        assert word not in js, word
+
+
+TRIES = r"""
+const a = require(process.argv[1]);
+const inp = JSON.parse(require("fs").readFileSync(0, "utf8"));
+const out = {};
+for (const t of inp.typed) out[t] = a.tries(t, inp.places, "TN", "Tennessee");
+out.capped = a.tries("1 Test St", inp.places.concat(["Extra One", "Extra Two"]), "TN", "Tennessee");
+out.noplaces = a.tries("1 Test St", [], "TN", "Tennessee");
+out.nostate = a.tries("1 Test St", inp.places, "", "");
+out.max = a.MAX_TRIES;
+out.next = ["nomatch", "outside", "district", "near", "ambiguous", "error", "unavailable"].filter(k => a.tryNext({ kind: k }));
+console.log(JSON.stringify(out));
+"""
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="node not available")
+def test_bare_street_is_tried_with_each_county_place_and_a_full_address_as_typed():
+    places = config.SITE["geocoder_places"]
+    typed = ["2861 McManus Circle", "2861 McManus Circle, Clarksville TN", "2861 McManus Circle 37042",
+             "1 Main St, Clarksville, Tennessee", "1 Main St tn", "10000 Main St", "1 Main St Woodlawn",
+             "100 Woodlawn Rd", "1 Main St 37042-1234"]
+    res = subprocess.run(["node", "-e", TRIES, str(ROOT / "site" / "static" / "address.js")],
+                         input=json.dumps({"typed": typed, "places": places}), capture_output=True, text=True,
+                         timeout=60)
+    assert res.returncode == 0, res.stderr
+    out = json.loads(res.stdout)
+    assert out["2861 McManus Circle"] == [f"2861 McManus Circle, {p}, TN" for p in places]          # Clarksville first
+    for t in ("2861 McManus Circle, Clarksville TN", "2861 McManus Circle 37042", "1 Main St, Clarksville, Tennessee",
+              "1 Main St tn", "1 Main St 37042-1234"):
+        assert out[t] == [t], t                                         # a state or ZIP: sent once, as typed
+    assert out["10000 Main St"][0] == "10000 Main St, Clarksville, TN"   # a 5-digit house number is not a ZIP
+    # a typed place is tried first with the state only; a street named for a place is not taken for one
+    assert out["1 Main St Woodlawn"][0] == "1 Main St Woodlawn, TN" and len(out["1 Main St Woodlawn"]) == 5
+    assert "1 Main St Woodlawn, Woodlawn, TN" not in out["1 Main St Woodlawn"]
+    assert out["100 Woodlawn Rd"][0] == "100 Woodlawn Rd, Clarksville, TN"
+    assert out["max"] == 5 == sitegen_build.GEOCODER_MAX_PLACES and len(out["capped"]) == 5   # the retry cap
+    assert out["noplaces"] == ["1 Test St"] and out["nostate"] == ["1 Test St"]
+    assert out["next"] == ["nomatch", "outside"]     # an out-of-county match is a wrong guess: try the next place
 
 
 def test_privacy_url_must_be_https():

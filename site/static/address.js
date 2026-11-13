@@ -10,13 +10,18 @@
    logged; the found district and ward numbers (not the address) are kept in this browser only, by static/seats.js.
    If the geocoder cannot load (a sandboxed preview, a blocker, offline) the box says so and points to the official
    lookup.
-   Exposes CRAddress.classify / jsonpUrl / frameDoc for tests (module.exports under node). */
+   Residents type the street only, which the geocoder does not match: when the typed address names no state and no
+   ZIP, it is tried with each of the county's mailing places appended in turn (settings "places", "state", from
+   config/site.yml geocoder_places), one request at a time, at most MAX_TRIES, stopping at the first answer that is
+   not "no match" and not outside the county (a match outside it was a wrong guess, so it counts as no match).
+   Exposes CRAddress.classify / tries / jsonpUrl / frameDoc for tests (module.exports under node). */
 (function (root) {
   "use strict";
   var TIMEOUT_MS = 8000;
   var CALLBACK = "crGeocode";        // the one name the iframe's script defines; each lookup has its own iframe
   var MAX_MATCHES = 20;              // more than this is "more than one address matched" without placing each
   var MAX_ANSWER = 200000;           // characters of JSON text accepted from the iframe
+  var MAX_TRIES = 5;                 // geocoder requests per lookup, at most (sitegen GEOCODER_MAX_PLACES)
 
   function point(m) {
     var c = m && typeof m === "object" ? m.coordinates : null;
@@ -66,6 +71,41 @@
     return out;
   }
 
+  /* Does the typed address already say where it is: the state (code or name, as a word) or a 5-digit ZIP? The
+     house number is set aside first, so "10000 Main St" is not taken for a ZIP. */
+  function namesPlace(address, states) {
+    if (/\b\d{5}(?:-\d{4})?\b/.test(address.replace(/^\s*\d+/, ""))) { return true; }
+    var low = " " + address.toLowerCase().replace(/[^a-z0-9]+/g, " ") + " ";
+    return states.some(function (s) {
+      var w = String(s).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      return w && low.indexOf(" " + w + " ") >= 0;
+    });
+  }
+
+  /* The addresses one lookup sends, in order. With a state or ZIP (or no places configured): the address as typed,
+     once. Without: "<address>, <place>, <state>" for each place, except that an address that already ends with a
+     place's name is tried first with only the state added. At most MAX_TRIES. */
+  function tries(address, places, state, stateName) {
+    places = (Array.isArray(places) ? places : []).filter(function (p) { return typeof p === "string" && p; });
+    if (!places.length || typeof state !== "string" || !state ||
+        namesPlace(address, [state].concat(stateName ? [stateName] : []))) {
+      return [address];
+    }
+    var base = address.replace(/[\s,]+$/, ""), low = base.toLowerCase(), own = null;
+    places.forEach(function (p) {
+      var w = p.toLowerCase(), cut = low.length - w.length;
+      if (!own && cut > 0 && low.slice(cut) === w && /[\s,]/.test(low.charAt(cut - 1)) && low.slice(0, cut).trim()) {
+        own = p;
+      }
+    });
+    var out = own ? [base + ", " + state] : [];
+    places.forEach(function (p) { if (p !== own) { out.push(base + ", " + p + ", " + state); } });
+    return out.slice(0, MAX_TRIES);
+  }
+
+  /* A guessed place's answer that sends the lookup on to the next place. */
+  function tryNext(r) { return r.kind === "nomatch" || r.kind === "outside"; }
+
   function jsonpUrl(base, address, callback) {
     return base + "?address=" + encodeURIComponent(address) + "&benchmark=Public_AR_Current&format=jsonp&callback=" +
       encodeURIComponent(callback);
@@ -80,7 +120,8 @@
       '<script data-u="' + escAttr(url) + '">' + script + "</script>";
   }
 
-  var api = { classify: classify, wardKind: wardKind, jsonpUrl: jsonpUrl, frameDoc: frameDoc, TIMEOUT_MS: TIMEOUT_MS, CALLBACK: CALLBACK };
+  var api = { classify: classify, wardKind: wardKind, tries: tries, tryNext: tryNext, jsonpUrl: jsonpUrl,
+              frameDoc: frameDoc, TIMEOUT_MS: TIMEOUT_MS, CALLBACK: CALLBACK, MAX_TRIES: MAX_TRIES };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; return; }
   root.CRAddress = api;
 
@@ -118,7 +159,7 @@
   var input = document.getElementById("addr-q");
   var button = form.querySelector("button");
   var out = document.getElementById("addr-result");
-  var pending = null;
+  var pending = null;                // the request in flight: {frame, timer, lookup}
   form.hidden = false;
   var landing = form.closest(".landing");
   if (landing) { landing.classList.add("has-addr"); }
@@ -202,6 +243,9 @@
       say(["This address is outside " + cfg.county + "."], r.matched);
     } else if (r.kind === "ambiguous") {
       say(["More than one address matched. Add the city and ZIP, or check ", lookupLink(), "."]);
+    } else if (r.kind === "nomatch" && r.guessed) {
+      say(["No match was found for that address in " + cfg.county + ". Check the spelling, or add the city and ZIP, " +
+           "or look it up on ", lookupLink(), "."]);
     } else if (r.kind === "nomatch") {
       say(["No match was found for that address. Check the spelling, or look it up on ", lookupLink(), "."]);
     } else if (r.kind === "unavailable") {
@@ -211,11 +255,24 @@
     }
   }
 
+  /* The request in flight is dropped: its iframe goes, so a late answer has nowhere to go. */
+  function drop(req) {
+    if (pending === req) { pending = null; }
+    clearTimeout(req.timer);
+    if (req.frame.parentNode) { req.frame.parentNode.removeChild(req.frame); }
+  }
+
+  /* One request's answer. A guessed place that found nothing in the county moves on to the next place (a new
+     request, sent only now: one at a time); when none is left the answer is "no match", never "outside". */
   function finish(req, result) {
     if (pending !== req) { return; }
-    pending = null;
-    clearTimeout(req.timer);
-    if (req.frame.parentNode) { req.frame.parentNode.removeChild(req.frame); }   // a late answer has nowhere to go
+    drop(req);
+    var lk = req.lookup;
+    if (lk.guessed && tryNext(result)) {
+      lk.i += 1;
+      if (lk.i < lk.tries.length && lk.i < MAX_TRIES) { send(lk); return; }
+      result = { kind: "nomatch", guessed: true };
+    }
     button.disabled = false;
     form.removeAttribute("aria-busy");
     show(result);
@@ -253,13 +310,10 @@
     finish(req, r);
   });
 
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
-    var address = input.value.replace(/\s+/g, " ").trim();
-    if (!address) { say(["Enter a street address and city."]); input.focus(); return; }
-    if (pending) { finish(pending, { kind: "error" }); }
+  /* Sends the lookup's current address: a fresh sandboxed iframe for each request. */
+  function send(lk) {
     var fr = document.createElement("iframe");
-    var req = { frame: fr };
+    var req = { frame: fr, lookup: lk };
     pending = req;
     fr.setAttribute("sandbox", "allow-scripts");
     fr.setAttribute("referrerpolicy", "no-referrer");
@@ -268,11 +322,20 @@
     fr.setAttribute("tabindex", "-1");
     fr.className = "addr-frame";
     fr.hidden = true;
-    fr.srcdoc = frameDoc(cfg.frame, jsonpUrl(cfg.geocoder, address, CALLBACK));
+    fr.srcdoc = frameDoc(cfg.frame, jsonpUrl(cfg.geocoder, lk.tries[lk.i], CALLBACK));
     req.timer = setTimeout(function () { finish(req, { kind: "unavailable" }); }, TIMEOUT_MS);
+    document.body.appendChild(fr);
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var address = input.value.replace(/\s+/g, " ").trim();
+    if (!address) { say(["Enter a street address."]); input.focus(); return; }
+    if (pending) { drop(pending); }          // a new lookup replaces one still running (its later places too)
+    var list = tries(address, cfg.places, cfg.state, cfg.state_name);
     button.disabled = true;
     form.setAttribute("aria-busy", "true");
     say(["Looking up the address…"]);
-    document.body.appendChild(fr);
+    send({ tries: list, i: 0, guessed: list[0] !== address });
   });
 })(typeof window !== "undefined" ? window : this);
