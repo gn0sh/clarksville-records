@@ -619,8 +619,9 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
 .door .door-coming { flex: none; }
 .door .door-coming a { display: inline; min-height: 0; padding: 0; font-weight: 400; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .door .door-coming a:hover { text-decoration-thickness: 2px; }
+.door .door-coming-body { font-weight: 600; color: var(--fg); }
 .door .door-coming .chip-coming { margin-right: 2px; font-size: var(--t-xs); line-height: 1.3; padding: 0 6px; }
-@media (pointer: coarse) { .door .door-coming a { display: inline-block; padding: 12px 0; } }
+@media (pointer: coarse) { .door .door-coming a { display: inline-block; box-sizing: border-box; min-height: 44px; padding: 12px 0; } }
 .hub-card:target { outline: 3px solid var(--focus); outline-offset: 2px; }
 /* the meetings: two short lists of rows, each one link to its day on today.html */
 .meet-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; }
@@ -667,16 +668,25 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
    and keeps the headings, the links and the facts. Wider screens are untouched: every rule here is inside the media
    query, apart from the two classes that pick the phone or the wide wording and the fold's hidden summary. ======== */
 .phone-only { display: none; }
+/* 600px and wider: the doors and the public bodies are shown before the meetings, as before, though the meetings
+   come first in the page (the phone's order). In a flex column margins no longer collapse, so the three places where
+   they did are set to what they came to: 4 + 8 under "Start here", the public bodies' own heading margin alone, and
+   8 + the h1's 4 under the switch's line. */
+@media (min-width: 600px) {
+  .landing { display: flex; flex-direction: column; }
+  .landing > * { min-width: 0; }
+  .landing > .meetings { order: 1; }
+  .landing > #search-h, .landing > .landing-search, .landing > .more { order: 2; }
+  .landing > .doors { margin-top: 8px; }
+  .landing > .bodies { margin-top: 0; }
+  .landing > [data-body-line] > .bs-line { margin-bottom: 8px; }
+}
 .bodies-fold { margin: 0; max-width: none; }
 .bodies-fold > summary { display: none; }   /* wide: always open, nothing to toggle (static/landing.js folds on a phone) */
 @media (max-width: 599px) {
   .phone-only { display: inline; }
   .phone-off { display: none; }
-  /* the meetings (what is happening) come before the doors; the order in the page itself is unchanged */
-  .landing { display: flex; flex-direction: column; }
-  .landing > * { min-width: 0; }
-  .landing > .welcome, .landing > .find, .landing > .meetings { order: -1; }
-  .landing > [data-body-line] { order: -2; }   /* the "Showing ... only" line stays first */
+  /* the meetings (what is happening) come before the doors here: the page's own order, nothing is moved */
   .landing > [data-body-line] > .bs-line { margin-top: 0; }
   .bs-line { padding: 6px 10px; gap: 4px 8px; }
   .welcome .lede { margin-bottom: 4px; }
@@ -690,7 +700,7 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
   .door h3 { margin: 0 0 4px; font-size: var(--t-md); }
   .door p:not(.door-coming) { display: none; }
   .door .door-coming { margin: 0; }
-  .door .door-coming a { display: inline-block; padding: 12px 0; font-size: var(--t-sm); }
+  .door .door-coming a { display: inline-block; box-sizing: border-box; min-height: 44px; padding: 12px 0; font-size: var(--t-sm); }
   .door ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; border-top: 0; }
   .door li, .door li + li { border-top: 1px solid var(--border); }
   .door a { flex-wrap: wrap; justify-content: flex-start; gap: 2px 6px; padding: 6px 0; font-size: var(--t-sm); line-height: 1.25; }

@@ -64,29 +64,9 @@
     {% endif %}
   </section>
 
-  {% if doors %}
-  <h2 class="sec-h" id="doors-h">Start here</h2>
-  <ul class="doors doors-{{ doors | length }}" aria-labelledby="doors-h">
-    {% for d in doors %}
-    <li class="door door-{{ d.key }}">
-      <h3>{{ d.title }}</h3>
-      <p>{{ d.text }}</p>
-      {# what is planned but not collected yet is still named here, city and county the same way (sitegen/views.py) #}
-      {% if d.get("coming") %}
-      <p class="door-coming">{{ coming_tag() }} {% for lk in d.coming %}<a href="{{ root }}{{ lk.href }}">{{ lk.label }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</p>
-      {% endif %}
-      <ul>
-        {% for lk in d.links %}
-        <li><a href="{{ root }}{{ lk.href }}"><span>{{ lk.label }}</span><span class="go" aria-hidden="true">&rsaquo;</span></a></li>
-        {% endfor %}
-      </ul>
-    </li>
-    {% endfor %}
-  </ul>
-  {% endif %}
-
-  {{ overview(site.switch | default(none), root) }}
-
+  {# The meetings come before the "Start here" doors in the page (review 2026-11-13): that is the order a phone shows,
+     so what is read, what takes focus and what is seen agree there. A screen of 600px or more shows the doors and the
+     public bodies first (CSS `order` in static/style.css), as it did before. #}
   {# A selection of today.html's own cards (sitegen/days.py landing_meetings), fixed when the site is built: it says
      so, and static/landing.js moves a row whose day has passed when the page is read later. Each row links its day
      on today.html, whose card links the source. Only the body, the meeting kind and the date are shown here. #}
@@ -124,6 +104,30 @@
     {% endif %}
     <p class="meet-more"><a href="{{ root }}today.html">All meetings, day by day <span aria-hidden="true">&rsaquo;</span></a></p>
   </section>
+
+  {% if doors %}
+  <h2 class="sec-h" id="doors-h">Start here</h2>
+  <ul class="doors doors-{{ doors | length }}" aria-labelledby="doors-h">
+    {% for d in doors %}
+    <li class="door door-{{ d.key }}">
+      <h3>{{ d.title }}</h3>
+      <p>{{ d.text }}</p>
+      {# what is planned but not collected yet is still named here, each body the same way, in the words of its hub
+         cards (sitegen/views.py door_coming) #}
+      {% if d.get("coming") %}
+      <p class="door-coming">{{ coming_tag() }}{% for g in d.coming %} <span class="door-coming-body">{{ g.body }}:</span> {% for lk in g.links %}<a href="{{ root }}{{ lk.href }}">{{ lk.label }}</a>{% if not loop.last %}, {% endif %}{% endfor %}.{% endfor %}</p>
+      {% endif %}
+      <ul>
+        {% for lk in d.links %}
+        <li><a href="{{ root }}{{ lk.href }}"><span>{{ lk.label }}</span><span class="go" aria-hidden="true">&rsaquo;</span></a></li>
+        {% endfor %}
+      </ul>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {{ overview(site.switch | default(none), root) }}
 
   <h2 class="sec-h" id="search-h">Looking for something specific?</h2>
   <form class="landing-search" action="search.html" method="get" role="search" aria-labelledby="search-h">

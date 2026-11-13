@@ -85,16 +85,18 @@ def test_landing_meetings_is_empty_when_the_window_is():
 def test_order_headings_and_the_address_box_ids_are_kept(html):
     main = main_of(html)
     # the fixture build has no geocoder, so no address form (its ids: tests/test_address_box.py, test_your_seats.py)
+    # the meetings come before the doors in the page: the order a phone shows (review 2026-11-13); a wide screen shows
+    # the doors and the public bodies first with CSS `order` (tests/test_mobile_front_lite.py measures both)
     order = ['class="welcome-h"', 'id="unofficial-short"', 'id="find-h"', 'id="your-seats"', 'href="#wards-districts"',
-             'id="doors-h"', 'id="meet-h"', 'id="search-h"', 'id="landing-q"', 'id="freshness"', 'id="wards-districts"']
+             'id="meet-h"', 'id="doors-h"', 'id="search-h"', 'id="landing-q"', 'id="freshness"', 'id="wards-districts"']
     at = [main.index(s) for s in order]
     assert at == sorted(at)
     assert f'<h1 id="welcome-h" class="welcome-h">{config.SITE["welcome_h1"]}</h1>' in main
     heads = re.findall(r"<(h[1-3])\b[^>]*>(.*?)</h[1-3]>", main)
     assert [h for h in heads if h[0] == "h1"] == [("h1", config.SITE["welcome_h1"])]
     # "Public bodies on this site": the body switch's overview (tests/test_body_switch.py), 2026-11-12
-    assert [t for h, t in heads if h == "h2"][:5] == ["Find who represents you", "Start here",
-                                                      "Public bodies on this site", "Meetings",
+    assert [t for h, t in heads if h == "h2"][:5] == ["Find who represents you", "Meetings", "Start here",
+                                                      "Public bodies on this site",
                                                       "Looking for something specific?"]
 
 
@@ -132,9 +134,7 @@ def test_doors_follow_the_built_pages_city_first_and_rpc_only_under_meetings():
     assert [lk["label"] for lk in d["meetings"]["links"]] == ["Day by day", "Planning Commission"]
     assert d["money"]["title"] == "Public money"
     assert [lk["label"] for lk in d["money"]["links"]] == ["Bids and awards"]     # the budget is still "coming"
-    # ... and says so: the city's budget and the county's are both named under "Coming", the city's first
-    assert d["money"]["coming"] == [{"label": "City budget", "href": "city/index.html#card-finance"},
-                                    {"label": "County budget", "href": "finance.html"}]
+    assert d["money"]["coming"] == []                      # no hub cards in this site: nothing is named, none invented
     assert all("coming" not in d[k] for k in ("office", "votes", "meetings"))
     assert not any("rpc" in lk["href"] for lk in d["votes"]["links"])
     site["nav"] = [e for e in nav if e["label"] != "Bids and awards"]
@@ -172,34 +172,60 @@ def test_bid_listings_are_not_meetings_on_the_landing(tmp_path):
     build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, finance_path=FIN,
           today=date(2026, 10, 14))
     main = main_of((out / "index.html").read_text(encoding="utf-8"))
-    assert config.FIN_TEXT["contracts"]["title"] not in re.sub(r'<ul class="doors".*?</ul>\s*</li>\s*</ul>', "", main, flags=re.S).split('id="meet-h"')[1].split('id="search-h"')[0]
+    meetings = main[main.index('<section class="meetings"'):]
+    assert config.FIN_TEXT["contracts"]["title"] not in meetings[:meetings.index("</section>")]
     assert "Public money" in main and "County money" not in main and 'href="contracts/index.html"' in main
     # the county's Budget Committee is not collected: it is named under the "Coming" tag, linked to the page that
     # says so (no city in this build, so no city entries)
     assert ('<p class="door-coming"><span class="chip chip-coming">Coming</span> '
-            '<a href="committees.html">County Budget Committee</a></p>') in main
-    assert (out / "committees.html").is_file()
+            '<span class="door-coming-body">Montgomery County:</span> '
+            '<a href="montgomery-county.html#card-budget-committee">Budget Committee</a>.</p>') in main
+    assert 'data-card="budget-committee" id="card-budget-committee"' in (out / "montgomery-county.html").read_text(encoding="utf-8")
 
 
-def test_public_money_lists_the_city_and_the_county_the_same_way():
+def _hub(label, href, cards):
+    return {"label": label, "href": href, "cards": [{"key": k, "title": t, "coming": c, "door": d} for k, t, c, d in cards]}
+
+
+def test_public_money_names_what_is_coming_from_the_hub_cards():
     """Owner, 2026-11-13: where the county's Budget Committee is named as coming, the city's budget and committees are
-    too. Collected: link rows. Not collected yet: one "Coming" list, the city's entry first within each kind."""
-    cm = {"label": "Committees", "href": "committees.html", "coming": True, "committees": {"label": "x"}}
+    too. Review 2026-11-13: the names come from the hub cards (config `switch.bodies.*.cards` with `coming` and
+    `door: money`), so the door and the cards cannot drift, and a card that is collected leaves the list."""
     nav = [{"label": "Finance", "href": "finance/index.html", "coming": False},
-           {"label": "Bids and awards", "href": "contracts/index.html", "coming": False}, cm]
-    site = {"nav": nav, "councils": [{"label": "City Council", "href": "city/index.html"}]}
+           {"label": "Bids and awards", "href": "contracts/index.html", "coming": False}]
+    hubs = {"county": _hub("Montgomery County", "montgomery-county.html", [
+                ("finance", "Finance", False, None), ("budget-committee", "Budget Committee", True, "money")]),
+            "city": _hub("Clarksville", "city/index.html", [
+                ("finance", "City budget", True, "money"), ("finance-committee", "Finance Committee", True, "money"),
+                ("audit-committee", "Audit Committee", True, "money")]),
+            "school": _hub("School board", "school-board.html", [("budget", "Budget", True, None)])}
+    site = {"nav": nav, "councils": [{"label": "City Council", "href": "city/index.html"}], "switch": {"hubs": hubs}}
     money = {x["key"]: x for x in views.landing_doors(site)}["money"]
     assert [lk["label"] for lk in money["links"]] == ["County budget", "Bids and awards"]
-    assert money["coming"] == [{"label": "City budget", "href": "city/index.html#card-finance"},
-                               {"label": "City Finance and Audit committees", "href": "committees.html"},
-                               {"label": "County Budget Committee", "href": "committees.html"}]
+    assert money["coming"] == [                                # the city's group first, as in every door
+        {"body": "Clarksville", "links": [{"label": "City budget", "href": "city/index.html#card-finance"},
+                                          {"label": "Finance Committee", "href": "city/index.html#card-finance-committee"},
+                                          {"label": "Audit Committee", "href": "city/index.html#card-audit-committee"}]},
+        {"body": "Montgomery County", "links": [{"label": "Budget Committee",
+                                                 "href": "montgomery-county.html#card-budget-committee"}]}]
     assert "County" in money["text"] and not re.search(r"\d", money["text"])
-    # without a city in the build, only the county's committee is named; without the committees page, nothing is
-    site["councils"] = []
-    assert [lk["label"] for lk in {x["key"]: x for x in views.landing_doors(site)}["money"]["coming"]] == [
-        "County Budget Committee"]
-    site["nav"] = nav[:2]
-    assert {x["key"]: x for x in views.landing_doors(site)}["money"]["coming"] == []
+    # collected: the card is no longer `coming`, so the door stops saying so, with no change to the door
+    hubs["city"]["cards"][0]["coming"] = False
+    assert [lk["label"] for lk in views.door_coming(site, "money")[0]["links"]] == ["Finance Committee", "Audit Committee"]
+    for c in hubs["city"]["cards"]:
+        c["coming"] = False
+    assert [g["body"] for g in views.door_coming(site, "money")] == ["Montgomery County"]
+    assert views.door_coming({"nav": nav}, "money") == [] and views.door_coming(site, "votes") == []
+
+
+def test_the_config_tags_the_same_cards_for_the_city_and_the_county():
+    """The real config: the money door names each body's coming budget and committee cards by their card titles."""
+    cards = {k: [c["title"] for c in b.get("cards") or [] if c.get("coming") and c.get("door") == "money"]
+             for k, b in config.SITE["switch"]["bodies"].items()}
+    assert cards["city"] == ["City budget", "Finance Committee", "Audit Committee"]
+    assert cards["county"] == ["Budget Committee"]
+    for b in config.SITE["switch"]["bodies"].values():          # only a coming card may carry the tag
+        assert all(c.get("coming") for c in b.get("cards") or [] if c.get("door"))
 
 
 def test_no_official_is_named_outside_the_seat_list(html):

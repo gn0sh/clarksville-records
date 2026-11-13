@@ -321,6 +321,8 @@ committees:
 # (sitegen/bodies.py _hrefs). A `coming` card is dashed and links the body's own official page: `link.from` is a
 # dotted path into this file (or `rpc`, the RPC's record page in rpc.yml), so no URL is written twice and none is
 # invented. Where no budget or committee page of a body is known, the link is that body's home page and says so.
+# A coming card with `door: money` is also named under "Coming" in the home page's "Public money" door, with the same
+# title, until it is no longer `coming` (sitegen/views.py door_coming): the one place those words are written.
 switch:
   label: Show records from
   all: {label: All}
@@ -353,6 +355,7 @@ switch:
         - key: budget-committee
           title: Budget Committee            # named the way the city's committees are (owner, 2026-11-13)
           coming: true
+          door: money
           text: "Budget Committee agendas are not collected yet, so none are shown."
           link: {from: committees.links.1, kind: committee}
     city:
@@ -366,16 +369,19 @@ switch:
         - key: finance                       # the landing's "City budget" link opens this card (#card-finance)
           title: City budget
           coming: true
+          door: money
           text: "City budget books and the property-tax split are not collected yet, so none are shown."
           link: {from: unofficial.bodies.0, label: City of Clarksville website, kind: body}
         - key: finance-committee             # one card per committee, as the county's Budget Committee has
           title: Finance Committee
           coming: true
+          door: money
           text: "Finance Committee agendas and minutes are not collected yet, so none are shown."
           link: {from: committees.links.0, kind: committee}
         - key: audit-committee
           title: Audit Committee
           coming: true
+          door: money
           text: "Audit Committee agendas and minutes are not collected yet, so none are shown."
           link: {from: committees.links.0, kind: committee}
     school:

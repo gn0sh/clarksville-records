@@ -3,10 +3,12 @@
 600px the landing shows a one-sentence lede, a shorter address label and privacy line, the meetings before the "Start
 here" doors, the doors without their sentence, and the public bodies behind one line. Nothing leaves the page: the wide
 wording, every "Coming" note, the unofficial line, the header tag and the footer notice are all still there, and a
-screen of 600px or more looks as it did.
+screen of 600px or more looks as it did. The meetings come before the doors in the page itself (the phone's order, so
+focus and reading order match what a phone shows); a wide screen puts the doors and the bodies first with CSS `order`.
 
-Builds the county fixture with the city and RPC fixtures (as tests/test_body_switch.py), on the real traced map so
-the address box is on the page (as tests/test_address_box.py)."""
+Builds the county fixture with the city, RPC and finance fixtures (as tests/test_body_switch.py and
+tests/test_fin_pages.py), so all four doors are on the page, "Public money" with its "Coming" line; on the real traced
+map, so the address box is too (as tests/test_address_box.py)."""
 import json
 import os
 import re
@@ -24,6 +26,7 @@ from test_council_pages import cfg, city_facts, city_wards  # noqa: F401  (modul
 from test_rpc_pages import rpc_cfg  # noqa: F401  (module fixture)
 
 TODAY = date(2024, 12, 1)     # tests/test_days.py: the day window then holds two county fixture meetings
+FIN = ROOT / "site" / "fixtures" / "finance.sample.json"
 CSS = (ROOT / "site" / "static" / "style.css").read_text(encoding="utf-8")
 LANDING_JS = ROOT / "site" / "static" / "landing.js"
 PHONE_PRIVACY = "Sent to the U.S. Census Bureau's geocoder. This site doesn't store it. Census's privacy policy"
@@ -36,7 +39,8 @@ FOOT = ("Only meetings in these records are listed: a meeting appears once its b
 @pytest.fixture(scope="module")
 def site(tmp_path_factory, cfg, rpc_cfg):  # noqa: F811
     out = tmp_path_factory.mktemp("phone") / "build" / "site"
-    build(FIXTURE, out, seats_path=None, districts_path=config.DISTRICTS_PATH, councils=[cfg], rpc=rpc_cfg, today=TODAY)
+    build(FIXTURE, out, seats_path=None, districts_path=config.DISTRICTS_PATH, councils=[cfg], rpc=rpc_cfg,
+          finance_path=FIN, today=TODAY)
     return out
 
 
@@ -50,11 +54,20 @@ def text_of(html, pred):
     return " ".join(node.all_text().split())
 
 
+def _block(opening):
+    css = re.sub(r"/\*.*?\*/", "", CSS, flags=re.S)
+    start = css.index(opening)
+    return css[start:css.index("\n}\n", start)]
+
+
 def phone_block():
     """The body of the landing's phone media query in style.css (comments removed)."""
-    css = re.sub(r"/\*.*?\*/", "", CSS, flags=re.S)
-    start = css.index("@media (max-width: 599px) {\n  .phone-only { display: inline; }")
-    return css[start:css.index("\n}\n", start)]
+    return _block("@media (max-width: 599px) {\n  .phone-only { display: inline; }")
+
+
+def wide_block():
+    """The body of the media query that keeps the wide screen's order (comments removed)."""
+    return _block("@media (min-width: 600px) {\n  .landing { display: flex; flex-direction: column; }")
 
 
 def test_each_width_reads_one_wording(html):
@@ -81,8 +94,11 @@ def test_each_width_reads_one_wording(html):
 def test_nothing_is_taken_out_of_the_page(html):
     """The phone layout hides with the stylesheet only: the page a wide screen, a reader without CSS and the checks
     read still holds the door sentences, every body's card and its "Coming" line, and the unofficial line."""
-    doors = html.count('<li class="door ')       # three in this build (no finance pages, so no "Public money")
-    assert doors == 3 and len(re.findall(r'<li class="door [^>]*>\s*<h3>[^<]+</h3>\s*<p>[^<]+</p>', html)) == doors
+    doors = html.count('<li class="door ')
+    assert doors == 4 and len(re.findall(r'<li class="door [^>]*>\s*<h3>[^<]+</h3>\s*<p>[^<]+</p>', html)) == doors
+    money = html[html.index('<li class="door door-money">'):]
+    money = money[:money.index("</ul>")]
+    assert money.count('<span class="chip chip-coming">Coming</span>') == 1 and money.count('#card-') == 4, money
     sec = re.search(r'<section class="bodies".*?</section>', html, re.S).group(0)
     assert '<details class="bodies-fold" id="bodies-fold" open>' in sec           # built open: no script, no fold
     assert f'<summary>{config.SITE["switch"]["overview"]["fold"]}</summary>' in sec
@@ -91,9 +107,24 @@ def test_nothing_is_taken_out_of_the_page(html):
     assert 'class="unofficial-intro" id="unofficial-short"' in html and '<p class="unofficial-tag">' in html
 
 
+def test_the_page_is_in_the_phones_order_and_a_wide_screen_reorders(html):
+    """Review 2026-11-13 (a11y/visual-vs-focus-order): on a phone nothing is moved, so focus and reading order are the
+    order seen. The wide screen's old order is kept by `order` in one media query, with the three margins that used to
+    collapse set to what they came to (the browser test below measures the result at both widths)."""
+    main = html[html.index('<main id="main">'):html.index("</main>")]
+    at = [main.index(s) for s in ('id="find-h"', 'id="meet-h"', 'id="doors-h"', 'id="bodies-h"', 'id="search-h"')]
+    assert at == sorted(at)
+    wide, phone = wide_block(), phone_block()
+    for rule in (".landing > .meetings { order: 1; }",
+                 ".landing > #search-h, .landing > .landing-search, .landing > .more { order: 2; }",
+                 ".landing > .doors { margin-top: 8px; }", ".landing > .bodies { margin-top: 0; }"):
+        assert rule in wide, rule
+    assert not re.search(r"(?<![\w-])order:", phone) and "flex-direction" not in phone
+
+
 def test_the_phone_rules_are_all_inside_the_phone_query():
-    """A screen of 600px or more keeps its look: outside the media query there are only the two wording classes and
-    the fold's hidden summary."""
+    """A screen of 600px or more keeps its look: outside the phone query there are only the two wording classes, the
+    fold's hidden summary and the wide screen's own order block."""
     block = phone_block()
     css = re.sub(r"/\*.*?\*/", "", CSS, flags=re.S)
     outside = css.replace(block, "")
@@ -101,7 +132,6 @@ def test_the_phone_rules_are_all_inside_the_phone_query():
     assert re.search(r"^\.bodies-fold > summary \{ display: none; \}", outside, re.M)
     assert ".phone-off" not in outside
     for rule in (".phone-off { display: none; }", ".door p:not(.door-coming) { display: none; }", ".addr-alt { display: none; }",
-                 ".landing > .welcome, .landing > .find, .landing > .meetings { order: -1; }",
                  ".bodies-fold > summary { display: list-item;"):
         assert rule in block and rule not in outside, rule
     # and nothing in it names the notice, the tag or the footer (qa/site_checks.py check_unofficial reads the same)
@@ -151,7 +181,10 @@ def test_phone_and_wide_in_a_browser(site):
     for name, m in out.items():
         assert m["scrollWidth"] <= m["innerWidth"], (name, m)                   # the page never scrolls sideways
         assert m["tag"] and m["intro"] and m["notice"], (name, m)               # unofficial: tag, short line, footer
-        assert m["doors"] == m["doorTitles"] == 3 and len(m["doorLinks"]) >= 3, (name, m)
+        assert m["doors"] == m["doorTitles"] == 4 and len(m["doorLinks"]) >= 7, (name, m)
+        assert m["comingText"] == ("Coming Clarksville: City budget, Finance Committee, Audit Committee. "
+                                   "Montgomery County: Budget Committee."), (name, m)
+        assert len(m["comingLinks"]) == 4, (name, m)
         assert min(m["doorLinks"]) >= 44 and m["moreLink"] >= 44, (name, m)     # tap targets
         assert m["searchName"] == "Search by street, name, topic or item number.", (name, m)
 
@@ -161,6 +194,7 @@ def test_phone_and_wide_in_a_browser(site):
     assert p["privacyLink"] and p["listLink"]
     assert p["meetSub"] == "As of December 1, 2024." and p["meetFoot"] == "What is and is not collected"
     assert p["footLink"] >= 44 and p["summaryHeight"] >= 44
+    assert min(p["comingLinks"]) >= 44, p["comingLinks"]                         # review: each "Coming" name, 44px
     t = p["tops"]
     assert t["find"] < t["meetings"] < t["doors"] < t["bodies"] < t["search"], t    # the meetings come before the doors
     assert p["doorTexts"] == 0                                                   # titles and links only
@@ -182,5 +216,5 @@ def test_phone_and_wide_in_a_browser(site):
         assert w["meetSub"] == "As of December 1, 2024. Tap a meeting for its agenda, minutes and votes."
         t = w["tops"]
         assert t["find"] < t["doors"] < t["bodies"] < t["meetings"] < t["search"], (name, t)
-        assert w["doorTexts"] == 3 and w["searchLabel"] > 1
+        assert w["doorTexts"] == 4 and w["searchLabel"] > 1
         assert w["summary"] is False and w["foldOpen"] is True and w["cards"] == 4 and w["coming"] >= 3, (name, w)

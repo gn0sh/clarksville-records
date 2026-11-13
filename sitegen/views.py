@@ -1457,6 +1457,21 @@ def welcome_lede(finance: bool = False) -> str:
     return cfg["welcome_lede"].format(parts=joined)
 
 
+def door_coming(site: dict, door: str) -> list[dict]:
+    """[{body, links: [{label, href}]}]: the hub cards that are `coming` and tagged `door: <door>` in config/site.yml
+    (`switch.bodies.*.cards`), grouped by body, the city's group first (as in every door), then the switch's order.
+    Each link opens its card on the body's hub page (`#card-<key>`, site/templates/_hub.html.j2)."""
+    hubs = (site.get("switch") or {}).get("hubs") or {}
+    out = []
+    for key in sorted(hubs, key=lambda k: k != "city"):          # stable: the city, then the others as they are
+        h = hubs[key]
+        links = [{"label": c["title"], "href": f"{h['href']}#card-{c['key']}"}
+                 for c in h["cards"] if c["coming"] and c.get("door") == door]
+        if links:
+            out.append({"body": h["label"], "links": links})
+    return out
+
+
 def landing_doors(site: dict, rpc: tuple[str, str] | None = None) -> list[dict]:
     """The landing's "Start here" doors (docs/design/front-page-v2.md section 3): a title, one sentence and the links
     whose pages this build makes (the same conditions as the menu, `site["nav"]`). Where a door covers both bodies the
@@ -1465,10 +1480,12 @@ def landing_doors(site: dict, rpc: tuple[str, str] | None = None) -> list[dict]:
     under votes. The only numbers are the ward and district counts.
 
     "Public money" lists the city and the county the same way (owner, 2026-11-13): what is collected is a link row,
-    and what is not collected yet is still named, in the door's `coming` list (the template shows it as one line under
-    the "Coming" tag, the city's entries first), each a link to the page of this site that says so: the city hub's
-    coming budget card, the committees' "coming" page, or the county's "coming" Finance page. A door with nothing
-    collected is left out."""
+    and what is not collected yet is still named, under the "Coming" tag: the door's `coming` list, read from the hub
+    cards (`site["switch"]["hubs"]`, config/site.yml `switch.bodies.*.cards`) that are `coming` and carry
+    `door: money`. So the door and the body cards name each thing with the same words from one place, and a card that
+    stops being `coming` leaves this list with no change here. One group per body, the city's first, each name a link
+    to its card on that body's hub page, which says what is not collected and links the official source. A door with
+    nothing collected is left out."""
     cfg = config.SITE
     nav = {e["label"]: e for e in site["nav"]}
     councils = site.get("councils") or []
@@ -1494,20 +1511,11 @@ def landing_doors(site: dict, rpc: tuple[str, str] | None = None) -> list[dict]:
          "links": [{"label": "Day by day", "href": built("Today")},
                    {"label": rpc[0], "href": rpc[1]} if rpc else {"href": None}]},
     ]
-    cm = next((e for e in site["nav"] if e.get("committees")), None)         # the committees' "coming" page
-    fin = nav.get("Finance")
-    city = councils[0]["href"] if councils else None
-    soon = [    # by kind, the city's line first: the budgets, then the committees
-        {"label": "City budget", "href": f"{city}#card-finance" if city else None},
-        {"label": "County budget", "href": fin["href"] if fin and fin["coming"] else None},
-        {"label": "City Finance and Audit committees", "href": cm["href"] if cm and city else None},
-        {"label": "County Budget Committee", "href": cm["href"] if cm else None},
-    ]
     doors.append({"key": "money", "title": "Public money",
                   "text": f"{cfg['county_name']}'s budget books, and the bids and awards its purchasing office lists.",
                   "links": [{"label": "County budget", "href": built("Finance")},
                             {"label": "Bids and awards", "href": built("Bids and awards")}],
-                  "coming": [lk for lk in soon if lk["href"]]})
+                  "coming": door_coming(site, "money")})
     out = []
     for d in doors:
         d["links"] = [lk for lk in d["links"] if lk.get("href")]
