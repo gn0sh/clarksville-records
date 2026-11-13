@@ -60391,6 +60391,7 @@
       }
     },
     {
+      "agenda_source_id": "src-ca7fd267e7d7",
       "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05052016-36",
       "attendance": [
         {
@@ -64751,6 +64752,7 @@
       }
     },
     {
+      "agenda_source_id": "src-2880685d4d0d",
       "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05032018-633",
       "attendance": [
         {
@@ -68019,6 +68021,32 @@
       }
     },
     {
+      "agenda_source_id": "src-518e6d501a36",
+      "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09262019-271",
+      "attendance": [],
+      "attendance_status": "not_extracted",
+      "body": "Clarksville City Council",
+      "date": "2019-09-26",
+      "id": "2019-09-26-executive",
+      "kind": "executive",
+      "listing_source": "agenda-center",
+      "minutes_status": "not_posted",
+      "minutes_url": null,
+      "source_id": "src-518e6d501a36",
+      "stated_absent_count": null,
+      "title": "City Council Executive Session Agenda 9-26-19",
+      "verification": {
+        "checks": [
+          {
+            "check": "minutes_read",
+            "ok": false
+          }
+        ],
+        "status": "unverified"
+      }
+    },
+    {
+      "agenda_source_id": "src-343d19f640c8",
       "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10032019-279",
       "attendance": [
         {
@@ -68214,6 +68242,32 @@
       }
     },
     {
+      "agenda_source_id": "src-c35efa6bf340",
+      "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10312019-304",
+      "attendance": [],
+      "attendance_status": "not_extracted",
+      "body": "Clarksville City Council",
+      "date": "2019-10-31",
+      "id": "2019-10-31-executive",
+      "kind": "executive",
+      "listing_source": "agenda-center",
+      "minutes_status": "not_posted",
+      "minutes_url": null,
+      "source_id": "src-c35efa6bf340",
+      "stated_absent_count": null,
+      "title": "City Council Executive Session Agenda 10-31-19",
+      "verification": {
+        "checks": [
+          {
+            "check": "minutes_read",
+            "ok": false
+          }
+        ],
+        "status": "unverified"
+      }
+    },
+    {
+      "agenda_source_id": "src-29cdbec1f677",
       "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11072019-306",
       "attendance": [
         {
@@ -68901,6 +68955,7 @@
       }
     },
     {
+      "agenda_source_id": "src-b8ef9a535f2f",
       "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03232020-401",
       "attendance": [
         {
@@ -70148,6 +70203,32 @@
       }
     },
     {
+      "agenda_source_id": "src-0eca952de33d",
+      "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06252020-489",
+      "attendance": [],
+      "attendance_status": "not_extracted",
+      "body": "Clarksville City Council",
+      "date": "2020-06-25",
+      "id": "2020-06-25-executive",
+      "kind": "executive",
+      "listing_source": "agenda-center",
+      "minutes_status": "not_posted",
+      "minutes_url": null,
+      "source_id": "src-0eca952de33d",
+      "stated_absent_count": null,
+      "title": "City Council Executive Session Agenda 6-25-20",
+      "verification": {
+        "checks": [
+          {
+            "check": "minutes_read",
+            "ok": false
+          }
+        ],
+        "status": "unverified"
+      }
+    },
+    {
+      "agenda_source_id": "src-61022f250198",
       "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07022020-634",
       "attendance": [
         {
@@ -70343,6 +70424,32 @@
       }
     },
     {
+      "agenda_source_id": "src-435455c65bc6",
+      "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07302020-520",
+      "attendance": [],
+      "attendance_status": "not_extracted",
+      "body": "Clarksville City Council",
+      "date": "2020-07-30",
+      "id": "2020-07-30-executive",
+      "kind": "executive",
+      "listing_source": "agenda-center",
+      "minutes_status": "not_posted",
+      "minutes_url": null,
+      "source_id": "src-435455c65bc6",
+      "stated_absent_count": null,
+      "title": "City Council Executive Session Agenda 7-30-20",
+      "verification": {
+        "checks": [
+          {
+            "check": "minutes_read",
+            "ok": false
+          }
+        ],
+        "status": "unverified"
+      }
+    },
+    {
+      "agenda_source_id": "src-b1eef919ab50",
       "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08062020-526",
       "attendance": [
         {
@@ -71203,6 +71310,7 @@
       }
     },
     {
+      "agenda_source_id": "src-f918f3e1bb8a",
       "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12032020-666",
       "attendance": [],
       "attendance_status": "not_extracted",
@@ -72967,6 +73075,31 @@
       }
     },
     {
+      "agenda_source_id": "src-6e3bf7eb95e8",
+      "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05202021-821",
+      "attendance": [],
+      "attendance_status": "not_extracted",
+      "body": "Clarksville City Council",
+      "date": "2021-05-20",
+      "id": "2021-05-20-committee",
+      "kind": "committee",
+      "listing_source": "agenda-center",
+      "minutes_status": "not_posted",
+      "minutes_url": null,
+      "source_id": "src-6e3bf7eb95e8",
+      "stated_absent_count": null,
+      "title": "FY22 Department Budget Review Agenda - May 20, 2021",
+      "verification": {
+        "checks": [
+          {
+            "check": "minutes_read",
+            "ok": false
+          }
+        ],
+        "status": "unverified"
+      }
+    },
+    {
       "agenda_source_id": "src-6ef8f01b0b41",
       "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05272021-842",
       "attendance": [],
@@ -73090,6 +73223,7 @@
       }
     },
     {
+      "agenda_source_id": "src-f1855778e05d",
       "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06152021-850",
       "attendance": [
         {
@@ -73187,6 +73321,7 @@
       }
     },
     {
+      "agenda_source_id": "src-5dcbfc585356",
       "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06172021-857",
       "attendance": [
         {
@@ -73575,6 +73710,56 @@
       }
     },
     {
+      "agenda_source_id": "src-764bdcc7922f",
+      "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07292021-905",
+      "attendance": [],
+      "attendance_status": "not_extracted",
+      "body": "Clarksville City Council",
+      "date": "2021-07-29",
+      "id": "2021-07-29-executive",
+      "kind": "executive",
+      "listing_source": "agenda-center",
+      "minutes_status": "not_posted",
+      "minutes_url": null,
+      "source_id": "src-764bdcc7922f",
+      "stated_absent_count": null,
+      "title": "City Council Executive Session Agenda - July 29, 2021",
+      "verification": {
+        "checks": [
+          {
+            "check": "minutes_read",
+            "ok": false
+          }
+        ],
+        "status": "unverified"
+      }
+    },
+    {
+      "agenda_source_id": "src-d0e3f991a7b5",
+      "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08052021-908",
+      "attendance": [],
+      "attendance_status": "not_extracted",
+      "body": "Clarksville City Council",
+      "date": "2021-08-05",
+      "id": "2021-08-05-regular",
+      "kind": "regular",
+      "listing_source": "agenda-center",
+      "minutes_status": "not_posted",
+      "minutes_url": null,
+      "source_id": "src-d0e3f991a7b5",
+      "stated_absent_count": null,
+      "title": "City Council Regular Session Agenda - August 5, 2021",
+      "verification": {
+        "checks": [
+          {
+            "check": "minutes_read",
+            "ok": false
+          }
+        ],
+        "status": "unverified"
+      }
+    },
+    {
       "agenda_source_id": "src-0ce4aed9915f",
       "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08172021-922",
       "attendance": [],
@@ -73763,6 +73948,31 @@
       }
     },
     {
+      "agenda_source_id": "src-fc5d85272775",
+      "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09302021-973",
+      "attendance": [],
+      "attendance_status": "not_extracted",
+      "body": "Clarksville City Council",
+      "date": "2021-09-30",
+      "id": "2021-09-30-executive",
+      "kind": "executive",
+      "listing_source": "agenda-center",
+      "minutes_status": "not_posted",
+      "minutes_url": null,
+      "source_id": "src-fc5d85272775",
+      "stated_absent_count": null,
+      "title": "Executive Session Agenda- September 30, 2021",
+      "verification": {
+        "checks": [
+          {
+            "check": "minutes_read",
+            "ok": false
+          }
+        ],
+        "status": "unverified"
+      }
+    },
+    {
       "agenda_source_id": "src-e53a4a8f8b10",
       "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10052021-977",
       "attendance": [
@@ -73861,6 +74071,7 @@
       }
     },
     {
+      "agenda_source_id": "src-16cfa4626edc",
       "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10072021-980",
       "attendance": [
         {
@@ -74096,6 +74307,7 @@
       }
     },
     {
+      "agenda_source_id": "src-5453c3dc98b6",
       "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11042021-1008",
       "attendance": [
         {
@@ -76601,6 +76813,7 @@
       }
     },
     {
+      "agenda_source_id": "src-c33ef8dd6949",
       "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01052023-1327",
       "attendance": [
         {
@@ -76712,6 +76925,31 @@
       "source_id": "src-ff0668d52b6c",
       "stated_absent_count": null,
       "title": "Executive Session Agenda - January 26, 2023",
+      "verification": {
+        "checks": [
+          {
+            "check": "minutes_read",
+            "ok": false
+          }
+        ],
+        "status": "unverified"
+      }
+    },
+    {
+      "agenda_source_id": "src-e710de144dd3",
+      "agenda_url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01312023-1350",
+      "attendance": [],
+      "attendance_status": "not_extracted",
+      "body": "Clarksville City Council",
+      "date": "2023-01-31",
+      "id": "2023-01-31-committee",
+      "kind": "committee",
+      "listing_source": "agenda-center",
+      "minutes_status": "not_posted",
+      "minutes_url": null,
+      "source_id": "src-e710de144dd3",
+      "stated_absent_count": null,
+      "title": "Ethics Code Review Agenda - January 31, 2023 (Canceled)",
       "verification": {
         "checks": [
           {
@@ -429662,6 +429900,16 @@
       "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04282016-24"
     },
     {
+      "fetched_at": "2026-11-12",
+      "id": "src-ca7fd267e7d7",
+      "kind": "agenda",
+      "meeting_date": "2016-05-05",
+      "pages": 252,
+      "sha256": "ca7fd267e7d772e6f28c17d8465cdfbd50e09c8453cdea25aaee2ce2ee2d55af",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05052016-36"
+    },
+    {
       "fetched_at": "2026-11-09",
       "id": "src-fbc02348dedc",
       "kind": "minutes",
@@ -430672,6 +430920,16 @@
       "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_04262018-108"
     },
     {
+      "fetched_at": "2026-11-12",
+      "id": "src-2880685d4d0d",
+      "kind": "agenda",
+      "meeting_date": "2018-05-03",
+      "pages": 224,
+      "sha256": "2880685d4d0d74174bea5edea71f34dda31ab81f383c882fd649efbf497d7ca8",
+      "text_layer": "ocr",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_05032018-633"
+    },
+    {
       "fetched_at": "2026-11-09",
       "id": "src-2a0e843a8a3a",
       "kind": "minutes",
@@ -431412,6 +431670,26 @@
       "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_09052019-256"
     },
     {
+      "fetched_at": "2026-11-12",
+      "id": "src-518e6d501a36",
+      "kind": "agenda",
+      "meeting_date": "2019-09-26",
+      "pages": 260,
+      "sha256": "518e6d501a36d46a1881ea74a178faeb9bcf371a6dae441292d6fe427a90ff83",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09262019-271"
+    },
+    {
+      "fetched_at": "2026-11-12",
+      "id": "src-343d19f640c8",
+      "kind": "agenda",
+      "meeting_date": "2019-10-03",
+      "pages": 269,
+      "sha256": "343d19f640c8be94f9d21e7fd61b26539c2cb7ff571c2dc29f626c62e7e57fe4",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10032019-279"
+    },
+    {
       "fetched_at": "2026-11-09",
       "id": "src-7bdc718082e4",
       "kind": "minutes",
@@ -431440,6 +431718,26 @@
       "sha256": "42e9cf2d424ace6325d864f1ff21d67dc663a8fec43d0047c59103fcedc62c6b",
       "text_layer": "text",
       "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_10312019-303"
+    },
+    {
+      "fetched_at": "2026-11-12",
+      "id": "src-c35efa6bf340",
+      "kind": "agenda",
+      "meeting_date": "2019-10-31",
+      "pages": 232,
+      "sha256": "c35efa6bf3405ef44e79bde748266cf2bae5e263c01ac9c5f3d4d42d2b5c207b",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10312019-304"
+    },
+    {
+      "fetched_at": "2026-11-12",
+      "id": "src-29cdbec1f677",
+      "kind": "agenda",
+      "meeting_date": "2019-11-07",
+      "pages": 232,
+      "sha256": "29cdbec1f67790b1444fb75553f81cbef7b09d10adc1c8a04bf914da409b1c54",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11072019-306"
     },
     {
       "fetched_at": "2026-11-09",
@@ -431600,6 +431898,16 @@
       "sha256": "698a41d1082d5ae2253cf747c48e0c578e4249c076fb021321ed44042cb11289",
       "text_layer": "text",
       "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_03232020-401"
+    },
+    {
+      "fetched_at": "2026-11-12",
+      "id": "src-b8ef9a535f2f",
+      "kind": "agenda",
+      "meeting_date": "2020-03-23",
+      "pages": 31,
+      "sha256": "b8ef9a535f2f4004bfd007d6c59b05ad7821eaa26419c79bf7204fb92d3f72e3",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_03232020-401"
     },
     {
       "fetched_at": "2026-11-09",
@@ -431842,6 +432150,16 @@
       "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06232020-480"
     },
     {
+      "fetched_at": "2026-11-12",
+      "id": "src-0eca952de33d",
+      "kind": "agenda",
+      "meeting_date": "2020-06-25",
+      "pages": 274,
+      "sha256": "0eca952de33defc3f6756c4be4cf6b58468cd790e284756eb0bbbd9d0ff08d18",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06252020-489"
+    },
+    {
       "fetched_at": "2026-11-09",
       "id": "src-1fd4b4725c7a",
       "kind": "minutes",
@@ -431850,6 +432168,16 @@
       "sha256": "1fd4b4725c7a726c65a40f2a2879a627834c82c7cbf36cf685f1f9ca776562e4",
       "text_layer": "text",
       "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_07022020-634"
+    },
+    {
+      "fetched_at": "2026-11-12",
+      "id": "src-61022f250198",
+      "kind": "agenda",
+      "meeting_date": "2020-07-02",
+      "pages": 277,
+      "sha256": "61022f2501986a5c772d1f9babd74abc74da47c97b9fa54197b72640aebb8a16",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07022020-634"
     },
     {
       "fetched_at": "2026-11-09",
@@ -431872,6 +432200,16 @@
       "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07072020-496"
     },
     {
+      "fetched_at": "2026-11-12",
+      "id": "src-435455c65bc6",
+      "kind": "agenda",
+      "meeting_date": "2020-07-30",
+      "pages": 159,
+      "sha256": "435455c65bc62750d1132fc2f1280096cbc0cc35b94a6e75333385d3240a35f6",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07302020-520"
+    },
+    {
       "fetched_at": "2026-11-09",
       "id": "src-a6f5730a60aa",
       "kind": "minutes",
@@ -431880,6 +432218,16 @@
       "sha256": "a6f5730a60aa5852389fc50b710bb8b2d4b3b46bd2fd71b6c40ac69490048570",
       "text_layer": "text",
       "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_08062020-526"
+    },
+    {
+      "fetched_at": "2026-11-12",
+      "id": "src-b1eef919ab50",
+      "kind": "agenda",
+      "meeting_date": "2020-08-06",
+      "pages": 180,
+      "sha256": "b1eef919ab5085690745908d2cc6db7c037997ea65ae10483168ae6188916cfb",
+      "text_layer": "ocr",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08062020-526"
     },
     {
       "fetched_at": "2026-11-09",
@@ -432060,6 +432408,16 @@
       "sha256": "438eeab35be9e34d2f12aee67a02b2f5b4b32218922ec5cce6691a7100a52c99",
       "text_layer": "text",
       "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_12032020-666"
+    },
+    {
+      "fetched_at": "2026-11-12",
+      "id": "src-f918f3e1bb8a",
+      "kind": "agenda",
+      "meeting_date": "2020-12-03",
+      "pages": 130,
+      "sha256": "f918f3e1bb8a99892d05bb6298db94969b73a3152eeb452c16b3b32eb940baa7",
+      "text_layer": "ocr",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_12032020-666"
     },
     {
       "fetched_at": "2026-11-09",
@@ -432492,6 +432850,26 @@
       "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_06152021-850"
     },
     {
+      "fetched_at": "2026-11-12",
+      "id": "src-f1855778e05d",
+      "kind": "agenda",
+      "meeting_date": "2021-06-15",
+      "pages": 86,
+      "sha256": "f1855778e05df432d6a2f95260ef4525c76562e37b22f7d1ba68e947dfb63990",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06152021-850"
+    },
+    {
+      "fetched_at": "2026-11-12",
+      "id": "src-5dcbfc585356",
+      "kind": "agenda",
+      "meeting_date": "2021-06-17",
+      "pages": 95,
+      "sha256": "5dcbfc5853560d35ee405829fc6d122ec543c43cb3adae6d0e2260a949f572db",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_06172021-857"
+    },
+    {
       "fetched_at": "2026-11-09",
       "id": "src-a33a303b6738",
       "kind": "minutes",
@@ -432582,6 +432960,26 @@
       "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07012021-870"
     },
     {
+      "fetched_at": "2026-11-12",
+      "id": "src-764bdcc7922f",
+      "kind": "agenda",
+      "meeting_date": "2021-07-29",
+      "pages": 317,
+      "sha256": "764bdcc7922f424e1403703dc2e4c49ff187b09d7d467c7e2a5baab00de993a6",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_07292021-905"
+    },
+    {
+      "fetched_at": "2026-11-12",
+      "id": "src-d0e3f991a7b5",
+      "kind": "agenda",
+      "meeting_date": "2021-08-05",
+      "pages": 330,
+      "sha256": "d0e3f991a7b5656c2dd26b3b78a3a393a0a00e3a6c5231428bb1a2f309689b69",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_08052021-908"
+    },
+    {
       "fetched_at": "2026-11-09",
       "id": "src-0ce4aed9915f",
       "kind": "agenda",
@@ -432642,6 +433040,16 @@
       "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09212021-947"
     },
     {
+      "fetched_at": "2026-11-12",
+      "id": "src-fc5d85272775",
+      "kind": "agenda",
+      "meeting_date": "2021-09-30",
+      "pages": 229,
+      "sha256": "fc5d85272775441f7eb4cfe876252575fe6caf1b29e685417a1050aad77898d7",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_09302021-973"
+    },
+    {
       "fetched_at": "2026-11-09",
       "id": "src-03d9c40f9de5",
       "kind": "minutes",
@@ -432660,6 +433068,16 @@
       "sha256": "e53a4a8f8b1037726adf327be5de35cd1dedd55b7bc946be0256c31a12ded9d0",
       "text_layer": "text",
       "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10052021-977"
+    },
+    {
+      "fetched_at": "2026-11-12",
+      "id": "src-16cfa4626edc",
+      "kind": "agenda",
+      "meeting_date": "2021-10-07",
+      "pages": 260,
+      "sha256": "16cfa4626edcb1c4a091dd90c1a8549644acbdfd95d95d248442f103b8e82baa",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10072021-980"
     },
     {
       "fetched_at": "2026-11-09",
@@ -432710,6 +433128,16 @@
       "sha256": "ca5d6a0c93a75849a6eb89178d56dc354db602d06e906cce3fce848eebe61d9a",
       "text_layer": "text",
       "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_10282021-1004"
+    },
+    {
+      "fetched_at": "2026-11-12",
+      "id": "src-5453c3dc98b6",
+      "kind": "agenda",
+      "meeting_date": "2021-11-04",
+      "pages": 252,
+      "sha256": "5453c3dc98b6bba3df9121eb779baeedca532c8ca47800492098c8747fa9b0f1",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_11042021-1008"
     },
     {
       "fetched_at": "2026-11-09",
@@ -433332,6 +433760,16 @@
       "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Minutes/_01052023-1327"
     },
     {
+      "fetched_at": "2026-11-12",
+      "id": "src-c33ef8dd6949",
+      "kind": "agenda",
+      "meeting_date": "2023-01-05",
+      "pages": 4,
+      "sha256": "c33ef8dd6949c84906380915ed0bfbf6e9de31b35379d06756bc7313150f2e10",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01052023-1327"
+    },
+    {
       "fetched_at": "2026-11-09",
       "id": "src-ff0668d52b6c",
       "kind": "agenda",
@@ -433340,6 +433778,16 @@
       "sha256": "ff0668d52b6ccab71701c0e0016a04e87080573c368113a313e3da86fdf67a1e",
       "text_layer": "text",
       "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01262023-1349"
+    },
+    {
+      "fetched_at": "2026-11-12",
+      "id": "src-e710de144dd3",
+      "kind": "agenda",
+      "meeting_date": "2023-01-31",
+      "pages": 1,
+      "sha256": "e710de144dd32c8bffd98fb6281260f08a60a828ed760f0f54b42994b64c79c0",
+      "text_layer": "text",
+      "url": "https://www.clarksvilletn.gov/AgendaCenter/ViewFile/Agenda/_01312023-1350"
     },
     {
       "fetched_at": "2026-11-09",

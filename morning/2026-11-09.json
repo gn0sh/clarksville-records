@@ -27,10 +27,10 @@
  ],
  "backfill": true,
  "counts": {
-  "entries": 2255,
+  "entries": 2256,
   "lists": {
    "zoning": 0,
-   "seats": 2163,
+   "seats": 2164,
    "budget": 217,
    "contracts": 90
   },
