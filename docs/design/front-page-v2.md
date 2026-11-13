@@ -121,6 +121,28 @@ less of a slogan). Neither names or characterises any person or body.
 Copy rules kept: no text about a named official anywhere on the landing; no adjectives about any body; meeting kinds
 and body names are the record's own labels (`kind_labels`, `body_name`).
 
+## Phone, lighter (mobile-front-lite, 2026-11-13)
+
+Owner, on his iPhone: "It looks great on desktop but still kind of intimidating on mobile. It's a wall of text."
+Under 600px the landing keeps its headings, links and facts and drops the explanatory copy. A screen of 600px or more
+is unchanged. Nothing is taken out of the page: the phone rules are one media query in `static/style.css`, and two
+classes pick the wording (`.phone-off` is not shown on a phone, `.phone-only` only there), so the wide wording is still
+what the page holds and the checks read.
+
+| Part | On a phone | Why |
+|---|---|---|
+| Lede | One sentence, `welcome_lede_phone` in `config/site.yml`: "Every fact links to its official document." | The h1 says what the site is; the doors name the four things the long lede lists |
+| Unofficial line | Unchanged, on the first screen | `qa.site_checks` (unofficial/notice-on-every-page) fails any rule that hides an `unofficial-*` class, and `tests/test_unofficial_first_screen.py` wants the line on the first 375x667 screen |
+| Address label | "Enter your street address." | The card's heading already says "Find who represents you" |
+| Privacy line | "Sent to the U.S. Census Bureau's geocoder. This site doesn't store it. Census's privacy policy" (link) | Both reviewed facts and the link stay; two lines, down from four. "Or look it up on GoVoteTN" is not shown before a lookup: an answer that needs the official lookup still links it, and "Or pick from the list" stays |
+| Order | Welcome, address card, **Meetings**, Start here, Public bodies, search, details | What is happening comes before the ways in. The order in the page itself (headings, focus, screen readers) is unchanged: this is CSS `order` on whole sections that do not depend on each other |
+| Meetings | "As of {date}." then the rows; under them only the links "What is and is not collected" and "All meetings, day by day" (44px each) | The footnote's sentences are on the page the link opens |
+| Start here | Title and links only, two doors across (a third door alone takes the full row) | The sentence under each title repeats its links |
+| Public bodies | The heading and one line, `switch.overview.fold`: "What is here and what is coming", which opens the same cards | Planned-but-missing content is still named where a visitor looks: one tap shows every body's "On this site" and "Coming" lines. A `<details>` built open; `static/landing.js` closes it on a phone when the page loads and opens it again if the window grows past 599px. Without script it stays open |
+| Search | The heading, the box and the button; the label is kept for screen readers, not shown | The placeholder says the same words |
+
+Measured on the real data at 393x660 (iPhone 14 Pro): 3,890px tall before, about 2,400px after.
+
 ## Removed or moved
 
 | Element today | v2 |
@@ -187,5 +209,6 @@ and body names are the record's own labels (`kind_labels`, `body_name`).
 
 ## Recommend
 A Focus Group (the primary users are real outside residents) on: the h1 choice (two options above), whether "Start
-here" doors or the meetings list should come first on a phone, and whether "Coming up" with only the city's scheduled
+here" doors or the meetings list should come first on a phone (2026-11-13: the meetings do, see "Phone, lighter"; still
+a question for real residents), and whether "Coming up" with only the city's scheduled
 dates reads as "the county has no meetings".
