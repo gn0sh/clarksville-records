@@ -218,7 +218,7 @@ function consoleCsp(page) {
                seats: JSON.parse(localStorage.getItem('cr-your-seats') || 'null'),
                storageText: JSON.stringify(localStorage) + JSON.stringify(sessionStorage),
                placeholder: document.getElementById('addr-q').getAttribute('placeholder'),
-               privacy: document.getElementById('addr-privacy').textContent };
+               privacy: document.getElementById('addr-privacy').innerText };   // the visible variant (phone-only)
     });
     Object.assign(out.bare[name], { requests, framesAtRequest, refused });
     await page.close();

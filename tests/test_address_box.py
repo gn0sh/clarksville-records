@@ -498,5 +498,6 @@ def test_address_box_in_a_browser(real_site, tmp_path):
         assert v["frames"] == 0 and not v["busy"] and not v["disabled"], k
         assert v["csp"] == [] and v["refused"] == [], (k, v["csp"], v["refused"])
         assert v["placeholder"] == "Street address, like 100 Main St", k
-        assert v["privacy"].startswith("Your address is sent to the U.S. Census Bureau's geocoder to find where it is. "
-                                       "This site doesn't store it."), k
+        # the bare cases run at 375px: the privacy line's phone variant is the one shown (innerText, visible text only)
+        assert v["privacy"].startswith("Sent to the U.S. Census Bureau's geocoder. This site doesn't store it."), \
+            (k, v["privacy"])
