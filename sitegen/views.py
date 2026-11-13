@@ -1457,12 +1457,35 @@ def welcome_lede(finance: bool = False) -> str:
     return cfg["welcome_lede"].format(parts=joined)
 
 
+def door_coming(site: dict, door: str) -> list[dict]:
+    """[{body, links: [{label, href}]}]: the hub cards that are `coming` and tagged `door: <door>` in config/site.yml
+    (`switch.bodies.*.cards`), grouped by body, the city's group first (as in every door), then the switch's order.
+    Each link opens its card on the body's hub page (`#card-<key>`, site/templates/_hub.html.j2)."""
+    hubs = (site.get("switch") or {}).get("hubs") or {}
+    out = []
+    for key in sorted(hubs, key=lambda k: k != "city"):          # stable: the city, then the others as they are
+        h = hubs[key]
+        links = [{"label": c["title"], "href": f"{h['href']}#card-{c['key']}"}
+                 for c in h["cards"] if c["coming"] and c.get("door") == door]
+        if links:
+            out.append({"body": h["label"], "links": links})
+    return out
+
+
 def landing_doors(site: dict, rpc: tuple[str, str] | None = None) -> list[dict]:
     """The landing's "Start here" doors (docs/design/front-page-v2.md section 3): a title, one sentence and the links
     whose pages this build makes (the same conditions as the menu, `site["nav"]`). Where a door covers both bodies the
     City link comes first in every door (alphabetical), so neither body leads by choice. A door with no links is left
     out. `rpc`: (label, href) of the Planning Commission home when it is built; it is linked as meetings only, never
-    under votes. The only numbers are the ward and district counts."""
+    under votes. The only numbers are the ward and district counts.
+
+    "Public money" lists the city and the county the same way (owner, 2026-11-13): what is collected is a link row,
+    and what is not collected yet is still named, under the "Coming" tag: the door's `coming` list, read from the hub
+    cards (`site["switch"]["hubs"]`, config/site.yml `switch.bodies.*.cards`) that are `coming` and carry
+    `door: money`. So the door and the body cards name each thing with the same words from one place, and a card that
+    stops being `coming` leaves this list with no change here. One group per body, the city's first, each name a link
+    to its card on that body's hub page, which says what is not collected and links the official source. A door with
+    nothing collected is left out."""
     cfg = config.SITE
     nav = {e["label"]: e for e in site["nav"]}
     councils = site.get("councils") or []
@@ -1487,11 +1510,12 @@ def landing_doors(site: dict, rpc: tuple[str, str] | None = None) -> list[dict]:
          "text": "The agenda before a meeting; the minutes and votes after it, once they are posted.",
          "links": [{"label": "Day by day", "href": built("Today")},
                    {"label": rpc[0], "href": rpc[1]} if rpc else {"href": None}]},
-        {"key": "money", "title": "County money",
-         "text": f"{cfg['county_name']}'s budget books, and the bids and awards its purchasing office lists.",
-         "links": [{"label": "County budget", "href": built("Finance")},
-                   {"label": "Bids and awards", "href": built("Bids and awards")}]},
     ]
+    doors.append({"key": "money", "title": "Public money",
+                  "text": f"{cfg['county_name']}'s budget books, and the bids and awards its purchasing office lists.",
+                  "links": [{"label": "County budget", "href": built("Finance")},
+                            {"label": "Bids and awards", "href": built("Bids and awards")}],
+                  "coming": door_coming(site, "money")})
     out = []
     for d in doors:
         d["links"] = [lk for lk in d["links"] if lk.get("href")]

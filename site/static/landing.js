@@ -4,7 +4,8 @@
    the build is more than two days old a line says when it was built. A spare upcoming row (built hidden) takes the
    place of each one that moved, and a moved row drops its "Scheduled" chip. No network calls, no storage, nothing sent.
    Without this script the list stays as built, which its "As of" line already says.
-   Exposes CRLanding.split, daysBetween, todayIn and render for tests (module.exports under node). */
+   It also folds the "Public bodies on this site" list on a phone (fold, below).
+   Exposes CRLanding.split, daysBetween, todayIn, render and fold for tests (module.exports under node). */
 (function (root) {
   "use strict";
   var STALE_DAYS = 2;
@@ -76,8 +77,24 @@
     if (recEmpty) { recEmpty.hidden = newRec.length > 0; }
   }
 
-  var api = { split: split, daysBetween: daysBetween, todayIn: todayIn, render: render, STALE_DAYS: STALE_DAYS };
+  /* "Public bodies on this site" (mobile-front-lite): the cards are in a <details> that is built open. On a phone
+     (the width style.css shows its summary at) it starts closed, so the section is its heading and one line; on a
+     wider screen the summary is hidden, so it is opened again if the window grows (a phone turned sideways). */
+  var PHONE = "(max-width: 599px)";
+  function fold(mq) {
+    var doc = root.document || (typeof document !== "undefined" ? document : null);
+    var d = doc && doc.getElementById("bodies-fold");
+    mq = mq || (root.matchMedia ? root.matchMedia(PHONE) : null);
+    if (!d || !mq) { return; }
+    d.open = !mq.matches;
+    var widen = function (e) { if (!e.matches) { d.open = true; } };
+    if (mq.addEventListener) { mq.addEventListener("change", widen); } else if (mq.addListener) { mq.addListener(widen); }
+  }
+
+  var api = { split: split, daysBetween: daysBetween, todayIn: todayIn, render: render, fold: fold, PHONE: PHONE,
+              STALE_DAYS: STALE_DAYS };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; return; }
   root.CRLanding = api;
   render();
+  fold();
 }(typeof window !== "undefined" ? window : this));

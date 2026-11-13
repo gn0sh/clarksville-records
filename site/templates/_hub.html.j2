@@ -9,7 +9,7 @@
   <h{{ level }} class="sec-h" id="hub-h">Sections</h{{ level }}>
   <ul class="hub-cards">
     {% for c in hub.cards %}
-    <li class="hub-card{% if c.coming %} is-coming{% endif %}" data-card="{{ c.key }}">
+    <li class="hub-card{% if c.coming %} is-coming{% endif %}" data-card="{{ c.key }}" id="card-{{ c.key }}">
       <h{{ level + 1 }}>{{ c.title }}{% if c.coming %} {{ coming_tag() }}{% endif %}</h{{ level + 1 }}>
       <p>{{ c.text }}</p>
       {% if c.coming %}
@@ -24,11 +24,16 @@
 </section>
 {% endif %}
 {% endmacro %}
-{# The home page's overview: every body, what is on this site and what is coming. #}
+{# The home page's overview: every body, what is on this site and what is coming. With `overview.fold` set, the cards
+   sit in a <details> that is built open: wide screens hide its summary (style.css), so nothing can close it; on a
+   phone static/landing.js closes it when the page loads, so the list is one line until asked for (without the script
+   it stays open). The "Coming" notes stay in the page either way. #}
 {% macro overview(sw, root) %}
 {% if sw and sw.hubs %}
 <section class="bodies" aria-labelledby="bodies-h">
   <h2 class="sec-h" id="bodies-h">{{ sw.overview.heading }}</h2>
+  {% if sw.overview.fold %}<details class="bodies-fold" id="bodies-fold" open>
+  <summary>{{ sw.overview.fold }}</summary>{% endif %}
   <p class="sec-sub">{{ sw.overview.lede }}</p>
   <ul class="bodies-list">
     {% for o in sw.options if o.key != "all" %}{% set h = sw.hubs[o.key] %}
@@ -40,6 +45,7 @@
     </li>
     {% endfor %}
   </ul>
+  {% if sw.overview.fold %}</details>{% endif %}
 </section>
 {% endif %}
 {% endmacro %}

@@ -104,7 +104,8 @@ def build(site: dict, councils=(), rpc=None) -> dict | None:
                 if key == "rpc" and c["key"] == "votes" and votes_shown:
                     continue      # the hold is lifted: the card no longer applies
                 cards.append({"key": c["key"], "title": c["title"], "text": c["text"], "coming": True, "href": None,
-                              "link": official_link(c.get("link"), rpc)})
+                              "link": official_link(c.get("link"), rpc),
+                              "door": c.get("door")})   # the landing door that names it as coming (views.door_coming)
             elif hrefs.get(key, {}).get(c["key"]):
                 cards.append({"key": c["key"], "title": c["title"], "text": c["text"], "coming": False,
                               "href": hrefs[key][c["key"]], "go": c.get("go") or c["title"], "link": None})

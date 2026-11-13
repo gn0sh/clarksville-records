@@ -54,7 +54,7 @@ def switch_of(page: str) -> tuple[str, list[tuple[str, str, str, str]]]:
 
 def hub_cards(page: str) -> dict[str, str]:
     hub = re.search(r'<section class="hub".*?</section>', page, re.S).group(0)
-    return dict(re.findall(r'<li class="hub-card[^"]*" data-card="([^"]+)">(.*?)</li>', hub, re.S))
+    return dict(re.findall(r'<li class="hub-card[^"]*" data-card="([^"]+)" id="card-[^"]+">(.*?)</li>', hub, re.S))
 
 
 def test_the_owners_labels_in_order():
@@ -146,12 +146,15 @@ def test_a_present_card_is_shown_only_when_its_page_is_built(site, html):
 
 def test_city_and_rpc_homes_are_their_hubs(site, html):
     city = hub_cards(html[f"{cfg_slug(site)}/index.html"])
-    assert {"meetings", "votes", "finance", "committees"} <= set(city)
+    assert {"meetings", "votes", "finance", "finance-committee", "audit-committee"} <= set(city)
     assert "is-coming" not in city["meetings"] and "#meetings-h" in city["meetings"]
-    for key in ("finance", "committees"):
+    for key in ("finance", "finance-committee", "audit-committee"):
         assert '<span class="chip chip-coming">Coming</span>' in city[key]
     assert f'href="{config.SITE["unofficial"]["bodies"][0]["url"]}"' in city["finance"]
-    assert f'href="{config.SITE["committees"]["links"][0]["url"]}"' in city["committees"]
+    for key in ("finance-committee", "audit-committee"):          # one card per committee, as the county's has
+        assert f'href="{config.SITE["committees"]["links"][0]["url"]}"' in city[key]
+    # the landing's "City budget" link opens this card
+    assert '<li class="hub-card is-coming" data-card="finance" id="card-finance">' in html[f"{cfg_slug(site)}/index.html"]
     assert '<p class="hub-kicker">City government</p>' in html[f"{cfg_slug(site)}/index.html"]
     rpc_page = html["rpc/index.html"]
     rpc = hub_cards(rpc_page)
@@ -216,6 +219,24 @@ def test_home_overview_lists_each_body_with_the_same_coming_items(site, html):
         coming = [plain(re.search(r"<h\d>(.*?)<span", c, re.S).group(1)) for c in hub_cards(html[rel]).values()
                   if "chip-coming" in c]
         assert coming and f"Coming: {', '.join(coming)}." in plain(card)
+    # owner, 2026-11-13: the county's and the city's coming lines are worded the same way (each committee by its name)
+    county, city = (plain(re.search(rf'<li class="bodies-card" data-hub="{k}">(.*?)</li>', sec, re.S).group(1))
+                    for k in ("county", "city"))
+    assert county.endswith("Coming: Budget Committee.")
+    assert city.endswith("Coming: City budget, Finance Committee, Audit Committee.")
+
+
+def test_home_has_the_line_slot_first_in_the_page(html):
+    """The "Showing ... only" line (static/switch.js) goes first on the home page, before the welcome, so a choice
+    remembered from an earlier visit is seen on the first screen; the wording is the same for every body."""
+    home = html["index.html"]
+    main = home[home.index('<main id="main">'):home.index("</main>")]
+    assert main.count("<div data-body-line></div>") == 1
+    assert main.index('<div class="landing">') < main.index("<div data-body-line></div>") < main.index('class="welcome"')
+    js = SWITCH_JS.read_text(encoding="utf-8")
+    assert 'b.textContent = "Showing " + label(choice) + " only";' in js and 'btn.textContent = "Show all";' in js
+    assert 'line.setAttribute("role", "status");' in js
+    assert re.search(r"\.bs-line button::after \{[^}]*height: 44px", CSS)
 
 
 def test_rows_carry_their_body_for_the_filter(site, html):
@@ -549,6 +570,31 @@ for (const r of ['', ...(process.env.NODE_PATH || '').split(path.delimiter).filt
     out.once[page] = await p.evaluate(() => window.__bs);
   }
   await ctx.close();
+  // 12. the home page with a remembered choice: the line is first in the page, above the h1 on the first screen, the
+  //     name and "Show all" in one row; 44px of that row takes the tap; "Show all" clears the choice
+  out.home = {};
+  for (const [name, w, h] of [['wide', 1280, 800], ['phone', 390, 844], ['phone320', 320, 568]]) {
+    ctx = await browser.newContext({viewport: {width: w, height: h}});
+    p = await ctx.newPage();
+    await p.goto(site + 'index.html');
+    await p.evaluate(() => localStorage.setItem('cr-body', 'county'));
+    await p.reload();
+    out.home[name] = await p.evaluate(() => {
+      const l = document.getElementById('bs-line'), b = l.querySelector('button');
+      const r = l.getBoundingClientRect(), rb = b.getBoundingClientRect();
+      const hit = (dy) => document.elementFromPoint(rb.left + rb.width / 2, rb.top + rb.height / 2 + dy) === b;
+      return {text: l.textContent.replace(/\s+/g, ' ').trim(), role: l.getAttribute('role'),
+              first: document.querySelector('#main .landing').firstElementChild.contains(l),
+              aboveH1: r.bottom <= document.querySelector('h1').getBoundingClientRect().top,
+              firstScreen: r.top >= 0 && r.bottom <= window.innerHeight * 0.75,
+              oneRow: rb.top >= r.top && rb.bottom <= r.bottom && Math.abs((r.top + r.bottom) - (rb.top + rb.bottom)) < 4,
+              tap: hit(-21) && hit(21), sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth};
+    });
+    await p.click('#bs-line button');
+    out.home[name].after = await p.evaluate(() => ({line: !!document.getElementById('bs-line'),
+      stored: localStorage.getItem('cr-body'), focus: document.activeElement.getAttribute('data-switch')}));
+    await ctx.close();
+  }
   await browser.close();
   console.log(JSON.stringify(out));
 })();
@@ -629,3 +675,9 @@ def test_switch_in_a_browser(site, tmp_path):
     assert pa["line"].startswith("Showing Clarksville only") and pa["count"] != pb["count"], pa
     assert pt["ticked"] == ["county"] and pt["line"] == "" and pt["count"] == pb["count"], pt   # a box decides again
     assert r["once"] == {p: {"lines": 1, "events": 1} for p in r["once"]}, r["once"]
+    assert set(r["home"]) == {"wide", "phone", "phone320"}
+    for name, hm in r["home"].items():      # owner, 2026-11-13: a remembered choice was easy to miss on the home page
+        assert hm["text"] == "Showing Montgomery County only Show all" and hm["role"] == "status", (name, hm)
+        assert hm["first"] and hm["aboveH1"] and hm["firstScreen"], (name, hm)
+        assert hm["oneRow"] and hm["tap"] and hm["sw"] <= hm["cw"], (name, hm)
+        assert hm["after"] == {"line": False, "stored": None, "focus": "all"}, (name, hm)

@@ -41,6 +41,14 @@ def pages(built):
     return {p.relative_to(built).as_posix(): p.read_text(encoding="utf-8") for p in built.rglob("*.html")}
 
 
+def at_width(html: str, phone: bool) -> str:
+    """The landing's markup as one width shows it (static/style.css, under 600px): a `.phone-only` span is not shown on
+    a wide screen and a `.phone-off` span is not shown on a phone. Each holds text only."""
+    import re
+    gone = "phone-off" if phone else "phone-only"
+    return re.sub(rf'<span class="{gone}">[^<]*</span>', "", html)
+
+
 class Node:
     def __init__(self, tag, attrs, parent):
         self.tag, self.attrs, self.parent, self.children, self.text = tag, dict(attrs), parent, [], []

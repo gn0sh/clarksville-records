@@ -1,6 +1,6 @@
 {% extends "base.html.j2" %}
 {% from "_feed_links.html.j2" import feed_links %}
-{% from "_hub.html.j2" import overview %}
+{% from "_hub.html.j2" import overview, coming_tag %}
 {% from "_freshness.html.j2" import freshness as fresh with context %}
 {% block head %}<script src="{{ root }}static/js-flag.js"></script>{{ feed_links(home_feeds | default([]), root) }}{% endblock %}
 {% block sky %}
@@ -17,9 +17,16 @@
    form, which needs it; then the card offers the list and the official lookup instead. #}
 {% set dl = site.cfg.district_layer %}{% set wl = site.cfg.ward_layer %}{% set wards_live = address and address.get('wards') %}{# shapes the lookup checks #}
 <div class="landing">
+  {# static/switch.js puts its "Showing ... only" line and its "Show all" button here, first on the page, when a body
+     other than All is chosen (the choice is remembered on the device): on the first screen at every width, next to
+     the switch it describes, not down by the meetings it filters (owner, 2026-11-13: the choice was easy to miss). #}
+  <div data-body-line></div>
   <section class="welcome" aria-labelledby="welcome-h">
     <h1 id="welcome-h" class="welcome-h">{{ site.cfg.welcome_h1 }}</h1>
-    <p class="lede">{{ welcome_lede }}</p>
+    {# Phone (mobile-front-lite): one short sentence in place of the lede, so the address box is on the first screen.
+       .phone-off / .phone-only are display:none on the other side of 600px, so only one of the two is ever read. #}
+    {% set lede_phone = site.cfg.get("welcome_lede_phone") %}
+    <p class="lede">{% if lede_phone %}<span class="phone-off">{{ welcome_lede }}</span><span class="phone-only">{{ lede_phone }}</span>{% else %}{{ welcome_lede }}{% endif %}</p>
     {# the short form; the header tag is beside the name and the full notice is in this page's footer, as on every page #}
     <p class="unofficial-intro" id="unofficial-short">{{ site.unofficial.email_line }} <a href="{{ root }}about.html#unofficial">About this site</a></p>
   </section>
@@ -40,12 +47,13 @@
     <p class="sr-only" id="seats-status" role="status" aria-live="polite"></p>
 {% if address %}
     <form class="addr-form" id="addr-form" hidden>
-      <label for="addr-q">{% if wards_live %}Enter your street address to see your city ward and county district.{% else %}Enter your street address to see your county district.{% endif %}</label>
+      <label for="addr-q">Enter your street address<span class="phone-off"> to see your {% if wards_live %}city ward and county district{% else %}county district{% endif %}</span>.</label>
       <div class="search-row">
         <input id="addr-q" type="text" autocomplete="street-address" maxlength="200" placeholder="Street address, city" aria-describedby="addr-privacy">
         <button type="submit">Find</button>
       </div>
-      <p class="addr-privacy" id="addr-privacy">Your address is sent to {{ site.cfg.geocoder_label }} to find where it is. This site doesn't store it. <a data-ext="geocoder" href="{{ site.cfg.geocoder_privacy_url }}" rel="noopener">{{ site.cfg.geocoder_short }}'s privacy policy</a> applies.{% if site.cfg.district_lookup_url %} <span class="addr-alt">Or look it up on <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">{{ site.cfg.district_lookup_label }}</a>.</span>{% endif %}</p>
+      {# Phone: the same two facts (sent to the geocoder, not stored here) and the privacy link, in fewer words. #}
+      <p class="addr-privacy" id="addr-privacy"><span class="phone-off">Your address is sent</span><span class="phone-only">Sent</span> to {{ site.cfg.geocoder_label }}<span class="phone-off"> to find where it is</span>. This site doesn't store it. <a data-ext="geocoder" href="{{ site.cfg.geocoder_privacy_url }}" rel="noopener">{{ site.cfg.geocoder_short }}'s privacy policy</a><span class="phone-off"> applies.</span>{% if site.cfg.district_lookup_url %} <span class="addr-alt">Or look it up on <a data-ext="lookup" href="{{ site.cfg.district_lookup_url }}" rel="noopener">{{ site.cfg.district_lookup_label }}</a>.</span>{% endif %}</p>
       <p class="addr-result" id="addr-result" role="status" aria-live="polite"></p>
     </form>
     <script type="application/json" id="addr-config">{{ address|tojson }}</script>
@@ -56,6 +64,8 @@
     {% endif %}
   </section>
 
+  {# The page's order is the wide screen's: the doors, the public bodies, then the meetings. A phone shows the meetings
+     first by CSS `order` (static/style.css), an accepted deviation recorded in docs/design/front-page-v2.md. #}
   {% if doors %}
   <h2 class="sec-h" id="doors-h">Start here</h2>
   <ul class="doors doors-{{ doors | length }}" aria-labelledby="doors-h">
@@ -63,6 +73,11 @@
     <li class="door door-{{ d.key }}">
       <h3>{{ d.title }}</h3>
       <p>{{ d.text }}</p>
+      {# what is planned but not collected yet is still named here, each body the same way, in the words of its hub
+         cards (sitegen/views.py door_coming) #}
+      {% if d.get("coming") %}
+      <p class="door-coming">{{ coming_tag() }}{% for g in d.coming %} <span class="door-coming-body">{{ g.body }}:</span> {% for lk in g.links %}<a href="{{ root }}{{ lk.href }}">{{ lk.label }}</a>{% if not loop.last %}, {% endif %}{% endfor %}.{% endfor %}</p>
+      {% endif %}
       <ul>
         {% for lk in d.links %}
         <li><a href="{{ root }}{{ lk.href }}"><span>{{ lk.label }}</span><span class="go" aria-hidden="true">&rsaquo;</span></a></li>
@@ -81,7 +96,7 @@
   {% set m = meetings %}
   <section class="meetings" id="meetings" aria-labelledby="meet-h" data-built="{{ m.built }}" data-tz="{{ site.cfg.site_timezone }}" data-n="{{ m.n }}">
     <h2 class="sec-h" id="meet-h">Meetings</h2>
-    <p class="sec-sub">As of <time datetime="{{ m.built }}">{{ m.built_text }}</time>. Tap a meeting for its agenda, minutes and votes.</p>
+    <p class="sec-sub">As of <time datetime="{{ m.built }}">{{ m.built_text }}</time>.<span class="phone-off"> Tap a meeting for its agenda, minutes and votes.</span></p>
     <p class="sec-sub meet-stale" id="meet-stale" hidden>This list was built on {{ m.built_text }}; later meetings appear when it is built again.</p>
     {% macro meet_rows(rows, hidden=false) %}
       {% for r in rows %}
@@ -91,7 +106,6 @@
         {% if r.chip %}<span class="chip chip-status" data-chip="{{ r.chip }}">{{ r.chip }}</span>{% endif %}</a></li>
       {% endfor %}
     {% endmacro %}
-    <div data-body-line></div>{# static/switch.js puts its "Showing ... only" line here #}
     {% if m.upcoming or m.recent %}{# a spare row is only ever after a shown one #}
     <div class="meet-cols">
       <div class="meet-col" data-body-group>
@@ -107,7 +121,7 @@
         <p class="meet-empty bs-none">No meetings of the body you chose are listed here.</p>
       </div>
     </div>
-    <p class="meet-foot">Only meetings in these records are listed: a meeting appears once its body posts an agenda or lists a date. Each body's own calendar is the official schedule. <a href="{{ root }}today.html#day-bodies-h">What is and is not collected</a></p>
+    <p class="meet-foot"><span class="phone-off">Only meetings in these records are listed: a meeting appears once its body posts an agenda or lists a date. Each body's own calendar is the official schedule. </span><a href="{{ root }}today.html#day-bodies-h">What is and is not collected</a></p>
     {% else %}
     <p class="meet-empty">No meetings from the last four weeks or the next four are in these records.</p>
     {% endif %}

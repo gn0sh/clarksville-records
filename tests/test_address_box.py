@@ -9,7 +9,7 @@ import subprocess
 
 import pytest
 
-from conftest import FIXTURE, ROOT, build, parse
+from conftest import FIXTURE, ROOT, at_width, build, parse
 from qa import site_checks
 from sitegen import build as sitegen_build, config, georef, views
 from test_georef import G
@@ -43,7 +43,8 @@ def addr_config(html):
 
 
 def test_box_is_hidden_until_the_script_shows_it_and_names_the_privacy_rule(real_map_site):
-    html = (real_map_site / "index.html").read_text(encoding="utf-8")
+    raw = (real_map_site / "index.html").read_text(encoding="utf-8")
+    html = at_width(raw, phone=False)                  # the wide wording; the phone's is in test_mobile_front_lite.py
     form = next(n for n in parse(html).walk() if n.attrs.get("id") == "addr-form")
     assert "hidden" in form.attrs and "action" not in form.attrs and "method" not in form.attrs
     text = " ".join(form.all_text().split())
@@ -57,7 +58,7 @@ def test_box_is_hidden_until_the_script_shows_it_and_names_the_privacy_rule(real
     assert "City ward lookup is coming" not in html
     assert f'<a data-ext="lookup" href="{config.SITE["district_lookup_url"]}" rel="noopener">GoVoteTN</a>' in html
     assert (f'<a data-ext="geocoder" href="{config.SITE["geocoder_privacy_url"]}" rel="noopener">'
-            "Census's privacy policy</a> applies.") in html
+            'Census\'s privacy policy</a><span class="phone-off"> applies.</span>') in html
     assert config.SITE["geocoder_privacy_url"] == "https://www.census.gov/about/policies/privacy.html"
     assert 'aria-describedby="addr-privacy"' in html and 'role="status"' in html
     assert re.search(r'static/georef\.js" defer></script>\s*<script src="static/address\.js" defer>', html)
@@ -97,7 +98,8 @@ def test_map_without_ward_shapes_keeps_the_district_lookup(tmp_path):
     out = tmp_path / "site"
     build(FIXTURE, out, seats_path=None, districts_path=tmp_path / "districts.json")
     html = (out / "index.html").read_text(encoding="utf-8")
-    assert "Enter your street address to see your county district." in html and "your city ward" not in html
+    label = next(n for n in parse(html).walk() if n.tag == "label" and n.attrs.get("for") == "addr-q")
+    assert label.all_text() == "Enter your street address to see your county district." and "your city ward" not in html
     assert "only the district number is kept" in html and "City ward lookup is coming" in html
     cfg = addr_config(html)
     assert "ward_margin_m" not in cfg and "wards" not in cfg and len(cfg["districts"]) == 21
