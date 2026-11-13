@@ -1,15 +1,16 @@
 # Status
 
-**Feature:** Daylight public-records site, launch candidate (Brian's review Fri Nov 13; rest of scope Wed Nov 18).
-**Stage:** Review, security and QA passed on the integration branch; squash-merged to `main` with deploy and morning note still locked. Preview https://gn0sh.github.io/clarksville-records/ = build of 4f1b90a (gh-pages 5e711fe): site_checks PASS, pii_scan 0 hits, brand checks PASS.
-**Next:** Brian's Friday review; go-live waits on his typed OK (hard stop 1) and the go-live ask list; Nov 18 batch (ADR 0006 list).
+**Feature:** Daylight public-records site. **LIVE (soft opening) at https://daylight.gnoshcodes.com/ since 2026-11-13 ~1:08 AM CT.** No marketing until Brian's formal launch in January 2027 (after his council term); friends and family only.
+**Stage:** Live. Brian typed "launch" in thread "Launch the Daylight records site" (2026-11-13 12:40 AM CT), did go-live steps 1-6 (Pages source Actions, custom domain, Porkbun CNAME, HTTPS enforced, RECORDS_DEPLOY_ENABLED=true). PR #12 (live: true) merged; deploy run 43381404639 green. Report an error emails brian@gnoshcodes.com first (PR #18). Uptime: gnosh-uptime monitor.config.json (PR #15) + Better Stack (Brian). gh-pages preview no longer served (Pages source is Actions); removing gh-pages from the env branch policy is optional hygiene, not asked.
+**Next:** after the Nov 16 reset: Fable once-over of the whole site; hub ideas (news tied to agenda items, Parks & Rec events, gas/water/CDE outages, city press releases, possible city partnership); Nov 18 batch (ADR 0006 list). Open option for Brian: hide the tip jar until his term ends (raised in thread, no answer yet; default keep).
 
 ## Waiting on the CEO
-- Friday review of the preview (looks right? yes / list changes) | https://gn0sh.github.io/clarksville-records/ | open on phone + PC | asked 2026-11-12 in thread "Launch the Daylight records site" | default: keep building the Nov 18 batch
+- (none)
 
 ## Run ledger
 | Date | Role | Model/effort | Task | Outcome |
 |---|---|---|---|---|
+| 2026-11-13 | code-reviewer | sonnet/medium | PR #18 report-email 99ae6cd | approve with nits (wording + show address fixed in 7a59000; spam/role alias = judgment call, kept Brian's pick) |
 | 2026-11-12 | code-reviewer | opus/medium | navy recolor delta 3e34967..5b401e6 + full suite | approve with nits (should-fix a11y/link-affordance/council-seats-note-cite, pre-existing); 1387+2742 pass |
 | 2026-11-12 | frontend-engineer | opus/medium | seat note/cite links + nits -> b707b5b | done; 1387+2743 pass, site_checks PASS |
 | 2026-11-12 | code-reviewer | opus/medium (resumed) | delta b707b5b | approve; nit layout/council-seat-note-wrap |
