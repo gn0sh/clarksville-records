@@ -37,14 +37,21 @@ bodies the links are in alphabetical order (City, then County) in every door, so
 | Who's in office | The council member for each of {ward_count} city wards and the commissioner for each of {district_count} county districts. | City Council → `city/index.html` | County Commission → `officials.html` |
 | How they voted | Each recorded vote, by meeting and by member, linked to the page of the minutes it came from. | City Council votes → `city/index.html` | County Commission votes → `votes/<newest year>.html` (the `Votes` nav href) |
 | Meetings and agendas | The agenda before a meeting; the minutes and votes after it, once they are posted. | Day by day → `today.html` | Planning Commission → `rpc/index.html` |
-| County money | Montgomery County's budget books, and the bids and awards its purchasing office lists. | County budget → `finance/index.html` | Bids and awards → `contracts/index.html` |
+| Public money (was "County money" until 2026-11-13) | Montgomery County's budget books, and the bids and awards its purchasing office lists. | County budget → `finance/index.html` | Bids and awards → `contracts/index.html` |
 
 Rules for doors:
 - A link is rendered only when its page is built (same conditions as `views._nav`). A door with no links is not
   rendered; the grid reflows (4, 3 or 2 across on desktop).
 - The Planning Commission link says nothing about votes (its motions are hidden); the door sentence about votes is
   true for the county and the council only, and the "How they voted" door has no RPC link.
-- "County money" says county because no city finance is collected. Do not relabel it "Where the money goes".
+- "Public money" (owner, 2026-11-13) lists the city and the county the same way. What is collected is a link row.
+  What is not collected yet is still named, in one line under the dashed "Coming" tag above the rows, the city's entry
+  first within each kind: City budget → the city hub's coming budget card (`city/index.html#card-finance`), City
+  Finance and Audit committees and County Budget Committee → `committees.html` (the page that says they are coming,
+  with the official sources). The sentence still says county, because only county money is collected. A door with
+  nothing collected is not rendered. Do not relabel it "Where the money goes".
+- The body cards word their "Coming" lines the same way: County "Budget Committee"; Clarksville "City budget, Finance
+  Committee, Audit Committee" (one hub card per committee; the titles are `switch.bodies.*.cards` in the config).
 - No counts of votes, meetings or people's activity. The only numbers are the ward and district counts.
 - Engineer: if `city/index.html` has anchors for its seats list and its meetings/votes list, point the two City
   links at them so they do not land on the same spot.
@@ -137,11 +144,19 @@ what the page holds and the checks read.
 | Privacy line | "Sent to the U.S. Census Bureau's geocoder. This site doesn't store it. Census's privacy policy" (link) | Both reviewed facts and the link stay; two lines, down from four. "Or look it up on GoVoteTN" is not shown before a lookup: an answer that needs the official lookup still links it, and "Or pick from the list" stays |
 | Order | Welcome, address card, **Meetings**, Start here, Public bodies, search, details | What is happening comes before the ways in. The order in the page itself (headings, focus, screen readers) is unchanged: this is CSS `order` on whole sections that do not depend on each other |
 | Meetings | "As of {date}." then the rows; under them only the links "What is and is not collected" and "All meetings, day by day" (44px each) | The footnote's sentences are on the page the link opens |
-| Start here | Title and links only, two doors across (a third door alone takes the full row) | The sentence under each title repeats its links |
+| Start here | Title and links only; each door's links two across (where a door covers both bodies: the city's on the left, the county's on the right). "Public money" keeps its "Coming" line, each name a 44px link | The sentence under each title repeats its links |
 | Public bodies | The heading and one line, `switch.overview.fold`: "What is here and what is coming", which opens the same cards | Planned-but-missing content is still named where a visitor looks: one tap shows every body's "On this site" and "Coming" lines. A `<details>` built open; `static/landing.js` closes it on a phone when the page loads and opens it again if the window grows past 599px. Without script it stays open |
 | Search | The heading, the box and the button; the label is kept for screen readers, not shown | The placeholder says the same words |
 
-Measured on the real data at 393x660 (iPhone 14 Pro): 3,890px tall before, about 2,400px after.
+Measured on the real data at 393x660 (iPhone 14 Pro): 3,890px tall before, about 2,600px after (about 2,400px
+before "Public money" gained its "Coming" line the same day).
+
+**The body switch's line, every width (2026-11-13).** A choice other than All is remembered on the device. On the home
+page the line that says so ("Showing Montgomery County only" and a "Show all" button; `static/switch.js`, the same
+words for every body, `role="status"`) is now first in the page, right under the switch, not down in the meetings
+section, where the owner missed it. It is one row (the name wraps before the button drops), with a full border and the
+sun-colored bar; "Show all" takes a 44px tap or click at every pointer. Other pages keep the line at the top of their
+rows.
 
 ## Removed or moved
 
