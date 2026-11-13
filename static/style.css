@@ -615,6 +615,14 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
 .door a span:first-child { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .door a:hover span:first-child { text-decoration-thickness: 2px; }
 .door .go { font-family: var(--font-head); font-weight: 800; font-size: 1.2rem; line-height: 1; }
+/* what is not collected yet: one line of plain links under the dashed "Coming" tag, above the door's link rows */
+.door .door-coming { flex: none; }
+.door .door-coming a { display: inline; min-height: 0; padding: 0; font-weight: 400; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.door .door-coming a:hover { text-decoration-thickness: 2px; }
+.door .door-coming-body { font-weight: 600; color: var(--fg); }
+.door .door-coming .chip-coming { margin-right: 2px; font-size: var(--t-xs); line-height: 1.3; padding: 0 6px; }
+@media (pointer: coarse) { .door .door-coming a { display: inline-block; box-sizing: border-box; min-height: 44px; padding: 12px 0; } }
+.hub-card:target { outline: 3px solid var(--focus); outline-offset: 2px; }
 /* the meetings: two short lists of rows, each one link to its day on today.html */
 .meet-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; }
 .meet-col h3 { margin: 0 0 6px; font-family: var(--font-mono); font-size: var(--t-xs); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
@@ -655,6 +663,54 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
   .door p { flex: none; }
   .meet-cols { grid-template-columns: 1fr; }
   .sec-h { margin-top: 28px; }
+}
+/* ==== Phone front page, lighter (mobile-front-lite, 2026-11-13): under 600px the landing drops its explanatory copy
+   and keeps the headings, the links and the facts. Wider screens are untouched: every rule here is inside the media
+   query, apart from the two classes that pick the phone or the wide wording and the fold's hidden summary. ======== */
+.phone-only { display: none; }
+.bodies-fold { margin: 0; max-width: none; }
+.bodies-fold > summary { display: none; }   /* wide: always open, nothing to toggle (static/landing.js folds on a phone) */
+@media (max-width: 599px) {
+  .phone-only { display: inline; }
+  .phone-off { display: none; }
+  /* the meetings (what is happening) come before the doors here; the order in the page itself is the wide screen's
+     (accepted deviation: docs/design/front-page-v2.md "Phone, lighter", Order) */
+  .landing { display: flex; flex-direction: column; }
+  .landing > * { min-width: 0; }
+  .landing > .welcome, .landing > .find, .landing > .meetings { order: -1; }
+  .landing > [data-body-line] { order: -2; }   /* the "Showing ... only" line stays first */
+  .landing > [data-body-line] > .bs-line { margin-top: 0; }
+  .bs-line { padding: 6px 10px; gap: 4px 8px; }
+  .welcome .lede { margin-bottom: 4px; }
+  .addr-form label { margin-bottom: 6px; }
+  .addr-alt { display: none; }   /* the official lookup is still offered with an answer that needs it */
+  .find-alt { margin-top: 2px; }
+  /* doors: the title and its links, the links two across (where a door covers both bodies: the city's on the left,
+     the county's on the right); the sentence under each title is left to wider screens */
+  .doors, .doors:not(.doors-1) { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .door { padding: 8px 12px 2px; border-top-width: 3px; }
+  .door h3 { margin: 0 0 4px; font-size: var(--t-md); }
+  .door p:not(.door-coming) { display: none; }
+  .door .door-coming { margin: 0; }
+  .door .door-coming a { display: inline-block; box-sizing: border-box; min-height: 44px; padding: 12px 0; font-size: var(--t-sm); }
+  .door ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 12px; border-top: 0; }
+  .door li, .door li + li { border-top: 1px solid var(--border); }
+  .door a { flex-wrap: wrap; justify-content: flex-start; gap: 2px 6px; padding: 6px 0; font-size: var(--t-sm); line-height: 1.25; }
+  .door .go { display: none; }
+  /* the public bodies: one line that opens the cards */
+  .bodies-fold { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-top: 8px; }
+  .bodies-fold > summary { display: list-item; cursor: pointer; min-height: 44px; box-sizing: border-box; padding: 10px 0; font-weight: 600; }
+  .bodies-fold .sec-sub { margin: 0 0 8px; }
+  .bodies-fold .bodies-list { margin: 0 0 12px; gap: 8px; }
+  .bodies-fold .bodies-card { padding: 8px 12px 10px; border-top-width: 3px; }
+  /* meetings: the date line, the rows, and the two links */
+  .meetings .sec-sub { margin-bottom: 8px; }
+  .meet-foot { margin: 0; }
+  .meet-foot a { display: inline-block; min-height: 44px; padding: 11px 0; box-sizing: border-box; }
+  .meet-more { margin: 0; }
+  /* search: the heading and the placeholder say what the label says; the label stays for screen readers */
+  .landing-search > label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+  .landing-search { margin-top: 6px; position: relative; }
 }
 svg.county-map-small { max-width: 18rem; max-height: 14rem; margin: 10px 0 0; }
 .county-outline { fill: none; stroke: var(--fg); stroke-width: 2px; vector-effect: non-scaling-stroke; }
@@ -1240,10 +1296,16 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 .bs-off { display: none !important; }
 .bs-none { display: none; }
 .bs-all-off > .bs-none { display: block; }
-.bs-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 12px 0; padding: 8px 12px; border-left: 3px solid var(--sun); background: var(--surface); font-size: var(--t-sm); }
+/* "Showing <body> only  [Show all]": one compact row at every width (the name wraps before the button drops), the
+   sun-colored bar and a full border so it is not missed. Only the longer "Nothing on this page" line may wrap. */
+.bs-line { display: flex; align-items: center; gap: 4px 12px; margin: 12px 0; padding: 6px 12px; border: 1px solid var(--mark-soft); border-left: 4px solid var(--sun); border-radius: var(--radius); background: var(--surface); font-size: var(--t-sm); }
+.bs-line-none { flex-wrap: wrap; }
+.bs-line strong { min-width: 0; }
 .bs-line[hidden] { display: none; }
 .bs-line strong { font-weight: 600; }
-.bs-line button { min-height: 32px; padding: 2px 12px; border: 1px solid var(--blue); border-radius: 999px; background: var(--blue); color: var(--on-blue); font: inherit; font-weight: 600; cursor: pointer; }
+.bs-line button { position: relative; flex: none; min-height: 32px; padding: 2px 12px; border: 1px solid var(--blue); border-radius: 999px; background: var(--blue); color: var(--on-blue); font: inherit; font-weight: 600; white-space: nowrap; cursor: pointer; }
+/* the button looks 32px tall with a mouse, but 44px of the row takes the tap or click at every pointer */
+.bs-line button::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 44px; transform: translateY(-50%); }
 .bs-line button:hover { background: var(--blue-hover); text-decoration: underline; }
 .bs-line button:focus-visible, .bs-line a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 @media (pointer: coarse) { .bs-line button { min-height: 44px; } .bs-line a { display: inline-flex; align-items: center; min-height: 44px; } }

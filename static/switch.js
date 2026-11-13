@@ -1,7 +1,8 @@
 /* "Show records from" (sitegen/bodies.py). Without this script every option is a plain link to that body's hub page.
    With it the choice is remembered on this device (one localStorage key holding a body's short key; nothing is sent
    anywhere and no cookie is set) and, on a page whose rows carry data-body, the rows of other bodies are hidden by a
-   class: nothing is removed, and a line above them says what is shown and offers "Show all". When storage is blocked
+   class: nothing is removed, and a line above them (first on the home page) says what is shown and offers
+   "Show all", so a choice remembered from an earlier visit is not missed. When storage is blocked
    the choice still works on the page being read. The search page filters its own results (static/search.js) from the
    data-body-choice attribute this script keeps on <html>, and hears each change as a "bodychoice" event.
    The choice is saved only when the visitor clicks an option (or "Show all"): opening a body's hub page shows that body
@@ -50,7 +51,7 @@
     line = null;
     if (choice === ALL || !first) { return; }
     line = document.createElement("p");
-    line.className = "bs-line";
+    line.className = shown ? "bs-line" : "bs-line bs-line-none";   // -none: the longer line, which may wrap
     line.id = "bs-line";
     line.setAttribute("role", "status");
     var b = document.createElement("strong");
