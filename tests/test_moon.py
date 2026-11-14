@@ -13,6 +13,7 @@ fraction within 0.002, bright edge within 3.1 degrees wherever 2% to 98% of the 
 never wrong outside the hour or so around new and full."""
 import json
 import math
+import os
 import re
 import shutil
 import subprocess
@@ -120,22 +121,51 @@ def test_lit_shape_is_a_half_disc_closed_by_an_elliptical_terminator(node):
     assert new == arc + "A10 10 0 0 0 0 -10Z" and full == arc + "A10 10 0 0 1 0 -10Z"   # nothing lit, all lit
 
 
+def test_free_rect_is_the_largest_open_rectangle_clear_of_every_block(node):
+    """The moon sits only in open sky: the largest rectangle of the band that touches no block (the header's words,
+    the Menu column, the drawn sun) and can hold the moon; none when the band has no such room."""
+    probe = r"""
+const s = require(process.argv[1]);
+const band = { left: 8, top: 6, right: 1272, bottom: 142 };
+const words = { left: 0, top: 0, right: 700, bottom: 146 }, sun = { left: 924, top: 0, right: 1158, bottom: 168 };
+const low = { left: 924, top: 100, right: 1158, bottom: 168 };
+console.log(JSON.stringify([
+  s.freeRect(band, [], 40), s.freeRect(band, [words], 40), s.freeRect(band, [words, sun], 40),
+  s.freeRect(band, [words, low], 40), s.freeRect(band, [{ left: 0, top: 0, right: 1280, bottom: 120 }], 40),
+  s.freeRect(band, [words, { left: 730, top: 0, right: 1280, bottom: 146 }], 40),
+  s.moonSpot(band, [words, sun], 40, 0, 0), s.moonSpot(band, [words, sun], 40, 1, 1),
+  s.moonSpot(band, [words, sun], 40, 0.5, 0.5),
+  s.moonSpot(band, [{ left: 0, top: 0, right: 1280, bottom: 146 }], 40, 0.5, 0.5)]));
+"""
+    whole, right, between, over, none, narrow, low_east, high_west, middle, no_room = run(node, probe)
+    assert whole == {"left": 8, "top": 6, "right": 1272, "bottom": 142}
+    assert right == {"left": 700, "top": 6, "right": 1272, "bottom": 142}          # right of the words
+    assert between == {"left": 700, "top": 6, "right": 924, "bottom": 142}         # the sun is up: left of it
+    assert over == {"left": 700, "top": 6, "right": 1272, "bottom": 100}           # a low sun: the sky above it
+    assert none is None and narrow is None and no_room is None                     # 22px or 30px cannot hold 40px
+    # east and the horizon are the bottom left of that rectangle, west and overhead its top right
+    assert low_east == {"left": 700, "top": 102} and high_west == {"left": 884, "top": 6}
+    assert middle == {"left": 792, "top": 54}
+
+
 RENDER_PROBE = r"""
 const RealDate = Date, fixed = RealDate.parse(process.argv[2]);
 global.Date = class extends RealDate { constructor(...a) { a.length ? super(...a) : super(fixed); }
   static now() { return fixed; } };
 const els = {}, made = [];
-const node = (tag, ns) => ({ tag, ns, attrs: {}, css: {}, kids: [], style: { setProperty(k, v) { this.css[k] = v; } },
+const node = (tag, ns) => { const n = { tag, ns, attrs: {}, css: {}, kids: [],
   getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
   setAttribute(k, v) { this.attrs[k] = v; if (k === "id") { els[v] = this; } },
-  removeAttribute(k) { delete this.attrs[k]; },
-  appendChild(c) { this.kids.push(c); } });
-const mk = id => { const n = node("span"); n.style.setProperty = (k, v) => { n.css[k] = v; }; return (els[id] = n); };
+  removeAttribute(k) { delete this.attrs[k]; }, appendChild(c) { this.kids.push(c); } };
+  n.style = { setProperty(k, v) { n.css[k] = v; }, removeProperty(k) { delete n.css[k]; } }; return n; };
+const mk = id => (els[id] = node("span"));
 mk("sky-sun"); const moon = mk("sky-moon"); moon.attrs.hidden = "";
 const place = JSON.parse(process.argv[3]);
 if (place) { moon.attrs["data-lat"] = place[0]; moon.attrs["data-lon"] = place[1]; }
-global.window = global;
-global.document = { getElementById: id => els[id] || null,
+// a 1280 by 146 sky band with no words and no sun measured, and a 40px moon
+moon.offsetWidth = 40; moon.parentNode = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 146 }) };
+global.window = global; global.innerWidth = 1280;
+global.document = { getElementById: id => els[id] || null, querySelectorAll: () => [],
   createElementNS: (ns, tag) => { const n = node(tag, ns); made.push(tag); return n; } };
 const sky = require(process.argv[1]);
 sky.render(); sky.render();                                    // twice: the drawing is made once
@@ -147,31 +177,48 @@ console.log(JSON.stringify({ sun: els["sky-sun"].css, moon: { attrs: moon.attrs,
 
 
 def render(node, when, tz="America/Chicago", place=("36.53", "-87.36")):
-    res = subprocess.run([node, "-e", RENDER_PROBE, str(SKY_JS), when, json.dumps(place)], capture_output=True, text=True,
-                         timeout=60,
-                         env={"TZ": tz, "PATH": str(Path(node).parent)})
+    res = subprocess.run([node, "-e", RENDER_PROBE, str(SKY_JS), when, json.dumps(place)], capture_output=True,
+                         text=True, timeout=60, env={"TZ": tz, "PATH": str(Path(node).parent)})
     assert res.returncode == 0, res.stderr
     return json.loads(res.stdout)
+
+
+def spot(alt, az):
+    """Where a 40px moon goes in the probe's empty band (8 to 1272 across, 6 to 142 down): --moon-left, --moon-top."""
+    return (8 + (az - 60) / 240 * (1264 - 40), 142 - 40 - alt / 90 * (136 - 40))
 
 
 def test_render_places_the_moon_and_shows_it_only_above_the_horizon(node):
     up = render(node, "2026-11-25T05:30:00Z")                 # the full moon, 77 degrees up in the south-east at night
     assert "hidden" not in up["moon"]["attrs"] and "data-day" not in up["moon"]["attrs"]
     assert up["made"] == ["svg", "circle", "path"]            # drawn once, as SVG, by the script
-    assert up["tree"] == [["svg", "http://www.w3.org/2000/svg", {"viewBox": "-12 -12 24 24", "focusable": "false"},
+    assert up["tree"] == [["svg", "http://www.w3.org/2000/svg", {"viewBox": "-10.5 -10.5 21 21", "focusable": "false"},
                            [["circle", "moon-disc"], ["path", "moon-lit"]]]]
-    assert abs(float(up["moon"]["css"]["--moon-alt"]) - 76.98 / 90) < 0.01
-    assert abs(float(up["moon"]["css"]["--moon-x"]) - (136.004 - 60) / 240) < 0.01
+    left, top = spot(76.98, 136.004)                          # real altitude and direction, inside the open sky
+    assert set(up["moon"]["css"]) == {"--moon-left", "--moon-top"}
+    assert up["moon"]["css"]["--moon-left"].endswith("px")
+    assert abs(float(up["moon"]["css"]["--moon-left"][:-2]) - left) <= 8      # this high, 1 degree of azimuth is 5px
+    assert abs(float(up["moon"]["css"]["--moon-top"][:-2]) - top) <= 2
     assert up["lit"]["d"].startswith("M0 -10A10 10 0 0 1 0 10A9.") and up["lit"]["d"].endswith(" 0 0 1 0 -10Z")
     day = render(node, "2026-11-20T21:30:00Z")                # 3:30 PM in Clarksville: the gibbous moon rising
     assert "hidden" not in day["moon"]["attrs"] and day["moon"]["attrs"]["data-day"] == ""    # paler by day
-    assert float(day["moon"]["css"]["--moon-x"]) < 0.2 and float(day["moon"]["css"]["--moon-alt"]) < 0.25
+    left, top = spot(17.809, 95.674)                          # low in the east: low and to the left
+    assert abs(float(day["moon"]["css"]["--moon-left"][:-2]) - left) <= 3
+    assert abs(float(day["moon"]["css"]["--moon-top"][:-2]) - top) <= 2
     assert abs(float(re.fullmatch(r"rotate\((-?\d+)\)", day["lit"]["transform"]).group(1)) - (57.43 - 90)) <= 4
     down = render(node, "2026-11-09T06:00:00Z")               # the new moon, far below the horizon at midnight
     assert down["moon"]["attrs"].get("hidden") == "" and down["moon"]["css"] == {} and down["lit"] == {}
     for place in (None, ("", ""), ("north", "west"), ("136.53", "-87.36")):      # no place on the page: no moon
         none = render(node, "2026-11-25T05:30:00Z", place=place)
         assert none["moon"]["attrs"].get("hidden") == "" and none["made"] == [], place
+
+
+def test_a_thin_crescent_is_drawn_as_a_visible_sliver(node):
+    """A day and a half after new the moon is about 3% lit: the drawing shows 6%, never less, so the sliver can be
+    seen."""
+    thin = render(node, "2026-11-10T22:30:00Z")
+    assert "hidden" not in thin["moon"]["attrs"]
+    assert thin["lit"]["d"] == "M0 -10A10 10 0 0 1 0 10A8.8 10 0 0 0 0 -10Z"       # 6%: the terminator at 0.88 r
 
 
 def test_the_moon_is_clarksvilles_whatever_the_viewers_clock_and_the_sun_is_still_the_viewers(node):
@@ -194,6 +241,7 @@ def test_sun_code_is_untouched_and_the_script_stays_on_the_device():
     tick = src[src.index("function tick()"):src.index("var api =")]
     assert "renderMoon(" in tick and "sky-sun" not in tick and "render()" not in tick
     assert "root.setInterval(tick, 300000)" in src
+    assert 'root.addEventListener("resize"' in src and "fonts.ready.then(replace" in src     # put back after a re-layout
 
 
 def test_markup_is_decoration_hidden_until_drawn(site):  # noqa: F811
@@ -207,22 +255,109 @@ def test_markup_is_decoration_hidden_until_drawn(site):  # noqa: F811
         assert ('id="sky-moon"' in text) == ('id="sky-sun"' in text), page
 
 
-def test_moon_styles_keep_the_headers_words_readable_and_do_not_animate():
+def test_moon_styles_are_quiet_and_do_not_animate():
     assert ".sky-moon[hidden] { display: none; }" in CSS
-    assert ".sky-moon-frame {\n  position: absolute; top: 0; bottom: 0; pointer-events: none;" in CSS
+    assert ".sky-moon-frame { position: absolute; inset: 0; pointer-events: none; }" in CSS
+    assert "--moon-size: clamp(28px, 3.1vw, 40px);" in CSS            # 28px on a phone, 40px at 1280
+    assert "left: var(--moon-left, 0); top: var(--moon-top, 0);" in CSS
     rules = "".join(re.findall(r"\.(?:sky-moon|moon-)[^{]*\{[^}]*\}", CSS))
     assert "transition" not in rules and "animation" not in rules
-    # light: the moon is white, lighter than the sky, so the header's ink and muted words pass on it as they are
-    assert LIGHT["--moon"] == "#FFFFFF" and "--moon-halo" not in LIGHT
-    for token in ("--fg", "--muted"):
-        assert _ratio(LIGHT[token], LIGHT["--moon"]) >= 4.5
-    # dark: the lit moon is light, so the header's words carry a halo of the sky's own color over it
-    assert DARK["--moon-halo"] == DARK["--sky"]
-    assert re.search(r"\.has-sky \.brand, \.has-sky \.sky-hero \{\s*text-shadow: 0 0 1px var\(--moon-halo, transparent\)",
-                     CSS)
-    for token in ("--fg", "--muted"):
-        assert _ratio(DARK[token], DARK["--moon-halo"]) >= 4.5
-    for theme in (LIGHT, DARK):
+    assert "box-shadow: 0 0 0 calc(var(--moon-size) * .14) color-mix(in srgb, var(--moon-ring) 30%, transparent)" in rules
+    # the moon never sits behind words (the browser test below), so the header's text needs no halo
+    assert "--moon-halo" not in CSS and "text-shadow" not in CSS[CSS.index(".sky-sun-frame"):CSS.index(".sky-hero {")]
+    for theme in (LIGHT, DARK):                               # the lit part or its edge stands off the sky
         assert _ratio(theme["--moon-edge"], theme["--sky"]) >= 2 or _ratio(theme["--moon"], theme["--sky"]) >= 3
+    assert LIGHT["--moon"] == "#FFFFFF" and _ratio(DARK["--moon"], DARK["--sky"]) >= 3
     # the two dark blocks (the system setting and the explicit choice) carry the same moon
-    assert CSS.count("--moon: #C3CCDE; --moon-edge: #7C86A3; --moon-halo: #15294F;") == 2
+    assert CSS.count("--moon: #C3CCDE; --moon-edge: #7C86A3; --moon-ring: #A9BDE6;") == 2
+
+
+CLEAR_PROBE = r"""
+const path = require('path');
+let pw;
+const roots = [...(process.env.NODE_PATH || '').split(path.delimiter).filter(Boolean), '/opt/node22/lib/node_modules'];
+for (const r of ['', ...roots]) {
+  try { pw = require(r ? path.join(r, 'playwright') : 'playwright'); break; } catch (e) { /* next */ }
+}
+(async () => {
+  const [site, rels, instants] = [process.argv[2], JSON.parse(process.argv[3]), JSON.parse(process.argv[4])];
+  const browser = await pw.chromium.launch();
+  const out = [];
+  for (const [width, height] of [[375, 667], [1280, 800]]) for (const rel of rels) for (const iso of instants) {
+    const ctx = await browser.newContext({ viewport: { width, height }, timezoneId: 'America/Chicago' });
+    const page = await ctx.newPage();
+    await page.clock.setFixedTime(new Date(iso));
+    await page.goto('file://' + path.join(site, rel));
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(1600);                           // the sun has slid into place
+    const at = await page.evaluate(() => {
+      const box = r => ({ left: r.left, top: r.top, right: r.right, bottom: r.bottom });
+      const words = n => { const g = document.createRange(); g.selectNodeContents(n);
+        return box(g.getBoundingClientRect()); };
+      const moon = document.getElementById('sky-moon'), sun = document.getElementById('sky-sun');
+      const header = box(document.querySelector('.site-header').getBoundingClientRect());
+      const ring = parseFloat(getComputedStyle(moon).width) * 0.14;
+      const texts = {};
+      for (const [name, sel] of [['plate', '.site-header .site-name'], ['tag', '.site-header .unofficial-tag'],
+                                 ['date', '#sky-hero .sky-day']]) {
+        const n = document.querySelector(sel); if (n) { texts[name] = words(n); }
+      }
+      texts.menu = box(document.getElementById('nav-open').getBoundingClientRect());
+      const s = box(sun.getBoundingClientRect());
+      return { hidden: moon.hasAttribute('hidden'), moon: box(moon.getBoundingClientRect()), ring, header, texts,
+               size: parseFloat(getComputedStyle(moon).width), kids: moon.querySelectorAll('svg').length,
+               sun: s.top < header.bottom ? { ...s, bottom: header.bottom } : null,
+               hscroll: document.documentElement.scrollWidth > innerWidth };
+    });
+    out.push({ width, rel, iso, ...at });
+    await ctx.close();
+  }
+  await browser.close();
+  console.log(JSON.stringify(out));
+})();
+"""
+
+
+def _browser_ok():
+    return bool(shutil.which("node")) and (os.path.exists("/opt/pw-browsers") or bool(shutil.which("playwright")))
+
+
+def _hits(a, b):
+    return a["left"] < b["right"] and b["left"] < a["right"] and a["top"] < b["bottom"] and b["top"] < a["bottom"]
+
+
+@pytest.mark.skipif(not _browser_ok(), reason="Playwright (node) not available")
+def test_the_moon_never_covers_the_headers_words_or_the_sun_in_a_browser(site, tmp_path):  # noqa: F811
+    """Manager's design call, 2026-11-14: the moon sits in open sky only. At 375 and 1280, on the landing and on a
+    body's page, at instants with the moon high, low, east, west, by day and by night: the moon's box with its ring
+    touches no word of the header (name plate, tag, date line, Menu button) and not the sun's disc, stays inside the
+    band, is 28px on the phone and about 40px wide, and the page does not scroll sideways."""
+    body = next(str(p.relative_to(site)) for p in sorted(site.rglob("*.html"))
+                if p.name != "index.html" and 'id="sky-moon"' in p.read_text(encoding="utf-8"))
+    instants = ["2026-11-25T05:30:00Z", "2026-11-12T23:20:00Z", "2026-11-20T21:30:00Z", "2026-12-01T13:30:00Z",
+                "2026-11-27T03:00:00Z", "2026-03-26T00:30:00Z", "2026-08-24T07:00:00Z", "2026-11-22T18:30:00Z"]
+    script = tmp_path / "clear.js"
+    script.write_text(CLEAR_PROBE, encoding="utf-8")
+    res = subprocess.run(["node", str(script), str(site), json.dumps(["index.html", body]), json.dumps(instants)],
+                         capture_output=True, text=True, timeout=600)
+    assert res.returncode == 0, res.stderr
+    rows = json.loads(res.stdout)
+    assert len(rows) == 2 * 2 * len(instants)
+    for r in rows:
+        where = (r["width"], r["rel"], r["iso"])
+        assert not r["hscroll"], where
+        if r["iso"] == "2026-11-22T18:30:00Z":                # 12:30 PM, the moon not yet risen
+            assert r["hidden"], where
+            continue
+        assert not r["hidden"] and r["kids"] == 1, where
+        assert abs(r["size"] - (28 if r["width"] == 375 else 39.7)) < 0.5, where
+        m, ring = r["moon"], r["ring"]
+        halo = {"left": m["left"] - ring, "top": m["top"] - ring, "right": m["right"] + ring,
+                "bottom": m["bottom"] + ring}
+        for name, box in r["texts"].items():
+            assert not _hits(halo, box), (where, name, halo, box)
+        if r["sun"]:
+            assert not _hits(m, r["sun"]), (where, m, r["sun"])
+        h = r["header"]
+        assert h["left"] <= m["left"] and m["right"] <= h["right"], where
+        assert h["top"] <= m["top"] and m["bottom"] <= h["bottom"], where

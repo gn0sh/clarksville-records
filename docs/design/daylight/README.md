@@ -71,14 +71,23 @@ The sun is unchanged: it still follows the viewer's own clock. The moon beside i
 for the current instant and for Clarksville (36.53 N, 87.36 W), the moon's altitude, compass direction, lit fraction,
 waxing or waning, and the tilt of its bright edge, and draws it on every page that has the sun.
 
-- Place: height is the altitude (0 on the horizon, the top of the band straight overhead); across the page column,
-  east is on the left, south in the middle, west on the right (azimuth 60 to 300 degrees). Hidden below the horizon,
-  and without script (a static page cannot know where the moon is).
-- Look: small (18 to 28px), the lit part `--moon` with a hairline `--moon-edge`, the dark part a faint outline; the
-  terminator is half an ellipse. Paler while the drawn sun is up. No animation. Decorative: `aria-hidden`.
-- It passes behind the header's words. Light theme: the moon is white, so ink and muted text pass on it. Dark theme:
-  the moon is light, so the header's words carry a sky-colored halo (`--moon-halo`) and stay readable across it.
+- Open sky only (manager's design call, 2026-11-14): the moon never covers the header's words or the sun. A first
+  version let a 20px moon pass behind the date and the name plate, where it read as a glitch and its phase could not
+  be seen. The script now measures the header (each line's own extent, the Menu column, the drawn sun's disc) and
+  takes the largest open rectangle of the band, which is on the sun's side, right of the words; with the sun up it
+  is the sky left of or above the sun. It is measured again on resize and when the web fonts arrive.
+- Place inside that rectangle: height is the real altitude (its bottom is the horizon, its top straight overhead);
+  across it, east is on the left, south in the middle, west on the right (azimuth 60 to 300 degrees), as the sun
+  travels. Hidden below the horizon, and without script (a static page cannot know where the moon is).
+- A phone's band is short, so there the rectangle is small (the moon moves a little) and, with the sun up, the moon
+  may stand on the sun's faint rings, never on its disc (wider screens keep it off the rings too). If even that has no room the moon is drawn at 22px,
+  and failing that not at all.
+- Look: 28px on a phone, 40px at 1280, with a soft ring like the sun's, cooler and fainter (`--moon-ring`). The lit
+  part is `--moon` with a hairline `--moon-edge`; the dark part is a faint disc (earthshine); the terminator is half
+  an ellipse, turned to the real bright edge. A sliver under 6% lit is drawn as 6%. Paler while the drawn sun is up.
+  No animation. Decorative: `aria-hidden`. The header's text has no halo: nothing is read across the moon.
 - The almanac is the Astronomical Almanac's short series, on the device: no network call, no storage, no location
   request. Redrawn on page load, on `pageshow` and every five minutes (the moon only; the sun keeps to load and `pageshow`).
 - Checked against PyEphem in `tests/test_moon.py` (14 fixed instants in 2026): altitude and direction within 0.4
-  degrees, lit fraction within 0.2%, bright edge within about 3 degrees.
+  degrees, lit fraction within 0.2%, bright edge within about 3 degrees. The same file checks in a browser, at 375
+  and 1280, that the moon touches no word of the header and not the sun.

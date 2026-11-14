@@ -29,8 +29,9 @@
   --on-blue: #FFFFFF;
   --sun: #D2561B;             /* brand orange: the sun, the plate dot, focus rings. Never text. */
   --halo: #EFC4AF;
-  --moon: #FFFFFF;            /* the lit moon; ink and muted text are 4.5:1 or better over it */
-  --moon-edge: #5F7099;       /* its hairline edge */
+  --moon: #FFFFFF;            /* the lit moon */
+  --moon-edge: #5F7099;       /* its hairline edge, and the tint of its dark part */
+  --moon-ring: #FFFFFF;       /* its soft ring */
   --focus: #D2561B;
   --band-bg: #0F1F3D;
   --band-fg: #FFFFFF;
@@ -60,7 +61,7 @@
   :root:not([data-theme="light"]) {
     --bg: #0D1224; --sky: #15294F; --surface: #161C33; --surface-2: #1B2443; --fg: #EEF1F8; --muted: #A3ACC4;
     --border: #2C3552; --link: #A9BDE6; --link-visited: #C9B0EC; --blue: #4F6FB0; --blue-hover: #3F5C98; --on-blue: #FFFFFF;
-    --sun: #D2561B; --halo: #703420; --focus: #D2561B; --moon: #C3CCDE; --moon-edge: #7C86A3; --moon-halo: #15294F;
+    --sun: #D2561B; --halo: #703420; --focus: #D2561B; --moon: #C3CCDE; --moon-edge: #7C86A3; --moon-ring: #A9BDE6;
     --band-bg: #1A2F5A; --band-fg: #EEF1F8; --band-muted: #C3CCDE; --seal: #E8702A;
     --mark: #D5DAE8; --mark-soft: #7C86A3; --banner-bg: #3a3000; --banner-fg: #ffe58a;
     color-scheme: dark;
@@ -69,7 +70,7 @@
 :root[data-theme="dark"] {
   --bg: #0D1224; --sky: #15294F; --surface: #161C33; --surface-2: #1B2443; --fg: #EEF1F8; --muted: #A3ACC4;
   --border: #2C3552; --link: #A9BDE6; --link-visited: #C9B0EC; --blue: #4F6FB0; --blue-hover: #3F5C98; --on-blue: #FFFFFF;
-  --sun: #D2561B; --halo: #703420; --focus: #D2561B; --moon: #C3CCDE; --moon-edge: #7C86A3; --moon-halo: #15294F;
+  --sun: #D2561B; --halo: #703420; --focus: #D2561B; --moon: #C3CCDE; --moon-edge: #7C86A3; --moon-ring: #A9BDE6;
   --band-bg: #1A2F5A; --band-fg: #EEF1F8; --band-muted: #C3CCDE; --seal: #E8702A;
   --mark: #D5DAE8; --mark-soft: #7C86A3; --banner-bg: #3a3000; --banner-fg: #ffe58a;
   color-scheme: dark;
@@ -1122,32 +1123,23 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
   transform: translateY(calc((1 - var(--sun-alt) * var(--sun-max)) * 100%));
 }
 @media (prefers-reduced-motion: no-preference) { .sky-sun { transition: transform 1.4s cubic-bezier(.2, .7, .2, 1); } }
-/* The moon: small and quiet, drawn by static/sky.js where it really is over the site's place (--moon-alt: 0 on the
-   horizon, 1 straight overhead; --moon-x: 0 east at the left of the page column, .5 south, 1 west). The lit part is
-   --moon with a hairline --moon-edge; the dark part is only a faint outline. It passes behind the header's words,
-   which stay readable over it in both themes (below; tests/test_moon.py). Paler while the drawn sun is up. It does not animate. Decorative only: aria-hidden in the markup. */
-.sky-moon-frame {
-  position: absolute; top: 0; bottom: 0; pointer-events: none;
-  left: max(var(--gutter), calc(50% - var(--measure) / 2 + var(--gutter)));
-  right: max(var(--gutter), calc(50% - var(--measure) / 2 + var(--gutter)));
-}
+/* The moon: quiet, drawn by static/sky.js where it really is over the site's place. The script puts it in the open
+   sky only (--moon-left, --moon-top: its box inside the band), never over the header's words or the sun, so nothing
+   is ever read across it. About 28px on a phone, 40px wide; a soft ring like the sun's, cooler and fainter. The lit
+   part is --moon with a hairline --moon-edge; the dark part is a faint disc. Paler while the drawn sun is up. It
+   does not animate. Decorative only: aria-hidden in the markup. */
+.sky-moon-frame { position: absolute; inset: 0; pointer-events: none; }
 .sky-moon {
-  --moon-alt: .5; --moon-x: .5; --moon-size: clamp(18px, 2.2vw, 28px);
-  position: absolute; display: block; width: var(--moon-size); height: var(--moon-size);
-  left: calc(var(--moon-x) * (100% - var(--moon-size)));
-  bottom: calc(var(--moon-alt) * (100% - var(--moon-size) - 4px) - (1 - var(--moon-alt)) * var(--moon-size) / 2);
-}
-/* On the dark sky the lit moon is far lighter than the sky, so the header's words carry a sky-colored halo there
-   (--moon-halo, dark theme only): a letter that crosses the moon keeps the sky around its strokes. On the light sky
-   the moon is white, and ink and muted text are 4.5:1 or better on it without a halo. */
-.has-sky .brand, .has-sky .sky-hero {
-  text-shadow: 0 0 1px var(--moon-halo, transparent), 0 0 2px var(--moon-halo, transparent), 0 0 3px var(--moon-halo, transparent), 0 0 4px var(--moon-halo, transparent);
+  --moon-size: clamp(28px, 3.1vw, 40px);
+  position: absolute; display: block; left: var(--moon-left, 0); top: var(--moon-top, 0);
+  width: var(--moon-size); height: var(--moon-size); border-radius: 50%;
+  box-shadow: 0 0 0 calc(var(--moon-size) * .14) color-mix(in srgb, var(--moon-ring) 30%, transparent);
 }
 .sky-moon[hidden] { display: none; }
 .sky-moon svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .sky-moon[data-day] { opacity: .8; }
-.moon-disc { fill: none; stroke: var(--moon-edge); stroke-width: .6; opacity: .4; }
-.moon-lit { fill: var(--moon); stroke: var(--moon-edge); stroke-width: 1; stroke-linejoin: round; }
+.moon-disc { fill: color-mix(in srgb, var(--moon-edge) 30%, transparent); stroke: var(--moon-edge); stroke-width: .5; stroke-opacity: .45; }
+.moon-lit { fill: var(--moon); stroke: var(--moon-edge); stroke-width: .7; stroke-linejoin: round; }
 .has-sky .masthead { z-index: 1; }
 /* A body's landing page (a "Show records from" target other than All) has the sun but no date line under the name
    plate, so the plate, tag and kicker stop short of the sun's column (its disc and inner ring): no text over the sun */
