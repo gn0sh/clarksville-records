@@ -65,3 +65,20 @@ them up, so every page carries one switch right under the header: All, Montgomer
   Finance index's books and funds, and Search (the choice applies while no Body box is ticked; it is not written to the
   URL). Not tagged, so never filtered: Items, Officials, district, member, meeting, fund, capital, bids and transcript
   pages, and each body's own pages.
+
+## The moon (Brian, 2026-11-14)
+The sun is unchanged: it still follows the viewer's own clock. The moon beside it is real: `static/sky.js` works out,
+for the current instant and for Clarksville (36.53 N, 87.36 W), the moon's altitude, compass direction, lit fraction,
+waxing or waning, and the tilt of its bright edge, and draws it on every page that has the sun.
+
+- Place: height is the altitude (0 on the horizon, the top of the band straight overhead); across the page column,
+  east is on the left, south in the middle, west on the right (azimuth 60 to 300 degrees). Hidden below the horizon,
+  and without script (a static page cannot know where the moon is).
+- Look: small (18 to 28px), the lit part `--moon` with a hairline `--moon-edge`, the dark part a faint outline; the
+  terminator is half an ellipse. Paler while the drawn sun is up. No animation. Decorative: `aria-hidden`.
+- It passes behind the header's words. Light theme: the moon is white, so ink and muted text pass on it. Dark theme:
+  the moon is light, so the header's words carry a sky-colored halo (`--moon-halo`) and stay readable across it.
+- The almanac is the Astronomical Almanac's short series, on the device: no network call, no storage, no location
+  request. Redrawn on page load, on `pageshow` and every five minutes (the moon only; the sun keeps to load and `pageshow`).
+- Checked against PyEphem in `tests/test_moon.py` (14 fixed instants in 2026): altitude and direction within 0.4
+  degrees, lit fraction within 0.2%, bright edge within about 3 degrees.

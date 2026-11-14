@@ -13,6 +13,9 @@ fetch_manifests:
   - data/localities/cmc-rpc/manifest.json
   - data/maps/manifest.json
 today_place: Clarksville            # landing sky: "Tuesday in Clarksville" (static/sky.js reads it from the page)
+# The moon on the sky band (static/sky.js reads it from the page): the place whose sky is drawn, in degrees
+# (north latitude, east longitude; the city hall area, to two places). Remove the block and no moon is drawn.
+sky_place: {lat: 36.53, lon: -87.36}
 operator: gnoshcodes LLC           # CEO decisions 2026-11-09 (a gnoshcodes product, no personal credit) and 2026-11-10 (the LLC)
 operator_url: https://gnoshcodes.com/
 # The person who runs the operator, named on the About page (Brian, 2026-11-11): an official id in a council's facts.
