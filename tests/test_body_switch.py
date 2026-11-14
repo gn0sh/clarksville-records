@@ -168,7 +168,8 @@ def test_every_body_page_has_the_one_header(site, html):
     county, city, rpc = (html[pages[k]] for k in ("county", "city", "rpc"))
     assert re.search(r'<p class="body-cover">Minutes, <span class="nowrap">[A-Z][a-z]+ \d{1,2}, \d{4}</span> to ', county)
     assert re.search(r'<p class="body-cover">Meetings, <span class="nowrap">[A-Z][a-z]+ \d{1,2}, \d{4}</span> to ', city)
-    assert re.search(r'<p class="body-cover">Meetings, <span class="nowrap">[A-Z][a-z]+ \d{1,2}, \d{4}</span> to .*? case items', rpc)
+    assert re.search(r'<p class="body-cover">Meetings, <span class="nowrap">[A-Z][a-z]+ \d{1,2}, \d{4}</span> to '
+                     r'.*? case items', rpc)
     assert "Montgomery County Commission: minutes and votes through" in plain(county)
     assert "City Council: minutes and votes through" in plain(city)
     assert "Regional Planning Commission: " in plain(rpc)

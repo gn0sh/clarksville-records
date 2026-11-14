@@ -238,8 +238,8 @@ def _coverage(ix, cixs, rpx, fx, start: date, end: date, counts: dict, ax=None) 
         if dated:
             out.append({"body": config.FIN_TEXT["contracts"]["title"], "n": counts["bids"], "unit": "bid listing",
                         "what": f"Solicitations on the dates the purchasing archive prints, {localdates.words(dated[0])} to "
-                                f"{localdates.words(dated[-1])}. Budget books are by fiscal year, not by day, so they are on the "
-                                f"Finance page."})
+                                f"{localdates.words(dated[-1])}. Budget books are by fiscal year, not by day, so "
+                                f"they are on the Finance page."})
     return out
 
 

@@ -94,9 +94,23 @@
     return st;
   }
 
+  // A date as the pages print it ("May 11, 2026"); the index keeps ISO days, which sort and match as before. Only the
+  // site's own words pass through here (a result's date, and the date a meeting's title starts with), never a title
+  // as the source prints it.
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  function dayWords(s) {
+    return String(s == null ? "" : s).replace(/(^|[^\w\/.-])(\d{4})-(\d{2})-(\d{2})(?![\w-])/g, function (all, pre, y, m, d) {
+      // a real calendar day only, as sitegen/localdates.py words(): "2026-05-00" and "2026-02-30" stay as they are
+      var real = new Date(Date.UTC(+y, +m - 1, +d));
+      return real.getUTCFullYear() === +y && real.getUTCMonth() === +m - 1 && real.getUTCDate() === +d
+        ? pre + MONTHS[+m - 1] + " " + (+d) + ", " + y : all;
+    });
+  }
   // ---- matching
-  // r.x: a solicitation's department and every bidder name (finance-contracts F7)
-  function hay(r) { return (r.n + " " + r.t + " " + (r.st || "") + " " + (r.z || "") + " " + (r.x || "")).toLowerCase(); }
+  // r.x: a solicitation's department and every bidder name (finance-contracts F7). The record's dates are searched
+  // in the words the results print ("may 11, 2026") as well as the ISO day its title may carry, so a date a reader
+  // sees in a result finds that result (onceover/dates/words-not-searchable).
+  function hay(r) { return r._hay || (r._hay = (r.n + " " + r.t + " " + (r.st || "") + " " + (r.z || "") + " " + (r.x || "") + " " + dayWords(r.d) + " " + dayWords(r.d2)).toLowerCase()); }
   // The header's "Show records from" choice (static/switch.js keeps it on <html>): used only while no Body box is
   // ticked and only for a body this index holds (the form's data-body-live), never written to the URL, and shown by
   // the switch's own "Showing ... only" line above the form. While a Body box is ticked that line is hidden, since
@@ -146,15 +160,6 @@
   }
 
   // ---- rendering
-  // A date as the pages print it ("May 11, 2026"); the index keeps ISO days, which sort and match as before. Only the
-  // site's own words pass through here (a result's date, and the date a meeting's title starts with), never a title
-  // as the source prints it.
-  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  function dayWords(s) {
-    return String(s == null ? "" : s).replace(/(^|[^\w\/.-])(\d{4})-(\d{2})-(\d{2})(?![\w-])/g, function (all, pre, y, m, d) {
-      return +m >= 1 && +m <= 12 ? pre + MONTHS[+m - 1] + " " + (+d) + ", " + y : all;
-    });
-  }
   function row(r, st, toks) {
     var parts = [KIND[r.k]];
     if (r.k === "item" || r.k === "vote") {
