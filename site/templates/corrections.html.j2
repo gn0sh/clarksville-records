@@ -11,7 +11,7 @@
     <thead><tr><th scope="col">Date</th><th scope="col">Page</th><th scope="col">Was</th><th scope="col">Now</th><th scope="col">Source</th></tr></thead>
     <tbody>
     {% for r in log %}
-      <tr><th scope="row">{{ r.date }}</th><td>{{ r.page }}</td><td>{{ r.was }}</td><td>{{ r.now }}</td>
+      <tr><th scope="row">{{ r.date | day_words }}</th><td>{{ r.page }}</td><td>{{ r.was }}</td><td>{{ r.now }}</td>
       <td><a data-ext="corrections" href="{{ r.source_url }}" target="_blank" rel="noopener noreferrer">Source<span class="sr-only"> (opens in a new tab)</span></a></td></tr>
     {% endfor %}
     </tbody>

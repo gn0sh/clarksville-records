@@ -7,7 +7,7 @@
 {# the lede says whose records these are, as the county's does; what is listed is the first card's own line #}
 {% set lede %}Records of the {{ body }}, each linked to the commission's own document.{% endset %}
 {% call body_head(hub | default(none), body, lede, freshness=freshness | default([]), freshness_note=freshness_note | default(""), watch=watch) %}
-Meetings, <span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>: {{ n_meetings }} meetings, {{ n_docs }} documents collected{% if fetched_to %} (latest fetched {{ fetched_to }}){% endif %}, {{ n_cases }} case items read from the agendas.{% if n_link_only %} {{ n_link_only }} documents are linked on another host and were not collected.{% endif %}
+Meetings, <span class="nowrap">{{ coverage.from | day_words }}</span> to <span class="nowrap">{{ coverage.to | day_words }}</span>: {{ n_meetings }} meetings, {{ n_docs }} documents collected{% if fetched_to %} (latest fetched {{ fetched_to }}){% endif %}, {{ n_cases }} case items read from the agendas.{% if n_link_only %} {{ n_link_only }} documents are linked on another host and were not collected.{% endif %}
 {% endcall %}
 {{ hub_cards(hub | default(none), root) }}
 {# the commission's own reading notes sit under the cards, so the header is the same shape for every body #}
@@ -22,7 +22,7 @@ Meetings, <span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap
   <h2 id="y{{ y.year }}-h"><a href="{{ y.href }}">{{ y.year }}</a> <span class="muted">({{ y.meetings | length }} {{ "meeting" if y.meetings | length == 1 else "meetings" }})</span></h2>
   {% for m in y.meetings %}
   <div class="item" id="{{ m.id }}">
-    <p class="item-num"><span class="nowrap">{{ m.date }}</span></p>
+    <p class="item-num"><span class="nowrap">{{ m.date | day_words }}</span></p>
     <h3 class="item-h"><a href="{{ root }}{{ m.href }}">{{ m.kind_label }}</a>{% if m.cancelled %} <span class="chip chip-status">Cancelled</span>{% endif %}</h3>
     <p class="muted">Listed as: {{ m.printed }}.{% if m.cases %} {{ m.cases | length }} {{ "case" if m.cases | length == 1 else "cases" }} on the agenda.{% endif %}</p>
     {{ rpc_docs(m) }}

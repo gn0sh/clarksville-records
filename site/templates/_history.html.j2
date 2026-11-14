@@ -20,10 +20,10 @@
     <tbody role="rowgroup">
     {% for r in g.rows %}
       <tr role="row" class="fact{% if not r.confirmed %} nc{% endif %}" data-type="{{ r.type }}" data-year="{{ r.year }}" data-fact-id="{{ r.fact_id }}">
-        <td role="cell" class="c-date" data-label="Date"><div><a class="date" href="{{ root }}{{ r.meeting_href }}">{{ r.date }}</a></div></td>
+        <td role="cell" class="c-date" data-label="Date"><div><a class="date" href="{{ root }}{{ r.meeting_href }}">{{ r.date | day_words }}</a></div></td>
         <td role="cell" class="c-type" data-label="Type"><div><span class="chip chip-type">{{ r.type_label }}</span></div></td>
         <td role="cell" class="c-item" data-label="Item"><div>
-          {% if r.item %}{% call clamp(2) %}{{ item_link(r.item, root) }}{% endcall %}{% else %}<a href="{{ root }}{{ r.meeting_href }}">{{ r.meeting_label }}</a>{% endif %}
+          {% if r.item %}{% call clamp(2) %}{{ item_link(r.item, root) }}{% endcall %}{% else %}<a href="{{ root }}{{ r.meeting_href }}">{{ r.meeting_label | day_words }}</a>{% endif %}
           {% if r.vote_on %}<br><small class="vote-on"><a href="{{ root }}about.html#vote-on">Vote on</a>: {{ r.vote_on }}.</small>{% endif %}
           {% if r.motion_label %}<br><small>{{ r.motion_label }}. {% if r.motion_by %}{{ motion_by(r.motion_by, root) }}.{% else %}Attribution under review.{% endif %}</small>{% endif %}
         </div></td>

@@ -146,6 +146,15 @@
   }
 
   // ---- rendering
+  // A date as the pages print it ("May 11, 2026"); the index keeps ISO days, which sort and match as before. Only the
+  // site's own words pass through here (a result's date, and the date a meeting's title starts with), never a title
+  // as the source prints it.
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  function dayWords(s) {
+    return String(s == null ? "" : s).replace(/(^|[^\w\/.-])(\d{4})-(\d{2})-(\d{2})(?![\w-])/g, function (all, pre, y, m, d) {
+      return +m >= 1 && +m <= 12 ? pre + MONTHS[+m - 1] + " " + (+d) + ", " + y : all;
+    });
+  }
   function row(r, st, toks) {
     var parts = [KIND[r.k]];
     if (r.k === "item" || r.k === "vote") {
@@ -154,15 +163,15 @@
     }
     var html = '<li class="result"><p class="r-kind">' + esc(parts.join(" · ")) + "</p>";
     html += '<p class="r-title"><a href="' + esc(r.h) + '">' + (r.n ? "<strong>" + mark(r.n, toks) + "</strong> " : "") +
-      mark(r.t, toks) + "</a>" + (r.st ? ' <span class="seat">' + (r.ho ? '<a href="' + esc(officialHref(r.ho)) + '">' + mark(r.st, toks) + "</a>" : mark(r.st, toks)) + "</span>" : "") + "</p>" +
+      mark(r.k === "meeting" ? String(r.t).replace(/^\d{4}-\d{2}-\d{2}(?=, )/, dayWords) : r.t, toks) + "</a>" + (r.st ? ' <span class="seat">' + (r.ho ? '<a href="' + esc(officialHref(r.ho)) + '">' + mark(r.st, toks) + "</a>" : mark(r.st, toks)) + "</span>" : "") + "</p>" +
       (r.z ? '<p class="r-zoning">' + mark(r.z, toks) + "</p>" : "") +
       (r.x ? '<p class="r-zoning">' + mark(r.x, toks) + "</p>" : "");
     var meta = "";
     if (r.k === "item") {
-      meta = r.a ? "Appears " + r.a + (r.a === 1 ? " time" : " times") + ", " + esc(r.d) + (r.d2 !== r.d ? " to " + esc(r.d2) : "")
+      meta = r.a ? "Appears " + r.a + (r.a === 1 ? " time" : " times") + ", " + esc(dayWords(r.d)) + (r.d2 !== r.d ? " to " + esc(dayWords(r.d2)) : "")
         : "No appearance listed";
     } else if (r.k === "vote") {
-      meta = esc(r.d) + " · Outcome: " + (r.c && r.o ? esc(OUTCOME[r.o]) : 'Not confirmed<span aria-hidden="true">*</span><span class="sr-only"> (not confirmed)</span>, see the page');
+      meta = esc(dayWords(r.d)) + " · Outcome: " + (r.c && r.o ? esc(OUTCOME[r.o]) : 'Not confirmed<span aria-hidden="true">*</span><span class="sr-only"> (not confirmed)</span>, see the page');
       if (st.official && st.vote && r.v && r.s) {
         meta += '<br><a href="' + esc(officialHref(st.official)) + '">' + esc(IX.names[st.official]) + '</a><span class="seat">, ' + esc(seatOn(r.d, st.official)) + "</span>: " +
           esc(VOTE[r.v[st.official]]) +
@@ -170,7 +179,7 @@
           ", fetched " + esc(r.s.f) + "</a>";
       }
     } else if (r.k === "meeting" || r.k === "sol") {
-      meta = esc(r.d);
+      meta = esc(dayWords(r.d));
     }
     return html + (meta ? '<p class="r-meta">' + meta + "</p>" : "") + "</li>";
   }

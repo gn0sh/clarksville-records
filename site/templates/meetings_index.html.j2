@@ -2,7 +2,7 @@
 {% from "_macros.html.j2" import watch_link %}
 {% block main %}
 <h1>Meetings</h1>
-<p class="lede">{{ coverage.body }}, {{ coverage.from }} to {{ coverage.to }}. Newest first. Each meeting page shows attendance, motions and roll calls.</p>
+<p class="lede">{{ coverage.body }}, {{ coverage.from | day_words }} to {{ coverage.to | day_words }}. Newest first. Each meeting page shows attendance, motions and roll calls.</p>
 {% if watch %}<p class="watch-line">{{ watch_link(watch) }}</p>{% endif %}
 {# every row here is the county's: static/switch.js hides the lists when another body is chosen #}
 <div data-body="{{ site.cfg.county_key }}">
@@ -13,7 +13,7 @@
 <ol class="timeline meetings" aria-label="Meetings with an agenda and no minutes yet">
   {% for m in agenda_only %}
   <li class="ev-meeting">
-    <p class="tl-head"><a class="date" href="{{ m.href }}">{{ m.date }}</a> <span class="tl-kind">{{ m.kind_label }}</span></p>
+    <p class="tl-head"><a class="date" href="{{ m.href }}">{{ m.date | day_words }}</a> <span class="tl-kind">{{ m.kind_label }}</span></p>
     <p class="tl-sub">Agenda: {{ m.n_items }} {{ "item" if m.n_items == 1 else "items" }}{% if m.note %} <span class="sep" aria-hidden="true">&middot;</span> {{ m.note }}{% endif %}</p>
   </li>
   {% endfor %}
@@ -35,7 +35,7 @@
 <ol class="timeline meetings" id="y{{ g.year }}" aria-label="Meetings in {{ g.year }}">
   {% for m in g.meetings %}
   <li class="ev-meeting">
-    <p class="tl-head"><a class="date" href="{{ m.href }}">{{ m.date }}</a> <span class="tl-kind">{{ m.kind_label }}</span></p>
+    <p class="tl-head"><a class="date" href="{{ m.href }}">{{ m.date | day_words }}</a> <span class="tl-kind">{{ m.kind_label }}</span></p>
     <p class="tl-sub">{{ m.rc_confirmed + m.rc_unconfirmed }} roll {{ "call" if m.rc_confirmed + m.rc_unconfirmed == 1 else "calls" }} ({{ m.rc_unconfirmed }} not confirmed*) <span class="sep" aria-hidden="true">&middot;</span> {{ m.motions }} {{ "motion" if m.motions == 1 else "motions" }} <span class="sep" aria-hidden="true">&middot;</span> {% if m.att_state == "shown" %}{{ m.present }} of {{ m.listed }} members present{% else %}attendance not shown{% endif %}</p>
   </li>
   {% endfor %}

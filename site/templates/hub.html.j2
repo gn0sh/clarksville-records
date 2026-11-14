@@ -3,7 +3,7 @@
 {# A body's hub page when the body has no home page of its own (sitegen/bodies.py): the county's. #}
 {% block main %}
 {% call body_head(hub, hub.title, hub.lede, freshness=freshness | default([]), freshness_note=freshness_note | default(""), watch=watch | default(none)) %}
-{% if cover is defined and cover %}{{ cover.what[:1] | upper }}{{ cover.what[1:] }}, <span class="nowrap">{{ cover.from }}</span> to <span class="nowrap">{{ cover.to }}</span>.{% endif %}
+{% if cover is defined and cover %}{{ cover.what[:1] | upper }}{{ cover.what[1:] }}, <span class="nowrap">{{ cover.from | day_words }}</span> to <span class="nowrap">{{ cover.to | day_words }}</span>.{% endif %}
 {% endcall %}
 {{ hub_cards(hub, root) }}
 {% endblock %}

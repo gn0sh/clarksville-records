@@ -5,13 +5,13 @@
 {% block main %}
 <p class="kicker-line"><a href="{{ root }}meetings.html">Meetings</a></p>
 <h1>Agendas without minutes yet</h1>
-<p class="lede">{{ body }}. The minutes on this site run to {{ minutes_to }}. These meetings have an agenda posted by the county and no minutes yet, so no votes or attendance are shown. Each item is listed as the agenda prints it; an agenda lists what may be taken up, not what was decided.</p>
+<p class="lede">{{ body }}. The minutes on this site run to {{ minutes_to | day_words }}. These meetings have an agenda posted by the county and no minutes yet, so no votes or attendance are shown. Each item is listed as the agenda prints it; an agenda lists what may be taken up, not what was decided.</p>
 {% if meetings %}
 <details class="toc-group" open>
   <summary>{{ meetings | length }} {{ "meeting" if meetings | length == 1 else "meetings" }}</summary>
   <ul class="toc">
     {% for m in meetings %}
-    <li><a href="#{{ m.id }}">{{ m.date }}, {{ m.kind_label }}</a></li>
+    <li><a href="#{{ m.id }}">{{ m.date | day_words }}, {{ m.kind_label }}</a></li>
     {% endfor %}
   </ul>
 </details>

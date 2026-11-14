@@ -8,7 +8,7 @@
 {% block main %}
 {% set lede %}Votes and records of the {{ body }}, linked to the city's own minutes.{% endset %}
 {% call body_head(hub | default(none), body, lede, freshness=freshness | default([]), freshness_note=freshness_note | default(""), watch=watch) %}
-Meetings, <span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>. {{ fetched }}
+Meetings, <span class="nowrap">{{ coverage.from | day_words }}</span> to <span class="nowrap">{{ coverage.to | day_words }}</span>. {{ fetched }}
 {% endcall %}
 {{ hub_cards(hub | default(none), root) }}
 <nav class="council-jump" aria-label="On this page">

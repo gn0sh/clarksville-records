@@ -146,6 +146,7 @@ def make_env() -> jinja2.Environment:
     # reach the templates already converted (localdates.fetched, where a view picks the source).
     env.filters["local_day"] = localdates.local_day
     env.filters["as_of_day"] = as_of_day
+    env.filters["day_words"] = localdates.words     # every reader-facing date: "May 11, 2026"
     return env
 
 

@@ -220,23 +220,25 @@ def bids_card(fx, sols: list[dict]) -> dict:
 def _coverage(ix, cixs, rpx, fx, start: date, end: date, counts: dict, ax=None) -> list[dict]:
     """What the page holds, body by body: the newest dated record, and how many cards fall in these weeks."""
     out = [{"body": ix.facts["coverage"]["body"], "n": counts["county"],
-            "what": f"Minutes from {ix.coverage['from']} to {ix.coverage['to']}"
+            "what": f"Minutes from {localdates.words(ix.coverage['from'])} to {localdates.words(ix.coverage['to'])}"
                     + (", and the agendas the county posted for meetings after that." if ax and ax.meetings else ".")}]
     for c in cixs:
         out.append({"body": c.body_name, "n": counts[c.slug],
-                    "what": f"Meetings from {c.coverage['from']} to {c.coverage['to']}"
+                    "what": f"Meetings from {localdates.words(c.coverage['from'])} to "
+                            f"{localdates.words(c.coverage['to'])}"
                             + (", and the meetings the city's calendar lists after that." if c.cfg.get("calendar")
                                and not c.fixture else ".")})
     if rpx is not None:
         cov = rpx.facts["coverage"]
         out.append({"body": rpx.body, "n": counts["rpc"],
-                    "what": f"Meetings listed from {cov.get('from')} to {cov.get('to')}."})
+                    "what": f"Meetings listed from {localdates.words(cov.get('from'))} to "
+                            f"{localdates.words(cov.get('to'))}."})
     if fx is not None:
         dated = sorted(s["archive_date"] for s in fx.fin["solicitations"] if s.get("archive_date"))
         if dated:
             out.append({"body": config.FIN_TEXT["contracts"]["title"], "n": counts["bids"], "unit": "bid listing",
-                        "what": f"Solicitations on the dates the purchasing archive prints, {dated[0]} to "
-                                f"{dated[-1]}. Budget books are by fiscal year, not by day, so they are on the "
+                        "what": f"Solicitations on the dates the purchasing archive prints, {localdates.words(dated[0])} to "
+                                f"{localdates.words(dated[-1])}. Budget books are by fiscal year, not by day, so they are on the "
                                 f"Finance page."})
     return out
 
