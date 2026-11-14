@@ -149,8 +149,10 @@ main { padding-top: 20px; padding-bottom: 40px; }
 
 /* ---- Type -------------------------------------------------------------------------------------------------- */
 h1, h2, h3, .stat-num, .site-name, .card-name, .badge { font-family: var(--font-head); }
-h1 { font-size: var(--t-2xl); line-height: 1.2; margin: 0.3em 0 0.25em; font-weight: 700; letter-spacing: -.015em; }
-h2 { font-size: var(--t-xl); line-height: 1.2; margin: 1.9em 0 0.5em; padding-bottom: 6px; border-bottom: 1px solid var(--border); font-weight: 700; letter-spacing: -.01em; }
+/* One heading system (onceover/type/two-heading-systems): Daylight's, as on the landing, the day page and finance.
+   Outfit 800, tight tracking, and no rule under an h2: the space above it and its weight set a section apart. */
+h1 { font-size: var(--t-2xl); line-height: 1.15; margin: 0.3em 0 0.25em; font-weight: 800; letter-spacing: -.02em; }
+h2 { font-size: var(--t-xl); line-height: 1.2; margin: 1.9em 0 0.5em; font-weight: 800; letter-spacing: -.02em; }
 h3 { font-size: var(--t-lg); line-height: 1.25; margin: 1.3em 0 0.4em; font-weight: 700; }
 p { margin: 0.5em 0; }
 code { font-family: var(--font-mono); font-size: 0.85em; overflow-wrap: anywhere; }
@@ -605,7 +607,7 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
 .landing.has-addr .addr-off { display: none; }
 .find .district-lookup { margin: 0; font-size: var(--t-sm); }
 
-.sec-h { font-size: var(--t-xl); line-height: 1.2; margin: 36px 0 4px; padding: 0; border: 0; font-weight: 700; letter-spacing: -.01em; }
+.sec-h { margin: 36px 0 4px; }
 .sec-sub { margin: 0 0 12px; color: var(--muted); font-size: var(--t-sm); max-width: 44rem; }
 .sec-sub[hidden] { display: none; }
 /* the doors: a card each (not itself a link) with full-width 44px link rows */
@@ -745,7 +747,7 @@ ol.districts .d-holder a:hover { text-decoration-thickness: 2px; }
 .seat-line { margin: 2px 0 0; }
 details.officials-section > summary { cursor: pointer; list-style-position: inside; }
 /* the section name is an h2 before the <details>; the summary is a small show/hide toggle under it */
-h2.section-h { font-family: var(--font-head); font-size: var(--t-xl); font-weight: 600; line-height: 1.2; margin: 1.4em 0 0.2em; }
+h2.section-h { margin: 1.4em 0 0.2em; }
 details.officials-section > summary.section-summary { font-size: var(--t-sm); color: var(--muted); min-height: 44px;
   display: flex; align-items: center; border-bottom: 1px solid var(--border); }
 .basis { font-size: var(--t-sm); margin: 4px 0; }
@@ -967,8 +969,7 @@ table.budget td.c-source { min-width: 9rem; }
    Tables are the mock's: a 2px ink rule on top, hairlines between rows, mono labels for column heads, mono tabular
    figures; no box and no stripes. Text pairs are the M1 ones (ink, muted and link on paper and surface, 4.5:1 or
    better in both themes); focus rings are the sun at 3px on paper and surface. State is still words only. */
-.fin > h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 800; line-height: 1.05; letter-spacing: -.02em; margin: 0.2em 0 0.35em; text-wrap: balance; }
-.fin h2 { font-weight: 800; letter-spacing: -.02em; }
+.fin > h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); line-height: 1.05; margin: 0.2em 0 0.35em; text-wrap: balance; }
 .fin .crumb, .fin .h1-sub { font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: .1em; text-transform: uppercase; }
 .fin .crumb { margin: 0; }
 .fin .crumb a { display: inline-block; padding: 6px 0; }
@@ -1065,7 +1066,7 @@ ul.feed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(mi
    navy on dark, so the orange button stands 3:1 or better off it in both themes). On the card the ring is white, not
    the sun. */
 .mn-card { background: var(--band-bg); color: var(--on-blue); border-radius: 18px; padding: clamp(18px, 3.2vw, 30px); display: grid; gap: 14px; max-width: 44rem; margin: 1.2em 0 1.6em; min-width: 0; }
-.mn-card h2 { margin: 0; font-size: var(--t-xl); font-weight: 800; color: var(--on-blue); }
+.mn-card h2 { margin: 0; color: var(--on-blue); }
 .mn-card h3 { margin: 0 0 6px; font-size: var(--t-md); color: var(--on-blue); }
 .mn-card p { margin: 0; }
 .mn-card .small { color: var(--on-blue); opacity: .92; font-size: var(--t-sm); }
@@ -1259,7 +1260,7 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 .day-sheet[hidden] { display: none; }
 html:not(.js) .day-sheet.is-empty { display: none; }
 .day-head { display: grid; gap: 2px; margin-bottom: 12px; }
-.day-head h2 { margin: 0; font-family: var(--font-head); font-size: clamp(1.6rem, 4vw, 2.3rem); font-weight: 800; line-height: 1.05; letter-spacing: -.02em; }
+.day-head h2 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.3rem); line-height: 1.05; }
 .day-head h2:focus { outline: none; }
 .day-when { margin: 0; min-height: 1.2em; font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: .1em; text-transform: uppercase; font-variant-caps: normal; color: var(--muted); }
 .day-empty { color: var(--muted); margin: 6px 0 18px; }
