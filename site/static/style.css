@@ -93,6 +93,10 @@ body {
 a { color: var(--link); text-underline-offset: 2px; text-decoration-thickness: 1px; }
 a:hover { text-decoration-thickness: 2px; }
 a:visited { color: var(--link-visited); }
+/* Rows that lead to a part of the site (the landing's doors, a hub card's row, the district and ward lists, a crumb)
+   are navigation, not a reading list: they stay navy after a visit (onceover/links/visited-on-nav-rows). A link to an
+   outside source keeps the visited colour. */
+.door a:visited, .hub-go a:not([data-ext]):visited, ol.districts a:visited, .crumb a:visited, .kicker-line a:visited { color: var(--link); }
 a:focus-visible, [tabindex]:focus-visible, select:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
