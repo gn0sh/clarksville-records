@@ -293,7 +293,7 @@ school_board:
     slug: school-board
     nav_label: School board
     title: School board
-    lede: "Coming. Records of the Clarksville-Montgomery County School System board are planned. Its meetings are not collected yet, so none are shown here."
+    lede: "Records of the Clarksville-Montgomery County School System board are planned. Its meetings are not collected yet, so none are shown here."
     planned: ["Board meeting agendas", "Board meeting minutes and recorded votes"]
     link_lede: "Until then, the official source is the school system website:"
 
@@ -322,7 +322,7 @@ committees:
     slug: committees
     nav_label: Committees
     title: Committees
-    lede: "Coming. Records of the City of Clarksville Finance Committee and Audit Committee and of the Montgomery County Budget Committee are being added. Their meetings are not collected yet, so none are shown here."
+    lede: "Records of the City of Clarksville Finance Committee and Audit Committee and of the Montgomery County Budget Committee are being added. Their meetings are not collected yet, so none are shown here."
     planned: ["City Finance Committee agendas and minutes", "City Audit Committee agendas and minutes", "County Budget Committee agendas"]
     link_lede: "Until then, the official sources are:"
 
@@ -422,11 +422,11 @@ switch:
 coming:
   - slug: finance
     title: Finance
-    lede: "Coming. County budget books and audits (TN Comptroller) are planned. Nothing is shown here until it is collected from the source documents, and every figure will link to its page."
+    lede: "County budget books and audits (TN Comptroller) are planned. Nothing is shown here until it is collected from the source documents, and every figure will link to its page."
     planned: ["Approved county budgets", "Audited financial statements (TN Comptroller)", "Contracts"]
   - slug: capital-projects
     title: Capital projects
-    lede: "Coming. Capital projects named in county budget books and commission resolutions are planned. Nothing is shown here until it is collected from the source documents, and every project will link to its page."
+    lede: "Capital projects named in county budget books and commission resolutions are planned. Nothing is shown here until it is collected from the source documents, and every project will link to its page."
     planned: ["Projects named in approved budgets", "Commission resolutions that fund or change a project"]
 
 # Independent and unofficial (launch blocker, owner 2026-11-10; sitegen/unofficial.py, qa/site_checks.py

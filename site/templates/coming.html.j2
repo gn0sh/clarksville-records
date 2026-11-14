@@ -5,12 +5,15 @@
 {# the shared body header (_hub.html.j2): nothing is collected, so it has no coverage, freshness or Watch row #}
 {{ body_head(hub | default(none), page.title, page.lede, coming=true) }}
 {{ hub_cards(hub | default(none), root) }}
-<h2>What is planned</h2>
+{# The h1 carries the Coming tag, so the lede does not say "Coming" again (onceover/coming/repeated-coming-and-links). #}
+<h2 class="sec-h">What is planned</h2>
 <ul>
 {% for p in page.planned %}<li>{{ p }}</li>{% endfor %}
 </ul>
 {# A page about a body we do not collect yet carries one plain link to that body's own site (config, never fetched). #}
-{% if page.link is defined %}<p>{{ page.link_lede }} <a data-ext="{{ page.link.kind }}" href="{{ page.link.url }}" target="_blank" rel="noopener noreferrer">{{ page.link.label }}<span class="sr-only"> (opens in a new tab)</span></a>.</p>
+{# When the hub's coming cards above already link that site, the line is left out: one site, not linked a fourth time. #}
+{% set cards_link = hub is defined and hub and (hub.cards | selectattr("link") | list) %}
+{% if page.link is defined and not cards_link %}<p>{{ page.link_lede }} <a data-ext="{{ page.link.kind }}" href="{{ page.link.url }}" target="_blank" rel="noopener noreferrer">{{ page.link.label }}<span class="sr-only"> (opens in a new tab)</span></a>.</p>
 {% endif %}
 {% if page.links is defined %}<p>{{ page.link_lede }}</p>
 <ul>
