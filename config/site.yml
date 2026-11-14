@@ -406,7 +406,11 @@ switch:
     rpc:
       label: Planning (RPC)
       short: RPC
-      kicker: Regional Planning Commission
+      # the full name once, in the kicker; the h1 and the lede use the short name (onceover/rpc/hub-title-repeats:
+      # the full name was the h1, about four lines on a phone, and was repeated in the kicker and the lede)
+      kicker: Clarksville-Montgomery County Regional Planning Commission
+      title: Regional Planning Commission
+      lede: "Records of the Regional Planning Commission, each linked to the commission's own document."
       about: The Clarksville-Montgomery County Regional Planning Commission.
       note: "No budget of the Regional Planning Commission is collected, so none is shown."
       cards:

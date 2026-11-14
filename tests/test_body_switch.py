@@ -206,7 +206,10 @@ def test_city_and_rpc_homes_are_their_hubs(site, html):
     rpc = hub_cards(rpc_page)
     assert list(rpc)[:2] == ["meetings", "cases"]
     assert "No budget of the Regional Planning Commission is collected, so none is shown." in plain(rpc_page)
-    assert '<p class="hub-kicker">Regional Planning Commission</p>' in rpc_page
+    # the full name once, in the kicker; a short h1 (onceover/rpc/hub-title-repeats)
+    assert '<p class="hub-kicker">Clarksville-Montgomery County Regional Planning Commission</p>' in rpc_page
+    assert "<h1>Regional Planning Commission</h1>" in rpc_page
+    assert '<p class="lede">Records of the Regional Planning Commission, each linked' in rpc_page
 
 
 def test_rpc_votes_card_is_coming_only_while_no_vote_is_shown(html, tmp_path, rpc_cfg, monkeypatch):  # noqa: F811
