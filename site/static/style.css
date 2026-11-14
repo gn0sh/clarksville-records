@@ -266,6 +266,8 @@ small { font-size: var(--t-sm); }
 }
 .year-nav a:visited { color: var(--fg); }
 .year-nav a:hover { background: var(--surface-2); }
+/* the year (or part) this page shows: filled like the chosen "Show records from" option, and told by aria-current */
+.year-nav a[aria-current], .year-nav a[aria-current]:visited, .year-nav a[aria-current]:hover { background: var(--blue); border-color: var(--blue); color: var(--on-blue); font-weight: 600; }
 h3[id^="y"] { margin-top: 1.4em; font-variant-numeric: tabular-nums lining-nums; scroll-margin-top: 12px; }
 ol.meetings[id^="y"] { scroll-margin-top: 48px; }
 
