@@ -29,7 +29,7 @@ Of <span data-n="rc_total{{ sfx }}">{{ st['rc_total' ~ sfx] }}</span> {{ what }}
 
 <section aria-labelledby="attendance-h">
   <h2 id="attendance-h">Attendance</h2>
-  <p>Recorded present at <span data-n="present">{{ stats.present }}</span> and absent at <span data-n="absent">{{ stats.absent }}</span> of <span data-n="meetings_listed">{{ stats.meetings_listed }}</span> meetings with attendance shown, {{ coverage.from }} to {{ coverage.to }}.</p>
+  <p>Recorded present at <span data-n="present">{{ stats.present }}</span> and absent at <span data-n="absent">{{ stats.absent }}</span> of <span data-n="meetings_listed">{{ stats.meetings_listed }}</span> meetings with attendance shown, {{ coverage.from | day_words }} to {{ coverage.to | day_words }}.</p>
   {{ bar(attendance_bar) }}
   {{ legend(attendance_bar, n_prefix="att-") }}
 </section>
@@ -64,7 +64,7 @@ Of <span data-n="rc_total{{ sfx }}">{{ st['rc_total' ~ sfx] }}</span> {{ what }}
   {% if called_on %}
   <ul class="call-ons">
     {% for r in called_on %}
-    <li data-meeting="{{ r.meeting_id }}"><a href="{{ root }}{{ r.meeting_href }}">{{ r.meeting_label }}</a>: {% if r.video_href %}<a data-ext="video" href="{{ r.video_href }}" target="_blank" rel="noopener noreferrer">{{ r.time }} in the video<span class="sr-only"> (opens in a new tab)</span></a>{% else %}{{ r.time }} in the video{% endif %}{% if r.line_href %} (<a href="{{ root }}{{ r.line_href }}">line in the transcript</a>){% endif %}
+    <li data-meeting="{{ r.meeting_id }}"><a href="{{ root }}{{ r.meeting_href }}">{{ r.meeting_label | day_words }}</a>: {% if r.video_href %}<a data-ext="video" href="{{ r.video_href }}" target="_blank" rel="noopener noreferrer">{{ r.time }} in the video<span class="sr-only"> (opens in a new tab)</span></a>{% else %}{{ r.time }} in the video{% endif %}{% if r.line_href %} (<a href="{{ root }}{{ r.line_href }}">line in the transcript</a>){% endif %}
       <p class="muted">Matched words: &ldquo;<span class="tx-matched" data-transcript>{{ r.matched }}</span>&rdquo;</p>
       <blockquote class="tx-quote"><p class="muted">Transcript text after the chair called on {{ official.name }}:</p><p data-transcript>{{ r.excerpt }}</p></blockquote></li>
     {% endfor %}

@@ -29,7 +29,11 @@
   {# Daylight name plate (docs/design/daylight): the sun dot, the name and the place, on every page. Switch targets add
      the sky: a sun that static/sky.js sets by the viewer's clock (CSS places it at midday without the script). The
      landing also shows today's date, which stays hidden without the script (a static page can't know today's date). #}
-  {% if has_sky %}<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>{% endif %}
+  {% if has_sky %}<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>
+  {# The moon, where it really is over the site's place right now (config sky_place; static/sky.js works out its
+     height, direction, phase and tilt, and draws it into this span). Decoration only, and hidden until the script
+     draws it: a static page cannot know where the moon is. #}
+  {% set sp = site.cfg.sky_place | default(none) %}{% if sp %}<div class="sky-moon-frame" aria-hidden="true"><span class="sky-moon" id="sky-moon" data-lat="{{ sp.lat }}" data-lon="{{ sp.lon }}" hidden></span></div>{% endif %}{% endif %}
   <div class="masthead">
     {# Design 2.1: without JS this is a link to the full list in the footer; static/nav.js swaps it for a button that
        opens the drawer (a native <dialog> built from that same list, so the footer list is the single source). #}
@@ -37,7 +41,9 @@
     <div class="brand">
       <p class="site-name"><a href="{{ root }}index.html"><span class="plate-sun" aria-hidden="true"></span><span class="plate"><span class="plate-name">{{ site.site_name }}</span> <span class="plate-place">{{ site.cfg.site_place }}</span></span></a></p>
       <p class="unofficial-tag">{{ site.unofficial.tag }}</p>
-      {% if page_name != "Home" %}<p class="kicker">{{ site.coverage.body }} {{ site.coverage_what | default("minutes") }}, <span class="nowrap">{{ site.coverage.from }}</span> to <span class="nowrap">{{ site.coverage.to }}</span></p>{% endif %}
+      {# no coverage line in the masthead (onceover/header/county-kicker-everywhere): it printed the County
+         Commission's minutes dates over Search, About and Alerts. Each page states its body and its dates in its own
+         lede; a body's landing page in its own header (_hub.html.j2 body_head). #}
     </div>
   </div>
   {% block sky %}{% endblock %}

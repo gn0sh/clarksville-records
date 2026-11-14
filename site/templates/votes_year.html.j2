@@ -9,7 +9,7 @@
 <ol class="vote-list" data-body="{{ site.cfg.county_key }}">{# every roll call here is the county's #}
 {% for r in rows %}
   <li class="fact{% if not r.confirmed %} nc{% endif %}" data-fact-id="{{ r.id }}">
-    <p class="tl-head"><a class="date" href="{{ root }}{{ r.meeting_href }}">{{ r.date }}</a> {{ item_link(r.item, root) }}{% if r.vote_on %} <span class="muted"><a href="{{ root }}about.html#vote-on">Vote on</a>: {{ r.vote_on }}.</span>{% endif %}</p>
+    <p class="tl-head"><a class="date" href="{{ root }}{{ r.meeting_href }}">{{ r.date | day_words }}</a> {{ item_link(r.item, root) }}{% if r.vote_on %} <span class="muted"><a href="{{ root }}about.html#vote-on">Vote on</a>: {{ r.vote_on }}.</span>{% endif %}</p>
     <p class="tl-sub">Outcome: <span class="chip chip-outcome">{{ r.outcome.label }}{% if not r.confirmed %}{{ nc_mark() }}{% endif %}</span>{% if r.outcome.tally %} ({{ r.outcome.tally }}){% endif %}{% if not r.confirmed %} {{ not_confirmed(r.src) }}{% endif %}</p>
     <p class="meta"><span class="cite-label">Source:</span> {{ source(r.src) }} <span class="sep" aria-hidden="true">&middot;</span> {{ fact_meta(root, r.id) }}</p>
   </li>

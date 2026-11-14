@@ -94,9 +94,23 @@
     return st;
   }
 
+  // A date as the pages print it ("May 11, 2026"); the index keeps ISO days, which sort and match as before. Only the
+  // site's own words pass through here (a result's date, and the date a meeting's title starts with), never a title
+  // as the source prints it.
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  function dayWords(s) {
+    return String(s == null ? "" : s).replace(/(^|[^\w\/.-])(\d{4})-(\d{2})-(\d{2})(?![\w-])/g, function (all, pre, y, m, d) {
+      // a real calendar day only, as sitegen/localdates.py words(): "2026-05-00" and "2026-02-30" stay as they are
+      var real = new Date(Date.UTC(+y, +m - 1, +d));
+      return real.getUTCFullYear() === +y && real.getUTCMonth() === +m - 1 && real.getUTCDate() === +d
+        ? pre + MONTHS[+m - 1] + " " + (+d) + ", " + y : all;
+    });
+  }
   // ---- matching
-  // r.x: a solicitation's department and every bidder name (finance-contracts F7)
-  function hay(r) { return (r.n + " " + r.t + " " + (r.st || "") + " " + (r.z || "") + " " + (r.x || "")).toLowerCase(); }
+  // r.x: a solicitation's department and every bidder name (finance-contracts F7). The record's dates are searched
+  // in the words the results print ("may 11, 2026") as well as the ISO day its title may carry, so a date a reader
+  // sees in a result finds that result (onceover/dates/words-not-searchable).
+  function hay(r) { return r._hay || (r._hay = (r.n + " " + r.t + " " + (r.st || "") + " " + (r.z || "") + " " + (r.x || "") + " " + dayWords(r.d) + " " + dayWords(r.d2)).toLowerCase()); }
   // The header's "Show records from" choice (static/switch.js keeps it on <html>): used only while no Body box is
   // ticked and only for a body this index holds (the form's data-body-live), never written to the URL, and shown by
   // the switch's own "Showing ... only" line above the form. While a Body box is ticked that line is hidden, since
@@ -154,15 +168,15 @@
     }
     var html = '<li class="result"><p class="r-kind">' + esc(parts.join(" · ")) + "</p>";
     html += '<p class="r-title"><a href="' + esc(r.h) + '">' + (r.n ? "<strong>" + mark(r.n, toks) + "</strong> " : "") +
-      mark(r.t, toks) + "</a>" + (r.st ? ' <span class="seat">' + (r.ho ? '<a href="' + esc(officialHref(r.ho)) + '">' + mark(r.st, toks) + "</a>" : mark(r.st, toks)) + "</span>" : "") + "</p>" +
+      mark(r.k === "meeting" ? String(r.t).replace(/^\d{4}-\d{2}-\d{2}(?=, )/, dayWords) : r.t, toks) + "</a>" + (r.st ? ' <span class="seat">' + (r.ho ? '<a href="' + esc(officialHref(r.ho)) + '">' + mark(r.st, toks) + "</a>" : mark(r.st, toks)) + "</span>" : "") + "</p>" +
       (r.z ? '<p class="r-zoning">' + mark(r.z, toks) + "</p>" : "") +
       (r.x ? '<p class="r-zoning">' + mark(r.x, toks) + "</p>" : "");
     var meta = "";
     if (r.k === "item") {
-      meta = r.a ? "Appears " + r.a + (r.a === 1 ? " time" : " times") + ", " + esc(r.d) + (r.d2 !== r.d ? " to " + esc(r.d2) : "")
+      meta = r.a ? "Appears " + r.a + (r.a === 1 ? " time" : " times") + ", " + esc(dayWords(r.d)) + (r.d2 !== r.d ? " to " + esc(dayWords(r.d2)) : "")
         : "No appearance listed";
     } else if (r.k === "vote") {
-      meta = esc(r.d) + " · Outcome: " + (r.c && r.o ? esc(OUTCOME[r.o]) : 'Not confirmed<span aria-hidden="true">*</span><span class="sr-only"> (not confirmed)</span>, see the page');
+      meta = esc(dayWords(r.d)) + " · Outcome: " + (r.c && r.o ? esc(OUTCOME[r.o]) : 'Not confirmed<span aria-hidden="true">*</span><span class="sr-only"> (not confirmed)</span>, see the page');
       if (st.official && st.vote && r.v && r.s) {
         meta += '<br><a href="' + esc(officialHref(st.official)) + '">' + esc(IX.names[st.official]) + '</a><span class="seat">, ' + esc(seatOn(r.d, st.official)) + "</span>: " +
           esc(VOTE[r.v[st.official]]) +
@@ -170,7 +184,7 @@
           ", fetched " + esc(r.s.f) + "</a>";
       }
     } else if (r.k === "meeting" || r.k === "sol") {
-      meta = esc(r.d);
+      meta = esc(dayWords(r.d));
     }
     return html + (meta ? '<p class="r-meta">' + meta + "</p>" : "") + "</li>";
   }

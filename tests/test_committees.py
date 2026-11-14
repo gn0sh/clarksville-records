@@ -43,7 +43,7 @@ def test_coming_page_says_coming_and_has_the_links_from_config(site):
     pg = cm["page"]
     main = main_of((site / f"{pg['slug']}.html").read_text(encoding="utf-8"))
     assert f'<h1>{pg["title"]} <span class="chip chip-coming">Coming</span></h1>' in main
-    assert pg["lede"] in main and pg["lede"].startswith("Coming.")
+    assert pg["lede"] in main and not pg["lede"].startswith("Coming")    # the h1's tag says it once
     assert all(f"<li>{p}</li>" in main for p in pg["planned"])
     assert pg["link_lede"] in main
     ext = re.findall(r'<a [^>]*href="(https?://[^"]+)"', main)

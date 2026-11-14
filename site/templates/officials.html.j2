@@ -18,7 +18,7 @@
 </details>
 {% endfor %}
 {% else %}
-<p class="lede">{{ site.coverage.body }} records, {{ site.coverage.from }} to {{ site.coverage.to }}. Choose a name to see that person's recorded votes, attendance, motions and seconds. Every fact links to the county's own minutes.</p>
+<p class="lede">{{ site.coverage.body }} records, {{ site.coverage.from | day_words }} to {{ site.coverage.to | day_words }}. Choose a name to see that person's recorded votes, attendance, motions and seconds. Every fact links to the county's own minutes.</p>
 {% for s in sections %}
 <div class="officials-section" id="{{ s.key }}" data-order="{{ s.order }}">
 {{ cards(s.cards, "Officials, alphabetical by surname") }}

@@ -56,6 +56,7 @@ them up, so every page carries one switch right under the header: All, Montgomer
   page's top line link each body's home page and say "website", not "budget page".
 - Wide: a segmented pill group, the chosen option `--blue` with a `--sun` bar under it. Under 700px: one row of 44px
   chips that scrolls sideways inside its own box; "Planning (RPC)" shows as "RPC" (the full label stays for screen readers).
+- One header on every body's landing page (Brian, 2026-11-14; `_hub.html.j2` `body_head`, `tests/test_body_switch.py`): the same masthead as the home page (name plate and tag, no coverage line), then kicker, h1, one-sentence lede, coverage line, "How recent the records are", Watch, then the cards; a row is left out only when the body has no such fact (the school board has no dates and no Watch).
 - With script the choice is kept on the device (`localStorage["cr-body"]`, a body key only; inside try/catch, and the
   page still filters when storage is blocked). Rows that carry `data-body` are hidden by the class `bs-off`, never
   removed, under a "Showing Clarksville only / Show all" line. Visiting a body's hub makes it the choice.
@@ -64,3 +65,56 @@ them up, so every page carries one switch right under the header: All, Montgomer
   Finance index's books and funds, and Search (the choice applies while no Body box is ticked; it is not written to the
   URL). Not tagged, so never filtered: Items, Officials, district, member, meeting, fund, capital, bids and transcript
   pages, and each body's own pages.
+
+## The moon (Brian, 2026-11-14)
+The sun is unchanged: it still follows the viewer's own clock. The moon beside it is real: `static/sky.js` works out,
+for the current instant and for Clarksville (36.53 N, 87.36 W), the moon's altitude, compass direction, lit fraction,
+waxing or waning, and the tilt of its bright edge, and draws it on every page that has the sun.
+
+- Open sky only (manager's design call, 2026-11-14): the moon never covers the header's words or the sun. A first
+  version let a 20px moon pass behind the date and the name plate, where it read as a glitch and its phase could not
+  be seen. The script now measures the header (each line's own extent, the Menu column, the drawn sun's disc) and
+  takes the largest open rectangle of the band, which is on the sun's side, right of the words; with the sun up it
+  is the sky left of or above the sun. It is measured again on resize and when the web fonts arrive.
+- Place inside that rectangle: height is the real altitude (its bottom is the horizon, its top straight overhead);
+  across it, east is on the left, south in the middle, west on the right (azimuth 60 to 300 degrees), as the sun
+  travels. Hidden below the horizon, and without script (a static page cannot know where the moon is).
+- A phone's band is short, so there the rectangle is small (the moon moves a little) and, with the sun up, the moon
+  may stand on the sun's faint rings, never on its disc (wider screens keep it off the rings too). If even that has no room the moon is drawn at 22px,
+  and failing that not at all.
+- Look: 28px on a phone, 40px at 1280, with a soft ring like the sun's, cooler and fainter (`--moon-ring`). The lit
+  part is `--moon` with a hairline `--moon-edge`; the dark part is a faint disc (earthshine); the terminator is half
+  an ellipse, turned to the real bright edge. A sliver under 6% lit is drawn as 6%. Paler while the drawn sun is up.
+  No animation. Decorative: `aria-hidden`. The header's text has no halo: nothing is read across the moon.
+- The almanac is the Astronomical Almanac's short series, on the device: no network call, no storage, no location
+  request. The whole sky (sun, date line, moon) is redrawn on page load, on `pageshow`, every five minutes and when the tab is looked at again, so the moon always steers around the sun as drawn; the sun's own rule (the viewer's clock) is unchanged.
+- Checked against PyEphem in `tests/test_moon.py` (14 fixed instants in 2026): altitude and direction within 0.4
+  degrees, lit fraction within 0.2%, bright edge within about 3 degrees. The same file checks in a browser, at 375
+  and 1280, that the moon touches no word of the header and not the sun.
+
+## Once-over fixes (design review, 2026-11-14)
+Problem keys `onceover/...`; tests in `tests/test_onceover.py`.
+
+- Dates: one display form, "May 11, 2026" (`sitegen/localdates.py` `words`, Jinja filter `day_words`, `dayWords` in
+  `static/search.js`), for meeting and event dates in headings, ledes, lists and tables. ISO stays in `datetime`
+  attributes, URLs, ids, fact ids, downloads, feeds and the search index, and in the lines `qa/site_checks.py` reads
+  as ISO: fetch days ("fetched 2026-11-07"), seat records ("seen in roll calls ..."), the district-lines text, the
+  "latest meeting collected" line and the official page's totals sentences. Page titles and the morning-note preview
+  are unchanged. Text printed by a source is never reformatted.
+- Masthead: name plate and tag only, on every page. Each page names its body and dates in its own lede.
+- Headings: base `h1`/`h2` are Outfit 800, tight tracking, no rule under an `h2`. A class sets size and margin only.
+- Smallest type is `--t-eyebrow` (.72rem). The name plate's place line stays .62rem so the plate fits at 375px.
+- Touch (`pointer: coarse`): year pills, filter chips and boxes, and a row's Details and Show more are 44px in the
+  layout itself (rows are about 20px taller on a touch screen). No invisible hit area is laid over a neighbour: an
+  earlier `::after` around Details covered part of the "p. N" source link (`onceover/touch/hit-area-covers-source-link`;
+  `tests/touch_targets_browser.js` probes every source link with `elementFromPoint`). The footer's 28px rows are the
+  owner's decision.
+- Search finds a record by its date in words too ("May 11"), since that is what a result prints. So a bare month or
+  number such as "may" or "2024" also matches records by their date; under Relevance those rank last.
+- The bids table (`contracts/index.html`): as a table the date may break after the day ("September 30," / "2026") and
+  Source is 8rem, so the table fits its box at 1280 (`tests/table_fit_browser.js`); on a phone the date is one line.
+- The year or part a page shows is a filled pill (`aria-current`), like the chosen "Show records from" option.
+- Rows that lead to a part of the site (doors, hub card rows, district and ward lists, crumbs) stay navy after a
+  visit; links to outside sources keep the visited colour.
+- A "coming" page says Coming once (the h1's tag) and does not repeat a link its cards already carry.
+- The RPC's home: the full name in the kicker, "Regional Planning Commission" as the h1.

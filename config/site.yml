@@ -13,6 +13,9 @@ fetch_manifests:
   - data/localities/cmc-rpc/manifest.json
   - data/maps/manifest.json
 today_place: Clarksville            # landing sky: "Tuesday in Clarksville" (static/sky.js reads it from the page)
+# The moon on the sky band (static/sky.js reads it from the page): the place whose sky is drawn, in degrees
+# (north latitude, east longitude; the city hall area, to two places). Remove the block and no moon is drawn.
+sky_place: {lat: 36.53, lon: -87.36}
 operator: gnoshcodes LLC           # CEO decisions 2026-11-09 (a gnoshcodes product, no personal credit) and 2026-11-10 (the LLC)
 operator_url: https://gnoshcodes.com/
 # The person who runs the operator, named on the About page (Brian, 2026-11-11): an official id in a council's facts.
@@ -290,7 +293,7 @@ school_board:
     slug: school-board
     nav_label: School board
     title: School board
-    lede: "Coming. Records of the Clarksville-Montgomery County School System board are planned. Its meetings are not collected yet, so none are shown here."
+    lede: "Records of the Clarksville-Montgomery County School System board are planned. Its meetings are not collected yet, so none are shown here."
     planned: ["Board meeting agendas", "Board meeting minutes and recorded votes"]
     link_lede: "Until then, the official source is the school system website:"
 
@@ -319,7 +322,7 @@ committees:
     slug: committees
     nav_label: Committees
     title: Committees
-    lede: "Coming. Records of the City of Clarksville Finance Committee and Audit Committee and of the Montgomery County Budget Committee are being added. Their meetings are not collected yet, so none are shown here."
+    lede: "Records of the City of Clarksville Finance Committee and Audit Committee and of the Montgomery County Budget Committee are being added. Their meetings are not collected yet, so none are shown here."
     planned: ["City Finance Committee agendas and minutes", "City Audit Committee agendas and minutes", "County Budget Committee agendas"]
     link_lede: "Until then, the official sources are:"
 
@@ -403,7 +406,11 @@ switch:
     rpc:
       label: Planning (RPC)
       short: RPC
-      kicker: Regional Planning Commission
+      # the full name once, in the kicker; the h1 and the lede use the short name (onceover/rpc/hub-title-repeats:
+      # the full name was the h1, about four lines on a phone, and was repeated in the kicker and the lede)
+      kicker: Clarksville-Montgomery County Regional Planning Commission
+      title: Regional Planning Commission
+      lede: "Records of the Regional Planning Commission, each linked to the commission's own document."
       about: The Clarksville-Montgomery County Regional Planning Commission.
       note: "No budget of the Regional Planning Commission is collected, so none is shown."
       cards:
@@ -419,11 +426,11 @@ switch:
 coming:
   - slug: finance
     title: Finance
-    lede: "Coming. County budget books and audits (TN Comptroller) are planned. Nothing is shown here until it is collected from the source documents, and every figure will link to its page."
+    lede: "County budget books and audits (TN Comptroller) are planned. Nothing is shown here until it is collected from the source documents, and every figure will link to its page."
     planned: ["Approved county budgets", "Audited financial statements (TN Comptroller)", "Contracts"]
   - slug: capital-projects
     title: Capital projects
-    lede: "Coming. Capital projects named in county budget books and commission resolutions are planned. Nothing is shown here until it is collected from the source documents, and every project will link to its page."
+    lede: "Capital projects named in county budget books and commission resolutions are planned. Nothing is shown here until it is collected from the source documents, and every project will link to its page."
     planned: ["Projects named in approved budgets", "Commission resolutions that fund or change a project"]
 
 # Independent and unofficial (launch blocker, owner 2026-11-10; sitegen/unofficial.py, qa/site_checks.py
