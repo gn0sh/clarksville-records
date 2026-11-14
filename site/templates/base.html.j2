@@ -41,9 +41,9 @@
     <div class="brand">
       <p class="site-name"><a href="{{ root }}index.html"><span class="plate-sun" aria-hidden="true"></span><span class="plate"><span class="plate-name">{{ site.site_name }}</span> <span class="plate-place">{{ site.cfg.site_place }}</span></span></a></p>
       <p class="unofficial-tag">{{ site.unofficial.tag }}</p>
-      {# no coverage line on a switch target: every body's landing page has one masthead (plate and tag, as the home
-         page has) and states its coverage in its own header (_hub.html.j2 body_head) #}
-      {% if not has_sky %}<p class="kicker">{{ site.coverage.body }} {{ site.coverage_what | default("minutes") }}, <span class="nowrap">{{ site.coverage.from }}</span> to <span class="nowrap">{{ site.coverage.to }}</span></p>{% endif %}
+      {# no coverage line in the masthead (onceover/header/county-kicker-everywhere): it printed the County
+         Commission's minutes dates over Search, About and Alerts. Each page states its body and its dates in its own
+         lede; a body's landing page in its own header (_hub.html.j2 body_head). #}
     </div>
   </div>
   {% block sky %}{% endblock %}

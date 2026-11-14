@@ -131,10 +131,14 @@ def test_rpc_home_has_its_own_line(rpc_site):  # noqa: F811
 # ---- site-polish/rpc-subtitle -------------------------------------------------------------------------------------
 
 def test_rpc_pages_header_describes_the_rpc(rpc_site):  # noqa: F811
+    # No page's masthead carries a coverage line (onceover/header/county-kicker-everywhere: it used to print one
+    # body's dates over every page). An RPC page names the RPC in its own lede, never the County Commission.
     for rel in ("rpc/meetings/2026.html",):
-        k = text(re.search(r'<p class="kicker">(.*?)</p>', read(rpc_site, rel), re.S).group(1)).strip()
-        assert k.startswith("Clarksville-Montgomery County Regional Planning Commission meetings, "), (rel, k)
-        assert "County Commission minutes" not in k
+        page = read(rpc_site, rel)
+        assert 'class="kicker"' not in page[page.index("<header"):page.index("</header>")], rel
+        lede = text(re.search(r'<p class="lede">(.*?)</p>', page, re.S).group(1)).strip()
+        assert lede.startswith("Clarksville-Montgomery County Regional Planning Commission. "), (rel, lede)
+        assert "County Commission minutes" not in text(page[:page.index("</header>")])
     # the RPC's home is a "Show records from" target: its masthead is the one every body shares (no coverage line),
     # and its own header states its coverage (tests/test_body_switch.py: the one header)
     home = read(rpc_site, "rpc/index.html")

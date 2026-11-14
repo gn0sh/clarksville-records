@@ -162,8 +162,8 @@ def test_every_body_page_has_the_one_header(site, html):
     assert '<h1>School board <span class="chip chip-coming">Coming</span></h1>' in html["school-board.html"]
     home = html["index.html"]
     assert 'class="kicker"' not in home[home.index("<header"):home.index("</header>")]
-    about = html["about.html"]                                         # other pages keep the masthead's coverage line
-    assert '<p class="kicker">' in about[about.index("<header"):about.index("</header>")]
+    for rel, page in html.items():                 # no masthead prints one body's coverage dates over every page
+        assert 'class="kicker"' not in page[page.index("<header"):page.index("</header>")], rel
     # each body's own facts stay: its coverage dates, its newest records, its own Watch link
     county, city, rpc = (html[pages[k]] for k in ("county", "city", "rpc"))
     assert re.search(r'<p class="body-cover">Minutes, <span class="nowrap">\d{4}-\d\d-\d\d</span> to ', county)

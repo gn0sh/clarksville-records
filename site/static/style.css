@@ -130,7 +130,6 @@ a:focus-visible, [tabindex]:focus-visible, select:focus-visible {
 .plate-sun { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--sun); box-shadow: 0 0 0 4px var(--halo); }
 .plate { display: grid; }
 .plate-place { font-family: var(--font-mono); font-size: .62rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); line-height: 1.5; }
-.kicker { margin: 4px 0 0; color: var(--muted); font-size: var(--t-sm); }
 .site-header nav > ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0 18px; }
 .site-header nav a, .site-header nav a:visited {
   display: inline-block; padding: 8px 0 6px; color: var(--fg); text-decoration: none; font-size: var(--t-sm);
