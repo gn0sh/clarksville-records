@@ -4,7 +4,9 @@
 {# The Regional Planning Commission's home (sitegen/rpc.py home): every listed meeting, newest first, by year, with its
    documents. Each meeting's agenda cases are on its year page. #}
 {% block main %}
-{% call body_head(hub | default(none), body, "Meetings, agendas and minutes listed on the commission's own page.", freshness=freshness | default([]), freshness_note=freshness_note | default(""), watch=watch) %}
+{# the lede says whose records these are, as the county's does; what is listed is the first card's own line #}
+{% set lede %}Records of the {{ body }}, each linked to the commission's own document.{% endset %}
+{% call body_head(hub | default(none), body, lede, freshness=freshness | default([]), freshness_note=freshness_note | default(""), watch=watch) %}
 Meetings, <span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>: {{ n_meetings }} meetings, {{ n_docs }} documents collected{% if fetched_to %} (latest fetched {{ fetched_to }}){% endif %}, {{ n_cases }} case items read from the agendas.{% if n_link_only %} {{ n_link_only }} documents are linked on another host and were not collected.{% endif %}
 {% endcall %}
 {{ hub_cards(hub | default(none), root) }}

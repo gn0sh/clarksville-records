@@ -87,7 +87,7 @@ waxing or waning, and the tilt of its bright edge, and draws it on every page th
   an ellipse, turned to the real bright edge. A sliver under 6% lit is drawn as 6%. Paler while the drawn sun is up.
   No animation. Decorative: `aria-hidden`. The header's text has no halo: nothing is read across the moon.
 - The almanac is the Astronomical Almanac's short series, on the device: no network call, no storage, no location
-  request. Redrawn on page load, on `pageshow` and every five minutes (the moon only; the sun keeps to load and `pageshow`).
+  request. The whole sky (sun, date line, moon) is redrawn on page load, on `pageshow`, every five minutes and when the tab is looked at again, so the moon always steers around the sun as drawn; the sun's own rule (the viewer's clock) is unchanged.
 - Checked against PyEphem in `tests/test_moon.py` (14 fixed instants in 2026): altitude and direction within 0.4
   degrees, lit fraction within 0.2%, bright edge within about 3 degrees. The same file checks in a browser, at 375
   and 1280, that the moon touches no word of the header and not the sun.

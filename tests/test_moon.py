@@ -229,6 +229,70 @@ def test_the_moon_is_clarksvilles_whatever_the_viewers_clock_and_the_sun_is_stil
     assert there["moon"]["attrs"]["data-day"] == ""           # paler beside the sun that viewer's page draws
 
 
+LONG_OPEN_PROBE = r"""
+// A 1280 by 146 sky band with a 190px sun at the right of the page column and a 40px moon; the clock can be moved.
+const RealDate = Date; let nowMs = 0;
+global.Date = class extends RealDate { constructor(...a) { a.length ? super(...a) : super(nowMs); }
+  static now() { return nowMs; } };
+const page = () => {
+  const els = {};
+  const node = () => { const n = { attrs: {}, css: {}, kids: [],
+    getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
+    setAttribute(k, v) { this.attrs[k] = v; if (k === "id") { els[v] = this; } },
+    removeAttribute(k) { delete this.attrs[k]; }, appendChild(c) { this.kids.push(c); } };
+    n.style = { setProperty(k, v) { n.css[k] = v; }, removeProperty(k) { delete n.css[k]; } }; return n; };
+  const sun = (els["sky-sun"] = node()), moon = (els["sky-moon"] = node());
+  sun.offsetWidth = 190; sun.offsetLeft = 946;
+  moon.attrs.hidden = ""; moon.attrs["data-lat"] = "36.53"; moon.attrs["data-lon"] = "-87.36"; moon.offsetWidth = 40;
+  moon.parentNode = { getBoundingClientRect: () => ({ left: 0, top: 0, width: 1280, height: 146 }) };
+  global.document = { hidden: false, getElementById: id => els[id] || null, querySelectorAll: () => [],
+    createElementNS: () => node() };
+  return () => ({ sunAlt: sun.css["--sun-alt"], day: "data-day" in moon.attrs, hidden: "hidden" in moon.attrs,
+                  left: parseFloat(moon.css["--moon-left"]), top: parseFloat(moon.css["--moon-top"]) });
+};
+global.window = global; global.innerWidth = 1280;
+global.getComputedStyle = () => ({ getPropertyValue: () => "0.85" });
+const sky = require(process.argv[1]);
+const [first, later] = JSON.parse(process.argv[2]).map(t => RealDate.parse(t));
+let state = page(); nowMs = first; sky.render(); const opened = state();
+global.document.hidden = true; nowMs = later; sky.tick(); const whileHidden = state();   // a hidden tab draws nothing
+global.document.hidden = false; sky.tick(); const ticked = state();
+state = page(); nowMs = later; sky.render(); const fresh = state();                       // a page opened at `later`
+console.log(JSON.stringify({ opened, whileHidden, ticked, fresh }));
+"""
+
+
+def long_open(node, first, later):
+    res = subprocess.run([node, "-e", LONG_OPEN_PROBE, str(SKY_JS), json.dumps([first, later])], capture_output=True,
+                         text=True, timeout=60, env={"TZ": "America/Chicago", "PATH": str(Path(node).parent)})
+    assert res.returncode == 0, res.stderr
+    return json.loads(res.stdout)
+
+
+def test_a_tab_left_open_keeps_the_drawn_sun_and_the_moon_in_step(node):
+    """Review, moon/stale-sun-alt: opened at 3 PM and still open at 7:30 PM. The timer used to move only the moon, so
+    the page kept its afternoon sun while the moon was placed as if the sun had set, and could sit on the disc. The
+    timer now redraws the whole sky: after it the drawn sun and the moon are exactly what a page opened at 7:30 PM
+    shows. While the tab is hidden nothing is redrawn."""
+    r = long_open(node, "2026-11-20T21:00:00Z", "2026-11-21T01:30:00Z")        # 3 PM and 7:30 PM in Clarksville
+    opened, ticked = r["opened"], r["ticked"]
+    assert float(opened["sunAlt"]) > 0.5 and opened["day"] and not opened["hidden"]
+    assert opened["left"] + 40 <= 946 - 48                    # the sun is up: the moon is left of its outer ring
+    assert r["whileHidden"] == opened
+    assert ticked == r["fresh"] and ticked != opened
+    assert float(ticked["sunAlt"]) < 0 and not ticked["day"] and not ticked["hidden"]   # the drawn sun has set
+
+
+def test_by_night_the_moon_keeps_clear_of_the_suns_ring_above_the_horizon(node):
+    """Review, moon/night-sun-ring: with the sun down its outer ring still shows about 8px over the horizon at 1280
+    (the disc sits 40px under it, the ring is 48px wide). A low moon over the sun's column stays above that ring."""
+    r = long_open(node, "2026-08-24T07:00:00Z", "2026-08-24T07:00:00Z")["opened"]   # 2 AM, the moon 4 degrees up, west
+    assert float(r["sunAlt"]) < 0 and not r["hidden"]
+    assert 946 - 48 < r["left"] + 40 and r["left"] < 946 + 190 + 48           # over the sun's column
+    ring_top = 146 + 0.25 * 0.85 * 190 - 48                                   # 138.4: where the ring starts
+    assert r["top"] + 40 <= ring_top and r["top"] + 40 >= ring_top - 8        # just above it, still near the horizon
+
+
 def test_sun_code_is_untouched_and_the_script_stays_on_the_device():
     src = SKY_JS.read_text(encoding="utf-8")
     assert "var RISE = 6, SET = 19, NIGHT = -0.25;" in src
@@ -237,10 +301,12 @@ def test_sun_code_is_untouched_and_the_script_stays_on_the_device():
     for word in ("fetch(", "XMLHttpRequest", "sendBeacon", "localStorage", "sessionStorage", "cookie", "geolocation",
                  "import(", "WebSocket", "EventSource"):
         assert word not in src, word
-    # the timer redraws the moon only: the sun and the date line keep to page load and pageshow
-    tick = src[src.index("function tick()"):src.index("var api =")]
-    assert "renderMoon(" in tick and "sky-sun" not in tick and "render()" not in tick
+    # the timer and a tab coming back into view redraw the whole sky (review: moon/stale-sun-alt, moon/visibility),
+    # and nothing while the tab is hidden
+    tick = src[src.index("function tick()"):src.index("/* the same moon put back")]
+    assert "if (!doc || doc.hidden) { return; }\n    render();" in tick
     assert "root.setInterval(tick, 300000)" in src
+    assert 'root.document.addEventListener("visibilitychange", tick)' in src
     assert 'root.addEventListener("resize"' in src and "fonts.ready.then(replace" in src     # put back after a re-layout
 
 
@@ -307,6 +373,7 @@ for (const r of ['', ...roots]) {
       return { hidden: moon.hasAttribute('hidden'), moon: box(moon.getBoundingClientRect()), ring, header, texts,
                size: parseFloat(getComputedStyle(moon).width), kids: moon.querySelectorAll('svg').length,
                sun: s.top < header.bottom ? { ...s, bottom: header.bottom } : null,
+               sunRing: Math.max(18, Math.min(48, innerWidth * 0.045)), sunBox: s,
                hscroll: document.documentElement.scrollWidth > innerWidth };
     });
     out.push({ width, rel, iso, ...at });
@@ -330,8 +397,9 @@ def _hits(a, b):
 def test_the_moon_never_covers_the_headers_words_or_the_sun_in_a_browser(site, tmp_path):  # noqa: F811
     """Manager's design call, 2026-11-14: the moon sits in open sky only. At 375 and 1280, on the landing and on a
     body's page, at instants with the moon high, low, east, west, by day and by night: the moon's box with its ring
-    touches no word of the header (name plate, tag, date line, Menu button) and not the sun's disc, stays inside the
-    band, is 28px on the phone and about 40px wide, and the page does not scroll sideways."""
+    touches no word of the header (name plate, tag, date line, Menu button) and not the sun's disc (nor, at 1280 by
+    night, the ring the set sun still shows over the horizon), stays inside the band, is 28px on the phone and about
+    40px wide, and the page does not scroll sideways."""
     body = next(str(p.relative_to(site)) for p in sorted(site.rglob("*.html"))
                 if p.name != "index.html" and 'id="sky-moon"' in p.read_text(encoding="utf-8"))
     instants = ["2026-11-25T05:30:00Z", "2026-11-12T23:20:00Z", "2026-11-20T21:30:00Z", "2026-12-01T13:30:00Z",
@@ -358,6 +426,10 @@ def test_the_moon_never_covers_the_headers_words_or_the_sun_in_a_browser(site, t
             assert not _hits(halo, box), (where, name, halo, box)
         if r["sun"]:
             assert not _hits(m, r["sun"]), (where, m, r["sun"])
+        elif r["width"] == 1280:                              # by night: the sun's outer ring over the horizon
+            s, w = r["sunBox"], r["sunRing"]
+            ring = {"left": s["left"] - w, "top": s["top"] - w, "right": s["right"] + w, "bottom": s["bottom"] + w}
+            assert ring["top"] < r["header"]["bottom"] and not _hits(m, ring), (where, m, ring)
         h = r["header"]
         assert h["left"] <= m["left"] and m["right"] <= h["right"], where
         assert h["top"] <= m["top"] and m["bottom"] <= h["bottom"], where

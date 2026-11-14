@@ -150,8 +150,9 @@
   }
 
   /* What the moon must keep clear of, in the sky band's own pixels: the header's words (each line's own extent, not
-     its full-width box) with `gap` around them, the Menu button's column, and the drawn sun (its disc from where it stands on the horizon,
-     worked out from its size and --sun-alt, so a sun still sliding into place is not measured mid-way) with `sunPad`. */
+     its full-width box) with `gap` around them, the Menu button's column, and the drawn sun (its disc from where it stands on or under the
+     horizon, worked out from its size and --sun-alt, so a sun still sliding into place is not measured mid-way) with
+     `sunPad` (the width of the ring to keep clear of). */
   var WORDS = "#nav-open, .site-header .site-name, .site-header .unofficial-tag, .site-header .kicker, #sky-hero .sky-day";
   function skyBlocks(doc, frame, f, gap, sunAlt, sunPad) {
     var blocks = [], nodes = doc.querySelectorAll(WORDS), i, n, r, range;
@@ -168,7 +169,9 @@
       }
     }
     var sun = doc.getElementById("sky-sun"), view = doc.defaultView || root;
-    if (sun && sunAlt > 0 && sun.offsetWidth) {
+    /* by night the disc is under the horizon but its outer ring still shows a little above it, so the sun is a
+       block whatever its altitude: one that lies wholly under the band blocks nothing */
+    if (sun && sun.offsetWidth) {
       var max = parseFloat(view.getComputedStyle(sun).getPropertyValue("--sun-max")) || 0.85;
       blocks.push({ left: sun.offsetLeft - sunPad, top: f.height - sunAlt * max * sun.offsetWidth - sunPad,
                     right: sun.offsetLeft + sun.offsetWidth + sunPad, bottom: f.height + sunPad });
@@ -248,11 +251,12 @@
     } catch (e) { return; }
     hero.hidden = false;
   }
-  /* the moon alone, for the timer: the sun and the date line keep to page load and pageshow */
+  /* The timer, and a tab coming back into view: the whole sky again (sun, date line, moon), so the drawn sun, the
+     date and the moon that steers around that sun always agree in a tab left open. Nothing is drawn while hidden. */
   function tick() {
-    var doc = root.document, now = new Date();
+    var doc = root.document;
     if (!doc || doc.hidden) { return; }
-    try { renderMoon(doc, now.getTime(), altitude(now.getHours() + now.getMinutes() / 60)); } catch (e) { /* no moon */ }
+    render();
   }
   /* the same moon put back in the open sky after the layout changes (a resize, the web fonts arriving) */
   function replace() {
@@ -260,15 +264,17 @@
   }
   var api = { altitude: altitude, render: render, RISE: RISE, SET: SET, NIGHT: NIGHT,
               moon: moon, moonPosition: moonPosition, sunPosition: sunPosition, moonX: moonX, moonPath: moonPath,
-              freeRect: freeRect, moonSpot: moonSpot, renderMoon: renderMoon };
+              freeRect: freeRect, moonSpot: moonSpot, renderMoon: renderMoon, tick: tick };
   if (typeof module !== "undefined" && module.exports) { module.exports = api; return; }
   root.CRSky = api;
   render();
   /* a page restored from the back/forward cache gets a fresh date and sun */
   if (root.addEventListener) { root.addEventListener("pageshow", function (ev) { if (ev && ev.persisted) { render(); } }); }
   if (root.document && root.document.getElementById("sky-moon")) {
-    /* the moon moves about a degree every four minutes, so it is redrawn every five while the page is open */
+    /* the moon moves about a degree every four minutes, so the sky is redrawn every five while the page is open,
+       and at once when the tab is looked at again */
     if (root.setInterval) { root.setInterval(tick, 300000); }
+    if (root.document.addEventListener) { root.document.addEventListener("visibilitychange", tick); }
     var waiting = false;
     if (root.addEventListener) {
       root.addEventListener("resize", function () {
