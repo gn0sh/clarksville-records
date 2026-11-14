@@ -91,3 +91,23 @@ waxing or waning, and the tilt of its bright edge, and draws it on every page th
 - Checked against PyEphem in `tests/test_moon.py` (14 fixed instants in 2026): altitude and direction within 0.4
   degrees, lit fraction within 0.2%, bright edge within about 3 degrees. The same file checks in a browser, at 375
   and 1280, that the moon touches no word of the header and not the sun.
+
+## Once-over fixes (design review, 2026-11-14)
+Problem keys `onceover/...`; tests in `tests/test_onceover.py`.
+
+- Dates: one display form, "May 11, 2026" (`sitegen/localdates.py` `words`, Jinja filter `day_words`, `dayWords` in
+  `static/search.js`), for meeting and event dates in headings, ledes, lists and tables. ISO stays in `datetime`
+  attributes, URLs, ids, fact ids, downloads, feeds and the search index, and in the lines `qa/site_checks.py` reads
+  as ISO: fetch days ("fetched 2026-11-07"), seat records ("seen in roll calls ..."), the district-lines text, the
+  "latest meeting collected" line and the official page's totals sentences. Page titles and the morning-note preview
+  are unchanged. Text printed by a source is never reformatted.
+- Masthead: name plate and tag only, on every page. Each page names its body and dates in its own lede.
+- Headings: base `h1`/`h2` are Outfit 800, tight tracking, no rule under an `h2`. A class sets size and margin only.
+- Smallest type is `--t-eyebrow` (.72rem). The name plate's place line stays .62rem so the plate fits at 375px.
+- Touch (`pointer: coarse`): year pills, filter chips and boxes are 44px; a row's Details and Show more keep their
+  size and get a 44px hit area (`::after`). The footer's 28px rows are the owner's decision.
+- The year or part a page shows is a filled pill (`aria-current`), like the chosen "Show records from" option.
+- Rows that lead to a part of the site (doors, hub card rows, district and ward lists, crumbs) stay navy after a
+  visit; links to outside sources keep the visited colour.
+- A "coming" page says Coming once (the h1's tag) and does not repeat a link its cards already carry.
+- The RPC's home: the full name in the kicker, "Regional Planning Commission" as the h1.
