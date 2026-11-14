@@ -133,6 +133,52 @@ def test_county_hub_page(html):
     assert f'<a data-ext="committee" href="{link["url"]}" target="_blank" rel="noopener noreferrer">{link["label"]}' in bc
 
 
+def test_every_body_page_has_the_one_header(site, html):
+    """Owner, 2026-11-14: "the header is inconsistent across the entity pages (county, city, school board, RPC): make
+    it one header." Each body's landing page opens with the same block (_hub.html.j2 body_head), its rows always in
+    the same order and a row only when the body has that fact: kicker, h1, lede, coverage line, how recent the
+    records are, Watch; the section cards come right after it. The masthead above is the same on all four, and on
+    the home page: name plate and tag, no coverage line (the school board's used to show the County Commission's)."""
+    order = ["hub-kicker", "h1", "lede", "body-cover", "freshness", "watch-line"]
+    pages = {"county": "montgomery-county.html", "city": f"{cfg_slug(site)}/index.html", "school": "school-board.html",
+             "rpc": "rpc/index.html"}
+    rows = {}
+    for key, rel in pages.items():
+        page = html[rel]
+        main = page[page.index('<main id="main">'):]
+        assert main.count('<div class="body-head"') == 1, rel
+        head = re.search(r'<div class="body-head" data-body-head="(\w+)">(.*?)</div>', main, re.S)
+        assert head.group(1) == key and main[len('<main id="main">'):].lstrip().startswith('<div class="body-head"'), rel
+        found = re.findall(r'<(?:p|section) class="(hub-kicker|lede|body-cover|freshness|watch-line)"|<(h1)>', head.group(2))
+        rows[key] = [a or b for a, b in found]
+        assert rows[key] == [r for r in order if r in rows[key]], (rel, rows[key])       # one order, no repeats
+        assert rows[key][:3] == order[:3], (rel, rows[key])                              # every body has these three
+        after = main[head.end():].lstrip()
+        assert after.startswith('<section class="hub" aria-labelledby="hub-h"'), (rel, after[:80])
+        header = page[page.index("<header"):page.index("</header>")]
+        assert 'class="kicker"' not in header and '<p class="unofficial-tag">' in header, rel
+    assert rows["county"] == rows["city"] == rows["rpc"] == order      # the three collected bodies: every row
+    assert rows["school"] == order[:3]                                 # nothing collected: no dates, no Watch
+    assert '<h1>School board <span class="chip chip-coming">Coming</span></h1>' in html["school-board.html"]
+    home = html["index.html"]
+    assert 'class="kicker"' not in home[home.index("<header"):home.index("</header>")]
+    about = html["about.html"]                                         # other pages keep the masthead's coverage line
+    assert '<p class="kicker">' in about[about.index("<header"):about.index("</header>")]
+    # each body's own facts stay: its coverage dates, its newest records, its own Watch link
+    county, city, rpc = (html[pages[k]] for k in ("county", "city", "rpc"))
+    assert re.search(r'<p class="body-cover">Minutes, <span class="nowrap">\d{4}-\d\d-\d\d</span> to ', county)
+    assert re.search(r'<p class="body-cover">Meetings, <span class="nowrap">\d{4}-\d\d-\d\d</span> to ', city)
+    assert re.search(r'<p class="body-cover">Meetings, <span class="nowrap">\d{4}-\d\d-\d\d</span> to .*? case items', rpc)
+    assert "Montgomery County Commission: minutes and votes through" in plain(county)
+    assert "City Council: minutes and votes through" in plain(city)
+    assert "Regional Planning Commission: " in plain(rpc)
+    watch = [re.search(r'<p class="watch-line"><a class="watch" data-ext="watch" href="([^"]+)"', p).group(1)
+             for p in (county, city, rpc)]
+    assert len(set(watch)) >= 2                                        # not one body's link copied to the others
+    # the RPC's long reading note sits under its cards, not in the header
+    assert rpc.index('id="hub-h"') < rpc.index('<p class="muted body-notes">Case items are shown')
+
+
 def test_a_present_card_is_shown_only_when_its_page_is_built(site, html):
     """The fixture has no budget lines, so Finance and Capital projects are "coming" pages in this build: the county
     hub does not link them as if they were collected."""

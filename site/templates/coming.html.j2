@@ -1,10 +1,9 @@
 {% extends "base.html.j2" %}
-{% from "_hub.html.j2" import hub_cards, hub_kicker %}
+{% from "_hub.html.j2" import hub_cards, body_head with context %}
 {% block main %}
 {# Design 6: no numbers, no sample chart, no placeholder table, no example values. #}
-{{ hub_kicker(hub | default(none)) }}
-<h1>{{ page.title }} <span class="chip chip-coming">Coming</span></h1>
-<p class="lede">{{ page.lede }}</p>
+{# the shared body header (_hub.html.j2): nothing is collected, so it has no coverage, freshness or Watch row #}
+{{ body_head(hub | default(none), page.title, page.lede, coming=true) }}
 {{ hub_cards(hub | default(none), root) }}
 <h2>What is planned</h2>
 <ul>

@@ -1,8 +1,25 @@
 {# A body's hub cards (sitegen/bodies.py; config/site.yml `switch:`). A present card links a page this build makes; a
    coming card is dashed, says what is not collected yet and links the body's own official page (a URL from the
    config, never fetched). #}
+{% from "_freshness.html.j2" import freshness as fresh with context %}
+{% from "_macros.html.j2" import watch_link %}
 {% macro coming_tag() %}<span class="chip chip-coming">Coming</span>{% endmacro %}
 {% macro hub_kicker(hub) %}{% if hub and hub.kicker %}<p class="hub-kicker">{{ hub.kicker }}</p>{% endif %}{% endmacro %}
+{# One header for every body's landing page (owner, 2026-11-14: "make it one header"): the county's hub, the City
+   Council's home, the RPC's home and the school board's "coming" page. Always the same rows in the same order, a row
+   only when the body has that fact: kicker, h1 (with the Coming tag when nothing is collected), a one-sentence lede,
+   the coverage line (the caller's block: what is here and its dates, with the body's own counts), how recent the
+   records are (_freshness.html.j2), the Watch link. The section cards follow it. Import `with context` (for `root`). #}
+{% macro body_head(hub, title, lede, coming=false, freshness=none, freshness_note="", watch=none) %}
+<div class="body-head"{% if hub %} data-body-head="{{ hub.key }}"{% endif %}>
+{{ hub_kicker(hub) }}
+<h1>{{ title }}{% if coming %} {{ coming_tag() }}{% endif %}</h1>
+<p class="lede">{{ lede }}</p>
+{% if caller is defined %}{% set cover = caller() | trim %}{% if cover %}<p class="body-cover">{{ cover }}</p>{% endif %}{% endif %}
+{{ fresh(freshness or [], freshness_note) }}
+{% if watch %}<p class="watch-line">{{ watch_link(watch) }}</p>{% endif %}
+</div>
+{% endmacro %}
 {% macro hub_cards(hub, root, level=2) %}
 {% if hub and hub.cards %}
 <section class="hub" aria-labelledby="hub-h" data-hub="{{ hub.key }}">

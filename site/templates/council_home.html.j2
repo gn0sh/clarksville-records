@@ -1,16 +1,15 @@
 {% extends "base.html.j2" %}
 {% from "_cards.html.j2" import cards %}
 {% from "_feed_links.html.j2" import feed_links %}
-{% from "_macros.html.j2" import watch_link %}
-{% from "_hub.html.j2" import hub_cards, hub_kicker %}
+{% from "_hub.html.j2" import hub_cards, body_head with context %}
 {% block head %}{{ feed_links(home_feeds | default([]), root) }}{% endblock %}
 {# A council's home (council.py home): its seats with current holders, its members, and its meetings and items by
    year. The same layout for every council; every name links to its member page. #}
 {% block main %}
-{{ hub_kicker(hub | default(none)) }}
-<h1>{{ body }}</h1>
-<p class="lede">Votes and records of the {{ body }}, linked to the city's own minutes, <span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>. {{ fetched }}</p>
-{% if watch %}<p class="watch-line">{{ watch_link(watch) }}</p>{% endif %}
+{% set lede %}Votes and records of the {{ body }}, linked to the city's own minutes.{% endset %}
+{% call body_head(hub | default(none), body, lede, freshness=freshness | default([]), freshness_note=freshness_note | default(""), watch=watch) %}
+Meetings, <span class="nowrap">{{ coverage.from }}</span> to <span class="nowrap">{{ coverage.to }}</span>. {{ fetched }}
+{% endcall %}
 {{ hub_cards(hub | default(none), root) }}
 <nav class="council-jump" aria-label="On this page">
   <ul class="inline-list">

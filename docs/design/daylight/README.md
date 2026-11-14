@@ -56,6 +56,7 @@ them up, so every page carries one switch right under the header: All, Montgomer
   page's top line link each body's home page and say "website", not "budget page".
 - Wide: a segmented pill group, the chosen option `--blue` with a `--sun` bar under it. Under 700px: one row of 44px
   chips that scrolls sideways inside its own box; "Planning (RPC)" shows as "RPC" (the full label stays for screen readers).
+- One header on every body's landing page (Brian, 2026-11-14; `_hub.html.j2` `body_head`, `tests/test_body_switch.py`): the same masthead as the home page (name plate and tag, no coverage line), then kicker, h1, one-sentence lede, coverage line, "How recent the records are", Watch, then the cards; a row is left out only when the body has no such fact (the school board has no dates and no Watch).
 - With script the choice is kept on the device (`localStorage["cr-body"]`, a body key only; inside try/catch, and the
   page still filters when storage is blocked). Rows that carry `data-body` are hidden by the class `bs-off`, never
   removed, under a "Showing Clarksville only / Show all" line. Visiting a body's hub makes it the choice.
