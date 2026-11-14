@@ -143,7 +143,7 @@ def test_rpc_pages_header_describes_the_rpc(rpc_site):  # noqa: F811
     # and its own header states its coverage (tests/test_body_switch.py: the one header)
     home = read(rpc_site, "rpc/index.html")
     assert '<p class="kicker">' not in home and "County Commission minutes" not in text(home[:home.index("</header>")])
-    assert re.search(r'<p class="body-cover">Meetings, <span class="nowrap">\d{4}-\d\d-\d\d</span> to ', home)
+    assert re.search(r'<p class="body-cover">Meetings, <span class="nowrap">[A-Z][a-z]+ \d{1,2}, \d{4}</span> to ', home)
 
 
 # ---- site-polish/home-heading -------------------------------------------------------------------------------------

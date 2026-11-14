@@ -166,9 +166,9 @@ def test_every_body_page_has_the_one_header(site, html):
         assert 'class="kicker"' not in page[page.index("<header"):page.index("</header>")], rel
     # each body's own facts stay: its coverage dates, its newest records, its own Watch link
     county, city, rpc = (html[pages[k]] for k in ("county", "city", "rpc"))
-    assert re.search(r'<p class="body-cover">Minutes, <span class="nowrap">\d{4}-\d\d-\d\d</span> to ', county)
-    assert re.search(r'<p class="body-cover">Meetings, <span class="nowrap">\d{4}-\d\d-\d\d</span> to ', city)
-    assert re.search(r'<p class="body-cover">Meetings, <span class="nowrap">\d{4}-\d\d-\d\d</span> to .*? case items', rpc)
+    assert re.search(r'<p class="body-cover">Minutes, <span class="nowrap">[A-Z][a-z]+ \d{1,2}, \d{4}</span> to ', county)
+    assert re.search(r'<p class="body-cover">Meetings, <span class="nowrap">[A-Z][a-z]+ \d{1,2}, \d{4}</span> to ', city)
+    assert re.search(r'<p class="body-cover">Meetings, <span class="nowrap">[A-Z][a-z]+ \d{1,2}, \d{4}</span> to .*? case items', rpc)
     assert "Montgomery County Commission: minutes and votes through" in plain(county)
     assert "City Council: minutes and votes through" in plain(city)
     assert "Regional Planning Commission: " in plain(rpc)

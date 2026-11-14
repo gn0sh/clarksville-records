@@ -337,7 +337,7 @@ def test_county_agenda_meetings_show_as_agenda_with_the_pdf_and_the_minutes_note
     assert 'data-ext="record" href="https://montgomerytn.gov/commission/agenda"' in page   # the page's record line
     assert page.count(LINE) == 3 and 'id="2024-12-16-formal-24-12-1"' in page
     meetings = (out / "meetings.html").read_text(encoding="utf-8")
-    assert 'href="meetings/agendas.html#2024-12-16-formal">2024-12-16</a>' in meetings
+    assert 'href="meetings/agendas.html#2024-12-16-formal">December 16, 2024</a>' in meetings
     assert "Agendas without minutes yet" in meetings and "Agenda: 1 item <span" in meetings
 
 
