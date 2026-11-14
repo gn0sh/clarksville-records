@@ -2,6 +2,7 @@
 
 **Feature:** Daylight public-records site. **LIVE (soft opening) at https://daylight.gnoshcodes.com/ since 2026-11-13 ~1:08 AM CT.** No marketing until Brian's formal launch in January 2027 (after his council term); friends and family only.
 **Stage:** Live. Brian typed "launch" in thread "Launch the Daylight records site" (2026-11-13 12:40 AM CT), did go-live steps 1-6 (Pages source Actions, custom domain, Porkbun CNAME, HTTPS enforced, RECORDS_DEPLOY_ENABLED=true). PR #12 (live: true) merged; deploy run 43381404639 green. Report an error emails brian@gnoshcodes.com first (PR #18). Uptime: gnosh-uptime monitor.config.json (PR #15) + Better Stack (Brian). gh-pages preview no longer served (Pages source is Actions); removing gh-pages from the env branch policy is optional hygiene, not asked.
+**In review (Nov 14, branch claude/project-thread-di9pc4):** one header on the four body pages + a moon at its real Clarksville place and phase (Brian's Fable list items 1-2). Waits on Brian's phone check before merge (merging deploys).
 **Next:** after the Nov 16 reset: Fable once-over of the whole site; hub ideas (news tied to agenda items, Parks & Rec events, gas/water/CDE outages, city press releases, possible city partnership); Nov 18 batch (ADR 0006 list). Open option for Brian: hide the tip jar until his term ends (raised in thread, no answer yet; default keep).
 
 ## Waiting on the CEO
@@ -10,6 +11,10 @@
 ## Run ledger
 | Date | Role | Model/effort | Task | Outcome |
 |---|---|---|---|---|
+| 2026-11-14 | frontend-engineer | fable | one body-page header (fad63d2) + real moon (cb37fc3) + open-sky placement (b636a25) | done; 4242 pass, site_checks PASS; vs PyEphem alt 0.37 deg, lit 0.002 |
+| 2026-11-14 | code-reviewer | opus/high | main..b636a25 (fresh) | approve with nits (should-fix moon/stale-sun-alt; nits moon/night-sun-ring, moon/visibility, header/rpc-lede-dup) |
+| 2026-11-14 | frontend-engineer | fable (resumed) | review fixes 74599be | done; 462 targeted pass, site_checks PASS |
+| 2026-11-14 | code-reviewer | opus/high (resumed) | delta 74599be | approve (nit moon/sun-moves-in-open-tab, recorded) |
 | 2026-11-13 | code-reviewer | sonnet/medium | PR #18 report-email 99ae6cd | approve with nits (wording + show address fixed in 7a59000; spam/role alias = judgment call, kept Brian's pick) |
 | 2026-11-12 | code-reviewer | opus/medium | navy recolor delta 3e34967..5b401e6 + full suite | approve with nits (should-fix a11y/link-affordance/council-seats-note-cite, pre-existing); 1387+2742 pass |
 | 2026-11-12 | frontend-engineer | opus/medium | seat note/cite links + nits -> b707b5b | done; 1387+2743 pass, site_checks PASS |
