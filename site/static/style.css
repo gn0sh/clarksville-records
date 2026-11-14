@@ -818,6 +818,18 @@ table.history td.c-date, table.history td.c-date .date { overflow-wrap: normal; 
 details.row-details { margin-top: 2px; font-size: var(--t-xs); }
 details.row-details > summary { cursor: pointer; color: var(--muted); display: inline-block; min-height: 24px; }
 .row-details-body { padding: 4px 0; }
+/* Touch targets (onceover/touch/small-targets): on a touch screen every one of these is at least 44px tall. The year
+   pills, the filter chips and the filter boxes grow; a row's "Details" and "Show more" keep their size and get a
+   44px hit area around them (::after), so table rows are no taller. The footer's 28px rows are the owner's call. */
+@media (pointer: coarse) {
+  .year-nav a { display: inline-flex; align-items: center; box-sizing: border-box; min-height: 44px; padding: 4px 16px; }
+  dialog.drawer .nav-years a { display: inline-flex; align-items: center; box-sizing: border-box; min-height: 44px; }
+  .chip-filter { min-height: 44px; padding-left: 14px; padding-right: 14px; }
+  .filter-panel label { min-height: 44px; }
+  .filter-panel > summary { min-height: 44px; box-sizing: border-box; }
+  details.row-details > summary, .clamp-btn { position: relative; }
+  details.row-details > summary::after, .clamp-btn::after { content: ""; position: absolute; left: 0; right: -8px; top: 50%; height: 44px; transform: translateY(-50%); }
+}
 .row-details-body p { margin: 2px 0; }
 table.attendance td.cite details.row-details { display: inline-block; }
 @media (max-width: 640px) {
