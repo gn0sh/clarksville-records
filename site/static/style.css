@@ -887,7 +887,14 @@ table.fin-stack th[scope="row"] { font-weight: 500; text-align: left; }
 table.fin-stack caption { text-align: left; font-weight: 600; padding: 8px 12px; }
 table.fin-stack .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 table.sol-index td.c-date { white-space: nowrap; }
+/* As a table (wider than a phone) a date in words may break after the day ("September 30," / "2026"), never inside
+   a word, and the Source column is a little narrower, so its link stays inside the table's box at 1280
+   (onceover/dates/contracts-table-overflows-1280). */
 table.sol-index td.c-source { min-width: 9rem; }
+@media (min-width: 641px) {
+  table.sol-index td.c-date { white-space: normal; overflow-wrap: normal; min-width: 7.9em; }
+  table.sol-index td.c-source { min-width: 8rem; }
+}
 table.sol-index td.c-docs { min-width: 12rem; }   /* Inter runs wider than the old fallback: keep the doc note from stacking tall */
 details.words { margin: 16px 0; font-size: var(--t-sm); }
 details.words > summary { cursor: pointer; min-height: 44px; padding: 10px 0; }

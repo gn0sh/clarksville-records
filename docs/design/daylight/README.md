@@ -109,7 +109,10 @@ Problem keys `onceover/...`; tests in `tests/test_onceover.py`.
   earlier `::after` around Details covered part of the "p. N" source link (`onceover/touch/hit-area-covers-source-link`;
   `tests/touch_targets_browser.js` probes every source link with `elementFromPoint`). The footer's 28px rows are the
   owner's decision.
-- Search finds a record by its date in words too ("May 11"), since that is what a result prints.
+- Search finds a record by its date in words too ("May 11"), since that is what a result prints. So a bare month or
+  number such as "may" or "2024" also matches records by their date; under Relevance those rank last.
+- The bids table (`contracts/index.html`): as a table the date may break after the day ("September 30," / "2026") and
+  Source is 8rem, so the table fits its box at 1280 (`tests/table_fit_browser.js`); on a phone the date is one line.
 - The year or part a page shows is a filled pill (`aria-current`), like the chosen "Show records from" option.
 - Rows that lead to a part of the site (doors, hub card rows, district and ward lists, crumbs) stay navy after a
   visit; links to outside sources keep the visited colour.

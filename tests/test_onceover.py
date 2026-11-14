@@ -142,6 +142,39 @@ def test_a_date_as_a_result_prints_it_finds_the_result():
     assert json.loads(res.stdout) == [[0, 1], [0, 1], [0], [1], [1], [], [2], []]
 
 
+def test_the_bids_table_fits_its_box_at_1280_with_dates_in_words(tmp_path):
+    """onceover/dates/contracts-table-overflows-1280: dates in words widened the bids table past its box at 1280, so
+    the Source column's link needed a sideways scroll. As a table the date may break after the day, never inside a
+    word; on a phone (stacked rows) it stays on one line and the page does not scroll sideways."""
+    if not shutil.which("node"):
+        pytest.skip("node is not installed")
+    from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, build
+    out = tmp_path / "site"
+    build(FIXTURE, out, finance_path=ROOT / "site" / "fixtures" / "finance.sample.json", seats_path=FIXTURE_SEATS,
+          districts_path=FIXTURE_DISTRICTS)
+    page = out / "contracts" / "index.html"
+    assert re.search(r'<td class="c-date" data-label="Date"><span class="date">' + WORDS + "</span>",
+                     page.read_text(encoding="utf-8"))
+    env = dict(os.environ)
+    if "NODE_PATH" not in env:
+        env["NODE_PATH"] = subprocess.run(["npm", "root", "-g"], capture_output=True, text=True).stdout.strip()
+
+    def probe(width):
+        res = subprocess.run(["node", str(ROOT / "tests" / "table_fit_browser.js"), str(page), str(width)],
+                             capture_output=True, text=True, timeout=120, env=env)
+        assert res.returncode == 0, res.stderr
+        return json.loads(res.stdout)
+
+    wide = probe(1280)
+    assert wide["table"] <= wide["box"], wide                       # no sideways scroll to reach the Source link
+    assert wide["page"][1] <= wide["page"][0], wide
+    assert wide["dateLines"] and max(wide["dateLines"]) <= 2, wide  # "September 30," / "2026" at most
+    assert wide["dateClipped"] == 0 and wide["wrap"] == "normal", wide   # never broken inside a word
+    phone = probe(375)
+    assert phone["table"] <= phone["box"] and phone["page"][1] <= phone["page"][0], phone
+    assert set(phone["dateLines"]) == {1}, phone
+
+
 # ---- onceover/header/county-kicker-everywhere ---------------------------------------------------------------------
 
 def test_no_masthead_prints_a_coverage_line(pages):
