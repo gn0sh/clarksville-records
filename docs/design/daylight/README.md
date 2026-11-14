@@ -104,8 +104,12 @@ Problem keys `onceover/...`; tests in `tests/test_onceover.py`.
 - Masthead: name plate and tag only, on every page. Each page names its body and dates in its own lede.
 - Headings: base `h1`/`h2` are Outfit 800, tight tracking, no rule under an `h2`. A class sets size and margin only.
 - Smallest type is `--t-eyebrow` (.72rem). The name plate's place line stays .62rem so the plate fits at 375px.
-- Touch (`pointer: coarse`): year pills, filter chips and boxes are 44px; a row's Details and Show more keep their
-  size and get a 44px hit area (`::after`). The footer's 28px rows are the owner's decision.
+- Touch (`pointer: coarse`): year pills, filter chips and boxes, and a row's Details and Show more are 44px in the
+  layout itself (rows are about 20px taller on a touch screen). No invisible hit area is laid over a neighbour: an
+  earlier `::after` around Details covered part of the "p. N" source link (`onceover/touch/hit-area-covers-source-link`;
+  `tests/touch_targets_browser.js` probes every source link with `elementFromPoint`). The footer's 28px rows are the
+  owner's decision.
+- Search finds a record by its date in words too ("May 11"), since that is what a result prints.
 - The year or part a page shows is a filled pill (`aria-current`), like the chosen "Show records from" option.
 - Rows that lead to a part of the site (doors, hub card rows, district and ward lists, crumbs) stay navy after a
   visit; links to outside sources keep the visited colour.

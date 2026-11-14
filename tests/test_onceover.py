@@ -2,6 +2,8 @@
 machines and qa/site_checks.py read it, the masthead without a coverage line, the current year pill, the day strip's
 dot on the chosen day, touch targets, the smallest label size, one heading system, and navigation rows that stay navy.
 """
+import json
+import os
 import re
 import shutil
 import subprocess
@@ -100,15 +102,44 @@ def test_search_results_print_dates_in_words_from_an_iso_index():
     fn = re.search(r"  var MONTHS = .*?\n  function dayWords\(s\) \{.*?\n  \}\n", js, re.S).group(0)
     script = fn + """
       var out = [dayWords("2026-05-11"), dayWords("2020-02-01"), dayWords("2026-05-11-formal"), dayWords(""),
-                 dayWords(undefined), "2026-05-11, formal meeting, X 2020-01-01".replace(/^\\d{4}-\\d{2}-\\d{2}(?=, )/, dayWords)];
+                 dayWords(undefined),
+                 "2026-05-11, formal meeting, X 2020-01-01".replace(/^\\d{4}-\\d{2}-\\d{2}(?=, )/, dayWords),
+                 dayWords("2026-05-00"), dayWords("2026-02-30"), dayWords("2026-13-01"), dayWords("2024-02-29")];
       console.log(JSON.stringify(out));
     """
     res = subprocess.run(["node", "-e", script], capture_output=True, text=True, check=True)
-    assert res.stdout.strip() == ('["May 11, 2026","February 1, 2020","2026-05-11-formal","","",'
-                                  '"May 11, 2026, formal meeting, X 2020-01-01"]')
+    got = json.loads(res.stdout)
+    assert got[:6] == ["May 11, 2026", "February 1, 2020", "2026-05-11-formal", "", "",
+                       "May 11, 2026, formal meeting, X 2020-01-01"]
+    # only a real calendar day is reworded, exactly as sitegen/localdates.py words() does
+    for iso, shown in zip(("2026-05-00", "2026-02-30", "2026-13-01", "2024-02-29"), got[6:]):
+        assert shown == localdates.words(iso), iso
+    assert got[6:] == ["2026-05-00", "2026-02-30", "2026-13-01", "February 29, 2024"]
     # every date a result prints goes through it; the fetch day beside a source stays as the index has it
     assert js.count("esc(dayWords(r.d") == 4 and '", fetched " + esc(r.s.f)' in js
     assert "esc(r.d)" not in js and "esc(r.d2)" not in js
+
+
+def test_a_date_as_a_result_prints_it_finds_the_result():
+    """onceover/dates/words-not-searchable: Search matched the ISO day only, so "May 11" found nothing although the
+    results print "May 11, 2026". The words of a record's dates are in what is searched; the ISO day still matches."""
+    if not shutil.which("node"):
+        pytest.skip("node is not installed")
+    js = (ROOT / "site" / "static" / "search.js").read_text(encoding="utf-8")
+    fn = re.search(r"  var MONTHS = .*?\n  function dayWords\(s\) \{.*?\n  \}\n", js, re.S).group(0)
+    hay = re.search(r"  function hay\(r\) \{[^\n]*\n", js).group(0)
+    script = fn + hay + """
+      var recs = [{n: "", t: "2026-05-11, formal meeting, County Commission", d: "2026-05-11"},
+                  {n: "26-4-3", t: "Resolution to Amend Revenues", d: "2026-04-13", d2: "2026-05-11"},
+                  {n: "", t: "Road salt", d: ""}, {n: "", t: "A person"}];
+      function find(q) { var toks = q.toLowerCase().split(/\\s+/); return recs.map(function (r, i) {
+        return toks.every(function (k) { return hay(r).indexOf(k) >= 0; }) ? i : -1;
+      }).filter(function (i) { return i >= 0; }); }
+      console.log(JSON.stringify([find("May 11"), find("may 11, 2026"), find("2026-05-11"), find("April 13"),
+                                  find("april 2026 resolution"), find("June"), find("salt"), find("undefined")]));
+    """
+    res = subprocess.run(["node", "-e", script], capture_output=True, text=True, check=True)
+    assert json.loads(res.stdout) == [[0, 1], [0, 1], [0], [1], [1], [], [2], []]
 
 
 # ---- onceover/header/county-kicker-everywhere ---------------------------------------------------------------------
@@ -137,10 +168,43 @@ def test_touch_targets_are_44px_in_one_coarse_pointer_block():
     for sel in (".year-nav a", "dialog.drawer .nav-years a", ".chip-filter", ".filter-panel label"):
         m = re.search(r"(?m)^  " + re.escape(sel) + r" \{([^}]*)\}", block)
         assert m and "min-height: 44px" in m.group(1), sel
-    hit = re.search(r"details\.row-details > summary::after, \.clamp-btn::after \{([^}]*)\}", block).group(1)
-    assert "height: 44px" in hit and "position: absolute" in hit
+    for sel in ("details.row-details > summary", ".clamp-btn"):         # real size, in the layout
+        m = re.search(r"(?m)^  " + re.escape(sel) + r" \{([^}]*)\}", block)
+        assert m and "min-height: 44px" in m.group(1), sel
+    # no invisible hit area laid over a neighbour (onceover/touch/hit-area-covers-source-link)
+    assert "::after" not in block and "::before" not in block
     # the footer's rows are the owner's decision: still 28px on a touch screen
     assert ".site-footer .nav-years a { min-height: 28px; line-height: 26px; }" in CSS
+
+
+def test_on_a_touch_screen_details_and_show_more_are_44px_and_cover_no_link(built, tmp_path):
+    """onceover/touch/hit-area-covers-source-link: every point of a "p. N" source link and of a clamped item link
+    still hits that link with pointer: coarse, at 375 and 1280 (tests/touch_targets_browser.js, elementFromPoint)."""
+    if not shutil.which("node"):
+        pytest.skip("node is not installed")
+    rels = sorted(p.relative_to(built).as_posix() for p in built.rglob("*.html"))
+    has = lambda rel, needle: needle in (built / rel).read_text(encoding="utf-8")       # noqa: E731
+    picks = {"official": next(r for r in rels if r.startswith("officials/") and has(r, 'class="clamp"')
+                              and has(r, "row-details")),
+             "meeting": next(r for r in rels if re.fullmatch(r"meetings/" + ISO + r"-\w+\.html", r)
+                             and has(r, 'table class="attendance"') and has(r, "row-details"))}
+    spec = tmp_path / "pages.json"
+    spec.write_text(json.dumps([{"name": n, "path": str(built / r)} for n, r in picks.items()]), encoding="utf-8")
+    env = dict(os.environ)
+    if "NODE_PATH" not in env:
+        env["NODE_PATH"] = subprocess.run(["npm", "root", "-g"], capture_output=True, text=True).stdout.strip()
+    res = subprocess.run(["node", str(ROOT / "tests" / "touch_targets_browser.js"), str(spec)],
+                         capture_output=True, text=True, timeout=300, env=env)
+    assert res.returncode == 0, res.stderr
+    runs = json.loads(res.stdout)
+    assert [(r["name"], r["width"]) for r in runs] == [(n, w) for w in (375, 1280) for n in picks]
+    for r in runs:
+        where = (r["name"], r["width"])
+        assert r["coarse"], where                               # the touch rules are the ones being measured
+        assert r["toggles"] > 0 and r["links"] > 0 and r["points"] > 0, (where, r)
+        assert r["small"] == [], (where, r["small"])
+        assert r["covered"] == [], (where, r["covered"])
+    assert sum(r["buttons"] for r in runs) > 0                  # a Show more button was measured too
 
 
 def test_the_smallest_labels_share_one_size():
