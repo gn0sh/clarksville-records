@@ -1232,6 +1232,9 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 .dot-rpc { background: var(--mark-soft); }
 .dot-bids { background: transparent; box-shadow: inset 0 0 0 1.5px var(--fg); }
 .day-strip .day[aria-pressed="true"] .dot-bids { box-shadow: inset 0 0 0 1.5px var(--bg); }
+/* the chosen day is ink: a navy dot on it is about 1.05:1, so the plain dot is drawn in the paper colour there (the
+   county's orange and the RPC's grey dots stay, each 3:1 or better on the ink) */
+.day-strip .day[aria-pressed="true"] .dot:not(.dot-county):not(.dot-rpc):not(.dot-bids) { background: var(--bg); }
 .day-card-hd .dot { width: 10px; height: 10px; margin-right: 8px; vertical-align: middle; }
 
 .day-list { display: grid; gap: 0; }
