@@ -48,6 +48,7 @@
   --measure: 64rem;
   --radius: 6px;
   --radius-lg: 12px;
+  --t-eyebrow: .72rem;        /* the smallest type on the site: mono uppercase labels (weekday, month, column heads) */
   --t-xs: 0.8rem;
   --t-sm: 0.9rem;
   --t-md: 1rem;
@@ -638,7 +639,7 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
 .meet-row:hover { background: var(--surface-2); }
 .meet-row:hover .meet-body { text-decoration: underline; text-decoration-thickness: 2px; }
 .meet-date { display: grid; justify-items: center; line-height: 1.05; }
-.meet-date .dow, .meet-date .mon { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.meet-date .dow, .meet-date .mon { font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .meet-date b { font-family: var(--font-head); font-size: 1.5rem; font-weight: 800; }
 .meet-what { min-width: 0; }
 .meet-body { display: block; font-weight: 600; color: var(--link); }
@@ -964,7 +965,7 @@ table.budget td.c-source { min-width: 9rem; }
    better in both themes); focus rings are the sun at 3px on paper and surface. State is still words only. */
 .fin > h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 800; line-height: 1.05; letter-spacing: -.02em; margin: 0.2em 0 0.35em; text-wrap: balance; }
 .fin h2 { font-weight: 800; letter-spacing: -.02em; }
-.fin .crumb, .fin .h1-sub { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; }
+.fin .crumb, .fin .h1-sub { font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: .1em; text-transform: uppercase; }
 .fin .crumb { margin: 0; }
 .fin .crumb a { display: inline-block; padding: 6px 0; }
 .fin .h1-sub { letter-spacing: .08em; vertical-align: middle; }
@@ -974,14 +975,14 @@ table.budget td.c-source { min-width: 9rem; }
 .fin .note-phone > summary, .fin details.words > summary, .fin details.fin-jump > summary { border-radius: var(--radius); }
 .fin details.words > summary, .fin details.fin-jump > summary { font-weight: 600; color: var(--link); width: max-content; max-width: 100%; }
 .fin .sol-filters.toolbar { padding: 14px 16px; border-radius: 18px; }
-.fin .sol-filters label { font-family: var(--font-mono); font-size: .68rem; font-variant-caps: normal; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px; }
+.fin .sol-filters label { font-family: var(--font-mono); font-size: var(--t-eyebrow); font-variant-caps: normal; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px; }
 .fin .sol-filters input[type="search"] { border: 2px solid var(--fg); border-radius: var(--radius-lg); background: var(--surface); }
 .fin .sol-filters select { border-radius: var(--radius-lg); background: var(--surface); }
 .fin .sol-filters button, .fin .more-btn, .fin .empty-note button { font-family: var(--font-head); font-weight: 700; font-size: var(--t-md); border-radius: var(--radius-lg); }
 .fin .sol-filters button[type="submit"]:hover { background: var(--blue-hover); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .fin .fin-scroll { border: 0; border-top: 2px solid var(--fg); border-radius: 0; background: transparent; }
 .fin table.fin-stack thead th {
-  background: transparent; font-family: var(--font-mono); font-size: .68rem; font-weight: 400; font-variant-caps: normal;
+  background: transparent; font-family: var(--font-mono); font-size: var(--t-eyebrow); font-weight: 400; font-variant-caps: normal;
   text-transform: uppercase; letter-spacing: .1em; color: var(--muted);
 }
 .fin table.budget thead th.num { font-size: .74rem; letter-spacing: .02em; text-transform: none; color: var(--fg); }  /* the header as printed */
@@ -1233,7 +1234,7 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 .day-strip button:focus-visible { outline: 3px solid var(--fg); outline-offset: 1px; }
 .day-strip .wk-step { font-family: var(--font-head); font-size: 1.6rem; line-height: 1; border-color: var(--border); }
 .day-strip .wk-step:disabled { color: var(--muted); cursor: default; opacity: .55; }
-.day-dow { font-family: var(--font-mono); font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.day-dow { font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .day-strip .day b { font-family: var(--font-head); font-size: 1.3rem; font-weight: 800; line-height: 1.1; }
 .day-strip .day em { display: flex; gap: 3px; height: 6px; }
 .day-strip .day[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
@@ -1256,7 +1257,7 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 .day-head { display: grid; gap: 2px; margin-bottom: 12px; }
 .day-head h2 { margin: 0; font-family: var(--font-head); font-size: clamp(1.6rem, 4vw, 2.3rem); font-weight: 800; line-height: 1.05; letter-spacing: -.02em; }
 .day-head h2:focus { outline: none; }
-.day-when { margin: 0; min-height: 1.2em; font-family: var(--font-mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; font-variant-caps: normal; color: var(--muted); }
+.day-when { margin: 0; min-height: 1.2em; font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: .1em; text-transform: uppercase; font-variant-caps: normal; color: var(--muted); }
 .day-empty { color: var(--muted); margin: 6px 0 18px; }
 .day-card {
   display: grid; gap: 8px; min-width: 0; margin: 0 0 14px; padding: clamp(14px, 2.6vw, 22px);
