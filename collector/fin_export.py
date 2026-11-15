@@ -29,7 +29,11 @@ FIN_FILES = ("solicitations", "bidders", "fin_documents", "budget_lines", "budge
 # the export (no held value may slip out under a column the export does not know).
 SOL_HELD = {"department": "department", "department.text": "department", "bid_tab.awardee_text": "awardee_text",
             "bid_tab.bid_date_text": "bid_date_text", "bid_tab.award_date_text": "award_date_text",
-            "bid_tab.project_text": "project_text"}
+            "bid_tab.project_text": "project_text",
+            # an archive date whose text is printed but can't be read as a date (fin_facts check date-unparsed):
+            # the date and its year export as null, the printed text stays as the archive prints it, and the
+            # check is listed in held_checks (no separate column)
+            "archive_date": "archive_date"}
 BIDDER_HELD = re.compile(r"bid_tab\.bidders\[(\d+)\]\.(?:total_cents|total_as_printed)")
 TAB_VALUES = ("project_text", "bid_date_text", "bid_date_page", "awardee_text", "awardee_page", "award_date_text",
               "award_date_page")
@@ -165,6 +169,8 @@ def public_finance(fin: dict) -> dict:
         sol["source_url"] = url(sol["archive_source_id"])
         if "department" in cols:
             sol["department"] = None
+        if "archive_date" in cols:
+            sol["archive_date"] = sol["year"] = None
         tab = sol["bid_tab"]
         if tab is None:
             continue

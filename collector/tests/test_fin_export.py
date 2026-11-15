@@ -104,6 +104,20 @@ def test_held_department_awardee_and_budget_line_are_null_with_check():
     assert all(c["printed"] == "" and c["diff"] == "" and c["held_check"] == "column-align" for c in checks)
 
 
+def test_held_archive_date_exports_null_with_its_check_and_keeps_the_printed_text():
+    # daily run 2026-11-13/14: a solicitation whose archive date could not be read stopped the export
+    fin = copy.deepcopy(FIN)
+    sol = fin["solicitations"][0]
+    sol["archive_date_text"], sol["archive_date"], sol["year"] = "Sept 31st 2026", None, None
+    sol["held"].append({"field": "archive_date", "check": "date-unparsed"})
+    pub = FE.public_finance(fin)
+    p = next(s for s in pub["solicitations"] if s["id"] == sol["id"])
+    assert p["archive_date"] is None and p["year"] is None and p["archive_date_text"] == "Sept 31st 2026"
+    r = next(r for r in rows(FE.tables(pub)["solicitations"]) if r["id"] == sol["id"])
+    assert r["archive_date"] == "" and r["year"] == "" and r["archive_date_text"] == "Sept 31st 2026"
+    assert "archive_date: date-unparsed" in r["held_checks"]
+
+
 def test_unknown_held_field_fails_the_export():
     fin = copy.deepcopy(FIN)
     fin["solicitations"][0]["held"].append({"field": "bid_tab.something_new", "check": "amount-format"})
