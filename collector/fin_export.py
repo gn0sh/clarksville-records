@@ -8,7 +8,9 @@ Rules, the same as the pages (sitegen/fin_views.py, budget_views.py):
 - Every row carries `source_url`, `source_sha256`, `page` and `fetched_at` of the document that prints it (page empty
   for an HTML page such as the purchasing archive). finance.json rows carry `source_url` too.
 - A held value (schema `held`, a bidder total the page shows as "Not confirmed*", a held budget line) is exported as
-  null with the check that held it (`*_held_check`), never as a value; its printed text is null too.
+  null with the check that held it (`*_held_check`), never as a value; its printed text is null too. Except a held
+  archive date: the date and year are null, `archive_date_text` stays verbatim as the pages show it (schema: non-null
+  string), and the check is listed only in `held_checks`.
 - Values only from a text-layer source: a not-read bid tab exports no tab values, only its link and reason.
 - Order by id, date or printed order only, never by an amount (neutrality, AC-F8). No computed column: the export
   carries no sum, share or difference of its own; budget_checks.csv reports the reconciliation fin_checks.py made.
@@ -49,7 +51,7 @@ FIN_PROVENANCE: dict[str, str] = {
     **{f"{f}.{k}": v for f in FIN_FILES for k, v in _C.items()},
     "solicitations.id": "derived: id", "solicitations.slug": "derived: from the title",
     "solicitations.title": _S, "solicitations.archive_date_text": _S,
-    "solicitations.archive_date": "derived: archive_date_text read as a date",
+    "solicitations.archive_date": "derived: archive_date_text read as a date; empty when held (see held_checks)",
     "solicitations.year": "derived: year of archive_date", "solicitations.number": _S,
     "solicitations.department": _S, "solicitations.department_held_check": _HELD,
     "solicitations.department_source_url": "derived: link to the document that prints the department",
