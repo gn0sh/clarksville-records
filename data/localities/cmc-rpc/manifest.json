@@ -216,6 +216,18 @@
     "url": "https://www.cmcrpc.com/wp-content/uploads/2022/08/SPECIAL-CALLED-AGENDA.pdf"
   },
   {
+    "bytes": 71123448,
+    "content_type": "application/pdf",
+    "etag": "\"43d41f8-5e9bdd67d3137\"",
+    "first_fetched_at": "2026-11-15T18:52:28+00:00",
+    "kind": "minutes",
+    "label": "8/23/2022 minutes",
+    "last_modified": "Wed, 28 Sep 2022 14:47:20 GMT",
+    "meeting_date": "2022-08-23",
+    "sha256": "c3f7222e8068c8132bf5511ce242330cb4f33b245131446785f3def67c25fc97",
+    "url": "https://www.cmcrpc.com/wp-content/uploads/2022/09/RPC-MTG-MIN-8-23-2022.pdf"
+  },
+  {
     "bytes": 214348,
     "content_type": "application/pdf",
     "etag": "\"3454c-5e9bdd7a67eaa\"",

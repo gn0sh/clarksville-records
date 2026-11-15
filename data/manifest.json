@@ -5,7 +5,7 @@
     "etag": "\"69ce026a-5ad658\"",
     "first_fetched_at": "2026-11-08T20:18:08+00:00",
     "kind": "budget_book",
-    "label": "Montgomery County 2024-2025 Budget Book as Approved",
+    "label": "2024-2025 Approved Budget",
     "last_modified": "Thu, 02 Apr 2026 05:45:14 GMT",
     "meeting_date": null,
     "sha256": "8f2a41668955352be4f32e038c5053efb64dcc10aea0b87a90cc7005dcde34e1",
@@ -34,6 +34,19 @@
     "last_modified": null,
     "meeting_date": null,
     "sha256": "5ef333c3f985ac4262ac7233785eddabd0733500c6a03a2b6eb1c8d2b5198f40",
+    "superseded_by": "a21b49c8920610c12ac1da51c028ebf7d61bb27ac5350cf949f0c7b8371f21d6",
+    "url": "https://montgomerytn.gov/purchasing/archive"
+  },
+  {
+    "bytes": 261015,
+    "content_type": "text/html; charset=UTF-8",
+    "etag": null,
+    "first_fetched_at": "2026-11-15T18:50:37+00:00",
+    "kind": "archive_index",
+    "label": "purchasing archive",
+    "last_modified": null,
+    "meeting_date": null,
+    "sha256": "a21b49c8920610c12ac1da51c028ebf7d61bb27ac5350cf949f0c7b8371f21d6",
     "url": "https://montgomerytn.gov/purchasing/archive"
   },
   {
@@ -803,6 +816,18 @@
     "meeting_date": null,
     "sha256": "b88513187278301345df459eb1646e1ce1d1bfce46ddc85e7ba0f24123836526",
     "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Addendum%20%231%20Hwy%20Salt%20-%20April%2029%2C%202026.pdf"
+  },
+  {
+    "bytes": 189836,
+    "content_type": "application/pdf",
+    "etag": "\"6aecae12-2e58c\"",
+    "first_fetched_at": "2026-11-15T18:50:56+00:00",
+    "kind": "other",
+    "label": "Addendum #1",
+    "last_modified": "Thu, 05 Nov 2026 16:25:54 GMT",
+    "meeting_date": null,
+    "sha256": "8c28035a77c7a458707a52077b68779845befed6c99fd26755b8ac4fed8bea7b",
+    "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Addendum%20%231%20dated%2011-5-26%20for%20LED%20Signage%20Replacement.pdf"
   },
   {
     "bytes": 140648,
@@ -1609,6 +1634,18 @@
     "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Award%20Letter-Pavement%20Restorations-Concrete%20%20FY27.pdf"
   },
   {
+    "bytes": 91776,
+    "content_type": "application/pdf",
+    "etag": "\"6af72344-16680\"",
+    "first_fetched_at": "2026-11-15T18:51:16+00:00",
+    "kind": "award_letter",
+    "label": "Award Letter",
+    "last_modified": "Fri, 13 Nov 2026 14:48:36 GMT",
+    "meeting_date": null,
+    "sha256": "e910c1286a6339e081042e800e1d711c65374116635689e65edd404f8c31b949",
+    "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Award%20Letter-SR12-Excell%20Rd%20Improvements%20-%20Eubank%20Paving.pdf"
+  },
+  {
     "bytes": 89559,
     "content_type": "application/pdf",
     "etag": "\"6a2c62eb-15dd7\"",
@@ -2339,6 +2376,18 @@
     "meeting_date": null,
     "sha256": "8a2c704110c2fa72b3288386e9d36fe275f5b376650b6638ea92571b44799549",
     "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Bid%20Tab%20-%20EMS%20Uniforms%20FY27.pdf"
+  },
+  {
+    "bytes": 143106,
+    "content_type": "application/pdf",
+    "etag": "\"6af7232b-22f02\"",
+    "first_fetched_at": "2026-11-15T18:51:06+00:00",
+    "kind": "bid_tab",
+    "label": "Bid Tab",
+    "last_modified": "Fri, 13 Nov 2026 14:48:11 GMT",
+    "meeting_date": null,
+    "sha256": "bc8b34da3177a9f256ae9a672fd70c61cb38dad89c06c30fadf5438dbf0e0589",
+    "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Bid%20Tab%20-%20Excell%20Rd%20Project.pdf"
   },
   {
     "bytes": 141795,
@@ -3347,6 +3396,18 @@
     "meeting_date": null,
     "sha256": "03ee1a1d4673a975b237c5d826d2518fe96c43ffe8d93ed63528003abb8817b9",
     "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/RFP%20Amendment%201.pdf"
+  },
+  {
+    "bytes": 756840,
+    "content_type": "application/pdf",
+    "etag": "\"6ad77939-b8c68\"",
+    "first_fetched_at": "2026-11-15T18:50:46+00:00",
+    "kind": "rfp",
+    "label": "RFP Document",
+    "last_modified": "Tue, 20 Oct 2026 14:22:49 GMT",
+    "meeting_date": null,
+    "sha256": "44d9112fd0e83cfd2c7d5ec1f7e9699bc672ac82e7d80dafdfdc4388131bd199",
+    "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/RFP%20Packet-%20LED%20Signage%20Replacement.pdf"
   },
   {
     "bytes": 6156604,

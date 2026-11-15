@@ -193865,9 +193865,9 @@
           "with_tab": 25
         },
         "2026": {
-          "rows": 31,
+          "rows": 32,
           "tab_read": 4,
-          "with_tab": 22
+          "with_tab": 23
         },
         "not stated": {
           "rows": 9,
@@ -193876,16 +193876,16 @@
         }
       }
     },
-    "n_award_letters": 70,
+    "n_award_letters": 71,
     "n_award_scanned": 44,
-    "n_bid_tab_links": 56,
+    "n_bid_tab_links": 57,
     "n_books": 2,
-    "n_docs": 295,
+    "n_docs": 299,
     "n_docs_scanned": 55,
     "n_flag": 26,
     "n_lines": 3846,
     "n_tab_not_read": {
-      "layout": 30,
+      "layout": 31,
       "not_fetched": 0,
       "not_pdf": 2,
       "scan": 0,
@@ -193893,7 +193893,7 @@
       "unreadable": 0
     },
     "n_tab_read": 16,
-    "n_total": 90
+    "n_total": 91
   },
   "documents": [
     {
@@ -195985,6 +195985,19 @@
     {
       "doc_date_page": null,
       "doc_date_text": null,
+      "fetched_at": "2026-11-15",
+      "id": "doc-8422aedc3b",
+      "link_label": "Award Letter",
+      "scanned": false,
+      "shared_by": [],
+      "source_id": "src-e910c1286a63",
+      "stage": "award_letter",
+      "status": "fetched",
+      "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Award%20Letter-SR12-Excell%20Rd%20Improvements%20-%20Eubank%20Paving.pdf"
+    },
+    {
+      "doc_date_page": null,
+      "doc_date_text": null,
       "fetched_at": "2026-11-08",
       "id": "doc-84902647c2",
       "link_label": "BID TAB",
@@ -196020,6 +196033,19 @@
       "stage": "rfp",
       "status": "fetched",
       "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/RFP%20Amendment%201.pdf"
+    },
+    {
+      "doc_date_page": null,
+      "doc_date_text": null,
+      "fetched_at": "2026-11-15",
+      "id": "doc-8820c4380f",
+      "link_label": "Addendum #1",
+      "scanned": false,
+      "shared_by": [],
+      "source_id": "src-8c28035a77c7",
+      "stage": "addendum",
+      "status": "fetched",
+      "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Addendum%20%231%20dated%2011-5-26%20for%20LED%20Signage%20Replacement.pdf"
     },
     {
       "doc_date_page": null,
@@ -197244,6 +197270,19 @@
     {
       "doc_date_page": null,
       "doc_date_text": null,
+      "fetched_at": "2026-11-15",
+      "id": "doc-df089f40bf",
+      "link_label": "RFP Document",
+      "scanned": false,
+      "shared_by": [],
+      "source_id": "src-44d9112fd0e8",
+      "stage": "rfp",
+      "status": "fetched",
+      "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/RFP%20Packet-%20LED%20Signage%20Replacement.pdf"
+    },
+    {
+      "doc_date_page": null,
+      "doc_date_text": null,
       "fetched_at": "2026-11-08",
       "id": "doc-df6668920a",
       "link_label": "QUESTIONS & ANSWERS",
@@ -197396,6 +197435,19 @@
       "stage": "bid_tab",
       "status": "fetched",
       "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Bid%20Tab%20Woodlawn%20Park%20Fencing.pdf"
+    },
+    {
+      "doc_date_page": null,
+      "doc_date_text": null,
+      "fetched_at": "2026-11-15",
+      "id": "doc-e7a966ad5a",
+      "link_label": "Bid Tab",
+      "scanned": false,
+      "shared_by": [],
+      "source_id": "src-bc8b34da3177",
+      "stage": "bid_tab",
+      "status": "fetched",
+      "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Bid%20Tab%20-%20Excell%20Rd%20Project.pdf"
     },
     {
       "doc_date_page": null,
@@ -197770,7 +197822,7 @@
     {
       "archive_date": "2025-10-09",
       "archive_date_text": "OCTOBER 9, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -197865,7 +197917,7 @@
       "held": [],
       "id": "sol-bid-2174-rossview-road-demolition",
       "number": null,
-      "row": 50,
+      "row": 51,
       "slug": "bid-2174-rossview-road-demolition",
       "title": "BID - 2174 ROSSVIEW ROAD DEMOLITION",
       "year": 2025
@@ -197873,7 +197925,7 @@
     {
       "archive_date": "2025-07-11",
       "archive_date_text": "JULY 11, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -197919,7 +197971,7 @@
       "held": [],
       "id": "sol-bid-400-pageant-lane-building-emergency-reroof",
       "number": null,
-      "row": 58,
+      "row": 59,
       "slug": "bid-400-pageant-lane-building-emergency-reroof",
       "title": "BID - 400 PAGEANT LANE BUILDING EMERGENCY REROOF",
       "year": 2025
@@ -197927,7 +197979,7 @@
     {
       "archive_date": "2026-10-06",
       "archive_date_text": "October 6, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -197995,37 +198047,54 @@
       "held": [],
       "id": "sol-bid-advertisement-full-depth-reclamation",
       "number": null,
-      "row": 4,
+      "row": 5,
       "slug": "bid-advertisement-full-depth-reclamation",
       "title": "Bid Advertisement - Full Depth Reclamation",
       "year": 2026
     },
     {
-      "archive_date": null,
-      "archive_date_text": "Currently Under Review",
-      "archive_source_id": "src-5ef333c3f985",
-      "archive_status": "Currently Under Review",
-      "bid_tab": null,
+      "archive_date": "2026-11-13",
+      "archive_date_text": "November 13, 2026",
+      "archive_source_id": "src-a21b49c89206",
+      "archive_status": null,
+      "bid_tab": {
+        "award_date_page": null,
+        "award_date_text": null,
+        "awardee_match": null,
+        "awardee_page": null,
+        "awardee_text": null,
+        "bid_date_page": null,
+        "bid_date_text": null,
+        "bidders": [],
+        "document_id": "doc-e7a966ad5a",
+        "not_read_reason": "layout",
+        "project_text": null,
+        "tab_type": "not_read"
+      },
       "department": null,
       "document_ids": [
-        "doc-88a5029d6e"
+        "doc-88a5029d6e",
+        "doc-e7a966ad5a",
+        "doc-8422aedc3b"
       ],
       "document_labels": [
-        "Bid Advertisement"
+        "Bid Advertisement",
+        "Bid Tab",
+        "Award Letter"
       ],
       "documents_differ": null,
       "held": [],
       "id": "sol-bid-advertisement-sr12-excell-rd-intersection-improvements",
       "number": null,
-      "row": 3,
+      "row": 4,
       "slug": "bid-advertisement-sr12-excell-rd-intersection-improvements",
       "title": "Bid Advertisement - SR12/Excell Rd Intersection Improvements",
-      "year": null
+      "year": 2026
     },
     {
       "archive_date": "2025-03-19",
       "archive_date_text": "MARCH 19, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -198041,7 +198110,7 @@
       "held": [],
       "id": "sol-bid-animal-control-artificial-turf-yard",
       "number": null,
-      "row": 82,
+      "row": 83,
       "slug": "bid-animal-control-artificial-turf-yard",
       "title": "BID - ANIMAL CONTROL ARTIFICIAL TURF YARD",
       "year": 2025
@@ -198049,7 +198118,7 @@
     {
       "archive_date": "2025-06-11",
       "archive_date_text": "JUNE 11, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198080,7 +198149,7 @@
       "held": [],
       "id": "sol-bid-asphalt-oil",
       "number": null,
-      "row": 64,
+      "row": 65,
       "slug": "bid-asphalt-oil",
       "title": "BID - ASPHALT OIL",
       "year": 2025
@@ -198088,7 +198157,7 @@
     {
       "archive_date": "2025-02-21",
       "archive_date_text": "FEBRUARY 21, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198119,7 +198188,7 @@
       "held": [],
       "id": "sol-bid-asphalt-rejuvenation",
       "number": null,
-      "row": 87,
+      "row": 88,
       "slug": "bid-asphalt-rejuvenation",
       "title": "BID - ASPHALT REJUVENATION",
       "year": 2025
@@ -198127,7 +198196,7 @@
     {
       "archive_date": "2026-10-19",
       "archive_date_text": "October 19, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -198145,7 +198214,7 @@
       "held": [],
       "id": "sol-bid-boolean-mast-arm-traffic-signal",
       "number": null,
-      "row": 8,
+      "row": 9,
       "slug": "bid-boolean-mast-arm-traffic-signal",
       "title": "Bid - Boolean Mast Arm Traffic Signal",
       "year": 2026
@@ -198153,7 +198222,7 @@
     {
       "archive_date": "2025-08-18",
       "archive_date_text": "AUGUST 18, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -198171,7 +198240,7 @@
       "held": [],
       "id": "sol-bid-coarse-aggregate",
       "number": null,
-      "row": 57,
+      "row": 58,
       "slug": "bid-coarse-aggregate",
       "title": "BID - COARSE AGGREGATE",
       "year": 2025
@@ -198179,7 +198248,7 @@
     {
       "archive_date": "2025-06-18",
       "archive_date_text": "JUNE 18, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198210,7 +198279,7 @@
       "held": [],
       "id": "sol-bid-concrete",
       "number": null,
-      "row": 59,
+      "row": 60,
       "slug": "bid-concrete",
       "title": "BID - CONCRETE",
       "year": 2025
@@ -198218,7 +198287,7 @@
     {
       "archive_date": "2026-09-02",
       "archive_date_text": "September 2, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198296,7 +198365,7 @@
       "held": [],
       "id": "sol-bid-courts-center-generator-replacement",
       "number": null,
-      "row": 6,
+      "row": 7,
       "slug": "bid-courts-center-generator-replacement",
       "title": "Bid - Courts Center Generator Replacement",
       "year": 2026
@@ -198304,7 +198373,7 @@
     {
       "archive_date": "2025-05-22",
       "archive_date_text": "MAY 22, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198337,7 +198406,7 @@
       "held": [],
       "id": "sol-bid-creek-rock",
       "number": null,
-      "row": 68,
+      "row": 69,
       "slug": "bid-creek-rock",
       "title": "BID - CREEK ROCK",
       "year": 2025
@@ -198345,7 +198414,7 @@
     {
       "archive_date": "2025-03-11",
       "archive_date_text": "MARCH 11, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198376,7 +198445,7 @@
       "held": [],
       "id": "sol-bid-dtc-beer-distributor-sponsorship",
       "number": null,
-      "row": 84,
+      "row": 85,
       "slug": "bid-dtc-beer-distributor-sponsorship",
       "title": "BID - DTC BEER DISTRIBUTOR SPONSORSHIP",
       "year": 2025
@@ -198384,7 +198453,7 @@
     {
       "archive_date": "2026-09-24",
       "archive_date_text": "September 24, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -198402,7 +198471,7 @@
       "held": [],
       "id": "sol-bid-ems-medical-supplies-and-pharmaceuticals",
       "number": null,
-      "row": 5,
+      "row": 6,
       "slug": "bid-ems-medical-supplies-and-pharmaceuticals",
       "title": "Bid - EMS Medical Supplies and Pharmaceuticals",
       "year": 2026
@@ -198410,7 +198479,7 @@
     {
       "archive_date": "2025-05-28",
       "archive_date_text": "MAY 28, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198443,7 +198512,7 @@
       "held": [],
       "id": "sol-bid-ems-safety-gear",
       "number": null,
-      "row": 67,
+      "row": 68,
       "slug": "bid-ems-safety-gear",
       "title": "BID - EMS SAFETY GEAR",
       "year": 2025
@@ -198451,7 +198520,7 @@
     {
       "archive_date": "2025-12-08",
       "archive_date_text": "DECEMBER 8, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198594,7 +198663,7 @@
       "held": [],
       "id": "sol-bid-ems-station-28-new-facility",
       "number": null,
-      "row": 42,
+      "row": 43,
       "slug": "bid-ems-station-28-new-facility",
       "title": "BID - EMS STATION 28 NEW FACILITY",
       "year": 2025
@@ -198602,7 +198671,7 @@
     {
       "archive_date": "2026-07-28",
       "archive_date_text": "July 28, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198637,7 +198706,7 @@
       "held": [],
       "id": "sol-bid-ems-uniforms",
       "number": null,
-      "row": 11,
+      "row": 12,
       "slug": "bid-ems-uniforms",
       "title": "Bid - EMS Uniforms",
       "year": 2026
@@ -198645,7 +198714,7 @@
     {
       "archive_date": "2025-05-02",
       "archive_date_text": "MAY 2, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198676,7 +198745,7 @@
       "held": [],
       "id": "sol-bid-facilities-mowing",
       "number": null,
-      "row": 74,
+      "row": 75,
       "slug": "bid-facilities-mowing",
       "title": "BID - FACILITIES MOWING",
       "year": 2025
@@ -198684,7 +198753,7 @@
     {
       "archive_date": "2025-08-29",
       "archive_date_text": "AUGUST 29, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -198702,7 +198771,7 @@
       "held": [],
       "id": "sol-bid-fire-service-uniforms",
       "number": null,
-      "row": 52,
+      "row": 53,
       "slug": "bid-fire-service-uniforms",
       "title": "BID - FIRE SERVICE UNIFORMS",
       "year": 2025
@@ -198710,7 +198779,7 @@
     {
       "archive_date": "2025-04-22",
       "archive_date_text": "APRIL 22, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": 1,
@@ -198778,7 +198847,7 @@
       ],
       "id": "sol-bid-full-depth-reclamation-project-of-old-clarksville-springfield-road-and-section-1-of-sycamore-hills-drive",
       "number": null,
-      "row": 76,
+      "row": 77,
       "slug": "bid-full-depth-reclamation-project-of-old-clarksville-springfield-road-and-section-1-of-sycamore-hills-drive",
       "title": "BID - FULL DEPTH RECLAMATION PROJECT OF OLD CLARKSVILLE SPRINGFIELD ROAD AND SECTION 1 OF SYCAMORE HILLS DRIVE",
       "year": 2025
@@ -198786,7 +198855,7 @@
     {
       "archive_date": "2025-08-19",
       "archive_date_text": "AUGUST 19, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -198804,7 +198873,7 @@
       "held": [],
       "id": "sol-bid-hazardous-foam-disposal",
       "number": null,
-      "row": 54,
+      "row": 55,
       "slug": "bid-hazardous-foam-disposal",
       "title": "BID - HAZARDOUS FOAM DISPOSAL",
       "year": 2025
@@ -198812,7 +198881,7 @@
     {
       "archive_date": "2026-10-08",
       "archive_date_text": "October 8, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198843,7 +198912,7 @@
       "held": [],
       "id": "sol-bid-highway-dept-traffic-supplies",
       "number": null,
-      "row": 1,
+      "row": 2,
       "slug": "bid-highway-dept-traffic-supplies",
       "title": "Bid - Highway Dept Traffic Supplies",
       "year": 2026
@@ -198851,7 +198920,7 @@
     {
       "archive_date": "2025-06-16",
       "archive_date_text": "JUNE 16, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198884,7 +198953,7 @@
       "held": [],
       "id": "sol-bid-hot-mix-asphalt",
       "number": null,
-      "row": 61,
+      "row": 62,
       "slug": "bid-hot-mix-asphalt",
       "title": "BID - HOT MIX ASPHALT",
       "year": 2025
@@ -198892,7 +198961,7 @@
     {
       "archive_date": "2026-07-02",
       "archive_date_text": "July 2, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198947,7 +199016,7 @@
       "held": [],
       "id": "sol-bid-hvac-replacement-lone-oak-community-center",
       "number": null,
-      "row": 13,
+      "row": 14,
       "slug": "bid-hvac-replacement-lone-oak-community-center",
       "title": "Bid - HVAC Replacement - Lone Oak Community Center",
       "year": 2026
@@ -198955,7 +199024,7 @@
     {
       "archive_date": "2025-10-20",
       "archive_date_text": "OCTOBER 20, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -198986,7 +199055,7 @@
       "held": [],
       "id": "sol-bid-hwy-dept-guardrails",
       "number": null,
-      "row": 47,
+      "row": 48,
       "slug": "bid-hwy-dept-guardrails",
       "title": "BID - HWY DEPT GUARDRAILS",
       "year": 2025
@@ -198994,7 +199063,7 @@
     {
       "archive_date": "2025-06-11",
       "archive_date_text": "JUNE 11, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199027,7 +199096,7 @@
       "held": [],
       "id": "sol-bid-hwy-dept-metal-pipe-and-bands",
       "number": null,
-      "row": 63,
+      "row": 64,
       "slug": "bid-hwy-dept-metal-pipe-and-bands",
       "title": "BID - HWY DEPT METAL PIPE AND BANDS",
       "year": 2025
@@ -199035,7 +199104,7 @@
     {
       "archive_date": "2025-06-16",
       "archive_date_text": "JUNE 16, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199070,7 +199139,7 @@
       "held": [],
       "id": "sol-bid-hwy-dept-rock",
       "number": null,
-      "row": 60,
+      "row": 61,
       "slug": "bid-hwy-dept-rock",
       "title": "BID - HWY DEPT ROCK",
       "year": 2025
@@ -199078,7 +199147,7 @@
     {
       "archive_date": "2025-06-17",
       "archive_date_text": "JUNE 17, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199113,7 +199182,7 @@
       "held": [],
       "id": "sol-bid-hwy-dept-traffic-paint",
       "number": null,
-      "row": 62,
+      "row": 63,
       "slug": "bid-hwy-dept-traffic-paint",
       "title": "BID - HWY DEPT TRAFFIC PAINT",
       "year": 2025
@@ -199121,7 +199190,7 @@
     {
       "archive_date": null,
       "archive_date_text": "NOT AWARDED",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": "NOT AWARDED",
       "bid_tab": null,
       "department": null,
@@ -199137,7 +199206,7 @@
       "held": [],
       "id": "sol-bid-inmate-uniforms",
       "number": null,
-      "row": 66,
+      "row": 67,
       "slug": "bid-inmate-uniforms",
       "title": "BID - INMATE UNIFORMS",
       "year": null
@@ -199145,7 +199214,7 @@
     {
       "archive_date": "2026-02-12",
       "archive_date_text": "FEBRUARY 12, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -199169,7 +199238,7 @@
       "held": [],
       "id": "sol-bid-interior-renovations-for-assessor-of-property",
       "number": null,
-      "row": 38,
+      "row": 39,
       "slug": "bid-interior-renovations-for-assessor-of-property",
       "title": "BID - INTERIOR RENOVATIONS FOR ASSESSOR OF PROPERTY",
       "year": 2026
@@ -199177,7 +199246,7 @@
     {
       "archive_date": "2025-04-24",
       "archive_date_text": "APRIL 24, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199279,7 +199348,7 @@
       "held": [],
       "id": "sol-bid-interior-renovations-to-montgomery-co-purchasing-and-building-codes",
       "number": null,
-      "row": 75,
+      "row": 76,
       "slug": "bid-interior-renovations-to-montgomery-co-purchasing-and-building-codes",
       "title": "BID - INTERIOR RENOVATIONS TO MONTGOMERY CO PURCHASING AND BUILDING & CODES",
       "year": 2025
@@ -199287,7 +199356,7 @@
     {
       "archive_date": "2025-05-20",
       "archive_date_text": "MAY 20, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199318,7 +199387,7 @@
       "held": [],
       "id": "sol-bid-jail-food-service",
       "number": null,
-      "row": 70,
+      "row": 71,
       "slug": "bid-jail-food-service",
       "title": "BID - JAIL FOOD SERVICE",
       "year": 2025
@@ -199326,7 +199395,7 @@
     {
       "archive_date": "2025-10-30",
       "archive_date_text": "OCTOBER 30. 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -199348,7 +199417,7 @@
       "held": [],
       "id": "sol-bid-jail-plumbing-improvements",
       "number": null,
-      "row": 45,
+      "row": 46,
       "slug": "bid-jail-plumbing-improvements",
       "title": "BID - JAIL PLUMBING IMPROVEMENTS",
       "year": 2025
@@ -199356,7 +199425,7 @@
     {
       "archive_date": null,
       "archive_date_text": "",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -199370,7 +199439,7 @@
       "held": [],
       "id": "sol-bid-listing-jobs-related-to-the-public-safety-facility",
       "number": null,
-      "row": 10,
+      "row": 11,
       "slug": "bid-listing-jobs-related-to-the-public-safety-facility",
       "title": "Bid Listing - Jobs Related to the Public Safety Facility",
       "year": null
@@ -199378,7 +199447,7 @@
     {
       "archive_date": "2026-02-26",
       "archive_date_text": "FEBRUARY 26, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -199402,7 +199471,7 @@
       "held": [],
       "id": "sol-bid-lone-oak-community-center-renovations",
       "number": null,
-      "row": 37,
+      "row": 38,
       "slug": "bid-lone-oak-community-center-renovations",
       "title": "BID - LONE OAK COMMUNITY CENTER RENOVATIONS",
       "year": 2026
@@ -199410,7 +199479,7 @@
     {
       "archive_date": "2025-11-17",
       "archive_date_text": "NOVEMBER 17, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": 1,
@@ -199469,7 +199538,7 @@
       "held": [],
       "id": "sol-bid-mcso-fire-system-upgrade",
       "number": null,
-      "row": 43,
+      "row": 44,
       "slug": "bid-mcso-fire-system-upgrade",
       "title": "BID - MCSO FIRE SYSTEM UPGRADE",
       "year": 2025
@@ -199477,7 +199546,7 @@
     {
       "archive_date": "2025-08-11",
       "archive_date_text": "AUGUST 11, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -199493,7 +199562,7 @@
       "held": [],
       "id": "sol-bid-medical-oxygen-services",
       "number": null,
-      "row": 56,
+      "row": 57,
       "slug": "bid-medical-oxygen-services",
       "title": "BID - MEDICAL OXYGEN SERVICES",
       "year": 2025
@@ -199501,7 +199570,7 @@
     {
       "archive_date": null,
       "archive_date_text": "NOT AWARDED",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": "NOT AWARDED",
       "bid_tab": null,
       "department": null,
@@ -199515,7 +199584,7 @@
       "held": [],
       "id": "sol-bid-montgomery-county-400-pageant-lane-building-emergency-roof-restoration",
       "number": null,
-      "row": 71,
+      "row": 72,
       "slug": "bid-montgomery-county-400-pageant-lane-building-emergency-roof-restoration",
       "title": "BID - MONTGOMERY COUNTY 400 PAGEANT LANE BUILDING EMERGENCY ROOF RESTORATION",
       "year": null
@@ -199523,7 +199592,7 @@
     {
       "archive_date": "2025-04-04",
       "archive_date_text": "APRIL 4, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -199543,7 +199612,7 @@
       "held": [],
       "id": "sol-bid-montgomery-county-insurance-roofing-project",
       "number": null,
-      "row": 80,
+      "row": 81,
       "slug": "bid-montgomery-county-insurance-roofing-project",
       "title": "BID - MONTGOMERY COUNTY INSURANCE ROOFING PROJECT",
       "year": 2025
@@ -199551,7 +199620,7 @@
     {
       "archive_date": "2026-07-27",
       "archive_date_text": "July 27, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199617,7 +199686,7 @@
       "held": [],
       "id": "sol-bid-palmyra-salt-shed-foundation",
       "number": null,
-      "row": 12,
+      "row": 13,
       "slug": "bid-palmyra-salt-shed-foundation",
       "title": "Bid - Palmyra Salt Shed Foundation",
       "year": 2026
@@ -199625,7 +199694,7 @@
     {
       "archive_date": "2025-04-21",
       "archive_date_text": "APRIL 21, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -199643,7 +199712,7 @@
       "held": [],
       "id": "sol-bid-pipe-lining-project",
       "number": null,
-      "row": 77,
+      "row": 78,
       "slug": "bid-pipe-lining-project",
       "title": "BID - PIPE LINING PROJECT",
       "year": 2025
@@ -199651,7 +199720,7 @@
     {
       "archive_date": "2025-05-12",
       "archive_date_text": "MAY 12, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199684,7 +199753,7 @@
       "held": [],
       "id": "sol-bid-salt",
       "number": null,
-      "row": 73,
+      "row": 74,
       "slug": "bid-salt",
       "title": "BID - SALT",
       "year": 2025
@@ -199692,7 +199761,7 @@
     {
       "archive_date": "2025-05-28",
       "archive_date_text": "MAY 28, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": 1,
@@ -199751,7 +199820,7 @@
       "held": [],
       "id": "sol-bid-sheriff-s-office-vehicle-equipment",
       "number": null,
-      "row": 69,
+      "row": 70,
       "slug": "bid-sheriff-s-office-vehicle-equipment",
       "title": "BID - SHERIFF'S OFFICE VEHICLE EQUIPMENT",
       "year": 2025
@@ -199759,7 +199828,7 @@
     {
       "archive_date": "2026-05-04",
       "archive_date_text": "MAY 4, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199822,7 +199891,7 @@
       "held": [],
       "id": "sol-bid-sinkhole-repairs-grace-community-church",
       "number": null,
-      "row": 32,
+      "row": 33,
       "slug": "bid-sinkhole-repairs-grace-community-church",
       "title": "BID - SINKHOLE REPAIRS - GRACE COMMUNITY CHURCH",
       "year": 2026
@@ -199830,7 +199899,7 @@
     {
       "archive_date": "2025-05-02",
       "archive_date_text": "MAY 2, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199861,7 +199930,7 @@
       "held": [],
       "id": "sol-bid-supplemental-equipment-and-operator-rates",
       "number": null,
-      "row": 72,
+      "row": 73,
       "slug": "bid-supplemental-equipment-and-operator-rates",
       "title": "BID - SUPPLEMENTAL EQUIPMENT AND OPERATOR RATES",
       "year": 2025
@@ -199869,7 +199938,7 @@
     {
       "archive_date": "2025-01-27",
       "archive_date_text": "JANUARY 27, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199900,7 +199969,7 @@
       "held": [],
       "id": "sol-bid-timber-bridge-repair-project",
       "number": null,
-      "row": 90,
+      "row": 91,
       "slug": "bid-timber-bridge-repair-project",
       "title": "BID - TIMBER BRIDGE REPAIR PROJECT",
       "year": 2025
@@ -199908,7 +199977,7 @@
     {
       "archive_date": "2025-06-04",
       "archive_date_text": "JUNE 4, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -199939,7 +200008,7 @@
       "held": [],
       "id": "sol-bid-various-grades-of-stone",
       "number": null,
-      "row": 65,
+      "row": 66,
       "slug": "bid-various-grades-of-stone",
       "title": "BID - VARIOUS GRADES OF STONE",
       "year": 2025
@@ -199947,7 +200016,7 @@
     {
       "archive_date": "2026-08-27",
       "archive_date_text": "August 27, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200002,7 +200071,7 @@
       "held": [],
       "id": "sol-bid-veterans-plaza-gutter-replacement",
       "number": null,
-      "row": 7,
+      "row": 8,
       "slug": "bid-veterans-plaza-gutter-replacement",
       "title": "Bid - Veterans Plaza Gutter Replacement",
       "year": 2026
@@ -200010,7 +200079,7 @@
     {
       "archive_date": "2026-08-27",
       "archive_date_text": "August 27, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200045,7 +200114,7 @@
       "held": [],
       "id": "sol-bid-veterans-plaza-hvac-replacement",
       "number": null,
-      "row": 9,
+      "row": 10,
       "slug": "bid-veterans-plaza-hvac-replacement",
       "title": "Bid - Veterans Plaza HVAC Replacement",
       "year": 2026
@@ -200053,7 +200122,7 @@
     {
       "archive_date": "2025-02-26",
       "archive_date_text": "FEBRUARY 26, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": 1,
@@ -200103,7 +200172,7 @@
       "held": [],
       "id": "sol-bid-wheel-loader",
       "number": null,
-      "row": 86,
+      "row": 87,
       "slug": "bid-wheel-loader",
       "title": "BID - WHEEL LOADER",
       "year": 2025
@@ -200111,7 +200180,7 @@
     {
       "archive_date": "2026-03-17",
       "archive_date_text": "MARCH 17, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200144,7 +200213,7 @@
       "held": [],
       "id": "sol-bid-woodlawn-park-fencing",
       "number": null,
-      "row": 36,
+      "row": 37,
       "slug": "bid-woodlawn-park-fencing",
       "title": "BID - WOODLAWN PARK FENCING",
       "year": 2026
@@ -200152,7 +200221,7 @@
     {
       "archive_date": "2026-02-12",
       "archive_date_text": "FEBRUARY 12, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -200170,15 +200239,44 @@
       "held": [],
       "id": "sol-fairgrounds-design-and-engineering-services",
       "number": null,
-      "row": 41,
+      "row": 42,
       "slug": "fairgrounds-design-and-engineering-services",
       "title": "FAIRGROUNDS DESIGN AND ENGINEERING SERVICES",
       "year": 2026
     },
     {
+      "archive_date": null,
+      "archive_date_text": "November 10, 2026, at 2:00 p.m. local time",
+      "archive_source_id": "src-a21b49c89206",
+      "archive_status": null,
+      "bid_tab": null,
+      "department": null,
+      "document_ids": [
+        "doc-df089f40bf",
+        "doc-8820c4380f"
+      ],
+      "document_labels": [
+        "RFP Document",
+        "Addendum #1"
+      ],
+      "documents_differ": null,
+      "held": [
+        {
+          "check": "date-unparsed",
+          "field": "archive_date"
+        }
+      ],
+      "id": "sol-led-signage-replacement",
+      "number": null,
+      "row": 1,
+      "slug": "led-signage-replacement",
+      "title": "LED Signage Replacement",
+      "year": null
+    },
+    {
       "archive_date": "2026-02-03",
       "archive_date_text": "FEBRUARY 3, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200211,7 +200309,7 @@
       "held": [],
       "id": "sol-moody-road-bridge-replacement-bid",
       "number": null,
-      "row": 39,
+      "row": 40,
       "slug": "moody-road-bridge-replacement-bid",
       "title": "MOODY ROAD BRIDGE REPLACEMENT BID",
       "year": 2026
@@ -200219,7 +200317,7 @@
     {
       "archive_date": "2026-07-06",
       "archive_date_text": "July 6, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200252,7 +200350,7 @@
       "held": [],
       "id": "sol-rebid-highway-dept-salt",
       "number": null,
-      "row": 14,
+      "row": 15,
       "slug": "rebid-highway-dept-salt",
       "title": "ReBid - Highway Dept Salt",
       "year": 2026
@@ -200260,7 +200358,7 @@
     {
       "archive_date": "2026-06-04",
       "archive_date_text": "June 4, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200293,7 +200391,7 @@
       "held": [],
       "id": "sol-request-for-bid-asphalt-oil",
       "number": null,
-      "row": 21,
+      "row": 22,
       "slug": "request-for-bid-asphalt-oil",
       "title": "Request for Bid - Asphalt Oil",
       "year": 2026
@@ -200301,7 +200399,7 @@
     {
       "archive_date": "2026-06-05",
       "archive_date_text": "June 5, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200334,7 +200432,7 @@
       "held": [],
       "id": "sol-request-for-bid-bi-county-various-grades-of-stone",
       "number": null,
-      "row": 26,
+      "row": 27,
       "slug": "request-for-bid-bi-county-various-grades-of-stone",
       "title": "Request for Bid - Bi-County Various Grades of Stone",
       "year": 2026
@@ -200342,7 +200440,7 @@
     {
       "archive_date": "2026-06-04",
       "archive_date_text": "June 4, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200377,7 +200475,7 @@
       "held": [],
       "id": "sol-request-for-bid-body-removal-services",
       "number": null,
-      "row": 27,
+      "row": 28,
       "slug": "request-for-bid-body-removal-services",
       "title": "Request for Bid - Body Removal Services",
       "year": 2026
@@ -200385,7 +200483,7 @@
     {
       "archive_date": "2026-06-05",
       "archive_date_text": "June 5, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200420,7 +200518,7 @@
       "held": [],
       "id": "sol-request-for-bid-coarse-aggregate",
       "number": null,
-      "row": 24,
+      "row": 25,
       "slug": "request-for-bid-coarse-aggregate",
       "title": "Request for Bid - Coarse Aggregate",
       "year": 2026
@@ -200428,7 +200526,7 @@
     {
       "archive_date": "2026-06-04",
       "archive_date_text": "June 4, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200461,7 +200559,7 @@
       "held": [],
       "id": "sol-request-for-bid-concrete",
       "number": null,
-      "row": 23,
+      "row": 24,
       "slug": "request-for-bid-concrete",
       "title": "Request for Bid - Concrete",
       "year": 2026
@@ -200469,7 +200567,7 @@
     {
       "archive_date": "2026-06-05",
       "archive_date_text": "June 5, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200504,7 +200602,7 @@
       "held": [],
       "id": "sol-request-for-bid-creek-rock",
       "number": null,
-      "row": 25,
+      "row": 26,
       "slug": "request-for-bid-creek-rock",
       "title": "Request for Bid - Creek Rock",
       "year": 2026
@@ -200512,7 +200610,7 @@
     {
       "archive_date": "2026-06-12",
       "archive_date_text": "June 12, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200545,7 +200643,7 @@
       "held": [],
       "id": "sol-request-for-bid-ems-safety-gear",
       "number": null,
-      "row": 28,
+      "row": 29,
       "slug": "request-for-bid-ems-safety-gear",
       "title": "Request for Bid - EMS Safety Gear",
       "year": 2026
@@ -200553,7 +200651,7 @@
     {
       "archive_date": "2026-06-25",
       "archive_date_text": "June 25, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200634,7 +200732,7 @@
       "held": [],
       "id": "sol-request-for-bid-generator-electrical-alteration",
       "number": null,
-      "row": 16,
+      "row": 17,
       "slug": "request-for-bid-generator-electrical-alteration",
       "title": "Request for Bid - Generator Electrical Alteration",
       "year": 2026
@@ -200642,7 +200740,7 @@
     {
       "archive_date": null,
       "archive_date_text": "No Award",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": "No Award",
       "bid_tab": {
         "award_date_page": null,
@@ -200675,7 +200773,7 @@
       "held": [],
       "id": "sol-request-for-bid-highway-department-salt",
       "number": null,
-      "row": 31,
+      "row": 32,
       "slug": "request-for-bid-highway-department-salt",
       "title": "Request for Bid - Highway Department Salt",
       "year": null
@@ -200683,7 +200781,7 @@
     {
       "archive_date": "2026-06-02",
       "archive_date_text": "June 2, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200722,7 +200820,7 @@
       "held": [],
       "id": "sol-request-for-bid-highway-department-traffic-paint",
       "number": null,
-      "row": 29,
+      "row": 30,
       "slug": "request-for-bid-highway-department-traffic-paint",
       "title": "Request for Bid - Highway Department Traffic Paint",
       "year": 2026
@@ -200730,7 +200828,7 @@
     {
       "archive_date": "2026-06-05",
       "archive_date_text": "June 5, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200765,7 +200863,7 @@
       "held": [],
       "id": "sol-request-for-bid-hot-mix",
       "number": null,
-      "row": 19,
+      "row": 20,
       "slug": "request-for-bid-hot-mix",
       "title": "Request for Bid - Hot Mix",
       "year": 2026
@@ -200773,7 +200871,7 @@
     {
       "archive_date": "2026-06-29",
       "archive_date_text": "June 29, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200806,7 +200904,7 @@
       "held": [],
       "id": "sol-request-for-bid-metal-pipe-bands",
       "number": null,
-      "row": 20,
+      "row": 21,
       "slug": "request-for-bid-metal-pipe-bands",
       "title": "Request for Bid - Metal Pipe & Bands",
       "year": 2026
@@ -200814,7 +200912,7 @@
     {
       "archive_date": "2026-06-05",
       "archive_date_text": "June 5, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200849,7 +200947,7 @@
       "held": [],
       "id": "sol-request-for-bid-rock",
       "number": null,
-      "row": 22,
+      "row": 23,
       "slug": "request-for-bid-rock",
       "title": "Request for Bid - Rock",
       "year": 2026
@@ -200857,7 +200955,7 @@
     {
       "archive_date": "2026-05-20",
       "archive_date_text": "May 20, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200890,7 +200988,7 @@
       "held": [],
       "id": "sol-request-for-proposal-armed-security",
       "number": null,
-      "row": 30,
+      "row": 31,
       "slug": "request-for-proposal-armed-security",
       "title": "Request for Proposal - Armed Security",
       "year": 2026
@@ -200898,7 +200996,7 @@
     {
       "archive_date": "2025-02-11",
       "archive_date_text": "FEBRUARY 11, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -200929,7 +201027,7 @@
       "held": [],
       "id": "sol-rfp-auctioneer-services",
       "number": null,
-      "row": 88,
+      "row": 89,
       "slug": "rfp-auctioneer-services",
       "title": "RFP - AUCTIONEER SERVICES",
       "year": 2025
@@ -200937,7 +201035,7 @@
     {
       "archive_date": "2025-11-04",
       "archive_date_text": "NOVEMBER 4, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -200953,7 +201051,7 @@
       "held": [],
       "id": "sol-rfp-carnival-ride-rental",
       "number": null,
-      "row": 44,
+      "row": 45,
       "slug": "rfp-carnival-ride-rental",
       "title": "RFP - CARNIVAL RIDE RENTAL",
       "year": 2025
@@ -200961,7 +201059,7 @@
     {
       "archive_date": "2025-04-21",
       "archive_date_text": "APRIL 21, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -200979,7 +201077,7 @@
       "held": [],
       "id": "sol-rfp-construction-management-services",
       "number": null,
-      "row": 78,
+      "row": 79,
       "slug": "rfp-construction-management-services",
       "title": "RFP - CONSTRUCTION MANAGEMENT SERVICES",
       "year": 2025
@@ -200987,7 +201085,7 @@
     {
       "archive_date": "2026-03-19",
       "archive_date_text": "MARCH 19, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201005,7 +201103,7 @@
       "held": [],
       "id": "sol-rfp-downtown-commons-event-beer-sales-vendor",
       "number": null,
-      "row": 34,
+      "row": 35,
       "slug": "rfp-downtown-commons-event-beer-sales-vendor",
       "title": "RFP - DOWNTOWN COMMONS EVENT BEER SALES VENDOR",
       "year": 2026
@@ -201013,7 +201111,7 @@
     {
       "archive_date": "2025-10-17",
       "archive_date_text": "OCTOBER 17, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201033,7 +201131,7 @@
       "held": [],
       "id": "sol-rfp-ems-delinquent-collection-services",
       "number": null,
-      "row": 51,
+      "row": 52,
       "slug": "rfp-ems-delinquent-collection-services",
       "title": "RFP - EMS DELINQUENT COLLECTION SERVICES",
       "year": 2025
@@ -201041,7 +201139,7 @@
     {
       "archive_date": "2025-09-12",
       "archive_date_text": "SEPTEMBER 12, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201057,7 +201155,7 @@
       "held": [],
       "id": "sol-rfp-event-bartending-services",
       "number": null,
-      "row": 53,
+      "row": 54,
       "slug": "rfp-event-bartending-services",
       "title": "RFP - EVENT BARTENDING SERVICES",
       "year": 2025
@@ -201065,7 +201163,7 @@
     {
       "archive_date": "2025-10-28",
       "archive_date_text": "OCTOBER 28, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201083,7 +201181,7 @@
       "held": [],
       "id": "sol-rfp-fairgrounds-construction-management-services",
       "number": null,
-      "row": 49,
+      "row": 50,
       "slug": "rfp-fairgrounds-construction-management-services",
       "title": "RFP - FAIRGROUNDS CONSTRUCTION MANAGEMENT SERVICES",
       "year": 2025
@@ -201091,7 +201189,7 @@
     {
       "archive_date": "2025-10-28",
       "archive_date_text": "OCTOBER 28, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201109,7 +201207,7 @@
       "held": [],
       "id": "sol-rfp-geotechnical-engineering-services",
       "number": null,
-      "row": 48,
+      "row": 49,
       "slug": "rfp-geotechnical-engineering-services",
       "title": "RFP - GEOTECHNICAL ENGINEERING SERVICES",
       "year": 2025
@@ -201117,7 +201215,7 @@
     {
       "archive_date": "2026-07-22",
       "archive_date_text": "July 22, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201133,7 +201231,7 @@
       "held": [],
       "id": "sol-rfp-mental-health-secondary-transport",
       "number": null,
-      "row": 17,
+      "row": 18,
       "slug": "rfp-mental-health-secondary-transport",
       "title": "RFP - Mental Health Secondary Transport",
       "year": 2026
@@ -201141,7 +201239,7 @@
     {
       "archive_date": "2025-04-09",
       "archive_date_text": "APRIL 9, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -201172,7 +201270,7 @@
       "held": [],
       "id": "sol-rfp-montgomery-county-drug-task-force-garage-sprinkler-design-build",
       "number": null,
-      "row": 79,
+      "row": 80,
       "slug": "rfp-montgomery-county-drug-task-force-garage-sprinkler-design-build",
       "title": "RFP - MONTGOMERY COUNTY DRUG TASK FORCE GARAGE SPRINKLER DESIGN/BUILD",
       "year": 2025
@@ -201180,7 +201278,7 @@
     {
       "archive_date": "2025-03-14",
       "archive_date_text": "MARCH 14, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -201211,7 +201309,7 @@
       "held": [],
       "id": "sol-rfp-north-branch-library-furniture",
       "number": null,
-      "row": 83,
+      "row": 84,
       "slug": "rfp-north-branch-library-furniture",
       "title": "RFP - NORTH BRANCH LIBRARY FURNITURE",
       "year": 2025
@@ -201219,7 +201317,7 @@
     {
       "archive_date": "2025-08-19",
       "archive_date_text": "AUGUST 19, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201237,7 +201335,7 @@
       "held": [],
       "id": "sol-rfp-north-branch-library-technology",
       "number": null,
-      "row": 55,
+      "row": 56,
       "slug": "rfp-north-branch-library-technology",
       "title": "RFP - NORTH BRANCH LIBRARY TECHNOLOGY",
       "year": 2025
@@ -201245,7 +201343,7 @@
     {
       "archive_date": "2025-02-04",
       "archive_date_text": "FEBRUARY 4, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201261,7 +201359,7 @@
       "held": [],
       "id": "sol-rfp-oracle-implementation-partner",
       "number": null,
-      "row": 89,
+      "row": 90,
       "slug": "rfp-oracle-implementation-partner",
       "title": "RFP - ORACLE IMPLEMENTATION PARTNER",
       "year": 2025
@@ -201269,7 +201367,7 @@
     {
       "archive_date": null,
       "archive_date_text": "CURRENTLY UNDER REVIEW",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": "CURRENTLY UNDER REVIEW",
       "bid_tab": null,
       "department": null,
@@ -201283,7 +201381,7 @@
       "held": [],
       "id": "sol-rfp-public-safety-complex-land",
       "number": null,
-      "row": 46,
+      "row": 47,
       "slug": "rfp-public-safety-complex-land",
       "title": "RFP - PUBLIC SAFETY COMPLEX LAND",
       "year": null
@@ -201291,7 +201389,7 @@
     {
       "archive_date": "2025-04-02",
       "archive_date_text": "APRIL 2, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201307,7 +201405,7 @@
       "held": [],
       "id": "sol-rfp-reflective-marker-project",
       "number": null,
-      "row": 81,
+      "row": 82,
       "slug": "rfp-reflective-marker-project",
       "title": "RFP - REFLECTIVE MARKER PROJECT",
       "year": 2025
@@ -201315,7 +201413,7 @@
     {
       "archive_date": "2025-03-03",
       "archive_date_text": "MARCH 3, 2025",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": null,
@@ -201346,7 +201444,7 @@
       "held": [],
       "id": "sol-rfp-rfid-gates",
       "number": null,
-      "row": 85,
+      "row": 86,
       "slug": "rfp-rfid-gates",
       "title": "RFP - RFID GATES",
       "year": 2025
@@ -201354,7 +201452,7 @@
     {
       "archive_date": null,
       "archive_date_text": "Currently Under Review",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": "Currently Under Review",
       "bid_tab": null,
       "department": null,
@@ -201370,7 +201468,7 @@
       "held": [],
       "id": "sol-rfp-rfid-tracking-solution",
       "number": null,
-      "row": 2,
+      "row": 3,
       "slug": "rfp-rfid-tracking-solution",
       "title": "RFP - RFID Tracking Solution",
       "year": null
@@ -201378,7 +201476,7 @@
     {
       "archive_date": "2026-03-09",
       "archive_date_text": "MARCH 9, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": {
         "award_date_page": 1,
@@ -201437,7 +201535,7 @@
       "held": [],
       "id": "sol-rfp-rossview-rd-rollow-ln-sightline-improvements",
       "number": null,
-      "row": 35,
+      "row": 36,
       "slug": "rfp-rossview-rd-rollow-ln-sightline-improvements",
       "title": "RFP - ROSSVIEW RD/ROLLOW LN SIGHTLINE IMPROVEMENTS",
       "year": 2026
@@ -201445,7 +201543,7 @@
     {
       "archive_date": "2026-06-30",
       "archive_date_text": "June 30, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201467,7 +201565,7 @@
       "held": [],
       "id": "sol-rfp-third-party-claims-administrator",
       "number": null,
-      "row": 15,
+      "row": 16,
       "slug": "rfp-third-party-claims-administrator",
       "title": "RFP - Third Party Claims Administrator",
       "year": 2026
@@ -201475,7 +201573,7 @@
     {
       "archive_date": null,
       "archive_date_text": "No Award",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": "No Award",
       "bid_tab": null,
       "department": null,
@@ -201489,7 +201587,7 @@
       "held": [],
       "id": "sol-rfq-car-wash-services",
       "number": null,
-      "row": 18,
+      "row": 19,
       "slug": "rfq-car-wash-services",
       "title": "RFQ - Car Wash Services",
       "year": null
@@ -201497,7 +201595,7 @@
     {
       "archive_date": null,
       "archive_date_text": "UNDER REVIEW",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": "UNDER REVIEW",
       "bid_tab": null,
       "department": null,
@@ -201513,7 +201611,7 @@
       "held": [],
       "id": "sol-rfq-consultant-engineers-roadway-project",
       "number": null,
-      "row": 33,
+      "row": 34,
       "slug": "rfq-consultant-engineers-roadway-project",
       "title": "RFQ - CONSULTANT ENGINEERS - ROADWAY PROJECT",
       "year": null
@@ -201521,7 +201619,7 @@
     {
       "archive_date": "2026-02-20",
       "archive_date_text": "FEBRUARY 20, 2026",
-      "archive_source_id": "src-5ef333c3f985",
+      "archive_source_id": "src-a21b49c89206",
       "archive_status": null,
       "bid_tab": null,
       "department": null,
@@ -201539,7 +201637,7 @@
       "held": [],
       "id": "sol-timber-bridge-repair-project",
       "number": null,
-      "row": 40,
+      "row": 41,
       "slug": "timber-bridge-repair-project",
       "title": "TIMBER BRIDGE REPAIR PROJECT",
       "year": 2026
@@ -202428,6 +202526,17 @@
     },
     {
       "content_type": "application/pdf",
+      "creator": "Adobe Acrobat (64-bit) 26.2.22031",
+      "fetched_at": "2026-11-15",
+      "id": "src-44d9112fd0e8",
+      "kind": "rfp",
+      "pages": 10,
+      "sha256": "44d9112fd0e83cfd2c7d5ec1f7e9699bc672ac82e7d80dafdfdc4388131bd199",
+      "text_layer": "text",
+      "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/RFP%20Packet-%20LED%20Signage%20Replacement.pdf"
+    },
+    {
+      "content_type": "application/pdf",
       "creator": "Acrobat PDFMaker 26 for Word",
       "fetched_at": "2026-11-08",
       "id": "src-4657c43cbbec",
@@ -202722,17 +202831,6 @@
       "sha256": "5eef4b2afb63e985628d03bf2538f0f11dc1ca95f71b6370f54ad9a668dee7e5",
       "text_layer": "text",
       "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Bid%20Tab%20-%20Sheriff%27s%20Office%20Vehicle%20Equipment.pdf"
-    },
-    {
-      "content_type": "text/html",
-      "creator": null,
-      "fetched_at": "2026-11-13",
-      "id": "src-5ef333c3f985",
-      "kind": "archive_index",
-      "pages": null,
-      "sha256": "5ef333c3f985ac4262ac7233785eddabd0733500c6a03a2b6eb1c8d2b5198f40",
-      "text_layer": "text",
-      "url": "https://montgomerytn.gov/purchasing/archive"
     },
     {
       "content_type": "application/pdf",
@@ -203364,6 +203462,17 @@
     {
       "content_type": "application/pdf",
       "creator": "Acrobat PDFMaker 26 for Word",
+      "fetched_at": "2026-11-15",
+      "id": "src-8c28035a77c7",
+      "kind": "other",
+      "pages": 3,
+      "sha256": "8c28035a77c7a458707a52077b68779845befed6c99fd26755b8ac4fed8bea7b",
+      "text_layer": "text",
+      "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Addendum%20%231%20dated%2011-5-26%20for%20LED%20Signage%20Replacement.pdf"
+    },
+    {
+      "content_type": "application/pdf",
+      "creator": "Acrobat PDFMaker 26 for Word",
       "fetched_at": "2026-11-08",
       "id": "src-8de4bddec93f",
       "kind": "bid",
@@ -203659,6 +203768,17 @@
       "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Bid%20Tab%20-%20RFID%20Gates.pdf"
     },
     {
+      "content_type": "text/html",
+      "creator": null,
+      "fetched_at": "2026-11-15",
+      "id": "src-a21b49c89206",
+      "kind": "archive_index",
+      "pages": null,
+      "sha256": "a21b49c8920610c12ac1da51c028ebf7d61bb27ac5350cf949f0c7b8371f21d6",
+      "text_layer": "text",
+      "url": "https://montgomerytn.gov/purchasing/archive"
+    },
+    {
       "content_type": "application/pdf",
       "creator": "Acrobat PDFMaker 26 for Word",
       "fetched_at": "2026-11-08",
@@ -203921,6 +204041,17 @@
       "sha256": "bbabeef0e504b13b71cb95b9a5f86b960fd1237a91f49b0b73597458bfb2aefc",
       "text_layer": "text",
       "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/2026-07-22%20Veterans%20Plaza%20HVAC%20Replacement%20Bid%20Advertisement.pdf"
+    },
+    {
+      "content_type": "application/pdf",
+      "creator": "Acrobat PDFMaker 26 for Word",
+      "fetched_at": "2026-11-15",
+      "id": "src-bc8b34da3177",
+      "kind": "bid_tab",
+      "pages": 1,
+      "sha256": "bc8b34da3177a9f256ae9a672fd70c61cb38dad89c06c30fadf5438dbf0e0589",
+      "text_layer": "text",
+      "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Bid%20Tab%20-%20Excell%20Rd%20Project.pdf"
     },
     {
       "content_type": "application/pdf",
@@ -204570,6 +204701,17 @@
       "sha256": "e86ea3f8d18da6604dc875b7cb35d8a03f89a701594252f157d9c08330d0a395",
       "text_layer": "none",
       "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Award%20Letter%20-%20Creek%20Rock.pdf"
+    },
+    {
+      "content_type": "application/pdf",
+      "creator": "Acrobat PDFMaker 26 for Word",
+      "fetched_at": "2026-11-15",
+      "id": "src-e910c1286a63",
+      "kind": "award_letter",
+      "pages": 1,
+      "sha256": "e910c1286a6339e081042e800e1d711c65374116635689e65edd404f8c31b949",
+      "text_layer": "text",
+      "url": "https://montgomerytn.gov/storage/departments/purchasing/BID/Award%20Letter-SR12-Excell%20Rd%20Improvements%20-%20Eubank%20Paving.pdf"
     },
     {
       "content_type": "application/pdf",
