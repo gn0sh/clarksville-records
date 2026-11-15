@@ -13,6 +13,11 @@ import pytest
 from conftest import ROOT
 from sitegen import localdates
 
+
+def _browser_ok():
+    # the same rule as the other browser checks (test_daylight._browser_ok): the CI runner has node but no Playwright
+    return bool(shutil.which("node")) and (os.path.exists("/opt/pw-browsers") or bool(shutil.which("playwright")))
+
 CSS = (ROOT / "site" / "static" / "style.css").read_text(encoding="utf-8")
 WORDS = r"(?:January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}, \d{4}"
 ISO = r"\d{4}-\d{2}-\d{2}"
@@ -146,8 +151,8 @@ def test_the_bids_table_fits_its_box_at_1280_with_dates_in_words(tmp_path):
     """onceover/dates/contracts-table-overflows-1280: dates in words widened the bids table past its box at 1280, so
     the Source column's link needed a sideways scroll. As a table the date may break after the day, never inside a
     word; on a phone (stacked rows) it stays on one line and the page does not scroll sideways."""
-    if not shutil.which("node"):
-        pytest.skip("node is not installed")
+    if not _browser_ok():
+        pytest.skip("Playwright (node) not available")
     from conftest import FIXTURE, FIXTURE_DISTRICTS, FIXTURE_SEATS, build
     out = tmp_path / "site"
     build(FIXTURE, out, finance_path=ROOT / "site" / "fixtures" / "finance.sample.json", seats_path=FIXTURE_SEATS,
@@ -213,8 +218,8 @@ def test_touch_targets_are_44px_in_one_coarse_pointer_block():
 def test_on_a_touch_screen_details_and_show_more_are_44px_and_cover_no_link(built, tmp_path):
     """onceover/touch/hit-area-covers-source-link: every point of a "p. N" source link and of a clamped item link
     still hits that link with pointer: coarse, at 375 and 1280 (tests/touch_targets_browser.js, elementFromPoint)."""
-    if not shutil.which("node"):
-        pytest.skip("node is not installed")
+    if not _browser_ok():
+        pytest.skip("Playwright (node) not available")
     rels = sorted(p.relative_to(built).as_posix() for p in built.rglob("*.html"))
     has = lambda rel, needle: needle in (built / rel).read_text(encoding="utf-8")       # noqa: E731
     picks = {"official": next(r for r in rels if r.startswith("officials/") and has(r, 'class="clamp"')
