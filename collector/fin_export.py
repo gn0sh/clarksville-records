@@ -8,7 +8,9 @@ Rules, the same as the pages (sitegen/fin_views.py, budget_views.py):
 - Every row carries `source_url`, `source_sha256`, `page` and `fetched_at` of the document that prints it (page empty
   for an HTML page such as the purchasing archive). finance.json rows carry `source_url` too.
 - A held value (schema `held`, a bidder total the page shows as "Not confirmed*", a held budget line) is exported as
-  null with the check that held it (`*_held_check`), never as a value; its printed text is null too.
+  null with the check that held it (`*_held_check`), never as a value; its printed text is null too. Except a held
+  archive date: the date and year are null, `archive_date_text` stays verbatim as the pages show it (schema: non-null
+  string), and the check is listed only in `held_checks`.
 - Values only from a text-layer source: a not-read bid tab exports no tab values, only its link and reason.
 - Order by id, date or printed order only, never by an amount (neutrality, AC-F8). No computed column: the export
   carries no sum, share or difference of its own; budget_checks.csv reports the reconciliation fin_checks.py made.
@@ -29,7 +31,11 @@ FIN_FILES = ("solicitations", "bidders", "fin_documents", "budget_lines", "budge
 # the export (no held value may slip out under a column the export does not know).
 SOL_HELD = {"department": "department", "department.text": "department", "bid_tab.awardee_text": "awardee_text",
             "bid_tab.bid_date_text": "bid_date_text", "bid_tab.award_date_text": "award_date_text",
-            "bid_tab.project_text": "project_text"}
+            "bid_tab.project_text": "project_text",
+            # an archive date whose text is printed but can't be read as a date (fin_facts check date-unparsed):
+            # the date and its year export as null, the printed text stays as the archive prints it, and the
+            # check is listed in held_checks (no separate column)
+            "archive_date": "archive_date"}
 BIDDER_HELD = re.compile(r"bid_tab\.bidders\[(\d+)\]\.(?:total_cents|total_as_printed)")
 TAB_VALUES = ("project_text", "bid_date_text", "bid_date_page", "awardee_text", "awardee_page", "award_date_text",
               "award_date_page")
@@ -45,7 +51,7 @@ FIN_PROVENANCE: dict[str, str] = {
     **{f"{f}.{k}": v for f in FIN_FILES for k, v in _C.items()},
     "solicitations.id": "derived: id", "solicitations.slug": "derived: from the title",
     "solicitations.title": _S, "solicitations.archive_date_text": _S,
-    "solicitations.archive_date": "derived: archive_date_text read as a date",
+    "solicitations.archive_date": "derived: archive_date_text read as a date; empty when held (see held_checks)",
     "solicitations.year": "derived: year of archive_date", "solicitations.number": _S,
     "solicitations.department": _S, "solicitations.department_held_check": _HELD,
     "solicitations.department_source_url": "derived: link to the document that prints the department",
@@ -165,6 +171,8 @@ def public_finance(fin: dict) -> dict:
         sol["source_url"] = url(sol["archive_source_id"])
         if "department" in cols:
             sol["department"] = None
+        if "archive_date" in cols:
+            sol["archive_date"] = sol["year"] = None
         tab = sol["bid_tab"]
         if tab is None:
             continue
