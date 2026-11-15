@@ -147,8 +147,9 @@
       "tab": "not_read", "reason": "not_pdf", "tab_prints_awardee": null,
       "document_labels": ["Request for Bid", "Bid Tab", "Award Letter", "Required Forms"]
     },
-    "bid-advertisement-sr12-excell-rd-intersection-improvements": {
-      "tab": "none", "document_labels": ["Bid Advertisement"]
+    "bid-inmate-uniforms": {
+      "_note": "Replaces bid-advertisement-sr12-excell-rd-intersection-improvements (labelled 'none' while Under Review; the archive added a Bid Tab and Award Letter by 2026-11-15, so that label no longer matched the source). A NOT AWARDED solicitation is final. Checked by eye on https://montgomerytn.gov/purchasing/archive on 2026-11-15: BID PDF, QUESTIONS/ANSWERS, NOT AWARDED, no bid tab.",
+      "tab": "none", "document_labels": ["BID PDF", "QUESTIONS/ANSWERS"]
     }
   }
 }
