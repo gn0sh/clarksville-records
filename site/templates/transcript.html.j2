@@ -7,10 +7,10 @@
 {% block head %}<meta name="robots" content="noindex">{% endblock %}
 {% block main %}
 <p class="kicker-line"><a href="{{ root }}{{ council_href }}">{{ council }}</a></p>
-<h1>Transcript: {{ kind_label }}, <span class="nowrap">{{ meeting.date }}</span></h1>
+<h1>Transcript: {{ kind_label }}, <span class="nowrap">{{ meeting.date | day_words }}</span></h1>
 <p class="notice transcript-notice" role="note"><strong>{{ notice }}</strong></p>
 <p class="privacy-note">{{ privacy_note }} <a href="{{ root }}report.html">Report an error</a>.</p>
-<p class="source-line">Video: {% if video_ok %}<a data-ext="video" href="{{ video_url }}" target="_blank" rel="noopener noreferrer">the city's recording (MP4)<span class="sr-only"> (opens in a new tab)</span></a>{% else %}the city's recording (not on the city's video host, so not linked; times below are text only){% endif %}. Meeting: <a href="{{ root }}{{ meeting_href }}">{{ kind_label | lower }}, {{ meeting.date }}</a>. Made with {{ model_version }}, model {{ model }}, on {{ created_at[:10] }}.</p>
+<p class="source-line">Video: {% if video_ok %}<a data-ext="video" href="{{ video_url }}" target="_blank" rel="noopener noreferrer">the city's recording (MP4)<span class="sr-only"> (opens in a new tab)</span></a>{% else %}the city's recording (not on the city's video host, so not linked; times below are text only){% endif %}. Meeting: <a href="{{ root }}{{ meeting_href }}">{{ kind_label | lower }}, {{ meeting.date | day_words }}</a>. Made with {{ model_version }}, model {{ model }}, on {{ created_at[:10] }}.</p>
 <p class="muted">Each line starts with its time in the video{% if video_ok %}; the time links to that moment{% endif %}. Lines marked "Called on" are where the transcript text shows the chair giving a member the floor by title and surname ({{ call_on_count }} on this transcript); the name is matched to the meeting's attendance list in the minutes, not to the voice.</p>
 {{ parts_nav(parts, "Transcript parts", "This transcript is on {n} pages, by time:") }}
 <ol class="transcript">

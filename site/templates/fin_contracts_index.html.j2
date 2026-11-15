@@ -56,7 +56,7 @@
   <tbody>
   {% for r in rows %}
     <tr class="fact" data-fact-id="{{ r.id }}" data-date="{{ r.date or '' }}" data-title="{{ r.title }}" data-dept="{{ r.dept_key }}" data-year="{{ r.year or '' }}" data-tab="{{ 'tab' if r.has_tab else 'notab' }}" data-search="{{ r.search }}">
-      <td class="c-date" data-label="Date"><span class="date">{{ r.date or r.date_text }}</span></td>
+      <td class="c-date" data-label="Date"><span class="date">{{ (r.date | day_words) if r.date else r.date_text }}</span></td>
       <th scope="row" class="c-title" data-label="Solicitation">{% call clamp(2) %}<a href="{{ root }}{{ r.href }}">{{ r.title }}</a>{% endcall %}</th>
       <td class="c-dept" data-label="Department">{% if r.dept and r.dept.held %}{{ not_confirmed(r.dept.src, r.dept.check) }}{% elif r.dept %}{{ r.dept.text }}{% else %}<span class="muted">{{ c.no_department }}</span>{% endif %}</td>
       <td class="c-docs" data-label="Documents"><ul class="doc-links">{% for d in r.docs %}<li>{{ doc_link(d, c, d.stage_label) }}</li>{% endfor %}</ul></td>

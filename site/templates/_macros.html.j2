@@ -81,7 +81,7 @@
 <nav aria-label="{{ label }}" class="year-nav parts-nav">
   <p class="muted">{{ intro.replace("{n}", parts | length | string) }}</p>
   <ul class="inline-list">
-    {% for p in parts %}<li><a href="{{ p.href }}"{% if p.current %} aria-current="page"{% endif %}>{{ p.label }}</a></li>{% endfor %}
+    {% for p in parts %}<li><a href="{{ p.href }}"{% if p.current %} aria-current="page"{% endif %}>{{ p.label | day_words }}</a></li>{% endfor %}
   </ul>
 </nav>
 {% endif %}

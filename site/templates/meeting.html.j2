@@ -4,7 +4,7 @@
 {% block main %}
 <header class="meeting-head">
   <p class="kind-line"><span class="chip chip-kind">{{ kind_label }}</span></p>
-  <h1>{{ kind_label }}, <span class="nowrap">{{ meeting.date }}</span></h1>
+  <h1>{{ kind_label }}, <span class="nowrap">{{ meeting.date | day_words }}</span></h1>
   <p class="source-line">{{ meeting.body }}. Source: <a href="{{ doc.url }}" target="_blank" rel="noopener noreferrer">{{ doc.kind }} PDF, {{ doc.pages }} pages<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ doc.fetched }}.</p>
 {% if watch %}<p class="watch-line">{{ watch_link(watch) }}</p>{% endif %}
 {{ meeting_stats(m) }}

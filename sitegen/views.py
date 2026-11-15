@@ -680,6 +680,7 @@ def totals_sentences(ix: Index, official_id: str) -> list[str]:
     under_review = states.count("under_review")
     return [
         f"Recorded absent at {c['absent']} of {c['meetings_listed']} meetings with an extracted attendance section, "
+        # ISO days here: qa/site_checks.py official-numbers reads these two sentences ("Roll call votes, D to D:")
         f"{cov['from']} to {cov['to']}.",
         vote_sentence(c, cov["from"], cov["to"]),
         # A site-wide number: the same sentence, with the same number, on every official's page.
@@ -804,7 +805,8 @@ def official(official_id: str, facts) -> dict:
         "vote_legend_nc": (bar(_vote_segment_counts(c, "_nc"), OFFICIAL_BAR_SEGMENTS) if config.SHOW_UNCONFIRMED_VALUES
                            else None),
         "coverage": cov,
-        "coverage_sentence": f"Shows {cov['body']} records from {cov['from']} to {cov['to']}. {ix.fetched_sentence()}",
+        "coverage_sentence": f"Shows {cov['body']} records from {localdates.words(cov['from'])} to "
+                             f"{localdates.words(cov['to'])}. {ix.fetched_sentence()}",
         "totals": totals_sentences(ix, official_id),
         "rows": rows,
         # one group per year, newest first; with no rows at all, one empty group so the page keeps its skeleton
@@ -827,8 +829,9 @@ def roster_official(official_id: str, facts) -> dict:
     o = ix.seats.roster_only[official_id]
     return {"official": o, "initials": initials(o),
             "records": [ix.seats.view(r) for r in ix.seats.of(official_id)],
-            "coverage_sentence": f"Shows {ix.coverage['body']} records from {ix.coverage['from']} to "
-                                 f"{ix.coverage['to']}. {ix.fetched_sentence()}"}
+            "coverage_sentence": f"Shows {ix.coverage['body']} records from "
+                                 f"{localdates.words(ix.coverage['from'])} to "
+                                 f"{localdates.words(ix.coverage['to'])}. {ix.fetched_sentence()}"}
 
 
 # ---------------------------------------------------------------------------------------------------------------

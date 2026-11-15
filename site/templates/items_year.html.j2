@@ -45,7 +45,7 @@
   <ol class="events timeline">
   {% for e in it.events %}
     <li class="event fact ev-{{ e.type }}{% if e.roll_call and not e.roll_call.confirmed %} nc{% endif %}" data-fact-id="{{ e.id }}">
-      <p class="event-head"><span class="date"><a href="{{ root }}{{ e.meeting_href }}">{{ e.date }}</a></span> <span class="chip chip-type">{{ e.type_label }}</span>{% if e.roll_call and not e.roll_call.confirmed %} <span class="chip chip-status"><span aria-hidden="true">*</span> Not confirmed</span>{% endif %}</p>
+      <p class="event-head"><span class="date"><a href="{{ root }}{{ e.meeting_href }}">{{ e.date | day_words }}</a></span> <span class="chip chip-type">{{ e.type_label }}</span>{% if e.roll_call and not e.roll_call.confirmed %} <span class="chip chip-status"><span aria-hidden="true">*</span> Not confirmed</span>{% endif %}</p>
       {% if e.label %}<p class="label">{{ e.label }}</p>{% endif %}
       {% if e.roll_call %}{{ roll_call_block(e.roll_call, root) }}{% endif %}
       {% if e.motion %}{{ motion_block(e.motion, root) }}{% endif %}

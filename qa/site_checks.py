@@ -1308,6 +1308,9 @@ def check_provenance(site: Path, pages: dict[str, Page], facts: dict, roster: li
     eff = cfg["lines_effective"]
     import datetime as _dt
     banned = BANNED + (eff, (_dt.date.fromisoformat(eff) - _dt.timedelta(days=1)).isoformat())
+    # the same two days in the words pages print dates in ("May 11, 2026": onceover/dates/iso-in-page-text), so the
+    # ban holds whichever way a page writes a date; restated here, not imported from sitegen
+    banned += tuple(f"{d.strftime('%B')} {d.day}, {d.year}" for d in map(_dt.date.fromisoformat, banned[-2:]))
     texts = 0
     for rel in sorted(pages):
         body = (site / rel).read_text(encoding="utf-8")

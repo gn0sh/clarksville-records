@@ -12,7 +12,8 @@ shows its stored day labelled UTC_LABEL. Nothing here guesses a day.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+import re
+from datetime import date, datetime, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -26,6 +27,25 @@ _INSTANTS: dict[tuple[str, str], datetime] = {}
 
 class LocalDatesError(ValueError):
     pass
+
+
+# A whole ISO day in running text. Not part of an id, a file name or a URL ("2026-05-11-formal", "/2026-05-11.html").
+_ISO_DAY = re.compile(r"(?<![\w/.-])(\d{4})-(\d{2})-(\d{2})(?![\w-])")
+
+
+def words(value) -> str:
+    """The display form of every ISO day in `value`: "2026-05-11" -> "May 11, 2026" (onceover/dates/iso-in-page-text).
+    One form for every date a reader sees in headings, ledes, lists and tables; the month in words, no leading zero,
+    no weekday (a civil date is never shifted). Text with no ISO day, and a string that is not a real date, come back
+    unchanged. ISO stays in datetime attributes, URLs, ids, downloads, and the provenance lines qa/site_checks.py
+    reads (fetch days, seat records): those never pass through here."""
+    def one(m):
+        try:
+            d = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        except ValueError:
+            return m.group(0)
+        return f"{d.strftime('%B')} {d.day}, {d.year}"
+    return _ISO_DAY.sub(one, value) if isinstance(value, str) else value
 
 
 def zone(tz: str | None = None) -> ZoneInfo:

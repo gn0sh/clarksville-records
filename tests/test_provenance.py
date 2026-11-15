@@ -133,6 +133,25 @@ def test_check_provenance_bans_the_cutover_value(tmp_path, built, facts):
     assert any("banned" in p for p in problems)
 
 
+@pytest.mark.parametrize("back", [0, 1])
+def test_check_provenance_bans_the_cutover_value_written_in_words(tmp_path, built, facts, back):
+    """onceover/dates/cutover-words-ban-untested: pages print dates in words ("August 30, 2022"), so the split key and
+    the day before it are banned in that form too, each on its own."""
+    import datetime as dt
+    d = dt.date.fromisoformat(config.SITE["lines_effective"]) - dt.timedelta(days=back)
+    words = f"{d.strftime('%B')} {d.day}, {d.year}"
+    site = tmp_path / "site"
+    shutil.copytree(built, site)
+    pages = {p.relative_to(site).as_posix(): site_checks.parse(p) for p in site.rglob("*.html")}
+    clean, _ = site_checks.check_provenance(site, pages, facts, [], site_checks._site_cfg())
+    assert not any("banned" in p for p in clean)                 # the fixture itself prints neither day
+    f = site / "about.html"
+    f.write_text(f.read_text(encoding="utf-8").replace("</main>", f"<p>Lines changed on {words}.</p></main>"),
+                 encoding="utf-8")
+    problems, _ = site_checks.check_provenance(site, pages, facts, [], site_checks._site_cfg())
+    assert [p for p in problems if "banned" in p] == [f"about.html: contains banned {words!r}"]
+
+
 @pytest.mark.parametrize("text", [
     "Ward 2, 2026-02-19 to 2026-06-04",                                   # bare dates, no phrase
     "seen in the minutes 2026-02-19",                                     # a phrase that is not one of DATE_PHRASES

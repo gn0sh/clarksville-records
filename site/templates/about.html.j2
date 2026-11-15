@@ -15,7 +15,7 @@
 
 <section aria-labelledby="collected">
   <h2 id="collected">What is collected, and from where</h2>
-  <p>The site reads the official minutes of the {{ coverage.body }}, as published by the county, for {{ coverage.from }} to {{ coverage.to }}. Each minutes PDF is downloaded politely (it follows the site's robots rules and waits between requests) and kept unchanged. A computer program reads the text of each PDF. The county's minutes record motions, seconds, roll call votes and attendance. They do not record spoken comments, so none are shown.</p>
+  <p>The site reads the official minutes of the {{ coverage.body }}, as published by the county, for {{ coverage.from | day_words }} to {{ coverage.to | day_words }}. Each minutes PDF is downloaded politely (it follows the site's robots rules and waits between requests) and kept unchanged. A computer program reads the text of each PDF. The county's minutes record motions, seconds, roll call votes and attendance. They do not record spoken comments, so none are shown.</p>
   <p>Every fact on this site links to the minutes PDF, opened at the page where the fact appears, and shows the date the PDF was fetched: the day in {{ site.cfg.today_place }} (the site's time zone). A date marked (UTC day) is the day in Coordinated Universal Time, for a file whose fetch time is not recorded; it can be one day after the day in {{ site.cfg.today_place }}.</p>
 </section>
 
@@ -26,7 +26,7 @@
     {{ stat(glance.meetings, "meetings in the record") }}
     {{ stat(glance.rc_confirmed, "roll calls confirmed") }}
     {{ stat(glance.rc_unconfirmed, "roll calls shown but not confirmed*") }}
-    <li class="stat stat-dates"><span class="stat-num"><span class="nowrap">{{ glance.from }}</span> to <span class="nowrap">{{ glance.to }}</span></span><span class="stat-label">dates covered</span></li>
+    <li class="stat stat-dates"><span class="stat-num"><span class="nowrap">{{ glance.from | day_words }}</span> to <span class="nowrap">{{ glance.to | day_words }}</span></span><span class="stat-label">dates covered</span></li>
   </ul>
   {% for r in body_rates %}<p class="glance-note" data-confirmed-rate="{{ r.body }}">{{ r.text }} <a href="{{ root }}{{ r.href }}">{{ r.body }}</a> roll calls ({{ r.share }}) are confirmed against the official minutes; the rest are shown as not confirmed, each with its reason and a link to the source.</p>{% endfor %}
   <p class="glance-note">{{ coverage.body }}: {{ glance.motions_held }} motion {{ "attribution is" if glance.motions_held == 1 else "attributions are" }} under review. {{ glance.att_not_shown }} {{ "meeting has" if glance.att_not_shown == 1 else "meetings have" }} no attendance shown. See the <a href="#verified">data rules</a>.</p>

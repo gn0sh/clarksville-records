@@ -29,6 +29,9 @@
   --on-blue: #FFFFFF;
   --sun: #D2561B;             /* brand orange: the sun, the plate dot, focus rings. Never text. */
   --halo: #EFC4AF;
+  --moon: #FFFFFF;            /* the lit moon */
+  --moon-edge: #5F7099;       /* its hairline edge, and the tint of its dark part */
+  --moon-ring: #FFFFFF;       /* its soft ring */
   --focus: #D2561B;
   --band-bg: #0F1F3D;
   --band-fg: #FFFFFF;
@@ -45,6 +48,7 @@
   --measure: 64rem;
   --radius: 6px;
   --radius-lg: 12px;
+  --t-eyebrow: .72rem;        /* the smallest type on the site: mono uppercase labels (weekday, month, column heads) */
   --t-xs: 0.8rem;
   --t-sm: 0.9rem;
   --t-md: 1rem;
@@ -58,7 +62,7 @@
   :root:not([data-theme="light"]) {
     --bg: #0D1224; --sky: #15294F; --surface: #161C33; --surface-2: #1B2443; --fg: #EEF1F8; --muted: #A3ACC4;
     --border: #2C3552; --link: #A9BDE6; --link-visited: #C9B0EC; --blue: #4F6FB0; --blue-hover: #3F5C98; --on-blue: #FFFFFF;
-    --sun: #D2561B; --halo: #703420; --focus: #D2561B;
+    --sun: #D2561B; --halo: #703420; --focus: #D2561B; --moon: #C3CCDE; --moon-edge: #7C86A3; --moon-ring: #A9BDE6;
     --band-bg: #1A2F5A; --band-fg: #EEF1F8; --band-muted: #C3CCDE; --seal: #E8702A;
     --mark: #D5DAE8; --mark-soft: #7C86A3; --banner-bg: #3a3000; --banner-fg: #ffe58a;
     color-scheme: dark;
@@ -67,7 +71,7 @@
 :root[data-theme="dark"] {
   --bg: #0D1224; --sky: #15294F; --surface: #161C33; --surface-2: #1B2443; --fg: #EEF1F8; --muted: #A3ACC4;
   --border: #2C3552; --link: #A9BDE6; --link-visited: #C9B0EC; --blue: #4F6FB0; --blue-hover: #3F5C98; --on-blue: #FFFFFF;
-  --sun: #D2561B; --halo: #703420; --focus: #D2561B;
+  --sun: #D2561B; --halo: #703420; --focus: #D2561B; --moon: #C3CCDE; --moon-edge: #7C86A3; --moon-ring: #A9BDE6;
   --band-bg: #1A2F5A; --band-fg: #EEF1F8; --band-muted: #C3CCDE; --seal: #E8702A;
   --mark: #D5DAE8; --mark-soft: #7C86A3; --banner-bg: #3a3000; --banner-fg: #ffe58a;
   color-scheme: dark;
@@ -89,6 +93,10 @@ body {
 a { color: var(--link); text-underline-offset: 2px; text-decoration-thickness: 1px; }
 a:hover { text-decoration-thickness: 2px; }
 a:visited { color: var(--link-visited); }
+/* Rows that lead to a part of the site (the landing's doors, a hub card's row, the district and ward lists, a crumb)
+   are navigation, not a reading list: they stay navy after a visit (onceover/links/visited-on-nav-rows). A link to an
+   outside source keeps the visited colour. */
+.door a:visited, .hub-go a:not([data-ext]):visited, ol.districts a:visited, .crumb a:visited, .kicker-line a:visited { color: var(--link); }
 a:focus-visible, [tabindex]:focus-visible, select:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
@@ -127,7 +135,6 @@ a:focus-visible, [tabindex]:focus-visible, select:focus-visible {
 .plate-sun { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--sun); box-shadow: 0 0 0 4px var(--halo); }
 .plate { display: grid; }
 .plate-place { font-family: var(--font-mono); font-size: .62rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); line-height: 1.5; }
-.kicker { margin: 4px 0 0; color: var(--muted); font-size: var(--t-sm); }
 .site-header nav > ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0 18px; }
 .site-header nav a, .site-header nav a:visited {
   display: inline-block; padding: 8px 0 6px; color: var(--fg); text-decoration: none; font-size: var(--t-sm);
@@ -142,8 +149,10 @@ main { padding-top: 20px; padding-bottom: 40px; }
 
 /* ---- Type -------------------------------------------------------------------------------------------------- */
 h1, h2, h3, .stat-num, .site-name, .card-name, .badge { font-family: var(--font-head); }
-h1 { font-size: var(--t-2xl); line-height: 1.2; margin: 0.3em 0 0.25em; font-weight: 700; letter-spacing: -.015em; }
-h2 { font-size: var(--t-xl); line-height: 1.2; margin: 1.9em 0 0.5em; padding-bottom: 6px; border-bottom: 1px solid var(--border); font-weight: 700; letter-spacing: -.01em; }
+/* One heading system (onceover/type/two-heading-systems): Daylight's, as on the landing, the day page and finance.
+   Outfit 800, tight tracking, and no rule under an h2: the space above it and its weight set a section apart. */
+h1 { font-size: var(--t-2xl); line-height: 1.15; margin: 0.3em 0 0.25em; font-weight: 800; letter-spacing: -.02em; }
+h2 { font-size: var(--t-xl); line-height: 1.2; margin: 1.9em 0 0.5em; font-weight: 800; letter-spacing: -.02em; }
 h3 { font-size: var(--t-lg); line-height: 1.25; margin: 1.3em 0 0.4em; font-weight: 700; }
 p { margin: 0.5em 0; }
 code { font-family: var(--font-mono); font-size: 0.85em; overflow-wrap: anywhere; }
@@ -264,6 +273,8 @@ small { font-size: var(--t-sm); }
 }
 .year-nav a:visited { color: var(--fg); }
 .year-nav a:hover { background: var(--surface-2); }
+/* the year (or part) this page shows: filled like the chosen "Show records from" option, and told by aria-current */
+.year-nav a[aria-current], .year-nav a[aria-current]:visited, .year-nav a[aria-current]:hover { background: var(--blue); border-color: var(--blue); color: var(--on-blue); font-weight: 600; }
 h3[id^="y"] { margin-top: 1.4em; font-variant-numeric: tabular-nums lining-nums; scroll-margin-top: 12px; }
 ol.meetings[id^="y"] { scroll-margin-top: 48px; }
 
@@ -596,7 +607,7 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
 .landing.has-addr .addr-off { display: none; }
 .find .district-lookup { margin: 0; font-size: var(--t-sm); }
 
-.sec-h { font-size: var(--t-xl); line-height: 1.2; margin: 36px 0 4px; padding: 0; border: 0; font-weight: 700; letter-spacing: -.01em; }
+.sec-h { margin: 36px 0 4px; }
 .sec-sub { margin: 0 0 12px; color: var(--muted); font-size: var(--t-sm); max-width: 44rem; }
 .sec-sub[hidden] { display: none; }
 /* the doors: a card each (not itself a link) with full-width 44px link rows */
@@ -634,7 +645,7 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
 .meet-row:hover { background: var(--surface-2); }
 .meet-row:hover .meet-body { text-decoration: underline; text-decoration-thickness: 2px; }
 .meet-date { display: grid; justify-items: center; line-height: 1.05; }
-.meet-date .dow, .meet-date .mon { font-family: var(--font-mono); font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.meet-date .dow, .meet-date .mon { font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .meet-date b { font-family: var(--font-head); font-size: 1.5rem; font-weight: 800; }
 .meet-what { min-width: 0; }
 .meet-body { display: block; font-weight: 600; color: var(--link); }
@@ -736,7 +747,7 @@ ol.districts .d-holder a:hover { text-decoration-thickness: 2px; }
 .seat-line { margin: 2px 0 0; }
 details.officials-section > summary { cursor: pointer; list-style-position: inside; }
 /* the section name is an h2 before the <details>; the summary is a small show/hide toggle under it */
-h2.section-h { font-family: var(--font-head); font-size: var(--t-xl); font-weight: 600; line-height: 1.2; margin: 1.4em 0 0.2em; }
+h2.section-h { margin: 1.4em 0 0.2em; }
 details.officials-section > summary.section-summary { font-size: var(--t-sm); color: var(--muted); min-height: 44px;
   display: flex; align-items: center; border-bottom: 1px solid var(--border); }
 .basis { font-size: var(--t-sm); margin: 4px 0; }
@@ -814,6 +825,20 @@ table.history td.c-date, table.history td.c-date .date { overflow-wrap: normal; 
 details.row-details { margin-top: 2px; font-size: var(--t-xs); }
 details.row-details > summary { cursor: pointer; color: var(--muted); display: inline-block; min-height: 24px; }
 .row-details-body { padding: 4px 0; }
+/* Touch targets (onceover/touch/small-targets): on a touch screen every one of these is at least 44px tall. The year
+   pills, the filter chips, the filter boxes and a row's "Details" and "Show more" all grow in the layout itself. No
+   invisible hit area is laid over a neighbour (onceover/touch/hit-area-covers-source-link: a 44px ::after around
+   "Details" covered part of the "p. N" source link above it), so a tap on a source link always opens the source.
+   The footer's 28px rows are the owner's call. */
+@media (pointer: coarse) {
+  .year-nav a { display: inline-flex; align-items: center; box-sizing: border-box; min-height: 44px; padding: 4px 16px; }
+  dialog.drawer .nav-years a { display: inline-flex; align-items: center; box-sizing: border-box; min-height: 44px; }
+  .chip-filter { min-height: 44px; padding-left: 14px; padding-right: 14px; }
+  .filter-panel label { min-height: 44px; }
+  .filter-panel > summary { min-height: 44px; box-sizing: border-box; }
+  details.row-details > summary { display: inline-flex; align-items: center; box-sizing: border-box; min-height: 44px; min-width: 44px; }
+  .clamp-btn { box-sizing: border-box; min-height: 44px; min-width: 44px; }
+}
 .row-details-body p { margin: 2px 0; }
 table.attendance td.cite details.row-details { display: inline-block; }
 @media (max-width: 640px) {
@@ -862,7 +887,14 @@ table.fin-stack th[scope="row"] { font-weight: 500; text-align: left; }
 table.fin-stack caption { text-align: left; font-weight: 600; padding: 8px 12px; }
 table.fin-stack .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 table.sol-index td.c-date { white-space: nowrap; }
+/* As a table (wider than a phone) a date in words may break after the day ("September 30," / "2026"), never inside
+   a word, and the Source column is a little narrower, so its link stays inside the table's box at 1280
+   (onceover/dates/contracts-table-overflows-1280). */
 table.sol-index td.c-source { min-width: 9rem; }
+@media (min-width: 641px) {
+  table.sol-index td.c-date { white-space: normal; overflow-wrap: normal; min-width: 7.9em; }
+  table.sol-index td.c-source { min-width: 8rem; }
+}
 table.sol-index td.c-docs { min-width: 12rem; }   /* Inter runs wider than the old fallback: keep the doc note from stacking tall */
 details.words { margin: 16px 0; font-size: var(--t-sm); }
 details.words > summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
@@ -946,9 +978,8 @@ table.budget td.c-source { min-width: 9rem; }
    Tables are the mock's: a 2px ink rule on top, hairlines between rows, mono labels for column heads, mono tabular
    figures; no box and no stripes. Text pairs are the M1 ones (ink, muted and link on paper and surface, 4.5:1 or
    better in both themes); focus rings are the sun at 3px on paper and surface. State is still words only. */
-.fin > h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); font-weight: 800; line-height: 1.05; letter-spacing: -.02em; margin: 0.2em 0 0.35em; text-wrap: balance; }
-.fin h2 { font-weight: 800; letter-spacing: -.02em; }
-.fin .crumb, .fin .h1-sub { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; }
+.fin > h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); line-height: 1.05; margin: 0.2em 0 0.35em; text-wrap: balance; }
+.fin .crumb, .fin .h1-sub { font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: .1em; text-transform: uppercase; }
 .fin .crumb { margin: 0; }
 .fin .crumb a { display: inline-block; padding: 6px 0; }
 .fin .h1-sub { letter-spacing: .08em; vertical-align: middle; }
@@ -958,14 +989,14 @@ table.budget td.c-source { min-width: 9rem; }
 .fin .note-phone > summary, .fin details.words > summary, .fin details.fin-jump > summary { border-radius: var(--radius); }
 .fin details.words > summary, .fin details.fin-jump > summary { font-weight: 600; color: var(--link); width: max-content; max-width: 100%; }
 .fin .sol-filters.toolbar { padding: 14px 16px; border-radius: 18px; }
-.fin .sol-filters label { font-family: var(--font-mono); font-size: .68rem; font-variant-caps: normal; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px; }
+.fin .sol-filters label { font-family: var(--font-mono); font-size: var(--t-eyebrow); font-variant-caps: normal; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px; }
 .fin .sol-filters input[type="search"] { border: 2px solid var(--fg); border-radius: var(--radius-lg); background: var(--surface); }
 .fin .sol-filters select { border-radius: var(--radius-lg); background: var(--surface); }
 .fin .sol-filters button, .fin .more-btn, .fin .empty-note button { font-family: var(--font-head); font-weight: 700; font-size: var(--t-md); border-radius: var(--radius-lg); }
 .fin .sol-filters button[type="submit"]:hover { background: var(--blue-hover); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .fin .fin-scroll { border: 0; border-top: 2px solid var(--fg); border-radius: 0; background: transparent; }
 .fin table.fin-stack thead th {
-  background: transparent; font-family: var(--font-mono); font-size: .68rem; font-weight: 400; font-variant-caps: normal;
+  background: transparent; font-family: var(--font-mono); font-size: var(--t-eyebrow); font-weight: 400; font-variant-caps: normal;
   text-transform: uppercase; letter-spacing: .1em; color: var(--muted);
 }
 .fin table.budget thead th.num { font-size: .74rem; letter-spacing: .02em; text-transform: none; color: var(--fg); }  /* the header as printed */
@@ -1044,7 +1075,7 @@ ul.feed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(mi
    navy on dark, so the orange button stands 3:1 or better off it in both themes). On the card the ring is white, not
    the sun. */
 .mn-card { background: var(--band-bg); color: var(--on-blue); border-radius: 18px; padding: clamp(18px, 3.2vw, 30px); display: grid; gap: 14px; max-width: 44rem; margin: 1.2em 0 1.6em; min-width: 0; }
-.mn-card h2 { margin: 0; font-size: var(--t-xl); font-weight: 800; color: var(--on-blue); }
+.mn-card h2 { margin: 0; color: var(--on-blue); }
 .mn-card h3 { margin: 0 0 6px; font-size: var(--t-md); color: var(--on-blue); }
 .mn-card p { margin: 0; }
 .mn-card .small { color: var(--on-blue); opacity: .92; font-size: var(--t-sm); }
@@ -1120,6 +1151,23 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
   transform: translateY(calc((1 - var(--sun-alt) * var(--sun-max)) * 100%));
 }
 @media (prefers-reduced-motion: no-preference) { .sky-sun { transition: transform 1.4s cubic-bezier(.2, .7, .2, 1); } }
+/* The moon: quiet, drawn by static/sky.js where it really is over the site's place. The script puts it in the open
+   sky only (--moon-left, --moon-top: its box inside the band), never over the header's words or the sun, so nothing
+   is ever read across it. About 28px on a phone, 40px wide; a soft ring like the sun's, cooler and fainter. The lit
+   part is --moon with a hairline --moon-edge; the dark part is a faint disc. Paler while the drawn sun is up. It
+   does not animate. Decorative only: aria-hidden in the markup. */
+.sky-moon-frame { position: absolute; inset: 0; pointer-events: none; }
+.sky-moon {
+  --moon-size: clamp(28px, 3.1vw, 40px);
+  position: absolute; display: block; left: var(--moon-left, 0); top: var(--moon-top, 0);
+  width: var(--moon-size); height: var(--moon-size); border-radius: 50%;
+  box-shadow: 0 0 0 calc(var(--moon-size) * .14) color-mix(in srgb, var(--moon-ring) 30%, transparent);
+}
+.sky-moon[hidden] { display: none; }
+.sky-moon svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.sky-moon[data-day] { opacity: .8; }
+.moon-disc { fill: color-mix(in srgb, var(--moon-edge) 30%, transparent); stroke: var(--moon-edge); stroke-width: .5; stroke-opacity: .45; }
+.moon-lit { fill: var(--moon); stroke: var(--moon-edge); stroke-width: .7; stroke-linejoin: round; }
 .has-sky .masthead { z-index: 1; }
 /* A body's landing page (a "Show records from" target other than All) has the sun but no date line under the name
    plate, so the plate, tag and kicker stop short of the sun's column (its disc and inner ring): no text over the sun */
@@ -1200,7 +1248,7 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 .day-strip button:focus-visible { outline: 3px solid var(--fg); outline-offset: 1px; }
 .day-strip .wk-step { font-family: var(--font-head); font-size: 1.6rem; line-height: 1; border-color: var(--border); }
 .day-strip .wk-step:disabled { color: var(--muted); cursor: default; opacity: .55; }
-.day-dow { font-family: var(--font-mono); font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.day-dow { font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .day-strip .day b { font-family: var(--font-head); font-size: 1.3rem; font-weight: 800; line-height: 1.1; }
 .day-strip .day em { display: flex; gap: 3px; height: 6px; }
 .day-strip .day[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
@@ -1211,6 +1259,9 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 .dot-rpc { background: var(--mark-soft); }
 .dot-bids { background: transparent; box-shadow: inset 0 0 0 1.5px var(--fg); }
 .day-strip .day[aria-pressed="true"] .dot-bids { box-shadow: inset 0 0 0 1.5px var(--bg); }
+/* the chosen day is ink: a navy dot on it is about 1.05:1, so the plain dot is drawn in the paper colour there (the
+   county's orange and the RPC's grey dots stay, each 3:1 or better on the ink) */
+.day-strip .day[aria-pressed="true"] .dot:not(.dot-county):not(.dot-rpc):not(.dot-bids) { background: var(--bg); }
 .day-card-hd .dot { width: 10px; height: 10px; margin-right: 8px; vertical-align: middle; }
 
 .day-list { display: grid; gap: 0; }
@@ -1218,9 +1269,9 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 .day-sheet[hidden] { display: none; }
 html:not(.js) .day-sheet.is-empty { display: none; }
 .day-head { display: grid; gap: 2px; margin-bottom: 12px; }
-.day-head h2 { margin: 0; font-family: var(--font-head); font-size: clamp(1.6rem, 4vw, 2.3rem); font-weight: 800; line-height: 1.05; letter-spacing: -.02em; }
+.day-head h2 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.3rem); line-height: 1.05; }
 .day-head h2:focus { outline: none; }
-.day-when { margin: 0; min-height: 1.2em; font-family: var(--font-mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; font-variant-caps: normal; color: var(--muted); }
+.day-when { margin: 0; min-height: 1.2em; font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: .1em; text-transform: uppercase; font-variant-caps: normal; color: var(--muted); }
 .day-empty { color: var(--muted); margin: 6px 0 18px; }
 .day-card {
   display: grid; gap: 8px; min-width: 0; margin: 0 0 14px; padding: clamp(14px, 2.6vw, 22px);
@@ -1312,6 +1363,15 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 
 .hub-kicker { margin: 0 0 4px; font-family: var(--font-mono); font-size: var(--t-xs); font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .hub-kicker + h1 { margin-top: 0; }
+/* The one header of every body's landing page (_hub.html.j2 body_head): kicker, h1, lede, coverage line, how recent
+   the records are, Watch. The same measure and the same gaps on all four, whichever rows a body has. */
+.body-head > * { max-width: 44rem; }
+.body-head > h1 { max-width: none; }
+.body-head > .lede { margin: 0 0 8px; }
+.body-head > .body-cover { margin: 0 0 8px; color: var(--muted); font-size: var(--t-sm); }
+.body-head > .freshness { margin: 0 0 8px; }
+.body-head > .watch-line { margin: 0; }
+.body-notes { max-width: 44rem; font-size: var(--t-sm); }
 .hub { margin: 20px 0 24px; }
 .hub-cards, .bodies-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr)); gap: 12px; }
 .bodies-list { grid-template-columns: repeat(auto-fill, minmax(min(13rem, 100%), 1fr)); }
