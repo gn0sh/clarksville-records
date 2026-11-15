@@ -1,0 +1,7 @@
+[
+  {"VoteId": 1, "VotePersonName": "Member One", "VoteValueName": "Aye"},
+  {"VoteId": 2, "VotePersonName": "Member Two", "VoteValueName": "Nay"},
+  {"VoteId": 3, "VotePersonName": "Member Three", "VoteValueName": "Absent"},
+  {"VoteId": 4, "VotePersonName": "Member Four", "VoteValueName": "Present"},
+  {"VoteId": 5, "VotePersonName": "", "VoteValueName": "Aye"}
+]

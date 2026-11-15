@@ -1,0 +1,27 @@
+# DRAFT city pack (expansion proof of concept, docs/expansion/daylight-template.md). NOT collected: the per-city
+# launch checklist (robots.txt and terms for webapi.legistar.com and the city's file host, the owner's go-ahead for
+# this city) has not been run. The Legistar client name "salem" was seen answering
+# https://webapi.legistar.com/v1/salem/matters/8174 on 2026-11-15 (JSON, MatterBodyName "City Council").
+city: salem-or
+client: salem
+body_name: City Council          # as Legistar names the body (MatterBodyName above); recheck against /bodies
+official_title: City Councilor   # UNVERIFIED: check the minutes' own wording before any page prints it
+launch_days: 365                 # launch with one year
+earliest: "2016-01-01"           # UNVERIFIED: how far back the city's Legistar holds minutes; backfill stops here
+# Legistar vote labels as this city's clerk enters them -> schema vote values. UNVERIFIED until a real /votes answer
+# is read; an unknown label becomes "other" with its raw text kept.
+vote_values:
+  "Aye": "yes"
+  "Yes": "yes"
+  "Nay": "no"
+  "No": "no"
+  "Abstain": "abstain"
+  "Recused": "abstain"
+  "Absent": "other"
+  "Excused": "other"
+kind_rules:
+  - [work-session, '\bwork\s*session\b']
+  - [special, '\bspecial\b']
+  - [public-hearing, '\bpublic\s+hearing\b']
+  - [regular, '^']
+extra_hosts: []                  # the PDF host EventAgendaFile links to (often <client>.legistar1.com): add when seen

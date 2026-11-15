@@ -1,0 +1,12 @@
+[
+  {"EventId": 101, "EventBodyName": "City Council", "EventDate": "2026-04-27T00:00:00", "EventTime": "6:00 PM",
+   "EventComment": "", "EventAgendaFile": "https://example.legistar1.com/a101.pdf",
+   "EventMinutesFile": "https://example.legistar1.com/m101.pdf", "EventVideoPath": null,
+   "EventInSiteURL": "https://example.legistar.com/MeetingDetail.aspx?ID=101"},
+  {"EventId": 102, "EventBodyName": "City Council", "EventDate": "2026-05-04T00:00:00", "EventTime": "5:00 PM",
+   "EventComment": "Work Session", "EventAgendaFile": "https://example.legistar1.com/a102.pdf",
+   "EventMinutesFile": null, "EventVideoPath": "stream/relative/path.mp4", "EventInSiteURL": null},
+  {"EventId": 103, "EventBodyName": "Planning Commission", "EventDate": "2026-05-05T00:00:00", "EventTime": "6:00 PM",
+   "EventComment": "", "EventAgendaFile": null, "EventMinutesFile": null, "EventVideoPath": null, "EventInSiteURL": null},
+  {"EventId": 104, "EventBodyName": "City Council", "EventDate": "not a date", "EventComment": ""}
+]
