@@ -207,7 +207,7 @@ def test_about_page_explains_the_rule(tmp_path, facts):
     pages = build_pages(tmp_path, copy.deepcopy(facts))
     para = next(p for p in re.findall(r"<p>(.*?)</p>", pages["about.html"], re.S) if "not confirmed" in p)
     expected = (
-        "A computer program can misread a page, so each extracted fact is checked automatically before it is shown. "
+        "A computer program can misread a page, so each fact it reads is checked automatically before it is shown. "
         "For a roll call the checks are: every member present has exactly one recorded vote; the Yes, No and Abstain "
         "totals equal the totals the minutes state; the recorded outcome agrees with the votes; and every name matches "
         "the roster for that meeting. A roll call that passes every check is <em>confirmed</em>. A roll call that "
@@ -225,8 +225,8 @@ def test_about_page_explains_the_rule(tmp_path, facts):
         "data files below, because the program can misread names in them. Each motion is shown as its kind, such as "
         "&ldquo;Motion to adopt&rdquo;. A roll call shows its outcome as Passed, Failed or Other with a tally counted "
         "from the votes shown on the page, never the minutes' own outcome sentence. Attendance that fails its checks "
-        "is not shown. Scanned minutes with no readable text are shown as &ldquo;Attendance not extracted for this "
-        "meeting.&rdquo;")
+        "is not shown. Scanned minutes with no readable text are shown as &ldquo;The attendance list could not be read "
+        "from the minutes of this meeting.&rdquo;")
     assert para == expected
 
 

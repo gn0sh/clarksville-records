@@ -42,7 +42,7 @@
   {% endif %}
   {% if m.cases %}
   <h3 id="{{ m.id }}-cases">Cases on the agenda ({{ m.cases | length }})</h3>
-  {% if m.agenda and m.agenda.ocr %}<p class="muted">The agenda is a scan with no text layer; its cases were read by OCR (text recognition), which can misread a character. The agenda page is the record.</p>{% endif %}
+  {% if m.agenda and m.agenda.ocr %}<p class="muted">The agenda is a scanned image, so its cases were read by OCR (text recognition), which can misread a character. The agenda page is the record.</p>{% endif %}
   {% for c in m.cases %}
   <div class="item" id="{{ c.anchor }}">
     <p class="item-num">{{ c.case_type }}{% if c.agenda_part %} · {{ c.agenda_part }}{% endif %}</p>
@@ -71,7 +71,7 @@
   </div>
   {% endfor %}
   {% elif m.agenda and m.agenda.no_text %}
-  <p class="muted">The agenda is a scan with no text layer; its cases were not read.</p>
+  <p class="muted">The agenda is a scanned image with no readable text, so its cases were not read.</p>
   {% elif m.agenda %}
   <p class="muted">No case items read from this agenda.</p>
   {% endif %}

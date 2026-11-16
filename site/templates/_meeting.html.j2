@@ -9,7 +9,7 @@
     {% elif m.attendance_state == "under_review" %}
     {{ stat("n/a", "attendance under review, not shown") }}
     {% else %}
-    {{ stat("n/a", "attendance not extracted, not shown") }}
+    {{ stat("n/a", "attendance could not be read, not shown") }}
     {% endif %}
     {{ stat(m.stats.motions, "motions") }}
     {{ stat(m.stats.rc_confirmed, "roll calls confirmed") }}
@@ -42,7 +42,7 @@
   {% elif m.attendance_state == "under_review" %}
   <p>Attendance for this meeting is under review and is not shown.</p>
   {% else %}
-  <p>Attendance not extracted for this meeting.</p>
+  <p>The attendance list could not be read from the minutes of this meeting.</p>
   {% endif %}
 </section>
 

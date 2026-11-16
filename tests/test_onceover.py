@@ -95,7 +95,7 @@ def test_the_lines_site_checks_read_keep_iso_days(pages):
     seat = re.sub(r"<[^>]+>", "", re.search(r'<p class="seat-line">.*?</p>', official, re.S).group(0))
     assert re.search(ISO, seat) and not re.search(WORDS, seat), seat
     assert re.search(r"Roll call votes, " + ISO + " to " + ISO + ":", official)
-    assert re.search(r"Recorded absent at \d+ of \d+ meetings with an extracted attendance section, " + ISO, official)
+    assert re.search(r"Recorded absent at \d+ of \d+ meetings whose attendance list was read, " + ISO, official)
     meeting = next(pages[r] for r in sorted(pages) if re.fullmatch(r"meetings/" + ISO + r"-\w+\.html", r))
     assert re.search(r"fetched " + ISO, meeting) and not re.search(r"fetched " + WORDS, meeting)
 

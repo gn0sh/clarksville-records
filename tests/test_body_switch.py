@@ -216,7 +216,7 @@ def test_city_and_rpc_homes_are_their_hubs(site, html):
 def test_rpc_votes_card_is_coming_only_while_no_vote_is_shown(html, tmp_path, rpc_cfg, monkeypatch):  # noqa: F811
     votes = hub_cards(html["rpc/index.html"])["votes"]          # this build shows no RPC vote
     assert '<span class="chip chip-coming">Coming</span>' in votes
-    assert "Votes return after the minutes reader passes a fresh check." in plain(votes)
+    assert "Votes are being checked against the minutes again and are not shown for now." in plain(votes)
     assert f'<a data-ext="record" href="{rpc_cfg["record_url"]}"' in votes
     from sitegen import rpc as rpc_mod
     monkeypatch.setattr(rpc_mod.Rpc, "votes_shown", property(lambda self: True))
