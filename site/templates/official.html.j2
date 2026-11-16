@@ -46,7 +46,7 @@ Of <span data-n="rc_total{{ sfx }}">{{ st['rc_total' ~ sfx] }}</span> {{ what }}
   <p class="muted">* Shown as printed in the minutes; they did not pass the automatic checks. Each row in the history links to its page. Confirmed and not confirmed votes are never added together.</p>
   {% else %}<p class="muted">* They did not pass the automatic checks, so no vote from them is shown here. Each row in the history links to its page of the minutes. Confirmed and not confirmed votes are never added together.</p>{% endif %}
   <h3 id="vote-list-h">Vote list</h3>
-  {% if site.vote_lists_omitted %}<p>Each confirmed vote with its item, meeting date and page of the minutes, on one page you can filter and download as CSV, is on the full site; this preview leaves those pages out.</p>
+  {% if site.get("vote_lists_omitted") %}<p>Each confirmed vote with its item, meeting date and page of the minutes, on one page you can filter and download as CSV, is on the full site; this preview leaves those pages out.</p>
   {% else %}<p>Each confirmed vote with its item, meeting date and page of the minutes, on one page you can filter and download as CSV. Choose a vote:</p>
   <ul class="vote-list-links" aria-labelledby="vote-list-h">
     {% for c in vote_list.counts %}<li><a href="{{ root }}{{ vote_list.href }}?vote={{ c.key }}">{{ c.label }} ({{ c.n }})</a></li>
@@ -64,24 +64,6 @@ Of <span data-n="rc_total{{ sfx }}">{{ st['rc_total' ~ sfx] }}</span> {{ what }}
   {% if held_by_check %}<p class="muted">* Not confirmed: the automatic checks could not confirm it against the minutes. Each such row below says which check did not pass and links to the page. Confirmed and not confirmed votes are never added together.</p>{% else %}<p class="muted">* Not confirmed: the page in the minutes was hard to read, so the automatic checks could not confirm it. Each such row below links to the page. Confirmed and not confirmed votes are never added together.</p>{% endif %}
 </section>
 
-{% if called_on is defined %}
-<section aria-labelledby="called-on-h">
-  <h2 id="called-on-h">Called on in meetings (transcript)</h2>
-  <p>Where the automatic transcript of a meeting's video shows the chair calling on this person by title and surname, with the surname matched to that meeting's attendance list in the minutes (never to the voice). Each entry links to that moment in the city's video and quotes about 20 seconds of transcript text after the call-on, word for word. The transcript is made by speech-recognition software and may contain errors; the video is the record.</p>
-  {% if called_on %}
-  <ul class="call-ons">
-    {% for r in called_on %}
-    <li data-meeting="{{ r.meeting_id }}"><a href="{{ root }}{{ r.meeting_href }}">{{ r.meeting_label | day_words }}</a>: {% if r.video_href %}<a data-ext="video" href="{{ r.video_href }}" target="_blank" rel="noopener noreferrer">{{ r.time }} in the video<span class="sr-only"> (opens in a new tab)</span></a>{% else %}{{ r.time }} in the video{% endif %}{% if r.line_href %} (<a href="{{ root }}{{ r.line_href }}">line in the transcript</a>){% endif %}
-      <p class="muted">Matched words: &ldquo;<span class="tx-matched" data-transcript>{{ r.matched }}</span>&rdquo;</p>
-      <blockquote class="tx-quote"><p class="muted">Transcript text after the chair called on {{ official.name }}:</p><p data-transcript>{{ r.excerpt }}</p></blockquote></li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p>No call-ons found in the {{ transcripts_read }} meeting {{ "transcript" if transcripts_read == 1 else "transcripts" }} read so far.</p>
-  {% endif %}
-</section>
-
-{% endif %}
 <section aria-labelledby="history-h">
   <h2 id="history-h">History</h2>
   {% if year_pages is not none %}
@@ -126,4 +108,24 @@ Of <span data-n="rc_total{{ sfx }}">{{ st['rc_total' ~ sfx] }}</span> {{ what }}
   </div>
   {% endif %}
 </section>
+{% if called_on is defined %}
+{# Collapsed (onceover/official/transcripts-on-demand, Brian Nov 14): one closed line at the end of every member's page,
+   the same for everyone; the transcripts themselves stay on each meeting's and item's page. #}
+<details class="call-ons-more">
+  <summary>Called on in meetings (transcript) <span class="muted">({{ called_on | length }} {{ "entry" if called_on | length == 1 else "entries" }})</span></summary>
+  <p>Where the automatic transcript of a meeting's video shows the chair calling on this person by title and surname, with the surname matched to that meeting's attendance list in the minutes (never to the voice). Each entry links to that moment in the city's video and quotes about 20 seconds of transcript text after the call-on, word for word. The transcript is made by speech-recognition software and may contain errors; the video is the record.</p>
+  {% if called_on %}
+  <ul class="call-ons">
+    {% for r in called_on %}
+    <li data-meeting="{{ r.meeting_id }}"><a href="{{ root }}{{ r.meeting_href }}">{{ r.meeting_label | day_words }}</a>: {% if r.video_href %}<a data-ext="video" href="{{ r.video_href }}" target="_blank" rel="noopener noreferrer">{{ r.time }} in the video<span class="sr-only"> (opens in a new tab)</span></a>{% else %}{{ r.time }} in the video{% endif %}{% if r.line_href %} (<a href="{{ root }}{{ r.line_href }}">line in the transcript</a>){% endif %}
+      <p class="muted">Matched words: &ldquo;<span class="tx-matched" data-transcript>{{ r.matched }}</span>&rdquo;</p>
+      <blockquote class="tx-quote"><p class="muted">Transcript text after the chair called on {{ official.name }}:</p><p data-transcript>{{ r.excerpt }}</p></blockquote></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No call-ons found in the {{ transcripts_read }} meeting {{ "transcript" if transcripts_read == 1 else "transcripts" }} read so far.</p>
+  {% endif %}
+</details>
+
+{% endif %}
 {% endblock %}

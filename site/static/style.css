@@ -1414,3 +1414,6 @@ table.vote-table small { display: block; color: var(--muted); }
   table.vote-table th, table.vote-table td { padding: 8px 6px; }
   table.vote-table td:first-child { white-space: normal; min-width: 4.6rem; }
 }
+/* A member's call-ons from the transcripts, collapsed (onceover/official/transcripts-on-demand) */
+.call-ons-more { margin: 1.4em 0; }
+.call-ons-more > summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
