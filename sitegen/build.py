@@ -556,7 +556,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
 
     _clean(out, [c.slug for c in cixs] + ([rpx.slug] if rpx else []), export=export)
     site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs, rpc=rpx,
-                              city_budget=city_bg.index if city_bg is not None else None)
+                              city_budget=city_bg.index if city_bg is not None else None,
+                              city_budget_books=budget_views.books_phrase(city_bg.books) if city_bg is not None
+                              else None)
     site["internal"] = internal
     # "Show records from" (views.site_context, sitegen/bodies.py): which page is each option's own, and the hub cards
     switch_current = (site["switch"] or {}).get("current") or {}

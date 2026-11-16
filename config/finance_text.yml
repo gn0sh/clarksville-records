@@ -175,6 +175,11 @@ budget_city:
   fund_name: Fund as printed
   note_e: "Amounts are dollars and cents as printed in the book; revenue prints as a negative number, as the book prints it. Each book prints its line-item report one report run at a time, and its fund totals and report totals add revenue and spending together, as printed. Every total shown is printed in the book; none is added up here."
   run_totals_name: "Report totals (TOTAL REVENUE, TOTAL EXPENSE, GRAND TOTAL of each report run)"
+  # one fixed sentence on city/finance/index.html: what the reader does not read (docs/research/
+  # city-budget-build-2026-11-16.md item 5), then the official link (a config path, as switch notes use)
+  not_covered:
+    text: "Only each book's line-item report is read here; the Gas & Water comparison report, CDE electric and broadband, transit, outside agencies, CDBG, debt schedules and cash-flow summaries are not, and are in the full books on the"
+    link: {from: official_records.city_finance, kind: record}
   not_read_default: "This book is linked, not read."
   not_read:
     fy2025-adopted: "Linked only, not read: its line-item pages have no usable text layer. Its FY2025 figures (2025 ORIG BUD, 2025 REVISED BUD, 2025 ACTUAL, 2025 PROJECTION) are printed in the columns of the Fiscal Year 2026 Budget (Final Submission), which is read here."

@@ -390,7 +390,8 @@ switch:
         - key: finance                       # city/finance/index.html (finance-contracts 10)
           title: City budget
           go: City budget books
-          text: "The city budget books, fund by fund: FY2024, FY2026 and FY2027 as presented 5/29/2026."
+          # {books}: the books read, from data/localities/clarksville-tn/finance.json (budget_views.books_phrase)
+          text: "The city budget books, fund by fund: {books}."
         - key: finance-committee             # one card per committee, as the county's Budget Committee has
           title: Finance Committee
           coming: true

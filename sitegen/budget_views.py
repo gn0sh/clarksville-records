@@ -327,6 +327,22 @@ def _names(bg: Budget, fund_no: str) -> list[dict]:
     return out
 
 
+def books_phrase(books: list[dict]) -> str:
+    """The books read, from the data, for a hub card: "FY2024 (adopted), FY2026 (final submission) and FY2027 (as
+    presented 5/29/2026)" (books in fiscal-year order, each with its edition as named in finance.yml)."""
+    names = [f"FY{b['fiscal_year']} ({b['edition']})" for b in sorted(books, key=lambda b: (b["fiscal_year"], b["id"]))]
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1]
+
+
+def not_covered(text: dict) -> dict | None:
+    """The budget index's fixed sentence of what is not read, with its official link (`budget_city.not_covered`);
+    None for a body whose words name none (the county) or whose link is not configured."""
+    from .bodies import official_link
+    nc = text.get("not_covered") if text is not B else None
+    link = official_link((nc or {}).get("link"))
+    return {"text": nc["text"], "link": link} if nc and nc.get("text") and link else None
+
+
 def finance_index(bg: Budget, export: bool = True) -> dict:
     """finance/index.html (design 6): books, then funds in the book's order, the same row for every fund and no
     amounts. No committee roster: finance.json names no one (AC-F9 has nothing to link here yet)."""
@@ -344,7 +360,7 @@ def finance_index(bg: Budget, export: bool = True) -> dict:
              for no in bg.funds]
     from .fin_views import EXPORTS_READY
     return dict(_common(bg), books=books, funds=funds, missing=_actuals_missing(bg), words=_words(bg.b["words"]),
-                capital_href=CAPITAL if bg.capital_fund else None, not_read=not_read,
+                capital_href=CAPITAL if bg.capital_fund else None, not_read=not_read, not_covered=not_covered(bg.b),
                 exports=EXPORTS_READY and not bg.fx.fixture and export and not bg.prefix)
 
 

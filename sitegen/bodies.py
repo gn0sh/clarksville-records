@@ -108,7 +108,12 @@ def build(site: dict, councils=(), rpc=None) -> dict | None:
                               "link": official_link(c.get("link"), rpc),
                               "door": c.get("door")})   # the landing door that names it as coming (views.door_coming)
             elif hrefs.get(key, {}).get(c["key"]):
-                cards.append({"key": c["key"], "title": c["title"], "text": c["text"], "coming": False,
+                text = c["text"]
+                if "{books}" in text:          # the city budget card: the books read, from the data (no year list here)
+                    if not site.get("city_budget_books"):
+                        continue
+                    text = text.format(books=site["city_budget_books"])
+                cards.append({"key": c["key"], "title": c["title"], "text": text, "coming": False,
                               "href": hrefs[key][c["key"]], "go": c.get("go") or c["title"], "link": None})
         hubs[key] = {"key": key, "label": b["label"], "href": home[key], "kicker": b.get("kicker"),
                      "title": b.get("title"), "lede": b.get("lede"), "note": b.get("note"), "cards": cards,

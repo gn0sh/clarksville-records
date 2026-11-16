@@ -162,3 +162,45 @@ def test_city_budget_official_record_is_the_city_page(pages):
     rec = config.SITE["official_records"]["city_finance"]["url"]
     assert rec in pages["city/finance/index.html"] and rec in pages["city/finance/general-fund.html"]
     assert rec not in pages["finance/index.html"]
+
+
+def test_hub_card_names_the_books_from_the_data_and_index_says_what_is_not_read(pages, fin):
+    # city-budget/coverage-undisclosed: one fixed sentence of what the reader does not read, with the official page
+    hub = pages["city/index.html"]
+    card = text_of(re.search(r'<li class="hub-card" data-card="finance" id="card-finance">.*?</li>', hub, re.S).group(0))
+    assert budget_views.books_phrase(fin["books"]) in card and "{books}" not in card
+    assert "FY2024 (adopted), FY2026 (final submission) and FY2027 (as presented 5/29/2026)" in card
+    idx = main_of(pages["city/finance/index.html"])
+    note = re.search(r'<p class="note" id="not-covered">.*?</p>', idx, re.S).group(0)
+    nc = config.FIN_TEXT["budget_city"]["not_covered"]["text"]
+    assert text_of(note).strip().startswith(nc)
+    for part in ("Gas & Water", "CDE electric and broadband", "transit", "CDBG", "debt schedules"):
+        assert part in nc
+    assert f'href="{config.SITE["official_records"]["city_finance"]["url"]}"' in note
+    assert 'id="not-covered"' not in pages["finance/index.html"]          # the county's index names none
+
+
+def test_books_phrase_lists_books_by_fiscal_year():
+    books = [{"id": "b", "fiscal_year": 2027, "edition": "proposed"}, {"id": "a", "fiscal_year": 2024,
+                                                                         "edition": "adopted"}]
+    assert budget_views.books_phrase(books) == "FY2024 (adopted) and FY2027 (proposed)"
+    assert budget_views.books_phrase(books[:1]) == "FY2027 (proposed)"
+
+
+def test_preview_over_its_cap_leaves_the_city_budget_out_with_no_dangling_link(tmp_path, monkeypatch, capsys):
+    """sitegen/build.py: a preview still over its cap without transcripts and the export is built again without
+    city/finance/ (city_budget=False): no page of it, and no page links to it."""
+    monkeypatch.setitem(config.MAX_FILES_BY_TARGET, "preview", 10 ** 6)          # first, the build with the city
+    full = build(ROOT / "data" / "facts.json", tmp_path / "a", target="preview", transcripts=False, export=False)
+    assert full["city_budget"] is True
+    monkeypatch.setitem(config.MAX_FILES_BY_TARGET, "preview", full["files_with_export"] - 1)
+    out = tmp_path / "b"
+    r = build(ROOT / "data" / "facts.json", out, target="preview", transcripts=False, export=False)
+    assert r["city_budget"] is False and r["files_with_export"] <= config.max_files("preview")
+    assert "building again without the city budget pages" in capsys.readouterr().err
+    assert not (out / "city" / "finance").exists()
+    pages = {p.relative_to(out).as_posix(): p.read_text(encoding="utf-8") for p in out.rglob("*.html")}
+    assert len(pages) > 50
+    assert not [k for k, v in pages.items() if re.search(r'href="[^"]*city/finance/', v)]
+    assert 'data-card="finance"' not in pages["city/index.html"]           # the hub card goes with the pages
+    assert "budget books have their own pages" not in pages["finance/index.html"]

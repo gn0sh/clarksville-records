@@ -400,15 +400,17 @@ def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), 
 
 
 def site_context(facts, contracts: bool = False, budget: tuple = (), councils=(), rpc=None,
-                 city_budget: str | None = None) -> dict:
+                 city_budget: str | None = None, city_budget_books: str | None = None) -> dict:
     """`contracts`: finance.json is loaded, so the nav lists Bids and awards (design finance-contracts 1).
     `budget`: the budget pages built (see _nav). `councils`: the council.CouncilIndex of each council built.
-    `city_budget`: the city budget index page when it is built (city/finance/index.html; the hub card and door)."""
+    `city_budget`: the city budget index page when it is built (city/finance/index.html; the hub card and door).
+    `city_budget_books`: the books it reads, from the data (budget_views.books_phrase; the hub card's {books})."""
     from . import bodies   # here, not at the top: bodies reads https_url from this module
     ix = _ix(facts)
     cfg = config.SITE
     ctx = _site_context(ix, cfg, contracts, budget, councils, rpc)
     ctx["city_budget"] = city_budget
+    ctx["city_budget_books"] = city_budget_books
     # "Show records from" (sitegen/bodies.py): the switch on every page and each body's hub cards
     ctx["switch"] = bodies.build(ctx, councils, rpc)
     return ctx

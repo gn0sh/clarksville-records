@@ -9,6 +9,7 @@
 {% if body_note is defined and body_note %}<p class="note body-note" id="body-note"><strong>{{ body_note.text }}</strong>{% if body_note.sibling %} {{ body_note.sibling.lede }} <a href="{{ root }}{{ body_note.sibling.href }}">{{ body_note.sibling.label }}</a>.{% endif %}{% if body_note.links %} {{ body_note.link_lede }}{% for l in body_note.links %} <a data-ext="{{ l.kind }}" href="{{ l.url }}" target="_blank" rel="noopener noreferrer">{{ l.label }}<span class="sr-only"> (opens in a new tab)</span></a>{{ "." if loop.last else "," }}{% endfor %}{% endif %}</p>{% endif %}
 <p class="coverage">{{ coverage_sentence }}</p>
 <p class="note">{{ notes.e }}</p>
+{% if not_covered %}<p class="note" id="not-covered">{{ not_covered.text }} <a data-ext="{{ not_covered.link.kind }}" href="{{ not_covered.link.url }}" target="_blank" rel="noopener noreferrer">{{ not_covered.link.label }}<span class="sr-only"> (opens in a new tab)</span></a>.</p>{% endif %}
 
 <div data-body="{{ body_key | default(site.cfg.county_key) }}">{# every book and fund here is one body's (the county's, or the city's under city/) #}
 <section aria-labelledby="books-h">
