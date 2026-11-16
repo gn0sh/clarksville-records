@@ -1,0 +1,157 @@
+# The allow-list of the committee pages (docs/architecture/committee-words-invariant.md; collector/committee_words.py,
+# restated on its own by qa/site_checks.py). A word, name or phrase is added here by a person in a PR, never by a
+# script. Never put a word that is also a common given name or surname in `words` (it goes in `lowercase_only`, and
+# its capitalised uses in `phrases`). Test examples are made up.
+
+# The roster: every city council member and mayor in data/localities/clarksville-tn/facts.json officials (source:
+# council), and every committee member the Finance or Audit Committee minutes print in a members-present line (source:
+# committee). Aliases: the same person misprinted in those lines. collector/tests/test_committee_words.py checks every
+# council name against facts.json and every committee name against committees.json attendance.
+officials:
+- {name: Ambar Marquis, surname: Marquis, source: council, aliases: [Amber Marquis]}
+- {name: Ashlee Evans, surname: Evans, source: council}
+- {name: Bill Powers, surname: Powers, source: council}
+- {name: Brian Zacharias, surname: Zacharias, source: council}
+- {name: Carlos Peters, surname: Peters, source: council}
+- {name: DaJuan Little, surname: Little, source: council, aliases: [DaJaun Little, DuJuan Little]}
+- {name: David Allen, surname: Allen, source: council}
+- {name: Deanna McLaughlin, surname: McLaughlin, source: council}
+- {name: Eric Claunch, surname: Claunch, source: council}
+- {name: Gary Norris, surname: Norris, source: council}
+- {name: Geno Grubbs, surname: Grubbs, source: council}
+- {name: James Lewis, surname: Lewis, source: council}
+- {name: Jason Knight, surname: Knight, source: council, aliases: [Jaon Knight]}
+- {name: Jeff Burkhart, surname: Burkhart, source: council}
+- {name: Jeff Henley, surname: Henley, source: council}
+- {name: Jerry Haywood, surname: Haywood, source: council}
+- {name: Jimmy Brown, surname: Brown, source: council}
+- {name: Joe Pitts, surname: Pitts, source: council}
+- {name: Joe Shakeenab, surname: Shakeenab, source: council}
+- {name: Joel Wallace, surname: Wallace, source: council}
+- {name: Karen Reynolds, surname: Reynolds, source: council}
+- {name: Keri Lovato, surname: Lovato, source: council}
+- {name: Kim McMillan, surname: McMillan, source: council}
+- {name: Mike Alexander, surname: Alexander, source: council}
+- {name: Richard Garrett, surname: Garrett, source: council}
+- {name: Ron Erb, surname: Erb, source: council}
+- {name: Stacey Streetman, surname: Streetman, source: council, aliases: [Streeteman]}
+- {name: Tim Chandler, surname: Chandler, source: council}
+- {name: Travis Holleman, surname: Holleman, source: council, aliases: [Travis Hollmen]}
+- {name: Trisha Butler, surname: Butler, source: council, aliases: [Trish Butler]}
+- {name: Valerie Guzman, surname: Guzman, source: council}
+- {name: Vondell Richmond, surname: Richmond, source: council}
+- {name: Wallace Redd, surname: Redd, source: council}
+- {name: Wanda Allen, surname: Allen, source: council}
+- {name: Wanda Smith, surname: Smith, source: council}
+- {name: Elizabeth Rankin, surname: Rankin, source: committee}
+- {name: Jennifer Thayer, surname: Thayer, source: committee, aliases: [Dr. Jennifer Thayer]}
+- {name: Jerry Weatherspoon, surname: Weatherspoon, source: committee}
+- {name: Joyce Norris, surname: Norris, source: committee}
+- {name: Lynn Stokes, surname: Stokes, source: committee}
+- {name: Patrick Wilkinson, surname: Wilkinson, source: committee}
+- {name: Peter Reyman, surname: Reyman, source: committee, aliases: [Peter Reymen]}
+- {name: Trey Judd, surname: Judd, source: committee}
+
+# Words that put a roster surname in an official role ("Councilman <surname>"), with the minutes' own misprints. Never
+# Mr., Mrs., Ms. or Dr. (anyone can be one).
+titles: [Councilman, Councilwoman, Councilperson, Councilpersons, Councillady, Councilady, Council Member,
+  Councilmember, Chairman, Chairwoman, Chairperson, Vice Chairman, Vice Chair, Mayor, Mayor Pro Tem, Coiuncilman,
+  Couincilman, Councillman, Councilperosn, Counclperson]
+
+# The public vocabulary, any case: ordinary words, departments, funds, places, abbreviations (CDE, CGW, FY), and the
+# minutes' own misspellings of them. No personal names, no company or organisation named after a person, no LLC.
+# Months that are not given names are here (January, February, July, September, October, November, December); March,
+# April, May, June and August are allowed only in a date ("May 26", "June 2020") or naming a meeting ("the August
+# meeting"), as they are names too.
+words: [
+  january, february, july, september, october, november, december,
+  a, abandonment, above, accept, acceptance, accepting, accompanying, accountants, acknowledgement, acquire,
+  acquisition, act, action, actuarial, additional, adjourn, adjournment, adjustment, administration, administrative,
+  adopt, adopting, adoption, advice, advisory, affordable, after, agenda, aggregate, agreement, aims, all,
+  allocations, allow, along, amend, amended, amending, amendment, amendments, amount, amounts, an, and, annotated,
+  annual, anticipation, any, appd, application, applications, appoint, appointing, appointment, appraisal, approach,
+  approaching, appropriate, approva, approval, approve, approved, approving, apsu, arp, arrived, arts, as, aspects,
+  assessment, assistance, associated, at, attendance, attending, attorney, audit, audits, authority, authorization,
+  authorize, authorizing, award, backup, base, based, be, because, been, before, beginning, below, benefit,
+  bereavement, between, bi, biosolids, blvd, board, body, both, breaks, bring, bronze, budget,
+  building, bus, business, by, called, can, cancelled, capacity, capital, care, cares, carryover, cde, center,
+  certain, certified, cgw, chair, chairman, chairperson, change, changing, chapter, charter, charts, chief, choose,
+  cities, city, claim, claimant, claims, clarksville, client, cmcss, code, codification, combat, combined, comments,
+  commission, committee, communication, community, complex, compliance, concerning, concerns, condemnation, conduct,
+  conducting, confidentiality, consent, consideration, consistency, consolidated, constructed, constructing,
+  construction, construtin, contained, contingent, contract, contractor, contributions, converting, convey,
+  conveyance, coonhound, coordinate, coordinator, corporation, correspond, cost, could, council, councilman,
+  councilperson, counsel, counter, county, cover, cpd, create, creation, credit, crime, crossing, cts,
+  customer, damages, days, debt, declaring, decree, dedicated, defend, deleting, demand, department, dept,
+  described, design, designating, designee, developer, development, directly, director, disapprove, disciplinary,
+  disconnects, discrimination, discussed, discussion, disposition, distri, district, districts, division,
+  djournment, dog, dollars, domain, donation, donations, draft, during, duties, duty, each, easements,
+  economic, edc, educational, eighty, elect, election, elections, electricity, electronic, eleven, emergency,
+  eminent, employee, employees, employment, empowerment, enforcement, enhance, enter, establish, established,
+  establishing, et, ethics, evaluation, exceed, exception, exchange, executive, exempt, exercise, expenditures,
+  expenses, explained, expunctions, extending, external, facilitate, facilities, fail, failed, failing, families,
+  federally, fee, feedback, fees, few, file, filing, fill, final, finance, financial, fire, firm, first,
+  fiscal, five, flooding, flow, fo, following, follows, for, force, formal, forward, frame, fraud, from, full,
+  fully, functions, fund, funding, funds, further, fy, gas, gave, general, generally, go, goal, government, grading,
+  granting, greenway, group, habitat, had, handle, handles, hazardous, he, health, held, heritage, hire,
+  hiring, his, home, hotline, housing, how, hr, human, humanity, hundred, ia, if, imposed, imposing,
+  improvement, improvements, in, including, increased, indefinitely, indemnification, indemnify, individual,
+  industrial, information, infrastructure, initial, installations, intent, interfund, interim, interlocal, internal,
+  international, intersection, interviews, into, investigation, investigations, investment, investments, invited,
+  is, issuance, issue, issued, issues, it, item, itself, jag, joint, judgement, juneteenth, justification,
+  justifications, knowledgeable, labor, last, leave, legislation, license, lift, line, listed, ln, made,
+  maintenance, majority, make, making, manage, management, mandatory, manual, marine, materials, maximum, mayor,
+  medical, meeting, meetings, member, members, memorandum, memorial, meters, metrics, metropolitan, million,
+  minutes, miscellaneous, misdemeaners, misdemeanors, mitigation, monthly, monument, moratorium, motion, mou,
+  move, moved, mt, mtg, municipal, museum, nashville, natural, nay, near, necessary, need, negotiate, negotiations,
+  neighborhood, new, newly, next, "no", nominate, nomination, non, not, notes, notice, objection, objections,
+  obligation, obligations, obtain, of, "off", offenses, offer, office, officer, officers, official, "on", once, one,
+  only, open, or, ordinacne, ordinance, ordinances, other, outlay, outlining, outside, over, overages, overview,
+  owners, ownership, paid, part, participating, partnership, passed, past, patrol, pay, payment, pedestrian,
+  penalties, per, percent, perform, performance, performing, period, permanent, permits, personnel, pertaining,
+  phase, pipe, places, plaintiff, plan, planning, plumbing, pm, poi, points, police, policies, policy,
+  portion, position, positions, positive, postpone, postponed, precinct, prepare, present, presented, previous,
+  principal, privilege, procedure, procedures, proceeds, process, program, project, projects, properties,
+  property, proposal, proposed, protection, provide, providing, provision, provisions, public, pump, purchase,
+  purchasing, purpose, pursuant, pursue, question, rate, rd, real, reappoint, rec, receivables, receive,
+  recommend, recommendation, recommendations, recommended, reconsideration, reconvene, recorded, recreation,
+  recruitment, refer, reference, refunding, regard, regarding, regards, regional, regular, regulations, reimburse,
+  reimbursement, reject, related, relative, relocation, remove, removing, renewal, rental, rentals, repair,
+  repealing, replaced, replacing, reports, represent, request, requested, requesting, required, requirements,
+  rescind, rescue, reserved, residential, resolution, resources, responsibilities, responsible, restrictions,
+  results, retention, retirement, return, revenue, review, revised, revisions, rezoning, rfp, right, rights, risk,
+  road, roads, roadway, route, rules, runs, safety, said, scale, schedule, scores, second, seconded, section,
+  seek, selecting, selection, sell, send, separate, series, serve, service, services, session, settlement,
+  settlements, sewer, should, shrubs, sidewalk, sidewalks, signage, signal, so, society, solid, special, split,
+  sponsored, sr, staff, start, state, station, stations, statue, step, strategic, streets, structure, study,
+  subchapter, submitted, subsection, such, suggested, supplemental, surplus, surrounding, swap, table, taken,
+  target, task, tax, taxable, taxation, taxes, tbi, technician, technology, temporary, ten, tenant, tennessee,
+  tennesseee, term, terminal, terminate, terminology, terms, th, that, the, therefore, therefrom, thereof, these,
+  this, thousand, through, time, title, tn, to, top, total, traffic, transfer, transition, transitional,
+  transportation, travel, treatment, tree, trees, two, unanimously, uncollectible, under, understanding, unfinished,
+  unit, university, until, up, updated, upon, us, use, utilities, utility, utilization, v, vacated, value,
+  valued, various, veterans, vice, violations, voice, vote, voted, voting, vs, waivers, was, waste, wastewater,
+  water, ways, were, which, who, widening, with, within, without, work, would, write, year, zoning]
+# Ordinary words that are also names: allowed only in lowercase, and never as the first word after a preposition
+# unless an article comes between ("for the grant", not "with grant parks").
+lowercase_only: [
+  back, bell, block, bond, bonds, bridge, brown, card, case, court, day, early, east, field, fine, ford, fort, grant,
+  green, hall, hazard, holiday, hope, hunter, justice, king, law, lay, long, look, main, mark, may, miles, mills,
+  minor, more, north, park, parks, plant, price, prior, reading, red, rich, river, rose, sale, short, street, urban,
+  wall, way, will, young]
+# Capitalised phrases that hold one of those words (or a place word that is also a surname): allowed only whole.
+phrases: [Montgomery County, Mongtomery County, Todd County, Davidson County, Nashville and Davidson County,
+  Fort Campbell, Outlaw Field, Liberty Park, Red River, Cumberland River, New Providence, Byrne JAG,
+  Byrne Justice Assistance Grant, Parks and Recreation, Parks & Recreation, Parks & Rec, Finance & Parks,
+  Rossview Road, Rossview Rd, Kirkwood Rd, Rollow Ln, Ringgold Road, Trenton Road, Needmore Road, Whitfield-Needmore,
+  Madison Street, Shelby Street, City Forester, Urban Forrester, Urban Forester, North Water Treatment Plant,
+  Short Term Rentals, Memorial Wall, Habitat for Humanity, Crime Stoppers, Vanderbilt University Medical Center,
+  Austin Peay State University, Austin Peay, East Montgomery Utility District, Parks and Rec, ARP Grant,
+  Community Development Block Grant, Block Grant, Grant Fund, Grant Funds, Byrne Justice Grant, State Law,
+  right-of-way, right of way, rights-of-way, rights of way, bond anticipation, Appalachian Service Project,
+  Home Investment Partnership, Jordan Rd, S. Jordan and Jordan Rd, et al, Wastewater Treatment Plant, City Court,
+  Municipal Court, Fiscal Court, Housing and Urban Development, Sale of Property, Sale of Surplus Property, Credit Card,
+  early voting, Finance-Parks,
+  First Reading, Second Reading, Third Reading, Gas Bonds, Juneteenth City Holiday, Juneteenth Holiday,
+  Natural Hazard Mitigation, Pedestrian Bridge, east of International Blvd, east of Kirkwood Rd]
+

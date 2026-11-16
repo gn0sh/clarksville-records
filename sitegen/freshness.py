@@ -84,6 +84,17 @@ def rpc(rpx) -> dict | None:
                             am and _part("agendas", am["date"], rpx.meeting_href(am["id"], am["date"]))])
 
 
+def committee(c) -> dict | None:
+    """A city committee (sitegen/committees.py): its latest meeting with minutes collected and with an agenda
+    collected. Its motions are held while committees.yml hold_motions is on, so the line names minutes only."""
+    def has(m, kind):
+        return any(d["kind"] == kind and d.get("source_id") for d in m["documents"])
+    mm = _newest(m for m in c.meetings if has(m, "minutes"))
+    am = _newest(m for m in c.meetings if has(m, "agenda"))
+    return _line(f"{c.kicker} {c.label}", [mm and _part("minutes", mm["date"], c.meeting_href(mm["id"], mm["date"])),
+                                            am and _part("agendas", am["date"], c.meeting_href(am["id"], am["date"]))])
+
+
 def finance(fin: dict | None, budget_href: str | None = None) -> dict | None:
     """Approved budget books only (site-polish/freshness-finance-edition: no other edition is called approved): the
     newest fiscal year, linked to the books on the budget page (`budget_href`, when built), else to the book itself.

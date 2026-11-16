@@ -129,7 +129,7 @@ def test_county_hub_page(html):
     assert 'href="meetings.html"' in cards["meetings"] and re.search(r'href="votes/\d{4}\.html"', cards["votes"])
     bc = cards["budget-committee"]
     assert '<span class="chip chip-coming">Coming</span>' in bc
-    link = config.SITE["committees"]["links"][1]
+    link = config.SITE["committees"]["links"][0]
     assert f'<a data-ext="committee" href="{link["url"]}" target="_blank" rel="noopener noreferrer">{link["label"]}' in bc
 
 
@@ -201,7 +201,8 @@ def test_city_and_rpc_homes_are_their_hubs(site, html):
     # this fixture build has no city budget books (test_city_budget_pages builds them)
     assert ("finance" in city) == (site / cfg_slug(site) / "finance" / "index.html").is_file()
     for key in ("finance-committee", "audit-committee"):          # one card per committee, as the county's has
-        assert f'href="{config.SITE["committees"]["links"][0]["url"]}"' in city[key]
+        # coming while this build makes no committee pages (tests/test_committee_pages.py: present once it does)
+        assert f'href="{config.SITE["city_committees"]["url"]}"' in city[key]
     assert '<p class="hub-kicker">City government</p>' in html[f"{cfg_slug(site)}/index.html"]
     rpc_page = html["rpc/index.html"]
     rpc = hub_cards(rpc_page)

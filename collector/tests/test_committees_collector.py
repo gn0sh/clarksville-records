@@ -440,7 +440,7 @@ def test_build_records_meetings_documents_attendance_and_motions(cfg, tmp_path, 
     x = facts["motions"][3]
     assert x["source_id"] == m["documents"][0]["source_id"] and x["confirmed"] and x["page"] == 1
     assert s["motions"] == 8 and s["confirmed"] == 6
-    assert s["held_by_reason"]["outcome not read"] == 2
+    assert s["held_by_reason"]["outcome-not-read"] == 2           # reasons are codes, never the minutes' words
 
 
 def test_cmd_build_writes_nothing_with_store_gaps_or_a_shrink(cfg, tmp_path, monkeypatch):
@@ -478,6 +478,224 @@ def test_shrink_reason_counts_confirmed_motions_per_minutes_file():
 
 def test_hold_motions_is_on_unless_set_false():
     raw = raw_config()
-    assert C.parse_config(raw).hold_motions is True
+    assert C.parse_config({**raw, "hold_motions": True}).hold_motions is True
+    assert C.parse_config({**raw, "hold_motions": "no"}).hold_motions is True      # anything but false holds
     assert C.parse_config({**raw, "hold_motions": False}).hold_motions is False
     assert C.parse_config({k: v for k, v in raw.items() if k != "hold_motions"}).hold_motions is True
+
+
+# ------------------------------------------------------------------ private claimants (C2)
+@pytest.mark.parametrize("printed, shown", [
+    ("to reject the claim made by Pat Doe as recommended by the City Attorney",
+     "to reject the claim (name in the minutes) as recommended by the City Attorney"),
+    ("to reject the settlement demand of $650,000 made by Lee Roe, et al",
+     "to reject the settlement demand of $650,000 (name in the minutes)"),
+    ("to approve the claim of John Q. Public, Jr.", "to approve the claim (name in the minutes)"),
+    ("CONSIDERATION OF CLAIM - MARY SAMPLE", "CONSIDERATION OF CLAIM (name in the minutes)"),
+    ("to deny Mary Sample's claim", "to deny a claim (name in the minutes)"),
+    ("to pay the claim submitted by Sample Paving LLC for damages", "to pay the claim (name in the minutes) for damages"),
+])
+def test_claimants_names_are_masked(printed, shown):
+    from collector.committee_minutes import mask_private, private_doubt
+    assert mask_private(printed) == (shown, 1)
+    assert not private_doubt(shown)
+
+
+@pytest.mark.parametrize("printed", [
+    "to reject the claim made by the City Attorney", "to settle the claim of Montgomery County",
+    "to defend and indemnify Chief Freddie Montgomery", "to approve Ordinance 67-2025-26",
+    "to nominate Lynn Sample and reappoint Ann Example to serve on the Audit Committee",
+    "Councilman Henley voted nay",
+])
+def test_officials_and_other_words_are_unchanged(printed):
+    from collector.committee_minutes import mask_private
+    assert mask_private(printed) == (printed, 0)
+
+
+def test_a_claim_with_a_name_the_rules_do_not_read_is_a_doubt():
+    from collector.committee_minutes import mask_private, private_doubt
+    text, n = mask_private("to deny the claim (Jane Example) as recommended")
+    assert n == 0 and private_doubt(text)
+
+
+def test_build_publishes_only_allow_listed_words_before_anything_is_written(cfg, tmp_path, monkeypatch):
+    """docs/architecture/committee-words-invariant.md: the claimants' words are not in committees.json at all (null,
+    listed in words_withheld, with the fixed note); officials' names stay; reasons are codes."""
+    from collector.committee_words import WORDS_NOTE
+    fin = cfg.by_slug("finance").cc
+    p, store = built_store(cfg, tmp_path, monkeypatch, {fin.file(997): "finance-minutes-2019-04-04"})
+    C.write_json(p["listing"], rows_for(cfg)[:1])
+    out = C.cmd_build(cfg, p, store)
+    assert out["written"] and out["words_withheld"]["motion_printed"] >= 2
+    text = p["facts"].read_text(encoding="utf-8")
+    assert "Pat Doe" not in text and "Lee Roe" not in text and "Doe" not in text and "Roe" not in text
+    facts = json.loads(text)
+    m1, m2, m3 = facts["motions"]
+    assert m1["motion_printed"] is None and "motion_printed" in m1["words_withheld"] and m1["words_note"] == WORDS_NOTE
+    assert m1["mover_printed"] == "Councilwoman Guzman"           # officials are unchanged
+    codes = {c for pat, c in C.REASON_CODES} | {"other", "name-not-on-roster"}
+    assert all(r in codes for x in facts["motions"] for r in x["reasons"])
+
+
+def test_reason_codes():
+    assert C.reason_code("words not read: 'to pay Zelda Quarmby'") == "words-not-read"
+    assert C.reason_code("mover 'Mr. Quarmby' is not exactly one member present") == "mover-not-one-member"
+    assert C.reason_code("aye 'Quarmby' is not exactly one member present") == "vote-name-not-one-member"
+    assert C.reason_code("the minutes print 2025-01-01, the meeting is 2025-01-02") == "minutes-date-differs"
+    assert C.reason_code("anything new") == "other"
+
+
+# ------------------------------------------------------------------ reader tuning on the full fetch (C2)
+def read_fixture(name, event_date):
+    from collector.committee_minutes import read_minutes
+    return read_minutes((FIX / f"{name}.txt").read_text(encoding="utf-8").split("\f"), event_date)
+
+
+def test_2021_split_attendance_councilperson_and_recorded_votes():
+    """IN PERSON and VIA ZOOM are both present; "Councilperson" is a title; "The following vote was recorded: AYE:
+    ..." is a recorded vote with the names as printed."""
+    r = read_fixture("finance-minutes-2021-03-23", "2021-03-23")
+    assert [p["name"] for p in r["attendance"]["present"]] == [
+        "Travis Holleman", "Jason Knight", "Wallace Redd", "Stacey Streetman", "Karen Reynolds"]
+    m1, m2 = r["motions"]
+    assert m1["confirmed"] and m1["mover"] == "Jason Knight" and m1["seconder"] == "Travis Holleman"
+    assert m1["vote"]["method"] == "roll call" and m1["vote"]["outcome"] == "passed"
+    assert m1["vote"]["ayes_printed"] == ["Holleman", "Knight", "Redd", "Reynolds", "Streetman"]
+    assert m2["confirmed"] and m2["vote"]["nays_printed"] == []
+
+
+def test_2022_voice_vote_with_a_printed_aye_list_stays_a_voice_vote():
+    r = read_fixture("finance-minutes-2022-10-25-excerpt", "2022-10-25")
+    (m,) = r["motions"]
+    assert m["confirmed"] and m["vote"]["method"] == "voice vote" and m["vote"]["outcome"] == "passed"
+    assert m["vote"]["ayes_printed"] == ["Streetman", "Holleman", "Redd", "Smith", "Zacharias"]   # as printed only
+
+
+def test_2025_members_present_with_titles_and_voice_vote_approved():
+    r = read_fixture("finance-minutes-2025-08-25-excerpt", "2025-08-25")
+    assert [p["name"] for p in r["attendance"]["present"]] == ["Streetman", "Lovato", "McLaughlin", "Shakeenab",
+                                                               "Zacharias"]
+    (m,) = r["motions"]
+    assert m["confirmed"] and m["vote"] == {"method": "voice vote", "outcome": "passed",
+                                            "outcome_printed": "A voice vote was taken and the motion was approved."}
+
+
+def test_a_case_caption_period_does_not_end_the_motion_and_a_stated_outcome_is_read():
+    """Constructed (made-up names): "v." inside the motion's words; "The motion was approved." with no method."""
+    from collector.committee_minutes import read_minutes
+    text = ("FINANCE COMMITTEE\n  MAY 1, 2019\n\nATTENDANCE\n\n     PRESENT:   Ann Alpha, Bo Beta\n\nSETTLEMENT\n\n"
+            "     Councilman Alpha made a motion to settle the Doe v. Roe case for $10. The motion was seconded\n"
+            "     by Councilman Beta. The motion was approved.\n")
+    (m,) = read_minutes([text], "2019-05-01")["motions"]
+    assert m["motion_printed"] == "to settle the Doe v. Roe case for $10"
+    assert m["confirmed"] and m["vote"]["method"] == "stated" and m["vote"]["outcome"] == "passed"
+
+
+@pytest.mark.parametrize("printed, shown", [
+    ("to reject the demand of $120,000 in the Doe v. Roe and City case",
+     "to reject the demand of $120,000 in the (name in the minutes) v. (name in the minutes) case"),
+    ("DOE, ET AL, V. CITY", "(name in the minutes), V. CITY"),
+    ("Public Consideration and Vote on Settlement Demand for Pat Example v City",
+     "Public Consideration and Vote on Settlement Demand for (name in the minutes) v City"),
+    ("Public consideration of plaintiff settlement demand with regards to Pat Example,",
+     "Public consideration of plaintiff settlement demand (name in the minutes),"),
+])
+def test_case_captions_and_parties_are_masked(printed, shown):
+    from collector.committee_minutes import mask_private
+    assert mask_private(printed)[0] == shown
+
+
+def test_a_party_named_once_is_masked_wherever_the_minutes_print_it():
+    from collector.committee_minutes import mask_private, private_doubt, private_names
+    known = private_names(["settlement demand with regards to Pat Example,"])
+    text, n = mask_private("to offer $30,000 for Pat Example as recommended by City Attorney Lee Officialname", known)
+    assert text == "to offer $30,000 for (name in the minutes) as recommended by City Attorney Lee Officialname"
+    assert n == 1 and not private_doubt("to reject the settlement per the advice of City Attorney Lee Officialname")
+
+
+def test_a_motion_is_on_the_page_its_mover_is_printed_on():
+    """Real miss (2021-08-31, 2025-08-25 Finance): a capitalised heading at the foot of one page ran into the mover's
+    words on the next, and the motion linked the earlier page."""
+    from collector.committee_minutes import read_minutes
+    p1 = "FINANCE COMMITTEE\n  MAY 1, 2019\n\nATTENDANCE\n\n     PRESENT:   Ann Alpha, Bo Beta\n\n     Pay Tables\n"
+    p2 = ("     Councilman Alpha made a motion to approve the Pay Table. The motion was seconded by Councilman\n"
+          "     Beta. A voice vote was taken and the motion passed.\n")
+    (m,) = read_minutes([p1, p2], "2019-05-01")["motions"]
+    assert m["confirmed"] and m["page"] == 2 and m["mover_printed"] == "Councilman Alpha"
+
+
+def test_a_party_joined_by_a_slash_in_a_settlement_is_a_doubt():
+    """Real form (2019-04-25 Finance): "to transfer the property at issue to ABC/Examples" in a settlement motion."""
+    from collector.committee_minutes import private_doubt
+    assert private_doubt("to make a counter offer in the settlement, to transfer the property to ABC/Examples")
+    assert not private_doubt("to approve the settlement with the G&W/CDE department")
+    assert not private_doubt("the settlement amount suggested during the Attorney/Client Privilege session")
+
+
+# ------------------------------------------------------------------ security review 2026-11-16 (F1, F3, F5)
+@pytest.mark.parametrize("printed", [
+    "to approve payment to Zelda Quarmby",
+    "to settle with Zelda Quarmby",
+    "to grant Zelda Quarmby's request",
+    "to approve the Quarmby settlement",
+    "to reject the claim made by zelda quarmby",
+    "to deny the appeal of Zelda Quarmby",
+    "regarding the claim, Zelda Quarmby, $2,500",
+    "to approve the request to indemnify Ms. Quarmby",
+    "to approve the reimbursement for Zelda Quarmby",
+])
+def test_private_doubt_is_fail_closed(printed):
+    from collector.committee_minutes import mask_private, private_doubt
+    assert private_doubt(mask_private(printed)[0])
+
+
+@pytest.mark.parametrize("printed", [
+    "Write-off Authorization: 12 Example Ave.", "to approve the write-off",
+    "Gas and Water Travel Waivers 1. Ann Example 2. Bo Sample", "to approve the travel waivers",
+])
+def test_write_offs_and_travel_waivers_are_always_withheld(printed):
+    from collector.committee_minutes import private_doubt
+    assert private_doubt(printed)
+
+
+@pytest.mark.parametrize("printed", [
+    "to reject the settlement offer demand per the advice of City Attorney Lee Officialname",
+    "to reject the claim (name in the minutes) as recommended by the City Attorney",
+    "to approve the FY20 Employee Pay Table", "to approve Ordinance 67-2025-26 (First Reading)",
+    "CONSIDERATION OF SETTLEMENT DEMAND",
+])
+def test_official_and_plain_words_are_not_a_doubt(printed):
+    from collector.committee_minutes import private_doubt
+    assert not private_doubt(printed)
+
+
+def test_a_party_learned_in_one_minutes_is_masked_in_another_plural_too():
+    from collector.committee_minutes import mask_private, private_names
+    known = private_names(["to reject the settlement demand made by Zed Quarmby, et al"])
+    assert mask_private("to transfer the property to ABC/Quarmbys", known)[0] == (
+        "to transfer the property to ABC/(name in the minutes)")
+
+
+def test_build_masking_is_belt_and_braces_over_the_allow_list(cfg, tmp_path, monkeypatch):
+    """A text private_doubt doubts is withheld even when every word is allow-listed; a write-off withholds every
+    words field of its motion."""
+    from collector import committee_minutes as CM
+    fin = cfg.by_slug("finance").cc
+    p, store = built_store(cfg, tmp_path, monkeypatch, {fin.file(997): "finance-minutes-2019-04-04"})
+    C.write_json(p["listing"], rows_for(cfg)[:1])
+    real = CM.private_doubt
+    from collector.committee_words import publishable
+    words = "to authorize the City Attorney to make a counter offer as discussed during the non-public meeting"
+    assert publishable(words)
+    monkeypatch.setattr(CM, "private_doubt", lambda t: "counter offer" in (t or "") or real(t))
+    C.cmd_build(cfg, p, store)
+    m3 = json.loads(p["facts"].read_text(encoding="utf-8"))["motions"][2]
+    assert m3["motion_printed"] is None and "motion_printed" in m3["words_withheld"]
+    mv = {"id": "m", "section": "WRITE-OFFS", "subject_printed": "Write-off Authorization", "motion_printed":
+          "to approve", "vote": {"method": "voice vote", "outcome": "passed", "outcome_printed": "The motion passed."},
+          "reasons": [], "mover_printed": "Councilman Henley", "seconder_printed": "Councilperson Smith"}
+    count = {"words_withheld": {k: 0 for k in (*C.WORD_FIELDS, "outcome_printed")}, "names_withheld": 0}
+    from collector.committee_words import load_allow
+    C.publish(mv, count, [], (), load_allow())
+    assert mv["section"] is mv["subject_printed"] is mv["motion_printed"] is mv["vote"]["outcome_printed"] is None
+    assert mv["confirmed"] and mv["mover_printed"] == "Councilman Henley"

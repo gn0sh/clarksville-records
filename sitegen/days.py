@@ -269,7 +269,8 @@ def _coverage(ix, cixs, rpx, fx, start: date, end: date, counts: dict, ax=None, 
     return out
 
 
-def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None, ax=None, cmx=None) -> dict:
+def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None, ax=None, cmx=None,
+         cms=()) -> dict:
     today = today or today_in_zone()
     start, end = window(today)
     by_day: dict[str, list[dict]] = defaultdict(list)
@@ -334,9 +335,11 @@ def page(ix: views.Index, cixs=(), rpx=None, fx=None, today: date | None = None,
     sb = config.SITE.get("school_board") or {}
     # the "coming" line only while the board's agendas are not built (then its coverage line says what is here)
     school = sb if sb.get("label") and views.https_url(sb.get("url")) and not (cmx and cmx.school_home()) else None
+    # the committees' "coming" line only for the committees not built (`cms`: the city's; views.committees_page)
+    cm = views.committees_page(cms, cmx)
     return {"weeks": weeks, "start": start.isoformat(), "end": end.isoformat(), "built": today.isoformat(),
             "start_text": date_text(start), "end_text": date_text(end), "built_text": date_text(today),
-            "tz": config.SITE["site_timezone"], "school": school, "committees": views.committees(),
+            "tz": config.SITE["site_timezone"], "school": school, "committees": cm if cm and cm["coming"] else None,
             "n_cards": sum(len(v) for v in by_day.values()),
             "coverage": _coverage(ix, cixs, rpx, fx, start, end, counts, ax, cmx)}
 

@@ -360,7 +360,8 @@ def alerts_on() -> bool:
     return bool((config.SITE.get("alerts") or {}).get("feed_id"))
 
 
-def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), rpc=None, cmx=None) -> list[dict]:
+def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), rpc=None, cmx=None,
+         committees=()) -> list[dict]:
     """`budget`: the BUDGET_NAV labels whose pages are built (Finance, and Capital projects when its fund is in
     the file); each replaces its "coming" page and drops the Coming chip. `councils`: each council's home page is
     listed after Officials, under its configured label (council.yml nav_label)."""
@@ -399,17 +400,18 @@ def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), 
                 built = cmx is not None and cmx.school_home() == f"{pg['slug']}.html"
                 out.append({"label": pg.get("nav_label") or pg["title"], "href": f"{pg['slug']}.html",
                             "page": pg["title"], "coming": not built, "school": sb})
-            # The committees' "coming" page (config/site.yml committees.page), modelled on the school board's.
-            cm = committees()
+            # The committees page (config/site.yml committees.page, committees_page): Coming while a committee in it
+            # is not built. The entry carries the page's state so the build renders the page exactly as listed.
+            cm = committees_page(committees, cmx)
             if cm is not None:
                 pg = cm["page"]
                 out.append({"label": pg.get("nav_label") or pg["title"], "href": f"{pg['slug']}.html",
-                            "page": pg["title"], "coming": True, "committees": cm})
+                            "page": pg["title"], "coming": cm["coming"], "committees": cm})
     return out
 
 
 def site_context(facts, contracts: bool = False, budget: tuple = (), councils=(), rpc=None, cmx=None,
-                 counter: str | None = None, city_budget: str | None = None,
+                 counter: str | None = None, committees=(), city_budget: str | None = None,
                  city_budget_books: str | None = None) -> dict:
     """`contracts`: finance.json is loaded, so the nav lists Bids and awards (design finance-contracts 1).
     `budget`: the budget pages built (see _nav). `councils`: the council.CouncilIndex of each council built.
@@ -418,21 +420,22 @@ def site_context(facts, contracts: bool = False, budget: tuple = (), councils=()
     from . import bodies   # here, not at the top: bodies reads https_url from this module
     ix = _ix(facts)
     cfg = config.SITE
-    ctx = _site_context(ix, cfg, contracts, budget, councils, rpc, cmx)
+    ctx = _site_context(ix, cfg, contracts, budget, councils, rpc, cmx, committees)
     ctx["csp"] = csp(counter=counter)   # `counter`: the visitor counter's origin, or None (ADR 0008)
     ctx["city_budget"] = city_budget
     ctx["city_budget_books"] = city_budget_books
     # "Show records from" (sitegen/bodies.py): the switch on every page and each body's hub cards
-    ctx["switch"] = bodies.build(ctx, councils, rpc, cmx)
+    ctx["switch"] = bodies.build(ctx, councils, rpc, cmx, committees)
     return ctx
 
 
-def _site_context(ix: "Index", cfg: dict, contracts: bool, budget: tuple, councils, rpc, cmx=None) -> dict:
+def _site_context(ix: "Index", cfg: dict, contracts: bool, budget: tuple, councils, rpc, cmx=None,
+                  committees=()) -> dict:
     return {
         "cfg": cfg,
         "csp": csp(),
         "analytics": None,   # the visitor counter (ADR 0008): the build sets sitegen/analytics.py settings() when on
-        "nav": _nav(ix, contracts, budget, councils, rpc, cmx),
+        "nav": _nav(ix, contracts, budget, councils, rpc, cmx, committees),
         "alerts": alerts_on(),
         # the footer link exists only when it is switched on and has an address (CEO, 2026-11-08)
         "support_url": (cfg.get("support_url") or "") if cfg.get("support_enabled") is True else "",
@@ -1192,6 +1195,7 @@ RECORD_BODY = frozenset({
     "votes_year.html.j2", "items_year.html.j2", "official.html.j2", "official_year.html.j2", "official_roster.html.j2",
     "district.html.j2", "council_home.html.j2", "council_meetings_year.html.j2", "council_items_year.html.j2"})
 RECORD_RPC = frozenset({"rpc_home.html.j2", "rpc_meetings_year.html.j2"})   # the RPC's agendas and minutes page
+RECORD_COMMITTEE = frozenset({"city_committee_home.html.j2", "city_committee_meetings_year.html.j2"})   # city portal
 RECORD_FINANCE = frozenset({"fin_index.html.j2", "fin_fund.html.j2", "fin_capital.html.j2"})
 
 
@@ -1206,6 +1210,43 @@ def committees(cfg: dict | None = None) -> dict | None:
     if not all(isinstance(x, dict) and https_url(x.get("url")) and x.get("label") for x in links):
         return None
     return cm
+
+
+COMMITTEE_COUNTY_KEY = "budget-committee"   # the county body the committees page covers (county_committees.finance)
+
+
+def committees_page(cms=(), cmx=None, cfg: dict | None = None) -> dict | None:
+    """The committees page in this build (config/site.yml `committees:`), or None (no menu entry, page or day line).
+    A body is built when the build makes its pages: `city` the city committees (sitegen/committees.py, `cms`), `county`
+    the county Budget Committee (sitegen/county_committees.py, `cmx`). {page, coming, lede, present: [{label, href}],
+    planned: [text], names: [name], links: [{url, label}]}: `planned`, `names` and `links` only for bodies not built;
+    `coming` while any is not built. Nothing here is fetched."""
+    cfg = config.SITE if cfg is None else cfg
+    cm = committees(cfg)
+    if cm is None:
+        return None
+    pg = cm["page"]
+    county = cmx is not None and COMMITTEE_COUNTY_KEY in cmx.finance and bool(cmx.finance_home())
+    built = {"city": bool(cms), "county": county}
+    present = [{"label": f"{c.kicker} {c.label}", "href": c.home_href()} for c in cms]
+    if county:
+        for x in pg.get("county_present") or []:
+            present.append({"label": x["label"], "href": cmx.finance_home() + (f"#{x['anchor']}" if x.get("anchor")
+                                                                             else "")})
+    planned = [p for p in pg.get("planned") or [] if not built.get(p.get("built"))]
+    links = [{"url": x["url"], "label": x["label"]} for x in cm["links"] if not built.get(x.get("built"))]
+    city = cfg.get("city_committees") or {}
+    if not built["city"] and https_url(city.get("url")) and city.get("label"):   # the city portal while none is built
+        links.insert(0, {"url": city["url"], "label": city["label"]})
+    coming = bool(planned)
+    return {"page": pg, "coming": coming, "lede": pg["lede"] if coming else (pg.get("built_lede") or pg["lede"]),
+            "present": present, "planned": [p["text"] for p in planned], "names": [p["name"] for p in planned],
+            "label": _and_join([p["name"] for p in planned]), "links": links if coming else []}
+
+
+def _and_join(names: list[str]) -> str:
+    """"A", "A and B", "A, B and C"; "" for none."""
+    return names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1] if names else ""
 
 
 def https_url(u) -> bool:
@@ -1238,6 +1279,8 @@ def official_record(template: str, site: dict, ctx: dict) -> dict | None:
         rec = site.get("record")
     elif template in RECORD_RPC:
         rec = site.get("rpc_record")
+    elif template in RECORD_COMMITTEE:
+        rec = ctx.get("record")       # the city's meetings portal (config/site.yml city_committees.record_url)
     elif template == "county_agendas.html.j2":
         rec = ctx.get("record")       # the county's agendas page; each meeting section links its own agenda PDF
     elif template in RECORD_FINANCE:   # the city's budget pages (body_key set) name the city's budget page
@@ -1866,7 +1909,7 @@ def _seat_on(ix: Index, seat_labels: list[str], seat_on: dict[str, dict[str, int
 SCHOOL_KEY = "school"   # the school board's search body key, the switch's key for it (sitegen/bodies.py ORDER)
 
 
-def search_index(facts, fin=None, councils=(), rpc=None, cmx=None) -> dict:
+def search_index(facts, fin=None, councils=(), rpc=None, cmx=None, committees=()) -> dict:
     """The one first-party search index (manager decision Q3), loaded by static/search.js. Unconfirmed roll calls
     carry no outcome and no votes, so a vote or outcome filter can never match one (invariant rules 1 and 5).
     `fin` (a fin_views.Finance) adds the solicitations, type `sol` (finance-contracts F7). `councils` (each a
@@ -1891,6 +1934,9 @@ def search_index(facts, fin=None, councils=(), rpc=None, cmx=None) -> dict:
     if rpc is not None:   # the RPC's meetings and agenda cases (sitegen/rpc.py); it has no officials in the facts
         records += rpc.search_records()
         bodies.append({"key": rpc.body_key, "label": rpc.body})
+    for cm in committees:   # the city's Finance and Audit committees' meetings (sitegen/committees.py)
+        records += cm.search_records()
+        bodies.append({"key": cm.body_key, "label": f"{cm.kicker} {cm.label}"})
     if cmx is not None:   # the school board's and the county finance committees' agendas (sitegen/county_committees.py)
         records += cmx.search_records(SCHOOL_KEY, body)
         if cmx.school_home():
@@ -1921,9 +1967,9 @@ def search_index(facts, fin=None, councils=(), rpc=None, cmx=None) -> dict:
     }
 
 
-def search_page(facts, fin=None, councils=(), rpc=None, cmx=None) -> dict:
+def search_page(facts, fin=None, councils=(), rpc=None, cmx=None, committees=()) -> dict:
     ix = _ix(facts)
-    idx = search_index(ix, fin, councils, rpc, cmx)
+    idx = search_index(ix, fin, councils, rpc, cmx, committees)
     return {"years": idx["years"], "types": idx["types"], "officials": idx["officials"], "bodies": idx["bodies"],
             "contracts_kind": config.FIN_TEXT["contracts"]["search_kind"] if fin is not None else None}
 

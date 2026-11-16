@@ -12,6 +12,7 @@ fetch_manifests:
   - data/localities/clarksville-tn/manifest.json
   - data/localities/clarksville-tn/fin-manifest.json   # the city budget books (collector fin-books)
   - data/localities/cmc-rpc/manifest.json
+  - data/localities/clarksville-tn/committees/manifest.json
   - data/localities/montgomery-tn/committee-agendas/manifest.json
   - data/maps/manifest.json
 today_place: Clarksville            # landing sky: "Tuesday in Clarksville" (static/sky.js reads it from the page)
@@ -344,21 +345,49 @@ video_link: Watch
 video_label: "Official video channel (opens {host})"
 video_recording: "Official video (opens the meeting's MP4 recording)"
 
-# The city and county committees on the day page and in the menu: a "coming" placeholder with plain links to the
-# official source pages (docs/research/committee-sources-2026-11-11.md), no collection yet. Every word of the page is
-# here: no dates, no numbers, no names of officials. Leave the block out to show no placeholder.
+# The committees page (committees.html), the menu entry and the day-page line, for the committees collected in their own
+# blocks: the city's Finance and Audit committees (`city_committees:` below, built: city) and the county's Budget
+# Committee (`county_committees:` above, built: county). sitegen/views.py committees_page decides from what the build
+# makes: each `planned` line and each link whose body is not built shows as "coming" (plain links to the official source
+# pages, docs/research/committee-sources-2026-11-11.md; nothing fetched); each body built is listed under
+# `present_lede` with links to its pages. When every body is built the page has no Coming tag, says `built_lede`, and
+# the day-page line is left out. Every word is here: no dates, no numbers, no names of officials. Leave the block out
+# to show no menu entry, page or line.
 committees:
-  label: City Finance and Audit committees     # the county's finance committees: county_committees below (collected)
+  label: Committees
   links:
-    - {url: "https://clarksvilletn.portal.civicclerk.com/", label: "City of Clarksville meetings portal (CivicClerk)"}
-    - {url: "https://montgomerytn.gov/code/webshare/commission-committees-agendas.php", label: "Montgomery County committee agendas"}
+    - {url: "https://montgomerytn.gov/code/webshare/commission-committees-agendas.php", label: "Montgomery County committee agendas", built: county}
   page:
     slug: committees
     nav_label: Committees
     title: Committees
-    lede: "Records of the City of Clarksville Finance Committee and Audit Committee are being added. Their meetings are not collected yet, so none are shown here."
-    planned: ["City Finance Committee agendas and minutes", "City Audit Committee agendas and minutes"]
+    lede: "Records of the committees below are being added. Their meetings are not collected yet, so none are shown here."
+    built_lede: "The records of these committees are on this site, each linked to the committee's own documents."
+    planned:
+      - {text: "City Finance Committee agendas and minutes", name: City Finance Committee, built: city}
+      - {text: "City Audit Committee agendas and minutes", name: City Audit Committee, built: city}
+      - {text: "County Budget Committee agendas", name: County Budget Committee, built: county}
+    # the county's bodies once built (county_committees.finance): `anchor` is a body's section on its index page
+    county_present:
+      - {label: Montgomery County Budget Committee, anchor: budget-committee}
+      - {label: Montgomery County finance committees}
+    present_lede: "Committees on this site:"
     link_lede: "Until then, the official sources are:"
+
+# The City of Clarksville committees collected from the city's CivicClerk portal (sitegen/committees.py; collector:
+# collector/committees.py, config/localities/<locality>/committees.yml, which holds hold_motions). One entry per
+# committee: its slug in committees.json, the folder of its pages and the city hub card its pages turn from "coming"
+# to present (switch.bodies.city.cards, `built`). url and label: the official record line on its pages, the coming
+# card's link while it is coming and the committees page's link while no city committee page is built. Leave the
+# block out to build no committee pages.
+city_committees:
+  locality: clarksville-tn
+  url: "https://clarksvilletn.portal.civicclerk.com/"
+  label: "City of Clarksville meetings portal (CivicClerk)"
+  kicker: City of Clarksville
+  pages:
+    - {committee: finance, folder: city-finance-committee, card: finance-committee}
+    - {committee: audit, folder: city-audit-committee, card: audit-committee}
 
 # The "Show records from" switch (sitegen/bodies.py, static/switch.js; owner's mock 2026-11-12): on every page under
 # the header, All plus one option per body whose hub page the build makes. Every word of the switch, the hub cards and
@@ -410,7 +439,7 @@ switch:
           coming: true
           door: money
           text: "Budget Committee agendas are not collected yet, so none are shown."
-          link: {from: committees.links.1, kind: committee}
+          link: {from: committees.links.0, kind: committee}
           built: {text: "Budget Committee agendas as the county posts them, each line linked to its PDF page. No minutes are posted online.", go: Budget Committee agendas}
         - {key: finance-committees, title: Finance committees, go: All finance committees, text: "Agendas of the budget hearings and the Audit, Investment, Purchasing and Delinquent Tax committees."}
     city:
@@ -426,18 +455,22 @@ switch:
           go: City budget books
           # {books}: the books read, from data/localities/clarksville-tn/finance.json (budget_views.books_phrase)
           text: "The city budget books, fund by fund: {books}."
-        - key: finance-committee             # one card per committee, as the county's Budget Committee has
+        # One card per committee, as the county's Budget Committee has. `coming` until the build makes the
+        # committee's pages (city_committees above); then the card is present with the `built` words.
+        - key: finance-committee
           title: Finance Committee
           coming: true
           door: money
           text: "Finance Committee agendas and minutes are not collected yet, so none are shown."
-          link: {from: committees.links.0, kind: committee}
+          link: {from: city_committees, kind: committee}
+          built: {text: "Finance Committee meetings, with agendas and minutes, attendance and motions as printed.", go: Meetings by year}
         - key: audit-committee
           title: Audit Committee
           coming: true
           door: money
           text: "Audit Committee agendas and minutes are not collected yet, so none are shown."
-          link: {from: committees.links.0, kind: committee}
+          link: {from: city_committees, kind: committee}
+          built: {text: "Audit Committee meetings, with agendas and minutes, attendance and motions as printed.", go: Meetings by year}
     school:
       label: School board
       kicker: Clarksville-Montgomery County School System (CMCSS)

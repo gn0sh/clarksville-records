@@ -34,4 +34,7 @@ committees:
 # by the new minutes reader (collector/committee_minutes.py) is shown confirmed until a person has spot-checked
 # committees.json against the minutes. The reader's own `confirmed` and `reasons` stay in committees.json. To lift: a
 # spot check of a sample of confirmed motions against their minutes pages, then set this to false in its own reviewed PR.
-hold_motions: true
+# Lifted 2026-11-16 (C2) on docs/research/committees-spot-check-2026-11-16.md: 10 random confirmed motions 10/10 against
+# their PDF pages, all 441 names on the 160 confirmed motions printed on the cited page, every motion's page right.
+# Set it back to true to hold every motion again (the site and qa/site_checks committee-motions follow it).
+hold_motions: false

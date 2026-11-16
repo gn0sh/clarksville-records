@@ -162,13 +162,15 @@ def annotate(rows: list[dict], committee: Committee) -> tuple[list[dict], list[d
         r = {**r, "committee": committee.slug, "body": committee.label, "cancelled": bool(CANCELLED.search(r["title"]))}
         printed = title_dates(r["title"])
         if printed and r["date"] not in printed:
+            # the event id and dates only: the report is printed to the public Actions log, and an event name is the
+            # portal's free text (committees-privacy/log-snippet)
             problems.append({"event": r["event_id"], "date": r["date"], "problem": "event name prints another date",
-                             "printed": printed[0], "snippet": r["title"][:120]})
+                             "printed": printed[0]})
             r["title_date"] = printed[0]
         if not any(w in r["title"].lower() for w in committee.name_words()):
             # e.g. "Public Safety Committee FY25 Budget Review" filed under Finance Committee: kept as listed
             problems.append({"event": r["event_id"], "date": r["date"], "problem": "event name does not name the "
-                             "committee", "snippet": r["title"][:120]})
+                             "committee"})
             r["other_name"] = True
         out.append(r)
     return out, problems
@@ -202,8 +204,25 @@ def discover(fetcher, cfg: CommitteesConfig, log: dict, cache_dir: Path) -> list
         got = civicclerk.discover(fetcher, c.cc, c.kind_of, log, cache_dir)
         got, problems = annotate(got, c)
         log.setdefault("listing_problems", []).extend(problems)
-        rows += got
+        rows += [gate_listing_row(r) for r in got]
     return assign_ids(rows)
+
+
+LISTING_WORDS = ("title", "agenda_name", "minutes_name")
+
+
+def gate_listing_row(r: dict, allow=None) -> dict:
+    """The portal's printed title and document names, as committed in listing.json (and copied into the manifest's
+    labels): each passes the committee words rule or is replaced, before anything is written
+    (docs/architecture/committee-words-invariant.md): a title by "<committee label> meeting", a document name by its
+    kind ("Agenda", "Minutes"). `cancelled`, `title_date` and `other_name` were read from the printed title first."""
+    from .committee_words import publishable
+    out = dict(r)
+    for k in LISTING_WORDS:
+        if out.get(k) and not publishable(out[k], allow):
+            out[k] = {"title": f"{out['body']} meeting", "agenda_name": "Agenda", "minutes_name": "Minutes"}[k]
+            out.setdefault("words_replaced", []).append(k)
+    return out
 
 
 def listing_shrinks(rows: list[dict], previous: list[dict] | None, today: str) -> list[int]:
@@ -363,16 +382,119 @@ def read_pages(path: Path) -> tuple[list[str] | None, str | None]:
     return pages, None
 
 
+# Reasons are stored as codes, never as the minutes' words (docs/architecture/committee-words-invariant.md): the reader's
+# reasons quote what it could not read, which may be a name. The first pattern that matches gives the code.
+REASON_CODES = (
+    (r"^words not read", "words-not-read"), (r"^outcome not read", "outcome-not-read"),
+    (r"^seconder not read", "seconder-not-read"), (r"^mover \S", "mover-not-one-member"),
+    (r"^seconder \S", "seconder-not-one-member"), (r"^(?:aye|nay) \S", "vote-name-not-one-member"),
+    (r"^vote list", "vote-list-not-read"), (r"^a member is named twice", "vote-name-twice"),
+    (r"^mover and seconder are the same", "mover-is-seconder"),
+    (r"^the minutes print no date", "minutes-date-not-printed"), (r"^the minutes print ", "minutes-date-differs"),
+    (r"^members present not read", "attendance-not-read"), (r"^attendance: ", "attendance-name-not-read"),
+)
+WORD_FIELDS = ("section", "subject_printed", "motion_printed")
+
+
+def reason_code(reason: str) -> str:
+    return next((code for pat, code in REASON_CODES if re.search(pat, reason)), "other")
+
+
+def _words_ok(text: str | None, known, allow) -> bool:
+    """The allow-list gate (committee_words.publishable), with the masking as belt and braces: a name the masking
+    finds, or a claim private_doubt still doubts, withholds the text whatever the allow-list says."""
+    from .committee_minutes import mask_private, private_doubt
+    from .committee_words import publishable
+    if not text:
+        return True
+    _, hit = mask_private(text, known)
+    return not hit and not private_doubt(text) and publishable(text, allow)
+
+
+def publish(mv: dict, count: dict, problems: list, known, allow) -> None:
+    """Keep only what may be published of one motion, in place, before anything is written
+    (docs/architecture/committee-words-invariant.md): words that pass the allow-list, names on the roster, reason
+    codes. A withheld words field is None and listed in `words_withheld`, with `words_note`; a printed name not on
+    the roster is None and the motion is not confirmed."""
+    from .committee_minutes import WITHHOLD
+    from .committee_words import WORDS_NOTE, roster_name
+    withheld = []
+    every = any(WITHHOLD.search(mv.get(k) or "") for k in WORD_FIELDS)    # a write-off or travel-waiver item (F5)
+    for k in WORD_FIELDS:
+        if mv.get(k) and (every or not _words_ok(mv[k], known, allow)):
+            mv[k] = None
+            withheld.append(k)
+    v = mv.get("vote")
+    if v and v.get("outcome_printed") and (every or not _words_ok(v["outcome_printed"], known, allow)):
+        v["outcome_printed"] = None
+        withheld.append("outcome_printed")
+    codes = [reason_code(r) for r in mv.get("reasons") or []]
+    names_out = 0
+    for k in ("mover_printed", "seconder_printed"):
+        if mv.get(k) and not roster_name(mv[k], allow):
+            mv[k] = None
+            mv[k.replace("_printed", "")] = None
+            names_out += 1
+    for k in ("ayes_printed", "nays_printed"):
+        if v and v.get(k) and not all(roster_name(n, allow) for n in v[k]):
+            v[k] = None
+            names_out += 1
+    if names_out:
+        codes.append("name-not-on-roster")
+        count["names_withheld"] += names_out
+    mv["reasons"] = list(dict.fromkeys(codes))
+    mv["confirmed"] = not mv["reasons"]
+    if withheld:
+        mv["words_withheld"] = withheld
+        mv["words_note"] = WORDS_NOTE
+        for k in withheld:
+            count["words_withheld"][k] += 1
+        problems.append({"motion_id": mv["id"], "problem": f"words not shown ({', '.join(withheld)}): not on the "
+                         "allow-list (config/localities/clarksville-tn/committee-words.yml)"})
+
+
+def publish_meeting(m: dict, label: str, count: dict, allow) -> None:
+    """A meeting's text fields: the portal's title and document names pass the word rule or are replaced by the
+    committee's label and the document's kind; attendance names must all be on the roster (otherwise no attendance
+    is kept); an attendance note that fails the word rule is dropped."""
+    from .committee_words import publishable, roster_name
+    if not publishable(m["title"], allow):
+        m["title"] = f"{label} meeting"
+        count["titles_replaced"] += 1
+    for d in m["documents"]:
+        if not publishable(d.get("name"), allow):
+            d["name"] = DOC_KINDS.get(d["kind"], "Document")
+    att = m.get("attendance")
+    if not att:
+        return
+    people = (att.get("present") or []) + (att.get("absent") or [])
+    if not all(roster_name(p["name"], allow) for p in people):
+        m["attendance"] = None
+        m["attendance_withheld"] = "name-not-on-roster"
+        count["attendance_withheld"] += 1
+        return
+    for p in people:
+        if p.get("note") and not publishable(p["note"], allow):
+            del p["note"]
+
+
+DOC_KINDS = {"agenda": "Agenda", "minutes": "Minutes"}
+
+
 def build(cfg: CommitteesConfig, rows: list[dict], store: Store, hold: bool = True) -> tuple[dict, dict]:
     """listing rows + stored files -> (committees.json, summary). Each meeting as listed, its documents, and when its
     minutes are stored and have text: the minutes' printed date, the members present and absent as printed, and
     each motion as read (collector/committee_minutes.py), with `confirmed` and its `reasons`. `hold` (committees.yml
     hold_motions) is written into the record so the site shows no motion confirmed while it is on."""
-    from .committee_minutes import read_minutes
+    from .committee_minutes import private_names, read_minutes
+    from .committee_words import load_allow
+    allow = load_allow()
     by_sha: dict[str, list[str]] = {}
     meetings, motions, problems = [], [], []
     count = {"meetings": 0, "minutes_listed": 0, "minutes_stored": 0, "minutes_read": 0, "motions": 0,
-             "confirmed": 0, "date_mismatches": [], "shared_minutes": [], "not_read": []}
+             "confirmed": 0, "date_mismatches": [], "shared_minutes": [], "not_read": [], "names_withheld": 0,
+             "words_withheld": {k: 0 for k in (*WORD_FIELDS, "outcome_printed")}, "attendance_withheld": 0,
+             "titles_replaced": 0}
     for r in rows:
         docs = [d for d in (source_of(r, "agenda", store), source_of(r, "minutes", store)) if d]
         m = {"id": r["id"], "committee": r["committee"], "body": r["body"], "date": r["date"], "title": r["title"],
@@ -391,6 +513,7 @@ def build(cfg: CommitteesConfig, rows: list[dict], store: Store, hold: bool = Tr
             if pages is None:
                 count["not_read"].append({"meeting_id": r["id"], "why": why})
             else:
+                mins["pages"] = len(pages)    # the site links each motion's page (#page=N), checked against this
                 rd = read_minutes(pages, r["date"])
                 count["minutes_read"] += 1
                 m.update(minutes_read=True, minutes_printed_date=rd["printed_date"])
@@ -404,11 +527,20 @@ def build(cfg: CommitteesConfig, rows: list[dict], store: Store, hold: bool = Tr
                     meetings.append(m)
                     continue
                 m["attendance"] = {**rd["attendance"], "source_id": mins["source_id"], "confirmed": not rd["problems"]}
-                for x in rd["motions"]:
+                for x in rd["motions"]:     # masked below, once every minutes file's party names are known
                     motions.append({"id": f"{r['id']}-motion-{x['n']}", "meeting_id": r["id"],
                                     "committee": r["committee"], "source_id": mins["source_id"],
                                     **{k: v for k, v in x.items() if k != "n"}})
         meetings.append(m)
+    # every party name any minutes print in a claim or a case caption (the same party comes back at later meetings:
+    # "Jeff Doe, et al" in April, "the Does" in May), masked wherever any motion prints it, plurals too
+    known = private_names(t for x in motions for t in (x.get("section"), x.get("subject_printed"),
+                                                       x.get("motion_printed"), *x["reasons"]))
+    for mv in motions:
+        publish(mv, count, problems, known, allow)
+    labels = {c.slug: c.label for c in cfg.committees}
+    for m in meetings:
+        publish_meeting(m, labels.get(m["committee"], "Committee"), count, allow)
     for sha, ids in sorted(by_sha.items()):
         if len(ids) > 1:            # one file listed on two meetings: kept on both, reported
             count["shared_minutes"].append({"source_id": f"src-{sha[:12]}", "meetings": ids})
@@ -417,9 +549,10 @@ def build(cfg: CommitteesConfig, rows: list[dict], store: Store, hold: bool = Tr
     count["confirmed"] = sum(x["confirmed"] for x in motions)
     held: dict[str, int] = {}
     for x in motions:
-        for why in x["reasons"]:
-            key = re.sub(r"'[^']*'", "'…'", re.sub(r"\d{4}-\d{2}-\d{2}", "<date>", why))
-            held[key] = held.get(key, 0) + 1
+        for code in x["reasons"]:
+            held[code] = held.get(code, 0) + 1
+    count["motions_with_all_words"] = sum(1 for x in motions if not x.get("words_withheld"))
+    count["motions_with_motion_words"] = sum(1 for x in motions if x.get("motion_printed"))
     count["held_by_reason"] = dict(sorted(held.items(), key=lambda kv: (-kv[1], kv[0])))
     facts = {"locality": cfg.locality, "hold_motions": hold,
              "bodies": [{"slug": c.slug, "label": c.label, "category_name": c.category_name} for c in cfg.committees],
