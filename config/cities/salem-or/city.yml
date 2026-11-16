@@ -1,0 +1,31 @@
+# Salem, OR: a DRAFT Daylight city (docs/expansion/daylight-template.md, proof of concept of 2026-11-15, moved into
+# the city-folder shape on 2026-11-16). Nothing is collected from it until `python -m cities check salem-or` says
+# READY and the owner gives the go-ahead for this city (docs/expansion/add-a-city.md). Brand keys (name, operator,
+# coffee link, corrections email) are shared in config/brand.yml and can't be set here.
+slug: salem-or
+name: Salem
+state: OR
+timezone: America/Los_Angeles      # UNVERIFIED: confirm the city's own zone
+status: draft                      # live only after the owner's go-ahead to deploy (a hard stop)
+domain: salem.daylight.gnoshcodes.com   # planned subdomain; not set up
+platform_facts: config/cities/salem-or/platform-facts.md
+sources:
+  - {portal: legistar, config: config/cities/salem-or/legistar.yml}
+# Every host collection may ask. robots/terms: when and where each was read; an unchecked one is marked.
+allowed_hosts:
+  - host: webapi.legistar.com
+    robots: UNVERIFIED
+    terms: UNVERIFIED
+  - host: salem.legistar.com
+    robots: UNVERIFIED
+    terms: UNVERIFIED
+denied_hosts: []
+launch:
+  launch_days: 365                 # launch with the last year
+  earliest: "2016-01-01"           # UNVERIFIED: how far back Salem's Legistar holds minutes (same as legistar.yml)
+sky_place: UNVERIFIED              # {lat: .., lon: ..}: city hall, two decimal places, from an official source
+district_lookup: UNVERIFIED        # {url: .., label: ..}: Oregon's "find my district" page, if the city uses wards
+geocoder_places: UNVERIFIED        # up to 5 mailing places in the city, most used first
+verification_notes:
+  - The Legistar client name "salem" was seen answering webapi.legistar.com/v1/salem/matters/8174 on 2026-11-15
+    (JSON, MatterBodyName "City Council"). Nothing else is checked.

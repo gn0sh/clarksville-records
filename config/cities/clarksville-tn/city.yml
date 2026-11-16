@@ -1,0 +1,48 @@
+# Clarksville and Montgomery County, TN: the live Daylight city (docs/adr/0007-multi-city-template.md).
+# This file POINTS at today's files instead of moving them, so the live build reads exactly what it read before:
+# site settings in config/site.yml, sources in config/localities/. `python -m cities check clarksville-tn` lists
+# what is still unrecorded. Brand keys (name, operator, coffee link, corrections email) are in config/brand.yml.
+slug: clarksville-tn
+name: Clarksville
+state: TN
+timezone: America/Chicago          # must equal config/site.yml site_timezone (checked on load)
+status: live
+domain: daylight.gnoshcodes.com
+settings: config/site.yml          # sky_place, district lookup and geocoder places are read from here
+platform_facts: docs/platform-facts.md
+sources:
+  - {portal: agenda_center, config: config/localities/clarksville-tn/agenda-center.yml}    # City Council 2016-2024
+  - {portal: civicclerk, config: config/localities/clarksville-tn/civicclerk.yml}          # City Council 2024 on
+  - {portal: county_minutes}                       # County Commission minutes; settings in collector/config.py
+  - {portal: county_agendas}                       # County Commission agendas; index URL in collector/county_agenda.py
+  - {portal: rpc, config: config/localities/cmc-rpc/rpc.yml}
+  - {portal: finance, config: config/localities/montgomery-tn/finance.yml}
+  - {portal: zoning, config: config/localities/montgomery-tn/zoning.yml}
+# Exactly collector/fetch.py ALLOWED_HOSTS, in its order (tests/test_cities.py). robots/terms: when and where each
+# was checked; an unchecked one is marked. The fetcher also reads robots.txt on every run and stops a host on a block.
+allowed_hosts:
+  - host: montgomerytn.gov
+    robots: "allows all; verified by fetch 2026-11-07 (docs/platform-facts.md)"
+    terms: UNVERIFIED (no terms check on record)
+  - host: mcgtn.org
+    robots: "301 to montgomerytn.gov, robots allows all; verified by fetch 2026-11-12 (docs/platform-facts.md)"
+    terms: UNVERIFIED (no terms check on record)
+  - host: d6.mcgtn.org
+    robots: UNVERIFIED (named for old files in docs/platform-facts.md; no robots.txt reading of its own on record)
+    terms: UNVERIFIED (no terms check on record)
+  - host: montgomeryminutes.bisonline.com
+    robots: UNVERIFIED (not on record; docs/reviews/brain-trust-spec.md flagged it)
+    terms: UNVERIFIED (not on record; docs/reviews/brain-trust-spec.md flagged it)
+  - host: clarksvilletn.gov
+    robots: "/AgendaCenter allowed, crawl-delay 10; re-read 2026-11-09 (docs/platform-facts.md)"
+    terms: UNVERIFIED (no terms check on record)
+  - host: clarksvilletn.api.civicclerk.com
+    robots: "User-agent * Allow /, use=reference; 2026-11-09 (docs/adr/0003-civicclerk-collection.md)"
+    terms: UNVERIFIED (no terms check on record; Brian approved collection 2026-11-09)
+  - host: cmcrpc.com
+    robots: "User-agent *, crawl-delay 10, no Disallow; 2026-11-10 (config/localities/cmc-rpc/rpc.yml)"
+    terms: UNVERIFIED (no terms check on record)
+# No `launch` block: Clarksville's history (2016 on) is collected by its own pipeline, so the planner gives it
+# daily updates only and never writes a backfill state for it.
+verification_notes:
+  - Live since the CEO's go-ahead; its record of checks is docs/platform-facts.md and docs/adr/.
