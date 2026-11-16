@@ -128,3 +128,43 @@ def finance_note(rpc=None) -> dict | None:
         return None
     links = [x for x in (official_link(s, rpc) for s in fn.get("links") or []) if x]
     return {"text": fn["text"], "link_lede": fn.get("link_lede") or "", "links": links}
+
+
+# The one "where am I" line (onceover/wayfinding/three-crumb-patterns): every page that is not the home page or a
+# body's own landing page carries one .crumb line above its h1, a link up to where the page belongs. A page of one
+# body's records leads to that body's landing page, then to its section's list where the page is one of many; every
+# other page leads home. Labels are the switch's and the menu's own words.
+COUNTY_SECTIONS = {"meetings/": "meetings.html", "officials/": "officials.html", "districts/": None, "votes/": None,
+                   "items/": None, "meetings.html": None, "officials.html": None}
+SITE_SECTIONS = {"finance/": "finance/index.html", "contracts/": "contracts/index.html"}
+HOME = "index.html"
+
+
+def crumbs(site: dict, rel: str, councils=(), rpc=None) -> list[dict]:
+    """[{label, href}] for the page at `rel`, outermost first; [] on the home page and on a body's landing page."""
+    sw = site.get("switch") or {}
+    if rel == "index.html" or rel in (sw.get("current") or {}):
+        return []
+    hubs = sw.get("hubs") or {}
+    nav = {e["href"]: e["label"] for e in site.get("nav") or [] if e.get("href")}
+    home = {"label": nav.get(HOME, "Home"), "href": HOME}
+
+    def hub(key: str) -> list[dict]:
+        h = hubs.get(key)
+        return [{"label": h["label"], "href": h["href"]}] if h else [dict(home)]
+
+    for c in councils:
+        if rel.startswith(f"{c.slug}/"):
+            return hub("city") if councils and c is councils[0] else [{"label": c.nav_label, "href": c.home_href()}]
+    if rpc is not None and rel.startswith(f"{rpc.slug}/"):
+        return hub("rpc")
+    for prefix, up in COUNTY_SECTIONS.items():
+        if rel == prefix or (prefix.endswith("/") and rel.startswith(prefix)):
+            out = hub("county")
+            if up and up in nav and up != rel:
+                out.append({"label": nav[up], "href": up})
+            return out
+    for prefix, up in SITE_SECTIONS.items():
+        if rel.startswith(prefix) and rel != up and up in nav:
+            return [dict(home), {"label": nav[up], "href": up}]
+    return [dict(home)]

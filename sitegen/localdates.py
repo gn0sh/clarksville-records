@@ -48,6 +48,19 @@ def words(value) -> str:
     return _ISO_DAY.sub(one, value) if isinstance(value, str) else value
 
 
+def parts(value) -> dict | None:
+    """The date block of a meeting row (.meet-date): {"dow": "Tue", "n": 27, "month": "Oct"} of one ISO day, or None
+    when `value` is not one. The same three parts the day strip and the home page's meeting rows print."""
+    m = _ISO_DAY.fullmatch(value) if isinstance(value, str) else None
+    if not m:
+        return None
+    try:
+        d = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    except ValueError:
+        return None
+    return {"dow": d.strftime("%a"), "n": d.day, "month": d.strftime("%b")}
+
+
 def zone(tz: str | None = None) -> ZoneInfo:
     return ZoneInfo(tz or config.SITE["site_timezone"])
 

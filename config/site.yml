@@ -419,7 +419,7 @@ switch:
         - key: votes
           title: Votes
           coming: true
-          text: "Votes return after the minutes reader passes a fresh check. Until then each motion links its page of the minutes."
+          text: "Votes are being checked against the minutes again and are not shown for now. Until then each motion links its page of the minutes."
           link: {from: rpc, kind: record}
 
 # "Coming" pages (design 6). No numbers, no sample charts, no example values.

@@ -69,7 +69,7 @@
     {% endfor %}
   </ul>
   {% elif c.kind == "rpc" and c.rpc.agenda and c.rpc.agenda.no_text %}
-  <p class="day-none">The agenda is a scan with no text layer; its cases were not read.</p>
+  <p class="day-none">The agenda is a scanned image with no readable text, so its cases were not read.</p>
   {% else %}
   <p class="day-none">No votes or agenda items are shown for this meeting.</p>
   {% endif %}

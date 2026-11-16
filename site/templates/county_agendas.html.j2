@@ -3,7 +3,6 @@
    per meeting (#<meeting id>): its agenda PDF, its items as the agenda prints them, each linked to the agenda page it
    is printed on. Item titles carry data-item-title: words in the document, never linked or reworded. #}
 {% block main %}
-<p class="kicker-line"><a href="{{ root }}meetings.html">Meetings</a></p>
 <h1>Agendas without minutes yet</h1>
 <p class="lede">{{ body }}. The minutes on this site run to {{ minutes_to | day_words }}. These meetings have an agenda posted by the county and no minutes yet, so no votes or attendance are shown. Each item is listed as the agenda prints it; an agenda lists what may be taken up, not what was decided.</p>
 {% if meetings %}

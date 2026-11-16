@@ -95,7 +95,7 @@ def test_the_lines_site_checks_read_keep_iso_days(pages):
     seat = re.sub(r"<[^>]+>", "", re.search(r'<p class="seat-line">.*?</p>', official, re.S).group(0))
     assert re.search(ISO, seat) and not re.search(WORDS, seat), seat
     assert re.search(r"Roll call votes, " + ISO + " to " + ISO + ":", official)
-    assert re.search(r"Recorded absent at \d+ of \d+ meetings with an extracted attendance section, " + ISO, official)
+    assert re.search(r"Recorded absent at \d+ of \d+ meetings whose attendance list was read, " + ISO, official)
     meeting = next(pages[r] for r in sorted(pages) if re.fullmatch(r"meetings/" + ISO + r"-\w+\.html", r))
     assert re.search(r"fetched " + ISO, meeting) and not re.search(r"fetched " + WORDS, meeting)
 
@@ -247,7 +247,7 @@ def test_on_a_touch_screen_details_and_show_more_are_44px_and_cover_no_link(buil
 
 def test_the_smallest_labels_share_one_size():
     assert re.search(r"--t-eyebrow: \.72rem;", CSS)
-    for sel in (".day-dow", ".meet-date .dow, .meet-date .mon", ".fin .sol-filters label", ".day-when"):
+    for sel in (".day-dow", ".meet-date .dow, .meet-date .mon", ".filters label", ".day-when"):
         assert "font-size: var(--t-eyebrow)" in rule(sel), sel
     small = re.findall(r"(?m)^([^{}\n]+)\{[^}]*font-size: \.6\d*rem", CSS)
     assert [s.strip() for s in small] == [".plate-place"]      # the name plate's place line: it must fit at 375px
@@ -264,6 +264,5 @@ def test_one_heading_system():
 
 
 def test_navigation_rows_keep_the_link_colour_after_a_visit():
-    r = rule(".door a:visited, .hub-go a:not([data-ext]):visited, ol.districts a:visited, .crumb a:visited, "
-             ".kicker-line a:visited")
+    r = rule(".door a:visited, .hub-go a:not([data-ext]):visited, ol.districts a:visited, .crumb a:visited")
     assert r.strip() == "color: var(--link);"

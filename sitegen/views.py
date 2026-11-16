@@ -679,7 +679,7 @@ def totals_sentences(ix: Index, official_id: str) -> list[str]:
     not_extracted = states.count("not_extracted")
     under_review = states.count("under_review")
     return [
-        f"Recorded absent at {c['absent']} of {c['meetings_listed']} meetings with an extracted attendance section, "
+        f"Recorded absent at {c['absent']} of {c['meetings_listed']} meetings whose attendance list was read, "
         # ISO days here: qa/site_checks.py official-numbers reads these two sentences ("Roll call votes, D to D:")
         f"{cov['from']} to {cov['to']}.",
         vote_sentence(c, cov["from"], cov["to"]),
@@ -687,10 +687,10 @@ def totals_sentences(ix: Index, official_id: str) -> list[str]:
         f"{unmatched} {plural(unmatched, 'vote', 'votes')} in this period {plural(unmatched, 'has', 'have')} a name "
         f"that could not be matched to an official and {plural(unmatched, 'is', 'are')} not counted for any member.",
         f"{not_extracted} {plural(not_extracted, 'meeting', 'meetings')} in this period "
-        f"{plural(not_extracted, 'has', 'have')} no extracted attendance section and "
+        f"{plural(not_extracted, 'has', 'have')} an attendance list that could not be read and "
         f"{plural(not_extracted, 'is', 'are')} not counted.",
         f"{under_review} {plural(under_review, 'meeting', 'meetings')} in this period "
-        f"{plural(under_review, 'has', 'have')} an attendance section that is under review and "
+        f"{plural(under_review, 'has', 'have')} an attendance list that is under review and "
         f"{plural(under_review, 'is', 'are')} not counted.",
     ]
 
