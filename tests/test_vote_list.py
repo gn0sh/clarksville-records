@@ -20,6 +20,10 @@ def test_every_official_has_a_vote_list_linked_from_their_page(pages, facts):
     for o in facts["officials"]:
         page = pages[f"officials/{o['id']}.html"]
         assert f'href="../officials/{o["id"]}/votes.html?vote=no"' in page, o["id"]
+        # the same order as the list page's filter: All first (N3)
+        links = re.findall(r'href="\.\./officials/[^/]+/votes\.html(?:\?vote=([a-z]+))?">', page)
+        assert links == ["", "yes", "no", "abstain", "other", "absent"], links
+        assert "vote-list-pages" not in page          # one page each in the fixture
         assert f'officials/{o["id"]}/votes.html' in pages
 
 
@@ -39,9 +43,13 @@ def test_rows_are_the_confirmed_votes_and_absences_and_match_the_bar(pages, fact
         # newest first
         dates = [r[1] for r in rows]
         assert dates == sorted(dates, reverse=True)
-        # left out: the not confirmed ones, counted, never listed
-        n = c["rc_voted_nc"] + c["rc_absent_nc"]
-        assert f"{n} not confirmed* vote" in html
+        # left out: the not confirmed ones, counted apart (votes cast, then while absent), never listed; the first
+        # number is the official page's own rc_voted_nc
+        left = re.search(r'class="muted vote-list-left"><span data-n="rc_voted_nc">(\d+)</span> votes? cast and '
+                         r'<span data-n="rc_absent_nc">(\d+)</span> votes? while recorded absent are not confirmed\*', html)
+        assert left and int(left.group(1)) == c["rc_voted_nc"] and int(left.group(2)) == c["rc_absent_nc"]
+        official = pages[f"officials/{o['id']}.html"]
+        assert re.search(rf'data-n="rc_voted_nc">{c["rc_voted_nc"]}<', official)
 
 
 def test_unconfirmed_and_unnamed_votes_never_become_rows(facts):
@@ -102,6 +110,12 @@ def test_a_long_list_is_split_by_years_and_each_part_links_the_others(tmp_path, 
             assert f'href="{q.name}"' in html
         seen += _rows(html)
     assert len(seen) == len(rows)
+    official = (out / "officials" / f"{oid}.html").read_text(encoding="utf-8")
+    assert (f"The list is long, so it is on {len(parts)} pages by year; these counts cover all of them."
+            in official)
+    from qa import site_checks
+    problems, note = site_checks.check_vote_lists(out, facts)
+    assert problems == [], problems
 
 
 def _node():
@@ -153,7 +167,8 @@ def test_filter_and_csv_in_a_browser(built, facts):
     for w, x in json.loads(r.stdout).items():
         assert x["formShown"] and x["checked"] == "no" and not x["errs"], (w, x)
         assert x["visible"] == ["no"] * n_no, (w, x)
-        lines = x["csv"].strip().split("\r\n")
+        assert x["csv"].startswith("\ufeff")       # UTF-8 byte order mark, for spreadsheets
+        lines = x["csv"].lstrip("\ufeff").strip().split("\r\n")
         assert lines[0] == "date,item,vote_on,vote,record_page,source"
         assert len(lines) == 1 + n_no and all(',"No",' in ln for ln in lines[1:]), (w, lines)
         assert x["name"] == f"{o['id']}-votes-no.csv"
@@ -176,3 +191,19 @@ def test_a_preview_over_its_cap_leaves_the_vote_lists_out_and_says_so(tmp_path, 
     for o in facts["officials"]:
         html = (out / "officials" / f"{o['id']}.html").read_text(encoding="utf-8")
         assert "/votes.html" not in html and "is on the full site; this preview leaves those pages out." in html
+
+
+def test_site_checks_recount_every_vote_list_and_catch_a_wrong_row(built, facts, tmp_path):
+    """qa/site_checks.py vote-list: recounted from the facts, not from sitegen."""
+    import shutil as sh
+    from qa import site_checks
+    problems, note = site_checks.check_vote_lists(built, facts)
+    assert problems == [] and note.startswith(f"{len(facts['officials'])} vote lists")
+    site = tmp_path / "s"
+    sh.copytree(built, site)
+    oid = facts["officials"][0]["id"]
+    f = site / "officials" / oid / "votes.html"
+    f.write_text(f.read_text(encoding="utf-8").replace('<tr data-vote="yes"', '<tr data-vote="no"', 1), encoding="utf-8")
+    problems, _ = site_checks.check_vote_lists(site, facts)
+    assert any("rows differ from the facts" in p for p in problems)
+    assert any("filter counts" in p for p in problems)

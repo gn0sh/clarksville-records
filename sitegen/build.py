@@ -596,6 +596,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         groups = [{"year": y, "rows": [r for r in ctx["rows"] if r["date"][:4] == y]} for y in years]
         runs = pack_years(groups, lambda run: len(html_of("official_votes.html.j2", rel, name, sctx, **page(
             [r for g in run for r in g["rows"]])).encode("utf-8")))
+        # an instance attribute (never the class's shared dict): the official page says how many pages there are
+        bix.vote_list_pages = {**bix.vote_list_pages, o["id"]: len(runs)}
         paths = [rel if n == 1 else f"{rel[:-len('.html')]}-{n}.html" for n in range(1, len(runs) + 1)]
         nav = [{"href": posixpath.basename(path), "label": years_key(run).replace("-", " to "),
                 "n": sum(len(g["rows"]) for g in run)} for run, path in zip(runs, paths)]
@@ -763,10 +765,10 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                 render(tpl, path, name if n == 1 else f"{name} (part {n})",
                        **ctx, parts=[{**p, "current": i == n} for i, p in enumerate(nav, 1)])
     for o in facts["officials"]:
+        if vote_lists:   # first, so the official page knows how many pages the list is on
+            render_vote_list(ix, o, None)
         ctx = views.official(o["id"], ix)
         render("official.html.j2", f"officials/{o['id']}.html", o["name"], **ctx)
-        if vote_lists:
-            render_vote_list(ix, o, None)
     for oid in sorted(ix.seats.roster_only):  # in the roster, not in the facts: a page that says nothing is recorded
         ctx = views.roster_official(oid, ix)
         render("official_roster.html.j2", f"officials/{oid}.html", ctx["official"]["name"], **ctx)
@@ -804,10 +806,10 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
 
             runs = pack_years(groups, size_of)
             c.year_pages[o["id"]] = {g["year"]: years_key(run) for run in runs for g in run}
+            if vote_lists:   # first, so the member page knows how many pages the list is on
+                render_vote_list(c, o, cs)
             ctx = council_mod.member(o["id"], c)      # the year links now name each year's page
             render("official.html.j2", c.official_href(o["id"]), o["name"], cs, **ctx)
-            if vote_lists:
-                render_vote_list(c, o, cs)
             for run in runs:
                 run = [g for g in ctx["row_groups"] if g["year"] in {x["year"] for x in run}]
                 rel, (name, s), kw = year_page(run, ctx)

@@ -54,9 +54,11 @@ Of <span data-n="rc_total{{ sfx }}">{{ st['rc_total' ~ sfx] }}</span> {{ what }}
   {% if site.get("vote_lists_omitted") %}<p>Each confirmed vote with its item, meeting date and page of the minutes, on one page you can filter and download as CSV, is on the full site; this preview leaves those pages out.</p>
   {% else %}<p>Each confirmed vote with its item, meeting date and page of the minutes, on one page you can filter and download as CSV. Choose a vote:</p>
   <ul class="vote-list-links" aria-labelledby="vote-list-h">
+    <li><a href="{{ root }}{{ vote_list.href }}">All ({{ vote_list.counts | sum(attribute="n") }})</a></li>
     {% for c in vote_list.counts %}<li><a href="{{ root }}{{ vote_list.href }}?vote={{ c.key }}">{{ c.label }} ({{ c.n }})</a></li>
-    {% endfor %}<li><a href="{{ root }}{{ vote_list.href }}">All ({{ vote_list.counts | sum(attribute="n") }})</a></li>
-  </ul>{% endif %}
+    {% endfor %}
+  </ul>
+  {% if vote_list.pages > 1 %}<p class="muted vote-list-pages">The list is long, so it is on {{ vote_list.pages }} pages by year; these counts cover all of them.</p>{% endif %}{% endif %}
 </section>
 
 <section aria-labelledby="totals-h">

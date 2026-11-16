@@ -183,6 +183,9 @@ class Index:
     def official_year_href(self, official_id: str, year: str) -> str:
         return f"officials/{official_id}/{year}.html"
 
+    # official id -> how many pages their vote list is on (build.py render_vote_list sets it; 1 when not split)
+    vote_list_pages: dict = {}
+
     def official_votes_href(self, official_id: str) -> str:
         """The official's vote list page (onceover/votes/member-yes-no-list), next to their page."""
         return self.official_href(official_id)[:-len(".html")] + "/votes.html"
@@ -827,7 +830,8 @@ def official(official_id: str, facts) -> dict:
         "types": [(t, config.TYPE_LABELS[t]) for t in config.HISTORY_TYPES],
         # the vote list page (onceover/votes/member-yes-no-list): its filter options and counts, linked from here
         "vote_list": {"href": ix.official_votes_href(official_id),
-                      "counts": vote_list_counts(vote_list_rows(ix, official_id))},
+                      "counts": vote_list_counts(vote_list_rows(ix, official_id)),
+                      "pages": ix.vote_list_pages.get(official_id, 1)},   # > 1: the list is split by years
     }
 
 
@@ -882,7 +886,10 @@ def official_votes(official_id: str, facts) -> dict:
     rows = vote_list_rows(ix, official_id)
     c = official_counts(ix, official_id)
     return {"official": o, "official_href": ix.official_href(official_id), "rows": rows,
-            "counts": vote_list_counts(rows), "left_out": c["rc_voted_nc"] + c["rc_absent_nc"],
+            "counts": vote_list_counts(rows),
+            # left out, counted apart (votes/left-out-count-mismatch): the votes cast (rc_voted_nc, the number the
+            # official page shows) and the votes taken while recorded absent, both in not confirmed roll calls
+            "left_cast": c["rc_voted_nc"], "left_absent": c["rc_absent_nc"],
             "coverage": ix.coverage}
 
 

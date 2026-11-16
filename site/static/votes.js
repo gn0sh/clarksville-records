@@ -57,7 +57,8 @@
                   meeting ? meeting.href : "", src ? src.href : ""].map(cell).join(","));
     }
     var v = chosen().value || "all";
-    var blob = new Blob([lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
+    // the UTF-8 byte order mark first, so a spreadsheet reads the names and titles as UTF-8
+    var blob = new Blob(["\ufeff" + lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
     var a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = (button.getAttribute("data-name") || "votes") + "-" + v + ".csv";
