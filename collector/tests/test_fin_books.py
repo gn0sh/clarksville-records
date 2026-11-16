@@ -372,6 +372,62 @@ def test_schema_requires_cents_on_every_cell_of_a_cents_file(tmp_path, monkeypat
     assert any("'cents' is a required property" in e for e in validate(fin))
 
 
+def _city_meta(monkeypatch):
+    monkeypatch.setattr(fin_facts, "pdf_meta", lambda pdf, cfg, cache=None: {"pages": 9, "text_layer": "text",
+                                                                              "creator": None})
+
+
+def test_daily_build_keeps_the_committed_file_when_a_book_file_changed(tmp_path, monkeypatch):
+    # city-books/daily-overwrite-unguarded: the city replaced a book's file; a person reviews the new reading first
+    store, by_sha = fake_store(tmp_path)
+    _city_meta(monkeypatch)
+    cfg = fin_config.load_books(CITY)
+    out, rep = tmp_path / "finance.json", tmp_path / "report.json"
+
+    def words(pdf, first, last):
+        return by_sha[pdf.stem]
+    assert fin_books.cmd_build(store, cfg, out, rep, keep_committed=True, book_words=words) == 0    # nothing yet
+    committed = out.read_bytes()
+    assert fin_books.cmd_build(store, cfg, out, rep, keep_committed=True, book_words=words) == 0    # same reading
+    spec = BOOK["fy2024-adopted"]
+    store.now = lambda: "2026-11-17T00:00:00+00:00"                                 # a later file at the same URL
+    e, st = store.put(spec.url, b"%PDF-1.7 city replaced", {}, {"kind": "budget_book", "label": spec.title})
+    store.save()
+    by_sha[e["sha256"]] = words_of("fy2024-adopted", [50])
+    code = fin_books.cmd_build(store, cfg, out, rep, keep_committed=True, book_words=words)
+    assert code == fin_books.KEPT and out.read_bytes() == committed
+    kept = json.loads(rep.read_text())["kept"]
+    assert len(kept) == 1 and kept[0].startswith("book fy2024-adopted: source sha256 ")
+    assert fin_books.cmd_build(store, cfg, out, rep, book_words=words) == 0      # by hand: the new reading is written
+    assert out.read_bytes() != committed
+
+
+def _stats_file(books):
+    """A finance.json shape with, per book id: (sha, lines, held, does-not-add-up)."""
+    fin = {"sources": [], "books": [], "budget_lines": []}
+    for book_id, (sha, n, held, bad) in books.items():
+        fin["sources"].append({"id": f"src-{sha[:12]}", "sha256": sha})
+        fin["books"].append({"id": book_id, "source_id": f"src-{sha[:12]}"})
+        for i in range(n):
+            fin["budget_lines"].append({"book_id": book_id, "held": "column-align" if i < held else None,
+                                        "check": {"state": "does_not_add_up"} if i < bad else None})
+    return fin
+
+
+@pytest.mark.parametrize("new,why", [
+    ({"a": ("1" * 64, 5, 0, 0)}, []),
+    ({"a": ("1" * 64, 6, 0, 0), "b": ("2" * 64, 3, 0, 0)}, []),                     # more lines, a new clean book
+    ({"a": ("1" * 64, 4, 0, 0)}, ["book a: 4 lines, committed 5"]),
+    ({"a": ("1" * 64, 5, 1, 0)}, ["book a: 1 held lines, committed 0"]),
+    ({"a": ("1" * 64, 5, 0, 1)}, ["book a: 1 does not add up lines, committed 0"]),
+    ({"a": ("1" * 64, 5, 0, 0), "b": ("2" * 64, 3, 0, 1)}, ["book b: 1 does not add up lines, committed 0"]),
+    ({"b": ("2" * 64, 9, 0, 0)}, ["book a: in the committed file, not in the new build"]),
+    ({"a": ("3" * 64, 5, 0, 0)}, ["book a: source sha256 333333333333 differs from the committed 111111111111"]),
+])
+def test_worse_than_committed(new, why):
+    assert fin_books.worse_than_committed(_stats_file(new), _stats_file({"a": ("1" * 64, 5, 0, 0)})) == why
+
+
 def test_fin_books_build_writes_nothing_when_a_book_is_missing(tmp_path, monkeypatch):
     store, by_sha = fake_store(tmp_path, skip=("fy2026-final",))
     monkeypatch.setattr(fin_facts, "pdf_meta", lambda pdf, cfg, cache=None: {"pages": 9, "text_layer": "text",
@@ -419,6 +475,28 @@ def test_run_step_offline_with_no_stored_books_writes_nothing_and_never_raises(t
     assert out["clarksville-tn"]["build"] == 2                    # book missing from the store: guard, nothing written
     assert not (root / "data" / "localities" / "clarksville-tn" / "finance.json").exists()
     assert log["city_books"] is out
+    w = fin_books.warnings(log)                                   # exit 2 is a warning in the run log
+    assert len(w) == 1 and "exit 2" in w[0] and "committed finance.json is kept" in w[0]
+
+
+def test_run_step_keeps_a_worse_build_and_warns(tmp_path, monkeypatch):
+    root = _root(tmp_path)
+    fin = root / "data" / "localities" / "clarksville-tn" / "finance.json"
+    fin.parent.mkdir(parents=True)
+    fin.write_text("{}")
+
+    def fake_build(store, cfg, finance_path, report_path, keep_committed=False, **kw):
+        assert keep_committed                                     # the daily run always guards the committed file
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps({"kept": ["book fy2024-adopted: 1 held lines, committed 0"]}))
+        return fin_books.KEPT
+    monkeypatch.setattr(fin_books, "cmd_build", fake_build)
+    log, said = {}, []
+    out = fin_books.run_step(log, offline=True, root=root, progress=lambda *a, **k: said.append(a[0]))
+    assert out["clarksville-tn"]["build"] == fin_books.KEPT and fin.read_text() == "{}"
+    assert fin_books.warnings(log) == ["city books clarksville-tn: the new build reads worse than the committed "
+                                       "finance.json, which is kept: book fy2024-adopted: 1 held lines, committed 0"]
+    assert any(s.startswith("collector: WARNING city books clarksville-tn") for s in said)
 
 
 def test_run_step_online_fetches_only_books_not_stored_and_survives_a_block(tmp_path, monkeypatch):
