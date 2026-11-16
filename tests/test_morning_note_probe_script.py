@@ -26,7 +26,17 @@ def test_results_never_hold_key_addresses_or_ids():
     assert "function Note-Id" in PS1 and "$Secrets.Add($s)" in PS1
     w = PS1[PS1.index("function Write-Results"):]
     assert "$text.Replace($x, '<hidden>')" in w and "$text.Replace($script:key, '<hidden>')" in w
-    assert "OneDrive\\Documents\\App Development" in w
+    assert "GetFolderPath('MyDocuments')) 'App Development'" in w
+    assert "bezac" not in PS1 and b"bezac" not in CMD
+
+
+def test_guard_runs_before_any_write_and_addresses_are_checked():
+    guard = PS1.index("Step '2/9 Guard")
+    first_write = min(i for i in (PS1.find("Ensure-Subscriber $addrA 'first'"), PS1.find("$p1 = Bd 'PATCH'")) if i > 0)
+    assert guard < first_write
+    assert "throw \"This newsletter has $others" in PS1
+    assert "$EmailRe = " in PS1 and "-notmatch $EmailRe" in PS1
+    assert "probe 3 deleted at once" in PS1
 
 
 def test_probe_follows_no_redirect_and_uses_the_senders_filter_shape():
@@ -45,4 +55,4 @@ def test_powershell_51_compatible():
 
 def test_cmd_wrapper():
     assert b"\r\n" in CMD
-    assert b'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0morning-note-probe.ps1"' in CMD
+    assert b'"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "%~dp0morning-note-probe.ps1"' in CMD

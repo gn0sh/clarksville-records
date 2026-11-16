@@ -6,10 +6,12 @@
 # What it does: asks for the test newsletter's API key without showing it, makes the calls the sender makes
 # (subscribers, metadata, draft / scheduled / filtered emails, send-draft, the public sign-up form), asks a few
 # yes/no questions about what arrived in the team inboxes, then writes the answers to a results file in
-#   C:\Users\bezac\OneDrive\Documents\App Development\   (the Desktop if that folder is not there).
+#   Documents\App Development\ (OneDrive > Documents > App Development; the Desktop if that folder is not there).
 # The results hold answers only: yes/no, HTTP status codes, field names, counts. Never the key, an address or an id.
 # The key is never printed, logged or written anywhere; it is only sent to https://api.buttondown.com.
 # It sends at most 2 emails, to the two team addresses you type (one each). Takes about 12 minutes.
+# Guard: before any write it lists the newsletter's subscribers and stops if anyone but the typed team addresses is
+# on it (so it cannot run on a newsletter with real subscribers). The comparison is in memory only.
 #
 # Windows PowerShell 5.1 compatible (no ?? or ternary, no -AsHashtable). Untested against the live API (the team's
 # sandbox cannot reach buttondown.com): every check that cannot run says so in the results instead of guessing.
@@ -255,7 +257,7 @@ function Write-Results {
     $R['T4.4-10 Retry-After forms seen'] = $(if ($Seen.retry_after.Count) { $Seen.retry_after -join ', ' } else { 'no 429 seen' })
     $R['paid_feature_refusals'] = $Seen.paid
     $dir = $OutDir
-    if (-not $dir) { $dir = 'C:\Users\bezac\OneDrive\Documents\App Development' }
+    if (-not $dir) { $dir = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'App Development' }
     if (-not (Test-Path -LiteralPath $dir)) { $dir = [Environment]::GetFolderPath('Desktop') }
     $file = Join-Path $dir ('morning-note-probe-results-' + (Get-Date -Format 'yyyyMMdd-HHmm') + '.json')
     $text = ConvertTo-Json -InputObject $R -Depth 8
@@ -266,7 +268,7 @@ function Write-Results {
 }
 
 # ------------------------------------------------------------------------------------------------ start
-Say 'Morning note probe (test newsletter only). Nothing here touches the live newsletter.'
+Say 'Morning note probe: TEST newsletter only. Use the test newsletter''s key; the probe stops if the list holds anyone but your team addresses.'
 Say 'You will need: the TEST newsletter API key, two team email addresses you can open now, and about 12 minutes.'
 $R['probe_version'] = 1
 $R['run_at_utc'] = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
@@ -284,7 +286,13 @@ $testUser = (Read-Host 'The TEST newsletter username (the name after buttondown.
 $liveUser = (Read-Host 'The LIVE newsletter username (the name after buttondown.com/ for Daylight)').Trim()
 foreach ($x in @($addrA, $addrB, $addrC)) { if ($x) { $Secrets.Add($x) | Out-Null } }
 $R['live_username'] = $liveUser        # public: it goes in the site's sign-up form address (form_action)
-if (-not $addrA -or -not $addrB -or $addrA -eq $addrB) { Say 'Two different addresses are needed. Nothing was done.'; [void](Read-Host 'Press Enter to close'); exit 1 }
+$EmailRe = '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+$bad = $false
+foreach ($x in @($addrA, $addrB)) { if ($x -notmatch $EmailRe) { $bad = $true } }
+if ($addrC -and $addrC -notmatch $EmailRe) { $bad = $true }
+if ($bad -or $addrA -eq $addrB -or ($addrC -and ($addrC -eq $addrA -or $addrC -eq $addrB))) {
+    Say 'Each address must look like name@example.com, and they must all differ. Nothing was done.'; [void](Read-Host 'Press Enter to close'); exit 1
+}
 
 $rand = -join ((48..57) + (97..102) | Get-Random -Count 8 | ForEach-Object { [char]$_ })
 $day = (Get-Date).ToString('yyyy-MM-dd')
@@ -300,7 +308,23 @@ try {
     $nl = Bd 'GET' '/newsletters' $null '' 'GET /newsletters'
     $R['scoped_key_refuses_other_areas'] = "GET /tags HTTP $($tags.Status); GET /newsletters HTTP $($nl.Status) (401/403 = refused, as wanted)"
 
-    Step '2/9 Team subscribers'
+    Step '2/9 Guard: the list holds only your team addresses'
+    $guard = Listing '/subscribers' 'GET /subscribers (guard)'
+    if (-not $guard.Ok) { $R['newsletter_guard'] = "stopped: could not list subscribers (HTTP $($guard.Status))"; throw 'Could not list the subscribers, so nothing was changed.' }
+    $mineSet = @($addrA.ToLower(), $addrB.ToLower()); if ($addrC) { $mineSet += $addrC.ToLower() }
+    $others = 0
+    foreach ($row in $guard.Rows) {
+        $e = ''
+        if (Has $row 'email_address') { $e = [string]$row.email_address } elseif (Has $row 'email') { $e = [string]$row.email }
+        if (-not $e -or ($mineSet -notcontains $e.ToLower())) { $others++ }
+    }
+    if ($others -gt 0) {
+        $R['newsletter_guard'] = "stopped: $others subscriber(s) other than the typed team addresses"
+        throw "This newsletter has $others subscriber(s) besides your team addresses. Is this the TEST newsletter's key? Nothing was changed."
+    }
+    $R['newsletter_guard'] = 'passed: only team addresses on the list'
+
+    Step 'Team subscribers'
     $subA = Ensure-Subscriber $addrA 'first'
     $subB = Ensure-Subscriber $addrB 'second'
     if ($null -eq $subA -or $null -eq $subB) { throw 'Could not create or find the two team subscribers.' }
@@ -360,6 +384,10 @@ try {
         $back = Bd 'PATCH' ('/emails/' + $s2.Data.id) @{ status = 'draft' } ('probe-unsched-back-' + $rand) 'PATCH /emails/{id} (to draft)'
         $st = '(none)'; if (Has $back.Data 'status') { $st = $back.Data.status }
         $R['T4.4-8 PATCH status draft takes a scheduled email back'] = "HTTP $($back.Status), status now '$st' (want draft)"
+        if ($st -ne 'draft') {
+            $del = Bd 'DELETE' ('/emails/' + $s2.Data.id) $null '' 'DELETE /emails/{id} (probe 3 at once)'
+            $R['probe 3 deleted at once because it did not go back to draft'] = "HTTP $($del.Status)"
+        }
     } else { $R['T4.4-8 PATCH status draft takes a scheduled email back'] = "could not create: HTTP $($s2.Status) " + (Clean $s2.Text) }
 
     Step '7/9 send-draft to the first address (runbook 3, 7; T4.4 item 9)'

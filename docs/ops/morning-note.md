@@ -79,6 +79,9 @@ and may be labelled differently. Record what each screen really says in `docs/pl
      would pass for that commit although nobody merged the pull request on its page. Only the required reviewer on
      the `morning-note` environment covers this. A pull request shown as merged that nobody merged on its page is a
      direct push: treat it as in "When the note job fails".
+     **Canary week (decided 2026-11-16): the required reviewer is OFF**, so this gap is open during it. Reason: the
+     reviewer must approve every morning between 03:07 and about 07:00 CT, and the canary sends only to the team's
+     own ids (`canary_only: true`). Before `canary_only: false` it is turned on or decided again (section 5 step 4).
    `main` takes changes by pull request only, except the daily job's own `data/` commit (the `push` job,
    `GITHUB_TOKEN`, `github-actions[bot]`).
    1. Open https://github.com/gn0sh/clarksville-records/settings/rules > **New ruleset** > **New branch ruleset**.
@@ -199,7 +202,11 @@ architect.
    Never move the baseline later except by a reviewed PR, after a person has checked every commit it skips.
 
 ## 5. Go-live: Canary week (Brian; hard stop 1)
-0. **Optional, recommended for the canary week: Brian approves each send himself.** A required reviewer on the
+0. **Canary week: OFF (decided 2026-11-16, devops and security review of the probe PR).** Reason: an approval would be
+   due every morning between 03:07 and about 07:00 CT while the canary sends only to the team's own ids. The known gap
+   in step 2.0 is open while it is off. **Precondition for `canary_only: false` (step 4):** turn it on with the
+   steps below, or record a new decision with its reason here. The steps, for when it is turned on:
+   **Brian approves each send himself.** A required reviewer on the
    environment holds every job that uses `morning-note` (and so every job that could get the key, from any
    workflow) until Brian clicks approve. It is the one control in this runbook a writer cannot get around.
    1. Open https://github.com/gn0sh/clarksville-records/settings/environments > **morning-note**.
@@ -226,7 +233,8 @@ architect.
    (no address, no id), the team addresses got exactly the editions their lists and seats call for (nothing on a
    quiet day), the links open live pages, the unsubscribe link works, and nobody outside the canary list got mail
    (the Buttondown dashboard's recipient count).
-4. Widening: after one clean canary week, a reviewed PR sets `canary_only: false`. Revisit `max_editions` (80) and
+4. Widening: after one clean canary week, and only after step 0's required reviewer is on (or a new decision is
+   recorded in step 0), a reviewed PR sets `canary_only: false`. Revisit `max_editions` (80) and
    `max_recipients` (2000) in the same PR.
 
 ## Rules for manual runs and re-runs

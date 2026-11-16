@@ -30,8 +30,8 @@ Rules for every step:
 8. Open the newsletter menu (your newsletter's name, top left) > **Create a new newsletter**. Name **Daylight test**,
    username **daylight-test** (or anything free; write it down).
    You should see: the empty dashboard of **Daylight test**.
-   If this asks you to pay: don't. Skip steps 9 and 10, do step 11 on the **Daylight** newsletter instead, and tell
-   the team "probe ran on live". Nobody can sign up there yet, so only team addresses are on it.
+   If this asks you to pay: don't. Do only steps 16 to 21 (GitHub), then tell the team "test newsletter costs money".
+   The probe never runs on the Daylight newsletter.
 9. In **Daylight test**: Settings > **Subscribing** > **Double opt-in** on. **Save**.
 10. In **Daylight test**: Settings > **Tracking** > both off. **Save**.
 11. In **Daylight test**: Settings > **API** > **New API key** (or **Create key**). Name `probe`. Permissions:
@@ -44,15 +44,16 @@ Three addresses, for example `brian+probe1@gnoshcodes.com`, `brian+probe2@gnoshc
 `brian+probe3@gnoshcodes.com` (if your mail ignores the `+...` part, use any three team addresses you can read).
 12. Download both files into your **Downloads** folder: open each link, click the **Download raw file** button
     (the down-arrow icon at the top right of the file).
-    - https://github.com/gn0sh/clarksville-records/blob/main/scripts/morning-note-probe.cmd
-    - https://github.com/gn0sh/clarksville-records/blob/main/scripts/morning-note-probe.ps1
+    - https://github.com/gn0sh/clarksville-records/blob/<REVIEWED_SHA>/scripts/morning-note-probe.cmd
+    - https://github.com/gn0sh/clarksville-records/blob/<REVIEWED_SHA>/scripts/morning-note-probe.ps1
 13. In **Downloads**, double-click **morning-note-probe.cmd**. If Windows shows "Windows protected your PC", click
     **More info** > **Run anyway**. When it asks for the key: copy the key from the Buttondown page (step 11), click
     the black window, press **Ctrl+V**, then **Enter** (nothing shows; that is right). Then type what it asks: the
     three addresses, the **test** username, the **Daylight** username.
     It runs about 12 minutes by itself. It asks you once to click a confirm link if a test address needs it, and at
     the end asks 7 yes/no questions about which "Daylight probe" emails arrived.
-    You should see: "Results saved to: C:\Users\bezac\OneDrive\Documents\App Development\morning-note-probe-results-....json"
+    You should see: "Results saved to: ...\Documents\App Development\morning-note-probe-results-....json" (that is
+    OneDrive > Documents > App Development).
     and a yellow line telling you the **Subscribers** setting for the live key. Write that word down (WRITE or READ).
     If the yellow line says "Neither sending mode passed": stop here and tell the team; skip to step 16.
 14. In **Daylight test**: Settings > **API** > delete the `probe` key.
@@ -82,9 +83,11 @@ Three addresses, for example `brian+probe1@gnoshcodes.com`, `brian+probe2@gnoshc
 22. **Environment secrets** > **Add environment secret**. Name `BUTTONDOWN_API_KEY`. Value: copy the live key from
     the Buttondown page (step 15) and paste it here. **Add secret**.
     You should see: `BUTTONDOWN_API_KEY` listed, updated "now". Close the Buttondown key page.
-23. Do **not** add `MORNING_NOTE_SEND` or the canary secret yet (Session 2).
-24. Tell the team in one line: "probe done" (plus any of: "probe ran on live", "no scoped keys", "no Actions bypass",
-    or the step where Buttondown asked to pay). The results file is already in your OneDrive folder.
+23. Press **Win+V** > **Clear all** (empties the clipboard history, which may still hold both keys).
+    You should see: "Nothing here" (or the clipboard panel empty). Do **not** add `MORNING_NOTE_SEND` or the canary
+    secret yet (Session 2).
+24. Tell the team in one line: "probe done" (plus any of: "no scoped keys", "no Actions bypass", or the step where
+    Buttondown asked to pay). The results file is already in OneDrive > Documents > App Development.
 
 ## Waits for the team (no action from you)
 - The team reads the probe results and merges its pull requests: the sending mode, the site's own address in the
