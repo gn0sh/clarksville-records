@@ -143,7 +143,7 @@ morning_note:
     # The only hosts an email may link to (the plan stage drops any other link; the deliver stage refuses a body with
     # one): the collectors' source hosts. Add the site's own host before enabling. The support link is allowed as
     # exactly the top-level support_url, never its host: anyone can host a page there.
-    link_hosts: "www.clarksvilletn.gov,montgomerytn.gov,www.cmcrpc.com,clarksvilletn.api.civicclerk.com,montgomeryminutes.bisonline.com,mcgtn.org"
+    link_hosts: "daylight.gnoshcodes.com,www.clarksvilletn.gov,montgomerytn.gov,www.cmcrpc.com,clarksvilletn.api.civicclerk.com,montgomeryminutes.bisonline.com,mcgtn.org"
     # Every word of the email that is ours. Neutral connective text only: no summary, no claim about anyone.
     text:
       subject: "{site_name} morning note, {date}"
@@ -163,7 +163,7 @@ morning_note:
     preview_link: See today's note as it would read
     email_label: Email
     submit: Send me the morning note
-    sent_line: "Sending this form gives {provider} your email address, the lists you picked and your saved district and ward."
+    sent_line: "Sending this form gives {provider} your email address, the lists you picked, your saved district and ward if the box is ticked, and, like any website, your IP address."
     privacy_label: Privacy policy
     # Enabled state only (morning-security/seat-consent, privacy-text-matches-data-flow). seats_include labels the
     # form's visible box; the saved numbers are printed after it ("District 5, Ward 3"). seats_sent replaces the
