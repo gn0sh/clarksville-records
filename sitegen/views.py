@@ -417,6 +417,7 @@ def _site_context(ix: "Index", cfg: dict, contracts: bool, budget: tuple, counci
     return {
         "cfg": cfg,
         "csp": csp(),
+        "analytics": None,   # the visitor counter (ADR 0008): the build sets sitegen/analytics.py settings() when on
         "nav": _nav(ix, contracts, budget, councils, rpc),
         "alerts": alerts_on(),
         # the footer link exists only when it is switched on and has an address (CEO, 2026-11-08)
