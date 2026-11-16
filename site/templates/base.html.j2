@@ -64,6 +64,11 @@
 </nav>
 {% endif %}
 <main id="main">
+{# The one "where am I" line (sitegen/bodies.py crumbs; onceover/wayfinding/three-crumb-patterns): on every page but
+   the home page and a body's landing page, above the h1. #}
+{% if crumbs is defined and crumbs %}
+<nav class="crumb" aria-label="You are in">{% for c in crumbs %}{% if not loop.first %} <span class="crumb-sep" aria-hidden="true">/</span> {% endif %}<a href="{{ root }}{{ c.href }}">{{ c.label }}</a>{% endfor %}</nav>
+{% endif %}
 {% block main %}{% endblock %}
 {# M1.5: every fact-bearing page (build.REPORT_TEMPLATES) links the report page; static/nav.js adds this page's path
    (and the #anchor the reader came to) to the link's #fragment when it is followed. #}

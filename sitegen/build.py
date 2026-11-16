@@ -147,6 +147,7 @@ def make_env() -> jinja2.Environment:
     env.filters["local_day"] = localdates.local_day
     env.filters["as_of_day"] = as_of_day
     env.filters["day_words"] = localdates.words     # every reader-facing date: "May 11, 2026"
+    env.filters["day_parts"] = localdates.parts    # a meeting row's date block: weekday, day, month
     return env
 
 
@@ -556,7 +557,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         depth = rel.count("/")
         return env.get_template(template).render(
             site=site_ctx or site, root="../" * depth, page_name=page_name, body_current=switch_current.get(rel, ""),
-            report_page=template in REPORT_TEMPLATES,
+            report_page=template in REPORT_TEMPLATES, crumbs=bodies_mod.crumbs(site, rel, cixs, rpx),
             official_record=views.official_record(template, site_ctx or site, ctx), **ctx)
 
     def render(template: str, rel: str, page_name: str, site_ctx=None, **ctx) -> None:

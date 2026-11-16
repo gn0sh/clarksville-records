@@ -25,11 +25,17 @@ Meetings, <span class="nowrap">{{ coverage.from | day_words }}</span> to <span c
 <section aria-labelledby="y{{ y.year }}-h">
   <h2 id="y{{ y.year }}-h"><a href="{{ y.href }}">{{ y.year }}</a> <span class="muted">({{ y.meetings | length }} {{ "meeting" if y.meetings | length == 1 else "meetings" }})</span></h2>
   {% for m in y.meetings %}
-  <div class="item" id="{{ m.id }}">
-    <p class="item-num"><span class="nowrap">{{ m.date | day_words }}</span></p>
-    <h3 class="item-h"><a href="{{ root }}{{ m.href }}">{{ m.kind_label }}</a>{% if m.cancelled %} <span class="chip chip-status">Cancelled</span>{% endif %}</h3>
-    <p class="muted">Listed as: {{ m.printed }}.{% if m.cases %} {{ m.cases | length }} {{ "case" if m.cases | length == 1 else "cases" }} on the agenda.{% endif %}</p>
-    {{ rpc_docs(m) }}
+  {# onceover/rpc/rows-same-title: the row's title is its date (every row's body is the same commission); the kind of
+     meeting is the line under it. The date block is the home page's meeting row's (.meet-date). #}
+  {% set dp = m.date | day_parts %}
+  <div class="item meet-item" id="{{ m.id }}">
+    {% if dp %}<span class="meet-date" aria-hidden="true"><span class="dow">{{ dp.dow }}</span><b>{{ dp.n }}</b><span class="mon">{{ dp.month }}</span></span>{% endif %}
+    <div class="meet-what">
+      <h3 class="item-h"><a href="{{ root }}{{ m.href }}"><span class="nowrap">{{ m.date | day_words }}</span></a>{% if m.cancelled %} <span class="chip chip-status">Cancelled</span>{% endif %}</h3>
+      <p class="meet-kind">{{ m.kind_label }}</p>
+      <p class="muted">Listed as: {{ m.printed }}.{% if m.cases %} {{ m.cases | length }} {{ "case" if m.cases | length == 1 else "cases" }} on the agenda.{% endif %}</p>
+      {{ rpc_docs(m) }}
+    </div>
   </div>
   {% endfor %}
 </section>
