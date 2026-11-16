@@ -13,17 +13,19 @@ Two pieces a new city needs:
   record: a Legistar vote is shown "not confirmed" until the verifier reads the same vote in the minutes PDF.
 
 launch_windows() is the "launch with a year, backfill as compute allows" plan: the newest year first, then one older
-year per run until the configured earliest date.
+year per run until the configured earliest date. It now lives in cities/plan.py (shared by every portal type); the
+names Window and launch_windows stay importable from here.
 """
 from __future__ import annotations
 
 import re
 import urllib.parse
-from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 import yaml
+
+from cities.plan import Window, launch_windows  # noqa: F401  (moved to the shared planner; names kept here)
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = "legistar"
@@ -35,12 +37,6 @@ REQUIRED = ("city", "client", "body_name", "official_title", "launch_days", "ear
 
 class ConfigError(ValueError):
     pass
-
-
-@dataclass(frozen=True)
-class Window:
-    start: date      # inclusive
-    end: date        # exclusive
 
 
 def load_config(path: str | Path) -> dict:
@@ -73,18 +69,6 @@ def _as_date(value, path, key) -> date:
         return date.fromisoformat(str(value))
     except ValueError as exc:
         raise ConfigError(f"{path}: {key} must be YYYY-MM-DD") from exc
-
-
-def launch_windows(today: date, launch_days: int, earliest: date) -> list[Window]:
-    """The collection windows, newest first: [today - launch_days, today + 1 day), then one older year at a time back
-    to `earliest`. Run 1 collects windows[0] (the launch year); each later run takes the next window it has not done."""
-    end = today + timedelta(days=1)
-    start = max(earliest, end - timedelta(days=launch_days))
-    windows = [Window(start, end)]
-    while start > earliest:
-        end, start = start, max(earliest, start - timedelta(days=365))
-        windows.append(Window(start, end))
-    return windows
 
 
 def events_url(cfg: dict, window: Window) -> str:
