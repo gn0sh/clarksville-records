@@ -42,7 +42,7 @@
       <h3 id="your-seats-h">Your seats</h3>
       <ul class="your-seats-list"></ul>
       <button type="button" class="your-seats-forget" id="seats-forget" aria-label="Forget my saved seats">Forget</button>
-      <p class="your-seats-note">Saved only in this browser, on this device. {% if site.morning_note %}{{ site.morning_note.seats_sent }} No cookies are used.{% else %}Nothing is sent anywhere and no cookies are used.{% endif %}</p>
+      <p class="your-seats-note">Saved only in this browser, on this device. {% if site.morning_note %}{{ site.morning_note.seats_sent }} No cookies are used.{% else %}Nothing is sent anywhere{% if site.analytics %} {{ site.analytics.except }} <a href="{{ root }}method.html#visits">Method page</a>,{% endif %} and no cookies are used.{% endif %}</p>
     </section>
     <p class="sr-only" id="seats-status" role="status" aria-live="polite"></p>
 {% if address %}

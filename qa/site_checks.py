@@ -31,7 +31,9 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
               and none is the old favicon; the footer credit is the hook (gnoshcodes.com)
   brand/no-old-daylight-colors  no built file carries Daylight's old blue #2B4BA5 or old orange #EF5E35, as hex,
               hex with alpha or rgb()/rgba() (the palette is the gnoshcodes navy #0F1F3D and orange #D2561B)
-  external    no third-party scripts, styles, images or fonts (N6); the landing address box's geocoder (called
+  external    no third-party scripts, styles, images or fonts (N6); the visitor counter (ADR 0008) only while config
+              analytics.code is set, on every page or none, as static/count.js with exactly that code's /count
+              address, and then connect-src is exactly its origin (else 'none'); the landing address box's geocoder (called
               only on submit) is exactly config/site.yml geocoder_url; a page that loads static/address.js carries
               its settings block (addr-config); every page has one CSP meta whose script-src is 'self' only, plus
               (only beside the address box) one sha256 hash and exactly geocoder_url
@@ -666,6 +668,8 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
         out.add(cfg["operator_url"])                 # the footer's "gnoshcodes LLC" link
     if cfg.get("support_enabled") is True and cfg.get("support_url"):
         out.add(cfg["support_url"])
+    if ((cfg.get("analytics") or {}).get("code")):
+        out.add(GOATCOUNTER_PRIVACY)                 # About's and Method's visitor-counting line (ADR 0008)
     mn = cfg.get("morning_note") or {}
     if mn.get("enabled") is True and mn.get("privacy_url"):
         out.add(mn["privacy_url"])                   # the sign-up form's and the Method page's privacy policy link
@@ -692,6 +696,7 @@ class Page(HTMLParser):
         self._stack, self._fact_depth, self._fact_buf = [], None, None
         self.json_blocks: dict[str, list[str]] = defaultdict(list)   # <script type="application/json" id=...> text
         self.csp: list[str] = []      # every <meta http-equiv="Content-Security-Policy"> content
+        self.counters: list[tuple[str, str]] = []   # (script src, data-goatcounter) of each visitor-counter tag
         self._json_id = None
 
     def handle_endtag(self, tag):
@@ -731,6 +736,8 @@ class Page(HTMLParser):
             self.fact_ids.append(a["data-fact-id"])
         if tag == "script" and a.get("src"):
             self.resources.append((tag, a["src"]))
+        if tag == "script" and ("data-goatcounter" in a or COUNT_JS.search(a.get("src") or "")):
+            self.counters.append((a.get("src") or "", a.get("data-goatcounter") or ""))
         if tag == "script" and (a.get("type") or "").strip().lower() == "application/json" and a.get("id"):
             self._json_id = a["id"]
             self.json_blocks[a["id"]].append("")
@@ -1632,6 +1639,9 @@ def check_switch(site: Path, pages: dict[str, "Page"], cfg: dict | None = None) 
 ADDRESS_JS = re.compile(r"(^|/)static/address\.js$")
 CSP_FIXED = {"default-src": ["'self'"], "connect-src": ["'none'"], "object-src": ["'none'"], "base-uri": ["'none'"],
              "frame-src": ["'self'"], "img-src": ["'self'", "data:"], "form-action": ["'self'"]}
+GOATCOUNTER_PRIVACY = "https://www.goatcounter.com/help/privacy"   # restated from sitegen/analytics.py PRIVACY_URL
+COUNT_JS = re.compile(r"(^|/)static/count\.js$")
+GOATCOUNTER_CODE = re.compile(r"[a-z0-9][a-z0-9-]{1,48}[a-z0-9]")   # restated from sitegen/analytics.py CODE
 HASH_SRC = re.compile(r"'sha256-[A-Za-z0-9+/]{43}='")
 
 
@@ -1669,6 +1679,24 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
     if site is None:
         return problems
     want = (cfg or {}).get("geocoder_url") or None
+    # Visitor counting (ADR 0008): off while config analytics.code is empty, and then no page may load static/count.js,
+    # name a counter or open connect-src. On, either every page loads static/count.js with exactly
+    # https://<code>.goatcounter.com/count and connect-src is exactly that origin, or (a preview/fixture build) none does.
+    code = ((cfg or {}).get("analytics") or {}).get("code") or ""
+    counter = f"https://{code}.goatcounter.com" if code and GOATCOUNTER_CODE.fullmatch(code) else None
+    if code and counter is None:
+        problems.append(f"config analytics.code {code!r} is not a GoatCounter site code")
+    counted = {rel for rel, pg in pages.items() if pg.counters}
+    if counted and counted != set(pages):
+        problems.append(f"visitor counter on {len(counted)} of {len(pages)} pages (want all or none), e.g. "
+                        f"{sorted(set(pages) - counted)[0]}")
+    for rel, pg in pages.items():
+        if pg.counters and counter is None:
+            problems.append(f"{rel}: loads a visitor counter while config analytics.code is empty")
+        for src, end in pg.counters:
+            if not COUNT_JS.search(src) or (counter and end != counter + "/count") or len(pg.counters) != 1:
+                problems.append(f"{rel}: visitor counter tag {src!r} {end!r} is not the one static/count.js with "
+                                f"{(counter or '') + '/count'!r}")
     for rel, pg in pages.items():
         blocks = pg.json_blocks.get("addr-config", [])
         loads = any(t == "script" and ADDRESS_JS.search(src) for t, src in pg.resources)
@@ -1694,6 +1722,8 @@ def check_external(pages: dict[str, Page], site: Path | None = None, cfg: dict |
             continue
         pol = parse_csp(pg.csp[0])
         for k, v in CSP_FIXED.items():
+            if k == "connect-src" and pg.counters and counter:
+                v = [counter]
             if k == "form-action" and note_action and rel == NOTE_PAGE:
                 u = urlsplit(note_action)
                 v = [*v, f"{u.scheme}://{u.netloc}"]

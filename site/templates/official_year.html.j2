@@ -4,7 +4,6 @@
    build.py pack_years; city-pages/page-weight, city-pages/file-budget): the same table as an official page, one
    group per year, linked from the member's page. #}
 {% block main %}
-<p class="kicker-line"><a href="{{ root }}{{ council_href }}">{{ council }}</a></p>
 <h1><a href="{{ root }}{{ official_href }}">{{ official.name }}</a>: {{ year }}</h1>
 <p class="lede">Votes, attendance, and motions and seconds the minutes attribute to this person {{ "in" if years|length == 1 else "from" }} {{ year }}, newest first.</p>
 <nav aria-label="History by year" class="year-nav">

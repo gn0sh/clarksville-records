@@ -46,8 +46,12 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --gutter: 16px;
   --measure: 64rem;
+  /* Three radii (onceover/cards/radius-and-accent-families): 6px for inputs, notes and toggles; 12px for every
+     content card (officials, doors, hub cards, filter boxes, phone table cards); 18px for the two feature cards only,
+     the day card and the morning note. Pills are 999px. */
   --radius: 6px;
   --radius-lg: 12px;
+  --radius-xl: 18px;
   --t-eyebrow: .72rem;        /* the smallest type on the site: mono uppercase labels (weekday, month, column heads) */
   --t-xs: 0.8rem;
   --t-sm: 0.9rem;
@@ -96,7 +100,7 @@ a:visited { color: var(--link-visited); }
 /* Rows that lead to a part of the site (the landing's doors, a hub card's row, the district and ward lists, a crumb)
    are navigation, not a reading list: they stay navy after a visit (onceover/links/visited-on-nav-rows). A link to an
    outside source keeps the visited colour. */
-.door a:visited, .hub-go a:not([data-ext]):visited, ol.districts a:visited, .crumb a:visited, .kicker-line a:visited { color: var(--link); }
+.door a:visited, .hub-go a:not([data-ext]):visited, ol.districts a:visited, .crumb a:visited { color: var(--link); }
 a:focus-visible, [tabindex]:focus-visible, select:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
@@ -160,8 +164,12 @@ small { font-size: var(--t-sm); }
 .muted, .title-line, .watch-note { color: var(--muted); }
 .title-line { margin-top: 0; }
 .lede { max-width: 44rem; color: var(--muted); font-size: 1.05rem; }
-.label, .cite-label, .stat-label {
-  font-variant-caps: all-small-caps; letter-spacing: .04em;
+/* One small label (onceover/labels/small-caps-vs-mono): JetBrains Mono, uppercase, at the smallest size, for every
+   label over or beside content: column heads, a row's kind, a field's name, a weekday, a kicker, the crumb. Each
+   rule below keeps its own size line, colour and margin; the letterform is set here once. No small caps anywhere (the Coming chip is the same mono). */
+.eyebrow, .label, .cite-label, .stat-label, thead th, .filters label, .item-num, .r-kind, .meet-col h3,
+.meet-date .dow, .meet-date .mon, .day-dow, .day-when, .hub-kicker, .crumb, .h1-sub {
+  font-family: var(--font-mono); font-size: var(--t-eyebrow); font-variant-caps: normal; text-transform: uppercase; letter-spacing: .08em;
 }
 .nowrap { white-space: nowrap; }
 @media (max-width: 480px) { h1 { font-size: 1.6rem; } }
@@ -173,13 +181,15 @@ small { font-size: var(--t-sm); }
 }
 .stat { border-top: 2px solid var(--fg); padding-top: 8px; display: flex; flex-direction: column; gap: 2px; }
 .stat-num { font-size: var(--t-num); line-height: 1.1; font-variant-numeric: tabular-nums lining-nums; font-weight: 600; }
-.stat-label { font-size: var(--t-sm); line-height: 1.3; color: var(--muted); }
+.stat-label { line-height: 1.45; color: var(--muted); }
 .stat-dates .stat-num { font-size: var(--t-lg); line-height: 1.25; padding-top: 4px; }
 .stats-official { grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); margin: 18px 0 4px; }
 .stats-meeting { margin-top: 18px; }
+/* the checking counts under a meeting's or an official's figures: one small sentence, never a big number */
+.stats-note { margin: 8px 0 0; font-size: var(--t-sm); color: var(--muted); max-width: 46rem; }
 
 /* The home page band: dark ink, big serif numbers. */
-.glance { background: var(--band-bg); color: var(--band-fg); border-radius: var(--radius); padding: 22px 22px 16px; margin: 22px 0 28px; }
+.glance { background: var(--band-bg); color: var(--band-fg); border-radius: var(--radius-lg); padding: 22px 22px 16px; margin: 22px 0 28px; }
 .glance .stat { border-top-color: var(--band-fg); }
 .glance .stat-label { color: var(--band-muted); }
 .glance .stat-num { font-size: 2.1rem; }
@@ -233,7 +243,7 @@ small { font-size: var(--t-sm); }
 .cards { list-style: none; margin: 18px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 12px; }
 .card {
   position: relative; display: grid; grid-template-columns: auto 1fr; column-gap: 12px; align-content: start;
-  padding: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px; background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--mark); border-radius: var(--radius-lg);
 }
 .card:hover { border-color: var(--mark); }
 .card:focus-within { outline: 3px solid var(--focus); outline-offset: 2px; }
@@ -279,7 +289,7 @@ h3[id^="y"] { margin-top: 1.4em; font-variant-numeric: tabular-nums lining-nums;
 ol.meetings[id^="y"] { scroll-margin-top: 48px; }
 
 /* ---- Official page ----------------------------------------------------------------------------------------- */
-.official-head { display: flex; gap: 16px; align-items: center; margin: 6px 0 4px; padding: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.official-head { display: flex; gap: 16px; align-items: center; margin: 6px 0 4px; padding: 18px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
 .official-id { min-width: 0; }
 .official-head h1 { margin: 0; }
 .official-head .title-line { font-size: 1.05rem; }
@@ -289,11 +299,14 @@ ul.totals li { margin: 0; padding: 8px 0; border-top: 1px solid var(--border); }
 ul.totals li:first-child { border-top: 2px solid var(--fg); }
 
 /* ---- Tables ------------------------------------------------------------------------------------------------ */
-/* Tables scroll inside their own box, never the page. */
-.table-scroll { overflow-x: auto; max-width: 100%; border: 1px solid var(--border); border-radius: var(--radius); margin: 0.6em 0; background: var(--bg); }
+/* Tables scroll inside their own box, never the page. One look for every table (onceover/tables/boxed-vs-ruled, the
+   finance pages' own): an ink rule on top, hairlines between rows, a small mono label over each column; no box, no
+   stripes, no tinted header. */
+.table-scroll { overflow-x: auto; max-width: 100%; border: 0; border-top: 2px solid var(--fg); border-radius: 0; margin: 0.6em 0; background: transparent; }
 table { border-collapse: collapse; width: 100%; font-size: var(--t-sm); }
-th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--border); }
-thead th { background: var(--surface-2); font-weight: 600; white-space: nowrap; font-size: var(--t-xs); font-variant-caps: all-small-caps; letter-spacing: .05em; }
+th, td { text-align: left; vertical-align: top; padding: 9px 16px 9px 0; border-bottom: 1px solid var(--border); }
+tr > :last-child { padding-right: 0; }
+thead th { background: transparent; font-weight: 400; white-space: nowrap; font-size: var(--t-eyebrow); color: var(--muted); }
 tbody tr:last-child > * { border-bottom: 0; }
 table.history { min-width: 50rem; }
 table.review { min-width: 40rem; }
@@ -301,8 +314,20 @@ table.attendance, table.aliases { min-width: 0; }
 tr.empty td { color: var(--muted); }
 table.history td .date { font-size: var(--t-md); white-space: nowrap; }
 td.cite, .cite { font-size: var(--t-xs); color: var(--muted); }
-@media (min-width: 641px) {
-  table.history tbody tr:nth-child(even), table.attendance tbody tr:nth-child(even) { background: var(--surface); }
+/* On a phone the small tables stack (holders of a seat, the About page's rule tables, the corrections log): each row
+   a block between hairlines, its first cell the row's title, nothing scrolls sideways. */
+@media (max-width: 640px) {
+  .table-scroll:has(table.holders), .table-scroll:has(table.aliases) { overflow: visible; }
+  table.holders, table.aliases { min-width: 0; }
+  table.holders thead, table.aliases thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  table.holders, table.holders tbody, table.aliases, table.aliases tbody { display: block; }
+  table.holders tr, table.aliases tr { display: block; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  table.holders tbody tr:last-child, table.aliases tbody tr:last-child { border-bottom: 0; }
+  table.holders th, table.holders td, table.aliases th, table.aliases td { display: block; padding: 1px 0; border: 0; overflow-wrap: anywhere; }
+  table.holders td:first-child, table.aliases tbody th { font-weight: 600; }
+  /* Corrections log: each stacked cell carries its column label, so Was and Now are never bare text. */
+  table.corrections th[data-label], table.corrections td[data-label] { display: grid; grid-template-columns: 4rem 1fr; gap: 8px; }
+  table.corrections th[data-label]::before, table.corrections td[data-label]::before { content: attr(data-label); color: var(--muted); font-family: var(--font-mono); font-size: var(--t-eyebrow); text-transform: uppercase; letter-spacing: .08em; padding-top: 3px; font-weight: 400; }
 }
 
 /* History table becomes stacked cards on a phone: every cell labelled, no sideways scrolling. */
@@ -312,22 +337,22 @@ td.cite, .cite { font-size: var(--t-xs); color: var(--muted); }
   table.history thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   table.history, table.history tbody { display: block; }
   table.history tr {
-    display: block; padding: 10px; margin: 0 0 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    display: block; padding: 10px; margin: 0 0 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
   }
   table.history tr.nc { border-style: dashed; }
   table.history tr[hidden] { display: none; }
   table.history td {
     display: grid; grid-template-columns: 5rem 1fr; gap: 8px; padding: 4px 0; border: 0;
   }
-  table.history td::before { content: attr(data-label); color: var(--muted); font-size: var(--t-xs); font-variant-caps: all-small-caps; letter-spacing: .05em; padding-top: 2px; }
+  table.history td::before { content: attr(data-label); color: var(--muted); font-family: var(--font-mono); font-size: var(--t-eyebrow); text-transform: uppercase; letter-spacing: .08em; padding-top: 3px; }
   table.history tr.empty td { display: block; }
   table.history tr.empty td::before { content: none; }
 }
 
 .filters { display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 0.8em 0; }
-.toolbar { padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.toolbar { padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); }
 .filters[hidden], [hidden] { display: none; }
-.filters label { display: block; font-size: var(--t-xs); font-variant-caps: all-small-caps; letter-spacing: .05em; color: var(--muted); margin-bottom: 2px; }
+.filters label { display: block; font-size: var(--t-eyebrow); color: var(--muted); margin-bottom: 4px; }
 select {
   font: inherit; color: var(--fg); background: var(--bg);
   border: 1px solid var(--mark); border-radius: var(--radius); padding: 8px 10px; min-height: 44px; min-width: 9rem;
@@ -336,7 +361,6 @@ select {
 /* ---- Citations --------------------------------------------------------------------------------------------- */
 .fact-id, .meta { color: var(--muted); font-size: var(--t-xs); }
 .meta { margin: 0.8em 0 0; padding-top: 6px; border-top: 1px solid var(--border); }
-.cite-label { font-size: var(--t-sm); }
 .fact-id code { font-size: var(--t-xs); }
 
 /* ---- Meeting and item pages -------------------------------------------------------------------------------- */
@@ -356,7 +380,7 @@ select {
 .block .outcome { margin: 0.4em 0 0; }
 .outcome .label { font-size: var(--t-sm); }
 .motion-line { margin: 8px 0 0; font-size: var(--t-sm); }
-.votes-label { margin: 14px 0 6px; color: var(--muted); font-size: var(--t-sm); }
+.votes-label { margin: 14px 0 6px; color: var(--muted); }
 .nc-note { margin: 8px 0; }
 .unconfirmed { font-size: var(--t-sm); }
 .held { color: var(--muted); }
@@ -382,7 +406,7 @@ ol.events { margin: 0.6em 0; }
 .event.held { background: var(--surface); color: var(--muted); }
 
 .item { border-top: 1px solid var(--border); margin-top: 2em; padding-top: 4px; scroll-margin-top: 8px; }
-.item-num { margin: 16px 0 0; font-family: var(--font-mono); font-size: var(--t-sm); font-variant-caps: all-small-caps; letter-spacing: .08em; color: var(--muted); }
+.item-num { margin: 16px 0 0; color: var(--muted); }
 .item-h { font-size: var(--t-lg); margin: 2px 0 6px; padding: 0; border: 0; }
 .item-basis { margin: 0 0 4px; }
 .toc { columns: 2 12rem; padding-left: 1.2em; font-size: var(--t-sm); }
@@ -421,7 +445,7 @@ table.history td:last-child, table.history th:last-child { min-width: 13rem; }
   table.attendance thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   table.attendance, table.attendance tbody { display: block; }
   table.attendance tr {
-    display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 10px; padding: 10px 12px; border-bottom: 1px solid var(--border);
+    display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 10px; padding: 10px 0; border-bottom: 1px solid var(--border);
   }
   table.attendance tbody tr:last-child { border-bottom: 0; }
   table.attendance th, table.attendance td { padding: 0; border: 0; }
@@ -519,7 +543,7 @@ dialog.drawer::backdrop { background: rgb(0 0 0 / .4); }
 .nav-group { font-weight: 600; }
 .nav-years { list-style: none; margin: 0 0 6px; padding: 0 0 0 10px; display: flex; flex-wrap: wrap; gap: 4px; }
 .nav-years a { display: inline-block; padding: 6px 10px; min-height: 36px; color: var(--fg); border: 1px solid var(--border); border-radius: 999px; text-decoration: none; font-variant-numeric: tabular-nums; font-size: var(--t-sm); }
-.chip-coming { font-variant-caps: all-small-caps; letter-spacing: .05em; font-weight: 600; border-color: var(--mark-soft); background: transparent; color: var(--muted); padding: 0 8px; }
+.chip-coming { font-family: var(--font-mono); font-size: var(--t-eyebrow); text-transform: uppercase; letter-spacing: .06em; font-weight: 600; border-color: var(--mark-soft); background: transparent; color: var(--muted); padding: 0 8px; }
 .site-nav { margin-top: 18px; padding-top: 10px; border-top: 1px solid var(--border); }
 .site-nav-h { font-size: var(--t-md); margin: 0; padding: 0; border: 0; }
 /* In the footer the list is a tight grid (about 5 across on a desktop, 2 on a phone); the year group takes one full
@@ -533,7 +557,7 @@ dialog.drawer::backdrop { background: rgb(0 0 0 / .4); }
 .site-footer .nav-group { font-size: var(--t-xs); color: var(--muted); }
 .site-footer .nav-years { margin: 0; padding: 0; gap: 2px 4px; }
 .site-footer .nav-years a { padding: 0 8px; min-height: 24px; line-height: 22px; box-sizing: border-box; font-size: var(--t-xs); }
-.site-footer .chip-coming { font-size: var(--t-xs); line-height: 1.3; padding: 0 6px; }
+.site-footer .chip-coming { line-height: 1.3; padding: 0 6px; }
 @media (pointer: coarse) {
   .site-footer .nav-list > li > a, .site-footer .nav-list > li > .nav-group { min-height: 28px; }
   .site-footer .nav-years { gap: 4px; }
@@ -633,12 +657,12 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
 .door .door-coming a { display: inline; min-height: 0; padding: 0; font-weight: 400; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .door .door-coming a:hover { text-decoration-thickness: 2px; }
 .door .door-coming-body { font-weight: 600; color: var(--fg); }
-.door .door-coming .chip-coming { margin-right: 2px; font-size: var(--t-xs); line-height: 1.3; padding: 0 6px; }
+.door .door-coming .chip-coming { margin-right: 2px; line-height: 1.3; padding: 0 6px; }
 @media (pointer: coarse) { .door .door-coming a { display: inline-block; box-sizing: border-box; min-height: 44px; padding: 12px 0; } }
 .hub-card:target { outline: 3px solid var(--focus); outline-offset: 2px; }
 /* the meetings: two short lists of rows, each one link to its day on today.html */
 .meet-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 24px; }
-.meet-col h3 { margin: 0 0 6px; font-family: var(--font-mono); font-size: var(--t-xs); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.meet-col h3 { margin: 0 0 6px; font-weight: 600; color: var(--muted); }
 .meet-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
 .meet-list[hidden], .meet-list li[hidden] { display: none; }
 .meet-list li { border-bottom: 1px solid var(--border); }
@@ -647,13 +671,19 @@ details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm);
 .meet-row:hover { background: var(--surface-2); }
 .meet-row:hover .meet-body { text-decoration: underline; text-decoration-thickness: 2px; }
 .meet-date { display: grid; justify-items: center; line-height: 1.05; }
-.meet-date .dow, .meet-date .mon { font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.meet-date .dow, .meet-date .mon { font-size: var(--t-eyebrow); color: var(--muted); }
 .meet-date b { font-family: var(--font-head); font-size: 1.5rem; font-weight: 800; }
 .meet-what { min-width: 0; }
 .meet-body { display: block; font-weight: 600; color: var(--link); }
 .meet-body .dot { width: 8px; height: 8px; margin-right: 6px; vertical-align: 1px; }
 .meet-kind { display: block; font-size: var(--t-sm); color: var(--muted); }
 .meet-row .chip { padding: 1px 8px; border: 1px dashed var(--mark); border-radius: 999px; font-size: var(--t-xs); background: var(--surface); color: var(--fg); white-space: nowrap; }
+/* a meeting row that holds its own links (the RPC's list): the same date block, the date as the row's title */
+.meet-item { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 12px; align-items: start; margin-top: 0; padding: 12px 4px; }
+.meet-item .meet-date { padding-top: 2px; }
+.meet-item .item-h { margin: 0; }
+.meet-item .meet-kind { margin: 0; font-weight: 600; color: var(--fg); }
+.meet-item .muted { margin: 2px 0 4px; font-size: var(--t-sm); }
 .meet-empty { margin: 8px 0 0; color: var(--muted); font-size: var(--t-sm); }
 .meet-empty[hidden] { display: none; }
 .meet-foot { margin: 10px 0 0; font-size: var(--t-sm); color: var(--muted); max-width: 48rem; }
@@ -754,7 +784,7 @@ details.officials-section > summary.section-summary { font-size: var(--t-sm); co
   display: flex; align-items: center; border-bottom: 1px solid var(--border); }
 .basis { font-size: var(--t-sm); margin: 4px 0; }
 .holder-row { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
-table.holders { min-width: 30rem; }
+@media (min-width: 641px) { table.holders { min-width: 30rem; } }
 section.holder { border-top: 1px solid var(--border); margin-top: 1em; }
 .totals-line { font-size: var(--t-sm); }
 
@@ -768,7 +798,7 @@ ol.vote-list .meta { border: 0; padding-top: 0; margin-top: 4px; }
 .search-form > .search-row { max-width: 48rem; margin-bottom: 12px; }
 .search-layout { display: grid; grid-template-columns: 1fr; gap: 12px 24px; }
 @media (min-width: 900px) { .search-layout { grid-template-columns: 16rem minmax(0, 1fr); } }
-.filter-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px 12px 12px; align-self: start; }
+.filter-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 4px 12px 12px; align-self: start; }
 .filter-panel > summary { cursor: pointer; font-weight: 600; padding: 8px 0; min-height: 40px; }
 .filter-panel fieldset { border: 0; border-top: 1px solid var(--border); margin: 6px 0 0; padding: 8px 0 0; }
 .filter-panel legend { font-weight: 600; font-size: var(--t-sm); padding: 0; }
@@ -786,7 +816,7 @@ ol.vote-list .meta { border: 0; padding-top: 0; margin-top: 4px; }
 .count { font-weight: 600; margin: 8px 0; }
 ol.result-list { list-style: none; margin: 0; padding: 0; }
 li.result { padding: 10px 0; border-top: 1px solid var(--border); }
-.r-kind { margin: 0; font-size: var(--t-xs); color: var(--muted); font-variant-caps: all-small-caps; letter-spacing: .05em; }
+.r-kind { margin: 0; color: var(--muted); }
 .r-title { margin: 2px 0; }
 .r-zoning { margin: 2px 0; font-size: var(--t-sm); color: var(--fg); overflow-wrap: anywhere; }
 .r-meta { margin: 0; font-size: var(--t-sm); color: var(--muted); }
@@ -878,7 +908,6 @@ table.attendance td.cite details.row-details { display: inline-block; }
 .f-actions { display: flex; gap: 8px; }
 .more-btn { margin: 8px 0; }
 .exports { font-size: var(--t-sm); }
-.crumb { margin: 0 0 4px; font-size: var(--t-sm); }
 .sol-meta { margin: 2px 0; font-size: var(--t-sm); }
 .sol-meta .cite, .awardee .cite { font-size: var(--t-xs); }
 .doc-links { list-style: none; margin: 0; padding: 0; }
@@ -913,7 +942,7 @@ dl.glossary dt:target { outline: 2px solid var(--focus); outline-offset: 2px; }
   table.fin-stack caption { display: block; padding: 4px 0; }
   table.fin-stack tbody tr {
     display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; padding: 8px 10px; margin: 0 0 8px;
-    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
   }
   table.fin-stack tr[hidden] { display: none; }
   table.fin-stack tbody th, table.fin-stack tbody td { display: block; padding: 1px 0; border: 0; grid-column: 1 / -1; min-width: 0; }
@@ -927,12 +956,17 @@ dl.glossary dt:target { outline: 2px solid var(--focus); outline-offset: 2px; }
   table.sol-index tbody td.c-awardee:empty { display: none; }
   table.sol-index tbody td.c-awardee::before { content: "Awardee as printed: "; color: var(--muted); }
   table.sol-index .doc-links { display: flex; flex-wrap: wrap; gap: 2px 12px; }
-  table.sol-docs tbody th.c-stage { font-size: var(--t-xs); font-variant-caps: all-small-caps; letter-spacing: .05em; color: var(--muted); }
+  table.sol-docs tbody th.c-stage { font-family: var(--font-mono); font-size: var(--t-eyebrow); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
   table.sol-docs tbody td.c-date::before, table.sol-bidders tbody td.c-total::before { content: attr(data-label) ": "; color: var(--muted); }
 }
 
 /* Finance and capital projects (design finance-contracts 6-7): budget book tables, one row layout for every line. */
-.h1-sub { font-size: var(--t-sm); font-weight: 400; color: var(--muted); white-space: nowrap; }
+/* The one "where am I" line above the h1 of every page but the home page and a body's landing page (sitegen/bodies.py
+   crumbs): a small mono label, each part a link up. 44px rows on a touch screen. */
+.crumb { display: flex; flex-wrap: wrap; align-items: center; gap: 0 8px; margin: 0 0 2px; color: var(--muted); }
+.crumb a { display: inline-flex; align-items: center; min-height: 32px; }
+@media (pointer: coarse) { .crumb a { min-height: 44px; } }
+.h1-sub { font-weight: 400; color: var(--muted); white-space: nowrap; }
 .fin-books { padding-left: 1.2em; }
 .fin-books li { margin: 4px 0; }
 .fin-toc ul { list-style: none; padding: 0; margin: 8px 0; font-size: var(--t-sm); }
@@ -942,6 +976,16 @@ dl.glossary dt:target { outline: 2px solid var(--focus); outline-offset: 2px; }
 details.fin-group { margin: 4px 0; }
 details.fin-group > summary { cursor: pointer; min-height: 44px; padding: 10px 0; font-weight: 600; }
 details.fin-group > summary:focus-visible, details.fin-jump > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* A page's own jump list (About): the ruled list on a wide screen, one closed toggle on a phone, never both. */
+.page-toc ul { columns: 18rem; column-gap: 28px; padding: 10px 0; border-block: 1px solid var(--border); }
+.page-toc li { break-inside: avoid; }
+.page-toc.toc-phone { display: none; }
+.page-toc.toc-phone > summary { font-weight: 600; color: var(--link); width: max-content; max-width: 100%; }
+.page-toc.toc-phone ul { list-style: none; padding: 0 0 6px; border-block: 0; border-bottom: 1px solid var(--border); }
+.page-toc.toc-phone a { display: flex; align-items: center; min-height: 44px; }
+.page-toc.toc-phone li { margin: 0; }
+@media (max-width: 640px) { .page-toc.toc-wide { display: none; } .page-toc.toc-phone { display: block; } }
+@media (pointer: coarse) { .page-toc.toc-wide a { display: inline-flex; align-items: center; min-height: 44px; } .page-toc.toc-wide li { margin: 0; } }
 details.fin-jump { margin: 4px 0 8px; font-size: var(--t-sm); }
 details.fin-jump > summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
 details.fin-jump ul { columns: 16rem; margin: 0; padding-left: 1.2em; }
@@ -956,8 +1000,8 @@ table.budget .b-diff li + li { margin-top: 2px; }
 table.budget tr.b-diffrow td { padding-top: 0; border-top: 0; }
 @media (max-width: 640px) {
   /* the note sits in its own card row, joined to the total above it */
-  table.fin-stack tbody tr:has(+ .b-diffrow) { margin-bottom: 0; border-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; }
-  table.fin-stack tbody tr.b-diffrow { border-top: 0; border-radius: 0 0 var(--radius) var(--radius); padding-top: 0; }
+  table.fin-stack tbody tr:has(+ .b-diffrow) { margin-bottom: 0; border-bottom: 0; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  table.fin-stack tbody tr.b-diffrow { border-top: 0; border-radius: 0 0 var(--radius-lg) var(--radius-lg); padding-top: 0; }
 }
 table.budget tr.b-subtotal th.c-line, table.budget tr.b-total th.c-line { font-weight: 700; }
 table.budget tr.b-subtotal > *, table.budget tr.b-total > * { border-top: 2px solid var(--fg); }
@@ -981,26 +1025,17 @@ table.budget td.c-source { min-width: 9rem; }
    figures; no box and no stripes. Text pairs are the M1 ones (ink, muted and link on paper and surface, 4.5:1 or
    better in both themes); focus rings are the sun at 3px on paper and surface. State is still words only. */
 .fin > h1 { font-size: clamp(1.7rem, 4vw, 2.4rem); line-height: 1.05; margin: 0.2em 0 0.35em; text-wrap: balance; }
-.fin .crumb, .fin .h1-sub { font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: .1em; text-transform: uppercase; }
-.fin .crumb { margin: 0; }
-.fin .crumb a { display: inline-block; padding: 6px 0; }
-.fin .h1-sub { letter-spacing: .08em; vertical-align: middle; }
+.fin .h1-sub { vertical-align: middle; }
 .fin .coverage { font-size: 1.02rem; }
 .fin .note { padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
 .fin .note-phone { padding: 0 14px; }
 .fin .note-phone > summary, .fin details.words > summary, .fin details.fin-jump > summary { border-radius: var(--radius); }
 .fin details.words > summary, .fin details.fin-jump > summary { font-weight: 600; color: var(--link); width: max-content; max-width: 100%; }
-.fin .sol-filters.toolbar { padding: 14px 16px; border-radius: 18px; }
-.fin .sol-filters label { font-family: var(--font-mono); font-size: var(--t-eyebrow); font-variant-caps: normal; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px; }
+.fin .sol-filters.toolbar { padding: 14px 16px; }
 .fin .sol-filters input[type="search"] { border: 2px solid var(--fg); border-radius: var(--radius-lg); background: var(--surface); }
 .fin .sol-filters select { border-radius: var(--radius-lg); background: var(--surface); }
 .fin .sol-filters button, .fin .more-btn, .fin .empty-note button { font-family: var(--font-head); font-weight: 700; font-size: var(--t-md); border-radius: var(--radius-lg); }
 .fin .sol-filters button[type="submit"]:hover { background: var(--blue-hover); text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
-.fin .fin-scroll { border: 0; border-top: 2px solid var(--fg); border-radius: 0; background: transparent; }
-.fin table.fin-stack thead th {
-  background: transparent; font-family: var(--font-mono); font-size: var(--t-eyebrow); font-weight: 400; font-variant-caps: normal;
-  text-transform: uppercase; letter-spacing: .1em; color: var(--muted);
-}
 .fin table.budget thead th.num { font-size: .74rem; letter-spacing: .02em; text-transform: none; color: var(--fg); }  /* the header as printed */
 .fin table.budget thead th .kind { font-family: var(--font-body); letter-spacing: 0; }
 .fin table.fin-stack .num, .fin table.fin-stack .date, .fin table.fin-stack td.c-fundno, .fin table.budget td.c-acct {
@@ -1034,9 +1069,8 @@ table.budget td.c-source { min-width: 9rem; }
   .fin .fin-scroll { border: 0; }
   /* the visually hidden header row stays one line tall (row-height check), as the budget tables' already does */
   .fin table.fin-stack thead tr { display: block; height: 1px; overflow: hidden; }
-  .fin table.fin-stack tbody tr { padding: 12px 14px; border-radius: 14px; }
-  .fin table.fin-stack tbody tr:has(+ .b-diffrow) { border-radius: 14px 14px 0 0; }
-  .fin table.fin-stack tbody tr.b-diffrow { border-radius: 0 0 14px 14px; padding-top: 0; }
+  .fin table.fin-stack tbody tr { padding: 12px 14px; }
+  .fin table.fin-stack tbody tr.b-diffrow { padding-top: 0; }
   .fin table.fin-stack .num { font-size: var(--t-sm); }
   .fin table.sol-index tbody th.c-title { font-family: var(--font-head); font-weight: 700; font-size: 1.06rem; line-height: 1.25; padding: 2px 0 4px; }
 }
@@ -1045,7 +1079,6 @@ table.budget td.c-source { min-width: 9rem; }
 .inline-list { list-style: none; margin: 8px 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
 .year-links { list-style: none; margin: 0.4em 0; padding: 0; columns: 2 9rem; }
 .year-links li { padding: 3px 0; }
-.kicker-line { margin: 0 0 4px; font-size: var(--t-sm); }
 ol.council-seats li { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; padding: 7px 4px; }
 ol.council-seats .d-label { min-width: 5.5em; font-weight: 600; }
 /* A seat's printed-name line and note sit on their own line under the holder's name, lined up with it (the label's
@@ -1076,7 +1109,7 @@ ul.feed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(mi
    label (keyboard: Tab to a pill, Space toggles it). The card is the navy band (--band-bg: brand navy, and a deep
    navy on dark, so the orange button stands 3:1 or better off it in both themes). On the card the ring is white, not
    the sun. */
-.mn-card { background: var(--band-bg); color: var(--on-blue); border-radius: 18px; padding: clamp(18px, 3.2vw, 30px); display: grid; gap: 14px; max-width: 44rem; margin: 1.2em 0 1.6em; min-width: 0; }
+.mn-card { background: var(--band-bg); color: var(--on-blue); border-radius: var(--radius-xl); padding: clamp(18px, 3.2vw, 30px); display: grid; gap: 14px; max-width: 44rem; margin: 1.2em 0 1.6em; min-width: 0; }
 .mn-card h2 { margin: 0; color: var(--on-blue); }
 .mn-card h3 { margin: 0 0 6px; font-size: var(--t-md); color: var(--on-blue); }
 .mn-card p { margin: 0; }
@@ -1093,8 +1126,21 @@ ul.feed-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(mi
 .mn-card .pick span { border-color: var(--on-blue); color: var(--on-blue); }
 .mn-card .pick input:checked + span { background: var(--on-blue); color: var(--band-bg); }
 .mn-card label.f { font-weight: 600; font-size: var(--t-sm); display: grid; gap: 6px; }
-.mn-card input[type=email] { font: inherit; padding: 13px 14px; border-radius: 12px; border: 0; background: #FFFFFF; color: #141A2E; width: 100%; box-sizing: border-box; }
+.mn-card input[type=email] { font: inherit; padding: 13px 14px; border-radius: var(--radius-lg); border: 0; background: #FFFFFF; color: #141A2E; width: 100%; box-sizing: border-box; }
 .mn-card .btn { font: inherit; font-weight: 700; border: 0; border-radius: 999px; padding: 12px 20px; background: var(--sun); color: #1A0B05; cursor: pointer; justify-self: start; }
+/* Until email starts (mn-off, onceover/alerts/card-before-launch): a small card. Heading at section size, the state
+   line, one sentence, and a closed toggle (44px) that holds the list picker and each list's feeds. */
+.mn-card.mn-off { padding: 14px 18px; gap: 6px; margin: 1em 0 1.4em; }
+.mn-card.mn-off h2 { font-size: var(--t-lg); }
+.mn-card.mn-off .mn-state { font-size: var(--t-sm); }
+.mn-more > summary { display: flex; align-items: center; gap: 8px; min-height: 44px; cursor: pointer; font-weight: 600; font-size: var(--t-sm); text-decoration: underline; text-underline-offset: 3px; list-style: none; }
+.mn-more > summary::-webkit-details-marker { display: none; }
+.mn-more > summary::before { content: "+"; font-family: var(--font-mono); font-weight: 700; text-decoration: none; display: inline-block; width: 1ch; }
+.mn-more[open] > summary::before { content: "\2212"; }
+.mn-more > summary:focus-visible { outline: 3px solid var(--on-blue); outline-offset: 3px; border-radius: var(--radius); }
+.mn-more[open] { display: grid; gap: 12px; }
+.mn-more .mn-feeds-h { display: none; }          /* the toggle already carries these words */
+.mn-more .mn-panel { border-top: 0; padding-top: 0; }
 .mn-check { display: flex; gap: 10px; align-items: center; font-size: var(--t-sm); font-weight: 600; min-height: 24px; }
 .mn-check input { width: 20px; height: 20px; margin: 0; flex: none; accent-color: var(--sun); }
 .mn-state { font-size: var(--t-md); }
@@ -1175,6 +1221,17 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
    plate, so the plate, tag and kicker stop short of the sun's column (its disc and inner ring): no text over the sun */
 .has-sky { --sun-room: calc(clamp(76px, 15vw, 190px) + clamp(8px, 2vw, 22px)); }
 .has-sky:not(:has(#sky-hero)) .brand { padding-right: var(--sun-room); }
+/* Every other page (sky-small, onceover/header/sun-on-every-page): the same sun, smaller and lower, so the header is
+   one family on every page and the page's own h1 stays the loudest thing. On a phone it is the body pages' sliver
+   (the rules below already cover every header without the date line). */
+@media (min-width: 700px) {
+  .sky-small .sky-sun {
+    --sun-size: clamp(64px, 8vw, 104px); --sun-max: .42;
+    box-shadow: 0 0 0 clamp(6px, 1vw, 12px) color-mix(in srgb, var(--halo) 55%, transparent),
+                0 0 0 clamp(14px, 2.2vw, 26px) color-mix(in srgb, var(--halo) 26%, transparent);
+  }
+  .has-sky.sky-small { --sun-room: calc(clamp(64px, 8vw, 104px) + clamp(6px, 1vw, 12px)); }
+}
 .sky-hero { position: relative; z-index: 1; max-width: var(--measure); margin: 0 auto; padding: 0 var(--gutter) 10px; }
 .sky-hero[hidden] { display: none; }
 /* with the script the date line keeps its space before it is filled (js-flag.js), so nothing jumps */
@@ -1250,7 +1307,7 @@ ul.call-ons > li { margin: 0 0 12px; overflow-wrap: anywhere; }
 .day-strip button:focus-visible { outline: 3px solid var(--fg); outline-offset: 1px; }
 .day-strip .wk-step { font-family: var(--font-head); font-size: 1.6rem; line-height: 1; border-color: var(--border); }
 .day-strip .wk-step:disabled { color: var(--muted); cursor: default; opacity: .55; }
-.day-dow { font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.day-dow { font-size: var(--t-eyebrow); color: var(--muted); }
 .day-strip .day b { font-family: var(--font-head); font-size: 1.3rem; font-weight: 800; line-height: 1.1; }
 .day-strip .day em { display: flex; gap: 3px; height: 6px; }
 .day-strip .day[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
@@ -1273,11 +1330,11 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 .day-head { display: grid; gap: 2px; margin-bottom: 12px; }
 .day-head h2 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.3rem); line-height: 1.05; }
 .day-head h2:focus { outline: none; }
-.day-when { margin: 0; min-height: 1.2em; font-family: var(--font-mono); font-size: var(--t-eyebrow); letter-spacing: .1em; text-transform: uppercase; font-variant-caps: normal; color: var(--muted); }
+.day-when { margin: 0; min-height: 1.2em; font-size: var(--t-eyebrow); color: var(--muted); }
 .day-empty { color: var(--muted); margin: 6px 0 18px; }
 .day-card {
   display: grid; gap: 8px; min-width: 0; margin: 0 0 14px; padding: clamp(14px, 2.6vw, 22px);
-  background: var(--surface); border: 1px solid var(--border); border-radius: 18px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-xl);
 }
 .day-card-hd { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 16px; }
 .day-card-hd h3 { margin: 0; font-family: var(--font-head); font-size: 1.14rem; font-weight: 700; line-height: 1.25; }
@@ -1332,7 +1389,7 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 /* the chosen (filled) chip keeps the orange ring of the others (3:1 or more against the bar in both themes), with a
    white band inside it, so the ring stands apart from the navy fill too (WCAG 2.4.7, 1.4.11) */
 .bs-list a[aria-current]:focus-visible { outline-color: var(--focus); box-shadow: inset 0 0 0 5px var(--on-blue); }
-.bs-list .chip-coming { font-size: var(--t-xs); line-height: 1.3; padding: 0 6px; }
+.bs-list .chip-coming { line-height: 1.3; padding: 0 6px; }
 .bs-list a[aria-current] .chip-coming { color: var(--on-blue); border-color: var(--on-blue); }
 .bs-short { display: none; }
 @media (max-width: 699px) {
@@ -1363,7 +1420,7 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 .bs-line button:focus-visible, .bs-line a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 @media (pointer: coarse) { .bs-line button { min-height: 44px; } .bs-line a { display: inline-flex; align-items: center; min-height: 44px; } }
 
-.hub-kicker { margin: 0 0 4px; font-family: var(--font-mono); font-size: var(--t-xs); font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.hub-kicker { margin: 0 0 4px; font-weight: 500; color: var(--muted); }
 .hub-kicker + h1 { margin-top: 0; }
 /* The one header of every body's landing page (_hub.html.j2 body_head): kicker, h1, lede, coverage line, how recent
    the records are, Watch. The same measure and the same gaps on all four, whichever rows a body has. */
@@ -1397,6 +1454,12 @@ html:not(.js) .day-sheet.is-empty { display: none; }
 .body-note { margin: 0 0 12px; border-left-color: var(--sun); }
 @media (pointer: coarse) { .bodies-card h3 a { min-height: 44px; } .hub-go a[data-ext] { padding: 12px 0; } }
 
+/* The site in numbers (stats.html, sitegen/stats.py): label and count on one line, the counts lined up. */
+.stats-list { margin: 0 0 1.5rem; padding: 0; max-width: 36rem; }
+.stats-list > div { display: flex; justify-content: space-between; gap: 1rem; padding: .35rem 0; border-bottom: 1px solid var(--border); }
+.stats-list dt { color: var(--muted); }
+.stats-list dd { margin: 0; font-variant-numeric: tabular-nums; text-align: right; color: var(--fg); }
+.coming-list { padding-left: 1.25rem; }
 /* ---- Vote list (onceover/votes/member-yes-no-list): official page links, the list page's filter and table ------ */
 .vote-list-links { list-style: none; margin: 0.4em 0 1em; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 18px; }
 .vote-list-links a { display: inline-flex; align-items: center; min-height: 44px; }

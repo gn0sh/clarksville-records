@@ -15,6 +15,8 @@ from markupsafe import Markup
 from jsonschema import Draft202012Validator, FormatChecker
 
 from . import bodies as bodies_mod
+from . import analytics as analytics_mod
+from . import stats as stats_mod
 from . import county_agendas as agendas_mod
 from . import rpc as rpc_mod
 from . import freshness as fresh_mod
@@ -147,6 +149,7 @@ def make_env() -> jinja2.Environment:
     env.filters["local_day"] = localdates.local_day
     env.filters["as_of_day"] = as_of_day
     env.filters["day_words"] = localdates.words     # every reader-facing date: "May 11, 2026"
+    env.filters["day_parts"] = localdates.parts    # a meeting row's date block: weekday, day, month
     return env
 
 
@@ -483,11 +486,13 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         ward_map = georef_mod.wards_of(districts) is not None    # the landing map draws the wards and finds them
     except (seats_mod.SeatsError, ValueError) as exc:
         raise BuildError(str(exc)) from exc
-    bad = site_url_problems(config.SITE) + morning_mod.reader_problems()
+    bad = site_url_problems(config.SITE) + morning_mod.reader_problems() + analytics_mod.problems()
     if config.SITE.get("live", False) not in (True, False):   # site-polish/about-preview: a typo never claims a launch
         bad.append(f"live must be true or false, got {config.SITE.get('live')!r}")
     if bad:
         raise BuildError("config/site.yml: " + "; ".join(bad))
+    counter = analytics_mod.settings(target=target, fixture=fixture)   # ADR 0008: None while the code is empty
+    counted = counter["origin"] if counter else None    # every page's CSP connect-src (views.csp)
     ix = views.Index(facts, seat_rows)
     warnings = seat_warnings(ix)       # M1: in the result (collector run writes them to build/run-log.json)
     for w in warnings:
@@ -534,8 +539,10 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         report_path = out.parent / "report.json"
 
     _clean(out, [c.slug for c in cixs] + ([rpx.slug] if rpx else []), export=export)
-    site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs, rpc=rpx)
+    site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs, rpc=rpx,
+                              counter=counted)
     site["internal"] = internal
+    site["analytics"] = counter
     # "Show records from" (views.site_context, sitegen/bodies.py): which page is each option's own, and the hub cards
     switch_current = (site["switch"] or {}).get("current") or {}
     hubs = (site["switch"] or {}).get("hubs") or {}
@@ -561,7 +568,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         depth = rel.count("/")
         return env.get_template(template).render(
             site=site_ctx or site, root="../" * depth, page_name=page_name, body_current=switch_current.get(rel, ""),
-            report_page=template in REPORT_TEMPLATES,
+            report_page=template in REPORT_TEMPLATES, crumbs=bodies_mod.crumbs(site, rel, cixs, rpx),
             official_record=views.official_record(template, site_ctx or site, ctx), **ctx)
 
     def render(template: str, rel: str, page_name: str, site_ctx=None, **ctx) -> None:
@@ -820,7 +827,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         raise BuildError(str(exc)) from exc
     render("today.html.j2", days_mod.PAGE, "Today", **day_ctx)
     # The landing (docs/design/front-page-v2.md): after the day page, whose cards its meetings list is a selection of
-    render("index.html.j2", "index.html", "Home", **views.landing(ix, districts, georef, geocoder, site["councils"]),
+    render("index.html.j2", "index.html", "Home", **views.landing(ix, districts, georef, geocoder, site["councils"], counter=counted),
            home_feeds=body_feeds,
            freshness=fresh_mod.lines(ix, ax, cixs, rpx, fin_data, budget_views.INDEX if bg is not None else None),
            freshness_note=fresh_mod.NOTE,
@@ -843,6 +850,10 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     render("method.html.j2", "method.html", "Method", **trust)
     render("changes.html.j2", "changes.html", "Changes", **views.changes(read_changes(changes_path)))
     render("report.html.j2", "report.html", "Report an error", **views.report_page())
+    # The site in numbers (sitegen/stats.py): counted from the data loaded above, linked from every footer
+    render("stats.html.j2", stats_mod.PAGE, stats_mod.TITLE,
+           **stats_mod.page(ix, cixs, rpx, ax, fx, nav=site["nav"],
+                            budget_href=budget_views.INDEX if bg is not None else None))
     if morning_manifests is DEFAULT:
         mn = morning_mod.settings()
         morning_manifests = None if fixture or mn is None else morning_mod.manifest_paths()
@@ -883,7 +894,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         has_preview = morning_note is not None and morning_page.on()
         alerts_ctx = feeds_mod.alerts_page(cixs, rpc=rpx, fin=fin_data, target=target, feeds=feed_rows)
         alerts_ctx.setdefault("seat_feeds", [f for f in feed_rows if f.get("kind") == "zoning-seat"])
-        alerts_ctx.update(morning_page.alerts_context(feed_rows, preview=has_preview))
+        alerts_ctx.update(morning_page.alerts_context(feed_rows, preview=has_preview, counter=counted))
         render("alerts.html.j2", feeds_mod.PAGE, "Alerts", **alerts_ctx)
         if has_preview:
             render("morning.html.j2", morning_page.PAGE, morning_page.title(),

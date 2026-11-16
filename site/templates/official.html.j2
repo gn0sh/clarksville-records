@@ -26,10 +26,11 @@ Of <span data-n="rc_total{{ sfx }}">{{ st['rc_total' ~ sfx] }}</span> {{ what }}
   {{ stat(stats.meetings_listed, "meetings with attendance shown", "meetings_listed") }}
   {{ stat(stats.present, "meetings recorded present", "present") }}
   {{ stat(stats.rc_voted, "votes cast, confirmed", "rc_voted") }}
-  {{ stat(stats.rc_voted_nc, "votes cast, not confirmed*", "rc_voted_nc") }}
   {{ stat(stats.moved, "motions moved", "moved") }}
   {{ stat(stats.seconded, "motions seconded", "seconded") }}
 </ul>
+{# onceover/stats/zero-qa-stats: one small sentence, the same words for every official, not a big figure #}
+<p class="stats-note">Votes cast, not confirmed*: <span data-n="rc_voted_nc">{{ stats.rc_voted_nc }}</span>.</p>
 
 <section aria-labelledby="attendance-h">
   <h2 id="attendance-h">Attendance</h2>

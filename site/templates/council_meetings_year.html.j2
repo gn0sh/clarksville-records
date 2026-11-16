@@ -4,7 +4,6 @@
 {# A council's meetings in one year (council.py meetings_year), oldest first. One section per meeting, its ids
    prefixed by the meeting id; the roll calls and motions use the same blocks as a county meeting page. #}
 {% block main %}
-<p class="kicker-line"><a href="{{ root }}{{ council_href }}">{{ council }}</a></p>
 <h1>Meetings in {{ year }}</h1>
 <p class="lede">{{ body }}. Each meeting shows its attendance, motions and votes in the order of the minutes, with a link to each page. Meetings whose minutes were not collected show their agenda only.</p>
 <nav aria-label="Meetings by year" class="year-nav">

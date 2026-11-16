@@ -222,6 +222,11 @@
     bodyLine(state);
     form.querySelectorAll('input[name="vote"]').forEach(function (el) { el.disabled = !state.official; });
     renderChips(state);
+    // nothing to clear or to copy yet: the two buttons wait for a filter (Clear keeps the words) or a search (Copy)
+    var idle = empty(state), filtered = chipsEl.children.length > 0, copyBtn = document.getElementById("copy");
+    document.getElementById("clear").hidden = !filtered;
+    copyBtn.hidden = idle;
+    if (idle) { document.getElementById("copied").textContent = ""; }
     if (!keepPage) { shown = PAGE; }
     results.setAttribute("aria-busy", "false");
     if (empty(state)) {
@@ -286,6 +291,7 @@
     MULTI.forEach(function (k) { state[k] = []; });
     state.q = q;
     toControls(state); update();
+    countEl.focus();  // the Clear button hides itself, so focus must not fall to the body
   });
   document.getElementById("apply").addEventListener("click", function () {
     if (!window.matchMedia("(min-width: 900px)").matches) { panel.open = false; }

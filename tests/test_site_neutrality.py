@@ -5,7 +5,7 @@ import re
 import pytest
 
 from conftest import ROOT, parse
-from sitegen import views
+from sitegen import bodies, views
 
 BANNED = re.compile(r"\b(rank|score|grade|missed|percent|best|worst)|%", re.IGNORECASE)
 COUNT_WORDS = re.compile(r"count|total|num|len|size|absent|present|yes|no\b|vote|n_", re.IGNORECASE)
@@ -65,6 +65,7 @@ def test_official_with_no_data_has_same_skeleton(pages, facts):
     site = dict(views.site_context(ix), internal=True)  # the session-built pages are internal builds
     html = make_env().get_template("official.html.j2").render(
         site=site, root="../", page_name="x", report_page=True,
+            crumbs=bodies.crumbs(site, "officials/z-nobody.html"),     # as the build passes it (sitegen/build.py)
             official_record=views.official_record("official.html.j2", site, {}), **views.official("z-nobody", ix))
     assert "No votes, attendance, motions or seconds are shown" in html
     assert skeleton(html) == skeleton(pages["officials/a-example.html"])
