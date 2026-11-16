@@ -59,13 +59,13 @@ def test_the_committed_roster_loads():
 def test_dates_text_wording():
     s = Seats([], {}, "2026-05-11")
     obs = {**OBSERVED, "end": "2022-08-08", "start": "2020-03-09"}
-    assert s.dates_text(obs) == "seen in roll calls 2020-03-09 to 2022-08-08"
+    assert s.dates_text(obs) == "seen in vote records 2020-03-09 to 2022-08-08"
     assert s.dates_text({**OBSERVED, "start": "2022-09-12"}) == (
-        "seen in roll calls from 2022-09-12 to 2026-05-11, the latest meeting collected")
+        "seen in vote records from 2022-09-12 to 2026-05-11, the latest meeting collected")
     assert s.dates_text({**OBSERVED, "official_id": None, "start": "2024-01-06"}) == (
-        "shown as vacant in roll calls from 2024-01-06 to 2026-05-11")
+        "shown as vacant in vote records from 2024-01-06 to 2026-05-11")
     assert s.dates_text(SOURCED) == "term 2022-2026, as the source prints it"
-    assert s.basis({**OBSERVED, "current": True}) == "Current: in the roll calls of the latest meeting collected, 2026-05-11"
+    assert s.basis({**OBSERVED, "current": True}) == "Current: in the vote records of the latest meeting collected, 2026-05-11"
 
 
 # --- check 2: no bare seat dates in view contexts ------------------------------------------------------------------
@@ -172,7 +172,7 @@ def test_search_index_seat_strings_are_worded(built):
     ix = json.loads(raw[raw.index("{"):raw.rindex("}") + 1])
     labels = {o["id"]: o["label"] for o in ix["officials"]}
     assert labels["a-example"] == "Example, A. (District 1)"
-    assert labels["b-sample"] == "Sample, B. (District 2 (seen in roll calls on 2024-11-04))"
+    assert labels["b-sample"] == "Sample, B. (District 2 (seen in vote records on 2024-11-04))"
     assert labels["e-fixture"] == "Fixture, E."
     for t in [o["label"] for o in ix["officials"]] + ix["seat_labels"]:
         assert site_checks.dates_worded(t) == [], t
@@ -203,10 +203,10 @@ def test_cutover_is_immaterial_on_committed_data():
 
 def test_seat_page_uses_observed_boundary_not_the_cutover(pages):
     p = pages["districts/02.html"]
-    assert "Seen in roll calls</th>" in p and "Held this seat" not in p
+    assert "Seen in vote records</th>" in p and "Held this seat" not in p
     assert config.SITE["lines_effective"] not in p and "redrawn in" not in p
-    assert "Current: in the roll calls of the latest meeting collected, 2024-12-09." in p
-    assert re.search(r"<h3[^>]*><a [^>]*>D\. Testperson</a>, District 2: roll calls 2024-12-09 to 2024-12-09</h3>", p)
+    assert "Current: in the vote records of the latest meeting collected, 2024-12-09." in p
+    assert re.search(r"<h3[^>]*><a [^>]*>D\. Testperson</a>, District 2: vote records 2024-12-09 to 2024-12-09</h3>", p)
     assert config.SITE["redistricting_page"] in p
 
 
@@ -232,7 +232,7 @@ def test_about_explains_seats_and_motion_kinds(pages):
 
 def test_officials_current_section_shows_its_basis(pages):
     p = pages["officials.html"]
-    assert "Current: in the roll calls of the latest meeting collected, 2024-12-09." in p
+    assert "Current: in the vote records of the latest meeting collected, 2024-12-09." in p
     assert "County Mayor and City Mayor: the source prints no end to the term." in p
     assert not re.search(r"<summary[^>]*>\s*<h2", p)
 

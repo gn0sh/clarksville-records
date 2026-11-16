@@ -62,11 +62,11 @@ def test_a_meetings_checking_counts_are_one_small_sentence_the_same_for_every_me
     for rel, page in meetings.items():
         stats = page.split('<ul class="stats stats-meeting">')[1].split("</ul>")[0]
         labels = re.findall(r'<span class="stat-label">([^<]*)</span>', stats)
-        assert len(labels) == 3 and labels[1:] == ["motions", "roll calls confirmed"], (rel, labels)
+        assert len(labels) == 3 and labels[1:] == ["motions", "votes confirmed"], (rel, labels)
         assert "not confirmed" not in stats and "not match" not in stats, rel            # no big figure for a check
         notes = re.findall(r'<p class="stats-note">(.*?)</p>', page)
         assert len(notes) == 1, rel
-        assert re.fullmatch(r"Roll calls not confirmed\*: \d+\. Names we could not match to an official: \d+\.",
+        assert re.fullmatch(r"Votes not confirmed\*: \d+\. Names we could not match to an official: \d+\.",
                             notes[0]), (rel, notes[0])
         assert page.index("</ul>", page.index("stats-meeting")) < page.index('<p class="stats-note">'), rel
 
@@ -82,7 +82,7 @@ def test_an_officials_not_confirmed_count_is_one_small_sentence_the_same_for_eve
         assert 'data-n="rc_voted_nc"' not in stats and "not confirmed" not in stats, o["id"]
         notes = re.findall(r'<p class="stats-note">(.*?)</p>', page)
         assert len(notes) == 1 and re.fullmatch(
-            r'Votes in not confirmed\* roll calls: <span data-n="rc_voted_nc">\d+</span>\.', notes[0]), (o["id"], notes)
+            r'Votes cast, not confirmed\*: <span data-n="rc_voted_nc">\d+</span>\.', notes[0]), (o["id"], notes)
     assert seen > 1
     assert "font-size: var(--t-sm)" in rule(".stats-note") and "color: var(--muted)" in rule(".stats-note")
 

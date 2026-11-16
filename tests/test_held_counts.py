@@ -32,7 +32,7 @@ def show_unconfirmed_values(monkeypatch):
 
 
 MO_HELD = "mo-314626e6-p15-2"  # the motion of RC_HELD: moved e-fixture, seconded c-placeholder
-VOTES = re.compile(r"Roll call votes, [0-9-]+ to [0-9-]+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other confirmed; "
+VOTES = re.compile(r"Votes, [0-9-]+ to [0-9-]+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other confirmed; "
                    r"(\d+) Yes\*, (\d+) No\*, (\d+) Abstain\*, (\d+) Other\* not confirmed\.")
 UNMATCHED = re.compile(r"(\d+) votes? in this period (?:has|have) a name that could not be matched")
 NOTE = "Not confirmed: this page was hard to read."
@@ -79,7 +79,7 @@ def test_fixture_counts_confirmed_and_unconfirmed_apart(facts):
     # a-example: Yes in the three verified roll calls; Yes in the unverified December one.
     assert p["a-example"][:2] == ((3, 0, 0, 0), (1, 0, 0, 0))
     assert views.totals_sentences(views.Index(facts), "a-example")[1] == (
-        "Roll call votes, 2024-10-07 to 2024-12-09: 3 Yes, 0 No, 0 Abstain, 0 Other confirmed; "
+        "Votes, 2024-10-07 to 2024-12-09: 3 Yes, 0 No, 0 Abstain, 0 Other confirmed; "
         "1 Yes*, 0 No*, 0 Abstain*, 0 Other* not confirmed.")
     assert p["c-placeholder"][:2] == ((2, 0, 0, 1), (0, 1, 0, 0))
     assert {x[2] for x in p.values()} == {0}
@@ -112,7 +112,7 @@ def test_unconfirmed_vote_shows_starred_with_the_page_link(tmp_path, facts):
     block = text_of(pages[f"meetings/{MEETING_DEC}.html"], RC_HELD)
     assert NOTE in block and "Read it yourself" in block and "Outcome*:" in block
     assert link in pages[f"meetings/{MEETING_DEC}.html"]
-    assert "1 roll call at this meeting is not confirmed and marked *." in pages[f"meetings/{MEETING_DEC}.html"]
+    assert "1 vote at this meeting is not confirmed and marked *." in pages[f"meetings/{MEETING_DEC}.html"]
     # A confirmed roll call carries no star.
     assert NOTE not in text_of(pages[f"meetings/{MEETING_DEC}.html"], RC_SHOWN)
 
@@ -208,9 +208,9 @@ def test_about_page_explains_the_rule(tmp_path, facts):
     para = next(p for p in re.findall(r"<p>(.*?)</p>", pages["about.html"], re.S) if "not confirmed" in p)
     expected = (
         "A computer program can misread a page, so each fact it reads is checked automatically before it is shown. "
-        "For a roll call the checks are: every member present has exactly one recorded vote; the Yes, No and Abstain "
+        "For a vote the checks are: every member present has exactly one recorded vote; the Yes, No and Abstain "
         "totals equal the totals the minutes state; the recorded outcome agrees with the votes; and every name matches "
-        "the roster for that meeting. A roll call that passes every check is <em>confirmed</em>. A roll call that "
+        "the roster for that meeting. A vote that passes every check is <em>confirmed</em>. A vote that "
         "fails any check is still shown, marked with an asterisk (*) and &ldquo;Not confirmed: this page was hard to "
         "read. Read it yourself&rdquo;, with a link to that page of the minutes. Confirmed and not confirmed votes are "
         "always counted separately, for example &ldquo;12 Yes, 3 No confirmed; 2 Yes* not confirmed&rdquo;, and a not "
@@ -220,10 +220,10 @@ def test_about_page_explains_the_rule(tmp_path, facts):
         "counted once, in one sentence that is the same on every official's page. For a motion the checks are that "
         "the people named as moving and seconding it match the roster, were present, and are two different people; "
         "if any of these fails, the motion is marked &ldquo;Attribution under review&rdquo; and no one is named as "
-        "moving or seconding it, even when its roll call is shown. The minutes' own sentence for a "
+        "moving or seconding it, even when its vote is shown. The minutes' own sentence for a "
         "motion, and the names exactly as the program read them, are never shown on these pages or included in the "
         "data files below, because the program can misread names in them. Each motion is shown as its kind, such as "
-        "&ldquo;Motion to adopt&rdquo;. A roll call shows its outcome as Passed, Failed or Other with a tally counted "
+        "&ldquo;Motion to adopt&rdquo;. A vote shows its outcome as Passed, Failed or Other with a tally counted "
         "from the votes shown on the page, never the minutes' own outcome sentence. Attendance that fails its checks "
         "is not shown. Scanned minutes with no readable text are shown as &ldquo;The attendance list could not be read "
         "from the minutes of this meeting.&rdquo;")

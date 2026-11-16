@@ -27,7 +27,7 @@
   <p>{% if mv.moved_by %}Moved by <span data-item-title>{{ mv.moved_by }}</span>{% endif %}{% if mv.seconded_by %}, seconded by <span data-item-title>{{ mv.seconded_by }}</span>{% else %}; no second{% endif %}.</p>
   {% if mv.nays %}<p>Voted nay, as printed: <span data-item-title>{{ mv.nays | join(", ") }}</span>.</p>{% endif %}
   {% if mv.abstained %}<p>Abstained, as printed: <span data-item-title>{{ mv.abstained | join(", ") }}</span>.</p>{% endif %}
-  <p class="outcome"><strong class="label">Outcome, as printed:</strong> <span data-item-title>{{ mv.outcome }}</span>. <a href="{{ mv.src.url }}" target="_blank" rel="noopener noreferrer">minutes p. {{ mv.src.page }}<span class="sr-only"> (opens in a new tab)</span></a></p>
+  <p class="outcome"><span class="vote-kind">{% if mv.nays or mv.abstained %}Vote (names recorded only for nays and abstentions).{% else %}Vote (names not recorded).{% endif %}</span> <strong class="label">Outcome, as printed:</strong> <span data-item-title>{{ mv.outcome }}</span>. <a href="{{ mv.src.url }}" target="_blank" rel="noopener noreferrer">minutes p. {{ mv.src.page }}<span class="sr-only"> (opens in a new tab)</span></a></p>
   {% else %}
   <p class="nc-note">{{ not_confirmed(mv.src) }}</p>
   {% endif %}

@@ -38,4 +38,4 @@ def test_the_check_catches_the_old_contradiction(pages, facts):
 
 def test_bars_name_their_unit(pages, facts):
     html = pages[f"officials/{facts['officials'][0]['id']}.html"]
-    assert "Meetings absent: " in html and "Roll calls while recorded absent: " in html
+    assert "Meetings absent: " in html and "Votes while recorded absent: " in html

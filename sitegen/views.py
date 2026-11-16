@@ -183,6 +183,13 @@ class Index:
     def official_year_href(self, official_id: str, year: str) -> str:
         return f"officials/{official_id}/{year}.html"
 
+    # official id -> how many pages their vote list is on (build.py render_vote_list sets it; 1 when not split)
+    vote_list_pages: dict = {}
+
+    def official_votes_href(self, official_id: str) -> str:
+        """The official's vote list page (onceover/votes/member-yes-no-list), next to their page."""
+        return self.official_href(official_id)[:-len(".html")] + "/votes.html"
+
     def item_title(self, item: dict) -> str:
         """The title as printed; an empty one gets a fixed fallback (with the item number when there is one)."""
         if item.get("title"):
@@ -670,9 +677,9 @@ def vote_sentence(c: dict, start: str, end: str) -> str:
         unconfirmed = ", ".join(f"{c[k + '_nc']} {VOTE_WORDS[k]}*" for k in VOTE_VALUES) + " not confirmed"
     else:  # a count of roll calls only, never a Yes/No breakdown of unconfirmed votes
         n = c["rc_voted_nc"]
-        # votes, the same unit as the confirmed side and the official page's "votes in not confirmed* roll calls"
-        unconfirmed = f"{n} {plural(n, 'vote', 'votes')} in not confirmed* roll calls, see each page"
-    return f"Roll call votes, {start} to {end}: {confirmed} confirmed; {unconfirmed}."
+        # votes, the same unit as the confirmed side and the official page's "votes cast, not confirmed*"
+        unconfirmed = f"{n} {plural(n, 'vote', 'votes')} not confirmed*, see each page"
+    return f"Votes, {start} to {end}: {confirmed} confirmed; {unconfirmed}."
 
 
 def totals_sentences(ix: Index, official_id: str) -> list[str]:
@@ -685,7 +692,7 @@ def totals_sentences(ix: Index, official_id: str) -> list[str]:
     under_review = states.count("under_review")
     return [
         f"Recorded absent at {c['absent']} of {c['meetings_listed']} meetings whose attendance list was read, "
-        # ISO days here: qa/site_checks.py official-numbers reads these two sentences ("Roll call votes, D to D:")
+        # ISO days here: qa/site_checks.py official-numbers reads these two sentences ("Votes, D to D:")
         f"{cov['from']} to {cov['to']}.",
         vote_sentence(c, cov["from"], cov["to"]),
         # A site-wide number: the same sentence, with the same number, on every official's page.
@@ -704,7 +711,7 @@ BAR_SEGMENTS = (("yes", "Yes"), ("no", "No"), ("abstain", "Abstain"), ("other", 
                 ("novote", "No vote recorded"))
 # The official page's bars name their unit (site-polish/official-totals-consistent): its attendance counts meetings and
 # its vote bar roll calls, so "Absent" never reads as one number in one place and another in the next.
-OFFICIAL_BAR_SEGMENTS = BAR_SEGMENTS[:4] + (("absent", "Roll calls while recorded absent"), ("novote", "No vote recorded"))
+OFFICIAL_BAR_SEGMENTS = BAR_SEGMENTS[:4] + (("absent", "Votes while recorded absent"), ("novote", "No vote recorded"))
 ATTENDANCE_SEGMENTS = (("present", "Meetings present"), ("absent", "Meetings absent"))
 
 
@@ -823,7 +830,69 @@ def official(official_id: str, facts) -> dict:
                        if ix.history_by_year else None),
         "years": years,
         "types": [(t, config.TYPE_LABELS[t]) for t in config.HISTORY_TYPES],
+        # the vote list page (onceover/votes/member-yes-no-list): its filter options and counts, linked from here
+        "vote_list": {"href": ix.official_votes_href(official_id),
+                      "counts": vote_list_counts(vote_list_rows(ix, official_id)),
+                      "pages": ix.vote_list_pages.get(official_id, 1)},   # > 1: the list is split by years
     }
+
+
+# The vote list's filter (onceover/votes/member-yes-no-list): the same options, in the same order, for every official.
+VOTE_LIST_KEYS = (("yes", "Yes"), ("no", "No"), ("abstain", "Abstain"), ("other", "Other"), ("absent", "Absent"))
+
+
+def vote_list_rows(ix: Index, official_id: str) -> list[dict]:
+    """One row per confirmed vote of this official, newest first, in minutes order within a meeting: each vote the
+    minutes record for them by name (Yes, No, Abstain, Other), and each vote taken at a meeting whose shown attendance
+    lists them absent ("Absent", sourced to the attendance page). Only confirmed roll calls, the same set and rule as
+    official_counts' confirmed side, so the list's counts are the vote bar's. A vote that names no one (a voice vote,
+    an outcome only) is not a roll call in the facts and never becomes a row: nobody's Yes is inferred."""
+    absent_at: dict[str, int] = {}   # meeting id -> the page of the attendance entry listing them absent
+    present_at: set[str] = set()
+    for m in ix.facts["meetings"]:
+        if not attendance_shown(m):
+            continue
+        entries = [a for a in m["attendance"] if a["official_id"] == official_id]
+        if any(a["status"] == "absent" for a in entries):
+            absent_at[m["id"]] = next(a["page"] for a in entries if a["status"] == "absent")
+        elif entries:
+            present_at.add(m["id"])
+    rows = []
+    for rc in ix.facts["roll_calls"]:
+        if not is_verified(rc):
+            continue
+        m = ix.meetings[rc["meeting_id"]]
+        base = {"date": m["date"], "meeting_href": ix.meeting_href(m["id"], rc["id"]), "item": ix.item_ref(rc["item_id"]),
+                "vote_on": outcome_kind_label(rc.get("outcome_text")), "pos": ix.position(rc)}
+        mine = [v for v in rc["votes"] if v["official_id"] == official_id]
+        for v in mine:
+            rows.append({**base, "key": v["value"], "label": vote_label(v["value"], v["raw_value"]),
+                         "src": ix.src(rc["source_id"], rc["page"]), "fact_id": f"{rc['id']}/{official_id}"})
+        if not mine and m["id"] in absent_at:
+            rows.append({**base, "key": "absent", "label": "Absent",
+                         "src": ix.src(m["source_id"], absent_at[m["id"]]), "fact_id": None})
+    rows.sort(key=lambda r: r["pos"])
+    rows.sort(key=lambda r: r["date"], reverse=True)
+    return rows
+
+
+def vote_list_counts(rows: list[dict]) -> list[dict]:
+    """Each filter option with its row count, every option always (zero included), in the fixed order."""
+    return [{"key": k, "label": label, "n": sum(1 for r in rows if r["key"] == k)} for k, label in VOTE_LIST_KEYS]
+
+
+def official_votes(official_id: str, facts) -> dict:
+    """The official's vote list page: the rows, the filter's counts, and what is left out (not confirmed votes)."""
+    ix = _ix(facts)
+    o = ix.officials[official_id]
+    rows = vote_list_rows(ix, official_id)
+    c = official_counts(ix, official_id)
+    return {"official": o, "official_href": ix.official_href(official_id), "rows": rows,
+            "counts": vote_list_counts(rows),
+            # left out, counted apart (votes/left-out-count-mismatch): the votes cast (rc_voted_nc, the number the
+            # official page shows) and the votes taken while recorded absent, both in not confirmed roll calls
+            "left_cast": c["rc_voted_nc"], "left_absent": c["rc_absent_nc"],
+            "coverage": ix.coverage}
 
 
 def roster_official(official_id: str, facts) -> dict:
@@ -928,7 +997,7 @@ def meeting(meeting_id: str, facts) -> dict:
         "attendance_state": att_state, "attendance": attendance,
         "blocks": [b for _, b in shown],
         "unconfirmed_roll_calls": unconfirmed,
-        "unconfirmed_text": (f"{unconfirmed} {plural(unconfirmed, 'roll call', 'roll calls')} at this meeting "
+        "unconfirmed_text": (f"{unconfirmed} {plural(unconfirmed, 'vote', 'votes')} at this meeting "
                              f"{plural(unconfirmed, 'is', 'are')} not confirmed and marked *."
                              if unconfirmed else ""),
     }
@@ -1280,6 +1349,10 @@ def _district_seat(n: int) -> str:
     return f"district-{n}"
 
 
+# The fixed words for a seat whose current holder no record shows (the landing list's own words).
+SEAT_NOT_YET_RECORDED = "Current member not yet recorded"
+
+
 def district_rows(ix: Index) -> list[dict]:
     """The landing's district list (design 3.3), 1 to N. Same row for every seat (N1): the current holder's name,
     or one of two fixed sentences, or (no roster yet) the seat label alone."""
@@ -1290,7 +1363,7 @@ def district_rows(ix: Index) -> list[dict]:
         if ix.seats.loaded:
             rec = ix.seats.current_of_seat(_district_seat(n))
             if rec is None:
-                holder = "Current member not yet recorded"
+                holder = SEAT_NOT_YET_RECORDED
             elif rec["official_id"] is None:
                 holder = "Seat vacant"
             else:
@@ -1334,7 +1407,7 @@ def swap_context() -> dict | None:
     word = cfg["district_label"]
     return {"numbers": sw, "url": cfg["swap_source"],
             "before": f"The map PDF prints {word}s {sw[0]} and {sw[1]} the other way round; this site uses the "
-                      f"numbers printed in the roll-call tables and the county's ",
+                      f"numbers printed in the vote tables and the county's ",
             "link": "Elected Officials List", "after": f" ({source_label(cfg['swap_source'])})."}
 
 
@@ -1357,14 +1430,16 @@ def script_hash(js: str) -> str:
 
 
 def address_context(districts: dict | None, georef: dict | None, geocoder: bool = True,
-                    ward_hrefs: dict | None = None) -> dict | None:
+                    ward_hrefs: dict | None = None, holders: dict | None = None) -> dict | None:
     """The landing address box's settings (static/address.js), or None when there is no districts file, no georef
     fitted to it, no geocoder configured, or the build was asked for none (`--no-geocoder`, the claude.ai preview):
     then no box is drawn. Emitted into the page as JSON. The landing draws no map (CEO, 2026-11-10), so the traced
     district paths (and the ward paths, when the file holds them) travel here as data: the lookup places the Census
     point against them (docs/research/map-removal-2026-11-10.md). `ward_hrefs` ({number: seat page}) links each ward
     the way the landing list does. Every word the box shows comes from config/site.yml (the build has checked that
-    the geocoder and lookup labels are set)."""
+    the geocoder and lookup labels are set). `holders` (onceover/address/names-not-districts): {"district": {n:
+    {name, href}}, "ward": {n: {name, href}}, "district_basis", "ward_basis"}, the landing list's own holders and
+    basis lines, so the answer names who holds each seat found, linked, the same way for every official."""
     cfg = config.SITE
     if not geocoder or districts is None or georef is None or not cfg.get("geocoder_url"):
         return None
@@ -1378,8 +1453,10 @@ def address_context(districts: dict | None, georef: dict | None, geocoder: bool 
            # a street typed with no state or ZIP is tried with each place appended (static/address.js tries)
            "places": list(cfg.get("geocoder_places") or []), "state": cfg.get("geocoder_state") or "",
            "state_name": cfg.get("geocoder_state_name") or "",
-           "districts": [{"number": d["number"], "path": d["path"], "href": f"districts/{int(d['number']):02d}.html"}
-                         for d in sorted(districts["districts"], key=lambda d: d["number"])]}
+           "districts": [{"number": d["number"], "path": d["path"], "href": f"districts/{int(d['number']):02d}.html",
+                          "holder": (holders or {}).get("district", {}).get(int(d["number"]))}
+                         for d in sorted(districts["districts"], key=lambda d: d["number"])],
+           "district_basis": (holders or {}).get("district_basis")}
     wards = georef_mod.wards_of(districts)
     if wards is not None:
         # the ward shapes sit in the same page space (same georef); only their margin is their own
@@ -1387,8 +1464,10 @@ def address_context(districts: dict | None, georef: dict | None, geocoder: bool 
                     "city": cfg["city_name"], "ward_map_owner": cfg["ward_map_owner"],
                     "ward_map_date": wards["source_updated"],
                     "wards": [{"number": w["number"], "path": w["path"],
-                               "href": (ward_hrefs or {}).get(int(w["number"]))}
-                              for w in sorted(wards["wards"], key=lambda w: w["number"])]})
+                               "href": (ward_hrefs or {}).get(int(w["number"])),
+                               "holder": (holders or {}).get("ward", {}).get(int(w["number"]))}
+                              for w in sorted(wards["wards"], key=lambda w: w["number"])],
+                    "ward_basis": (holders or {}).get("ward_basis")})
     return out
 
 
@@ -1447,13 +1526,21 @@ def landing(facts, districts: dict | None, georef: dict | None = None, geocoder:
     what a ward found by the address lookup links to."""
     ix = _ix(facts)
     ward_hrefs = {}
+    rows = district_rows(ix)
+    # the seats' holders as the landing list shows them (the name linked, or its fixed words), for the address answer
+    holders = {"district": {r["number"]: {"name": r["holder"], "href": r["holder_href"]} for r in rows if r["holder"]},
+               "ward": {}, "district_basis": observed_basis(ix) if ix.seats.loaded else None, "ward_basis": None}
     for c in councils:
         for s in c["seats"]:
             m = re.fullmatch(r"ward-(\d{1,2})", s["seat"])
             if m:
                 ward_hrefs.setdefault(int(m.group(1)), s["href"])
-    address = address_context(districts, georef, geocoder, ward_hrefs=ward_hrefs)
-    return {"csp": csp(address, counter=counter), "rows": district_rows(ix),
+                holders["ward"].setdefault(int(m.group(1)), (
+                    {"name": s["holder"]["name"], "href": s["holder"]["href"]} if s["holder"]
+                    else {"name": SEAT_NOT_YET_RECORDED, "href": None}))
+                holders["ward_basis"] = holders["ward_basis"] or c.get("basis")
+    address = address_context(districts, georef, geocoder, ward_hrefs=ward_hrefs, holders=holders)
+    return {"csp": csp(address, counter=counter), "rows": rows,
             "lookup_sources": lookup_sources(districts) if address else None,
             "coverage": ix.coverage,
             "district_count": config.SITE["district_count"],
@@ -1555,11 +1642,11 @@ def cutover_sentence(old_last: str | None, cur_first: str | None) -> str:
     """The observed boundary in words, for whichever sides the minutes collected have."""
     sides = []
     if old_last:
-        sides.append(f"roll calls under the old lines run to {old_last}")
+        sides.append(f"votes under the old lines run to {old_last}")
     if cur_first:
-        sides.append(f"roll calls under the current lines start {cur_first}")
+        sides.append(f"votes under the current lines start {cur_first}")
     if not sides:
-        return "No roll calls are in the minutes collected yet."
+        return "No votes are in the minutes collected yet."
     return ("In the minutes collected, " + " and ".join(sides) + "."
             + (" Votes under the old district lines are listed separately." if old_last else ""))
 
@@ -1590,7 +1677,7 @@ def _holder_block(ix: Index, cache: dict, rec: dict, start: str, end: str | None
     label = rec["label"]
     return {
         "name": o["name"], "href": f"officials/{o['id']}.html", "seat": label, "period": period,
-        "heading_rest": f"{label}: roll calls {first} to {last}",
+        "heading_rest": f"{label}: vote records {first} to {last}",
         "sentence": vote_sentence(c, first, last),
         "row_groups": [{"year": y, "rows": [r for r in rows if r["year"] == y]} for y in years],
         "has_rows": bool(rows),
@@ -1843,13 +1930,13 @@ EXPORT_FILES = (
     ("officials.csv", "One row per official."),
     ("meetings.csv", "One row per meeting."),
     ("attendance.csv", "Verified attendance, one row per member per meeting."),
-    ("roll_calls.csv", "One row per roll call, with whether it is confirmed."),
-    ("votes.csv", "One row per vote in a roll call."),
+    ("roll_calls.csv", "One row per vote taken, with whether it is confirmed."),
+    ("votes.csv", "One row per member's vote in a vote taken."),
     ("motions.csv", "One row per motion, with its kind."),
     ("items.csv", "One row per agenda item."),
     ("item_events.csv", "Each appearance of an item at a meeting."),
     ("sources.csv", "Every source document, with its address and fetch date."),
-    ("seats.csv", "Seat holder records: first and last meetings seen in roll calls, or a term as its source prints it."),
+    ("seats.csv", "Seat holder records: first and last meetings seen in vote records, or a term as its source prints it."),
 )
 
 

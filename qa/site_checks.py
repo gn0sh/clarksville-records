@@ -18,11 +18,16 @@ Checks (each prints PASS/FAIL, exit code 1 if any FAIL):
   index       officials.html lists every official in the facts exactly once; "surname" sections alphabetical by
               surname, "seat" (Current) sections by district number, then other seats (AC1.1, design 6A.3)
   layout      every official page has the same headings and the same distinct column-header sets (AC1.5, N1)
-  provenance  derived seat dates are worded as seen in roll calls; no term wording, no inferred cutover date;
+  provenance  derived seat dates are worded as seen in vote records; no term wording, no inferred cutover date;
               the cutover is immaterial (architecture, invariant `provenance`)
   totals      "Recorded absent at X of Y meetings" equals a recount from the meeting pages (AC2.2)
   official-numbers  each official page's numbers agree with themselves: one value per data-n key, parts add up to
               their whole, legends and Totals repeat the sentences (site-polish/official-totals-consistent)
+  vote-list   each official's vote list (<page folder>/<id>/votes*.html) holds exactly the rows recounted here from
+              the facts: one per vote recorded for them by name in a verified roll call, plus "Absent" for a verified
+              roll call at a meeting whose verified attendance lists them absent, each sourced to that page; filter
+              counts equal the rows, the official page's links and bar; the left-out number is the page's
+              rc_voted_nc; the same headings, columns and filter options on every list (onceover/votes/member-yes-no-list)
   name-links  every occurrence of an official's display name in the visible text of a page is inside an <a> to that
               official's page (standing rule), except in <title>, <option>, item titles (data-item-title: text in
               the document, never linked), the operator lines (footer, About) and on the official's own page
@@ -98,6 +103,7 @@ import csv
 import hashlib
 import html
 import json
+import collections
 from collections import defaultdict
 import os
 import re
@@ -1294,7 +1300,7 @@ def check_layout(site: Path, facts: dict, folder: str = "officials") -> tuple[li
 # ---------------------------------------------------------------- provenance (derived vs stated)
 # Restated from the architecture's invariant `provenance`, not imported from sitegen.
 DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
-DATE_PHRASES = ("seen in roll calls", "shown as vacant in roll calls", "roll calls", "seen in attendance lists",
+DATE_PHRASES = ("seen in vote records", "shown as vacant in vote records", "vote records", "seen in attendance lists",
                 "shown as vacant in attendance lists", "attendance lists",
                 # a record that starts at a configured seating (council.yml evidence.configured, sitegen/council.py
                 # CONFIGURED_EVIDENCE): the cited minutes that record it (site-checks/provenance-claunch-seat-text)
@@ -1415,7 +1421,7 @@ def check_provenance(site: Path, pages: dict[str, Page], facts: dict, roster: li
         for t in p.out:
             texts += 1
             for d in dates_worded(t):
-                problems.append(f"{rel}: seat text dates {d} without 'seen in roll calls' wording: {t[:90]!r}")
+                problems.append(f"{rel}: seat text dates {d} without 'seen in vote records' wording: {t[:90]!r}")
     idx_file = site / "static" / "search-index.js"
     if idx_file.is_file():
         raw = idx_file.read_text(encoding="utf-8")
@@ -1428,7 +1434,7 @@ def check_provenance(site: Path, pages: dict[str, Page], facts: dict, roster: li
         for t in seat_strings:
             texts += 1
             for d in dates_worded(t):
-                problems.append(f"static/search-index.js: seat text dates {d} without 'seen in roll calls' wording: {t[:90]!r}")
+                problems.append(f"static/search-index.js: seat text dates {d} without 'seen in vote records' wording: {t[:90]!r}")
     problems += cutover_problems(facts, roster, eff)
     return problems, f"{texts} seat texts checked; lines split key {eff} immaterial"
 
@@ -1501,11 +1507,11 @@ def official_number_problems(text: str) -> list[str]:
     else:
         eq("Totals: absent", int(m.group(1)), n["absent"])
         eq("Totals: meetings", int(m.group(2)), n["meetings_listed"])
-    m = re.search(r"Roll call votes, \S+ to \S+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other confirmed; "
-                  r"(?:(\d+) votes? in not confirmed\* roll calls|(\d+) Yes\*, (\d+) No\*, (\d+) Abstain\*, (\d+) Other\*)",
+    m = re.search(r"Votes, \S+ to \S+: (\d+) Yes, (\d+) No, (\d+) Abstain, (\d+) Other confirmed; "
+                  r"(?:(\d+) votes? not confirmed\*, see each page|(\d+) Yes\*, (\d+) No\*, (\d+) Abstain\*, (\d+) Other\*)",
                   plain)
     if not m:
-        out.append("no 'Roll call votes' totals sentence")
+        out.append("no 'Votes, D to D:' totals sentence")
     else:
         g = [int(x) if x is not None else None for x in m.groups()]
         for k, v in zip(VOTE_KEYS, g[:4]):
@@ -1523,6 +1529,109 @@ def check_official_numbers(site: Path, facts: dict, folder: str = "officials") -
         n += 1
         problems += [f"{folder}/{o['id']}.html: {p}" for p in official_number_problems(f.read_text(encoding="utf-8"))]
     return problems, f"{n} official pages under {folder}/ agree with themselves"
+
+
+# ---------------------------------------------------------------- vote list (onceover/votes/member-yes-no-list)
+# Restated from the rule, not imported from sitegen: a row is a vote the minutes record for the person by name in a
+# verified roll call, or, for a verified roll call where none is recorded for them, "Absent" when the meeting's
+# attendance is extracted and verified and lists them absent (sourced to that attendance page). Nothing else.
+VL_ROW = re.compile(r'<tr data-vote="([a-z]*)" data-date="(\d{4}-\d{2}-\d{2})">(.*?)(?=\n<tr|\n</tbody>)', re.S)
+VL_SRC = re.compile(r'<a href="([^"]+)" target="_blank"[^>]*>p\.&nbsp;(\d+)')
+VL_KEYS = ("yes", "no", "abstain", "other", "absent")
+VL_OMITTED = "is on the full site; this preview leaves those pages out."
+
+
+def _vl_expected(facts: dict, oid: str) -> collections.Counter:
+    def ok(x):
+        return x["verification"]["status"] == "verified"
+    meetings = {m["id"]: m for m in facts["meetings"]}
+    urls = {s["id"]: s["url"] for s in facts["sources"]}
+    absent = {}
+    for m in facts["meetings"]:
+        if m["attendance_status"] == "extracted" and ok(m):
+            pages = [a["page"] for a in m["attendance"] if a["official_id"] == oid and a["status"] == "absent"]
+            if pages:
+                absent[m["id"]] = pages[0]
+    out = collections.Counter()
+    for rc in facts["roll_calls"]:
+        if not ok(rc):
+            continue
+        m = meetings[rc["meeting_id"]]
+        mine = [v for v in rc["votes"] if v["official_id"] == oid]
+        for v in mine:
+            out[(m["date"], v["value"], urls[rc["source_id"]], rc["page"])] += 1
+        if not mine and m["id"] in absent:
+            out[(m["date"], "absent", urls[m["source_id"]], absent[m["id"]])] += 1
+    return out
+
+
+def _vl_skeleton(page: str) -> tuple:
+    main = page[page.find("<main"):page.find("</main>")]
+    return (tuple(re.findall(r"<h[1-3]\b", main)), tuple(re.findall(r"<th[^>]*>(.*?)</th>", main)),
+            tuple(re.findall(r'<input type="radio" name="vote" value="([a-z]*)"', main)))
+
+
+def check_vote_lists(site: Path, facts: dict, folder: str = "officials") -> tuple[list[str], str]:
+    problems, n_lists, n_rows, omitted = [], 0, 0, 0
+    skeletons: dict[tuple, str] = {}
+    for o in facts["officials"]:
+        oid = o["id"]
+        page_f = site / folder / f"{oid}.html"
+        if not page_f.is_file():
+            continue
+        official = page_f.read_text(encoding="utf-8")
+        parts = sorted((site / folder / oid).glob("votes*.html"),
+                       key=lambda p: int(re.sub(r"\D", "", p.stem) or 1))
+        parts = [p for p in parts if re.fullmatch(r"votes(?:-\d+)?", p.stem)]
+        rel = f"{folder}/{oid}"
+        if not parts:
+            if VL_OMITTED in official:
+                omitted += 1
+            else:
+                problems.append(f"{rel}.html: no vote list page and no line saying it is left out")
+            continue
+        n_lists += 1
+        got = collections.Counter()
+        for p in parts:
+            page = p.read_text(encoding="utf-8")
+            rows = VL_ROW.findall(page)
+            n_rows += len(rows)
+            here = collections.Counter(k for k, _, _ in rows)
+            for k, d, body in rows:
+                m = VL_SRC.search(body)
+                if k not in VL_KEYS or not m:
+                    problems.append(f"{rel}/{p.name}: a {k!r} row of {d} without a known vote or a source page link")
+                    continue
+                got[(d, k, html.unescape(m.group(1)).split("#page=")[0], int(m.group(2)))] += 1
+            filt = dict((k, int(n)) for k, n in re.findall(r'name="vote" value="([a-z]*)"(?: checked)?> [^(<]+\((\d+)\)', page))
+            if filt.get("") != len(rows) or any(filt.get(k) != here[k] for k in VL_KEYS):
+                problems.append(f"{rel}/{p.name}: filter counts {filt} are not the page's rows {dict(here)}")
+            left = re.search(r'class="muted vote-list-left"><span data-n="rc_voted_nc">(\d+)</span>', page)
+            mine = re.search(r'data-n="rc_voted_nc">(\d+)<', official)
+            if not left or not mine or left.group(1) != mine.group(1):
+                problems.append(f"{rel}/{p.name}: left-out votes cast {left and left.group(1)} != the official page's "
+                                f"rc_voted_nc {mine and mine.group(1)}")
+            sk = _vl_skeleton(page)
+            skeletons.setdefault(sk, f"{rel}/{p.name}")
+        want = _vl_expected(facts, oid)
+        if got != want:
+            extra, missing = got - want, want - got
+            problems.append(f"{rel}: vote list rows differ from the facts: {sum(extra.values())} extra "
+                            f"{list(extra)[:2]}, {sum(missing.values())} missing {list(missing)[:2]}")
+        total = collections.Counter(k for _, k, _, _ in got.elements())
+        links = dict((k, int(n)) for k, n in re.findall(r'votes\.html\?vote=([a-z]+)">[^(<]+\((\d+)\)', official))
+        allx = re.search(r'votes\.html">All \((\d+)\)', official)
+        bar = dict((k, int(n)) for k, n in re.findall(r'data-n="vote-([a-z]+)">(\d+)<', official))
+        for k in VL_KEYS:
+            if links.get(k) != total[k] or bar.get(k) != total[k]:
+                problems.append(f"{rel}.html: {k} link {links.get(k)} / bar {bar.get(k)} != list rows {total[k]}")
+        if not allx or int(allx.group(1)) != sum(total.values()):
+            problems.append(f"{rel}.html: the All link does not count the {sum(total.values())} rows")
+    if len(skeletons) > 1:
+        problems.append(f"vote lists under {folder}/ differ in headings, columns or filter options: "
+                        + ", ".join(skeletons.values()))
+    return problems, (f"{n_lists} vote lists under {folder}/, {n_rows} rows recounted from the facts"
+                      + (f"; {omitted} left out (preview)" if omitted else ""))
 
 
 class NameLinks(HTMLParser):
@@ -2747,7 +2856,7 @@ def _rate_problems(text: str | None, body: str, rcs: list[dict], href: str) -> t
     plain = html.unescape(re.sub(r"<[^>]+>", "", text or ""))
     if text is None:
         return [f"about.html: no confirmed rate for {body}"], f"{body} {want} {pct}"
-    if not plain.startswith(f"{want} {body} roll calls {pct} are confirmed"):
+    if not plain.startswith(f"{want} {body} votes {pct} are confirmed"):
         return [f"about.html: {body} rate reads {plain[:80]!r}, the facts give {want} {pct}"], f"{body} {want} {pct}"
     if f'href="{href}"' not in text:
         return [f"about.html: {body} rate does not link the body's pages"], f"{body} {want} {pct}"
@@ -2759,7 +2868,7 @@ OPERATOR_PAGES = ("about.html", "who-runs-this.html")
 
 def check_about(site: Path, cs: list[dict], cfg: dict, county: dict | None = None) -> tuple[list[str], str]:
     """about.html and who-runs-this.html against the facts (Brian 2026-11-11): (a) every body's confirmed rate, the
-    county's (`county`: its facts) and each built council's, reads "<n> of <total> <body> roll calls (<pct>%) are
+    county's (`county`: its facts) and each built council's, reads "<n> of <total> <body> votes (<pct>%) are
     confirmed" and links the body's pages, restated here from the facts (verification status "verified"), so the page
     can never drift from the record and every body's line is labelled the same way; (b) with config operator_person set
     and that official in a built council, one operator line on each of About and Who runs this, the same on both, that
@@ -3107,6 +3216,11 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
         p2, n2 = check_official_numbers(site, c["facts"], c["prefix"] + "members")
         problems, note = problems + p2, f"{note}; {n2}"
     rep.add("official-numbers", problems, note)
+    problems, note = check_vote_lists(site, facts)
+    for c in cs:
+        p2, n2 = check_vote_lists(site, c["facts"], c["prefix"] + "members")
+        problems, note = problems + p2, f"{note}; {n2}"
+    rep.add("vote-list", problems, note)
     problems, note = check_provenance(site, pages, facts, read_roster(seats_path), cfg)
     rep.add("provenance", problems, note)
     problems, note = check_name_links(site, facts, read_roster(seats_path), cs)

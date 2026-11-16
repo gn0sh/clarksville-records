@@ -233,6 +233,7 @@ rpc: cmc-rpc
 district_count: 21
 district_label: District          # "District 7"
 district_page_title: County Commission District   # "County Commission District 7"
+meeting_title_body: County Commission              # "County Commission formal meeting, May 11, 2026" (meeting titles name the body)
 ward_count: 12
 ward_label: Ward
 ward_map_owner: Regional Planning Commission   # whose map the ward lines come from ("on the <owner>'s map of <date>")
@@ -389,8 +390,8 @@ switch:
       lede: "Records of the Montgomery County Commission, each linked to the county's own document."
       about: The Montgomery County Commission.
       cards:
-        - {key: meetings, title: Meetings, text: "County Commission meetings, with attendance, motions and roll calls."}
-        - {key: votes, title: Votes, text: "Every roll call by year, linked to its page of the minutes."}
+        - {key: meetings, title: Meetings, text: "County Commission meetings, with attendance, motions and votes."}
+        - {key: votes, title: Votes, text: "Every vote by year, linked to its page of the minutes."}
         - {key: finance, title: Finance, text: "The county budget books, fund by fund."}
         - {key: bids, title: Bids and awards, text: "Solicitations and awards listed in the county purchasing archive."}
         - {key: capital, title: Capital projects, text: "Capital projects in the county budget books."}
@@ -407,7 +408,7 @@ switch:
       kicker: City government
       about: The Clarksville City Council.
       cards:
-        - {key: meetings, title: Meetings, go: Meetings by year, text: "City Council meetings by year, with attendance, motions and roll calls."}
+        - {key: meetings, title: Meetings, go: Meetings by year, text: "City Council meetings by year, with attendance, motions and votes."}
         - {key: votes, title: Votes, go: Votes by member, text: "Each council member's recorded votes."}
         - {key: transcripts, title: Transcripts, go: Latest meetings, text: "Transcripts of council meetings, linked from each meeting that has one."}
         - key: finance                       # the landing's "City budget" link opens this card (#card-finance)

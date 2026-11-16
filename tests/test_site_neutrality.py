@@ -15,7 +15,7 @@ def normalise_totals(s: str) -> str:
     """Numbers to N, and singular forms to plural: only grammatical number may vary with a count."""
     s = re.sub(r"\d+", "N", s)
     return (s.replace("roll call in", "roll calls in").replace("N roll call not", "N roll calls not").replace("meeting in", "meetings in")
-            .replace("N vote in", "N votes in")
+            .replace("N vote in", "N votes in").replace("N vote not", "N votes not")
             .replace(" is not shown because it is ", " are not shown because they are ")
             .replace("period is ", "period are ").replace("period has ", "period have ")
             .replace("and is not", "and are not").replace("roll call under review is", "roll calls under review are"))

@@ -25,7 +25,7 @@
 <section class="council-meeting" id="{{ m.id }}" aria-labelledby="h-{{ m.id }}">
   <header class="meeting-head">
     <p class="kind-line"><span class="chip chip-kind">{{ m.kind_label }}</span>{% if m.cancelled %} <span class="chip chip-status">Cancelled</span>{% endif %}</p>
-    <h2 id="h-{{ m.id }}">{{ m.kind_label }}, <span class="nowrap">{{ m.date_text }}</span></h2>
+    <h2 id="h-{{ m.id }}">{{ rpc_label }} {{ m.kind_label | lower }}, <span class="nowrap">{{ m.date_text }}</span></h2>
     <p class="muted">Listed as: {{ m.printed }}.</p>
     {% if m.agenda %}
     <p class="official-record">Unofficial copy. Official record: <a href="{{ m.agenda.url }}" target="_blank" rel="noopener noreferrer">the RPC's agenda PDF<span class="sr-only"> (opens in a new tab)</span></a>.</p>
