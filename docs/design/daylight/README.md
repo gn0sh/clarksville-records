@@ -118,3 +118,34 @@ Problem keys `onceover/...`; tests in `tests/test_onceover.py`.
   visit; links to outside sources keep the visited colour.
 - A "coming" page says Coming once (the h1's tag) and does not repeat a link its cards already carry.
 - The RPC's home: the full name in the kicker, "Regional Planning Commission" as the h1.
+
+## Round 2 polish (Brian approved, 2026-11-14; built 2026-11-16)
+Problem keys `onceover/...`; tests in `tests/test_round2_polish.py` unless named.
+
+- The sun is on every page (`onceover/header/sun-on-every-page`; this reverses "other pages have none"). The home
+  page and each body's landing page keep the full sun; every other page has the same sun, small (the header's class
+  `sky-small`: about 64 to 104px wide and lower in the band on a wide screen; on a phone the body pages' sliver, in
+  the same strip under the name plate). `static/sky.js` and the moon are on every page too, under the same rules.
+  Tests: `tests/test_body_switch.py`, `tests/test_daylight.py`, `tests/test_moon.py`.
+- Checking counts are one small sentence (`.stats-note`), never a big figure: under a meeting's figures "Roll calls not
+  confirmed*: N. Names we could not match to an official: N.", under an official's "Votes in not confirmed* roll
+  calls: N." The same words for every meeting and every official whatever the numbers are.
+- Alerts before launch: the morning-note card (`.mn-card.mn-off`) is its heading, the "starts at launch" line, one
+  sentence and a closed 44px "Feeds for your list" toggle that holds the list picker and each list's feeds. When the
+  note is enabled the full form card is unchanged.
+- Radii: `--radius` 6px (inputs, notes, toggles), `--radius-lg` 12px (every content card), `--radius-xl` 18px (the
+  day card and the morning note only). Officials cards carry the doors' 4px top accent.
+- One small label: a single grouped rule (`.eyebrow, .label, thead th, ...`) sets JetBrains Mono uppercase at
+  `--t-eyebrow`; no small caps are left (the Coming chip is the same mono).
+- Tables: the finance pages' ruled look is the base for every table (ink rule on top, hairlines, mono column heads,
+  no box, no stripes). On a phone the holders table and the About and Corrections tables stack; nothing scrolls sideways.
+- One crumb: every page but the home page and a body's landing page has one `.crumb` line above its h1
+  (`sitegen/bodies.py` `crumbs`): a body's pages lead to that body's page, then to the section's list ("Montgomery
+  County / Meetings"); finance and bid detail pages to "Home / Finance"; every other page to Home.
+- RPC meeting rows are titled by their date, with the home page's date block; the kind of meeting is the line under.
+- Search: "Clear all filters" shows only with a filter on, "Copy link to this search" only with a query or a filter.
+- About has a jump list of its sections: a ruled list on a wide screen, one closed toggle on a phone.
+- Plain words for the site's own process (fixed strings only, the same for everyone): "attendance list could not be
+  read" for "not extracted", "meetings whose attendance list was read", "a news reader app (also called a feed
+  reader)", "a scanned image" for "a scan with no text layer", and the RPC Votes card says votes are being checked
+  against the minutes again.

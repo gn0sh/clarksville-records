@@ -1,0 +1,31 @@
+{% extends "base.html.j2" %}
+{% block main %}
+<h1>{{ title }}</h1>
+<p class="lede">What this site has loaded from the official records, counted from its data files when the site was last built. These are counts of records, not of people: nothing here is counted per official.</p>
+<section aria-labelledby="stats-total-h">
+  <h2 id="stats-total-h">All bodies together</h2>
+  <dl class="stats-list">
+  {% for t in totals %}<div><dt>{{ t.label }}</dt><dd>{{ "{:,}".format(t.n) }}</dd></div>{% endfor %}
+  </dl>
+</section>
+{% for r in rows %}
+<section aria-labelledby="stats-{{ loop.index }}-h">
+  <h2 id="stats-{{ loop.index }}-h">{% if r.href %}<a href="{{ root }}{{ r.href }}">{{ r.body }}</a>{% else %}{{ r.body }}{% endif %}</h2>
+  <dl class="stats-list">
+  {% for c in r.counts %}<div><dt>{{ c.label }}</dt><dd>{{ "{:,}".format(c.n) }}</dd></div>{% endfor %}
+  {% if r.dates %}<div><dt>Meeting dates</dt><dd><time datetime="{{ r.dates[0] }}">{{ r.dates[0] | day_words }}</time> to <time datetime="{{ r.dates[1] }}">{{ r.dates[1] | day_words }}</time></dd></div>{% endif %}
+  {% if r.fetched %}<div><dt>Last fetched from the official site</dt><dd>{{ r.fetched | as_of_day }}</dd></div>{% endif %}
+  </dl>
+</section>
+{% endfor %}
+{% if coming %}
+<section aria-labelledby="stats-coming-h">
+  <h2 id="stats-coming-h">Coming</h2>
+  <p>Not loaded yet. Each page links the official site until then.</p>
+  <ul class="coming-list">
+  {% for c in coming %}<li><a href="{{ root }}{{ c.href }}">{{ c.label }}</a> <span class="chip chip-coming">Coming</span></li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+<p>Counts include records the site holds back as "Not confirmed". See <a href="{{ root }}method.html">Method</a> for how records are read, and <a href="{{ root }}data.html">Data downloads</a> for the files.</p>
+{% endblock %}

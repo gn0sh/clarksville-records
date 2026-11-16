@@ -15,7 +15,10 @@ from markupsafe import Markup
 from jsonschema import Draft202012Validator, FormatChecker
 
 from . import bodies as bodies_mod
+from . import analytics as analytics_mod
+from . import stats as stats_mod
 from . import county_agendas as agendas_mod
+from . import county_committees as cmx_mod
 from . import rpc as rpc_mod
 from . import freshness as fresh_mod
 from . import morning_page
@@ -147,6 +150,7 @@ def make_env() -> jinja2.Environment:
     env.filters["local_day"] = localdates.local_day
     env.filters["as_of_day"] = as_of_day
     env.filters["day_words"] = localdates.words     # every reader-facing date: "May 11, 2026"
+    env.filters["day_parts"] = localdates.parts    # a meeting row's date block: weekday, day, month
     return env
 
 
@@ -394,10 +398,12 @@ _EMAIL = re.compile(r"[A-Za-z0-9._+-]{1,64}@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+")
 # Templates of fact-bearing pages: each gets the page-level "Report an error on this page" link (base.html.j2).
 REPORT_TEMPLATES = frozenset({
     "meeting.html.j2", "items_year.html.j2", "votes_year.html.j2", "official.html.j2", "official_year.html.j2",
+    "official_votes.html.j2",
     "official_roster.html.j2", "district.html.j2", "council_home.html.j2", "council_meetings_year.html.j2",
     "council_items_year.html.j2", "fin_index.html.j2", "fin_fund.html.j2", "fin_capital.html.j2",
     "fin_contracts_index.html.j2", "fin_solicitation.html.j2", "transcript.html.j2", "rpc_home.html.j2",
-    "rpc_meetings_year.html.j2", "today.html.j2", "county_agendas.html.j2", "morning.html.j2"})
+    "rpc_meetings_year.html.j2", "today.html.j2", "county_agendas.html.j2", "morning.html.j2",
+    "committee_home.html.j2", "committee_year.html.j2"})
 
 
 def corrections_problems(cfg: dict) -> list[str]:
@@ -420,7 +426,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
           seats_path=DEFAULT, districts_path=DEFAULT, geocoder: bool = True, finance_path=DEFAULT,
           capital_fund=DEFAULT, councils=DEFAULT, target: str | None = None, transcripts: bool = True,
           rpc=DEFAULT, today=None, county_agendas=DEFAULT, morning_manifests=DEFAULT,
-          export: bool = True, fetch_manifests=DEFAULT, city_budget: bool = True) -> dict:
+          export: bool = True, fetch_manifests=DEFAULT, county_committees=DEFAULT, vote_lists: bool = True,
+          city_budget: bool = True) -> dict:
     """`geocoder=False` (`--no-geocoder`) draws no landing address box and allows no geocoder in the CSP: the build
     for the claude.ai preview, where the box could not reach the geocoder. The plain lookup line shows instead.
     `seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
@@ -452,6 +459,12 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     cap without the transcript pages is built again with export=False: no page (data.html, about.html, the finance
     and contracts indexes) links a data/ file, data.html and about.html say the files are on the full site, and any
     earlier export in `out_dir/data` is removed.
+    `county_committees`: the school board and county finance committee agendas file (collector/county_committees.py);
+    left out, the file config/site.yml `county_committees.agendas` names for a real build and none for a fixture
+    build. None: no such pages.
+    `vote_lists`: whether each official's vote list page (officials/<id>/votes.html) is written. A preview still over
+    its cap without the transcript pages and the export is built again with vote_lists=False: each official page then
+    says the list is on the full site, and links none.
     `fetch_manifests`: the collectors' manifests whose first_fetched_at (by url and sha256) gives every fetch day a
     page prints as its site_timezone day (sitegen/localdates.py, docs/architecture/local-dates.md); left out,
     config/site.yml `fetch_manifests` for a real build and none for a fixture build. A source with no row shows its
@@ -489,11 +502,13 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         ward_map = georef_mod.wards_of(districts) is not None    # the landing map draws the wards and finds them
     except (seats_mod.SeatsError, ValueError) as exc:
         raise BuildError(str(exc)) from exc
-    bad = site_url_problems(config.SITE) + morning_mod.reader_problems()
+    bad = site_url_problems(config.SITE) + morning_mod.reader_problems() + analytics_mod.problems()
     if config.SITE.get("live", False) not in (True, False):   # site-polish/about-preview: a typo never claims a launch
         bad.append(f"live must be true or false, got {config.SITE.get('live')!r}")
     if bad:
         raise BuildError("config/site.yml: " + "; ".join(bad))
+    counter = analytics_mod.settings(target=target, fixture=fixture)   # ADR 0008: None while the code is empty
+    counted = counter["origin"] if counter else None    # every page's CSP connect-src (views.csp)
     ix = views.Index(facts, seat_rows)
     warnings = seat_warnings(ix)       # M1: in the result (collector run writes them to build/run-log.json)
     for w in warnings:
@@ -519,6 +534,17 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         raise BuildError(str(exc)) from exc
     if rpx is not None:   # Planning Commission -> County Commission: CZ- cases link to the county's items both ways
         rpx.link_county(ix)
+    # The school board's and the county finance committees' agendas (sitegen/county_committees.py); none for a fixture
+    # build unless a test names a fixture agendas file
+    try:
+        if county_committees is DEFAULT:
+            cmx = cmx_mod.load(config.SITE, fixture, built_day)
+        else:
+            cmx = cmx_mod.load(config.SITE, fixture, built_day, county_committees) if county_committees else None
+    except (cmx_mod.CommitteesError, OSError, ValueError, KeyError) as exc:
+        raise BuildError(f"county committees: {exc}") from exc
+    if cmx is not None:   # resolution and case numbers -> the County Commission's record of the same number
+        cmx.link_county(ix, ax)
     fx = fin_views.Finance(fin_data, facts["officials"]) if fin_data is not None else None
     if capital_fund is DEFAULT:
         capital_fund = config.FIXTURE_CAPITAL_FUND if fixture else config.CAPITAL_FUND
@@ -554,12 +580,14 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     if report_path is None:
         report_path = out.parent / "report.json"
 
-    _clean(out, [c.slug for c in cixs] + ([rpx.slug] if rpx else []), export=export)
-    site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs, rpc=rpx,
-                              city_budget=city_bg.index if city_bg is not None else None,
+    cmx_dirs = [cmx.finance_slug] + ([cmx.school_slug] if cmx.school_slug else []) if cmx is not None else []
+    _clean(out, [c.slug for c in cixs] + ([rpx.slug] if rpx else []) + cmx_dirs, export=export)
+    site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs, rpc=rpx, cmx=cmx,
+                              counter=counted, city_budget=city_bg.index if city_bg is not None else None,
                               city_budget_books=budget_views.books_phrase(city_bg.books) if city_bg is not None
                               else None)
     site["internal"] = internal
+    site["analytics"] = counter
     # "Show records from" (views.site_context, sitegen/bodies.py): which page is each option's own, and the hub cards
     switch_current = (site["switch"] or {}).get("current") or {}
     hubs = (site["switch"] or {}).get("hubs") or {}
@@ -568,13 +596,14 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     site["data_as_of"] = localdates.latest(
         ix.facts["sources"], *(c.facts["sources"] for c in cixs), rpx.facts["sources"] if rpx else (),
         ax.sources.values() if ax else (), fx.fin["sources"] if fx else (),
-        city_fin["sources"] if city_fin else ()) or site["data_as_of"]
+        cmx.data["sources"] if cmx else (), city_fin["sources"] if city_fin else ()) or site["data_as_of"]
     site["councils"] = [council_mod.landing_entry(c) for c in cixs]
     site["purpose"] = views.purpose_line(cixs, rpc=rpx is not None, finance=fx is not None,
                                          rpc_votes=rpx is not None and rpx.votes_shown)
     site["transcripts_omitted"] = not transcripts
     site["ward_map"] = ward_map
     site["export_omitted"] = not export
+    site["vote_lists_omitted"] = not vote_lists
     # None unless the morning note's sign-up form is enabled: then the landing and Method pages drop "never sent"
     site["morning_note"] = morning_page.privacy()
     if rpx is not None:
@@ -585,7 +614,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         depth = rel.count("/")
         return env.get_template(template).render(
             site=site_ctx or site, root="../" * depth, page_name=page_name, body_current=switch_current.get(rel, ""),
-            report_page=template in REPORT_TEMPLATES,
+            report_page=template in REPORT_TEMPLATES, crumbs=bodies_mod.crumbs(site, rel, cixs, rpx, cmx),
             official_record=views.official_record(template, site_ctx or site, ctx), **ctx)
 
     def render(template: str, rel: str, page_name: str, site_ctx=None, **ctx) -> None:
@@ -594,6 +623,33 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(html, encoding="utf-8")
         written.append(rel)
+
+    def render_vote_list(bix, o: dict, sctx) -> None:
+        """An official's vote list page (onceover/votes/member-yes-no-list). Over config.PAGE_BYTES it is split by
+        runs of consecutive years, newest first (pack_years; city-pages/page-weight): votes.html, votes-2.html, ...,
+        each with its own filter and counts and a link to every other part."""
+        rel = bix.official_votes_href(o["id"])
+        name = f"{o['name']}: vote list"
+        ctx = views.official_votes(o["id"], bix)
+
+        def page(rows, parts=()):
+            return {**ctx, "rows": rows, "counts": views.vote_list_counts(rows), "parts": list(parts)}
+
+        if len(html_of("official_votes.html.j2", rel, name, sctx, **page(ctx["rows"])).encode("utf-8")) <= config.PAGE_BYTES:
+            render("official_votes.html.j2", rel, name, sctx, **page(ctx["rows"]))
+            return
+        years = sorted({r["date"][:4] for r in ctx["rows"]}, reverse=True)
+        groups = [{"year": y, "rows": [r for r in ctx["rows"] if r["date"][:4] == y]} for y in years]
+        runs = pack_years(groups, lambda run: len(html_of("official_votes.html.j2", rel, name, sctx, **page(
+            [r for g in run for r in g["rows"]])).encode("utf-8")))
+        # an instance attribute (never the class's shared dict): the official page says how many pages there are
+        bix.vote_list_pages = {**bix.vote_list_pages, o["id"]: len(runs)}
+        paths = [rel if n == 1 else f"{rel[:-len('.html')]}-{n}.html" for n in range(1, len(runs) + 1)]
+        nav = [{"href": posixpath.basename(path), "label": years_key(run).replace("-", " to "),
+                "n": sum(len(g["rows"]) for g in run)} for run, path in zip(runs, paths)]
+        for n, (run, path) in enumerate(zip(runs, paths)):
+            render("official_votes.html.j2", path, name if n == 0 else f"{name} ({nav[n]['label']})", sctx,
+                   **page([r for g in run for r in g["rows"]], [{**x, "current": i == n} for i, x in enumerate(nav)]))
 
     # Year pages (items; a council's meetings), split in parts when over config.PAGE_BYTES (city-pages/page-weight).
     # Each: (Index, kind, template, folder, year, page name, site ctx, extra ctx, list key, date of an entry, ctx).
@@ -697,13 +753,25 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         render("district.html.j2", f"districts/{n:02d}.html", ctx["title"], **ctx)
     for year in site["vote_years_desc"]:
         render("votes_year.html.j2", f"votes/{year}.html", f"Votes {year}", **views.votes_year(year, ix))
-    for sb in [e["school"] for e in site["nav"] if e.get("school")]:   # the school board's "coming" page (views._nav)
+    for e in [e for e in site["nav"] if e.get("school")]:   # the school board's page (views._nav)
+        sb = e["school"]
         pg = {**sb["page"], "link": {"url": sb["url"], "label": sb.get("link_label") or sb["label"], "kind": "school"}}
-        render("coming.html.j2", f"{pg['slug']}.html", pg["title"], page=pg, hub=hubs.get("school"))
+        if not e["coming"]:   # its agendas are collected (sitegen/county_committees.py): the board's hub
+            render("committee_home.html.j2", e["href"], pg["title"], title=pg["title"],
+                   lede=config.SITE["county_committees"]["school_lede"], hub=hubs.get("school"), **cmx.school_hub())
+        else:
+            render("coming.html.j2", f"{pg['slug']}.html", pg["title"], page=pg, hub=hubs.get("school"))
+    if cmx is not None:   # the county finance committees' index, and each body's agendas by year
+        if cmx.finance_home():
+            render("committee_home.html.j2", cmx.finance_home(), cmx.cfg["finance"]["title"],
+                   **cmx.finance_index(), hub=None)
+        for key, y in cmx.pages():
+            ctx = cmx.year_page(key, y)
+            render("committee_year.html.j2", cmx.year_href(key, y), f"{ctx['short']}: agendas {y}", **ctx)
     for cm in [e["committees"] for e in site["nav"] if e.get("committees")]:   # the committees' "coming" page
         pg = {**cm["page"], "links": [{**x, "kind": "committee"} for x in cm["links"]]}
         render("coming.html.j2", f"{pg['slug']}.html", pg["title"], page=pg)
-    render("search.html.j2", "search.html", "Search", **views.search_page(ix, fx, cixs, rpx))
+    render("search.html.j2", "search.html", "Search", **views.search_page(ix, fx, cixs, rpx, cmx))
     for c in config.SITE["coming"]:
         if c["slug"] in {coming_slugs[p] for p in budget_pages}:
             continue
@@ -764,6 +832,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                                               sibling=budget_views.INDEX if bg is not None else None),
                       council_mod.site_for(site, city_council))
     for o in facts["officials"]:
+        if vote_lists:   # first, so the official page knows how many pages the list is on
+            render_vote_list(ix, o, None)
         ctx = views.official(o["id"], ix)
         render("official.html.j2", f"officials/{o['id']}.html", o["name"], **ctx)
     for oid in sorted(ix.seats.roster_only):  # in the roster, not in the facts: a page that says nothing is recorded
@@ -771,7 +841,9 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         render("official_roster.html.j2", f"officials/{oid}.html", ctx["official"]["name"], **ctx)
     for m in facts["meetings"]:
         ctx = views.meeting(m["id"], ix)
-        render("meeting.html.j2", f"meetings/{m['id']}.html", f"Meeting {m['date']}", m=ctx, **ctx,
+        # the page title and share card name the body (onceover/meeting/title-names-body), as the h1 does
+        title = f"{config.SITE['meeting_title_body']} {ctx['kind_label'].lower()}, {localdates.words(m['date'])}"
+        render("meeting.html.j2", f"meetings/{m['id']}.html", title, m=ctx, **ctx,
                watch=watch_mod.meeting(config.SITE["county_key"], m.get("video_url")))
     render_year_pages()   # county items; each council's meetings and items (in parts when too big)
     render_transcript_pages()
@@ -801,6 +873,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
 
             runs = pack_years(groups, size_of)
             c.year_pages[o["id"]] = {g["year"]: years_key(run) for run in runs for g in run}
+            if vote_lists:   # first, so the member page knows how many pages the list is on
+                render_vote_list(c, o, cs)
             ctx = council_mod.member(o["id"], c)      # the year links now name each year's page
             render("official.html.j2", c.official_href(o["id"]), o["name"], cs, **ctx)
             for run in runs:
@@ -817,12 +891,13 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                    rpc_href=rpx.home_href(), rpc_label=rpx.nav_label, **rpx.meetings_year(y))
     # Day by day (Daylight M2): after the year pages, so every council meeting link knows its part
     try:
-        day_ctx = days_mod.page(ix, cixs, rpx, fx, built_day, ax=ax)
+        day_ctx = days_mod.page(ix, cixs, rpx, fx, built_day, ax=ax, cmx=cmx)
     except days_mod.DaysError as exc:
         raise BuildError(str(exc)) from exc
     render("today.html.j2", days_mod.PAGE, "Today", **day_ctx)
     # The landing (docs/design/front-page-v2.md): after the day page, whose cards its meetings list is a selection of
-    render("index.html.j2", "index.html", "Home", **views.landing(ix, districts, georef, geocoder, site["councils"]),
+    render("index.html.j2", "index.html", "Home",
+           **views.landing(ix, districts, georef, geocoder, site["councils"], counter=counted),
            home_feeds=body_feeds,
            freshness=fresh_mod.lines(ix, ax, cixs, rpx, fin_data, budget_views.INDEX if bg is not None else None),
            freshness_note=fresh_mod.NOTE,
@@ -845,6 +920,10 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     render("method.html.j2", "method.html", "Method", **trust)
     render("changes.html.j2", "changes.html", "Changes", **views.changes(read_changes(changes_path)))
     render("report.html.j2", "report.html", "Report an error", **views.report_page())
+    # The site in numbers (sitegen/stats.py): counted from the data loaded above, linked from every footer
+    render("stats.html.j2", stats_mod.PAGE, stats_mod.TITLE,
+           **stats_mod.page(ix, cixs, rpx, ax, fx, nav=site["nav"],
+                            budget_href=budget_views.INDEX if bg is not None else None))
     if morning_manifests is DEFAULT:
         mn = morning_mod.settings()
         morning_manifests = None if fixture or mn is None else morning_mod.manifest_paths()
@@ -885,7 +964,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         has_preview = morning_note is not None and morning_page.on()
         alerts_ctx = feeds_mod.alerts_page(cixs, rpc=rpx, fin=fin_data, target=target, feeds=feed_rows)
         alerts_ctx.setdefault("seat_feeds", [f for f in feed_rows if f.get("kind") == "zoning-seat"])
-        alerts_ctx.update(morning_page.alerts_context(feed_rows, preview=has_preview))
+        alerts_ctx.update(morning_page.alerts_context(feed_rows, preview=has_preview, counter=counted))
         render("alerts.html.j2", feeds_mod.PAGE, "Alerts", **alerts_ctx)
         if has_preview:
             render("morning.html.j2", morning_page.PAGE, morning_page.title(),
@@ -896,7 +975,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
 
     shutil.copytree(config.STATIC_DIR, out / "static")
     # A script, not a JSON file, so search also works when the site is opened from files or a zip (no fetch).
-    index_js = "window.SEARCH_INDEX = " + json.dumps(views.search_index(ix, fx, cixs, rpx), separators=(",", ":"),
+    index_js = "window.SEARCH_INDEX = " + json.dumps(views.search_index(ix, fx, cixs, rpx, cmx), separators=(",", ":"),
                                                      ensure_ascii=True) + ";\n"
     (out / "static" / "search-index.js").write_text(index_js, encoding="utf-8")
     # The built page paths, for static/report.js: a page path in a report link is shown as a page of this site only
@@ -918,7 +997,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
                      finance_path, capital_fund, councils, target, transcripts=False, rpc=rpc, today=today,
                      county_agendas=county_agendas, morning_manifests=morning_manifests, export=export,
-                     fetch_manifests=fetch_manifests, city_budget=city_budget)
+                     fetch_manifests=fetch_manifests, county_committees=county_committees, vote_lists=vote_lists,
+                     city_budget=city_budget)
     if expected > cap and export and target == "preview":
         print(f"sitegen: {expected} files with the export is over the {target} cap of {cap}; building again without "
               f"the open-data export (do not run `collector export` for this preview; data.html says the files are "
@@ -926,15 +1006,26 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
                      finance_path, capital_fund, councils, target, transcripts=transcripts, rpc=rpc, today=today,
                      county_agendas=county_agendas, morning_manifests=morning_manifests, export=False,
-                     fetch_manifests=fetch_manifests, city_budget=city_budget)
+                     fetch_manifests=fetch_manifests, county_committees=county_committees, vote_lists=vote_lists,
+                     city_budget=city_budget)
     if expected > cap and city_bg is not None and target == "preview":
         print(f"sitegen: {expected} files is over the {target} cap of {cap}; building again without the city budget "
               f"pages (they are on the full site)", file=sys.stderr)
         return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
                      finance_path, capital_fund, councils, target, transcripts=transcripts, rpc=rpc, today=today,
                      county_agendas=county_agendas, morning_manifests=morning_manifests, export=export,
-                     fetch_manifests=fetch_manifests, city_budget=False)
+                     fetch_manifests=fetch_manifests, county_committees=county_committees, vote_lists=vote_lists,
+                     city_budget=False)
+    if expected > cap and vote_lists and target == "preview":
+        print(f"sitegen: {expected} files is over the {target} cap of {cap}; building again without the officials' "
+              f"vote list pages (each official page says they are on the full site)", file=sys.stderr)
+        return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
+                     finance_path, capital_fund, councils, target, transcripts=transcripts, rpc=rpc, today=today,
+                     county_agendas=county_agendas, morning_manifests=morning_manifests, export=export,
+                     fetch_manifests=fetch_manifests, county_committees=county_committees, vote_lists=False,
+                     city_budget=city_budget)
     manifest = write_publish_manifest(out, target)
     return {"pages": written, "files": len(manifest) + 1, "target": target, "transcripts": transcripts,
             "transcript_pages": tx_pages, "files_with_export": expected,
-            "morning": morning_note, "export": export, "warnings": warnings, "city_budget": city_bg is not None}
+            "morning": morning_note, "export": export, "warnings": warnings, "vote_lists": vote_lists,
+            "city_budget": city_bg is not None}

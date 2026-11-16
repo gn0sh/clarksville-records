@@ -5,7 +5,6 @@
 {% block main %}
 <div class="fin">
 {# Design finance-contracts 6. The same structure for every fund (N1). Each book has its own tables and columns. #}
-<p class="crumb"><a href="index.html">{{ b.title }}</a></p>
 <h1>{{ title }}{% if fund_no %} <span class="h1-sub">{{ b.fund_no }} {{ fund_no }}</span>{% endif %}</h1>
 <p class="coverage">{{ coverage_sentence }}</p>
 <p class="sol-meta">{{ b.fund_name }}: {% for n in printed %}{{ n.name }} {% for s in n.srcs %}{{ fin_cite(s) }}{% if not loop.last %} {% endif %}{% endfor %}{% if not loop.last %}; {% endif %}{% endfor %}</p>

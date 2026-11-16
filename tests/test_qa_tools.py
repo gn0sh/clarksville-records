@@ -1,6 +1,7 @@
 # ruff: noqa: E501
 """The QA tools themselves: they must pass on the clean fixture build and catch each planted defect."""
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -22,8 +23,8 @@ def site(tmp_path, built):
     # the public build the generator would make has no links to it; `built` was made --internal, so drop them
     for f in dst.rglob("*.html"):
         t = f.read_text(encoding="utf-8")
-        f.write_text(t.replace('href="review.html"', 'href="about.html"').replace('href="../review.html"', 'href="../about.html"'),
-                     encoding="utf-8")
+        # any depth (a vote list page is two folders down: officials/<id>/votes.html)
+        f.write_text(re.sub(r'href="((?:\.\./)*)review\.html"', r'href="\1about.html"', t), encoding="utf-8")
     return dst
 
 

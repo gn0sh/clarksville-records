@@ -216,7 +216,7 @@ def test_city_and_rpc_homes_are_their_hubs(site, html):
 def test_rpc_votes_card_is_coming_only_while_no_vote_is_shown(html, tmp_path, rpc_cfg, monkeypatch):  # noqa: F811
     votes = hub_cards(html["rpc/index.html"])["votes"]          # this build shows no RPC vote
     assert '<span class="chip chip-coming">Coming</span>' in votes
-    assert "Votes return after the minutes reader passes a fresh check." in plain(votes)
+    assert "Votes are being checked against the minutes again and are not shown for now." in plain(votes)
     assert f'<a data-ext="record" href="{rpc_cfg["record_url"]}"' in votes
     from sitegen import rpc as rpc_mod
     monkeypatch.setattr(rpc_mod.Rpc, "votes_shown", property(lambda self: True))
@@ -379,10 +379,11 @@ def test_method_page_lists_both_storage_keys(html):
     assert keys == {"cr-your-seats", "cr-body"}
 
 
-def test_every_switch_target_has_the_sky_sun_and_no_other_page_does(site, html):
+def test_every_switch_target_has_the_full_sky_sun_and_every_other_page_the_small_one(site, html):
     """Owner, 2026-11-12: the sun at the top showed only on All. Every option's own page now has the landing's sky sun
     (decorative, set by static/sky.js from the viewer's clock, at midday by CSS without it); the date line stays on
-    the home page; inner pages keep the plain header."""
+    the home page. Owner, 2026-11-14 (onceover/header/sun-on-every-page): every other page has the same sun, small
+    (the header's class sky-small), so no page is left with a plain header."""
     sun = '<div class="sky-sun-frame" aria-hidden="true"><div class="sky-sun" id="sky-sun"></div></div>'
     _, opts = switch_of(html["index.html"])
     targets = {SC.resolve("index.html", href) for href, _, _, _ in opts}
@@ -391,9 +392,10 @@ def test_every_switch_target_has_the_sky_sun_and_no_other_page_does(site, html):
         depth = "../" * rel.count("/")
         on = rel in targets
         header = page[page.index('<header class="site-header'):page.index("</header>")]
-        assert (sun in header) == on and header.count('id="sky-sun"') == (1 if on else 0), rel
+        assert sun in header and page.count('id="sky-sun"') == 1, rel
         assert ('<header class="site-header has-sky">' in page) == on, rel
-        assert (f'<script src="{depth}static/sky.js" defer></script>' in page) == on, rel
+        assert ('<header class="site-header has-sky sky-small">' in page) == (not on), rel
+        assert page.count(f'<script src="{depth}static/sky.js" defer></script>') == 1, rel
         assert ('id="sky-hero"' in page) == (rel == "index.html"), rel
     # without the date line a body page keeps its text clear of the sun: the brand column stops short of it (wide
     # screens), and on a phone a sliver shows in a strip under the kicker
@@ -402,6 +404,11 @@ def test_every_switch_target_has_the_sky_sun_and_no_other_page_does(site, html):
     phone = phone[:phone.index("\n}\n")]
     assert ".has-sky:not(:has(#sky-hero)) .sky-sun { --sun-max: .15; }" in phone
     assert ".has-sky:not(:has(#sky-hero)) .masthead { padding-bottom:" in phone
+    # the small sun is a size, not another element: one wide-screen rule, and on a phone the body pages' sliver
+    small = CSS[CSS.index("@media (min-width: 700px) {\n  .sky-small .sky-sun {"):]
+    small = small[:small.index("\n}\n")]
+    assert "--sun-size: clamp(64px, 8vw, 104px)" in small and ".has-sky.sky-small { --sun-room:" in small
+    assert ".sky-small" not in CSS.replace(small, "")
 
 
 def test_sky_js_reads_no_home_only_data():

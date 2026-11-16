@@ -28,11 +28,14 @@ def main_of(html: str) -> str:
     return html.split("<main", 1)[1].split("</main>")[0]
 
 
-def test_config_names_the_three_committees_and_their_official_pages():
+def test_config_names_the_city_committees_and_their_official_pages():
     cm = config.SITE["committees"]
     assert views.committees() is cm
     text = cm["page"]["lede"]
-    assert all(w in text for w in ("Finance Committee", "Audit Committee", "Budget Committee", "being added"))
+    assert all(w in text for w in ("Finance Committee", "Audit Committee", "being added"))
+    # the county's Budget Committee is collected (config county_committees, sitegen/county_committees.py), so the
+    # "coming" page no longer names it
+    assert "Budget Committee" not in text and "Budget Committee" not in cm["label"]
     urls = [x["url"] for x in cm["links"]]
     research = (ROOT / "docs" / "research" / "committee-sources-2026-11-11.md").read_text(encoding="utf-8")
     assert all(u.startswith("https://") and u.rstrip("/") in research for u in urls), urls

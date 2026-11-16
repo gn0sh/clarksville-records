@@ -15,7 +15,7 @@
   var IX = window.SEARCH_INDEX;
   var PAGE = 50;
   var shown = PAGE;
-  var KIND = { item: "Item", vote: "Roll call", meeting: "Meeting", person: "Person or district", sol: "Bids and awards" };
+  var KIND = { item: "Item", vote: "Vote", meeting: "Meeting", person: "Person or district", sol: "Bids and awards" };
   var OUTCOME = { passed: "Passed", failed: "Failed", other: "Other" };
   var VOTE = { yes: "Yes", no: "No", abstain: "Abstain", other: "Other" };
   var MULTI = ["kind", "type", "outcome", "body"];
@@ -222,6 +222,11 @@
     bodyLine(state);
     form.querySelectorAll('input[name="vote"]').forEach(function (el) { el.disabled = !state.official; });
     renderChips(state);
+    // nothing to clear or to copy yet: the two buttons wait for a filter (Clear keeps the words) or a search (Copy)
+    var idle = empty(state), filtered = chipsEl.children.length > 0, copyBtn = document.getElementById("copy");
+    document.getElementById("clear").hidden = !filtered;
+    copyBtn.hidden = idle;
+    if (idle) { document.getElementById("copied").textContent = ""; }
     if (!keepPage) { shown = PAGE; }
     results.setAttribute("aria-busy", "false");
     if (empty(state)) {
@@ -240,9 +245,9 @@
     });
     if (strict) {
       noteEl.hidden = false;
-      noteEl.innerHTML = "Filtering by official, vote or outcome uses confirmed roll calls only. " + left +
-        (left === 1 ? " roll call that matches the other filters is not confirmed and is left out. "
-          : " roll calls that match the other filters are not confirmed and are left out. ") +
+      noteEl.innerHTML = "Filtering by official, vote or outcome uses confirmed votes only. " + left +
+        (left === 1 ? " vote that matches the other filters is not confirmed and is left out. "
+          : " votes that match the other filters are not confirmed and are left out. ") +
         '<a href="#" id="drop-strict">Show them without the official, vote and outcome filters</a>';
       document.getElementById("drop-strict").addEventListener("click", function (e) {
         e.preventDefault();
@@ -286,6 +291,7 @@
     MULTI.forEach(function (k) { state[k] = []; });
     state.q = q;
     toControls(state); update();
+    countEl.focus();  // the Clear button hides itself, so focus must not fall to the body
   });
   document.getElementById("apply").addEventListener("click", function () {
     if (!window.matchMedia("(min-width: 900px)").matches) { panel.open = false; }

@@ -122,7 +122,8 @@ def _section(feeds: list[dict], cfg: dict, preview: bool = False) -> dict:
             "preview": PAGE if preview else ""}
 
 
-def alerts_context(feeds: list[dict], cfg: dict | None = None, preview: bool = False) -> dict:
+def alerts_context(feeds: list[dict], cfg: dict | None = None, preview: bool = False,
+                   counter: str | None = None) -> dict:
     """Extra context for alerts.html.j2: `note` (None when the block is out) and, when enabled, the page's CSP.
     `preview`: morning/index.html is built beside it (build.py: only from the note sitegen/morning.py wrote)."""
     from . import views
@@ -132,7 +133,7 @@ def alerts_context(feeds: list[dict], cfg: dict | None = None, preview: bool = F
     ctx = {"note": _section(feeds, cfg, preview)}
     origin = form_origin(cfg)
     if origin:
-        ctx["csp"] = views.csp(form_origin=origin)
+        ctx["csp"] = views.csp(form_origin=origin, counter=counter)   # counter: ADR 0008
     return ctx
 
 

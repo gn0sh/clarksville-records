@@ -181,7 +181,9 @@ def test_phone_and_wide_in_a_browser(site):
         assert m["scrollWidth"] <= m["innerWidth"], (name, m)                   # the page never scrolls sideways
         assert m["tag"] and m["intro"] and m["notice"], (name, m)               # unofficial: tag, short line, footer
         assert m["doors"] == m["doorTitles"] == 4 and len(m["doorLinks"]) >= 7, (name, m)
-        assert m["comingText"] == ("Coming Clarksville: City budget, Finance Committee, Audit Committee. "
+        # the Coming chip is the small mono label now (uppercase by CSS; the markup still says "Coming"), and the
+        # browser's rendered text follows the CSS (onceover/labels/small-caps-vs-mono)
+        assert m["comingText"] == ("COMING Clarksville: City budget, Finance Committee, Audit Committee. "
                                    "Montgomery County: Budget Committee. School board: Budget."), (name, m)
         assert len(m["comingLinks"]) == 5, (name, m)
         assert min(m["doorLinks"]) >= 44 and m["moreLink"] >= 44, (name, m)     # tap targets

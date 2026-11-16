@@ -7,11 +7,11 @@
   <h2 id="log-h">Public log of corrections</h2>
   {% if log %}
   <div class="table-scroll" tabindex="0" role="region" aria-label="Corrections log">
-  <table class="aliases">
+  <table class="aliases corrections">
     <thead><tr><th scope="col">Date</th><th scope="col">Page</th><th scope="col">Was</th><th scope="col">Now</th><th scope="col">Source</th></tr></thead>
     <tbody>
     {% for r in log %}
-      <tr><th scope="row">{{ r.date | day_words }}</th><td>{{ r.page }}</td><td>{{ r.was }}</td><td>{{ r.now }}</td>
+      <tr><th scope="row" data-label="Date">{{ r.date | day_words }}</th><td data-label="Page">{{ r.page }}</td><td data-label="Was">{{ r.was }}</td><td data-label="Now">{{ r.now }}</td>
       <td><a data-ext="corrections" href="{{ r.source_url }}" target="_blank" rel="noopener noreferrer">Source<span class="sr-only"> (opens in a new tab)</span></a></td></tr>
     {% endfor %}
     </tbody>

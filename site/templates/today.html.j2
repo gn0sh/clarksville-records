@@ -68,8 +68,11 @@
     </li>
     {% endfor %}
   </ul>
+  {% elif c.state == "committee" %}
+  <p class="day-none">{% if c.n_lines and c.text_shown %}The agenda's {{ c.n_lines }} lines, as printed, are on the meeting page. {% elif c.n_lines %}The agenda has {{ c.n_lines }} lines; read them in the PDF. {% endif %}No votes are shown.</p>
+  <p class="coming-note"><span class="chip chip-coming">Coming</span> {{ c.minutes.text }} <a data-ext="{{ c.minutes.link.kind }}" href="{{ c.minutes.link.url }}" target="_blank" rel="noopener noreferrer">{{ c.minutes.link.label }}<span class="sr-only"> (opens in a new tab)</span></a></p>
   {% elif c.kind == "rpc" and c.rpc.agenda and c.rpc.agenda.no_text %}
-  <p class="day-none">The agenda is a scan with no text layer; its cases were not read.</p>
+  <p class="day-none">The agenda is a scanned image with no readable text, so its cases were not read.</p>
   {% else %}
   <p class="day-none">No votes or agenda items are shown for this meeting.</p>
   {% endif %}

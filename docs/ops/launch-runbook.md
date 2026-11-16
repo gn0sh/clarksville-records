@@ -76,6 +76,15 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   with the store restored, run `python -m collector rpc fetch --limit 30` once a day until it no longer prints
   "documents still to fetch", then commit `data/localities/cmc-rpc/` (listing.json, manifest.json). The next daily
   run fetches any bytes its cache lacks as gaps and rebuilds rpc.json; the RPC issue can be closed when it is green.
+- **County committee agendas failed**: `build/run-log.json` `county_committees.exit` is not 0 (2 the Committee
+  Agendas page at montgomerytn.gov was not read or the host said no, 4 a result that would shrink the record, 1 or any
+  other code a crash; reason in `county_committees.status`). A `::warning::` and one open "Daily update: county
+  committee agendas step failed" issue (a comment on it each later day, never a new issue). The step is all or
+  nothing: its files under `data/localities/montgomery-tn/committee-agendas/` stay as committed and everything else
+  publishes. A host refusal is never retried in that run; wait for the next day's run. If it repeats, open
+  https://montgomerytn.gov/code/webshare/commission-committees-agendas.php in a browser (did the page move or change
+  shape?), fix the reader or config on a branch, and close the issue when a run is green. In January the page may show
+  only the new year: stored rows stay (`on_page: false`), so that alone is not a failure.
 - **Data age** (`qa/staleness.py`, thresholds in `config/staleness.yml`): after every green run on `main`, each
   source whose newest record is older than its threshold has one open "Stale source: <name> [<key>]" issue, labelled
   `stale-source`. It is opened once, its body is edited on later days (never a second issue), and the first run that

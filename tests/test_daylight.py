@@ -40,7 +40,7 @@ def test_every_page_has_the_name_plate_and_keeps_the_footer_lines(site):
             assert page + '"' in nav, (name, page)
 
 
-def test_only_the_landing_has_the_sky_and_its_date_waits_for_the_script(site):
+def test_only_the_landing_has_the_date_line_and_it_waits_for_the_script(site):
     pages = _pages(site)
     html = pages["index.html"]
     hero = next(n for n in parse(html).walk() if n.attrs.get("id") == "sky-hero")
@@ -54,11 +54,13 @@ def test_only_the_landing_has_the_sky_and_its_date_waits_for_the_script(site):
     for name, other in pages.items():
         if name != "index.html":
             assert "sky-hero" not in other, name                      # the date line is the landing's alone
-            # the sun (and its script) is on each "Show records from" target, the switch's own pages, and no other
+            # the sun (and its script) is on every page: full size on each "Show records from" target, the
+            # switch's own pages, and small (sky-small) on every other (onceover/header/sun-on-every-page)
             here = re.search(r'<nav class="body-switch"[^>]*data-here="([^"]*)"', other)
             target = bool(here and here.group(1))
-            assert ('id="sky-sun"' in other) == target and ("static/sky.js" in other) == target, name
-            assert ("has-sky" in other) == target, name
+            assert other.count('id="sky-sun"') == 1 and other.count("static/sky.js") == 1, name
+            assert ('class="site-header has-sky"' in other) == target, name
+            assert ('class="site-header has-sky sky-small"' in other) == (not target), name
 
 
 def test_no_inline_script_or_handlers_and_no_outside_fonts(site):

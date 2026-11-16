@@ -162,6 +162,12 @@ jobs:
           #     backlog that needs a person: TooManyNew, a cut-off by the cap): a warning, and the step below opens
           #     or comments on one RPC-only issue.
           #   6 partial: the RPC document store is still being filled (at most 40 requests per run): a warning.
+          # It also runs the school board and county committee agendas step (collector/county_committees.py run_step,
+          # montgomerytn.gov's Committee Agendas page), all or nothing like the RPC's, which never changes the exit
+          # code: build/run-log.json .county_committees.exit other than 0 (2 page not read or host said no, 4 a result
+          # that would shrink the record, 1 or any other code) is a warning, output county_committees=failed, and the
+          # step below opens or comments on one issue for it. Unreadable (no run log or no exit, when the county run
+          # itself failed) is not reported here: that run's own failure is.
           # allow_shrink (workflow_dispatch input, read through env, never interpolated here): --allow-shrink on a
           # manual run only, and only when the value is exactly true.
           shrink=()
@@ -212,6 +218,15 @@ jobs:
             rpc=failed; county=0
           fi
           echo "rpc=$rpc" >> "$GITHUB_OUTPUT"
+          # county-committees-exit (tests/test_workflow_lock.py runs these lines on their own)
+          cc=ok
+          cc_exit=$(jq -r '.county_committees.exit // "unreadable"' build/run-log.json 2>/dev/null) || cc_exit=unreadable
+          if [ "$cc_exit" != 0 ] && [ "$cc_exit" != unreadable ]; then
+            echo "::warning::The school board and county committee agendas step failed (exit $cc_exit); its files are unchanged and everything else is published. See its issue."
+            cc=failed
+          fi
+          echo "county_committees=$cc" >> "$GITHUB_OUTPUT"
+          # end county-committees-exit
           [ "$city" = 0 ] && [ "$county" = 0 ]
 
       # Only for a manual rebuild-only run (collect=false): build from the committed data, no network.
@@ -345,6 +360,40 @@ jobs:
                    --json number,title --jq 'map(select(.title == $ENV.RPC_TITLE)) | .[0].number // empty')
           if [ -z "$open" ]; then
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$RPC_TITLE" --body-file "$body"
+          else
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$body"
+          fi
+
+      # The school board and county committee agendas step failed (run-log .county_committees.exit not 0) while the
+      # run went on: one open issue for it, with a comment each later day. The reason is read from
+      # build/run-log.json into a file and passed with --body-file, never through the shell or an expression.
+      - name: Open or update the county committee agendas issue
+        if: always() && steps.collect.outputs.county_committees == 'failed'
+        continue-on-error: true      # ci/notify-step-blocks-publish: a gh failure never holds back upload, push, deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CC_TITLE: "Daily update: county committee agendas step failed"
+        run: |
+          set -eu
+          body="$RUNNER_TEMP/cc-issue.md"
+          {
+            echo "The school board and county committee agendas step failed: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "Its files are unchanged; everything else was published as usual."
+            echo
+            echo "Reason (build/run-log.json county_committees.status):"
+            echo
+            echo '```'
+            reason=$(set -o pipefail; jq -r '.county_committees.status // "unknown"' build/run-log.json 2>/dev/null | tr -d '`' | head -c 1500) \
+              || reason=unknown
+            [ -n "$reason" ] || reason=unknown
+            echo "$reason"
+            echo
+            echo '```'
+          } > "$body"
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --app github-actions --search "\"$CC_TITLE\" in:title" \
+                   --json number,title --jq 'map(select(.title == $ENV.CC_TITLE)) | .[0].number // empty')
+          if [ -z "$open" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$CC_TITLE" --body-file "$body"
           else
             gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$body"
           fi

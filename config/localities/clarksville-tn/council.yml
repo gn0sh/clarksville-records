@@ -25,7 +25,7 @@ title_seats:
   Mayor: city-mayor                  # an official whose title is Mayor holds the city-mayor seat on their roll calls
 evidence:
   ward: attendance lists
-  title: roll calls
+  title: vote records
   configured: the minutes that record the seating   # a configured, cited member's seating (agenda-center.yml members)
 latest_words: the latest minutes read   # "seen in attendance lists from X to L, the latest minutes read"
 

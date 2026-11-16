@@ -1,0 +1,99 @@
+# Montgomery County's "Committee Agendas" page: the CMCSS school board's agendas (the county mirrors them) and the
+# county finance committees' agendas (milestone "county committee agendas", Nov 2026). collector/county_committees.py
+# loads and checks this file; sitegen/county_committees.py reads the same file for the site pages.
+# Survey: docs/research/committee-sources-2026-11-11.md and the Nov 16 survey (new-sources-2026-11-16, findings 1, 2, 5).
+#
+# robots.txt (montgomerytn.gov, checked 2026-11-16): `User-agent: *`, `Disallow:` (allow all), no crawl-delay. The
+# polite fetcher still waits 10 s between requests, reads robots.txt every run and checks every URL against it.
+# Links are taken from the page as printed (one folder per body); no document URL is ever built.
+#
+# The page lists the current calendar year only (2026 on 2026-11-16) and will likely roll over in January: every row
+# ever listed stays in listing.json and every stored file stays a source, so a rollover drops nothing we hold.
+# 2025 agendas live on d6.mcgtn.org, which this environment cannot reach: shown as a COMING note, never fetched.
+
+locality: montgomery-tn
+listing_url: https://montgomerytn.gov/code/webshare/commission-committees-agendas.php
+record_label: Montgomery County Committee Agendas page
+facts: data/localities/montgomery-tn/committee-agendas/agendas.json
+fetch_hosts: [montgomerytn.gov]
+fetch_path: /storage/departments/mayor/calendar-files/   # every listed file is under this path on the county host
+fetch_extensions: [.pdf]
+
+# Each body read from the page: `folder` is the folder name as the page prints it (exact match); `group` is the
+# site section (school: the school board's hub; county-finance: the county's finance committees). `kind_rules`
+# (case-insensitive, first match wins) group a body's meetings and name the meeting id; labels are shown as printed.
+bodies:
+  - folder: School System
+    key: school-board
+    group: school
+    name: Clarksville-Montgomery County School System Board of Education
+    short: School board
+    kind_rules:
+      - [study-session, '\bstudy\s+session\b']
+      - [formal, '\bformal\b']
+      - [meeting, '^']
+    kind_labels:
+      study-session: Study Session
+      formal: Formal Board Meeting
+      meeting: Board meeting
+    # No item text is stored or shown for the school board (manager decision 2026-11-16, privacy-withhold hit 3:
+    # recognitions print students' names before, after or around the award words, so no pattern list can cut them
+    # out safely). Each meeting keeps its listing label, date, PDF link and the count of agenda lines only. Item text
+    # returns only after an architect re-plan with an allow-list design (docs/architecture/agenda-withhold-invariant.md).
+    text: false
+  - folder: Budget Committee
+    key: budget-committee
+    group: county-finance
+    name: Montgomery County Budget Committee
+    short: Budget Committee
+    kind_rules:
+      - [special, '\bspecial\b']
+      - [regular, '^']
+    kind_labels:
+      special: Budget Committee, special called meeting
+      regular: Budget Committee
+  - folder: Budget Hearings
+    key: budget-hearings
+    group: county-finance
+    name: Montgomery County budget hearings
+    short: Budget hearings
+    kind_rules:
+      - [hearing, '^']
+    kind_labels:
+      hearing: Budget hearing
+  - folder: Audit Committee
+    key: audit-committee
+    group: county-finance
+    name: Montgomery County Audit Committee
+    short: Audit Committee
+    kind_rules:
+      - [regular, '^']
+    kind_labels:
+      regular: Audit Committee
+  - folder: Committee on Investment
+    key: investment-committee
+    group: county-finance
+    name: Montgomery County Committee on Investment
+    short: Committee on Investment
+    kind_rules:
+      - [regular, '^']
+    kind_labels:
+      regular: Committee on Investment
+  - folder: Purchasing Committee
+    key: purchasing-committee
+    group: county-finance
+    name: Montgomery County Purchasing Committee
+    short: Purchasing Committee
+    kind_rules:
+      - [regular, '^']
+    kind_labels:
+      regular: Purchasing Committee
+  - folder: Delinquent Tax Sales and Release Committee
+    key: delinquent-tax-committee
+    group: county-finance
+    name: Montgomery County Delinquent Tax Sales and Release Committee
+    short: Delinquent Tax Sales and Release Committee
+    kind_rules:
+      - [regular, '^']
+    kind_labels:
+      regular: Delinquent Tax Sales and Release Committee

@@ -73,7 +73,7 @@ def test_unverified_roll_calls_are_shown_marked(pages, facts):
         link = f'href="{src[rc["source_id"]]["url"]}#page={rc["page"]}"'
         meeting = pages[f"meetings/{rc['meeting_id']}.html"]
         assert f'id="{rc["id"]}"' in meeting and note in meeting and link in meeting
-        assert "1 roll call at this meeting is not confirmed and marked *." in meeting
+        assert "1 vote at this meeting is not confirmed and marked *." in meeting
         for e in (e for e in facts["item_events"] if e["ref"] == rc["id"]):
             assert f'data-fact-id="{e["id"]}"' in pages["items/2024.html"]
         for v in rc["votes"]:

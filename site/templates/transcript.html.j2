@@ -6,7 +6,6 @@
    against the meeting's attendance list, never by voice. #}
 {% block head %}<meta name="robots" content="noindex">{% endblock %}
 {% block main %}
-<p class="kicker-line"><a href="{{ root }}{{ council_href }}">{{ council }}</a></p>
 <h1>Transcript: {{ kind_label }}, <span class="nowrap">{{ meeting.date | day_words }}</span></h1>
 <p class="notice transcript-notice" role="note"><strong>{{ notice }}</strong></p>
 <p class="privacy-note">{{ privacy_note }} <a href="{{ root }}report.html">Report an error</a>.</p>

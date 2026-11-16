@@ -106,7 +106,7 @@ def test_mayor_seat_comes_from_the_confirmed_roll_calls(cix, city_facts):
     mayors = [o["id"] for o in city_facts["officials"] if o["title"] == "Mayor"]
     recs = [r for r in cix.seats.records if r["seat"] == "city-mayor"]
     assert recs and {r["official_id"] for r in recs} <= set(mayors)
-    assert all(r["evidence"] == "roll calls" for r in recs)
+    assert all(r["evidence"] == "vote records" for r in recs)
 
 
 def test_seat_wording_names_attendance_lists_and_the_latest_minutes_read(cix):
@@ -144,7 +144,9 @@ def _member_history_pages(out, facts: dict, cix) -> int:
     n = 0
     for o in facts["officials"]:
         years = {y["year"] for y in views.official(o["id"], cix)["year_pages"]}
-        pages = sorted(p.stem for p in (out / "city" / "members" / o["id"]).glob("*.html"))
+        # the member's vote list (votes.html, votes-2.html ... when split by years) is counted on its own below
+        pages = sorted(p.stem for p in (out / "city" / "members" / o["id"]).glob("*.html")
+                       if not re.fullmatch(r"votes(?:-\d+)?", p.stem))
         covered = []
         for name in pages:
             m = re.fullmatch(r"(\d{4})(?:-(\d{4}))?", name)
@@ -159,7 +161,10 @@ def _member_history_pages(out, facts: dict, cix) -> int:
 def test_page_count_is_one_per_member_and_per_year_never_per_meeting(site, cix, city_facts):
     out, _ = site
     city = sorted(p.relative_to(out).as_posix() for p in (out / "city").rglob("*.html"))
-    want = (1 + len(city_facts["officials"]) + len({m["date"][:4] for m in city_facts["meetings"]})
+    vote_lists = len([p for p in city if re.fullmatch(r"city/members/[^/]+/votes(?:-\d+)?\.html", p)])
+    assert vote_lists >= len(city_facts["officials"])     # one vote list per member (more parts when long)
+    want = (1 + 2 * len(city_facts["officials"]) + (vote_lists - len(city_facts["officials"]))
+            + len({m["date"][:4] for m in city_facts["meetings"]})
             + len({i["year"] for i in city_facts["items"]}) + _member_history_pages(out, city_facts, cix))
     assert len(city) == want
     assert "city/index.html" in city
@@ -493,7 +498,8 @@ def test_member_page_links_each_year_to_the_page_that_holds_that_years_rows(cpag
 def test_county_official_pages_keep_their_history_inline(pages):
     off = [r for r in pages if r.startswith("officials/") and r.count("/") == 1]
     assert off and all('id="history"' in pages[r] for r in off if "No votes or attendance" not in pages[r])
-    assert not any(r.count("/") == 2 and r.startswith("officials/") for r in pages)
+    # the only page under an official's folder is their vote list (onceover/votes/member-yes-no-list)
+    assert not any(r.count("/") == 2 and r.startswith("officials/") and not r.endswith("/votes.html") for r in pages)
 
 
 def test_balanced_chunks_are_contiguous_and_cover_everything():

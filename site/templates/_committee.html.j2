@@ -1,0 +1,62 @@
+{# School board and county finance committee agendas (sitegen/county_committees.py). One meeting: its agenda PDF, the
+   agenda's lines as printed (data-item-title: the document's words, never reworded), each linked to its agenda page,
+   a resolution or case number linked to the County Commission's record of the same number (exact match only), and
+   the dashed COMING note that the minutes are not on this site. No vote, motion or outcome is ever shown. A body
+   stored with text: false (the school board) shows no heading and no item text, only the count of lines. #}
+{% macro minutes_note(n) -%}
+<p class="coming-note"><span class="chip chip-coming">Coming</span> {{ n.text }} <a data-ext="{{ n.link.kind }}" href="{{ n.link.url }}" target="_blank" rel="noopener noreferrer">{{ n.link.label }}<span class="sr-only"> (opens in a new tab)</span></a></p>
+{%- endmacro %}
+
+{% macro committee_meeting(m, root, level=2) -%}
+<section class="council-meeting committee-meeting" id="{{ m.id }}" aria-labelledby="h-{{ m.id }}">
+  <header class="meeting-head">
+    <p class="kind-line"><span class="chip chip-kind">{{ m.kind_label }}</span> <span class="chip chip-status">Agenda</span>{% if m.cancelled %} <span class="chip chip-status">Cancelled</span>{% endif %}</p>
+    <h{{ level }} id="h-{{ m.id }}">{{ m.kind_label }}, <span class="nowrap">{{ m.date_text }}</span>{% if m.time %} <span class="nowrap">({{ m.time }})</span>{% endif %}</h{{ level }}>
+    <p class="muted">Listed by the county as: {{ m.printed }}.{% if m.upcoming %} The meeting has not been held yet.{% endif %}</p>
+    {% if m.doc %}
+    <p class="source-line">Agenda: <a href="{{ m.doc.url }}" target="_blank" rel="noopener noreferrer">PDF, {{ m.doc.pages }} {{ "page" if m.doc.pages == 1 else "pages" }}<span class="sr-only"> (opens in a new tab)</span></a>, fetched {{ m.doc.fetched }}.</p>
+    <p class="official-record">Unofficial copy. Official record: <a href="{{ m.doc.url }}" target="_blank" rel="noopener noreferrer">the county's copy of the agenda PDF<span class="sr-only"> (opens in a new tab)</span></a>.</p>
+    {% else %}
+    <p class="source-line">Agenda: <a data-ext="listed" href="{{ m.url }}" target="_blank" rel="noopener noreferrer">listed on the county's page<span class="sr-only"> (opens in a new tab)</span></a>; not collected yet, so its items are not shown.</p>
+    {% endif %}
+  </header>
+  {{ minutes_note(m.minutes) }}
+  {% if not m.text %}
+  {% if m.doc %}<p class="muted" data-no-text>This agenda has {{ m.lines }} {{ "line" if m.lines == 1 else "lines" }}. {{ m.no_text_note }}</p>{% endif %}
+  {% else %}
+  {% if m.title %}<p class="agenda-title">As headed on the agenda: <span data-item-title>{{ m.title }}</span></p>{% endif %}
+  {% if m.entries %}
+  <h{{ level + 1 }} id="{{ m.id }}-items">On the agenda, as printed</h{{ level + 1 }}>
+  <ul class="day-items agenda-lines">
+    {% for e in m.entries %}
+    <li class="day-item{% if e.heading %} agenda-heading{% endif %}" id="{{ e.id }}">
+      <p>{% if e.heading %}<strong><span data-item-title>{{ e.text }}</span></strong>{% else %}<span data-item-title>{{ e.text }}</span>{% endif %}</p>
+      <p class="meta"><a href="{{ e.src }}" target="_blank" rel="noopener noreferrer">agenda p. {{ e.page }}<span class="sr-only"> (opens in a new tab)</span></a>{% if e.county %} <a href="{{ root }}{{ e.county.href }}">{{ e.county.label }}</a>{% endif %}</p>
+    </li>
+    {% endfor %}
+  </ul>
+  {% elif m.doc and m.doc.no_text %}
+  <p class="muted">The agenda is a scanned image, so its lines could not be read here. Open the PDF.</p>
+  {% elif m.doc %}
+  <p class="muted">No lines were read from this agenda; open the PDF.</p>
+  {% endif %}
+  {% endif %}
+</section>
+{%- endmacro %}
+
+{% macro body_years(b, root) -%}
+{% for y in b.years %}
+<section aria-labelledby="{{ b.key }}-y{{ y.year }}-h">
+  <h3 id="{{ b.key }}-y{{ y.year }}-h"><a href="{{ root }}{{ y.href }}">{{ b.short }}, {{ y.year }}</a> <span class="muted">({{ y.meetings | length }} {{ "agenda" if y.meetings | length == 1 else "agendas" }})</span></h3>
+  <ul class="toc">
+    {% for m in y.meetings %}
+    <li><a href="{{ root }}{{ m.href }}">{{ m.date | day_words }}{% if m.time %} ({{ m.time }}){% endif %}, {{ m.kind_label }}</a>{% if m.cancelled %} <span class="chip chip-status">Cancelled</span>{% endif %}{% for n in m.notes if not n.lower().startswith("cancel") %} <span class="muted">({{ n }})</span>{% endfor %}</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endfor %}
+{%- endmacro %}
+
+{% macro older_note(o) -%}
+{% if o.text %}<p class="coming-note"><span class="chip chip-coming">Coming</span> {{ o.text }} <a data-ext="{{ o.link.kind }}" href="{{ o.link.url }}" target="_blank" rel="noopener noreferrer">{{ o.link.label }}<span class="sr-only"> (opens in a new tab)</span></a></p>{% endif %}
+{%- endmacro %}

@@ -56,8 +56,8 @@ def test_not_extracted_and_under_review_are_separate_sentences(tmp_path, facts):
     f = copy.deepcopy(facts)
     unverify(by_id(f, "meetings", MEETING_NOV), "absent_count_matches_stated")
     t = totals(f)
-    not_ext = "1 meeting in this period has no extracted attendance section and is not counted."
-    review = "1 meeting in this period has an attendance section that is under review and is not counted."
+    not_ext = "1 meeting in this period has an attendance list that could not be read and is not counted."
+    review = "1 meeting in this period has an attendance list that is under review and is not counted."
     assert {(s[3], s[4]) for s in t.values()} == {(not_ext, review)}
     pages = build_pages(tmp_path, f)
     for o in f["officials"]:
@@ -69,8 +69,8 @@ def test_not_extracted_and_under_review_are_separate_sentences(tmp_path, facts):
 def test_fixture_counts_each_attendance_state(facts):
     """neutrality/under-review-mislabelled: the fixture has one not-extracted meeting and none under review."""
     s = totals(facts)["a-example"]
-    assert s[3].startswith("1 meeting in this period has no extracted attendance section")
-    assert s[4].startswith("0 meetings in this period have an attendance section that is under review")
+    assert s[3].startswith("1 meeting in this period has an attendance list that could not be read")
+    assert s[4].startswith("0 meetings in this period have an attendance list that is under review")
 
 
 # --- verified-gate/motion-over-hidden ------------------------------------------------------------------------------
