@@ -8,6 +8,8 @@ import json
 import sys
 from datetime import date
 
+import yaml
+
 from . import plan as plan_mod
 from .check import render
 from .errors import CityError
@@ -75,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
         cities = load_all()
         print(f"{len(cities)} cities valid: {', '.join(c['slug'] for c in cities)}")
         return 0
-    except CityError as exc:
+    except (CityError, yaml.YAMLError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 

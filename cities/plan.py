@@ -34,6 +34,8 @@ def launch_windows(today: date, launch_days: int, earliest: date) -> list[Window
     to `earliest`. Run 1 collects windows[0] (the launch year); each later run takes the next window it has not done."""
     end = today + timedelta(days=1)
     start = max(earliest, end - timedelta(days=launch_days))
+    if start >= end:
+        raise CityError(f"earliest {earliest} is after {today}: no launch window")
     windows = [Window(start, end)]
     while start > earliest:
         end, start = start, max(earliest, start - YEAR)

@@ -9,7 +9,7 @@ from pathlib import Path
 
 from . import brand as brand_mod
 from .errors import CityError
-from .registry import ROOT, UNVERIFIED, is_unverified, load_city
+from .registry import ROOT, UNVERIFIED, check_recorded, load_city
 
 HOST_LINE = re.compile(r"^\s*(robots|terms):")
 
@@ -28,8 +28,8 @@ def _marks(path: Path, root: Path, skip_host_lines: bool) -> tuple[list[str], li
     return missing, verify
 
 
-def checklist(slug: str, root: Path = ROOT) -> tuple[list[tuple[bool, str]], bool]:
-    """[(done, line)], ready. Raises CityError when the city file itself is invalid."""
+def checklist(slug: str, root: Path = ROOT) -> tuple[list[tuple[bool, str]], bool, dict]:
+    """[(done, line)], ready, the city. Raises CityError when the city file itself is invalid."""
     city = load_city(slug, root)
     items: list[tuple[bool, str]] = []
     brand = brand_mod.load_brand(root / "config" / "brand.yml")
@@ -44,8 +44,9 @@ def checklist(slug: str, root: Path = ROOT) -> tuple[list[tuple[bool, str]], boo
         items.append((False, "hosts: none listed yet (add every host collection will ask to allowed_hosts)"))
     for h in city["allowed_hosts"]:
         for k, what in (("robots", "robots.txt"), ("terms", "terms of use")):
-            ok = not is_unverified(h[k])
-            items.append((ok, f"host {h['host']}: {what} {'checked: ' + h[k] if ok else 'not checked'}"))
+            ok = check_recorded(h[k])
+            items.append((ok, f"host {h['host']}: {what} " + (f"checked: {h[k]}" if ok else
+                                                                "not checked (record it with the date, YYYY-MM-DD)")))
     for s in city["sources"]:
         r, name = s["reader"], f"source {s['portal']}" + (f" ({s['config']})" if s.get("config") else "")
         if not r.built:
@@ -66,15 +67,14 @@ def checklist(slug: str, root: Path = ROOT) -> tuple[list[tuple[bool, str]], boo
                             f"to {e.isoformat() if e else 'an earliest date not yet known (launch year only)'}"))
     else:
         items.append((True, "launch: no backfill plan (history collected by its own pipeline)"))
-    return items, all(done for done, _ in items)
+    return items, all(done for done, _ in items), city
 
 
 def render(slug: str, root: Path = ROOT) -> tuple[str, int]:
     try:
-        items, ready = checklist(slug, root)
+        items, ready, city = checklist(slug, root)
     except CityError as exc:
         return f"{slug}: city file is invalid: {exc}\nNOT READY", 2
-    city = load_city(slug, root)
     todo = sum(1 for done, _ in items if not done)
     lines = [f"{city['name']}, {city['state']} ({slug}): {city['status']}, {city['domain']}"]
     lines += [f"  [{'x' if done else ' '}] {text}" for done, text in items]

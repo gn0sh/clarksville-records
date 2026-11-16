@@ -386,3 +386,128 @@ def test_cli_validate_and_check_exit_codes(capsys):
     assert cli.main([]) == 0 and "3 cities valid" in capsys.readouterr().out
     assert cli.main(["check", "salem-or"]) == 1
     assert cli.main(["check", "nowhere-xx"]) == 2
+
+
+# ------------------------------------------------------------------ review fixes (code review on aa63844)
+@pytest.mark.parametrize("value", ["unverified", "Unverified 2026-11-16", "TODO", "not checked", "allows all"])
+def test_a_host_check_counts_only_with_a_date_and_no_unverified_mark(tmp_path, value):
+    root = make_root(tmp_path)
+    edit(root, 'robots: "allows all; 2026-11-16, platform-facts.md"', f'robots: "{value}"')
+    text, code = check.render("testville-or", root)
+    assert code == 1 and "host webapi.legistar.com: robots.txt not checked" in text
+
+
+def test_clarksville_dated_robots_lines_still_count():
+    assert registry.check_recorded("allows all; verified by fetch 2026-11-07 (docs/platform-facts.md)")
+    assert not registry.check_recorded("UNVERIFIED (no terms check on record; Brian approved collection 2026-11-09)")
+
+
+def test_a_clarksville_only_reader_is_refused_for_another_city(tmp_path):
+    root = make_root(tmp_path)
+    edit(root, "  - {portal: legistar, config: config/cities/testville-or/legistar.yml}",
+         "  - {portal: legistar, config: config/cities/testville-or/legistar.yml}\n"
+         "  - {portal: rpc, config: config/cities/testville-or/legistar.yml}")
+    with pytest.raises(CityError, match="Clarksville-only reader; it can't serve another city"):
+        registry.load_city("testville-or", root)
+
+
+def test_clarksville_reader_hosts_come_from_its_files():
+    c = registry.load_city("clarksville-tn")
+    by = {s["portal"]: s["reader"].hosts(ROOT / s["config"]) for s in c["sources"] if s.get("config")}
+    assert by["agenda_center"] == ("www.clarksvilletn.gov",)
+    assert by["civicclerk"] == ("clarksvilletn.api.civicclerk.com",)
+
+
+def agenda_center_city(root: Path, host: str, video: str = "") -> None:
+    d = root / "config" / "cities" / "testville-or"
+    (d / "agenda_center.yml").write_text(f"""\
+locality: testville-or
+body: Testville City Council
+official_title: Council Member
+host: {host}
+category_id: 3
+category_name: City Council
+search_url: "https://{host}/AgendaCenter/Search/?CIDs={{cid}}&year={{year}}"
+years: [2020, 2026]
+kind_rules: [[regular, '^']]
+vote_labels: {{}}
+""", encoding="utf-8")
+    edit(root, "  - {portal: legistar, config: config/cities/testville-or/legistar.yml}",
+         "  - {portal: legistar, config: config/cities/testville-or/legistar.yml}\n"
+         "  - {portal: agenda_center, config: config/cities/testville-or/agenda_center.yml}")
+
+
+def test_an_agenda_center_host_off_the_allowlist_fails(tmp_path):
+    root = make_root(tmp_path)
+    agenda_center_city(root, "www.testville.gov")
+    with pytest.raises(CityError, match="asks www.testville.gov, not in allowed_hosts"):
+        registry.load_city("testville-or", root)
+
+
+def test_a_reader_naming_a_denied_host_fails(tmp_path):
+    root = make_root(tmp_path)
+    agenda_center_city(root, "www.cityofclarksville.com")
+    with pytest.raises(CityError, match="denied host and can never be asked"):
+        registry.load_city("testville-or", root)
+
+
+def test_a_civicclerk_video_host_may_not_be_denied(tmp_path):
+    root = make_root(tmp_path)
+    d = root / "config" / "cities" / "testville-or"
+    src = (ROOT / "config" / "localities" / "clarksville-tn" / "civicclerk.yml").read_text(encoding="utf-8")
+    (d / "civicclerk.yml").write_text(src.replace("video_hosts: [cpmedia.azureedge.net]",
+                                                  "video_hosts: [cityofclarksville.com]"), encoding="utf-8")
+    edit(root, "  - {portal: legistar, config: config/cities/testville-or/legistar.yml}",
+         "  - {portal: legistar, config: config/cities/testville-or/legistar.yml}\n"
+         "  - {portal: civicclerk, config: config/cities/testville-or/civicclerk.yml}")
+    with pytest.raises(CityError, match="cityofclarksville.com is a denied host"):
+        registry.load_city("testville-or", root)
+
+
+def test_an_earliest_in_the_future_is_refused(tmp_path):
+    root = make_root(tmp_path)
+    edit(root, 'earliest: "2018-01-01"', 'earliest: "2999-01-01"')
+    with pytest.raises(CityError, match="is in the future"):
+        registry.load_city("testville-or", root)
+    with pytest.raises(CityError, match="no launch window"):
+        plan.launch_windows(date(2026, 11, 16), 365, date(2026, 11, 18))
+
+
+def test_live_with_a_launch_plan_needs_the_owners_go_ahead(tmp_path):
+    root = make_root(tmp_path)
+    edit(root, "status: draft", "status: live")
+    with pytest.raises(CityError, match="status live needs go_ahead"):
+        registry.load_city("testville-or", root)
+    edit(root, "status: live", "status: live\ngo_ahead: {date: \"2999-01-01\", by: Brian}")
+    with pytest.raises(CityError, match="not in the future"):
+        registry.load_city("testville-or", root)
+    edit(root, '"2999-01-01"', '"2026-11-16"')
+    assert registry.load_city("testville-or", root)["go_ahead"] == {"date": "2026-11-16", "by": "Brian"}
+
+
+def test_leap_day_launch_has_no_gap_or_overlap():
+    ws = plan.launch_windows(date(2028, 2, 29), 365, date(2026, 1, 1))
+    assert ws[0] == plan.Window(date(2027, 3, 2), date(2028, 3, 1))           # 365 days ending on Feb 29
+    assert ws[1] == plan.Window(date(2026, 3, 2), date(2027, 3, 2))
+    assert ws[-1] == plan.Window(date(2026, 1, 1), date(2026, 3, 2))
+    assert all(a.start == b.end for a, b in zip(ws, ws[1:]))
+
+
+def test_a_budget_exactly_equal_to_the_jobs_runs_them_all():
+    st = plan.new_state("a-or", date(2026, 1, 10), 365, date(2020, 1, 1))
+    p = plan.plan_run([city("a-or")], {"a-or": st}, date(2026, 11, 16), 35, daily_minutes=5, year_minutes=30)
+    assert [j.kind for j in p.jobs] == ["daily", "backfill"] and p.skipped == [] and p.left == 0
+
+
+def test_an_earliest_inside_the_launch_window_means_one_window_only():
+    earliest = date(2026, 6, 1)
+    assert plan.launch_windows(date(2026, 11, 16), 365, earliest) == [plan.Window(earliest, date(2026, 11, 17))]
+    st = plan.new_state("a-or", date(2026, 11, 16), 365, earliest)
+    assert st["done"] == ["2026-06-01"] and plan.next_window(st, earliest) is None
+
+
+def test_a_broken_yaml_file_exits_2(monkeypatch, capsys):
+    def broken(*a, **k):
+        raise yaml.YAMLError("bad indent")
+    monkeypatch.setattr(cli, "load_all", broken)
+    assert cli.main(["list"]) == 2 and "bad indent" in capsys.readouterr().err

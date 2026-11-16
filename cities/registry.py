@@ -23,6 +23,8 @@ from .readers import READERS
 ROOT = Path(__file__).resolve().parent.parent
 CITIES_DIR = ROOT / "config" / "cities"
 UNVERIFIED = "UNVERIFIED"
+ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
+LOCAL_READER_CITY = "clarksville-tn"     # the one city the Clarksville-only readers (shared=False) may serve
 STATUSES = ("draft", "live")
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*-([a-z]{2})$")       # <place>-<state>, e.g. salem-or
 STATE_RE = re.compile(r"^[A-Z]{2}$")
@@ -32,13 +34,19 @@ DOMAIN_RE = re.compile(r"^(?:[a-z0-9-]+\.)?daylight\.gnoshcodes\.com$")
 SITE_FIELDS = {"sky_place": "sky_place", "geocoder_places": "geocoder_places"}
 KEYS = {"slug", "name", "state", "timezone", "status", "domain", "settings", "platform_facts", "sources",
         "allowed_hosts", "denied_hosts", "launch", "sky_place", "district_lookup", "geocoder_places",
-        "verification_notes", "site"}
+        "verification_notes", "site", "go_ahead"}
 REQUIRED = ("slug", "name", "state", "timezone", "status", "domain", "platform_facts", "sources", "allowed_hosts")
 FROM_SETTINGS = ("sky_place", "district_lookup", "geocoder_places")   # read from a legacy settings file instead
 
 
 def is_unverified(value) -> bool:
-    return isinstance(value, str) and value.strip().startswith(UNVERIFIED)
+    return isinstance(value, str) and value.strip().upper().startswith(UNVERIFIED)
+
+
+def check_recorded(value) -> bool:
+    """A host's robots or terms line counts as recorded only when it names the date of the check (YYYY-MM-DD) and is
+    not marked unverified (any case). "TODO", "not checked" or a note without a date is not a record."""
+    return isinstance(value, str) and UNVERIFIED not in value.upper() and bool(ISO_DATE.search(value))
 
 
 def city_dir(slug: str, root: Path = ROOT) -> Path:
@@ -74,6 +82,7 @@ def load_city(slug: str, root: Path = ROOT, brand: dict | None = None) -> dict:
     city["allowed_hosts"] = _hosts(city, where)
     city["denied_hosts"] = tuple(DENIED_HOSTS) + tuple(str(h).lower() for h in city.get("denied_hosts") or ())
     city["launch"] = _launch(city.get("launch"), where)
+    _check_go_ahead(city, where)
     _check_source_hosts(city, root, where)
     _check_platform_facts(city, root, where)
     return city
@@ -191,6 +200,9 @@ def _sources(city: dict, root: Path, where: str) -> list[dict]:
         if r is None:
             raise CityError(f"{where}: sources[{i}] portal {s['portal']!r} is unknown "
                             f"(known: {', '.join(sorted(READERS))})")
+        if not r.shared and city["slug"] != LOCAL_READER_CITY:
+            raise CityError(f"{where}: sources[{i}] portal {s['portal']!r} is a Clarksville-only reader; it can't "
+                            "serve another city")
         cfg = s.get("config")
         if r.loader and not cfg:
             raise CityError(f"{where}: sources[{i}] ({s['portal']}) needs its config file")
@@ -242,6 +254,8 @@ def _launch(launch, where: str) -> dict | None:
             earliest = date.fromisoformat(str(launch.get("earliest")))
         except ValueError as exc:
             raise CityError(f"{where}: launch.earliest must be YYYY-MM-DD or UNVERIFIED") from exc
+        if earliest > date.today():
+            raise CityError(f"{where}: launch.earliest {earliest} is in the future")
     return {**launch, "launch_days": days, "earliest": earliest}
 
 
@@ -256,6 +270,9 @@ def _check_source_hosts(city: dict, root: Path, where: str) -> None:
             hosts = s["reader"].hosts(p)
         except ValueError:
             hosts = ()                                        # a draft config that doesn't load yet: `check` says so
+        denied = [h for h in hosts + s["reader"].link_hosts(p) if host_matches(h, city["denied_hosts"])]
+        if denied:
+            raise CityError(f"{s['config']}: {', '.join(denied)} is a denied host and can never be asked or linked")
         off = [h for h in hosts if not host_matches(h, allowed_hosts(city))]
         if off:
             raise CityError(f"{where}: {s['config']} asks {', '.join(off)}, not in allowed_hosts")
@@ -265,6 +282,24 @@ def _check_source_hosts(city: dict, root: Path, where: str) -> None:
         if city["launch"] and "launch_days" in data and (data["launch_days"] != city["launch"]["launch_days"]
                                                          or theirs != ours):
             raise CityError(f"{s['config']}: launch_days/earliest differ from {where} launch")
+
+
+def _check_go_ahead(city: dict, where: str) -> None:
+    """The owner's go-ahead to go live, recorded as go_ahead: {date, by}. Required for a live city with a launch
+    block (a city launched through this template); Clarksville went live before the template and has none."""
+    g = city.get("go_ahead")
+    if g is None:
+        if city["status"] == "live" and city["launch"]:
+            raise CityError(f"{where}: status live needs go_ahead: {{date: YYYY-MM-DD, by: ...}}, the owner's "
+                            "go-ahead to go live")
+        return
+    try:
+        ok = (isinstance(g, dict) and isinstance(g.get("by"), str) and g["by"].strip()
+              and date.fromisoformat(str(g.get("date"))) <= date.today())
+    except ValueError:
+        ok = False
+    if not ok:
+        raise CityError(f"{where}: go_ahead is {{date: YYYY-MM-DD (not in the future), by: who gave it}}")
 
 
 def _check_platform_facts(city: dict, root: Path, where: str) -> None:
