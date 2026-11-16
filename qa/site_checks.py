@@ -651,7 +651,7 @@ CM_SINGLES = re.compile(rf"(?<!{CM_LETTER})(?<!['’]){CM_LETTER}(?:[\s.]+|[^\w]
 # not letters, digits or an allowed span, then a capitalised word that is not an allowed span (the roster, a phrase, a
 # date). No exception for a Roman numeral. Plus a deny-list: a capitalised word that is a common US surname or given
 # name (qa/common-us-names.txt) and not inside an allowed span fails, whatever committee-words.yml says.
-CM_INITIAL = re.compile(rf"(?<![\w'’])(?P<i>[A-Z])(?![\w'’])(?P<sep>(?:[^\w\x00]|_){{1,3}})(?P<w>{CM_LETTER}+)")
+CM_INITIAL = re.compile(rf"(?<![\w'’])(?P<i>[^\W\d_])(?![\w'’])(?P<sep>(?:[^\w\x00]|_){{1,3}})(?P<w>{CM_LETTER}+)")
 CM_NAMES_PATH = Path(__file__).resolve().parent / "common-us-names.txt"
 CM_ODD = frozenset("Cf Mn Mc Me Co Cn Cs".split())     # format, combining, private-use, unassigned, surrogate
 
@@ -721,7 +721,7 @@ class CmWords:
         if CM_SINGLES.search(m):
             return False
         for x in CM_INITIAL.finditer(m):
-            if x["w"][:1].isupper() and (x["i"] not in "AI" or "." in x["sep"]):
+            if x["i"].isupper() and x["w"][:1].isupper() and (x["i"] not in "AI" or "." in x["sep"]):
                 return False
         toks = re.findall(rf"\x00|{CM_LETTER}+(?:['’]{CM_LETTER}+)*|[:,–—]|(?<=\s)-(?=\s)", m)
         if any(t[:1].isupper() and re.sub(r"['’]s$", "", t).casefold() in self.common_names for t in toks):

@@ -141,6 +141,7 @@ HIT4 = [
     "approve contract with Block Construction", "Bonds v. City of Clarksville", "V. Q. Prior settlement",
     "Settlement J. Industrial", "approve claim J.-Q. Industrial", "approve claim J_Q", "settlement - BRIDGE",
     "to approve the claim of Holiday", "Reading settlement", "Hazard claim", "approve payment to Fort",
+    "claim Ж. Industrial",   # committees-privacy/qa-initial-ascii: QA reads any script's capital initial
 ]
 # Public words that must still be published (agreement, and the gate is not a blanket refusal)
 ALLOWED = [
