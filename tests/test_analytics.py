@@ -29,10 +29,17 @@ def _parsed(out):
 
 # --- off by default --------------------------------------------------------------------------------------------
 
-def test_config_ships_with_counting_off():
-    assert config.SITE["analytics"] == {"provider": "goatcounter", "code": ""}
+def test_config_counts_on_the_pages_build_only():
+    # switched on 2026-11-16 (Brian's GoatCounter code); "" turns it off again (docs/ops/analytics.md)
+    assert config.SITE["analytics"] == {"provider": "goatcounter", "code": "daylight-gnosh"}
     assert analytics.problems() == []
-    assert analytics.settings() is None and analytics.settings(target="pages") is None
+    assert analytics.settings(target="preview") is None and analytics.settings(fixture=True) is None
+    assert analytics.settings(target="pages")["endpoint"] == "https://daylight-gnosh.goatcounter.com/count"
+
+
+def test_off_by_default_when_the_code_is_empty():
+    off = {**config.SITE, "analytics": {"provider": "goatcounter", "code": ""}}
+    assert analytics.problems(off) == [] and analytics.settings(off, target="pages") is None
 
 
 def test_off_build_loads_no_counter_and_keeps_connect_src_none(pages):

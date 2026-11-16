@@ -12,9 +12,9 @@ Privacy Control browsers are not counted.
 Content counts (meetings, votes, items, documents per body, what is still coming, last fetch day) are on the site's
 own page `stats.html`, built from the data every day; they need no account.
 
-## State today: OFF
-`config/site.yml` has `analytics: {provider: goatcounter, code: ""}`. With the code empty no page loads the counter
-and nothing leaves a visitor's browser.
+## State: ON from the commit that sets `code: "daylight-gnosh"`
+Brian created the account on 2026-11-16 (code `daylight-gnosh`, dashboard https://daylight-gnosh.goatcounter.com).
+With the code empty (`code: ""`) no page loads the counter and nothing leaves a visitor's browser.
 
 ## Brian: create the account (about 3 minutes, free)
 1. Open https://www.goatcounter.com/signup on any device.
@@ -27,9 +27,9 @@ and nothing leaves a visitor's browser.
 7. Reply in the Daylight thread with one line: `GoatCounter code: daylight-gnoshcodes` (or the code you chose).
 
 ## The team: switch it on (one-line PR)
-1. On a branch, edit `config/site.yml`: `analytics: {provider: goatcounter, code: "daylight-gnoshcodes"}`.
-2. Run `python -m pytest -q tests/test_analytics.py tests/test_csp.py`; `test_config_ships_with_counting_off` fails
-   by design: change its expected code in the same PR.
+1. On a branch, edit `config/site.yml`: `analytics: {provider: goatcounter, code: "daylight-gnosh"}`.
+2. Run `python -m pytest -q tests/test_analytics.py tests/test_csp.py`; `test_config_counts_on_the_pages_build_only`
+   names the code: change it in the same PR.
 3. The next pages build loads `static/count.js` on every page, sets `connect-src https://<code>.goatcounter.com`, and
    About and Method name GoatCounter and what is counted. `qa/site_checks.py` (`external`) checks all of it.
 4. Merge after review; the next daily build carries it (a deploy, so it follows the normal release go-ahead).
