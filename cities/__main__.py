@@ -38,6 +38,8 @@ def _plan(budget: int, today: date) -> int:
         print(f"run   {j.slug:<20} {j.kind:<8} {j.minutes:>3} min{w}")
     for j in p.skipped:
         print(f"later {j.slug:<20} {j.kind:<8} {j.minutes:>3} min (over budget)")
+    for e in p.errors:
+        print(f"left out {e}")
     print(f"{p.left} of {budget} minutes left. Nothing was run: this only prints the plan.")
     return 0
 

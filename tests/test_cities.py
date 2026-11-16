@@ -511,3 +511,27 @@ def test_a_broken_yaml_file_exits_2(monkeypatch, capsys):
         raise yaml.YAMLError("bad indent")
     monkeypatch.setattr(cli, "load_all", broken)
     assert cli.main(["list"]) == 2 and "bad indent" in capsys.readouterr().err
+
+
+# ------------------------------------------------------------------ delta review
+def test_a_live_city_without_a_launch_block_still_needs_the_go_ahead(tmp_path):
+    root = make_root(tmp_path)
+    edit(root, 'launch: {launch_days: 365, earliest: "2018-01-01"}\n', "")
+    edit(root, "status: draft", "status: live")
+    p = root / "config" / "cities" / "testville-or" / "legistar.yml"
+    p.write_text(p.read_text().replace('earliest: "2018-01-01"', 'earliest: "2016-01-01"'))
+    with pytest.raises(CityError, match="status live needs go_ahead"):
+        registry.load_city("testville-or", root)
+    assert registry.load_city("clarksville-tn")["status"] == "live"          # the one exemption
+
+
+@pytest.mark.parametrize("value", ["not checked 2026-11-16", "Todo: read it 2026-11-16"])
+def test_a_dated_line_saying_not_checked_or_todo_is_not_a_record(value):
+    assert not registry.check_recorded(value)
+
+
+def test_one_city_with_bad_windows_is_left_out_not_the_whole_plan():
+    bad = city("bad-or", earliest=date(2027, 1, 1))
+    p = plan.plan_run([bad, city("ok-or", launch=False)], {"bad-or": None}, date(2026, 11, 16), 60)
+    assert [(j.slug, j.kind) for j in p.jobs] == [("ok-or", "daily")]
+    assert len(p.errors) == 1 and p.errors[0].startswith("bad-or: ") and "no launch window" in p.errors[0]

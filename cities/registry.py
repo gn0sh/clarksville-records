@@ -46,7 +46,10 @@ def is_unverified(value) -> bool:
 def check_recorded(value) -> bool:
     """A host's robots or terms line counts as recorded only when it names the date of the check (YYYY-MM-DD) and is
     not marked unverified (any case). "TODO", "not checked" or a note without a date is not a record."""
-    return isinstance(value, str) and UNVERIFIED not in value.upper() and bool(ISO_DATE.search(value))
+    if not isinstance(value, str):
+        return False
+    up = value.upper()
+    return not any(w in up for w in (UNVERIFIED, "NOT CHECKED", "TODO")) and bool(ISO_DATE.search(value))
 
 
 def city_dir(slug: str, root: Path = ROOT) -> Path:
@@ -285,11 +288,11 @@ def _check_source_hosts(city: dict, root: Path, where: str) -> None:
 
 
 def _check_go_ahead(city: dict, where: str) -> None:
-    """The owner's go-ahead to go live, recorded as go_ahead: {date, by}. Required for a live city with a launch
-    block (a city launched through this template); Clarksville went live before the template and has none."""
+    """The owner's go-ahead to go live, recorded as go_ahead: {date, by}. Required for every live city, launch
+    block or not; only Clarksville, live before the template, has none."""
     g = city.get("go_ahead")
     if g is None:
-        if city["status"] == "live" and city["launch"]:
+        if city["status"] == "live" and city["slug"] != LOCAL_READER_CITY:
             raise CityError(f"{where}: status live needs go_ahead: {{date: YYYY-MM-DD, by: ...}}, the owner's "
                             "go-ahead to go live")
         return

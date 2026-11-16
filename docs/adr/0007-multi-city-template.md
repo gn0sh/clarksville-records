@@ -56,7 +56,8 @@ daily workflow, so this milestone had to be additive and leave Clarksville's bui
       CivicClerk's `video_hosts` are links only, never fetched. They are not added to the allowlist (Clarksville's
       `cpmedia.azureedge.net` isn't on it), but they can never be a denied host.
     - `launch.earliest` can't be in the future, and `launch_windows` refuses an empty window.
-    - A `live` city with a launch block needs `go_ahead: {date, by}`, the owner's go-ahead record.
+    - Every `live` city needs `go_ahead: {date, by}`, the owner's go-ahead record. Only Clarksville, live before the
+      template, is exempt. A city whose windows can't be planned is left out of the run and named, not the whole plan.
 
 ## Edits to existing files
 Only `collector/legistar.py` (proof-of-concept file, not used by the daily run): `Window`/`launch_windows` replaced

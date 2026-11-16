@@ -121,6 +121,7 @@ class Job:
 class Plan:
     jobs: list[Job] = field(default_factory=list)
     skipped: list[Job] = field(default_factory=list)     # did not fit this run's budget
+    errors: list[str] = field(default_factory=list)      # cities left out of this run, with the reason
     left: int = 0
 
 
@@ -134,20 +135,13 @@ def plan_run(cities: list[dict], states: dict[str, dict | None], today: date, bu
         return e if e is not None else today + timedelta(days=1) - timedelta(days=c["launch"]["launch_days"])
 
     live = sorted((c for c in cities if c.get("status") == "live"), key=lambda c: c["slug"])
-    daily, launch, back = [], [], []
+    daily, launch, back, broken = [], [], [], []
     for c in live:
-        state = states.get(c["slug"])
-        if not c.get("launch"):
-            daily.append(Job(c["slug"], "daily", daily_minutes))
-        elif state is None:
-            w = launch_windows(today, c["launch"]["launch_days"], earliest(c))[0]
-            launch.append(Job(c["slug"], "launch", year_minutes, w))
-        else:
-            daily.append(Job(c["slug"], "daily", daily_minutes))
-            w = next_window(state, c["launch"]["earliest"] or date.fromisoformat(state["done"][0]))
-            if w is not None:
-                back.append((len(state["done"]), Job(c["slug"], "backfill", year_minutes, w)))
-    plan, left = Plan(), budget_minutes
+        try:
+            _plan_city(c, states.get(c["slug"]), today, earliest, daily_minutes, year_minutes, daily, launch, back)
+        except CityError as exc:             # one bad city never stops the others' plan
+            broken.append(f"{c['slug']}: {exc}")
+    plan, left = Plan(errors=broken), budget_minutes
     for job in daily + launch + [j for _, j in sorted(back, key=lambda t: (t[0], t[1].slug))]:
         if job.minutes <= left:
             plan.jobs.append(job)
@@ -156,3 +150,17 @@ def plan_run(cities: list[dict], states: dict[str, dict | None], today: date, bu
             plan.skipped.append(job)
     plan.left = left
     return plan
+
+
+def _plan_city(c, state, today, earliest, daily_minutes, year_minutes, daily, launch, back) -> None:
+    """One city's jobs, appended to the three lists. Raises CityError when its windows can't be planned."""
+    if not c.get("launch"):
+        daily.append(Job(c["slug"], "daily", daily_minutes))
+    elif state is None:
+        w = launch_windows(today, c["launch"]["launch_days"], earliest(c))[0]
+        launch.append(Job(c["slug"], "launch", year_minutes, w))
+    else:
+        daily.append(Job(c["slug"], "daily", daily_minutes))
+        w = next_window(state, c["launch"]["earliest"] or date.fromisoformat(state["done"][0]))
+        if w is not None:
+            back.append((len(state["done"]), Job(c["slug"], "backfill", year_minutes, w)))
