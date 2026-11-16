@@ -11,6 +11,7 @@ from . import config, localdates
 
 PAGE = "stats.html"
 TITLE = "The site in numbers"
+MEETINGS_TOTAL = "Meetings listed, with an agenda, minutes or both"
 
 
 def _dates(meetings) -> tuple[str, str] | None:
@@ -63,7 +64,11 @@ def page(ix, cixs=(), rpx=None, ax=None, fx=None, nav=(), budget_href: str | Non
                           ("Source documents", len(fin.get("sources") or []))],
                          [], fin.get("sources") or []))
     coming = [{"label": e["label"], "href": e["href"]} for e in nav if e.get("coming") and e.get("href")]
-    totals = [{"label": k, "n": sum(c["n"] for r in rows for c in r["counts"] if c["label"] == k)}
-              for k in ("Meetings", "Agenda items", "Votes taken", "Source documents")]
-    totals[0]["n"] += sum(c["n"] for r in rows for c in r["counts"] if c["label"] == "Meetings with minutes")
+    def total(*labels):
+        return sum(c["n"] for r in rows for c in r["counts"] if c["label"] in labels)
+    # every meeting row of every body: a council's or the RPC's "Meetings" already holds those listed from an agenda
+    # alone; the county's are split in two rows, both added (stats/meetings-total-label)
+    totals = [{"label": MEETINGS_TOTAL,
+               "n": total("Meetings", "Meetings with minutes", "Meetings with an agenda only so far")}]
+    totals += [{"label": k, "n": total(k)} for k in ("Agenda items", "Votes taken", "Source documents")]
     return {"rows": rows, "coming": coming, "totals": totals, "title": TITLE}

@@ -487,7 +487,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     if bad:
         raise BuildError("config/site.yml: " + "; ".join(bad))
     counter = analytics_mod.settings(target=target, fixture=fixture)   # ADR 0008: None while the code is empty
-    analytics_mod.activate(counter)    # before any page's CSP is made (views.csp)
+    counted = counter["origin"] if counter else None    # every page's CSP connect-src (views.csp)
     ix = views.Index(facts, seat_rows)
     warnings = seat_warnings(ix)       # M1: in the result (collector run writes them to build/run-log.json)
     for w in warnings:
@@ -534,7 +534,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         report_path = out.parent / "report.json"
 
     _clean(out, [c.slug for c in cixs] + ([rpx.slug] if rpx else []), export=export)
-    site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs, rpc=rpx)
+    site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs, rpc=rpx,
+                              counter=counted)
     site["internal"] = internal
     site["analytics"] = counter
     # "Show records from" (views.site_context, sitegen/bodies.py): which page is each option's own, and the hub cards
@@ -789,7 +790,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         raise BuildError(str(exc)) from exc
     render("today.html.j2", days_mod.PAGE, "Today", **day_ctx)
     # The landing (docs/design/front-page-v2.md): after the day page, whose cards its meetings list is a selection of
-    render("index.html.j2", "index.html", "Home", **views.landing(ix, districts, georef, geocoder, site["councils"]),
+    render("index.html.j2", "index.html", "Home", **views.landing(ix, districts, georef, geocoder, site["councils"], counter=counted),
            home_feeds=body_feeds,
            freshness=fresh_mod.lines(ix, ax, cixs, rpx, fin_data, budget_views.INDEX if bg is not None else None),
            freshness_note=fresh_mod.NOTE,
@@ -856,7 +857,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         has_preview = morning_note is not None and morning_page.on()
         alerts_ctx = feeds_mod.alerts_page(cixs, rpc=rpx, fin=fin_data, target=target, feeds=feed_rows)
         alerts_ctx.setdefault("seat_feeds", [f for f in feed_rows if f.get("kind") == "zoning-seat"])
-        alerts_ctx.update(morning_page.alerts_context(feed_rows, preview=has_preview))
+        alerts_ctx.update(morning_page.alerts_context(feed_rows, preview=has_preview, counter=counted))
         render("alerts.html.j2", feeds_mod.PAGE, "Alerts", **alerts_ctx)
         if has_preview:
             render("morning.html.j2", morning_page.PAGE, morning_page.title(),

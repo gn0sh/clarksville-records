@@ -39,7 +39,13 @@ both later feed a private dashboard.
 5. **CSP when on:** `connect-src https://<code>.goatcounter.com` on every page (instead of `'none'`); nothing else
    changes. `qa/site_checks.py` checks exactly that, and that no page names GoatCounter while the code is empty.
 6. **Disclosure:** About's neutrality rule 6 and the Method page's privacy paragraph say what is counted, that there
-   are no cookies, and name GoatCounter with its privacy policy, only while counting is on. Off, the old text stays.
+   are no cookies, that the request (like any) gives GoatCounter the IP address and browser, which it says it does not
+   keep, and name GoatCounter with its privacy policy, only while counting is on. Every other "sends nothing" /
+   "nothing is sent" sentence (Report an error, the landing's saved-seats note, the morning preview) then adds "except
+   the anonymous visit count described on the Method page" (`tests/test_analytics.py` greps every built page). Off,
+   the old text stays.
+7. **No module state:** the build passes the counter's origin to `views.csp` (via `site_context`, `landing`,
+   `morning_page.alerts_context`) explicitly, so a failed build can never leave a later build's CSP open.
 
 ## Consequences
 - Brian creates the GoatCounter account himself (hard stop 4); turning counting on is a one-line PR setting the code

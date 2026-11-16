@@ -38,7 +38,7 @@
 
 <h2>What happens next</h2>
 <p>The report is checked against the source document. The site shows what the source document says, never a changed value without a source, and every change is recorded on the <a href="{{ root }}changes.html">Changes</a> page. See <a href="{{ root }}about.html#how-corrections-work">how corrections work</a>.</p>
-<p class="muted">This page stores nothing about you and sends nothing.{% if corr.issue_url and corr.mailto %} The links above open GitHub or your email program only when you choose them.{% elif corr.issue_url %} The link above opens GitHub only when you choose it.{% elif corr.mailto %} The link above opens your email program only when you choose it.{% endif %}</p>
+<p class="muted">This page stores nothing about you and sends nothing{% if site.analytics %} {{ site.analytics.except }} <a href="{{ root }}method.html#visits">Method page</a>{% endif %}.{% if corr.issue_url and corr.mailto %} The links above open GitHub or your email program only when you choose them.{% elif corr.issue_url %} The link above opens GitHub only when you choose it.{% elif corr.mailto %} The link above opens your email program only when you choose it.{% endif %}</p>
 {% endblock %}
 {% block scripts %}
 <script src="{{ root }}static/pages.js" defer></script>

@@ -81,7 +81,6 @@ def on_site(tmp_path_factory):
         build(FIXTURE, out, seats_path=FIXTURE_SEATS, districts_path=FIXTURE_DISTRICTS, target="pages")
     finally:
         mp.undo()
-        analytics.activate(None)
     return out, cfg
 
 
@@ -127,6 +126,33 @@ def test_on_about_and_method_say_what_is_counted(on_site):
 
 def test_csp_returns_to_connect_src_none_after_an_on_build(on_site):
     assert "connect-src 'none'" in views.csp()
+    assert "connect-src https://x-y.goatcounter.com;" in views.csp(counter="https://x-y.goatcounter.com")
+    assert not hasattr(analytics, "_ORIGIN")      # no module state can outlive a build (F4)
+
+
+SENDS_NOTHING = re.compile(r"sends nothing|nothing is sent|sent anywhere", re.I)
+
+
+def _claims(html):
+    """The visible text of each <p> that says nothing is sent."""
+    html = re.sub(r"<!--.*?-->|<script\b.*?</script>", "", html, flags=re.S)
+    paras = [re.sub(r"<[^>]+>", "", p) for p in re.findall(r"<p\b[^>]*>(.*?)</p>", html, re.S)]
+    return [p for p in paras if SENDS_NOTHING.search(p)]
+
+
+def test_every_sends_nothing_claim_is_qualified_while_counting(on_site, pages):
+    out, _ = on_site
+    seen = 0
+    for p in out.rglob("*.html"):
+        for claim in _claims(p.read_text(encoding="utf-8")):
+            seen += 1
+            # a claim about the saved seats alone ("It stays on your device and is never sent anywhere") is scoped
+            scoped = re.search(r"\bIt stays on your device and is never sent anywhere\b", claim)
+            assert "visit count" in claim or scoped, (p.name, claim)
+    assert seen
+    for rel, html in pages.items():     # off: the old words, no exception named
+        for claim in _claims(html):
+            assert "visit count" not in claim, (rel, claim)
 
 
 # --- the script --------------------------------------------------------------------------------------------------
@@ -232,6 +258,7 @@ def test_stats_page_counts_the_data_and_names_no_official(pages, facts):
     assert f"<dt>Agenda items</dt><dd>{len(facts['items'])}</dd>" in main
     assert f"<dt>Votes taken</dt><dd>{len(facts['roll_calls'])}</dd>" in main
     assert f"<dt>Source documents</dt><dd>{len(facts['sources'])}</dd>" in main
+    assert f"<dt>Meetings listed, with an agenda, minutes or both</dt><dd>{len(facts['meetings'])}</dd>" in main
     assert "Last fetched from the official site" in main and 'class="data-as-of"' in main
     for o in facts["officials"]:          # records only: never a person, never a ranking
         assert o["name"] not in main and o["id"] not in main

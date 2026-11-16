@@ -1,6 +1,7 @@
 """Cookie-free visitor counting (ADR 0008, docs/ops/analytics.md): config/site.yml `analytics`.
 
-Off while `code` is empty (the default): no page loads static/count.js and views.csp keeps connect-src 'none'. On,
+Off while `code` is empty (the default): no page loads static/count.js and views.csp keeps connect-src 'none'
+(the build passes settings()["origin"] to it explicitly; there is no module state). On,
 every page of a `pages` build with real data loads static/count.js with the counter's address in its
 data-goatcounter attribute, and the CSP's connect-src names that one origin. The provider is GoatCounter only; the
 script is our own (static/count.js), so exactly the fields ADR 0008 lists are sent and nothing a visitor types.
@@ -16,16 +17,19 @@ CODE = re.compile(r"[a-z0-9][a-z0-9-]{1,48}[a-z0-9]")
 PRIVACY_URL = "https://www.goatcounter.com/help/privacy"
 PROVIDER_LABEL = {"goatcounter": "GoatCounter"}
 
-# Set by the build for the pages it renders (sitegen/build.py), read by views.csp: None while counting is off.
-_ORIGIN: str | None = None
 
 
 # The disclosure, About (neutrality rule 6) and Method (privacy) alike, only while counting is on. Plain facts: what is
 # sent, what never is, who receives it. {label} is the provider's name.
 COUNTED = ("Visits are counted without cookies by {label}: the page address without anything after the \"?\", the "
            "site that linked here (not its page), the screen size, and two events, a Buy Me a Coffee link clicked and "
-           "a search run. The words of a search and what you type in the address box are never sent. Browsers that "
-           "send Do Not Track or Global Privacy Control are not counted.")
+           "a search run. The words of a search and what you type in the address box are never sent. Like any web "
+           "request, this tells {label} your IP address and browser; {label} works out the browser, system and "
+           "country from them and says it does not keep the IP address. Browsers that send Do Not Track or Global "
+           "Privacy Control are not counted.")
+# Every "nothing is sent" claim on a page ends with this while counting is on (analytics-disclosure/
+# report-page-sends-nothing); the Method page's paragraph carries id="visits". Templates add the link.
+EXCEPT = "except the anonymous visit count described on the"
 
 
 def problems(cfg: dict | None = None) -> list[str]:
@@ -59,14 +63,6 @@ def settings(cfg: dict | None = None, target: str = "pages", fixture: bool = Fal
     origin = f"https://{code}.goatcounter.com"
     label = PROVIDER_LABEL[a["provider"]]
     return {"provider": a["provider"], "label": label, "code": code, "origin": origin,
-            "endpoint": origin + "/count", "privacy_url": PRIVACY_URL, "counted": COUNTED.format(label=label)}
+            "endpoint": origin + "/count", "privacy_url": PRIVACY_URL, "counted": COUNTED.format(label=label),
+            "except": EXCEPT}
 
-
-def activate(s: dict | None) -> None:
-    """The build's counter, for views.csp (None: off)."""
-    global _ORIGIN
-    _ORIGIN = s["origin"] if s else None
-
-
-def origin() -> str | None:
-    return _ORIGIN
