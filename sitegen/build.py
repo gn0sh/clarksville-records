@@ -15,6 +15,7 @@ from markupsafe import Markup
 from jsonschema import Draft202012Validator, FormatChecker
 
 from . import bodies as bodies_mod
+from . import analytics as analytics_mod
 from . import county_agendas as agendas_mod
 from . import rpc as rpc_mod
 from . import freshness as fresh_mod
@@ -479,11 +480,13 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         ward_map = georef_mod.wards_of(districts) is not None    # the landing map draws the wards and finds them
     except (seats_mod.SeatsError, ValueError) as exc:
         raise BuildError(str(exc)) from exc
-    bad = site_url_problems(config.SITE) + morning_mod.reader_problems()
+    bad = site_url_problems(config.SITE) + morning_mod.reader_problems() + analytics_mod.problems()
     if config.SITE.get("live", False) not in (True, False):   # site-polish/about-preview: a typo never claims a launch
         bad.append(f"live must be true or false, got {config.SITE.get('live')!r}")
     if bad:
         raise BuildError("config/site.yml: " + "; ".join(bad))
+    counter = analytics_mod.settings(target=target, fixture=fixture)   # ADR 0008: None while the code is empty
+    analytics_mod.activate(counter)    # before any page's CSP is made (views.csp)
     ix = views.Index(facts, seat_rows)
     warnings = seat_warnings(ix)       # M1: in the result (collector run writes them to build/run-log.json)
     for w in warnings:
@@ -532,6 +535,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     _clean(out, [c.slug for c in cixs] + ([rpx.slug] if rpx else []), export=export)
     site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs, rpc=rpx)
     site["internal"] = internal
+    site["analytics"] = counter
     # "Show records from" (views.site_context, sitegen/bodies.py): which page is each option's own, and the hub cards
     switch_current = (site["switch"] or {}).get("current") or {}
     hubs = (site["switch"] or {}).get("hubs") or {}

@@ -106,5 +106,8 @@
 <script src="{{ root }}static/switch.js" defer></script>
 {% if has_sky %}<script src="{{ root }}static/sky.js" defer></script>{% endif %}
 {% block scripts %}{% endblock %}
+{# Cookie-free visitor counting (ADR 0008): only while config/site.yml analytics.code is set (sitegen/analytics.py).
+   Our own script; the attribute is the one address it may call, and the CSP's connect-src names only its origin. #}
+{% if site.analytics %}<script src="{{ root }}static/count.js" data-goatcounter="{{ site.analytics.endpoint }}" defer></script>{% endif %}
 </body>
 </html>

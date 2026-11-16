@@ -17,6 +17,7 @@ from collector.fetch import USER_AGENT   # the Method page quotes the collector'
 
 from . import config, fin_views, georef as georef_mod
 from . import localdates, unofficial
+from . import analytics as analytics_mod
 import datetime as dt
 
 from .seats import Seats, basis_text, seat_order, source_label
@@ -1414,7 +1415,9 @@ def csp(address: dict | None = None, form_origin: str | None = None) -> str:
     scripts = ["'self'"]
     if address:
         scripts += [f"'{script_hash(address['frame'])}'", address["geocoder"]]
-    rest = [f"form-action 'self' {form_origin}" if form_origin and d == "form-action 'self'" else d
+    counter = analytics_mod.origin()   # ADR 0008: the visitor counter's one origin while it is on, else 'none'
+    rest = [f"form-action 'self' {form_origin}" if form_origin and d == "form-action 'self'" else
+            f"connect-src {counter}" if counter and d == "connect-src 'none'" else d
             for d in CSP_BASE[1:]]
     return "; ".join([CSP_BASE[0], "script-src " + " ".join(scripts), *rest])
 
