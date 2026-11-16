@@ -34,21 +34,24 @@ Cities I looked at and passed on for now: Chattanooga and Knoxville (in range, b
 - The polite fetcher (robots.txt, 10 seconds between requests, honest name, stop on a block) takes its allowed hosts as an input.
 
 ### What needs changing
-1. **One folder per city.** Move today's Clarksville settings into `config/cities/clarksville-tn/` (site settings plus its sources), and have the build take a `--city` setting. Clarksville stays the default, so its live site doesn't change.
-2. **Shared brand file.** Name, footer, operator, the Buy Me a Coffee link and wording, and the correction email go into one shared file every city inherits. A city can't turn off or change the coffee link by accident (see below).
-3. **The last hard-coded bits.** `collector/config.py` names the Montgomery County Commission and its years; `collector/fetch.py` lists Clarksville hosts. Both move into the city folder.
+Milestone 1 of the template is done on branch `claude/project-thread-tj2xc5-cities` (2026-11-16; `docs/adr/0007-multi-city-template.md`, how-to in `docs/expansion/add-a-city.md`). Marked **Done**, **Part done** or **Still to do** below.
+
+1. **One folder per city.** **Done:** `config/cities/<slug>/city.yml`, checked by `python -m cities`. Clarksville's file points at today's settings (`config/site.yml`, `config/localities/`) instead of moving them, so its live build is byte-identical. Murfreesboro (first target, CEO 2026-11-16) and Salem are drafts. **Still to do:** the build takes a `--city` setting, with Clarksville the default.
+2. **Shared brand file.** **Done:** `config/brand.yml` holds the name, operator, Buy Me a Coffee link and wording, and the correction email. A city file that sets one fails. The coffee link and its switch are also pinned in code. **Still to do:** the same keys stay in `config/site.yml` (a test keeps them equal) until Clarksville round 2 lands, then they are removed. The city's name in the footer line needs a site build change.
+3. **The last hard-coded bits.** **Part done:** each city file now lists its own hosts, and Clarksville's list is tested equal to `collector/fetch.py`. A denied host can never be allowed for any city. **Still to do:** `collector/fetch.py` and `collector/config.py` (which names the Montgomery County Commission and its years) read from the city file.
 4. **Readers by portal type**, so a city is config only:
    - CivicPlus Agenda Center: have it (Murfreesboro, Savannah, Killeen's older records).
    - CivicClerk: have it.
    - **Legistar: new, started in the proof of concept** (Salem, Killeen).
    - Municode Meetings: new, later (Columbus, Fort Collins).
+   - **Done:** a registry of these readers (`cities/readers.py`). The check says plainly when a city's portal has no reader yet (Municode). It also marks Clarksville's county readers as Clarksville-only.
 5. **Vote reading per city.** Minutes print votes differently in every city. Each city folder gets its own vote words ("AYE:", "Nay"), name list and checks. Legistar cities often enter votes as data, which we show as "not confirmed" until the same vote is read in the minutes (the minutes stay the official record).
 6. **One deploy per city.** GitHub Pages allows one custom domain per repo, so each city gets a small public repo that only holds its built site, at a subdomain like `salem.daylight.gnoshcodes.com`. The engine repo builds every city in its daily run. Clarksville stays at `daylight.gnoshcodes.com`.
 7. **City list page.** `gnoshcodes.com/daylight/` lists every live city.
 
 ### Launch with a year, then backfill
 - A new city launches with the **last 365 days**. Its pages say plainly where records start ("Records here start Nov 16, 2025; older years are being added"), in line with the rule to show only what's real.
-- After launch, each daily run takes **one older year** if time is left in its run budget, newest first, until the city's earliest year. The proof of concept has this planner (`launch_windows`).
+- After launch, each daily run takes **one older year** if time is left in its run budget, newest first, until the city's earliest year. **Done** for every portal type (`cities/plan.py`, `python -m cities plan`). It runs daily updates first, then launch years, then backfill from what is left. It keeps per-city progress in `data/cities/<slug>/backfill.json`. **Still to do:** wire it into the daily run.
 - Compute stays free: public repos get free GitHub Actions minutes, and every city shares one capped run budget so a big backfill can't crowd out daily updates.
 - What a city gets at launch: council meetings, agendas, minutes, votes, video links, search, alert feeds, the address box if the city publishes ward maps. Finance, contracts, planning and school board come later per city, as they did here.
 
