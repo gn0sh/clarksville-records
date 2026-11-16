@@ -1,0 +1,25 @@
+# $name, $state: a DRAFT Daylight city (made by `python -m cities new` on $today). Nothing is collected from it
+# until `python -m cities check $slug` says READY and the owner gives the go-ahead for this city
+# (docs/expansion/add-a-city.md). Brand keys (name, operator, coffee link, corrections email) are shared in
+# config/brand.yml and can't be set here.
+slug: $slug
+name: $name
+state: $state
+timezone: $tz   # UNVERIFIED: given to `cities new`; confirm the city's own zone
+status: draft                      # live only after the owner's go-ahead to deploy (a hard stop)
+domain: $domain
+platform_facts: config/cities/$slug/platform-facts.md
+sources:
+  - $source_line
+# Every host collection may ask. robots/terms: when and where each was read (e.g. "allows /x; 2026-11-20,
+# platform-facts.md"); an unchecked one is marked. Never list a host that blocks automated tools.
+allowed_hosts:
+$hosts
+denied_hosts: []                   # hosts of this city that must never be asked (a block seen, terms forbid)
+launch:
+  launch_days: 365                 # launch with the last year
+  earliest: UNVERIFIED             # YYYY-MM-DD: how far back the portal holds minutes; backfill stops here
+sky_place: UNVERIFIED              # {lat: .., lon: ..}: city hall, two decimal places, from an official source
+district_lookup: UNVERIFIED        # {url: .., label: ..}: the state's "find my district" page
+geocoder_places: UNVERIFIED        # up to 5 mailing places in the city, most used first
+verification_notes: []

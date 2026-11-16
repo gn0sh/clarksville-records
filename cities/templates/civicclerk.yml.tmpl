@@ -1,0 +1,11 @@
+# $name, $state: CivicClerk source (collector/civicclerk.py), DRAFT from `python -m cities new` on $today. Not
+# collected.
+locality: $slug
+api_host: UNVERIFIED             # <tenant>.api.civicclerk.com (also add it to city.yml allowed_hosts)
+category_name: UNVERIFIED
+from_date: UNVERIFIED
+events_url: "https://{host}/v1/Events?$$filter=categoryName%20eq%20%27{category}%27%20and%20startDateTime%20ge%20{from_date}T00:00:00Z&$$orderby=startDateTime%20asc"
+file_url: "https://{host}/v1/Meetings/GetMeetingFileStream(fileId={file_id},plainText=false)"
+agenda_types: [Agenda]           # UNVERIFIED: publishedFiles[].type values
+minutes_types: [Minutes]         # UNVERIFIED
+video_hosts: []
