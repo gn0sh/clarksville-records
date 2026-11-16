@@ -52,7 +52,7 @@ def official_link(spec: dict | None, rpc=None) -> dict | None:
     return {"url": src["url"], "label": label, "kind": spec["kind"]} if label else None
 
 
-def _hrefs(site: dict, councils, rpc, cmx=None) -> dict[str, dict[str, str]]:
+def _hrefs(site: dict, councils, rpc, cmx=None, committees=()) -> dict[str, dict[str, str]]:
     """{body: {card key: href}} of the section pages this build makes."""
     nav = {e["label"]: e for e in site["nav"]}
 
@@ -71,6 +71,8 @@ def _hrefs(site: dict, councils, rpc, cmx=None) -> dict[str, dict[str, str]]:
         out["city"] = {"meetings": c.home_href() + "#meetings-h", "votes": c.home_href() + "#members-h",
                        "transcripts": f"{c.slug}/meetings/{years[-1]}.html"
                        if years and tx is not None and tx.pages and tx.by_meeting else None}
+    for cm in committees:   # each city committee's own card (config city_committees.pages[].card)
+        out.setdefault("city", {})[cm.card] = cm.home_href()
     if cmx is not None:   # agendas from the county's committee agendas page (sitegen/county_committees.py)
         if cmx.school_home():
             k = cmx.school[0]
@@ -86,7 +88,7 @@ def _hrefs(site: dict, councils, rpc, cmx=None) -> dict[str, dict[str, str]]:
     return {k: {a: b for a, b in v.items() if b} for k, v in out.items()}
 
 
-def build(site: dict, councils=(), rpc=None, cmx=None) -> dict | None:
+def build(site: dict, councils=(), rpc=None, cmx=None, committees=()) -> dict | None:
     """site["switch"]: {label, line, options, hubs, current}. None when config/site.yml has no `switch:` block.
     options: [{key, label, short, href, coming}], All first. hubs: {key: {kicker, title, lede, note, cards}}.
     current: {page path: option key} for the pages that are an option's own destination."""
@@ -99,7 +101,7 @@ def build(site: dict, councils=(), rpc=None, cmx=None) -> dict | None:
             "city": councils[0].home_href() if councils else None,
             "school": school["href"] if school else None,
             "rpc": rpc.home_href() if rpc is not None else None}
-    hrefs = _hrefs(site, councils, rpc, cmx)
+    hrefs = _hrefs(site, councils, rpc, cmx, committees)
     votes_shown = rpc is not None and rpc.votes_shown
     options = [{"key": ALL, "label": cfg["all"]["label"], "short": None, "href": "index.html", "coming": False}]
     hubs = {}

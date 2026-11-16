@@ -1,0 +1,47 @@
+{% from "_macros.html.j2" import not_confirmed %}
+{# City committee blocks (sitegen/committees.py). A meeting's documents: a collected file links to the city's own copy;
+   one listed and not fetched yet links the city's copy and says so; a document the city has not posted says so. #}
+{% macro cm_docs(m) -%}
+<ul class="doc-links">
+  {% for d in m.docs %}
+  <li>{{ d.label }}: {% if d.collected %}<a href="{{ d.url }}" target="_blank" rel="noopener noreferrer">{{ d.what }}<span class="sr-only"> (opens in a new tab)</span></a> <span class="doc-note">fetched {{ d.fetched }}</span>{% else %}<a href="{{ d.url }}" target="_blank" rel="noopener noreferrer">PDF on the city's portal<span class="sr-only"> (opens in a new tab)</span></a> <span class="doc-note">listed by the city; not collected yet</span>{% endif %}</li>
+  {% endfor %}
+  {% for k in m.not_posted %}<li>{{ k }}: <span class="doc-note">not posted on the city's portal</span></li>{% endfor %}
+</ul>
+{%- endmacro %}
+
+{# The members present and absent, as the minutes print them, with the minutes page. Never a vote. #}
+{% macro cm_attendance(m) -%}
+{% if m.attendance %}{% set a = m.attendance %}
+<div class="zoning cm-attendance" id="{{ m.id }}-attendance">
+  <p class="zoning-h">Attendance, as printed in the minutes</p>
+  {% if a.confirmed %}
+  <p>Present: <span data-item-title>{{ a.present | join(", ") }}</span>.</p>
+  {% if a.absent is not none %}<p>Absent: <span data-item-title>{% if a.absent %}{{ a.absent | join(", ") }}{% else %}none{% endif %}</span>.</p>{% endif %}
+  <p><a href="{{ a.src.url }}" target="_blank" rel="noopener noreferrer">minutes p. {{ a.src.page }}<span class="sr-only"> (opens in a new tab)</span></a></p>
+  {% else %}
+  <p class="nc-note">{{ not_confirmed(a.src) }}</p>
+  {% endif %}
+</div>
+{% endif %}
+{%- endmacro %}
+
+{# One motion read from the minutes (collector/committee_minutes.py). Its item and words as printed, when the record
+   keeps them (docs/architecture/committee-words-invariant.md; otherwise the fixed note) (data-item-title:
+   text in the document, never linked or reworded). Confirmed (and not held): who moved and seconded it and the
+   outcome, as printed; a voice vote is "Voice vote (not recorded by name): passed" with the meeting's attendance above it, never a vote per
+   member; names on a vote only as printed. Otherwise "Not confirmed" and the minutes page: no names, no outcome. #}
+{% macro cm_motion(mv) -%}
+<div class="cm-motion{% if not mv.confirmed %} nc{% endif %}" id="{{ mv.id }}" data-motion="{{ mv.id }}">
+  {% if mv.item %}<p class="motion-item"><span class="label">Item:</span> <span data-item-title>{{ mv.item }}</span></p>{% endif %}
+  <p class="motion-line"><strong>Motion</strong>{% if mv.words %}, as printed: <span data-item-title>{{ mv.words }}</span>{% endif %}{% if mv.hidden %}{% if mv.words %}.{% endif %} <span class="muted withheld">{{ mv.withheld_note }}</span>{% endif %}{% if not mv.confirmed %} <span class="chip chip-status"><span aria-hidden="true">*</span> Not confirmed</span>{% endif %}</p>
+  {% if mv.confirmed %}
+  <p>Moved by <span data-item-title>{{ mv.moved_by }}</span>, seconded by <span data-item-title>{{ mv.seconded_by }}</span>.</p>
+  {% if mv.ayes %}<p>Voted aye (as printed): <span data-item-title>{{ mv.ayes | join(", ") }}</span>.</p>{% endif %}
+  {% if mv.nays %}<p>Voted nay (as printed): <span data-item-title>{{ mv.nays | join(", ") }}</span>.</p>{% endif %}
+  <p class="outcome">{% if mv.vote_words %}<strong class="label">{{ mv.vote_words }}:</strong> {{ mv.outcome }}.{% else %}<strong class="label">Outcome{% if mv.outcome_printed %} (as printed){% endif %}:</strong> {% if mv.outcome %}{{ mv.outcome }}.{% else %}<span data-item-title>{{ mv.outcome_printed }}</span>{% endif %}{% endif %} <a href="{{ mv.src.url }}" target="_blank" rel="noopener noreferrer">minutes p. {{ mv.src.page }}<span class="sr-only"> (opens in a new tab)</span></a></p>
+  {% else %}
+  <p class="nc-note">{{ not_confirmed(mv.src) }}</p>
+  {% endif %}
+</div>
+{%- endmacro %}

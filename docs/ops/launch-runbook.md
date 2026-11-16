@@ -76,6 +76,14 @@ Repo: https://github.com/gn0sh/clarksville-records (public; Actions minutes are 
   with the store restored, run `python -m collector rpc fetch --limit 30` once a day until it no longer prints
   "documents still to fetch", then commit `data/localities/cmc-rpc/` (listing.json, manifest.json). The next daily
   run fetches any bytes its cache lacks as gaps and rebuilds rpc.json; the RPC issue can be closed when it is green.
+- **City committees** (Finance and Audit, `collector/committees.py`; its own step "Collect city committees (warning
+  only)" before Collect). Never a failure: any exit but 0 is a `::warning::` and the committed files under
+  `data/localities/clarksville-tn/committees/` stand (1 a file not fetched, 2 the listing not read or the host or
+  robots.txt said no, 4 the build wrote nothing: store gaps or a result that would drop meetings or confirmed
+  motions). A cold store refetches at most 40 files a run, so 4 repeats for about six days after a cache loss and
+  then clears by itself. A 4 that does not clear: read the step's printed report (`status`), then by hand
+  `python -m collector committees build` (add `--allow-shrink` only after reading why). Every committee motion is
+  held "Not confirmed" again by setting `hold_motions: true` in `config/localities/clarksville-tn/committees.yml`.
 - **County committee agendas failed**: `build/run-log.json` `county_committees.exit` is not 0 (2 the Committee
   Agendas page at montgomerytn.gov was not read or the host said no, 4 a result that would shrink the record, 1 or any
   other code a crash; reason in `county_committees.status`). A `::warning::` and one open "Daily update: county

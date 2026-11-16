@@ -124,6 +124,27 @@ jobs:
           echo "STORE_BEFORE=$(find data/store -type f 2>/dev/null | wc -l)" >> "$GITHUB_ENV"
           echo "DERIVED_BEFORE=$(find data/text data/ocr -type f 2>/dev/null | wc -l)" >> "$GITHUB_ENV"
 
+      # The city's Finance and Audit committees (collector/committees.py, its own listing, manifest and
+      # committees.json under data/localities/clarksville-tn/committees/), before the county run that builds the
+      # site from every body's files. The events listing (one or two OData pages per committee), then only the agenda
+      # and minutes PDFs the store lacks (new events, or a cold cache), at most 40 per run so a cold cache fills over
+      # a few days; then the build, offline, from the store. It never holds back anything else: every exit but 0 is
+      # a warning and the committed committee files stand (exit codes: 1 a file not fetched, 2 the listing not read
+      # or the host or robots.txt said no, 4 the build wrote nothing: store gaps or a result that would shrink the
+      # record). Same polite fetcher: robots.txt, 10 s per host, the first 403/429 ends the host for the run.
+      - name: Collect city committees (warning only)
+        id: committees
+        if: github.event_name == 'schedule' || inputs.collect
+        continue-on-error: true
+        run: |
+          set +e   # Actions runs bash with -e: without this a non-zero exit would end the step before rc is read
+          python -m collector committees run --limit 40; rc=$?
+          echo "committees_exit=$rc"
+          if [ "$rc" != 0 ]; then
+            echo "::warning::City committees: exit $rc; the committed committee files are used (the report is in this step's output)."
+          fi
+          exit 0
+
       - name: Collect (polite fetch, parse, verify)
         id: collect
         if: github.event_name == 'schedule' || inputs.collect
