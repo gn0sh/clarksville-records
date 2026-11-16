@@ -291,6 +291,7 @@
     MULTI.forEach(function (k) { state[k] = []; });
     state.q = q;
     toControls(state); update();
+    countEl.focus();  // the Clear button hides itself, so focus must not fall to the body
   });
   document.getElementById("apply").addEventListener("click", function () {
     if (!window.matchMedia("(min-width: 900px)").matches) { panel.open = false; }

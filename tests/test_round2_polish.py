@@ -263,6 +263,7 @@ const { pathToFileURL } = require('url');
   await p.evaluate(() => { document.querySelector('.filter-panel').open = true; });
   await p.check('input[name="kind"]'); out.filter = await shown();
   await p.click('#clear'); out.cleared = await shown();
+  out.clearFocus = await p.evaluate(() => document.activeElement !== document.body);
   await p.fill('#q', ''); out.empty = await shown();
   console.log(JSON.stringify(out)); await b.close();
 })();
@@ -279,7 +280,7 @@ def test_search_buttons_in_a_browser(built):
     assert r.returncode == 0, r.stderr
     out = json.loads(r.stdout)
     assert out == {"start": [False, False], "query": [False, True], "filter": [True, True],
-                   "cleared": [False, True], "empty": [False, False]}
+                   "cleared": [False, True], "clearFocus": True, "empty": [False, False]}
 
 
 # ---- 18 onceover/about/no-contents ----------------------------------------------------------------------------------
@@ -390,3 +391,11 @@ def test_the_new_links_and_toggles_are_44px_on_a_touch_screen_and_nothing_scroll
         assert x["coarse"] and x["n"] > 0, (where, x)
         assert x["small"] == [], (where, x["small"])
         assert x["sw"] <= x["iw"], (where, x["sw"], x["iw"])              # no sideways scroll
+
+
+def test_corrections_table_cells_are_labelled_when_stacked(tmp_path):
+    t = (ROOT / "site" / "templates" / "corrections.html.j2").read_text(encoding="utf-8")
+    assert 'class="aliases corrections"' in t
+    for lab in ("Date", "Page", "Was", "Now"):
+        assert f'data-label="{lab}"' in t
+    assert "table.corrections td[data-label]::before { content: attr(data-label);" in CSS

@@ -325,6 +325,9 @@ td.cite, .cite { font-size: var(--t-xs); color: var(--muted); }
   table.holders tbody tr:last-child, table.aliases tbody tr:last-child { border-bottom: 0; }
   table.holders th, table.holders td, table.aliases th, table.aliases td { display: block; padding: 1px 0; border: 0; overflow-wrap: anywhere; }
   table.holders td:first-child, table.aliases tbody th { font-weight: 600; }
+  /* Corrections log: each stacked cell carries its column label, so Was and Now are never bare text. */
+  table.corrections th[data-label], table.corrections td[data-label] { display: grid; grid-template-columns: 4rem 1fr; gap: 8px; }
+  table.corrections th[data-label]::before, table.corrections td[data-label]::before { content: attr(data-label); color: var(--muted); font-family: var(--font-mono); font-size: var(--t-eyebrow); text-transform: uppercase; letter-spacing: .08em; padding-top: 3px; font-weight: 400; }
 }
 
 /* History table becomes stacked cards on a phone: every cell labelled, no sideways scrolling. */
