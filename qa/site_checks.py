@@ -1596,7 +1596,8 @@ def _vl_skeleton(page: str) -> tuple:
             tuple(re.findall(r'<input type="radio" name="vote" value="([a-z]*)"', main)))
 
 
-def check_vote_lists(site: Path, facts: dict, folder: str = "officials") -> tuple[list[str], str]:
+def check_vote_lists(site: Path, facts: dict, folder: str = "officials",
+                     target: str = "pages") -> tuple[list[str], str]:
     problems, n_lists, n_rows, omitted = [], 0, 0, 0
     skeletons: dict[tuple, str] = {}
     for o in facts["officials"]:
@@ -1610,8 +1611,11 @@ def check_vote_lists(site: Path, facts: dict, folder: str = "officials") -> tupl
         parts = [p for p in parts if re.fullmatch(r"votes(?:-\d+)?", p.stem)]
         rel = f"{folder}/{oid}"
         if not parts:
-            if VL_OMITTED in official:
+            if VL_OMITTED in official and target == "preview":
                 omitted += 1
+            elif VL_OMITTED in official:
+                problems.append(f"{rel}.html: the vote list is left out, which only the preview target may do "
+                                f"(this is the {target} target)")
             else:
                 problems.append(f"{rel}.html: no vote list page and no line saying it is left out")
             continue
@@ -1621,6 +1625,12 @@ def check_vote_lists(site: Path, facts: dict, folder: str = "officials") -> tupl
             page = p.read_text(encoding="utf-8")
             rows = VL_ROW.findall(page)
             n_rows += len(rows)
+            body_html = page[page.find("<tbody"):page.find("</tbody>")]
+            n_tr = len(re.findall(r"<tr\b", body_html))
+            n_empty = len(re.findall(r'<tr class="empty"><td[^>]*>No confirmed votes', body_html))
+            if n_tr != len(rows) + n_empty:
+                problems.append(f"{rel}/{p.name}: {n_tr} <tr> rows in the table body but {len(rows)} parsed vote rows "
+                                f"plus {n_empty} 'No confirmed votes' rows; a row the check cannot read still shows")
             here = collections.Counter(k for k, _, _ in rows)
             for k, d, body in rows:
                 m = VL_SRC.search(body)
@@ -3248,9 +3258,9 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
         p2, n2 = check_official_numbers(site, c["facts"], c["prefix"] + "members")
         problems, note = problems + p2, f"{note}; {n2}"
     rep.add("official-numbers", problems, note)
-    problems, note = check_vote_lists(site, facts)
+    problems, note = check_vote_lists(site, facts, target=target)
     for c in cs:
-        p2, n2 = check_vote_lists(site, c["facts"], c["prefix"] + "members")
+        p2, n2 = check_vote_lists(site, c["facts"], c["prefix"] + "members", target=target)
         problems, note = problems + p2, f"{note}; {n2}"
     rep.add("vote-list", problems, note)
     problems, note = check_provenance(site, pages, facts, read_roster(seats_path), cfg)

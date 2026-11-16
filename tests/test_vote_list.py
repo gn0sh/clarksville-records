@@ -207,3 +207,35 @@ def test_site_checks_recount_every_vote_list_and_catch_a_wrong_row(built, facts,
     problems, _ = site_checks.check_vote_lists(site, facts)
     assert any("rows differ from the facts" in p for p in problems)
     assert any("filter counts" in p for p in problems)
+
+
+def test_site_checks_catch_a_row_the_parser_cannot_read(built, facts, tmp_path):
+    """votes/check-unparsed-rows: a <tr> written with attributes in another order still shows on the page (votes.js
+    takes every tbody tr[data-vote]), so the check counts every <tr> and fails when it cannot read one."""
+    import shutil as sh
+    from qa import site_checks
+    site = tmp_path / "s"
+    sh.copytree(built, site)
+    oid = next(o["id"] for o in facts["officials"] if (site / "officials" / o["id"] / "votes.html").is_file()
+               and '<tr data-vote="' in (site / "officials" / o["id"] / "votes.html").read_text(encoding="utf-8"))
+    f = site / "officials" / oid / "votes.html"
+    f.write_text(re.sub(r'<tr data-vote="([a-z]*)" data-date="([\d-]+)">', r'<tr data-date="\2" data-vote="\1">',
+                        f.read_text(encoding="utf-8"), count=1), encoding="utf-8")
+    problems, _ = site_checks.check_vote_lists(site, facts)
+    assert any("<tr> rows in the table body" in p for p in problems)
+
+
+def test_site_checks_accept_a_left_out_vote_list_only_on_the_preview_target(built, facts, tmp_path):
+    """votes/check-omitted-any-target: the 'left out (preview)' pass is for the preview target only."""
+    import shutil as sh
+    from qa import site_checks
+    site = tmp_path / "s"
+    sh.copytree(built, site)
+    oid = facts["officials"][0]["id"]
+    shutil.rmtree(site / "officials" / oid)
+    page = site / "officials" / f"{oid}.html"
+    page.write_text(page.read_text(encoding="utf-8") + f"<p>x {site_checks.VL_OMITTED}</p>", encoding="utf-8")
+    problems, note = site_checks.check_vote_lists(site, facts, target="preview")
+    assert not any(oid in p for p in problems) and "1 left out (preview)" in note
+    problems, _ = site_checks.check_vote_lists(site, facts, target="pages")
+    assert any(oid in p and "only the preview target" in p for p in problems)
