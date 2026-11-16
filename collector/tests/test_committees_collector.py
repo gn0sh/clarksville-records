@@ -269,3 +269,111 @@ def test_main_registers_the_committees_command(monkeypatch):
     monkeypatch.setattr(C, "main", lambda argv: seen.append(argv) or 0)
     assert M.main(["committees", "build"]) == 0 and seen == [["build"]]
 
+
+# ------------------------------------------------------------------ minutes reader
+def minutes(name: str, date: str) -> dict:
+    from collector.committee_minutes import read_minutes
+    return read_minutes((FIX / f"{name}.txt").read_text(encoding="utf-8").split("\f"), date)
+
+
+def test_voice_votes_are_an_outcome_never_per_member_votes():
+    r = minutes("finance-minutes-2025-05-27", "2025-05-27")
+    assert r["printed_date"] == "2025-05-27" and not r["date_mismatch"]
+    m = r["motions"][0]
+    assert (m["section"], m["item"], m["subject_printed"]) == ("3. Approval of Minutes", "A", "April 21, 2025")
+    assert (m["mover_printed"], m["mover"], m["seconder_printed"], m["seconder"]) == (
+        "Councilman McLaughlin", "McLaughlin", "Councilman Shakeenab", "Shakeenab")
+    assert m["motion_printed"] == "to adopt the April 21, 2025 minutes"
+    assert m["vote"] == {"method": "voice vote", "outcome": "passed",
+                         "outcome_printed": "A voice vote was taken and the motion passed."}
+    assert m["confirmed"] and m["page"] == 1
+    for m in r["motions"]:                       # no motion carries a list of yes votes it did not print
+        assert "ayes_printed" not in (m["vote"] or {})
+
+
+def test_attendance_as_printed_with_arrived_at_note():
+    r = minutes("finance-minutes-2025-05-27", "2025-05-27")
+    assert r["attendance"] == {"present": [{"name": "Streetman"}, {"name": "Lovato"}, {"name": "McLaughlin"},
+                                           {"name": "Shakeenab"}, {"name": "Zacharias", "note": "arrived at 5:10 pm"}],
+                               "absent": [], "page": 1}
+    r = minutes("finance-minutes-2026-04-27", "2026-04-27")
+    assert r["attendance"]["present"][0] == {"name": "Streetman", "note": "arrived at 4:43 pm"}
+    assert [p["name"] for p in r["attendance"]["present"]] == ["Streetman", "Lovato", "Shakeenab", "Zacharias"]
+    assert r["attendance"]["absent"] == [{"name": "Peters"}]          # "Also Present: Mayor Pitts" is not a member
+
+
+def test_attendance_runs_onto_the_next_line_and_stops_at_other_lines():
+    r = minutes("finance-minutes-2019-04-04", "2019-04-04")
+    assert [p["name"] for p in r["attendance"]["present"]] == [
+        "Jeff Burkhart", "Tim Chandler", "Valerie Guzman", "Jeff Henley", "Stacey Streetman"]
+    r = minutes("audit-minutes-2024-10-30", "2024-10-30")
+    assert [p["name"] for p in r["attendance"]["absent"]] == ["Karen Reynolds", "Elizabeth Rankin"]
+    assert not r["problems"]
+
+
+def test_unsure_motions_are_held_with_reasons():
+    ms = minutes("finance-minutes-2025-05-27", "2025-05-27")["motions"]
+    first, postpone = ms[1], ms[2]          # a motion, then a motion to postpone it, one voice vote on the postponing
+    assert not first["confirmed"] and "outcome not read" in first["reasons"]
+    assert any("Coiuncilman Zacharias" in x for x in first["reasons"])           # a misprinted title is not guessed
+    assert not postpone["confirmed"] and any("motion to postpone passed" in x for x in postpone["reasons"])
+    assert [m["confirmed"] for m in ms[3:]] == [True, True]
+    last = minutes("finance-minutes-2026-04-27", "2026-04-27")["motions"][-1]
+    assert not last["confirmed"] and "seconder not read" in last["reasons"]       # "seconded the meeting"
+    assert last["subject_printed"].startswith("Motion to defend and indemnify Chief")
+    assert last["mover_printed"] == "Councilman Lovato"                            # not the heading's words
+
+
+def test_a_printed_dissent_in_a_voice_vote_is_kept_as_printed():
+    ms = minutes("finance-minutes-2026-04-27", "2026-04-27")["motions"]
+    m = ms[1]
+    assert m["item"] == "A" and m["subject_printed"].startswith("New Positions")    # the section's only item
+    assert m["vote"]["nays_printed"] == ["Councilman Lovato"] and m["vote"]["method"] == "voice vote"
+    assert m["confirmed"] and "ayes_printed" not in m["vote"]
+    m = minutes("finance-minutes-2019-04-04", "2019-04-04")["motions"][2]
+    assert m["vote"] == {"method": "voice vote", "outcome": "passed", "nays_printed": ["Councilman Henley"],
+                         "outcome_printed": "A voice vote was taken; Councilman Henley voted “nay.” The motion passed."}
+    assert m["seconder"] == "Stacey Streetman" and m["confirmed"]
+
+
+def test_unanimous_is_an_outcome_and_full_names_resolve():
+    ms = minutes("audit-minutes-2024-10-30", "2024-10-30")["motions"]
+    assert ms[0]["subject_printed"] == "III. ADOPTION OF MINUTES: July 31, 2024 Audit Committee Meeting"
+    assert ms[0]["vote"]["method"] == "unanimous" and ms[0]["confirmed"]
+    assert (ms[1]["mover"], ms[1]["seconder"]) == ("Trey Judd", "Jennifer Thayer")
+    assert [m["confirmed"] for m in ms] == [True, True, True, True, False]       # adjourning: no outcome printed
+
+
+def test_divided_vote_names_only_as_printed():
+    ms = minutes("finance-minutes-divided-constructed", "2023-10-23")["motions"]
+    assert ms[0]["vote"] == {"method": "roll call", "outcome": "passed", "ayes_printed": ["Ashby", "Birch", "Dunn", "Ellis"],
+                             "nays_printed": ["Cole"],
+                             "outcome_printed": "AYE: Ashby, Birch, Dunn, Ellis NAY: Cole The motion passed."}
+    assert ms[0]["confirmed"]
+    assert ms[1]["vote"]["outcome"] == "failed" and not ms[1]["confirmed"]
+    assert ms[1]["reasons"] == ["aye 'Jones' is not exactly one member present"]
+
+
+def test_minutes_printing_another_date_hold_everything():
+    # the 2026-05-26 Finance event carries the 2025-05-27 minutes (the same bytes as that meeting's): kept as listed,
+    # flagged, nothing confirmed for the 2026 meeting
+    r = minutes("finance-minutes-2025-05-27", "2026-05-26")
+    assert r["printed_date"] == "2025-05-27" and r["date_mismatch"]
+    assert r["problems"] == ["the minutes print 2025-05-27, the meeting is 2026-05-26"]
+    assert not any(m["confirmed"] for m in r["motions"])
+
+
+@pytest.mark.parametrize("printed, member", [
+    ("Councilman Henley", "Jeff Henley"), ("Councilwoman Valerie Guzman", "Valerie Guzman"),
+    ("Jeff Henley", "Jeff Henley"), ("Henley", None), ("Coiuncilman Henley", None), ("Councilman Jones", None)])
+def test_resolve(printed, member):
+    from collector.committee_minutes import resolve
+    assert resolve(printed, ["Jeff Henley", "Valerie Guzman"]) == member
+
+
+def test_resolve_surname_only_attendance_and_shared_surnames():
+    from collector.committee_minutes import resolve
+    assert resolve("Councilman Lovato", ["Streetman", "Lovato"]) == "Lovato"
+    assert resolve("Councilwoman Kaye Lovato", ["Streetman", "Lovato"]) == "Lovato"
+    assert resolve("Councilman Smith", ["Ann Smith", "Bo Smith"]) is None
+
