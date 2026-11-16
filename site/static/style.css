@@ -590,6 +590,8 @@ svg.county-map { display: block; width: 100%; height: auto; max-height: 60vh; }
 .addr-result { margin: 4px 0 0; }
 .addr-result:empty { display: none; }
 .addr-matched { display: block; font-size: var(--t-xs); color: var(--muted); overflow-wrap: anywhere; }
+.addr-holders { display: block; margin-top: 4px; font-weight: 600; }
+.addr-basis { display: block; font-size: var(--t-xs); color: var(--muted); }
 details.lookup-about .lookup-caption { margin: 0 0 12px; font-size: var(--t-sm); color: var(--muted); }
 /* The drawer carries the full page list, so the landing's footer drops its copy of it. */
 .has-drawer .page-landing .site-nav { display: none; }

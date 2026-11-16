@@ -1337,6 +1337,10 @@ def _district_seat(n: int) -> str:
     return f"district-{n}"
 
 
+# The fixed words for a seat whose current holder no record shows (the landing list's own words).
+SEAT_NOT_YET_RECORDED = "Current member not yet recorded"
+
+
 def district_rows(ix: Index) -> list[dict]:
     """The landing's district list (design 3.3), 1 to N. Same row for every seat (N1): the current holder's name,
     or one of two fixed sentences, or (no roster yet) the seat label alone."""
@@ -1347,7 +1351,7 @@ def district_rows(ix: Index) -> list[dict]:
         if ix.seats.loaded:
             rec = ix.seats.current_of_seat(_district_seat(n))
             if rec is None:
-                holder = "Current member not yet recorded"
+                holder = SEAT_NOT_YET_RECORDED
             elif rec["official_id"] is None:
                 holder = "Seat vacant"
             else:
@@ -1414,14 +1418,16 @@ def script_hash(js: str) -> str:
 
 
 def address_context(districts: dict | None, georef: dict | None, geocoder: bool = True,
-                    ward_hrefs: dict | None = None) -> dict | None:
+                    ward_hrefs: dict | None = None, holders: dict | None = None) -> dict | None:
     """The landing address box's settings (static/address.js), or None when there is no districts file, no georef
     fitted to it, no geocoder configured, or the build was asked for none (`--no-geocoder`, the claude.ai preview):
     then no box is drawn. Emitted into the page as JSON. The landing draws no map (CEO, 2026-11-10), so the traced
     district paths (and the ward paths, when the file holds them) travel here as data: the lookup places the Census
     point against them (docs/research/map-removal-2026-11-10.md). `ward_hrefs` ({number: seat page}) links each ward
     the way the landing list does. Every word the box shows comes from config/site.yml (the build has checked that
-    the geocoder and lookup labels are set)."""
+    the geocoder and lookup labels are set). `holders` (onceover/address/names-not-districts): {"district": {n:
+    {name, href}}, "ward": {n: {name, href}}, "district_basis", "ward_basis"}, the landing list's own holders and
+    basis lines, so the answer names who holds each seat found, linked, the same way for every official."""
     cfg = config.SITE
     if not geocoder or districts is None or georef is None or not cfg.get("geocoder_url"):
         return None
@@ -1435,8 +1441,10 @@ def address_context(districts: dict | None, georef: dict | None, geocoder: bool 
            # a street typed with no state or ZIP is tried with each place appended (static/address.js tries)
            "places": list(cfg.get("geocoder_places") or []), "state": cfg.get("geocoder_state") or "",
            "state_name": cfg.get("geocoder_state_name") or "",
-           "districts": [{"number": d["number"], "path": d["path"], "href": f"districts/{int(d['number']):02d}.html"}
-                         for d in sorted(districts["districts"], key=lambda d: d["number"])]}
+           "districts": [{"number": d["number"], "path": d["path"], "href": f"districts/{int(d['number']):02d}.html",
+                          "holder": (holders or {}).get("district", {}).get(int(d["number"]))}
+                         for d in sorted(districts["districts"], key=lambda d: d["number"])],
+           "district_basis": (holders or {}).get("district_basis")}
     wards = georef_mod.wards_of(districts)
     if wards is not None:
         # the ward shapes sit in the same page space (same georef); only their margin is their own
@@ -1444,8 +1452,10 @@ def address_context(districts: dict | None, georef: dict | None, geocoder: bool 
                     "city": cfg["city_name"], "ward_map_owner": cfg["ward_map_owner"],
                     "ward_map_date": wards["source_updated"],
                     "wards": [{"number": w["number"], "path": w["path"],
-                               "href": (ward_hrefs or {}).get(int(w["number"]))}
-                              for w in sorted(wards["wards"], key=lambda w: w["number"])]})
+                               "href": (ward_hrefs or {}).get(int(w["number"])),
+                               "holder": (holders or {}).get("ward", {}).get(int(w["number"]))}
+                              for w in sorted(wards["wards"], key=lambda w: w["number"])],
+                    "ward_basis": (holders or {}).get("ward_basis")})
     return out
 
 
@@ -1502,13 +1512,21 @@ def landing(facts, districts: dict | None, georef: dict | None = None, geocoder:
     what a ward found by the address lookup links to."""
     ix = _ix(facts)
     ward_hrefs = {}
+    rows = district_rows(ix)
+    # the seats' holders as the landing list shows them (the name linked, or its fixed words), for the address answer
+    holders = {"district": {r["number"]: {"name": r["holder"], "href": r["holder_href"]} for r in rows if r["holder"]},
+               "ward": {}, "district_basis": observed_basis(ix) if ix.seats.loaded else None, "ward_basis": None}
     for c in councils:
         for s in c["seats"]:
             m = re.fullmatch(r"ward-(\d{1,2})", s["seat"])
             if m:
                 ward_hrefs.setdefault(int(m.group(1)), s["href"])
-    address = address_context(districts, georef, geocoder, ward_hrefs=ward_hrefs)
-    return {"csp": csp(address), "rows": district_rows(ix),
+                holders["ward"].setdefault(int(m.group(1)), (
+                    {"name": s["holder"]["name"], "href": s["holder"]["href"]} if s["holder"]
+                    else {"name": SEAT_NOT_YET_RECORDED, "href": None}))
+                holders["ward_basis"] = holders["ward_basis"] or c.get("basis")
+    address = address_context(districts, georef, geocoder, ward_hrefs=ward_hrefs, holders=holders)
+    return {"csp": csp(address), "rows": rows,
             "lookup_sources": lookup_sources(districts) if address else None,
             "coverage": ix.coverage,
             "district_count": config.SITE["district_count"],
