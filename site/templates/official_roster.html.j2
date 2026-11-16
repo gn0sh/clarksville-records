@@ -8,10 +8,12 @@
   <div class="official-id">
     <h1>{{ official.name }}</h1>
     {% if official.title %}<p class="title-line">{{ official.title }}</p>{% endif %}
-    {% for r in records %}<p class="seat-line">{{ seat(r.label ~ ", " ~ r.dates_text) }}</p>{% endfor %}
-    <p class="muted coverage">{{ coverage_sentence }}</p>
   </div>
 </header>
+<div class="official-sub">
+  {% for r in records %}<p class="seat-line">{{ seat(r.label ~ ", " ~ r.dates_text) }}</p>{% endfor %}
+  <p class="muted coverage">{{ coverage_sentence }}</p>
+</div>
 
 <section aria-labelledby="record-h">
   <h2 id="record-h">Recorded votes and attendance</h2>

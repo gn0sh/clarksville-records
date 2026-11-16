@@ -7,11 +7,15 @@
   <div class="official-id">
     <h1>{{ official.name }}</h1>
     <p class="title-line">{{ official.title }}</p>
-    {% if seat_header %}<p class="seat-line">{{ seat(seat_header) }}</p>{% endif %}
-    {% if name_source %}<p class="muted name-source">Name and ward from the {{ name_source.kind }} of {{ name_source.date }}, {{ source(name_source.src) }}: &ldquo;{{ name_source.quote }}&rdquo;</p>{% endif %}
-    <p class="muted coverage">{{ coverage_sentence }}</p>
   </div>
 </header>
+{# The seat history and the coverage line sit under the header card, not in it (onceover/official/header-seat-line):
+   the card holds the name and title only; the same for every official. #}
+<div class="official-sub">
+  {% if seat_header %}<p class="seat-line">{{ seat(seat_header) }}</p>{% endif %}
+  {% if name_source %}<p class="muted name-source">Name and ward from the {{ name_source.kind }} of {{ name_source.date }}, {{ source(name_source.src) }}: &ldquo;{{ name_source.quote }}&rdquo;</p>{% endif %}
+  <p class="muted coverage">{{ coverage_sentence }}</p>
+</div>
 {# One set of numbers (site-polish/official-totals-consistent): each count has one label and one unit (meetings,
    roll calls or votes) wherever it appears, and the parts are shown with the whole they add up to. data-n marks each
    number for qa/site_checks.py official-numbers. #}

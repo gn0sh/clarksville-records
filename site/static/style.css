@@ -1419,3 +1419,9 @@ table.vote-table small { display: block; color: var(--muted); }
 /* A member's call-ons from the transcripts, collapsed (onceover/official/transcripts-on-demand) */
 .call-ons-more { margin: 1.4em 0; }
 .call-ons-more > summary { cursor: pointer; padding: 10px 0; font-weight: 600; }
+/* votes/<year>.html: the source link inline, its Details toggle beside it (onceover/cite/fact-id-always-visible) */
+.vote-cite details.row-details { display: inline-block; vertical-align: top; margin: 0 0 0 10px; }
+/* Official page: the seat history and coverage under the header card (onceover/official/header-seat-line) */
+.official-sub { margin: 8px 0 14px; }
+.official-sub p { margin: 4px 0; }
+.official-sub .coverage, .official-sub .name-source { font-size: var(--t-sm); }
