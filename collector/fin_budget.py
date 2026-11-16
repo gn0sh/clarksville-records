@@ -145,14 +145,17 @@ def is_amount(tok: str, unit: str = "dollars") -> bool:
     return amount_value(tok, unit) is not None
 
 
-def split_glued(w: Word, unit: str) -> list[Word]:
+def split_glued(w: Word, unit: str, value_x0: float | None = None) -> list[Word]:
     """A word of touching amounts, maybe after a label ("REVENUE-1.00-2.00"), as one word per piece; positions by
-    character width (the city books print in a monospace font). Any other word is returned as it is."""
+    character width (the city books print in a monospace font). Any other word is returned as it is. The split starts
+    where the value bands start: a piece whose right edge falls left of `value_x0` (the first value band's left edge;
+    split_row places a word by its right edge) stays in the label, so a label ending in digits is never cut."""
     if unit != "cents" or is_amount(w.text, unit):
         return [w]
+    cw = (w.x1 - w.x0) / len(w.text)
     pieces, end = [], len(w.text)
     for m in reversed(list(GLUED.finditer(w.text))):
-        if m.end() != end:
+        if m.end() != end or (value_x0 is not None and w.x0 + m.end() * cw < value_x0):
             break
         pieces.insert(0, (m.start(), m.end()))
         end = m.start()
@@ -160,7 +163,6 @@ def split_glued(w: Word, unit: str) -> list[Word]:
         return [w]
     if end:
         pieces.insert(0, (0, end))
-    cw = (w.x1 - w.x0) / len(w.text)
     return [Word(w.page, w.x0 + a * cw, w.x0 + b * cw, w.y0, w.y1, w.text[a:b]) for a, b in pieces]
 
 
@@ -427,7 +429,7 @@ def read_book(words: list[Word], spec: BookSpec, rules: BudgetRules) -> BookRead
                 continue
             if rules.split_glued_amounts:           # only words that reach into the value bands
                 ln = Line(ln.page, [p for w in ln.words
-                                    for p in (split_glued(w, unit) if w.x1 >= bands[0].x0 else [w])])
+                                    for p in (split_glued(w, unit, bands[0].x0) if w.x1 >= bands[0].x0 else [w])])
             r = split_row(ln, i + 1, bands)
             if i < min(header_idx) and not has_amount(r, unit):
                 continue                        # the page's title block (a row printed above it is still read)

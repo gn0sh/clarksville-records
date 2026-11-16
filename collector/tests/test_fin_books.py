@@ -104,7 +104,7 @@ def read(book_id: str, pages, mutate=None):
         words = mutate(words)
     r = fin_budget.read_book(words, BOOK[book_id], RULES)
     lines = fin_budget.to_records(r, RULES)
-    counts = fin_checks.reconcile(lines)
+    counts = fin_checks.reconcile(lines, RULES.run_totals)
     return r, {x["id"]: x for x in lines}, counts
 
 
@@ -213,6 +213,18 @@ def test_split_glued_leaves_other_words_alone():
     assert [round(p.x1, 3) for p in parts] == [round(7 * 120 / 18, 3), round(12 * 120 / 18, 3), 120.0]
 
 
+def test_split_glued_starts_where_the_value_bands_start():
+    # "024.00" ends at x 94.9, left of the value bands (x 100): it stays in the label (budget-reconcile/glued-split)
+    w = Word(1, 0.0, 138.0, 0, 10, "FUND2024.00-5.00")       # 16 chars, ~8.6 pt each; "-5.00" ends at 138
+    cw = 138.0 / 16
+    parts = fin_budget.split_glued(w, "cents", value_x0=100.0)
+    assert [p.text for p in parts] == ["FUND2024.00", "-5.00"]
+    assert round(parts[0].x1, 3) == round(11 * cw, 3)
+    assert [p.text for p in fin_budget.split_glued(w, "cents")] == ["FUND2", "024.00", "-5.00"]   # no band: cut
+    assert fin_budget.split_glued(Word(1, 0, 60, 0, 10, "AB-1.00-2.00"), "cents", value_x0=100.0)[0].text == \
+        "AB-1.00-2.00"                                         # every piece left of the bands: left as it is
+
+
 def test_project_subtotals_inside_an_org_section_fy2027_self_insurance():
     _, lines, counts = read("fy2027-presented", [378, 379])
     assert counts == {"exact": 11, "within_rounding": 0, "does_not_add_up": 0, "not_checked": 0}
@@ -257,13 +269,49 @@ def test_a_header_without_a_fund_name_fails_the_book():
         read("fy2026-final", [138], mutate=drop)
 
 
-def test_empty_scope_of_zeros_is_exact_and_of_values_is_not():
+def test_empty_scope_of_zeros_is_exact_only_for_a_report_run_total():
     cell = {"header_as_printed": "x", "fiscal_year": 2027, "kind": "actual", "as_printed": ".00", "dollars": None,
             "cents": 0}
     zero = {"cells": [cell], "held": None}
-    assert fin_checks.check_total(zero, [])["state"] == "exact"
+    assert fin_checks.check_total(zero, [], run_total=True)["state"] == "exact"
+    assert fin_checks.check_total(zero, [])["state"] == "does_not_add_up"        # any other total of nothing
     assert fin_checks.check_total({"cells": [dict(cell, cents=5, as_printed=".05")], "held": None},
-                                  [])["state"] == "does_not_add_up"
+                                  [], run_total=True)["state"] == "does_not_add_up"
+
+
+def test_reconcile_marks_only_configured_run_totals_as_run_totals():
+    cell = {"header_as_printed": "x", "fiscal_year": 2027, "kind": "actual", "as_printed": ".00", "dollars": None,
+            "cents": 0}
+
+    def total(label, code=None):
+        return {"id": label, "row_role": "total", "account_code": code, "label_as_printed": label,
+                "scope_line_ids": [], "cells": [dict(cell)], "held": None}
+    lines = [total("TOTAL REVENUE"), total("TOTAL Some Fund"), total("TOTAL REVENUE", code="4310")]
+    fin_checks.reconcile(lines, RULES.run_totals)
+    assert [x["check"]["state"] for x in lines] == ["exact", "does_not_add_up", "does_not_add_up"]
+
+
+def _cents_cell(cents_value, printed):
+    return {"header_as_printed": "x", "fiscal_year": 2027, "kind": "actual", "as_printed": printed, "dollars": None,
+            "cents": cents_value}
+
+
+def test_a_cents_book_allows_no_rounding_slip():
+    # budget-reconcile/rounding-bound-in-cents: a book printed to the cent rounds nothing
+    scope = [{"cells": [_cents_cell(100, "1.00")], "held": None}, {"cells": [_cents_cell(200, "2.00")], "held": None}]
+    off = fin_checks.check_total({"cells": [_cents_cell(301, "3.01")], "held": None}, scope)
+    assert off["state"] == "does_not_add_up"
+    assert off["per_cell"] == [{"printed": 301, "sum": 300, "diff": 1}]
+    assert fin_checks.check_total({"cells": [_cents_cell(300, "3.00")], "held": None}, scope)["state"] == "exact"
+    assert fin_checks.rounding_bound(2, cents=True) == 0
+
+
+def test_a_dollars_book_keeps_its_rounding_bound():
+    def cell(d):
+        return {"header_as_printed": "x", "fiscal_year": 2027, "kind": "actual", "as_printed": str(d), "dollars": d}
+    scope = [{"cells": [cell(1)], "held": None}, {"cells": [cell(2)], "held": None}]
+    assert fin_checks.check_total({"cells": [cell(4)], "held": None}, scope)["state"] == "within_rounding"
+    assert fin_checks.rounding_bound(2) == 1
 
 
 def test_editions_compare_on_cents():
@@ -311,6 +359,17 @@ def test_fin_books_build_writes_a_valid_city_file(tmp_path, monkeypatch):
     assert report["budget"]["fy2027-presented"]["reconcile"]["exact"] == 11
     assert report["budget"]["fy2026-final"]["funds"] == ["Vehicle Replacement Fund"]
     assert [b["id"] for b in report["books_not_read"]] == ["fy2025-adopted"]
+
+
+def test_schema_requires_cents_on_every_cell_of_a_cents_file(tmp_path, monkeypatch):
+    store, by_sha = fake_store(tmp_path)
+    monkeypatch.setattr(fin_facts, "pdf_meta", lambda pdf, cfg, cache=None: {"pages": 9, "text_layer": "text",
+                                                                              "creator": None})
+    fin, _ = fin_books.build(store, fin_config.load_books(CITY), book_words=lambda pdf, first, last: by_sha[pdf.stem])
+    from collector.fin_run import validate
+    assert validate(fin) == []
+    del fin["budget_lines"][0]["cells"][0]["cents"]
+    assert any("'cents' is a required property" in e for e in validate(fin))
 
 
 def test_fin_books_build_writes_nothing_when_a_book_is_missing(tmp_path, monkeypatch):
