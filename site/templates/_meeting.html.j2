@@ -13,9 +13,10 @@
     {% endif %}
     {{ stat(m.stats.motions, "motions") }}
     {{ stat(m.stats.rc_confirmed, "roll calls confirmed") }}
-    {{ stat(m.stats.rc_unconfirmed, "roll calls not confirmed*") }}
-    {{ stat(m.stats.unmatched, "names not matched to an official") }}
   </ul>
+  {# onceover/stats/zero-qa-stats: the two checking counts are one small sentence, the same words for every meeting
+     whatever the numbers are, not big figures beside the meeting's own. #}
+  <p class="stats-note">Roll calls not confirmed*: {{ m.stats.rc_unconfirmed }}. Names we could not match to an official: {{ m.stats.unmatched }}.</p>
 {% endmacro %}
 
 {% macro meeting_sections(m, root, h="h2", pre="") %}

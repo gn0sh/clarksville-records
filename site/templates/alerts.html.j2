@@ -15,13 +15,25 @@
 {% if note.enabled %}
 <form class="mn-card" id="note" action="{{ note.action }}" method="post" aria-labelledby="note-h"{% if note.preview %} data-preview="{{ root }}{{ note.preview }}"{% endif %}>
 {% else %}
-<section class="mn-card" id="note" aria-labelledby="note-h"{% if note.preview %} data-preview="{{ root }}{{ note.preview }}"{% endif %}>
+{# onceover/alerts/card-before-launch: until email starts the card is small: its heading, the "starts at launch"
+   line and one closed "Feeds for your list" toggle holding the list picker and each list's feeds. #}
+<section class="mn-card mn-off" id="note" aria-labelledby="note-h"{% if note.preview %} data-preview="{{ root }}{{ note.preview }}"{% endif %}>
 {% endif %}
   <h2 id="note-h">{{ note.text.heading }}</h2>
+  {% if not note.enabled %}<p class="mn-state"><strong>{{ note.text.state_off }}</strong></p>{% endif %}
   <p class="small">{{ note.text.about }}</p>
+  {% if not note.enabled %}
+  <details class="mn-more">
+    <summary>{{ note.text.feeds_heading }}</summary>
+    {{ picker(note, false) }}
+    <div class="mn-panel">
+      {{ feed_links(note, root) }}
+    </div>
+    <p class="small mn-unofficial">{{ site.unofficial.email_line }}</p>
+  </details>
+  {% else %}
   <p class="small mn-unofficial">{{ site.unofficial.email_line }}</p>
   {{ picker(note, note.enabled) }}
-  {% if note.enabled %}
   <input type="hidden" name="{{ note.fields.district }}" value="" data-seat-field="district" disabled>
   <input type="hidden" name="{{ note.fields.ward }}" value="" data-seat-field="ward" disabled>
   {# Seat consent (morning-security/seat-consent): shown by static/morning.js only when this device keeps seats, with
@@ -32,12 +44,10 @@
   <p class="small">{{ note.sent_line }} <a data-ext="provider" href="{{ note.privacy_url }}" rel="noopener noreferrer">{{ note.text.privacy_label }}</a></p>
   <button class="btn" type="submit">{{ note.text.submit }}</button>
   {% if site.support_url and site.cfg.support_line %}<p class="small mn-support">{{ site.cfg.support_line }} <a data-ext="support" href="{{ site.support_url }}" rel="noopener noreferrer">{{ site.support_label }}</a></p>{% endif %}
-  {% else %}
-  <p class="mn-state"><strong>{{ note.text.state_off }}</strong></p>
-  {% endif %}
   <div class="mn-panel">
     {{ feed_links(note, root) }}
   </div>
+  {% endif %}
   {% if note.preview %}<p class="mn-preview"><a id="mn-preview" href="{{ root }}{{ note.preview }}">{{ note.text.preview_link }}</a></p>{% endif %}
 {% if note.enabled %}
 </form>
