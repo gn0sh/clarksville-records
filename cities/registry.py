@@ -14,7 +14,6 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
 
-from collector.fetch import ALLOWED_HOSTS as _GLOBAL_ALLOWED  # noqa: F401  (tests compare Clarksville to it)
 from collector.fetch import DENIED_HOSTS, host_matches
 
 from . import brand as brand_mod

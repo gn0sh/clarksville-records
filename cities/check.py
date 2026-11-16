@@ -22,7 +22,7 @@ def _marks(path: Path, root: Path, skip_host_lines: bool) -> tuple[list[str], li
     for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if UNVERIFIED not in line or (skip_host_lines and HOST_LINE.match(line)):
             continue
-        value, _, comment = line.partition(" #") if not line.lstrip().startswith("#") else ("", "", line)
+        value = "" if line.lstrip().startswith("#") else line.partition(" #")[0]
         text = f"{rel} line {n}: {line.strip()}"
         (missing if UNVERIFIED in value else verify).append(text)
     return missing, verify
