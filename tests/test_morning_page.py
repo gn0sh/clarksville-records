@@ -454,10 +454,15 @@ def _words(html):
     return " ".join(parse(_main(html)).all_text().split())
 
 
-def test_committed_config_keeps_email_off():
+def test_committed_config_is_the_canary_week():
+    """Runbook section 4 item 4: the form and the sender are on, but the sender mails only the canary ids."""
     mn = config.SITE["morning_note"]
-    assert mn["enabled"] is False and not mn["form_action"] and not mn["provider"] and not mn["privacy_url"]
-    assert morning_page.privacy() is None
+    assert mn["enabled"] is True and mn["provider"] == "Buttondown"
+    assert mn["form_action"].startswith("https://buttondown.com/api/emails/embed-subscribe/")
+    assert "LIVEUSER" not in mn["form_action"], "fill in the live newsletter username from the probe results"
+    assert mn["privacy_url"].startswith("https://buttondown.com/")
+    assert mn["sender"]["enabled"] is True and mn["sender"]["canary_only"] is True
+    assert "daylight.gnoshcodes.com" in mn["sender"]["link_hosts"].split(",")
 
 
 def test_disabled_build_keeps_the_never_sent_sentences_and_has_no_note_paragraph(site):

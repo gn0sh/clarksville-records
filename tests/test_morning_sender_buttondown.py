@@ -631,7 +631,7 @@ def plan_file(plan, tmp_path):
 def config_file(tmp_path, enabled: bool, canary_only=False, mode="stamp") -> Path:
     """The shipped config with the switches set and the fixture's link hosts added (the shipped file is unchanged)."""
     text = (ROOT / "config" / "site.yml").read_text(encoding="utf-8")
-    text, n1 = re.subn(r"(?m)^(    enabled: )false\b", rf"\g<1>{'true' if enabled else 'false'}", text, count=1)
+    text, n1 = re.subn(r"(?m)^(    enabled: )(?:true|false)\b", rf"\g<1>{'true' if enabled else 'false'}", text, count=1)
     text, n2 = re.subn(r"(?m)^(    canary_only: )true\b", rf"\g<1>{'true' if canary_only else 'false'}", text, count=1)
     text, n3 = re.subn(r'(?m)^(    link_hosts: ")', rf"\g<1>{TEST_HOSTS},", text, count=1)
     text, n4 = re.subn(r"(?m)^(    mode: )stamp\b", rf"\g<1>{mode}", text, count=1)

@@ -171,7 +171,7 @@ def test_launch_overrides_are_read_from_the_environment(monkeypatch):
     finally:
         monkeypatch.undo()
         importlib.reload(config)
-    assert config.max_files() == 500 and config.SITE["alerts"]["site_url"] == ""
+    assert config.max_files() == 500 and config.SITE["alerts"]["site_url"] == "https://daylight.gnoshcodes.com/"
 
 
 def test_untrusted_parse_job_has_no_write_token():
