@@ -114,6 +114,7 @@ class BookRead:
     columns: list                # [{header_as_printed, fiscal_year, kind}] in first-seen order
     pages_read: list
     lines: list                  # ParsedLine in book order
+    report_dates: list = field(default_factory=list)   # [{as_printed, page}]: rules.report_date on the pages read
 
 
 def amount_dollars(tok: str) -> int | None:
@@ -391,6 +392,8 @@ def read_book(words: list[Word], spec: BookSpec, rules: BudgetRules) -> BookRead
     pending_fb: list[ParsedLine] = []          # fund_balance lines waiting for the next statement page's fund
     overrides = dict(spec.kind_overrides)
     unit = rules.amount_unit
+    report_dates: list[dict] = []
+    seen_dates: set[str] = set()
     for page in range(spec.first_page, spec.last_page + 1):
         plines = by_page.get(page, [])
         role, title_at = page_role(plines, rules)
@@ -412,6 +415,12 @@ def read_book(words: list[Word], spec: BookSpec, rules: BudgetRules) -> BookRead
             col = {"header_as_printed": b.header, "fiscal_year": b.fiscal_year, "kind": b.kind}
             if b.kind and col not in columns:
                 columns.append(col)
+        if rules.report_date is not None:
+            for ln in plines:
+                m = rules.report_date.search(ln.text)
+                if m and m.group("date") not in seen_dates:
+                    seen_dates.add(m.group("date"))
+                    report_dates.append({"as_printed": m.group("date"), "page": page})
         rows = []
         for i, ln in enumerate(plines):
             if i == title_at or i in header_idx or rules.footer.fullmatch(ln.text):
@@ -467,7 +476,7 @@ def read_book(words: list[Word], spec: BookSpec, rules: BudgetRules) -> BookRead
     unused = set(overrides) - {c["header_as_printed"] for c in columns}
     if unused:
         raise BookLayoutError(f"{spec.id}: kind_overrides name no header of the book: {sorted(unused)}")
-    return BookRead(spec, columns, pages_read, out)
+    return BookRead(spec, columns, pages_read, out, report_dates)
 
 
 def _line(spec, page, r: _Row, statement, fund_no, fund_name, sc: _Scopes, rules: BudgetRules, bands, edges,

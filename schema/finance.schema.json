@@ -213,7 +213,14 @@
         "source_id": { "$ref": "#/$defs/source_id" },
         "pages_read": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/page" } },
         "columns": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/column" } },
-        "amount_unit": { "enum": ["cents"], "description": "only when the book prints cents (the city books): its cells carry cents and its checks' per_cell values are cents; absent = whole dollars" }
+        "amount_unit": { "enum": ["cents"], "description": "only when the book prints cents (the city books): its cells carry cents and its checks' per_cell values are cents; absent = whole dollars" },
+        "report_dates": {
+          "type": "array", "minItems": 1,
+          "description": "only when the locality's config reads the report foot (the city books): each distinct 'Report generated' date printed on the pages read, as printed (MM/DD/YYYY), with the first page that prints it, in book order. The year-in-progress ACTUAL column holds amounts up to that date.",
+          "items": { "type": "object", "additionalProperties": false, "required": ["as_printed", "page"],
+                     "properties": { "as_printed": { "type": "string", "pattern": "^[0-9]{2}/[0-9]{2}/[0-9]{4}$" },
+                                     "page": { "$ref": "#/$defs/page" } } }
+        }
       }
     },
     "cell": {

@@ -166,6 +166,21 @@ def test_page_foot_and_end_of_report_are_never_stored():
         assert word not in text
 
 
+def test_report_date_is_read_from_the_page_foot_once_per_date():
+    """book.report_dates (finance-contracts 10): the foot's date only, first page that prints it; no time or login."""
+    r, _, _ = read("fy2026-final", [111, 112, 113])
+    assert r.report_dates == [{"as_printed": "07/08/2025", "page": 111}]
+    r, _, _ = read("fy2027-presented", [378, 379])
+    assert r.report_dates == [{"as_printed": "05/29/2026", "page": 378}]
+
+
+def test_no_report_date_rule_reads_no_date():
+    import dataclasses
+    rules = dataclasses.replace(RULES, report_date=None)
+    r = fin_budget.read_book(words_of("fy2026-final", [111]), BOOK["fy2026-final"], rules)
+    assert r.report_dates == []
+
+
 def test_touching_amounts_are_split_by_character_width_fy2027_p17():
     _, lines, _ = read("fy2027-presented", [17])
     for label in ("TOTAL General Fund", "TOTAL REVENUE", "GRAND TOTAL"):

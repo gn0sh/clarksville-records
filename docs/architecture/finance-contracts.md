@@ -221,3 +221,8 @@ keys). Frontend: read `cents` for a book with `amount_unit: "cents"`.
 - `fin_checks.check_total`: an empty scope whose printed cells are all 0 is `exact` (a run's TOTAL REVENUE of .00 when
   the run holds no revenue). The committed county data has no such total (its 8 empty-scope totals print values and
   stay does_not_add_up).
+- `book.report_dates` (added 2026-11-16, frontend-engineer, round 2 budget): optional, set only when the locality's
+  config has `budget.rows.report_date` (the city: `Report generated: MM/DD/YYYY` in the page foot of the pages read;
+  time, page number and login are never stored). One entry per distinct date, `{as_printed, page}` (first page that
+  prints it). Each city book prints one date. The pages show it next to the year-in-progress ACTUAL column (the ACTUAL
+  column for the year before the book's budget year): "amounts to the report date <date>". County books: absent.

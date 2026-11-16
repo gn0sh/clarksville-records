@@ -89,7 +89,10 @@ budget:
       GRAND TOTAL: net
     run_end: '^\*\* END OF REPORT'
     scope_break_after: []
-    # The page foot (date, page number, login, program id): never read, never stored.
+    # The page foot's report date only (book.report_dates: the year-in-progress ACTUAL column runs to it); the time,
+    # page number, login and program id are never stored.
+    report_date: '^Report generated: (?P<date>[0-9]{2}/[0-9]{2}/[0-9]{4}) '
+    # The page foot (date, page number, login, program id): never read as a row.
     footer: '^(Report generated: .*|User: .*|Program ID: .*)$'
   tags:
     transfer: {codes: [], headings: []}
