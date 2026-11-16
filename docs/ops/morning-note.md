@@ -41,6 +41,8 @@ and may be labelled differently. Record what each screen really says in `docs/pl
    name; nothing that reads as an authority: no "City of", "County", "CMCSS", "RPC" or "official").
 2. **Brian:** Settings > Domains (sending domain): add the sending domain and add the SPF and DKIM records it shows
    at the DNS host. This may need the paid plan (hard stop 3: approve the spend first).
+   **Canary (decided 2026-11-16, devops): skipped.** The canary week runs on the free plan from Buttondown's own
+   sending address, so no spend. Launch precondition 9's DNS part moves to before widening (`canary_only: false`).
 3. **Brian:** Settings > Subscribing: double opt-in **on** for form sign-ups.
 4. **Brian:** Settings > Tracking: open tracking **off**, click tracking **off**.
 5. **Brian:** Settings > Email: reply-to = a team address (not a personal one).
@@ -143,6 +145,9 @@ read -rs BUTTONDOWN_API_KEY && export BUTTONDOWN_API_KEY    # paste the key, the
 printf 'Authorization: Token %s\n' "$BUTTONDOWN_API_KEY" | curl -sS -H @- https://api.buttondown.com/v1/emails
 unset BUTTONDOWN_API_KEY
 ```
+**Brian's way (Windows):** `scripts/morning-note-probe.cmd` runs `scripts/morning-note-probe.ps1`, which does the
+automatable items below with the key read by `Read-Host -AsSecureString`, asks the inbox questions, and writes answers
+only (no key, address or id) to his OneDrive "App Development" folder. His clicks: `docs/ops/morning-note-brian-steps.md`.
 When the probe is finished, delete that key in the test newsletter's Settings > API. Answer each item:
 1. An email's `filters` takes `subscriber.metadata.note_edition equals <value>` and reaches only the matching
    subscribers (stamp one of two team subscribers: the other gets nothing).
