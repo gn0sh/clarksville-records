@@ -205,7 +205,9 @@ def councils(facts: dict) -> list[dict]:
     out = []
     for loc in _site_cfg().get("councils") or []:
         c = yaml.safe_load((ROOT / "config" / "localities" / loc / "council.yml").read_text(encoding="utf-8"))
+        fin_path = (ROOT / c["facts"]).parent / "finance.json"   # the body's budget books (city/finance/)
         out.append({"slug": c["slug"], "prefix": c["slug"] + "/", "facts": load_facts(ROOT / c["facts"]),
+                    "finance": load_facts(fin_path) if fin_path.is_file() else None,
                     "held_sentences": c.get("held_sentences"),
                     "transcripts_dir": (ROOT / c["facts"]).parent / "transcripts"})
     return out
@@ -645,6 +647,18 @@ def corrections_log_urls(path: Path | None = None) -> set[str]:
             and r["source_url"].startswith("https://")} if isinstance(rows, list) else set()
 
 
+def books_not_read_urls(cfg: dict) -> set[str]:
+    """finance.yml `budget.books_not_read` URLs of each council's locality (linked from its budget index only)."""
+    import yaml
+    out = set()
+    for loc in cfg.get("councils") or []:
+        p = ROOT / "config" / "localities" / loc / "finance.yml"
+        if p.is_file():
+            budget = (yaml.safe_load(p.read_text(encoding="utf-8")) or {}).get("budget") or {}
+            out |= {b["url"] for b in budget.get("books_not_read") or [] if str(b.get("url", "")).startswith("https://")}
+    return out
+
+
 def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | None,
                      corrections_path: Path | None = None) -> set[str]:
     """Exact URLs (qa-weakened/ext-link-any-host): config/site.yml links, the map's source_url, every roster row's
@@ -662,6 +676,7 @@ def allowed_external(cfg: dict, seats_path: Path | None, districts_path: Path | 
     out |= {v["url"] for v in (cfg.get("video") or {}).values()   # the "Watch" links (sitegen/watch.py)
             if isinstance(v, dict) and isinstance(v.get("url"), str) and v["url"].startswith("https://")}
     out |= corrections_log_urls(corrections_path)    # the corrections page's "Source" links
+    out |= books_not_read_urls(cfg)                  # a city budget book fetched and linked, not read
     if cfg.get("operator_url"):
         out.add(cfg["operator_url"])                 # the footer's "gnoshcodes LLC" link
     if cfg.get("support_enabled") is True and cfg.get("support_url"):
@@ -1015,8 +1030,18 @@ def finance_fact_ids(fin: dict | None) -> set[str]:
         if s["bid_tab"]:
             ids |= {f"{s['id']}/bidder/{b['printed_order']}" for b in s["bid_tab"]["bidders"]}
     for x in (fin or {}).get("budget_lines", []):
-        ids |= {x["id"], f"fund/{x['fund_no']}"}
+        ids |= {x["id"], f"fund/{_fund_key(x)}"}
     return ids
+
+
+def _fund_key(x: dict) -> str:
+    """Restated from sitegen/budget_views.fund_key: the printed fund number, else the printed name as a slug (the
+    city books print no number), else the report-run totals' page."""
+    if x["fund_no"] is not None:
+        return x["fund_no"]
+    if x["fund_name"]:
+        return re.sub(r"[^a-z0-9]+", "-", x["fund_name"].casefold()).strip("-")
+    return "report-totals"
 
 
 def held_sentence(rc: dict, sentences: dict) -> str:
@@ -2239,6 +2264,8 @@ def page_type(rel: str) -> str | None:
     for c in _council_slugs():
         if head == c:
             parts = rel.split("/")
+            if len(parts) == 3 and parts[1] == "finance":   # the city's budget books (city/finance/)
+                return "finance_index" if parts[2] == "index.html" else "fund"
             return "council_home" if len(parts) == 2 else {"members": "council_member", "meetings": "council_meetings",
                                                             "items": "council_items", "transcripts": "council_transcript"}.get(parts[1])
     return {"officials": "official", "meetings": "meeting", "items": "items", "districts": "district",
@@ -2939,6 +2966,11 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     missing = [c["slug"] for c in councils(facts) if c not in cs]
     rpc = rpc_facts(facts)
     agendas = county_agendas(facts)
+    city_fin = [c["finance"] for c in cs if c.get("finance")]
+    # a link to a city budget book is a known source like the county's (check_sources reads finance sources)
+    fin_all = None if finance is None and not city_fin else {
+        **(finance or {}), "sources": [*(finance or {}).get("sources", []), *(s for f in city_fin for s in f["sources"])],
+        "documents": (finance or {}).get("documents", [])}
     all_sources = {"sources": [*facts["sources"], *(s for c in cs for s in c["facts"]["sources"]),
                                *(rpc or {}).get("sources", []),   # an RPC DOCX has no page count: linked whole only
                                *(agendas or {}).get("sources", [])]}
@@ -2946,7 +2978,7 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     cal_urls, cal_problems = calendar_agenda_urls(facts)
     problems, note = check_sources(site, pages, all_sources, store_extra,
                                    allowed_external(cfg, seats_path, districts_path) | rpc_allowed(rpc) | cal_urls
-                                   | ({agendas["index_url"]} if agendas else set()), finance, videos)
+                                   | ({agendas["index_url"]} if agendas else set()), fin_all, videos)
     if rpc is not None and not any(rel.startswith(rpc["_cfg"]["slug"] + "/") for rel in pages):
         problems.append(f"no pages under {rpc['_cfg']['slug']}/ for the configured RPC")
     problems += cal_problems
@@ -2968,7 +3000,7 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     for c in cs:
         mine = {rel: pg for rel, pg in pages.items() if rel.startswith(c["prefix"])}
         problems += check_unverified(site, mine, c["facts"], internal, official_prefix=c["prefix"] + "members/",
-                                     export=False, held_sentences=c.get("held_sentences"))
+                                     export=False, held_sentences=c.get("held_sentences"), fin=c.get("finance"))
     rep.add("unverified", problems, ("internal build" if internal else "public build") + "".join(f"; {c['slug']}/ against its own facts" for c in cs))
     fact_ids = {o["id"] for o in facts["officials"]}
     roster_only = tuple(sorted({r["official_id"] for r in read_roster(seats_path) if r.get("official_id")} - fact_ids))
@@ -3008,7 +3040,8 @@ def run_checks(site: Path, facts: dict, internal=False, no_export=False, operato
     problems, note = check_local_dates(site, pages, cfg, bool(facts.get("fixture")), county=facts, councils_=cs, rpc=rpc,
                                        # the agendas a build shows: those with a page count (sitegen/county_agendas.py)
                                        other_sources=[[s for s in (agendas or {}).get("sources") or [] if s.get("pages")],
-                                                      (finance or {}).get("sources") or []])
+                                                      (finance or {}).get("sources") or [],
+                                                      *((f.get("sources") or []) for f in city_fin)])
     rep.add("dates/no-raw-utc-day", problems, note)
     problems, note = check_freshness_dates(site, pages)
     rep.add("dates/freshness-linked", problems, note)

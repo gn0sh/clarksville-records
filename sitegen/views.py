@@ -399,13 +399,16 @@ def _nav(ix: "Index", contracts: bool = False, budget: tuple = (), councils=(), 
     return out
 
 
-def site_context(facts, contracts: bool = False, budget: tuple = (), councils=(), rpc=None) -> dict:
+def site_context(facts, contracts: bool = False, budget: tuple = (), councils=(), rpc=None,
+                 city_budget: str | None = None) -> dict:
     """`contracts`: finance.json is loaded, so the nav lists Bids and awards (design finance-contracts 1).
-    `budget`: the budget pages built (see _nav). `councils`: the council.CouncilIndex of each council built."""
+    `budget`: the budget pages built (see _nav). `councils`: the council.CouncilIndex of each council built.
+    `city_budget`: the city budget index page when it is built (city/finance/index.html; the hub card and door)."""
     from . import bodies   # here, not at the top: bodies reads https_url from this module
     ix = _ix(facts)
     cfg = config.SITE
     ctx = _site_context(ix, cfg, contracts, budget, councils, rpc)
+    ctx["city_budget"] = city_budget
     # "Show records from" (sitegen/bodies.py): the switch on every page and each body's hub cards
     ctx["switch"] = bodies.build(ctx, councils, rpc)
     return ctx
@@ -1161,8 +1164,8 @@ def official_record(template: str, site: dict, ctx: dict) -> dict | None:
         rec = site.get("rpc_record")
     elif template == "county_agendas.html.j2":
         rec = ctx.get("record")       # the county's agendas page; each meeting section links its own agenda PDF
-    elif template in RECORD_FINANCE:
-        rec = recs.get("finance")
+    elif template in RECORD_FINANCE:   # the city's budget pages (body_key set) name the city's budget page
+        rec = recs.get("city_finance") if ctx.get("body_key") else recs.get("finance")
     elif template == "fin_contracts_index.html.j2":
         rec = recs.get("contracts")
     elif template == "fin_solicitation.html.j2":
@@ -1518,8 +1521,11 @@ def landing_doors(site: dict, rpc: tuple[str, str] | None = None) -> list[dict]:
                    {"label": rpc[0], "href": rpc[1]} if rpc else {"href": None}]},
     ]
     doors.append({"key": "money", "title": "Public money",
-                  "text": f"{cfg['county_name']}'s budget books, and the bids and awards its purchasing office lists.",
-                  "links": [{"label": "County budget", "href": built("Finance")},
+                  "text": (f"The budget books of the city and of {cfg['county_name']}, and the bids and awards the "
+                           "county's purchasing office lists." if site.get("city_budget") else
+                           f"{cfg['county_name']}'s budget books, and the bids and awards its purchasing office lists."),
+                  "links": [{"label": "City budget", "href": site.get("city_budget")},
+                            {"label": "County budget", "href": built("Finance")},
                             {"label": "Bids and awards", "href": built("Bids and awards")}],
                   "coming": door_coming(site, "money")})
     out = []

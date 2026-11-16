@@ -224,7 +224,7 @@ def test_the_config_tags_the_same_cards_for_the_city_and_the_county():
     """The real config: the money door names each body's coming budget and committee cards by their card titles."""
     cards = {k: [c["title"] for c in b.get("cards") or [] if c.get("coming") and c.get("door") == "money"]
              for k, b in config.SITE["switch"]["bodies"].items()}
-    assert cards["city"] == ["City budget", "Finance Committee", "Audit Committee"]
+    assert cards["city"] == ["Finance Committee", "Audit Committee"]   # the city budget card is present (city/finance/)
     assert cards["county"] == ["Budget Committee"]
     assert cards["school"] == ["Budget"]                        # every body shown the same way (owner, 2026-11-13)
     for b in config.SITE["switch"]["bodies"].values():          # only a coming card may carry the tag

@@ -10,6 +10,7 @@ fetch_manifests:
   - data/manifest.json
   - data/county-agendas/manifest.json
   - data/localities/clarksville-tn/manifest.json
+  - data/localities/clarksville-tn/fin-manifest.json   # the city budget books (collector fin-books)
   - data/localities/cmc-rpc/manifest.json
   - data/maps/manifest.json
 today_place: Clarksville            # landing sky: "Tuesday in Clarksville" (static/sky.js reads it from the page)
@@ -55,6 +56,7 @@ geocoder_state_name: Tennessee
 official_records:
   county: {url: "https://montgomerytn.gov/clerk/county-commission-minutes", label: "Montgomery County clerk, commission minutes"}
   finance: {url: "https://montgomerytn.gov/account-budget", label: "Montgomery County budget page"}
+  city_finance: {url: "https://www.clarksvilletn.gov/966/Fiscal-Year-Budget-Reports", label: "City of Clarksville budget reports page"}
   contracts: {url: "https://montgomerytn.gov/purchasing/archive", label: "Montgomery County purchasing archive"}
 
 # Footer support link (CEO, 2026-11-07). Rendered only when support_enabled is true AND support_url is set.
@@ -344,10 +346,18 @@ switch:
     present: "On this site:"
     coming: "Coming:"
   finance_note:
-    text: "County budget only so far. City and school board budgets are coming."
-    link_lede: "Until then, the official sites are:"
+    text: "These are the Montgomery County budget books. The school board budget is coming."
+    # the city's budget pages, when built (sitegen/bodies.finance_note `sibling`)
+    sibling: {lede: "The City of Clarksville budget books have their own pages:", label: City budget}
+    link_lede: "Until then, the school board's official site is:"
     links:
-      - {from: unofficial.bodies.0, label: City of Clarksville website, kind: body}
+      - {from: school_board, kind: school}
+  # the top line of the city's budget pages (city/finance/index.html; finance-contracts 10)
+  city_finance_note:
+    text: "These are the City of Clarksville budget books. The school board budget is coming."
+    sibling: {lede: "The Montgomery County budget books have their own pages:", label: County budget}
+    link_lede: "Until then, the school board's official site is:"
+    links:
       - {from: school_board, kind: school}
   bodies:
     county:
@@ -377,12 +387,10 @@ switch:
         - {key: meetings, title: Meetings, go: Meetings by year, text: "City Council meetings by year, with attendance, motions and roll calls."}
         - {key: votes, title: Votes, go: Votes by member, text: "Each council member's recorded votes."}
         - {key: transcripts, title: Transcripts, go: Latest meetings, text: "Transcripts of council meetings, linked from each meeting that has one."}
-        - key: finance                       # the landing's "City budget" link opens this card (#card-finance)
+        - key: finance                       # city/finance/index.html (finance-contracts 10)
           title: City budget
-          coming: true
-          door: money
-          text: "City budget books and the property-tax split are not collected yet, so none are shown."
-          link: {from: unofficial.bodies.0, label: City of Clarksville website, kind: body}
+          go: City budget books
+          text: "The city budget books, fund by fund: FY2024, FY2026 and FY2027 as presented 5/29/2026."
         - key: finance-committee             # one card per committee, as the county's Budget Committee has
           title: Finance Committee
           coming: true

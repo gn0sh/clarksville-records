@@ -105,17 +105,22 @@ budget:
   title: Finance
   capital_title: Capital projects
   # the kind word under each column's printed header (schema column.kind) and its glossary entry, if any
-  kinds: {actual: Actual, amended: Amended budget, adopted: Adopted budget, projected: Projected}
-  kind_glossary: {actual: actual, amended: amended-budget, adopted: adopted-budget}
+  kinds: {actual: Actual, amended: Amended budget, adopted: Adopted budget, projected: Projected,
+          proposed: Proposed budget}
+  kind_glossary: {actual: actual, amended: amended-budget, adopted: adopted-budget, proposed: proposed-budget}
+  # under the Actual column of the year in progress, when the book prints its report date (book.report_dates)
+  actual_as_of: "as of the report date, {date}"
   sections:
     revenue: Revenue by source
     spending: Spending by department
     other: Transfers and available funds
+    net: Totals over revenue and spending   # only in a book that prints them (statement net: the city books)
   books_heading: Budget books
   funds_heading: Funds
   # {year}: a fiscal year with no Actual column in any book, between the first and last one that has it
   actuals_missing: "FY{year} actuals are not in these books."
   caption: "From: {title}, {edition}"
+  caption_title_only: "From: {title}"
   role_words: {subtotal: Subtotal as printed, total: Total as printed}
   check:
     exact: Adds up
@@ -158,15 +163,32 @@ budget:
   fund_books: Books
   words: [actual, adopted-budget, amended-budget, fund]
   capital_words: [actual, adopted-budget, amended-budget, capital-project, fund]
+  run_totals_name: Report totals
+  not_read_default: "This book is linked, not read."
+  not_read: {}
+
+# The City of Clarksville's budget books (city/finance/, finance-contracts 10): the words that differ from `budget`.
+budget_city:
+  title: City budget
+  books_heading: City budget books
+  funds_heading: Funds
+  fund_name: Fund as printed
+  note_e: "Amounts are dollars and cents as printed in the book; revenue prints as a negative number, as the book prints it. Each book prints its line-item report one report run at a time, and its fund totals and report totals add revenue and spending together, as printed. Every total shown is printed in the book; none is added up here."
+  run_totals_name: "Report totals (TOTAL REVENUE, TOTAL EXPENSE, GRAND TOTAL of each report run)"
+  not_read_default: "This book is linked, not read."
+  not_read:
+    fy2025-adopted: "Linked only, not read: its line-item pages have no usable text layer. Its FY2025 figures (2025 ORIG BUD, 2025 REVISED BUD, 2025 ACTUAL, 2025 PROJECTION) are printed in the columns of the Fiscal Year 2026 Budget (Final Submission), which is read here."
+  words: [actual, adopted-budget, amended-budget, fund, proposed-budget]
 
 # Design 3: alphabetical, one sentence each, no evaluation words. id = the anchor on glossary.html.
 glossary:
-  - {id: actual, term: Actual, text: "The amount the county's books show was received or spent in a finished fiscal year."}
-  - {id: adopted-budget, term: Adopted budget, text: "The budget the commission passed at the start of a fiscal year."}
+  - {id: actual, term: Actual, text: "The amount the books show was received or spent in a fiscal year. For a year still in progress when a book was printed, it runs to that book's report date."}
+  - {id: adopted-budget, term: Adopted budget, text: "The budget the county commission or city council passed at the start of a fiscal year."}
   - {id: amended-budget, term: Amended budget, text: "The adopted budget after changes made during the year."}
   - {id: award-letter, term: Award letter, text: "A letter from the county to the bidder it chose. Most are scanned images and are linked, not read."}
   - {id: bid-tab, term: Bid tab, text: "A table listing each bidder and the total it bid. Short for bid tabulation."}
   - {id: capital-project, term: Capital project, text: "A line the budget book lists under the Capital Projects Fund, shown under the heading the book uses. It is not the total cost of a project."}
-  - {id: fund, term: Fund, text: "A separate set of accounts the county keeps for one purpose, with its own revenue and spending."}
+  - {id: fund, term: Fund, text: "A separate set of accounts the county or city keeps for one purpose, with its own revenue and spending."}
+  - {id: proposed-budget, term: Proposed budget, text: "A budget as presented for a vote, before it is adopted. The city's FY2027 book as presented 5/29/2026 prints the Mayor's proposal."}
   - {id: notice-of-intent, term: Notice of intent, text: "A notice that the county plans to award to a named bidder. It comes before an award letter."}
   - {id: rfp, term: RFP (request for proposals), text: "A document asking companies to propose how they would do work, and at what price."}

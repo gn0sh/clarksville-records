@@ -24,7 +24,7 @@
     <tr>
       <th scope="col">{{ b.account }}</th>
       <th scope="col">{{ label or b.line }}</th>
-      {% for col in t.columns %}<th scope="col" class="num">{{ col.header }}<br><span class="kind">{% if col.glossary %}<a href="{{ root }}glossary.html#{{ col.glossary }}">{{ col.kind }}</a>{% else %}{{ col.kind }}{% endif %}</span></th>
+      {% for col in t.columns %}<th scope="col" class="num">{{ col.header }}<br><span class="kind">{% if col.glossary %}<a href="{{ root }}glossary.html#{{ col.glossary }}">{{ col.kind }}</a>{% else %}{{ col.kind }}{% endif %}</span>{% if col.as_of %}<br><span class="kind">{{ col.as_of }}</span>{% endif %}</th>
       {% endfor %}
       <th scope="col">{{ b.source }}</th>
     </tr>

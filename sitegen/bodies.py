@@ -68,6 +68,7 @@ def _hrefs(site: dict, councils, rpc) -> dict[str, dict[str, str]]:
         years = c.meeting_years()
         tx = getattr(c, "tx", None)
         out["city"] = {"meetings": c.home_href() + "#meetings-h", "votes": c.home_href() + "#members-h",
+                       "finance": site.get("city_budget"),
                        "transcripts": f"{c.slug}/meetings/{years[-1]}.html"
                        if years and tx is not None and tx.pages and tx.by_meeting else None}
     if rpc is not None:
@@ -121,10 +122,14 @@ def build(site: dict, councils=(), rpc=None) -> dict | None:
             "current": {o["href"]: o["key"] for o in options}}
 
 
-def finance_note(rpc=None) -> dict | None:
-    """The Finance page's top line (config `switch.finance_note`): the text and its official links."""
-    fn = _cfg().get("finance_note") or {}
+def finance_note(rpc=None, key: str = "finance_note", sibling: str | None = None) -> dict | None:
+    """A budget index's top line (config `switch.finance_note` for the county's, `switch.city_finance_note` for the
+    city's): the text, the other body's budget pages when they are built (`sibling`: their index path) and the
+    official links."""
+    fn = _cfg().get(key) or {}
     if not fn.get("text"):
         return None
     links = [x for x in (official_link(s, rpc) for s in fn.get("links") or []) if x]
-    return {"text": fn["text"], "link_lede": fn.get("link_lede") or "", "links": links}
+    sib = ({"lede": fn["sibling"]["lede"], "label": fn["sibling"]["label"], "href": sibling}
+           if sibling and isinstance(fn.get("sibling"), dict) else None)
+    return {"text": fn["text"], "link_lede": fn.get("link_lede") or "", "links": links, "sibling": sib}

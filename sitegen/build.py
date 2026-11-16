@@ -222,6 +222,13 @@ def seat_warnings(ix) -> list[str]:
     return []
 
 
+def city_books_not_read(finance_path: Path) -> tuple:
+    """finance.yml `books_not_read` of the locality whose finance.json this is (fetched and linked, not read)."""
+    from collector import fin_config
+    cfg_path = config.REPO_ROOT / "config" / "localities" / Path(finance_path).parent.name / "finance.yml"
+    return fin_config.load_books(cfg_path).budget.books_not_read if cfg_path.is_file() else ()
+
+
 def load_councils(councils, fixture: bool) -> list:
     """Each council (a config.COUNCILS entry): its facts file, schema- and reference-checked like the county's, and
     its wards file, as a council.CouncilIndex. A FIXTURE council is never built beside real county facts, nor a real
@@ -413,7 +420,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
           seats_path=DEFAULT, districts_path=DEFAULT, geocoder: bool = True, finance_path=DEFAULT,
           capital_fund=DEFAULT, councils=DEFAULT, target: str | None = None, transcripts: bool = True,
           rpc=DEFAULT, today=None, county_agendas=DEFAULT, morning_manifests=DEFAULT,
-          export: bool = True, fetch_manifests=DEFAULT) -> dict:
+          export: bool = True, fetch_manifests=DEFAULT, city_budget: bool = True) -> dict:
     """`geocoder=False` (`--no-geocoder`) draws no landing address box and allows no geocoder in the CSP: the build
     for the claude.ai preview, where the box could not reach the geocoder. The plain lookup line shows instead.
     `seats_path` / `districts_path`: the roster and map files. Left out, a real build reads config/seats.yml and
@@ -448,7 +455,10 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     `fetch_manifests`: the collectors' manifests whose first_fetched_at (by url and sha256) gives every fetch day a
     page prints as its site_timezone day (sitegen/localdates.py, docs/architecture/local-dates.md); left out,
     config/site.yml `fetch_manifests` for a real build and none for a fixture build. A source with no row shows its
-    stored UTC day, labelled "(UTC day)"."""
+    stored UTC day, labelled "(UTC day)".
+    `city_budget`: build the city's budget pages (city/finance/) when its finance.json exists. A preview still over its
+    cap without the transcript pages and the export is built again without them (the city hub then shows no budget
+    card, as when the books are not collected; the full site has them)."""
     target = target or config.DEFAULT_TARGET
     if target not in config.MAX_FILES_BY_TARGET:
         raise BuildError(f"unknown target {target!r}; one of {', '.join(sorted(config.MAX_FILES_BY_TARGET))}")
@@ -517,6 +527,21 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     except fin_views.FinanceError as exc:
         raise BuildError(f"{finance_path}: {exc}") from exc
     budget_pages = () if bg is None else ("Finance",) + (("Capital projects",) if bg.capital_fund else ())
+    # The city's budget books (finance-contracts 10): data/localities/<id>/finance.json beside the council's facts,
+    # built under the council's folder (city/finance/) with the county's templates. None for a fixture build.
+    city_bg, city_council, city_fin = None, None, None
+    if cixs and not fixture and city_budget:
+        c0 = cixs[0]
+        city_path = Path(c0.cfg["facts_path"]).parent / "finance.json"
+        if city_path.is_file():
+            city_fin = load_finance(city_path, fixture)
+            try:
+                city_bg = budget_views.Budget(fin_views.Finance(city_fin, c0.facts["officials"]), None,
+                                              prefix=c0.slug + "/", text=config.FIN_TEXT["budget_city"],
+                                              not_read=city_books_not_read(city_path), body_key=c0.body_key)
+            except fin_views.FinanceError as exc:
+                raise BuildError(f"{city_path}: {exc}") from exc
+            city_council = c0
     coming_slugs = {"Finance": "finance", "Capital projects": "capital-projects"}
     env = make_env()
 
@@ -530,7 +555,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         report_path = out.parent / "report.json"
 
     _clean(out, [c.slug for c in cixs] + ([rpx.slug] if rpx else []), export=export)
-    site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs, rpc=rpx)
+    site = views.site_context(ix, contracts=fx is not None, budget=budget_pages, councils=cixs, rpc=rpx,
+                              city_budget=city_bg.index if city_bg is not None else None)
     site["internal"] = internal
     # "Show records from" (views.site_context, sitegen/bodies.py): which page is each option's own, and the hub cards
     switch_current = (site["switch"] or {}).get("current") or {}
@@ -539,7 +565,8 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
     # RPC, the county agendas, finance), so no page reads as stale while a source is fresh (dates/footer-as-of-county-only)
     site["data_as_of"] = localdates.latest(
         ix.facts["sources"], *(c.facts["sources"] for c in cixs), rpx.facts["sources"] if rpx else (),
-        ax.sources.values() if ax else (), fx.fin["sources"] if fx else ()) or site["data_as_of"]
+        ax.sources.values() if ax else (), fx.fin["sources"] if fx else (),
+        city_fin["sources"] if city_fin else ()) or site["data_as_of"]
     site["councils"] = [council_mod.landing_entry(c) for c in cixs]
     site["purpose"] = views.purpose_line(cixs, rpc=rpx is not None, finance=fx is not None,
                                          rpc_votes=rpx is not None and rpx.votes_shown)
@@ -689,10 +716,10 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
             ctx = fin_views.solicitation(sol["id"], fx)
             render("fin_solicitation.html.j2", f"contracts/{sol['slug']}.html", f"{title}: {sol['title']}", **ctx)
         render("glossary.html.j2", "glossary.html", "Glossary", **fin_views.glossary())
-    if bg is not None:
-        title = config.FIN_TEXT["budget"]["title"]
-        render("fin_index.html.j2", budget_views.INDEX, title, **budget_views.finance_index(bg, export=export),
-               body_note=bodies_mod.finance_note(rpx))
+    def render_budget(bg, title, body_note, sctx=None):
+        """Finance index, one page per fund (and the capital page): the county's, or the city's under city/."""
+        render("fin_index.html.j2", bg.index, title, sctx, **budget_views.finance_index(bg, export=export),
+               body_note=body_note)
         # Fund and capital pages over config.PAGE_BYTES are split in parts by heading (finance-pages/page-weight):
         # every fund is planned first, so each line's row has its part before any page links to it.
         split = []
@@ -708,7 +735,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
             name = name or f"{title}: {full['title']}"
             us = budget_views.units(full, key)
             by_id = {u["id"]: u for u in us}
-            parts = plan_parts(us, lambda es: len(html_of(tpl, rel, name, parts=[], **make(
+            parts = plan_parts(us, lambda es: len(html_of(tpl, rel, name, sctx, parts=[], **make(
                 keep={e["id"] for e in es}, page=rel)).encode("utf-8")), [u["weight"] for u in us]) if us else [[]]
             stem = rel[:-len(".html")]
             paths = [rel if n == 1 else f"{stem}-{n}.html" for n in range(1, len(parts) + 1)]
@@ -723,8 +750,17 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
                    for ids, p in zip(parts, paths)] if len(parts) > 1 else []
             for n, (ids, path) in enumerate(zip(parts, paths), 1):
                 ctx = make(keep=set(ids), page=path, part_of=part_of) if len(parts) > 1 else make()
-                render(tpl, path, name if n == 1 else f"{name} (part {n})",
+                render(tpl, path, name if n == 1 else f"{name} (part {n})", sctx,
                        **ctx, parts=[{**p, "current": i == n} for i, p in enumerate(nav, 1)])
+
+    if bg is not None:
+        render_budget(bg, config.FIN_TEXT["budget"]["title"],
+                      bodies_mod.finance_note(rpx, sibling=city_bg.index if city_bg is not None else None))
+    if city_bg is not None:
+        render_budget(city_bg, config.FIN_TEXT["budget_city"]["title"],
+                      bodies_mod.finance_note(rpx, key="city_finance_note",
+                                              sibling=budget_views.INDEX if bg is not None else None),
+                      council_mod.site_for(site, city_council))
     for o in facts["officials"]:
         ctx = views.official(o["id"], ix)
         render("official.html.j2", f"officials/{o['id']}.html", o["name"], **ctx)
@@ -880,7 +916,7 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
                      finance_path, capital_fund, councils, target, transcripts=False, rpc=rpc, today=today,
                      county_agendas=county_agendas, morning_manifests=morning_manifests, export=export,
-                     fetch_manifests=fetch_manifests)
+                     fetch_manifests=fetch_manifests, city_budget=city_budget)
     if expected > cap and export and target == "preview":
         print(f"sitegen: {expected} files with the export is over the {target} cap of {cap}; building again without "
               f"the open-data export (do not run `collector export` for this preview; data.html says the files are "
@@ -888,8 +924,15 @@ def build(facts_path, out_dir, internal: bool = False, changes_path=None, report
         return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
                      finance_path, capital_fund, councils, target, transcripts=transcripts, rpc=rpc, today=today,
                      county_agendas=county_agendas, morning_manifests=morning_manifests, export=False,
-                     fetch_manifests=fetch_manifests)
+                     fetch_manifests=fetch_manifests, city_budget=city_budget)
+    if expected > cap and city_bg is not None and target == "preview":
+        print(f"sitegen: {expected} files is over the {target} cap of {cap}; building again without the city budget "
+              f"pages (they are on the full site)", file=sys.stderr)
+        return build(facts_path, out_dir, internal, changes_path, report_path, seats_path, districts_path, geocoder,
+                     finance_path, capital_fund, councils, target, transcripts=transcripts, rpc=rpc, today=today,
+                     county_agendas=county_agendas, morning_manifests=morning_manifests, export=export,
+                     fetch_manifests=fetch_manifests, city_budget=False)
     manifest = write_publish_manifest(out, target)
     return {"pages": written, "files": len(manifest) + 1, "target": target, "transcripts": transcripts,
             "transcript_pages": tx_pages, "files_with_export": expected,
-            "morning": morning_note, "export": export, "warnings": warnings}
+            "morning": morning_note, "export": export, "warnings": warnings, "city_budget": city_bg is not None}
