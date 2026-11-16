@@ -55,7 +55,7 @@ def page(ix, cixs=(), rpx=None, ax=None, fx=None, nav=(), budget_href: str | Non
                          rf["meetings"], rf["sources"]))
     if fx is not None:
         fin = fx.fin
-        rows.append(_row(config.FIN_TEXT["budget"]["title"] if budget_href else "Finance", budget_href or
+        rows.append(_row(f"{config.SITE.get('county_name') or 'County'} budget and purchasing", budget_href or
                          "contracts/index.html",
                          [("Budget books", len(fin.get("books") or []) or None),
                           ("Budget lines", len(fin.get("budget_lines") or []) or None),
