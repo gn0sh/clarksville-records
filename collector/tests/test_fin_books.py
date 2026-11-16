@@ -339,3 +339,50 @@ def test_fetch_asks_the_polite_fetcher_for_every_book(tmp_path):
     assert len(seen) == 4 and all(u.startswith("https://www.clarksvilletn.gov/") for u in seen)
     again = fin_books.cmd_fetch(store, fin_config.load_books(CITY), fetcher=Fetcher(), progress=lambda *a, **k: None)
     assert len(seen) == 4 and set(again["books"].values()) == {"cached"}     # a stored book is not asked for again
+
+
+# ------------------------------------------------------------------ the daily run's step (collector run)
+def _root(tmp_path):
+    import shutil
+    d = tmp_path / "config" / "localities" / "clarksville-tn"
+    d.mkdir(parents=True)
+    shutil.copy(CITY, d / "finance.yml")
+    return tmp_path
+
+
+def test_run_step_offline_with_no_stored_books_writes_nothing_and_never_raises(tmp_path, monkeypatch):
+    from collector import fin_books
+    monkeypatch.setenv("RECORDS_STORE", str(tmp_path / "store"))
+    root = _root(tmp_path)
+    log = {}
+    out = fin_books.run_step(log, offline=True, root=root, progress=lambda *a, **k: None)
+    assert out["clarksville-tn"]["fetch"] is None                 # offline: no request at all
+    assert out["clarksville-tn"]["build"] == 2                    # book missing from the store: guard, nothing written
+    assert not (root / "data" / "localities" / "clarksville-tn" / "finance.json").exists()
+    assert log["city_books"] is out
+
+
+def test_run_step_online_fetches_only_books_not_stored_and_survives_a_block(tmp_path, monkeypatch):
+    from collector import fin_books
+    from collector.fetch import HostBlocked
+    monkeypatch.setenv("RECORDS_STORE", str(tmp_path / "store"))
+    root = _root(tmp_path)
+    asked = []
+
+    class Blocked:
+        extra_denied = ()
+        log = []
+
+        def get(self, url):
+            asked.append(url)
+            raise HostBlocked("blocked")
+
+    out = fin_books.run_step({}, offline=False, fetcher=Blocked(), root=root, progress=lambda *a, **k: None)
+    res = out["clarksville-tn"]
+    assert len(asked) == 1 and res["fetch"]["stopped"]            # the first refusal ends the host's requests
+    assert res["build"] == 2 and "error" not in res
+
+
+def test_localities_lists_books_only_configs():
+    from collector import fin_books
+    assert fin_books.localities() == ["clarksville-tn"]

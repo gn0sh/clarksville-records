@@ -119,6 +119,46 @@ def cmd_build(store: Store, cfg: fin_config.BooksConfig, finance_path: Path, rep
     return 0
 
 
+def localities(root: Path = ROOT) -> list[str]:
+    """The councils' localities (config/site.yml `councils`) with a books-only finance.yml, in config order. The
+    county's own finance.yml (the purchasing archive and its books) runs through fin_run, not here."""
+    import yaml
+    site = root / "config" / "site.yml"
+    if site.is_file():
+        locs = (yaml.safe_load(site.read_text(encoding="utf-8")) or {}).get("councils") or []
+    else:       # a test root with only locality configs
+        locs = sorted(p.parent.name for p in (root / "config" / "localities").glob("*/finance.yml"))
+    return [loc for loc in locs if (root / "config" / "localities" / loc / "finance.yml").is_file()]
+
+
+def run_step(log: dict, offline: bool, fetcher: PoliteFetcher | None = None, root: Path = ROOT,
+             progress=print) -> dict:
+    """The daily run's step (collector run, before the site build): per locality, fetch only books not in the store
+    yet (online runs; a stored book is never requested again), then build offline from the store. Never raises and
+    never fails the run: a refusal, a missing book or a guard problem writes nothing and leaves the committed
+    finance.json as it is; the outcome goes to log['city_books'] {locality: {fetch, build}}."""
+    out = log.setdefault("city_books", {})
+    for loc in localities(root):
+        p = paths(loc, root)
+        res: dict = {"fetch": None, "build": None}
+        out[loc] = res
+        try:
+            cfg = fin_config.load_books(p["config"])
+            store = Store(manifest_path=p["manifest"])
+            if not offline:
+                flog = cmd_fetch(store, cfg, fetcher, progress)
+                res["fetch"] = {"stopped": flog["stopped"], "failures": flog["failures"],
+                                "new": sorted(k for k, v in flog.get("books", {}).items() if v in ("new", "changed"))}
+                if flog["stopped"]:
+                    progress(f"collector: city books {loc}: fetch stopped ({flog['stopped']}); building from the store",
+                             flush=True)
+            res["build"] = cmd_build(store, cfg, p["finance"], p["report"])
+        except Exception as e:   # noqa: BLE001 - one locality's books must never stop the daily run
+            res["error"] = f"{type(e).__name__}: {e}"
+            progress(f"collector: city books {loc}: {res['error']}; the committed finance.json is kept", flush=True)
+    return out
+
+
 def main(argv=None) -> int:
     import argparse
     import sys

@@ -10,7 +10,8 @@ run: discover -> fetch new (polite), and refetch any manifest minutes whose byte
 resolve names -> verify -> shrink guard -> data/facts.json -> finance fetch and
 build (fin_run.run_step: data/finance.json, build/report.json `finance`) -> county agendas (county_agenda.run_step:
 the agenda page, new agenda PDFs, data/county-agendas/agendas.json) -> Regional Planning Commission (rpc.run_step:
-the listing page, new documents, data/localities/cmc-rpc/rpc.json; all or nothing) -> sitegen -> export ->
+the listing page, new documents, data/localities/cmc-rpc/rpc.json; all or nothing) -> city budget books (fin_books.run_step: new books only, built offline into
+data/localities/<id>/finance.json; a warning at most) -> sitegen -> export ->
 build/report.json, build/run-log.json. Exit 0 ok, 2 on fetch/parse failures (votes or finance), 3 on a gate failure
 (votes gates, or finance parity 'review needed'), 7 (KEPT, a warning) when the shrink guard kept a source document's
 meetings as committed, or a correction lowered a document's verified count; everything else is published. The RPC
@@ -131,6 +132,13 @@ def finance_fetcher() -> PoliteFetcher:
 def run_finance(store: Store, log: dict, offline: bool, **kw) -> int:
     from .fin_run import run_step
     return run_step(store, log, offline, **kw)
+
+
+def run_city_books(log: dict, offline: bool, fetcher: PoliteFetcher | None = None) -> None:
+    """The city's budget books (collector/fin_books.py run_step): fetch only new books, build offline daily into
+    data/localities/<id>/finance.json. A warning at most: it never changes the run's exit code."""
+    from .fin_books import run_step
+    run_step(log, offline, fetcher=fetcher)
 
 
 def run_agendas(log: dict, offline: bool, fetcher: PoliteFetcher | None = None) -> None:
@@ -457,6 +465,7 @@ def cmd_run(args) -> int:
     county_trips += limits.tripped(agendas_since)
     rpc_code = run_rpc(log, args.offline, fetcher=fetcher,      # before the site build, which reads rpc.json
                        allow_shrink=allow)
+    run_city_books(log, args.offline, fetcher=fetcher)          # before the site build, which reads them
     site = BUILD / "site"
     try:
         from sitegen.build import build as site_build, write_publish_manifest
